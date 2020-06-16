@@ -19,6 +19,7 @@
 #include "SFilterList.h"
 #include "SAssetView.h"
 #include "SContentBrowser.h"
+#include "ContentBrowserUtils.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor.h"
 #include "PropertyHandle.h"
@@ -42,6 +43,14 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	DefaultFilterMenuExpansion = InArgs._AssetPickerConfig.DefaultFilterMenuExpansion;
 	SaveSettingsName = InArgs._AssetPickerConfig.SaveSettingsName;
 	OnFolderEnteredDelegate = InArgs._AssetPickerConfig.OnFolderEntered;
+	OnGetAssetContextMenu = InArgs._AssetPickerConfig.OnGetAssetContextMenu;
+	OnGetFolderContextMenu = InArgs._AssetPickerConfig.OnGetFolderContextMenu;
+
+	FOnGetContentBrowserItemContextMenu OnGetItemContextMenu;
+	if (OnGetAssetContextMenu.IsBound() || OnGetFolderContextMenu.IsBound())
+	{
+		OnGetItemContextMenu = FOnGetContentBrowserItemContextMenu::CreateSP(this, &SAssetPicker::GetItemContextMenu);
+	}
 
 	if ( InArgs._AssetPickerConfig.bFocusSearchBoxWhenOpened )
 	{
@@ -269,12 +278,13 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	.FillHeight(1.f)
 	[
 		SAssignNew(AssetViewPtr, SAssetView)
+		.InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAssets)
 		.SelectionMode( InArgs._AssetPickerConfig.SelectionMode )
 		.OnShouldFilterAsset(ShouldFilterAssetDelegate)
-		.OnAssetSelectionChanged(this, &SAssetPicker::HandleAssetSelectionChanged)
-		.OnAssetsActivated(this, &SAssetPicker::HandleAssetsActivated)
-		.OnGetAssetContextMenu(InArgs._AssetPickerConfig.OnGetAssetContextMenu)
-		.OnGetFolderContextMenu(InArgs._AssetPickerConfig.OnGetFolderContextMenu)
+		.OnNewItemRequested(this, &SAssetPicker::HandleNewItemRequested)
+		.OnItemSelectionChanged(this, &SAssetPicker::HandleItemSelectionChanged)
+		.OnItemsActivated(this, &SAssetPicker::HandleItemsActivated)
+		.OnGetItemContextMenu(OnGetItemContextMenu)
 		.OnIsAssetValidForCustomToolTip(InArgs._AssetPickerConfig.OnIsAssetValidForCustomToolTip)
 		.OnGetCustomAssetToolTip(InArgs._AssetPickerConfig.OnGetCustomAssetToolTip)
 		.OnVisualizeAssetToolTip(InArgs._AssetPickerConfig.OnVisualizeAssetToolTip)
@@ -304,7 +314,6 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.ThumbnailLabel( ThumbnailLabel )
 		.AssetShowWarningText( InArgs._AssetPickerConfig.AssetShowWarningText)
 		.AllowFocusOnSync(false)	// Stop the asset view from stealing focus (we're in control of that)
-		.OnPathSelected(this, &SAssetPicker::FolderEntered)
 		.HiddenColumnNames(InArgs._AssetPickerConfig.HiddenColumnNames)
 		.CustomColumns(InArgs._AssetPickerConfig.CustomColumns)
 		.OnSearchOptionsChanged(this, &SAssetPicker::HandleSearchSettingsChanged)
@@ -373,8 +382,8 @@ FReply SAssetPicker::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InK
 {
 	if (InKeyEvent.GetKey() == EKeys::Enter)
 	{
-		TArray<FAssetData> SelectionSet = AssetViewPtr->GetSelectedAssets();
-		HandleAssetsActivated(SelectionSet, EAssetTypeActivationMethod::Opened);
+		TArray<FContentBrowserItem> SelectionSet = AssetViewPtr->GetSelectedFileItems();
+		HandleItemsActivated(SelectionSet, EAssetTypeActivationMethod::Opened);
 
 		return FReply::Handled();
 	}
@@ -389,8 +398,8 @@ FReply SAssetPicker::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InK
 
 void SAssetPicker::FolderEntered(const FString& FolderPath)
 {
-	CurrentSourcesData.PackagePaths.Reset();
-	CurrentSourcesData.PackagePaths.Add(FName(*FolderPath));
+	CurrentSourcesData.VirtualPaths.Reset();
+	CurrentSourcesData.VirtualPaths.Add(FName(*FolderPath));
 
 	AssetViewPtr->SetSourcesData(CurrentSourcesData);
 
@@ -432,19 +441,19 @@ void SAssetPicker::OnSearchBoxCommitted(const FText& InSearchText, ETextCommit::
 
 	if (CommitInfo == ETextCommit::OnEnter)
 	{
-		TArray<FAssetData> SelectionSet = AssetViewPtr->GetSelectedAssets();
+		TArray<FContentBrowserItem> SelectionSet = AssetViewPtr->GetSelectedFileItems();
 		if ( SelectionSet.Num() == 0 )
 		{
 			AssetViewPtr->AdjustActiveSelection(1);
-			SelectionSet = AssetViewPtr->GetSelectedAssets();
+			SelectionSet = AssetViewPtr->GetSelectedFileItems();
 		}
-		HandleAssetsActivated(SelectionSet, EAssetTypeActivationMethod::Opened);
+		HandleItemsActivated(SelectionSet, EAssetTypeActivationMethod::Opened);
 	}
 }
 
 void SAssetPicker::SetNewBackendFilter(const FARFilter& NewFilter)
 {
-	CurrentSourcesData.PackagePaths = NewFilter.PackagePaths;
+	CurrentSourcesData.VirtualPaths = NewFilter.PackagePaths;
 	if(AssetViewPtr.IsValid())
 	{
 		AssetViewPtr->SetSourcesData(CurrentSourcesData);
@@ -493,16 +502,61 @@ FReply SAssetPicker::OnNoneButtonClicked()
 	return FReply::Handled();
 }
 
-void SAssetPicker::HandleAssetSelectionChanged(const FAssetData& InAssetData, ESelectInfo::Type InSelectInfo)
+void SAssetPicker::HandleNewItemRequested(const FContentBrowserItem& NewItem)
 {
-	if(InSelectInfo != ESelectInfo::Direct)
+	// Make sure we are showing the location of the new file (we may have created it in a folder)
+	const FString ItemOwnerPath = FPaths::GetPath(NewItem.GetVirtualPath().ToString());
+	FolderEntered(ItemOwnerPath);
+}
+
+void SAssetPicker::HandleItemSelectionChanged(const FContentBrowserItem& InSelectedItem, ESelectInfo::Type InSelectInfo)
+{
+	if (InSelectInfo != ESelectInfo::Direct)
 	{
-		OnAssetSelected.ExecuteIfBound(InAssetData);
+		FAssetData ItemAssetData;
+		if (InSelectedItem.Legacy_TryGetAssetData(ItemAssetData))
+		{
+			OnAssetSelected.ExecuteIfBound(ItemAssetData);
+		}
 	}
 }
 
-void SAssetPicker::HandleAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod)
+void SAssetPicker::HandleItemsActivated(TArrayView<const FContentBrowserItem> ActivatedItems, EAssetTypeActivationMethod::Type ActivationMethod)
 {
+	FContentBrowserItem FirstActivatedFolder;
+
+	TArray<FAssetData> ActivatedAssets;
+	for (const FContentBrowserItem& ActivatedItem : ActivatedItems)
+	{
+		if (ActivatedItem.IsFile())
+		{
+			FAssetData ItemAssetData;
+			if (ActivatedItem.Legacy_TryGetAssetData(ItemAssetData))
+			{
+				ActivatedAssets.Add(MoveTemp(ItemAssetData));
+			}
+		}
+
+		if (ActivatedItem.IsFolder() && !FirstActivatedFolder.IsValid())
+		{
+			FirstActivatedFolder = ActivatedItem;
+		}
+	}
+
+	if (FirstActivatedFolder.IsValid())
+	{
+		if (ActivatedAssets.Num() == 0)
+		{
+			FolderEntered(FirstActivatedFolder.GetVirtualPath().ToString());
+		}
+		return;
+	}
+
+	if (ActivatedAssets.Num() == 0)
+	{
+		return;
+	}
+
 	if (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked)
 	{
 		if (ActivatedAssets.Num() == 1)
@@ -520,7 +574,7 @@ void SAssetPicker::HandleAssetsActivated(const TArray<FAssetData>& ActivatedAsse
 
 void SAssetPicker::SyncToAssets(const TArray<FAssetData>& AssetDataList)
 {
-	AssetViewPtr->SyncToAssets(AssetDataList);
+	AssetViewPtr->SyncToLegacy(AssetDataList, TArray<FString>());
 }
 
 TArray< FAssetData > SAssetPicker::GetCurrentSelection()
@@ -580,32 +634,16 @@ ECheckBoxState SAssetPicker::GetShowOtherDevelopersCheckState() const
 
 void SAssetPicker::OnRenameRequested() const
 {
-	TArray< FAssetData > AssetViewSelectedAssets = AssetViewPtr->GetSelectedAssets();
-	TArray< FString > SelectedFolders = AssetViewPtr->GetSelectedFolders();
-
-	if ( AssetViewSelectedAssets.Num() == 1 && SelectedFolders.Num() == 0 )
+	const TArray<FContentBrowserItem> SelectedItems = AssetViewPtr->GetSelectedItems();
+	if (SelectedItems.Num() == 1)
 	{
-		// Don't operate on Redirectors
-		if ( AssetViewSelectedAssets[0].AssetClass != UObjectRedirector::StaticClass()->GetFName() )
-		{
-			AssetViewPtr->RenameAsset(AssetViewSelectedAssets[0]);
-		}
-	}
-	else if ( AssetViewSelectedAssets.Num() == 0 && SelectedFolders.Num() == 1 )
-	{
-		AssetViewPtr->RenameFolder(SelectedFolders[0]);
+		AssetViewPtr->RenameItem(SelectedItems[0]);
 	}
 }
 
 bool SAssetPicker::CanExecuteRenameRequested()
 {
-	TArray< FAssetData > AssetViewSelectedAssets = AssetViewPtr->GetSelectedAssets();
-	TArray< FString > SelectedFolders = AssetViewPtr->GetSelectedFolders();
-
-	const bool bCanRenameFolder = ( AssetViewSelectedAssets.Num() == 0 && SelectedFolders.Num() == 1 );
-	const bool bCanRenameAsset = ( AssetViewSelectedAssets.Num() == 1 && SelectedFolders.Num() == 0 ) && ( AssetViewSelectedAssets[0].AssetClass != UObjectRedirector::StaticClass()->GetFName() ); 
-
-	return	bCanRenameFolder || bCanRenameAsset;
+	return ContentBrowserUtils::CanRenameFromAssetView(AssetViewPtr);
 }
 
 void SAssetPicker::BindCommands()
@@ -656,6 +694,60 @@ void SAssetPicker::HandleSearchSettingsChanged()
 	TextFilter->SetIncludeClassName(bClassNamesProvided || AssetViewPtr->IsIncludingClassNames());
 	TextFilter->SetIncludeAssetPath(AssetViewPtr->IsIncludingAssetPaths());
 	TextFilter->SetIncludeCollectionNames(AssetViewPtr->IsIncludingCollectionNames());
+}
+
+TSharedPtr<SWidget> SAssetPicker::GetItemContextMenu(TArrayView<const FContentBrowserItem> SelectedItems)
+{
+	// We may only open the file or folder context menu (folder takes priority), so see whether we have any folders selected
+	TArray<FContentBrowserItem> SelectedFolders;
+	for (const FContentBrowserItem& SelectedItem : SelectedItems)
+	{
+		if (SelectedItem.IsFolder())
+		{
+			SelectedFolders.Add(SelectedItem);
+		}
+	}
+
+	if (SelectedFolders.Num() > 0)
+	{
+		// Folders selected - show the folder menu
+
+		TArray<FString> SelectedPackagePaths;
+		for (const FContentBrowserItem& SelectedFolder : SelectedFolders)
+		{
+			FName PackagePath;
+			if (SelectedFolder.Legacy_TryGetPackagePath(PackagePath))
+			{
+				SelectedPackagePaths.Add(PackagePath.ToString());
+			}
+		}
+
+		if (SelectedPackagePaths.Num() > 0 && OnGetFolderContextMenu.IsBound())
+		{
+			return OnGetFolderContextMenu.Execute(SelectedPackagePaths, FContentBrowserMenuExtender_SelectedPaths(), FOnCreateNewFolder::CreateSP(AssetViewPtr.Get(), &SAssetView::NewFolderItemRequested));
+		}
+	}
+	else
+	{
+		// Files selected - show the file menu
+
+		TArray<FAssetData> SelectedAssets;
+		for (const FContentBrowserItem& SelectedItem : SelectedItems)
+		{
+			FAssetData ItemAssetData;
+			if (SelectedItem.IsFile() && SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
+			{
+				SelectedAssets.Add(MoveTemp(ItemAssetData));
+			}
+		}
+
+		if (OnGetFolderContextMenu.IsBound())
+		{
+			return OnGetAssetContextMenu.Execute(SelectedAssets);
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -206,21 +206,25 @@ bool FFrontendFilter_GameplayTags::ProcessProperty(void* Data, FProperty* Prop) 
 
 bool FFrontendFilter_GameplayTags::PassesFilter(FAssetFilterType InItem) const
 {
-	if (UObject* Object = InItem.FastGetAsset(false))
+	FAssetData ItemAssetData;
+	if (InItem.Legacy_TryGetAssetData(ItemAssetData))
 	{
-		if (UBlueprint* Blueprint = Cast<UBlueprint>(Object))
+		if (UObject* Object = ItemAssetData.FastGetAsset(false))
 		{
-			return ProcessStruct(Blueprint->GeneratedClass->GetDefaultObject(), Blueprint->GeneratedClass);
+			if (UBlueprint* Blueprint = Cast<UBlueprint>(Object))
+			{
+				return ProcessStruct(Blueprint->GeneratedClass->GetDefaultObject(), Blueprint->GeneratedClass);
 
-			//@TODO: Check blueprint bytecode!
-		}
-		else if (UClass* Class = Cast<UClass>(Object))
-		{
-			return ProcessStruct(Class->GetDefaultObject(), Class);
-		}
-		else
-		{
-			return ProcessStruct(Object, Object->GetClass());
+				//@TODO: Check blueprint bytecode!
+			}
+			else if (UClass* Class = Cast<UClass>(Object))
+			{
+				return ProcessStruct(Class->GetDefaultObject(), Class);
+			}
+			else
+			{
+				return ProcessStruct(Object, Object->GetClass());
+			}
 		}
 	}
 	return false;

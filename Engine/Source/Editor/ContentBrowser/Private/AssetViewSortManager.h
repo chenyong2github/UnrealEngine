@@ -6,7 +6,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "ContentBrowserDelegates.h"
 
-struct FAssetViewItem;
+class FAssetViewItem;
 
 class FAssetViewSortManager
 {
@@ -18,10 +18,10 @@ public:
 	void ResetSort();
 
 	/** Sorts a list using the current ColumnId and Mode. Supply a MajorityAssetType to help discover sorting type (numerical vs alphabetical) */
-	void SortList(TArray<TSharedPtr<struct FAssetViewItem>>& AssetItems, const FName& MajorityAssetType, const TArray<FAssetViewCustomColumn>& CustomColumns) const;
+	void SortList(TArray<TSharedPtr<FAssetViewItem>>& AssetItems, const FName& MajorityAssetType, const TArray<FAssetViewCustomColumn>& CustomColumns) const;
 
 	/** Exports the list of asset items to CSV, in order and with the listed columns */
-	void ExportColumnsToCSV(TArray<TSharedPtr<struct FAssetViewItem>>& AssetItems, TArray<FName>& ColumnList, const TArray<FAssetViewCustomColumn>& CustomColumns, FString& OutString) const;
+	void ExportColumnsToCSV(TArray<TSharedPtr<FAssetViewItem>>& AssetItems, TArray<FName>& ColumnList, const TArray<FAssetViewCustomColumn>& CustomColumns, FString& OutString) const;
 
 	/** Sets the sort mode based on the column that was clicked, returns true if newly assigned */
 	bool SetOrToggleSortColumn(const EColumnSortPriority::Type InSortPriority, const FName& InColumnId);
@@ -39,7 +39,7 @@ public:
 	FName GetSortColumnId(const EColumnSortPriority::Type InSortPriority) const { check(InSortPriority < EColumnSortPriority::Max); return SortColumnId[InSortPriority]; }
 
 	/** Refresh a custom column if needed.  If found, returns true with TagType parameter set */
-	bool FindAndRefreshCustomColumn(TArray<TSharedPtr<FAssetViewItem>>& AssetItems, FName ColumnName, const TArray<FAssetViewCustomColumn>& CustomColumns, UObject::FAssetRegistryTag::ETagType& TagType) const;
+	bool FindAndRefreshCustomColumn(const TArray<TSharedPtr<FAssetViewItem>>& AssetItems, const FName ColumnName, const TArray<FAssetViewCustomColumn>& CustomColumns, UObject::FAssetRegistryTag::ETagType& TagType) const;
 
 public:
 	/** The names of non-type specific columns in the columns view. */

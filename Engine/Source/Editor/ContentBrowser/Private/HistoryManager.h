@@ -9,24 +9,22 @@ class FMenuBuilder;
 
 struct FSelectionData
 {
-	TSet<FName> SelectedAssets;
-	TSet<FString> SelectedFolders;
+	/** Virtual paths (for both folders and files) of the selected items */
+	TSet<FName> SelectedVirtualPaths;
 
 	int32 Num() const
 	{
-		return SelectedAssets.Num() + SelectedFolders.Num();
+		return SelectedVirtualPaths.Num();
 	}
 
 	void Reset()
 	{
-		SelectedAssets.Reset();
-		SelectedFolders.Reset();
+		SelectedVirtualPaths.Reset();
 	}
 
 	void Empty()
 	{
-		SelectedAssets.Empty();
-		SelectedFolders.Empty();
+		SelectedVirtualPaths.Empty();
 	}
 };
 

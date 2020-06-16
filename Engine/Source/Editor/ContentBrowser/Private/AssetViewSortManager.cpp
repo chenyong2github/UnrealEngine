@@ -2,6 +2,7 @@
 
 #include "AssetViewSortManager.h"
 #include "AssetViewTypes.h"
+#include "ContentBrowserDataSource.h"
 
 struct FCompareFAssetItemBase
 {
@@ -43,13 +44,14 @@ private:
 	/** Compare the folders of both assets */
 	FORCEINLINE bool CompareFolderFirst(const TSharedPtr<FAssetViewItem>& A, const TSharedPtr<FAssetViewItem>& B, bool& bComparisonResult) const
 	{
-		if (A->GetType() == EAssetItemType::Folder)
+		// TODO: Have a view option to sort folders first or not (eg, Explorer vs Finder behavior)
+		const FContentBrowserItemData* AItemData = A->GetItem().GetPrimaryInternalItem();
+		const FContentBrowserItemData* BItemData = B->GetItem().GetPrimaryInternalItem();
+		if (AItemData && AItemData->IsFolder())
 		{
-			if (B->GetType() == EAssetItemType::Folder)
+			if (BItemData && BItemData->IsFolder())
 			{
-				const FText& ValueA = StaticCastSharedPtr<FAssetViewFolder>(A)->FolderName;
-				const FText& ValueB = StaticCastSharedPtr<FAssetViewFolder>(B)->FolderName;
-				const int32 Result = ValueA.CompareTo(ValueB);
+				const int32 Result = AItemData->GetDisplayName().CompareTo(BItemData->GetDisplayName());
 				bComparisonResult = bAscending ? Result < 0 : Result > 0;
 			}
 			else
@@ -58,7 +60,7 @@ private:
 			}
 			return true;
 		}
-		else if (B->GetType() == EAssetItemType::Folder)
+		else if (BItemData && BItemData->IsFolder())
 		{
 			bComparisonResult = !bAscending;
 			return true;
@@ -109,13 +111,11 @@ public:
 protected:
 	FORCEINLINE virtual bool Compare(const TSharedPtr<FAssetViewItem>& A, const TSharedPtr<FAssetViewItem>& B) const override
 	{
-		int32 Result = FCStringWide::Strcmp(StaticCastSharedPtr<FAssetViewAsset>(A)->FirstFewAssetNameCharacters, StaticCastSharedPtr<FAssetViewAsset>(B)->FirstFewAssetNameCharacters);
-		if (Result == 0)
-		{
-			const FName& ValueA = StaticCastSharedPtr<FAssetViewAsset>(A)->Data.AssetName;
-			const FName& ValueB = StaticCastSharedPtr<FAssetViewAsset>(B)->Data.AssetName;
-			Result = ValueA.Compare(ValueB);
-		}
+		const FContentBrowserItemData* AItemData = A->GetItem().GetPrimaryInternalItem();
+		const FContentBrowserItemData* BItemData = B->GetItem().GetPrimaryInternalItem();
+		// TODO: Have an option to sort by display name? It's slower, but more correct for non-English languages
+		//const int32 Result = (AItemData && BItemData) ? AItemData->GetDisplayName().CompareTo(BItemData->GetDisplayName()) : 0;
+		const int32 Result = (AItemData && BItemData) ? AItemData->GetItemName().Compare(BItemData->GetItemName()) : 0;
 		if (Result < 0)
 		{
 			return bAscending;
@@ -137,8 +137,14 @@ public:
 protected:
 	FORCEINLINE virtual bool Compare(const TSharedPtr<FAssetViewItem>& A, const TSharedPtr<FAssetViewItem>& B) const override
 	{
-		const FName& ValueA = StaticCastSharedPtr<FAssetViewAsset>(A)->Data.AssetClass;
-		const FName& ValueB = StaticCastSharedPtr<FAssetViewAsset>(B)->Data.AssetClass;
+		auto GetClassName = [](const FContentBrowserItem& Item)
+		{
+			FContentBrowserItemDataAttributeValue ClassValue = Item.GetItemAttribute(ContentBrowserItemAttributes::ItemTypeName);
+			return ClassValue.IsValid() ? ClassValue.GetValue<FName>() : FName();
+		};
+
+		const FName ValueA = GetClassName(A->GetItem());
+		const FName ValueB = GetClassName(B->GetItem());
 		const int32 Result = ValueA.Compare(ValueB);
 		if (Result < 0)
 		{
@@ -161,9 +167,9 @@ public:
 protected:
 	FORCEINLINE virtual bool Compare(const TSharedPtr<FAssetViewItem>& A, const TSharedPtr<FAssetViewItem>& B) const override
 	{
-		const FName& ValueA = StaticCastSharedPtr<FAssetViewAsset>(A)->Data.PackagePath;
-		const FName& ValueB = StaticCastSharedPtr<FAssetViewAsset>(B)->Data.PackagePath;
-		const int32 Result = ValueA.Compare(ValueB);
+		const FContentBrowserItemData* AItemData = A->GetItem().GetPrimaryInternalItem();
+		const FContentBrowserItemData* BItemData = B->GetItem().GetPrimaryInternalItem();
+		const int32 Result = (AItemData && BItemData) ? AItemData->GetVirtualPath().Compare(BItemData->GetVirtualPath()) : 0;
 		if (Result < 0)
 		{
 			return bAscending;
@@ -187,19 +193,19 @@ protected:
 	{
 		// Depending if we're sorting ascending or descending it's quicker to flip the compares incase tags are missing
 		FString Value1;
-		const bool bFoundValue1 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value1) : StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value1);
+		const bool bFoundValue1 = bAscending ? A->GetTagValue(Tag, Value1) : B->GetTagValue(Tag, Value1);
 		if (!bFoundValue1)
 		{
 			return true;
 		}
-
+		
 		FString Value2;
-		const bool bFoundValue2 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value2) : StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value2);
+		const bool bFoundValue2 = bAscending ? B->GetTagValue(Tag, Value2) : A->GetTagValue(Tag, Value2);
 		if (!bFoundValue2)
 		{
 			return false;
 		}
-
+		
 		const int32 Result = Value1.Compare(Value2, ESearchCase::IgnoreCase);
 		if (Result < 0)
 		{
@@ -224,23 +230,23 @@ protected:
 	{
 		// Depending if we're sorting ascending or descending it's quicker to flip the compares incase tags are missing
 		FString Value1;
-		const bool bFoundValue1 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value1) : StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value1);
+		const bool bFoundValue1 = bAscending ? A->GetTagValue(Tag, Value1) : B->GetTagValue(Tag, Value1);
 		if (!bFoundValue1)
 		{
 			return true;
 		}
-
+		
 		FString Value2;
-		const bool bFoundValue2 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value2) : StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value2);
+		const bool bFoundValue2 = bAscending ? B->GetTagValue(Tag, Value2) : A->GetTagValue(Tag, Value2);
 		if (!bFoundValue2)
 		{
 			return false;
 		}
-
+		
 		float FloatValue1 = 0.0f, FloatValue2 = 0.0f;
 		LexFromString(FloatValue1, *Value1);
 		LexFromString(FloatValue2, *Value2);
-
+		
 		if (FloatValue1 < FloatValue2)
 		{
 			return true;
@@ -264,19 +270,19 @@ protected:
 	{
 		// Depending if we're sorting ascending or descending it's quicker to flip the compares incase tags are missing
 		FString Value1;
-		const bool bHasFoundValue1 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value1) : StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value1);
+		const bool bHasFoundValue1 = bAscending ? A->GetTagValue(Tag, Value1) : B->GetTagValue(Tag, Value1);
 		if (!bHasFoundValue1)
 		{
 			return true;
 		}
-
+		
 		FString Value2;
-		const bool bHasFoundValue2 = bAscending ? StaticCastSharedPtr<FAssetViewAsset>(B)->GetTagValue(Tag, Value2) : StaticCastSharedPtr<FAssetViewAsset>(A)->GetTagValue(Tag, Value2);
+		const bool bHasFoundValue2 = bAscending ? B->GetTagValue(Tag, Value2) : A->GetTagValue(Tag, Value2);
 		if (!bHasFoundValue2)
 		{
 			return false;
 		}
-
+		
 		float Num1 = 1.f;
 		{
 			TArray<FString> Tokens1;
@@ -327,35 +333,27 @@ void FAssetViewSortManager::ResetSort()
 	}
 }
 
-bool FAssetViewSortManager::FindAndRefreshCustomColumn(TArray<TSharedPtr<FAssetViewItem>>& AssetItems, FName ColumnName, const TArray<FAssetViewCustomColumn>& CustomColumns, UObject::FAssetRegistryTag::ETagType& TagType) const
+bool FAssetViewSortManager::FindAndRefreshCustomColumn(const TArray<TSharedPtr<FAssetViewItem>>& AssetItems, const FName ColumnName, const TArray<FAssetViewCustomColumn>& CustomColumns, UObject::FAssetRegistryTag::ETagType& TagType) const
 {
 	TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
 
-	// Look in custom columns list
-	for (const FAssetViewCustomColumn& Column : CustomColumns)
+	const FAssetViewCustomColumn* FoundColumn = CustomColumns.FindByPredicate([&ColumnName](const FAssetViewCustomColumn& Column)
 	{
-		if (Column.ColumnName == ColumnName)
+		return Column.ColumnName == ColumnName;
+	});
+
+	if (FoundColumn)
+	{
+		for (const TSharedPtr<FAssetViewItem>& Item : AssetItems)
 		{
-			// Refresh the custom data now so it can sort
-
-			for (TSharedPtr<struct FAssetViewItem> AssetItem : AssetItems)
-			{
-				if (!AssetItem.IsValid() || AssetItem->GetType() == EAssetItemType::Folder)
-				{
-					continue;
-				}
-
-				FAssetViewAsset* Asset = StaticCastSharedPtr<FAssetViewAsset>(AssetItem).Get();
-
-				if (!Asset->CustomColumnData.Find(Column.ColumnName))
-				{
-					Asset->CustomColumnData.Add(Column.ColumnName, Column.OnGetColumnData.Execute(Asset->Data, Column.ColumnName));
-				}
-			}
-			TagType = Column.DataType;
-			return true;
+			// Update the custom column data
+			Item->CacheCustomColumns(MakeArrayView(FoundColumn, 1), true, false, false);
 		}
+
+		TagType = FoundColumn->DataType;
+		return true;
 	}
+
 	return false;
 }
 
@@ -388,29 +386,20 @@ void FAssetViewSortManager::SortList(TArray<TSharedPtr<FAssetViewItem>>& AssetIt
 		}
 		else
 		{
-			UObject::FAssetRegistryTag::ETagType TagType;
-			bool bFoundCustomColumn = FindAndRefreshCustomColumn(AssetItems, Tag, CustomColumns, TagType);
+			UObject::FAssetRegistryTag::ETagType TagType = UObject::FAssetRegistryTag::TT_Hidden;
+			const bool bFoundCustomColumn = FindAndRefreshCustomColumn(AssetItems, Tag, CustomColumns, TagType);
 			
-			// Since this SortData.Tag is not one of preset columns, sort by asset registry tag	
-			if ((!bFoundCustomColumn || TagType == UObject::FAssetRegistryTag::ETagType::TT_Hidden) && MajorityAssetType != NAME_None)
+			// Find an item of the correct type so that we can get the type to sort on
+			if (!bFoundCustomColumn)
 			{
-				UClass* Class = FindObject<UClass>(ANY_PACKAGE, *MajorityAssetType.ToString());
-				if (Class)
+				for (const TSharedPtr<FAssetViewItem>& AssetItem : AssetItems)
 				{
-					UObject* CDO = Class->GetDefaultObject();
-					if (CDO)
+					const FContentBrowserItemDataAttributeValue ClassValue = AssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemTypeName);
+					if (ClassValue.IsValid() && ClassValue.GetValue<FName>() == MajorityAssetType)
 					{
-						TArray<UObject::FAssetRegistryTag> TagList;
-						CDO->GetAssetRegistryTags(TagList);
-
-						for (auto TagIt = TagList.CreateConstIterator(); TagIt; ++TagIt)
-						{
-							if (TagIt->Name == Tag)
-							{
-								TagType = TagIt->Type;
-								break;
-							}
-						}
+						FString UnusedValue;
+						AssetItem->GetTagValue(Tag, UnusedValue, &TagType);
+						break;
 					}
 				}
 			}
@@ -459,7 +448,7 @@ void FAssetViewSortManager::SortList(TArray<TSharedPtr<FAssetViewItem>>& AssetIt
 	//UE_LOG(LogContentBrowser, Warning/*VeryVerbose*/, TEXT("FAssetViewSortManager Sort Time: %0.4f seconds."), FPlatformTime::Seconds() - SortListStartTime);
 }
 
-void FAssetViewSortManager::ExportColumnsToCSV(TArray<TSharedPtr<struct FAssetViewItem>>& AssetItems, TArray<FName>& ColumnList, const TArray<FAssetViewCustomColumn>& CustomColumns, FString& OutString) const
+void FAssetViewSortManager::ExportColumnsToCSV(TArray<TSharedPtr<FAssetViewItem>>& AssetItems, TArray<FName>& ColumnList, const TArray<FAssetViewCustomColumn>& CustomColumns, FString& OutString) const
 {
 	// Write column headers
 	for (FName Column : ColumnList)
@@ -473,34 +462,33 @@ void FAssetViewSortManager::ExportColumnsToCSV(TArray<TSharedPtr<struct FAssetVi
 	OutString += TEXT("\n");
 
 	// Write each asset
-	for (TSharedPtr<struct FAssetViewItem> AssetItem : AssetItems)
+	for (TSharedPtr<FAssetViewItem> AssetItem : AssetItems)
 	{
-		if (!AssetItem.IsValid() || AssetItem->GetType() == EAssetItemType::Folder)
+		const FContentBrowserItemData* AssetItemData = AssetItem ? AssetItem->GetItem().GetPrimaryInternalItem() : nullptr;
+		if (!AssetItemData || !AssetItemData->IsFile())
 		{
 			continue;
 		}
 
-		FAssetViewAsset* Asset = StaticCastSharedPtr<FAssetViewAsset>(AssetItem).Get();
-
-		for (FName Column : ColumnList)
+		for (const FName Column : ColumnList)
 		{
 			FString ValueString;
-
+		
 			if (Column == NameColumnId)
 			{
-				ValueString = Asset->Data.AssetName.ToString();
+				ValueString = AssetItemData->GetItemName().ToString();
 			}
 			else if (Column == ClassColumnId)
 			{
-				ValueString = Asset->Data.AssetClass.ToString();
+				AssetItem->GetTagValue(ContentBrowserItemAttributes::ItemTypeName, ValueString);
 			}
 			else if (Column == PathColumnId)
 			{
-				ValueString = Asset->Data.PackagePath.ToString();
+				ValueString = AssetItemData->GetVirtualPath().ToString();
 			}
 			else
 			{
-				Asset->GetTagValue(Column, ValueString);
+				AssetItem->GetTagValue(Column, ValueString);
 			}
 			
 			OutString += TEXT("\"");
