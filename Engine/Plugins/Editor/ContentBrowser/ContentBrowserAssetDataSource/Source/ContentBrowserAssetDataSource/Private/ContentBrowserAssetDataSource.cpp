@@ -27,6 +27,25 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
+namespace ContentBrowserAssetDataSource
+{
+
+bool PathPassesCompiledDataFilter(const FContentBrowserCompiledAssetDataFilter& InFilter, const FName InPath)
+{
+	auto PathPassesFilter = [&InPath](const FBlacklistPaths& InPathFilter, const bool InRecursive)
+	{
+		return !InPathFilter.HasFiltering() || (InRecursive ? InPathFilter.PassesStartsWithFilter(InPath, /*bAllowParentPaths*/true) : InPathFilter.PassesFilter(InPath));
+	};
+
+	const bool bPassesFilterBlacklist = PathPassesFilter(InFilter.PackagePathsToInclude, InFilter.bRecursivePackagePathsToInclude) && PathPassesFilter(InFilter.PackagePathsToExclude, InFilter.bRecursivePackagePathsToExclude);
+	const bool bPassesPathFilter = PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/false);
+	const bool bPassesExcludedPathsFilter = !InFilter.ExcludedPackagePaths.Contains(InPath);
+
+	return bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter;
+}
+
+}
+
 void UContentBrowserAssetDataSource::Initialize(const FName InMountRoot, const bool InAutoRegister)
 {
 	Super::Initialize(InMountRoot, InAutoRegister);
@@ -282,22 +301,27 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 	if (bIncludeFolders && (!InFilter.bRecursivePaths || !bIncludeFiles))
 	{
 		// Build the basic paths blacklist from the given data
-		FBlacklistPaths PackageFilterBlacklist;
 		if (PackageFilter)
 		{
+			AssetDataFilter.bRecursivePackagePathsToInclude = PackageFilter->bRecursivePackagePathsToInclude;
 			for (const FName PackagePathToInclude : PackageFilter->PackagePathsToInclude)
 			{
-				PackageFilterBlacklist.AddWhitelistItem(NAME_None, PackagePathToInclude);
+				AssetDataFilter.PackagePathsToInclude.AddWhitelistItem(NAME_None, PackagePathToInclude);
 			}
 
+			AssetDataFilter.bRecursivePackagePathsToExclude = PackageFilter->bRecursivePackagePathsToExclude;
 			for (const FName PackagePathToExclude : PackageFilter->PackagePathsToExclude)
 			{
-				PackageFilterBlacklist.AddBlacklistItem(NAME_None, PackagePathToExclude);
+				AssetDataFilter.PackagePathsToExclude.AddBlacklistItem(NAME_None, PackagePathToExclude);
 			}
+		}
+		if (PathBlacklist)
+		{
+			AssetDataFilter.PathBlacklist = *PathBlacklist;
 		}
 
 		// Add any exclusive paths from attribute filters
-		TSet<FName> ExcludedPackagePaths = GetExcludedPathsForItemAttributeFilter(InFilter.ItemAttributeFilter);
+		AssetDataFilter.ExcludedPackagePaths = GetExcludedPathsForItemAttributeFilter(InFilter.ItemAttributeFilter);
 
 		// Recursive caching of folders is at least as slow as running the query on-demand
 		// and significantly slower when only querying the status of a few updated items
@@ -305,24 +329,15 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 		if (InFilter.bRecursivePaths)
 		{
 			AssetDataFilter.bRunFolderQueryOnDemand = true;
-			AssetDataFilter.bRecursivePackagePaths = PackageFilter && PackageFilter->bRecursivePackagePaths;
-			AssetDataFilter.PackageFilterBlacklist = MoveTemp(PackageFilterBlacklist);
-			if (PathBlacklist)
-			{
-				AssetDataFilter.PathBlacklist = *PathBlacklist;
-			}
-			AssetDataFilter.ExcludedPackagePaths = MoveTemp(ExcludedPackagePaths);
 			AssetDataFilter.PathToScanOnDemandStr = InternalPath.ToString();
 		}
 		else
 		{
-			AssetRegistry->EnumerateSubPaths(InternalPath, [&AssetDataFilter, &PackageFilter, &PathBlacklist, &PackageFilterBlacklist, &ExcludedPackagePaths](FName SubPath)
+			AssetRegistry->EnumerateSubPaths(InternalPath, [&AssetDataFilter](FName SubPath)
 			{
-				const bool bPassesFilterBlacklist = !PackageFilter || (PackageFilter->bRecursivePackagePaths ? PackageFilterBlacklist.PassesStartsWithFilter(SubPath, /*bAllowParentPaths*/true) : PackageFilterBlacklist.PassesFilter(SubPath));
-				const bool bPassesPathFilter = !PathBlacklist || PathBlacklist->PassesStartsWithFilter(SubPath, /*bAllowParentPaths*/true);
-				const bool bPassesExcludedPathsFilter = !ExcludedPackagePaths.Contains(SubPath);
-			
-				if (bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter)
+				const bool bPassesCompiledFilter = ContentBrowserAssetDataSource::PathPassesCompiledDataFilter(AssetDataFilter, SubPath);
+
+				if (bPassesCompiledFilter)
 				{
 					AssetDataFilter.CachedSubPaths.Add(SubPath);
 				}
@@ -373,12 +388,12 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 			{
 				InclusiveFilter.PackageNames.Append(PackageFilter->PackageNamesToInclude);
 				InclusiveFilter.PackagePaths.Append(PackageFilter->PackagePathsToInclude);
-				InclusiveFilter.bRecursivePaths |= PackageFilter->bRecursivePackagePaths;
+				InclusiveFilter.bRecursivePaths |= PackageFilter->bRecursivePackagePathsToInclude;
 			}
 			if (ClassFilter)
 			{
 				InclusiveFilter.ClassNames.Append(ClassFilter->ClassNamesToInclude);
-				InclusiveFilter.bRecursiveClasses |= ClassFilter->bRecursiveClassNames;
+				InclusiveFilter.bRecursiveClasses |= ClassFilter->bRecursiveClassNamesToInclude;
 			}
 			if (CollectionFilter)
 			{
@@ -499,12 +514,12 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 			{
 				ExclusiveFilter.PackageNames.Append(PackageFilter->PackageNamesToExclude);
 				ExclusiveFilter.PackagePaths.Append(PackageFilter->PackagePathsToExclude);
-				ExclusiveFilter.bRecursivePaths |= PackageFilter->bRecursivePackagePaths;
+				ExclusiveFilter.bRecursivePaths |= PackageFilter->bRecursivePackagePathsToExclude;
 			}
 			if (ClassFilter)
 			{
 				ExclusiveFilter.ClassNames.Append(ClassFilter->ClassNamesToExclude);
-				ExclusiveFilter.bRecursiveClasses |= ClassFilter->bRecursiveClassNames;
+				ExclusiveFilter.bRecursiveClasses |= ClassFilter->bRecursiveClassNamesToExclude;
 			}
 			AssetRegistry->CompileFilter(ExclusiveFilter, CompiledExclusiveFilter);
 		}
@@ -647,11 +662,9 @@ void UContentBrowserAssetDataSource::EnumerateItemsMatchingFilter(const FContent
 				const FName PathToScan = PathsToScan.Pop(/*bAllowShrinking*/false);
 				AssetRegistry->EnumerateSubPaths(PathToScan, [this, &InCallback, &AssetDataFilter, &PathsToScan](FName SubPath)
 				{
-					const bool bPassesFilterBlacklist = !AssetDataFilter->PackageFilterBlacklist.HasFiltering() || (AssetDataFilter->bRecursivePackagePaths ? AssetDataFilter->PackageFilterBlacklist.PassesStartsWithFilter(SubPath, /*bAllowParentPaths*/true) : AssetDataFilter->PackageFilterBlacklist.PassesFilter(SubPath));
-					const bool bPassesPathFilter = !AssetDataFilter->PathBlacklist.HasFiltering() || AssetDataFilter->PathBlacklist.PassesStartsWithFilter(SubPath, /*bAllowParentPaths*/true);
-					const bool bPassesExcludedPathsFilter = !AssetDataFilter->ExcludedPackagePaths.Contains(SubPath);
+					const bool bPassesCompiledFilter = ContentBrowserAssetDataSource::PathPassesCompiledDataFilter(*AssetDataFilter, SubPath);
 			
-					if (bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter)
+					if (bPassesCompiledFilter)
 					{
 						if (!InCallback(CreateAssetFolderItem(SubPath)))
 						{
@@ -851,11 +864,9 @@ bool UContentBrowserAssetDataSource::DoesItemPassFilter(const FContentBrowserIte
 					FStringView FolderInternalPathStrView = FolderInternalPathStr;
 
 					const bool bIsUnderSearchPath = AssetDataFilter->PathToScanOnDemandStr == TEXT("/") || (FolderInternalPathStrView.StartsWith(AssetDataFilter->PathToScanOnDemandStr) && (FolderInternalPathStrView.Len() <= AssetDataFilter->PathToScanOnDemandStr.Len() || FolderInternalPathStrView[AssetDataFilter->PathToScanOnDemandStr.Len()] == TEXT('/')));
-					const bool bPassesFilterBlacklist = !AssetDataFilter->PackageFilterBlacklist.HasFiltering() || (AssetDataFilter->bRecursivePackagePaths ? AssetDataFilter->PackageFilterBlacklist.PassesStartsWithFilter(FolderInternalPathStrView, /*bAllowParentPaths*/true) : AssetDataFilter->PackageFilterBlacklist.PassesFilter(FolderInternalPathStrView));
-					const bool bPassesPathFilter = !AssetDataFilter->PathBlacklist.HasFiltering() || AssetDataFilter->PathBlacklist.PassesStartsWithFilter(FolderInternalPathStrView, /*bAllowParentPaths*/true);
-					const bool bPassesExcludedPathsFilter = !AssetDataFilter->ExcludedPackagePaths.Contains(FolderPayload->GetInternalPath());
+					const bool bPassesCompiledFilter = ContentBrowserAssetDataSource::PathPassesCompiledDataFilter(*AssetDataFilter, FolderPayload->GetInternalPath());
 
-					return bIsUnderSearchPath && bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter;
+					return bIsUnderSearchPath && bPassesCompiledFilter;
 				}
 				else
 				{
