@@ -64,6 +64,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	static void SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture);
 	
+	/** Finds an array interface of the given class. */
+	static UNiagaraDataInterface* GetDataInterface(UClass* DIClass, UNiagaraComponent* NiagaraSystem, FName OverrideName);
+
+	/** Finds an array interface of the given class. */
+	template<class TDIType>
+	static TDIType* GetDataInterface(UNiagaraComponent* NiagaraSystem, FName OverrideName)
+	{
+		return (TDIType*)GetDataInterface(TDIType::StaticClass(), NiagaraSystem, OverrideName);
+	}
+
 	//This is gonna be totally reworked
 // 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara System", UnsafeDuringActorConstruction = "true"))
 // 	static void SetUpdateScriptConstant(UNiagaraComponent* Component, FName EmitterName, FName ConstantName, FVector Value);
