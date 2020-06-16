@@ -2984,8 +2984,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		SlowTask.EnterProgressFrame(5);
 
 #if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME && !USE_PER_MODULE_UOBJECT_BOOTSTRAP
-		// If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
-		FModuleManager::Get().LoadModule("AssetRegistry");
+		{
+		    SCOPED_BOOT_TIMING("LoadAssetRegistryModule");
+		    // If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
+		    FModuleManager::Get().LoadModule("AssetRegistry");
+		}
 #endif
 
 		FEmbeddedCommunication::ForceTick(5);
