@@ -97,6 +97,9 @@ namespace SkeletalSimplifier
 			Vertex.vert = AttributeVert;
 		}
 
+		// copy the element IDs for the correct attributes from v1 to v0 in preparation for collapse.
+		void       UpdateVertexAttriuteIDs(EdgePtrArray& CoincidentEdges);
+
 		// Count the number of triangles with zero area.
 		int32 CountDegeneratesTris() const;
 
@@ -307,7 +310,20 @@ namespace SkeletalSimplifier
 
 		void GetCoincidentVertGroups(VertPtrArray& CoincidentVertGroups);
 
-		// DJH - note, this shares a lot of code with GroupEdges - they should be unified..
+		// Weld non-split basic attributes on coincident vertices. This should be called prior to output.
+	    // Note: The simplifier will split a vertex into multiple attribute vertices (with a full copy of all attributes) if only one attribute is split,
+	    // this insures that the non-split attributes share the same value.
+		enum class EVtxElementWeld
+		{
+			Normal,
+			Tangent,
+			BiTangent,
+			Color,
+			UV,
+		};
+		void WeldNonSplitBasicAttributes(EVtxElementWeld WeldType);
+
+		// note, this shares a lot of code with GroupEdges - they should be unified..
 		void RebuildEdgeLinkLists(EdgePtrArray& CandidateEdgePtrArray);
 
 
@@ -443,6 +459,7 @@ namespace SkeletalSimplifier
 		// Methods used in the initial construction of the simplifier mesh
 
 		void GroupVerts(TArray<SimpVertType>& Verts);
+		void SetAttributeIDS(TArray<SimpVertType>& Verts);
 		void MakeEdges(const TArray<SimpVertType>& Verts, const int32 NumTris, TArray<SimpEdgeType>& Edges);
 		void AppendConnectedEdges(const SimpVertType* Vert, TArray<SimpEdgeType>& Edges);
 		void GroupEdges(TArray< SimpEdgeType >& Edges);
@@ -481,7 +498,19 @@ namespace SkeletalSimplifier
 			return Result;
 		}
 
+		// struct used in sorting and merging coincident verts.
+		struct FVertAndID
+		{
+			int32 ID;
+			SimpVertType* SrcVert;
 
+			FVertAndID() {};
+			FVertAndID(SimpVertType* SV, int32 InID)
+			{
+				ID = InID;
+				SrcVert = SV;
+			}
+		};
 
 	};
 }

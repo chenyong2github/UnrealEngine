@@ -203,9 +203,11 @@ namespace SkeletalSimplifier
 		* @param Verts                 - pointer to an array to populate.  Should be least GetNumVerts() in size
 		* @param Indexes               - pointer to index buffer to populate.  Should be at least 3 * GetNumTris() in size
 		* @param bMergeCoincidentBones - if multiple verts have the same position, force them to have the same bones.
+		* @param  bWeldVtxColorAttrs   - Weld verts attributes (colors) that may have been artificially split by the reduction algorithm.
+		*                                note: this could be extended to the other attributes (e.g. normals, uvs )  
 		* @param LockedVerts           - optional pointer to array.  On return the array will hold the indices of any locked verts.
 		*/
-		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, bool bMergeCoincidentVertBones = true, TArray<int32>* LockedVerts = NULL);
+		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, bool bMergeCoincidentVertBones = true, bool bWeldVtxColorAttrs = true, TArray<int32>* LockedVerts = NULL);
 
 
 	protected:
@@ -582,6 +584,13 @@ namespace SkeletalSimplifier
 
 				}
 			}
+
+			// This manages the complicated logic of making sure the attribute element IDs after the collapse
+			// will be in the correct state for a collapse of of a split attribute or non-split attribute.  This applies
+			// to the vertices in the edges, and the loose vertices that don't share a triangle
+			// with the a vertex on the opposite end of the edge.
+
+			MeshManager.UpdateVertexAttriuteIDs(CoincidentEdges);
 
 			// collapse all edges by moving edge->v0 to edge->v1
 			{
