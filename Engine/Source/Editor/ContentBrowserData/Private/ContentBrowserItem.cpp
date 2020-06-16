@@ -381,82 +381,82 @@ public:
 FContentBrowserItemDataAttributeValue FContentBrowserItem::GetItemAttribute(const FName InAttributeKey, const bool InIncludeMetaData) const
 {
 	FContentBrowserItemDataAttributeValue AttributeValue;
-	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, GetItemAttribute), InIncludeMetaData, InAttributeKey, AttributeValue);
+	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, GetItemAttribute), InIncludeMetaData, InAttributeKey, AttributeValue);
 	return AttributeValue;
 }
 
 FContentBrowserItemDataAttributeValues FContentBrowserItem::GetItemAttributes(const bool InIncludeMetaData) const
 {
 	FContentBrowserItemDataAttributeValues AttributeValues;
-	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, GetItemAttributes), InIncludeMetaData, AttributeValues);
+	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, GetItemAttributes), InIncludeMetaData, AttributeValues);
 	return AttributeValues;
 }
 
 bool FContentBrowserItem::GetItemPhysicalPath(FString& OutDiskPath) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, GetItemPhysicalPath), OutDiskPath);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, GetItemPhysicalPath), OutDiskPath);
 }
 
 bool FContentBrowserItem::IsDirty() const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, IsItemDirty));
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, IsItemDirty));
 }
 
 bool FContentBrowserItem::CanEdit(FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanEditItem), OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanEditItem), OutErrorMsg);
 }
 
 bool FContentBrowserItem::Edit() const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, EditItem));
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, EditItem));
 }
 
 bool FContentBrowserItem::CanPreview(FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanPreviewItem), OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanPreviewItem), OutErrorMsg);
 }
 
 bool FContentBrowserItem::Preview() const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, PreviewItem));
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, PreviewItem));
 }
 
 bool FContentBrowserItem::CanDuplicate(FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanDuplicateItem), OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanDuplicateItem), OutErrorMsg);
 }
 
 FContentBrowserItemDataTemporaryContext FContentBrowserItem::Duplicate() const
 {
 	FContentBrowserItemDataTemporaryContext NewItem;
-	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, DuplicateItem), NewItem);
+	FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, DuplicateItem), NewItem);
 	return NewItem;
 }
 
 bool FContentBrowserItem::CanSave(const EContentBrowserItemSaveFlags InSaveFlags, FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanSaveItem), InSaveFlags, OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanSaveItem), InSaveFlags, OutErrorMsg);
 }
 
 bool FContentBrowserItem::Save(const EContentBrowserItemSaveFlags InSaveFlags) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, SaveItem), InSaveFlags);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, SaveItem), InSaveFlags);
 }
 
 bool FContentBrowserItem::CanDelete(FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanDeleteItem), OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanDeleteItem), OutErrorMsg);
 }
 
 bool FContentBrowserItem::Delete() const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, DeleteItem));
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, DeleteItem));
 }
 
 bool FContentBrowserItem::CanRename(const FString* InNewName, FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanRenameItem), InNewName, OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanRenameItem), InNewName, OutErrorMsg);
 }
 
 bool FContentBrowserItem::Rename(const FString& InNewName, FContentBrowserItem* OutNewItem) const
@@ -493,47 +493,47 @@ bool FContentBrowserItem::Rename(const FString& InNewName, FContentBrowserItem* 
 
 bool FContentBrowserItem::CanCopy(const FName InDestPath, FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanCopyItem), InDestPath, OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanCopyItem), InDestPath, OutErrorMsg);
 }
 
 bool FContentBrowserItem::Copy(const FName InDestPath) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CopyItem), InDestPath);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CopyItem), InDestPath);
 }
 
 bool FContentBrowserItem::CanMove(const FName InDestPath, FText* OutErrorMsg) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, CanMoveItem), InDestPath, OutErrorMsg);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, CanMoveItem), InDestPath, OutErrorMsg);
 }
 
 bool FContentBrowserItem::Move(const FName InDestPath) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, MoveItem), InDestPath);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, MoveItem), InDestPath);
 }
 
 bool FContentBrowserItem::AppendItemReference(FString& InOutStr) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, AppendItemReference), InOutStr);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, AppendItemReference), InOutStr);
 }
 
 bool FContentBrowserItem::UpdateThumbnail(FAssetThumbnail& InThumbnail) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, UpdateThumbnail), InThumbnail);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, UpdateThumbnail), InThumbnail);
 }
 
 bool FContentBrowserItem::TryGetCollectionId(FName& OutCollectionId) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, TryGetCollectionId), OutCollectionId);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, TryGetCollectionId), OutCollectionId);
 }
 
 bool FContentBrowserItem::Legacy_TryGetPackagePath(FName& OutPackagePath) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, Legacy_TryGetPackagePath), OutPackagePath);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, Legacy_TryGetPackagePath), OutPackagePath);
 }
 
 bool FContentBrowserItem::Legacy_TryGetAssetData(FAssetData& OutAssetData) const
 {
-	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, PROJECTION_MEMBER(UContentBrowserDataSource, Legacy_TryGetAssetData), OutAssetData);
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, Legacy_TryGetAssetData), OutAssetData);
 }
 
 
