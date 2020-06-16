@@ -92,4 +92,8 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
 	bool bDeveloperMode;
+
+	/** Should Python scripts be available in the Content Browser? */
+	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
+	bool bEnableContentBrowserIntegration;
 };

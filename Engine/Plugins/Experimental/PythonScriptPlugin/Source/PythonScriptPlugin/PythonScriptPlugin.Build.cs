@@ -47,6 +47,9 @@ namespace UnrealBuildTool.Rules
 						"EditorSubsystem",
 						"BlueprintGraph",
 						"KismetCompiler",
+						"AssetTools",
+						"ContentBrowserData",
+						"ContentBrowserFileDataSource",
 					}
 				);
 			}
