@@ -105,6 +105,12 @@ public:
 	 */
 	virtual bool LoadModulesForProject( const ELoadingPhase::Type LoadingPhase ) = 0;
 
+	/**
+	 * Callback for when modules for when LoadModulesForProject() completes loading for a specific phase.
+	 */
+	DECLARE_EVENT_TwoParams(IProjectManager, FLoadingModulesForPhaseEvent, ELoadingPhase::Type /*LoadingPhase*/, bool /*bSuccess*/);
+	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() = 0;
+
 #if !IS_MONOLITHIC
 	/**
 	 * Checks if the modules for a project are up to date

@@ -112,6 +112,27 @@ inline void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString>>
 
 inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const FName& PackageName) const
 {
+	FString PackageNameStr = PackageName.ToString();
+
+	// "/Extra/" packages are editor-generated in-memory packages which don't have a corresponding 
+	// asset file (yet). However, we still want to cook these packages out, producing cooked 
+	// asset files for packaged projects.
+	if (FPackageName::IsExtraPackage(PackageNameStr))
+	{
+		if (UPackage* ExtraPackage = FindPackage(/*Outer =*/nullptr, *PackageNameStr))
+		{
+			if (OutFilename)
+			{
+				*OutFilename = FPackageName::LongPackageNameToFilename(PackageNameStr, FPackageName::GetAssetPackageExtension());
+			}
+			return true;
+		}
+		// else, the cooker could be responding to a NotifyUObjectCreated() event, and the object hasn't
+		// been fully constructed yet (missing from the FindObject() list) -- in this case, we've found 
+		// that the linker loader is creating a dummy object to fill a referencing import slot, not loading
+		// the proper object (which means we want to ignore it).
+	}
+
 	check(IsInGameThread());
 
 	return PackageFilenameCache.Remove(PackageName) >= 1;
@@ -121,12 +142,11 @@ inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FStrin
 {
 	if (!AssetRegistry)
 	{
-		return FPackageName::DoesPackageExist(PackageName.ToString(), NULL, OutFilename, false);
+		return FPackageName::DoesPackageExist(PackageNameStr, NULL, OutFilename, false);
 	}
 
 	TArray<FAssetData> Assets;
-	bool bIncludeOnlyDiskAssets = !FPackageName::IsExtraPackage(PackageName.ToString());
-	AssetRegistry->GetAssetsByPackageName(PackageName, Assets, bIncludeOnlyDiskAssets);
+	AssetRegistry->GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets =*/true);
 
 	if (Assets.Num() <= 0)
 	{
@@ -137,7 +157,7 @@ inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FStrin
 	{
 		const bool ContainsMap = Algo::FindByPredicate(Assets, [](const FAssetData& Asset) { return Asset.PackageFlags & PKG_ContainsMap; }) != nullptr;
 		const FString& PackageExtension = ContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-		*OutFilename = FPackageName::LongPackageNameToFilename(PackageName.ToString(), PackageExtension);
+		*OutFilename = FPackageName::LongPackageNameToFilename(PackageNameStr, PackageExtension);
 	}
 
 	return true;
