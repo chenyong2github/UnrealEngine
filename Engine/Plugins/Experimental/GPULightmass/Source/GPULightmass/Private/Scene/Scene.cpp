@@ -2780,3 +2780,6 @@ void FScene::RemoveAllComponents()
 }
 
 }
+
+
+#undef LOCTEXT_NAMESPACE
