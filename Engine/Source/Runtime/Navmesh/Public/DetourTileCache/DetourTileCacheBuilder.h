@@ -56,8 +56,8 @@ struct dtTileCacheLayer
 
 struct dtTileCacheContour
 {
-	int nverts;
 	unsigned short* verts;
+	int nverts;
 	unsigned short reg;
 	unsigned char area;
 };
