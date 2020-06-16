@@ -271,6 +271,11 @@ public:
 	 */
 	void SetCursorPos( const FVector2D& MouseCoordinate );
 
+	/** 
+	 *	Updates the cursor user's cursor to either the platform cursor or fake cursor
+	 */
+	void UsePlatformCursorForCursorUser(bool bUsePlatformCursor);
+
 	/** Polls game devices for input */
 	void PollGameDeviceState();
 
