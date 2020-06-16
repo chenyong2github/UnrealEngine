@@ -980,6 +980,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		}
 
 		this->ArIsObjectReferenceCollector = true;
+		this->ArIsModifyingWeakAndStrongReferences = true;
 
 		// Mark it as saving to correctly process all references
 		this->SetIsSaving(true);
