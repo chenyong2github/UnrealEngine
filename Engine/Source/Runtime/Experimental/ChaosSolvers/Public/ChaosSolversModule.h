@@ -57,11 +57,6 @@ namespace Chaos
 	extern CHAOSSOLVERS_API FInternalDefaultSettings GDefaultChaosSettings;
 }
 
-struct FChaosConsoleSinks
-{
-	static void OnCVarsChanged();
-};
-
 struct FSolverStateStorage
 {
 	friend class FChaosSolversModule;
@@ -237,11 +232,6 @@ public:
 	bool IsValidSolverActorClass(UClass* Class) const;
 
 	/**
-	 * Sets the dedicated thread tickmode externally
-	 */
-	void SetDedicatedThreadTickMode(EChaosSolverTickMode InTickMode);
-
-	/**
 	 * Shuts down and destroys a solver state
 	 *
 	 * Should be called on whichever thread currently owns the solver state
@@ -332,9 +322,6 @@ public:
 	void OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 	void OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
-	/** Calls from engine tick notifying how the frame is updated */
-	void DispatchGlobalCommands();
-
 	/** Gets a list of pending prerequisites required before proceeding with a solver update */
 	void GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer);
 
@@ -412,41 +399,6 @@ private:
 	FDelegateHandle OnCreateMaterialMaskHandle;
 	FDelegateHandle OnDestroyMaterialMaskHandle;
 	FDelegateHandle OnUpdateMaterialMaskHandle;
-};
-
-/**
- * Scoped locking object for physics thread. Currently this will stall out the persistent
- * physics task if it is running. Use this in situations where another thread absolutely
- * must read or write.
- *
- * Will block on construction until the physics thread confirms it has stalled, then
- * the constructor returns. Will let the physics thread continue post-destruction
- *
- * Does a runtime check on the type of the dispatcher and will do nothing if we're
- * not running the dedicated thread mode.
- */
-class CHAOSSOLVERS_API FChaosScopedPhysicsThreadLock
-{
-public:
-
-	FChaosScopedPhysicsThreadLock();
-	explicit FChaosScopedPhysicsThreadLock(uint32 InMsToWait);
-	~FChaosScopedPhysicsThreadLock();
-
-	bool DidGetLock() const;
-
-private:
-
-	// Only construction through the above constructor is valid
-	FChaosScopedPhysicsThreadLock(const FChaosScopedPhysicsThreadLock& InCopy) = default;
-	FChaosScopedPhysicsThreadLock(FChaosScopedPhysicsThreadLock&& InSteal) = default;
-	FChaosScopedPhysicsThreadLock& operator=(const FChaosScopedPhysicsThreadLock& InCopy) = default;
-	FChaosScopedPhysicsThreadLock& operator=(FChaosScopedPhysicsThreadLock&& InSteal) = default;
-
-	FEvent* CompleteEvent;
-	FEvent* PTStallEvent;
-	FChaosSolversModule* Module;
-	bool bGotLock;
 };
 
 struct CHAOSSOLVERS_API FChaosScopeSolverLock

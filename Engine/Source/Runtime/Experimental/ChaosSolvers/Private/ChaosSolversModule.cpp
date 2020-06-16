@@ -114,29 +114,6 @@ namespace Chaos
 	FInternalDefaultSettings GDefaultChaosSettings;
 }
 
-static FAutoConsoleVariableSink CVarChaosModuleSink(FConsoleCommandDelegate::CreateStatic(&FChaosConsoleSinks::OnCVarsChanged));
-
-void FChaosConsoleSinks::OnCVarsChanged()
-{
-	// #BG TODO - Currently this isn't dynamic, should be made to be switchable.
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-
-	if(ChaosModule)
-	{
-		if(ChaosModule->IsPersistentTaskRunning())
-		{
-			float NewHz = CVarDedicatedThreadDesiredHz.GetValueOnGameThread();
-			ChaosModule->GetDispatcher()->EnqueueCommandImmediate([NewHz](Chaos::FPersistentPhysicsTask* Thread)
-			{
-				if(Thread)
-				{
-					Thread->SetTargetDt(1.0f / NewHz);
-				}
-			});
-		}
-	}
-}
-
 FSolverStateStorage::FSolverStateStorage()
 	: Solver(nullptr)
 {
@@ -296,11 +273,6 @@ void FChaosSolversModule::ShutdownThreadingMode()
 	{
 		if(Dispatcher)
 		{
-			// we need to flush out any commands currently waiting in the taskgraph dispatcher.
-			// Dedicated will wait for execution to end, and single thread runs immediately so we only
-			// need to handle this for task graph dispatchers
-			Dispatcher->Execute();
-
 			for(FPhysicsSolverBase* Solver : AllSolvers)
 			{
 				Solver->WaitOnPendingTasks_External();
@@ -448,6 +420,7 @@ Chaos::FPersistentPhysicsTask* FChaosSolversModule::GetDedicatedTask() const
 
 void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 {
+#if 0
 	// Hard lock the physics thread before syncing our data
 	FChaosScopedPhysicsThreadLock ScopeLock(bForceBlockingSync ? MAX_uint32 : (uint32)(CVarDedicatedThreadSyncThreshold.GetValueOnGameThread()));
 
@@ -457,6 +430,7 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 
 	// Update stats if necessary
 	UpdateStats();
+#endif
 }
 
 template <typename Traits>
@@ -500,6 +474,7 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 		NewSolver->QueryMaterialLock.WriteUnlock();
 	}
 
+#if 0
 	if(!(InFlags & ESolverFlags::Standalone) && IsPersistentTaskRunning() && Dispatcher)
 	{
 		// Need to let the thread know there's a new solver to care about
@@ -509,6 +484,7 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 			PhysThread->AddSolver(NewSolver);
 		});
 	}
+#endif
 
 	return NewSolver;
 }
@@ -547,19 +523,6 @@ UClass* FChaosSolversModule::GetSolverActorClass() const
 bool FChaosSolversModule::IsValidSolverActorClass(UClass* Class) const
 {
 	return Class->IsChildOf(SolverActorRequiredBaseClass);
-}
-
-void FChaosSolversModule::SetDedicatedThreadTickMode(EChaosSolverTickMode InTickMode)
-{
-	check(Dispatcher);
-
-	Dispatcher->EnqueueCommandImmediate([InTickMode](Chaos::FPersistentPhysicsTask* InThread)
-	{
-		if(InThread)
-		{
-			InThread->SetTickMode(InTickMode);
-		}
-	});
 }
 
 void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolverBase* InSolver)
@@ -1108,34 +1071,6 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 	}
 }
 
-void FChaosSolversModule::DispatchGlobalCommands()
-{
-	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
-	{
-		// Single threaded dispatchers fire commands immediately so we don't need to process any commands here
-		return;
-	}
-
-	if(IsValidRef(GlobalCommandTaskEventRef))
-	{
-		if(!GlobalCommandTaskEventRef->IsComplete())
-		{
-			SCOPE_CYCLE_COUNTER(STAT_WaitGlobalCommands);
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(GlobalCommandTaskEventRef);
-
-			UE_LOG(LogChaos, Warning, TEXT("Forced to wait on global physics commands from the previous frame."));
-		}
-
-		// Clear out our reference once the task has completed
-		GlobalCommandTaskEventRef.SafeRelease();
-	}
-
-	check(!IsValidRef(GlobalCommandTaskEventRef));
-
-	// Fire off commands for this grame
-	GlobalCommandTaskEventRef = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
-}
-
 void FChaosSolversModule::GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer)
 {
 	if(IsValidRef(GlobalCommandTaskEventRef))
@@ -1147,75 +1082,6 @@ void FChaosSolversModule::GetSolverUpdatePrerequisites(FGraphEventArray& InPrere
 const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
 {
 	return SettingsProvider ? *SettingsProvider : Chaos::GDefaultChaosSettings;
-}
-
-FChaosScopedPhysicsThreadLock::FChaosScopedPhysicsThreadLock()
-	: FChaosScopedPhysicsThreadLock(MAX_uint32)
-{
-
-}
-
-FChaosScopedPhysicsThreadLock::FChaosScopedPhysicsThreadLock(uint32 InMsToWait)
-	: CompleteEvent(nullptr)
-	, PTStallEvent(nullptr)
-	, Module(nullptr)
-	, bGotLock(false)
-{
-	Module = FChaosSolversModule::GetModule();
-	checkSlow(Module && Module->GetDispatcher());
-
-	Chaos::IDispatcher* PhysDispatcher = Module->GetDispatcher();
-	if(PhysDispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread)
-	{
-		CompleteEvent = FPlatformProcess::GetSynchEventFromPool(false);
-		PTStallEvent = FPlatformProcess::GetSynchEventFromPool(false);
-
-		// Request a halt on the physics thread
-		PhysDispatcher->EnqueueCommandImmediate([PTStall = PTStallEvent, GTSync = CompleteEvent](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			PTStall->Trigger();
-			GTSync->Wait();
-
-			FPlatformProcess::ReturnSynchEventToPool(GTSync);
-			FPlatformProcess::ReturnSynchEventToPool(PTStall);
-		});
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_LockWaits);
-			// Wait for the physics thread to actually stall
-			bGotLock = PTStallEvent->Wait(InMsToWait);
-		}
-
-		if(!bGotLock)
-		{
-			// Trigger this if we didn't get a lock to avoid blocking the physics thread
-			CompleteEvent->Trigger();
-		}
-	}
-	else
-	{
-		CompleteEvent = nullptr;
-		PTStallEvent = nullptr;
-	}
-}
-
-FChaosScopedPhysicsThreadLock::~FChaosScopedPhysicsThreadLock()
-{
-	if(CompleteEvent && PTStallEvent && bGotLock)
-	{
-		CompleteEvent->Trigger();
-	}
-
-	// Can't return these here until the physics thread wakes up,
-	// the physics thread will return these events (see FChaosScopedPhysicsLock::FChaosScopedPhysicsLock)
-	CompleteEvent = nullptr;
-	PTStallEvent = nullptr;
-	Module = nullptr;
-}
-
-bool FChaosScopedPhysicsThreadLock::DidGetLock() const
-{
-	return bGotLock;
 }
 
 #if CHAOS_CHECKED

@@ -60,23 +60,9 @@ namespace Chaos
 		using FSolverCommand = TFunction<void()>;
 
 		/**
-		 * Immediate commands:
-		 * Enqueueing an immediate command will run that command at the next available opportunity when
-		 * the physics scene is next ticked. Note that in some threading models commands enqueued immediately
-		 * after one another on a different thread may get executed in different physics frames.
-		 * If this is not desirable consider either batched commands or submitting a custom command list
-		 */
-		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) = 0;
-		/**
 		 * Get the current threading mode for this dispatcher
 		 */
 		virtual EThreadingMode GetMode() const = 0;
-		/**
-		 * Execute any pending submitted command lists along with global and task commands
-		 * Intended to be called by whatever code is responsible for updating the physics scene
-		 * #BG - Make solver commands execute here too instead of 2 execution sites (Needs parallel consideration).
-		 */
-		virtual void Execute() = 0;
 	};
 
 }
