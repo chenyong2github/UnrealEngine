@@ -589,6 +589,7 @@ public:
 		const FDynamicMesh3* Mesh,
 		int NumTriangles, TriangleEnumerable Enumerable,
 		FDynamicMeshNormalOverlay* NormalOverlay,
+		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
 		bool bUpdatePositions = true,
 		bool bUpdateNormals = false,
 		bool bUpdateColors = false)
@@ -635,11 +636,11 @@ public:
 
 				if (bUpdateNormals)
 				{
+					// get normal and tangent
 					FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
 						NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
+					TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
 
-					// calculate a nonsense tangent
-					VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
 					RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector)TangentX, (FVector)TangentY, (FVector)Normal);
 				}
 

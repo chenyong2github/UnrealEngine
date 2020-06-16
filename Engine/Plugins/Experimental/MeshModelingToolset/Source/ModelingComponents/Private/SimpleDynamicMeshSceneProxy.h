@@ -109,7 +109,7 @@ public:
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 		if (Tangents != nullptr)
 		{
 			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
@@ -164,16 +164,13 @@ public:
 		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		if (UVOverlay != nullptr)
+		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		if (Tangents != nullptr)
 		{
-			FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-			if (Tangents != nullptr)
+			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
 			{
-				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
-				{
-					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-				};
-			}
+				return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
+			};
 		}
 
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
@@ -203,7 +200,7 @@ public:
 		FDynamicMeshMaterialAttribute* MaterialID = Mesh->Attributes()->GetMaterialID();
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 		if (Tangents != nullptr)
 		{
 			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
@@ -288,12 +285,23 @@ public:
 
 		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
 
-		// find suitable overlays
+		// find suitable overlays and attributes
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		TFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc =
+			[](int, int, int, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) { VectorUtil::MakePerpVectors(Normal, TangentX, TangentY); };
 		if (bNormals)
 		{
 			check(Mesh->HasAttributes());
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+
+			const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+			if (Tangents != nullptr)
+			{
+				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)
+				{
+					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
+				};
+			}
 		}
 		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
 		if (bUVs)
@@ -310,7 +318,7 @@ public:
 			{
 				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 					Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-					NormalOverlay,
+					NormalOverlay, TangentsFunc,
 					bPositions, bNormals, bColors);
 			}
 			if (bUVs)
@@ -340,7 +348,7 @@ public:
 				{
 					UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
-						NormalOverlay,
+						NormalOverlay, TangentsFunc,
 						bPositions, bNormals, bColors);
 				}
 				if (bUVs)
@@ -372,10 +380,21 @@ public:
 
 		// find suitable overlays
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		TFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc =
+			[](int, int, int, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) { VectorUtil::MakePerpVectors(Normal, TangentX, TangentY); };
 		if (bNormals)
 		{
 			check(Mesh->HasAttributes());
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+
+			const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+			if (Tangents != nullptr)
+			{
+				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)
+				{
+					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
+				};
+			}
 		}
 		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
 		if (bUVs)
@@ -397,7 +416,7 @@ public:
 			{
 				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 					Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
-					NormalOverlay,
+					NormalOverlay, TangentsFunc,
 					bPositions, bNormals, bColors);
 			}
 			if (bUVs)
@@ -513,6 +532,9 @@ public:
 		static size_t UniquePointer;
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
+
+
+
 };
 
 

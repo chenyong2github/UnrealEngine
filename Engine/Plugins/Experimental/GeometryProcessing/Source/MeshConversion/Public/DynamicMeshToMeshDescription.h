@@ -7,6 +7,9 @@
 #include "MeshDescription.h"
 #include "MeshConversionOptions.h"
 
+// predeclare tangents template
+template<typename RealType> class TMeshTangents;
+
 /**
  * Convert FDynamicMesh3 to FMeshDescription
  *
@@ -84,6 +87,13 @@ public:
 	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
 	 */
 	void UpdateAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bUpdateNormals, bool bUpdateUVs);
+
+	/**
+	 * Update the Tangent and BinormalSign attributes of the MeshDescription, assuming mesh topology has not changed. Does not modify any other attributes.
+	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over polygons, then tris-in-polygons, on MeshOut
+	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
+	 */
+	void UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TMeshTangents<double>* Tangents);
 
 	//
 	// Internal functions that you can also call directly
