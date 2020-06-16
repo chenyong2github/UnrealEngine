@@ -236,12 +236,10 @@ TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 	Op->BlendFalloff = BlendProperties->BlendFalloff;
 	Op->BlendPower = BlendProperties->BlendPower;
 	Op->bSolidifyInput = BlendProperties->bSolidifyInput;
+	Op->bRemoveInternalsAfterSolidify = BlendProperties->bRemoveInternalsAfterSolidify;
+	Op->OffsetSolidifySurface = BlendProperties->OffsetSolidifySurface;
 
-	Op->InputVoxelCount = VoxProperties->VoxelCount;
-	Op->OutputVoxelCount = VoxProperties->VoxelCount;
-	Op->SimplifyMaxErrorFactor = VoxProperties->SimplifyMaxErrorFactor;
-	Op->bAutoSimplify = VoxProperties->bAutoSimplify;
-	Op->MinComponentVolume = VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume * VoxProperties->CubeRootMinComponentVolume;
+	VoxProperties->SetPropertiesOnOp(*Op);
 
 	return Op;
 }
@@ -315,9 +313,11 @@ void UVoxelBlendMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	CenteredTransform.SetScale(FVector3d::One());
 	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + CenteredTransform.TransformVector(Center * Rescale));
 	
+	TArray<UMaterialInterface*> Materials;
+	Materials.Add(LoadObject<UMaterial>(nullptr, TEXT("MATERIAL")));
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("Blend Mesh"), Preview->StandardMaterials);
+		Result.Mesh.Get(), CenteredTransform, TEXT("Blend Mesh"), Materials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
