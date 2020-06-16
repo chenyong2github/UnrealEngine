@@ -67,10 +67,15 @@ BuildWithOptions()
 
 set -e
 
+OPTS=()
+OPTS+=(-DSDL_SHARED_ENABLED_BY_DEFAULT=OFF)
+OPTS+=(-DSDL_STATIC_ENABLED_BY_DEFAULT=ON)
+OPTS+=(-DVIDEO_KMSDRM=OFF)
+OPTS+=(-DCMAKE_C_FLAGS=-gdwarf-4)
+
 # build Debug with -fPIC so it's usable in any type of build
-BuildWithOptions Debug      libSDL2d.a libSDL2_fPIC_Debug.a -DCMAKE_BUILD_TYPE=Debug   -DSDL_STATIC_PIC=ON -DVIDEO_MIR=OFF -DVIDEO_KMSDRM=OFF -DCMAKE_C_FLAGS=-gdwarf-4
-BuildWithOptions Release    libSDL2.a  libSDL2.a            -DCMAKE_BUILD_TYPE=Release                     -DVIDEO_MIR=OFF -DVIDEO_KMSDRM=OFF -DCMAKE_C_FLAGS=-gdwarf-4
-BuildWithOptions ReleasePIC libSDL2.a  libSDL2_fPIC.a       -DCMAKE_BUILD_TYPE=Release -DSDL_STATIC_PIC=ON -DVIDEO_MIR=OFF -DVIDEO_KMSDRM=OFF -DCMAKE_C_FLAGS=-gdwarf-4
+BuildWithOptions Debug      libSDL2d.a libSDL2_fPIC_Debug.a -DCMAKE_BUILD_TYPE=Debug   -DSDL_STATIC_PIC=ON   "${OPTS[@]}"
+BuildWithOptions Release    libSDL2.a  libSDL2.a            -DCMAKE_BUILD_TYPE=Release                       "${OPTS[@]}"
+BuildWithOptions ReleasePIC libSDL2.a  libSDL2_fPIC.a       -DCMAKE_BUILD_TYPE=Release -DSDL_STATIC_PIC=ON   "${OPTS[@]}"
 
 set +e
-

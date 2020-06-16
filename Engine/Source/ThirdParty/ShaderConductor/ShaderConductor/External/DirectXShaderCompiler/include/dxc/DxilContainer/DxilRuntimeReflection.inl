@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include <cwchar>
 
 namespace hlsl {
 namespace RDAT {
@@ -92,7 +93,7 @@ public:
 DxilRuntimeData::DxilRuntimeData() : DxilRuntimeData(nullptr, 0) {}
 
 DxilRuntimeData::DxilRuntimeData(const void *ptr, size_t size)
-    : m_TableCount(0), m_StringReader(), m_IndexTableReader(), m_RawBytesReader(),
+    : m_StringReader(), m_IndexTableReader(), m_RawBytesReader(),
       m_ResourceTableReader(), m_FunctionTableReader(),
       m_SubobjectTableReader(), m_Context() {
   m_Context = {&m_StringReader, &m_IndexTableReader, &m_RawBytesReader,
@@ -111,8 +112,7 @@ bool DxilRuntimeData::InitFromRDAT(const void *pRDAT, size_t size) {
       CheckedReader Reader(pRDAT, size);
       RuntimeDataHeader RDATHeader = Reader.Read<RuntimeDataHeader>();
       if (RDATHeader.Version < RDAT_Version_10) {
-        // Prerelease version, fallback to that Init
-        return InitFromRDAT_Prerelease(pRDAT, size);
+        return false;
       }
       const uint32_t *offsets = Reader.ReadArray<uint32_t>(RDATHeader.PartCount);
       for (uint32_t i = 0; i < RDATHeader.PartCount; ++i) {
@@ -159,67 +159,6 @@ bool DxilRuntimeData::InitFromRDAT(const void *pRDAT, size_t size) {
         }
         default:
           continue; // Skip unrecognized parts
-        }
-      }
-      return true;
-    } catch(CheckedReader::exception e) {
-      // TODO: error handling
-      //throw hlsl::Exception(DXC_E_MALFORMED_CONTAINER, e.what());
-      return false;
-    }
-  }
-  return false;
-}
-
-bool DxilRuntimeData::InitFromRDAT_Prerelease(const void *pRDAT, size_t size) {
-  enum class RuntimeDataPartType_Prerelease : uint32_t {
-    Invalid = 0,
-    String,
-    Function,
-    Resource,
-    Index
-  };
-  struct RuntimeDataTableHeader_Prerelease {
-    uint32_t tableType; // RuntimeDataPartType
-    uint32_t size;
-    uint32_t offset;
-  };
-  if (pRDAT) {
-    try {
-      CheckedReader Reader(pRDAT, size);
-      uint32_t partCount = Reader.Read<uint32_t>();
-      const RuntimeDataTableHeader_Prerelease *tableHeaders =
-        Reader.ReadArray<RuntimeDataTableHeader_Prerelease>(partCount);
-      for (uint32_t i = 0; i < partCount; ++i) {
-        uint32_t partSize = tableHeaders[i].size;
-        Reader.Advance(tableHeaders[i].offset);
-        CheckedReader PR(Reader.ReadArray<char>(partSize), partSize);
-        switch ((RuntimeDataPartType_Prerelease)(tableHeaders[i].tableType)) {
-        case RuntimeDataPartType_Prerelease::String: {
-          m_StringReader = StringTableReader(
-            PR.ReadArray<char>(partSize), partSize);
-          break;
-        }
-        case RuntimeDataPartType_Prerelease::Index: {
-          uint32_t count = partSize / sizeof(uint32_t);
-          m_IndexTableReader = IndexTableReader(
-            PR.ReadArray<uint32_t>(count), count);
-          break;
-        }
-        case RuntimeDataPartType_Prerelease::Resource: {
-          uint32_t count = partSize / sizeof(RuntimeDataResourceInfo);
-          m_ResourceTableReader.SetResourceInfo(PR.ReadArray<char>(partSize),
-            count, sizeof(RuntimeDataResourceInfo));
-          break;
-        }
-        case RuntimeDataPartType_Prerelease::Function: {
-          uint32_t count = partSize / sizeof(RuntimeDataFunctionInfo);
-          m_FunctionTableReader.SetFunctionInfo(PR.ReadArray<char>(partSize),
-            count, sizeof(RuntimeDataFunctionInfo));
-          break;
-        }
-        default:
-          return false; // There should be no unrecognized parts
         }
       }
       return true;
@@ -311,13 +250,13 @@ public:
 
 void DxilRuntimeReflection_impl::AddString(const char *ptr) {
   if (m_StringMap.find(ptr) == m_StringMap.end()) {
-    int size = ::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ptr, -1,
-                                     nullptr, 0);
-    if (size != 0) {
-      std::unique_ptr<wchar_t[]> pNew(new wchar_t[size]);
-      ::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ptr, -1,
-                            pNew.get(), size);
-      m_StringMap[ptr] = std::move(pNew);
+    auto state = std::mbstate_t();
+    size_t size = std::mbsrtowcs(nullptr, &ptr, 0, &state);
+    if (size != static_cast<size_t>(-1)) {
+      std::unique_ptr<wchar_t[]> pNew(new wchar_t[size + 1]);
+      auto pOldPtr = ptr;
+      std::mbsrtowcs(pNew.get(), &ptr, size + 1, &state);
+      m_StringMap[pOldPtr] = std::move(pNew);
     }
   }
 }
@@ -513,6 +452,10 @@ DxilSubobjectDesc *DxilRuntimeReflection_impl::AddSubobject(const SubobjectReade
     subobject.HitGroup.Intersection = GetWideString(subobjectReader.GetHitGroup_Intersection());
     subobject.HitGroup.AnyHit = GetWideString(subobjectReader.GetHitGroup_AnyHit());
     subobject.HitGroup.ClosestHit = GetWideString(subobjectReader.GetHitGroup_ClosestHit());
+    break;
+  case DXIL::SubobjectKind::RaytracingPipelineConfig1:
+    subobject.RaytracingPipelineConfig1.MaxTraceRecursionDepth = subobjectReader.GetRaytracingPipelineConfig1_MaxTraceRecursionDepth();
+    subobject.RaytracingPipelineConfig1.Flags = subobjectReader.GetRaytracingPipelineConfig1_Flags();
     break;
   default:
     // Ignore contents of unrecognized subobject type (forward-compat)

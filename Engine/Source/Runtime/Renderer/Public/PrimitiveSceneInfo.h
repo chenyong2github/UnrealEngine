@@ -310,12 +310,6 @@ public:
 	/** The number of movable point lights for mobile */
 	int32 NumMobileMovablePointLights;
 
-	/** This indicate that we should call the GetCustomLOD function on the proxy instead of the generic implementation. */
-	bool bIsUsingCustomLODRules : 1;
-	
-	/** This indicate that we should call the GetCustomWholeSceneShadowLOD function on the proxy instead of the generic implementation. */
-	bool bIsUsingCustomWholeSceneShadowLODRules : 1;
-
 #if RHI_RAYTRACING
 	bool bDrawInGame : 1;
 	bool bShouldRenderInMainPass : 1;
@@ -474,7 +468,7 @@ public:
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
 
 	/** Updates static lighting uniform buffer, returns the number of entries needed for GPUScene */
-	int32 UpdateStaticLightingBuffer();
+	RENDERER_API int32 UpdateStaticLightingBuffer();
 
 	/** Update the cached runtime virtual texture flags for this primitive. Do this when runtime virtual textures are created or destroyed. */
 	void UpdateRuntimeVirtualTextureFlags();

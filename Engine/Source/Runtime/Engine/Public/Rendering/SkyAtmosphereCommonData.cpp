@@ -8,7 +8,7 @@
 
 #include "Components/SkyAtmosphereComponent.h"
 
-//#pragma optimize( "", off )
+//PRAGMA_DISABLE_OPTIMIZATION
 
 const float FAtmosphereSetup::CmToSkyUnit = 0.00001f;			// Centimeters to Kilometers
 const float FAtmosphereSetup::SkyUnitToCm = 1.0f / 0.00001f;	// Kilometers to Centimeters
@@ -59,6 +59,11 @@ FAtmosphereSetup::FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereC
 	TransmittanceMinLightElevationAngle = SkyAtmosphereComponent.TransmittanceMinLightElevationAngle;
 
 	UpdateTransform(SkyAtmosphereComponent.GetComponentTransform(), uint8(SkyAtmosphereComponent.TransformMode));
+}
+
+void FAtmosphereSetup::ApplyWorldOffset(const FVector& InOffset)
+{
+	PlanetCenterKm += InOffset * FAtmosphereSetup::CmToSkyUnit;
 }
 
 void FAtmosphereSetup::UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode)
@@ -168,4 +173,40 @@ FLinearColor FAtmosphereSetup::GetTransmittanceAtGroundLevel(const FVector& SunD
 	return FLinearColor(FMath::Exp(-OpticalDepthRGB.R), FMath::Exp(-OpticalDepthRGB.G), FMath::Exp(-OpticalDepthRGB.B));
 }
 
+void FAtmosphereSetup::ComputeViewData(const FVector& WorldCameraOrigin, const FVector& ViewForward, const FVector& ViewRight,
+	FVector& SkyWorldCameraOrigin, FVector4& SkyPlanetCenterAndViewHeight, FMatrix& SkyViewLutReferential) const
+{
+	// The constants below should match the one in SkyAtmosphereCommon.ush
+	const float PlanetRadiusOffset = 0.01f;		// Always force to be 10 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing)
 
+	const float Offset = PlanetRadiusOffset * SkyUnitToCm;
+	const float BottomRadiusWorld = BottomRadiusKm * SkyUnitToCm;
+	const FVector PlanetCenterWorld = PlanetCenterKm * SkyUnitToCm;
+	const FVector PlanetCenterToCameraWorld = WorldCameraOrigin - PlanetCenterWorld;
+	const float DistanceToPlanetCenterWorld = PlanetCenterToCameraWorld.Size();
+
+	// If the camera is below the planet surface, we snap it back onto the surface.
+	// This is to make sure the sky is always visible even if the camera is inside the virtual planet.
+	SkyWorldCameraOrigin = DistanceToPlanetCenterWorld < (BottomRadiusWorld + Offset) ? PlanetCenterWorld + (BottomRadiusWorld + Offset) * (PlanetCenterToCameraWorld / DistanceToPlanetCenterWorld) : WorldCameraOrigin;
+	SkyPlanetCenterAndViewHeight = FVector4(PlanetCenterWorld, (SkyWorldCameraOrigin - PlanetCenterWorld).Size());
+
+	// Now compute the referential for the SkyView LUT
+	FVector PlanetCenterToWorldCameraPos = (SkyWorldCameraOrigin - PlanetCenterWorld) * CmToSkyUnit;
+	FVector Up = PlanetCenterToWorldCameraPos;
+	Up.Normalize();
+	FVector	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
+	//FVector	Left = normalize(cross(Forward, Up)); 
+	FVector	Left; 
+	Left = FVector::CrossProduct(Forward, Up);
+	Left.Normalize();
+	if (FMath::Abs(FVector::DotProduct(Forward, Up)) > 0.99f)
+	{
+		Left = -ViewRight;
+	}
+	Forward = FVector::CrossProduct(Up, Left);
+	Forward.Normalize();
+	SkyViewLutReferential.SetColumn(0, Forward);
+	SkyViewLutReferential.SetColumn(1, Left);
+	SkyViewLutReferential.SetColumn(2, Up);
+	SkyViewLutReferential = SkyViewLutReferential.GetTransposed();
+}

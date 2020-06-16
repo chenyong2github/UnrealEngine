@@ -397,6 +397,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 {
 	check(IsInRenderingThread());
 
+	// Multi-GPU support : Benchmark needs to be made MGPU-aware.
 	bool bValidGPUTimer = (FGPUTiming::GetTimingFrequency() / (1000 * 1000)) != 0;
 
 	if(!bValidGPUTimer)

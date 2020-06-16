@@ -8,6 +8,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "UObject/DebugSerializationFlags.h"
 #include "PipelineStateCache.h"
+#include "ShaderCompilerCore.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVertexFactoryShaderParameters);
 

@@ -14,12 +14,12 @@
 #include "dxc/HLSL/HLMatrixType.h"
 #include "dxc/HLSL/HLOperations.h"
 #include "dxc/HLSL/HLModule.h"
-#include "dxc/DXIL/DxilUtil.h"
 #include "dxc/HlslIntrinsicOp.h"
 #include "dxc/Support/Global.h"
 #include "dxc/DXIL/DxilOperations.h"
 #include "dxc/DXIL/DxilTypeSystem.h"
 #include "dxc/DXIL/DxilModule.h"
+#include "dxc/DXIL/DxilUtil.h"
 #include "HLMatrixSubscriptUseReplacer.h"
 
 #include "llvm/IR/IRBuilder.h"
@@ -141,6 +141,7 @@ private:
   void replaceAllUsesByLoweredValue(Instruction *MatInst, Value *VecVal);
   void replaceAllVariableUses(Value* MatPtr, Value* LoweredPtr);
   void replaceAllVariableUses(SmallVectorImpl<Value*> &GEPIdxStack, Value *StackTopPtr, Value* LoweredPtr);
+  Value *translateScalarMatMul(Value *scalar, Value *mat, IRBuilder<> &Builder, bool isLhsScalar = true);
 
   void lowerGlobal(GlobalVariable *Global);
   Constant *lowerConstInitVal(Constant *Val);
@@ -149,6 +150,7 @@ private:
   void lowerReturn(ReturnInst* Return);
   Value *lowerCall(CallInst *Call);
   Value *lowerNonHLCall(CallInst *Call);
+  void lowerPreciseCall(CallInst *Call, IRBuilder<> Builder);
   Value *lowerHLOperation(CallInst *Call, HLOpcodeGroup OpcodeGroup);
   Value *lowerHLIntrinsic(CallInst *Call, IntrinsicOp Opcode);
   Value *lowerHLMulIntrinsic(Value* Lhs, Value *Rhs, bool Unsigned, IRBuilder<> &Builder);
@@ -587,7 +589,7 @@ Constant *HLMatrixLowerPass::lowerConstInitVal(Constant *Val) {
       LoweredElems.emplace_back(lowerConstInitVal(ArrayElem));
     }
 
-    Type *LoweredElemTy = HLMatrixType::getLoweredType(ArrayTy->getElementType());
+    Type *LoweredElemTy = HLMatrixType::getLoweredType(ArrayTy->getElementType(), /*MemRepr*/true);
     ArrayType *LoweredArrayTy = ArrayType::get(LoweredElemTy, NumElems);
     return ConstantArray::get(LoweredArrayTy, LoweredElems);
   }
@@ -682,6 +684,16 @@ Value *HLMatrixLowerPass::lowerCall(CallInst *Call) {
     ? lowerNonHLCall(Call) : lowerHLOperation(Call, OpcodeGroup);
 }
 
+// Special function to lower precise call applied to a matrix
+// The matrix should be lowered and the call regenerated with vector arg
+void HLMatrixLowerPass::lowerPreciseCall(CallInst *Call, IRBuilder<> Builder) {
+  DXASSERT(Call->getNumArgOperands() == 1, "Only one arg expected for precise matrix call");
+  Value *Arg = Call->getArgOperand(0);
+  Value *LoweredArg = getLoweredByValOperand(Arg, Builder);
+  HLModule::MarkPreciseAttributeOnValWithFunctionCall(LoweredArg, Builder, *m_pModule);
+  addToDeadInsts(Call);
+}
+
 Value *HLMatrixLowerPass::lowerNonHLCall(CallInst *Call) {
   // First, handle any operand of matrix-derived type
   // We don't lower the callee's signature in this pass,
@@ -690,6 +702,12 @@ Value *HLMatrixLowerPass::lowerNonHLCall(CallInst *Call) {
   // pass knows how to eliminate.
   IRBuilder<> PreCallBuilder(Call);
   unsigned NumArgs = Call->getNumArgOperands();
+  Function *Func = Call->getCalledFunction();
+  if (Func && HLModule::HasPreciseAttribute(Func)) {
+    lowerPreciseCall(Call, PreCallBuilder);
+    return nullptr;
+  }
+
   for (unsigned ArgIdx = 0; ArgIdx < NumArgs; ++ArgIdx) {
     Use &ArgUse = Call->getArgOperandUse(ArgIdx);
     if (ArgUse->getType()->isPointerTy()) {
@@ -836,6 +854,35 @@ Value *HLMatrixLowerPass::lowerHLIntrinsic(CallInst *Call, IntrinsicOp Opcode) {
     LoweredRetTy, LoweredArgs, Builder);
 }
 
+// Handles multiplcation of a scalar with a matrix
+Value *HLMatrixLowerPass::translateScalarMatMul(Value *Lhs, Value *Rhs, IRBuilder<> &Builder, bool isLhsScalar) {
+  Value *Mat = isLhsScalar ? Rhs : Lhs;
+  Value *Scalar = isLhsScalar ? Lhs : Rhs;
+  Value* LoweredMat = getLoweredByValOperand(Mat, Builder);
+  Type *ScalarTy = Scalar->getType();
+
+  // Perform the scalar-matrix multiplication!
+  Type *ElemTy = LoweredMat->getType()->getVectorElementType();
+  bool isIntMulOp = ScalarTy->isIntegerTy() && ElemTy->isIntegerTy();
+  bool isFloatMulOp = ScalarTy->isFloatingPointTy() && ElemTy->isFloatingPointTy();
+  DXASSERT(ScalarTy == ElemTy, "Scalar type must match the matrix component type.");
+  Value *Result = Builder.CreateVectorSplat(LoweredMat->getType()->getVectorNumElements(), Scalar);
+
+  if (isFloatMulOp) {
+    // Preserve the order of operation for floats
+    Result = isLhsScalar ? Builder.CreateFMul(Result, LoweredMat) : Builder.CreateFMul(LoweredMat, Result);
+  }
+  else if (isIntMulOp) {
+    // Doesn't matter for integers but still preserve the order of operation
+    Result = isLhsScalar ? Builder.CreateMul(Result, LoweredMat) : Builder.CreateMul(LoweredMat, Result);
+  }
+  else {
+    DXASSERT(0, "Unknown type encountered when doing scalar-matrix multiplication.");
+  }
+
+  return Result;
+}
+
 Value *HLMatrixLowerPass::lowerHLMulIntrinsic(Value* Lhs, Value *Rhs,
     bool Unsigned, IRBuilder<> &Builder) {
   HLMatrixType LhsMatTy = HLMatrixType::dyn_cast(Lhs->getType());
@@ -843,9 +890,16 @@ Value *HLMatrixLowerPass::lowerHLMulIntrinsic(Value* Lhs, Value *Rhs,
   Value* LoweredLhs = getLoweredByValOperand(Lhs, Builder);
   Value* LoweredRhs = getLoweredByValOperand(Rhs, Builder);
 
+  // Translate multiplication of scalar with matrix
+  bool isLhsScalar = !LoweredLhs->getType()->isVectorTy();
+  bool isRhsScalar = !LoweredRhs->getType()->isVectorTy();
+  bool isScalar = isLhsScalar || isRhsScalar;
+  if (isScalar)
+    return translateScalarMatMul(Lhs, Rhs, Builder, isLhsScalar);
+
   DXASSERT(LoweredLhs->getType()->getScalarType() == LoweredRhs->getType()->getScalarType(),
     "Unexpected element type mismatch in mul intrinsic.");
-  DXASSERT(cast<VectorType>(LoweredLhs->getType()) && cast<VectorType>(LoweredLhs->getType()),
+  DXASSERT(cast<VectorType>(LoweredLhs->getType()) && cast<VectorType>(LoweredRhs->getType()),
     "Unexpected scalar in lowered matrix mul intrinsic operands.");
 
   Type* ElemTy = LoweredLhs->getType()->getScalarType();

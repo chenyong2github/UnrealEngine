@@ -31,16 +31,6 @@ extern int32 GDistanceFieldAOTileSizeY;
 extern int32 GAverageObjectsPerShadowCullTile;
 extern int32 GAverageHeightFieldObjectsPerShadowCullTile;
 
-extern int32 GDistanceFieldGI;
-
-inline bool SupportsDistanceFieldGI(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
-{
-	return GDistanceFieldGI 
-		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& DoesPlatformSupportDistanceFieldGI(ShaderPlatform);
-}
-
-extern bool IsDistanceFieldGIAllowed(const FViewInfo& View);
 extern bool UseDistanceFieldAO();
 extern bool UseAOObjectDistanceField();
 
@@ -85,67 +75,6 @@ public:
 
 class FDistanceFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_SignedDistanceField> {};
 class FHeightFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_HeightField> {};
-
-class FSurfelBuffers
-{
-public:
-
-	// In float4's
-	static int32 SurfelDataStride;
-	static int32 InterpolatedVertexDataStride;
-
-	int32 MaxSurfels;
-
-	void Initialize()
-	{
-		if (MaxSurfels > 0)
-		{
-			InterpolatedVertexData.Initialize(sizeof(FVector4), MaxSurfels * InterpolatedVertexDataStride, PF_A32B32G32R32F, BUF_Static);
-			Surfels.Initialize(sizeof(FVector4), MaxSurfels * SurfelDataStride, PF_A32B32G32R32F, BUF_Static);
-		}
-	}
-
-	void Release()
-	{
-		InterpolatedVertexData.Release();
-		Surfels.Release();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return InterpolatedVertexData.NumBytes + Surfels.NumBytes;
-	}
-
-	FRWBuffer InterpolatedVertexData;
-	FRWBuffer Surfels;
-};
-
-class FInstancedSurfelBuffers
-{
-public:
-
-	int32 MaxSurfels;
-
-	void Initialize()
-	{
-		if (MaxSurfels > 0)
-		{
-			VPLFlux.Initialize(sizeof(FVector4), MaxSurfels, PF_A32B32G32R32F, BUF_Static);
-		}
-	}
-
-	void Release()
-	{
-		VPLFlux.Release();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return VPLFlux.NumBytes;
-	}
-
-	FRWBuffer VPLFlux;
-};
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBufferParameters
@@ -235,47 +164,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldSampler)
 	LAYOUT_FIELD(FShaderParameter, DistanceFieldAtlasTexelSize)
-};
-
-class FSurfelBufferParameters
-{
-	DECLARE_TYPE_LAYOUT(FSurfelBufferParameters, NonVirtual);
-public:
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		InterpolatedVertexData.Bind(ParameterMap, TEXT("InterpolatedVertexData"));
-		SurfelData.Bind(ParameterMap, TEXT("SurfelData"));
-		VPLFlux.Bind(ParameterMap, TEXT("VPLFlux"));
-	}
-
-	template<typename TParamRef>
-	void Set(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FSurfelBuffers& SurfelBuffers, const FInstancedSurfelBuffers& InstancedSurfelBuffers)
-	{
-		InterpolatedVertexData.SetBuffer(RHICmdList, ShaderRHI, SurfelBuffers.InterpolatedVertexData);
-		SurfelData.SetBuffer(RHICmdList, ShaderRHI, SurfelBuffers.Surfels);
-		VPLFlux.SetBuffer(RHICmdList, ShaderRHI, InstancedSurfelBuffers.VPLFlux);
-	}
-
-	template<typename TParamRef>
-	void UnsetParameters(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI)
-	{
-		InterpolatedVertexData.UnsetUAV(RHICmdList, ShaderRHI);
-		SurfelData.UnsetUAV(RHICmdList, ShaderRHI);
-		VPLFlux.UnsetUAV(RHICmdList, ShaderRHI);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FSurfelBufferParameters& P)
-	{
-		Ar << P.InterpolatedVertexData << P.SurfelData << P.VPLFlux;
-		return Ar;
-	}
-
-private:
-	
-		LAYOUT_FIELD(FRWShaderParameter, InterpolatedVertexData)
-		LAYOUT_FIELD(FRWShaderParameter, SurfelData)
-		LAYOUT_FIELD(FRWShaderParameter, VPLFlux)
-	
 };
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
@@ -779,62 +667,6 @@ public:
 		TriangleDataSRV.SafeRelease(); 
 		TriangleAreas.Release();
 		TriangleCDFs.Release();
-	}
-};
-
-class FUniformMeshConverter
-{
-public:
-	static int32 Convert(
-		FRHICommandListImmediate& RHICmdList, 
-		FSceneRenderer& Renderer,
-		FViewInfo& View, 
-		const FPrimitiveSceneInfo* PrimitiveSceneInfo, 
-		int32 LODIndex,
-		FUniformMeshBuffers*& OutUniformMeshBuffers,
-		const FMaterialRenderProxy*& OutMaterialRenderProxy,
-		FRHIUniformBuffer*& OutPrimitiveUniformBuffer);
-
-	static void GenerateSurfels(
-		FRHICommandListImmediate& RHICmdList, 
-		FViewInfo& View, 
-		const FPrimitiveSceneInfo* PrimitiveSceneInfo, 
-		const FMaterialRenderProxy* MaterialProxy,
-		FRHIUniformBuffer* PrimitiveUniformBuffer,
-		const FMatrix& Instance0Transform,
-		int32 SurfelOffset,
-		int32 NumSurfels);
-};
-
-class FPreCulledTriangleBuffers
-{
-public:
-
-	int32 MaxIndices;
-
-	FRWBuffer TriangleVisibleMask;
-
-	FPreCulledTriangleBuffers()
-	{
-		MaxIndices = 0;
-	}
-
-	void Initialize()
-	{
-		if (MaxIndices > 0)
-		{
-			TriangleVisibleMask.Initialize(sizeof(uint32), MaxIndices / 3, PF_R32_UINT);
-		}
-	}
-
-	void Release()
-	{
-		TriangleVisibleMask.Release();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return TriangleVisibleMask.NumBytes;
 	}
 };
 

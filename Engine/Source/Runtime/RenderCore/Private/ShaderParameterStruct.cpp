@@ -207,18 +207,12 @@ struct FShaderParameterStructBindingContext
 
 					if (BoundSize != 1)
 					{
-						// Switch shader compiler does not yet support this validation on RHIResouces, see UE-86533
-						const EShaderPlatform& ShaderPlatform = Shader->GetShaderPlatform();
-						const bool bIsSwitchShader = ShaderPlatform == SP_SWITCH || ShaderPlatform == SP_SWITCH_FORWARD;
-						if (bIsSwitchShader && !bIsRHIResource)
-						{
-							UE_LOG(LogShaders, Fatal,
-								TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
-								TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
-								TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
-								Shader->GetTypeUnfrozen()->GetName(), PermutationId,
-								*ElementShaderBindingName, BoundSize, *CppName);
-						}
+						UE_LOG(LogShaders, Fatal,
+							TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
+							TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
+							TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
+							Shader->GetTypeUnfrozen()->GetName(), PermutationId,
+							*ElementShaderBindingName, BoundSize, *CppName);
 					}
 
 					Bindings->ResourceParameters.Add(Parameter);
@@ -271,7 +265,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	if (bShouldBindEverything && BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
 		FString ErrorString = FString::Printf(
-			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Type->GetName());
+			TEXT("Shader %s, permutation %d has unbound parameters not represented in the parameter struct:"), Type->GetName(), PermutationId);
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
@@ -339,7 +333,8 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	if (BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
 		FString ErrorString = FString::Printf(
-			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Type->GetName());
+			TEXT("Shader %s, permutation %d has unbound parameters not represented in the parameter struct:"),
+			Type->GetName(), PermutationId);
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
@@ -443,7 +438,7 @@ void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderPa
 	const uint8* Base = reinterpret_cast<const uint8*>(Parameters);
 
 	const TCHAR* ShaderClassName = Shader.GetType()->GetName();
-	const TCHAR* ShaderParemeterStructName = ParametersMetadata->GetStructTypeName();
+	const TCHAR* ShaderParameterStructName = ParametersMetadata->GetStructTypeName();
 
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.ResourceParameters)
 	{
@@ -475,7 +470,7 @@ void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderPa
 
 					UE_LOG(LogShaders, Error,
 						TEXT("Attempting to set shader %s parameter %s::%s with the RDG texture %s which was not created with TexCreate_ShaderResource"),
-						ShaderClassName, ShaderParemeterStructName, *MemberName, GraphTexture->Name);
+						ShaderClassName, ShaderParameterStructName, *MemberName, GraphTexture->Name);
 				}
 			}
 			break;

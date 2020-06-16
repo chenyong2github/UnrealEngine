@@ -43,8 +43,9 @@ DxilMatrixAnnotation::DxilMatrixAnnotation()
 DxilFieldAnnotation::DxilFieldAnnotation()
 : m_bPrecise(false)
 , m_ResourceAttribute(nullptr)
-, m_CBufferOffset(UINT_MAX) {
-}
+, m_CBufferOffset(UINT_MAX)
+, m_bCBufferVarUsed(false)
+{}
 
 bool DxilFieldAnnotation::IsPrecise() const { return m_bPrecise; }
 void DxilFieldAnnotation::SetPrecise(bool b) { m_bPrecise = b; }
@@ -76,7 +77,26 @@ void DxilFieldAnnotation::SetInterpolationMode(const InterpolationMode &IM) { m_
 bool DxilFieldAnnotation::HasFieldName() const { return !m_FieldName.empty(); }
 const std::string &DxilFieldAnnotation::GetFieldName() const { return m_FieldName; }
 void DxilFieldAnnotation::SetFieldName(const std::string &FieldName) { m_FieldName = FieldName; }
+bool DxilFieldAnnotation::IsCBVarUsed() const { return m_bCBufferVarUsed; }
+void DxilFieldAnnotation::SetCBVarUsed(bool used) { m_bCBufferVarUsed = used; }
 
+
+
+//------------------------------------------------------------------------------
+//
+// DxilStructAnnotation class methods.
+//
+DxilTemplateArgAnnotation::DxilTemplateArgAnnotation()
+    : DxilFieldAnnotation(), m_Type(nullptr), m_Integral(0)
+{}
+
+bool DxilTemplateArgAnnotation::IsType() const { return m_Type != nullptr; }
+const llvm::Type *DxilTemplateArgAnnotation::GetType() const { return m_Type; }
+void DxilTemplateArgAnnotation::SetType(const llvm::Type *pType) { m_Type = pType; }
+
+bool DxilTemplateArgAnnotation::IsIntegral() const { return m_Type == nullptr; }
+int64_t DxilTemplateArgAnnotation::GetIntegral() const { return m_Integral; }
+void DxilTemplateArgAnnotation::SetIntegral(int64_t i64) { m_Type = nullptr; m_Integral = i64; }
 
 //------------------------------------------------------------------------------
 //
@@ -97,11 +117,31 @@ const DxilFieldAnnotation &DxilStructAnnotation::GetFieldAnnotation(unsigned Fie
 const StructType *DxilStructAnnotation::GetStructType() const {
   return m_pStructType;
 }
+void DxilStructAnnotation::SetStructType(const llvm::StructType *Ty) {
+  m_pStructType = Ty;
+}
+
 
 unsigned DxilStructAnnotation::GetCBufferSize() const { return m_CBufferSize; }
 void DxilStructAnnotation::SetCBufferSize(unsigned size) { m_CBufferSize = size; }
 void DxilStructAnnotation::MarkEmptyStruct() { m_FieldAnnotations.clear(); }
 bool DxilStructAnnotation::IsEmptyStruct() { return m_FieldAnnotations.empty(); }
+
+// For template args, GetNumTemplateArgs() will return 0 if not a template
+unsigned DxilStructAnnotation::GetNumTemplateArgs() const {
+  return (unsigned)m_TemplateAnnotations.size();
+}
+void DxilStructAnnotation::SetNumTemplateArgs(unsigned count) {
+  DXASSERT(m_TemplateAnnotations.empty(), "template args already initialized");
+  m_TemplateAnnotations.resize(count);
+}
+DxilTemplateArgAnnotation &DxilStructAnnotation::GetTemplateArgAnnotation(unsigned argIdx) {
+  return m_TemplateAnnotations[argIdx];
+}
+const DxilTemplateArgAnnotation &DxilStructAnnotation::GetTemplateArgAnnotation(unsigned argIdx) const {
+  return m_TemplateAnnotations[argIdx];
+}
+
 
 //------------------------------------------------------------------------------
 //
@@ -166,12 +206,13 @@ DxilTypeSystem::DxilTypeSystem(Module *pModule)
     : m_pModule(pModule),
       m_LowPrecisionMode(DXIL::LowPrecisionMode::Undefined) {}
 
-DxilStructAnnotation *DxilTypeSystem::AddStructAnnotation(const StructType *pStructType) {
+DxilStructAnnotation *DxilTypeSystem::AddStructAnnotation(const StructType *pStructType, unsigned numTemplateArgs) {
   DXASSERT_NOMSG(m_StructAnnotations.find(pStructType) == m_StructAnnotations.end());
   DxilStructAnnotation *pA = new DxilStructAnnotation();
   m_StructAnnotations[pStructType] = unique_ptr<DxilStructAnnotation>(pA);
   pA->m_pStructType = pStructType;
   pA->m_FieldAnnotations.resize(pStructType->getNumElements());
+  pA->SetNumTemplateArgs(numTemplateArgs);
   return pA;
 }
 
@@ -402,6 +443,28 @@ DXIL::SigPointKind SigPointFromInputQual(DxilParamInputQual Q, DXIL::ShaderKind 
     switch (Q) {
     case DxilParamInputQual::In:
       return DXIL::SigPointKind::CSIn;
+    default:
+      break;
+    }
+    break;
+  case DXIL::ShaderKind::Mesh:
+    switch (Q) {
+    case DxilParamInputQual::In:
+    case DxilParamInputQual::InPayload:
+      return DXIL::SigPointKind::MSIn;
+    case DxilParamInputQual::OutIndices:
+    case DxilParamInputQual::OutVertices:
+      return DXIL::SigPointKind::MSOut;
+    case DxilParamInputQual::OutPrimitives:
+      return DXIL::SigPointKind::MSPOut;
+    default:
+      break;
+    }
+    break;
+  case DXIL::ShaderKind::Amplification:
+    switch (Q) {
+    case DxilParamInputQual::In:
+      return DXIL::SigPointKind::ASIn;
     default:
       break;
     }

@@ -59,12 +59,12 @@ public class UnrealLightmass : ModuleRules
 		PrivateIncludePaths.Add("Programs/UnrealLightmass/Private/LightmassCore/Templates");
 
         // Always use the official version of IntelTBB
-        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
 
         // EMBREE
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree270/Win64/";
+            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree270/Win64/";
 
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/embree.lib");
@@ -75,7 +75,7 @@ public class UnrealLightmass : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-            string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree270/MacOSX/";
+            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree270/MacOSX/";
 
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.dylib");

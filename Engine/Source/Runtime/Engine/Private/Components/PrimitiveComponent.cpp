@@ -37,6 +37,7 @@
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif // WITH_EDITOR
 
 #if DO_CHECK
@@ -613,6 +614,13 @@ void UPrimitiveComponent::OnRegister()
 		bNavigationRelevant = false;
 	}
 
+#if WITH_EDITOR
+	if (HasValidSettingsForStaticLighting(false))
+	{
+		FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
+	}
+#endif
+
 	// Update our Owner's LastRenderTime
 	SetLastRenderTime(LastRenderTime);
 }
@@ -642,6 +650,10 @@ void UPrimitiveComponent::OnUnregister()
 	{
 		FNavigationSystem::OnComponentUnregistered(*this);
 	}
+
+#if WITH_EDITOR
+	FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(this);
+#endif
 }
 
 FPrimitiveComponentInstanceData::FPrimitiveComponentInstanceData(const UPrimitiveComponent* SourceComponent)

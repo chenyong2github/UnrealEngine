@@ -29,6 +29,7 @@
 #include "VirtualTexturing.h"
 
 struct FExpressionInput;
+struct FExtraShaderCompilerSettings;
 class FMaterial;
 class FMaterialCompiler;
 class FMaterialRenderProxy;

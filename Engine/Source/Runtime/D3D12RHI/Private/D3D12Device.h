@@ -119,6 +119,8 @@ public:
 
 	void BlockUntilIdle();
 
+	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
+
 protected:
 
 	/** A pool of command lists we can cycle through for the global D3D device */
@@ -191,8 +193,9 @@ protected:
 	FD3D12RayTracingDescriptorHeapCache* RayTracingDescriptorHeapCache = nullptr;
 	void DestroyRayTracingDescriptorCache();
 #endif
-};
 
+	FD3DGPUProfiler GPUProfilingData;
+};
 template <typename TDesc> 
 void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()
 {

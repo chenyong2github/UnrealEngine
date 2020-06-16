@@ -334,7 +334,6 @@ public:
 	{
 		LightShaftParameters.Bind(Initializer.ParameterMap);
 		SampleOffsetsParameter.Bind(Initializer.ParameterMap,TEXT("SampleOffsets"));
-		SceneTextureParams.Bind(Initializer);
 	}
 
 	/** Sets shader parameter values */
@@ -346,14 +345,12 @@ public:
 		const FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
 		FVector2D SampleOffsets(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),SampleOffsetsParameter,SampleOffsets);
-		SceneTextureParams.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
 	}
 
 private:
 
 	LAYOUT_FIELD(FLightShaftPixelShaderParameters, LightShaftParameters);
 	LAYOUT_FIELD(FShaderParameter, SampleOffsetsParameter);
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParams);
 };
 
 #define IMPLEMENT_LSDOWNSAMPLE_PIXELSHADER_TYPE(LightType,DownsampleValue) \
@@ -474,6 +471,11 @@ void AllocateOrReuseLightShaftRenderTarget(FRHICommandListImmediate& RHICmdList,
 template<bool bDownsampleOcclusion>
 void DownsamplePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, TRefCountPtr<IPooledRenderTarget>& LightShaftsSource, TRefCountPtr<IPooledRenderTarget>& LightShaftsDest)
 {
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, View.GetFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleDraw);
+	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 	const FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
 	const uint32 DownsampleFactor	= GetLightShaftDownsampleFactor();
 	const FIntPoint FilterBufferSize = BufferSize / DownsampleFactor;

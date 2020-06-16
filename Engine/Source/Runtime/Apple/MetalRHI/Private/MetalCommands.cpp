@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "MetalRHIPrivate.h"
-
+#include "MetalShaderTypes.h"
+#include "MetalGraphicsPipelineState.h"
+#include "MetalComputePipelineState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
 #include "RHICommandList.h"
@@ -409,7 +411,7 @@ void FMetalRHICommandContext::RHISetBlendFactor(const FLinearColor& BlendFactor)
 	Context->GetCurrentState().SetBlendFactor(BlendFactor);
 }
 
-void FMetalRHICommandContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets,
+void FMetalRHICommandContext::SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets,
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI)
 {
 	@autoreleasepool {
@@ -425,11 +427,11 @@ void FMetalRHICommandContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTa
 	}
 
 	FRHISetRenderTargetsInfo Info(NumSimultaneousRenderTargets, NewRenderTargets, DepthView);
-	RHISetRenderTargetsAndClear(Info);
+	SetRenderTargetsAndClear(Info);
 	}
 }
 
-void FMetalRHICommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
+void FMetalRHICommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
 	@autoreleasepool {
 		
@@ -681,6 +683,7 @@ void FMetalDynamicRHI::RHIBlockUntilGPUIdle()
 
 uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
+	check(GPUIndex == 0);
 	return GGPUFrameTime;
 }
 

@@ -189,7 +189,7 @@ if( LLVM_ENABLE_PIC )
       # MinGW warns if -fvisibility-inlines-hidden is used.
     else()
       check_cxx_compiler_flag("-fvisibility-inlines-hidden" SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
-      append_if(SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG "-fvisibility-inlines-hidden" CMAKE_CXX_FLAGS)
+      append_if(SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG "-fvisibility-inlines-hidden -fvisibility=hidden" CMAKE_CXX_FLAGS)
     endif()
   endif()
 endif()
@@ -530,6 +530,13 @@ if (UNIX AND
     CMAKE_GENERATOR STREQUAL "Ninja")
   append("-fcolor-diagnostics" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
 endif()
+
+# HLSL Change Starts
+# Enable -fms-extensions for clang to use MS uuid extensions for COM.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  append("-fms-extensions -Wno-language-extension-token" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
+endif()
+# HLSL Change Ends
 
 # Add flags for add_dead_strip().
 # FIXME: With MSVS, consider compiling with /Gy and linking with /OPT:REF?

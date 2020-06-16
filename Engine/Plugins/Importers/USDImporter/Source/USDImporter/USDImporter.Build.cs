@@ -35,7 +35,7 @@ namespace UnrealBuildTool.Rules
 				);
 
 			// Always use the official version of IntelTBB
-			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{

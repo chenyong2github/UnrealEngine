@@ -95,7 +95,7 @@ void DxaContext::Assemble() {
         }
       }
 
-      WriteBlobToFile(pContainer, StringRefUtf16(OutputFilename));
+      WriteBlobToFile(pContainer, StringRefUtf16(OutputFilename), DXC_CP_UTF8); // TODO: Support DefaultTextCodePage
     }
   }
 }
@@ -207,7 +207,7 @@ bool DxaContext::ExtractFile(const char *pName) {
     return printedAny;
   }
 
-  CA2W WideName(pName);
+  CA2W WideName(pName, CP_UTF8);
   for (;;) {
     CComPtr<IUnknown> pInjectedSourceUnk;
     ULONG fetched;
@@ -298,7 +298,7 @@ bool DxaContext::ExtractPart(const char *pName) {
         std::swap(pModuleBlob, pContent);
       }
 
-      WriteBlobToFile(pContent, StringRefUtf16(OutputFilename));
+      WriteBlobToFile(pContent, StringRefUtf16(OutputFilename), DXC_CP_UTF8); // TODO: Support DefaultTextCodePage
       printf("%Iu bytes written to %s\n", pContent->GetBufferSize(), OutputFilename.c_str());
       return true;
     }
@@ -307,22 +307,28 @@ bool DxaContext::ExtractPart(const char *pName) {
 }
 
 void DxaContext::ListParts() {
-  CComPtr<IDxcContainerReflection> pReflection;
   CComPtr<IDxcBlobEncoding> pSource;
-  UINT32 partCount;
-
   ReadFileIntoBlob(m_dxcSupport, StringRefUtf16(InputFilename), &pSource);
+
+  CComPtr<IDxcContainerReflection> pReflection;
   IFT(m_dxcSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
   IFT(pReflection->Load(pSource));
+
+  UINT32 partCount;
   IFT(pReflection->GetPartCount(&partCount));
   printf("Part count: %u\n", partCount);
+
   for (UINT32 i = 0; i < partCount; ++i) {
     UINT32 partKind;
     IFT(pReflection->GetPartKind(i, &partKind));
     // Part kind is typically four characters.
     char kindText[5];
     hlsl::PartKindToCharArray(partKind, kindText);
-    printf("#%u - %s\n", i, kindText);
+
+    CComPtr<IDxcBlob> partContent;
+    IFT(pReflection->GetPartContent(i, &partContent));
+
+    printf("#%u - %s (%u bytes)\n", i, kindText, (unsigned)partContent->GetBufferSize());
   }
 }
 

@@ -44,6 +44,7 @@
 #include "VulkanRHIBridge.h"
 #elif PLATFORM_MAC
 #include "MetalRHI.h"
+#include "MetalRHIPrivate.h"
 #endif // PLATFORM_SUPPORTS_VULKAN
 
 #include "Lumin/CAPIShims/LuminAPIPerception.h"

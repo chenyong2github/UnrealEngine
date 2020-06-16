@@ -253,27 +253,6 @@ void FRHICommandNextSubpass::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHINextSubpass)();
 }
 
-void FRHICommandBeginComputePass::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(BeginComputePass);
-	INTERNAL_DECORATOR(RHIBeginComputePass)(Name);
-}
-
-void FRHICommandEndComputePass::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(EndComputePass);
-	INTERNAL_DECORATOR(RHIEndComputePass)();
-}
-
-void FRHICommandSetRenderTargets::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetRenderTargets);
-	INTERNAL_DECORATOR(RHISetRenderTargets)(
-		NewNumSimultaneousRenderTargets,
-		NewRenderTargetsRHI,
-		&NewDepthStencilTarget);
-}
-
 void FRHICommandBindClearMRTValues::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BindClearMRTValues);

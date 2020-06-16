@@ -222,9 +222,10 @@ struct FRenderingCompositePassContext
 	FRenderingCompositionGraph Graph;
 	//
 	FRHICommandListImmediate& RHICmdList;
+	//
+	FUniformBufferRHIRef SceneTexturesUniformBuffer;
 
 private:
-
 	// cached state to map between ScreenPos and pixels
 	FIntRect ViewPortRect;
 	//
@@ -427,6 +428,9 @@ protected:
 
 	bool bIsComputePass;
 	bool bPreferAsyncCompute;
+
+	/** Whether the pass requires that global uniform buffers be bound. */
+	bool bBindGlobalUniformBuffers = true;
 
 	friend class FRenderingCompositionGraph;
 };
@@ -750,7 +754,9 @@ class TRCPassForRDG : public TRenderingCompositePassBase<InputCount, OutputCount
 public:
 	TRCPassForRDG(TFunction<void (FRenderingCompositePass*, FRenderingCompositePassContext&)>&& InProcessLambda)
 		: ProcessLambda(InProcessLambda)
-	{ }
+	{
+		FRenderingCompositePass::bBindGlobalUniformBuffers = false;
+	}
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override

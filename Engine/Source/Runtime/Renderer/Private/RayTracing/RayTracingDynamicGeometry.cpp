@@ -31,6 +31,7 @@ public:
 		NumVertices.Bind(Initializer.ParameterMap, TEXT("NumVertices"));
 		MinVertexIndex.Bind(Initializer.ParameterMap, TEXT("MinVertexIndex"));
 		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
+		bApplyWorldPositionOffset.Bind(Initializer.ParameterMap, TEXT("bApplyWorldPositionOffset"));
 	}
 
 	FRayTracingDynamicGeometryConverterCS() = default;
@@ -75,6 +76,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, NumVertices);
 	LAYOUT_FIELD(FShaderParameter, MinVertexIndex);
 	LAYOUT_FIELD(FShaderParameter, PrimitiveId);
+	LAYOUT_FIELD(FShaderParameter, bApplyWorldPositionOffset);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDynamicGeometryConverterCS, TEXT("/Engine/Private/RayTracing/RayTracingDynamicMesh.usf"), TEXT("RayTracingDynamicGeometryConverterCS"), SF_Compute);
@@ -137,6 +139,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		DispatchCmd.NumMaxVertices = UpdateParams.NumVertices;
 		DispatchCmd.NumCPUVertices = !bUsingIndirectDraw ? UpdateParams.NumVertices : 0;
 		DispatchCmd.PrimitiveId = PrimitiveId;
+		DispatchCmd.bApplyWorldPositionOffset = UpdateParams.bApplyWorldPositionOffset;
 		if (MeshBatch.Elements[0].MinVertexIndex < MeshBatch.Elements[0].MaxVertexIndex)
 		{
 			DispatchCmd.NumCPUVertices = MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
@@ -239,6 +242,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					SetShaderValue(RHICmdList, Shader.GetComputeShader(), Shader->NumVertices, Cmd.NumCPUVertices);
 					SetShaderValue(RHICmdList, Shader.GetComputeShader(), Shader->MinVertexIndex, Cmd.MinVertexIndex);
 					SetShaderValue(RHICmdList, Shader.GetComputeShader(), Shader->PrimitiveId, Cmd.PrimitiveId);
+					SetShaderValue(RHICmdList, Shader.GetComputeShader(), Shader->bApplyWorldPositionOffset, Cmd.bApplyWorldPositionOffset ? 1 : 0);
 					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
 
 					Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader.GetComputeShader());

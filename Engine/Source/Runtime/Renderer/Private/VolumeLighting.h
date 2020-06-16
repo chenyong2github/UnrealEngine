@@ -9,8 +9,81 @@
 #include "RHIDefinitions.h"
 #include "SceneView.h"
 #include "SceneRendering.h"
+#include "ShadowRendering.h"
 #include "Components/LightComponent.h"
 #include "Engine/MapBuildDataRegistry.h"
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
+	SHADER_PARAMETER(FMatrix, WorldToShadowMatrix)
+	SHADER_PARAMETER(FVector4, ShadowmapMinMax)
+	SHADER_PARAMETER(FVector4, DepthBiasParameters)
+	SHADER_PARAMETER(FVector4, ShadowInjectParams)
+	SHADER_PARAMETER_ARRAY(FVector4, ClippingPlanes, [2])
+	SHADER_PARAMETER_TEXTURE(Texture2D, ShadowDepthTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowDepthTextureSampler)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FOnePassPointShadowProjection, OnePassPointShadowProjection)
+	SHADER_PARAMETER(uint32, bStaticallyShadowed)
+	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowDepthTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowDepthTextureSampler)
+	SHADER_PARAMETER(FMatrix, WorldToStaticShadowMatrix)
+	SHADER_PARAMETER(FVector4, StaticShadowBufferSize)
+END_SHADER_PARAMETER_STRUCT()
+
+extern void GetVolumeShadowingShaderParameters(
+	const FViewInfo& View,
+	const FLightSceneInfo* LightSceneInfo,
+	const FProjectedShadowInfo* ShadowMap,
+	int32 InnerSplitIndex,
+	bool bDynamicallyShadowed,
+	FVolumeShadowingShaderParameters& OutParameters);
+
+
+
+///
+///
+///
+
+
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal0, )
+	SHADER_PARAMETER(FVector, Position)
+	SHADER_PARAMETER(float, InvRadius)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal1, )
+	SHADER_PARAMETER(FVector, Position)
+	SHADER_PARAMETER(float, InvRadius)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+class FVisibleLightInfo;
+
+void SetVolumeShadowingShaderParameters(
+	FVolumeShadowingShaderParametersGlobal0& ShaderParams,
+	const FViewInfo& View,
+	const FLightSceneInfo* LightSceneInfo,
+	const FProjectedShadowInfo* ShadowInfo,
+	int32 InnerSplitIndex);
+void SetVolumeShadowingShaderParameters(
+	FVolumeShadowingShaderParametersGlobal1& ShaderParams,
+	const FViewInfo& View,
+	const FLightSceneInfo* LightSceneInfo,
+	const FProjectedShadowInfo* ShadowInfo,
+	int32 InnerSplitIndex);
+
+void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal0& ShaderParams);
+void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal1& ShaderParams);
+
+const FProjectedShadowInfo* GetLastCascadeShadowInfo(const FLightSceneProxy* LightProxy, const FVisibleLightInfo& VisibleLightInfo);
+
+
+
+///
+///
+///
+
+
 
 class FVolumeShadowingParameters
 {

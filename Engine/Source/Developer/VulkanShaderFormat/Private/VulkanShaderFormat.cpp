@@ -51,7 +51,7 @@ public:
 	{
 		const uint8 HLSLCCVersion = ((HLSLCC_VersionMajor & 0x0f) << 4) | (HLSLCC_VersionMinor & 0x0f);
 		uint16 Version = ((HLSLCCVersion & 0xff) << 8) | (InternalGetVersion(Format) & 0xff);
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 		Version = (Version << 1) + Version;
 #endif
 		return Version;
@@ -118,22 +118,55 @@ public:
  * Module for Vulkan shaders
  */
 
-static IShaderFormat* Singleton = NULL;
+static IShaderFormat* Singleton = nullptr;
+
+#if PLATFORM_WINDOWS
+static const TCHAR* GShaderConductorModuleNames[] =
+{
+	TEXT("dxcompiler.dll"),
+	TEXT("ShaderConductor.dll")
+};
+
+static constexpr int32 GNumShaderConductorModules = (int32)UE_ARRAY_COUNT(GShaderConductorModuleNames);
+#endif
 
 class FVulkanShaderFormatModule : public IShaderFormatModule
 {
 public:
+#if PLATFORM_WINDOWS
+	void* ModuleHandles[GNumShaderConductorModules] = {};
+#endif
+
 	virtual ~FVulkanShaderFormatModule()
 	{
+#if PLATFORM_WINDOWS
+		for (int32 Index = GNumShaderConductorModules - 1; Index >= 0; --Index)
+		{
+			FPlatformProcess::FreeDllHandle(ModuleHandles[Index]);
+		}
+#endif
+
 		delete Singleton;
-		Singleton = NULL;
+		Singleton = nullptr;
 	}
+
 	virtual IShaderFormat* GetShaderFormat()
 	{
 		if (!Singleton)
 		{
 			Singleton = new FShaderFormatVulkan();
+
+#if PLATFORM_WINDOWS
+			FString ShaderConductorDir = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/");
+			for (int32 Index = 0; Index < GNumShaderConductorModules; ++Index)
+			{
+				FString ModulePath = ShaderConductorDir + GShaderConductorModuleNames[Index];
+				ModuleHandles[Index] = FPlatformProcess::GetDllHandle(*ModulePath);
+				checkf(ModuleHandles[Index], TEXT("Failed to load module: %s"), *ModulePath);
+			}
+#endif
 		}
+
 		return Singleton;
 	}
 };

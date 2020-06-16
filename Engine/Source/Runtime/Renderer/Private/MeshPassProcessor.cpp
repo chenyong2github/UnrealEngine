@@ -973,14 +973,15 @@ bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderB
 		{
 			const uint8* LooseBindings = SingleShaderBindings.GetLooseDataStart();
 			const uint8* OtherLooseBindings = OtherSingleShaderBindings.GetLooseDataStart();
+			const uint32 LooseLength = SingleShaderBindings.GetLooseDataSizeBytes();
+			const uint32 OtherLength = OtherSingleShaderBindings.GetLooseDataSizeBytes();
 
-			uint32 Length = 0;
-			for (const FShaderLooseParameterBufferInfo& ParamInfo : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
+			if (LooseLength != OtherLength)
 			{
-				Length = FMath::Max<uint32>(Length, ParamInfo.BaseIndex + ParamInfo.Size);
+				return false;
 			}
 
-			if (memcmp(LooseBindings, OtherLooseBindings, Length) != 0)
+			if (memcmp(LooseBindings, OtherLooseBindings, LooseLength) != 0)
 			{
 				return false;
 			}
@@ -1397,7 +1398,7 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData)
 		{
-			DrawPrimitiveId = Scene->Primitives.Num() + BatchElement.DynamicPrimitiveShaderDataIndex;
+			DrawPrimitiveId = (Scene ? Scene->Primitives.Num() : 0) + BatchElement.DynamicPrimitiveShaderDataIndex;
 		}
 		else
 		{

@@ -147,10 +147,10 @@ void [[]] GroupMemoryBarrier() : syncsharedmemory;
 void [[]] GroupMemoryBarrierWithGroupSync() : syncgroupandsharedmemory;
 void [[]] InterlockedAdd(in any_int32 result, in uint value);
 void [[]] InterlockedAdd(in any_int32 result, in uint value, out any_int32 original) : interlockedadd_immediate;
-void [[unsigned_op=InterlockedUMin,overload=1]] InterlockedMin(in any_int32 result, in any_int32 value) : interlockedmin;
-void [[unsigned_op=InterlockedUMin,overload=1]] InterlockedMin(in any_int32 result, in any_int32 value, out any_int32 original) : interlockedmin_immediate;
-void [[unsigned_op=InterlockedUMax,overload=1]] InterlockedMax(in any_int32 result, in any_int32 value) : interlockedmax;
-void [[unsigned_op=InterlockedUMax,overload=1]] InterlockedMax(in any_int32 result, in any_int32 value, out any_int32 original) : interlockedmax_immediate;
+void [[unsigned_op=InterlockedUMin,overload=0]] InterlockedMin(in any_int32 result, in any_int32 value) : interlockedmin;
+void [[unsigned_op=InterlockedUMin,overload=0]] InterlockedMin(in any_int32 result, in any_int32 value, out any_int32 original) : interlockedmin_immediate;
+void [[unsigned_op=InterlockedUMax,overload=0]] InterlockedMax(in any_int32 result, in any_int32 value) : interlockedmax;
+void [[unsigned_op=InterlockedUMax,overload=0]] InterlockedMax(in any_int32 result, in any_int32 value, out any_int32  original) : interlockedmax_immediate;
 void [[]] InterlockedAnd(in any_int32 result, in uint value);
 void [[]] InterlockedAnd(in any_int32 result, in uint value, out any_int32 original) : interlockedand_immediate;
 void [[]] InterlockedOr(in any_int32 result, in uint value);
@@ -251,10 +251,10 @@ uint   [[rn]] WaveGetLaneIndex();
 uint   [[rn]] WaveGetLaneCount();
 bool   [[]] WaveActiveAnyTrue(in bool cond);
 bool   [[]] WaveActiveAllTrue(in bool cond);
-$match<1, 0> bool<> [[]] WaveActiveAllEqual(in numeric<> value);
+$match<1, 0> bool<> [[]] WaveActiveAllEqual(in any<> value);
 uint<4> [[]] WaveActiveBallot(in bool cond);
-$type1 [[]] WaveReadLaneAt(in numeric<> value, in uint lane);
-$type1 [[]] WaveReadLaneFirst(in numeric<> value);
+$type1 [[]] WaveReadLaneAt(in any<> value, in uint lane);
+$type1 [[]] WaveReadLaneFirst(in any<> value);
 uint   [[]] WaveActiveCountBits(in bool value);
 $type1 [[unsigned_op=WaveActiveUSum]] WaveActiveSum(in numeric<> value);
 $type1 [[unsigned_op=WaveActiveUProduct]] WaveActiveProduct(in numeric<> value);
@@ -299,6 +299,7 @@ float [[rn]] RayTCurrent();
 uint [[rn]] PrimitiveIndex();
 uint [[rn]] InstanceID();
 uint [[rn]] InstanceIndex();
+uint [[rn]] GeometryIndex();
 uint [[rn]] HitKind();
 uint [[rn]] RayFlags();
 // group: Ray Transforms
@@ -313,6 +314,17 @@ float<4,3> [[rn]] WorldToObject4x3();
 $type3 [[rn]] dot4add_u8packed(in uint a, in $type1 b, in uint b);
 $type3 [[rn]] dot4add_i8packed(in uint a, in $type1 b, in int b);
 $type3 [[rn]] dot2add(in float16_t<2> a, in $type1 b, in float b);
+
+// Mesh shader intrinsics:
+void [[]] SetMeshOutputCounts(in uint numVertices, in uint numPrimitives);
+
+// Amplification shader intrinsics:
+void [[]] DispatchMesh(in uint threadGroupCountX, in uint threadGroupCountY, in uint threadGroupCountZ, in udt meshPayload);
+
+// HL Op for allocating ray query object that default constructor uses
+uint [[hidden]] AllocateRayQuery(in uint flags);
+
+resource [[rn]] CreateResourceFromHeap(in uint index);
 
 } namespace
 
@@ -831,6 +843,75 @@ namespace ConsumeStructuredBufferMethods {
 
 void [[]] GetDimensions(out uint_only count, out uint_only stride) : bufinfo;
 $classT [[]] Consume() : structuredbuffer_consume;
+
+} namespace
+
+namespace FeedbackTexture2DMethods {
+
+void [[]] WriteSamplerFeedback(in Texture2D t, in sampler s, in float<2> x);
+void [[]] WriteSamplerFeedback(in Texture2D t, in sampler s, in float<2> x, in float clamp);
+void [[]] WriteSamplerFeedbackBias(in Texture2D t, in sampler s, in float<2> x, in float bias);
+void [[]] WriteSamplerFeedbackBias(in Texture2D t, in sampler s, in float<2> x, in float bias, in float clamp);
+void [[]] WriteSamplerFeedbackGrad(in Texture2D t, in sampler s, in float<2> x, in float<2> ddx, in float<2> ddy);
+void [[]] WriteSamplerFeedbackGrad(in Texture2D t, in sampler s, in float<2> x, in float<2> ddx, in float<2> ddy, in float clamp);
+void [[]] WriteSamplerFeedbackLevel(in Texture2D t, in sampler s, in float<2> x, in float lod);
+
+} namespace
+
+namespace FeedbackTexture2DArrayMethods {
+
+void [[]] WriteSamplerFeedback(in Texture2DArray t, in sampler s, in float<3> x);
+void [[]] WriteSamplerFeedback(in Texture2DArray t, in sampler s, in float<3> x, in float clamp);
+void [[]] WriteSamplerFeedbackBias(in Texture2DArray t, in sampler s, in float<3> x, in float bias);
+void [[]] WriteSamplerFeedbackBias(in Texture2DArray t, in sampler s, in float<3> x, in float bias, in float clamp);
+void [[]] WriteSamplerFeedbackGrad(in Texture2DArray t, in sampler s, in float<3> x, in float<2> ddx, in float<2> ddy);
+void [[]] WriteSamplerFeedbackGrad(in Texture2DArray t, in sampler s, in float<3> x, in float<2> ddx, in float<2> ddy, in float clamp);
+void [[]] WriteSamplerFeedbackLevel(in Texture2DArray t, in sampler s, in float<3> x, in float lod);
+
+} namespace
+
+namespace RayQueryMethods {
+
+void [[]] TraceRayInline(in acceleration_struct AccelerationStructure, in uint RayFlags, in uint InstanceInclusionMask, in ray_desc Ray);
+bool [[]] Proceed();
+void [[]] Abort();
+void [[]] CommitNonOpaqueTriangleHit();
+void [[]] CommitProceduralPrimitiveHit(in float t);
+uint [[ro]] CommittedStatus();
+uint [[ro]] CandidateType();
+float<3,4> [[ro]] CandidateObjectToWorld3x4();
+float<4,3> [[ro]] CandidateObjectToWorld4x3();
+float<3,4> [[ro]] CandidateWorldToObject3x4();
+float<4,3> [[ro]] CandidateWorldToObject4x3();
+float<3,4> [[ro]] CommittedObjectToWorld3x4();
+float<4,3> [[ro]] CommittedObjectToWorld4x3();
+float<3,4> [[ro]] CommittedWorldToObject3x4();
+float<4,3> [[ro]] CommittedWorldToObject4x3();
+bool [[ro]] CandidateProceduralPrimitiveNonOpaque();
+bool [[ro]] CandidateTriangleFrontFace();
+bool [[ro]] CommittedTriangleFrontFace();
+float<2> [[ro]] CandidateTriangleBarycentrics();
+float<2> [[ro]] CommittedTriangleBarycentrics();
+uint [[ro]] RayFlags();
+float<3> [[ro]] WorldRayOrigin();
+float<3> [[ro]] WorldRayDirection();
+float [[ro]] RayTMin();
+float [[ro]] CandidateTriangleRayT();
+float [[ro]] CommittedRayT();
+uint [[ro]] CandidateInstanceIndex();
+uint [[ro]] CandidateInstanceID();
+uint [[ro]] CandidateGeometryIndex();
+uint [[ro]] CandidatePrimitiveIndex();
+float<3> [[ro]] CandidateObjectRayOrigin();
+float<3> [[ro]] CandidateObjectRayDirection();
+uint [[ro]] CommittedInstanceIndex();
+uint [[ro]] CommittedInstanceID();
+uint [[ro]] CommittedGeometryIndex();
+uint [[ro]] CommittedPrimitiveIndex();
+float<3> [[ro]] CommittedObjectRayOrigin();
+float<3> [[ro]] CommittedObjectRayDirection();
+uint [[ro]] CandidateInstanceContributionToHitGroupIndex();
+uint [[ro]] CommittedInstanceContributionToHitGroupIndex();
 
 } namespace
 
