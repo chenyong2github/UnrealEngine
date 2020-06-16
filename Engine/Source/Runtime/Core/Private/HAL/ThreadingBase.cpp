@@ -529,6 +529,77 @@ void FRunnableThread::FreeTls()
 }
 
 /*-----------------------------------------------------------------------------
+	FThreadPoolPriorityQueue
+-----------------------------------------------------------------------------*/
+
+void FThreadPoolPriorityQueue::Enqueue(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority)
+{
+	int32 QueueIndex = static_cast<int32>(InPriority);
+	if (PriorityQueuedWork.Num() <= QueueIndex)
+	{
+		PriorityQueuedWork.SetNum(QueueIndex + 1);
+	}
+
+	NumQueuedWork++;
+	if (QueueIndex < FirstNonEmptyQueueIndex)
+	{
+		FirstNonEmptyQueueIndex = QueueIndex;
+	}
+	PriorityQueuedWork[QueueIndex].Add(InQueuedWork);
+}
+
+bool FThreadPoolPriorityQueue::Retract(IQueuedWork* InQueuedWork)
+{
+	for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
+	{
+		if (PriorityQueuedWork[QueueIndex].RemoveSingle(InQueuedWork))
+		{
+			NumQueuedWork--;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+IQueuedWork* FThreadPoolPriorityQueue::Dequeue(EQueuedWorkPriority* OutDequeuedWorkPriority)
+{
+	IQueuedWork* Work = nullptr;
+	for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
+	{
+		TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
+		if (QueuedWork.Num() > 0)
+		{
+			// Grab the oldest work in the queue. This is slower than
+			// getting the most recent but prevents work from being
+			// queued and never done
+			Work = QueuedWork[0];
+			// Remove it from the list so no one else grabs it
+			QueuedWork.RemoveAt(0, 1, /* do not allow shrinking */ false);
+
+			FirstNonEmptyQueueIndex = QueueIndex;
+			NumQueuedWork--;
+
+			if (OutDequeuedWorkPriority)
+			{
+				*OutDequeuedWorkPriority = (EQueuedWorkPriority)QueueIndex;
+			}
+
+			break;
+		}
+	}
+
+	return Work;
+}
+
+void FThreadPoolPriorityQueue::Reset()
+{
+	PriorityQueuedWork.Empty();
+	FirstNonEmptyQueueIndex = 0;
+	NumQueuedWork = 0;
+}
+
+/*-----------------------------------------------------------------------------
 	FQueuedThread
 -----------------------------------------------------------------------------*/
 
@@ -646,11 +717,8 @@ class FQueuedThreadPoolBase : public FQueuedThreadPool
 protected:
 
 	/** The work queue to pull from. */
-	TArray<TArray<IQueuedWork*>, TInlineAllocator<static_cast<int32>(EQueuedWorkPriority::Lowest) + 1>> PriorityQueuedWork;
+	FThreadPoolPriorityQueue QueuedWork;
 
-	/** The first queue to extract a work item from to avoid scanning all priorities when unqueuing. */
-	int32 FirstNonEmptyQueueIndex = 0;
-	
 	/** The thread pool to dole work out to. */
 	TArray<FQueuedThread*> QueuedThreads;
 
@@ -659,9 +727,6 @@ protected:
 
 	/** The synchronization object used to protect access to the queued work. */
 	FCriticalSection* SynchQueue;
-
-	/** Thread-safe counter to keep tab on number of queued work. */
-	TAtomic<int32> NumQueuedWork;
 
 	/** If true, indicates the destruction process has taken place. */
 	bool TimeToDie;
@@ -690,8 +755,7 @@ public:
 		// Presize the array so there is no extra memory allocated
 		check(QueuedThreads.Num() == 0);
 		QueuedThreads.Empty(InNumQueuedThreads);
-		NumQueuedWork = 0;
-		FirstNonEmptyQueueIndex = 0;
+		QueuedWork.Reset();
 
 		// Check for stack size override.
 		if( OverrideStackSize > StackSize )
@@ -734,17 +798,12 @@ public:
 				TimeToDie = 1;
 				FPlatformMisc::MemoryBarrier();
 				// Clean up all queued objects
-				for (TArray<IQueuedWork*>& Queue : PriorityQueuedWork)
+				while (IQueuedWork * WorkItem = QueuedWork.Dequeue())
 				{
-					for (IQueuedWork* WorkItem : Queue)
-					{
-						WorkItem->Abandon();
-					}
+					WorkItem->Abandon();
 				}
 				
-				// Empty out the invalid pointers
-				PriorityQueuedWork.Empty();
-				NumQueuedWork = 0;
+				QueuedWork.Reset();
 			}
 			// wait for all threads to finish up
 			while (1)
@@ -778,7 +837,7 @@ public:
 	int32 GetNumQueuedJobs() const
 	{
 		// this is a estimate of the number of queued jobs. 
-		return NumQueuedWork.Load(EMemoryOrder::Relaxed);
+		return QueuedWork.Num();
 	}
 
 	virtual int32 GetNumThreads() const 
@@ -816,18 +875,7 @@ public:
 			{
 				// No thread available, queue the work to be done
 				// as soon as one does become available
-				int32 QueueIndex = static_cast<int32>(InQueuedWorkPriority);
-				if (PriorityQueuedWork.Num() <= QueueIndex)
-				{
-					PriorityQueuedWork.SetNum(QueueIndex + 1);
-				}
-				
-				NumQueuedWork++;
-				if (QueueIndex < FirstNonEmptyQueueIndex)
-				{
-					FirstNonEmptyQueueIndex = QueueIndex;
-				}
-				PriorityQueuedWork[QueueIndex].Add(InQueuedWork);
+				QueuedWork.Enqueue(InQueuedWork);
 				return;
 			}
 
@@ -851,16 +899,7 @@ public:
 		check(InQueuedWork != nullptr);
 		check(SynchQueue);
 		FScopeLock sl(SynchQueue);
-		for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
-		{
-			if (PriorityQueuedWork[QueueIndex].RemoveSingle(InQueuedWork))
-			{
-				NumQueuedWork--;
-				return true;
-			}
-		}
-
-		return false;
+		return QueuedWork.Retract(InQueuedWork);
 	}
 
 	IQueuedWork* ReturnToPoolOrGetNextJob(FQueuedThread* InQueuedThread)
@@ -871,26 +910,10 @@ public:
 		FScopeLock sl(SynchQueue);
 		if (TimeToDie)
 		{
-			check(!NumQueuedWork);  // we better not have anything if we are dying
+			check(!QueuedWork.Num());  // we better not have anything if we are dying
 		}
 		
-		for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
-		{
-			TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
-			if (QueuedWork.Num() > 0)
-			{
-				// Grab the oldest work in the queue. This is slower than
-				// getting the most recent but prevents work from being
-				// queued and never done
-				Work = QueuedWork[0];
-				// Remove it from the list so no one else grabs it
-				QueuedWork.RemoveAt(0, 1, /* do not allow shrinking */ false);
-
-				FirstNonEmptyQueueIndex = QueueIndex;
-				NumQueuedWork--;
-				break;
-			}
-		}
+		Work = QueuedWork.Dequeue();
 
 		if (!Work)
 		{

@@ -89,6 +89,7 @@
 	#include "Settings/EditorExperimentalSettings.h"
 	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
+	#include "Misc/QueuedThreadPoolWrapper.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -2154,7 +2155,28 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			StackSize = 1000;
 		}
 
+#if WITH_EDITOR
+		{
+			TRACE_THREAD_GROUP_SCOPE("LargeThreadPool");
+			// when we are in the editor we like to do things like build lighting and such
+			// this thread pool can be used for those purposes
+			GLargeThreadPool = FQueuedThreadPool::Allocate();
+			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
+
+			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+
+			// we are only going to give dedicated servers one pool thread
+			if (FPlatformProperties::IsServerOnly())
+			{
+				NumThreadsInThreadPool = 1;
+			}
+
+			// GThreadPool will schedule on the LargeThreadPool but limit max concurrency to the given number.
+			GThreadPool = new FQueuedThreadPoolWrapper(GLargeThreadPool, NumThreadsInThreadPool);
+		}
+#else
 		{
 			TRACE_THREAD_GROUP_SCOPE("ThreadPool");
 			GThreadPool = FQueuedThreadPool::Allocate();
@@ -2167,6 +2189,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			}
 			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal));
 		}
+#endif
 		{
 			TRACE_THREAD_GROUP_SCOPE("BackgroundThreadPool");
 			GBackgroundPriorityThreadPool = FQueuedThreadPool::Allocate();
@@ -2179,17 +2202,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_Lowest));
 		}
 
-#if WITH_EDITOR
-		{
-			TRACE_THREAD_GROUP_SCOPE("LargeThreadPool");
-			// when we are in the editor we like to do things like build lighting and such
-			// this thread pool can be used for those purposes
-			GLargeThreadPool = FQueuedThreadPool::Allocate();
-			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
-
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
-		}
-#endif
 	}
 
 #if WITH_APPLICATION_CORE

@@ -6,7 +6,7 @@
 
 #include "Templates/RefCounting.h"
 #include "Templates/SharedPointer.h"
-
+#include "Misc/QueuedThreadPoolWrapper.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include <locale.h>
 #include <xutility>
@@ -609,14 +609,12 @@ void BM_TRefCountAssign(BenchmarkState& State)
 	}
 }
 
-// This test is probably only meaningful when comparing relative speed
-// of threadpool implementations and to profile the current one.
-void BM_ThreadPoolOverhead(BenchmarkState& State)
+void BM_ThreadPoolOverhead_Impl(BenchmarkState& State, FQueuedThreadPool* ThreadPool)
 {
 	struct FEventTask : public IQueuedWork
 	{
 		FEvent* Event;
-		FEventTask()  { Event = FPlatformProcess::GetSynchEventFromPool(true); }
+		FEventTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
 		~FEventTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
 		void Abandon() override { }
 	};
@@ -630,12 +628,6 @@ void BM_ThreadPoolOverhead(BenchmarkState& State)
 	{
 		void DoThreadedWork() override { Event->Trigger(); };
 	};
-	
-	// A single thread is enough to exercise the Queuing and Dequeuing code paths.
-	// More threads will only increase contention as the current implementation of
-	// those functions is under critical sections anyway...
-	TUniquePtr<FQueuedThreadPool> ThreadPool(FQueuedThreadPool::Allocate());
-	check(ThreadPool && ThreadPool->Create(1));
 
 	FWaitTask DefaultTask;
 	// Stall the tasks so we can benchmark the queuing code in AddQueuedWork.
@@ -666,6 +658,34 @@ void BM_ThreadPoolOverhead(BenchmarkState& State)
 	// out of scope so we're safe to exit without any additional cleanup.
 }
 
+// This test is probably only meaningful when comparing relative speed
+// of threadpool implementations and to profile the current one.
+void BM_ThreadPoolOverhead(BenchmarkState& State)
+{
+	// A single thread is enough to exercise the Queuing and Dequeuing code paths.
+	// More threads will only increase contention as the current implementation of
+	// those functions is under critical sections anyway...
+	TUniquePtr<FQueuedThreadPool> ThreadPool(FQueuedThreadPool::Allocate());
+	check(ThreadPool && ThreadPool->Create(1));
+
+	BM_ThreadPoolOverhead_Impl(State, ThreadPool.Get());
+}
+
+// This test is probably only meaningful when comparing relative speed
+// of threadpool implementations and to profile the current one.
+void BM_ThreadPoolWrapperOverhead(BenchmarkState& State)
+{
+	// A single thread is enough to exercise the Queuing and Dequeuing code paths.
+	// More threads will only increase contention as the current implementation of
+	// those functions is under critical sections anyway...
+	TUniquePtr<FQueuedThreadPool> ThreadPool(FQueuedThreadPool::Allocate());
+	check(ThreadPool && ThreadPool->Create(1));
+
+	FQueuedThreadPoolWrapper ThreadPoolWrapper(ThreadPool.Get());
+
+	BM_ThreadPoolOverhead_Impl(State, &ThreadPoolWrapper);
+}
+
 UE_BENCHMARK(BM_TSharedPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TRefCountPtr)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtr_NoTS)->Iterations(100000000);
@@ -673,6 +693,7 @@ UE_BENCHMARK(BM_TSharedPtrAssign)->Iterations(100000000);
 UE_BENCHMARK(BM_TRefCountAssign)->Iterations(100000000);
 UE_BENCHMARK(BM_TSharedPtrAssign_NoTS)->Iterations(100000000);
 UE_BENCHMARK(BM_ThreadPoolOverhead)->Iterations(100000);
+UE_BENCHMARK(BM_ThreadPoolWrapperOverhead)->Iterations(100000);
 
 //////////////////////////////////////////////////////////////////////////
 
