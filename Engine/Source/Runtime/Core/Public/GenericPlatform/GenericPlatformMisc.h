@@ -1035,7 +1035,7 @@ public:
 	static FText GetFileManagerName();
 
 	/** @return Whether filehandles can be opened on one thread and read/written on another thread */
-	static bool SupportsMultithreadedFileHandles2()
+	static bool SupportsMultithreadedFileHandles()
 	{
 		return true;
 	}
