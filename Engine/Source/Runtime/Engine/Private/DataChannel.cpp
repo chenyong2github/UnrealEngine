@@ -42,6 +42,7 @@ DECLARE_CYCLE_STAT(TEXT("ActorChan_FindOrCreateRep"), Stat_ActorChanFindOrCreate
 
 extern int32 GDoReplicationContextString;
 extern int32 GNetDormancyValidate;
+extern bool GbNetReuseReplicatorsForDormantObjects;
 
 TAutoConsoleVariable<int32> CVarNetReliableDebug(
 	TEXT("net.Reliable.Debug"),
@@ -1948,22 +1949,25 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 		{
 			if ((Reason == EChannelCloseReason::Dormancy) && !Connection->IsInternalAck()) // Replay connections always keep dormant channels open and handle this logic elsewhere
 			{
-				if (Connection->Driver)
-			{
-				if (!Connection->Driver->IsServer())
+				const bool bIsDriverValid = Connection->Driver != nullptr;
+				const bool bIsServer = Connection->Driver->IsServer();
+				if (bIsDriverValid)
 				{
-					Actor->NetDormancy = DORM_DormantAll;
+					if (!bIsServer)
+					{
+						Actor->NetDormancy = DORM_DormantAll;
+					}
+
+					check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
+					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				}
 
-				check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
-				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
+				// Validation checking
+				// We need to keep the replicators around so we can reuse them.
+				bKeepReplicators = (GNetDormancyValidate > 0) || (bIsServer && GbNetReuseReplicatorsForDormantObjects);
 			}
 
-			// Validation checking
-				bKeepReplicators = (GNetDormancyValidate > 0);		// We need to keep the replicators around so we can use
-		}
-
-		// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
+			// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
 			Connection->RemoveActorChannel( Actor );
 		}
 
@@ -1974,12 +1978,14 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 	return NumBits;
 }
 
-void UActorChannel::CleanupReplicators( const bool bKeepReplicators )
+void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 {
 	// Cleanup or save replicators
-	for ( auto CompIt = ReplicationMap.CreateIterator(); CompIt; ++CompIt )
+	for (auto CompIt = ReplicationMap.CreateIterator(); CompIt; ++CompIt)
 	{
-		if ( bKeepReplicators && CompIt.Value()->GetObject() != nullptr )
+		// NOTE: FObjectReplicator::GetObject is just going to return a raw Object Pointer,
+		// so it won't actually check to see whether or not the Object was marked PendingKill.
+		if (bKeepReplicators && CompIt.Value()->GetObject() != nullptr)
 		{
 			// If we want to keep the replication state of the actor/sub-objects around, transfer ownership to the connection
 			// This way, if this actor opens another channel on this connection, we can reclaim or use this replicator to compare state, etc.
@@ -1991,8 +1997,8 @@ void UActorChannel::CleanupReplicators( const bool bKeepReplicators )
 			//		KeepProcessingActorChannelBunchesMap will get in here, then when the channel closes a second time, we'll hit this assert
 			//		It should be okay to just set the most recent replicator
 			//check( Connection->DormantReplicatorMap.Find( CompIt.Value()->GetObject() ) == NULL );
-			Connection->DormantReplicatorMap.Add( CompIt.Value()->GetObject(), CompIt.Value() );
-			CompIt.Value()->StopReplicating( this );		// Stop replicating on this channel
+			Connection->DormantReplicatorMap.Add(CompIt.Value()->GetObject(), CompIt.Value());
+			CompIt.Value()->StopReplicating(this);		// Stop replicating on this channel
 		}
 		else
 		{
@@ -2163,7 +2169,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 	SetClosingFlag();
 
 	// If this actor is going dormant (and we are a client), keep the replicators around, we need them to run the business logic for updating unmapped properties
-	const bool bKeepReplicators = !bForDestroy && !bIsServer && bWasDormant;
+	const bool bKeepReplicators = !bForDestroy && bWasDormant && (!bIsServer || GbNetReuseReplicatorsForDormantObjects);
 
 	CleanupReplicators( bKeepReplicators );
 
@@ -4028,7 +4034,7 @@ FObjectReplicator & UActorChannel::GetActorReplicationData()
 	return *ActorReplicator;
 }
 
-TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject* Obj, bool* bOutCreated )
+TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Obj, bool* bOutCreated)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
@@ -4036,9 +4042,9 @@ TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject
 	// First, try to find it on the channel replication map
 	bool bCheckDormantReplicators = true;
 	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = ReplicationMap.Find( Obj );
-	if ( ReplicatorRefPtr != nullptr )
+	if (ReplicatorRefPtr != nullptr)
 	{
-		if ( !ReplicatorRefPtr->Get().GetWeakObjectPtr().IsValid() )
+		if (!ReplicatorRefPtr->Get().GetWeakObjectPtr().IsValid())
 		{
 			ReplicatorRefPtr = nullptr;
 			ReplicationMap.Remove( Obj );
@@ -4048,12 +4054,12 @@ TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject
 
 	// This should only be false if we found the replicator in the ReplicationMap
 	// If we pickup the replicator from the DormantReplicatorMap we treat it as it has been created.
-	if ( bOutCreated != nullptr )
+	if (bOutCreated != nullptr)
 	{
 		*bOutCreated = (ReplicatorRefPtr == nullptr);
 	}
 
-	if ( ReplicatorRefPtr == nullptr )
+	if (ReplicatorRefPtr == nullptr)
 	{
 		// Didn't find it. 
 		// Try to find in the dormancy map
@@ -4077,7 +4083,7 @@ TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject
 		TSharedRef<FObjectReplicator>& NewRef = ReplicationMap.Add(Obj, NewReplicator.ToSharedRef());
 
 		// Remove from dormancy map in case we found it there
-		Connection->DormantReplicatorMap.Remove( Obj );
+		Connection->DormantReplicatorMap.Remove(Obj);
 
 		// Start replicating with this replicator
 		NewRef->StartReplicating(this);

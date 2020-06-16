@@ -72,6 +72,7 @@ static TAutoConsoleVariable<int32> CVarDisableBandwithThrottling( TEXT( "net.Dis
 #endif
 
 extern int32 GNetDormancyValidate;
+extern bool GbNetReuseReplicatorsForDormantObjects;
 
 DECLARE_CYCLE_STAT(TEXT("NetConnection SendAcks"), Stat_NetConnectionSendAck, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("NetConnection Tick"), Stat_NetConnectionTick, STATGROUP_Net);
@@ -3798,43 +3799,35 @@ void UNetConnection::ForcePropertyCompare( AActor* Actor )
 }
 
 /** Wrapper for validating an objects dormancy state, and to prepare the object for replication again */
-void UNetConnection::FlushDormancyForObject( UObject* Object )
+void UNetConnection::FlushDormancyForObject(UObject* Object)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_FlushDormancyForObject)
 
-	const bool ValidateProperties = (GNetDormancyValidate == 1);
-
-	TSharedRef< FObjectReplicator > * Replicator = DormantReplicatorMap.Find( Object );
-
-	if ( Replicator != NULL )
+	TSharedRef<FObjectReplicator>* Replicator = DormantReplicatorMap.Find(Object);
+	if (Replicator)
 	{
-		if ( ValidateProperties )
+		if (GNetDormancyValidate == 1)
 		{
 			Replicator->Get().ValidateAgainstState( Object );
 		}
 
-		DormantReplicatorMap.Remove( Object );
-
-		// Set to NULL to force a new replicator to be created using the objects current state
-		// It's totally possible to let this replicator fall through, and continue on where we left off 
-		// which could send all the changed properties since this object went dormant
-		Replicator = NULL;	
+		if (!GbNetReuseReplicatorsForDormantObjects || !Driver || !Driver->IsServer())
+		{
+			Replicator = nullptr;
+		}
 	}
 
-	if ( Replicator == NULL )
+	if (Replicator == nullptr)
 	{
-		Replicator = &DormantReplicatorMap.Add( Object, TSharedRef<FObjectReplicator>( new FObjectReplicator() ) );
-
-		Replicator->Get().InitWithObject( Object, this, false );		// Init using the objects current state
+		Replicator = &DormantReplicatorMap.Add(Object, MakeShared<FObjectReplicator>());
+		Replicator->Get().InitWithObject(Object, this, false);		// Init using the objects current state
 
 		// Flush the must be mapped GUIDs, the initialization may add them, but they're phantom and will be remapped when actually sending
-		UPackageMapClient * PackageMapClient = CastChecked< UPackageMapClient >(PackageMap);
-
-		if (PackageMapClient)
+		if (UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(PackageMap))
 		{
 			TArray< FNetworkGUID >& MustBeMappedGuidsInLastBunch = PackageMapClient->GetMustBeMappedGuidsInLastBunch();
 			MustBeMappedGuidsInLastBunch.Empty();
-		}	
+		}
 	}
 }
 
@@ -3995,6 +3988,9 @@ void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 {
 	if (Actor)
 	{
+		// TODO: The DormantReplicator map contains not only replicated components, but any subobjects
+		// that are replicated (such as Gameplay Attribute Sets).
+		// That means we are likely leaking entries here (at least until CleanupStaleDormantReplicators is called).
 		DormantReplicatorMap.Remove(Actor);
 		for (UActorComponent* const Component : Actor->GetReplicatedComponents())
 		{
