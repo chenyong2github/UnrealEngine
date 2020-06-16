@@ -289,7 +289,8 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 
 	if (InRootNode != nullptr)
 	{
-		FAnimationInitializeContext InitContext(this);
+		FAnimationUpdateSharedContext SharedContext;
+		FAnimationInitializeContext InitContext(this, &SharedContext);
 
 		if(InRootNode == RootNode)
 		{

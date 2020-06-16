@@ -8,7 +8,7 @@
 #include "Animation/AnimationAsset.h"
 #include "EditorAnimUtils.h"
 
-class FAssetTypeActions_AnimationAsset : public FAssetTypeActions_Base
+class ASSETTOOLS_API FAssetTypeActions_AnimationAsset : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation

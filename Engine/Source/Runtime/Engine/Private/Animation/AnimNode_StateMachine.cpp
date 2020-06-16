@@ -88,7 +88,7 @@ void FAnimationActiveTransitionEntry::InitializeCustomGraphLinks(const FAnimatio
 		if (const IAnimClassInterface* AnimBlueprintClass = Context.GetAnimClass())
 		{
 			CustomTransitionGraph.LinkID = AnimBlueprintClass->GetAnimNodeProperties().Num() - 1 - TransitionRule.CustomResultNodeIndex; //@TODO: Crazysauce
-			FAnimationInitializeContext InitContext(Context.AnimInstanceProxy);
+			FAnimationInitializeContext InitContext(Context.AnimInstanceProxy, Context.SharedContext);
 			CustomTransitionGraph.Initialize(InitContext);
 
 			if (Context.AnimInstanceProxy)
@@ -365,7 +365,7 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	// If we just became relevant and haven't been initialized yet, then reinitialize state machine.
 	if (!bFirstUpdate && bReinitializeOnBecomingRelevant && UpdateCounter.HasEverBeenUpdated() && !UpdateCounter.WasSynchronizedCounter(Context.AnimInstanceProxy->GetUpdateCounter()) && (CVarAnimStateMachineRelevancyReset.GetValueOnAnyThread() == 1))
 	{
-		FAnimationInitializeContext InitializationContext(Context.AnimInstanceProxy);
+		FAnimationInitializeContext InitializationContext(Context.AnimInstanceProxy, Context.SharedContext);
 		Initialize_AnyThread(InitializationContext);
 	}
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
@@ -1017,7 +1017,7 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 		if ((!bAlreadyActive || bForceReset) && !IsAConduitState(NewStateIndex))
 		{
 			// Initialize the new state since it's not part of an active transition (and thus not still initialized)
-			FAnimationInitializeContext InitContext(Context.AnimInstanceProxy);
+			FAnimationInitializeContext InitContext(Context.AnimInstanceProxy, Context.SharedContext);
 			StatePoseLinks[NewStateIndex].Initialize(InitContext);
 
 			// Also call cache bones if needed

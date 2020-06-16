@@ -19,6 +19,7 @@
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "AnimationAsset.generated.h"
 
+class UAnimMetaData;
 class UAssetMappingTable;
 class UAssetUserData;
 class USkeleton;
@@ -799,10 +800,10 @@ struct FAnimationGroupReference
 	}
 };
 
-UCLASS(abstract, MinimalAPI)
-class UAnimationAsset : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider
+UCLASS(abstract)
+class ENGINE_API UAnimationAsset : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 private:
 	/** Pointer to the Skeleton this asset can be played on .	*/
@@ -820,7 +821,7 @@ private:
 	 * You can query by GetMetaData function
 	 */
 	UPROPERTY(Category=MetaData, instanced, EditAnywhere)
-	TArray<class UAnimMetaData*> MetaData;
+	TArray<UAnimMetaData*> MetaData;
 
 public:
 	/* 
@@ -878,7 +879,7 @@ public:
 	// but for BlendSpace CurrentTime is normalized [0,1], so this is 1
 	virtual float GetMaxCurrentTime() { return 0.f; }
 
-	ENGINE_API void SetSkeleton(USkeleton* NewSkeleton);
+	void SetSkeleton(USkeleton* NewSkeleton);
 	void ResetSkeleton(USkeleton* NewSkeleton);
 	virtual void PostLoad() override;
 
@@ -889,11 +890,11 @@ public:
 
 	/** Get available Metadata within the animation asset
 	 */
-	ENGINE_API const TArray<class UAnimMetaData*>& GetMetaData() const { return MetaData; }
-	ENGINE_API void AddMetaData(class UAnimMetaData* MetaDataInstance); 
-	ENGINE_API void EmptyMetaData() { MetaData.Empty(); }	
-	ENGINE_API void RemoveMetaData(class UAnimMetaData* MetaDataInstance);
-	ENGINE_API void RemoveMetaData(const TArray<class UAnimMetaData*> MetaDataInstances);
+	const TArray<UAnimMetaData*>& GetMetaData() const { return MetaData; }
+	void AddMetaData(UAnimMetaData* MetaDataInstance); 
+	void EmptyMetaData() { MetaData.Empty(); }	
+	void RemoveMetaData(UAnimMetaData* MetaDataInstance);
+	void RemoveMetaData(TArrayView<UAnimMetaData*> MetaDataInstances);
 
 	/** IInterface_PreviewMeshProvider interface */
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
@@ -905,33 +906,33 @@ public:
 	 * 
 	 * @param NewSkeleton	NewSkeleton to change to 
 	 */
-	ENGINE_API bool ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces=false);
+	bool ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces=false);
 
 	// Helper function for GetAllAnimationSequencesReferred, it adds itself first and call GetAllAnimationSEquencesReferred
-	ENGINE_API void HandleAnimReferenceCollection(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive);
+	void HandleAnimReferenceCollection(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive);
 
 protected:
 	/** Retrieve all animations that are used by this asset 
 	 * 
 	 * @param (out)		AnimationSequences 
 	 **/
-	ENGINE_API virtual bool GetAllAnimationSequencesReferred(TArray<class UAnimationAsset*>& AnimationSequences, bool bRecursive = true);
+	virtual bool GetAllAnimationSequencesReferred(TArray<class UAnimationAsset*>& AnimationSequences, bool bRecursive = true);
 
 public:
 	/** Replace this assets references to other animations based on ReplacementMap 
 	 * 
 	 * @param ReplacementMap	Mapping of original asset to new asset
 	 **/
-	ENGINE_API virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap);
+	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap);
 
-	ENGINE_API virtual int32 GetMarkerUpdateCounter() const { return 0; }
+	virtual int32 GetMarkerUpdateCounter() const { return 0; }
 
 	/** 
 	 * Parent Asset related function. Used by editor
 	 */
-	ENGINE_API void SetParentAsset(UAnimationAsset* InParentAsset);
-	ENGINE_API bool HasParentAsset() { return ParentAsset != nullptr;  }
-	ENGINE_API bool RemapAsset(UAnimationAsset* SourceAsset, UAnimationAsset* TargetAsset);
+	void SetParentAsset(UAnimationAsset* InParentAsset);
+	bool HasParentAsset() { return ParentAsset != nullptr;  }
+	bool RemapAsset(UAnimationAsset* SourceAsset, UAnimationAsset* TargetAsset);
 	// we have to update whenever we have anything loaded
 	void UpdateParentAsset();
 protected:
@@ -940,18 +941,18 @@ protected:
 
 public:
 	/** Return a list of unique marker names for blending compatibility */
-	ENGINE_API virtual TArray<FName>* GetUniqueMarkerNames() { return NULL; }
+	virtual TArray<FName>* GetUniqueMarkerNames() { return NULL; }
 
 	//~ Begin IInterface_AssetUserData Interface
-	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 	/**

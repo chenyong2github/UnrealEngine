@@ -59,6 +59,7 @@ const void* FExposedValueCopyRecord::GetSourceAddr(FAnimInstanceProxy* Proxy) co
 
 FAnimationBaseContext::FAnimationBaseContext()
 	: AnimInstanceProxy(nullptr)
+	, SharedContext(nullptr)
 #if ANIM_TRACE_ENABLED
 	, CurrentNodeId(INDEX_NONE)
 	, PreviousNodeId(INDEX_NONE)
@@ -66,8 +67,9 @@ FAnimationBaseContext::FAnimationBaseContext()
 {
 }
 
-FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy)
+FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy, FAnimationUpdateSharedContext* InSharedContext)
 	: AnimInstanceProxy(InAnimInstanceProxy)
+	, SharedContext(InSharedContext)
 #if ANIM_TRACE_ENABLED
 	, CurrentNodeId(INDEX_NONE)
 	, PreviousNodeId(INDEX_NONE)
@@ -77,6 +79,7 @@ FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceP
 
 FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InContext)
 	: AnimInstanceProxy(InContext.AnimInstanceProxy)
+	, SharedContext(InContext.SharedContext)
 #if ANIM_TRACE_ENABLED
 	, CurrentNodeId(InContext.CurrentNodeId)
 	, PreviousNodeId(InContext.PreviousNodeId)

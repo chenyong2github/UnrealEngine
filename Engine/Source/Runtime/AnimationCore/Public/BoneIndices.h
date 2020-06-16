@@ -15,6 +15,8 @@ struct FBoneIndexBase
 
 	FORCEINLINE bool IsRootBone() const { return BoneIndex == 0; }
 
+	FORCEINLINE bool IsValid() const { return BoneIndex != INDEX_NONE; }
+
 protected:
 	int32 BoneIndex;
 };

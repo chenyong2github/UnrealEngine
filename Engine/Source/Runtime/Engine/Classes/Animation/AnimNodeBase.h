@@ -138,13 +138,15 @@ struct FAnimationBaseContext
 public:
 	FAnimInstanceProxy* AnimInstanceProxy;
 
+	FAnimationUpdateSharedContext* SharedContext;
+
 	FAnimationBaseContext();
 
 protected:
 	// DEPRECATED - Please use constructor that uses an FAnimInstanceProxy*
 	ENGINE_API FAnimationBaseContext(UAnimInstance* InAnimInstance);
 
-	ENGINE_API FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy);
+	ENGINE_API FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy, FAnimationUpdateSharedContext* InSharedContext = nullptr);
 
 public:
 	// we define a copy constructor here simply to avoid deprecation warnings with clang
@@ -161,6 +163,28 @@ public:
 	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 #endif //WITH_EDITORONLY_DATA
 
+	template<typename NodeType>
+	FScopedAnimNodeTracker TrackAncestor(NodeType* Node) const {
+		if (ensure(SharedContext != nullptr))
+		{
+			FAnimNodeTracker::FKey Key = SharedContext->AncestorTracker.Push<NodeType>(Node);
+			return FScopedAnimNodeTracker(&SharedContext->AncestorTracker, Key);
+		}
+
+		return FScopedAnimNodeTracker();
+	}
+
+	template<typename NodeType>
+	NodeType* GetAncestor() const {
+		if (ensure(SharedContext != nullptr))
+		{
+			FAnimNode_Base* Node = SharedContext->AncestorTracker.Top<NodeType>();
+			return static_cast<NodeType*>(Node);
+		}
+		
+		return nullptr;
+	}
+
 #if ANIM_NODE_IDS_AVAILABLE
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
 	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
@@ -174,7 +198,7 @@ protected:
 
 	// The previous node ID, set when we recurse into graph traversal functions from pose links
 	int32 PreviousNodeId;
-#endif
+#endif // ANIM_NODE_IDS_AVAILABLE
 
 protected:
 
@@ -187,8 +211,8 @@ protected:
 struct FAnimationInitializeContext : public FAnimationBaseContext
 {
 public:
-	FAnimationInitializeContext(FAnimInstanceProxy* InAnimInstanceProxy)
-		: FAnimationBaseContext(InAnimInstanceProxy)
+	FAnimationInitializeContext(FAnimInstanceProxy* InAnimInstanceProxy, FAnimationUpdateSharedContext* InSharedContext = nullptr)
+		: FAnimationBaseContext(InAnimInstanceProxy, InSharedContext)
 	{
 	}
 };
@@ -210,8 +234,6 @@ public:
 struct FAnimationUpdateContext : public FAnimationBaseContext
 {
 private:
-	FAnimationUpdateSharedContext* SharedContext;
-
 	float CurrentWeight;
 	float RootMotionWeightModifier;
 
@@ -220,7 +242,6 @@ private:
 public:
 	FAnimationUpdateContext(FAnimInstanceProxy* InAnimInstanceProxy = nullptr)
 		: FAnimationBaseContext(InAnimInstanceProxy)
-		, SharedContext(nullptr)
 		, CurrentWeight(1.0f)
 		, RootMotionWeightModifier(1.0f)
 		, DeltaTime(0.0f)
@@ -228,18 +249,18 @@ public:
 	}
 
 	FAnimationUpdateContext(FAnimInstanceProxy* InAnimInstanceProxy, float InDeltaTime, FAnimationUpdateSharedContext* InSharedContext = nullptr)
-		: FAnimationUpdateContext(InAnimInstanceProxy)
+		: FAnimationBaseContext(InAnimInstanceProxy, InSharedContext)
+		, CurrentWeight(1.0f)
+		, RootMotionWeightModifier(1.0f)
+		, DeltaTime(InDeltaTime)
 	{
-		SharedContext = InSharedContext;
-		DeltaTime = InDeltaTime;
 	}
 
 
 	FAnimationUpdateContext(const FAnimationUpdateContext& Copy) = default;
 
 	FAnimationUpdateContext(const FAnimationUpdateContext& Copy, FAnimInstanceProxy* InAnimInstanceProxy)
-		: FAnimationBaseContext(InAnimInstanceProxy)
-		, SharedContext(Copy.SharedContext)
+		: FAnimationBaseContext(InAnimInstanceProxy, Copy.SharedContext)
 		, CurrentWeight(Copy.CurrentWeight)
 		, RootMotionWeightModifier(Copy.RootMotionWeightModifier)
 		, DeltaTime(Copy.DeltaTime)
@@ -313,32 +334,6 @@ public:
 		return Result; 
 	}
 #endif
-
-	// Add a node to the list of tracked ancestors
-	template<typename NodeType>
-	FScopedAnimNodeTracker TrackAncestor(NodeType* Node) const
-	{
-		if (ensure(SharedContext != nullptr))
-		{
-			FAnimNodeTracker::FKey Key = SharedContext->AncestorTracker.Push<NodeType>(Node);
-			return FScopedAnimNodeTracker(&SharedContext->AncestorTracker, Key);
-		}
-
-		return FScopedAnimNodeTracker();
-	}
-
-	// Returns the nearest ancestor node of a particular type
-	template<typename NodeType>
-	NodeType* GetAncestor() const
-	{
-		if (ensure(SharedContext != nullptr))
-		{
-			FAnimNode_Base* Node = SharedContext->AncestorTracker.Top<NodeType>();
-			return static_cast<NodeType*>(Node);
-		}
-		
-		return nullptr;
-	}
 
 	// Returns persistent state that is tracked through animation tree update
 	FAnimationUpdateSharedContext* GetSharedContext() const

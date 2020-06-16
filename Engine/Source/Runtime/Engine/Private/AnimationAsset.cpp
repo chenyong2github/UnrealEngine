@@ -178,11 +178,6 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 //////////////////////////////////////////////////////////////////////////
 // UAnimationAsset
 
-UAnimationAsset::UAnimationAsset(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 void UAnimationAsset::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::Animation);
@@ -242,22 +237,22 @@ void UAnimationAsset::Serialize(FArchive& Ar)
 	}
 }
 
-void UAnimationAsset::AddMetaData(class UAnimMetaData* MetaDataInstance)
+void UAnimationAsset::AddMetaData(UAnimMetaData* MetaDataInstance)
 {
 	MetaData.Add(MetaDataInstance);
 }
 
-void UAnimationAsset::RemoveMetaData(class UAnimMetaData* MetaDataInstance)
+void UAnimationAsset::RemoveMetaData(UAnimMetaData* MetaDataInstance)
 {
 	MetaData.Remove(MetaDataInstance);
 }
 
-void UAnimationAsset::RemoveMetaData(const TArray<UAnimMetaData*> MetaDataInstances)
+void UAnimationAsset::RemoveMetaData(TArrayView<UAnimMetaData*> MetaDataInstances)
 {
 	MetaData.RemoveAll(
 		[&](UAnimMetaData* MetaDataInstance)
 	{
-		return MetaDataInstances.Find(MetaDataInstance);
+		return MetaDataInstances.Contains(MetaDataInstance);
 	});
 }
 
