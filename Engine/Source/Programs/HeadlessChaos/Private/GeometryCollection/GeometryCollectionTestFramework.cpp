@@ -267,8 +267,7 @@ namespace GeometryCollectionTest
 	, Module(FChaosSolversModule::GetModule())
 	, Solver(nullptr)
 	{
-		Module->ChangeThreadingMode(Parameters.ThreadingMode);
-		Solver = Module->CreateSolver<Traits>(nullptr,ESolverFlags::Standalone);	//until refactor is done, solver must be created after thread change
+		Solver = Module->CreateSolver<Traits>(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
 	}
 
 	template<typename Traits>
@@ -315,14 +314,14 @@ namespace GeometryCollectionTest
 			}
 		}
 
-		Solver->PushPhysicsState(Module->GetDispatcher());
+		Solver->PushPhysicsState();
 	}
 
 	template<typename Traits>
 	void TFramework<Traits>::Advance()
 	{
 		Solver->SyncEvents_GameThread();
-		Solver->PushPhysicsState(Module->GetDispatcher());
+		Solver->PushPhysicsState();
 		Solver->AdvanceSolverBy(Dt);
 
 		Solver->BufferPhysicsResults();

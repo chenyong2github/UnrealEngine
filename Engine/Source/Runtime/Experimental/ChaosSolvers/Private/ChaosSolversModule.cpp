@@ -7,7 +7,6 @@
 #include "ChaosStats.h"
 #include "ChaosLog.h"
 #include "HAL/PlatformProcess.h"
-#include "Framework/PersistentTask.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"
 #include "PhysicsSolver.h"
@@ -16,11 +15,8 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/UniformGrid.h"
 #include "UObject/Class.h"
-#include "Framework/Dispatcher.h"
-#include "Framework/DispatcherImpl.h"
 #include "Misc/App.h"
 #include "Chaos/PhysicalMaterials.h"
-#include "Framework/PhysicsTickTask.h"
 
 TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("p.Chaos.DedicatedThreadEnabled"),
@@ -46,95 +42,7 @@ namespace Chaos
 	CHAOS_API extern bool bPendingHierarchyDump;
 #endif
 
-	void ChangeThreadingMode(EThreadingMode InMode)
-	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-
-		ChaosModule->ChangeThreadingMode(InMode);
-	}
-
-	void ChangeBufferingMode()
-	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-
-		EMultiBufferMode MultiBufferMode = ChaosModule->GetDesiredBufferingMode();
-
-		ChaosModule->ChangeBufferMode(MultiBufferMode);
-	}
-
-	namespace ConsoleCommands
-	{
-		void ThreadingModel(const TArray<FString>& InParams)
-		{
-			FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-
-			if(!ChaosModule)
-			{
-				UE_LOG(LogChaos, Error, TEXT("ChaosSolvers module is not loaded, cannot change threading model"));
-				return;
-			}
-
-			if(!ChaosModule->GetDispatcher())
-			{
-				UE_LOG(LogChaos, Error, TEXT("ChaosSolvers module has no dispatcher, cannot change threading model"));
-				return;
-			}
-
-			if(InParams.Num() == 0)
-			{
-				// Need a model name
-				UE_LOG(LogChaos, Error, TEXT("Invalid usage: p.Chaos.ThreadingModel <ModelName>"));
-				return;
-			}
-
-			EThreadingMode NewMode;
-			LexFromString(NewMode, *InParams[0]);
-
-			ChangeThreadingMode(NewMode);
-		}
-
-		FAutoConsoleCommand ThreadingModelCommand(TEXT("p.Chaos.ThreadingModel"), TEXT("Controls the current threading model. See Chaos::DispatcherMode for accepted mode names"), FConsoleCommandWithArgsDelegate::CreateStatic(&ThreadingModel));
-	}
-
-	Chaos::EThreadingMode FInternalDefaultSettings::GetDefaultThreadingMode() const
-	{
-		return Chaos::EThreadingMode::TaskGraph;
-	}
-
-	EChaosSolverTickMode FInternalDefaultSettings::GetDedicatedThreadTickMode() const
-	{
-		return EChaosSolverTickMode::VariableCappedWithTarget;
-	}
-
-	EChaosBufferMode FInternalDefaultSettings::GetDedicatedThreadBufferMode() const
-	{
-		return EChaosBufferMode::Double;
-	}
-
 	FInternalDefaultSettings GDefaultChaosSettings;
-}
-
-static FAutoConsoleVariableSink CVarChaosModuleSink(FConsoleCommandDelegate::CreateStatic(&FChaosConsoleSinks::OnCVarsChanged));
-
-void FChaosConsoleSinks::OnCVarsChanged()
-{
-	// #BG TODO - Currently this isn't dynamic, should be made to be switchable.
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-
-	if(ChaosModule)
-	{
-		if(ChaosModule->IsPersistentTaskRunning())
-		{
-			float NewHz = CVarDedicatedThreadDesiredHz.GetValueOnGameThread();
-			ChaosModule->GetDispatcher()->EnqueueCommandImmediate([NewHz](Chaos::FPersistentPhysicsTask* Thread)
-			{
-				if(Thread)
-				{
-					Thread->SetTargetDt(1.0f / NewHz);
-				}
-			});
-		}
-	}
 }
 
 FSolverStateStorage::FSolverStateStorage()
@@ -161,7 +69,6 @@ FChaosSolversModule::FChaosSolversModule()
 	, bPersistentTaskSpawned(false)
 	, PhysicsAsyncTask(nullptr)
 	, PhysicsInnerTask(nullptr)
-	, Dispatcher(nullptr)
 	, SolverActorClass(nullptr)
 	, SolverActorRequiredBaseClass(nullptr)
 #if STATS
@@ -208,26 +115,6 @@ void FChaosSolversModule::Initialize()
 {
 	if(!bModuleInitialized)
 	{
-		const Chaos::EThreadingMode DefaultThreadingMode = GetDesiredThreadingMode();
-
-		switch(DefaultThreadingMode)
-		{
-		case Chaos::EThreadingMode::DedicatedThread:
-			StartPhysicsTask();
-			break;
-		case Chaos::EThreadingMode::SingleThread:
-			Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::SingleThread>(this);
-			break;
-		case Chaos::EThreadingMode::TaskGraph:
-			Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::TaskGraph>(this);
-			break;
-
-		default:
-			// Must have a dispatcher! Add handling for new threading models above
-			check(false);
-			break;
-		}
-
 		// Bind to the material manager
 		Chaos::FPhysicalMaterialManager& MaterialManager = Chaos::FPhysicalMaterialManager::Get();
 		OnCreateMaterialHandle = MaterialManager.OnMaterialCreated.Add(Chaos::FMaterialCreatedDelegate::CreateRaw(this, &FChaosSolversModule::OnCreateMaterial));
@@ -244,135 +131,21 @@ void FChaosSolversModule::Initialize()
 
 void FChaosSolversModule::Shutdown()
 {
+	using namespace Chaos;
 	if(bModuleInitialized)
 	{
-		EndPhysicsTask();
+		for(FPhysicsSolverBase* Solver : AllSolvers)
+		{
+			Solver->WaitOnPendingTasks_External();
+		}
 
 		// Unbind material events
-		Chaos::FPhysicalMaterialManager& MaterialManager = Chaos::FPhysicalMaterialManager::Get();
+		FPhysicalMaterialManager& MaterialManager = FPhysicalMaterialManager::Get();
 		MaterialManager.OnMaterialCreated.Remove(OnCreateMaterialHandle);
 		MaterialManager.OnMaterialDestroyed.Remove(OnDestroyMaterialHandle);
 		MaterialManager.OnMaterialUpdated.Remove(OnUpdateMaterialHandle);
 
 		bModuleInitialized = false;
-	}
-}
-
-void FChaosSolversModule::OnSettingsChanged()
-{
-	Chaos::EThreadingMode CurrentThreadMode = GetDesiredThreadingMode();
-
-	if(Dispatcher && CurrentThreadMode != Dispatcher->GetMode())
-	{
-		Chaos::ChangeThreadingMode(CurrentThreadMode);
-	}
-
-	// buffer mode switching depends on current threading mode and on EChaosBufferMode property setting
-	Chaos::ChangeBufferingMode();
-}
-
-void FChaosSolversModule::ShutdownThreadingMode()
-{
-	using namespace Chaos;
-
-	if(!Dispatcher)
-	{
-		return;
-	}
-
-	Chaos::EThreadingMode CurrentMode = Dispatcher->GetMode();
-
-	switch(CurrentMode)
-	{
-	case EThreadingMode::DedicatedThread:
-	{
-		ensure(IsPersistentTaskRunning());
-
-		EndPhysicsTask();
-	}
-	break;
-	
-	case EThreadingMode::TaskGraph:
-	{
-		if(Dispatcher)
-		{
-			// we need to flush out any commands currently waiting in the taskgraph dispatcher.
-			// Dedicated will wait for execution to end, and single thread runs immediately so we only
-			// need to handle this for task graph dispatchers
-			Dispatcher->Execute();
-
-			for(FPhysicsSolverBase* Solver : AllSolvers)
-			{
-				Solver->WaitOnPendingTasks_External();
-			}
-
-			delete Dispatcher;
-			Dispatcher = nullptr;
-		}
-	}
-	break;
-
-	case EThreadingMode::SingleThread:
-	{
-		if(Dispatcher)
-		{
-			delete Dispatcher;
-			Dispatcher = nullptr;
-		}
-	}
-	break;
-
-	default:
-		break;
-	}
-}
-
-void FChaosSolversModule::InitializeThreadingMode(Chaos::EThreadingMode InNewMode)
-{
-	using namespace Chaos;
-
-	// Check we're not trying to initialize without shutting down the threading mode first
-	check(!Dispatcher);
-
-	switch(InNewMode)
-	{
-	case EThreadingMode::DedicatedThread:
-	{
-		StartPhysicsTask();
-	}
-	break;
-
-	case EThreadingMode::SingleThread:
-	{
-		Dispatcher = new FDispatcher<Chaos::EThreadingMode::SingleThread>(this);
-	}
-	break;
-
-	case EThreadingMode::TaskGraph:
-	{
-		Dispatcher = new FDispatcher<Chaos::EThreadingMode::TaskGraph>(this);
-	}
-	break;
-
-	default:
-		break;
-	}
-}
-
-void FChaosSolversModule::ChangeThreadingMode(Chaos::EThreadingMode InNewMode)
-{
-	EChaosThreadingMode CurrentMode = GetDispatcher()->GetMode();
-
-	if(InNewMode != EChaosThreadingMode::Invalid && InNewMode != CurrentMode)
-	{
-		// Handle shutdown of current threading model
-		ShutdownThreadingMode();
-
-		// Handle entering new threading model
-		InitializeThreadingMode(InNewMode);
-
-		// Buffering mode may change when the threading mode changes
-		//ChangeBufferingMode();
 	}
 }
 
@@ -386,61 +159,6 @@ bool FChaosSolversModule::IsPersistentTaskRunning() const
 	return bPersistentTaskSpawned;
 }
 
-void FChaosSolversModule::StartPhysicsTask()
-{
-	// Create the dispatcher
-	if(Dispatcher)
-	{
-		delete Dispatcher;
-		Dispatcher = nullptr;
-	}
-
-	Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::DedicatedThread>(this);
-
-	// Setup the physics thread (Cast the dispatcher out to the correct type for threaded work)
-	const float SafeFps = FMath::Clamp(CVarDedicatedThreadDesiredHz.GetValueOnGameThread(), 5.0f, 1000.0f);
-	PhysicsAsyncTask = new FAsyncTask<Chaos::FPersistentPhysicsTask>(1.0f / SafeFps, false, (Chaos::FDispatcher<Chaos::EThreadingMode::DedicatedThread>*)Dispatcher);
-	PhysicsInnerTask = &PhysicsAsyncTask->GetTask();
-	PhysicsAsyncTask->StartBackgroundTask();
-	bPersistentTaskSpawned = true;
-
-	PreExitHandle = FCoreDelegates::OnPreExit.AddRaw(this, &FChaosSolversModule::EndPhysicsTask);
-}
-
-void FChaosSolversModule::EndPhysicsTask()
-{
-	// Pull down the thread if it exists
-	if(PhysicsInnerTask)
-	{
-		// Ask the physics thread to stop
-		PhysicsInnerTask->RequestShutdown();
-		// Wait for the stop
-		PhysicsInnerTask->GetShutdownEvent()->Wait();
-		PhysicsInnerTask = nullptr;
-		// Wait for the actual task to complete so we can get rid of it, then delete
-		PhysicsAsyncTask->EnsureCompletion(false);
-		delete PhysicsAsyncTask;
-		PhysicsAsyncTask = nullptr;
-
-		bPersistentTaskSpawned = false;
-
-		FCoreDelegates::OnPreExit.Remove(PreExitHandle);
-	}
-
-	// Destroy the dispatcher
-	if(Dispatcher)
-	{
-		delete Dispatcher;
-		Dispatcher = nullptr;
-	}
-
-}
-
-Chaos::IDispatcher* FChaosSolversModule::GetDispatcher() const
-{
-	return Dispatcher;
-}
-
 Chaos::FPersistentPhysicsTask* FChaosSolversModule::GetDedicatedTask() const
 {
 	return PhysicsInnerTask;
@@ -448,6 +166,7 @@ Chaos::FPersistentPhysicsTask* FChaosSolversModule::GetDedicatedTask() const
 
 void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 {
+#if 0
 	// Hard lock the physics thread before syncing our data
 	FChaosScopedPhysicsThreadLock ScopeLock(bForceBlockingSync ? MAX_uint32 : (uint32)(CVarDedicatedThreadSyncThreshold.GetValueOnGameThread()));
 
@@ -457,10 +176,11 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 
 	// Update stats if necessary
 	UpdateStats();
+#endif
 }
 
 template <typename Traits>
-Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, ESolverFlags InFlags
+Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InThreadingMode
 #if CHAOS_CHECKED
 	, const FName& DebugName
 #endif
@@ -470,12 +190,8 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 
 	FChaosScopeSolverLock SolverScopeLock;
 	
-	Chaos::EMultiBufferMode SolverBufferMode = Chaos::EMultiBufferMode::Single;
-	if (GetDispatcher())
-	{
-		SolverBufferMode = GetDesiredBufferingMode();
-	}
-
+	Chaos::EMultiBufferMode SolverBufferMode = InThreadingMode == Chaos::EThreadingMode::SingleThread ? Chaos::EMultiBufferMode::Single : Chaos::EMultiBufferMode::Double;
+	
 	auto* NewSolver = new Chaos::TPBDRigidsSolver<Traits>(SolverBufferMode,InOwner);
 	AllSolvers.Add(NewSolver);
 
@@ -498,16 +214,6 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 		NewSolver->SimMaterials = Manager.GetMasterMaterials();
 		NewSolver->SimMaterialMasks = Manager.GetMasterMaterialMasks();
 		NewSolver->QueryMaterialLock.WriteUnlock();
-	}
-
-	if(!(InFlags & ESolverFlags::Standalone) && IsPersistentTaskRunning() && Dispatcher)
-	{
-		// Need to let the thread know there's a new solver to care about
-		Dispatcher->EnqueueCommandImmediate([NewSolver](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			LLM_SCOPE(ELLMTag::Chaos);
-			PhysThread->AddSolver(NewSolver);
-		});
 	}
 
 	return NewSolver;
@@ -547,19 +253,6 @@ UClass* FChaosSolversModule::GetSolverActorClass() const
 bool FChaosSolversModule::IsValidSolverActorClass(UClass* Class) const
 {
 	return Class->IsChildOf(SolverActorRequiredBaseClass);
-}
-
-void FChaosSolversModule::SetDedicatedThreadTickMode(EChaosSolverTickMode InTickMode)
-{
-	check(Dispatcher);
-
-	Dispatcher->EnqueueCommandImmediate([InTickMode](Chaos::FPersistentPhysicsTask* InThread)
-	{
-		if(InThread)
-		{
-			InThread->SetTickMode(InTickMode);
-		}
-	});
 }
 
 void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolverBase* InSolver)
@@ -783,22 +476,6 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 	}
 }
 
-void FChaosSolversModule::LockResultsRead()
-{
-	if(IsPersistentTaskRunning())
-	{
-		PhysicsInnerTask->CacheLock.ReadLock();
-	}
-}
-
-void FChaosSolversModule::UnlockResultsRead()
-{
-	if(IsPersistentTaskRunning())
-	{
-		PhysicsInnerTask->CacheLock.ReadUnlock();
-	}
-}
-
 DECLARE_CYCLE_STAT(TEXT("PhysicsDedicatedStats"), STAT_PhysicsDedicatedStats, STATGROUP_ChaosDedicated);	//this is a hack, needed to make stat group turn on
 DECLARE_FLOAT_COUNTER_STAT(TEXT("PhysicsThreadTotalTime(ms)"), STAT_PhysicsThreadTotalTime, STATGROUP_ChaosDedicated);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveConstraints"), STAT_NumActiveConstraintsDedicated, STATGROUP_ChaosDedicated);
@@ -806,6 +483,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveParticles"), STAT_NumActiveParticlesDe
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveCollisionPoints"), STAT_NumActiveCollisionPointsDedicated, STATGROUP_ChaosDedicated);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveShapes"), STAT_NumActiveShapesDedicated, STATGROUP_ChaosDedicated);
 
+#if 0
 void FChaosSolversModule::UpdateStats()
 {
 #if STATS
@@ -879,6 +557,7 @@ void FChaosSolversModule::UpdateStats()
 
 #endif
 }
+#endif
 
 #if WITH_EDITOR
 void FChaosSolversModule::PauseSolvers()
@@ -919,54 +598,8 @@ bool FChaosSolversModule::ShouldStepSolver(int32& InOutSingleStepCounter) const
 }
 #endif  // #if WITH_EDITOR
 
-void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
-{
-	for (Chaos::FPhysicsSolverBase* Solver : AllSolvers)
-	{
-		if (Dispatcher)
-		{
-			Solver->EnqueueCommandImmediate([InBufferMode = BufferMode, Solver]()
-			{
-				Solver->ChangeBufferMode(InBufferMode);
-			});
-		}
-		else
-		{
-			Solver->ChangeBufferMode(BufferMode);
-		}
-	}
-
-}
-
-Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
-{
-	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
-	{
-		//Already set to single threaded so use that
-		return Chaos::EThreadingMode::SingleThread;
-	}
-
-	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
-
-
-	// If the platform isn't using threads for perf - force Chaos to
-	// run single threaded no matter the selected mode.
-	if(bForceSingleThread)
-	{
-		return Chaos::EThreadingMode::SingleThread;
-	}
-
-	return GetSettingsProvider().GetDefaultThreadingMode();
-}
-
-Chaos::EMultiBufferMode FChaosSolversModule::GetDesiredBufferingMode() const
-{
-	return GetBufferModeFromThreadingModel(GetDesiredThreadingMode());
-}
-
 void FChaosSolversModule::OnUpdateMaterial(Chaos::FMaterialHandle InHandle)
 {
-	check(Dispatcher);
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
@@ -989,8 +622,6 @@ void FChaosSolversModule::OnUpdateMaterial(Chaos::FMaterialHandle InHandle)
 
 void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 {
-	check(Dispatcher);
-
 	// Grab the material
 	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
 
@@ -1012,10 +643,6 @@ void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 
 void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 {
-	if (!ensure(Dispatcher))
-	{
-		return;
-	}
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
@@ -1038,7 +665,6 @@ void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 
 void FChaosSolversModule::OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle)
 {
-	check(Dispatcher);
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
@@ -1061,7 +687,6 @@ void FChaosSolversModule::OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHand
 
 void FChaosSolversModule::OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle)
 {
-	check(Dispatcher);
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
@@ -1084,10 +709,6 @@ void FChaosSolversModule::OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHand
 
 void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle)
 {
-	if (!ensure(Dispatcher))
-	{
-		return;
-	}
 
 	// Grab the material
 	Chaos::FChaosPhysicsMaterialMask* MaterialMask = InHandle.Get();
@@ -1108,34 +729,6 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 	}
 }
 
-void FChaosSolversModule::DispatchGlobalCommands()
-{
-	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
-	{
-		// Single threaded dispatchers fire commands immediately so we don't need to process any commands here
-		return;
-	}
-
-	if(IsValidRef(GlobalCommandTaskEventRef))
-	{
-		if(!GlobalCommandTaskEventRef->IsComplete())
-		{
-			SCOPE_CYCLE_COUNTER(STAT_WaitGlobalCommands);
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(GlobalCommandTaskEventRef);
-
-			UE_LOG(LogChaos, Warning, TEXT("Forced to wait on global physics commands from the previous frame."));
-		}
-
-		// Clear out our reference once the task has completed
-		GlobalCommandTaskEventRef.SafeRelease();
-	}
-
-	check(!IsValidRef(GlobalCommandTaskEventRef));
-
-	// Fire off commands for this grame
-	GlobalCommandTaskEventRef = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
-}
-
 void FChaosSolversModule::GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer)
 {
 	if(IsValidRef(GlobalCommandTaskEventRef))
@@ -1149,81 +742,12 @@ const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
 	return SettingsProvider ? *SettingsProvider : Chaos::GDefaultChaosSettings;
 }
 
-FChaosScopedPhysicsThreadLock::FChaosScopedPhysicsThreadLock()
-	: FChaosScopedPhysicsThreadLock(MAX_uint32)
-{
-
-}
-
-FChaosScopedPhysicsThreadLock::FChaosScopedPhysicsThreadLock(uint32 InMsToWait)
-	: CompleteEvent(nullptr)
-	, PTStallEvent(nullptr)
-	, Module(nullptr)
-	, bGotLock(false)
-{
-	Module = FChaosSolversModule::GetModule();
-	checkSlow(Module && Module->GetDispatcher());
-
-	Chaos::IDispatcher* PhysDispatcher = Module->GetDispatcher();
-	if(PhysDispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread)
-	{
-		CompleteEvent = FPlatformProcess::GetSynchEventFromPool(false);
-		PTStallEvent = FPlatformProcess::GetSynchEventFromPool(false);
-
-		// Request a halt on the physics thread
-		PhysDispatcher->EnqueueCommandImmediate([PTStall = PTStallEvent, GTSync = CompleteEvent](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			PTStall->Trigger();
-			GTSync->Wait();
-
-			FPlatformProcess::ReturnSynchEventToPool(GTSync);
-			FPlatformProcess::ReturnSynchEventToPool(PTStall);
-		});
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_LockWaits);
-			// Wait for the physics thread to actually stall
-			bGotLock = PTStallEvent->Wait(InMsToWait);
-		}
-
-		if(!bGotLock)
-		{
-			// Trigger this if we didn't get a lock to avoid blocking the physics thread
-			CompleteEvent->Trigger();
-		}
-	}
-	else
-	{
-		CompleteEvent = nullptr;
-		PTStallEvent = nullptr;
-	}
-}
-
-FChaosScopedPhysicsThreadLock::~FChaosScopedPhysicsThreadLock()
-{
-	if(CompleteEvent && PTStallEvent && bGotLock)
-	{
-		CompleteEvent->Trigger();
-	}
-
-	// Can't return these here until the physics thread wakes up,
-	// the physics thread will return these events (see FChaosScopedPhysicsLock::FChaosScopedPhysicsLock)
-	CompleteEvent = nullptr;
-	PTStallEvent = nullptr;
-	Module = nullptr;
-}
-
-bool FChaosScopedPhysicsThreadLock::DidGetLock() const
-{
-	return bGotLock;
-}
-
 #if CHAOS_CHECKED
 #define EVOLUTION_TRAIT(Traits)\
-template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, ESolverFlags InFlags, const FName& DebugName);
+template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InFlags, const FName& DebugName);
 #else
 #define EVOLUTION_TRAIT(Traits)\
-template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,ESolverFlags InFlags);
+template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,Chaos::EThreadingMode InFlags);
 #endif
 
 #include "Chaos/EvolutionTraits.inl"

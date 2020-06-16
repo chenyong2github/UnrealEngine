@@ -51,8 +51,6 @@ void TGeometryCollectionParticlesData<T, d>::Sync(Chaos::FPhysicsSolver* Solver,
 			GameSyncCount = SyncCount;
 
 			// Send sync command
-			Chaos::IDispatcher* const PhysicsDispatcher = ChaosModule->GetDispatcher();
-			check(PhysicsDispatcher);
 
 			Solver->EnqueueCommandImmediate([this, &RigidBodyIds, InSolver=Solver]()
 			{

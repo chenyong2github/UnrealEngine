@@ -4959,7 +4959,7 @@ void FBlueprintEditorUtils::ChangeMemberVariableType(UBlueprint* Blueprint, cons
 					if(Variable.VarType.IsSet() || Variable.VarType.IsMap())
 					{
 						// Make sure that the variable is no longer tagged for replication, and warn the user if the variable is no
-						// longer goign to be replicated:
+						// longer going to be replicated:
 						if(Variable.RepNotifyFunc != NAME_None || Variable.PropertyFlags & CPF_Net || Variable.PropertyFlags & CPF_RepNotify)
 						{
 							FNotificationInfo Warning( 
@@ -7230,24 +7230,35 @@ bool FBlueprintEditorUtils::IsSCSComponentProperty(FObjectProperty* MemberProper
 	return false;
 }
 
-UActorComponent* FBlueprintEditorUtils::FindUCSComponentTemplate(const FComponentKey& ComponentKey)
+UActorComponent* FBlueprintEditorUtils::FindUCSComponentTemplate(const FComponentKey& ComponentKey, const FName& TemplateName)
 {
 	UActorComponent* FoundTemplate = nullptr;
 	if (ComponentKey.IsValid() && ComponentKey.IsUCSKey())
 	{
-		UBlueprint* Blueprint = Cast<UBlueprint>(ComponentKey.GetComponentOwner()->ClassGeneratedBy);
-		check(Blueprint != nullptr);
-
-		if (UEdGraph* UCSGraph = FBlueprintEditorUtils::FindUserConstructionScript(Blueprint))
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(ComponentKey.GetComponentOwner()->ClassGeneratedBy))
 		{
-			TArray<UK2Node_AddComponent*> ComponentNodes;
-			UCSGraph->GetNodesOfClass<UK2Node_AddComponent>(ComponentNodes);
-
-			for (UK2Node_AddComponent* UCSNode : ComponentNodes)
+			if (UEdGraph* UCSGraph = FBlueprintEditorUtils::FindUserConstructionScript(Blueprint))
 			{
-				if (UCSNode->NodeGuid == ComponentKey.GetAssociatedGuid())
+				TArray<UK2Node_AddComponent*> ComponentNodes;
+				UCSGraph->GetNodesOfClass<UK2Node_AddComponent>(ComponentNodes);
+
+				for (UK2Node_AddComponent* UCSNode : ComponentNodes)
 				{
-					FoundTemplate = UCSNode->GetTemplateFromNode();
+					if (UCSNode->NodeGuid == ComponentKey.GetAssociatedGuid())
+					{
+						FoundTemplate = UCSNode->GetTemplateFromNode();
+						break;
+					}
+				}
+			}
+		}
+		else if(UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(ComponentKey.GetComponentOwner()))
+		{
+			for (UActorComponent* ComponentTemplate : BPGC->ComponentTemplates)
+			{
+				if (ComponentTemplate->GetFName().IsEqual(TemplateName))
+				{
+					FoundTemplate = ComponentTemplate;
 					break;
 				}
 			}

@@ -253,8 +253,6 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 
 	// #todo(dmp): hack to make bounds calculation work when we don't have valid physics proxy data.  This will
 	// force bounds calculation.
-	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-	Module->LockResultsRead();
 
 	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
@@ -2060,9 +2058,6 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 		checkSlow(ChaosModule);
 
-		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
-		checkSlow(PhysicsDispatcher); // Should always have one of these
-
 		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
@@ -2153,9 +2148,7 @@ void UGeometryCollectionComponent::CalculateLocalBounds()
 void UGeometryCollectionComponent::CalculateGlobalMatrices()
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
-	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-	Module->LockResultsRead();
-	
+
 	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
 	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
@@ -2187,8 +2180,6 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		}
 	}
 #endif
-
-	Module->UnlockResultsRead();
 }
 
 // #todo(dmp): for backwards compatibility with existing maps, we need to have a default of 3 materials.  Otherwise

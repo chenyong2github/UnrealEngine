@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Collision/BroadPhase.h"
+#include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/Collision/NarrowPhase.h"
@@ -11,7 +12,7 @@
 #include "Chaos/Capsule.h"
 #include "ChaosStats.h"
 #include "Chaos/EvolutionResimCache.h"
-
+#include "Chaos/GeometryParticlesfwd.h"
 
 namespace Chaos
 {
@@ -22,6 +23,7 @@ namespace Chaos
 	class ISpatialAcceleration;
 
 	class IResimCacheBase;
+
 
 	/**
 	 *
@@ -148,6 +150,8 @@ namespace Chaos
 			}
 		}
 
+		FIgnoreCollisionManager& GetIgnoreCollisionManager() { return IgnoreCollisionManager; }
+
 	private:
 		template<bool bIsResimming, typename THandle, typename T_SPATIALACCELERATION>
 		void ProduceParticleOverlaps(
@@ -221,6 +225,14 @@ namespace Chaos
 						}
 					}
 
+					if (Particle1.HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions) )
+					{
+						if (IgnoreCollisionManager.IgnoresCollision(Particle1.ParticleID(), Particle2.ParticleID()))
+						{
+							continue;
+						}
+					}					
+				
 					if (Particle1.CollisionGroup() == INDEX_NONE || Particle2Generic->CollisionGroup() == INDEX_NONE)
 					{
 						continue;
@@ -285,6 +297,8 @@ namespace Chaos
 
 		const TPBDRigidsSOAs<FReal, 3>& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
+
+		FIgnoreCollisionManager IgnoreCollisionManager;
 	};
 
 

@@ -276,3 +276,5 @@ void FGPULightmass::OnMaterialInvalidated(FMaterialRenderProxy* Material)
 		UE_LOG(LogGPULightmass, Log, TEXT("Cached ray tracing scene is invalidated due to material changes"));
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

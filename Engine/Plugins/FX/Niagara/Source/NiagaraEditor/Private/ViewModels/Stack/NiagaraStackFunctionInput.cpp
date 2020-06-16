@@ -277,7 +277,7 @@ bool UNiagaraStackFunctionInput::TestCanCopyWithMessage(FText& OutMessage) const
 
 void UNiagaraStackFunctionInput::Copy(UNiagaraClipboardContent* ClipboardContent) const
 {
-	const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(GetTransientPackage());
+	const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(ClipboardContent);
 	if (ClipboardInput != nullptr)
 	{
 		ClipboardContent->FunctionInputs.Add(ClipboardInput);
@@ -300,7 +300,8 @@ bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboard
 			{
 				if (ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
 				{
-					if (ClipboardFunctionInput->Dynamic->Script.IsValid() == false)
+					UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput->Dynamic->Script.LoadSynchronous();
+					if (ClipboardFunctionScript == nullptr)
 					{
 						OutMessage = LOCTEXT("CantPasteInvalidDynamicInputScript", "Can not paste the dynamic input because its script is no longer valid.");
 						return false;
@@ -1805,7 +1806,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
 				TEXT("Dynamic input values can only be set from script asset clipboard functions.")))
 			{
-				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr)
 				{
 					UNiagaraScript* NewDynamicInputScript;

@@ -1069,7 +1069,7 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 		SubmissionGapRecorder.SetEndFrameSlotIdx(CurrentSlotIdx);
 
 		TArray<FD3D12CommandListManager::FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, GGapRecorderUseBlockingCall);
+		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, GGapRecorderUseBlockingCall==1);
 
 		StartOfSubmissionTimestamp[CurrentContextIndex].Empty();
 		EndOfSubmissionTimestamp[CurrentContextIndex].Empty();

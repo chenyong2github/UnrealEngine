@@ -195,14 +195,10 @@ void UVoxelSolidifyMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelSolidifyMeshes", "Solidify Meshes"));
+
 		// Generate the result
-		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("VoxelSolidifyMeshes", "Boolean Meshes"));
-
-			GenerateAsset(Result);
-
-			GetToolManager()->EndUndoTransaction();
-		}
+		GenerateAsset(Result);
 
 		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
@@ -210,6 +206,8 @@ void UVoxelSolidifyMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+
+		GetToolManager()->EndUndoTransaction();
 	}
 
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();

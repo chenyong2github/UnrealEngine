@@ -32,8 +32,6 @@ class AWorldSettings;
 
 namespace Chaos
 {
-	class IDispatcher;
-
 	class FJointConstraint;
 
 	template <typename T, int>
@@ -177,8 +175,8 @@ public:
 	static void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
 	static void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
 	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle != nullptr; }
-	static void AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
-	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
+	static void AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver);
+	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver);
 	static const FBodyInstance* ShapeToOriginalBodyInstance(const FBodyInstance* InCurrentInstance, const Chaos::FPerShapeData* InShape);
 
 	static FPhysicsAggregateReference_Chaos CreateAggregate(int32 MaxBodies);

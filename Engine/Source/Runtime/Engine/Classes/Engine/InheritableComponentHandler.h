@@ -47,7 +47,7 @@ struct ENGINE_API FComponentKey
 	}
 
 	USCS_Node* FindSCSNode() const;
-	UActorComponent* GetOriginalTemplate() const;
+	UActorComponent* GetOriginalTemplate(const FName& TemplateName = NAME_None) const;
 	bool RefreshVariableName();
 
 	UClass* GetComponentOwner()  const { return OwnerClass; }
@@ -110,7 +110,7 @@ public:
 	void UpdateOwnerClass(UBlueprintGeneratedClass* OwnerClass);
 	void ValidateTemplates();
 	bool IsValid() const;
-	UActorComponent* FindBestArchetype(const FComponentKey& Key) const;
+	UActorComponent* FindBestArchetype(const FComponentKey& Key, const FName& TemplateName = NAME_None) const;
 
 	bool IsEmpty() const
 	{

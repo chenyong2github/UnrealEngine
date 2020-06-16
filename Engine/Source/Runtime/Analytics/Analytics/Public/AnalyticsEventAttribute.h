@@ -95,11 +95,16 @@ struct FAnalyticsEventAttribute
 	UE_DEPRECATED(4.25, "This property is used to support the deprecated APIs, construct Json values using FJsonFragment instead")
 	void SwitchToJsonFragment();
 
+	static bool IsValidAttributeName(const FString& InName)
+	{
+		return !InName.IsEmpty() && InName != TEXT("EventName") && InName != TEXT("DateOffset");
+	}
+
 private:
 	FString& CheckName(FString& InName)
 	{
 		// These are reserved names in our environment. Enforce things don't use it.
-		check(InName != TEXT("") && InName != TEXT("EventName") && InName != TEXT("DateOffset"));
+		check(IsValidAttributeName(InName));
 		return InName;
 	}
 };

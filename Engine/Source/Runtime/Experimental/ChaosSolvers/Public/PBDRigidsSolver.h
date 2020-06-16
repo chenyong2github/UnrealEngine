@@ -19,7 +19,6 @@
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "EventManager.h"
-#include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
@@ -237,10 +236,10 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 
 		/**/
-		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);
+		void PushPhysicsState();
 
 		/**/
-		void PushPhysicsStatePooled(IDispatcher* Dispatcher);
+		void PushPhysicsStatePooled();
 
 		/**/
 		void BufferPhysicsResults();

@@ -749,7 +749,7 @@ void FVulkanSurface::Destroy()
 		if (Image != VK_NULL_HANDLE)
 		{
 			Size = GetMemorySize();
-			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Image, Image);
+			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
 			Device->GetDeferredDeletionQueue().EnqueueResourceAllocation(GetResourceAllocation());
 			Image = VK_NULL_HANDLE;
 		}
@@ -1745,7 +1745,7 @@ void FVulkanTextureView::Destroy(FVulkanDevice& Device)
 	if (View)
 	{
 		DEC_DWORD_STAT(STAT_VulkanNumImageViews);
-		Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::ImageView, View);
+		Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ImageView, View);
 		Image = VK_NULL_HANDLE;
 		View = VK_NULL_HANDLE;
 		ViewId = 0;

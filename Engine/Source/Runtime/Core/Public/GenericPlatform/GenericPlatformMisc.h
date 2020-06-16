@@ -1034,6 +1034,12 @@ public:
 	/** @return Get the name of the platform specific file manager (eg, Explorer on Windows, Finder on OS X) */
 	static FText GetFileManagerName();
 
+	/** @return Whether filehandles can be opened on one thread and read/written on another thread */
+	static bool SupportsMultithreadedFileHandles()
+	{
+		return true;
+	}
+
 #if !UE_BUILD_SHIPPING
 	static void SetShouldPromptForRemoteDebugging(bool bInShouldPrompt)
 	{

@@ -908,6 +908,17 @@ void FSlateApplication::SetCursorPos(const FVector2D& MouseCoordinate)
 	GetCursorUser()->SetCursorPosition(MouseCoordinate);
 }
 
+void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
+{
+	if (TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex))
+	{
+		if (PlatformApplication && PlatformApplication->Cursor)
+		{
+			SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
+		}
+	}
+}
+
 FWidgetPath FSlateApplication::LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray< TSharedRef< SWindow > >& Windows, bool bIgnoreEnabledStatus, int32 UserIndex)
 {
 	// First, give the OS a chance to tell us which window to use, in case a child window is not guaranteed to stay on top of its parent window
@@ -5368,6 +5379,10 @@ bool FSlateApplication::OnMouseMove()
 		// Throw out the mouse move event if we're faking touch events but the mouse button isn't down.
 		return false;
 	}
+
+	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
+	// cursor position has changed.
+	UsePlatformCursorForCursorUser(true);
 
 	bool Result = true;
 	const FVector2D CurrentCursorPosition = GetCursorPos();

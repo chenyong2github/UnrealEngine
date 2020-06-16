@@ -1629,15 +1629,6 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		FStudioAnalytics::Tick(DeltaSeconds);
 	}
 
-#if WITH_CHAOS
-	// Before we begin ticking any of our worlds, dispatch the global command lists and queues for physics
-	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
-	if(ensure(ChaosModule))
-	{
-		ChaosModule->DispatchGlobalCommands();
-	}
-#endif
-
 	// -----------------------------------------------------
 	// Begin ticking worlds
 	// -----------------------------------------------------

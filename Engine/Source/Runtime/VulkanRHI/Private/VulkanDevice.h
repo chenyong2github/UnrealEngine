@@ -64,6 +64,77 @@ struct FOptionalVulkanDeviceExtensions
 		return HasAMDBufferMarker || HasNVDiagnosticCheckpoints;
 	}
 };
+namespace VulkanRHI
+{
+	class FDeferredDeletionQueue2 : public FDeviceChild
+	{
+
+	public:
+		FDeferredDeletionQueue2(FVulkanDevice* InDevice);
+		~FDeferredDeletionQueue2();
+
+		enum class EType
+		{
+			RenderPass,
+			Buffer,
+			BufferView,
+			Image,
+			ImageView,
+			Pipeline,
+			PipelineLayout,
+			Framebuffer,
+			DescriptorSetLayout,
+			Sampler,
+			Semaphore,
+			ShaderModule,
+			Event,
+			ResourceAllocation,
+			BufferSuballocation,
+		};
+
+		template <typename T>
+		inline void EnqueueResource(EType Type, T Handle)
+		{
+			static_assert(sizeof(T) <= sizeof(uint64), "Vulkan resource handle type size too large.");
+			EnqueueGenericResource(Type, (uint64)Handle);
+		}
+
+
+		void EnqueueResourceAllocation(TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation);
+		void EnqueueBufferSuballocation(TRefCountPtr<VulkanRHI::FBufferSuballocation> Allocation);
+		void EnqueueBufferSuballocationDirect(FBufferSuballocation* SubAllocation);
+
+		
+
+		void ReleaseResources(bool bDeleteImmediately = false);
+
+		inline void Clear()
+		{
+			ReleaseResources(true);
+		}
+
+		void OnCmdBufferDeleted(FVulkanCmdBuffer* CmdBuffer);
+	private:
+		void EnqueueGenericResource(EType Type, uint64 Handle);
+
+		struct FEntry
+		{
+			EType StructureType;
+			uint32 FrameNumber;
+			uint64 FenceCounter;
+			FVulkanCmdBuffer* CmdBuffer;
+
+			uint64 Handle;
+			TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation;
+			TRefCountPtr<VulkanRHI::FBufferSuballocation> SubAllocation;
+			VulkanRHI::FBufferSuballocation* SubAllocationDirect;
+
+		};
+		FCriticalSection CS;
+		TArray<FEntry> Entries;
+	};
+}
+
 
 class FVulkanDevice
 {
@@ -215,7 +286,7 @@ public:
 		return ResourceHeapManager;
 	}
 
-	inline VulkanRHI::FDeferredDeletionQueue& GetDeferredDeletionQueue()
+	inline VulkanRHI::FDeferredDeletionQueue2& GetDeferredDeletionQueue()
 	{
 		return DeferredDeletionQueue;
 	}
@@ -358,7 +429,7 @@ private:
 
 	VulkanRHI::FResourceHeapManager ResourceHeapManager;
 
-	VulkanRHI::FDeferredDeletionQueue DeferredDeletionQueue;
+	VulkanRHI::FDeferredDeletionQueue2 DeferredDeletionQueue;
 
 	VulkanRHI::FStagingManager StagingManager;
 
