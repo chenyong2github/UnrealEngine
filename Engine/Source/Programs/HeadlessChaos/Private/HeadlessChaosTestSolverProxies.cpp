@@ -14,7 +14,6 @@
 #include "ChaosSolversModule.h"
 
 #include "Modules/ModuleManager.h"
-#include "Framework/PhysicsTickTask.h"
 
 
 namespace ChaosTest {

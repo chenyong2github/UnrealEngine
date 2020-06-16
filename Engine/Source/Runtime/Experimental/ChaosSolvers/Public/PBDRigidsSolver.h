@@ -19,7 +19,6 @@
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "EventManager.h"
-#include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
