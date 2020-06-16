@@ -244,10 +244,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Android = FindOrAddByName("Android");
 
 		/// <summary>
-		/// </summary>
-		public static UnrealTargetPlatform HTML5 = FindOrAddByName("HTML5");
-
-		/// <summary>
 		/// Linux
 		/// </summary>
 		public static UnrealTargetPlatform Linux = FindOrAddByName("Linux");
