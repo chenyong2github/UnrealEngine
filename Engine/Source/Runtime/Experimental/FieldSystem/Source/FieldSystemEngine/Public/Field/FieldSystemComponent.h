@@ -12,7 +12,6 @@
 #include "FieldSystemComponent.generated.h"
 
 struct FFieldSystemSampleData;
-class FFieldSystemPhysicsProxy;
 class FChaosSolversModule;
 
 /**
@@ -180,7 +179,6 @@ protected:
 
 	void DispatchCommand(const FFieldSystemCommand& InCommand);
 
-	FFieldSystemPhysicsProxy* PhysicsProxy;
 	FChaosSolversModule* ChaosModule;
 
 	bool bHasPhysicsState;

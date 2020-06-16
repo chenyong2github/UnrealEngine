@@ -43,6 +43,7 @@ namespace ChaosTest {
 
 		Solver->RegisterObject(Particle.Get());
 
+#if 0
 		{
 			TAtomic<int32> TestSequenceAtmoic(5);
 
@@ -67,6 +68,7 @@ namespace ChaosTest {
 
 			EXPECT_EQ(TestSequenceAtmoic.Load(), 16);
 		}
+#endif
 
 		// Throw out the proxy
 		Solver->UnregisterObject(Particle.Get());

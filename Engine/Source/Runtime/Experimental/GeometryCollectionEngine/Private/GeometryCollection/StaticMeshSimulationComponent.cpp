@@ -57,6 +57,7 @@ void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+#if 0	//todo: remove
 	// for kinematic objects, we assume that UE4 can and will move them, so we need to pass the new data to the phys solver
 	if ((ObjectType == EObjectStateTypeEnum::Chaos_Object_Kinematic) && Simulating)
 	{
@@ -75,12 +76,13 @@ void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelT
 			ParamUpdate.NewTransform = Comp->GetComponentTransform();
 			ParamUpdate.NewVelocity = Comp->ComponentVelocity;
 
-			PhysicsDispatcher->EnqueueCommandImmediate([PhysObj = PhysicsProxy, Params = ParamUpdate]()
+			PhysicsProxy->GetSolver<Chaos::FPBDRigidsEvolution>()->EnqueueCommandImmediate([PhysObj = PhysicsProxy, Params = ParamUpdate]()
 			{
 				PhysObj->BufferKinematicUpdate(Params);
 			});
 		}
 	}
+#endif
 }
 
 Chaos::FPhysicsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMeshSimulationComponent)
