@@ -83,7 +83,7 @@ public:
 			UMaterialInterface* Material = Elements[ElementIndex].Material;
 			if (Material)
 			{
-				MaterialRelevance |= Material->GetRelevance(GetScene().GetFeatureLevel());
+				MaterialRelevance |= Material->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 			}
 		}
 
