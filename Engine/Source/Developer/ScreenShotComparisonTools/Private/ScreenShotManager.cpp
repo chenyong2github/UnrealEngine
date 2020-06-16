@@ -382,7 +382,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 	ComparisonResult.ReportComparisonFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Delta.png"));
 
 	// If not ideal the make the approved name contain the source for clarity, since it will be under a Plat/RHI/Feature level folder for the platform being tested
-	if (!ComparisonResult.IsIdeal())
+	if (!ComparisonResult.IsIdeal() && !ComparisonResult.IsNew())
 	{
 		check(NearestExistingApprovedImageMetadata.IsSet());
 		FString ApprovedName = FString::Printf(TEXT("Approved_%s.png"), *GetPathComponentForPlatformAndRHI(*NearestExistingApprovedImageMetadata).Replace(TEXT("/"), TEXT("_")));
