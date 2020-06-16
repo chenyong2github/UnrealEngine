@@ -239,9 +239,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
 	TArray<FName> PackagePathsToExclude;
 
-	/** Whether we should include package sub-paths in this query */
+	/** Whether we should include inclusive package sub-paths in this query */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
-	bool bRecursivePackagePaths = false;
+	bool bRecursivePackagePathsToInclude = false;
+
+	/** Whether we should include exclusive package sub-paths in this query */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
+	bool bRecursivePackagePathsToExclude = false;
 
 	/** Optional set of additional path filtering */
 	TSharedPtr<FBlacklistPaths> PathBlacklist;
@@ -265,9 +269,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
 	TArray<FName> ClassNamesToExclude;
 
-	/** Whether we should include sub-classes in this query */
+	/** Whether we should include inclusive sub-classes in this query */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
-	bool bRecursiveClassNames = false;
+	bool bRecursiveClassNamesToInclude = false;
+
+	/** Whether we should include exclusive sub-classes in this query */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
+	bool bRecursiveClassNamesToExclude = false;
 
 	/** Optional set of additional class filtering */
 	TSharedPtr<FBlacklistNames> ClassBlacklist;
