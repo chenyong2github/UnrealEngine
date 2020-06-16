@@ -939,7 +939,6 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
 		// Retrieve LOD actors from the level
-		uint32 NumLODActors = 0;
 		for (int32 ActorId = 0; ActorId < InLevel->Actors.Num(); ++ActorId)
 		{
 			AActor* Actor = InLevel->Actors[ActorId];
