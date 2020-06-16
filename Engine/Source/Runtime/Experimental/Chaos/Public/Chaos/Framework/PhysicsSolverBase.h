@@ -291,6 +291,17 @@ namespace Chaos
 			}
 		}
 
+		//Need this until we have a better way to deal with pending commands that affect scene query structure
+		void FlushCommands_External()
+		{
+			WaitOnPendingTasks_External();
+			for(const auto& Command : CommandQueue)
+			{
+				Command();
+			}
+			CommandQueue.Empty();
+		}
+
 		const UObject* GetOwner() const
 		{ 
 			return Owner; 
