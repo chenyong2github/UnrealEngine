@@ -214,9 +214,7 @@ namespace UE4PushModelPrivate
 			FNetPushObjectId& InternalPushId = ObjectKeyToInternalId.FindOrAdd(ObjectKey, INDEX_NONE);
 			if (INDEX_NONE == InternalPushId)
 			{
-				FSparseArrayAllocationInfo AllocationInfo = PerObjectStates.AddUninitializedAtLowestFreeIndex(NewObjectLookupPosition);
-				new (AllocationInfo.Pointer) FPushModelPerObjectState(ObjectKey, NumReplicatedProperties);
-				InternalPushId = AllocationInfo.Index;
+				InternalPushId = PerObjectStates.EmplaceAtLowestFreeIndex(NewObjectLookupPosition, ObjectKey, NumReplicatedProperties);
 			}
 
 			FPushModelPerObjectState& PerObjectState = PerObjectStates[InternalPushId];
