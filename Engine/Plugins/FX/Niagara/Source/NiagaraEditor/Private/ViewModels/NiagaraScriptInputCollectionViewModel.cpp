@@ -312,6 +312,12 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 
 bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefinition& Type) const
 {
+	if (Type.IsUObject() && Type.IsDataInterface() == false)
+	{
+		// Don't allow generic objects as script inputs.
+		return false;
+	}
+
 	if (Type.IsInternalType())
 	{
 		return false;
