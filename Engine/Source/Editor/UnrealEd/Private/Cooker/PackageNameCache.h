@@ -112,6 +112,13 @@ inline void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString>>
 
 inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const FName& PackageName) const
 {
+	check(IsInGameThread());
+
+	return PackageFilenameCache.Remove(PackageName) >= 1;
+}
+
+inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
+{
 	FString PackageNameStr = PackageName.ToString();
 
 	// "/Extra/" packages are editor-generated in-memory packages which don't have a corresponding 
@@ -133,13 +140,6 @@ inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const FName& 
 		// the proper object (which means we want to ignore it).
 	}
 
-	check(IsInGameThread());
-
-	return PackageFilenameCache.Remove(PackageName) >= 1;
-}
-
-inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
-{
 	if (!AssetRegistry)
 	{
 		return FPackageName::DoesPackageExist(PackageNameStr, NULL, OutFilename, false);
