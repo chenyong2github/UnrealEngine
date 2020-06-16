@@ -311,7 +311,7 @@ bool FTriangleMeshImplicitObject::Raycast(const FVec3& StartPoint, const FVec3& 
 
 
 template <typename QueryGeomType>
-bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
+bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& OutContactPhi, FVec3 TriMeshScale) const
 {
 	ensure(TriMeshScale != FVec3(0.0f));
 	bool bResult = false;
@@ -321,7 +321,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	TRigidTransform<FReal, 3> WorldScaleQueryTM;
 	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
 
-	auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
+	auto CalculateTriangleContact = [&](const FVec3& A, const FVec3& B, const FVec3& C,
 		FVec3& LocalContactLocation, FVec3& LocalContactNormal, FReal& LocalContactPhi) -> bool
 	{
 		const FVec3 AB = B - A;
@@ -330,15 +330,15 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		FReal LambdaPenetration;
 		FVec3 ClosestA, ClosestB, LambdaNormal;
-		if (GJKPenetration(TriangleConvex, WorldScaleGeom, WorldScaleQueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0))
+		bool GJKValidResult = GJKPenetration<true>(TriangleConvex, WorldScaleGeom, WorldScaleQueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0);
+		if (GJKValidResult)
 		{
 			LocalContactLocation = ClosestB;
 			LocalContactNormal = LambdaNormal;
 			LocalContactPhi = -LambdaPenetration;
-			return true;
 		}
 
-		return LocalContactPhi < 0.f;
+		return GJKValidResult;
 	};
 
 
@@ -354,26 +354,14 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		for (int32 TriIdx : PotentialIntersections)
 		{
-			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
-			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 			TVec3<FReal> A, B, C;
 			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
-			if (OverlapTriangle(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			if (CalculateTriangleContact(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
 			{
-				if (LocalContactPhi < Penetration)
+				if (LocalContactPhi < OutContactPhi)
 				{
-					Penetration = LocalContactPhi;
-					Location = LocalContactLocation;
-					Normal = LocalContactNormal;
-				}
-			}
-
-			if (OverlapTriangle(A, C, B, LocalContactLocation, LocalContactNormal, LocalContactPhi))
-			{
-				if (LocalContactPhi < Penetration)
-				{
-					Penetration = LocalContactPhi;
+					OutContactPhi = LocalContactPhi;
 					Location = LocalContactLocation;
 					Normal = LocalContactNormal;
 				}
@@ -381,7 +369,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		}
 
-		return Penetration < Thickness;
+		return OutContactPhi < Thickness;
 	};
 
 	if (MElements.RequiresLargeIndices())
@@ -391,44 +379,44 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	return LambdaHelper(MElements.GetSmallIndexBuffer());
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, ContactPhi, TriMeshScale);
 }
 
 int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const
