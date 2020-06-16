@@ -245,6 +245,8 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 #endif
 	}
 
+	FinalUpdateList.Reset();
+
 	Result.MaxLayerIdPainted = CachedMaxLayerId;
 	return Result;
 }
@@ -266,10 +268,22 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 
 void FSlateInvalidationRoot::ClearAllWidgetUpdatesPending()
 {
-	// Once a frame we free the FinalUpdateList
+	// Once a frame we free the FinalUpdateList, any widget still in that list are
+	// Volatile widgets or widgets that need constant Update. So we put them back in the WidgetsNeedingUpdate list
 	for (FSlateInvalidationRoot* Root : ClearUpdateList)
 	{
-		Root->FinalUpdateList.Reset();
+		if (int32 NumUpdatePending = Root->FinalUpdateList.Num())
+		{
+			for (int32 index : Root->FinalUpdateList)
+			{
+				FWidgetProxy& Proxy = Root->FastWidgetPathList[index];
+				if (EnumHasAnyFlags(Proxy.UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
+				{
+					Root->WidgetsNeedingUpdate.Push(Proxy);
+				}
+			}
+		}
+		Root->FinalUpdateList.Empty();
 	}
 }
 
@@ -576,7 +590,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 				WidgetsNeedingUpdate.Push(WidgetProxy);
 			}
 		}
-		FinalUpdateList.Empty();
+		FinalUpdateList.Reset(WidgetsNeedingUpdate.Num());
 
 #if SLATE_CSV_TRACKER
 		FCsvProfiler::RecordCustomStat("Invalidate/InitialWidgets", CSV_CATEGORY_INDEX(Slate), WidgetsNeedingUpdate.Num(), ECsvCustomStatOp::Set);
