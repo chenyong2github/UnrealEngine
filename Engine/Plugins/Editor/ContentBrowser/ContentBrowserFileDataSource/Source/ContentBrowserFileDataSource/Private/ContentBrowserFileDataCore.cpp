@@ -361,6 +361,61 @@ bool EditFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemData
 	return bDidEdit;
 }
 
+bool CanPreviewItem(const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	if (TSharedPtr<const FContentBrowserFileItemDataPayload> FilePayload = GetFileItemPayload(InOwnerDataSource, InItem))
+	{
+		return CanPreviewFileItem(*FilePayload, OutErrorMsg);
+	}
+
+	return false;
+}
+
+bool CanPreviewFileItem(const FContentBrowserFileItemDataPayload& InFilePayload, FText* OutErrorMsg)
+{
+	if (TSharedPtr<const FFileActions> FileActions = InFilePayload.GetFileActions())
+	{
+		return (!FileActions->CanPreview.IsBound() || FileActions->CanPreview.Execute(InFilePayload.GetInternalPath(), InFilePayload.GetFilename(), OutErrorMsg))
+			&& FileActions->Preview.IsBound();
+	}
+
+	return false;
+}
+
+bool PreviewItems(const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems)
+{
+	TArray<TSharedRef<const FContentBrowserFileItemDataPayload>, TInlineAllocator<16>> FilePayloads;
+
+	EnumerateFileItemPayloads(InOwnerDataSource, InItems, [&FilePayloads](const TSharedRef<const FContentBrowserFileItemDataPayload>& InFilePayload)
+	{
+		if (CanPreviewFileItem(*InFilePayload, nullptr))
+		{
+			FilePayloads.Add(InFilePayload);
+		}
+		return true;
+	});
+
+	return PreviewFileItems(FilePayloads);
+}
+
+bool PreviewFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads)
+{
+	bool bDidPreview = false;
+
+	for (const TSharedRef<const FContentBrowserFileItemDataPayload>& FilePayload : InFilePayloads)
+	{
+		if (TSharedPtr<const FFileActions> FileActions = FilePayload->GetFileActions())
+		{
+			if (FileActions->Preview.IsBound())
+			{
+				bDidPreview |= FileActions->Preview.Execute(FilePayload->GetInternalPath(), FilePayload->GetFilename());
+			}
+		}
+	}
+
+	return bDidPreview;
+}
+
 bool CanDuplicateItem(const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg)
 {
 	if (TSharedPtr<const FContentBrowserFileItemDataPayload> FilePayload = GetFileItemPayload(InOwnerDataSource, InItem))
