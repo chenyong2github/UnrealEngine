@@ -582,6 +582,21 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 	checkf(IsInGameThread(), TEXT("Unable to FlushAsyncLoading from any thread other than the game thread."));
 	if (GPackageLoader)
 	{
+#if NO_LOGGING == 0
+		if (IsAsyncLoading())
+		{
+			// Log the flush, but only display once per frame to avoid log spam.
+			static uint64 LastFrameNumber = -1;
+			if (LastFrameNumber != GFrameNumber)
+			{
+				UE_LOG(LogStreaming, Display, TEXT("FlushAsyncLoading: %d QueuedPackages, %d AsyncPackages"), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
+			}
+			{
+				UE_LOG(LogStreaming, Log, TEXT("FlushAsyncLoading: %d QueuedPackages, %d AsyncPackages"), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
+			}
+			LastFrameNumber = GFrameNumber;
+		}
+#endif
 		GPackageLoader->FlushLoading(PackageID);
 	}
 }
@@ -686,7 +701,7 @@ void NotifyRegistrationComplete()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetGEDLBootNotificationManager().NotifyRegistrationComplete();
-	GPackageLoader->FlushLoading(INDEX_NONE);
+	FlushAsyncLoading();
 	GPackageLoader->StartThread();
 }
 
