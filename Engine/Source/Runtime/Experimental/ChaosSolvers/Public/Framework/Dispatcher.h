@@ -56,7 +56,6 @@ namespace Chaos
 	public:
 		virtual ~IDispatcher() {}
 
-		using FGlobalCommand = TFunction<void()>;
 		using FTaskCommand = TFunction<void(FPersistentPhysicsTask*)>;
 		using FSolverCommand = TFunction<void()>;
 
@@ -74,11 +73,6 @@ namespace Chaos
 		 * Get the current threading mode for this dispatcher
 		 */
 		virtual EThreadingMode GetMode() const = 0;
-
-		/**
-		 * Given a command list, submit it as a batch for execution on the next physics frame
-		 */
-		virtual void SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData) = 0;
 
 		/**
 		 * Execute any pending submitted command lists along with global and task commands
