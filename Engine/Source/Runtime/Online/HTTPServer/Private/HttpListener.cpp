@@ -89,7 +89,7 @@ bool FHttpListener::StartListening()
 
 	int32 ActualBufferSize;
 	ListenSocket->SetSendBufferSize(Config.BufferSize, ActualBufferSize);
-	if (ActualBufferSize != Config.BufferSize)
+	if (ActualBufferSize < Config.BufferSize)
 	{
 		UE_LOG(LogHttpListener, Warning, 
 			TEXT("HttpListener unable to set desired buffer size (%d): Limited to %d"),
