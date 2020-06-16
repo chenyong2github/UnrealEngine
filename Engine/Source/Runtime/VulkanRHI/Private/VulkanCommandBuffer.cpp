@@ -807,7 +807,7 @@ void FVulkanCommandBufferPool::FreeUnusedCmdBuffers(FVulkanQueue* InQueue)
 	InQueue->GetLastSubmittedInfo(LastSubmittedCmdBuffer, LastSubmittedFenceCounter);
 
 	// Deferred deletion queue caches pointers to cmdbuffers
-	FDeferredDeletionQueue& DeferredDeletionQueue = Device->GetDeferredDeletionQueue();
+	FDeferredDeletionQueue2& DeferredDeletionQueue = Device->GetDeferredDeletionQueue();
 	
 	for (int32 Index = CmdBuffers.Num() - 1; Index >= 0; --Index)
 	{
