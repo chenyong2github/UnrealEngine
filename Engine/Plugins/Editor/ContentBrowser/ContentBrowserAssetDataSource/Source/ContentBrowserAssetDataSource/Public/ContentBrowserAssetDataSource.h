@@ -29,8 +29,10 @@ public:
 	// Folder filtering
 	bool bRunFolderQueryOnDemand = false;
 	// On-demand filtering (always recursive on PathToScanOnDemand)
-	bool bRecursivePackagePaths = false;
-	FBlacklistPaths PackageFilterBlacklist;
+	bool bRecursivePackagePathsToInclude = false;
+	bool bRecursivePackagePathsToExclude = false;
+	FBlacklistPaths PackagePathsToInclude;
+	FBlacklistPaths PackagePathsToExclude;
 	FBlacklistPaths PathBlacklist;
 	TSet<FName> ExcludedPackagePaths;
 	FString PathToScanOnDemandStr;
