@@ -207,6 +207,13 @@ static FAutoConsoleVariableRef CVarNetDormancyValidate(
 	TEXT("0: Dont validate. 1: Validate on wake up. 2: Validate on each net update"),
 	ECVF_Default);
 
+bool GbNetReuseReplicatorsForDormantObjects = false;
+static FAutoConsoleVariableRef CVarNetReuseReplicatorsForDormantObjects(
+	TEXT("Net.ReuseReplicatorsForDormantObjects"),
+	GbNetReuseReplicatorsForDormantObjects,
+	TEXT("When true, Server's will persist and attempt to reuse replicators for Dormant Actors and Objects. This can cut down on bandwidth by preventing redundant information from being sent when waking objects from Dormancy."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> CVarNetDebugDraw(
 	TEXT("net.DebugDraw"),
 	0,
@@ -1884,30 +1891,17 @@ bool UNetDriver::IsLevelInitializedForActor(const AActor* InActor, const UNetCon
 //
 // Internal RPC calling.
 //
-void UNetDriver::InternalProcessRemoteFunction(
-	AActor* Actor,
-	UObject* SubObject,
-	UNetConnection* Connection,
-	UFunction* Function,
-	void* Parms,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	const bool bIsServer)
-{
-	EProcessRemoteFunctionFlags UnusedFlags = EProcessRemoteFunctionFlags::None;
-	InternalProcessRemoteFunctionPrivate(Actor, SubObject, Connection, Function, Parms, OutParms, Stack, bIsServer, UnusedFlags);
-}
-
-void UNetDriver::InternalProcessRemoteFunctionPrivate(
-	AActor* Actor,
-	UObject* SubObject,
-	UNetConnection* Connection,
-	UFunction* Function,
-	void* Parms,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	const bool bIsServer,
-	EProcessRemoteFunctionFlags& Flags)
+void UNetDriver::InternalProcessRemoteFunction
+(
+	AActor*			Actor,
+	UObject*		SubObject,
+	UNetConnection*	Connection,
+	UFunction*		Function,
+	void*			Parms,
+	FOutParmRec*	OutParms,
+	FFrame*			Stack,
+	bool			IsServer
+)
 {
 	// get the top most function
 	while (Function->GetSuperFunction())
@@ -1952,8 +1946,9 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 		return;
 	}
 		
-	const FFieldNetCache* FieldCache = ClassCache->GetFromField(Function);
-	if (!FieldCache)
+	const FFieldNetCache* FieldCache = ClassCache->GetFromField( Function );
+
+	if ( !FieldCache )
 	{
 		DEBUG_REMOTEFUNCTION(TEXT("FieldCache empty, not calling %s::%s"), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return;
@@ -1961,11 +1956,11 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 		
 	// Get the actor channel.
 	UActorChannel* Ch = Connection->FindActorChannelRef(Actor);
-	if (!Ch)
+	if( !Ch )
 	{
-		if (bIsServer)
+		if( IsServer )
 		{
-			if (Actor->IsPendingKillPending())
+			if ( Actor->IsPendingKillPending() )
 			{
 				// Don't try opening a channel for me, I am in the process of being destroyed. Ignore my RPCs.
 				return;
@@ -1973,7 +1968,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 
 			if (IsLevelInitializedForActor(Actor, Connection))
 			{
-				Ch = (UActorChannel*)Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
+				Ch = (UActorChannel *)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
 			}
 			else
 			{
@@ -1981,68 +1976,20 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 				return;
 			}
 		}
-
 		if (!Ch)
 		{
 			return;
 		}
-
-		if (bIsServer)
+		if (IsServer)
 		{
 			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
 		}	
 	}
 
-	ProcessRemoteFunctionForChannelPrivate(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parms, OutParms, Stack, bIsServer, ERemoteFunctionSendPolicy::Default, Flags);
+	ProcessRemoteFunctionForChannel(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parms, OutParms, Stack, IsServer);
 }
 
-void UNetDriver::ProcessRemoteFunctionForChannel(
-	UActorChannel* Ch,
-	const FClassNetCache* ClassCache,
-	const FFieldNetCache* FieldCache,
-	UObject* TargetObj,
-	UNetConnection* Connection,
-	UFunction* Function,
-	void* Parms,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	const bool bIsServer,
-	const ERemoteFunctionSendPolicy SendPolicy)
-{
-	EProcessRemoteFunctionFlags UnusedFlags = EProcessRemoteFunctionFlags::None;
-	ProcessRemoteFunctionForChannelPrivate(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parms, OutParms, Stack, bIsServer, SendPolicy, UnusedFlags);
-}
-
-void UNetDriver::ProcessRemoteFunctionForChannel(
-	UActorChannel* Ch,
-	const FClassNetCache* ClassCache,
-	const FFieldNetCache* FieldCache,
-	UObject* TargetObj,
-	UNetConnection* Connection,
-	UFunction* Function,
-	void* Parms,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	const bool bIsServer,
-	const ERemoteFunctionSendPolicy SendPolicy,
-	EProcessRemoteFunctionFlags& RemoteFunctionFlags)
-{
-	ProcessRemoteFunctionForChannelPrivate(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parms, OutParms, Stack, bIsServer, SendPolicy, RemoteFunctionFlags);
-}
-
-void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
-	UActorChannel* Ch,
-	const FClassNetCache* ClassCache,
-	const FFieldNetCache* FieldCache,
-	UObject* TargetObj,
-	UNetConnection* Connection,
-	UFunction* Function,
-	void* Parms,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	const bool bIsServer,
-	const ERemoteFunctionSendPolicy SendPolicy,
-	EProcessRemoteFunctionFlags& RemoteFunctionFlags)
+void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClassNetCache* ClassCache, const FFieldNetCache* FieldCache, UObject* TargetObj, UNetConnection* Connection, UFunction* Function, void* Parms, FOutParmRec* OutParms, FFrame* Stack, const bool IsServer, const ERemoteFunctionSendPolicy SendPolicy)
 {
 	// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	// This function should be kept fast! Assume this is getting called multiple times at once. Don't look things up/recalc them if they do not change per connection/actor.
@@ -2054,9 +2001,9 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	}
 
 	// Make sure initial channel-opening replication has taken place.
-	if (Ch->OpenPacketId.First == INDEX_NONE)
+	if( Ch->OpenPacketId.First==INDEX_NONE )
 	{
-		if (!bIsServer)
+		if (!IsServer)
 		{
 			DEBUG_REMOTEFUNCTION(TEXT("Initial channel replication has not occurred, not calling %s::%s"), *TargetObj->GetFullName(), *Function->GetName());
 			return;
@@ -2071,24 +2018,17 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			return;
 		}
 
-		// Bump the ReplicationFrame value to invalidate any properties marked as "unchanged".
-		// We only want to do this at most once per invocation of ProcessRemoteFunctionForChannel, to prevent cases
-		// where invoking a Client Multicast RPC Spams PreReplication and Property Comparisons.
-		if (!EnumHasAnyFlags(RemoteFunctionFlags, EProcessRemoteFunctionFlags::ReplicatedActor))
-		{
-			ReplicationFrame++;
-			Ch->GetActor()->CallPreReplication(this);
-			RemoteFunctionFlags |= EProcessRemoteFunctionFlags::ReplicatedActor;
-		}
+		// Bump the ReplicationFrame value to invalidate any properties marked as "unchanged" for this frame.
+		ReplicationFrame++;
 		
-		
+		Ch->GetActor()->CallPreReplication(this);
 		Ch->ReplicateActor();
 	}
 
 	// Clients may be "closing" this connection but still processing bunches, we can't send anything if we have an invalid ChIndex.
 	if (Ch->ChIndex == -1)
 	{
-		ensure(!bIsServer);
+		ensure(!IsServer);
 		return;
 	}
 
@@ -2640,8 +2580,6 @@ void UNetDriver::LowLevelDestroy()
 	// We are closing down all our sockets and low level communications.
 	// Sever the link with UWorld to ensure we don't tick again
 	SetWorld(NULL);
-
-	AnalyticsProvider = nullptr;
 }
 
 FString UNetDriver::LowLevelGetNetworkNumber()
@@ -4757,6 +4695,9 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		// net.DormancyValidate can be set to 2 to validate all dormant actors against last known state before going dormant
 		if ( GNetDormancyValidate == 2 )
 		{
+			// TODO: DormantReplicatorMap will actually contain all Actors and Subobjects.
+			// This means that we will call FObjectReplicator::ValidateAgainstState multiple times for
+			// the same object (once for itself and again for each subobject).
 			for ( auto It = Connection->DormantReplicatorMap.CreateIterator(); It; ++It )
 			{
 				FObjectReplicator& Replicator = It.Value().Get();
@@ -5729,13 +5670,7 @@ FCreateReplicationDriver& UReplicationDriver::CreateReplicationDriverDelegate()
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
 
-void UNetDriver::ProcessRemoteFunction(
-	class AActor* Actor,
-	UFunction* Function,
-	void* Parameters,
-	FOutParmRec* OutParms,
-	FFrame* Stack,
-	class UObject* SubObject)
+void UNetDriver::ProcessRemoteFunction(class AActor* Actor, UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack, class UObject* SubObject )
 {
 #if !UE_BUILD_SHIPPING
 	SCOPE_CYCLE_COUNTER(STAT_NetProcessRemoteFunc);
@@ -5767,24 +5702,23 @@ void UNetDriver::ProcessRemoteFunction(
 		// RepDriver didn't handle it, default implementation
 		UNetConnection* Connection = nullptr;
 		if (bIsServerMulticast)
-		{
-			TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
-
-			// Multicast functions go to every client
-			EProcessRemoteFunctionFlags RemoteFunctionFlags = EProcessRemoteFunctionFlags::None;
-			TArray<UNetConnection*> UniqueRealConnections;
-			for (int32 i = 0; i < ClientConnections.Num(); ++i)
 			{
-				Connection = ClientConnections[i];
-				if (Connection && Connection->ViewTarget)
-				{
-					// Only send or queue multicasts if the actor is relevant to the connection
-					FNetViewer Viewer(Connection, 0.f);
+				TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
 
-					if (Connection->GetUChildConnection() != nullptr)
+				// Multicast functions go to every client
+				TArray<UNetConnection*> UniqueRealConnections;
+				for (int32 i=0; i<ClientConnections.Num(); ++i)
+				{
+					Connection = ClientConnections[i];
+					if (Connection && Connection->ViewTarget)
 					{
-						Connection = ((UChildConnection*)Connection)->Parent;
-					}
+						// Only send or queue multicasts if the actor is relevant to the connection
+						FNetViewer Viewer(Connection, 0.f);
+
+							if (Connection->GetUChildConnection() != nullptr)
+							{
+								Connection = ((UChildConnection*)Connection)->Parent;
+							}
 
 					// It's possible that an actor is not relevant to a specific connection, but the channel is still alive (due to hysteresis).
 					// However, it's also possible that the Actor could become relevant again before the channel ever closed, and in that case we
@@ -5792,27 +5726,27 @@ void UNetDriver::ProcessRemoteFunction(
 					if (Actor->IsNetRelevantFor(Viewer.InViewer, Viewer.ViewTarget, Viewer.ViewLocation) ||
 						((Function->FunctionFlags & FUNC_NetReliable) && !!CVarAllowReliableMulticastToNonRelevantChannels.GetValueOnGameThread() && Connection->FindActorChannelRef(Actor)))
 					{
-						// We don't want to call this unless necessary, and it will internally handle being called multiple times before a clear
-						// Builds any shared serialization state for this rpc
-						RepLayout->BuildSharedSerializationForRPC(Parameters);
+							// We don't want to call this unless necessary, and it will internally handle being called multiple times before a clear
+							// Builds any shared serialization state for this rpc
+							RepLayout->BuildSharedSerializationForRPC(Parameters);
 
-						InternalProcessRemoteFunctionPrivate(Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer, RemoteFunctionFlags);	
+							InternalProcessRemoteFunction( Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer );
+						}
 					}
-				}
+				}			
+
+				// Finished sending this multicast rpc, clear any shared state
+				RepLayout->ClearSharedSerializationForRPC();
+
+				// Return here so we don't call InternalProcessRemoteFunction again at the bottom of this function
+				return;
 			}
-
-			// Finished sending this multicast rpc, clear any shared state
-			RepLayout->ClearSharedSerializationForRPC();
-
-			// Return here so we don't call InternalProcessRemoteFunction again at the bottom of this function
-			return;
-		}
 
 		// Send function data to remote.
 		Connection = Actor->GetNetConnection();
 		if (Connection)
 		{
-			InternalProcessRemoteFunction(Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer);
+			InternalProcessRemoteFunction( Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer );
 		}
 		else
 		{
