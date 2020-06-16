@@ -14,6 +14,7 @@
 #include "Internationalization/TextLocalizationManagerGlobals.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "MemPro/MemProProfiler.h"
 #include "Misc/TimeGuard.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
@@ -1473,6 +1474,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("LLM Init");
 		LLM(FLowLevelMemTracker::Get().ProcessCommandLine(CmdLine));
+#if MEMPRO_ENABLED
+		FMemProProfiler::Init(CmdLine);
+#endif
 	}
 	LLM_SCOPE(ELLMTag::EnginePreInitMemory);
 
