@@ -16,6 +16,7 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "Chaos/Defines.h"
 #include "Chaos/EvolutionTraits.h"
+#include "Async/TaskGraphInterfaces.h"
 
 /** Classes that want to set the solver actor class can implement this. */
 class IChaosSolverActorClassProvider
