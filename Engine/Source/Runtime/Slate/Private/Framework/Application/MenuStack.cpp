@@ -545,7 +545,7 @@ void FMenuStack::PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> 
 			MenuStackInternal::MenuStackPushDebuggingInfo.ExecuteIfBound();
 
 			// A menu was unexpectedly removed or added
-			checkf(InsertIndex != Stack.Num(), TEXT("InsertIndex:%d, Stack.Num:%d, InParentMenu.IsValid:%d"), InsertIndex, Stack.Num(), InParentMenu.IsValid());
+			UE_LOG(LogSlate, Warning, TEXT("A menu was unexpectedly removed or added. InsertIndex:%d, Stack.Num:%d, InParentMenu.IsValid:%d"), InsertIndex, Stack.Num(), InParentMenu.IsValid());
 		}
 
 		Stack.Add(InMenu);
