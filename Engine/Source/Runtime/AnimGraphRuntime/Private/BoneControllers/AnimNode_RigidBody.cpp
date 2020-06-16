@@ -33,8 +33,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogRBAN, Log, All);
 #endif
 DEFINE_LOG_CATEGORY(LogRBAN);
 
-TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Enables/disables rigid body node updates and evaluations"), ECVF_Default);
+TAutoConsoleVariable<int32> CVarEnableRigidBodyNode(TEXT("p.RigidBodyNode"), 1, TEXT("Completely Enables/disables rigid body node system. Avoids all allocations and runtime costs."), ECVF_Default);
 TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold(TEXT("p.RigidBodyLODThreshold"), -1, TEXT("Max LOD that rigid body node is allowed to run on. Provides a global threshold that overrides per-node the LODThreshold property. -1 means no override."), ECVF_Scalability);
+
+bool bRBAN_DisableSimulation = false;
+FAutoConsoleVariableRef CVarRigidBodyNodeDisableSimulation(TEXT("p.RigidBodyNode.DisableSimulation"), bRBAN_DisableSimulation, TEXT("Runtime Enable/Disable RB Node Simulation. Node is still initialized and bodies and constraints are still created."), ECVF_Default);
 
 int32 RBAN_MaxSubSteps = 4;
 bool bRBAN_EnableTimeBasedReset = true;
@@ -409,6 +412,11 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 	FScopeCycleCounterUObject AdditionalScope(UsePhysicsAsset, GET_STATID(STAT_RigidBody_Eval));
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateEvaluateSkeletalControl);
 	//SCOPED_NAMED_EVENT_TEXT("FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread", FColor::Magenta);
+
+	if (bRBAN_DisableSimulation)
+	{
+		return;
+	}
 
 	// Update our eval counter, and decide whether we need to reset simulated bodies, if our anim instance hasn't updated in a while.
 	if(EvalCounter.HasEverBeenUpdated())
