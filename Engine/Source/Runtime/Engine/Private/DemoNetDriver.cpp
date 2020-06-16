@@ -921,10 +921,15 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		const TCHAR* const StreamerOverride = URL.GetOption(TEXT("ReplayStreamerOverride="), nullptr);
 		ReplayStreamer = FNetworkReplayStreaming::Get().GetFactory(StreamerOverride).CreateReplayStreamer();
 
-		const TCHAR* const DemoPath = URL.GetOption(TEXT("ReplayStreamerDemoPath="), nullptr);
-		if (DemoPath != nullptr && ReplayStreamer.IsValid())
+		if (ReplayStreamer.IsValid())
 		{
-			ReplayStreamer->SetDemoPath(DemoPath);
+			ReplayStreamer->SetAnalyticsProvider(AnalyticsProvider);
+
+			const TCHAR* const DemoPath = URL.GetOption(TEXT("ReplayStreamerDemoPath="), nullptr);
+			if (DemoPath != nullptr)
+			{
+				ReplayStreamer->SetDemoPath(DemoPath);
+			}
 		}
 
 		return true;
