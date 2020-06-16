@@ -27,8 +27,7 @@ FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPh
 	Module = FChaosSolversModule::GetModule();
 
 	check(Module);
-	checkSlow(Module->GetDispatcher() && Module->GetDispatcher()->GetMode() == EChaosThreadingMode::TaskGraph);
-
+	
 	if(InPhysicsSolver)
 	{
 		SolverList.Reset(1);
@@ -52,8 +51,7 @@ FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, const TArr
 	Module = FChaosSolversModule::GetModule();
 
 	check(Module);
-	checkSlow(Module->GetDispatcher() && Module->GetDispatcher()->GetMode() == EChaosThreadingMode::TaskGraph);
-
+	
 	SolverList = InSolverList;
 	Module->GetSolverUpdatePrerequisites(SolverTaskPrerequisites);
 }

@@ -7,6 +7,8 @@
 #include "Threading.h"
 #include "Chaos/Declares.h"
 
+#if 0
+
 class FChaosSolversModule;
 class FPhysicsCommandsTask;
 
@@ -69,3 +71,5 @@ namespace Chaos
 
 void LexFromString(Chaos::EThreadingMode& OutValue, const TCHAR* InString);
 FString LexToString(const Chaos::EThreadingMode InValue); 
+
+#endif

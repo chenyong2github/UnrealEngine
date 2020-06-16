@@ -92,16 +92,6 @@ void FGeometryCollectionResults::Reset()
 // TGeometryCollectionPhysicsProxy helper functions
 //==============================================================================
 
-bool IsMultithreaded()
-{
-	if(FChaosSolversModule* Module = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers"))
-	{
-		return Module->GetDispatcher() && 
-			Module->GetDispatcher()->GetMode() == Chaos::EThreadingMode::DedicatedThread && 
-			Module->IsPersistentTaskRunning();
-	}
-	return false;
-}
 
 Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 	const int32 FaceStart,
