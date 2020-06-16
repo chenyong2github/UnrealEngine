@@ -681,7 +681,7 @@ public:
 			{
 				if (FilesystemCachePathEnv == TEXT("None"))
 				{
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s disabled due to %s=None"), *FilesystemCachePathEnv);
+					UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s disabled due to %s=None"), NodeName, *EnvPathOverride);
 					return nullptr;
 				}
 				else
