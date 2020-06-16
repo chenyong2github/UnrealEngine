@@ -2979,6 +2979,14 @@ public:
 
 	const TIndirectArray<FWorldContext>& GetWorldContexts() const { return WorldList;	}
 
+	/** 
+	 * Tries to find the currently active primary Game or Play in Editor world, returning null if it is ambiguous.
+	 * This should only be called if you do not have a reliable world context object to use.
+	 *
+	 * @param PossiblePlayWorld If set, this will be checked first and returned if valid. If this is not the active play world, null will be returned due to ambiguity
+	 * @return either nullptr or a World that is guaranteed to be of type Game or PIE
+	 */
+	UWorld* GetCurrentPlayWorld(UWorld* PossiblePlayWorld = nullptr) const;
 
 	/** Verify any remaining World(s) are valid after ::LoadMap destroys a world */
 	virtual void VerifyLoadMapWorldCleanup();
@@ -3004,7 +3012,25 @@ private:
 
 public:
 
+	/** 
+	 * Called from GetFunctionCallspace on specific objects to check for authority/cosmetic function tags using global state
+	 *
+	 * @param	Function		Function to check for network mode flags like AuthorityOnly, cannot be null
+	 * @param	FunctionTarget	Object this function will be called on, if not null this may be used to determine context
+	 * @param	Stack			Function call stack, if not null this may be used to determine context
+	 */
+	int32 GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack);
+
+	/** 
+	 * Returns true if the global context is client-only and authority only events should always be ignored. 
+	 * This will return false if it is unknown, use GetCurrentPlayWorld if you have a possible world.
+	 */
 	bool ShouldAbsorbAuthorityOnlyEvent();
+
+	/** 
+	 * Returns true if the global context is dedicated server and cosmetic only events should always be ignored. 
+	 * This will return false if it is unknown, use GetCurrentPlayWorld if you have a possible world.
+	 */
 	bool ShouldAbsorbCosmeticOnlyEvent();
 
 	UGameViewportClient* GameViewportForWorld(const UWorld *InWorld) const;

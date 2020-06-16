@@ -13625,6 +13625,62 @@ const FWorldContext& UEngine::GetWorldContextFromPIEInstanceChecked(const int32 
 	return HandleInvalidWorldContext();
 }
 
+UWorld* UEngine::GetCurrentPlayWorld(UWorld* PossiblePlayWorld) const
+{
+	UWorld* BestWorld = nullptr;
+	for (const FWorldContext& WorldContext : WorldList)
+	{
+		if (PossiblePlayWorld && WorldContext.World() == PossiblePlayWorld)
+		{
+			// This is a game world and matches passed in world, return it
+			if (WorldContext.WorldType == EWorldType::Game)
+			{
+				return WorldContext.World();
+			}
+
+#if WITH_EDITOR
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				// This is a PIE world, and PIE instance is either not set or matches this world
+				if (GPlayInEditorID == -1 || GPlayInEditorID == WorldContext.PIEInstance)
+				{
+					return WorldContext.World();
+				}
+				else
+				{
+					// If you see this warning, game code is traversing PIE world boundaries in an unsafe way. That should be fixed or GPlayInEditorID needs to be set properly
+					UE_LOG(LogEngine, Warning, TEXT("GetCurrentPlayWorld failed with ambiguous PIE world! GPlayInEditorID %d does not match %s"), GPlayInEditorID, *PossiblePlayWorld->GetPathName());
+				}
+			}
+#endif
+
+			// We found the possible play world but it is is definitely not the current world, so return null due to ambiguity
+			return nullptr;
+		}
+
+		if (BestWorld)
+		{
+			// We want to use the first found world unless it's the specified world to check
+			continue;
+		}
+
+		// If it's a game world, try and set BestWorld. If World() is null, this won't do anything
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			BestWorld = WorldContext.World();
+		}
+#if WITH_EDITOR
+		// This is a PIE world, PIE instance is set, and it matches this world
+		else if (WorldContext.WorldType == EWorldType::PIE && GPlayInEditorID != -1 && GPlayInEditorID == WorldContext.PIEInstance)
+		{
+			BestWorld = WorldContext.World();
+		}
+#endif
+	}
+
+	return BestWorld;
+}
+
 UPendingNetGame* UEngine::PendingNetGameFromWorld( UWorld* InWorld )
 {
 	return GetWorldContextFromWorldChecked(InWorld).PendingNetGame;
@@ -14535,63 +14591,77 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	}
 }
 
-// This is a really bad hack for UBlueprintFunctionLibrary::GetFunctionCallspace. See additional comments there.
-bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+int32 UEngine::GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack)
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	check(Function);
+
+	const bool bIsAuthoritativeFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly);
+	const bool bIsCosmeticFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintCosmetic);
+
+	// If this is an authority/cosmetic function, we need to try and find the global context to see if it's a dedicated server/client
+	if (bIsAuthoritativeFunc || bIsCosmeticFunc)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
+		UWorld* CurrentWorld = nullptr;
+#if !WITH_EDITOR
+		// In cooked builds there is only one active game world, so this will find it
+		CurrentWorld = GetCurrentPlayWorld();
+#else
+		// In the editor there can be multiple possible PIE worlds at once due to client/server testing and globals not being set, so we need to look for a world to use as context
+		UWorld* PossibleWorld = nullptr;
+
+		// First look at function target, this will fail if it's a static function
+		if (FunctionTarget)
 		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
+			PossibleWorld = FunctionTarget->GetWorld();
 		}
 
-		if (useIt && (Context.World() != nullptr))
+		// Next check BP stack
+		if (!PossibleWorld && Stack && Stack->Object)
 		{
-			return (Context.World()->GetNetMode() ==  NM_Client);
+			PossibleWorld = Stack->Object->GetWorld();
+		}
+
+		CurrentWorld = GetCurrentPlayWorld(PossibleWorld);
+#endif
+
+		// If we found a game world context, check it for networking mode
+		if (CurrentWorld)
+		{
+			ENetMode WorldNetMode = CurrentWorld->GetNetMode();
+			if (WorldNetMode == NM_DedicatedServer && bIsCosmeticFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
+			if (WorldNetMode == NM_Client && bIsAuthoritativeFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
 		}
 	}
+
+	// If we can't find a net mode always call locally
+	return FunctionCallspace::Local;
+}
+
+bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+{
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
+	{
+		return (CurrentWorld->GetNetMode() == NM_Client);
+	}
+
 	return false;
 }
 
-
 bool UEngine::ShouldAbsorbCosmeticOnlyEvent()
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
-		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
-		}
-
-		if (useIt && (Context.World() != nullptr))
-		{
-			return (Context.World()->GetNetMode() == NM_DedicatedServer);
-		}
+		return (CurrentWorld->GetNetMode() == NM_DedicatedServer);
 	}
+
 	return false;
 }
 
