@@ -626,7 +626,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	// Get the used function parameters from the parameter map set node linked to the function's input pin.
 	// Note that this is only valid for module scripts, not function scripts.
 	TArray<UEdGraphPin*> ResultPins;
-	FString FunctionScriptName = FunctionCallNode.FunctionScript->GetFName().ToString();
+	FString FunctionScriptName = FunctionCallNode.GetFunctionName();
 	if (InputPins.Num() > 0 && InputPins[0]->LinkedTo.Num() > 0)
 	{
 		UNiagaraNodeParameterMapSet* ParamMapNode = Cast<UNiagaraNodeParameterMapSet>(InputPins[0]->LinkedTo[0]->GetOwningNode());
