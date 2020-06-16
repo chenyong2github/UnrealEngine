@@ -43,6 +43,104 @@ namespace SkeletalSimplifier
 			FLinearColor	Color;       // 9, 10, 11, 12
 			FVector2D		TexCoords[NumTexCoords];  // 13, .. 13 + NumTexCoords * 2 - 1
 
+
+			// used to manage identity of split/non-split vertex attributes.
+			// note, could have external storage for the above attributes and just use these to point to those values.
+			struct FElementIDs
+			{
+				int32 NormalID;
+				int32 TangentID;
+				int32 BiTangentID;
+				int32 ColorID;
+				int32 TexCoordsID[NumTexCoords];
+
+				enum { InvalidID = -1 };
+
+				// construct with invalid ID values.
+				FElementIDs()
+				{
+					NormalID = InvalidID;
+					TangentID = InvalidID;
+					BiTangentID = InvalidID;
+					ColorID = InvalidID;
+					for (int32 i = 0; i < NumTexCoords; ++i)
+					{
+						TexCoordsID[i] = InvalidID;
+					}
+				}
+
+				FElementIDs(const  FElementIDs& other)
+				{
+					NormalID = other.NormalID;
+					TangentID = other.TangentID;
+					BiTangentID = other.BiTangentID;
+					ColorID = other.ColorID;
+					for (int32 i = 0; i < NumTexCoords; ++i)
+					{
+						TexCoordsID[i] = other.TexCoordsID[i];
+					}
+				}
+
+				// Subtract other ID struct from this one.
+				FElementIDs operator-(const  FElementIDs& other) const
+				{
+					FElementIDs Result;
+					Result.NormalID = NormalID - other.NormalID;
+					Result.TangentID = TangentID - other.TangentID;
+					Result.BiTangentID = BiTangentID - other.BiTangentID;
+					Result.ColorID = ColorID - other.ColorID;
+					for (int i = 0; i < NumTexCoords; ++i)
+					{
+						Result.TexCoordsID[i] = TexCoordsID[i] - other.TexCoordsID[i];
+					}
+					return Result;
+				}
+
+				// copy other ID if the mask value is zero
+				void MaskedCopy(const  FElementIDs& IDMask, const  FElementIDs& other)
+				{
+					NormalID = (IDMask.NormalID == 0) ? other.NormalID : NormalID;
+					TangentID = (IDMask.TangentID == 0) ? other.TangentID : TangentID;
+					BiTangentID = (IDMask.BiTangentID == 0) ? other.BiTangentID : BiTangentID;
+					ColorID = (IDMask.ColorID == 0) ? other.ColorID : ColorID;
+					for (int i = 0; i < NumTexCoords; ++i)
+					{
+						TexCoordsID[i] = (IDMask.TexCoordsID[i] == 0) ? other.TexCoordsID[i] : TexCoordsID[i];
+					}
+				}
+
+				// copy IDs values over to this for elemenets where IDMask == 0 and InverseIDMask != 0
+				void MaskedCopy(const  FElementIDs& IDMask, const  FElementIDs& InverseIDMask, const  FElementIDs& BIDs)
+				{
+					if (InverseIDMask.NormalID != 0 && IDMask.NormalID == 0)
+					{
+						NormalID = BIDs.NormalID;
+					}
+					if (InverseIDMask.TangentID != 0 && IDMask.TangentID == 0)
+					{
+						TangentID = BIDs.TangentID;
+					}
+					if (InverseIDMask.BiTangentID != 0 && IDMask.BiTangentID == 0)
+					{
+						BiTangentID = BIDs.BiTangentID;
+					}
+					if (InverseIDMask.ColorID != 0 && IDMask.ColorID == 0)
+					{
+						ColorID = BIDs.ColorID;
+					}
+					for (int i = 0; i < NumTexCoords; ++i)
+					{
+						if (InverseIDMask.TexCoordsID[i] != 0 && IDMask.TexCoordsID[i] == 0)
+						{
+							TexCoordsID[i] = BIDs.TexCoordsID[i];
+						}
+					}
+				}
+
+			};
+			
+			FElementIDs ElementIDs;
+
 		public:
 			// vector semantic wrapper for raw array
 			typedef TDenseArrayWrapper<float>                            DenseAttrAccessor;
@@ -70,7 +168,8 @@ namespace SkeletalSimplifier
 				Normal(Other.Normal),
 				Tangent(Other.Tangent),
 				BiTangent(Other.BiTangent),
-				Color(Other.Color)
+				Color(Other.Color),
+				ElementIDs(Other.ElementIDs)
 			{
 				for (int32 i = 0; i < NumTexCoords; ++i)
 				{
@@ -81,7 +180,7 @@ namespace SkeletalSimplifier
 			/**
 			* Number of float equivalents. 
 			*/
-			static int32 Size() { return sizeof(TBasicVertexAttrs) / sizeof(float); /*( return 13 + 2 * NumTexCoords;*/ }
+			static int32 Size() { return (sizeof(TBasicVertexAttrs) - sizeof(FElementIDs)) / sizeof(float); /*( return 13 + 2 * NumTexCoords;*/ }
 
 			/**
 			* Get access to the data as a generic linear array of floats.
