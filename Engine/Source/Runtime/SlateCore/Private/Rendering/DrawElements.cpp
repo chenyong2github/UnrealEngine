@@ -1002,7 +1002,7 @@ FSlateRenderBatch& FSlateCachedElementData::AddCachedRenderBatch(FSlateRenderBat
 {
 	// Check perf against add.  AddAtLowest makes it generally re-add elements at the same index it just removed which is nicer on the cache
 	int32 LowestFreedIndex = 0;
-	OutIndex = CachedBatches.AddAtLowestFreeIndex(NewBatch, LowestFreedIndex);
+	OutIndex = CachedBatches.EmplaceAtLowestFreeIndex(LowestFreedIndex, NewBatch);
 	return CachedBatches[OutIndex];
 }
 
