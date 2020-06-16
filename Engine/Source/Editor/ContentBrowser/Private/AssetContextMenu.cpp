@@ -88,6 +88,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 	UToolMenus* ToolMenus = UToolMenus::Get();
 
 	static const FName BaseMenuName("ContentBrowser.AssetContextMenu");
+	static const FName ItemContextMenuName("ContentBrowser.ItemContextMenu");
 	RegisterContextMenu(BaseMenuName);
 
 	TArray<UObject*> SelectedObjects;
@@ -100,14 +101,38 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 
 		// Objects must be loaded for this operation... for now
 		TArray<FString> ObjectPaths;
+		UContentBrowserDataSource* CommonDataSource = nullptr;
+		bool bKeepCheckingCommonDataSource = true;
 		for (const FContentBrowserItem& SelectedItem : SelectedItems)
 		{
+			if (bKeepCheckingCommonDataSource)
+			{
+				if (const FContentBrowserItemData* PrimaryInternalItem = SelectedItem.GetPrimaryInternalItem())
+				{
+					if (UContentBrowserDataSource* OwnerDataSource = PrimaryInternalItem->GetOwnerDataSource())
+					{
+						if (CommonDataSource == nullptr)
+						{
+							CommonDataSource = OwnerDataSource;
+						}
+						else if (CommonDataSource != OwnerDataSource)
+						{
+							CommonDataSource = nullptr;
+							bKeepCheckingCommonDataSource = false;
+						}
+					}
+				}
+			}
+
 			FAssetData ItemAssetData;
 			if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
 			{
 				ObjectPaths.Add(ItemAssetData.ObjectPath.ToString());
 			}
 		}
+
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
 
 		ContextObject->bCanBeModified = ObjectPaths.Num() == 0;
 
@@ -129,8 +154,6 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 
 			ContextObject->bCanBeModified = true;
 
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-			const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
 			if (WritableFolderFilter->HasFiltering())
 			{
 				for (const UObject* SelectedObject : SelectedObjects)
@@ -156,6 +179,32 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			if (CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(SelectedObjects))
 			{
 				ContextObject->CommonAssetTypeActions = CommonAssetTypeActions;
+			}
+		}
+		else if (SelectedObjects.Num() == 0)
+		{
+			if (CommonDataSource)
+			{
+				ContextObject->bCanBeModified = true;
+
+				if (WritableFolderFilter->HasFiltering())
+				{
+					for (const FContentBrowserItem& SelectedItem : SelectedItems)
+					{
+						if (!WritableFolderFilter->PassesStartsWithFilter(SelectedItem.GetVirtualPath()))
+						{
+							ContextObject->bCanBeModified = false;
+							break;
+						}
+					}
+				}
+
+				MenuName = UToolMenus::JoinMenuPaths(ItemContextMenuName, CommonDataSource->GetFName());
+
+				if (!ToolMenus->IsMenuRegistered(MenuName))
+				{
+					ToolMenus->RegisterMenu(MenuName, BaseMenuName);
+				}
 			}
 		}
 	}
