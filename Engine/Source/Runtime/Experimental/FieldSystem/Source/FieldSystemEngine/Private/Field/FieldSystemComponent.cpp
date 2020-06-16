@@ -112,8 +112,6 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 	if (HasValidPhysicsState())
 	{
 		checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
-		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
-		checkSlow(PhysicsDispatcher); // Should always have one of these
 
 		// Assemble a list of compatible solvers
 		TArray<FPhysicsSolverBase*> SupportedSolverList;

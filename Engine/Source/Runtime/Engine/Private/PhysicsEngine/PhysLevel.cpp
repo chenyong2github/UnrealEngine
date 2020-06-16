@@ -54,21 +54,6 @@ public:
 
 	}
 
-	virtual Chaos::EThreadingMode GetDefaultThreadingMode() const override
-	{
-		return GetChaosSettings().DefaultThreadingModel;
-	}
-
-	virtual EChaosSolverTickMode GetDedicatedThreadTickMode() const override
-	{
-		return GetChaosSettings().DedicatedThreadTickMode;
-	}
-
-	virtual EChaosBufferMode GetDedicatedThreadBufferMode() const override
-	{
-		return GetChaosSettings().DedicatedThreadBufferMode;
-	}
-
 private:
 
 	const UPhysicsSettings* GetSettings() const
@@ -268,7 +253,6 @@ void PostEngineInitialize()
 		// If the solver module is available, pass along our settings provider
 		// #BG - Collect all chaos modules settings into one provider?
 		ChaosModule->SetSettingsProvider(&GEngineChaosSettingsProvider);
-		ChaosModule->OnSettingsChanged();
 	}
 }
 

@@ -27,10 +27,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -46,7 +45,7 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
-		Solver->PushPhysicsState(Module->GetDispatcher());
+		Solver->PushPhysicsState();
 
 		Solver->AdvanceAndDispatch_External(100.0f);
 
@@ -82,10 +81,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::DedicatedThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, EThreadingMode::DedicatedThread);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -101,7 +99,7 @@ namespace ChaosTest {
 		int32 Counter = 0;
 		while (Particle->X().Size() == 0.f)
 		{
-			Solver->PushPhysicsState(Module->GetDispatcher()); 
+			Solver->PushPhysicsState(); 
 
 			// This might not be the correct way to advance when using the TaskGraph.
 			//TODO: use event returned
@@ -138,10 +136,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -163,7 +160,7 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(),Particle2.Get() });
 
-		Solver->PushPhysicsState(Module->GetDispatcher());
+		Solver->PushPhysicsState();
 
 		// let top paticle collide and wake up second particle
 		int32 LoopCount = 0;

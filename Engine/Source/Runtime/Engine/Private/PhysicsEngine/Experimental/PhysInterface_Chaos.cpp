@@ -259,7 +259,7 @@ void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPh
 }
 
 
-void FPhysInterface_Chaos::AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher)
+void FPhysInterface_Chaos::AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver)
 {
 	LLM_SCOPE(ELLMTag::Chaos);
 
@@ -279,7 +279,7 @@ void FPhysInterface_Chaos::ReleaseActor(FPhysicsActorHandle& Handle, FPhysScene*
 	if (InScene)
 	{
 		InScene->GetScene().RemoveActorFromAccelerationStructure(Handle);
-		RemoveActorFromSolver(Handle, InScene->GetSolver(), FChaosSolversModule::GetModule()->GetDispatcher());
+		RemoveActorFromSolver(Handle, InScene->GetSolver());
 	}
 
 	delete Handle;
@@ -287,7 +287,7 @@ void FPhysInterface_Chaos::ReleaseActor(FPhysicsActorHandle& Handle, FPhysScene*
 	Handle = nullptr;
 }
 
-void FPhysInterface_Chaos::RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher)
+void FPhysInterface_Chaos::RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver)
 {
 	if (Solver && Handle->GetProxy())
 	{

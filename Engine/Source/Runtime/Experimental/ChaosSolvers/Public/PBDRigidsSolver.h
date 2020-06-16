@@ -237,10 +237,10 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 
 		/**/
-		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);
+		void PushPhysicsState();
 
 		/**/
-		void PushPhysicsStatePooled(IDispatcher* Dispatcher);
+		void PushPhysicsStatePooled();
 
 		/**/
 		void BufferPhysicsResults();
