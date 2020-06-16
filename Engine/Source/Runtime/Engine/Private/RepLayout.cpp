@@ -63,6 +63,9 @@ static FAutoConsoleVariableRef CVarShareShadowState(TEXT("net.ShareShadowState")
 int32 GShareInitialCompareState = 0;
 static FAutoConsoleVariableRef CVarShareInitialCompareState(TEXT("net.ShareInitialCompareState"), GShareInitialCompareState, TEXT("If true and net.ShareShadowState is enabled, attempt to also share initial replication compares across connections."));
 
+bool GbTrackNetSerializeObjectReferences = true;
+static FAutoConsoleVariableRef CVarTrackNetSerializeObjectReferences(TEXT("net.TrackNetSerializeObjectReferences"), GbTrackNetSerializeObjectReferences, TEXT("If true, we will create small layouts for Net Serialize Structs if they have Object Properties. This can prevent some Shadow State GC crashes."));
+
 #if WITH_PUSH_VALIDATION_SUPPORT
 
 static bool GbPushModelValidateProperties = false;
@@ -570,6 +573,14 @@ static FORCEINLINE bool CompareWeakObject(
 	return ObjectA.HasSameIndexAndSerialNumber(ObjectB);
 }
 
+static FORCEINLINE bool CompareNetSerializeStructWithObjectProperties(
+	const TArray<FRepLayoutCmd>& Cmds,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts,
+	const int32 CmdStart,
+	const int32 CmdEnd,
+	const void* A,
+	const void* B);
+
 template<typename T>
 bool CompareValue(const T * A, const T * B)
 {
@@ -583,34 +594,82 @@ bool CompareValue(const void* A, const void* B)
 }
 
 static FORCEINLINE bool PropertiesAreIdenticalNative(
-	const FRepLayoutCmd&	Cmd,
-	const void*				A,
-	const void*				B)
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts)
 {
 	switch (Cmd.Type)
 	{
-		case ERepLayoutCmdType::PropertyBool:			return CompareBool(Cmd, A, B);
-		case ERepLayoutCmdType::PropertyNativeBool:		return CompareValue<bool>(A, B);
-		case ERepLayoutCmdType::PropertyByte:			return CompareValue<uint8>(A, B);
-		case ERepLayoutCmdType::PropertyFloat:			return CompareValue<float>(A, B);
-		case ERepLayoutCmdType::PropertyInt:			return CompareValue<int32>(A, B);
-		case ERepLayoutCmdType::PropertyName:			return CompareValue<FName>(A, B);
-		case ERepLayoutCmdType::PropertyObject:			return CompareObject(Cmd, A, B);
-		case ERepLayoutCmdType::PropertySoftObject:		return CompareSoftObject(Cmd, A, B);
-		case ERepLayoutCmdType::PropertyWeakObject:		return CompareWeakObject(Cmd, A, B);
-		case ERepLayoutCmdType::PropertyUInt32:			return CompareValue<uint32>(A, B);
-		case ERepLayoutCmdType::PropertyUInt64:			return CompareValue<uint64>(A, B);
-		case ERepLayoutCmdType::PropertyVector:			return CompareValue<FVector>(A, B);
-		case ERepLayoutCmdType::PropertyVector100:		return CompareValue<FVector_NetQuantize100>(A, B);
-		case ERepLayoutCmdType::PropertyVectorQ:		return CompareValue<FVector_NetQuantize>(A, B);
-		case ERepLayoutCmdType::PropertyVectorNormal:	return CompareValue<FVector_NetQuantizeNormal>(A, B);
-		case ERepLayoutCmdType::PropertyVector10:		return CompareValue<FVector_NetQuantize10>(A, B);
-		case ERepLayoutCmdType::PropertyPlane:			return CompareValue<FPlane>(A, B);
-		case ERepLayoutCmdType::PropertyRotator:		return CompareValue<FRotator>(A, B);
-		case ERepLayoutCmdType::PropertyNetId:			return CompareValue<FUniqueNetIdRepl>(A, B);
-		case ERepLayoutCmdType::RepMovement:			return CompareValue<FRepMovement>(A, B);
-		case ERepLayoutCmdType::PropertyString:			return CompareValue<FString>(A, B);
-		case ERepLayoutCmdType::Property:				return Cmd.Property->Identical(A, B);
+		case ERepLayoutCmdType::PropertyBool:
+			return CompareBool(Cmd, A, B);
+
+		case ERepLayoutCmdType::PropertyNativeBool:
+			return CompareValue<bool>(A, B);
+
+		case ERepLayoutCmdType::PropertyByte:
+			return CompareValue<uint8>(A, B);
+
+		case ERepLayoutCmdType::PropertyFloat:
+			return CompareValue<float>(A, B);
+
+		case ERepLayoutCmdType::PropertyInt:
+			return CompareValue<int32>(A, B);
+
+		case ERepLayoutCmdType::PropertyName:
+			return CompareValue<FName>(A, B);
+
+		case ERepLayoutCmdType::PropertyObject:
+			return CompareObject(Cmd, A, B);
+
+		case ERepLayoutCmdType::PropertySoftObject:
+			return CompareSoftObject(Cmd, A, B);
+
+		case ERepLayoutCmdType::PropertyWeakObject:
+			return CompareWeakObject(Cmd, A, B);
+
+		case ERepLayoutCmdType::PropertyUInt32:
+			return CompareValue<uint32>(A, B);
+
+		case ERepLayoutCmdType::PropertyUInt64:
+			return CompareValue<uint64>(A, B);
+
+		case ERepLayoutCmdType::PropertyVector:
+			return CompareValue<FVector>(A, B);
+
+		case ERepLayoutCmdType::PropertyVector100:
+			return CompareValue<FVector_NetQuantize100>(A, B);
+
+		case ERepLayoutCmdType::PropertyVectorQ:
+			return CompareValue<FVector_NetQuantize>(A, B);
+
+		case ERepLayoutCmdType::PropertyVectorNormal:
+			return CompareValue<FVector_NetQuantizeNormal>(A, B);
+
+		case ERepLayoutCmdType::PropertyVector10:
+			return CompareValue<FVector_NetQuantize10>(A, B);
+
+		case ERepLayoutCmdType::PropertyPlane:
+			return CompareValue<FPlane>(A, B);
+
+		case ERepLayoutCmdType::PropertyRotator:
+			return CompareValue<FRotator>(A, B);
+
+		case ERepLayoutCmdType::PropertyNetId:
+			return CompareValue<FUniqueNetIdRepl>(A, B);
+
+		case ERepLayoutCmdType::RepMovement:
+			return CompareValue<FRepMovement>(A, B);
+
+		case ERepLayoutCmdType::PropertyString:
+			return CompareValue<FString>(A, B);
+
+		case ERepLayoutCmdType::NetSerializeStructWithObjectReferences:
+			return CompareNetSerializeStructWithObjectProperties(NetSerializeLayouts.FindChecked(&Cmd), NetSerializeLayouts, 0, INDEX_NONE, A, B);
+
+		case ERepLayoutCmdType::Property:
+			return Cmd.Property->Identical(A, B);
+
 		default: 
 			UE_LOG(LogRep, Fatal, TEXT("PropertiesAreIdentical: Unsupported type! %i (%s)"), (uint8)Cmd.Type, *Cmd.Property->GetName());
 	}
@@ -618,12 +677,64 @@ static FORCEINLINE bool PropertiesAreIdenticalNative(
 	return false;
 }
 
-static FORCEINLINE bool PropertiesAreIdentical(
-	const FRepLayoutCmd&	Cmd,
-	const void*				A,
-	const void*				B)
+static FORCEINLINE bool CompareNetSerializeStructWithObjectProperties(
+	const TArray<FRepLayoutCmd>& Cmds,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts,
+	const int32 CmdStart,
+	const int32 CmdEnd,
+	const void* A,
+	const void* B)
 {
-	const bool bIsIdentical = PropertiesAreIdenticalNative(Cmd, A, B);
+	const int32 RealCmdEnd = (CmdEnd == INDEX_NONE) ? Cmds.Num() : CmdEnd;
+	for (int32 CmdIndex = 0; CmdIndex < RealCmdEnd; ++CmdIndex)
+	{
+		const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
+		check(Cmd.Type != ERepLayoutCmdType::Return);
+
+		// These commands will use an offset from the start of the owning NetSerializeStruct.
+		// So we can avoid the ShadowData / ObjectData stuff here and just use standard offsets.
+		// This will work with packed or unpacked shadow buffers, because net serialize structs
+		// aren't packed.
+
+		if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+		{
+			FScriptArrayHelper AArray((FArrayProperty*)Cmd.Property, ((const uint8*)A + Cmd.Offset));
+			FScriptArrayHelper BArray((FArrayProperty*)Cmd.Property, ((const uint8*)B + Cmd.Offset));
+
+			if (AArray.Num() == BArray.Num())
+			{
+				for (int32 ArrayIndex = 0; ArrayIndex < AArray.Num(); ++ArrayIndex)
+				{
+					if (!CompareNetSerializeStructWithObjectProperties(Cmds, NetSerializeLayouts, CmdIndex + 1, Cmd.EndCmd - 1, AArray.GetRawPtr(ArrayIndex), BArray.GetRawPtr(ArrayIndex)))
+					{
+						return false;
+					}
+				}
+
+				// The -1 to handle the ++ in the for loop
+				CmdIndex = Cmd.EndCmd - 1;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else if (!PropertiesAreIdenticalNative(Cmd, (const uint8*)A + Cmd.Offset, (const uint8*)B + Cmd.Offset, NetSerializeLayouts))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static FORCEINLINE bool PropertiesAreIdentical(
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts)
+{
+	const bool bIsIdentical = PropertiesAreIdenticalNative(Cmd, A, B, NetSerializeLayouts);
 #if 0
 	// Sanity check result
 	if (bIsIdentical != Cmd.Property->Identical(A, B))
@@ -634,7 +745,11 @@ static FORCEINLINE bool PropertiesAreIdentical(
 	return bIsIdentical;
 }
 #else
-static FORCEINLINE bool PropertiesAreIdentical(const FRepLayoutCmd& Cmd, const void* A, const void* B)
+static FORCEINLINE bool PropertiesAreIdentical(
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts)
 {
 	return Cmd.Property->Identical(A, B);
 }
@@ -1116,6 +1231,7 @@ struct FComparePropertiesSharedParams
 	FSendingRepState* const RepState;
 	FRepChangelistState* const RepChangelistState;
 	FRepChangedPropertyTracker* const RepChangedPropertyTracker;
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts;
 	UE4PushModelPrivate::FPushModelPerNetDriverState* const PushModelState = nullptr;
 	const TBitArray<>* const PushModelProperties = nullptr;
 	const bool bValidateProperties = false;
@@ -1376,7 +1492,7 @@ static uint16 CompareProperties_r(
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
-		else if (SharedParams.bForceFail || !PropertiesAreIdentical(Cmd, ShadowData.Data, Data.Data))
+		else if (SharedParams.bForceFail || !PropertiesAreIdentical(Cmd, ShadowData.Data, Data.Data, SharedParams.NetSerializeLayouts))
 		{
 			StoreProperty(Cmd, ShadowData.Data, Data.Data);
 			StackParams.Changed.Add(Handle);
@@ -1505,6 +1621,7 @@ ERepLayoutResult FRepLayout::CompareProperties(
 		RepState,
 		RepChangelistState,
 		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr),
+		NetSerializeLayouts,
 		/*PushModelState=*/UE4_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
 		/*PushModelProperties=*/ LocalPushModelProperties,	
 		/*bValidateProperties=*/GbPushModelValidateProperties,
@@ -2897,7 +3014,8 @@ static bool ReceivePropertyHelper(
 	const int32 CmdIndex,
 	const bool bDoChecksum,
 	bool& bOutGuidsChanged,
-	const bool bSkipSwapRoles)
+	const bool bSkipSwapRoles,
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts)
 {
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 	const FRepParentCmd& Parent = Parents[Cmd.ParentIndex];
@@ -2942,7 +3060,7 @@ static bool ReceivePropertyHelper(
 		UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceivePropertyHelper: NetSerializeItem (WithRepNotify)"));
 
 		// Check to see if this property changed
-		if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + Cmd, Data + SwappedCmd))
+		if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + Cmd, Data + SwappedCmd, NetSerializeLayouts))
 		{
 			RepNotifies->AddUnique(Parent.Property);
 		}
@@ -3101,6 +3219,7 @@ struct FReceivePropertiesSharedParams
 	bool& bOutGuidsChanged;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>> NetSerializeLayouts;
 	UObject* OwningObject;
 	FNetTraceCollector* TraceCollector = nullptr;
 	uint16 ReadHandle = 0;
@@ -3282,7 +3401,8 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 					CmdIndex,
 					Params.bDoChecksum,
 					Params.bOutGuidsChanged,
-					Params.bSkipRoleSwap))
+					Params.bSkipRoleSwap,
+					Params.NetSerializeLayouts))
 				{
 					Params.bOutHasUnmapped = true;
 				}
@@ -3351,6 +3471,7 @@ bool FRepLayout::ReceiveProperties(
 		bOutGuidsChanged,
 		Parents,
 		Cmds,
+		NetSerializeLayouts,
 		Object,
 		OwningChannel->Connection->GetInTraceCollector()
 	};
@@ -3677,7 +3798,8 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 				bOutGuidsChanged,
 
 				// We can skip role swapping if we're not an actor.
-				!EnumHasAnyFlags(Flags, ERepLayoutFlags::IsActor)))
+				!EnumHasAnyFlags(Flags, ERepLayoutFlags::IsActor),
+				NetSerializeLayouts))
 			{
 				bOutHasUnmapped = true;
 			}
@@ -3976,7 +4098,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 				// That could cause us to trigger RepNotifies more often for Dynamic Array properties.
 				// That goes for the above too.
 
-				if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + ShadowOffset, Data + AbsOffset))
+				if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + ShadowOffset, Data + AbsOffset, NetSerializeLayouts))
 				{
 					// If this properties needs an OnRep, queue that up to be handled later
 					RepState->RepNotifies.AddUnique(Parent.Property);
@@ -4528,6 +4650,7 @@ struct FDiffPropertiesSharedParams
 	TArray<FProperty*>* RepNotifies;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts;
 };
 
 template<ERepDataBufferType DestinationType, ERepDataBufferType SourceType>
@@ -4618,7 +4741,7 @@ static bool DiffProperties_r(FDiffPropertiesSharedParams& Params, TDiffPropertie
 		{
 			// Make the shadow state match the actual state at the time of send
 			const bool bPropertyHasRepNotifies = Params.RepNotifies && INDEX_NONE != Parent.RepNotifyNumParams;
-			if ((bPropertyHasRepNotifies && Parent.RepNotifyCondition == REPNOTIFY_Always) || !PropertiesAreIdentical(Cmd, StackParams.Source + Cmd, StackParams.Destination + Cmd))
+			if ((bPropertyHasRepNotifies && Parent.RepNotifyCondition == REPNOTIFY_Always) || !PropertiesAreIdentical(Cmd, StackParams.Source + Cmd, StackParams.Destination + Cmd, Params.NetSerializeLayouts))
 			{
 				bDifferent = true;
 				if (!bSyncProperties)
@@ -4669,7 +4792,8 @@ bool FRepLayout::DiffProperties(
 		DiffFlags,
 		RepNotifies,
 		Parents,
-		Cmds
+		Cmds,
+		NetSerializeLayouts
 	};
 
 	TDiffPropertiesStackParams<DestinationType, SourceType> StackParams{
@@ -4688,6 +4812,7 @@ struct FDiffStablePropertiesSharedParams
 	TArray<UObject*>* ObjReferences;
 	const TArray<FRepParentCmd>& Parents;
 	const TArray<FRepLayoutCmd>& Cmds;
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts;
 };
 
 template<ERepDataBufferType DestinationType, ERepDataBufferType SourceType>
@@ -4769,7 +4894,7 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 		}
 		else
 		{
-			if (!PropertiesAreIdentical(Cmd, StackParams.Destination + Cmd, StackParams.Source + Cmd))
+			if (!PropertiesAreIdentical(Cmd, StackParams.Destination + Cmd, StackParams.Source + Cmd, Params.NetSerializeLayouts))
 			{
 				bDifferent = true;
 
@@ -4837,7 +4962,8 @@ bool FRepLayout::DiffStableProperties(
 		RepNotifies,
 		ObjReferences,
 		Parents,
-		Cmds
+		Cmds,
+		NetSerializeLayouts
 	};
 
 	TDiffStablePropertiesStackParams<DestinationType, SourceType> StackParams{
@@ -4864,6 +4990,7 @@ struct FInitFromPropertySharedParams
 	const int32 ParentIndex;
 	bool bHasObjectProperties = false;
 	bool bHasNetSerializeProperties = false;
+	TMap<int32, TArray<FRepLayoutCmd>>* NetSerializeLayouts = nullptr;
 };
 
 struct FInitFromPropertyStackParams
@@ -4873,6 +5000,8 @@ struct FInitFromPropertyStackParams
 	int32 RelativeHandle;
 	uint32 ParentChecksum;
 	int32 StaticArrayIndex;
+	FName RecursingNetSerializeStruct = NAME_None;
+	bool bNetSerializeStructWithObjects = false;
 };
 
 static uint32 GetRepLayoutCmdCompatibleChecksum(
@@ -4946,6 +5075,10 @@ static uint32 AddPropertyCmd(
 		else if (Struct->GetFName() == NAME_RepMovement)
 		{
 			Cmd.Type = ERepLayoutCmdType::RepMovement;
+		}
+		else if (StackParams.bNetSerializeStructWithObjects)
+		{
+			Cmd.Type = ERepLayoutCmdType::NetSerializeStructWithObjectReferences;
 		}
 		else
 		{
@@ -5047,15 +5180,85 @@ enum class ERepBuildType
 };
 
 template<ERepBuildType BuildType>
-static FORCEINLINE const int32 GetOffsetForProperty(FProperty& Property)
+static FORCEINLINE const int32 GetOffsetForProperty(const FProperty& Property)
 {
 	return Property.GetOffset_ForGC();
 }
 
 template<>
-const FORCEINLINE int32 GetOffsetForProperty<ERepBuildType::Function>(FProperty& Property)
+const FORCEINLINE int32 GetOffsetForProperty<ERepBuildType::Function>(const FProperty& Property)
 {
 	return Property.GetOffset_ForUFunction();
+}
+
+template<ERepBuildType BuildType>
+static int32 InitFromProperty_r(
+	FInitFromPropertySharedParams& SharedParams,
+	FInitFromPropertyStackParams StackParams);
+
+template<ERepBuildType BuildType>
+static int32 InitFromStructProperty(
+	FInitFromPropertySharedParams& SharedParams,
+	FInitFromPropertyStackParams StackParams,
+	const FStructProperty* const StructProp,
+	const UScriptStruct* const Struct)
+{
+	// Track properties so we can ensure they are sorted by offsets at the end
+	// TODO: Do these actually need to be sorted?
+	TArray<FProperty*> NetProperties;
+
+	for (TFieldIterator<FProperty> It(Struct); It; ++It)
+	{
+		if ((It->PropertyFlags & CPF_RepSkip))
+		{
+			continue;
+		}
+
+		NetProperties.Add(*It);
+	}
+
+	// Sort NetProperties by memory offset
+	struct FCompareUFieldOffsets
+	{
+		FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
+		{
+			const int32 AOffset = GetOffsetForProperty<BuildType>(A);
+			const int32 BOffset = GetOffsetForProperty<BuildType>(B);
+
+			// Ensure stable sort
+			if (AOffset == BOffset)
+			{
+				return A.GetName() < B.GetName();
+			}
+
+			return AOffset < BOffset;
+		}
+	};
+
+	Sort(NetProperties.GetData(), NetProperties.Num(), FCompareUFieldOffsets());
+
+	const uint32 StructChecksum = GetRepLayoutCmdCompatibleChecksum(SharedParams, StackParams);
+
+	for (int32 i = 0; i < NetProperties.Num(); i++)
+	{
+		for (int32 j = 0; j < NetProperties[i]->ArrayDim; j++)
+		{
+			const int32 ArrayElementOffset = j * NetProperties[i]->ElementSize;
+
+			FInitFromPropertyStackParams NewStackParams{
+				/*Property=*/NetProperties[i],
+				/*Offset=*/StackParams.Offset + ArrayElementOffset,
+				/*RelativeHandle=*/StackParams.RelativeHandle,
+				/*ParentChecksum=*/StructChecksum,
+				/*StaticArrayIndex=*/j,
+				/*RecursingNetSerializeStruct=*/StackParams.RecursingNetSerializeStruct
+			};
+
+			StackParams.RelativeHandle = InitFromProperty_r<BuildType>(SharedParams, NewStackParams);
+		}
+	}
+
+	return StackParams.RelativeHandle;
 }
 
 template<ERepBuildType BuildType>
@@ -5077,7 +5280,8 @@ static int32 InitFromProperty_r(
 			/*Offset=*/0,
 			/*RelativeHandle=*/0,
 			/*ParentChecksum=*/ArrayChecksum,
-			/*StaticArrayIndex=*/0
+			/*StaticArrayIndex=*/0,
+			/*RecursingNetSerializeStruct=*/StackParams.RecursingNetSerializeStruct
 		};
 
 		InitFromProperty_r<BuildType>(SharedParams, NewStackParams);
@@ -5090,72 +5294,83 @@ static int32 InitFromProperty_r(
 	{
 		UScriptStruct* Struct = StructProp->Struct;
 
+		StackParams.Offset += GetOffsetForProperty<BuildType>(*StructProp);
 		if (EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetSerializeNative))
 		{
 			UE_CLOG(EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetDeltaSerializeNative), LogRep, Warning, TEXT("RepLayout InitFromProperty_r: Struct marked both NetSerialize and NetDeltaSerialize: %s"), *StructProp->GetName());
 
 			SharedParams.bHasNetSerializeProperties = true;
+			if (ERepBuildType::Class == BuildType && GbTrackNetSerializeObjectReferences && nullptr != SharedParams.NetSerializeLayouts && !EnumHasAnyFlags(Struct->StructFlags, STRUCT_IdenticalNative))
+			{
+				// We can't directly rely on FProperty::Identical because it's not safe for GC'd objects.
+				// So, we'll recursively build up set of layout commands for this struct, and if any
+				// are Objects, we'll use that for storing items in Shadow State and comparison.
+				// Otherwise, we'll fall back to the old behavior.
+				const int32 PrevCmdNum = SharedParams.Cmds.Num();
+
+				TArray<FRepLayoutCmd> TempCmds;
+				TArray<FRepLayoutCmd>* NewCmds = &TempCmds;
+				
+				FInitFromPropertyStackParams NewStackParams{
+					/*Property=*/StackParams.Property,
+					/*Offset=*/0,
+					/*RelativeHandle=*/StackParams.RelativeHandle,
+					/*ParentChecksum=*/StackParams.ParentChecksum,
+					/*StaticArrayIndex=*/StackParams.StaticArrayIndex,
+					/*RecursingNetSerialize=*/StructProp->GetFName()
+					
+				};
+
+				if (StackParams.RecursingNetSerializeStruct != NAME_None)
+				{
+					NewCmds = &SharedParams.Cmds;
+					NewStackParams.RelativeHandle = 0;
+				}
+
+				FInitFromPropertySharedParams NewSharedParams{
+					/*Cmds=*/*NewCmds,
+					/*ServerConnection=*/SharedParams.ServerConnection,
+					/*ParentIndex=*/SharedParams.ParentIndex,
+					/*bHasObjectProperties=*/false,
+					/*bHasNetSerializeProperties=*/false,
+					/*NetSerializeLayouts=*/SharedParams.NetSerializeLayouts
+				};
+
+				const int32 NetSerializeStructOffset = InitFromStructProperty<BuildType>(NewSharedParams, NewStackParams, StructProp, Struct);
+
+				if (StackParams.RecursingNetSerializeStruct == NAME_None)
+				{
+					if (NewSharedParams.bHasObjectProperties)
+					{
+						// If this is a top level Net Serialize Struct, and we found any any objects,
+						// then we need to make sure this is tracked in our map.
+						SharedParams.NetSerializeLayouts->Add(SharedParams.Cmds.Num(), MoveTemp(TempCmds));
+						StackParams.bNetSerializeStructWithObjects = true;
+					}
+				}
+				else if (!NewSharedParams.bHasObjectProperties)
+				{
+					// If this wasn't a top level Net Serialize Struct, and we didn't find any objects,
+					// we need to remove any nested entries we added to the Net Serialize Struct's layout.
+					// Instead, we'll assume this layout is FProperty safe, and add it as single command (below).
+					SharedParams.Cmds.SetNum(PrevCmdNum);
+				}
+				else
+				{
+					// This wasn't a top level Net Serialize Struct, but we did find some objects.
+					// We want to keep the layout we generated, so keep that layout
+					return NetSerializeStructOffset;
+				}
+			}
 
 			++StackParams.RelativeHandle;
-			StackParams.Offset += GetOffsetForProperty<BuildType>(*StructProp);
-
 			AddPropertyCmd(SharedParams, StackParams);
+
 			return StackParams.RelativeHandle;
 		}
 
-		// Track properties so we can ensure they are sorted by offsets at the end
-		// TODO: Do these actually need to be sorted?
-		TArray<FProperty*> NetProperties;
-
-		for (TFieldIterator<FProperty> It(Struct); It; ++It)
-		{
-			if ((It->PropertyFlags & CPF_RepSkip))
-			{
-				continue;
-			}
-
-			NetProperties.Add(*It);
-		}
-
-		// Sort NetProperties by memory offset
-		struct FCompareUFieldOffsets
-		{
-			FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
-			{
-				const int32 AOffset = GetOffsetForProperty<BuildType>(A);
-				const int32 BOffset = GetOffsetForProperty<BuildType>(B);
-
-				// Ensure stable sort
-				if (AOffset == BOffset)
-				{
-					return A.GetName() < B.GetName();
-				}
-
-				return AOffset < BOffset;
-			}
-		};
-
-		Sort(NetProperties.GetData(), NetProperties.Num(), FCompareUFieldOffsets());
-
-		const uint32 StructChecksum = GetRepLayoutCmdCompatibleChecksum(SharedParams, StackParams);
-
-		for (int32 i = 0; i < NetProperties.Num(); i++)
-		{
-			for (int32 j = 0; j < NetProperties[i]->ArrayDim; j++)
-			{
-				const int32 ArrayElementOffset = j * NetProperties[i]->ElementSize;
-
-				FInitFromPropertyStackParams NewStackParams{
-					/*Property=*/NetProperties[i],
-					/*Offset=*/StackParams.Offset + GetOffsetForProperty<BuildType>(*StructProp) + ArrayElementOffset,
-					/*RelativeHandle=*/StackParams.RelativeHandle,
-					/*ParentChecksum=*/StructChecksum,
-					/*StaticArrayIndex=*/j
-				};
-
-				StackParams.RelativeHandle = InitFromProperty_r<BuildType>(SharedParams, NewStackParams);
-			}
-		}
+		
+		return InitFromStructProperty<BuildType>(SharedParams, StackParams, StructProp, Struct);
 	}
 	else
 	{
@@ -5164,6 +5379,27 @@ static int32 InitFromProperty_r(
 		StackParams.Offset += GetOffsetForProperty<BuildType>(*StackParams.Property);
 
 		AddPropertyCmd(SharedParams, StackParams);
+
+		if (StackParams.RecursingNetSerializeStruct != NAME_None &&
+			ERepLayoutCmdType::Property == SharedParams.Cmds.Last().Type)
+		{
+			TArray<const FStructProperty*> SubProperties;
+			if (StackParams.Property->ContainsObjectReference(SubProperties))
+			{
+				// This error indicates that we're seeing a property within some NetSerialize struct
+				// that references a UObject, but isn't handle by *normal* replication means
+				// (e.g., this could be a map or a set that we just need to compare or store, but not serialize).
+				// That's dangerous, because we will end up storing the Object Reference in the Shadow State,
+				// and it could be garbage the next time Property->Identical is called, leading to undefined behavior.
+				//
+				// The easiest fix is to convert the StructProperty's Struct Type to using either a native identity check
+				// or a native equality operator, and manually comparing just the pointer values for the object.
+
+				UE_LOG(LogRep, Warning,
+					TEXT("InitFromProperty_r: Found NetSerialize Struct Property that contains a nested UObject reference that is not tracked for replication. StructProperty=%s, NestedProperty=%s"),
+					*StackParams.RecursingNetSerializeStruct.ToString(), *StackParams.Property->GetPathName());
+			}
+		}
 	}
 
 	return StackParams.RelativeHandle;
@@ -5440,6 +5676,7 @@ void FRepLayout::InitFromClass(
 	int32 RelativeHandle = 0;
 	int32 LastOffset = INDEX_NONE;
 	int32 HighestCustomDeltaRepIndex = INDEX_NONE;
+	TMap<int32, TArray<FRepLayoutCmd>> TempNetSerializeLayouts;
 
 	InObjectClass->SetUpRuntimeReplicationData();
 	Parents.Empty(InObjectClass->ClassReps.Num());
@@ -5480,7 +5717,10 @@ void FRepLayout::InitFromClass(
 		{
 			/*Cmds=*/Cmds,
 			/*ServerConnection=*/ServerConnection,
-			/*ParentHandle=*/ParentHandle
+			/*ParentHandle=*/ParentHandle,
+			/*bHasObjectProperties=*/false,
+			/*bHasNetSerializeProperties=*/false,
+			/*NetSerializeLayouts=*/GbTrackNetSerializeObjectReferences ? &TempNetSerializeLayouts : nullptr
 		};
 
 		FInitFromPropertyStackParams StackParams
@@ -5537,6 +5777,17 @@ void FRepLayout::InitFromClass(
 	check(!bIsObjectActor || Parents[(int32)AActor::ENetFields_Private::Role].Property->GetFName() == NAME_Role);
 
 	AddReturnCmd(Cmds);
+
+	if (TempNetSerializeLayouts.Num() > 0)
+	{
+		NetSerializeLayouts.Empty(TempNetSerializeLayouts.Num());
+		for (auto It = TempNetSerializeLayouts.CreateIterator(); It; ++It)
+		{
+			NetSerializeLayouts.Emplace(&Cmds[It.Key()], MoveTemp(It.Value()));
+		}
+
+		NetSerializeLayouts.Shrink();
+	}
 
 	// Initialize lifetime props
 	// Properties that replicate for the lifetime of the channel
@@ -7091,7 +7342,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 								Cmds,
 								nullptr,
 								nullptr,
-								nullptr
+								nullptr,
+								NetSerializeLayouts
 							};
 
 							ERepLayoutResult UpdateResult = ERepLayoutResult::Success;
@@ -7361,6 +7613,7 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 					bOutGuidsChanged,
 					Parents,
 					Cmds,
+					NetSerializeLayouts,
 					Object
 				};
 
@@ -7520,6 +7773,13 @@ void FRepLayout::CountBytes(FArchive& Ar) const
 		{
 			Ar.CountBytes(sizeof(FLifetimeCustomDeltaState), sizeof(FLifetimeCustomDeltaState));
 			LifetimeCustomPropertyState->CountBytes(Ar);
+		}
+	);
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetSerializeLayouts",
+		NetSerializeLayouts.CountBytes(Ar);
+		for (auto It = NetSerializeLayouts.CreateConstIterator(); It; ++It)
+		{
+			It.Value().CountBytes(Ar);
 		}
 	);
 }
