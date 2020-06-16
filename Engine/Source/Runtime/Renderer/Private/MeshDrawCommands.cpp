@@ -1091,17 +1091,27 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		if (bExecuteInParallel)
 		{
-			FGraphEventArray DependentGraphEvents;
-			DependentGraphEvents.Add(TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext));
-			TaskEventRef = TGraphTask<FMeshDrawCommandInitResourcesTask>::CreateTask(&DependentGraphEvents, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+			if (RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			{
+				TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+			}
+			else
+			{
+				FGraphEventArray DependentGraphEvents;
+				DependentGraphEvents.Add(TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext));
+				TaskEventRef = TGraphTask<FMeshDrawCommandInitResourcesTask>::CreateTask(&DependentGraphEvents, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+			}
 		}
 		else
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
-			FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
-			DependentTask.AnyThreadTask();
+			if (!RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			{
+				FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
+				DependentTask.AnyThreadTask();
+			}
 		}
 	}
 }

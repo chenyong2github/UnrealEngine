@@ -1645,6 +1645,12 @@ inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform));
 }
 
+inline bool RHISupportsMultithreadedShaderCreation(const FStaticShaderPlatform Platform)
+{
+	// all but GL
+	return !IsOpenGLPlatform(Platform);
+}
+
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
 // If should only be used for a guess at the limit, the real limit will not be known until runtime

@@ -19,6 +19,7 @@
 #include "Serialization/ArchiveProxy.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Serialization/MemoryImage.h"
+#include <atomic>
 
 // For FShaderUniformBufferParameter
 
@@ -211,21 +212,37 @@ public:
 
 	inline int32 GetNumShaders() const
 	{
-		return RHIShaders.Num();
+		return NumRHIShaders;
 	}
 
 	inline bool HasShader(int32 ShaderIndex) const
 	{
-		return RHIShaders[ShaderIndex].IsValid();
+		return RHIShaders[ShaderIndex].load(std::memory_order_acquire) != nullptr;
 	}
 
 	inline FRHIShader* GetShader(int32 ShaderIndex)
 	{
-		if (!RHIShaders[ShaderIndex])
+		// This is a double checked locking. This trickery arises from the fact that we're
+		// synchronizing two threads: one that takes a lock and another that doesn't.
+		// Without fences, there is a race between storing the shader pointer and accessing it
+		// on the other (lockless) thread.
+
+		FRHIShader* Shader = RHIShaders[ShaderIndex].load(std::memory_order_acquire);
+		if (Shader == nullptr)
 		{
-			CreateShader(ShaderIndex);
+			// most shadermaps have <100 shaders, and less than a half of them can be created. One lock
+			// for all creation seems sufficient, but if this function is often contended, per-shader
+			// locks are easily possible.
+			FScopeLock ScopeLock(&RHIShadersCreationGuard);
+
+			Shader = RHIShaders[ShaderIndex].load(std::memory_order_relaxed);
+			if (Shader == nullptr)
+			{
+				Shader = CreateShader(ShaderIndex);
+				RHIShaders[ShaderIndex].store(Shader, std::memory_order_release);
+			}
 		}
-		return RHIShaders[ShaderIndex];
+		return Shader;
 	}
 
 	void BeginCreateAllShaders();
@@ -235,10 +252,7 @@ public:
 
 	inline uint32 GetRayTracingMaterialLibraryIndex(int32 ShaderIndex)
 	{
-		if (!RHIShaders[ShaderIndex])
-		{
-			CreateShader(ShaderIndex);
-		}
+		GetShader(ShaderIndex);	// make sure the shader is created
 		return RayTracingMaterialLibraryIndices[ShaderIndex];
 	}
 #endif // RHI_RAYTRACING
@@ -251,20 +265,32 @@ protected:
 
 	uint32 GetAllocatedSize() const
 	{
-		uint32 Size = RHIShaders.GetAllocatedSize();
+		uint32 Size = NumRHIShaders * sizeof(std::atomic<FRHIShader*>);
 #if RHI_RAYTRACING
 		Size += RayTracingMaterialLibraryIndices.GetAllocatedSize();
 #endif
 		return Size;
 	}
 
-	void CreateShader(int32 ShaderIndex);
+	/** Addrefs the reference, passing the responsibility to the caller to Release() it. */
+	FRHIShader* CreateShader(int32 ShaderIndex);
 
 	virtual TRefCountPtr<FRHIShader> CreateRHIShader(int32 ShaderIndex) = 0;
 	virtual bool TryRelease() { return true; }
 
+	void ReleaseShaders();
+
 private:
-	TArray<TRefCountPtr<FRHIShader>> RHIShaders;
+
+	/** This lock is to prevent two threads creating the same RHIShaders element. It is only taken if the element is to be created. */
+	FCriticalSection RHIShadersCreationGuard;
+
+	/** An array of shader pointers (refcount is managed manually). */
+	TUniquePtr<std::atomic<FRHIShader*>[]> RHIShaders;
+
+	/** Since the shaders are no longer a TArray, this is their count (the size of the RHIShadersArray). */
+	int32 NumRHIShaders;
+
 #if RHI_RAYTRACING
 	TArray<uint32> RayTracingMaterialLibraryIndices;
 #endif // RHI_RAYTRACING
