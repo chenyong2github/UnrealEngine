@@ -223,12 +223,13 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 			if (Session.IsValid())
 			{
 				bIsAvailable = true;
-
+#if !WITH_EDITOR
 				const FName& TabId = FInsightsManagerTabs::TimingProfilerTabId;
 				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
 				{
 					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 				}
+#endif
 			}
 		}
 	}
