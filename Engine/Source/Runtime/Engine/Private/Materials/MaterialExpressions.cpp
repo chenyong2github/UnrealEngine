@@ -12785,7 +12785,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 		if (LayerIndex == INDEX_NONE)
 		{
 			// Check to see if we have any layers with parents that haven't been initialized yet, that match this parent layer
-			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num(); ++CheckLayerIndex)
+			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num() && CheckLayerIndex < Parent.Layers.Num(); ++CheckLayerIndex)
 			{
 				if (Layers[CheckLayerIndex] == Parent.Layers[ParentLayerIndex] &&
 					Blends[CheckLayerIndex - 1] && Parent.Blends[CheckLayerIndex - 1] &&
