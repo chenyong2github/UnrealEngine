@@ -26,9 +26,6 @@
 #include "ChaosStats.h"
 
 #include "Field/FieldSystem.h"
-#include "Framework/Dispatcher.h"
-#include "Framework/PersistentTask.h"
-#include "Framework/PhysicsTickTask.h"
 
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
