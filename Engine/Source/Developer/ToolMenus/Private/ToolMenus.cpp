@@ -2197,16 +2197,41 @@ void UToolMenus::UnregisterOwnerInternal(FToolMenuOwner InOwner)
 	{
 		for (auto It = Menus.CreateIterator(); It; ++It)
 		{
-			int32 NumEntriesRemoved = 0;
+			bool bNeedsRefresh = false;
 
 			UToolMenu* Menu = It->Value;
-			for (FToolMenuSection& Section : Menu->Sections)
+			for (int32 SectionIndex = Menu->Sections.Num() - 1; SectionIndex >=0; --SectionIndex)
 			{
-				NumEntriesRemoved += Section.RemoveEntriesByOwner(InOwner);
+				FToolMenuSection& Section = Menu->Sections[SectionIndex];
+				if (Section.RemoveEntriesByOwner(InOwner) > 0)
+				{
+					bNeedsRefresh = true;
+				}
+
+				if (Section.Owner == InOwner)
+				{
+					if (Section.Construct.IsBound())
+					{
+						Section.Construct = FNewSectionConstructChoice();
+						bNeedsRefresh = true;
+					}
+
+					if (Section.ToolMenuSectionDynamic)
+					{
+						Section.ToolMenuSectionDynamic = nullptr;
+						bNeedsRefresh = true;
+					}
+
+					if (Section.Blocks.Num() == 0)
+					{
+						Menu->Sections.RemoveAt(SectionIndex, 1, false);
+						bNeedsRefresh = true;
+					}
+				}
 			}
 
 			// Refresh any widgets that are currently displayed to the user
-			if (NumEntriesRemoved > 0)
+			if (bNeedsRefresh)
 			{
 				RefreshAllWidgets();
 			}
