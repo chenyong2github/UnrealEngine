@@ -15,35 +15,54 @@
 
 #include "PreLoadSlateThreading.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FIsPreloadScreenResponsibleForRenderingMultiDelegate, bool);
 
 // Class that handles storing all registered PreLoadScreens and Playing/Stopping them
 class PRELOADSCREEN_API FPreLoadScreenManager
 {
 public:
+	static FIsPreloadScreenResponsibleForRenderingMultiDelegate IsResponsibleForRenderingDelegate;
+
     //Gets the single instance of this settings object. Also creates it if needed
-    static FPreLoadScreenManager* Get();
-    static void Create();
-    static void Destroy();
+    static FPreLoadScreenManager* Get()
+    {
+        return Instance.Get();
+    }
+
+    static void Create()
+    {
+        if (!Instance.IsValid() && ArePreLoadScreensEnabled())
+        {
+            Instance = MakeShareable(new FPreLoadScreenManager());
+        }
+    }
+
+    static void Destroy()
+    {
+        if (Instance.IsValid())
+        {
+            Instance->CleanUpResources();
+        }
+
+        Instance.Reset();
+    }
+
+    virtual ~FPreLoadScreenManager() {}
 
     void Initialize(FSlateRenderer& InSlateRenderer);
 
-    void RegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
-    void UnRegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
+    void RegisterPreLoadScreen(TSharedPtr<IPreLoadScreen> PreLoadScreen);
+    void UnRegisterPreLoadScreen(TSharedPtr<IPreLoadScreen> PreLoadScreen);
 
-    /**
-	 * Plays the first found PreLoadScreen that matches the bEarlyPreLoadScreen setting passed in.
-	 * @returns false if no PreLoadScreen with that type has been registered.
-	 */
-    bool PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay);
+    //Plays the first found PreLoadScreen that matches the bEarlyPreLoadScreen setting passed in.
+    void PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay);
+    void PlayPreLoadScreenAtIndex(int Index);
 
-	/**
-	 * Plays the PreLoadScreen with a tag that matches InTag
-	 * @returns false if no PreLoadScreen with that tag has been registered.
-	 */
+	/** Plays the PreLoadScreen with a tag that matches InTag
+	 *  @returns false if no PreLoadScreen with that tag has been registered */
 	bool PlayPreLoadScreenWithTag(FName InTag);
     
-	void StopPreLoadScreen();
-	void WaitForEngineLoadingScreenToFinish();
+    void StopPreLoadScreen();
 
     void PassPreLoadScreenWindowBackToGame() const;
 
@@ -55,28 +74,38 @@ public:
     bool HasActivePreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const;
     bool HasValidActivePreLoadScreen() const;
 
+    void WaitForEngineLoadingScreenToFinish();
 
     void SetEngineLoadingComplete(bool IsEngineLoadingFinished = true);
     bool IsEngineLoadingComplete() const { return bIsEngineLoadingComplete; }
 
+    void CleanUpResources();
+
     static void EnableRendering(bool bEnabled);
+    static bool ShouldRender();
     static bool ArePreLoadScreensEnabled();
+
+    //Creates a tick on the Render Thread that we run every
+    virtual void RenderTick();
     
     // Callback for handling cleaning up any resources you would like to remove after the PreLoadScreenManager cleans up
-    // Not needed for PreLoadScreens as those have a separate CleanUp method called.
+    // Not needed for PreLoadScreens as those have a seperate CleanUp method called.
     DECLARE_MULTICAST_DELEGATE(FOnPreLoadScreenManagerCleanUp);
     FOnPreLoadScreenManagerCleanUp OnPreLoadScreenManagerCleanUp;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FIsPreloadScreenResponsibleForRenderingMultiDelegate, bool);
-	FIsPreloadScreenResponsibleForRenderingMultiDelegate IsResponsibleForRenderingDelegate;
-
 protected:
     //Default constructor. We don't want other classes to make these. Should just rely on Get()
-    FPreLoadScreenManager();
+    FPreLoadScreenManager()
+        : ActivePreLoadScreenIndex(-1)
+        , bInitialized(false)
+        , SyncMechanism(nullptr)
+        , bIsEngineLoadingComplete(false)
+    {}
 
-	~FPreLoadScreenManager() = default;
+    TArray<TSharedPtr<IPreLoadScreen>> PreLoadScreens;
 
-	void PlayPreLoadScreenAtIndex(int32 Index);
+    //Singleton Instance
+    static TSharedPtr<FPreLoadScreenManager> Instance;
 
     void BeginPlay();
 
@@ -86,13 +115,8 @@ protected:
     void EarlyPlayFrameTick();
     void GameLogicFrameTick();
     void EarlyPlayRenderFrameTick();
-	bool HasActivePreLoadScreenTypeForEarlyStartup() const;
 
 	void PlatformSpecificGameLogicFrameTick();
-
-	//Creates a tick on the Render Thread that we run every
-	static void StaticRenderTick_RenderThread();
-	void RenderTick_RenderThread();
 
     /*** These functions describe how everything is handled during an non-Early PreLoadPlay. Everything is handled asynchronously in this case with a standalone renderer ***/
 	void HandleEngineLoadingPlay();
@@ -103,25 +127,7 @@ protected:
     IPreLoadScreen* GetActivePreLoadScreen();
     const IPreLoadScreen* GetActivePreLoadScreen() const;
 
-	void HandleStopPreLoadScreen();
-	void CleanUpResources();
-
-	//Singleton Instance
-	struct FPreLoadScreenManagerDelete
-	{
-		void operator()(FPreLoadScreenManager* Ptr) const
-		{
-			delete Ptr;
-		}
-	};
-	static TUniquePtr<FPreLoadScreenManager, FPreLoadScreenManagerDelete> Instance;
-
-	static FCriticalSection AcquireCriticalSection;
-	static TAtomic<bool> bRenderingEnabled;
-
-	TArray<TSharedPtr<IPreLoadScreen>> PreLoadScreens;
-
-    int32 ActivePreLoadScreenIndex;
+    int ActivePreLoadScreenIndex;
     double LastTickTime;
 
     /** Widget renderer used to tick and paint windows in a thread safe way */
@@ -136,11 +142,14 @@ protected:
     bool bInitialized;
 
     /** The threading mechanism with which we handle running slate on another thread */
-	FPreLoadScreenSlateSynchMechanism* SyncMechanism;
-	friend FPreLoadScreenSlateSynchMechanism;
+    class FPreLoadScreenSlateSynchMechanism* SyncMechanism;
+    /** Critical section to allow the slate loading thread and the render thread to safely utilize the synchronization mechanism for ticking Slate. */
+    FCriticalSection SyncMechanismCriticalSection;
 
-	bool bIsResponsibleForRendering;
-	bool bHasRenderPreLoadScreenFrame;
+    static FCriticalSection RenderingEnabledCriticalSection;
+    static bool bRenderingEnabled;
+
+	bool bIsResponsibleForRendering = false;
 
     double LastRenderTickTime;
 
