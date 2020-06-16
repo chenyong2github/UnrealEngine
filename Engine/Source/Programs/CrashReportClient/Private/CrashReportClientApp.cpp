@@ -89,7 +89,7 @@ static uint64 MonitorPid = 0;
  * the summary sender is about to send a session, it check the session status, if an error occurred, it tries to match a mini-log and if the corresponding
  * log is found, it is attached to the session summary.
  */
-class FDiagnosticLogger
+class FDiagnosticLogger : public FOutputDevice
 {
 public:
 	static constexpr int32 MaxLogLen = 8 * 1024;
@@ -100,31 +100,59 @@ public:
 		return Instance;
 	}
 
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override
+	{
+		// Log the errors, especially the failed 'check()' with the callstack/message.
+		if (Verbosity == ELogVerbosity::Error)
+		{
+			LogEvent(TEXT("CRC/Error"));
+			LogEvent(V, /*bForwardToUELog*/false); // This log is already going to UE_LOG, don't need to forward it.
+		}
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, const double Time) override
+	{
+		Serialize(V, Verbosity, Category);
+	}
+
 	/** Log a small events to help diagnose abnormal shutdown or bugs in CRC itself. The event text is expected to be short and concise. */
-	void LogEvent(const TCHAR* Event)
+	void LogEvent(const TCHAR* Event, bool bForwardToUELog = true)
 	{
 		if (IsEnabled())
 		{
 			FScopeLock ScopedLock(&LoggerLock);
 
-			static const TCHAR* Separator = TEXT("|");
-			static const int32 SeparatorLen = FCString::Strlen(Separator);
-
-			// Rotate the log if it gets too long.
-			int32 EventLen =  SeparatorLen + FCString::Strlen(Event); // Always account for the separator. If the diagnostic string is empty, it doesn't make any difference.
-			if (DiagnosticInfo.Len() + EventLen >= MaxLogLen)
-			{
-				DiagnosticInfo.RemoveAt(0, EventLen, /*bAllowShrinking*/false); // Remove oldest event (in front).
-			}
-
-			// Log the last event.
+			// Add the separator if some text is already logged.
 			if (DiagnosticInfo.Len())
 			{
-				DiagnosticInfo.Append(Separator);
+				DiagnosticInfo.Append(TEXT("|"));
 			}
-			DiagnosticInfo.Append(Event);
+
+			// Rotate the log if it gets too long.
+			int32 FreeLen = MaxLogLen - DiagnosticInfo.Len();
+			int32 EventLen = FCString::Strlen(Event);
+			if (EventLen > FreeLen)
+			{
+				if (EventLen > MaxLogLen)
+				{
+					DiagnosticInfo.Reset(MaxLogLen);
+					EventLen = MaxLogLen;
+				}
+				else
+				{
+					DiagnosticInfo.RemoveAt(0, EventLen - FreeLen, /*bAllowShrinking*/false); // Free space, remove the chars from the oldest events (in front).
+				}
+			}
+
+			// Append the log entry and dump the log to the file.
+			DiagnosticInfo.AppendChars(Event, EventLen);
 			FFileHelper::SaveStringToFile(DiagnosticInfo, *GetLogPathname());
-			UE_LOG(CrashReportClientLog, Log, TEXT("%s"), Event);
+
+			// Prevent error logs coming from the logging system to be duplicated.
+			if (bForwardToUELog)
+			{
+				UE_LOG(CrashReportClientLog, Log, TEXT("%s"), Event);
+			}
 		}
 	}
 
@@ -963,6 +991,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	GEngineLoop.PreInit(*FinalCommandLine);
 	check(GConfig && GConfig->IsReadyForUse());
 
+	GLog->AddOutputDevice(&FDiagnosticLogger::Get());
 	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Load"));
 
 	// Make sure all UObject classes are registered and default properties have been initialized
@@ -1214,7 +1243,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					FCrashReportAnalytics::Initialize();
 					if (FCrashReportAnalytics::IsAvailable())
 					{
-						FDiagnosticLogger::Get().LogEvent(TEXT("MTFB/Done"));
+						FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/Done"));
 						// Send this session summary event (and the orphan ones if any).
 						FEditorSessionSummarySender EditorSessionSummarySender(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
 						EditorSessionSummarySender.SetMonitorDiagnosticLogs(FDiagnosticLogger::LoadAllLogs());
@@ -1239,12 +1268,12 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				}
 				else
 				{
-					FDiagnosticLogger::Get().LogEvent(TEXT("MTFB/NoTempCrash"));
+					FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/NoTempCrash"));
 				}
 			}
 			else
 			{
-				FDiagnosticLogger::Get().LogEvent(TEXT("MTFB/StillRunning"));
+				FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/StillRunning"));
 			}
 		}
 #endif
@@ -1253,6 +1282,8 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
 	}
+
+	GLog->RemoveOutputDevice(&FDiagnosticLogger::Get());
 
 	FPrimaryCrashProperties::Shutdown();
 	FPlatformErrorReport::ShutDown();
