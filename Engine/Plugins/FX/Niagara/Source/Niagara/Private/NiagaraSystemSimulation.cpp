@@ -1645,9 +1645,6 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		return;
 	}
 
-	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
-	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
-
 	check(IsInGameThread());
 	if (EffectType)
 	{
@@ -1671,6 +1668,9 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		{
 			WaitForSystemTickComplete();
 			Instance->WaitForAsyncTickDoNotFinalize();
+
+			check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
+			check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
 
 			int32 SystemIndex = Instance->SystemInstanceIndex;
 			if (SystemIndex != INDEX_NONE)
@@ -1712,10 +1712,10 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 			MainDataSet.GetCurrentDataChecked().Dump(Instance->SystemInstanceIndex, 1, TEXT("System data being removed."));
 		}
 
-		int32 NumInstances = PausedInstanceData.GetCurrentDataChecked().GetNumInstances();
+		const int32 NumInstances = PausedInstanceData.GetCurrentDataChecked().GetNumInstances();
 		check(PausedSystemInstances.Num() == NumInstances);
 
-		int32 SystemIndex = Instance->SystemInstanceIndex;
+		const int32 SystemIndex = Instance->SystemInstanceIndex;
 		check(PausedSystemInstances.IsValidIndex(SystemIndex));
 		check(Instance == PausedSystemInstances[SystemIndex]);
 
@@ -1742,6 +1742,9 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		// Note: We do not need to wait for all instances to complete as the system simulation concurrent tick will have transfered data from the DataSet out to ParameterStores
 		WaitForSystemTickComplete();
 		Instance->WaitForAsyncTickDoNotFinalize();
+
+		check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
+		check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
 
 		// There is a slim window where the finalize will have executed so we must ensure we have not been removed.
 		// This can happen where the async task is not complete, we start to wait and it posts the finalize task.  The TG will drain the GT queue which contains the finalize and we have been removed (via completion)
