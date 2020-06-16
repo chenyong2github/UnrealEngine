@@ -70,7 +70,7 @@ namespace Chaos
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
 */
-class ENGINE_API FPhysScene_Chaos : public FTickableGameObject, public FGCObject
+class ENGINE_API FPhysScene_Chaos : public FGCObject
 {
 public:
 
@@ -89,15 +89,6 @@ public:
 #endif
 
 	virtual ~FPhysScene_Chaos();
-
-	// Begin FTickableGameObject implementation
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
-	virtual bool IsTickableWhenPaused() const override { return false; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual bool IsTickable() const override;
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(ChaosSolver, STATGROUP_Tickables); }
-	// End FTickableGameObject
 
 	/**
 	 * Get the internal Chaos solver object
