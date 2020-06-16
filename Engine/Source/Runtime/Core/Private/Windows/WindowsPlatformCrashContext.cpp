@@ -504,10 +504,17 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		// process group in TaskManager, CRC will not die at the same moment and will be able to capture the Editor exit code and send the session summary.
 		if (Handle.IsValid())
 		{
-			// Wait for the intermediate CRC to respawn itself and exit. 
-		    // WARNING: If the Editor sits here waiting forever, ensure to recompile CrashReportClientEditor project in 'Shipping' or 'Development Editor'
-			//          depending which target you previously compiled (if both exist, the system always uses the Shipping executable over the development one)
-			::WaitForSingleObject(Handle.Get(), INFINITE);
+			if (FEngineBuildSettings::IsSourceDistribution())
+			{
+				// Don't wait longer than n seconds for CRC to respawn. This is a workaround for people that did not recompile CrashReportClientEditor after updating/recompiling the Engine/Editor.
+				// This is for people that had compiled CRC prior 4.25.0 (13410773) and recompiled the Editor only after updating around 4.25.1.
+				::WaitForSingleObject(Handle.Get(), 3000);
+			}
+			else // Distributed binaries (CRC is expected to be prebuilt).
+			{
+				// Wait for the intermediate CRC to respawn itself and exit.
+				::WaitForSingleObject(Handle.Get(), INFINITE);
+			}
 			
 			// The respanwned CRC process writes its own PID to a file named by this process PID (by parsing the -MONITOR={PID} arguments)
 			uint32 RepawnedCrcPid = 0;
@@ -1116,7 +1123,7 @@ public:
 			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
 		}
 
-		// Register an exception handler for exceptions that aren't caught by vectored exception handler or structured exception handling (__try/__except),
+		// Register an exception handler for exceptions that aren't handled by any vectored exception handlers or structured exception handlers (__try/__except),
 		// especially to capture crash in non-engine-wrapped threads (like native threads) that are usually not guarded with structured exception handling.
 		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::RegisterUnhandledExceptionHandler);
 	}
