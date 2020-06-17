@@ -477,48 +477,6 @@ bool FPhysScene_ChaosInterface::IsOwningWorldEditor() const
 }
 #endif
 
-bool FPhysScene_Chaos::IsTickable() const
-{
-	const bool bDedicatedThread = ChaosModule->IsPersistentTaskRunning();
-
-#if TODO_REIMPLEMENT_SOLVER_ENABLING
-	return !bDedicatedThread && GetSolver()->Enabled();
-#else
-	return false;
-#endif
-}
-
-void FPhysScene_Chaos::Tick(float DeltaTime)
-{
-	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
-	LLM_SCOPE(ELLMTag::Chaos);
-
-#if WITH_EDITOR
-	// Check the editor pause status and update this object's single-step counter.
-	// This check cannot be moved to IsTickable() since this is a test/update operation
-	// and needs to happen only once per tick.
-	if (!ChaosModule->ShouldStepSolver(SingleStepCounter)) { return; }
-#endif
-
-	Chaos::FPhysicsSolver* Solver = GetSolver();
-
-#if CHAOS_WITH_PAUSABLE_SOLVER
-	// Update solver depending on the pause status of the actor's world attached to this scene
-	OnUpdateWorldPause();
-
-#if TODO_REIMPLEMENT_SOLVER_PAUSING
-	// Return now if this solver is paused
-	if (Solver->Paused()) { return; }
-#endif
-#endif
-
-	float SafeDelta = FMath::Clamp(DeltaTime, 0.0f, UPhysicsSettings::Get()->MaxPhysicsDeltaTime);
-
-	UE_LOG(LogFPhysScene_ChaosSolver, Verbose, TEXT("FPhysScene_Chaos::Tick(%3.5f)"), SafeDelta);
-	Solver->AdvanceSolverBy(SafeDelta);
-}
-
 Chaos::FPhysicsSolver* FPhysScene_Chaos::GetSolver() const
 {
 	return SceneSolver;
@@ -1251,7 +1209,6 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 	if(Solver)
 	{
 		//Make sure any dirty proxy data is pushed
-		Solver->PushPhysicsState();
 		Solver->AdvanceAndDispatch_External(0);	//force commands through
 		Solver->WaitOnPendingTasks_External();
 		
@@ -1928,11 +1885,6 @@ void FPhysScene_ChaosInterface::StartFrame()
 
 	for(FPhysicsSolverBase* Solver : SolverList)
 	{
-		Solver->CastHelper([](auto& InSolver)
-		{
-			InSolver.PushPhysicsState();
-		});
-
 		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
 	}
 
@@ -2269,7 +2221,6 @@ void FPhysScene_ChaosInterface::ResimNFrames(const int32 NumFramesRequested)
 				Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 				for(int Frame = FirstFrame; Frame < LatestFrame; ++Frame)
 				{
-					Solver->PushPhysicsState();
 					Solver->AdvanceAndDispatch_External(RewindData->GetDeltaTimeForFrame(Frame));
 					Solver->BufferPhysicsResults();
 					Solver->FlipBuffers();

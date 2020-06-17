@@ -233,15 +233,6 @@ namespace Chaos
 		void Reset();
 
 		/**/
-		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
-
-		/**/
-		void PushPhysicsState();
-
-		/**/
-		void PushPhysicsStatePooled();
-
-		/**/
 		void BufferPhysicsResults();
 
 		/**/
@@ -400,6 +391,10 @@ namespace Chaos
 				}
 			}
 		}
+
+		/**/
+		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
+		virtual void PushPhysicsState() override;
 
 		//
 		// Solver Data
