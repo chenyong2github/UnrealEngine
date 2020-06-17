@@ -214,7 +214,6 @@ UHLODProxy* FHierarchicalLODUtilities::RetrieveLevelHLODProxy(const ULevel* InLe
 	UHLODProxy* HLODProxy = nullptr;
 	if(HLODPackage)
 	{
-		HLODPackage->SetPackageFlags(PKG_ContainsMapData);	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 		HLODProxy = FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
 	}
 
