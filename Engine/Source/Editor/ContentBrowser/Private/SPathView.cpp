@@ -37,10 +37,12 @@ SPathView::~SPathView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem();
-		ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
-		ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
-		ContentBrowserData->OnItemDataDiscoveryComplete().RemoveAll(this);
+		if (UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem())
+		{
+			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+			ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+			ContentBrowserData->OnItemDataDiscoveryComplete().RemoveAll(this);
+		}
 	}
 
 	SearchBoxFolderFilter->OnChanged().RemoveAll( this );
