@@ -582,6 +582,9 @@ void FObjectReplicator::StartReplicating(class UActorChannel * InActorChannel)
 		return;
 	}
 
+
+	bOpenAckCalled = false;
+
 	if (ConnectionNetDriver->IsServer() || ConnectionNetDriver->MaySendProperties())
 	{
 		// We don't need to handle retirement if our connection is reliable.
