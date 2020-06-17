@@ -121,6 +121,13 @@ namespace Metasound
 				return Buffer;
 			}
 
+			FORCEINLINE void Zero()
+			{
+				if (Buffer.Num() > 0)
+				{
+					FMemory::Memset(Buffer.GetData(), 0, sizeof(float) * Buffer.Num());
+				}
+			}
 
 		private:
 
@@ -131,4 +138,5 @@ namespace Metasound
 #endif				
 	};
 
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, "AudioBuffer", 0x1b02dac2 , FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
 };

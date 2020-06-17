@@ -195,16 +195,10 @@ namespace Metasound
 			/** Enable move constructor */
 			TDataWriteReference(TDataWriteReference<DataType>&& Other) = default;
 
-			// TODO: Need to think about whether this protection is needed.
-			/** Disable copy operator. Changes to the internal reference object will break link with
-			 * readable references. */
-			//TDataWriteReference<DataType>& operator=(const TDataWriteReference<DataType>& Other) = delete;
+			/** Enable assignment operator. */
 			TDataWriteReference<DataType>& operator=(const TDataWriteReference<DataType>& Other) = default;
 
-			// TODO: Need to think about whether this protection is needed.
-			/** Disable move operator. Changes to the internal reference object will break link with
-			 * readable references. */
-			//TDataWriteReference<DataType>& operator=(TDataWriteReference<DataType>&& Other) = delete;
+			/** Enable move operator. */
 			TDataWriteReference<DataType>& operator=(TDataWriteReference<DataType>&& Other) = default;
 
 			/** Implicit conversion to a readable parameter. */
@@ -238,18 +232,9 @@ namespace Metasound
 			// Provide access to ObjectReference when converting from Write to Read.
 			friend class TDataReadReference<DataType>;
 
-			/** Cast a TDataReadReference to a TDataWriteReference. 
-			 *
-			 * In general TDataReadReferences should not be converted into TDataWriteReferences unless the caller
-			 * can be certain that no other TDataWriteReference exists for the underlying parameter. Having multiple 
-			 * TDataWriteReferences to the same parameter can cause confusion behavior as values are overwritten in
-			 * an underterministic fashion.
-			 */
-			friend TDataWriteReference<DataType> WriteCast(const TDataReadReference<DataType>& InReadableRef)
-			{
-				// Friend because it calls protected constructor
-				return TDataWriteReference<DataType>(static_cast<const FDataReference&>(InReadableRef));
-			}
+			// Friend because it calls protected constructor
+			template <typename T>
+			friend TDataWriteReference<T> WriteCast(const TDataReadReference<T>& InReadableRef);
 
 		protected:
 
@@ -261,6 +246,21 @@ namespace Metasound
 			{
 			}
 	};
+
+	/** Cast a TDataReadReference to a TDataWriteReference. 
+	 *
+	 * In general TDataReadReferences should not be converted into TDataWriteReferences unless the caller
+	 * can be certain that no other TDataWriteReference exists for the underlying parameter. Having multiple 
+	 * TDataWriteReferences to the same parameter can cause confusion behavior as values are overwritten in
+	 * an underterministic fashion.
+	 */
+	template <typename DataType>
+	TDataWriteReference<DataType> WriteCast(const TDataReadReference<DataType>& InReadableRef)
+	{
+		const TDataReference<DataType>& Ref = static_cast<const TDataReference<DataType>&>(InReadableRef); 
+		return TDataWriteReference<DataType>(Ref);
+	}
+
 
 
 	/** TDataReadReference provides read access to a shared parameter reference. */
