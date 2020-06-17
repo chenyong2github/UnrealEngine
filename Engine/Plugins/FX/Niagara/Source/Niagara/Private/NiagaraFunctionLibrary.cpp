@@ -483,6 +483,32 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 	TextureDI->SetTexture(Texture);
 }
 
+UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass, UNiagaraComponent* NiagaraSystem, FName OverrideName)
+{
+	if (NiagaraSystem == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem was nullptr for OverrideName \"%s\"."), *OverrideName.ToString());
+		return nullptr;
+	}
+
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+	FNiagaraVariableBase Variable(FNiagaraTypeDefinition(DIClass), OverrideName);
+	const int32* Index = OverrideParameters.FindParameterOffset(Variable, true);
+	if (Index == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface \"%s\" was not found"), *OverrideName.ToString(), *GetNameSafe(DIClass));
+		return nullptr;
+	}
+
+	UNiagaraDataInterface* UntypedDI = OverrideParameters.GetDataInterface(*Index);
+	if (UntypedDI->IsA(DIClass))
+	{
+		return UntypedDI;
+	}
+	UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface is a \"%s\" and not expected type \"%s\""), *OverrideName.ToString(), *GetNameSafe(UntypedDI->GetClass()), *GetNameSafe(DIClass));
+	return nullptr;
+}
+
 UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
