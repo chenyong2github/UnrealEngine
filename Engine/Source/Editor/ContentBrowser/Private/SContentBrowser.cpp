@@ -98,8 +98,10 @@ SContentBrowser::~SContentBrowser()
 
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem();
-		ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+		if (UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem())
+		{
+			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+		}
 	}
 }
 
