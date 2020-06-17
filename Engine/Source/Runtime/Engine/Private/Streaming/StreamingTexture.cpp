@@ -150,7 +150,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
-	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
+	if (RenderAsset && OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
 	{
 		if (RenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
 		{
