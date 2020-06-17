@@ -2963,6 +2963,9 @@ public:
 	/** Timestamp from the client of most recent ServerMove() processed for this player. Reset occasionally for timestamp resets (to maintain accuracy). */
 	float CurrentClientTimeStamp;
 
+	/** Timestamp from the client of most recent ServerMove() received for this player, including rejected requests. */
+	float LastReceivedClientTimeStamp;
+
 	/** Timestamp of total elapsed client time. Similar to CurrentClientTimestamp but this is accumulated with the calculated DeltaTime for each move on the server. */
 	double ServerAccumulatedClientTimeStamp;
 
