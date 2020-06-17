@@ -50,7 +50,7 @@ DECLARE_CYCLE_STAT(TEXT("Resolve compiled statements"), EKismetCompilerStats_Res
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
 
-static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
+static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
 {
 	check(SourcePin);
 	const EEdGraphPinDirection Direction = SourcePin->Direction; 
@@ -77,6 +77,10 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 	else if ((PinCategory == UEdGraphSchema_K2::PC_Class) || (PinCategory == UEdGraphSchema_K2::PC_SoftClass))
 	{
 		const UClass* ClassType = (PinSubCategory == UEdGraphSchema_K2::PSC_Self) ? SelfClass : Cast<const UClass>(PinSubCategoryObject);
+		if (ClassType)
+		{
+			ClassType = ClassType->GetAuthoritativeClass();
+		}
 
 		if (ClassType == NULL)
 		{
@@ -98,6 +102,9 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 			{
 				const UClass* OutputClass = (Direction == EGPD_Output) ? ClassType :  MetaClass;
 				const UClass* InputClass = (Direction == EGPD_Output) ? MetaClass : ClassType;
+
+				OutputClass = OutputClass->GetAuthoritativeClass();
+				InputClass = InputClass->GetAuthoritativeClass();
 
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
@@ -263,7 +270,7 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 		MessageLog.Error(*FText::Format(LOCTEXT("UnsupportedTypeForPinFmt", "Unsupported type ({0}) on @@"), UEdGraphSchema_K2::TypeToText(OwningType)).ToString(), SourcePin);
 	}
 
-	return false;
+	return bTypeMismatch || bSubtypeMismatch;
 }
 
 /** Tests to see if a pin is schema compatible with a property */
@@ -313,7 +320,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				}
 			}
 			
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -330,7 +337,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -347,8 +354,8 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
-			bTypeMismatch = bTypeMismatch && ::IsTypeCompatibleWithProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
+			bTypeMismatch = bTypeMismatch || ::DoesTypeNotMatchProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -359,7 +366,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 	else
 	{
 		// For scalars, we just take the passed in property
-		bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
+		bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
 	}
 
 	// Check for the early out...if this is a type dependent parameter in an array function
@@ -1092,7 +1099,7 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 }
 
 /** Creates a property named PropertyName of type PropertyType in the Scope or returns NULL if the type is unknown, but does *not* link that property in */
-FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog)
+FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog, UEdGraphPin* SourcePin)
 {
 	// When creating properties that depend on other properties (e.g. FDelegateProperty/FMulticastDelegateProperty::SignatureFunction)
 	// you may need to update fixup logic in the compilation manager.
@@ -1195,14 +1202,19 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewMapProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if (SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_Node_ErrorFmt", "@@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewMapProperty);
+				}
 			}
+
 			// make the value property:
 			// not feeling good about myself..
 			// Fix up the array property to have the new type-specific property as its inner, and return the new FArrayProperty
@@ -1238,13 +1250,17 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has contained type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewSetProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if(SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_Node_ErrorFmt", "@@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewSetProperty);
+				}
 
 				// We need to be able to serialize (for CPFUO to migrate data), so force the 
 				// property to hash:

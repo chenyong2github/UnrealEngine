@@ -23,7 +23,7 @@ bool FControllerDeviceHelper::FindUnrealEngineKeyByName(EDisplayClusterInputDevi
 		// Check by target type (Float Axis)
 		if (DevType == EDisplayClusterInputDeviceType::VrpnAnalog)
 		{
-			if (!itKey.IsFloatAxis())
+			if (!itKey.IsAxis1D())
 			{
 				// Skip all not buttons keys
 				continue;
@@ -34,7 +34,7 @@ bool FControllerDeviceHelper::FindUnrealEngineKeyByName(EDisplayClusterInputDevi
 		if (DevType == EDisplayClusterInputDeviceType::VrpnButton ||
 			DevType == EDisplayClusterInputDeviceType::VrpnKeyboard)
 		{
-			if (itKey.IsFloatAxis() || itKey.IsTouch() || itKey.IsVectorAxis())
+			if (itKey.IsAnalog() || itKey.IsTouch())
 			{
 				// Skip all not buttons keys
 				continue;

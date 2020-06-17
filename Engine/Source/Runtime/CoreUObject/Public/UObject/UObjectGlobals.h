@@ -676,122 +676,6 @@ bool StaticAllocateObjectErrorTests( const UClass* Class, UObject* InOuter, FNam
  */
 COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr, UPackage* ExternalPackage = nullptr);
 
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-class COREUOBJECT_API FSubobjectPtr
-{
-protected:
-
-	enum EInvalidPtr
-	{
-		InvalidPtrValue = 3,
-	};
-
-	/** Subobject pointer. */
-	UObject* Object;
-
-	/** Constructor used by TSubobjectPtr. */
-	explicit FSubobjectPtr(UObject* InObject)
-		: Object(InObject)
-	{
-	}
-
-	/** Sets the object pointer. Does runtime checks to see if the assignment is allowed.
-	 * 
-	 * @param InObject New subobject pointer.
-	 */
-	void Set(UObject* InObject);
-
-public:
-	/** Resets the internal pointer to nullptr. */
-	FORCEINLINE void Reset()
-	{
-		Set(nullptr);
-	}
-	/** Gets the pointer to the subobject. */
-	FORCEINLINE UObject* Get() const
-	{
-		return Object;
-	}
-	/** Checks if the subobject != nullptr. */
-	FORCEINLINE bool IsValid() const
-	{
-		return !!Object && Object != (UObject*)InvalidPtrValue;
-	}
-	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE explicit operator bool() const
-	{
-		return IsValid();
-	}
-	/** Compare against nullptr */
-	FORCEINLINE bool operator==(TYPE_OF_NULL Other) const
-	{
-		return !IsValid();
-	}
-	FORCEINLINE bool operator!=(TYPE_OF_NULL Other) const
-	{
-		return IsValid();
-	}
-
-	FORCEINLINE static bool IsInitialized(const UObject* Ptr)
-	{
-		return (Ptr != (UObject*)InvalidPtrValue);
-	}
-};
-
-template<> struct TIsPODType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsZeroConstructType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsWeakPointerType<FSubobjectPtr> { enum { Value = false }; };
-
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-template <class SubobjectType>
-class TSubobjectPtrDeprecated : public FSubobjectPtr
-{
-public:
-	/** Internal constructors. */
-	TSubobjectPtrDeprecated(SubobjectType* InObject)
-		: FSubobjectPtr(InObject)
-	{}
-	TSubobjectPtrDeprecated& operator=(const TSubobjectPtrDeprecated& Other)
-	{ 
-		Set(Other.Object);
-		return *this; 
-	}
-
-	/** Default constructor. */
-	TSubobjectPtrDeprecated()
-		: FSubobjectPtr((UObject*)FSubobjectPtr::InvalidPtrValue)
-	{
-		static_assert(sizeof(TSubobjectPtrDeprecated) == sizeof(UObject*), "TSuobjectPtr should equal pointer size.");
-	}
-	/** Copy constructor */
-	template <class DerivedSubobjectType>
-	TSubobjectPtrDeprecated(TSubobjectPtrDeprecated<DerivedSubobjectType>& Other)
-		: FSubobjectPtr(Other.Object)
-	{
-		static_assert(TPointerIsConvertibleFromTo<DerivedSubobjectType, const SubobjectType>::Value, "Subobject pointers must be compatible.");
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* Get() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* operator->() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE operator SubobjectType*() const
-	{
-		return (SubobjectType*)Object;
-	}
-};
-
-template<class T> struct TIsPODType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsZeroConstructType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsWeakPointerType< TSubobjectPtrDeprecated<T> > { enum { Value = false }; };
-
-
 /**
  * Internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
@@ -865,29 +749,6 @@ public:
 		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 
-	/**
-	 * Create optional component or subobject. Optional subobjects may not get created
-	 * when a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
-	 * @param	TReturnType					class of return type, all overrides must be of this type
-	 * @param	Outer						outer to construct the subobject in
-	 * @param	SubobjectName				name of the new component
-	 * @param bTransient		true if the component is being assigned to a transient property
-	 */
-
-	/**
-	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
-	 * @param	TReturnType					Class of return type, all overrides must be of this type
-	 * @param	SubobjectName				Name of the new component
-	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
-	 */
-	template<class TReturnType>
-	UE_DEPRECATED(4.23, "CreateAbstract did not work as intended and has been deprecated in favor of CreateDefaultObject")
-	TReturnType* CreateAbstractDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
-	{
-		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
-	}
-
 	/** 
 	* Create a component or subobject 
 	* @param TReturnType class of return type, all overrides must be of this type 
@@ -936,13 +797,6 @@ public:
 	 * @param bIsTransient		true if the component is being assigned to a transient property
 	 */
 	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const;
-
-	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
-	{
-		return CreateDefaultSubobject(Outer, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
-	}
-
 
 	/**
 	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
@@ -2121,18 +1975,6 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	/** Called when trying to figure out if a UObject is a primary asset, if it doesn't implement GetPrimaryAssetId itself */
 	DECLARE_DELEGATE_RetVal_OneParam(FPrimaryAssetId, FGetPrimaryAssetIdForObject, const UObject*);
 	static FGetPrimaryAssetIdForObject GetPrimaryAssetIdForObject;
-
-	DECLARE_DELEGATE_OneParam(FSoftObjectPathLoaded, const FString&);
-	UE_DEPRECATED(4.17, "StringAssetReferenceLoaded is deprecated, call FSoftObjectPath::PostLoadPath instead")
-	static FSoftObjectPathLoaded StringAssetReferenceLoaded;
-
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FSoftObjectPathSaving, FString const& /*SavingAssetLongPathname*/);
-	UE_DEPRECATED(4.17, "StringAssetReferenceSaving is deprecated, call FSoftObjectPath::PreSavePath instead")
-	static FSoftObjectPathSaving StringAssetReferenceSaving;
-
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRedirectorFollowed, const FString&, UObject*);
-	UE_DEPRECATED(4.17, "RedirectorFollowed is deprecated, FixeupRedirects was replaced with ResavePackages -FixupRedirect")
-	static FOnRedirectorFollowed RedirectorFollowed;
 
 	/** Called during cooking to see if a specific package should be cooked for a given target platform */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FShouldCookPackageForPlatform, const UPackage*, const ITargetPlatform*);

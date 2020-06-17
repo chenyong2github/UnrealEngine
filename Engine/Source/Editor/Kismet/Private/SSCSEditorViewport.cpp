@@ -351,7 +351,8 @@ void SSCSEditorViewport::BindCommands()
 		Commands.EnableSimulation,
 		FExecuteAction::CreateSP(this, &SSCSEditorViewport::ToggleIsSimulateEnabled),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(ViewportClient.Get(), &FSCSEditorViewportClient::GetIsSimulateEnabled));
+		FIsActionChecked::CreateSP(ViewportClient.Get(), &FSCSEditorViewportClient::GetIsSimulateEnabled),
+		FIsActionButtonVisible::CreateSP(this, &SSCSEditorViewport::ShouldShowViewportCommands));
 
 	// Toggle camera lock on/off
 	CommandList->MapAction(
@@ -434,6 +435,12 @@ void SSCSEditorViewport::OnComponentSelectionChanged()
 void SSCSEditorViewport::OnFocusViewportToSelection()
 {
 	ViewportClient->FocusViewportToSelection();
+}
+
+bool SSCSEditorViewport::ShouldShowViewportCommands() const
+{
+	// Hide if actively debugging
+	return !GIntraFrameDebuggingGameThread;
 }
 
 bool SSCSEditorViewport::GetIsSimulateEnabled()

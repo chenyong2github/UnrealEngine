@@ -50,18 +50,12 @@
 
 struct FCustomStructureParamHelper
 {
-	static FName GetCustomStructureParamName()
-	{
-		static FName Name(TEXT("CustomStructureParam"));
-		return Name;
-	}
-
 	static void FillCustomStructureParameterNames(const UFunction* Function, TArray<FString>& OutNames)
 	{
 		OutNames.Reset();
 		if (Function)
 		{
-			const FString& MetaDataValue = Function->GetMetaData(GetCustomStructureParamName());
+			const FString& MetaDataValue = Function->GetMetaData(FBlueprintMetadata::MD_CustomStructureParam);
 			if (!MetaDataValue.IsEmpty())
 			{
 				MetaDataValue.ParseIntoArray(OutNames, TEXT(","), true);
@@ -261,12 +255,6 @@ UEdGraphPin* FDynamicOutputHelper::GetTypePickerPin(const UK2Node_CallFunction* 
 			TypePickerPin = FuncNode->FindPin(TypeDeterminingPinName);
 		}
 	}
-
-	if (TypePickerPin && !ensure(TypePickerPin->Direction == EGPD_Input))
-	{
-		TypePickerPin = nullptr;
-	}
-
 	return TypePickerPin;
 }
 
@@ -369,8 +357,9 @@ bool FDynamicOutputHelper::IsTypePickerPin(UEdGraphPin* Pin) const
 		}
 	}
 
-	bool const bPinIsClassPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class);
-	bool const bPinIsObjectPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object);
+	bool const bPinIsClassPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass);
+	bool const bPinIsObjectPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject);
+
 	return bIsTypeDeterminingPin && (bPinIsClassPicker || bPinIsObjectPicker) && (Pin->Direction == EGPD_Input);
 }
 
@@ -422,15 +411,15 @@ void FDynamicOutputHelper::GetDynamicOutPins(const UK2Node_CallFunction* FuncNod
 			{
 				// Check against each property that the user has specified
 				for (const FString& OutputPinName : UserDefinedDynamicProprties)
-		{
+				{
 					// If this is the return parameter of this function or the pin name matches that which the user has specified
 					if (OutputPinName == ParamIt->GetName())
-			{
+					{
 						AddPinToOutputLambda(*ParamIt, OutPins);
 						break;
+					}
+				}
 			}
-		}
-	}
 		}
 	}
 }
@@ -445,7 +434,9 @@ bool FDynamicOutputHelper::CanConformPinType(const UK2Node_CallFunction* FuncNod
 		const FName PinCategory = TypeToTest.PinCategory;
 		if ((PinCategory == UEdGraphSchema_K2::PC_Object) ||
 			(PinCategory == UEdGraphSchema_K2::PC_Interface) ||
-			(PinCategory == UEdGraphSchema_K2::PC_Class))
+			(PinCategory == UEdGraphSchema_K2::PC_Class) ||
+			(PinCategory == UEdGraphSchema_K2::PC_SoftObject) || 
+			(PinCategory == UEdGraphSchema_K2::PC_SoftClass))
 		{
 			if (UClass* TypeClass = Cast<UClass>(TypeToTest.PinSubCategoryObject.Get()))
 			{
@@ -3318,6 +3309,12 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 				bIsDisallowed = true;
 				OutReason = LOCTEXT("PinSetConnectionDisallowed", "Containers of containers are not supported - consider wrapping a container in a Structure object").ToString();
 			}
+			// Do not allow exec pins to be connected to a wildcard if this is a container function
+			else if(MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard && OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+			{
+				bIsDisallowed = true;
+				OutReason = LOCTEXT("PinExecConnectionDisallowed", "Cannot create a container of Exec pins.").ToString();
+			}	
 		}
 	}
 

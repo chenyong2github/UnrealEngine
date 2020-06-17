@@ -3760,23 +3760,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 		// VREditor needs to be loaded in non-server editor builds early, so engine content Blueprints can be loaded during DDC generation
 		FModuleManager::Get().LoadModule(TEXT("VREditor"));
 	}
-	// -----------------------------------------------------
-
-	// HACK: load EQS editor as early as possible for statically initialized assets (non cooked EQS assets needs it)
-	// cooking needs this module too
-	bool bEnvironmentQueryEditor = false;
-	GConfig->GetBool(TEXT("EnvironmentQueryEd"), TEXT("EnableEnvironmentQueryEd"), bEnvironmentQueryEditor, GEngineIni);
-	if (bEnvironmentQueryEditor
-#if WITH_EDITOR
-		|| GetDefault<UEditorExperimentalSettings>()->bEQSEditor
-#endif // WITH_EDITOR
-		)
-	{
-		FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-	}
-
-	// We need this for blueprint projects that have online functionality.
-	//FModuleManager::Get().LoadModule(TEXT("OnlineBlueprintSupport"));
 
 	if (IsRunningCommandlet())
 	{
@@ -3962,9 +3945,6 @@ int32 FEngineLoop::Init()
 	}
 
 	// Call init callbacks
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UEngine::OnPostEngineInit.Broadcast();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::OnPostEngineInit.Broadcast();
 
 	SlowTask.EnterProgressFrame(30);

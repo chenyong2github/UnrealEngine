@@ -4,6 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagQueryGraphPin"
 
@@ -78,8 +79,13 @@ TSharedRef<SWidget> SGameplayTagQueryGraphPin::GetListContent()
 
 void SGameplayTagQueryGraphPin::OnQueryChanged()
 {
-	// Set Pin Data
-	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, TagQueryExportText);
+	if (TagQueryExportText != GraphPinObj->GetDefaultAsString())
+	{
+		// Set Pin Data
+		const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangePinValue", "Change Pin Value"));
+		GraphPinObj->Modify();
+		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, TagQueryExportText);
+	}
 	QueryDescription = TagQuery->GetDescription();
 }
 

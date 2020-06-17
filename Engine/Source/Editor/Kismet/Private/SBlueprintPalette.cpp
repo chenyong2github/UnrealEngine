@@ -55,6 +55,7 @@
 #include "SPinTypeSelector.h"
 #include "GraphEditorSettings.h"
 #include "UObject/WeakFieldPtr.h"
+#include "BlueprintNodeSpawner.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -309,6 +310,15 @@ static void GetPaletteItemIcon(TSharedPtr<FEdGraphSchemaAction> ActionIn, UBluep
 	{
 		FBlueprintActionMenuItem* NodeSpawnerAction = (FBlueprintActionMenuItem*)ActionIn.Get();
 		BrushOut = NodeSpawnerAction->GetMenuIcon(ColorOut);
+
+		TSubclassOf<UEdGraphNode> VarNodeClass = NodeSpawnerAction->GetRawAction()->NodeClass;
+		// if the node is a variable getter or setter, use the variable icon instead, because maps need two brushes
+		if (*VarNodeClass && VarNodeClass->IsChildOf(UK2Node_Variable::StaticClass()))
+		{
+			const UK2Node_Variable* TemplateNode = Cast<UK2Node_Variable>(NodeSpawnerAction->GetRawAction()->GetTemplateNode());
+			FProperty* Property = TemplateNode->GetPropertyForVariable();
+			BrushOut = FBlueprintEditor::GetVarIconAndColorFromProperty(Property, ColorOut, SecondaryBrushOut, SecondaryColorOut);
+		}
 	}
 	else if (ActionIn->GetTypeId() == FBlueprintDragDropMenuItem::StaticGetTypeId())
 	{

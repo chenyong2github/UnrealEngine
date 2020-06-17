@@ -91,12 +91,18 @@ public:
 	/// [ClassMetadata] Used to make the first subclass of a class ignore all inherited showCategories and hideCategories commands
 	static const FName MD_IgnoreCategoryKeywordsInSubclasses;
 
+	/** Specifies which struct implements the custom thunk functions for this class */
+	static const FName MD_CustomThunkTemplates;
+
 	//    function metadata
 	/** Specifies a UFUNCTION as Kismet protected, which can only be called from itself */
 	static const FName MD_Protected;
 
 	/** Marks a UFUNCTION as latent execution */
 	static const FName MD_Latent;
+
+	/** Indicates that the UFUNCTION implements its own thunk function */
+	static const FName MD_CustomThunk;
 
 	/** Marks a UFUNCTION as accepting variadic arguments */
 	static const FName MD_Variadic;
@@ -160,9 +166,13 @@ public:
 	/** If true, the hidden world context pin will be visible when the function is placed in a child blueprint of the class. */
 	static const FName MD_ShowWorldContextPin;
 
+	/** Comma delimited list of pins that should be hidden on this function. */
+	static const FName MD_HidePin;
+
 	static const FName MD_BlueprintInternalUseOnly;
 	static const FName MD_NeedsLatentFixup;
 
+	static const FName MD_LatentInfo;
 	static const FName MD_LatentCallbackTarget;
 
 	/** If true, properties defined in the C++ private scope will be accessible to blueprints */
@@ -201,11 +211,14 @@ public:
 	/** Metadata that flags make/break functions for specific struct types. */
 	static const FName MD_NativeMakeFunction;
 	static const FName MD_NativeBreakFunction;
+	static const FName MD_NativeDisableSplitPin;
 
 	/** Metadata that flags function params that govern what type of object the function returns */
 	static const FName MD_DynamicOutputType;
 	/** Metadata that flags the function output param that will be controlled by the "MD_DynamicOutputType" pin */
 	static const FName MD_DynamicOutputParam;
+
+	static const FName MD_CustomStructureParam;
 
 	static const FName MD_ArrayParam;
 	static const FName MD_ArrayDependentParam;

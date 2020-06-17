@@ -855,13 +855,6 @@
 	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")
 #endif
 
-// This is a temporary macro, will be removed when TSubobjectPtr can be safely removed
-#ifndef private_subobject
-#define private_subobject \
-DEPRECATED_MACRO(4.17, "private_subobject macro is deprecated.  Please use the standard 'private' keyword instead.") \
-private
-#endif
-
 // Console ANSICHAR/TCHAR command line handling
 #if PLATFORM_COMPILER_HAS_TCHAR_WMAIN
 #define INT32_MAIN_INT32_ARGC_TCHAR_ARGV() int32 wmain(int32 ArgC, TCHAR* ArgV[])

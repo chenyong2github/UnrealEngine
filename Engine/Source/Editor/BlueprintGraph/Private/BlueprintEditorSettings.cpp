@@ -14,6 +14,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	// Style Settings
 	, bDrawMidpointArrowsInBlueprints(false)
 	, bShowGraphInstructionText(true)
+	, bHideUnrelatedNodes(false)
 	// Workflow Settings
 	, bSplitContextTargetSettings(true)
 	, bExposeAllMemberComponentFunctions(true)

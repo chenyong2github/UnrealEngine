@@ -37,6 +37,7 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.HintText(LOCTEXT("Search", "Search"))
 				.OnTextChanged(this, &SSearchableComboBox::OnSearchTextChanged)
+				.Visibility(InArgs._SearchVisibility)
 			]
 
 			+ SVerticalBox::Slot()

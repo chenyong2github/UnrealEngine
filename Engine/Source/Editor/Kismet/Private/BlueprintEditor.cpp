@@ -65,6 +65,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_SetFieldsInStruct.h"
+#include "K2Node_Knot.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/Breakpoint.h"
 #include "ScopedTransaction.h"
@@ -160,7 +161,6 @@
 #include "NativeCodeGenerationTool.h"
 
 // Focusing related nodes feature
-#include "Preferences/BlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -580,18 +580,24 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 	if (VarScope != NULL)
 	{
 		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
-		if (Property != NULL)
-		{
-			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		return GetVarIconAndColorFromProperty(Property, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
+	}
+	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+}
 
-			FEdGraphPinType PinType;
-			if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
-			{
-				IconColorOut = K2Schema->GetPinTypeColor(PinType);
-				SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
-				SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
-				return FBlueprintEditorUtils::GetIconFromPin(PinType);
-			}
+FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
+{
+	if (Property != NULL)
+	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+		FEdGraphPinType PinType;
+		if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
+		{
+			IconColorOut = K2Schema->GetPinTypeColor(PinType);
+			SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
+			SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
+			return FBlueprintEditorUtils::GetIconFromPin(PinType);
 		}
 	}
 	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
@@ -1528,8 +1534,7 @@ void FBlueprintEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
 }
 
 FBlueprintEditor::FBlueprintEditor()
-	: EditorOptions(nullptr)
-	, bSaveIntermediateBuildProducts(false)
+	: bSaveIntermediateBuildProducts(false)
 	, bPendingDeferredClose(false)
 	, bRequestedSavingOpenDocumentState(false)
 	, bBlueprintModifiedOnOpen (false)
@@ -1934,8 +1939,6 @@ void FBlueprintEditor::InitBlueprintEditor(
 
 	// TRUE if a single Blueprint is being opened and is marked as newly created
 	bool bNewlyCreated = InBlueprints.Num() == 1 && InBlueprints[0]->bIsNewlyCreated;
-
-	EditorOptions = nullptr;
 
 	// Load editor settings from disk.
 	LoadEditorSettings();
@@ -2892,7 +2895,8 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked)
+		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+		FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, true)
 	);
 }
 
@@ -3923,8 +3927,6 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 			Collector.AddReferencedObject(Obj);
 		}
 	}
-
-	Collector.AddReferencedObject(EditorOptions);
 
 	UserDefinedStructures.Remove(TWeakObjectPtr<UUserDefinedStruct>()); // Remove NULLs
 	for (const TWeakObjectPtr<UUserDefinedStruct>& ObjectPtr : UserDefinedStructures)
@@ -5730,6 +5732,40 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			K2Schema->ReconstructNode(*NewEventNode);
 		}
 		
+		// If this function had any local scope variables, we need to convert them to global scope
+		if(SelectedCallFunctionNode->LocalVariables.Num() > 0)
+		{
+			// Find any UK2Node_Variable's that may reference a local variable
+			TArray<UK2Node_Variable*> VarNodes;
+			FunctionGraph->GetNodesOfClass<UK2Node_Variable>(VarNodes);
+
+			// Make a globally scoped version of any local variables
+			for (const FBPVariableDescription& LocalVar : SelectedCallFunctionNode->LocalVariables)
+			{
+				// If a variable already exists of this name globally, then we need to use a unique name
+				// Only use FindUniqueKismetName if one exists because otherwise it will always add a "_0" to the name
+				FName NewVarName = FBlueprintEditorUtils::FindNewVariableIndex(NodeBP, LocalVar.VarName) == INDEX_NONE ?
+					LocalVar.VarName : FBlueprintEditorUtils::FindUniqueKismetName(NodeBP, LocalVar.VarName.ToString());
+
+				if (FBlueprintEditorUtils::AddMemberVariable(NodeBP, NewVarName, LocalVar.VarType, LocalVar.DefaultValue))
+				{
+					// Upon success, update the variable node's reference members
+					const FGuid NewVarGuid = FBlueprintEditorUtils::FindMemberVariableGuidByName(NodeBP, NewVarName);
+
+					for (UK2Node_Variable* VarNode : VarNodes)
+					{
+						if (VarNode->GetVarName() == LocalVar.VarName)
+						{
+							VarNode->Modify();
+							VarNode->VariableReference.SetDirect(NewVarName, NewVarGuid, nullptr, true);
+							// Need to reconstruct the node here to update the displayed variable name
+							K2Schema->ReconstructNode(*VarNode);
+						}
+					}
+				}
+			}
+		}
+
 		// Keep track of any nodes that have been expanded out of the function graph
 		TSet<UEdGraphNode*> ExpandedNodes;
 
@@ -6265,28 +6301,44 @@ void FBlueprintEditor::DeleteSelectedNodes()
 
 void FBlueprintEditor::ReconnectExecPins(UK2Node* Node)
 {
-	// Only do this on impure nodes
-	if (Node && !Node->IsNodePure())
+	if(!Node)
 	{
-		// Are there exec/then connections?
-		UEdGraphPin* const ExecPin = Node->GetExecPin();
-		UEdGraphPin* const ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+		return;
+	}
+
+	UEdGraphPin* ExecPin = nullptr;
+	UEdGraphPin* ThenPin = nullptr;
+
+	// Get pins for knot nodes or impure nodes only
+	if(UK2Node_Knot* KnotNode = Cast<UK2Node_Knot>(Node))
+	{
+		ExecPin = KnotNode->GetInputPin();
+		ThenPin = KnotNode->GetOutputPin();
+	}
+	else if(!Node->IsNodePure())
+	{
+		ExecPin = Node->GetExecPin();
+
 		// Nodes with multiple "then" pins (branch, sequence, foreach, etc) will actually have the FindPin return nullptr
-		if (ExecPin && ThenPin)
+		ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+	}
+
+	// We don't want to try and auto connect nodes with multiple outputs, 	
+	// because it's likely the user will not want those connections anyway
+	if (ExecPin && ThenPin)
+	{
+		// Make a connection from every incoming exec pin to every outgoing then pin
+		for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
 		{
-			// Make a connection from every incoming exec pin to every outgoing then pin
-			for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
+			if (IncomingConnectionPin)
 			{
-				if (IncomingConnectionPin)
+				for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
 				{
-					for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
-					{
-						IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
-					}
+					IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
 				}
 			}
 		}
-	}
+	}	
 }
 
 bool FBlueprintEditor::CanDeleteNodes() const
@@ -7391,6 +7443,16 @@ bool FBlueprintEditor::IsToggleHideUnrelatedNodesChecked() const
 	return bHideUnrelatedNodes == true;
 }
 
+bool FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const
+{
+	// Only show the toolbar button when not actively debugging, otherwise the debug buttons won't fit
+	if (bIsToolbar)
+	{
+		return !GIntraFrameDebuggingGameThread;
+	}
+	return GIntraFrameDebuggingGameThread;
+}
+
 TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -7404,7 +7466,7 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 			+SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-					.Text(LOCTEXT("FocusRelatedOptions", "Focus Related Options"))
+					.Text(LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"))
 					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
 			]
 		];
@@ -7431,6 +7493,23 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 
 	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
 
+	TSharedPtr<FUICommandInfo> ToggleCmd = FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes;
+
+	// Add a menu version of toggle, when we can't show the full one
+	MenuBuilder.AddMenuEntry
+	(
+		ToggleCmd->GetLabel(),
+		ToggleCmd->GetDescription(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+			FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, false)),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
 
 	return MenuBuilder.MakeWidget();
@@ -7438,9 +7517,9 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 
 void FBlueprintEditor::LoadEditorSettings()
 {
-	EditorOptions = NewObject<UBlueprintEditorOptions>();
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
 
-	if (EditorOptions->bHideUnrelatedNodes)
+	if (LocalSettings->bHideUnrelatedNodes)
 	{
 		ToggleHideUnrelatedNodes();
 	}
@@ -7448,11 +7527,10 @@ void FBlueprintEditor::LoadEditorSettings()
 
 void FBlueprintEditor::SaveEditorSettings()
 {
-	if ( EditorOptions )
-	{
-		EditorOptions->bHideUnrelatedNodes     = bHideUnrelatedNodes;
-		EditorOptions->SaveConfig();
-	}
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	
+	LocalSettings->bHideUnrelatedNodes     = bHideUnrelatedNodes;
+	LocalSettings->SaveConfig();
 }
 
 void FBlueprintEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)

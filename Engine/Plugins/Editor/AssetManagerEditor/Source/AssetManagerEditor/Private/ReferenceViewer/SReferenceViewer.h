@@ -69,6 +69,9 @@ private:
 	/** Handler for clicking the history forward button */
 	FReply ForwardClicked();
 
+	/** Refresh the current view */
+	FReply RefreshClicked();
+
 	/** Handler for when the graph panel tells us to go back in history (like using the mouse thumb button) */
 	void GraphNavigateHistoryBack();
 
@@ -83,6 +86,9 @@ private:
 
 	/** Gets the text to be displayed in the address bar */
 	FText GetAddressBarText() const;
+
+	/** Gets the text to be displayed for warning/status updates */
+	FText GetStatusText() const;
 
 	/** Called when the path is being edited */
 	void OnAddressBarTextChanged(const FText& NewText);
@@ -158,6 +164,7 @@ private:
 	bool HasAtLeastOnePackageNodeSelected() const;
 	bool HasAtLeastOneRealNodeSelected() const;
 
+	void OnAssetRegistryChanged(const FAssetData& AssetData);
 	void OnInitialAssetRegistrySearchComplete();
 	EActiveTimerReturnType TriggerZoomToFit(double InCurrentTime, float InDeltaTime);
 private:
@@ -201,4 +208,9 @@ private:
 	bool bShowShowSearchableNames;
 	/** Whether to visually show to the user the option of "Show Native Packages" */
 	bool bShowShowNativePackages;
+	/** True if our view is out of date due to asset registry changes */
+	bool bDirtyResults;
+
+	/** Handle to know if dirty */
+	FDelegateHandle AssetRefreshHandle;
 };

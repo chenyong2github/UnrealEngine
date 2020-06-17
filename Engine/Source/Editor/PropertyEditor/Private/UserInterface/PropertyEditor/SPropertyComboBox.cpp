@@ -11,6 +11,7 @@ void SPropertyComboBox::Construct( const FArguments& InArgs )
 	RestrictedList = InArgs._RestrictedList.Get();
 	RichToolTips = InArgs._RichToolTipList;
 	OnSelectionChanged = InArgs._OnSelectionChanged;
+	ShowSearchForItemCount = InArgs._ShowSearchForItemCount;
 	Font = InArgs._Font;
 
 	// find the initially selected item, if any
@@ -35,7 +36,7 @@ void SPropertyComboBox::Construct( const FArguments& InArgs )
 	}
 
 	auto VisibleTextAttr = InArgs._VisibleText;
-	SComboBox< TSharedPtr<FString> >::Construct(SComboBox< TSharedPtr<FString> >::FArguments()
+	SSearchableComboBox::Construct(SSearchableComboBox::FArguments()
 		.Content()
 		[
 			SNew( STextBlock )
@@ -47,6 +48,7 @@ void SPropertyComboBox::Construct( const FArguments& InArgs )
 		.OnSelectionChanged(this, &SPropertyComboBox::OnSelectionChangedInternal)
 		.OnComboBoxOpening(InArgs._OnComboBoxOpening)
 		.InitiallySelectedItem(InitiallySelectedItem)
+		.SearchVisibility(this, &SPropertyComboBox::GetSearchVisibility)
 		);
 }
 
@@ -74,13 +76,13 @@ void SPropertyComboBox::SetSelectedItem( const FString& InSelectedItem )
 				SetToolTip(nullptr);
 			}
 
-			SComboBox< TSharedPtr<FString> >::SetSelectedItem(ComboItemList[ItemIndex]);
+			SSearchableComboBox::SetSelectedItem(ComboItemList[ItemIndex]);
 			return;
 		}
 	}
 
 	// Clear selection in this case
-	SComboBox< TSharedPtr<FString> >::ClearSelection();
+	SSearchableComboBox::ClearSelection();
 
 }
 
@@ -152,6 +154,16 @@ TSharedRef<SWidget> SPropertyComboBox::OnGenerateComboWidget( TSharedPtr<FString
 		.IsEnabled(bEnabled);
 }
 
+EVisibility SPropertyComboBox::GetSearchVisibility() const
+{
+	if (ShowSearchForItemCount >= 0 && ComboItemList.Num() >= ShowSearchForItemCount)
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
 FReply SPropertyComboBox::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
 	const FKey Key = InKeyEvent.GetKey();
@@ -168,14 +180,14 @@ FReply SPropertyComboBox::OnKeyDown( const FGeometry& MyGeometry, const FKeyEven
 				{
 					if(!RestrictedList[TestIndex])
 					{
-						SComboBox< TSharedPtr<FString> >::SetSelectedItem(ComboItemList[TestIndex]);
+						SSearchableComboBox::SetSelectedItem(ComboItemList[TestIndex]);
 						break;
 					}
 				}
 			}
 			else
 			{
-				SComboBox< TSharedPtr<FString> >::SetSelectedItem(ComboItemList[SelectionIndex - 1]);
+				SSearchableComboBox::SetSelectedItem(ComboItemList[SelectionIndex - 1]);
 			}
 		}
 
@@ -193,21 +205,21 @@ FReply SPropertyComboBox::OnKeyDown( const FGeometry& MyGeometry, const FKeyEven
 				{
 					if(!RestrictedList[TestIndex])
 					{
-						SComboBox< TSharedPtr<FString> >::SetSelectedItem(ComboItemList[TestIndex]);
+						SSearchableComboBox::SetSelectedItem(ComboItemList[TestIndex]);
 						break;
 					}
 				}
 			}
 			else
 			{
-				SComboBox< TSharedPtr<FString> >::SetSelectedItem(ComboItemList[SelectionIndex + 1]);
+				SSearchableComboBox::SetSelectedItem(ComboItemList[SelectionIndex + 1]);
 			}
 		}
 
 		return FReply::Handled();
 	}
 
-	return SComboBox< TSharedPtr<FString> >::OnKeyDown( MyGeometry, InKeyEvent );
+	return SSearchableComboBox::OnKeyDown( MyGeometry, InKeyEvent );
 }
 
 #undef LOCTEXT_NAMESPACE

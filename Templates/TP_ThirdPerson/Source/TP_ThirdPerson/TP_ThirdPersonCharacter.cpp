@@ -106,7 +106,7 @@ void ATP_ThirdPersonCharacter::LookUpAtRate(float Rate)
 
 void ATP_ThirdPersonCharacter::MoveForward(float Value)
 {
-	if ((Controller != NULL) && (Value != 0.0f))
+	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -120,7 +120,7 @@ void ATP_ThirdPersonCharacter::MoveForward(float Value)
 
 void ATP_ThirdPersonCharacter::MoveRight(float Value)
 {
-	if ( (Controller != NULL) && (Value != 0.0f) )
+	if ( (Controller != nullptr) && (Value != 0.0f) )
 	{
 		// find out which way is right
 		const FRotator Rotation = Controller->GetControlRotation();

@@ -53,14 +53,39 @@ bool UKismetInputLibrary::Key_IsKeyboardKey(const FKey& Key)
 	return Key.IsBindableInBlueprints() && (Key.IsGamepadKey() == false && Key.IsMouseButton() == false);
 }
 
-bool UKismetInputLibrary::Key_IsFloatAxis(const FKey& Key)
-{
-	return Key.IsFloatAxis();
-}
-
 bool UKismetInputLibrary::Key_IsVectorAxis(const FKey& Key)
 {
-	return Key.IsVectorAxis();
+	return Key.IsAxis2D() || Key.IsAxis3D();
+}
+
+bool UKismetInputLibrary::Key_IsAxis1D(const FKey& Key)
+{
+	return Key.IsAxis1D();
+}
+
+bool UKismetInputLibrary::Key_IsAxis2D(const FKey& Key)
+{
+	return Key.IsAxis2D();
+}
+
+bool UKismetInputLibrary::Key_IsAxis3D(const FKey& Key)
+{
+	return Key.IsAxis3D();
+}
+
+bool UKismetInputLibrary::Key_IsButtonAxis(const FKey& Key)
+{
+	return Key.IsButtonAxis();
+}
+
+bool UKismetInputLibrary::Key_IsAnalog(const FKey& Key)
+{
+	return Key.IsAnalog();
+}
+
+bool UKismetInputLibrary::Key_IsDigital(const FKey& Key)
+{
+	return Key.IsDigital();
 }
 
 bool UKismetInputLibrary::Key_IsValid(const FKey& Key)
@@ -181,9 +206,9 @@ bool UKismetInputLibrary::InputEvent_IsRightCommandDown(const FInputEvent& Input
 	return Input.IsRightCommandDown();
 }
 
-FText UKismetInputLibrary::InputChord_GetDisplayName(const FInputChord& Key) 
-{ 
-	return Key.GetInputText(); 
+FText UKismetInputLibrary::InputChord_GetDisplayName(const FInputChord& Key)
+{
+	return Key.GetInputText();
 }
 
 FKey UKismetInputLibrary::GetKey(const FKeyEvent& Input)

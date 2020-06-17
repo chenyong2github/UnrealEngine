@@ -271,7 +271,7 @@ public:
 		/** Whether the newly created blueprint should be opened in the editor */
 		bool bOpenBlueprint;
 
-		/** The parent class to use when creating the blueprint.If null, the class of Actor will be used.If specified, must be a subclass of the Actor's class */
+		/** The parent class to use when creating the blueprint. If null, the class of Actor will be used.  If specified, must be a subclass of the Actor's class */
 		UClass* ParentClassOverride;
 	};
 
@@ -300,14 +300,16 @@ public:
 	 * @param Actor					The actor to use as the template for the blueprint
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
 	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
-	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr)
+	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr, bool bOpenInEditor = true)
 	{
 		FCreateBlueprintFromActorParams Params;
 		Params.bReplaceActor = bReplaceActor;
 		Params.bKeepMobility = bKeepMobility;
+		Params.bOpenBlueprint = bOpenInEditor;
 		Params.ParentClassOverride = ParentClassOverride;
 		return CreateBlueprintFromActor(Path, Actor, Params);
 	}
@@ -320,17 +322,78 @@ public:
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @param ParentClassOverride	The parent class to use when creating the blueprint. If null, the class of Actor will be used. If specified, must be a subclass of the Actor's class.
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
 	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr)
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr, bool bOpenInEditor = true)
 	{
 		FCreateBlueprintFromActorParams Params;
 		Params.bReplaceActor = bReplaceInWorld;
 		Params.bKeepMobility = bKeepMobility;
+		Params.bOpenBlueprint = bOpenInEditor;
 		Params.ParentClassOverride = ParentClassOverride;
 		return CreateBlueprintFromActor(BlueprintName, Outer, Actor, Params);
 	}
+
+	/** Parameter struct for customizing calls to CreateBlueprintFromActors */
+	struct FCreateBlueprintFromActorsParams
+	{
+		FCreateBlueprintFromActorsParams(const TArray<AActor*>& Actors)
+			: RootActor(nullptr)
+			, AdditionalActors(Actors)
+			, bReplaceActors(true)
+			, bDeferCompilation(false)
+			, bOpenBlueprint(true)
+			, ParentClass(AActor::StaticClass())
+		{
+		}
+
+		FCreateBlueprintFromActorsParams(AActor* RootActor, const TArray<AActor*>& ChildActors)
+			: RootActor(RootActor)
+			, AdditionalActors(ChildActors)
+			, bReplaceActors(true)
+			, bDeferCompilation(false)
+			, bOpenBlueprint(true)
+			, ParentClass(RootActor->GetClass())
+		{
+		}
+
+		/** Optional Actor to use as the template for the blueprint */
+		AActor* RootActor;
+
+		/** The actors to use when creating child actor components */
+		const TArray<AActor*>& AdditionalActors;
+
+		/** If true, replace the actors in the scene with one based on the created blueprint */
+		bool bReplaceActors;
+
+		/** Puts off compilation of the blueprint as additional manipulation is going to be done before it compiles */
+		bool bDeferCompilation;
+
+		/** Whether the newly created blueprint should be opened in the editor */
+		bool bOpenBlueprint;
+
+		/** The parent class to use when creating the blueprint. If a RootActor is specified, the class must be a subclass of the RootActor's class */
+		UClass* ParentClass;
+	};
+
+	/**
+	 * Take a collection of Actors and generate a blueprint based on it
+	 * @param Path					The path to use when creating the package for the new blueprint
+	 * @param Params				The parameter struct containing actors and additional behavior definitions
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const FCreateBlueprintFromActorsParams& Params);
+
+	/**
+	 * Take a collection of Actors and generate a blueprint based on it
+	 * @param BlueprintName			The name to use for the Blueprint
+	 * @param Package				The package to create the blueprint within
+	 * @param Params				The parameter struct containing actors and additional behavior definitions
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const FCreateBlueprintFromActorsParams& Params);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -338,20 +401,18 @@ public:
 	 * @param Actors				The actors to use when creating child actor components
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param ParentClass			The parent class to use when creating the blueprint.
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor, UClass* ParentClass = AActor::StaticClass());
-
-	/**
-	 * Take a collection of Actors and generate a blueprint based on it using the RootActor as the base class and the ChildActors as templates for child actor components.
-	 * @param Path					The path to use when creating the package for the new blueprint
-	 * @param Actor					The actor to use as the template for the blueprint
-	 * @param ChildActors			The actors to use when creating child actor components
-	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
-	 * @param ParentClass			The parent class to use when creating the blueprint.
-	 * @return The blueprint created from the actor
-	 */
-	static UBlueprint* CreateBlueprintFromActors(const FString& Path, AActor* RootActor, const TArray<AActor*>& ChildActors, const bool bReplaceInWorld);
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor, UClass* ParentClass = AActor::StaticClass(), bool bOpenInEditor = true)
+	{
+		FCreateBlueprintFromActorsParams Params(Actors);
+		Params.bReplaceActors = bReplaceActor;
+		Params.ParentClass = ParentClass;
+		Params.bOpenBlueprint = bOpenInEditor;
+		return CreateBlueprintFromActors(Path, Params);
+	}
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -361,19 +422,74 @@ public:
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @param ParentClass			The parent class to use when creating the blueprint.
+	 * @param bOpenInEditor			If true, open the created blueprint in the blueprint editor
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
-	
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass(), bool bOpenInEditor = true)
+	{
+		FCreateBlueprintFromActorsParams Params(Actors);
+		Params.bReplaceActors = bReplaceInWorld;
+		Params.ParentClass = ParentClass;
+		Params.bOpenBlueprint = bOpenInEditor;
+		return CreateBlueprintFromActors(BlueprintName, Package, Params);
+	}
+
+	/** Parameter struct for customizing calls to CreateBlueprintFromActor */
+	struct FHarvestBlueprintFromActorsParams
+	{
+		FHarvestBlueprintFromActorsParams()
+			: bReplaceActors(true)
+			, bOpenBlueprint(true)
+			, ParentClass(AActor::StaticClass())
+		{
+		}
+
+		/** If true, replace the actors in the scene with one based on the created blueprint */
+		bool bReplaceActors;
+
+		/** Whether the newly created blueprint should be opened in the editor */
+		bool bOpenBlueprint;
+
+		/** The parent class to use when creating the blueprint. If a RootActor is specified, the class must be a subclass of the RootActor's class */
+		UClass* ParentClass;
+	};
+
+	/**
+	 * Take a list of Actors and generate a blueprint by harvesting the components they have. 
+	 * @param Path					The path to use when creating the package for the new blueprint
+	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
+	 * @param Params				The parameter struct containing actors and additional behavior definitions
+	 * @return The blueprint created from the actors
+	 */
+	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
+
+	/**
+	 * Take a list of Actors and generate a blueprint by harvesting the components they have.
+	 * @param BlueprintName			The name to use for the Blueprint
+	 * @param Parackage				The package to create the blueprint within
+	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
+	 * @param Params				The parameter struct containing actors and additional behavior definitions
+	 * @return The blueprint created from the actors
+	 */
+	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
+
 	/** 
-	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class. 
+	 * Take a list of Actors and generate a blueprint  by harvesting the components they have.
 	 * @param Path					The path to use when creating the package for the new blueprint
 	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
 	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass())
+	{
+		FHarvestBlueprintFromActorsParams Params;
+		Params.bReplaceActors = bReplaceInWorld;
+		Params.ParentClass = ParentClass;
+		return HarvestBlueprintFromActors(Path, Actors, Params);
+	}
 
 	/**
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class.
@@ -384,7 +500,14 @@ public:
 	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass())
+	{
+		FHarvestBlueprintFromActorsParams Params;
+		Params.bReplaceActors = bReplaceInWorld;
+		Params.ParentClass = ParentClass;
+		return HarvestBlueprintFromActors(BlueprintName, Package, Actors, Params);
+	}
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
@@ -446,6 +569,12 @@ public:
 
 	/** Find the event node for the component property with the given event name */
 	static const class UK2Node_ComponentBoundEvent* FindBoundEventForComponent(const UBlueprint* Blueprint, FName EventName, FName PropertyName);
+
+	/** Finds all bound component nodes for the given property on this blueprint */
+	static void FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes);
+
+	/** Returns true if the given property name has any bound component events in any blueprint graphs */
+	static bool PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName);
 
 	/** Checks to see if a given class implements a blueprint-accesable interface */
 	static bool IsClassABlueprintInterface (const UClass* Class);

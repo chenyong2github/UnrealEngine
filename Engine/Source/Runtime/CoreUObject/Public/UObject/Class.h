@@ -1504,7 +1504,7 @@ public:
 	friend struct FScriptStructArchiveProxy;
 #endif
 
-private:
+protected:
 	/** true if we have performed PrepareCppStructOps **/
 	bool bPrepareCppStructOpsCompleted;
 	/** Holds the Cpp ctors and dtors, sizeof, etc. Is not owned by this and is not released. **/
@@ -1533,7 +1533,7 @@ public:
 	static COREUOBJECT_API void DeferCppStructOps(FName Target, ICppStructOps* InCppStructOps);
 
 	/** Look for the CppStructOps and hook it up **/
-	COREUOBJECT_API void PrepareCppStructOps();
+	virtual COREUOBJECT_API void PrepareCppStructOps();
 
 	/** Returns the CppStructOps that can be used to do custom operations */
 	FORCEINLINE ICppStructOps* GetCppStructOps() const

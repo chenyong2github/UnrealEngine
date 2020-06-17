@@ -19,6 +19,7 @@
 #include "GameplayTagsSettingsCustomization.h"
 #include "GameplayTagsModule.h"
 #include "ISettingsModule.h"
+#include "ISettingsEditorModule.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "AssetRegistryModule.h"
@@ -28,9 +29,7 @@
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Stats/StatsMisc.h"
-#include "GameplayTagReferenceHelperDetails.h"
 #include "UObject/UObjectHash.h"
-#include "GameplayTagReferenceHelperDetails.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 
@@ -57,11 +56,9 @@ public:
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagContainer", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagContainerCustomization::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTag", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCustomizationPublic::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagQuery", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagQueryCustomization::MakeInstance));
+			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagCreationWidgetHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCreationWidgetHelperDetails::MakeInstance));
 
 			PropertyModule.RegisterCustomClassLayout(UGameplayTagsSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayTagsSettingsCustomization::MakeInstance));
-
-			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagReferenceHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagReferenceHelperDetails::MakeInstance));
-			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagCreationWidgetHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCreationWidgetHelperDetails::MakeInstance));
 
 			PropertyModule.NotifyCustomizationModuleChanged();
 		}
@@ -136,6 +133,15 @@ public:
 
 		// Attempt to migrate the settings if needed
 		MigrateSettings();
+	}
+
+	void WarnAboutRestart()
+	{
+		ISettingsEditorModule* SettingsEditorModule = FModuleManager::GetModulePtr<ISettingsEditorModule>("SettingsEditor");
+		if (SettingsEditorModule)
+		{
+			SettingsEditorModule->OnApplicationRestartRequired();
+		}
 	}
 
 	void OnPackageSaved(const FString& PackageFileName, UObject* PackageObj)
@@ -315,6 +321,8 @@ public:
 				Manager.EditorRefreshGameplayTagTree();
 
 				ShowNotification(FText::Format(LOCTEXT("RemoveTagRedirect", "Deleted tag redirect {0}"), FText::FromName(TagToDelete)), 5.0f);
+
+				WarnAboutRestart();
 
 				return true;
 			}
@@ -775,6 +783,8 @@ public:
 		ShowNotification(FText::Format(LOCTEXT("AddTagRedirect", "Renamed tag {0} to {1}"), FText::FromString(TagToRename), FText::FromString(TagToRenameTo)), 3.0f);
 
 		Manager.EditorRefreshGameplayTagTree();
+
+		WarnAboutRestart();
 
 		return true;
 	}

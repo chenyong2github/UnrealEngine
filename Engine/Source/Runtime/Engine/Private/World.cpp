@@ -2134,13 +2134,18 @@ void UWorld::TransferBlueprintDebugReferences(UWorld* NewWorld)
 			{
 				TWeakObjectPtr<UObject>& WeakTargetObject = It.Value();
 				UObject* NewTargetObject = nullptr;
+				bool bForceClear = false;
 
 				if (WeakTargetObject.IsValid())
 				{
 					UObject* OldTargetObject = WeakTargetObject.Get();
 					check(OldTargetObject);
 
-					NewTargetObject = FindObject<UObject>(NewWorld, *OldTargetObject->GetPathName(this));
+					// We don't map from PIE objects in a client world back to editor objects, as that will transfer to the server on the next execution
+					if (GetNetMode() != NM_Client)
+					{
+						NewTargetObject = FindObject<UObject>(NewWorld, *OldTargetObject->GetPathName(this));
+					}
 				}
 
 				if (NewTargetObject != nullptr)
@@ -2148,6 +2153,7 @@ void UWorld::TransferBlueprintDebugReferences(UWorld* NewWorld)
 					// Check to see if the object we found to transfer to is of a different class.  LevelScripts are always exceptions, because a new level may have been loaded in PIE, and we have special handling for LSA debugging objects
 					if (!NewTargetObject->IsA(TargetBP->GeneratedClass))
 					{
+						bForceClear = true;
 						const FString BlueprintFullPath = TargetBP->GetPathName();
 
 						if (BlueprintFullPath.StartsWith(TEXT("/Temp/Autosaves")) || BlueprintFullPath.StartsWith(TEXT("/Temp//Autosaves")))
@@ -2176,7 +2182,15 @@ void UWorld::TransferBlueprintDebugReferences(UWorld* NewWorld)
 					}
 				}
 
-				TargetBP->SetObjectBeingDebugged(NewTargetObject);
+				if (NewTargetObject || bForceClear)
+				{
+					TargetBP->SetObjectBeingDebugged(NewTargetObject);
+				}
+				else
+				{
+					// We do not explicitly clear a null target, because ObjectPathToDebug may refer to late spawned actor
+					TargetBP->UnregisterObjectBeingDebugged();
+				}
 			}
 		}
 	}

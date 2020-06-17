@@ -463,6 +463,9 @@ public:
 	void SetIsRecordingOnServer(bool IsRecording) { bIsRecordingOnServer = IsRecording; }
 	bool IsRecordingOnServer() const { return !!bIsRecordingOnServer; }
 
+	/** COnfigure whether VisLog should be using decorated, unique names */
+	void SetUseUniqueNames(bool bEnable) { bForceUniqueLogNames = bEnable; }
+
 	/** Add visual logger output device */
 	void AddDevice(FVisualLogDevice* InDevice) { OutputDevices.AddUnique(InDevice); }
 	/** Remove visual logger output device */
@@ -556,12 +559,15 @@ protected:
 	int32 bIsRecordingToFile : 1;
 	// variable set (from cheat manager) when logging is active on server
 	int32 bIsRecordingOnServer : 1;
+	// controls how we generate log names. When set to TRUE there's a lower 
+	// chance of name conflict, but it's more expensive
+	int32 bForceUniqueLogNames : 1;
+	/** Specifies if the Binary Device is being used */
+	int32 bUseBinaryFileDevice : 1;
 	// start recording time
 	float StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */
 	FVisualLogFilenameGetterDelegate LogFileNameGetter;
-	/** Specifies if the Binary Device is being used */
-	bool UseBinaryFileDevice;
 	/** Handle for timer used to serialize all waiting logs */
 	FTimerHandle VisualLoggerCleanupTimerHandle;
 

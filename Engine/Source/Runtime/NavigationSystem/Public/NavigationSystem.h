@@ -223,15 +223,19 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bAutoCreateNavigationData:1;
 
+	/** If true will try to spawn the navigation data instance in the sublevel with navigation bounds, if false it will spawn in the persistent level */
 	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
 	uint32 bSpawnNavDataInNavBoundsLevel:1;
 
+	/** If false, will not create nav collision when connecting as a client */
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bAllowClientSideNavigation:1;
 
+	/** If true, games should ignore navigation data inside loaded sublevels */
 	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
 	uint32 bShouldDiscardSubLevelNavData:1;
 
+	/** If true, will update navigation even when the game is paused */
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bTickWhilePaused:1;
 
@@ -278,6 +282,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Navigation Enforcing", meta = (ClampMin = "0.1", UIMin = "0.1", EditCondition = "bGenerateNavigationOnlyAroundNavigationInvokers"), config)
 	float ActiveTilesUpdateInterval;
 
+	/** Sets how navigation data should be gathered when building collision information */
 	UPROPERTY(EditDefaultsOnly, Category = "NavigationSystem", config)
 	ENavDataGatheringModeConfig DataGatheringMode;
 
@@ -285,6 +290,7 @@ protected:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem, meta = (ClampMin = "-1.0", UIMin = "-1.0"))
 	float DirtyAreaWarningSizeThreshold;
 
+	/** List of agents types supported by this navigation system */
 	UPROPERTY(config, EditAnywhere, Category = Agents)
 	TArray<FNavDataConfig> SupportedAgents;
 
@@ -865,7 +871,7 @@ protected:
 	virtual void AddLevelToOctree(ULevel& Level);
 
 	/** Called as part of UWorld::BeginTearingDown */
-	virtual void OnBeginTearingDown();
+	virtual void OnBeginTearingDown(UWorld* World);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
@@ -944,13 +950,14 @@ public:
 			;
 	}
 
-	/** Use this function to signal the NavigationSystem it doesn't need to store
+	/**	call with bEnableStatic == true to signal the NavigationSystem it doesn't need to store
 	 *	any navigation-generation-related data at game runtime, because 
 	 *	nothing is going to use it anyway. This will short-circuit all code related 
 	 *	to navmesh rebuilding, so use it only if you have fully static navigation in 
-	 *	your game.
-	 *	Note: this is not a runtime switch. Call it before any actual game starts. */
-	static void ConfigureAsStatic();
+	 *	your game. bEnableStatic = false will reset the mechanism.
+	 *	Note: this is not a runtime switch. It's highly advisable not to call it manually and 
+	 *	use UNavigationSystemModuleConfig.bStrictlyStatic instead */
+	static void ConfigureAsStatic(bool bEnableStatic = true);
 
 	static void SetUpdateNavOctreeOnComponentChange(bool bNewUpdateOnComponentChange);
 

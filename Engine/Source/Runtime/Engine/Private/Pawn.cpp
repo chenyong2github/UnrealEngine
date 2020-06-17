@@ -8,6 +8,7 @@
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/DamageType.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Components/PrimitiveComponent.h"
@@ -456,6 +457,8 @@ FRotator APawn::GetControlRotation() const
 
 void APawn::OnRep_Controller()
 {
+	bool bNotifyControllerChange = (Controller == nullptr);
+
 	if ( (Controller != nullptr) && (Controller->GetPawn() == nullptr) )
 	{
 		// This ensures that AController::OnRep_Pawn is called. Since we cant ensure replication order of APawn::Controller and AController::Pawn,
@@ -470,6 +473,16 @@ void APawn::OnRep_Controller()
 		if ( (PC != nullptr) && PC->bAutoManageActiveCameraTarget && (PC->PlayerCameraManager->ViewTarget.Target == Controller) )
 		{
 			PC->AutoManageActiveCameraTarget(this);
+		}
+
+		bNotifyControllerChange = true;
+	}
+
+	if (bNotifyControllerChange)
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
 		}
 	}
 }
@@ -523,6 +536,11 @@ void APawn::PossessedBy(AController* NewController)
 	if (OldController != NewController)
 	{
 		ReceivePossessed(Controller);
+	
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			GameInstance->GetOnPawnControllerChanged().Broadcast(this, Controller);
+		}
 	}
 }
 
@@ -543,6 +561,11 @@ void APawn::UnPossessed()
 	if (OldController)
 	{
 		ReceiveUnpossessed(OldController);
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		GameInstance->GetOnPawnControllerChanged().Broadcast(this, nullptr);
 	}
 
 	ConsumeMovementInputVector();

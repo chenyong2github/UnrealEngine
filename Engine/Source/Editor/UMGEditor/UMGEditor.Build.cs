@@ -22,6 +22,8 @@ public class UMGEditor : ModuleRules
                 "Editor/UMGEditor/Private/Utility",
 			});
 
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
+
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
