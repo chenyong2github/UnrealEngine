@@ -10,11 +10,110 @@
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "TextureCompiler.h"
+#include "Misc/ScopedSlowTask.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Engine/Public/ImageUtils.h"
+
+#define LOCTEXT_NAMESPACE "UTextureCube"
+
+UTextureCube* UTextureCube::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat, const FName InName)
+{
+	UTextureCube* NewTexture = nullptr;
+	if (InSizeX > 0 && InSizeY > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0)
+	{
+		NewTexture = NewObject<UTextureCube>(
+			GetTransientPackage(),
+			InName,
+			RF_Transient
+			);
+
+		NewTexture->SetPlatformData(new FTexturePlatformData());
+		NewTexture->GetPlatformData()->SizeX = InSizeX;
+		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->PixelFormat = InFormat;
+
+		// Allocate first mipmap.
+		int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		NewTexture->GetPlatformData()->Mips.Add(Mip);
+		Mip->SizeX = InSizeX;
+		Mip->SizeY = InSizeY;
+		Mip->BulkData.Lock(LOCK_READ_WRITE);
+		Mip->BulkData.Realloc(6 * NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip->BulkData.Unlock();
+	}
+	else
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTextureCube::CreateTransient()"));
+	}
+	return NewTexture;
+}
+
+/**
+ * Get the optimal placeholder to use during texture compilation
+ */
+static UTextureCube* GetDefaultTextureCube(const UTextureCube* Texture)
+{
+	static TStrongObjectPtr<UTextureCube> CheckerboardTexture;
+
+	if (!CheckerboardTexture.IsValid())
+	{
+		CheckerboardTexture.Reset(FImageUtils::CreateCheckerboardCubeTexture(FColor(200, 200, 200, 128), FColor(128, 128, 128, 128)));
+	}
+
+	return CheckerboardTexture.Get();
+}
 
 UTextureCube::UTextureCube(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, PrivatePlatformData(nullptr)
+	, PlatformData(
+		[this]()-> FTexturePlatformData* { return GetPlatformData(); },
+		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 	SRGB = true;
+}
+
+FTexturePlatformData** UTextureCube::GetRunningPlatformData()
+{
+	// @todo DC GetRunningPlatformData is fundamentally unsafe but almost unused... should we replace it with Get/SetRunningPlatformData directly in the base class
+	return &PrivatePlatformData;
+}
+
+void UTextureCube::SetPlatformData(FTexturePlatformData* InPlatformData)
+{
+	PrivatePlatformData = InPlatformData;
+}
+
+// Any direct access to GetPlatformData() will stall until the structure
+// is safe to use. It is advisable to replace those use case with
+// async aware code to avoid stalls where possible.
+const FTexturePlatformData* UTextureCube::GetPlatformData() const
+{
+#if WITH_EDITOR
+	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UTextureCube::GetPlatformDataStall);
+		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformData() is forcing a wait on data that is not yet ready."));
+
+		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture compilation (%s) ..."), FText::FromString(GetName()));
+		FScopedSlowTask Progress(1.f, Msg, true);
+		Progress.MakeDialog(true);
+		PrivatePlatformData->FinishCache();
+	}
+#endif // #if WITH_EDITOR
+	return PrivatePlatformData;
+}
+
+FTexturePlatformData* UTextureCube::GetPlatformData()
+{
+	// For now, this is the same implementation as the const version.
+	const UTextureCube* ConstThis = this;
+	return const_cast<FTexturePlatformData*>(ConstThis->GetPlatformData());
 }
 
 void UTextureCube::Serialize(FArchive& Ar)
@@ -43,7 +142,21 @@ void UTextureCube::Serialize(FArchive& Ar)
 void UTextureCube::PostLoad()
 {
 #if WITH_EDITOR
-	FinishCachePlatformData();
+	if (FApp::CanEverRender())
+	{
+		if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+		{
+			// Might already have been triggered during serialization
+			if (!PrivatePlatformData)
+			{
+				BeginCachePlatformData();
+			}
+		}
+		else
+		{
+			FinishCachePlatformData();
+		}
+	}
 #endif // #if WITH_EDITOR
 
 	Super::PostLoad();
@@ -70,7 +183,14 @@ void UTextureCube::UpdateResource()
 {
 #if WITH_EDITOR
 	// Recache platform data if the source has changed.
-	CachePlatformData();
+	if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	{
+		BeginCachePlatformData();
+	}
+	else
+	{
+		CachePlatformData();
+	}
 #endif // #if WITH_EDITOR
 
 	// Route to super.
@@ -109,7 +229,6 @@ uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 	return Size;
 }
 
-
 uint32 UTextureCube::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 {
 	if ( Enum == TMC_ResidentMips || Enum == TMC_AllMipsBiased )
@@ -120,6 +239,74 @@ uint32 UTextureCube::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 	{
 		return CalcTextureMemorySize( GetNumMips() );
 	}
+}
+
+// While compiling the platform data in editor, we will return the 
+// placeholders value to ensure rendering works as expected and that
+// there are no thread-unsafe access to the platform data being built.
+// Any process requiring a fully up-to-date platform data is expected to
+// call FTextureCompiler:Get().FinishCompilation on UTexture first.
+int32 UTextureCube::GetSizeX() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCube(this)->GetSizeX();
+		}
+#endif
+		return PrivatePlatformData->SizeX;
+	}
+
+	return 0;
+}
+
+int32 UTextureCube::GetSizeY() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCube(this)->GetSizeY();
+		}
+#endif
+		return PrivatePlatformData->SizeY;
+	}
+
+	return 0;
+}
+
+int32 UTextureCube::GetNumMips() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCube(this)->GetNumMips();
+		}
+#endif
+		return PrivatePlatformData->Mips.Num();
+	}
+
+	return 0;
+}
+
+EPixelFormat UTextureCube::GetPixelFormat() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCube(this)->GetPixelFormat();
+		}
+#endif
+		return PrivatePlatformData->PixelFormat;
+	}
+	return PF_Unknown;
 }
 
 class FTextureCubeResource : public FTextureResource
@@ -133,8 +320,9 @@ public:
 	 * @param InOwner - The UTextureCube which this FTextureCubeResource represents.
 	 */
 	FTextureCubeResource(UTextureCube* InOwner)
-	:	Owner(InOwner)
-	,	TextureSize(0)
+	: Owner(InOwner)
+	, TextureSize(0)
+	, ProxiedResource(nullptr)
 	{
 		//Initialize the MipData array
 		for ( int32 FaceIndex=0;FaceIndex<6; FaceIndex++)
@@ -176,6 +364,26 @@ public:
 	}
 
 	/**
+	 * Minimal initialization constructor.
+	 * @param InOwner           - The UTextureCube which this FTextureCubeResource represents.
+	 * @param InProxiedResource - The resource to proxy.
+	 */
+	FTextureCubeResource(UTextureCube* InOwner, const FTextureCubeResource* InProxiedResource)
+	: Owner(InOwner)
+	, TextureSize(0)
+	, ProxiedResource(InProxiedResource)
+	{
+		//Initialize the MipData array
+		for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
+		{
+			for (int32 MipIndex = 0; MipIndex < UE_ARRAY_COUNT(MipData[FaceIndex]); MipIndex++)
+			{
+				MipData[FaceIndex][MipIndex] = NULL;
+			}
+		}
+	}
+
+	/**
 	 * Destructor, freeing MipData in the case of resource being destroyed without ever 
 	 * having been initialized by the rendering thread via InitRHI.
 	 */	
@@ -201,6 +409,15 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
+		if (ProxiedResource)
+		{
+			TextureCubeRHI = ProxiedResource->GetTextureCubeRHI();
+			TextureRHI = TextureCubeRHI;
+			SamplerStateRHI = ProxiedResource->SamplerStateRHI;
+			RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
+			return;
+		}
+
 		INC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 		INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
@@ -258,17 +475,36 @@ public:
 	/** Returns the width of the texture in pixels. */
 	virtual uint32 GetSizeX() const override
 	{
+		if (ProxiedResource)
+		{
+			return ProxiedResource->GetSizeX();
+		}
+
 		return Owner->GetSizeX();
 	}
 
 	/** Returns the height of the texture in pixels. */
 	virtual uint32 GetSizeY() const override
 	{
+		if (ProxiedResource)
+		{
+			return ProxiedResource->GetSizeY();
+		}
+
 		return Owner->GetSizeY();
 	}
 
-private:
+	/**
+	 * Accessor
+	 * @return Texture2DRHI
+	 */
+	FTextureCubeRHIRef GetTextureCubeRHI() const
+	{
+		return TextureCubeRHI;
+	}
 
+	const FTextureCubeResource* GetProxiedResource() const { return ProxiedResource; }
+private:
 	/** A reference to the texture's RHI resource as a cube-map texture. */
 	FTextureCubeRHIRef TextureCubeRHI;
 
@@ -281,6 +517,7 @@ private:
 	// Cached texture size for stats. */
 	int32	TextureSize;
 
+	const FTextureCubeResource* const ProxiedResource;
 	/**
 	 * Writes the data for a single mip-level into a destination buffer.
 	 * @param FaceIndex		The index of the face of the mip-level to read.
@@ -344,6 +581,15 @@ private:
 
 FTextureResource* UTextureCube::CreateResource()
 {
+#if WITH_EDITOR
+	if (!IsAsyncCacheComplete())
+	{
+		FTextureCompilingManager::Get().AddTextures({ this });
+
+		return new FTextureCubeResource(this, (const FTextureCubeResource*)GetDefaultTextureCube(this)->GetResource());
+	}
+#endif
+
 	FTextureResource* NewResource = NULL;
 	if (GetNumMips() > 0)
 	{
@@ -369,8 +615,16 @@ void UTextureCube::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 #if WITH_EDITOR
+bool UTextureCube::IsDefaultTexture() const
+{
+	const FTextureCubeResource* TextureResource = (const FTextureCubeResource*)GetResource();
+	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (TextureResource && TextureResource->GetProxiedResource() != nullptr);
+}
+
 uint32 UTextureCube::GetMaximumDimension() const
 {
 	return GetMaxCubeTextureDimension();
 }
 #endif // #if WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

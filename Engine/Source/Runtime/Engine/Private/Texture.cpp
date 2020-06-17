@@ -22,6 +22,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/TextureLODSettings.h"
 #include "RenderUtils.h"
+#include "TextureDerivedDataTask.h"
 
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
@@ -70,6 +71,11 @@ UTexture::FOnTextureSaved UTexture::PreSaveEvent;
 
 UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, PrivateResource(nullptr)
+	, PrivateResourceRenderThread(nullptr)
+	, Resource(
+		[this]()-> FTextureResource* { return GetResource(); },
+		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 {
 	SRGB = true;
 	Filter = TF_Default;
@@ -104,20 +110,54 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	}
 }
 
+const FTextureResource* UTexture::GetResource() const
+{
+	if (IsInActualRenderingThread() || IsInRHIThread())
+	{
+		return PrivateResourceRenderThread;
+	}
+	return PrivateResource;
+}
+
+FTextureResource* UTexture::GetResource()
+{
+	if (IsInActualRenderingThread() || IsInRHIThread())
+	{
+		return PrivateResourceRenderThread;
+	}
+	return PrivateResource;
+}
+
+void UTexture::SetResource(FTextureResource* InResource)
+{
+	check (!IsInActualRenderingThread() && !IsInRHIThread());
+
+	// Each PrivateResource value must be updated in it's own thread because any
+	// rendering code trying to access the Resource from this UTexture will
+	// crash if it suddenly sees nullptr or a new resource that has not had it's InitRHI called.
+
+	PrivateResource = InResource;
+	ENQUEUE_RENDER_COMMAND(SetResourceRenderThread)([this, InResource](FRHICommandListImmediate& RHICmdList)
+	{
+		PrivateResourceRenderThread = InResource;
+	});
+}
+
 void UTexture::ReleaseResource()
 {
-	if (Resource)
+	if (PrivateResource)
 	{
 		UTexture2D* Texture2D = Cast<UTexture2D>(this);
 		check( !Texture2D  || !Texture2D->HasPendingUpdate() );
 
+		FTextureResource* ToDelete = PrivateResource;
 		// Free the resource.
-		BeginReleaseResource(Resource);
-		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete = Resource](FRHICommandListImmediate& RHICmdList)
+		BeginReleaseResource(ToDelete);
+		SetResource(nullptr);
+		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete](FRHICommandListImmediate& RHICmdList)
 		{
 			delete ToDelete;
 		});
-		Resource = nullptr;
 	}
 }
 
@@ -130,11 +170,12 @@ void UTexture::UpdateResource()
 	if( FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject) )
 	{
 		// Create a new texture resource.
-		Resource = CreateResource();
-		if( Resource )
+		FTextureResource* NewResource = CreateResource();
+		SetResource(NewResource);
+		if (NewResource)
 		{
 			LLM_SCOPE(ELLMTag::Textures);
-			BeginInitResource(Resource);
+			BeginInitResource(NewResource);
 		}
 	}
 }
@@ -145,6 +186,12 @@ bool UTexture::IsPostLoadThreadSafe() const
 }
 
 #if WITH_EDITOR
+
+bool UTexture::IsDefaultTexture() const
+{
+	return false;
+}
+
 bool UTexture::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
@@ -426,6 +473,14 @@ void UTexture::BeginDestroy()
 
 bool UTexture::IsReadyForFinishDestroy()
 {
+#if WITH_EDITOR
+	// We're being garbage collected and might still have async tasks pending
+	if (!TryCancelCachePlatformData())
+	{
+		return false;
+	}
+#endif
+
 	bool bReadyForFinishDestroy = false;
 	// Check whether super class is ready and whether we have any pending streaming requests in flight.
 	if( Super::IsReadyForFinishDestroy() && !UpdateStreamingStatus() )

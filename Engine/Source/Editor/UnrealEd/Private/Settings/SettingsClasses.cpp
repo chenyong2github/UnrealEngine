@@ -148,6 +148,7 @@ static TAutoConsoleVariable<float> CVarEditorHDRNITLevel(
 
 UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
+	, bEnableAsyncTextureCompilation(false)
 	, bHDREditor(false)
 	, HDREditorNITLevel(160.0f)
 	, bEnableLocalizationDashboard(true)

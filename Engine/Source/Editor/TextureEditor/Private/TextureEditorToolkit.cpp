@@ -37,6 +37,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -126,6 +127,10 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FTextureEditorToolkit::HandleAssetPostImport);
 
 	Texture = CastChecked<UTexture>(ObjectToEdit);
+
+	// The texture being edited might still be compiling, wait till it finishes then.
+	// FinishCompilation is nice enough to provide a progress for us while we're waiting.
+	FTextureCompilingManager::Get().FinishCompilation({Texture});
 
 	// Support undo/redo
 	Texture->SetFlags(RF_Transactional);
@@ -399,6 +404,20 @@ double FTextureEditorToolkit::GetZoom( ) const
 
 void FTextureEditorToolkit::PopulateQuickInfo( )
 {
+	if (Texture->IsDefaultTexture())
+	{
+		ImportedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Imported_NA", "Imported: Computing..."));
+		CurrentText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_NA", "Displayed: Computing..."));
+		MaxInGameText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_NA", "Max In-Game: Computing..."));
+		SizeText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_ResourceSize_NA", "Resource Size: Computing..."));
+		MethodText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Method_NA", "Method: Computing..."));
+		LODBiasText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_LODBias_NA", "Combined LOD Bias: Computing..."));
+		FormatText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Format_NA", "Format: Computing..."));
+		NumMipsText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips_NA", "Number of Mips: Computing..."));
+		HasAlphaChannelText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel_NA", "Has Alpha Channel: Computing..."));
+		return;
+	}
+
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture);
 	UTextureRenderTargetCube* TextureCubeRT = Cast<UTextureRenderTargetCube>(Texture);

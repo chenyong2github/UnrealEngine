@@ -124,7 +124,7 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER( STAT_SpriteSceneProxy_GetDynamicMeshElements );
 
-		FTexture* TextureResource = (Texture != NULL) ? Texture->Resource : NULL;
+		FTexture* TextureResource = Texture ? Texture->Resource : nullptr;
 		if (TextureResource)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

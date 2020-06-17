@@ -92,6 +92,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "TextureCompiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -4127,7 +4128,6 @@ namespace ThumbnailTools
 		FCanvas Canvas( RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel );
 		Canvas.Clear( FLinearColor::Black );
 
-
 		// Get the rendering info for this object
 		FThumbnailRenderingInfo* RenderInfo = GUnrealEd ? GUnrealEd->GetThumbnailManager()->GetRenderingInfo( InObject ) : nullptr;
 
@@ -4135,6 +4135,11 @@ namespace ThumbnailTools
 		// @todo CB: This helps but doesn't result in 100%-streamed-in resources every time! :(
 		if( InFlushMode == EThumbnailTextureFlushMode::AlwaysFlush )
 		{
+			if (UTexture* Texture = Cast<UTexture>(InObject))
+			{
+				FTextureCompilingManager::Get().FinishCompilation({Texture});
+			}
+
 			FlushAsyncLoading();
 
 			IStreamingManager::Get().StreamAllResources( 100.0f );
@@ -4257,6 +4262,12 @@ namespace ThumbnailTools
 			// However, this can add 30s - 100s to editor load
 			//@todo - come up with a cleaner solution for this, preferably not blocking on texture streaming at all but updating when textures are fully streamed in
 			ThumbnailTools::EThumbnailTextureFlushMode::Type TextureFlushMode = ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush;
+
+			if ( UTexture* Texture = Cast<UTexture>(InObject) )
+			{
+				FTextureCompilingManager::Get().FinishCompilation({Texture});
+				Texture->WaitForStreaming();
+			}
 
 			// When generating a material thumbnail to save in a package, make sure we finish compilation on the material first
 			if ( UMaterial* InMaterial = Cast<UMaterial>(InObject) )

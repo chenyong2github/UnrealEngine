@@ -487,10 +487,10 @@ namespace RuntimeVirtualTexture
 	{
 		if (InProducer != nullptr && InStreamingTexture != nullptr)
 		{
-			FTexturePlatformData** StreamingTextureData = InStreamingTexture->GetRunningPlatformData();
-			if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
+			FTexturePlatformData* StreamingTextureData = InStreamingTexture->GetPlatformData();
+			if (StreamingTextureData != nullptr)
 			{
-				FVirtualTextureBuiltData* VTData = (*StreamingTextureData)->VTData;
+				FVirtualTextureBuiltData* VTData = StreamingTextureData->VTData;
 
 				ensure(InProducerDesc.TileSize == VTData->TileSize);
 				ensure(InProducerDesc.TileBorderSize == VTData->TileBorderSize);

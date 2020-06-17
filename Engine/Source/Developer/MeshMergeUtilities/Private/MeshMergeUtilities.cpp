@@ -73,6 +73,7 @@
 
 #include "Async/Future.h"
 #include "Async/Async.h"
+#include "TextureCompiler.h"
 
 #if WITH_EDITOR
 #include "Widgets/Notifications/SNotificationList.h"
@@ -1886,6 +1887,31 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(ComponentsToMerge[MeshId]);
 		if (MeshComponent)
 		{
+			// Make sure referenced lightmaps and shadowmaps are compiled
+			if (MeshComponent->LODData.IsValidIndex(0))
+			{
+				const FStaticMeshComponentLODInfo& ComponentLODInfo = MeshComponent->LODData[0];
+				const FMeshMapBuildData* MeshMapBuildData = MeshComponent->GetMeshMapBuildData(ComponentLODInfo);
+				if (MeshMapBuildData)
+				{
+					TArray<UTexture2D*> ReferencedTextures;
+
+					FLightMap2D* Lightmap = MeshMapBuildData && MeshMapBuildData->LightMap ? MeshMapBuildData->LightMap->GetLightMap2D() : nullptr;
+					if (Lightmap)
+					{
+						Lightmap->GetReferencedTextures(ReferencedTextures);
+					}
+
+					FShadowMap2D* Shadowmap = MeshMapBuildData && MeshMapBuildData->ShadowMap ? MeshMapBuildData->ShadowMap->GetShadowMap2D() : nullptr;
+					if (Shadowmap && Shadowmap->IsValid())
+					{
+						ReferencedTextures.Add(Shadowmap->GetTexture());
+					}
+					
+					FTextureCompilingManager::Get().FinishCompilation(TArray<UTexture*>(MoveTemp(ReferencedTextures)));
+				}
+			}
+
 			if(MeshComponent->bUseMaxLODAsImposter && InSettings.bIncludeImposters)
 			{
 				ImposterComponents.Add(MeshComponent);

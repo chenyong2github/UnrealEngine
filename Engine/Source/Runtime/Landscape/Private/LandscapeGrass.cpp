@@ -57,6 +57,7 @@
 #include "Math/Halton.h"
 #include "EngineUtils.h"
 #include "Misc/ScopedSlowTask.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -901,7 +902,7 @@ bool ULandscapeComponent::CanRenderGrassMap() const
 
 static bool IsTextureStreamedForGrassMapRender(UTexture2D* InTexture)
 {
-	if (!InTexture || InTexture->GetNumResidentMips() != InTexture->GetNumMips()
+	if (!InTexture || InTexture->IsDefaultTexture() || InTexture->GetNumResidentMips() != InTexture->GetNumMips()
 		|| !InTexture->Resource || ((FTexture2DResource*)InTexture->Resource)->GetCurrentFirstMip() > 0)
 	{
 		return false;
@@ -2373,6 +2374,7 @@ void ALandscapeProxy::UpdateGrassData(bool bInShouldMarkDirty, FScopedSlowTask* 
 	// Wait for Texture Streaming
 	for (UTexture2D* TextureToStream : DesiredForcedStreamedTextures)
 	{
+		FTextureCompilingManager::Get().FinishCompilation({TextureToStream});
 		TextureToStream->WaitForStreaming();
 		CurrentForcedStreamedTextures.Add(TextureToStream);
 	}

@@ -7,6 +7,7 @@
 #include "CanvasTypes.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 
@@ -36,6 +37,8 @@ void FTileSetEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	if (UTexture2D* Texture = TileSet->GetTileSheetTexture())
 	{
+		FTextureCompilingManager::Get().FinishCompilation({ Texture });
+
 		const bool bUseTranslucentBlend = Texture->HasAlphaChannel();
 
 		// Fully stream in the texture before drawing it.

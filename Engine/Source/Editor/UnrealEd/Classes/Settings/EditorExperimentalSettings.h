@@ -19,6 +19,9 @@ class UNREALED_API UEditorExperimentalSettings
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** Enable async texture compilation to improve PIE and map load time performance when textures need recompilation */
+	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async texture compilation to improve PIE and map load time performance when texture compilation is required"))
+	bool bEnableAsyncTextureCompilation;
 
 	/** Allows the editor to run on HDR monitors on Windows 10 */
 	UPROPERTY(EditAnywhere, config, Category = HDR, meta = (ConfigRestartRequired = true, DisplayName = "Enable Editor Support for HDR Monitors"))

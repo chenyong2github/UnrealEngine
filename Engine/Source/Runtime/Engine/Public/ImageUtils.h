@@ -133,6 +133,16 @@ public:
 	ENGINE_API static UTexture2D* CreateCheckerboardTexture(FColor ColorOne = FColor(64, 64, 64), FColor ColorTwo = FColor(128, 128, 128), int32 CheckerSize = 32);
 
 	/**
+	 * Creates a new UTextureCube with a checkerboard pattern.
+	 *
+	 * @param ColorOne		The color of half of the squares.
+	 * @param ColorTwo		The color of the other half of the squares.
+	 * @param CheckerSize	The size in pixels of each checker square.
+	 *
+	 */
+	ENGINE_API static UTextureCube* CreateCheckerboardCubeTexture(FColor ColorOne = FColor(64, 64, 64), FColor ColorTwo = FColor(128, 128, 128), int32 CheckerSize = 32);
+
+	/**
 	 * Exports a UTextureRenderTarget2D as an HDR image on the disk.
 	 *
 	 * @param TexRT		The render target to export

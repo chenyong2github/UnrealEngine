@@ -37,6 +37,7 @@
 #include "Interfaces/ITextureFormat.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VT/VirtualTextureDataBuilder.h"
+#include "TextureCompiler.h"
 
 /*------------------------------------------------------------------------------
 	Versioning for texture derived data.
@@ -582,7 +583,8 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 	if (UE_LOG_ACTIVE(LogTexture,Verbose))
 	{
 		LogString = FString::Printf(
-			TEXT("Storing texture in DDC:\n  Key: %s\n  Format: %s\n"),
+			TEXT("Storing texture in DDC:\n  Name: %s\n  Key: %s\n  Format: %s\n"),
+			*FString(TextureName),
 			*DerivedDataKey,
 			GPixelFormats[DerivedData->PixelFormat].Name
 			);
@@ -814,7 +816,6 @@ static float ComputePSNR(const FImage& SrcImage, const FCompressedImage2D& Compr
 	return RMSE > 0.0 ? 20.0f * (float)log10(255.0 / RMSE) : 500.0f;
 }
 
-
 void FTexturePlatformData::Cache(
 	UTexture& InTexture,
 	const FTextureBuildSettings* InSettingsPerLayer,
@@ -822,8 +823,10 @@ void FTexturePlatformData::Cache(
 	ITextureCompressorModule* Compressor
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::Cache);
+
 	// Flush any existing async task and ignore results.
-	FinishCache();
+	CancelCache();
 
 	uint32 Flags = InFlags;
 
@@ -849,12 +852,11 @@ void FTexturePlatformData::Cache(
 
 	if (bAsync && !bForceRebuild)
 	{
+		FQueuedThreadPool*  TextureThreadPool = FTextureCompilingManager::Get().GetThreadPool();
+		EQueuedWorkPriority BasePriority      = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
+
 		AsyncTask = new FTextureAsyncCacheDerivedDataTask(Compressor, this, &InTexture, InSettingsPerLayer, Flags);
-		FQueuedThreadPool* ThreadPool = GThreadPool;
-#if WITH_EDITOR
-		ThreadPool = GLargeThreadPool;
-#endif
-		AsyncTask->StartBackgroundTask(ThreadPool);
+		AsyncTask->StartBackgroundTask(TextureThreadPool, BasePriority);
 	}
 	else
 	{
@@ -866,6 +868,36 @@ void FTexturePlatformData::Cache(
 			COOK_STAT(Timer.AddHitOrMiss(Worker.WasLoadedFromDDC() ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, Worker.GetBytesCached()));
 		}
 	}
+}
+
+bool FTexturePlatformData::TryCancelCache()
+{
+	if (AsyncTask)
+	{
+		if (AsyncTask->IsDone() || AsyncTask->Cancel())
+		{
+			delete AsyncTask;
+			AsyncTask = nullptr;
+		}
+	}
+
+	return AsyncTask == nullptr;
+}
+
+void FTexturePlatformData::CancelCache()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::CancelCache)
+
+	// If we're unable to cancel, it means it's already being processed, we must finish it then.
+	if (!TryCancelCache())
+	{
+		FinishCache();
+	}
+}
+
+bool FTexturePlatformData::IsAsyncWorkComplete() const
+{
+	return AsyncTask == nullptr || AsyncTask->IsWorkDone();
 }
 
 void FTexturePlatformData::FinishCache()
@@ -942,6 +974,8 @@ static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 
 
 bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Texture)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryInlineMipData);
+
 	FAsyncMipHandles AsyncHandles;
 	FAsyncVTChunkHandles AsyncVTHandles;
 	TArray<uint8> TempData;
@@ -1067,6 +1101,8 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, UTexture* Texture)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryLoadMips);
+
 	int32 NumMipsCached = 0;
 	const int32 LoadableMips = Mips.Num() - ((GetNumMipsInTail() > 0) ? (GetNumMipsInTail() - 1) : 0);
 
@@ -1538,7 +1574,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
-	if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+	if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
 	{
 		// Unable to load mips from the cache. Rebuild the texture and try again.
 		UE_LOG(LogTexture,Warning,TEXT("GetMipData failed for %s (%s)"),
@@ -1547,7 +1583,7 @@ void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 		if (!GetOutermost()->bIsCookedForEditor)
 		{
 			ForceRebuildPlatformData();
-			if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+			if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Failed to build texture %s."), *GetPathName());
 			}
@@ -1584,6 +1620,8 @@ void UTexture::UpdateCachedLODBias()
 #if WITH_EDITOR
 void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool bAllowAsyncLoading, ITextureCompressorModule* Compressor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::CachePlatformData);
+
 	FTexturePlatformData** PlatformDataLinkPtr = GetRunningPlatformData();
 	if (PlatformDataLinkPtr)
 	{
@@ -1621,7 +1659,6 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 			PlatformDataLink = new FTexturePlatformData();
 		}
 
-		
 		UpdateCachedLODBias();
 	}
 }
@@ -1832,37 +1869,74 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 	return true;
 }
 
-bool UTexture::IsAsyncCacheComplete()
+bool UTexture::IsAsyncCacheComplete() const
 {
-	bool bComplete = true;
-	FTexturePlatformData** RunningPlatformDataPtr = GetRunningPlatformData();
+	const FTexturePlatformData* const* RunningPlatformDataPtr = const_cast<UTexture*>(this)->GetRunningPlatformData();
 	if (RunningPlatformDataPtr)
 	{
-		FTexturePlatformData* RunningPlatformData = *RunningPlatformDataPtr;
-		if (RunningPlatformData )
+		const FTexturePlatformData* RunningPlatformData = *RunningPlatformDataPtr;
+		if (RunningPlatformData)
 		{
-			bComplete &= (RunningPlatformData->AsyncTask == NULL) || RunningPlatformData->AsyncTask->IsWorkDone();
-		}
-	}
-
-	TMap<FString,FTexturePlatformData*>* CookedPlatformDataPtr = GetCookedPlatformData();
-	if (CookedPlatformDataPtr)
-	{
-		for ( auto It : *CookedPlatformDataPtr )
-		{
-			FTexturePlatformData* PlatformData = It.Value;
-			if (PlatformData)
+			if (RunningPlatformData->AsyncTask != nullptr && !RunningPlatformData->AsyncTask->IsWorkDone())
 			{
-				bComplete &= (PlatformData->AsyncTask == NULL) || PlatformData->AsyncTask->IsWorkDone();
+				return false;
 			}
 		}
 	}
 
-	return bComplete;
+	const TMap<FString,FTexturePlatformData*>* CookedPlatformDataPtr = const_cast<UTexture*>(this)->GetCookedPlatformData();
+	if (CookedPlatformDataPtr)
+	{
+		for (const TTuple<FString, FTexturePlatformData*>& Kvp : *CookedPlatformDataPtr)
+		{
+			const FTexturePlatformData* PlatformData = Kvp.Value;
+			if (PlatformData)
+			{
+				if (PlatformData->AsyncTask != nullptr && !PlatformData->AsyncTask->IsWorkDone())
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 	
+bool UTexture::TryCancelCachePlatformData()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::TryCancelCachePlatformData);
+
+	FTexturePlatformData* const* RunningPlatformDataPtr = GetRunningPlatformData();
+	if (RunningPlatformDataPtr)
+	{
+		FTexturePlatformData* RunningPlatformData = *RunningPlatformDataPtr;
+		if (RunningPlatformData && !RunningPlatformData->TryCancelCache())
+		{
+			return false;
+		}
+	}
+
+	TMap<FString, FTexturePlatformData*>* CookedPlatformDataPtr = GetCookedPlatformData();
+	if (CookedPlatformDataPtr)
+	{
+		for (TTuple<FString, FTexturePlatformData*>& Kvp : *CookedPlatformDataPtr)
+		{
+			FTexturePlatformData* PlatformData = Kvp.Value;
+			if (PlatformData && !PlatformData->TryCancelCache())
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 void UTexture::FinishCachePlatformData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::FinishCachePlatformData);
+
 	FTexturePlatformData** RunningPlatformDataPtr = GetRunningPlatformData();
 	if (RunningPlatformDataPtr)
 	{
@@ -1901,6 +1975,8 @@ void UTexture::FinishCachePlatformData()
 
 void UTexture::ForceRebuildPlatformData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::ForceRebuildPlatformData)
+
 	FTexturePlatformData** PlatformDataLinkPtr = GetRunningPlatformData();
 	if (PlatformDataLinkPtr && *PlatformDataLinkPtr && FApp::CanEverRender())
 	{

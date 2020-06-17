@@ -353,7 +353,7 @@ static FVector4 ComputeAlphaCoverage(const FVector4& Thresholds, const FVector4&
 		{
 			FPlatformAtomics::InterlockedAdd(&CommonResults[i], LocalCoverage[i]);
 		}
-	});
+	}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 	for (int32 i = 0; i < 4; ++i)
 	{
@@ -527,7 +527,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 			FLinearColor& DestColor = DestImageData.Access(DestX, DestY);
 			DestColor = FilteredColor;
 		}
-	});
+	}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 }
 
 // to switch conveniently between different texture wrapping modes for the mip map generation
@@ -1676,7 +1676,8 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 			}
 		};
 
-		ParallelFor(NumJobs, AdjustImageColorsFunc, bForceSingleThread);
+		EParallelForFlags PriorityFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
+		ParallelFor(NumJobs, AdjustImageColorsFunc, bForceSingleThread ? EParallelForFlags::ForceSingleThread : PriorityFlags);
 	}
 }
 

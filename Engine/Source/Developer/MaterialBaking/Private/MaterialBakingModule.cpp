@@ -19,6 +19,7 @@
 #include "RenderingThread.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MeshDescription.h"
+#include "TextureCompiler.h"
 #if WITH_EDITOR
 #include "Misc/FileHelper.h"
 #endif
@@ -375,6 +376,8 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 			// Force load materials used by the current material
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(LoadTexturesForMaterial)
+
+				FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 				for (UTexture* Texture : MaterialTextures)
 				{

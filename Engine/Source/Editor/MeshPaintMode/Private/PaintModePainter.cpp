@@ -40,6 +40,7 @@
 #include "IMeshPaintGeometryAdapter.h"
 
 #include "PackageTools.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "PaintModePainter"
 
@@ -1324,6 +1325,7 @@ void FPaintModePainter::StartPaintingTexture(UMeshComponent* InMeshComponent, co
 
 		if (bIsTextureUsed && !bStartedPainting)
 		{
+			FTextureCompilingManager::Get().FinishCompilation({ Texture2D });
 			bool bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
 
 			if (!bIsSourceTextureStreamedIn)
@@ -2280,7 +2282,7 @@ void FPaintModePainter::Tick(FEditorViewportClient* ViewportClient, float DeltaT
 				FPaintTexture2DData* TextureData = &It.Value();
 				if (TextureData->PaintRenderTargetTexture != nullptr)
 				{
-
+					FTextureCompilingManager::Get().FinishCompilation({ TextureData->PaintingTexture2D });
 					bool bIsSourceTextureStreamedIn = TextureData->PaintingTexture2D->IsFullyStreamedIn();
 
 					if (!bIsSourceTextureStreamedIn)

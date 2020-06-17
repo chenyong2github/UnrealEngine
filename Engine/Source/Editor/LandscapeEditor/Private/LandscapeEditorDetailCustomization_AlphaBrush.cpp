@@ -22,6 +22,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "CanvasTypes.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Brushes.Alpha"
 
@@ -158,6 +159,7 @@ void FTextureMaskThumbnailViewportClient::Draw(FViewport* Viewport, FCanvas* Can
 	Canvas->Clear( FLinearColor::Black);
 
 	// Fully stream in the texture before drawing it.
+	FTextureCompilingManager::Get().FinishCompilation({ Texture });
 	Texture->SetForceMipLevelsToBeResident(30.0f);
 	Texture->WaitForStreaming();
 

@@ -215,6 +215,8 @@ class FAsyncTask
 	FEvent*				DoneEvent;
 	/** Pool we are queued into, maintained by the calling thread */
 	FQueuedThreadPool*	QueuedPool;
+	/** Current priority */
+	EQueuedWorkPriority Priority;
 	/** optional LLM tag */
 	LLM(ELLMTag InheritedLLMTag);
 
@@ -239,6 +241,7 @@ class FAsyncTask
 		CheckIdle();  // can't start a job twice without it being completed first
 		WorkNotFinishedCounter.Increment();
 		QueuedPool = InQueuedPool;
+		Priority = InQueuedWorkPriority;
 		if (bForceSynchronous)
 		{
 			QueuedPool = 0;
@@ -443,6 +446,26 @@ public:
 		}
 		CheckIdle(); // Must have had bDoWorkOnThisThreadIfNotStarted == false and needed it to be true for a synchronous job
 	}
+	
+	/**
+	* If not already being processed, will be rescheduled on given thread pool and priority.
+	* @return true if the reschedule was successful, false if was already being processed.
+	**/
+	bool Reschedule(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal)
+	{
+		if (QueuedPool)
+		{
+			if (QueuedPool->RetractQueuedWork(this))
+			{
+				QueuedPool = InQueuedPool;
+				Priority = InQueuedWorkPriority;
+				QueuedPool->AddQueuedWork(this, InQueuedWorkPriority);
+				
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	* Cancel the task, if possible.
@@ -527,6 +550,11 @@ public:
 	bool IsIdle() const
 	{
 		return WorkNotFinishedCounter.GetValue() == 0 && QueuedPool == 0;
+	}
+
+	EQueuedWorkPriority GetPriority() const
+	{
+		return Priority;
 	}
 };
 

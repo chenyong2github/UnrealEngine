@@ -4,6 +4,7 @@
 
 #include "MaterialShared.h"
 #include "MaterialCompiler.h"
+#include "TextureCompiler.h"
 #include "Materials/MaterialParameterCollection.h"
 
 #include "Engine/TextureLODSettings.h"
@@ -525,6 +526,8 @@ public:
 
 		TArray<UTexture*> MaterialTextures;
 		InMaterialInterface->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, false);
+
+		FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 		// find the largest texture in the list (applying it's LOD bias)
 		FIntPoint MaxSize = MinimumSize;

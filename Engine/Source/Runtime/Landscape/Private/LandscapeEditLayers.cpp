@@ -40,6 +40,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/ScopedSlowTask.h"
+#include "TextureCompiler.h"
 #endif
 #include "Logging/MessageLog.h"
 
@@ -1282,9 +1283,10 @@ struct FLandscapeIsTextureFullyStreamedIn
 		InTexture->bForceMiplevelsToBeResident = true;
 		if (bInWaitForStreaming)
 		{
+			FTextureCompilingManager::Get().FinishCompilation({InTexture});
 			InTexture->WaitForStreaming();
 		}
-		return InTexture->IsFullyStreamedIn();
+		return !InTexture->IsDefaultTexture() && InTexture->IsFullyStreamedIn();
 	}
 };
 
@@ -4769,6 +4771,14 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
+	// We need to wait until texture resources are ready 
+	// to initialize the landscape to avoid taking the
+	// sizes and format of the default texture
+	if (!AreLayersTextureResourcesReady(bInWaitForStreaming))
+	{
+		return;
+	}
+
 	if (!bLandscapeLayersAreInitialized)
 	{
 		InitializeLayers();
@@ -4784,11 +4794,6 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		UpdateLandscapeSplines();
 		bSplineLayerUpdateRequested = false;
-	}
-
-	if (!AreLayersTextureResourcesReady(bInWaitForStreaming))
-	{
-		return;
 	}
 	
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;

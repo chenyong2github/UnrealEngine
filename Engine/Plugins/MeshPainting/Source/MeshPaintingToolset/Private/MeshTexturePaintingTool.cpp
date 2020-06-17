@@ -18,6 +18,7 @@
 #include "ScopedTransaction.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 #include "MeshPaintAdapterFactory.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
@@ -662,6 +663,8 @@ void UMeshTexturePaintingTool::StartPaintingTexture(UMeshComponent* InMeshCompon
 
 		if (bIsTextureUsed && !bStartedPainting)
 		{
+			FTextureCompilingManager::Get().FinishCompilation({ Texture2D });
+
 			bool bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
 
 			if (!bIsSourceTextureStreamedIn)

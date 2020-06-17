@@ -42,6 +42,7 @@
 #include "MaterialOptions.h"
 
 #include "StaticMeshAttributes.h"
+#include "TextureCompiler.h"
 
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
@@ -693,6 +694,7 @@ public:
 		TArray<UTexture*> MaterialTextures;
 
 		InMaterialInterface->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, false);
+		FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 		// find the largest texture in the list (applying it's LOD bias)
 		FIntPoint MaxSize = MinimumSize;
@@ -2154,6 +2156,7 @@ bool FMaterialUtilities::ExportMaterialUVDensities(UMaterialInterface* InMateria
 	TArray<UTexture*> Textures;
 	TArray< TArray<int32> > Indices;
 	InMaterial->GetUsedTexturesAndIndices(Textures, Indices, QualityLevel, FeatureLevel);
+	FTextureCompilingManager::Get().FinishCompilation(Textures);
 
 	check(Textures.Num() >= Indices.Num()); // Can't have indices if no texture.
 
@@ -2312,6 +2315,8 @@ bool FMaterialUtilities::ExportMaterials(TArray<FMaterialMergeData*>& MergeData,
 
 		TArray<UTexture*> MaterialTextures;
 		Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);		
+
+		FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 		// Precache all used textures, otherwise could get everything rendered with low-res textures.
 		for (UTexture* Texture : MaterialTextures)
@@ -2530,6 +2535,8 @@ bool FMaterialUtilities::ExportMaterial(struct FMaterialMergeData& InMaterialDat
 	// Precache all used textures, otherwise could get everything rendered with low-res textures.
 	TArray<UTexture*> MaterialTextures;
 	Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
+
+	FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 	for (UTexture* Texture : MaterialTextures)
 	{

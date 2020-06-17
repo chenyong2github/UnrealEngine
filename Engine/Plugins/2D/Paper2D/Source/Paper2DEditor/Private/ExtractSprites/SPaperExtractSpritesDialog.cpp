@@ -26,6 +26,7 @@
 #include "CanvasTypes.h"
 #include "PaperSprite.h"
 #include "PaperSpriteFactory.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "PaperEditor"
 
@@ -63,6 +64,8 @@ void FPaperExtractSpritesViewportClient::Draw(FViewport* InViewport, FCanvas* Ca
 
 	if (UTexture2D* Texture = TextureBeingExtracted.Get())
 	{
+		FTextureCompilingManager::Get().FinishCompilation({Texture});
+
 		const bool bUseTranslucentBlend = Texture->HasAlphaChannel();
 
 		// Fully stream in the texture before drawing it.

@@ -18,6 +18,7 @@
 #include "AutomationStaticMeshComponentAdapter.h"
 #include "Algo/Transform.h"
 #include "Materials/Material.h"
+#include "TextureCompiler.h"
 
 void UEditorTestsUtilityLibrary::BakeMaterialsForComponent(UStaticMeshComponent* InStaticMeshComponent, const UMaterialOptions* MaterialOptions, const UMaterialMergeOptions* MaterialMergeOptions)
 {
@@ -46,6 +47,8 @@ void UEditorTestsUtilityLibrary::BakeMaterialsForComponent(UStaticMeshComponent*
 			UMaterialInterface* Material = InStaticMeshComponent->GetMaterial(MaterialIndex);
 			TArray<UTexture*> MaterialTextures;
 			Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
+
+			FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 			// Force load materials used by the current material
 			for (UTexture* Texture : MaterialTextures)
@@ -88,6 +91,8 @@ void UEditorTestsUtilityLibrary::MergeStaticMeshComponents(TArray<UStaticMeshCom
 			UMaterial* MergedMaterial = Cast<UMaterial>(*MaterialPtr);
 			TArray<UTexture*> MaterialTextures;
 			MergedMaterial->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
+
+			FTextureCompilingManager::Get().FinishCompilation(MaterialTextures);
 
 			// Force load materials used by the current material
 			for (UTexture* Texture : MaterialTextures)

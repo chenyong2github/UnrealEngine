@@ -7,6 +7,7 @@
 #include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Engine/World.h"
+#include "TextureCompiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialParameter, Warning, All);
 
@@ -176,6 +177,10 @@ void UMeshComponent::PrestreamTextures( float Seconds, bool bPrioritizeCharacter
 	TArray<UTexture*> Textures;
 	GetUsedTextures(/*out*/ Textures, EMaterialQualityLevel::Num);
 
+#if WITH_EDITOR
+	FTextureCompilingManager::Get().FinishCompilation(Textures);
+#endif
+
 	for (UTexture* Texture : Textures)
 	{
 		if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
@@ -192,6 +197,10 @@ void UMeshComponent::SetTextureForceResidentFlag( bool bForceMiplevelsToBeReside
 
 	TArray<UTexture*> Textures;
 	GetUsedTextures(/*out*/ Textures, EMaterialQualityLevel::Num);
+
+#if WITH_EDITOR
+	FTextureCompilingManager::Get().FinishCompilation(Textures);
+#endif
 
 	for (UTexture* Texture : Textures)
 	{

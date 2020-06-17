@@ -208,7 +208,7 @@ public:
 	 * Accessor
 	 * @return Texture2DRHI
 	 */
-	FTexture2DRHIRef GetTexture2DRHI()
+	FTexture2DRHIRef GetTexture2DRHI() const
 	{
 		return Texture2DRHI;
 	}
@@ -224,12 +224,21 @@ public:
 	void UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InFirstMip);
 
 private:
+	/**
+	 * Make this Texture2DResource Proxy another one.
+	 *
+	 * @param InOwner             UTexture2D which this FTexture2DResource represents.
+	 * @param InProxiedResource   The resource to proxy.
+	 */
+	FTexture2DResource(UTexture2D* InOwner, const FTexture2DResource* InProxiedResource);
+
 	/** Texture streaming command classes that need to be friends in order to call Update/FinalizeMipCount.	*/
 	friend class UTexture2D;
 	friend class FTexture2DUpdate;
 
 	/** The UTexture2D which this resource represents.														*/
 	UTexture2D*	Owner;
+
 	/** Resource memory allocated by the owner for serialize bulk mip data into								*/
 	FTexture2DResourceMem* ResourceMem;
 
@@ -250,6 +259,8 @@ private:
 	/** 2D texture version of TextureRHI which is used to lock the 2D texture during mip transitions.		*/
 	FTexture2DRHIRef	Texture2DRHI;
 
+	/** Another resource being proxied by this one. */
+	const FTexture2DResource* const ProxiedResource;
 #if STATS
 	/** Cached texture size for stats.																		*/
 	int32					TextureSize;

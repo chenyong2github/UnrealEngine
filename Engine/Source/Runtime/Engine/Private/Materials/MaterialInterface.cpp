@@ -21,6 +21,7 @@
 #include "Components.h"
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
+#include "TextureCompiler.h"
 
 /**
  * This is used to deprecate data that has been built with older versions.
@@ -259,6 +260,11 @@ void UMaterialInterface::SetForceMipLevelsToBeResident( bool OverrideForceMiplev
 	TArray<UTexture*> Textures;
 	
 	GetUsedTextures(Textures, EMaterialQualityLevel::Num, false, ERHIFeatureLevel::Num, true);
+	
+#if WITH_EDITOR
+	FTextureCompilingManager::Get().FinishCompilation(Textures);
+#endif
+
 	for ( int32 TextureIndex=0; TextureIndex < Textures.Num(); ++TextureIndex )
 	{
 		UTexture2D* Texture = Cast<UTexture2D>(Textures[TextureIndex]);

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/Texture.h"
+#include "Misc/FieldAccessor.h"
 #include "TextureCube.generated.h"
 
 class FTextureResource;
@@ -15,10 +16,24 @@ class UTextureCube : public UTexture
 {
 	GENERATED_UCLASS_BODY()
 
+	/** The derived data for this texture on this platform. */
+	FTexturePlatformData* PrivatePlatformData;
 public:
-	/** Platform data. */
-	FTexturePlatformData *PlatformData;
+	// The deprecation will be enabled further along the dev cycle and fixed accordingly.
+	// This is to avoid merge conflicts with other branches that fixing this deprecation might cause.
+	//UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
+	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
+
+	/** Set the derived data for this texture on this platform. */
+	ENGINE_API void SetPlatformData(FTexturePlatformData* PlatformData);
+	/** Get the derived data for this texture on this platform. */
+	ENGINE_API FTexturePlatformData* GetPlatformData();
+	/** Get the const derived data for this texture on this platform. */
+	ENGINE_API const FTexturePlatformData* GetPlatformData() const;
+
+#if WITH_EDITOR
 	TMap<FString, FTexturePlatformData*> CookedPlatformData;
+#endif
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
@@ -28,39 +43,10 @@ public:
 	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface.
 
-	/** Trivial accessors. */
-	FORCEINLINE int32 GetSizeX() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->SizeX;
-		}
-		return 0;
-	}
-	FORCEINLINE int32 GetSizeY() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->SizeY;
-		}
-		return 0;
-	}
-	FORCEINLINE int32 GetNumMips() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->Mips.Num();
-		}
-		return 0;
-	}
-	FORCEINLINE EPixelFormat GetPixelFormat() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->PixelFormat;
-		}
-		return PF_Unknown;
-	}
+	ENGINE_API int32 GetSizeX() const;
+	ENGINE_API int32 GetSizeY() const;
+	ENGINE_API int32 GetNumMips() const;
+	ENGINE_API EPixelFormat GetPixelFormat() const;
 
 	/**
 	 * Get mip data starting with the specified mip index.
@@ -77,10 +63,17 @@ public:
 	ENGINE_API virtual FTextureResource* CreateResource() override;
 	ENGINE_API virtual void UpdateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override { return MCT_TextureCube; }
-	virtual FTexturePlatformData** GetRunningPlatformData() override { return &PlatformData; }
+	ENGINE_API virtual FTexturePlatformData** GetRunningPlatformData() override;
+
+#if WITH_EDITOR
+	ENGINE_API virtual bool IsDefaultTexture() const override;
 	virtual TMap<FString, FTexturePlatformData*> *GetCookedPlatformData() override { return &CookedPlatformData; }
+#endif
 	//~ End UTexture Interface
-	
+
+	/** Creates and initializes a new TextureCube with the requested settings */
+	ENGINE_API static class UTextureCube* CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat = PF_B8G8R8A8, const FName InName = NAME_None);
+
 	/**
 	 * Calculates the size of this texture in bytes if it had MipCount miplevels streamed in.
 	 *

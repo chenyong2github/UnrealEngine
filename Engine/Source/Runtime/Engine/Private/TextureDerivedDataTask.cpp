@@ -198,6 +198,8 @@ void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 
 void FTextureCacheDerivedDataWorker::BuildTexture()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::BuildTexture);
+
 	const bool bHasValidMip0 = TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num();
 
 	FFormatNamedArguments Args;
@@ -402,6 +404,8 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 
 void FTextureCacheDerivedDataWorker::DoWork()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::DoWork);
+
 	const bool bForceRebuild = (CacheFlags & ETextureCacheFlags::ForceRebuild) != 0;
 	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
 	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
@@ -505,7 +509,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 void FTextureCacheDerivedDataWorker::Finalize()
 {
-	check(IsInGameThread());
 	// if we couldn't get from the DDC or didn't build synchronously, then we have to build now. 
 	// This is a super edge case that should rarely happen.
 	if (!bSucceeded)

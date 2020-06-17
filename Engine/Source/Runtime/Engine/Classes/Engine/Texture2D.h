@@ -9,6 +9,7 @@
 #include "Engine/Texture.h"
 #include "TextureResource.h"
 #include "RenderAssetUpdate.h"
+#include "Misc/FieldAccessor.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;
@@ -77,9 +78,21 @@ private:
 	UPROPERTY()
 	FIntPoint ImportedSize;
 
-public:
 	/** The derived data for this texture on this platform. */
-	FTexturePlatformData *PlatformData;
+	FTexturePlatformData* PrivatePlatformData;
+public:
+	// The deprecation will be enabled further along the dev cycle and fixed accordingly.
+	// This is to avoid merge conflicts with other branches that fixing this deprecation might cause.
+	//UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
+	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
+
+	/** Set the derived data for this texture on this platform. */
+	ENGINE_API void SetPlatformData(FTexturePlatformData* PlatformData);
+	/** Get the derived data for this texture on this platform. */
+	ENGINE_API FTexturePlatformData* GetPlatformData();
+	/** Get the const derived data for this texture on this platform. */
+	ENGINE_API const FTexturePlatformData* GetPlatformData() const;
+
 #if WITH_EDITOR
 	/* cooked platform data for this texture */
 	TMap<FString, FTexturePlatformData*> CookedPlatformData;
@@ -101,6 +114,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostLinkerChange() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool IsDefaultTexture() const override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForAsyncPostLoad() const override;
@@ -117,7 +131,7 @@ public:
 	virtual EMaterialValueType GetMaterialType() const override;
 	virtual void UpdateResource() override;
 	virtual float GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale) override;
-	virtual FTexturePlatformData** GetRunningPlatformData() final override { return &PlatformData; }
+	virtual FTexturePlatformData** GetRunningPlatformData() final override;
 #if WITH_EDITOR
 	virtual TMap<FString,FTexturePlatformData*>* GetCookedPlatformData() override { return &CookedPlatformData; }
 #endif
@@ -139,7 +153,7 @@ public:
 	*/
 	virtual bool IsReadyForStreaming() const final override
 	{
-		FTexture2DResource* Texture2DResource = (FTexture2DResource*)Resource;
+		const FTexture2DResource* Texture2DResource = (const FTexture2DResource*)GetResource();
 		return Texture2DResource && Texture2DResource->bReadyForStreaming;
 	}
 
@@ -160,64 +174,13 @@ public:
 	//~ End UStreamableRenderAsset Interface
 
 	/** Trivial accessors. */
-	FORCEINLINE int32 GetSizeX() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->SizeX;
-		}
-		return 0;
-	}
-	FORCEINLINE int32 GetSizeY() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->SizeY;
-		}
-		return 0;
-	}
-	FORCEINLINE int32 GetNumMips() const
-	{
-		if (PlatformData)
-		{
-			if (IsCurrentlyVirtualTextured())
-			{
-				return PlatformData->GetNumVTMips();
-			}
-			return PlatformData->Mips.Num();
-		}
-		return 0;
-	}
-
-	FORCEINLINE EPixelFormat GetPixelFormat(uint32 LayerIndex = 0u) const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->GetLayerPixelFormat(LayerIndex);
-		}
-		return PF_Unknown;
-	}
-	FORCEINLINE int32 GetMipTailBaseIndex() const
-	{
-		if (PlatformData)
-		{
-			return FMath::Max(0, PlatformData->Mips.Num() - (int32)PlatformData->GetNumMipsInTail());
-		}
-		return 0;
-	}
-	FORCEINLINE const TIndirectArray<FTexture2DMipMap>& GetPlatformMips() const
-	{
-		check(PlatformData);
-		return PlatformData->Mips;
-	}
-	FORCEINLINE int32 GetExtData() const
-	{
-		if (PlatformData)
-		{
-			return PlatformData->GetExtData();
-		}
-		return 0;
-	}
+	ENGINE_API int32 GetSizeX() const;
+	ENGINE_API int32 GetSizeY() const;
+	ENGINE_API int32 GetNumMips() const;
+	ENGINE_API EPixelFormat GetPixelFormat(uint32 LayerIndex = 0u) const;
+	ENGINE_API int32 GetMipTailBaseIndex() const;
+	ENGINE_API const TIndirectArray<FTexture2DMipMap>& GetPlatformMips() const;
+	ENGINE_API int32 GetExtData() const;
 
 	FORCEINLINE int32 GetStreamingIndex() const { return StreamingIndex; }
 
@@ -240,7 +203,7 @@ public:
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
 	FORCEINLINE int32 GetMinTextureResidentMipCount() const
 	{
-		return FMath::Max(GMinTextureResidentMipCount, PlatformData ? (int32)PlatformData->GetNumMipsInTail() : 0);
+		return FMath::Max(GMinTextureResidentMipCount, GetPlatformData() ? (int32)GetPlatformData()->GetNumMipsInTail() : 0);
 	}
 
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
@@ -416,14 +379,7 @@ public:
 	 * this reflects the actual current state on the renderer depending on the platform, VT
 	 * data being built, project settings, ....
 	 */
-	virtual bool IsCurrentlyVirtualTextured() const override
-	{
-		if (VirtualTextureStreaming && PlatformData && PlatformData->VTData)
-		{
-			return true;
-		}
-		return false;
-	}
+	virtual bool IsCurrentlyVirtualTextured() const override;
 
 	/**
 	 * Returns true if this virtual texture uses a single physical space all of its texture layers.

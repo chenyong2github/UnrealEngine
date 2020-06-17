@@ -49,6 +49,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ShaderCore.h"
+#include "TextureCompiler.h"
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"
 
@@ -3007,6 +3008,11 @@ void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const
 
 void FShaderCompilingManager::FinishAllCompilation()
 {
+#if WITH_EDITOR
+	// This is here for backward compatibility since textures are most probably expected to be ready too.
+	FTextureCompilingManager::Get().FinishAllCompilation();
+#endif
+
 	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	const double StartTime = FPlatformTime::Seconds();

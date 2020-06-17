@@ -17,6 +17,7 @@
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
+#include "Misc/FieldAccessor.h"
 #include "Texture.generated.h"
 
 class ITargetPlatform;
@@ -570,12 +571,15 @@ public:
 	}
 
 #if WITH_EDITOR
+	bool IsAsyncWorkComplete() const;
 	void Cache(
 		class UTexture& InTexture,
 		const struct FTextureBuildSettings* InSettingsPerLayer,
 		uint32 InFlags,
 		class ITextureCompressorModule* Compressor);
 	void FinishCache();
+	bool TryCancelCache();
+	void CancelCache();
 	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, UTexture* Texture = nullptr);
 	bool AreDerivedMipsAvailable() const;
 	bool AreDerivedVTChunksAvailable() const;
@@ -847,9 +851,29 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Texture)
 	TArray<UAssetUserData*> AssetUserData;
 
-public:
+private:
 	/** The texture's resource, can be NULL */
-	class FTextureResource*	Resource;
+	class FTextureResource*	PrivateResource;
+	/** Value updated and returned by the render-thread to allow
+	  * fenceless update from the game-thread without causing
+	  * potential crash in the render thread.
+	  */
+	class FTextureResource* PrivateResourceRenderThread;
+
+public:
+	// The deprecation will be enabled further along the dev cycle and fixed accordingly.
+	// This is to avoid merge conflicts with other branches that fixing this deprecation might cause.
+	//UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead.")
+	TFieldPtrAccessor<FTextureResource> Resource;
+
+	/** Set texture's resource, can be NULL */
+	ENGINE_API void SetResource(FTextureResource* Resource);
+
+	/** Get the texture's resource, can be NULL */
+	ENGINE_API FTextureResource* GetResource();
+
+	/** Get the const texture's resource, can be NULL */
+	ENGINE_API const FTextureResource* GetResource() const;
 
 	/** Stable RHI texture reference that refers to the current RHI texture. Note this is manually refcounted! */
 	FTextureReference TextureReference;
@@ -955,7 +979,6 @@ public:
 	 */
 	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) override;
 
-
 	/**
 	 * Clears cached cooked platform data for specific platform
 	 * 
@@ -970,6 +993,10 @@ public:
 	 */
 	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 
+	/**
+	 * Returns true if the current texture is a default placeholder because compilation is still ongoing.
+	 */
+	ENGINE_API virtual bool IsDefaultTexture() const;
 
 	/**
 	 * Begins caching platform data in the background.
@@ -979,7 +1006,7 @@ public:
 	/**
 	 * Returns true if all async caching has completed.
 	 */
-	ENGINE_API bool IsAsyncCacheComplete();
+	ENGINE_API bool IsAsyncCacheComplete() const;
 
 	/**
 	 * Blocks on async cache tasks and prepares platform data for use.
@@ -1138,6 +1165,11 @@ public:
 protected:
 
 #if WITH_EDITOR
+
+	/** Try to cancel any async tasks on PlatformData. 
+	 *  Returns true if there is no more async tasks pending, false otherwise.
+	 */
+	ENGINE_API bool TryCancelCachePlatformData();
 
 	/** Notify any loaded material instances that the texture has changed. */
 	ENGINE_API void NotifyMaterials();
