@@ -94,19 +94,35 @@ public:
 			{
 				UObject* DefaultValueObject = Parameter->GetDefaultValueObject();
 
-				TArray<UObject*> Objects;
-				Objects.Add(DefaultValueObject);
-				
-				FAddPropertyParams Params = FAddPropertyParams()
-					.UniqueId(Parameter->GetName())
-					.AllowChildren(true)
-					.CreateCategoryNodes(false);
+				if (DefaultValueObject != nullptr)
+				{
+					TArray<UObject*> Objects;
+					Objects.Add(DefaultValueObject);
 
-				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
-				CustomValueWidget =
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-					.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+					FAddPropertyParams Params = FAddPropertyParams()
+						.UniqueId(Parameter->GetName())
+						.AllowChildren(true)
+						.CreateCategoryNodes(false);
+
+					Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
+					CustomValueWidget =
+						SNew(STextBlock)
+						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+						.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+				}
+				else
+				{
+					ChildrenBuilder.AddCustomRow(FText())
+						.NameContent()
+						[
+							NameWidget.ToSharedRef()
+						]
+						.ValueContent()
+						[
+							SNew(STextBlock)
+							.Text(NSLOCTEXT("NiagaraParameterCollectionCustomNodeBuilder", "NullObjectValue", "(null)"))
+						];
+				}
 			}
 
 			if (Row)
