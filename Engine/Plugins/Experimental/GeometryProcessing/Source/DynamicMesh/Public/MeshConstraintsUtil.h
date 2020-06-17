@@ -89,8 +89,8 @@ s	 * EdgeROI that are seams, as well as vertices incident to edges in EdgeROI th
 			{
 				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint::FullyConstrained());
 				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::Pinned());
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::Pinned());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::FullyConstrained());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::FullyConstrained());
 			}
 		}
 	}
@@ -112,8 +112,8 @@ s	 * EdgeROI that are seams, as well as vertices incident to edges in EdgeROI th
 			{
 				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint::FullyConstrained());
 				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::Pinned());
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::Pinned());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::FullyConstrained());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::FullyConstrained());
 			}
 			BeginEdges++;
 		}
@@ -135,8 +135,8 @@ s	 * EdgeROI that are seams, as well as vertices incident to edges in EdgeROI th
 			{
 				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint::FullyConstrained());
 				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::Pinned());
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::Pinned());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::FullyConstrained());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::FullyConstrained());
 			}
 		}
 	}

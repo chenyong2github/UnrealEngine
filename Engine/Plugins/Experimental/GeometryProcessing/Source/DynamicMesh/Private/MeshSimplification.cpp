@@ -1060,7 +1060,7 @@ void TMeshSimplification<QuadricErrorType>::FullProjectionPass()
 {
 	auto project = [&](int vID)
 	{
-		if (IsVertexConstrained(vID))
+		if (IsVertexPositionConstrained(vID))
 		{
 			return;
 		}
@@ -1106,7 +1106,7 @@ FVector3d TMeshSimplification<QuadricErrorType>::GetProjectedCollapsePosition(in
 		{
 			return vc.Target->Project(vNewPos, vid);
 		}
-		if (vc.Fixed)
+		if (vc.bCanMove == false)
 		{
 			return vNewPos;
 		}
