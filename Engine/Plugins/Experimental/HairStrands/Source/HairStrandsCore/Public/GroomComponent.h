@@ -54,6 +54,12 @@ public:
 	UPROPERTY()
 	UMaterialInterface* HairDefaultMaterial;
 
+	UPROPERTY()
+	class UNiagaraSystem* AngularSpringsSystem;
+
+	UPROPERTY()
+	class UNiagaraSystem* CosseratRodsSystem;
+
 	/** Boolean to check when the simulation should be reset */
 	bool bResetSimulation;
 
