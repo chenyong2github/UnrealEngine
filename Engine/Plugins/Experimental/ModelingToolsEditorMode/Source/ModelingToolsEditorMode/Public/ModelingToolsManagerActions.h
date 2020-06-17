@@ -49,6 +49,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginRemeshSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginRemeshMeshTool;
+	TSharedPtr<FUICommandInfo> BeginProjectToTargetTool;
 	TSharedPtr<FUICommandInfo> BeginSimplifyMeshTool;
 	TSharedPtr<FUICommandInfo> BeginEditNormalsTool;
 	TSharedPtr<FUICommandInfo> BeginEditTangentsTool;
