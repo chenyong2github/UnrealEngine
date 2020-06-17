@@ -1346,10 +1346,29 @@ bool UK2Node_CallFunction::CanFunctionSupportMultipleTargets(UFunction const* Fu
 	return !bHasReturnParam && bIsImpure && !bIsLatent;
 }
 
+bool UK2Node_CallFunction::CanEditorOnlyFunctionBeCalled(const UFunction* InFunction, const UObject* InObject)
+{
+	if (InFunction && InObject &&
+		(IsEditorOnlyObject(InFunction) || InFunction->HasAnyFunctionFlags(FUNC_EditorOnly)))
+	{
+		return IsEditorOnlyObject(InObject);
+	}
+
+	return true;
+}
+
 bool UK2Node_CallFunction::CanPasteHere(const UEdGraph* TargetGraph) const
 {
 	// Basic check for graph compatibility, etc.
 	bool bCanPaste = Super::CanPasteHere(TargetGraph);
+
+	// Cannot paste editor only functions into runtime graphs
+	if (bCanPaste)
+	{
+		UFunction* TargetFunction = GetTargetFunction();
+
+		bCanPaste = CanEditorOnlyFunctionBeCalled(TargetFunction, TargetGraph);
+	}
 
 	// We check function context for placability only in the base class case; derived classes are typically bound to
 	// specific functions that should always be placeable, but may not always be explicitly callable (e.g. InternalUseOnly).
@@ -2051,17 +2070,13 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 	
 	// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
 	// Also check for functions wrapped in WITH_EDITOR 
-	if (Function && Blueprint &&
-		(IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly)))
-	{	
-		const UClass* BlueprintClass = Blueprint->ParentClass;
-		bool bIsEditorOnlyBlueprintBaseClass = !BlueprintClass || IsEditorOnlyObject(BlueprintClass);
-		if (!bIsEditorOnlyBlueprintBaseClass)
-		{
-			FString const FunctName = Function->GetName();
-			FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
-			MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
-		}
+	bool bIsEditorOnlyBlueprintBaseClass = CanEditorOnlyFunctionBeCalled(Function, Blueprint);
+
+	if (!bIsEditorOnlyBlueprintBaseClass)
+	{
+		FString const FunctName = Function->GetName();
+		FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
+		MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
 	}
 
 	if (Function)

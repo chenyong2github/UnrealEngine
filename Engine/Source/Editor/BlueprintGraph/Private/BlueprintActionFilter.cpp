@@ -1736,15 +1736,14 @@ static bool BlueprintActionFilterImpl::IsHiddenInNonEditorBlueprint(FBlueprintAc
 
 	if (Function)
 	{
+		 // Leaving this check here (even though its done in CanEditorOnlyFunctionBeCalled) as an early exit
 		const bool bIsEditorOnlyFunction = IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly);
 		
 		if (bIsEditorOnlyFunction)
 		{
 			for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
 			{
-				const UClass* BlueprintClass = Blueprint->ParentClass;
-				const bool bIsEditorBlueprintClass = (BlueprintClass != nullptr) && IsEditorOnlyObject(BlueprintClass);
-				bVisible &= bIsEditorBlueprintClass;
+				bVisible &= UK2Node_CallFunction::CanEditorOnlyFunctionBeCalled(Function, Blueprint->ParentClass);
 			}
 		}
 	}

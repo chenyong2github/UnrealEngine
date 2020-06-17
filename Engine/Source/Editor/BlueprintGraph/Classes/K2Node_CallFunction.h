@@ -197,6 +197,9 @@ public:
 	/** Used to determine the result of AllowMultipleSelfs() (without having a node instance) */
 	static bool CanFunctionSupportMultipleTargets(UFunction const* InFunction);
 
+	/** Checks if the input function can be called in the input object with respect to editor-only/runtime mismatch*/
+	static bool CanEditorOnlyFunctionBeCalled(const UFunction* InFunction, const UObject* InObject);
+
 	/** */
 	static FSlateIcon GetPaletteIconForFunction(UFunction const* Function, FLinearColor& OutColor);
 
