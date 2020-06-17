@@ -104,7 +104,14 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	Remesher->SetExternalConstraints(MoveTemp(constraints));
 
-	FMeshProjectionTarget ProjTarget(OriginalMesh.Get(), OriginalMeshSpatial.Get());
+	if (ProjectionTarget == nullptr)
+	{
+		check(ProjectionTargetSpatial == nullptr);
+		ProjectionTarget = OriginalMesh.Get();
+		ProjectionTargetSpatial = OriginalMeshSpatial.Get();
+	}
+
+	FMeshProjectionTarget ProjTarget(ProjectionTarget, ProjectionTargetSpatial);
 	Remesher->SetProjectionTarget(&ProjTarget);
 
 	Remesher->Progress = Progress;

@@ -32,11 +32,16 @@ UInteractiveTool* URemeshMeshToolBuilder::BuildTool(const FToolBuilderState& Sce
 {
 	URemeshMeshTool* NewTool = NewObject<URemeshMeshTool>(SceneState.ToolManager);
 
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
+	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
+	check(Components.Num() == 1);
+
+	auto* MeshComponent = Cast<UPrimitiveComponent>(Components[0]);
 	check(MeshComponent != nullptr);
 
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
+	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
+	ComponentTargets.Add(MakeComponentTarget(MeshComponent));
+
+	NewTool->SetSelection(MoveTemp(ComponentTargets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -67,8 +72,9 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bUseTargetEdgeLength = false;
 }
 
-URemeshMeshTool::URemeshMeshTool()
+URemeshMeshTool::URemeshMeshTool(const FObjectInitializer&)
 {
+	BasicProperties = CreateDefaultSubobject<URemeshMeshToolProperties>(TEXT("RemeshProperties"));
 }
 
 void URemeshMeshTool::SetWorld(UWorld* World)
@@ -85,9 +91,13 @@ void URemeshMeshTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	BasicProperties = NewObject<URemeshMeshToolProperties>(this);
+	check(BasicProperties);
 	BasicProperties->RestoreProperties(this);
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
+
+	check(ComponentTargets.Num() > 0);
+	check(ComponentTargets[0]);
+	FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[0].Get();
 
 	// hide component and create + show preview
 	ComponentTarget->SetOwnerVisibility(false);
@@ -143,7 +153,10 @@ void URemeshMeshTool::Setup()
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
-	ComponentTarget->SetOwnerVisibility(true);
+	for (auto& ComponentTarget : ComponentTargets)
+	{
+		ComponentTarget->SetOwnerVisibility(true);
+	}
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -185,11 +198,15 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->SmoothingStrength = BasicProperties->SmoothingStrength;
 	Op->SmoothingType = BasicProperties->SmoothingType;
 
-	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
+	check(ComponentTargets.Num() > 0);
+	FTransform LocalToWorld = ComponentTargets[0]->GetWorldTransform();
 	Op->SetTransform(LocalToWorld);
 
 	Op->OriginalMesh = OriginalMesh;
 	Op->OriginalMeshSpatial = OriginalMeshSpatial;
+
+	Op->ProjectionTarget = nullptr;
+	Op->ProjectionTargetSpatial = nullptr;
 
 	return Op;
 }
@@ -197,7 +214,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = ComponentTarget->GetWorldTransform();
+	FTransform Transform = ComponentTargets[0]->GetWorldTransform();
 
 	FColor LineColor(255, 0, 0);
 	const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
@@ -249,7 +266,7 @@ void URemeshMeshTool::UpdateVisualization()
 	}
 	else
 	{
-		ComponentTarget->GetMaterialSet(MaterialSet);
+		ComponentTargets[0]->GetMaterialSet(MaterialSet);
 		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
 	Preview->ConfigureMaterials(MaterialSet.Materials,
@@ -278,7 +295,7 @@ void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemeshMeshToolTransactionName", "Remesh Mesh"));
 
 	check(Result.Mesh.Get() != nullptr);
-	ComponentTarget->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	ComponentTargets[0]->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
 
