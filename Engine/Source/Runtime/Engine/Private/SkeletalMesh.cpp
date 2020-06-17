@@ -1501,8 +1501,8 @@ void USkeletalMesh::BeginDestroy()
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	// see if we have hit the resource flush fence
-	return ReleaseResourcesFence.IsFenceComplete();
+	// see if we have hit the resource flush fence or pending streaming udpate
+	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
 }
 
 void USkeletalMesh::Serialize( FArchive& Ar )
