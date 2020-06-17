@@ -693,8 +693,8 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraGenSpriteDynamicData);
 
-		FNiagaraDataSet& Data = Emitter->GetData();
-		if(SimTarget == ENiagaraSimTarget::GPUComputeSim || Data.GetCurrentDataChecked().GetNumInstances() > 0)
+		FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
+		if(SimTarget == ENiagaraSimTarget::GPUComputeSim || (DataToRender != nullptr && DataToRender->GetNumInstances() > 0))
 		{
 			DynamicData = new FNiagaraDynamicDataSprites(Emitter);
 

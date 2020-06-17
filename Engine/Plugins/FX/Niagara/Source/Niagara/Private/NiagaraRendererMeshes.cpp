@@ -926,8 +926,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 	}
 
 	FNiagaraDynamicDataMesh* DynamicData = nullptr;
-
-	if (Properties->ParticleMesh)
+	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
+	if (DataToRender != nullptr)
 	{
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);
 
