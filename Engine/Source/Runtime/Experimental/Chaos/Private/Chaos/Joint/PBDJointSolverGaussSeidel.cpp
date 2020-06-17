@@ -153,8 +153,16 @@ namespace Chaos
 		AngularConstraintPadding[1] = -1;
 		AngularConstraintPadding[2] = -1;
 
-		PositionTolerance = SolverSettings.PositionTolerance;
-		AngleTolerance = SolverSettings.AngleTolerance;
+		// Tolerances are positional errors below visible detection. But in PBD the errors
+		// we leave behind get converted to velocity, so we need to ensure that the resultant
+		// movement from that erroneous velocity is less than the desired position tolerance.
+		// Assume that the tolerances were defined for a 60Hz simulation, then it must be that
+		// the position error is less than the position change from constant external forces
+		// (e.g., gravity). So, we are saying that the tolerance was chosen because the position
+		// error is less that F.dt^2. We need to scale the tolerance to work at our current dt.
+		const FReal ToleranceScale = FMath::Min(1.0f, 60.0f * 60.0f * Dt * Dt);
+		PositionTolerance = ToleranceScale * SolverSettings.PositionTolerance;
+		AngleTolerance = ToleranceScale * SolverSettings.AngleTolerance;
 
 		NumActiveConstraints = -1;
 		bIsActive = true;
