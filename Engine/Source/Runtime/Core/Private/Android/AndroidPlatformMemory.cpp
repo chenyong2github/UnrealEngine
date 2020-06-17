@@ -6,6 +6,7 @@
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocBinned3.h"
 #include "HAL/MallocAnsi.h"
+#include "Misc/ScopeLock.h"
 #include "unistd.h"
 #include <jni.h>
 #include <sys/sysinfo.h>
