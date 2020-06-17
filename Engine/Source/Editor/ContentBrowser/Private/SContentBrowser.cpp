@@ -2116,8 +2116,10 @@ void SContentBrowser::OnAddContentRequested()
 void SContentBrowser::OnNewItemRequested(const FContentBrowserItem& NewItem)
 {
 	// Make sure we are showing the location of the new file (we may have created it in a folder)
-	const FString ItemOwnerPath = FPaths::GetPath(NewItem.GetVirtualPath().ToString());
-	PathSelected(ItemOwnerPath);
+	TArray<FString> SelectedPaths;
+	SelectedPaths.Add(FPaths::GetPath(NewItem.GetVirtualPath().ToString()));
+	PathViewPtr->SetSelectedPaths(SelectedPaths);
+	PathSelected(SelectedPaths[0]);
 }
 
 void SContentBrowser::OnItemSelectionChanged(const FContentBrowserItem& SelectedItem, ESelectInfo::Type SelectInfo, EContentBrowserViewContext ViewContext)
