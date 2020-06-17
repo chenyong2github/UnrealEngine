@@ -42,7 +42,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Builds a target
 	/// </summary>
-	[ToolMode("Build", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.StartPrefetchingEngine | ToolModeOptions.ShowExecutionTime)]
+	[ToolMode("Build", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.StartPrefetchingEngine | ToolModeOptions.ShowExecutionTime | ToolModeOptions.UseStartupTraceListener)]
 	class BuildMode : ToolMode
 	{
 		/// <summary>
@@ -97,10 +97,6 @@ namespace UnrealBuildTool
 		{
 			Arguments.ApplyTo(this);
 
-			// Initialize the log system, buffering the output until we can create the log file
-			StartupTraceListener StartupListener = new StartupTraceListener();
-			Trace.Listeners.Add(StartupListener);
-
 			// Write the command line
 			Log.TraceLog("Command line: {0}", Environment.CommandLine);
 
@@ -119,6 +115,9 @@ namespace UnrealBuildTool
 			{
 				BaseLogFileName = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log.txt").FullName;
 			}
+
+			// find the StartupTraceListener in the listeners that was added super early on
+			StartupTraceListener StartupListener = Trace.Listeners.OfType<StartupTraceListener>().First();
 
 			// Create the log file, and flush the startup listener to it
 			if (!Arguments.HasOption("-NoLog") && !Log.HasFileWriter())

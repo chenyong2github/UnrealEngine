@@ -442,7 +442,11 @@ namespace UnrealBuildTool
 				Log.OutputLevel = Options.LogOutputLevel;
 				Log.IncludeTimestamps = Options.bLogTimestamps;
 				Log.IncludeProgramNameWithSeverityPrefix = Options.bLogFromMsBuild;
-				
+
+				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
+				StartupTraceListener StartupTrace = new StartupTraceListener();
+				Log.AddTraceListener(StartupTrace);
+
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
 
@@ -488,6 +492,12 @@ namespace UnrealBuildTool
 
 				// Get the options for which systems have to be initialized for this mode
 				ToolModeOptions ModeOptions = ModeType.GetCustomAttribute<ToolModeAttribute>().Options;
+
+				// if we don't care about the trace listener, toss it now
+				if ((ModeOptions & ToolModeOptions.UseStartupTraceListener) == 0)
+				{
+					Log.RemoveTraceListener(StartupTrace);
+				}
 
 				// Start prefetching the contents of the engine folder
 				if((ModeOptions & ToolModeOptions.StartPrefetchingEngine) != 0)
