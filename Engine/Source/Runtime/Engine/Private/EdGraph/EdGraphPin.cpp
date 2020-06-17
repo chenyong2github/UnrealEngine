@@ -1706,6 +1706,7 @@ void UEdGraphPin::ConvertConnectedGhostNodesToRealNodes(UEdGraphNode* InNode)
 		InNode->Modify();
 		InNode->SetEnabledState(ENodeEnabledState::Enabled, /*bUserAction=*/ false);
 		InNode->NodeComment.Empty();
+		InNode->bCommentBubbleVisible = false;
 
 		// Go through all pin connections and enable the nodes. Enabled nodes will prevent further iteration
 		for (UEdGraphPin* Pin : InNode->Pins)
