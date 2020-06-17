@@ -339,6 +339,13 @@ void UMeshPaintMode::OnVertexPaintFinished()
 		{
 			PropagateVertexColorsToLODs();
 		}
+		else
+		{
+			if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+			{
+				MeshToolManager->Refresh();
+			}
+		}
 	}
 	UpdateCachedVertexDataSize();
 }
