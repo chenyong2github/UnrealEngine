@@ -166,6 +166,7 @@ public:
 					[
 						SNew( SObjectPropertyEntryBox )
 						.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
+						.AllowClear(false)
 						.AllowedClass(UMaterialInterface::StaticClass())
 						.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
 						.ThumbnailPool(ThumbnailPool)
