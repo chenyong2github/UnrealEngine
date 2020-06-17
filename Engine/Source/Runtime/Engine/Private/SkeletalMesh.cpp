@@ -738,6 +738,7 @@ void USkeletalMesh::InitResources()
 
 	UpdateUVChannelData(false);
 
+	bool bAllLODsLookValid = false;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	if (SkelMeshRenderData)
 	{
@@ -788,6 +789,17 @@ void USkeletalMesh::InitResources()
 			}
 		}
 #endif
+		bAllLODsLookValid = true;
+		for (int32 LODIdx = 0; LODIdx < SkeletalMeshRenderData->LODRenderData.Num(); ++LODIdx)
+		{
+			const FSkeletalMeshLODRenderData& LODRenderData = SkeletalMeshRenderData->LODRenderData[LODIdx];
+			if (!LODRenderData.GetNumVertices() && (!LODRenderData.bIsLODOptional || LODRenderData.BuffersSize > 0))
+			{
+				bAllLODsLookValid = false;
+				break;
+			}
+		}
+
 		SkelMeshRenderData->InitResources(bHasVertexColors, MorphTargets, this);
 	}
 
@@ -795,6 +807,7 @@ void USkeletalMesh::InitResources()
 	const int32 NumLODs = GetLODNum();
 	bIsStreamable = !NeverStream
 		&& NumLODs > 1
+		&& bAllLODsLookValid
 		&& SkelMeshRenderData
 		&& !SkelMeshRenderData->LODRenderData[0].bStreamedDataInlined;
 
@@ -4924,7 +4937,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 		{
 			const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
 			
-			if (LODSections.Num() > 0)
+			if (LODSections.Num() > 0 && LODData.GetNumVertices() > 0)
 			{
 				float ScreenSize = MeshObject->GetScreenSize(LODIndex);
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
