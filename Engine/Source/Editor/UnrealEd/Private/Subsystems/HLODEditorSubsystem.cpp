@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Subsystems/HLODEditorSubsystem.h"
+#include "EngineUtils.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/LODActor.h"
 #include "Engine/HLODProxy.h"
