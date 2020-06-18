@@ -63,6 +63,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Niagara)
 	void UpdateGPU();
 
+	/** ReadWrite lock to ensure safe access to the underlying array. */
+	FRWLock ArrayRWGuard;
+
 protected:
 	TUniquePtr<INiagaraDataInterfaceArrayImpl> Impl;
 };
