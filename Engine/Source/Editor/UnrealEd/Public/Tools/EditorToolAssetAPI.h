@@ -13,6 +13,7 @@ class UNREALED_API FEditorToolAssetAPI : public IToolsContextAssetAPI
 {
 public:
 	virtual FString GetActiveAssetFolderPath() override;
+	virtual FString GetWorldRelativeAssetRootPath(const UWorld* World) override;
 	virtual FString InteractiveSelectAssetPath(const FString& DefaultAssetName, const FText& DialogTitleMessage) override;
 
 
