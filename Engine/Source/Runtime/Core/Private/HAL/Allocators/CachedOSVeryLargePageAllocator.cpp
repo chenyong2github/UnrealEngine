@@ -48,6 +48,7 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 			FLargePage* LargePage = FreeLargePagesHead;
 			if (LargePage)
 			{
+				LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
 				Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 				LargePage->AllocationHint = AllocationHint;
 				LargePage->Unlink();
