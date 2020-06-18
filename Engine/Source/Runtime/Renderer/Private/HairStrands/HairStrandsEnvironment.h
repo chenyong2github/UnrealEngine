@@ -13,16 +13,16 @@
 void RenderHairStrandsAmbientOcclusion(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	const struct FHairStrandsDatas* HairDatas,
+	const struct FHairStrandsRenderingData* HairDatas,
 	const TRefCountPtr<IPooledRenderTarget>& InAOTexture);
 
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const uint32 ViewIndex,
 	const TArray<FViewInfo>& Views,
-	struct FHairStrandsDatas* HairDatas);
+	struct FHairStrandsRenderingData* HairDatas);
 
 void RenderHairStrandsSceneColorScattering(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	struct FHairStrandsDatas* HairDatas);
+	struct FHairStrandsRenderingData* HairDatas);
