@@ -36,6 +36,7 @@ public:
 	 * @param MaterialBoundaryConstraint the constraints to place on boundaries between different materials
 	 * @param bAllowSplits should we allow constrained edges to be split
 	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
+	 * @param bAllowSeamCollapse should we allow seam edges to collapse
 	 * @param bParallel should we run the algo in parallel
 	 */
 	static void ConstrainAllBoundariesAndSeams(FMeshConstraints& Constraints,
@@ -43,7 +44,7 @@ public:
 											   EEdgeRefineFlags MeshBoundaryConstraint,
 											   EEdgeRefineFlags GroupBoundaryConstraint,
 											   EEdgeRefineFlags MaterialBoundaryConstraint,
-											   bool bAllowSeamSplits, bool bAllowSeamSmoothing,
+											   bool bAllowSeamSplits, bool bAllowSeamSmoothing, bool bAllowSeamCollpase = false,
 											   bool bParallel = true);
 
 	/**

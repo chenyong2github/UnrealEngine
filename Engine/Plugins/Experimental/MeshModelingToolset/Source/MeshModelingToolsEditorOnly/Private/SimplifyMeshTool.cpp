@@ -177,6 +177,7 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	Op->bDiscardAttributes = SimplifyProperties->bDiscardAttributes;
 	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
 	Op->bPreserveSharpEdges = SimplifyProperties->bPreserveSharpEdges;
+	Op->bAllowSeamCollapse = !SimplifyProperties->bPreserveSharpEdges;
 	Op->bReproject = SimplifyProperties->bReproject;
 	Op->SimplifierType = SimplifyProperties->SimplifierType;
 	Op->TargetCount = SimplifyProperties->TargetCount;
