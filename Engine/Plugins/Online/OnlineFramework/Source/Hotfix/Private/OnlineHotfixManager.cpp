@@ -698,7 +698,7 @@ void UOnlineHotfixManager::ApplyHotfix()
 
 void UOnlineHotfixManager::TriggerHotfixComplete(EHotfixResult HotfixResult)
 {
-	if (HotfixResult != EHotfixResult::Failed)
+	if (HotfixResult != EHotfixResult::Failed && HotfixResult != EHotfixResult::SuccessNoChange)
 	{
 		PatchAssetsFromIniFiles();
 	}
