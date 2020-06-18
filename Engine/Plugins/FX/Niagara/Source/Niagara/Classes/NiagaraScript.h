@@ -288,9 +288,6 @@ public:
 	UPROPERTY()
 	TArray<uint8> ScriptLiterals;
 
-	UPROPERTY()
-	TMap<FName, FNiagaraParameters> DataSetToParameters;
-
 	/** Attributes used by this script. */
 	UPROPERTY()
 	TArray<FNiagaraVariable> Attributes;
@@ -300,6 +297,9 @@ public:
 	FNiagaraScriptDataUsageInfo DataUsage;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TMap<FName, FNiagaraParameters> DataSetToParameters;
+
 	UPROPERTY()
 	TArray<FNiagaraFunctionSignature> AdditionalExternalFunctions;
 #endif
