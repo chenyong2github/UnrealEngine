@@ -101,7 +101,6 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 	bOverrideScreenSize = InLODActor->bOverrideScreenSize;
 	ScreenSize = InLODActor->ScreenSize;
 
-	Key = InLODActor->Key;
 	LODLevel = InLODActor->LODLevel;
 	LODActorTag = InLODActor->LODActorTag;
 
@@ -190,11 +189,6 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
-	if (Key != InLODActor->Key)
-	{
-		return true;
-	}
-
 	if (LODLevel != InLODActor->LODLevel)
 	{
 		return true;
@@ -210,11 +204,14 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 
 ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 {
+	const bool bWasWorldPackageDirty = InLevel->GetOutermost()->IsDirty();
+
 	FActorSpawnParameters ActorSpawnParameters;
 	ActorSpawnParameters.Name = MakeUniqueObjectName(InLevel, ALODActor::StaticClass());
 	ActorSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ActorSpawnParameters.OverrideLevel = InLevel;
 	ActorSpawnParameters.bHideFromSceneOutliner = true;
+	ActorSpawnParameters.ObjectFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
 
 	FTransform ActorTransform;
 	bool bAppliedTransform = false;
@@ -302,6 +299,12 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	LODActor->ProxyDesc = const_cast<UHLODProxyDesc*>(this);
 	LODActor->bBuiltFromHLODDesc = true;
+
+	// Don't dirty the level file after spawning a transient actor
+	if (!bWasWorldPackageDirty)
+	{
+		InLevel->GetOutermost()->SetDirtyFlag(false);
+	}
 
 	return LODActor;
 }
