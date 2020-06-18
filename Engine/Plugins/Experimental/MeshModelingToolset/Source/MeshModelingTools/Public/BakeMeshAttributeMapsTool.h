@@ -60,16 +60,16 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInter
 
 public:
 
-	/**  */
+	/** Control whether to compute/show Normal Map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bNormalMap = true;
 
-	/**  */
+	/** Control whether to compute/show Ambient Occlusion Map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bAmbientOcclusionMap = true;
 
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution512;
+	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 };
 
 
@@ -92,17 +92,23 @@ class MESHMODELINGTOOLS_API UBakedOcclusionMapToolProperties : public UInteracti
 public:
 	/** Number of AO rays */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
-	int32 OcclusionRays = 256;
+	int32 OcclusionRays = 128;
 
 	/** Maximum AO distance (0 = infinity) */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "99999999.0"))
 	float MaxDistance = 0;
 
+	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap)
 	bool bGaussianBlur = true;
 
+	/** Pixel Radius of Gaussian Blur Kernel */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
 	float BlurRadius = 2.25;
+
+	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
+	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
+	float BiasAngle = 15.0;
 
 	UPROPERTY(VisibleAnywhere, Category = OcclusionMap, meta = (TransientToolProperty))
 	UTexture2D* Result;
@@ -210,10 +216,11 @@ protected:
 		int32 OcclusionRays;
 		float MaxDistance;
 		float BlurRadius;
+		float BiasAngle;
 
 		bool operator==(const FOcclusionMapSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && OcclusionRays == Other.OcclusionRays && MaxDistance == Other.MaxDistance && BlurRadius == Other.BlurRadius;
+			return Dimensions == Other.Dimensions && OcclusionRays == Other.OcclusionRays && MaxDistance == Other.MaxDistance && BlurRadius == Other.BlurRadius && BiasAngle == Other.BiasAngle;
 		}
 	};
 	FOcclusionMapSettings CachedOcclusionMapSettings;
