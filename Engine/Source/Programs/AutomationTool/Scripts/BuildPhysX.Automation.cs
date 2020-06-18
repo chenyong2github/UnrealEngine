@@ -46,7 +46,7 @@ public sealed class BuildPhysX : BuildCommand
 
 	public abstract class TargetPlatform : CommandUtils
 	{
-		public static DirectoryReference CMakeRootDirectory = DirectoryReference.Combine(RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake");
+		public virtual DirectoryReference CMakeRootDirectory { get { return DirectoryReference.Combine(RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake"); } }
 		public static DirectoryReference PhysX3RootDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Source/ThirdParty/PhysX3");
 		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Source/ThirdParty");
 		public static DirectoryReference PxSharedRootDirectory = DirectoryReference.Combine(PhysX3RootDirectory, "PxShared");
@@ -838,6 +838,32 @@ class BuildPhysX_Android : BuildPhysX.MakefileTargetPlatform
 	public override string TargetBuildPlatform => "android";
 	public override string CMakeGeneratorName => "MinGW Makefiles";
 	public override string FriendlyName => Platform.ToString() + "-" + Architecture;
+
+	public override DirectoryReference CMakeRootDirectory
+	{
+		get
+		{
+			// Use cmake from Android toolchain
+			string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
+			string AndroidHomeDirectory = Environment.GetEnvironmentVariable("ANDROID_HOME");
+
+			// don't register if we don't have either ANDROID_HOME or NDKROOT specified
+			if (string.IsNullOrEmpty(AndroidHomeDirectory))
+			{
+				if (string.IsNullOrEmpty(NDKDirectory))
+				{
+					throw new AutomationException("ANDROID_HOME and NDKROOT are not specified; cannot build Android.");
+				}
+
+				// ANDROID_HOME should be 2 directories above NDKROOT
+				AndroidHomeDirectory = Path.Combine(NDKDirectory.Replace("\"", ""), "..", "..");
+			}
+
+			AndroidHomeDirectory = AndroidHomeDirectory.Replace("\"", "");
+
+			return new DirectoryReference(Path.Combine(AndroidHomeDirectory, "cmake", "3.10.2.4988404"));
+		}
+	}
 
 	public override string MakeCommand
 	{
