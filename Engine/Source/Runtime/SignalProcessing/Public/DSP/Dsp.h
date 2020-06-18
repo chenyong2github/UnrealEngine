@@ -126,26 +126,39 @@ namespace Audio
 	// Returns the log frequency of the input value. Maps linear domain and range values to log output (good for linear slider controlling frequency)
 	static FORCEINLINE float GetLogFrequencyClamped(const float InValue, const FVector2D& Domain, const FVector2D& Range)
 	{
-		const float InValueCopy = FMath::Clamp<float>(InValue, Domain.X, Domain.Y);
+		// Check if equal as well as less than to avoid round error in case where at edges.
+		if (InValue <= Domain.X)
+		{
+			return Range.X;
+		}
+
+		if (InValue >= Domain.Y)
+		{
+			return Range.Y;
+		}
+
 		const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
-
-		check(Domain.Y != Domain.X);
-		const float Scale = (RangeLog.Y - RangeLog.X) / (Domain.Y - Domain.X);
-
-		return FMath::Exp(RangeLog.X + Scale * (InValueCopy - Domain.X));
+		const float FreqLinear = FMath::GetMappedRangeValueUnclamped(Domain, RangeLog, InValue);
+		return FMath::Exp(FreqLinear);
 	}
 
-	// Returns the lienar frequency of the input value. Maps log domain and range values to linear output (good for linear slider representation/visualization of log frequency). Reverse of GetLogFrequencyClamped.
+	// Returns the linear frequency of the input value. Maps log domain and range values to linear output (good for linear slider representation/visualization of log frequency). Reverse of GetLogFrequencyClamped.
 	static FORCEINLINE float GetLinearFrequencyClamped(const float InFrequencyValue, const FVector2D& Domain, const FVector2D& Range)
 	{
-		const float InFrequencyValueCopy = FMath::Clamp<float>(InFrequencyValue, Range.X, Range.Y);
+		// Check if equal as well as less than to avoid round error in case where at edges.
+		if (InFrequencyValue <= Range.X)
+		{
+			return Domain.X;
+		}
+
+		if (InFrequencyValue >= Range.Y)
+		{
+			return Domain.Y;
+		}
+
 		const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
-
-		check(Domain.Y != Domain.X);
-		check(RangeLog.Y != RangeLog.X);
-		const float Scale = (RangeLog.Y - RangeLog.X) / (Domain.Y - Domain.X);
-
-		return Domain.X + (FMath::Loge(InFrequencyValue) - RangeLog.X) / Scale;
+		const float FrequencyLog = FMath::Loge(InFrequencyValue);
+		return FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog);
 	}
 
 	// Using midi tuning standard, compute midi from frequency in hz
@@ -163,7 +176,7 @@ namespace Audio
 		return PitchScale;
 	}
 
-	// Returns the frequency multipler to scale a base frequency given the input semitones
+	// Returns the frequency multiplier to scale a base frequency given the input semitones
 	static FORCEINLINE float GetFrequencyMultiplier(const float InPitchSemitones)
 	{
 		if (InPitchSemitones == 0.0f)
