@@ -228,8 +228,8 @@ private:
 	void RenderDiffuseIndirectAndAmbientOcclusion(FRHICommandListImmediate& RHICmdList);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
-	void RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, struct FHairStrandsDatas* HairDatas);
-	void RenderDeferredReflectionsAndSkyLightingHair(FRHICommandListImmediate& RHICmdList, struct FHairStrandsDatas* HairDatas);
+	void RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, struct FHairStrandsRenderingData* HairDatas);
+	void RenderDeferredReflectionsAndSkyLightingHair(FRHICommandListImmediate& RHICmdList, struct FHairStrandsRenderingData* HairDatas);
 
 	/** Computes DFAO, modulates it to scene color (which is assumed to contain diffuse indirect lighting), and stores the output bent normal for use occluding specular. */
 	void RenderDFAOAsIndirectShadowing(
@@ -288,7 +288,7 @@ private:
 	void GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights);
 
 	/** Renders the scene's lighting. */
-	void RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const struct FHairStrandsDatas* HairDatas);
+	void RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const struct FHairStrandsRenderingData* HairDatas);
 
 	/** Renders an array of lights for the stationary light overlap viewmode. */
 	void RenderLightArrayForOverlapViewmode(FRHICommandListImmediate& RHICmdList, const TSparseArray<FLightSceneInfoCompact>& LightArray);
@@ -381,10 +381,10 @@ private:
 	void RenderCapsuleShadowsForMovableSkylight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& BentNormalOutput) const;
 
 	/** Render deferred projections of shadows for a given light into the light attenuation buffer. */
-	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const struct FHairStrandsDatas* HairDatas, bool& bInjectedTranslucentVolume);
+	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const struct FHairStrandsRenderingData* HairDatas, bool& bInjectedTranslucentVolume);
 
 	/** Render shadow projections when forward rendering. */
-	void RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMaskSubPixel, const struct FHairStrandsDatas* InHairDatas);
+	void RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMaskSubPixel, const struct FHairStrandsRenderingData* InHairDatas);
 
 	/**
 	  * Used by RenderLights to render a light function to the attenuation buffer.
@@ -415,7 +415,7 @@ private:
 	  * @return true if anything got rendered
 	  */
 	void RenderLight(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, const struct FHairStrandsVisibilityViews* InHairVisibilityViews, bool bRenderOverlap, bool bIssueDrawEvent);
-	void RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture);
+	void RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsRenderingData* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture);
 
 	/** Specialized version of RenderLight for hair (run lighting evaluation on at sub-pixel rate, without depth bound) */
 	void RenderLightForHair(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, struct FHairStrandsTransmittanceMaskData* InTransmittanceMaskData, const struct FHairStrandsVisibilityViews* InHairVisibilityViews);
@@ -595,7 +595,7 @@ private:
 
 	void GenerateSkyLightVisibilityRays(FRDGBuilder& GraphBuilder, FRDGBufferRef& SkyLightVisibilityRays, FIntVector& Dimensions);
 	void VisualizeSkyLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, const FIntVector& SkyLightMipDimensions);
-	void RenderRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT, const struct FHairStrandsDatas* HairDatas);
+	void RenderRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT, const struct FHairStrandsRenderingData* HairDatas);
 
 	void RenderRayTracingPrimaryRaysView(
 		FRDGBuilder& GraphBuilder,

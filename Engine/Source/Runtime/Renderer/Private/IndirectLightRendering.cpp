@@ -580,7 +580,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 	GraphBuilder.Execute();
 }
 
-void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, FHairStrandsDatas* HairDatas)
+void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, FHairStrandsRenderingData* HairDatas)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -925,7 +925,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 	FRHICommandListImmediate& RHICmdList,
-	FHairStrandsDatas* HairDatas)
+	FHairStrandsRenderingData* HairDatas)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
