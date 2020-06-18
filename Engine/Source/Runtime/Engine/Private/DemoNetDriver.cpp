@@ -45,7 +45,11 @@ DEFINE_LOG_CATEGORY( LogDemo );
 
 #define DEMO_CSV_PROFILING_HELPERS_ENABLED (CSV_PROFILER && (!UE_BUILD_SHIPPING))
 
-CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
+#if UE_BUILD_SHIPPING
+CSV_DEFINE_CATEGORY(Demo, false);
+#else
+CSV_DEFINE_CATEGORY(Demo, true);
+#endif
 
 static TAutoConsoleVariable<float> CVarDemoRecordHz( TEXT( "demo.RecordHz" ), 8, TEXT( "Maximum number of demo frames recorded per second" ) );
 static TAutoConsoleVariable<float> CVarDemoMinRecordHz(TEXT("demo.MinRecordHz"), 0, TEXT("Minimum number of demo frames recorded per second (use with care)"));
@@ -2012,7 +2016,7 @@ void UDemoNetDriver::SaveCheckpoint()
 	
 	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
 
-	CSV_SCOPED_TIMING_STAT(Basic, DemoSaveCheckpointTime);
+	CSV_SCOPED_TIMING_STAT(Demo, DemoSaveCheckpointTime);
 
 	if (HasLevelStreamingFixes())
 	{
@@ -2145,7 +2149,7 @@ static bool inline ShouldExecuteState(const FRepActorsCheckpointParams& Params, 
 
 void UDemoNetDriver::TickCheckpoint()
 {
-	CSV_SCOPED_TIMING_STAT(Basic, DemoRecordCheckpointTime);
+	CSV_SCOPED_TIMING_STAT(Demo, DemoRecordCheckpointTime);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SaveCheckpoint time"), STAT_ReplayCheckpointSaveTime, STATGROUP_Net);
 
 	if (CheckpointSaveContext.CheckpointSaveState == ECheckpointSaveState_Idle)
@@ -2160,7 +2164,7 @@ void UDemoNetDriver::TickCheckpoint()
 		return;
 	}
 
-	CSV_SCOPED_TIMING_STAT(Basic, DemoTickCheckpointTime);
+	CSV_SCOPED_TIMING_STAT(Demo, DemoTickCheckpointTime);
 
 	FRepActorsCheckpointParams Params
 	{
@@ -2667,7 +2671,7 @@ void UDemoNetDriver::TickDemoRecord(float DeltaSeconds)
 		return;
 	}
 
-	CSV_SCOPED_TIMING_STAT(Basic, DemoRecordTime);
+	CSV_SCOPED_TIMING_STAT(Demo, DemoRecordTime);
 
 	// DeltaSeconds that is padded in, is unclampped and not time dilated
 	DemoCurrentTime += GetClampedDeltaSeconds(World, DeltaSeconds);
@@ -3010,9 +3014,9 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 	const float TotalPrioritizeActorsTimeMS = TotalPrioritizeActorsTime * 1000.f;
 	const int32 NumPrioritizedActors = PrioritizedActors.Num();
 
-	CSV_CUSTOM_STAT(Basic, DemoRecPrioritizeTime, TotalPrioritizeActorsTimeMS, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(Basic, DemoRecPriotizedActors, NumPrioritizedActors, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(Basic, DemoNumActiveObjects, NumActiveObjects, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(Demo, DemoRecPrioritizeTime, TotalPrioritizeActorsTimeMS, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(Demo, DemoRecPriotizedActors, NumPrioritizedActors, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(Demo, DemoNumActiveObjects, NumActiveObjects, ECsvCustomStatOp::Set);
 
 	// Make sure we're under the desired recording time quota, if any.
 	// See ReplicatePriorizeActor.
@@ -3067,7 +3071,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 		}
 	}
 
-	CSV_CUSTOM_STAT(Basic, DemoNumReplicatedActors, Params.NumActorsReplicated, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(Demo, DemoNumReplicatedActors, Params.NumActorsReplicated, ECsvCustomStatOp::Set);
 
 	FlushNetChecked(*ClientConnection);
 
