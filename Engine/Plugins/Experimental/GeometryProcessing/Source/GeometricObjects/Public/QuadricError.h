@@ -16,7 +16,7 @@
 template<typename RealType>
 struct TQuadricError 
 {
-	typedef RealType   RealType;
+	typedef RealType   ScalarType;
 
 	RealType Axx, Axy, Axz, Ayy, Ayz, Azz;
 	RealType bx, by, bz; //d = -normal.dot(c); b = d*normal
@@ -437,7 +437,7 @@ template<typename RealType>
 class TAttrBasedQuadricError : public TVolPresQuadricError<RealType>
 {
 public:
-	typedef RealType  RealType;
+	typedef RealType  ScalarType;
 	typedef TVolPresQuadricError<RealType>  BaseClass;
 	typedef TQuadricError<RealType>  BaseStruct;
 

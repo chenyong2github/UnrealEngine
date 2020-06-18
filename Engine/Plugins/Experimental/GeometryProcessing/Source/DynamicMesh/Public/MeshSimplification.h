@@ -31,9 +31,9 @@ class TMeshSimplification : public FMeshRefinerBase
 {
 public:
 
-	typedef QuadricErrorType                      FQuadricErrorType;
-	typedef typename FQuadricErrorType::RealType  RealType;
-	typedef TQuadricError<RealType>               FSeamQuadricType;
+	typedef QuadricErrorType                       FQuadricErrorType;
+	typedef typename FQuadricErrorType::ScalarType RealType;
+	typedef TQuadricError<RealType>                FSeamQuadricType;
 
 	/**
 	 * If true, we try to find position for collapsed vertices that minimizes quadric error.
