@@ -1522,7 +1522,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			LOCTEXT("LandscapeLODMenu_ToolTip", "Override Landscape LOD in this viewport"),
 			FNewToolMenuDelegate::CreateStatic(&Local::BuildLandscapeLODMenu, this),
 			/*bInOpenSubMenuOnClick=*/ false,
-			FSlateIcon()
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.LOD")
 		);
 	}
 }

@@ -175,7 +175,13 @@ public:
 				InMenuBuilder.EndSection();
 			}
 		};
-		MenuBuilder.AddSubMenu(LOCTEXT("LandscapeSubMenu", "Visualizers"), LOCTEXT("LandscapeSubMenu_ToolTip", "Select a Landscape visualiser"), FNewMenuDelegate::CreateStatic(&Local::BuildLandscapeVisualizersMenu));
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("LandscapeSubMenu", "Visualizers"), 
+			LOCTEXT("LandscapeSubMenu_ToolTip", "Select a Landscape visualiser"), 
+			FNewMenuDelegate::CreateStatic(&Local::BuildLandscapeVisualizersMenu), 
+			false, 
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.Visualizers")
+		);
 	}
 
 	static void ChangeLandscapeViewMode(ELandscapeViewMode::Type ViewMode)
