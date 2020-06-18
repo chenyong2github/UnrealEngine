@@ -92,6 +92,7 @@ protected:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 	void Cleanup();
+	void IncrementTotalAllocations(uint32 Num);
 
 	/** The pools of read buffers from which allocations are made. */
 	FDynamicReadBufferPool* HalfBufferPool;
