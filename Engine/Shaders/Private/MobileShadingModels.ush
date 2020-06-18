@@ -82,52 +82,51 @@ void InitShadingModelContext( inout FMobileShadingModelContext ShadingModelConte
 	float NoV = max(dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector), 0);
 #endif
 
-#if NONMETAL
-	ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor;
-	ShadingModelContext.SpecularColor = 0.04;
-#else
+#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+	ShadingModelContext.ClearCoat = saturate(GetMaterialCustomData0(MaterialParameters));
+	ShadingModelContext.ClearCoatRoughness = clamp(GetMaterialCustomData1(MaterialParameters), 0.12, 1.0);
+	const half MetalSpec = 0.9;
 
-	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
-		ShadingModelContext.ClearCoat = saturate(GetMaterialCustomData0(MaterialParameters));
-		ShadingModelContext.ClearCoatRoughness = clamp(GetMaterialCustomData1(MaterialParameters), 0.12, 1.0);
-		const half MetalSpec = 0.9;
+	// Approximation of refraction's effect on EnvBRDF
+	half RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * ShadingModelContext.Roughness) + 1;
 
-		// Approximation of refraction's effect on EnvBRDF
-		half RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * ShadingModelContext.Roughness) + 1;
+	// Approximation of absorption integral, tuned for Roughness=0.4
+	half3 AbsorptionColor = ShadingModelContext.BaseColor * (1 / MetalSpec);
+	half3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
 
-		// Approximation of absorption integral, tuned for Roughness=0.4
-		half3 AbsorptionColor = ShadingModelContext.BaseColor * (1 / MetalSpec);
-		half3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
+	// F_Schlick
+	half F0 = 0.04;
+	half Fc = Pow5(1 - NoV);
+	half F = Fc + (1 - Fc) * F0;
+	half LayerAttenuation = lerp(1, (1 - F), ShadingModelContext.ClearCoat);
 
-		// F_Schlick
-		half F0 = 0.04;
-		half Fc = Pow5(1 - NoV);
-		half F = Fc + (1 - Fc) * F0;
-		half LayerAttenuation = lerp(1, (1 - F), ShadingModelContext.ClearCoat);
+	ShadingModelContext.Specular *= lerp(1, RefractionScale, ShadingModelContext.ClearCoat);
+	half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+	ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+	ShadingModelContext.SpecPreEnvBrdf = ShadingModelContext.SpecularColor;
+	ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;
 
-		ShadingModelContext.Specular *= lerp(1, RefractionScale, ShadingModelContext.ClearCoat);
-		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
-		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
-		ShadingModelContext.SpecPreEnvBrdf = ShadingModelContext.SpecularColor;
-		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;
+	// Adjust BaseColor according to ClearCoat layer attenuation
+	ShadingModelContext.BaseColor = lerp(ShadingModelContext.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, ShadingModelContext.Metallic * ShadingModelContext.ClearCoat);
+	const half Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
+	ShadingModelContext.BaseColor += Dither / 255.f;
 
-		// Adjust BaseColor according to ClearCoat layer attenuation
-		ShadingModelContext.BaseColor = lerp(ShadingModelContext.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, ShadingModelContext.Metallic * ShadingModelContext.ClearCoat);
-		const half Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
-		ShadingModelContext.BaseColor += Dither / 255.f;
+	// This is to prevent Vis to get inf when both NoL and NoV are 0.
+	ShadingModelContext.NoV = saturate(abs(NoV) + 1e-5);
 
-		// This is to prevent Vis to get inf when both NoL and NoV are 0.
-		ShadingModelContext.NoV = saturate(abs(NoV) + 1e-5);
+#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	ShadingModelContext.BaseMaterialCoverageOverWater = ShadingModelContext.Opacity;
+	ShadingModelContext.WaterVisibility = 1.0 - ShadingModelContext.BaseMaterialCoverageOverWater;
 
-	#elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-		ShadingModelContext.BaseMaterialCoverageOverWater = ShadingModelContext.Opacity;
-		ShadingModelContext.WaterVisibility = 1.0 - ShadingModelContext.BaseMaterialCoverageOverWater;
+	half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+	ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 1 mad
+	ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
 
-		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
-		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 1 mad
-		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
-
-	#else // MATERIAL_SHADINGMODEL_DEFAULTLIT
+#else // MATERIAL_SHADINGMODEL_DEFAULTLIT
+	#if NONMETAL
+		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor;
+		ShadingModelContext.SpecularColor = 0.04;
+	#else
 		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
 		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 1 mad
 		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
