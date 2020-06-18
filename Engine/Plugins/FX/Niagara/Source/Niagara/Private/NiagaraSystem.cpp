@@ -403,7 +403,10 @@ void UNiagaraSystem::PostLoad()
 #endif
 
 #if WITH_EDITORONLY_DATA
-	if (!GetOutermost()->bIsCookedForEditor)
+	// We remove emitters and scripts on dedicated servers, so skip further work.
+	const bool bIsDedicatedServer = !GIsClient && GIsServer;
+
+	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
 	{
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource = nullptr;
