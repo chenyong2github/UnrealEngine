@@ -1429,7 +1429,7 @@ static void AddDrawDebugClusterPass(
 void RenderHairStrandsDebugInfo(
 	FRHICommandListImmediate& RHICmdList, 
 	TArray<FViewInfo>& Views, 
-	const FHairStrandsDatas* HairDatas, 
+	const FHairStrandsRenderingData* HairDatas,
 	const struct FHairStrandClusterData& HairClusterData)
 {
 	const float YStep = 14;

@@ -82,5 +82,5 @@ struct FHairStrandsDebugData
 void RenderHairStrandsDebugInfo(
 	FRHICommandListImmediate& RHICmdList,
 	TArray<FViewInfo>& Views,
-	const struct FHairStrandsDatas* HairDatas,
+	const struct FHairStrandsRenderingData* HairDatas,
 	const struct FHairStrandClusterData& HairClusterData);
