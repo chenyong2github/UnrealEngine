@@ -41,7 +41,7 @@ public:
 	
 	TSharedPtr<FDynamicMesh3> OriginalMesh;		// Ownership shared with Tool
 
-	EHoleFillOpFillType FillType = EHoleFillOpFillType::TriangleFan;
+	EHoleFillOpFillType FillType = EHoleFillOpFillType::Minimal;
 	double MeshUVScaleFactor = 1.0;
 	TArray<FEdgeLoop> Loops;
 
