@@ -1,6 +1,5 @@
-﻿// Copyright (c) 2016, Entropy Game Global Limited.
+﻿// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
-// User space interface
 
 #ifndef RAIL_SDK_RAIL_USER_SPACE_H
 #define RAIL_SDK_RAIL_USER_SPACE_H
@@ -84,6 +83,7 @@ class IRailUserSpaceHelper {
                         EnumRailModifyFavoritesSpaceWorkType modify_flag,
                         const RailString& user_data) = 0;
 
+    // deprecated, use AsyncMarkSpaceWork instead
     // asynchronously Vote a space work
     // call back event : AsyncVoteSpaceWorkResult
     virtual RailResult AsyncVoteSpaceWork(SpaceWorkID id,
@@ -91,12 +91,20 @@ class IRailUserSpaceHelper {
                         const RailString& user_data) = 0;
 
     // asynchronously search space works
+    // suggest to use kRailSpaceWorkOrderByBestMatch as default order
     // call back event: AsyncSearchSpaceWorksResult
     virtual RailResult AsyncSearchSpaceWork(const RailSpaceWorkSearchFilter& filter,
                         const RailQueryWorkFileOptions& options,
                         const RailArray<EnumRailSpaceWorkType>& types,
                         uint32_t offset,
                         uint32_t max_works,
+                        EnumRailSpaceWorkOrderBy order_by,
+                        const RailString& user_data) = 0;
+
+    // asynchronously rate a space work,
+    // call back event: AsyncMarkSpaceWorkResult
+    virtual RailResult AsyncRateSpaceWork(const SpaceWorkID& id,
+                        EnumRailSpaceWorkRateValue mark,
                         const RailString& user_data) = 0;
 };
 
@@ -171,7 +179,7 @@ class IRailSpaceWork : public IRailComponent {
     // need call AsyncUpdateMetadata at least once, influenced by SetUpdateOptions
     virtual RailResult GetMetadata(const RailString& key, RailString* value) = 0;
     // need call AsyncUpdateMetadata at least once, influenced by SetUpdateOptions
-    virtual EnumRailSpaceWorkVoteValue GetMyVote() = 0;  // current user's vote for this space work
+    virtual EnumRailSpaceWorkRateValue GetMyVote() = 0;  // current user's vote for this space work
     // need call AsyncUpdateMetadata at least once, influenced by SetUpdateOptions
     virtual bool IsFavorite() = 0;  // whether this space work is current user's favorites
     // need call AsyncUpdateMetadata at least once, influenced by SetUpdateOptions
@@ -210,8 +218,9 @@ class IRailSpaceWork : public IRailComponent {
     virtual RailResult SetAssociatedSpaceWorks(const RailArray<SpaceWorkID>& ids) = 0;
     virtual RailResult SetLanguages(const RailArray<RailString>& languages) = 0;
 
-    // need call AsyncUpdateMetadata at least once
-    virtual RailResult GetPreviewUrl(RailString* url) = 0;
+    // need call AsyncUpdateMetadata at least once.
+    // the value range of param 'scaling' is 1~100.
+    virtual RailResult GetPreviewUrl(RailString* url, uint32_t scaling = 100) = 0;
     // need call AsyncUpdateMetadata at least once, influenced by SetUpdateOptions
     virtual RailResult GetVoteDetail(RailArray<RailSpaceWorkVoteDetail>* vote_details) = 0;
     // need call AsyncUpdateMetadata at least once
