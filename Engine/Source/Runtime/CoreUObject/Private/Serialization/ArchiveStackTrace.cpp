@@ -1182,7 +1182,7 @@ static bool IsExportMapIdentical(FLinkerLoad* SourceLinker, FLinkerLoad* DestLin
 	{
 		for (int32 ExportIndex = 0; ExportIndex < SourceLinker->ExportMap.Num(); ++ExportIndex)
 		{
-			if (CompareTableItem(SourceLinker, DestLinker, SourceLinker->ExportMap[ExportIndex], DestLinker->ExportMap[ExportIndex]))
+			if (!CompareTableItem(SourceLinker, DestLinker, SourceLinker->ExportMap[ExportIndex], DestLinker->ExportMap[ExportIndex]))
 			{
 				bIdentical = false;
 				break;
