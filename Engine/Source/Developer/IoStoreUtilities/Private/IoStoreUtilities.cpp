@@ -53,6 +53,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 #define OUTPUT_CHUNKID_DIRECTORY 0
 #define OUTPUT_NAMEMAP_CSV 0
 #define OUTPUT_DEBUG_PACKAGE_HASHES 0
+#define OUTPUT_DEBUG_PACKAGE_EXPORT_BUNDLES 0
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
 static const uint64 DefaultCompressionBlockSize = 64 << 10;
@@ -386,21 +387,23 @@ public:
 
 	void AddName(const FName& Name)
 	{
-		const FNameEntryId Id = Name.GetComparisonIndex();
-		NameMap.Add(Id);
+		const FNameEntryId ComparisonIndex = Name.GetComparisonIndex();
+		const FNameEntryId DisplayIndex = Name.GetDisplayIndex();
+		NameMap.Add(DisplayIndex);
 		int32 Index = NameMap.Num();
-		NameIndices.Add(Id, Index);
+		NameIndices.Add(ComparisonIndex, Index);
 	}
 
 	void MarkNamesAsReferenced(const TArray<FName>& Names, TArray<int32>& OutNameIndices)
 	{
 		for (const FName& Name : Names)
 		{
-			const FNameEntryId Id = Name.GetComparisonIndex();
-			int32& Index = NameIndices.FindOrAdd(Id);
+			const FNameEntryId ComparisonIndex = Name.GetComparisonIndex();
+			const FNameEntryId DisplayIndex = Name.GetDisplayIndex();
+			int32& Index = NameIndices.FindOrAdd(ComparisonIndex);
 			if (Index == 0)
 			{
-				NameMap.Add(Id);
+				NameMap.Add(DisplayIndex);
 				Index = NameMap.Num();
 			}
 
@@ -410,18 +413,19 @@ public:
 
 	void MarkNameAsReferenced(const FName& Name)
 	{
-		const FNameEntryId Id = Name.GetComparisonIndex();
-		int32& Index = NameIndices.FindOrAdd(Id);
+		const FNameEntryId ComparisonIndex = Name.GetComparisonIndex();
+		const FNameEntryId DisplayIndex = Name.GetDisplayIndex();
+		int32& Index = NameIndices.FindOrAdd(ComparisonIndex);
 		if (Index == 0)
 		{
-			NameMap.Add(Id);
+			NameMap.Add(DisplayIndex);
 			Index = NameMap.Num();
 		}
 #if OUTPUT_NAMEMAP_CSV
 		// debug counts
 		{
 			const int32 Number = Name.GetNumber();
-			TTuple<int32,int32,int32>& Counts = DebugNameCounts.FindOrAdd(Id);
+			TTuple<int32, int32, int32>& Counts = DebugNameCounts.FindOrAdd(ComparisonIndex);
 
 			if (Number == 0)
 			{
@@ -473,9 +477,8 @@ public:
 				FNameEntrySerialized NameEntrySerialized(ENAME_LinkerConstructor);
 				Ar << NameEntrySerialized;
 				FName Name(NameEntrySerialized);
-				FNameEntryId NameId = Name.GetComparisonIndex();
-				NameMapBuilder.NameMap.Add(NameId);
-				NameMapBuilder.NameIndices.Add(NameId, NameIndex + 1);
+				NameMapBuilder.NameMap.Add(Name.GetDisplayIndex());
+				NameMapBuilder.NameIndices.Add(Name.GetComparisonIndex(), NameIndex + 1);
 			}
 		}
 		return Ar;
@@ -628,7 +631,8 @@ struct FIoStoreArguments
 	FString GlobalContainerPath;
 	FString CookedDir;
 	ITargetPlatform* TargetPlatform = nullptr;
-	FString MetaDir;
+	FString MetaInputDir;
+	FString MetaOutputDir;
 	TArray<FContainerSourceSpec> Containers;
 	FCookedFileStatMap CookedFileStatMap;
 	TMap<FName, uint64> GameOrderMap;
@@ -788,8 +792,8 @@ struct FExportBundle
 struct FPackageGraphNode
 {
 	FPackage* Package = nullptr;
-	bool bTemporaryMark = false;
-	bool bPermanentMark = false;
+	mutable bool bTemporaryMark = false;
+	mutable bool bPermanentMark = false;
 };
 
 class FPackageGraph
@@ -1008,33 +1012,52 @@ struct FCircularImportChain
 
 TArray<FPackage*> FPackageGraph::TopologicalSort() const
 {
-	TMultiMap<FPackageGraphNode*, FPackageGraphNode*> EdgesCopy = Edges;
+	TMap<const FPackageGraphNode*, TArray<const FPackageGraphNode*>> SortedEdges;
+	for (const auto& KV : Edges)
+	{
+		const FPackageGraphNode* Source = KV.Key;
+		const FPackageGraphNode* Target = KV.Value;
+		TArray<const FPackageGraphNode*>& SourceArray = SortedEdges.FindOrAdd(Source);
+		SourceArray.Add(Target);
+	}
+	for (auto& KV : SortedEdges)
+	{
+		TArray<const FPackageGraphNode*>& SourceArray = KV.Value;
+		Algo::Sort(SourceArray, [](const FPackageGraphNode* A, const FPackageGraphNode* B)
+		{
+			return A->Package->GlobalPackageId < B->Package->GlobalPackageId;
+		});
+	}
+
 	TArray<FPackage*> Result;
 	Result.Reserve(Nodes.Num());
 	
 	struct
 	{
-		void Visit(FPackageGraphNode* Node)
+		void Visit(const FPackageGraphNode* Node)
 		{
 			if (Node->bPermanentMark || Node->bTemporaryMark)
 			{
 				return;
 			}
 			Node->bTemporaryMark = true;
-			for (auto EdgeIt = Edges.CreateKeyIterator(Node); EdgeIt; ++EdgeIt)
+			TArray<const FPackageGraphNode*>* TargetNodes = Edges.Find(Node);
+			if(TargetNodes)
 			{
-				FPackageGraphNode* ToNode = EdgeIt.Value();
-				Visit(ToNode);
+				for (const FPackageGraphNode* ToNode : *TargetNodes)
+				{
+					Visit(ToNode);
+				}
 			}
 			Node->bTemporaryMark = false;
 			Node->bPermanentMark = true;
 			Result.Add(Node->Package);
 		}
 
-		TMultiMap<FPackageGraphNode*, FPackageGraphNode*>& Edges;
+		TMap<const FPackageGraphNode*, TArray<const FPackageGraphNode*>>& Edges;
 		TArray<FPackage*>& Result;
 
-	} Visitor{ EdgesCopy, Result };
+	} Visitor{ SortedEdges, Result };
 
 	for (FPackageGraphNode* Node : Nodes)
 	{
@@ -1080,12 +1103,21 @@ TArray<FExportGraphNode*> FExportGraph::ComputeLoadOrder(const TArray<FPackage*>
 	TArray<FExportGraphNode*> LoadOrder;
 	LoadOrder.Reserve(NodeCount);
 	
+	auto NodeSorter = [](const FExportGraphNode& A, const FExportGraphNode& B)
+	{
+		if (A.BundleEntry.LocalExportIndex == B.BundleEntry.LocalExportIndex)
+		{
+			return A.BundleEntry.CommandType < B.BundleEntry.CommandType;
+		}
+		return A.BundleEntry.LocalExportIndex < B.BundleEntry.LocalExportIndex;
+	};
+
 	for (int32 NodeIndex = 0; NodeIndex < NodeCount; ++NodeIndex)
 	{
 		if (NodesIncomingEdgeCount[NodeIndex] == 0)
 		{
 			FExportGraphNode* Node = Nodes[NodeIndex];
-			Node->Package->NodesWithNoIncomingEdges.Push(Node);
+			Node->Package->NodesWithNoIncomingEdges.HeapPush(Node, NodeSorter);
 		}
 	}
 	while (LoadOrder.Num() < NodeCount)
@@ -1094,14 +1126,15 @@ TArray<FExportGraphNode*> FExportGraph::ComputeLoadOrder(const TArray<FPackage*>
 		{
 			while (Package->NodesWithNoIncomingEdges.Num() > 0)
 			{
-				FExportGraphNode* RemovedNode = Package->NodesWithNoIncomingEdges.Pop(false);
+				FExportGraphNode* RemovedNode;
+				Package->NodesWithNoIncomingEdges.HeapPop(RemovedNode, NodeSorter, false);
 				LoadOrder.Add(RemovedNode);
 				for (auto EdgeIt = EdgesCopy.CreateKeyIterator(RemovedNode); EdgeIt; ++EdgeIt)
 				{
 					FExportGraphNode* ToNode = EdgeIt.Value();
 					if (--NodesIncomingEdgeCount[ToNode->NodeIndex] == 0)
 					{
-						ToNode->Package->NodesWithNoIncomingEdges.Push(ToNode);
+						ToNode->Package->NodesWithNoIncomingEdges.HeapPush(ToNode, NodeSorter);
 					}
 					EdgeIt.RemoveCurrent();
 				}
@@ -1173,6 +1206,7 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 		{
 			uint32* FindDependentBundleIndex = ExternalDependency->Package->ExportBundleMap.Find(ExternalDependency);
 			check(FindDependentBundleIndex);
+			check(*FindDependentBundleIndex < uint32(ExternalDependency->Package->ExportBundles.Num()));
 			AddUniqueExternalBundleArc(ExternalDependency->Package->GlobalPackageId, *FindDependentBundleIndex, *Package, BundleIndex);
 		}
 		for (FPackageId FromPackageId : Node->BaseGamePackageDependencies)
@@ -2170,7 +2204,27 @@ void FinalizePackageHeaders(
 
 		int32 ReferencedPackagesCount = Package->ExternalArcs.Num();
 		GraphArchive << ReferencedPackagesCount;
+		TArray<TTuple<FPackageId, TArray<FArc>>> SortedExternalArcs;
+		SortedExternalArcs.Reserve(Package->ExternalArcs.Num());
 		for (auto& KV : Package->ExternalArcs)
+		{
+			FPackageId ImportedPackageId = KV.Key;
+			TArray<FArc> SortedArcs = KV.Value;
+			Algo::Sort(SortedArcs, [](const FArc& A, const FArc& B)
+			{
+				if (A.FromNodeIndex == B.FromNodeIndex)
+				{
+					return A.ToNodeIndex < B.ToNodeIndex;
+				}
+				return A.FromNodeIndex < B.ToNodeIndex;
+			});
+			SortedExternalArcs.Emplace(ImportedPackageId, MoveTemp(SortedArcs));
+		}
+		Algo::Sort(SortedExternalArcs, [](const TTuple<FPackageId, TArray<FArc>>& A, const TTuple<FPackageId, TArray<FArc>>& B)
+		{
+			return A.Key < B.Key;
+		});
+		for (auto& KV : SortedExternalArcs)
 		{
 			FPackageId ImportedPackageId = KV.Key;
 			TArray<FArc>& Arcs = KV.Value;
@@ -2233,6 +2287,9 @@ void FinalizePackageHeaders(
 		}
 		TargetFile.ExportBundlesHeaderSize = ExportBundlesArchive.Tell();
 
+		FMappedName MappedPackageName = TargetFile.NameMapBuilder->MapName(Package->Name);
+		FMappedName MappedPackageSourceName = TargetFile.NameMapBuilder->MapName(Package->SourcePackageName);
+
 		TArray<uint8> NamesBuffer;
 		TArray<uint8> NameHashesBuffer;
 		SaveNameBatch(Package->LocalNameMapBuilder.GetNameMap(), NamesBuffer, NameHashesBuffer);
@@ -2250,12 +2307,10 @@ void FinalizePackageHeaders(
 		uint8* PackageHeaderBuffer = TargetFile.PackageHeaderData.GetData();
 		FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageHeaderBuffer);
 
-		PackageSummary->Name = TargetFile.NameMapBuilder->MapName(Package->Name);
-		PackageSummary->SourceName = TargetFile.NameMapBuilder->MapName(Package->SourcePackageName);
+		PackageSummary->Name = MappedPackageName;
+		PackageSummary->SourceName = MappedPackageSourceName;
 		PackageSummary->PackageFlags = Package->PackageFlags;
 		PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
-		PackageSummary->GraphDataSize = TargetFile.UGraphSize;
-
 		FBufferWriter SummaryArchive(PackageHeaderBuffer, TargetFile.HeaderSerialSize);
 		SummaryArchive.Seek(sizeof(FPackageSummary));
 
@@ -2302,6 +2357,7 @@ void FinalizePackageHeaders(
 		{
 			check(GraphArchive.Tell() == TargetFile.UGraphSize);
 			PackageSummary->GraphDataOffset = SummaryArchive.Tell();
+			PackageSummary->GraphDataSize = TargetFile.UGraphSize;
 			SummaryArchive.Serialize(GraphArchive.GetWriterData(), GraphArchive.Tell());
 		}
 	}
@@ -3517,10 +3573,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	{
 		IOSTORE_CPU_SCOPE(CreateContainerTargets);
 
-		if (!Arguments.MetaDir.IsEmpty())
+		if (!Arguments.MetaInputDir.IsEmpty())
 		{
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
+			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaInputDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
 			if (PackageHashesArchive)
 			{
@@ -3569,6 +3625,29 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		Packages);
 
 	BuildBundles(ExportGraph, Packages);
+
+#if OUTPUT_DEBUG_PACKAGE_EXPORT_BUNDLES
+	if (!Arguments.MetaOutputDir.IsEmpty())
+	{
+		TUniquePtr<IFileHandle> ExportBundleMetaFile(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*(Arguments.MetaOutputDir / TEXT("iodispatcher.uexportbundles"))));
+		for (const FPackage* Package : Packages)
+		{
+			int32 ExportBundleIndex = 0;
+			for (const FExportBundle& ExportBundle : Package->ExportBundles)
+			{
+				FString Text = FString::Printf(TEXT("%s[%d]\n"), *Package->Name.ToString(), ExportBundleIndex);
+				ExportBundleMetaFile->Write((uint8*)StringCast<ANSICHAR>(*Text).Get(), Text.Len());
+				for (const FExportGraphNode* Node : ExportBundle.Nodes)
+				{
+					Text = FString::Printf(TEXT("- %s %d\n"), Node->BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize ? "S" : "C", Node->BundleEntry.LocalExportIndex);
+					ExportBundleMetaFile->Write((uint8*)StringCast<ANSICHAR>(*Text).Get(), Text.Len());
+				}
+				++ExportBundleIndex;
+			}
+		}
+		ExportBundleMetaFile->Flush();
+	}
+#endif
 
 	{
 		IOSTORE_CPU_SCOPE(FinalizeNameMaps);
@@ -3948,10 +4027,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 	IoStoreWriters.Empty();
 
-	if (!Arguments.MetaDir.IsEmpty())
+	if (!Arguments.MetaOutputDir.IsEmpty())
 	{
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
+		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaOutputDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
 
 		int32 PackageCount = Packages.Num();
@@ -3971,16 +4050,33 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 	{
 		uint64 AddedCount = 0;
+		uint64 AddedUAssetSize = 0;
+		uint64 AddedUExpSize = 0;
+		uint64 AddedExportBundlesSize = 0;
 		uint64 DeletedCount = 0;
-		uint64 ModifiedCountUAssetOrUExpCount = 0;
+		uint64 ModifiedUAssetOrUExpCount = 0;
 		uint64 ModifiedUAssetCount = 0;
 		uint64 ModifiedUAssetSize = 0;
 		uint64 ModifiedUExpCount = 0;
 		uint64 ModifiedUExpSize = 0;
 		uint64 ModifiedExportBundlesCount = 0;
 		uint64 ModifiedExportBundlesSize = 0;
-		for (FPackage* Package : Packages)
+		TMap<const FPackage*, uint64> PackageToExportBundleSizeMap;
+		for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
+			for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+			{
+				if (TargetFile.bIsBulkData)
+				{
+					continue;
+				}
+				PackageToExportBundleSizeMap.Add(TargetFile.Package, TargetFile.TargetSize);
+			}
+		}
+		for (const FPackage* Package : Packages)
+		{
+			uint64 ExportBundleSize = PackageToExportBundleSizeMap.FindRef(Package);
+			check(ExportBundleSize);
 			const FPackageHashes* PreviousHashes = PreviousBuildPackageHashes.Find(Package->Name);
 			if (PreviousHashes)
 			{
@@ -4002,31 +4098,39 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				if (PreviousHashes->ExportBundleHash != Package->Hashes.ExportBundleHash)
 				{
 					++ModifiedExportBundlesCount;
-					ModifiedExportBundlesSize += Package->ExportBundlesHeaderSize + Package->ExportsSerialSize;
+					ModifiedExportBundlesSize += ExportBundleSize;
+					UE_CLOG(!bModified, LogIoStore, Warning, TEXT("Modified export bundle without modified package data: %s"), *Package->Name.ToString());
 				}
 				if (bModified)
 				{
-					++ModifiedCountUAssetOrUExpCount;
+					++ModifiedUAssetOrUExpCount;
 				}
 			}
 			else
 			{
 				++AddedCount;
+				AddedUAssetSize += Package->UAssetSize;
+				AddedUExpSize += Package->UExpSize;
+				AddedExportBundlesSize += ExportBundleSize;
 			}
 		}
 		for (const auto& KV : PreviousBuildPackageHashes)
 		{
-			if (!PackageMap.Contains(KV.Key))
+			if (!PackageNameMap.Contains(KV.Key))
 			{
 				++DeletedCount;
 			}
 		}
-		UE_LOG(LogIoStore, Display, TEXT("Added packages: %d"), AddedCount);
-		UE_LOG(LogIoStore, Display, TEXT("Deleted packages: %d"), DeletedCount);
 		UE_LOG(LogIoStore, Display, TEXT("Modified packages (export bundle): %d, %fMB"), ModifiedExportBundlesCount, ModifiedExportBundlesSize / 1024.0 / 1024.0);
-		UE_LOG(LogIoStore, Display, TEXT("Modified packages (uasset|uexp): %d, %fMB"), ModifiedCountUAssetOrUExpCount, (ModifiedUAssetSize + ModifiedUExpSize) / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Modified packages (uasset|uexp): %d, %fMB"), ModifiedUAssetOrUExpCount, (ModifiedUAssetSize + ModifiedUExpSize) / 1024.0 / 1024.0);
 		UE_LOG(LogIoStore, Display, TEXT("Modified packages (uasset): %d, %fMB"), ModifiedUAssetCount, ModifiedUAssetSize / 1024.0 / 1024.0);
 		UE_LOG(LogIoStore, Display, TEXT("Modified packages (uexp): %d, %fMB"), ModifiedUExpCount, ModifiedUExpSize / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Added packages: %d"), AddedCount);
+		UE_LOG(LogIoStore, Display, TEXT("Added packages (export bundle): %fMB"), AddedExportBundlesSize / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Added packages (uasset|uexp): %fMB"), (AddedUAssetSize + AddedUExpSize) / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Added packages (uasset): %fMB"), AddedUAssetSize / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Added packages (uexp): %fMB"), AddedUExpSize / 1024.0 / 1024.0);
+		UE_LOG(LogIoStore, Display, TEXT("Deleted packages: %d"), DeletedCount);
 	}
 #endif
 
@@ -4491,7 +4595,8 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
 
-	FParse::Value(CmdLine, TEXT("-MetaDirectory="), Arguments.MetaDir);
+	FParse::Value(CmdLine, TEXT("-MetaOutputDirectory="), Arguments.MetaOutputDir);
+	FParse::Value(CmdLine, TEXT("-MetaInputDirectory="), Arguments.MetaInputDir);
 
 	FString CommandListFile;
 	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
