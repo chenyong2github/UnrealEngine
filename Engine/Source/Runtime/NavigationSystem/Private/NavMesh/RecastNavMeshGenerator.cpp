@@ -4209,8 +4209,9 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 {
 	const float ExpandBy = TileConfig.AgentRadius;
 
-	// Expand by 1 cell height up and down to cover for voxel grid inaccuracy
-	const float OffsetZMax = TileConfig.ch;
+	// If requested, expand by 1 cell height
+	const bool bExpandTop = TileConfig.bUseExtraTopCellWhenMarkingAreas || Modifier.ShouldExpandTopByCellHeight();
+	const float OffsetZMax = (bExpandTop ? TileConfig.ch : 0.f);
 	const float OffsetZMin = TileConfig.ch + (Modifier.ShouldIncludeAgentHeight() ? TileConfig.AgentHeight : 0.0f);
 
 	// Check whether modifier affects this layer
@@ -4268,10 +4269,10 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			WorldBox.Min.Z -= OffsetZMin;
 			WorldBox.Max.Z += OffsetZMax;
 
-			FBox RacastBox = Unreal2RecastBox(WorldBox);
+			const FBox RecastBox = Unreal2RecastBox(WorldBox);
 			FVector RecastPos;
 			FVector RecastExtent;
-			RacastBox.GetCenterAndExtents(RecastPos, RecastExtent);
+			RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
 				
 			if (ReplaceIDPtr)
 			{
@@ -4479,6 +4480,7 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	OutConfig.maxSimplificationError = DestNavMesh->MaxSimplificationError;
 	OutConfig.bPerformVoxelFiltering = DestNavMesh->bPerformVoxelFiltering;
 	OutConfig.bMarkLowHeightAreas = DestNavMesh->bMarkLowHeightAreas;
+	OutConfig.bUseExtraTopCellWhenMarkingAreas = DestNavMesh->bUseExtraTopCellWhenMarkingAreas;
 	OutConfig.bFilterLowSpanSequences = DestNavMesh->bFilterLowSpanSequences;
 	OutConfig.bFilterLowSpanFromTileCache = DestNavMesh->bFilterLowSpanFromTileCache;
 	if (DestNavMesh->bMarkLowHeightAreas)
