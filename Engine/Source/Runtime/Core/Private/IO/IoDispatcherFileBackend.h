@@ -107,13 +107,12 @@ struct FFileIoStoreRawBlock
 
 	FFileIoStoreRawBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
-	uint64 Offset;
-	uint64 Size;
+	uint64 FileHandle = uint64(-1);
+	uint64 Offset = uint64(-1);
+	uint64 Size = uint64(-1);
 	FFileIoStoreBuffer* Buffer = nullptr;
 	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<4>> CompressedBlocks;
 	uint32 RefCount = 0;
-	FIoRequestImpl* DirectToRequest = nullptr;
-	uint64 DirectToRequestOffset = 0;
 	uint8 Flags = None;
 };
 

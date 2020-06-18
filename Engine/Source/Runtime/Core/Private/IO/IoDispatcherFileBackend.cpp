@@ -529,73 +529,65 @@ void FFileIoStore::ProcessCompletedBlocks(const bool bIsMultithreaded)
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesRead, CompletedBlock->Size);
 		FFileIoStoreRawBlock* NextBlock = CompletedBlock->Next;
 
-		if (CompletedBlock->DirectToRequest)
-		{
-			check(CompletedBlock->DirectToRequest->UnfinishedReadsCount > 0);
-			--CompletedBlock->DirectToRequest->UnfinishedReadsCount;
-			TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, CompletedBlock->Size);
-		}
-		else
-		{
-			RawBlocksMap.Remove(CompletedBlock->Key);
+		RawBlocksMap.Remove(CompletedBlock->Key);
 
-			//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlock);
-			for (FFileIoStoreCompressedBlock* CompressedBlock : CompletedBlock->CompressedBlocks)
+		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlock);
+		for (FFileIoStoreCompressedBlock* CompressedBlock : CompletedBlock->CompressedBlocks)
+		{
+			if (CompressedBlock->RawBlocksCount > 1)
 			{
-				if (CompressedBlock->RawBlocksCount > 1)
+				//TRACE_CPUPROFILER_EVENT_SCOPE(HandleComplexBlock);
+				if (!CompressedBlock->CompressedDataBuffer)
 				{
-					//TRACE_CPUPROFILER_EVENT_SCOPE(HandleComplexBlock);
-					if (!CompressedBlock->CompressedDataBuffer)
-					{
-						CompressedBlock->CompressedDataBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->RawSize));
-					}
-
-					uint8* Src = CompletedBlock->Buffer->Memory;
-					uint8* Dst = CompressedBlock->CompressedDataBuffer;
-					uint64 CopySize = CompletedBlock->Size;
-					int64 CompletedBlockOffsetInBuffer = int64(CompletedBlock->Offset) - int64(CompressedBlock->RawOffset);
-					if (CompletedBlockOffsetInBuffer < 0)
-					{
-						Src -= CompletedBlockOffsetInBuffer;
-						CopySize += CompletedBlockOffsetInBuffer;
-					}
-					else
-					{
-						Dst += CompletedBlockOffsetInBuffer;
-					}
-					uint64 CompressedBlockRawEndOffset = CompressedBlock->RawOffset + CompressedBlock->RawSize;
-					uint64 CompletedBlockEndOffset = CompletedBlock->Offset + CompletedBlock->Size;
-					if (CompletedBlockEndOffset > CompressedBlockRawEndOffset)
-					{
-						CopySize -= CompletedBlockEndOffset - CompressedBlockRawEndOffset;
-					}
-					FMemory::Memcpy(Dst, Src, CopySize);
-					check(CompletedBlock->RefCount > 0);
-					--CompletedBlock->RefCount;
+					CompressedBlock->CompressedDataBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->RawSize));
 				}
+
+				uint8* Src = CompletedBlock->Buffer->Memory;
+				uint8* Dst = CompressedBlock->CompressedDataBuffer;
+				uint64 CopySize = CompletedBlock->Size;
+				int64 CompletedBlockOffsetInBuffer = int64(CompletedBlock->Offset) - int64(CompressedBlock->RawOffset);
+				if (CompletedBlockOffsetInBuffer < 0)
+				{
+					Src -= CompletedBlockOffsetInBuffer;
+					CopySize += CompletedBlockOffsetInBuffer;
+				}
+				else
+				{
+					Dst += CompletedBlockOffsetInBuffer;
+				}
+				uint64 CompressedBlockRawEndOffset = CompressedBlock->RawOffset + CompressedBlock->RawSize;
+				uint64 CompletedBlockEndOffset = CompletedBlock->Offset + CompletedBlock->Size;
+				if (CompletedBlockEndOffset > CompressedBlockRawEndOffset)
+				{
+					CopySize -= CompletedBlockEndOffset - CompressedBlockRawEndOffset;
+				}
+				FMemory::Memcpy(Dst, Src, CopySize);
+				check(CompletedBlock->RefCount > 0);
+				--CompletedBlock->RefCount;
+			}
 				
-				check(CompressedBlock->UnfinishedRawBlocksCount > 0);
-				if (--CompressedBlock->UnfinishedRawBlocksCount == 0)
-				{
-					CompressedBlocksMap.Remove(CompressedBlock->Key);
-					if (!ReadyForDecompressionTail)
-					{
-						ReadyForDecompressionHead = ReadyForDecompressionTail = CompressedBlock;
-					}
-					else
-					{
-						ReadyForDecompressionTail->Next = CompressedBlock;
-						ReadyForDecompressionTail = CompressedBlock;
-					}
-					CompressedBlock->Next = nullptr;
-				}
-			}
-			if (CompletedBlock->RefCount == 0)
+			check(CompressedBlock->UnfinishedRawBlocksCount > 0);
+			if (--CompressedBlock->UnfinishedRawBlocksCount == 0)
 			{
-				FreeBuffer(CompletedBlock->Buffer);
-				delete CompletedBlock;
+				CompressedBlocksMap.Remove(CompressedBlock->Key);
+				if (!ReadyForDecompressionTail)
+				{
+					ReadyForDecompressionHead = ReadyForDecompressionTail = CompressedBlock;
+				}
+				else
+				{
+					ReadyForDecompressionTail->Next = CompressedBlock;
+					ReadyForDecompressionTail = CompressedBlock;
+				}
+				CompressedBlock->Next = nullptr;
 			}
 		}
+		if (CompletedBlock->RefCount == 0)
+		{
+			FreeBuffer(CompletedBlock->Buffer);
+			delete CompletedBlock;
+		}
+		
 		CompletedBlock = NextBlock;
 	}
 	
@@ -888,16 +880,8 @@ bool FFileIoStore::ReadPendingBlock()
 
 	FFileIoStoreRawBlock* BlockToRead = ScheduledBlocksHead;
 
-	uint8* Target;
-	if (BlockToRead->DirectToRequest)
-	{
-		Target = BlockToRead->DirectToRequest->IoBuffer.Data() + BlockToRead->DirectToRequestOffset;
-	}
-	else
-	{
-		BlockToRead->Buffer = AllocBuffer();
-		Target = BlockToRead->Buffer->Memory;
-	}
+	BlockToRead->Buffer = AllocBuffer();
+	BlockToRead->FileHandle = IoStoreReaders[BlockToRead->Key.FileIndex]->GetContainerFile().FileHandle;
 
 	ScheduledBlocksHead = ScheduledBlocksHead->Next;
 	if (!ScheduledBlocksHead)
@@ -905,7 +889,7 @@ bool FFileIoStore::ReadPendingBlock()
 		ScheduledBlocksTail = nullptr;
 	}
 	
-	PlatformImpl.ReadBlockFromFile(Target, IoStoreReaders[BlockToRead->Key.FileIndex]->GetContainerFile().FileHandle, BlockToRead);
+	PlatformImpl.ReadBlockFromFile(BlockToRead);
 
 	return true;
 }
