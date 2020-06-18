@@ -204,8 +204,12 @@ extern "C" {
 #define NSVG_RGB(r, g, b) (((unsigned int)r) | ((unsigned int)g << 8) | ((unsigned int)b << 16))
 
 #ifdef _MSC_VER
+#pragma warning(push)
 #pragma warning (disable: 4996) // Switch off security warnings
 #pragma warning (disable: 4100) // Switch off unreferenced formal parameter warnings
+#pragma warning (disable: 6031) // Ignore return value ignored from scanf
+#pragma warning (disable: 6001) // Ignore uninitialized memory *style warnings which comes from NSVGparser containing a ptr to an NSVGStyles struct that is memzerored (i.e not uninitialized)
+
 #ifdef __cplusplus
 #define NSVG_INLINE inline
 #else
@@ -700,7 +704,7 @@ static void nsvg__deletePaint(NSVGpaint* paint)
 
 static void nsvg__deleteGradientData(NSVGgradientData* grad)
 {
-	NSVGgradientData* next;
+	NSVGgradientData* next = NULL;
 	while (grad != NULL) {
 		next = grad->next;
 		free(grad->stops);
@@ -851,7 +855,7 @@ static NSVGgradient* nsvg__createGradient(NSVGparser* p, const char* id, const f
 	NSVGgradientData* data = NULL;
 	NSVGgradientData* ref = NULL;
 	NSVGgradientStop* stops = NULL;
-	NSVGgradient* grad;
+	NSVGgradient* grad = NULL;
 	float ox, oy, sw, sh, sl;
 	int nstops = 0;
 
@@ -2725,8 +2729,8 @@ static void nsvg__parseGradient(NSVGparser* p, const char** attr, char type)
 static void nsvg__parseGradientStop(NSVGparser* p, const char** attr)
 {
 	NSVGattrib* curAttr = nsvg__getAttr(p);
-	NSVGgradientData* grad;
-	NSVGgradientStop* stop;
+	NSVGgradientData* grad = NULL;
+	NSVGgradientStop* stop = NULL;
 	int i, idx;
 
 	curAttr->stopOffset = 0;
@@ -3159,5 +3163,10 @@ void nsvgDelete(NSVGimage* image)
 	}
 	free(image);
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 
 #endif
