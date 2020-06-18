@@ -134,6 +134,9 @@ PRAGMA_DISABLE_OPTIMIZATION
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush(Style->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
+// We no longer use this style. it is kept around for reference only
+#define ALLOW_LEGACY_CORE_STYLE 0
+
 TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 {
 	TSharedRef<FSlateCoreStyle> Style = MakeShareable(new FSlateCoreStyle(InStyleSetName));
@@ -148,6 +151,8 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 
 		return Style;
 	}
+
+#if ALLOW_LEGACY_CORE_STYLE
 
 	// Note, these sizes are in Slate Units.
 	// Slate Units do NOT have to map to pixels.
@@ -1331,8 +1336,9 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		Style->Set("SyntaxHighlight.NodeAttribueAssignment", FTextBlockStyle(SmallMonospacedText).SetColorAndOpacity(FLinearColor(FColor(0xffb2b400)))); // yellow
 		Style->Set("SyntaxHighlight.NodeAttributeValue", FTextBlockStyle(SmallMonospacedText).SetColorAndOpacity(FLinearColor(FColor(0xffb46100)))); // orange
 	}
-
+#endif 
 	return Style;
+
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

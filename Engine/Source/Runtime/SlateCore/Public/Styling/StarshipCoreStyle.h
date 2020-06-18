@@ -8,6 +8,8 @@
 
 struct FSlateDynamicImageBrush;
 
+class FStyle;
+
 /**
  * Core slate style
  */
@@ -67,7 +69,17 @@ public:
 	static bool IsInitialized() { return Instance.IsValid(); }
 private:
 
-	static void SetStyle( const TSharedRef< class ISlateStyle >& NewStyle );
+	static void SetStyle(const TSharedRef<class ISlateStyle>& NewStyle);
+	
+	static void SetupColors(TSharedRef<FStyle>& Style);
+	static void SetupTextStyles(TSharedRef<FStyle>& Style);
+	static void SetupButtonStyles(TSharedRef<FStyle>& Style);
+	static void SetupComboButtonStyles(TSharedRef<FStyle>& Style);
+	static void SetupCheckboxStyles(TSharedRef<FStyle>& Style);
+	static void SetupDockingStyles(TSharedRef<FStyle>& Style);
+	static void SetupColorPickerStyles(TSharedRef<FStyle>& Style);
+	static void SetupTableViewStyles(TSharedRef<FStyle>& Style);
+	static void SetupMultiboxStyles(TSharedRef<FStyle>& Style);
 
 private:
 
