@@ -472,16 +472,16 @@ private:
 	FMappedName::EType NameMapType = FMappedName::EType::Global;
 };
 
-struct FPublicExportRef
+struct FPublicExport
 {
-	int32 ObjectIndex = 0;
+	UObject* Object = nullptr;
 	FPackageId PackageId; // for fast clear of package load status during GC
 };
 
 struct FGlobalImportStore
 {
 	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
-	TMap<FPackageObjectIndex, FPublicExportRef> PublicExportToObjectIndex;
+	TMap<FPackageObjectIndex, FPublicExport> PublicExportObjects;
 	TMap<int32, FPackageObjectIndex> ObjectIndexToPublicExport;
 	// Temporary initial load data
 	TArray<FScriptObjectEntry> ScriptObjectEntries;
@@ -489,7 +489,7 @@ struct FGlobalImportStore
 
 	FGlobalImportStore()
 	{
-		PublicExportToObjectIndex.Reserve(32768);
+		PublicExportObjects.Reserve(32768);
 		ObjectIndexToPublicExport.Reserve(32768);
 	}
 
@@ -497,12 +497,14 @@ struct FGlobalImportStore
 	{
 		FPackageId PackageId;
 		int32 ObjectIndex = GUObjectArray.ObjectToIndex(InObject);
-		FPackageObjectIndex* GlobalIndex = ObjectIndexToPublicExport.Find(ObjectIndex);
-		if (GlobalIndex)
+		FPackageObjectIndex GlobalIndex;
+		if (ObjectIndexToPublicExport.RemoveAndCopyValue(ObjectIndex, GlobalIndex))
 		{
-			PackageId = PublicExportToObjectIndex.FindRef(*GlobalIndex).PackageId;
-			PublicExportToObjectIndex.Remove(*GlobalIndex);
-			ObjectIndexToPublicExport.Remove(ObjectIndex);
+			FPublicExport PublicExport;
+			bool bSuccess = PublicExportObjects.RemoveAndCopyValue(GlobalIndex, PublicExport);
+			checkf(bSuccess, TEXT("Missing entry in ImportStore for object %s with id %llx"), *InObject->GetPathName(), GlobalIndex.Value());
+			checkf(PublicExport.Object == InObject, TEXT("Mismatch in ImportStore for %s with id %llx"), *InObject->GetPathName(), GlobalIndex.Value());
+			PackageId = PublicExport.PackageId;
 		}
 		return PackageId;
 	}
@@ -510,16 +512,13 @@ struct FGlobalImportStore
 	inline UObject* GetPublicExportObject(FPackageObjectIndex GlobalIndex)
 	{
 		check(GlobalIndex.IsPackageImport());
-		FPublicExportRef* PublicExport = PublicExportToObjectIndex.Find(GlobalIndex);
-		if (!PublicExport)
+		UObject* Object = nullptr;
+		FPublicExport* PublicExport = PublicExportObjects.Find(GlobalIndex);
+		if (PublicExport)
 		{
-			return nullptr;
+			Object = PublicExport->Object;
+			checkf(Object && !Object->IsUnreachable(), TEXT("%s"), Object ? *Object->GetFullName() : TEXT("null"));
 		}
-
-		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(PublicExport->ObjectIndex);
-		check(ObjectItem);
-		UObject* Object = static_cast<UObject*>(ObjectItem->Object);
-		check(Object && !Object->IsUnreachable());
 		return Object;
 	}
 
@@ -547,11 +546,11 @@ struct FGlobalImportStore
 		return Object;
 	}
 
-	void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* InObject)
+	void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
 	{
 		check(GlobalIndex.IsPackageImport());
-		int32 ObjectIndex = GUObjectArray.ObjectToIndex(InObject);
-		PublicExportToObjectIndex.Add(GlobalIndex, {ObjectIndex, PackageId});
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
+		PublicExportObjects.Add(GlobalIndex, {Object, PackageId});
 		ObjectIndexToPublicExport.Add(ObjectIndex, GlobalIndex);
 	}
 
@@ -4888,7 +4887,7 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 
 	const double StartTime = FPlatformTime::Seconds();
 	const int32 OldLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
-	const int32 OldPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num();
+	const int32 OldPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
 	int32 PublicExportCount = 0;
 	int32 PackageCount = 0;
 
@@ -4915,7 +4914,7 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	}
 
 	const int32 NewLoadedPackageCount = GlobalPackageStore.LoadedPackageStore.NumTracked();
-	const int32 NewPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportToObjectIndex.Num();
+	const int32 NewPublicExportCount = GlobalPackageStore.GetGlobalImportStore().PublicExportObjects.Num();
 	const int32 RemovedLoadedPackageCount = OldLoadedPackageCount - NewLoadedPackageCount;
 	const int32 RemovedPublicExportCount = OldPublicExportCount - NewPublicExportCount;
 
