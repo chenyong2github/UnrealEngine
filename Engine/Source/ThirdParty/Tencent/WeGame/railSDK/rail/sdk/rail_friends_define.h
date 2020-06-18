@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_FRIENDS_DEFINE_H
@@ -8,6 +8,8 @@
 
 namespace rail {
 #pragma pack(push, RAIL_SDK_PACKING)
+
+const uint32_t kRailMaxQueryPlayedWithFriendsTimeLimit = 20;
 
 // size limits on users played with data
 enum EnumRailUserPlayedWithLimit {

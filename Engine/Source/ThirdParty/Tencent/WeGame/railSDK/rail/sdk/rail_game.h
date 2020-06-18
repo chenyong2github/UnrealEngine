@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_GAME_H
@@ -51,7 +51,6 @@ class IRailGame {
 
     // get current player's game state.
     virtual RailResult GetGameDefineGamePlayingState(uint32_t* game_playing_state) = 0;
-
 
     //
     // game branch and version info

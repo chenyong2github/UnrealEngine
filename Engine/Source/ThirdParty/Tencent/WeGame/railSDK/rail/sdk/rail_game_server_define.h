@@ -1,10 +1,9 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_GAME_SERVER_DEFINE_H
 #define RAIL_SDK_RAIL_GAME_SERVER_DEFINE_H
 
-#include "rail/sdk/base/rail_string.h"
 #include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_event.h"
 
@@ -27,7 +26,6 @@ struct GameServerInfo {
         max_players = 0;
         current_players = 0;
         bot_players = 0;
-        zone_id = 0;
         server_host.clear();
         server_fullname.clear();
         server_description.clear();
@@ -49,7 +47,6 @@ struct GameServerInfo {
     uint32_t max_players;
     uint32_t current_players;  // current_players includes bot_players
     uint32_t bot_players;
-    uint64_t zone_id;
     RailString server_host;
     RailString server_fullname;
     RailString server_description;
@@ -62,7 +59,6 @@ struct GameServerInfo {
     RailArray<RailKeyValue> server_kvs;
 };
 
-
 struct CreateGameServerOptions {
     explicit CreateGameServerOptions() {
         enable_team_voice = true;
@@ -72,7 +68,6 @@ struct CreateGameServerOptions {
     bool enable_team_voice;
     bool has_password;
 };
-
 
 enum GameServerListSorterKeyType {
     kGameServerListSorterKeyTypeCustom = 1,
@@ -114,7 +109,6 @@ struct GameServerListFilterKey {
 struct GameServerListFilter {
     GameServerListFilter() {
         filter_dedicated_server = kRailOptionalAny;
-        filter_zone_id = 0;
         filter_password = kRailOptionalAny;
         filter_friends_created = kRailOptionalAny;
     }
@@ -128,7 +122,6 @@ struct GameServerListFilter {
     //     not_care_whether_delicated_server(if filter_dedicated_server = kRailOptionalAny) AND
     //
     // filter_game_server_name(if filter_game_server_name is not empty) AND
-    // filter_zone_id(if filter_zone_id > 0) AND
     // filter_game_server_map(if filter_game_server_map is not empty) AND
     // filter_game_server_host(if filter_game_server_host is not empty) AND
     //
@@ -148,7 +141,6 @@ struct GameServerListFilter {
     // filter game servers whether dedicated or not
     EnumRailOptionalValue filter_dedicated_server;
     RailString filter_game_server_name;
-    uint64_t filter_zone_id;
     RailString filter_game_server_map;
     // filter_game_server_host should be the same string you set by IRailGameServer::SetHost
     RailString filter_game_server_host;
@@ -228,7 +220,7 @@ struct GameServerRegisterToServerListResult:
     }
 };
 
-// gameserver palyer list
+// gameserver player list
 struct GetGameServerPlayerListResult : public RailEvent<kRailEventGameServerPlayerListResult> {
     GetGameServerPlayerListResult() {
     }
@@ -256,20 +248,25 @@ struct AsyncGetFavoriteGameServersResult
     : public RailEvent<kRailEventGameServerFavoriteGameServers> {
     AsyncGetFavoriteGameServersResult() {
     }
+
     RailArray<RailID> server_id_array;
 };
+
 struct AsyncAddFavoriteGameServerResult
     : public RailEvent<kRailEventGameServerAddFavoriteGameServer> {
     AsyncAddFavoriteGameServerResult() {
         server_id = 0;
     }
+
     RailID server_id;
 };
+
 struct AsyncRemoveFavoriteGameServerResult
     : public RailEvent<kRailEventGameServerRemoveFavoriteGameServer> {
     AsyncRemoveFavoriteGameServerResult() {
         server_id = 0;
     }
+
     RailID server_id;
 };
 }  // namespace rail_event
