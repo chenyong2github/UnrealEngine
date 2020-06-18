@@ -64,10 +64,12 @@ namespace AssetGenerationUtil
 	 * @param AssetAPI pointer to context asset API that will be used to create new asset
 	 * @param TransientTexture texture to save
 	 * @param ObjectName name of the new asset
+	 * @param RelativeToAsset New texture will be saved at the same path as the UPackage for this UObject, which we assume to be an Asset (eg like a UStaticMesh)
 	 */
 	MODELINGCOMPONENTS_API bool SaveGeneratedTexture2D(
 		IToolsContextAssetAPI* AssetAPI,
 		UTexture2D* TransientTexture,
-		FString ObjectName);
+		FString ObjectName,
+		const UObject* RelativeToAsset);
 
 }
