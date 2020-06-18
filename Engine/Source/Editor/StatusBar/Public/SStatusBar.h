@@ -137,5 +137,6 @@ private:
 	const FSlateBrush* UpArrow;
 	const FSlateBrush* DownArrow;
 	FName StatusBarName;
+	FName StatusBarToolBarName;
 };
 
