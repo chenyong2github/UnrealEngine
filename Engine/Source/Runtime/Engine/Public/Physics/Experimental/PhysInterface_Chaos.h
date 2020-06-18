@@ -102,6 +102,7 @@ class FPhysicsShapeAdapter_Chaos
 {
 public:
 	FPhysicsShapeAdapter_Chaos(const FQuat& Rot, const FCollisionShape& CollisionShape);
+	~FPhysicsShapeAdapter_Chaos();
 
 	const FPhysicsGeometry& GetGeometry() const;
 	FTransform GetGeomPose(const FVector& Pos) const;
