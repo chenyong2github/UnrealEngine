@@ -1416,6 +1416,39 @@ const TCHAR* VertexElementToString(EVertexElementType Type)
 
 void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap)
 {
+	// list of Vertex Shaders known to be usable with empty vertex declaration without taking VF into consideration
+	const TCHAR* WhitelistedVShadersWithEmptyVertexDecl_Table[] =
+	{
+		TEXT("FHairFollicleMaskVS"),
+		TEXT("FDiaphragmDOFHybridScatterVS"),
+		TEXT("FLensFlareBlurVS"),
+		TEXT("FMotionBlurVelocityDilateScatterVS"),
+		TEXT("FScreenSpaceReflectionsTileVS"),
+		TEXT("FWaterTileVS"),
+		TEXT("FRenderSkyAtmosphereVS"),
+		TEXT("TPageTableUpdateVS<true>"),
+		TEXT("TPageTableUpdateVS<false>")
+	};
+
+	TSet<FName> WhitelistedVShadersWithEmptyVertexDecl;
+	for (const TCHAR* VSType : WhitelistedVShadersWithEmptyVertexDecl_Table)
+	{
+		WhitelistedVShadersWithEmptyVertexDecl.Add(FName(VSType));
+	}
+
+	// list of Vertex Factories known to have empty vertex declaration
+	const TCHAR* WhitelistedVFactoriesWithEmptyVertexDecl_Table[] =
+	{
+		TEXT("FNiagaraRibbonVertexFactory"),
+		TEXT("FLocalVertexFactory")
+	};
+
+	TSet<FName> WhitelistedVFactoriesWithEmptyVertexDecl;
+	for (const TCHAR* VFType : WhitelistedVFactoriesWithEmptyVertexDecl_Table)
+	{
+		WhitelistedVFactoriesWithEmptyVertexDecl.Add(FName(VFType));
+	}
+
 	// This may be too strict, but we cannot know the VS signature.
 	auto IsInputLayoutCompatible = [](const FVertexDeclarationElementList& A, const FVertexDeclarationElementList& B, TMap<TTuple<EVertexElementType, EVertexElementType>, int32>& MismatchStats, int& TimesMismatchedNumElements) -> bool
 	{
@@ -1547,12 +1580,24 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Running sanity check (consistency of vertex format)."));
 
+	// inverse map is needed for VS checking
+	TMap<FSHAHash, TArray<FStableShaderKeyAndValue>> InverseMap;
+	for (const TTuple<FStableShaderKeyAndValue, FSHAHash>& Pair : StableMap)
+	{
+		FStableShaderKeyAndValue Temp(Pair.Key);
+		Temp.OutputHash = Pair.Value;
+		InverseMap.FindOrAdd(Pair.Value).Add(Temp);
+	}
+
 	// At this point we cannot really know what is the correct vertex format (input layout) for a given vertex shader. Instead, we're looking if we see the same VS used in multiple PSOs with incompatible vertex descriptors.
 	// If we find that some of them are suspect, we'll remove all such PSOs from the cache. That may be aggressive but it's better to have hitches than hangs and crashes.
 	TMap<FSHAHash, FVertexDeclarationElementList> VSToVertexDescriptor;
 	TSet<FSHAHash> SuspiciousVertexShaders;
 	TMap<TTuple<EVertexElementType, EVertexElementType>, int32> MismatchStats;
 	int32 TimesMismatchedNumElements = 0;
+
+	TSet<FStableShaderKeyAndValue> PossiblyIncorrectUsageWithEmptyDeclaration;
+	int32 NumPSOsFilteredDueToEmptyDecls = 0;
 
 	for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
 	{
@@ -1593,15 +1638,6 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 
 		// print the shaders themselves
 		{
-			TMap<FSHAHash, TArray<FStableShaderKeyAndValue>> InverseMap;
-
-			for (const TTuple<FStableShaderKeyAndValue, FSHAHash>& Pair : StableMap)
-			{
-				FStableShaderKeyAndValue Temp(Pair.Key);
-				Temp.OutputHash = Pair.Value;
-				InverseMap.FindOrAdd(Pair.Value).Add(Temp);
-			}
-
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("These vertex shaders are used with an inconsistent vertex format:"), SuspiciousVertexShaders.Num());
 			int32 SuspectVSIdx = 0;
 			for (const FSHAHash& SuspectVS : SuspiciousVertexShaders)
@@ -1640,19 +1676,83 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 			}
 		}
 
+		FName UnknownVFType(TEXT("null"));
+
 		// filter the PSOs
-		TSet<FPipelineCacheFileFormatPSO> FilteredPSOs;
+		TSet<FPipelineCacheFileFormatPSO> RetainedPSOs;
 		for (const FPipelineCacheFileFormatPSO& CurPSO : InOutPSOs)
 		{
-			if (CurPSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics && SuspiciousVertexShaders.Contains(CurPSO.GraphicsDesc.VertexShader))
+			if (CurPSO.Type != FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
+			{
+				RetainedPSOs.Add(CurPSO);
+				continue;
+			}
+
+			// check if the vertex shader is known to be used with an empty declaration - this is the largest source of driver crashes
+			if (CurPSO.GraphicsDesc.VertexDescriptor.Num() == 0)
+			{
+				// check against the whitelist
+				const TArray<FStableShaderKeyAndValue>* OriginalShaders = InverseMap.Find(CurPSO.GraphicsDesc.VertexShader);
+				if (OriginalShaders == nullptr)
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("PSO with an empty vertex declaration and unknown VS %s encountered, filtering out"), *CurPSO.GraphicsDesc.VertexShader.ToString());
+					++NumPSOsFilteredDueToEmptyDecls;
+					continue;
+				}
+
+				// all shader classes need to be whitelisted for this to pass
+				bool bAllWhitelisted = true;
+				for (const FStableShaderKeyAndValue& OriginalShader : *OriginalShaders)
+				{
+					if (!WhitelistedVShadersWithEmptyVertexDecl.Contains(OriginalShader.ShaderType))
+					{
+						// if this shader has a vertex factory type associated, check if VF is known to have empty decl
+						if (OriginalShader.VFType != UnknownVFType)
+						{
+							if (WhitelistedVFactoriesWithEmptyVertexDecl.Contains(OriginalShader.VFType))
+							{
+								// allow, vertex factory can have an empty declaration
+								continue;
+							}
+
+							// found an incompatible (possibly, but we will err on the side of caution) usage. Log it
+							PossiblyIncorrectUsageWithEmptyDeclaration.Add(OriginalShader);
+						}
+						bAllWhitelisted = false;
+						break;
+					}
+				}
+
+				if (!bAllWhitelisted)
+				{
+					// skip this PSO
+					++NumPSOsFilteredDueToEmptyDecls;
+					continue;
+				}
+			}
+
+			if (SuspiciousVertexShaders.Contains(CurPSO.GraphicsDesc.VertexShader))
 			{
 				continue;
 			}
 
-			FilteredPSOs.Add(CurPSO);
+			RetainedPSOs.Add(CurPSO);
 		}
 
-		InOutPSOs = FilteredPSOs;
+		InOutPSOs = RetainedPSOs;
+	}
+
+	if (NumPSOsFilteredDueToEmptyDecls)
+	{
+		UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("%d PSOs were filtered due to possible mismatch between the VS and vertex declaration."), NumPSOsFilteredDueToEmptyDecls);
+		if (PossiblyIncorrectUsageWithEmptyDeclaration.Num())
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("The following vertex shaders were used with an empty declaration (check compatibility in the code and possibly whitelist known safe usage):"));
+			for (const FStableShaderKeyAndValue& Shader : PossiblyIncorrectUsageWithEmptyDeclaration)
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("  %s"), *Shader.ToString());
+			}
+		}
 	}
 
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Number of PSOs after sanity checks: %d."), InOutPSOs.Num());
