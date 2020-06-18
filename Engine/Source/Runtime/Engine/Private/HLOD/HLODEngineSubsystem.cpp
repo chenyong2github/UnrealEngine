@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Subsystems/HLODEditorSubsystem.h"
+#include "HLOD/HLODEngineSubsystem.h"
+
+#if WITH_EDITOR
+
 #include "EngineUtils.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/LODActor.h"
@@ -12,42 +15,41 @@
 #include "HierarchicalLODUtilitiesModule.h"
 #include "GameFramework/WorldSettings.h"
 
-
-void UHLODEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UHLODEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	RegisterRecreateLODActorsDelegates();
 }
 
-void UHLODEditorSubsystem::Deinitialize()
+void UHLODEngineSubsystem::Deinitialize()
 {
 	UnregisterRecreateLODActorsDelegates();
 	Super::Deinitialize();
 }
 
-void UHLODEditorSubsystem::OnSaveLODActorsToHLODPackagesChanged()
+void UHLODEngineSubsystem::OnSaveLODActorsToHLODPackagesChanged()
 {
 	UnregisterRecreateLODActorsDelegates();
 	RegisterRecreateLODActorsDelegates();
 }
 
-void UHLODEditorSubsystem::UnregisterRecreateLODActorsDelegates()
+void UHLODEngineSubsystem::UnregisterRecreateLODActorsDelegates()
 {
 	FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
 	FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldDelegateHandle);
 }
 
-void UHLODEditorSubsystem::RegisterRecreateLODActorsDelegates()
+void UHLODEngineSubsystem::RegisterRecreateLODActorsDelegates()
 {
 	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 	{
-		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEditorSubsystem::RecreateLODActorsForWorld);
-		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEditorSubsystem::RecreateLODActorsForLevel);
-		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorld.AddUObject(this, &UHLODEditorSubsystem::OnPreSaveWorld);
+		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForWorld);
+		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForLevel);
+		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorld.AddUObject(this, &UHLODEngineSubsystem::OnPreSaveWorld);
 	}	
 }
 
-void UHLODEditorSubsystem::RecreateLODActorsForWorld(UWorld* InWorld, const UWorld::InitializationValues InInitializationValues)
+void UHLODEngineSubsystem::RecreateLODActorsForWorld(UWorld* InWorld, const UWorld::InitializationValues InInitializationValues)
 {
 	// For each level in this world
 	for (ULevel* Level : InWorld->GetLevels())
@@ -56,7 +58,7 @@ void UHLODEditorSubsystem::RecreateLODActorsForWorld(UWorld* InWorld, const UWor
 	}
 }
 
-void UHLODEditorSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld)
+void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld)
 {
 	bool bShouldRecreateActors = InWorld && !InWorld->bIsTearingDown && ((InWorld->WorldType == EWorldType::Editor) || (InLevel->GetWorldSettings()->GetLocalRole() == ROLE_Authority));
 	if (!bShouldRecreateActors)
@@ -93,7 +95,7 @@ void UHLODEditorSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 	}
 }
 
-void UHLODEditorSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)
+void UHLODEngineSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)
 {
 	// When cooking, make sure that the LODActors are not transient
 	if (InWorld && InWorld->PersistentLevel && GIsCookerLoadingPackage)
@@ -118,3 +120,5 @@ void UHLODEditorSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)
 		}
 	}
 }
+
+#endif // WITH_EDITOR

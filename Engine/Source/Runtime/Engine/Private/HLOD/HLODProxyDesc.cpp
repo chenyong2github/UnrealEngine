@@ -234,10 +234,7 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 		return nullptr;
 	}
 
-	// Temporarily switch to movable in order to update the static mesh...
-	LODActor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
 	LODActor->SetStaticMesh(StaticMesh);
-	LODActor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static);
 
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
