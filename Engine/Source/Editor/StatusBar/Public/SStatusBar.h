@@ -37,10 +37,11 @@ class SStatusBar : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
+	~SStatusBar();
+
 	/** SWidget interface */
 	virtual bool SupportsKeyboardFocus() const { return false; }
 	void Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab);
-
 	/** 
 	 * Pushes a new status bar message
 	 *
@@ -127,6 +128,7 @@ private:
 	TSharedPtr<SMultiLineEditableTextBox> ConsoleEditBox;
 	TWeakPtr<SDockTab> ParentTab;
 	TSharedPtr<SContentBrowserOverlay> ContentBrowserOverlayContent;
+	TWeakPtr<SWindow> WindowWithOverlayContent;
 	TSharedPtr<FActiveTimerHandle> ContentBrowserOpenCloseTimer;
 	FOnGetContent GetContentBrowserDelegate;
 	FOnContentBrowserOpened OnContentBrowserOpenedDelegate;

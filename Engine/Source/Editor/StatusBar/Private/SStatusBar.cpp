@@ -255,6 +255,12 @@ private:
 };
 
 
+SStatusBar::~SStatusBar()
+{
+	// Ensure the content browser is removed if we're being destroyed
+	RemoveContentBrowser();
+}
+
 void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab)
 {
 	StatusBarName = InStatusBarName;
@@ -474,6 +480,8 @@ void SStatusBar::OpenContentBrowser()
 				]
 			];
 
+		WindowWithOverlayContent = MyWindow;
+
 		if (!ContentBrowserOpenCloseTimer.IsValid())
 		{
 			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
@@ -513,11 +521,14 @@ void SStatusBar::RemoveContentBrowser()
 {
 	if(ContentBrowserOverlayContent.IsValid())
 	{
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(SharedThis(this));
-
-		Window->RemoveOverlaySlot(ContentBrowserOverlayContent.ToSharedRef());
+		// Remove the content browser from the window
+		if (TSharedPtr<SWindow> Window = WindowWithOverlayContent.Pin())
+		{
+			Window->RemoveOverlaySlot(ContentBrowserOverlayContent.ToSharedRef());
+		}
 
 		ContentBrowserOverlayContent.Reset();
+		WindowWithOverlayContent.Reset();
 
 		if (ContentBrowserOpenCloseTimer.IsValid())
 		{
@@ -678,7 +689,7 @@ void SStatusBar::OnContentBrowserTargetHeightChanged(float TargetHeight)
 {
 	TargetContentBrowserHeight = TargetHeight;
 
-	TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	TSharedPtr<SWindow> MyWindow = WindowWithOverlayContent.Pin();
 
 	// Save the height has a percentage of the screen
 	const float TargetContentBrowserHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
