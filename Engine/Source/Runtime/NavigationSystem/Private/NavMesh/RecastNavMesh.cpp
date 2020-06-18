@@ -256,6 +256,7 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties()
 	bSortNavigationAreasByCost = false;
 	bPerformVoxelFiltering = true;
 	bMarkLowHeightAreas = false;
+	bUseExtraTopCellWhenMarkingAreas = true;
 	bFilterLowSpanSequences = false;
 	bFilterLowSpanFromTileCache = false;
 	bFixedTilePoolSize = false;
@@ -282,6 +283,7 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 	bSortNavigationAreasByCost = RecastNavMesh.bSortNavigationAreasByCost;
 	bPerformVoxelFiltering = RecastNavMesh.bPerformVoxelFiltering;
 	bMarkLowHeightAreas = RecastNavMesh.bMarkLowHeightAreas;
+	bUseExtraTopCellWhenMarkingAreas = RecastNavMesh.bUseExtraTopCellWhenMarkingAreas;
 	bFilterLowSpanSequences = RecastNavMesh.bFilterLowSpanSequences;
 	bFilterLowSpanFromTileCache = RecastNavMesh.bFilterLowSpanFromTileCache;
 	bFixedTilePoolSize = RecastNavMesh.bFixedTilePoolSize;
@@ -304,6 +306,7 @@ ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
 	, DefaultMaxHierarchicalSearchNodes(RECAST_MAX_SEARCH_NODES)
 	, bPerformVoxelFiltering(true)	
 	, bMarkLowHeightAreas(false)
+	, bUseExtraTopCellWhenMarkingAreas(true)
 	, bFilterLowSpanSequences(false)
 	, bFilterLowSpanFromTileCache(false)
 	, bStoreEmptyTileLayers(false)
@@ -2582,6 +2585,7 @@ void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationPr
 	bSortNavigationAreasByCost = GenerationProps.bSortNavigationAreasByCost;
 	bPerformVoxelFiltering = GenerationProps.bPerformVoxelFiltering;
 	bMarkLowHeightAreas = GenerationProps.bMarkLowHeightAreas;
+	bUseExtraTopCellWhenMarkingAreas = GenerationProps.bUseExtraTopCellWhenMarkingAreas;
 	bFilterLowSpanSequences = GenerationProps.bFilterLowSpanSequences;
 	bFilterLowSpanFromTileCache = GenerationProps.bFilterLowSpanFromTileCache;
 	bFixedTilePoolSize = GenerationProps.bFixedTilePoolSize;
