@@ -104,7 +104,13 @@ private:
 	FReply OnArrayDrop(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent);
 
+	TOptional<EItemDropZone> OnArrayCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr< FDetailTreeNode > Type);
+
 	TSharedPtr<FPropertyNode> GetCopyPastePropertyNode() const;
+
+	/** Checks if the current drop event is being dropped into a valid location
+	 */
+	bool CheckValidDrop(const TSharedPtr<SDetailSingleItemRow> RowPtr) const;
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */
@@ -133,4 +139,5 @@ public:
 	}
 
 	TWeakPtr<class SDetailSingleItemRow> Row;
+	TSharedPtr<STextBlock> DecoratorText;
 };
