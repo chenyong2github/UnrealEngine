@@ -69,7 +69,7 @@ struct FNDIPhysicsAssetParametersName
 	}
 
 	FString ElementOffsetsName;
-	
+
 	FString CurrentTransformBufferName;
 	FString PreviousTransformBufferName;
 	FString PreviousInverseBufferName;
@@ -90,7 +90,7 @@ void CreateInternalBuffer(const uint32 ElementCount, const TArray<DataType>& Inp
 	if (ElementCount > 0)
 	{
 		const uint32 BufferCount = ElementCount * ElementSize;
-		const uint32 BufferBytes = sizeof(BufferType)*BufferCount;
+		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 
 		if (InitBuffer)
 		{
@@ -115,8 +115,8 @@ void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCo
 	++ElementCount;
 }
 
-void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, const TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh,
-	FNDIPhysicsAssetArrays* OutAssetArrays, const FTransform& WorldTransform)
+void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets, const TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SkeletalMeshs,
+	FNDIPhysicsAssetArrays* OutAssetArrays, const FTransform& InWorldTransform)
 {
 	if (OutAssetArrays != nullptr)
 	{
@@ -124,46 +124,148 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 		OutAssetArrays->ElementOffsets.SphereOffset = 0;
 		OutAssetArrays->ElementOffsets.CapsuleOffset = 0;
 		OutAssetArrays->ElementOffsets.NumElements = 0;
-		if (PhysicsAsset != nullptr && OutAssetArrays != nullptr)
-		{
-			const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
-			if (RefSkeleton != nullptr)
-			{
-				TArray<FTransform> RestTransforms;
-				FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
 
-				if (RestTransforms.Num() > 0)
+		uint32 NumBoxes = 0;
+		uint32 NumSpheres = 0;
+		uint32 NumCapsules = 0;
+
+		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
+		{
+			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
+			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
+			{
+				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				if (RefSkeleton != nullptr)
 				{
-					uint32 NumBoxes = 0;
-					uint32 NumSpheres = 0;
-					uint32 NumCapsules = 0;
-					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+					if (RefSkeleton->GetNum() > 0)
 					{
-						const FName BoneName = BodySetup->BoneName;
-						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-						if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
+
+						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 						{
-							NumBoxes += BodySetup->AggGeom.BoxElems.Num();
-							NumSpheres += BodySetup->AggGeom.SphereElems.Num();
-							NumCapsules += BodySetup->AggGeom.SphylElems.Num();
+							const FName BoneName = BodySetup->BoneName;
+							const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+							if (BoneIndex != INDEX_NONE && BoneIndex < RefSkeleton->GetNum())
+							{
+								NumBoxes += BodySetup->AggGeom.BoxElems.Num();
+								NumSpheres += BodySetup->AggGeom.SphereElems.Num();
+								NumCapsules += BodySetup->AggGeom.SphylElems.Num();
+							}
+						}
+						//UE_LOG(LogPhysicsAsset, Warning, TEXT("PhysicsAsset = %s | SkeletalMesh = %d | Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), *PhysicsAsset->GetName(), SkeletalMeshs[ComponentIndex].Get(), 
+						//	NumCapsules, NumSpheres, NumBoxes);
+					}
+				}
+			}
+		}
+
+		OutAssetArrays->ElementOffsets.BoxOffset = 0;
+		OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + NumBoxes;
+		OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + NumSpheres;
+		OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + NumCapsules;
+
+		const uint32 NumTransforms = OutAssetArrays->ElementOffsets.NumElements * 3;
+		const uint32 NumExtents = OutAssetArrays->ElementOffsets.NumElements;
+
+		OutAssetArrays->CurrentTransform.SetNum(NumTransforms);
+		OutAssetArrays->InverseTransform.SetNum(NumTransforms);
+		OutAssetArrays->RestInverse.SetNum(NumTransforms);
+		OutAssetArrays->RestTransform.SetNum(NumTransforms);
+		OutAssetArrays->PreviousTransform.SetNum(NumTransforms);
+		OutAssetArrays->PreviousInverse.SetNum(NumTransforms);
+		OutAssetArrays->ElementExtent.SetNum(NumExtents);
+
+		uint32 ElementCount = 0;
+		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
+		{
+			TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh = SkeletalMeshs[ComponentIndex];
+			const bool IsSkelMeshValid = SkeletalMesh.IsValid() && SkeletalMesh.Get() != nullptr;
+			const FTransform WorldTransform = IsSkelMeshValid ? SkeletalMesh->GetComponentTransform() : InWorldTransform;
+
+			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
+			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
+			{
+				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				if (RefSkeleton != nullptr)
+				{
+					TArray<FTransform> RestTransforms;
+					FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
+
+					if (RefSkeleton->GetNum() > 0)
+					{
+						for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+						{
+							const FName BoneName = BodySetup->BoneName;
+							const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+							if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
+							{
+								const FTransform RestTransform = RestTransforms[BoneIndex];
+								const FTransform BoneTransform = IsSkelMeshValid ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransform * WorldTransform;
+
+								for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
+								{
+									const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--ElementCount;
+
+									const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[ElementCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
+									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								}
+
+								for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
+								{
+									const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--ElementCount;
+
+									const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[ElementCount] = FVector4(SphereElem.Radius, 0, 0, 0);
+									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								}
+
+								for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
+								{
+									const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
+									FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+									--ElementCount;
+
+									const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
+									OutAssetArrays->ElementExtent[ElementCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
+									FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+								}
+							}
 						}
 					}
+				}
+			}
+		}
+		OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
+		OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
+	}
+}
 
-					OutAssetArrays->ElementOffsets.BoxOffset = 0;
-					OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + NumBoxes;
-					OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + NumSpheres;
-					OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + NumCapsules;
+void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets, const TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SkeletalMeshs,
+	FNDIPhysicsAssetArrays* OutAssetArrays, const FTransform& InWorldTransform)
+{
+	if (OutAssetArrays != nullptr)
+	{
+		OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
+		OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 
-					const uint32 NumTransforms = OutAssetArrays->ElementOffsets.NumElements * 3;
-					const uint32 NumExtents = OutAssetArrays->ElementOffsets.NumElements;
+		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
+		{
+			TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh = SkeletalMeshs[ComponentIndex];
+			const bool IsSkelMeshValid = SkeletalMesh.IsValid() && SkeletalMesh.Get() != nullptr;
+			const FTransform WorldTransform = IsSkelMeshValid ? SkeletalMesh->GetComponentTransform() : InWorldTransform;
 
-					OutAssetArrays->CurrentTransform.SetNum(NumTransforms);
-					OutAssetArrays->InverseTransform.SetNum(NumTransforms);
-					OutAssetArrays->RestInverse.SetNum(NumTransforms);
-					OutAssetArrays->RestTransform.SetNum(NumTransforms);
-					OutAssetArrays->PreviousTransform.SetNum(NumTransforms);
-					OutAssetArrays->PreviousInverse.SetNum(NumTransforms);
-					OutAssetArrays->ElementExtent.SetNum(NumExtents);
+			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
+			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
+			{
+				const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
+				if (RefSkeleton != nullptr)
+				{
+					TArray<FTransform> RestTransforms;
+					FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
 
 					uint32 ElementCount = 0;
 					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
@@ -172,133 +274,70 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
 						if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 						{
-							const FTransform RestTransform = RestTransforms[BoneIndex];
-							const FTransform BoneTransform = (SkeletalMesh != nullptr) ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransform * WorldTransform;
+							const FTransform BoneTransform = IsSkelMeshValid ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransforms[BoneIndex] * WorldTransform;
 
 							for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 							{
-								const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
-								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-								--ElementCount;
-
 								const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-								OutAssetArrays->ElementExtent[ElementCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
 								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 
 							for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
 							{
-								const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
-								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-								--ElementCount;
-
 								const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-								OutAssetArrays->ElementExtent[ElementCount] = FVector4(SphereElem.Radius, 0, 0, 0);
 								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 
 							for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
 							{
-								const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
-								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-								--ElementCount;
-
 								const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-								OutAssetArrays->ElementExtent[ElementCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
 								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
 							}
 						}
 					}
-					OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-					OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 				}
 			}
 		}
 	}
 }
 
-void UpdateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, const TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh,
-	FNDIPhysicsAssetArrays* OutAssetArrays, const FTransform& WorldTransform)
-{
-	if (PhysicsAsset != nullptr && OutAssetArrays != nullptr)
-	{
-		const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
-		if (RefSkeleton != nullptr)
-		{
-			TArray<FTransform> RestTransforms;
-			FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
-
-			OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-			OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
-
-			uint32 ElementCount = 0;
-			for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
-			{
-				const FName BoneName = BodySetup->BoneName;
-				const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-				if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
-				{
-					const FTransform BoneTransform = (SkeletalMesh != nullptr) ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransforms[BoneIndex] * WorldTransform;
-
-					for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
-					{
-						const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-						FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-					}
-
-					for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
-					{
-						const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-						FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-					}
-
-					for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
-					{
-						const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-						FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-					}
-				}
-			}
-		}
-	}
-}
 //------------------------------------------------------------------------------------------------------------
 
 
 bool FNDIPhysicsAssetBuffer::IsValid() const
 {
-	return (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr) && (AssetArrays.IsValid() && AssetArrays.Get() != nullptr);
+	return (0 < PhysicsAssets.Num() && PhysicsAssets[0].IsValid() &&
+		PhysicsAssets[0].Get() != nullptr) && (AssetArrays.IsValid() && AssetArrays.Get() != nullptr) && PhysicsAssets.Num() == SkeletalMeshs.Num();
 }
 
-void FNDIPhysicsAssetBuffer::Initialize(const TWeakObjectPtr<UPhysicsAsset> InPhysicsAsset, const TWeakObjectPtr<USkeletalMeshComponent> InSkeletalMesh, const FTransform& InWorldTransform)
+void FNDIPhysicsAssetBuffer::Initialize(const TArray<TWeakObjectPtr<UPhysicsAsset>>& InPhysicsAssets, const TArray<TWeakObjectPtr<USkeletalMeshComponent>>& InSkeletalMeshs, const FTransform& InWorldTransform)
 {
-	PhysicsAsset = InPhysicsAsset;
-	SkeletalMesh = InSkeletalMesh;
-	WorldTransform = InWorldTransform;
+	PhysicsAssets = InPhysicsAssets;
+	SkeletalMeshs = InSkeletalMeshs;
 
 	AssetArrays = MakeUnique<FNDIPhysicsAssetArrays>();
 
 	if (IsValid())
 	{
-		CreateInternalArrays(PhysicsAsset, SkeletalMesh, AssetArrays.Get(), WorldTransform);
+		CreateInternalArrays(PhysicsAssets, SkeletalMeshs, AssetArrays.Get(), InWorldTransform);
 	}
 }
 
-void FNDIPhysicsAssetBuffer::Update()
+void FNDIPhysicsAssetBuffer::Update(const FTransform& InWorldTransform)
 {
 	if (IsValid())
 	{
-		UpdateInternalArrays(PhysicsAsset, SkeletalMesh, AssetArrays.Get(), WorldTransform);
+		UpdateInternalArrays(PhysicsAssets, SkeletalMeshs, AssetArrays.Get(), InWorldTransform);
 
 		FNDIPhysicsAssetBuffer* ThisBuffer = this;
 		ENQUEUE_RENDER_COMMAND(UpdatePhysicsAsset)(
 			[ThisBuffer](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->CurrentTransform.Num(), ThisBuffer->AssetArrays->CurrentTransform, ThisBuffer->CurrentTransformBuffer);
-			CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->PreviousTransform.Num(), ThisBuffer->AssetArrays->PreviousTransform, ThisBuffer->PreviousTransformBuffer);
-			CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->InverseTransform.Num(), ThisBuffer->AssetArrays->InverseTransform, ThisBuffer->InverseTransformBuffer);
-			CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->PreviousInverse.Num(), ThisBuffer->AssetArrays->PreviousInverse, ThisBuffer->PreviousInverseBuffer);
-		}
+			{
+				CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->CurrentTransform.Num(), ThisBuffer->AssetArrays->CurrentTransform, ThisBuffer->CurrentTransformBuffer);
+				CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->PreviousTransform.Num(), ThisBuffer->AssetArrays->PreviousTransform, ThisBuffer->PreviousTransformBuffer);
+				CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->InverseTransform.Num(), ThisBuffer->AssetArrays->InverseTransform, ThisBuffer->InverseTransformBuffer);
+				CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, false>(ThisBuffer->AssetArrays->PreviousInverse.Num(), ThisBuffer->AssetArrays->PreviousInverse, ThisBuffer->PreviousInverseBuffer);
+			}
 		);
 	}
 }
@@ -340,9 +379,9 @@ void FNDIPhysicsAssetData::Release()
 		BeginReleaseResource(PhysicsAssetBuffer);
 		ENQUEUE_RENDER_COMMAND(DeleteResource)(
 			[ParamPointerToRelease = PhysicsAssetBuffer](FRHICommandListImmediate& RHICmdList)
-		{
-			delete ParamPointerToRelease;
-		});
+			{
+				delete ParamPointerToRelease;
+			});
 		PhysicsAssetBuffer = nullptr;
 	}
 }
@@ -351,21 +390,35 @@ bool FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 {
 	PhysicsAssetBuffer = nullptr;
 
-	if (Interface != nullptr)
+	if (Interface != nullptr && SystemInstance != nullptr)
 	{
 		Interface->ExtractSourceComponent(SystemInstance);
 
-		const FTransform WorldTransform = (Interface->SourceComponent != nullptr) ? Interface->SourceComponent->GetComponentTransform() :
-			SystemInstance->GetComponent()->GetComponentTransform();
-
 		PhysicsAssetBuffer = new FNDIPhysicsAssetBuffer();
-		PhysicsAssetBuffer->Initialize(Interface->PhysicsAsset, Interface->SourceComponent, WorldTransform);
+		PhysicsAssetBuffer->Initialize(Interface->PhysicsAssets, Interface->SourceComponents,
+			SystemInstance->GetComponent()->GetComponentTransform());
+
 		BeginInitResource(PhysicsAssetBuffer);
 
-		const bool HasPreviewMesh = Interface->PhysicsAsset != nullptr && Interface->PhysicsAsset->GetPreviewMesh() != nullptr;
-		BoxOrigin = HasPreviewMesh ? Interface->PhysicsAsset->GetPreviewMesh()->GetImportedBounds().Origin : FVector(0, 0, 0);
-		BoxExtent = HasPreviewMesh ? Interface->PhysicsAsset->GetPreviewMesh()->GetImportedBounds().BoxExtent : FVector(1, 1, 1);
-	} 
+		FVector BoxMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+		FVector BoxMin = -BoxMax;
+
+		FBox BoundingBox(BoxMin, BoxMax);
+		for (int32 ComponentIndex = 0; ComponentIndex < Interface->PhysicsAssets.Num(); ++ComponentIndex)
+		{
+			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = Interface->PhysicsAssets[ComponentIndex];
+			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
+			{
+				const bool HasPreviewMesh = PhysicsAsset != nullptr && PhysicsAsset->GetPreviewMesh() != nullptr;
+				if (HasPreviewMesh)
+				{
+					BoundingBox += PhysicsAsset->GetPreviewMesh()->GetImportedBounds().GetBox();
+				}
+			}
+		}
+		BoxOrigin = 0.5 * (BoundingBox.Max + BoundingBox.Min);
+		BoxExtent = (BoundingBox.Max - BoundingBox.Min);
+	}
 
 	return true;
 }
@@ -434,7 +487,7 @@ public:
 		FNDIPhysicsAssetData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
 
-		if (ProxyData != nullptr && ProxyData->PhysicsAssetBuffer && ProxyData->PhysicsAssetBuffer->IsInitialized() )
+		if (ProxyData != nullptr && ProxyData->PhysicsAssetBuffer && ProxyData->PhysicsAssetBuffer->IsInitialized())
 		{
 			FNDIPhysicsAssetBuffer* AssetBuffer = ProxyData->PhysicsAssetBuffer;
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurrentTransformBuffer, AssetBuffer->CurrentTransformBuffer.SRV);
@@ -459,10 +512,10 @@ public:
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 
-			static const FElementOffset DummyOffsets(0,0,0,0);
+			static const FElementOffset DummyOffsets(0, 0, 0, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, DummyOffsets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, FVector(0,0,0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, FVector(0,0,0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, FVector(0, 0, 0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, FVector(0, 0, 0));
 		}
 	}
 
@@ -528,16 +581,6 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 
 void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {
-	if (Context.SimulationStageIndex == 0)
-	{
-		FNDIPhysicsAssetData* ProxyData =
-			SystemInstancesToProxyData.Find(Context.SystemInstance);
-
-		if (ProxyData != nullptr)
-		{
-
-		}
-	}
 }
 
 void FNDIPhysicsAssetProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
@@ -554,15 +597,15 @@ UNiagaraDataInterfacePhysicsAsset::UNiagaraDataInterfacePhysicsAsset(FObjectInit
 	: Super(ObjectInitializer)
 	, DefaultSource(nullptr)
 	, SourceActor(nullptr)
-	, SourceComponent(nullptr)
-	, PhysicsAsset(nullptr)
+	, SourceComponents()
+	, PhysicsAssets()
 {
 	Proxy.Reset(new FNDIPhysicsAssetProxy());
 }
 
 void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance)
 {
-	SourceComponent = nullptr;
+	TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
 	if (SourceActor)
 	{
 		ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(SourceActor);
@@ -604,7 +647,7 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			}
 		}
 	}
-	UPhysicsAsset* GroomPhysicsAsset = nullptr;
+	UPhysicsAsset* GroomPhysicsAsset = DefaultSource;
 	if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
 	{
 		TArray<USceneComponent*> SceneComponents;
@@ -623,9 +666,40 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 	const bool IsAssetMatching = (SourceComponent != nullptr) && (GroomPhysicsAsset != nullptr) &&
 		(GroomPhysicsAsset->GetPreviewMesh() == SourceComponent->SkeletalMesh);
 
-	PhysicsAsset = (SourceComponent != nullptr) ? ( IsAssetMatching ? GroomPhysicsAsset : SourceComponent->GetPhysicsAsset() ) :
-												  ( (GroomPhysicsAsset != nullptr) ? GroomPhysicsAsset : 
-													( (DefaultSource != nullptr) ? DefaultSource : nullptr) );
+	SourceComponents.Empty();
+	PhysicsAssets.Empty();
+	if (SourceComponent != nullptr)
+	{
+		SourceComponents.Add(SourceComponent);
+		if (IsAssetMatching)
+		{
+			PhysicsAssets.Add(GroomPhysicsAsset);
+		}
+		else
+		{
+			PhysicsAssets.Add(SourceComponent->GetPhysicsAsset());
+		}
+		if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(SourceComponent->GetAttachParent()))
+		{
+			TArray<USceneComponent*> SceneComponents;
+			ParentComp->GetChildrenComponents(false, SceneComponents);
+
+			for (USceneComponent* ActorComp : SceneComponents)
+			{
+				USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
+				if (SourceComp && SourceComp->SkeletalMesh && SourceComp->GetPhysicsAsset() && SourceComp != SourceComponent)
+				{
+					SourceComponents.Add(SourceComp);
+					PhysicsAssets.Add(SourceComp->GetPhysicsAsset());
+				}
+			}
+		}
+	}
+	else if (GroomPhysicsAsset != nullptr)
+	{
+		SourceComponents.Add(nullptr);
+		PhysicsAssets.Add(GroomPhysicsAsset);
+	}
 }
 
 bool UNiagaraDataInterfacePhysicsAsset::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
@@ -665,11 +739,9 @@ void UNiagaraDataInterfacePhysicsAsset::DestroyPerInstanceData(void* PerInstance
 bool UNiagaraDataInterfacePhysicsAsset::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds)
 {
 	FNDIPhysicsAssetData* InstanceData = static_cast<FNDIPhysicsAssetData*>(PerInstanceData);
-	if (InstanceData->PhysicsAssetBuffer)
+	if (InstanceData->PhysicsAssetBuffer && SystemInstance)
 	{
-		InstanceData->PhysicsAssetBuffer->WorldTransform = (InstanceData->PhysicsAssetBuffer->SkeletalMesh != nullptr) ? InstanceData->PhysicsAssetBuffer->SkeletalMesh->GetComponentTransform() :
-			SystemInstance->GetComponent()->GetComponentTransform();
-		InstanceData->PhysicsAssetBuffer->Update();
+		InstanceData->PhysicsAssetBuffer->Update(SystemInstance->GetComponent()->GetComponentTransform());
 	}
 	return false;
 }
@@ -682,9 +754,9 @@ bool UNiagaraDataInterfacePhysicsAsset::CopyToInternal(UNiagaraDataInterface* De
 	}
 
 	UNiagaraDataInterfacePhysicsAsset* OtherTyped = CastChecked<UNiagaraDataInterfacePhysicsAsset>(Destination);
-	OtherTyped->PhysicsAsset = PhysicsAsset;
+	OtherTyped->PhysicsAssets = PhysicsAssets;
 	OtherTyped->SourceActor = SourceActor;
-	OtherTyped->SourceComponent = SourceComponent;
+	OtherTyped->SourceComponents = SourceComponents;
 	OtherTyped->DefaultSource = DefaultSource;
 
 	return true;
@@ -698,7 +770,7 @@ bool UNiagaraDataInterfacePhysicsAsset::Equals(const UNiagaraDataInterface* Othe
 	}
 	const UNiagaraDataInterfacePhysicsAsset* OtherTyped = CastChecked<const UNiagaraDataInterfacePhysicsAsset>(Other);
 
-	return  (OtherTyped->PhysicsAsset == PhysicsAsset) && (OtherTyped->SourceActor == SourceActor) && (OtherTyped->SourceComponent == SourceComponent) && (OtherTyped->DefaultSource == DefaultSource);
+	return  (OtherTyped->PhysicsAssets == PhysicsAssets) && (OtherTyped->SourceActor == SourceActor) && (OtherTyped->SourceComponents == SourceComponents) && (OtherTyped->DefaultSource == DefaultSource);
 }
 
 void UNiagaraDataInterfacePhysicsAsset::PostInitProperties()
@@ -854,7 +926,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestDista
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetTexturePoint);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetProjectionPoint);
 
-void UNiagaraDataInterfacePhysicsAsset::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
+void UNiagaraDataInterfacePhysicsAsset::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
 	if (BindingInfo.Name == GetNumBoxesName)
 	{
@@ -965,7 +1037,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 
 	if (FunctionInfo.DefinitionName == GetNumBoxesName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out int OutNumBoxes)
 		{
 			{PhysicsAssetContextName}
@@ -977,7 +1049,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == GetNumCapsulesName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out int OutNumCapsules)
 		{
 			{PhysicsAssetContextName}
@@ -989,7 +1061,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == GetNumSpheresName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out int OutNumSpheres)
 		{
 			{PhysicsAssetContextName}
@@ -1001,7 +1073,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == GetClosestPointName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
 							out float3 OutClosestNormal, out float3 OutClosestVelocity)
 		{
@@ -1062,7 +1134,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == GetTexturePointName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(in float3 NodePosition, out int OutElementIndex, out float3 OutTexturePosition)
 		{
 			{PhysicsAssetContextName} DIPhysicsAsset_GetTexturePoint(DIContext,NodePosition,OutElementIndex,OutTexturePosition);
@@ -1073,7 +1145,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 	else if (FunctionInfo.DefinitionName == GetProjectionPointName)
 	{
-		static const TCHAR *FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in int ElementIndex, in float TextureValue, in float3 TextureGradient, out float3 OutClosestPosition, 
 							out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
 		{
