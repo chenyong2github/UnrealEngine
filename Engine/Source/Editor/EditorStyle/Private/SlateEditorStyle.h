@@ -167,6 +167,9 @@ public:
 		FButtonStyle HoverHintOnly;
 
 		TWeakObjectPtr< UEditorStyleSettings > Settings;
+
+		static bool IncludeEditorSpecificStyles();
+
 	};
 
 	static TSharedRef< class FSlateEditorStyle::FStyle > Create( const TWeakObjectPtr< UEditorStyleSettings >& InCustomization )

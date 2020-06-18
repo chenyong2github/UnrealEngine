@@ -76,6 +76,9 @@ public:
 		void SyncSettings();
 		void SyncParentStyles();
 
+		static void SetColor(const TSharedRef<FLinearColor>& Source, const FLinearColor& Value);
+		static bool IncludeEditorSpecificStyles();
+
 		const FVector2D Icon7x16;
 		const FVector2D Icon8x4;
 		const FVector2D Icon16x4;

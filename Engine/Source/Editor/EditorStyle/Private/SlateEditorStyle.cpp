@@ -33,14 +33,6 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr< FSlateEditorStyle::FStyle > FSlateEditorStyle::StyleInstance = NULL;
 TWeakObjectPtr< UEditorStyleSettings > FSlateEditorStyle::Settings = NULL;
 
-static bool IncludeEditorSpecificStyles()
-{
-#if IS_PROGRAM
-	return true;
-#else
-	return GIsEditor;
-#endif
-}
 
 /* FSlateEditorStyle interface
  *****************************************************************************/
@@ -172,6 +164,15 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 			.SetBackgroundBrush(WindowBackgroundMain)
 			.SetChildBackgroundBrush(WindowBackgroundChild);
 	}
+}
+
+bool FSlateEditorStyle::FStyle::IncludeEditorSpecificStyles()
+{
+#if IS_PROGRAM
+	return true;
+#else
+	return GIsEditor;
+#endif
 }
 
 void FSlateEditorStyle::FStyle::Initialize()

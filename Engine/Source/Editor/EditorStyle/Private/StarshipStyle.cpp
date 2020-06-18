@@ -59,8 +59,6 @@ void FStarshipEditorStyle::Shutdown()
 		SettingsModule->UnregisterSettings("Editor", "General", "Appearance");
 	}
 
-
-
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 	if (PropertyEditorModule)
 	{
@@ -79,7 +77,15 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr< FStarshipEditorStyle::FStyle > FStarshipEditorStyle::StyleInstance = NULL;
 TWeakObjectPtr< UEditorStyleSettings > FStarshipEditorStyle::Settings = NULL;
 
-static bool IncludeEditorSpecificStyles()
+void FStarshipEditorStyle::FStyle::SetColor(const TSharedRef< FLinearColor >& Source, const FLinearColor& Value)
+{
+	Source->R = Value.R;
+	Source->G = Value.G;
+	Source->B = Value.B;
+	Source->A = Value.A;
+}
+
+bool FStarshipEditorStyle::FStyle::IncludeEditorSpecificStyles()
 {
 #if IS_PROGRAM
 	return true;
@@ -148,13 +154,6 @@ FStarshipEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings
 
 }
 
-static void SetColor( const TSharedRef< FLinearColor >& Source, const FLinearColor& Value )
-{
-	Source->R = Value.R;
-	Source->G = Value.G;
-	Source->B = Value.B;
-	Source->A = Value.A;
-}
 
 void FStarshipEditorStyle::FStyle::SettingsChanged(UObject* ChangedObject, FPropertyChangedEvent& PropertyChangedEvent)
 {
