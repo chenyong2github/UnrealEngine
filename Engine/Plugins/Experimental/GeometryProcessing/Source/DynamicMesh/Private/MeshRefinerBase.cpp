@@ -150,9 +150,9 @@ bool FMeshRefinerBase::CanCollapseEdge(int eid, int a, int b, int c, int d, int 
 /**
  * Resolve vertex constraints for collapsing edge eid=[a,b]. Generally we would
  * collapse a to b, and set the new position as 0.5*(v_a+v_b). However if a *or* b
- * are constrained, then we want to keep that vertex and collapse to its position.
- * This vertex (a or b) will be returned in collapse_to, which is -1 otherwise.
- * If a *and* b are constrained, then things are complicated (and documented below).
+ * are non-deletable, then we want to keep that vertex. This vertex (a or b) will be returned in collapse_to, 
+ * which is -1 otherwise.
+ * If a *and* b are non-deletable, then things are complicated (and documented below).
  */
 bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to) const
 {
@@ -165,16 +165,19 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 	Constraints->GetVertexConstraint(a, ca);
 	Constraints->GetVertexConstraint(b, cb);
 
+	bool CanDeleteA = (ca.bCannotDelete == false);
+	bool CanDeleteB = (cb.bCannotDelete == false);
+
 	// no constraint at all
-	if (ca.Fixed == false && cb.Fixed == false && ca.Target == nullptr && cb.Target == nullptr)
+	if ( CanDeleteA && CanDeleteB && ca.Target == nullptr && cb.Target == nullptr )
 	{
 		return true;
 	}
 
-	// handle a or b fixed
-	if (ca.Fixed == true && cb.Fixed == false) 
+	// handle a or b non-deletable
+	if ( ca.bCannotDelete && CanDeleteB )
 	{
-		// if b is fixed to a target, and it is different than a's target, we can't collapse
+		// if b has a projection target, and it is different than a's target, we can't collapse
 		if (cb.Target != nullptr && cb.Target != ca.Target)
 		{
 			return false;
@@ -182,7 +185,8 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 		collapse_to = a;
 		return true;
 	}
-	if (cb.Fixed == true && ca.Fixed == false) 
+
+	if ( cb.bCannotDelete  && CanDeleteA )
 	{
 		if (ca.Target != nullptr && ca.Target != cb.Target)
 		{
@@ -191,7 +195,8 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 		collapse_to = b;
 		return true;
 	}
-	// if both fixed, and options allow, treat this edge as unconstrained (eg collapse to midpoint)
+
+	// if both are non-deletable, and options allow, treat this edge as unconstrained (eg collapse to midpoint)
 	// TODO: tried picking a or b here, but something weird happens, where
 	//   eg cylinder cap will entirely erode away. Somehow edge lengths stay below threshold??
 	if (AllowCollapseFixedVertsWithSameSetID
@@ -309,7 +314,7 @@ void FMeshRefinerBase::DebugCheckUVSeamConstraints()
 			if (Mesh->Attributes()->PrimaryUV()->IsSeamVertex(vid))
 			{
 				auto cons = Constraints->GetVertexConstraint(vid);
-				check(cons.Fixed == true);
+				check(cons.bCannotDelete == true);
 			}
 		}
 	}

@@ -210,37 +210,16 @@ protected:
 	 */
 	bool CanCollapseVertex(int eid, int a, int b, int& collapse_to) const;
 
-	/**
-	 * @return true if given vertex is Fixed under current constraints
-	 */
-	inline bool IsVertexFixed(int VertexID)
-	{
-		return (Constraints && Constraints->GetVertexConstraint(VertexID).Fixed);
-	}
-
 
 	/**
-	 * @return true if given vertex is Fixed or has a projection target
+	 * @return true if given vertex can't move, or has a projection target
 	 */
-	inline bool IsVertexConstrained(int VertexID)
+	inline bool IsVertexPositionConstrained(int VertexID)
 	{
 		if (Constraints)
 		{
 			FVertexConstraint vc = Constraints->GetVertexConstraint(VertexID);
-			return (vc.Fixed || vc.Target != nullptr);
-		}
-		return false;
-	}
-
-	/**
-	 * @return true if the given vertex has a constraint specifying that the vertex is not Movable
-	*/
-	bool IsVertexPositionConstrained(int VertexID)
-	{
-		if (Constraints)
-		{
-			FVertexConstraint vc = Constraints->GetVertexConstraint(VertexID);
-			return !(vc.Movable);
+			return (!vc.bCanMove || vc.Target != nullptr);
 		}
 		return false;
 	}

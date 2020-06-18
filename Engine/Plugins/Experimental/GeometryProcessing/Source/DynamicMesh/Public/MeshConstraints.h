@@ -112,58 +112,58 @@ public:
 struct DYNAMICMESH_API FVertexConstraint
 {
 public:
+
+	/** Is this vertex permanent (i.e. cannot be removed by topology-change operations). */
+	bool bCannotDelete;
+
+	/** Can this vertex be moved */
+	bool bCanMove;
+
+	/** Vertices marked as "CannotDelete" but sharing the same FixedSetID can optionally be collapsed together (ie in Remesher) */
+	int FixedSetID;
+
 	/** value for FixedSetID that is treated as not-a-fixed-set-ID by various functions (ie don't use this value yourself) */
 	static constexpr int InvalidSetID = -1;
-
-	/** Is this vertex topologically fixed, ie cannot be removed by topology-change operations, but can be moved. */
-	bool Fixed;
-	/** Can this vertex be moved */
-	bool Movable;
-	/** Fixed vertices with the same FixedSetID can optionally be collapsed together (ie in Remesher) */
-	int FixedSetID;
 
 	/** Vertex is associated with this ProjectionTarget, and should be projected onto it (ie in Remesher) */
 	IProjectionTarget* Target;
 
-	FVertexConstraint() 
-	{
-		Fixed = false;
-		Movable = false;
-		FixedSetID = InvalidSetID;
-		Target = nullptr;
-	}
+	FVertexConstraint() :
+		bCannotDelete(false),
+		bCanMove(false),
+		FixedSetID(InvalidSetID),
+		Target(nullptr)
+	{}
 
-	explicit FVertexConstraint(bool bIsFixed, bool bIsMovable, int SetID = InvalidSetID)
-	{
-		Fixed = bIsFixed;
-		Movable = bIsMovable;
-		FixedSetID = SetID;
-		Target = nullptr;
-	}
+	explicit FVertexConstraint(bool bCannotDelete, bool bCanMove, int FixedSetID = InvalidSetID) :
+		bCannotDelete(bCannotDelete),
+		bCanMove(bCanMove),
+		FixedSetID(FixedSetID),
+		Target(nullptr)
+	{}
 
-	explicit FVertexConstraint(IProjectionTarget* TargetIn)
-	{
-		Fixed = false;
-		Movable = false;
-		FixedSetID = InvalidSetID;
-		Target = TargetIn;
-	}
+	explicit FVertexConstraint(IProjectionTarget* Target) :
+		bCannotDelete(false),
+		bCanMove(false),
+		FixedSetID(InvalidSetID),
+		Target(Target)
+	{}
 
 	/** @return an unconstrained vertex constraint (ie not constrained at all) */
 	static FVertexConstraint Unconstrained() { return FVertexConstraint(false, true); }
 
-	/** @return a Pinned vertex constraint */
-	static FVertexConstraint Pinned() { return FVertexConstraint(true, false); }
+	/** @return a fully constrained vertex: can't delete and can't move */
+	static FVertexConstraint FullyConstrained() { return FVertexConstraint(true, false); }
 
-	/** @return a Pinned-but-Movable vertex constraint */
-	static FVertexConstraint PinnedMovable() { return FVertexConstraint(true, true); }
+	/** @return a movable but not "delete-able" vertex constraint */
+	static FVertexConstraint PermanentMovable() { return FVertexConstraint(true, true); }
 
 	/** Combine the incoming constraint with this constraint. The combination cannot be less restrictive than the
 	    existing constraint. */
 	void CombineConstraint(const FVertexConstraint& OtherConstraint)
 	{
-		Fixed = Fixed || OtherConstraint.Fixed;
-		Movable = Movable && OtherConstraint.Movable;
+		bCannotDelete = bCannotDelete || OtherConstraint.bCannotDelete;
+		bCanMove = bCanMove && OtherConstraint.bCanMove;
 	}
 
 };
