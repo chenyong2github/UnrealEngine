@@ -27,10 +27,13 @@ private:
 	// Recreate LOD actors for the given level.
 	void RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld);
 
+	void OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld);
+
 	void UnregisterRecreateLODActorsDelegates();
 	void RegisterRecreateLODActorsDelegates();
 
 private:
 	FDelegateHandle OnPostWorldInitializationDelegateHandle;
 	FDelegateHandle OnLevelAddedToWorldDelegateHandle;
+	FDelegateHandle OnPreSaveWorlDelegateHandle;
 };

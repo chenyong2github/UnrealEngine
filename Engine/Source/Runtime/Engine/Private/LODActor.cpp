@@ -674,6 +674,13 @@ void ALODActor::ForceUnbuilt()
 #endif
 }
 
+bool ALODActor::Modify(bool bAlwaysMarkDirty /*= true*/)
+{
+	// Avoid marking the package as dirty if this LODActor was spawned from an HLODDesc and is transient
+	bAlwaysMarkDirty = bAlwaysMarkDirty && !WasBuiltFromHLODDesc();
+	return Super::Modify(bAlwaysMarkDirty);
+}
+
 void ALODActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
