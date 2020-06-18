@@ -647,18 +647,13 @@ void Main(
 		}
 	#endif
 	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+		SpecularIBL *= ShadingModelContext.SpecularColor;
+
 		half F = GetEnvBRDF(0.04, ShadingModelContext.ClearCoatRoughness, ShadingModelContext.NoV).x;
 		F *= ShadingModelContext.ClearCoat;
 		half LayerAttenuation = (1 - F);
 
-		// Fc * Vis
-		#if FORWARDSHADING_USE_HQ_ENV_BRDF
-			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, ShadingModelContext.Roughness), 0).rg;
-		#else
-			half3 Fc = (ShadingModelContext.SpecularColor - ShadingModelContext.SpecPreEnvBrdf) * rcp(saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) - ShadingModelContext.SpecPreEnvBrdf);
-			half2 AB = half2(1 - Fc.x, Fc.x);
-		#endif
-		Color += SpecularIBL * LayerAttenuation * (ShadingModelContext.SpecPreEnvBrdf * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) * (1 - ShadingModelContext.ClearCoat));
+		Color += SpecularIBL * LayerAttenuation;
 
 		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance);
 		Color += SpecularIBL * F;
