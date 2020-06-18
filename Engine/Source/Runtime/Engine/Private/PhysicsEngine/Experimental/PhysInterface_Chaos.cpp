@@ -2275,7 +2275,7 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot, const F
 	}
 }
 
-FPhysicsShapeReference_Chaos::~FPhysicsShapeReference_Chaos() = default;
+FPhysicsShapeAdapter_Chaos::~FPhysicsShapeAdapter_Chaos() = default;
 
 const FPhysicsGeometry& FPhysicsShapeAdapter_Chaos::GetGeometry() const
 {
