@@ -114,7 +114,7 @@ class MESHMODELINGTOOLS_API UHoleFillToolProperties : public UInteractiveToolPro
 
 public:
 	UPROPERTY(EditAnywhere, Category = Options)
-	EHoleFillOpFillType FillType = EHoleFillOpFillType::Smooth;
+	EHoleFillOpFillType FillType = EHoleFillOpFillType::Minimal;
 
 	/** Clean up triangles that have no neighbors */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -159,6 +159,34 @@ public:
 		PostAction(EHoleFillToolActions::ClearSelection);
 	}
 };
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UHoleFillStatisticsProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(VisibleAnywhere, Category = HoleFillStatistics)
+	FString InitialHoles;
+
+	UPROPERTY(VisibleAnywhere, Category = HoleFillStatistics)
+	FString SelectedHoles;
+
+	UPROPERTY(VisibleAnywhere, Category = HoleFillStatistics)
+	FString SuccessfulFills;
+
+	UPROPERTY(VisibleAnywhere, Category = HoleFillStatistics)
+	FString FailedFills;
+
+	UPROPERTY(VisibleAnywhere, Category = HoleFillStatistics)
+	FString RemainingHoles;
+
+	void Initialize(const UHoleFillTool& HoleFillTool);
+
+	void Update(const UHoleFillTool& HoleFillTool, const FHoleFillOp& HoleFillOp);
+};
+
 
 /*
  * Operator factory
@@ -214,6 +242,7 @@ protected:
 
 	friend UHoleFillOperatorFactory;
 	friend UHoleFillToolBuilder;
+	friend UHoleFillStatisticsProperties;
 
 	UPROPERTY()
 	USmoothHoleFillProperties* SmoothHoleFillProperties = nullptr;
@@ -223,6 +252,9 @@ protected:
 
 	UPROPERTY()
 	UHoleFillToolActions* Actions = nullptr;
+
+	UPROPERTY()
+	UHoleFillStatisticsProperties* Statistics = nullptr;
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
