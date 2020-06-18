@@ -18,5 +18,5 @@ UNiagaraDataInterfaceArrayInt32::UNiagaraDataInterfaceArrayInt32(FObjectInitiali
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(Proxy, IntData));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(Proxy, IntData, ArrayRWGuard));
 }

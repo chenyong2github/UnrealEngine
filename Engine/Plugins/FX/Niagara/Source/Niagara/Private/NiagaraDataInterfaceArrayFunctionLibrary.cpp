@@ -9,6 +9,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(UNiagaraCom
 {
 	if (UNiagaraDataInterfaceArrayFloat* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -18,6 +19,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector2D(UNiagara
 {
 	if (UNiagaraDataInterfaceArrayFloat2* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat2>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -27,6 +29,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(UNiagaraCo
 {
 	if (UNiagaraDataInterfaceArrayFloat3* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -36,6 +39,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4(UNiagaraC
 {
 	if (UNiagaraDataInterfaceArrayFloat4* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat4>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -45,6 +49,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayColor(UNiagaraCom
 {
 	if (UNiagaraDataInterfaceArrayColor* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayColor>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->ColorData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -54,6 +59,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayQuat(UNiagaraComp
 {
 	if (UNiagaraDataInterfaceArrayQuat* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayQuat>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->QuatData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -63,6 +69,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(UNiagaraCom
 {
 	if (UNiagaraDataInterfaceArrayInt32* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayInt32>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->IntData = ArrayData;
 		ArrayDI->UpdateGPU();
 	}
@@ -72,6 +79,7 @@ TArray<float> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayFloat(UN
 {
 	if (UNiagaraDataInterfaceArrayFloat* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->FloatData;
 	}
 	return TArray<float>();
@@ -81,6 +89,7 @@ TArray<FVector2D> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVect
 {
 	if (UNiagaraDataInterfaceArrayFloat2* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat2>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->FloatData;
 	}
 	return TArray<FVector2D>();
@@ -90,6 +99,7 @@ TArray<FVector> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVector
 {
 	if (UNiagaraDataInterfaceArrayFloat3* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->FloatData;
 	}
 	return TArray<FVector>();
@@ -99,6 +109,7 @@ TArray<FVector4> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVecto
 {
 	if (UNiagaraDataInterfaceArrayFloat4* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat4>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->FloatData;
 	}
 	return TArray<FVector4>();
@@ -108,6 +119,7 @@ TArray<FLinearColor> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayC
 {
 	if (UNiagaraDataInterfaceArrayColor* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayColor>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->ColorData;
 	}
 	return TArray<FLinearColor>();
@@ -117,6 +129,7 @@ TArray<FQuat> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayQuat(UNi
 {
 	if (UNiagaraDataInterfaceArrayQuat* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayQuat>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->QuatData;
 	}
 	return TArray<FQuat>();
@@ -126,6 +139,7 @@ TArray<int32> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayInt32(UN
 {
 	if (UNiagaraDataInterfaceArrayInt32* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayInt32>(NiagaraSystem, OverrideName))
 	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
 		return ArrayDI->IntData;
 	}
 	return TArray<int32>();
