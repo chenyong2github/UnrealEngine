@@ -25,7 +25,7 @@ struct FElementOffset
 };
 
 /** Arrays in which the cpu datas will be str */
-struct FNDIPhysicsAssetArrays 
+struct FNDIPhysicsAssetArrays
 {
 	FElementOffset ElementOffsets;
 	TArray<FVector4> CurrentTransform;
@@ -44,10 +44,10 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	bool IsValid() const;
 
 	/** Set the assets that will be used to affect the buffer */
-	void Initialize(const TWeakObjectPtr<class UPhysicsAsset>  PhysicsAsset, const TWeakObjectPtr<class USkeletalMeshComponent>  SkeletalMesh, const FTransform& InWorldTransform);
+	void Initialize(const TArray<TWeakObjectPtr<class UPhysicsAsset>>& PhysicsAsset, const TArray<TWeakObjectPtr<class USkeletalMeshComponent>>& SkeletalMesh, const FTransform& InWorldTransform);
 
 	/** Update the buffers */
-	void Update();
+	void Update(const FTransform& InWorldTransform);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -80,16 +80,13 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	FRWBuffer ElementExtentBuffer;
 
 	/** The physics asset datas from which the buffers will be constructed */
-	TWeakObjectPtr<class UPhysicsAsset> PhysicsAsset;
+	TArray<TWeakObjectPtr<class UPhysicsAsset>> PhysicsAssets;
 
 	/** The skeletal mesh from which the transform will be extracted*/
-	TWeakObjectPtr<class USkeletalMeshComponent> SkeletalMesh;
+	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SkeletalMeshs;
 
 	/** Physics Asset arrays */
 	TUniquePtr<FNDIPhysicsAssetArrays> AssetArrays;
-
-	/** World transform */
-	FTransform WorldTransform;
 };
 
 /** Data stored per physics asset instance*/
@@ -123,24 +120,24 @@ public:
 
 	/** Skeletal Mesh from which the Physics Asset will be found. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	UPhysicsAsset* DefaultSource;
+		UPhysicsAsset* DefaultSource;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	AActor* SourceActor;
+		AActor* SourceActor;
 
 	/** The source component from which to sample */
-	TWeakObjectPtr<class USkeletalMeshComponent> SourceComponent;
+	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SourceComponents;
 
 	/** The source asset from which to sample */
-	TWeakObjectPtr<class UPhysicsAsset> PhysicsAsset;
+	TArray<TWeakObjectPtr<class UPhysicsAsset>> PhysicsAssets;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
 
 	/** UNiagaraDataInterface Interface */
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
@@ -245,7 +242,6 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 
 	/** Reset the buffers  */
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
-
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
