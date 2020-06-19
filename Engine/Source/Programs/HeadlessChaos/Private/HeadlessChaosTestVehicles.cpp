@@ -5,12 +5,14 @@
 
 // for System Unit Tests
 #include "AerodynamicsSystem.h"
+#include "AerofoilSystem.h"
 #include "TransmissionSystem.h"
 #include "EngineSystem.h"
 #include "WheelSystem.h"
 #include "TireSystem.h"
 #include "SuspensionSystem.h"
 #include "SuspensionUtility.h"
+#include "SteeringUtility.h"
 
 // for Simulation Tests
 #include "Chaos/PBDRigidsEvolutionGBF.h"
@@ -23,11 +25,129 @@
 // units as it's easier to tell if the simulations are working close to 
 // reality. i.e. Google stopping distance @ 30MPH ==> typically 15 metres
 //////////////////////////////////////////////////////////////////////////
-PRAGMA_DISABLE_OPTIMIZATION
 
 namespace ChaosTest
 {
 	using namespace Chaos;
+
+	TYPED_TEST(AllTraits, VehicleTest_SteeringUtilityIntersectTwoCircles)
+	{
+		{
+			float R1 = 3.f;
+			float R2 = 2.f;
+			FVector2D IntersectionPt;
+
+			bool ResultOk = FSteeringUtility::IntersectTwoCircles(R1, R2, 0.5f, IntersectionPt);
+			EXPECT_FALSE(ResultOk);
+
+			ResultOk = FSteeringUtility::IntersectTwoCircles(R1, R2, 6.0f, IntersectionPt);
+			EXPECT_FALSE(ResultOk);
+
+			ResultOk = FSteeringUtility::IntersectTwoCircles(R1, R2, 5.0f, IntersectionPt);
+			EXPECT_TRUE(ResultOk);
+			EXPECT_LT(IntersectionPt.X - 3.f, SMALL_NUMBER);
+			EXPECT_LT(IntersectionPt.Y, SMALL_NUMBER);
+
+			ResultOk = FSteeringUtility::IntersectTwoCircles(R1, R2, 1.0f, IntersectionPt);
+			EXPECT_TRUE(ResultOk);
+			EXPECT_LT(IntersectionPt.X - 3.f, SMALL_NUMBER);
+			EXPECT_LT(IntersectionPt.Y, SMALL_NUMBER);
+		}
+
+		{
+			float Tolerance = 0.001f;
+			float R1 = 3.f;
+			float R2 = 2.f;
+			FVector2D IntersectionPt;
+			bool ResultOk = false;
+
+			for (float D = 1.f; D <= 5.0f; D += 0.2f)
+			{
+				FVector2D C1(0, 0);
+				FVector2D C2(D, 0);
+				ResultOk = FSteeringUtility::IntersectTwoCircles(R1, R2, D, IntersectionPt);
+				EXPECT_TRUE(ResultOk);
+				EXPECT_GT(IntersectionPt.X, 0.f);
+				EXPECT_GE(IntersectionPt.Y, 0.f);
+				EXPECT_LT(IntersectionPt.Y, R1);
+				EXPECT_LT(IntersectionPt.Y, R2);
+				EXPECT_LT((IntersectionPt - C1).Size() - R1, Tolerance);
+				EXPECT_LT((C2 - IntersectionPt).Size() - R2, Tolerance);
+			}
+		}
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_SteeringUtilityCalcJointPositions)
+	{
+		float T = 1.0f;			// Track width
+		float Beta = 0.f;		// Angle
+		float R = 0.25f;		// Radius
+		FVector2D C1, C2;		// steering rod centre, track rod centre
+		float R1, R2;			// steering rod radius, track rod radius
+		FSteeringUtility::CalcJointPositions(T, Beta, R, C1, R1, C2, R2);
+
+		EXPECT_LT(R1 - T/2.f, SMALL_NUMBER);
+		EXPECT_LT(R2 - R, SMALL_NUMBER);
+		EXPECT_LT(C1.X, SMALL_NUMBER);
+		EXPECT_LT(C1.Y, SMALL_NUMBER);
+		EXPECT_LT(C2.X - T/2.f, SMALL_NUMBER);
+		EXPECT_LT(C2.Y-R, SMALL_NUMBER);
+
+		T = 1.0f;
+		Beta = 45.0f;
+		R = 0.25f;
+		FSteeringUtility::CalcJointPositions(T, Beta, R, C1, R1, C2, R2);
+
+		float Dist = FMath::Sqrt(R*R/2.f);
+		EXPECT_LT(R1 - (T / 2.f - Dist), SMALL_NUMBER);
+		EXPECT_LT(R2 - R, SMALL_NUMBER);
+		EXPECT_LT(C1.X, SMALL_NUMBER);
+		EXPECT_LT(C1.Y, SMALL_NUMBER);
+		EXPECT_LT(C2.X - T / 2.f, SMALL_NUMBER);
+		EXPECT_LT(C2.Y - Dist, SMALL_NUMBER);
+
+		T = 2.0f;
+		Beta = 18.0f;
+		R = 0.25f;
+		FSteeringUtility::CalcJointPositions(T, Beta, R, C1, R1, C2, R2);
+
+		float Input = 0.0f;
+		float OutSteerAngle;
+		FVector2D OutC1;
+		FVector2D OutPt;
+		FSteeringUtility::CalculateAkermannAngle(false, Input, C2, R1, R2, OutSteerAngle, OutC1, OutPt);
+
+		EXPECT_LT(OutSteerAngle - Beta, KINDA_SMALL_NUMBER);
+		EXPECT_GT(OutPt.X, 0.f);
+		EXPECT_LT(OutPt.X, T/ 2.0f);
+
+	}
+
+	TYPED_TEST(AllTraits, VehicleTest_SteeringUtilityAkermannSetup)
+	{
+		float WheelBase = 3.8f;
+		float TrackWidth = 1.8f;
+		float R = 0.25f;
+		float Beta = FSteeringUtility::CalculateBetaDegrees(TrackWidth, WheelBase);
+
+		// This is a bit pointless I'm just doing the same sum - is there another way to confirm the results
+		EXPECT_LT(Beta - RadToDeg(FMath::Atan2(0.9f, 3.8f)), KINDA_SMALL_NUMBER);
+
+		// Beta is about 18 degrees +/- on a normal car
+		EXPECT_GT(Beta, 10.f);
+		EXPECT_LT(Beta, 25.f);
+
+		float H, S;
+		FSteeringUtility::AkermannSetup(TrackWidth, Beta, R, H, S);
+
+		// This is a bit pointless I'm just doing the same sum - is there another way to confirm the results
+		EXPECT_LT(S - (TrackWidth - 2.0f * FMath::DegreesToRadians(FMath::Sin(Beta)) * R), KINDA_SMALL_NUMBER);
+
+		EXPECT_LT(H, R);
+		EXPECT_LT(S, TrackWidth);
+		EXPECT_GT(H, 0.f);
+		EXPECT_GT(H, 0.f);
+	}
 
 	TYPED_TEST(AllTraits, VehicleTest_SystemTemplate)
 	{
@@ -139,6 +259,95 @@ namespace ChaosTest
 			}
 		}*/
 	}
+
+	TYPED_TEST(AllTraits, VehicleTest_Aerofoil)
+	{
+		FAerofoilConfig RWingSetup;
+		RWingSetup.Offset.Set(-0.8f, 3.0f, 0.0f);
+		RWingSetup.UpAxis.Set(0.0f, 0.f, 1.0f);
+		RWingSetup.Area = 8.2f;
+		RWingSetup.Camber = 3.0f;
+		RWingSetup.MaxControlAngle = 1.0f;
+		RWingSetup.StallAngle = 16.0f;
+		RWingSetup.Type = FAerofoilType::Wing;
+
+		FAerofoil RWing(&RWingSetup);
+
+		RWing.SetControlSurface(0.0f);
+		RWing.SetDensityOfMedium(RealWorldConsts::AirDensity());
+
+		float Altitude = 100.0f;
+		float DeltaTime = 1.0f / 30.0f;
+
+		//////////////////////////////////////////////////////////////////////////
+
+		FTransform BodyTransform = FTransform::Identity;
+		FVector Velocity(1.0f, 0.0f, 0.0f);
+
+		float AOAFlat = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(-1, 0, 0));
+		EXPECT_LT(AOAFlat, SMALL_NUMBER);
+
+		float AOAFlat2 = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(1, 0, 0));
+		EXPECT_LT(AOAFlat2, SMALL_NUMBER);
+
+		float AOA90 = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(0, 0, 1));
+		EXPECT_LT(AOA90-90.0f, SMALL_NUMBER);
+
+		float AOA45 = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(0, 0.707, 0.707));
+		EXPECT_LT(AOA45 - 45.0f, SMALL_NUMBER);
+
+		//////////////////////////////////////////////////////////////////////////
+		
+		float Zero = RWing.CalcLiftCoefficient(0, 0);
+		EXPECT_LT(Zero, SMALL_NUMBER);
+
+		float Two = RWing.CalcLiftCoefficient(2, 0);
+		float NegTwo = RWing.CalcLiftCoefficient(-2, 0);
+		EXPECT_GT(Two, SMALL_NUMBER);
+		EXPECT_LT(NegTwo, SMALL_NUMBER);
+		EXPECT_LT(Two - FMath::Abs(NegTwo), SMALL_NUMBER);
+
+		float Three = RWing.CalcLiftCoefficient(0, 3);
+		float NegThree = RWing.CalcLiftCoefficient(0, -3);
+		EXPECT_GT(Three, SMALL_NUMBER);
+		EXPECT_LT(NegThree, SMALL_NUMBER);
+		EXPECT_LT(Three - FMath::Abs(NegThree), SMALL_NUMBER);
+
+		float Nine = RWing.CalcLiftCoefficient(6, 3);
+		float NegNine = RWing.CalcLiftCoefficient(-6, -3);
+		EXPECT_GT(Nine, SMALL_NUMBER);
+		EXPECT_LT(NegNine, SMALL_NUMBER);
+		EXPECT_LT(Nine - FMath::Abs(NegNine), SMALL_NUMBER);
+
+		float Stall = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 0);
+		float StallPlus = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 5);
+		EXPECT_GT(Stall, Nine);
+		EXPECT_GT(Stall, Three);
+		EXPECT_GT(Stall, Two);
+		EXPECT_GT(Stall, StallPlus);
+
+		////////////////////////////////////////////////////////////////////////////
+
+		FVector Velocity1(0.0f, 0.0f, 10.0f);
+		FVector RWForceZero = RWing.GetForce(BodyTransform, Velocity1, Altitude, DeltaTime);
+		EXPECT_LT(FMath::Abs(RWForceZero.X), SMALL_NUMBER);
+		EXPECT_LT(FMath::Abs(RWForceZero.Y), SMALL_NUMBER);
+		EXPECT_LT(RWForceZero.Z, 0.f); // drag value opposes velocity direction
+
+		FVector Velocity2(0.0f, 10.0f, 10.0f);
+		FVector RWForce3 = RWing.GetForce(BodyTransform, Velocity2, Altitude, DeltaTime);
+		EXPECT_LT(FMath::Abs(RWForce3.X), SMALL_NUMBER);
+		EXPECT_LT(RWForce3.Y, 0.0f);
+		EXPECT_LT(RWForce3.Z, 0.0f);
+
+		FVector Velocity3(10.0f, 0.0f, 0.0f);
+		FVector RWForce4 = RWing.GetForce(BodyTransform, Velocity3, Altitude, DeltaTime);
+		EXPECT_LT(RWForce4.X, 0.0f);
+		EXPECT_LT(FMath::Abs(RWForce4.Y), SMALL_NUMBER);
+		EXPECT_GT(RWForce4.Z, 0.0f);
+
+	}
+
 
 	// Transmission
 	TYPED_TEST(AllTraits, VehicleTest_TransmissionManualGearSelection)
@@ -352,18 +561,21 @@ namespace ChaosTest
 	// Wheel
 	void SimulateBraking(FSimpleWheelSim& Wheel
 		, float VehicleSpeedMPH
+		, float DeltaTime
 		, float& StoppingDistanceOut
-		, float DeltaTime)
+		, float& SimulationTimeOut
+		)
 	{
 		StoppingDistanceOut = 0.f;
-
+		SimulationTimeOut = 0.f;
+		
 		const float Gravity = 9.8f;
 		float MaxSimTime = 15.0f;
-		float SimulatedTime = 0.f;
 		float VehicleMass = 1300.f;
 		float VehicleMassPerWheel = 1300.f / 4.f;
 
 		Wheel.SetWheelLoadForce(VehicleMassPerWheel * Gravity);
+		Wheel.SetMassPerWheel(VehicleMassPerWheel);
 
 		// Road speed
 		FVector Velocity = FVector(MPHToMS(VehicleSpeedMPH), 0.f, 0.f);
@@ -371,11 +583,10 @@ namespace ChaosTest
 		// wheel rolling speed matches road speed
 		Wheel.SetMatchingSpeed(Velocity.X);
 
-		while (SimulatedTime < MaxSimTime)
+		while (SimulationTimeOut < MaxSimTime)
 		{
 			// rolling speed matches road speed
 			Wheel.SetVehicleGroundSpeed(Velocity);
-
 			Wheel.Simulate(DeltaTime);
 
 			// deceleration from brake, F = m * a, a = F / m, v = dt * F / m
@@ -383,38 +594,41 @@ namespace ChaosTest
 			StoppingDistanceOut += Velocity.X * DeltaTime;
 
 			// #todo: make this better remove the 2.0f
-			if (FMath::Abs(Velocity.X) < 2.0f)
+			if (FMath::Abs(Velocity.X) < 0.05f)
 			{
 				Velocity.X = 0.f;
 				break; // break out early if already stopped
 			}
 
-			SimulatedTime += DeltaTime;
+			SimulationTimeOut += DeltaTime;
 		}
 	}
 
 	void SimulateAccelerating(FSimpleWheelSim& Wheel
 		, const float Gravity
-		, float VehicleSpeedMPH
+		, float FinalVehicleSpeedMPH
+		, float DeltaTime
 		, float& DistanceTravelledOut
-		, float DeltaTime)
+		, float& SimulationTimeOut
+		)
 	{
 		DistanceTravelledOut = 0.f;
+		SimulationTimeOut = 0.f;
 
 		float MaxSimTime = 15.0f;
-		float SimulatedTime = 0.f;
-		float VehicleMass = 1600.f;
+		float VehicleMass = 1300.f;
 		float VehicleMassPerWheel = VehicleMass / 4.f;
 
 		Wheel.SetWheelLoadForce(VehicleMassPerWheel * Gravity);
+		Wheel.SetMassPerWheel(VehicleMassPerWheel);
 
 		// Road speed
-		FVector Velocity = FVector(MPHToMS(VehicleSpeedMPH), 0.f, 0.f);
+		FVector Velocity = FVector(0.f, 0.f, 0.f);
 
-		// wheel rolling speed matches road speed
+		// start from stationary
 		Wheel.SetMatchingSpeed(Velocity.X);
 
-		while (SimulatedTime < MaxSimTime)
+		while (SimulationTimeOut < MaxSimTime)
 		{
 			Wheel.SetVehicleGroundSpeed(Velocity);
 			Wheel.Simulate(DeltaTime);
@@ -422,133 +636,158 @@ namespace ChaosTest
 			Velocity += DeltaTime * Wheel.GetForceFromFriction() / VehicleMassPerWheel;
 			DistanceTravelledOut += Velocity.X * DeltaTime;
 
-			SimulatedTime += DeltaTime;
+			SimulationTimeOut += DeltaTime;
 
-			if (SimulatedTime > 5.0f)
+			if (FMath::Abs(Velocity.X) >= MPHToMS(FinalVehicleSpeedMPH))
 			{
-				break; // break out early if already stopped
+				break; // time is up
 			}
 
 		}
 	}
 
-	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelBrakingLongitudinalSlip)
+	TYPED_TEST(AllTraits, VehicleTest_WheelBrakingLongitudinalSlip)
 	{
 		FSimpleWheelConfig Setup;
+		Setup.ABSEnabled = false;
+		Setup.BrakeEnabled = true;
+		Setup.EngineEnabled = true;
+		Setup.WheelRadius = 30.0f;
+
 		FSimpleWheelSim Wheel(&Setup);
 
 		// Google braking distance at 30mph says 14m (not interested in the thinking distance part)
 		// So using a range 10-20 to ensure we are in the correct ballpark.
 		// If specified more accurately in the test, then modifying the code would break the test all the time.
 
-		float Tolerance = 0.5f;
+		float StoppingDistanceTolerance = 0.5f; // meters
 		float DeltaTime = 1.f / 30.f;
 		float StoppingDistanceA = 0.f;
+		float SimulationTime = 0.0f;
 		Wheel.SetSurfaceFriction(RealWorldConsts::DryRoadFriction());
 
 		// reasonably ideal stopping distance - traveling forwards
-		Wheel.SetBrakeTorque(450);
+		Wheel.SetBrakeTorque(650);
 		float VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceA, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceA, SimulationTime);
 		//UE_LOG(LogChaos, Warning, TEXT("Braking Distance %3.2fm"), StoppingDistanceB);
 		EXPECT_GT(StoppingDistanceA, 10.f);
 		EXPECT_LT(StoppingDistanceA, 20.f);
 
 		// traveling backwards stops just the same
 		float StoppingDistanceReverseDir = 0.f;
-		Wheel.SetBrakeTorque(450);
+		Wheel.SetBrakeTorque(650);
 		VehicleSpeedMPH = -30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceReverseDir, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceReverseDir, SimulationTime);
 		EXPECT_GT(StoppingDistanceReverseDir, -20.f);
 		EXPECT_LT(StoppingDistanceReverseDir, -10.f);
-		EXPECT_LT(StoppingDistanceA - FMath::Abs(StoppingDistanceReverseDir), Tolerance);
+		EXPECT_LT(StoppingDistanceA - FMath::Abs(StoppingDistanceReverseDir), StoppingDistanceTolerance);
 
 		// Similar results with different delta time
 		float StoppingDistanceDiffDT = 0.f;
 		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceDiffDT, DeltaTime * 0.5f);
-		EXPECT_LT(StoppingDistanceA - StoppingDistanceDiffDT, Tolerance);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime * 0.25f, StoppingDistanceDiffDT, SimulationTime);
+		EXPECT_LT(StoppingDistanceA - StoppingDistanceDiffDT, StoppingDistanceTolerance);
 
 		// barely touching the brake - going to take longer to stop
 		float StoppingDistanceLightBraking = 0.f;
 		Wheel.SetBrakeTorque(150);
 		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLightBraking, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLightBraking, SimulationTime);
 		EXPECT_GT(StoppingDistanceLightBraking, StoppingDistanceA);
 
 		// locking the wheels / too much brake torque -> dynamic friction rather than static friction -> going to take longer to stop
 		float StoppingDistanceTooHeavyBreaking = 0.f;
 		Wheel.SetBrakeTorque(5000);
 		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceTooHeavyBreaking, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceTooHeavyBreaking, SimulationTime);
+
 		EXPECT_GT(StoppingDistanceTooHeavyBreaking, StoppingDistanceA);
 
 		// lower initial speed - stops more quickly
 		float StoppingDistanceLowerSpeed = 0.f;
-		Wheel.SetBrakeTorque(450);
+		Wheel.SetBrakeTorque(650);
 		VehicleSpeedMPH = 20.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLowerSpeed, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowerSpeed, SimulationTime);
 		EXPECT_LT(StoppingDistanceLowerSpeed, StoppingDistanceA);
 
 		// higher initial speed - stops more slowly
 		float StoppingDistanceHigherSpeed = 0.f;
-		Wheel.SetBrakeTorque(450);
+		Wheel.SetBrakeTorque(650);
 		VehicleSpeedMPH = 60.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceHigherSpeed, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceHigherSpeed, SimulationTime);
 		EXPECT_GT(StoppingDistanceHigherSpeed, StoppingDistanceA);
 
 		// slippy surface - stops more slowly
 		float StoppingDistanceLowFriction = 0.f;
 		Wheel.SetSurfaceFriction(0.3f);
-		Wheel.SetBrakeTorque(450);
+		Wheel.SetBrakeTorque(650);
 		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, StoppingDistanceLowFriction, DeltaTime);
+		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowFriction, SimulationTime);
 		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
 	}
 
-	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelAcceleratingLongitudinalSlip)
+	TYPED_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlip)
 	{
 		FSimpleWheelConfig Setup;
+		Setup.ABSEnabled = false;
+		Setup.BrakeEnabled = true;
+		Setup.EngineEnabled = true;
+
+		Setup.WheelRadius = 30.0f;
 		FSimpleWheelSim Wheel(&Setup);
 
-		/*
-			Available Friction Force	= Mass * Gravity;
-										= 1600Kg * 9.8 m.s-2 / 4 (wheels)
-										= 3920 N
-
-			Applied Wheel Torque		= AppliedEngineTorque * CombinedGearRatios / 2 (wheels)
-										= 150Nm * 12 / 3;
-										= 900
-
-			Applied Wheel Force			= 900 / WheelRadius
-										= 3000 N
-		*/
+		// There could be one frame extra computation on the acceleration since the last frame of brake is not using the full 
+		// amount of torque, it's clearing the last remaining velocity without pushing the vehicle back in the opposite direction
+		// Hence a slightly larger tolerance for the result
+		float AccelerationResultsTolerance = 1.0f; // meters
 
 		// units meters
 		float Gravity = 9.8f;
 		float DeltaTime = 1.f / 30.f;
-		float DrivingDistanceA = 0.f;
-		Wheel.SetDriveTorque(450);
-		float VehicleSpeedMPH = 0.f;
-		SimulateAccelerating(Wheel, Gravity, VehicleSpeedMPH, DrivingDistanceA, DeltaTime);
-		EXPECT_GT(DrivingDistanceA, 70.f);
-		EXPECT_LT(DrivingDistanceA, 90.f);
 
-		// units cm
+		float StoppingDistanceA = 0.f;
+		float SimulationTimeBrake = 0.0f;
+		Wheel.SetSurfaceFriction(RealWorldConsts::DryRoadFriction());
+
+		// How far & what time does it take to stop from 30MPH to rest
+		Wheel.SetBrakeTorque(650);
+		SimulateBraking(Wheel, 30.0f, DeltaTime, StoppingDistanceA, SimulationTimeBrake);
+
+		// How far and what time does it take to accelerate from rest to 30MPH
+		float SimulationTimeAccel = 0.0f;
+		float DrivingDistanceA = 0.f;
+		Wheel.SetDriveTorque(650);
+		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceA, SimulationTimeAccel);
+
+		// 0-30 MPH and 30-0 MPH should be the same if there's no slipping and accel torque was same as the brake torque run
+		EXPECT_LT(DrivingDistanceA - StoppingDistanceA, AccelerationResultsTolerance);
+		EXPECT_LT(SimulationTimeAccel - SimulationTimeBrake, AccelerationResultsTolerance);
+
+		// same range as braking from 30MPH
+		EXPECT_GT(DrivingDistanceA, 10.f);
+		EXPECT_LT(DrivingDistanceA, 20.f);
+
+		// Unreal units cm - Note for the same results the radius needs to remain at 0.3m and not also be scaled to 30(cm)
+		float SimulationTimeAccelCM = 0.0f;
 		float MtoCm = 100.0f;
 		float DrivingDistanceCM = 0.f;
-		Wheel.SetDriveTorque(450 * MtoCm);
-		VehicleSpeedMPH = 0.f;
-		SimulateAccelerating(Wheel, Gravity * MtoCm, VehicleSpeedMPH, DrivingDistanceCM, DeltaTime);
-		EXPECT_GT(DrivingDistanceCM, 70.f * MtoCm);
-		EXPECT_LT(DrivingDistanceCM, 90.f * MtoCm);
+		Wheel.SetDriveTorque(650 * MtoCm);
+		SimulateAccelerating(Wheel, Gravity * MtoCm, 30.0f * MtoCm, DeltaTime, DrivingDistanceCM, SimulationTimeAccelCM);
+		EXPECT_GT(DrivingDistanceCM, 10.f * MtoCm);
+		EXPECT_LT(DrivingDistanceCM, 20.f * MtoCm);
+		EXPECT_LT(SimulationTimeAccel - SimulationTimeAccelCM, AccelerationResultsTolerance);
 
-
+		float SimulationTimeAccelSpin = 0.0f;
 		float DrivingDistanceWheelspin = 0.f;
 		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
-		VehicleSpeedMPH = 0.f;
-		SimulateAccelerating(Wheel, Gravity, VehicleSpeedMPH, DrivingDistanceWheelspin, DeltaTime);
-		EXPECT_LT(DrivingDistanceWheelspin, DrivingDistanceA);
+		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceWheelspin, SimulationTimeAccelSpin);
+
+		// drives further to reach the same speed
+		EXPECT_GT(DrivingDistanceWheelspin, DrivingDistanceA);
+
+		// takes longer to reach the same speed
+		EXPECT_GT(SimulationTimeAccelSpin, SimulationTimeAccel);
 	}
 
 	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelLateralSlip)
@@ -1002,4 +1241,4 @@ namespace ChaosTest
 
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+
