@@ -137,6 +137,14 @@ static FAutoConsoleVariableRef CVarNiagaraSystemSimulationWaitAllTaskPri(
 
 ENamedThreads::Type GetNiagaraTaskPriority(int32 Priority)
 {
+#if WITH_PARTICLE_PERF_STATS
+	// If we are profiling particle performance make sure we don't get context switched due to lower priorty as that will confuse the results
+	static const IConsoleVariable* EffectsQualityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.ParticlePerfStats.Enabled"));
+	if (EffectsQualityCVar && (EffectsQualityCVar->GetInt() != 0))
+	{
+		return GNiagaraTaskPriorities[1].Get();
+	}
+#endif
 	Priority = FMath::Clamp(Priority, 0, (int32)UE_ARRAY_COUNT(GNiagaraTaskPriorities) - 1);
 	return GNiagaraTaskPriorities[Priority].Get();
 }
