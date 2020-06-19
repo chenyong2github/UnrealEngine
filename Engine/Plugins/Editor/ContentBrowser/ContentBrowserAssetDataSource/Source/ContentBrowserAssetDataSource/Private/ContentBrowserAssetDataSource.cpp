@@ -38,7 +38,7 @@ bool PathPassesCompiledDataFilter(const FContentBrowserCompiledAssetDataFilter& 
 	};
 
 	const bool bPassesFilterBlacklist = PathPassesFilter(InFilter.PackagePathsToInclude, InFilter.bRecursivePackagePathsToInclude) && PathPassesFilter(InFilter.PackagePathsToExclude, InFilter.bRecursivePackagePathsToExclude);
-	const bool bPassesPathFilter = PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/false);
+	const bool bPassesPathFilter = PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/true);
 	const bool bPassesExcludedPathsFilter = !InFilter.ExcludedPackagePaths.Contains(InPath);
 
 	return bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter;
