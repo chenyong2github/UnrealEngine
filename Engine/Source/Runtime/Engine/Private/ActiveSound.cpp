@@ -137,6 +137,14 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->ConcurrencyGroupData.Reset();
 	ActiveSound->WaveInstances.Reset();
 
+	FAudioThread::RunCommandOnGameThread([AudioComponentID = ActiveSound->GetAudioComponentID()]()
+	{
+		if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+		{
+			AudioComponent->SetIsVirtualized(true);
+		}
+	});
+
 	return ActiveSound;
 }
 
@@ -518,7 +526,28 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	ParseParams.Transform = Transform;
 	ParseParams.StartTime = RequestedStartTime;
 
-	ComponentVolumeFader.Update(DeltaTime);
+	// Report back to component if necessary once initial fade is complete
+	const bool bIsInitFade = PlaybackTimeNonVirtualized < ComponentVolumeFader.GetFadeDuration();
+	if (bIsInitFade)
+	{
+		bool bWasFading = ComponentVolumeFader.IsFadingIn();
+		ComponentVolumeFader.Update(DeltaTime);
+		const bool bIsFading = ComponentVolumeFader.IsFading();
+		if (bWasFading && !bIsFading)
+		{
+			FAudioThread::RunCommandOnGameThread([AudioComponentID = GetAudioComponentID()]()
+			{
+				if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+				{
+					AudioComponent->SetFadeInComplete();
+				}
+			});
+		}
+	}
+	else
+	{
+		ComponentVolumeFader.Update(DeltaTime);
+	}
 
 	ParseParams.VolumeMultiplier = GetVolume();
 
