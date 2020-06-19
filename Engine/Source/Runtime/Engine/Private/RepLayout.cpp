@@ -71,7 +71,7 @@ int32 GShareInitialCompareState = 0;
 static FAutoConsoleVariableRef CVarShareInitialCompareState(TEXT("net.ShareInitialCompareState"), GShareInitialCompareState,
 	TEXT("If true and net.ShareShadowState is enabled, attempt to also share initial replication compares across connections."));
 
-bool GbTrackNetSerializeObjectReferences = true;
+bool GbTrackNetSerializeObjectReferences = false;
 static FAutoConsoleVariableRef CVarTrackNetSerializeObjectReferences(TEXT("net.TrackNetSerializeObjectReferences"), GbTrackNetSerializeObjectReferences, TEXT("If true, we will create small layouts for Net Serialize Structs if they have Object Properties. This can prevent some Shadow State GC crashes."));
 
 #if WITH_PUSH_VALIDATION_SUPPORT
