@@ -49,6 +49,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "Dialogs/Dialogs.h"
 
 DEFINE_LOG_CATEGORY(LogLevelTools);
 
