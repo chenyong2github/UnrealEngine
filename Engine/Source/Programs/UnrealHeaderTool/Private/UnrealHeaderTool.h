@@ -8,4 +8,5 @@ struct FHeaderParserNames
 	static const FName NAME_HideCategories;
 	static const FName NAME_ShowCategories;
 	static const FName NAME_SparseClassDataTypes;
+	static const FName NAME_AdvancedClassDisplay;
 };

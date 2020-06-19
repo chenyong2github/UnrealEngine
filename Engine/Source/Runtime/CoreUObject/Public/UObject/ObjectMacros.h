@@ -179,8 +179,8 @@ enum EClassFlags
 	CLASS_Parsed              = 0x00000010u,
 	/** */
 	CLASS_MatchedSerializers  = 0x00000020u,
-	/** All the properties on the class are shown in the advanced section (which is hidden by default) unless SimpleDisplay is specified on the property */
-	CLASS_AdvancedDisplay	  = 0x00000040u,
+	/** Unused */
+	// CLASS_Unused			  = 0x00000040u,
 	/** Class is a native class - native interfaces will have CLASS_Native set, but not RF_MarkAsNative */
 	CLASS_Native			  = 0x00000080u,
 	/** Don't export to C++ header. */
@@ -277,7 +277,6 @@ ENUM_CLASS_FLAGS(EClassFlags);
 	CLASS_Deprecated | \
 	CLASS_HideDropDown | \
 	CLASS_Intrinsic | \
-	CLASS_AdvancedDisplay | \
 	CLASS_Const | \
 	CLASS_MinimalAPI | \
 	CLASS_RequiredAPI | \
