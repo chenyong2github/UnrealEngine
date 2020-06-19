@@ -2869,6 +2869,10 @@ bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice&
 	{
 		return HandleGetAllLocationCommand(Cmd, Ar);
 	}
+	else if (FParse::Command(&Cmd, TEXT("GETALLROTATION")))
+	{
+		return HandleGetAllRotationCommand(Cmd, Ar);
+	}
 	else if(FParse::Command(&Cmd, TEXT("TEXTUREDEFRAG")))
 	{
 		return HandleTextureDefragCommand( Cmd, Ar );
@@ -3784,6 +3788,34 @@ bool UGameViewportClient::HandleGetAllLocationCommand(const TCHAR* Cmd, FOutputD
 			{
 				FVector ActorLocation = It->GetActorLocation();
 				Ar.Logf(TEXT("%i) %s (%f, %f, %f)"), cnt++, *It->GetFullName(), ActorLocation.X, ActorLocation.Y, ActorLocation.Z);
+			}
+		}
+	}
+	else
+	{
+		Ar.Logf(TEXT("Unrecognized class %s"), ClassName);
+	}
+
+	return true;
+}
+
+bool UGameViewportClient::HandleGetAllRotationCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	// iterate through all actors of the specified class and log their rotation
+	TCHAR ClassName[256];
+	UClass* Class;
+
+	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
+		(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL)
+	{
+		bool bShowPendingKills = FParse::Command(&Cmd, TEXT("SHOWPENDINGKILLS"));
+		int32 cnt = 0;
+		for (TObjectIterator<AActor> It; It; ++It)
+		{
+			if ((bShowPendingKills || !It->IsPendingKill()) && It->IsA(Class))
+			{
+				FRotator ActorRotation = It->GetActorRotation();
+				Ar.Logf(TEXT("%i) %s (%f, %f, %f)"), cnt++, *It->GetFullName(), ActorRotation.Yaw, ActorRotation.Pitch, ActorRotation.Roll);
 			}
 		}
 	}
