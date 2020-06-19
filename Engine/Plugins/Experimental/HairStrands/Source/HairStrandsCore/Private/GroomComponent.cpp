@@ -586,7 +586,11 @@ void UGroomComponent::UpdateHairSimulation()
 		}
 		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
-			NiagaraComponent->Deactivate();
+			NiagaraComponent->DeactivateImmediate();
+			if (NiagaraComponent->GetSystemInstance() != nullptr)
+			{
+				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+			}
 		}
 	}
 	UpdateSimulatedGroups();
