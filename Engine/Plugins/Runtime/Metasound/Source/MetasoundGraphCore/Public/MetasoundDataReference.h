@@ -106,7 +106,7 @@ namespace Metasound
 			/** Construct operator with no arguments if the DataType has a default constructor.  */
 			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
 			TDataReference()
-			:	ObjectReference(MakeShared<DataType>())
+			:	ObjectReference(MakeShared<DataType, ESPMode::NotThreadSafe>())
 			{
 			}
 

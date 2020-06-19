@@ -19,18 +19,12 @@
 		{
 			"Name" : "MetasoundGraphCore",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PreDefault",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
+			"LoadingPhase" : "PreDefault"
 		},
 		{
 			"Name" : "MetasoundGenerator",
 			"Type" : "Runtime",
-			"LoadingPhase" : "Default",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
+			"LoadingPhase" : "Default"
 		}
 	]
 }
