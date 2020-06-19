@@ -1178,6 +1178,7 @@ namespace Chaos
 			return false;
 		}
 
+
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
@@ -1188,6 +1189,14 @@ namespace Chaos
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+		if ((Particle0->Sleeping() && Particle1->Sleeping())
+			|| (Particle0->IsKinematic() && Particle1->Sleeping()) 
+			|| (Particle0->Sleeping() && Particle1->IsKinematic()))
+		{
+			return false;
+		}
+
 
 		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
