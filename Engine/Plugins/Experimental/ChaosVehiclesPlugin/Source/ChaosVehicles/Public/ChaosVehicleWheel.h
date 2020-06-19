@@ -23,7 +23,7 @@ class UChaosWheeledVehicleMovementComponent;
 
 
 	UENUM()
-	enum ESweepType
+	enum class ESweepType : uint8
 	{
 		/** Sweeps against both simple and complex geometry. */
 		SimpleAndComplexSweep	UMETA(DisplayName = "SimpleAndComplexSweep"),
@@ -31,6 +31,14 @@ class UChaosWheeledVehicleMovementComponent;
 		SimpleSweep				UMETA(DisplayName = "SimpleSweep"),
 		/** Sweeps against complex geometry only */
 		ComplexSweep			UMETA(DisplayName = "ComplexSweep")
+	};
+
+	UENUM()
+	enum class EAxleType : uint8
+	{
+		Undefined = 0,
+		Front,
+		Rear
 	};
 
 	UCLASS(BlueprintType, Blueprintable)
@@ -56,6 +64,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Shape)
 		bool bAutoAdjustCollisionSize;
 
+		/** If left undefined then the bAffectedByEngine value is used, if defined then bAffectedByEngine is ignored and the differential setup on the vehicle defines which wheels get power from the engine */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		EAxleType AxleType;
+
 		/**
 		 * If BoneName is specified, offset the wheel from the bone's location.
 		 * Otherwise this offsets the wheel from the vehicle's origin.
@@ -78,6 +90,10 @@ class UChaosWheeledVehicleMovementComponent;
 		/** CHEAT FRICTION FORCE */
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		float CheatFrictionForce;
+
+		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		float CheatSkidFactor;
 
 		///** Damping rate for this wheel (Kgm^2/s) */
 		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
@@ -165,7 +181,7 @@ class UChaosWheeledVehicleMovementComponent;
 
 		/** Whether wheel suspension considers simple, complex, or both */
 		UPROPERTY(EditAnywhere, Category = Suspension)
-		TEnumAsByte<ESweepType> SweepType;
+		ESweepType SweepType;
 
 		/** max brake torque for this wheel (Nm) */
 		UPROPERTY(EditAnywhere, Category = Brakes)
@@ -238,6 +254,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
 		bool IsInAir() const;
 
+		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
+		EAxleType GetAxleType() { return AxleType; }
+
+
 		/**
 		 * Initialize this wheel instance
 		 */
@@ -294,7 +314,8 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
-			PWheelConfig.CheatFrictionForce = this->CheatFrictionForce;
+			PWheelConfig.CheatFrictionForceMultiplier = this->CheatFrictionForce;
+			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
 		}
 
 		void FillSuspensionSetup()
