@@ -246,7 +246,7 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureEr
 	EncryptionKeys.SetKeyRegisteredCallback([this](const FGuid& Guid, const FAES::FAESKey& Key)
 	{
 		FReadScopeLock _(IoStoreReadersLock);
-		for (FFileIoStoreReader* Reader : IoStoreReaders)
+		for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
 		{
 			if (Reader->IsEncrypted() && !Reader->GetEncryptionKey().IsValid() && Reader->GetEncryptionKeyGuid() == Guid)
 			{
@@ -291,15 +291,18 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 	FIoContainerId ContainerId = Reader->GetContainerId();
 	{
 		FWriteScopeLock _(IoStoreReadersLock);
-		InsertionIndex = Algo::UpperBound(IoStoreReaders, Reader.Get(), [](const FFileIoStoreReader* A, const FFileIoStoreReader* B)
+		Reader->SetIndex(UnorderedIoStoreReaders.Num());
+		InsertionIndex = Algo::UpperBound(OrderedIoStoreReaders, Reader.Get(), [](const FFileIoStoreReader* A, const FFileIoStoreReader* B)
 		{
 			if (A->GetOrder() != B->GetOrder())
 			{
 				return A->GetOrder() > B->GetOrder();
 			}
-			return A->GetContainerId() < B->GetContainerId();
+			return A->GetIndex() > B->GetIndex();
 		});
-		IoStoreReaders.Insert(Reader.Release(), InsertionIndex);
+		FFileIoStoreReader* RawReader = Reader.Release();
+		UnorderedIoStoreReaders.Add(RawReader);
+		OrderedIoStoreReaders.Insert(RawReader, InsertionIndex);
 	}
 	return ContainerId;
 }
@@ -309,8 +312,7 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 	FReadScopeLock _(IoStoreReadersLock);
 	FFileIoStoreResolvedRequest ResolvedRequest;
 	ResolvedRequest.Request = Request;
-	int32 ReaderIndex = 0;
-	for (FFileIoStoreReader* Reader : IoStoreReaders)
+	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
 	{
 		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ResolvedRequest.Request->ChunkId))
 		{
@@ -337,12 +339,11 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 					ResolvedRequest.Request->IoBuffer.SetSize(ResolvedRequest.ResolvedSize);
 				}
 
-				ReadBlocks(ReaderIndex, ResolvedRequest);
+				ReadBlocks(*Reader, ResolvedRequest);
 			}
 
 			return IoStoreResolveResult_OK;
 		}
-		++ReaderIndex;
 	}
 
 	return IoStoreResolveResult_NotFound;
@@ -351,7 +352,7 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 bool FFileIoStore::DoesChunkExist(const FIoChunkId& ChunkId) const
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : IoStoreReaders)
+	for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
 	{
 		if (Reader->DoesChunkExist(ChunkId))
 		{
@@ -364,7 +365,7 @@ bool FFileIoStore::DoesChunkExist(const FIoChunkId& ChunkId) const
 TIoStatusOr<uint64> FFileIoStore::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : IoStoreReaders)
+	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
 	{
 		TIoStatusOr<uint64> ReaderResult = Reader->GetSizeForChunk(ChunkId);
 		if (ReaderResult.IsOk())
@@ -425,7 +426,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 			FIoSignatureError Error;
 			{
 				FReadScopeLock _(IoStoreReadersLock);
-				const FFileIoStoreReader& Reader = *IoStoreReaders[CompressedBlock->Key.FileIndex];
+				const FFileIoStoreReader& Reader = *UnorderedIoStoreReaders[CompressedBlock->Key.FileIndex];
 				Error.ContainerName = FPaths::GetBaseFilename(Reader.GetContainerFile().FilePath);
 				Error.BlockIndex = CompressedBlock->Key.BlockIndex;
 				Error.ExpectedHash = *CompressedBlock->SignatureHash;
@@ -652,7 +653,7 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : IoStoreReaders)
+	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
 	{
 		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ChunkId))
 		{
@@ -680,13 +681,12 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 	return FIoStatus(EIoErrorCode::NotFound);
 }
 
-void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequest& ResolvedRequest)
+void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoStoreResolvedRequest& ResolvedRequest)
 {
 	/*TStringBuilder<256> ScopeName;
 	ScopeName.Appendf(TEXT("ReadBlock %d"), BlockIndex);
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*ScopeName);*/
 
-	const FFileIoStoreReader& Reader = *IoStoreReaders[ReaderIndex];
 	UE_CLOG(Reader.IsEncrypted() && !Reader.GetEncryptionKey().IsValid(),
 		LogIoDispatcher, Fatal, TEXT("Reading from encrypted container (ID = '%d') with invalid encryption key (Guid = '%s')"),
 		Reader.GetContainerId().Value(),
@@ -706,7 +706,7 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 	for (int32 CompressedBlockIndex = RequestBeginBlockIndex; CompressedBlockIndex <= RequestEndBlockIndex; ++CompressedBlockIndex)
 	{
 		FFileIoStoreBlockKey CompressedBlockKey;
-		CompressedBlockKey.FileIndex = ReaderIndex;
+		CompressedBlockKey.FileIndex = Reader.GetIndex();
 		CompressedBlockKey.BlockIndex = CompressedBlockIndex;
 		FFileIoStoreCompressedBlock* CompressedBlock = CompressedBlocksMap.FindRef(CompressedBlockKey);
 		if (!CompressedBlock)
@@ -736,7 +736,7 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 			{
 				FFileIoStoreBlockKey RawBlockKey;
 				RawBlockKey.BlockIndex = RawBlockIndex;
-				RawBlockKey.FileIndex = ReaderIndex;
+				RawBlockKey.FileIndex = Reader.GetIndex();
 
 				FFileIoStoreRawBlock* RawBlock = RawBlocksMap.FindRef(RawBlockKey);
 				if (!RawBlock)
@@ -881,7 +881,7 @@ bool FFileIoStore::ReadPendingBlock()
 	FFileIoStoreRawBlock* BlockToRead = ScheduledBlocksHead;
 
 	BlockToRead->Buffer = AllocBuffer();
-	BlockToRead->FileHandle = IoStoreReaders[BlockToRead->Key.FileIndex]->GetContainerFile().FileHandle;
+	BlockToRead->FileHandle = UnorderedIoStoreReaders[BlockToRead->Key.FileIndex]->GetContainerFile().FileHandle;
 
 	ScheduledBlocksHead = ScheduledBlocksHead->Next;
 	if (!ScheduledBlocksHead)
