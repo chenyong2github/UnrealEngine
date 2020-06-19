@@ -1012,9 +1012,12 @@ const uint32 ALODActor::GetNumTrianglesInMergedMesh()
 
 void ALODActor::SetStaticMesh(class UStaticMesh* InStaticMesh)
 {
-	if (StaticMeshComponent)
+	if (StaticMeshComponent && StaticMeshComponent->GetStaticMesh() != InStaticMesh)
 	{
+		// Temporarily switch to movable in order to update the static mesh...
+		StaticMeshComponent->SetMobility(EComponentMobility::Movable);
 		StaticMeshComponent->SetStaticMesh(InStaticMesh);
+		StaticMeshComponent->SetMobility(EComponentMobility::Static);
 
 		ensure(StaticMeshComponent->GetStaticMesh() == InStaticMesh);
 		if (InStaticMesh && InStaticMesh->RenderData && InStaticMesh->RenderData->LODResources.Num() > 0)
@@ -1031,7 +1034,15 @@ void ALODActor::SetupImposters(const UMaterialInterface* InMaterial, UStaticMesh
 	check(InTransforms.Num() > 0);
 
 	UInstancedStaticMeshComponent* Component = GetOrCreateLODComponentForMaterial(InMaterial);
-	Component->SetStaticMesh(InStaticMesh);
+
+	if (Component->GetStaticMesh() != InStaticMesh)
+	{
+		// Temporarily switch to movable in order to update the static mesh...
+		Component->SetMobility(EComponentMobility::Movable);
+		Component->SetStaticMesh(InStaticMesh);
+		Component->SetMobility(EComponentMobility::Static);
+	}
+
 	Component->ClearInstances();
 	
 	for (const FTransform& Transform : InTransforms)

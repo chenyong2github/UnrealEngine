@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "EditorSubsystem.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "Engine/World.h"
-#include "HLODEditorSubsystem.generated.h"
+#include "HLODEngineSubsystem.generated.h"
 
 UCLASS()
-class UNREALED_API UHLODEditorSubsystem : public UEditorSubsystem
+class ENGINE_API UHLODEngineSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
+
+#if WITH_EDITOR
 
 public:
 	//~ Begin USubsystem Interface.
@@ -36,4 +38,7 @@ private:
 	FDelegateHandle OnPostWorldInitializationDelegateHandle;
 	FDelegateHandle OnLevelAddedToWorldDelegateHandle;
 	FDelegateHandle OnPreSaveWorlDelegateHandle;
+
+#endif // WITH_EDITOR
 };
+
