@@ -365,6 +365,7 @@ namespace ChaosTest
 			Setup.GearChangeTime = 0.0f;
 			Setup.TransmissionType = ETransmissionType::Manual;
 			Setup.AutoReverse = true;
+			Setup.TransmissionEfficiency = 1.0f;
 		}
 
 		FSimpleTransmissionSim Transmission(&Setup);
@@ -434,10 +435,10 @@ namespace ChaosTest
 			Setup.GearChangeTime = 0.0f;
 			Setup.TransmissionType = ETransmissionType::Automatic;
 			Setup.AutoReverse = true;
+			Setup.TransmissionEfficiency = 1.0f;
 		}
 
 		FSimpleTransmissionSim Transmission(&Setup);
-
 		Transmission.SetGear(1, true);
 
 		Transmission.SetEngineRPM(1400);
@@ -477,6 +478,7 @@ namespace ChaosTest
 			Setup.GearChangeTime = 0.0f;
 			Setup.TransmissionType = ETransmissionType::Automatic;
 			Setup.AutoReverse = true;
+			Setup.TransmissionEfficiency = 1.0f;
 		}
 
 		FSimpleTransmissionSim Transmission(&Setup);

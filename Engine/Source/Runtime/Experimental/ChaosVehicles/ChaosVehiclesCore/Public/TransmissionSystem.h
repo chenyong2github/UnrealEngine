@@ -32,7 +32,7 @@ namespace Chaos
 			, ChangeUpRPM(5000)
 			, ChangeDownRPM(2500)
 			, GearChangeTime(0.2f)
-		//	, TransmissionLoss(0)
+			, TransmissionEfficiency(1.f)
 			, TransmissionType(ETransmissionType::Automatic)
 			, AutoReverse(true)
 		{
@@ -46,7 +46,7 @@ namespace Chaos
 		uint32 ChangeDownRPM;			// [#todo: RPM or % max RPM?]
 		float GearChangeTime; 			// [sec]
 
-//		float TransmissionLoss;			// Loss from friction in the system
+		float TransmissionEfficiency;	// Loss from friction in the system mean we might run at around 0.94 Efficiency
 
 		ETransmissionType TransmissionType;	// Specify Automatic or Manual transmission
 		bool AutoReverse;					// Arcade handling - holding Brake switches into reverse after vehicle has stopped
@@ -62,6 +62,7 @@ namespace Chaos
 			, TargetGear(0)
 			, CurrentGearChangeTime(0.f)
 			, EngineRPM(0)
+			, AllowedToChangeGear(true)
 		{
 		}
 
@@ -163,10 +164,10 @@ namespace Chaos
 			return GetTransmissionRPM(EngineRPM, CurrentGear);
 		}
 
-		/** Given the engine torque return the transmission torque taking into account the gear ratios */
+		/** Given the engine torque return the transmission torque taking into account the gear ratios and transmission losses */
 		float GetTransmissionTorque(float InEngineTorque)
 		{
-			return InEngineTorque * GetGearRatio(GetCurrentGear()); // #todo: what about transmission frictional losses
+			return InEngineTorque * GetGearRatio(GetCurrentGear()) * Setup().TransmissionEfficiency;
 		}
 
 		///** Given the transmission torque return the engine torque after taking into account the gear ratios */
