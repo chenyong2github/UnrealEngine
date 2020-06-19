@@ -4946,9 +4946,20 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
 	if (!bAlreadyPending)
 	{
+		const bool bIsVirtual = VirtualLoops.Contains(SoundToStop);
+		if (bIsVirtual)
+		{
+			FAudioThread::RunCommandOnGameThread([AudioComponentID = SoundToStop->GetAudioComponentID()]()
+			{
+				if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+				{
+					AudioComponent->SetIsVirtualized(false);
+				}
+			});
+		}
 		UnlinkActiveSoundFromComponent(*SoundToStop);
 
-		if (VirtualLoops.Contains(SoundToStop))
+		if (bIsVirtual)
 		{
 			SoundToStop->bIsStopping = true;
 		}
