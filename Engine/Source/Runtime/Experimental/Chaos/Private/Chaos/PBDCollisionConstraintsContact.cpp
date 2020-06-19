@@ -168,7 +168,7 @@ namespace Chaos
 			FVec3 AngularImpulse(0);
 
 			// Resting contact if very close to the surface
-			const bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * IterationParameters.Dt)) && bInApplyRestitution;
+			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
 			const FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 			const FReal Friction = bInApplyFriction ? Contact.Friction : (FReal)0; // Add friction even when pushing out
 			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumelated angular impulse clipping, todo: experiment with this later
@@ -382,7 +382,7 @@ namespace Chaos
 				FVec3 AngularImpulse(0);
 
 				// Resting contact if very close to the surface
-				bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * IterationParameters.Dt));
+				bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
 				FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 				FReal Friction = Contact.Friction;
 				FReal AngularFriction = Contact.AngularFriction;
@@ -504,51 +504,51 @@ namespace Chaos
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-#if INTEL_ISPC
-			if (bChaos_Collision_ISPC_Enabled)
-			{
-				FVec3 PActor0 = Particle0->P();
-				FRotation3 QActor0 = Particle0->Q();
-				FVec3 PActor1 = Particle1->P();
-				FRotation3 QActor1 = Particle1->Q();
-				const FReal InvM0 = Particle0->InvM();
-				const FVec3 InvI0 = Particle0->InvI().GetDiagonal();
-				const FVec3 PCoM0 = Particle0->CenterOfMass();
-				const FRotation3 QCoM0 = Particle0->RotationOfMass();
-				const FReal InvM1 = Particle1->InvM();
-				const FVec3 InvI1 = Particle1->InvI().GetDiagonal();
-				const FVec3 PCoM1 = Particle1->CenterOfMass();
-				const FRotation3 QCoM1 = Particle1->RotationOfMass();
-				ispc::ApplyContact2(
-					(ispc::FCollisionContact*)&Contact,
-					(ispc::FVector&)PActor0,
-					(ispc::FVector4&)QActor0,
-					(ispc::FVector&)PActor1,
-					(ispc::FVector4&)QActor1,
-					InvM0,
-					(const ispc::FVector&)InvI0,
-					(const ispc::FVector&)PCoM0,
-					(const ispc::FVector4&)QCoM0,
-					InvM1,
-					(const ispc::FVector&)InvI1,
-					(const ispc::FVector&)PCoM1,
-					(const ispc::FVector4&)QCoM1);
-
-				if (bIsRigidDynamic0)
-				{
-					PBDRigid0->SetP(PActor0);
-					PBDRigid0->SetQ(QActor0);
-				}
-				if (bIsRigidDynamic1)
-				{
-					PBDRigid1->SetP(PActor1);
-					PBDRigid1->SetQ(QActor1);
-				}
-
-				*IterationParameters.NeedsAnotherIteration = true;
-				return AccumulatedImpulse;
-			}
-#endif
+//#if INTEL_ISPC
+//			if (bChaos_Collision_ISPC_Enabled)
+//			{
+//				FVec3 PActor0 = Particle0->P();
+//				FRotation3 QActor0 = Particle0->Q();
+//				FVec3 PActor1 = Particle1->P();
+//				FRotation3 QActor1 = Particle1->Q();
+//				const FReal InvM0 = Particle0->InvM();
+//				const FVec3 InvI0 = Particle0->InvI().GetDiagonal();
+//				const FVec3 PCoM0 = Particle0->CenterOfMass();
+//				const FRotation3 QCoM0 = Particle0->RotationOfMass();
+//				const FReal InvM1 = Particle1->InvM();
+//				const FVec3 InvI1 = Particle1->InvI().GetDiagonal();
+//				const FVec3 PCoM1 = Particle1->CenterOfMass();
+//				const FRotation3 QCoM1 = Particle1->RotationOfMass();
+//				ispc::ApplyContact2(
+//					(ispc::FCollisionContact*) &Contact,
+//					(ispc::FVector&)PActor0,
+//					(ispc::FVector4&)QActor0,
+//					(ispc::FVector&)PActor1,
+//					(ispc::FVector4&)QActor1,
+//					InvM0,
+//					(const ispc::FVector&)InvI0,
+//					(const ispc::FVector&)PCoM0,
+//					(const ispc::FVector4&)QCoM0,
+//					InvM1,
+//					(const ispc::FVector&)InvI1,
+//					(const ispc::FVector&)PCoM1,
+//					(const ispc::FVector4&)QCoM1);
+//
+//				if (bIsRigidDynamic0)
+//				{
+//					PBDRigid0->SetP(PActor0);
+//					PBDRigid0->SetQ(QActor0);
+//				}
+//				if (bIsRigidDynamic1)
+//				{
+//					PBDRigid1->SetP(PActor1);
+//					PBDRigid1->SetQ(QActor1);
+//				}
+//
+//				*IterationParameters.NeedsAnotherIteration = true;
+//				return AccumulatedImpulse;
+//			}
+//#endif
 
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
@@ -560,28 +560,17 @@ namespace Chaos
 			if (Contact.Phi < 0)
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
-			
-				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
-				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
-				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-				FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
-				FMatrix33 ContactInvI =
-					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
-					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
 
-				// Calculate the normal correction
-				// @todo(chaos): support restitution in this mode (requires a small-impact cutoff threshold)
-				FReal Restitution = 0.0f;//Contact.Restitution;
-				FVec3 NormalError = Contact.Phi * Contact.Normal;
-				FReal NormalImpulseDenominator = FVec3::DotProduct(Contact.Normal, ContactInvI * Contact.Normal);
-				FVec3 NormalImpulseNumerator = -(1.0f + Restitution) * NormalError;
-				FVec3 NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
+				bool bApplyResitution = (Contact.Restitution > 0.0f);
+				bool bHaveRestitutionPadding = (Contact.RestitutionPadding > 0.0f);
+				bool bApplyFriction = (Contact.Friction > 0);
 
-				// Calculate the lateral correction
-				FVec3 LateralCorrection = FVec3(0);
-				if (Contact.Friction > 0)
+				// Calculate constraint velocity if we need it
+				FVec3 CV = FVec3(0);
+				FReal CVNormal = 0.0f;
+				bool bNeedVelocity = (bApplyFriction || (bApplyResitution && !bHaveRestitutionPadding));
+				if (bNeedVelocity)
 				{
-					// Get contact velocity
 					FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
 					FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
 					FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
@@ -592,26 +581,58 @@ namespace Chaos
 					FVec3 W1 = FRotation3::CalculateAngularVelocity(R1, Q1, IterationParameters.Dt);
 					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
 					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
-					FVec3 CV = CV0 - CV1;
+					CV = CV0 - CV1;
+					CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+				}
 
-					// Calculate lateral correction, clamped to the friction cone. Kinda.
-					FReal CVNormalMag = FVec3::DotProduct(CV, Contact.Normal);
-					if (CVNormalMag < 0.0f)
+				// Disable restitution below threshold normal velocity (CVNormal is negative here)
+				if (bApplyResitution && (CVNormal >= -ParticleParameters.RestitutionVelocityThreshold))
+				{
+					bApplyResitution = false;
+				}
+
+				// If we have restitution, padd the constraint by an amount that enforces the outgoing velocity constraint
+				// Really this should be per contact point, not per constraint.
+				// NOTE: once we have calculated a padding, it is locked in for the rest of the iterations, and automatically
+				// included in the Phi we get back from collision detection. The first time we calculate it, we must also
+				// add the padding to the Phi (since it was from pre-padded collision detection).
+				if (bApplyResitution && !bHaveRestitutionPadding)
+				{
+					Contact.RestitutionPadding = -(1.0f + Contact.Restitution) * CVNormal * IterationParameters.Dt + Contact.Phi;
+					Contact.Phi -= Contact.RestitutionPadding;
+				}
+			
+				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
+				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
+				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+				FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+				FMatrix33 ContactInvI =
+					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
+					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
+
+				// Calculate the normal correction
+				FVec3 NormalError = Contact.Phi * Contact.Normal;
+				FReal NormalImpulseDenominator = FVec3::DotProduct(Contact.Normal, ContactInvI * Contact.Normal);
+				FVec3 NormalImpulseNumerator = -NormalError;
+				FVec3 NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
+
+				// Calculate lateral correction, clamped to the friction cone. Kinda.
+				FVec3 LateralCorrection = FVec3(0);
+				if (bApplyFriction && (CVNormal < 0.0f))
+				{
+					FVec3 CVLateral = CV - CVNormal * Contact.Normal;
+					FReal CVLateralMag = CVLateral.Size();
+					if (CVLateralMag > KINDA_SMALL_NUMBER)
 					{
-						FVec3 CVLateral = CV - CVNormalMag * Contact.Normal;
-						FReal CVLateralMag = CVLateral.Size();
-						if (CVLateralMag > KINDA_SMALL_NUMBER)
+						FVec3 DirLateral = CVLateral / CVLateralMag;
+						FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
+						FReal LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
+						LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
+						FReal LateralImpulseMag = LateralCorrection.Size();
+						FReal NormalImpulseMag = NormalCorrection.Size();
+						if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
 						{
-							FVec3 DirLateral = CVLateral / CVLateralMag;
-							FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
-							FReal LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
-							LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
-							FReal LateralImpulseMag = LateralCorrection.Size();
-							FReal NormalImpulseMag = NormalCorrection.Size();
-							if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
-							{
-								LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
-							}
+							LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
 						}
 					}
 				}
