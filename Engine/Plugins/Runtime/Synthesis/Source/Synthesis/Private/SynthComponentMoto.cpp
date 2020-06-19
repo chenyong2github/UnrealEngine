@@ -27,7 +27,8 @@ void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 {
 	if (FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
-		if (InRPM > 0.0f && !FMath::IsNaN(InRPM))
+		const float MinRPM = 100.0f;
+		if (InRPM > MinRPM && !FMath::IsNaN(InRPM))
 		{
 			RPM = InRPM;
 			if (MotoSynthEngine.IsValid())
@@ -41,7 +42,7 @@ void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 		}
 		else
 		{
-			UE_LOG(LogSynthesis, Warning, TEXT("Moto synth SetRPM was given invalid RPM value: %f."), InRPM);
+			UE_LOG(LogSynthesis, Verbose, TEXT("Moto synth SetRPM was given invalid RPM value: %f."), InRPM);
 		}
 	}
 }
@@ -53,7 +54,8 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 
 	if (FMath::IsNearlyEqual(OutMinRPM, OutMaxRPM))
 	{
-		UE_LOG(LogSynthesis, Warning, TEXT("Moto synth min and max RPMs are nearly identical. Min RPM: %f, Max RPM: %f"), OutMinRPM, OutMaxRPM);
+		UE_LOG(LogSynthesis, Verbose, TEXT("Moto synth min and max RPMs are nearly identical. Min RPM: %f, Max RPM: %f"), OutMinRPM, OutMaxRPM);
+		OutMaxRPM = OutMinRPM + 1.0f;
 	}
 }
 
@@ -61,7 +63,7 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
 {
 	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
-		UE_LOG(LogSynthesis, Warning, TEXT("Moto synth has been disabled by cvar."));
+		UE_LOG(LogSynthesis, Verbose, TEXT("Moto synth has been disabled by cvar."));
 		return ISoundGeneratorPtr(new FSoundGeneratorNull());
 	}
  
@@ -88,7 +90,7 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
  	}
  	else
  	{
- 		UE_LOG(LogSynthesis, Warning, TEXT("Can't play moto synth without a preset UMotoSynthPreset object and both acceleration source and deceleration source set."));
+ 		UE_LOG(LogSynthesis, Verbose, TEXT("Can't play moto synth without a preset UMotoSynthPreset object and both acceleration source and deceleration source set."));
  		return ISoundGeneratorPtr(new FSoundGeneratorNull());
  	}
  
