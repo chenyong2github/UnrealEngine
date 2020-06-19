@@ -36,8 +36,30 @@ int32 UNiagaraSystemAuditCommandlet::Main(const FString& Params)
 
 	FParse::Value(*Params, TEXT("FilterCollection="), FilterCollection);
 
+	// User Data Interfaces to Find
+	{
+		FString UserDataInterfacesToFindString;
+		if (FParse::Value(*Params, TEXT("UserDataInterfacesToFind="), UserDataInterfacesToFindString, false))
+		{
+			TArray<FString> DataInterfaceNames;
+			UserDataInterfacesToFindString.ParseIntoArray(DataInterfaceNames, TEXT(","));
+			for (const FString& DIName : DataInterfaceNames)
+			{
+				if (UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *DIName, true))
+				{
+					UserDataInterfacesToFind.Add(FoundClass);
+				}
+				else
+				{
+					UE_LOG(LogNiagaraSystemAuditCommandlet, Warning, TEXT("DataInterace %s was not found so will not be searched"), *DIName);
+				}
+			}
+		}
+	}
+
+	// Package Paths
 	FString PackagePathsString;
-	if (FParse::Value(*Params, TEXT("PackagePaths="), PackagePathsString))
+	if (FParse::Value(*Params, TEXT("PackagePaths="), PackagePathsString, false))
 	{
 		TArray<FString> PackagePathsStrings;
 		PackagePathsString.ParseIntoArray(PackagePathsStrings, TEXT(","));
@@ -78,7 +100,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 	TArray<FAssetData> AssetList;
 	AssetRegistry.GetAssets(Filter, AssetList);
 
-	double StartProcessNiagaraSystemsTime = FPlatformTime::Seconds();
+	const double StartProcessNiagaraSystemsTime = FPlatformTime::Seconds();
 
 	//  Iterate over all systems
 	const FString DevelopersFolder = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir().LeftChop(1));
@@ -120,9 +142,25 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 			continue;
 		}
 
+		// Iterate over all data interfaces used by the system / emitters
+		TSet<FName> SystemDataInterfacesWihPrereqs;
+		TSet<FName> SystemUserDataInterfaces;
+		for (UNiagaraDataInterface* DataInterface : GetDataInterfaces(NiagaraSystem))
+		{
+			if (DataInterface->HasTickGroupPrereqs())
+			{
+				SystemDataInterfacesWihPrereqs.Add(DataInterface->GetClass()->GetFName());
+			}
+			if (UserDataInterfacesToFind.Contains(DataInterface->GetClass()))
+			{
+				SystemUserDataInterfaces.Add(DataInterface->GetClass()->GetFName());
+			}
+		}
+
 		// Iterate over all emitters
-		bool bHasGPUEmitters = false;
 		bool bHasLights = false;
+		bool bHasGPUEmitters = false;
+		bool bHasEvents = false;
 
 		for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
 		{
@@ -133,6 +171,8 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 			}
 
 			bHasGPUEmitters |= NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+
+			bHasEvents |= NiagaraEmitter->GetEventHandlers().Num() > 0;
 
 			for (UNiagaraRendererProperties* RendererProperties : NiagaraEmitter->GetRenderers())
 			{
@@ -158,6 +198,36 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 		{
 			NiagaraSystemsWithGPUEmitters.Add(NiagaraSystem->GetPathName());
 		}
+		if (bHasEvents)
+		{
+			NiagaraSystemsWithEvents.Add(NiagaraSystem->GetPathName());
+		}
+		if (SystemDataInterfacesWihPrereqs.Num() > 0)
+		{
+			FString DataInterfaceNames;
+			for (auto it = SystemDataInterfacesWihPrereqs.CreateConstIterator(); it; ++it)
+			{
+				if (!DataInterfaceNames.IsEmpty())
+				{
+					DataInterfaceNames.AppendChar(TEXT(' '));
+				}
+				DataInterfaceNames.Append(*it->ToString());
+			}
+			NiagaraSystemsWithPrerequisites.Add(FString::Printf(TEXT("%s,%s"), *NiagaraSystem->GetPathName(), *DataInterfaceNames));
+		}
+		if (SystemUserDataInterfaces.Num() > 0)
+		{
+			FString DataInterfaceNames;
+			for (auto it = SystemUserDataInterfaces.CreateConstIterator(); it; ++it)
+			{
+				if (!DataInterfaceNames.IsEmpty())
+				{
+					DataInterfaceNames.AppendChar(TEXT(' '));
+				}
+				DataInterfaceNames.Append(*it->ToString());
+			}
+			NiagaraSystemsWithUserDataInterface.Add(FString::Printf(TEXT("%s,%s"), *NiagaraSystem->GetPathName(), *DataInterfaceNames));
+		}
 	}
 
 	// Probably don't need to do this, but just in case we have any 'hanging' packages 
@@ -177,7 +247,12 @@ void UNiagaraSystemAuditCommandlet::DumpResults()
 	DumpSimpleSet(NiagaraSystemsWithWarmup, TEXT("NiagaraSystemsWithWarmup"), TEXT("Name,WarmupTime"));
 	DumpSimpleSet(NiagaraSystemsWithLights, TEXT("NiagaraSystemsWithLights"), TEXT("Name"));
 	DumpSimpleSet(NiagaraSystemsWithGPUEmitters, TEXT("NiagaraSystemsWithGPUEmitters"), TEXT("Name"));
-
+	DumpSimpleSet(NiagaraSystemsWithEvents, TEXT("NiagaraSystemsWithEvents"), TEXT("Name"));
+	DumpSimpleSet(NiagaraSystemsWithPrerequisites, TEXT("NiagaraSystemsWithPrerequisites"), TEXT("Name,DataInterface"));
+	if (UserDataInterfacesToFind.Num() > 0)
+	{
+		DumpSimpleSet(NiagaraSystemsWithUserDataInterface, TEXT("NiagaraSystemsWithUserDataInterface"), TEXT("Name,DataInterface"));
+	}
 }
 
 bool UNiagaraSystemAuditCommandlet::DumpSimpleSet(TSet<FString>& InSet, const TCHAR* InShortFilename, const TCHAR* OptionalHeader)
@@ -221,4 +296,48 @@ FArchive* UNiagaraSystemAuditCommandlet::GetOutputFile(const TCHAR* InShortFilen
 		UE_LOG(LogNiagaraSystemAuditCommandlet, Warning, TEXT("Failed to create output stream %s"), *Filename);
 	}
 	return OutputStream;
+}
+
+TArray<class UNiagaraDataInterface*> UNiagaraSystemAuditCommandlet::GetDataInterfaces(class UNiagaraSystem* NiagaraSystem)
+{
+	TArray<UNiagaraDataInterface*> DataInterfaces;
+	for (UNiagaraDataInterface* ParamDI : NiagaraSystem->GetExposedParameters().GetDataInterfaces())
+	{
+		if (ParamDI != nullptr)
+		{
+			DataInterfaces.AddUnique(ParamDI);
+		}
+	}
+
+	auto GatherScriptDIs =
+		[&](UNiagaraScript* NiagaraScript)
+		{
+			for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+			{
+				if ( UNiagaraDataInterface* ScriptDI = DataInterfaceInfo.DataInterface )
+				{
+					DataInterfaces.AddUnique(ScriptDI);
+				}
+			}
+		};
+
+	GatherScriptDIs(NiagaraSystem->GetSystemSpawnScript());
+	GatherScriptDIs(NiagaraSystem->GetSystemUpdateScript());
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
+	{
+		UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance();
+		if (NiagaraEmitter == nullptr)
+		{
+			continue;
+		}
+
+		TArray<UNiagaraScript*> EmitterScripts;
+		NiagaraEmitter->GetScripts(EmitterScripts);
+		for (UNiagaraScript* Script : EmitterScripts)
+		{
+			GatherScriptDIs(Script);
+		}
+	}
+	return DataInterfaces;
 }
