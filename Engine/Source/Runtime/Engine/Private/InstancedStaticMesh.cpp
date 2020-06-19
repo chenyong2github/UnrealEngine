@@ -3070,16 +3070,6 @@ void UInstancedStaticMeshComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UInstancedStaticMeshComponent::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject) && bDuplicateForPIE)
-	{
-		InitPerInstanceRenderData(true);		
-	}
-}
-
 #if WITH_EDITOR
 void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
