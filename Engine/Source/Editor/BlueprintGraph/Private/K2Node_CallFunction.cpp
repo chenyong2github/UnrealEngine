@@ -2067,20 +2067,20 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 		const FString EnumParamName = GetAllExecParams(Function);
 		MessageLog.Warning(*FText::Format(LOCTEXT("EnumToExecExpansionFailedFmt", "Unable to find enum parameter with name '{0}' to expand for @@"), FText::FromString(EnumParamName)).ToString(), this);
 	}
-	
-	// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
-	// Also check for functions wrapped in WITH_EDITOR 
-	bool bIsEditorOnlyBlueprintBaseClass = CanEditorOnlyFunctionBeCalled(Function, Blueprint);
-
-	if (!bIsEditorOnlyBlueprintBaseClass)
-	{
-		FString const FunctName = Function->GetName();
-		FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
-		MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
-	}
 
 	if (Function)
 	{
+		// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
+	    // Also check for functions wrapped in WITH_EDITOR 
+		bool bIsEditorOnlyBlueprintBaseClass = CanEditorOnlyFunctionBeCalled(Function, Blueprint);
+
+		if (!bIsEditorOnlyBlueprintBaseClass)
+		{
+			FString const FunctName = Function->GetName();
+			FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
+			MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
+		}
+
 		// enforce UnsafeDuringActorConstruction keyword
 		if (Function->HasMetaData(FBlueprintMetadata::MD_UnsafeForConstructionScripts))
 		{
