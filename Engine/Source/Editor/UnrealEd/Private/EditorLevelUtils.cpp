@@ -396,7 +396,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld_Internal(UWorld* InWorld, co
 		// Do nothing if the level already exists in the world.
 		const FString LevelName(LevelPackageName);
 		const FText MessageText = FText::Format(NSLOCTEXT("UnrealEd", "LevelAlreadyExistsInWorld", "A level with that name ({0}) already exists in the world."), FText::FromString(LevelName));
-		FMessageDialog::Open(EAppMsgType::Ok, MessageText);
+
+		FSuppressableWarningDialog::FSetupInfo Info(MessageText, LOCTEXT("AddLevelToWorld_Title", "Add Level"), "LevelAlreadyExistsInWorldWarning");
+		Info.ConfirmText = LOCTEXT("AlreadyExist_Ok", "Ok");
+		FSuppressableWarningDialog RemoveLevelWarning(Info);
+		RemoveLevelWarning.ShowModal();
 	}
 	else
 	{
