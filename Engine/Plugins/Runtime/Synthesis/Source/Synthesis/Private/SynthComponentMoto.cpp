@@ -3,6 +3,7 @@
 
 #include "SynthComponents/SynthComponentMoto.h"
 #include "MotoSynthSourceAsset.h"
+#include "MotoSynthEngine.h"
 #include "DSP/Granulator.h"
 #include "SynthesisModule.h"
 
@@ -47,8 +48,47 @@ void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 	}
 }
 
+void USynthComponentMoto::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
+{
+	FScopeLock ScopeLock(&SettingsCriticalSection);
+
+	bSettingsOverridden = true;
+	OverrideSettings = InSettings;
+
+	if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
+	{
+		uint32 AccelDataID = OverrideSettings.AccelerationSource->GetDataID();
+		uint32 DecelDataID = OverrideSettings.DecelerationSource->GetDataID();
+
+		MS->SetSourceData(AccelDataID, DecelDataID);
+		MS->SetSettings(OverrideSettings);
+	}
+}
+
 void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 {
+	if (FMath::IsNearlyZero(RPMRange.X) && FMath::IsNearlyZero(RPMRange.Y))
+	{
+		FScopeLock ScopeLock(&SettingsCriticalSection);
+
+		FMotoSynthRuntimeSettings* Settings = GetSettingsToUse();
+		if (Settings)
+		{
+			FRichCurve* AccelRichCurve = Settings->AccelerationSource->RPMCurve.GetRichCurve();
+			FRichCurve* DecelRichCurve = Settings->DecelerationSource->RPMCurve.GetRichCurve();
+			if (AccelRichCurve && DecelRichCurve)
+			{
+				FVector2D AccelRPMRange;
+				AccelRichCurve->GetValueRange(AccelRPMRange.X, AccelRPMRange.Y);
+
+				FVector2D DecelRPMRange;
+				DecelRichCurve->GetValueRange(DecelRPMRange.X, DecelRPMRange.Y);
+
+				RPMRange = { FMath::Max(AccelRPMRange.X, DecelRPMRange.X), FMath::Min(AccelRPMRange.Y, DecelRPMRange.Y) };
+			}
+		}	
+	}
+
 	OutMinRPM = RPMRange.X;
 	OutMaxRPM = RPMRange.Y;
 
@@ -59,6 +99,25 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 	}
 }
 
+FMotoSynthRuntimeSettings* USynthComponentMoto::GetSettingsToUse()
+{
+	FMotoSynthRuntimeSettings* Settings = nullptr;
+	if (!bSettingsOverridden && MotoSynthPreset && MotoSynthPreset->Settings.AccelerationSource && MotoSynthPreset->Settings.DecelerationSource)
+	{
+		Settings = &MotoSynthPreset->Settings;
+	}
+	else if (bSettingsOverridden && OverrideSettings.AccelerationSource && OverrideSettings.DecelerationSource)
+	{
+		Settings = &OverrideSettings;
+	}
+	else
+	{
+		UE_LOG(LogSynthesis, Verbose, TEXT("Invalid moto synth preset or missing acceleration or deceleraton source."));
+	}
+
+	return Settings;
+}
+
 ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
 {
 	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
@@ -67,7 +126,10 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
 		return ISoundGeneratorPtr(new FSoundGeneratorNull());
 	}
  
-	if (MotoSynthPreset && MotoSynthPreset->Settings.AccelerationSource && MotoSynthPreset->Settings.DecelerationSource)
+	FScopeLock ScopeLock(&SettingsCriticalSection);
+
+	FMotoSynthRuntimeSettings* Settings = GetSettingsToUse();
+	if (Settings)
 	{
  		MotoSynthEngine = ISoundGeneratorPtr(new FMotoSynthEngine());
  
@@ -75,15 +137,11 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
  		{
  			MS->Init(InSampleRate);
  
- 			FMotoSynthData AccelerationSourceData;
-			MotoSynthPreset->Settings.AccelerationSource->GetData(AccelerationSourceData);
+			uint32 AccelDataID = Settings->AccelerationSource->GetDataID();
+			uint32 DecelDataID = Settings->DecelerationSource->GetDataID();
  
- 			FMotoSynthData DecelerationSourceData;
-			MotoSynthPreset->Settings.DecelerationSource->GetData(DecelerationSourceData);
- 
- 			MS->SetSourceData(AccelerationSourceData, DecelerationSourceData);
-			MS->SetSettings(MotoSynthPreset->Settings);
-			MS->GetRPMRange(RPMRange);
+ 			MS->SetSourceData(AccelDataID, DecelDataID);
+			MS->SetSettings(*Settings);
  		}
  
  		return MotoSynthEngine;
