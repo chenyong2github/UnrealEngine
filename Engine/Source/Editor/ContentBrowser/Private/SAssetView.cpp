@@ -1994,7 +1994,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 			// Determine the columns by querying the reference item
 			if (MajorityAssetItem)
 			{
-				const FContentBrowserItemDataAttributeValues ItemAttributes = MajorityAssetItem->GetItem().GetItemAttributes();
+				const FContentBrowserItemDataAttributeValues ItemAttributes = MajorityAssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
 
 				// Add a column for every tag that isn't hidden or using a reserved name
 				for (const auto& TagPair : ItemAttributes)
