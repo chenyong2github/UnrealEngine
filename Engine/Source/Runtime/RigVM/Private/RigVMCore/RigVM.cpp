@@ -234,7 +234,11 @@ void URigVM::ResolveFunctionsIfRequired()
 
 void URigVM::RefreshInstructionsIfRequired()
 {
-	if (Instructions.Num() == 0)
+	if (ByteCode.Num() == 0 && Instructions.Num() > 0)
+	{
+		Instructions.Reset();
+	}
+	else if (Instructions.Num() == 0)
 	{
 		Instructions = ByteCode.GetInstructions();
 	}
