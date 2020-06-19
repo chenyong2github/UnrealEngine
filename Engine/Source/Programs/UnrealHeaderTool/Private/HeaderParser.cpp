@@ -103,6 +103,7 @@ const FName FHeaderParserNames::NAME_HideCategories(TEXT("HideCategories"));
 const FName FHeaderParserNames::NAME_ShowCategories(TEXT("ShowCategories"));
 const FName FHeaderParserNames::NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
 const FName FHeaderParserNames::NAME_IsConversionRoot(TEXT("IsConversionRoot"));
+const FName FHeaderParserNames::NAME_AdvancedClassDisplay(TEXT("AdvancedClassDisplay"));
 
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
