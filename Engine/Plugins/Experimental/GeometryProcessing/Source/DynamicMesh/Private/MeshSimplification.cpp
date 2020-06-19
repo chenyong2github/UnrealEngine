@@ -127,8 +127,11 @@ void TMeshSimplification<QuadricErrorType>::InitializeSeamQuadrics()
 		{
 			bool bNeedsQuadric = Mesh->IsBoundaryEdge(eid);
 			bNeedsQuadric = bNeedsQuadric || Mesh->IsGroupBoundaryEdge(eid);
-			bNeedsQuadric = bNeedsQuadric || Attributes && Attributes->IsMaterialBoundaryEdge(eid);
-			bNeedsQuadric = bNeedsQuadric || Attributes && Attributes->IsSeamEdge(eid);
+			if (Attributes)
+			{
+				bNeedsQuadric = bNeedsQuadric || Attributes->IsMaterialBoundaryEdge(eid);
+				bNeedsQuadric = bNeedsQuadric || Attributes->IsSeamEdge(eid);
+			}
 
 			if (bNeedsQuadric)
 			{
