@@ -1267,7 +1267,7 @@ bool FDynamicMesh3::SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView
 
 EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_t, FEdgeCollapseInfo& CollapseInfo)
 {
-	checkSlow(!HasAttributes() || !Attributes()->IsSeamVertex(vRemove, false));
+	
 	CollapseInfo = FEdgeCollapseInfo();
 
 	if (IsVertex(vKeep) == false || IsVertex(vRemove) == false)
