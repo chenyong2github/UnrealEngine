@@ -459,7 +459,7 @@ struct FNiagaraDataSetAccessorBase
 		, VarLayout(nullptr)
 	{}
 
-	FNiagaraDataSetAccessorBase(FNiagaraDataSet* InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessorBase(FNiagaraDataSet* InDataSet, const FNiagaraVariableBase& InVar)
 		: DataSet(InDataSet)
 	{
 		checkSlow(DataSet->HasVariable(InVar));
@@ -467,7 +467,7 @@ struct FNiagaraDataSetAccessorBase
 		VarLayout = DataSet->GetVariableLayout(InVar);
 	}
 
-	void Create(FNiagaraDataSet* InDataSet, FNiagaraVariable InVar)
+	void Create(FNiagaraDataSet* InDataSet, const FNiagaraVariableBase& InVar)
 	{
 		DataSet = InDataSet;
 		Var = InVar;
@@ -503,7 +503,7 @@ template<>
 struct FNiagaraDataSetAccessor<FNiagaraBool> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FNiagaraBool>() {}
-	FNiagaraDataSetAccessor<FNiagaraBool>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FNiagaraBool>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FNiagaraBool) == InVar.GetType().GetSize());
@@ -575,7 +575,7 @@ template<>
 struct FNiagaraDataSetAccessor<int32> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<int32>() {}
-	FNiagaraDataSetAccessor<int32>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<int32>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(int32) == InVar.GetType().GetSize());
@@ -664,7 +664,7 @@ template<>
 struct FNiagaraDataSetAccessor<float> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<float>() {}
-	FNiagaraDataSetAccessor<float>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<float>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(float) == InVar.GetType().GetSize());
@@ -769,7 +769,7 @@ template<>
 struct FNiagaraDataSetAccessor<FVector2D> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FVector2D>() {}
-	FNiagaraDataSetAccessor<FVector2D>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FVector2D>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FVector2D) == InVar.GetType().GetSize());
@@ -885,7 +885,7 @@ template<>
 struct FNiagaraDataSetAccessor<FVector> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FVector>() {}
-	FNiagaraDataSetAccessor<FVector>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FVector>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FVector) == InVar.GetType().GetSize());
@@ -1009,7 +1009,7 @@ template<>
 struct FNiagaraDataSetAccessor<FVector4> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FVector4>() {}
-	FNiagaraDataSetAccessor<FVector4>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FVector4>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FVector4) == InVar.GetType().GetSize());
@@ -1114,7 +1114,7 @@ template<>
 struct FNiagaraDataSetAccessor<FQuat> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FQuat>() {}
-	FNiagaraDataSetAccessor<FQuat>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FQuat>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FQuat) == InVar.GetType().GetSize());
@@ -1218,7 +1218,7 @@ template<>
 struct FNiagaraDataSetAccessor<FLinearColor> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FLinearColor>() {}
-	FNiagaraDataSetAccessor<FLinearColor>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FLinearColor>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FLinearColor) == InVar.GetType().GetSize());
@@ -1322,7 +1322,7 @@ template<>
 struct FNiagaraDataSetAccessor<FNiagaraSpawnInfo> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FNiagaraSpawnInfo>() {}
-	FNiagaraDataSetAccessor<FNiagaraSpawnInfo>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FNiagaraSpawnInfo>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(FNiagaraSpawnInfo) == InVar.GetType().GetSize());
@@ -1437,7 +1437,7 @@ template<>
 struct FNiagaraDataSetAccessor<FNiagaraID> : public FNiagaraDataSetAccessorBase
 {
 	FNiagaraDataSetAccessor<FNiagaraID>() {}
-	FNiagaraDataSetAccessor<FNiagaraID>(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraDataSetAccessor<FNiagaraID>(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		InitForAccess();
@@ -1526,7 +1526,7 @@ struct FNiagaraHalfDataSetAccessor : public FNiagaraDataSetAccessorBase
 	using DataType = TStaticArray<FFloat16, ElementCount>;
 
 	FNiagaraHalfDataSetAccessor() {}
-	FNiagaraHalfDataSetAccessor(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+	FNiagaraHalfDataSetAccessor(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
 	{
 		check(sizeof(DataType) == InVar.GetType().GetSize());
@@ -1692,15 +1692,15 @@ struct FNiagaraEitherDataSetAccessor
 	typedef typename TagType::EitherB EitherB;
 
 	FNiagaraEitherDataSetAccessor() {}
-	FNiagaraEitherDataSetAccessor(FNiagaraDataSet& InDataSet, const FNiagaraVariable& InVar)
+	FNiagaraEitherDataSetAccessor(FNiagaraDataSet& InDataSet, const FNiagaraVariableBase& InVar)
 	{
 		if (InDataSet.HasVariable(InVar))
 		{
-			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariable(TagType::GetTypeA(), InVar.GetName()));
+			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariableBase(TagType::GetTypeA(), InVar.GetName()));
 		}
 		else
 		{
-			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariable(TagType::GetTypeB(), InVar.GetName()));
+			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariableBase(TagType::GetTypeB(), InVar.GetName()));
 		}
 		InitForAccess();
 	}
@@ -1708,11 +1708,11 @@ struct FNiagaraEitherDataSetAccessor
 	{
 		if (InDataSet.HasVariable(FNiagaraVariable(TagType::GetTypeA(), InName)))
 		{
-			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariable(TagType::GetTypeA(), InName));
+			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariableBase(TagType::GetTypeA(), InName));
 		}
 		else
 		{
-			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariable(TagType::GetTypeB(), InName));
+			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariableBase(TagType::GetTypeB(), InName));
 		}
 		InitForAccess();
 	}

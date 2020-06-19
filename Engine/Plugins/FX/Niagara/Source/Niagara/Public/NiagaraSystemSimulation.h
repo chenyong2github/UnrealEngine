@@ -182,28 +182,18 @@ struct FNiagaraParameterStoreToDataSetBinding
 	}
 };
 
-#if 1
 struct FNiagaraConstantBufferToDataSetBinding
 {
-	void Init(const FNiagaraSystemCompiledData& CompiledData);
-
-	void CopyToDataSets(const FNiagaraSystemInstance& SystemInstance, FNiagaraDataSet& SpawnDataSet, FNiagaraDataSet& UpdateDataSet, int32 DataSetInstanceIndex) const;
-	
+	static void CopyToDataSets(
+		const FNiagaraSystemCompiledData& CompiledData,
+		const FNiagaraSystemInstance& SystemInstance,
+		FNiagaraDataSet& SpawnDataSet,
+		FNiagaraDataSet& UpdateDataSet,
+		int32 DataSetInstanceIndex);
 
 protected:
-	void ApplyOffsets(const FNiagaraParameterDataSetBindingCollection& Offsets, const uint8* SourceData, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex) const;
-
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
-	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
-
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
-	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
+	static void ApplyOffsets(const FNiagaraParameterDataSetBindingCollection& Offsets, const uint8* SourceData, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex);
 };
-#endif
 
 struct FNiagaraSystemSimulationTickContext
 {
@@ -365,8 +355,6 @@ protected:
 	FNiagaraParameterStoreToDataSetBinding SpawnInstanceParameterToDataSetBinding;
 	/** Bindings that pull per component parameters into the update parameter dataset. */
 	FNiagaraParameterStoreToDataSetBinding UpdateInstanceParameterToDataSetBinding;
-
-	FNiagaraConstantBufferToDataSetBinding ConstantBufferToDataSetBinding;
 
 	/** Binding to push system attributes into each emitter spawn parameters. */
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterSpawnParameters;
