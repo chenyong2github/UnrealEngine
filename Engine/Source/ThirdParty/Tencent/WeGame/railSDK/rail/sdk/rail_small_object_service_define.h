@@ -1,12 +1,10 @@
-// Copyright (c) 2018, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
-// Rail Small Object Service
 
-#ifndef RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE
-#define RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE
+#ifndef RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE_H
+#define RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE_H
 
 #include "rail/sdk/base/rail_define.h"
-#include "rail/sdk/rail_result.h"
 #include "rail/sdk/rail_event.h"
 
 namespace rail {
@@ -51,4 +49,4 @@ struct RailSmallObjectDownloadResult
 };  // namespace rail_event
 };  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE
+#endif  // RAIL_SDK_RAIL_SMALL_OBJECT_SERVICE_DEFINE_H

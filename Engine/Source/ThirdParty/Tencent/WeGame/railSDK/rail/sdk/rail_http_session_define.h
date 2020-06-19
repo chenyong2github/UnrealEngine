@@ -1,4 +1,4 @@
-// Copyright (C) 2017, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_HTTP_SESSION_DEFINE_H

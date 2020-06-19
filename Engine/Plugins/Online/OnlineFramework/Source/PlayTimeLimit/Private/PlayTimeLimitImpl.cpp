@@ -303,6 +303,11 @@ FWarnUserPlayTime& FPlayTimeLimitImpl::GetWarnUserPlayTimeDelegate()
 	return WarnUserPlayTimeDelegate;
 }
 
+void FPlayTimeLimitImpl::GameExitByRequest()
+{
+	OnGameExitRequestedDelegate.Broadcast();
+}
+
 const FOnlinePlayLimitConfigEntry* FPlayTimeLimitImpl::GetConfigEntry(const int32 PlayTimeMinutes) const
 {
 	const FOnlinePlayLimitConfigEntry* Result = nullptr;

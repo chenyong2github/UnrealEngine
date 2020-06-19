@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_DEFINE_H
@@ -179,6 +179,7 @@ enum EnumRailGameRefundState {
     kRailGameRefundStateApplyReceived = 1000,
     kRailGameRefundStateUserCancelApply = 1100,
     kRailGameRefundStateAdminCancelApply = 1101,
+    kRailGameRefundStateRefundApproved = 1150,
     kRailGameRefundStateRefundSuccess = 1200,
     kRailGameRefundStateRefundFailed = 1201,
 };
