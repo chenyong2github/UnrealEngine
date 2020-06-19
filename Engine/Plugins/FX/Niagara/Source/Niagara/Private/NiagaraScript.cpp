@@ -462,6 +462,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 				}
 			}
 		}
+
+		//// as with the emitter scripts above we need to be able to differentiate between identical scripts
+		//// belonging to different systems in order to ensure deterministic cooking
+		Id.AdditionalDefines.Add(System->GetFullName());
 	}
 
 	switch (SimTargetToBuild)
