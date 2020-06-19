@@ -17,6 +17,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
+#include "Containers/StringView.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
