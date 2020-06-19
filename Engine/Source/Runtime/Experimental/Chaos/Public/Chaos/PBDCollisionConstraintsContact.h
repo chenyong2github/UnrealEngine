@@ -15,6 +15,7 @@ namespace Chaos
 		struct FContactParticleParameters {
 			FReal CullDistance;
 			FReal ShapePadding;
+			FReal RestitutionVelocityThreshold;
 			TArrayCollectionArray<bool>* Collided;
 		};
 

@@ -21,7 +21,19 @@ namespace Chaos
 	{
 	public:
 		FCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const TBVHParticles<FReal, 3>* InSimplicial0 = nullptr, const FImplicitObject* InImplicit1 = nullptr, const TBVHParticles<FReal, 3>* InSimplicial1 = nullptr)
-			: bDisabled(false), bUseAccumalatedImpulseInSolve(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), InvInertiaScale0(1.f), InvInertiaScale1(1.f), ContactMoveSQRDistance(0), ShapesType(EContactShapesType::Unknown)
+			: bDisabled(false)
+			, bUseAccumalatedImpulseInSolve(true)
+			, Normal(0)
+			, Location(0)
+			, Phi(FLT_MAX)
+			, Friction(0)
+			, AngularFriction(0)
+			, Restitution(0)
+			, RestitutionPadding(0)
+			, InvInertiaScale0(1.f)
+			, InvInertiaScale1(1.f)
+			, ContactMoveSQRDistance(0)
+			, ShapesType(EContactShapesType::Unknown)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -31,6 +43,7 @@ namespace Chaos
 
 		bool bDisabled;
 		bool bUseAccumalatedImpulseInSolve; // Accumulated Impulse will only be used when the contact did not move significantly during iterations (This will reduce jitter)
+
 		FVec3 Normal;
 		FVec3 Location;
 		FReal Phi;
@@ -38,6 +51,7 @@ namespace Chaos
 		FReal Friction;
 		FReal AngularFriction;
 		FReal Restitution;
+		FReal RestitutionPadding; // For PBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
 		FReal InvInertiaScale0;
 		FReal InvInertiaScale1;
 		FReal ContactMoveSQRDistance; // How much the contact position moved after the last update

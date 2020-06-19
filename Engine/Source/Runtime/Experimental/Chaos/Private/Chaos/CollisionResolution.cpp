@@ -202,7 +202,7 @@ namespace Chaos
 		}
 
 		template <typename GeometryA, typename GeometryB>
-		FContactPoint GJKContactPoint2(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FVec3& InitialDir)
+		FContactPoint GJKContactPoint2(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FVec3& InitialDir, const FReal ShapePadding = 0.0f)
 		{
 			SCOPE_CYCLE_COUNTER_GJK();
 
@@ -212,7 +212,7 @@ namespace Chaos
 			FVec3 ClosestA, ClosestB, Normal;
 			int32 NumIterations = 0;
 
-			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, (FReal)0, InitialDir, (FReal)0, &NumIterations)))
+			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, Normal, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, &NumIterations)))
 			{
 				Contact.Location = ATM.TransformPosition(ClosestA);
 				Contact.Normal = -ATM.TransformVectorNoScale(Normal);
@@ -227,10 +227,10 @@ namespace Chaos
 		}
 
 		template <typename GeometryA, typename GeometryB>
-		FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir)
+		FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir, const FReal ShapePadding = 0.0f)
 		{
 			const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
-			return GJKContactPoint2(A, B, ATM, BToATM, InitialDir);
+			return GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
 		}
 
 		template <typename GeometryA, typename GeometryB>
@@ -547,9 +547,9 @@ namespace Chaos
 		// Box - Box
 		//
 
-		FContactPoint BoxBoxContactPoint(const FAABB3& Box1, const FAABB3& Box2, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FReal CullDistance)
+		FContactPoint BoxBoxContactPoint(const FAABB3& Box1, const FAABB3& Box2, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FReal CullDistance, const FReal ShapePadding)
 		{
-			return GJKContactPoint2(Box1, Box2, ATM, BToATM, FVec3(1, 0, 0));
+			return GJKContactPoint2(Box1, Box2, ATM, BToATM, FVec3(1, 0, 0), ShapePadding);
 		}
 
 
@@ -560,7 +560,7 @@ namespace Chaos
 			Box2In1.Thicken(CullDistance);
 			if (Box1.Intersects(Box2In1))
 			{
-				UpdateContactPoint(Constraint.Manifold, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2ToBox1TM, CullDistance));
+				UpdateContactPoint(Constraint.Manifold, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2ToBox1TM, CullDistance, Constraint.Manifold.RestitutionPadding));
 			}
 		}
 
@@ -801,7 +801,7 @@ namespace Chaos
 		//
 
 
-		FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance)
+		FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance, const FReal ShapePadding)
 		{
 			FContactPoint Result;
 
@@ -809,7 +809,7 @@ namespace Chaos
 			const FVec3 Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
 			const FVec3 Direction = Center1 - Center2;
 			const FReal Size = Direction.Size();
-			const FReal NewPhi = Size - (Sphere1.GetRadius() + Sphere2.GetRadius());
+			const FReal NewPhi = Size - (Sphere1.GetRadius() + Sphere2.GetRadius()) - ShapePadding;
 			Result.Phi = NewPhi;
 			Result.Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
 			Result.Location = Center1 - Sphere1.GetRadius() * Result.Normal;
@@ -820,7 +820,7 @@ namespace Chaos
 
 		void UpdateSphereSphereConstraint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint)
 		{
-			UpdateContactPoint(Constraint.Manifold, SphereSphereContactPoint(Sphere1, Sphere1Transform, Sphere2, Sphere2Transform, CullDistance));
+			UpdateContactPoint(Constraint.Manifold, SphereSphereContactPoint(Sphere1, Sphere1Transform, Sphere2, Sphere2Transform, CullDistance, Constraint.Manifold.RestitutionPadding));
 		}
 
 		void UpdateSphereSphereManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
@@ -908,7 +908,7 @@ namespace Chaos
 
 			FVec3 NewNormal;
 			FReal NewPhi = Plane.PhiWithNormal(SphereCenter, NewNormal);
-			NewPhi -= Sphere.GetRadius();
+			NewPhi -= Sphere.GetRadius() - Contact.RestitutionPadding;
 
 			if (NewPhi < Contact.Phi)
 			{
@@ -952,7 +952,7 @@ namespace Chaos
 		//
 
 
-		FContactPoint SphereBoxContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FAABB3& Box, const FRigidTransform3& BoxTransform, const FReal CullDistance)
+		FContactPoint SphereBoxContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FAABB3& Box, const FRigidTransform3& BoxTransform, const FReal CullDistance, const FReal ShapePadding)
 		{
 			FContactPoint Result;
 
@@ -961,7 +961,7 @@ namespace Chaos
 
 			FVec3 NewNormal;
 			FReal NewPhi = Box.PhiWithNormal(SphereCenterInBox, NewNormal);
-			NewPhi -= Sphere.GetRadius();
+			NewPhi -= Sphere.GetRadius() - ShapePadding;
 
 			Result.Phi = NewPhi;
 			Result.Normal = BoxTransform.TransformVectorNoScale(NewNormal);
@@ -972,7 +972,7 @@ namespace Chaos
 
 		void UpdateSphereBoxConstraint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FAABB3& Box, const FRigidTransform3& BoxTransform, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint)
 		{
-			UpdateContactPoint(Constraint.Manifold, SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, CullDistance));
+			UpdateContactPoint(Constraint.Manifold, SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, CullDistance, Constraint.Manifold.RestitutionPadding));
 		}
 
 		void UpdateSphereBoxManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
@@ -1009,7 +1009,7 @@ namespace Chaos
 		// Sphere - Capsule
 		//
 
-		FContactPoint SphereCapsuleContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance)
+		FContactPoint SphereCapsuleContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
 		{
 			FContactPoint Result;
 
@@ -1022,7 +1022,7 @@ namespace Chaos
 			FReal DeltaLen = Delta.Size();
 			if (DeltaLen > KINDA_SMALL_NUMBER)
 			{
-				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
+				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
 				Result.Phi = NewPhi;
 				Result.Normal = -Dir;
@@ -1035,7 +1035,7 @@ namespace Chaos
 
 		void UpdateSphereCapsuleConstraint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint)
 		{
-			UpdateContactPoint(Constraint.Manifold, SphereCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance));
+			UpdateContactPoint(Constraint.Manifold, SphereCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance, Constraint.Manifold.RestitutionPadding));
 		}
 
 		void UpdateSphereCapsuleManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
@@ -1139,7 +1139,7 @@ namespace Chaos
 		//
 
 
-		FContactPoint CapsuleCapsuleContactPoint(const TCapsule<FReal>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance)
+		FContactPoint CapsuleCapsuleContactPoint(const TCapsule<FReal>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
 		{
 			FContactPoint Result;
 
@@ -1154,7 +1154,7 @@ namespace Chaos
 			FReal DeltaLen = Delta.Size();
 			if (DeltaLen > KINDA_SMALL_NUMBER)
 			{
-				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
+				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
 				Result.Phi = NewPhi;
 				Result.Normal = -Dir;
@@ -1167,7 +1167,7 @@ namespace Chaos
 
 		void UpdateCapsuleCapsuleConstraint(const TCapsule<FReal>& A, const FRigidTransform3& ATransform, const TCapsule<FReal>& B, const FRigidTransform3& BTransform, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint)
 		{
-			UpdateContactPoint(Constraint.Manifold, CapsuleCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance));
+			UpdateContactPoint(Constraint.Manifold, CapsuleCapsuleContactPoint(A, ATransform, B, BTransform, CullDistance, Constraint.Manifold.RestitutionPadding));
 		}
 
 		void UpdateCapsuleCapsuleManifold(FCollisionConstraintBase&  Constraint, const FRigidTransform3& ATM, const FRigidTransform3& BTM, const FReal CullDistance)
@@ -1203,9 +1203,9 @@ namespace Chaos
 		//
 
 
-		FContactPoint CapsuleBoxContactPoint(const TCapsule<FReal>& A, const FRigidTransform3& ATransform, const FAABB3& B, const FRigidTransform3& BTransform, const FVec3& InitialDir, const FReal CullDistance)
+		FContactPoint CapsuleBoxContactPoint(const TCapsule<FReal>& A, const FRigidTransform3& ATransform, const FAABB3& B, const FRigidTransform3& BTransform, const FVec3& InitialDir, const FReal CullDistance, const FReal ShapePadding)
 		{
-			return GJKContactPoint(A, ATransform, B, BTransform, InitialDir);
+			return GJKContactPoint(A, ATransform, B, BTransform, InitialDir, ShapePadding);
 		}
 
 
@@ -1220,7 +1220,7 @@ namespace Chaos
 			if (CapsuleAABB.Intersects(B))
 			{
 				const FVec3 InitialDir = ATransform.GetRotation().Inverse() * -Constraint.GetNormal();
-				UpdateContactPoint(Constraint.Manifold, CapsuleBoxContactPoint(A, ATransform, B, BTransform, InitialDir, CullDistance));
+				UpdateContactPoint(Constraint.Manifold, CapsuleBoxContactPoint(A, ATransform, B, BTransform, InitialDir, CullDistance, Constraint.Manifold.RestitutionPadding));
 			}
 		}
 
