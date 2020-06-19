@@ -63,6 +63,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 				if (Particles[1] && Particles[1]->Handle())
 				{
 					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetJointTransforms());
+					Handle->SetSettings(JointSettingsBuffer);
 				}
 			}
 		}
@@ -96,12 +97,18 @@ template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 	typedef typename Chaos::TPBDRigidsSolver<Trait>::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
+	check(Handle != nullptr);
 	if (DirtyFlagsBuffer.IsDirty())
 	{
+		FConstraintData& ConstraintSettings = Handle->GetSettings();
 		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 		{
 			auto Particles = Constraint->GetJointParticles();
 
+			// Three pieces of state to update on the physics thread. 
+			// .. Mask on the particle array
+			// .. Constraint collisions enabled array
+			// .. IgnoreCollisionsManager
 			if (Particles[0]->Handle() && Particles[1]->Handle())
 			{
 				Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
@@ -137,7 +144,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 						ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 						IgnoreCollisionManager.AddIgnoreCollisionsFor(ID1, ID0);
 					}
-					
+					ConstraintSettings.bCollisionEnabled = JointSettingsBuffer.bCollisionEnabled;
 				}
 			}
 		}

@@ -93,6 +93,11 @@ namespace Chaos
 		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
 	}
 
+	FPBDJointSettings& FPBDJointConstraintHandle::GetSettings()
+	{
+		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
+	}
+
 	void FPBDJointConstraintHandle::SetSettings(const FPBDJointSettings& Settings)
 	{
 		ConstraintContainer->SetConstraintSettings(ConstraintIndex, Settings);
@@ -558,6 +563,11 @@ namespace Chaos
 
 	
 	const FPBDJointSettings& FPBDJointConstraints::GetConstraintSettings(int32 ConstraintIndex) const
+	{
+		return ConstraintSettings[ConstraintIndex];
+	}
+
+	FPBDJointSettings& FPBDJointConstraints::GetConstraintSettings(int32 ConstraintIndex)
 	{
 		return ConstraintSettings[ConstraintIndex];
 	}
