@@ -98,7 +98,10 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, F
 	// Check for Ed Graph vars that can generate events
 	if ( PropertyClass && BlueprintObj->AllowsDynamicBinding() )
 	{
-		if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) )
+		// If the object property can't be resolved for the property, than we can't use it's events.
+		FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+
+		if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) && VariableProperty )
 		{
 			for ( TFieldIterator<FMulticastDelegateProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
 			{
