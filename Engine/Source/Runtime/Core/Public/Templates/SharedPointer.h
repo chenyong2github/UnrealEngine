@@ -1833,6 +1833,10 @@ FORCEINLINE SharedPointerInternals::FRawPtrProxy< ObjectType > MakeShareable( Ob
 /**
  * MakeShared utility function.  Allocates a new ObjectType and reference controller in a single memory block.
  * Equivalent to std::make_shared.
+ *
+ * NOTE: If the constructor is private/protected you will need to friend the intrusive reference controller in your class. e.g.
+ * 	  template <typename ObjectType>
+ *	  friend class SharedPointerInternals::TIntrusiveReferenceController;
  */
 template <typename InObjectType, ESPMode InMode = ESPMode::Fast, typename... InArgTypes>
 FORCEINLINE TSharedRef<InObjectType, InMode> MakeShared(InArgTypes&&... Args)
