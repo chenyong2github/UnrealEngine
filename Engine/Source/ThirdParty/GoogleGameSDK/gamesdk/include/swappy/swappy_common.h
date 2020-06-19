@@ -23,6 +23,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <android/native_window.h>
 
 /** @brief Swap interval for 60fps, in nanoseconds. */
 #define SWAPPY_SWAP_60FPS (16666667L)
@@ -39,7 +40,7 @@
 
 // Internal macros to track Swappy version, do not use directly.
 #define SWAPPY_MAJOR_VERSION 1
-#define SWAPPY_MINOR_VERSION 2
+#define SWAPPY_MINOR_VERSION 4
 #define SWAPPY_PACKED_VERSION ((SWAPPY_MAJOR_VERSION<<16)|(SWAPPY_MINOR_VERSION))
 
 // Internal macros to generate a symbol to track Swappy version, do not use directly.
@@ -120,10 +121,18 @@ int Swappy_getSupportedRefreshRates(uint64_t *out_refreshrates, int allocated_en
 #endif
 
 /**
- * Pointer to a function that can be attached to SwappyTracer::preWait or SwappyTracer::postWait.
+ * Pointer to a function that can be attached to SwappyTracer::preWait
  * @param userData Pointer to arbitrary data, see SwappyTracer::userData.
  */
-typedef void (*SwappyWaitCallback)(void*);
+typedef void (*SwappyPreWaitCallback)(void*);
+
+/**
+ * Pointer to a function that can be attached to SwappyTracer::postWait.
+ * @param userData Pointer to arbitrary data, see SwappyTracer::userData.
+ * @param cpu_time_ns Time for CPU processing of this frame in nanoseconds.
+ * @param gpu_time_ns Time for GPU processing of previous frame in nanoseconds.
+ */
+typedef void (*SwappyPostWaitCallback)(void*, long cpu_time_ns, long gpu_time_ns);
 
 /**
  * Pointer to a function that can be attached to SwappyTracer::preSwapBuffers.
@@ -162,12 +171,12 @@ typedef struct SwappyTracer {
     /**
      * Callback called before waiting to queue the frame to the composer.
      */
-    SwappyWaitCallback preWait;
+    SwappyPreWaitCallback preWait;
 
     /**
      * Callback called after wait to queue the frame to the composer is done.
      */
-    SwappyWaitCallback postWait;
+    SwappyPostWaitCallback postWait;
 
     /**
      * Callback called before calling the function to queue the frame to the composer.
