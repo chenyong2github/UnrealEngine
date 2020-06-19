@@ -226,6 +226,7 @@ public:
 	bool HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleDisplayClearCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleGetAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleGetAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleTextureDefragCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleToggleMIPFadeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandlePauseRenderClockCommand( const TCHAR* Cmd, FOutputDevice& Ar );
