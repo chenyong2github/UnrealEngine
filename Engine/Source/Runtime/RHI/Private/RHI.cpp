@@ -18,7 +18,12 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, RHI);
 /** RHI Logging. */
 DEFINE_LOG_CATEGORY(LogRHI);
 CSV_DEFINE_CATEGORY(RHI, true);
+
+#if UE_BUILD_SHIPPING
+CSV_DEFINE_CATEGORY(DrawCall, false);
+#else
 CSV_DEFINE_CATEGORY(DrawCall, true);
+#endif
 
 // Define counter stats.
 DEFINE_STAT(STAT_RHIDrawPrimitiveCalls);

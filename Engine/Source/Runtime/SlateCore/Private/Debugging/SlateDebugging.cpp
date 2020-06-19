@@ -12,7 +12,11 @@
 #include "Application/SlateApplicationBase.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#if UE_BUILD_SHIPPING
+CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, false);
+#else
 CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, true);
+#endif
 
 #if WITH_SLATE_DEBUGGING
 
