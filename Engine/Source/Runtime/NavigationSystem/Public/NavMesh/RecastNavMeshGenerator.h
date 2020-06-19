@@ -53,6 +53,9 @@ struct FRecastBuildConfig : public rcConfig
 	uint32 bGenerateBVTree:1;
 	/** if set, mark areas with insufficient free height instead of cutting them out  */
 	uint32 bMarkLowHeightAreas : 1;
+	/** Expand the top of the area nav modifier's bounds by one cell height when applying to the navmesh.
+		If unset, navmesh on top of surfaces might not be marked by marking bounds flush with top surfaces (since navmesh is generated slightly above collision, depending on cell height). */
+	uint32 bUseExtraTopCellWhenMarkingAreas : 1;
 	/** if set, only single low height span will be allowed under valid one */
 	uint32 bFilterLowSpanSequences : 1;
 	/** if set, only low height spans with corresponding area modifier will be stored in tile cache (reduces memory, can't modify without full tile rebuild) */
@@ -90,6 +93,7 @@ struct FRecastBuildConfig : public rcConfig
 		bGenerateDetailedMesh = true;
 		bGenerateBVTree = true;
 		bMarkLowHeightAreas = false;
+		bUseExtraTopCellWhenMarkingAreas = true;
 		bFilterLowSpanSequences = false;
 		bFilterLowSpanFromTileCache = false;
 		// Still initializing, even though the property is deprecated, to avoid static analysis warnings

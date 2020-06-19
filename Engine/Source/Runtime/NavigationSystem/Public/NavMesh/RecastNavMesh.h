@@ -310,6 +310,11 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
 	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
 	uint32 bMarkLowHeightAreas : 1;
 
+	/** Expand the top of the area nav modifier's bounds by one cell height when applying to the navmesh. 
+	    If unset, navmesh on top of surfaces might not be marked by marking bounds flush with top surfaces (since navmesh is generated slightly above collision, depending on cell height). */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	uint32 bUseExtraTopCellWhenMarkingAreas : 1;
+
 	/** if set, only single low height span will be allowed under valid one */
 	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
 	uint32 bFilterLowSpanSequences : 1;
@@ -593,6 +598,11 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	/** mark areas with insufficient free height above instead of cutting them out (accessible only for area modifiers using replace mode) */
 	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
 	uint32 bMarkLowHeightAreas : 1;
+
+	/** Expand the top of the area nav modifier's bounds by one cell height when applying to the navmesh.
+		If unset, navmesh on top of surfaces might not be marked by marking bounds flush with top surfaces (since navmesh is generated slightly above collision, depending on cell height). */
+	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
+	uint32 bUseExtraTopCellWhenMarkingAreas : 1;
 
 	/** if set, only single low height span will be allowed under valid one */
 	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
