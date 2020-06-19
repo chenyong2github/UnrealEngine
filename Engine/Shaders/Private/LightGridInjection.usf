@@ -311,9 +311,10 @@ groupshared uint LDSBaseStart;
 
 void CompactReverseLinkedList(uint GridIndex, uint SceneMax, bool FirstThread, bool bThreadValid)
 {
-	uint NumCulledLights = 0;
-	uint StartLinkOffset = 0;
-	uint LinkOffset		 = 0;
+	uint NumCulledLights		= 0;
+	uint StartLinkOffset		= 0;
+	uint LinkOffset				= 0;
+	uint CulledLightDataStart	= 0;
 
 	if(bThreadValid)
 	{
@@ -328,13 +329,11 @@ void CompactReverseLinkedList(uint GridIndex, uint SceneMax, bool FirstThread, b
 		}
 	}
 
-	uint CulledLightDataStart=0;
 
 #if USE_LOCALSTORE_FOR_ATOMICS
-	if(FirstThread)
-	{
-		LDSNextCulledLightData =0;
-	}
+
+	LDSNextCulledLightData	= 0;
+	LDSBaseStart			= 0;
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -345,16 +344,13 @@ void CompactReverseLinkedList(uint GridIndex, uint SceneMax, bool FirstThread, b
 	// Then the first thread can do an interlocked add with the buffer
 	if(FirstThread)
 	{
-		LDSBaseStart =0;
 		InterlockedAdd(RWNextCulledLightData[0], LDSNextCulledLightData, LDSBaseStart);
 	}
 	GroupMemoryBarrierWithGroupSync();
 	
-	CulledLightDataStart +=LDSBaseStart;
+	CulledLightDataStart += LDSBaseStart;
 #else
-
 	InterlockedAdd(RWNextCulledLightData[0], NumCulledLights, CulledLightDataStart);
-
 #endif
 
 	if( bThreadValid)
