@@ -484,6 +484,8 @@ public:
 	 *    - Collapses internal ..'s
 	 *    - Makes relative to Engine\Binaries\<Platform> (will ALWAYS start with ..\..\..)
 	 */
+	static FString CreateStandardFilename(const FString& InPath);
+
 	static void MakeStandardFilename(FString& InPath);
 
 	/** Takes an "Unreal" pathname and converts it to a platform filename. */
