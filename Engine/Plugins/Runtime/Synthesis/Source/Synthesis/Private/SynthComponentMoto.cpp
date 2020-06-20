@@ -28,8 +28,7 @@ void USynthComponentMoto::SetRPM(float InRPM, float InTimeSec)
 {
 	if (FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
-		const float MinRPM = 100.0f;
-		if (InRPM > MinRPM && !FMath::IsNaN(InRPM))
+		if (InRPM > KINDA_SMALL_NUMBER && !FMath::IsNaN(InRPM))
 		{
 			RPM = InRPM;
 			if (MotoSynthEngine.IsValid())

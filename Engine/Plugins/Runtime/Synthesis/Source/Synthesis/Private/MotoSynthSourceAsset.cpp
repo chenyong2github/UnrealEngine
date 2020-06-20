@@ -189,7 +189,7 @@ void UMotoSynthSource::PostLoad()
 		SourceData_DEPRECATED.Reset();
 	}
 
-	// Set this moto synth's data witha source ID
+	// Set this moto synth's data with a source ID
 	if (SourceDataID == INDEX_NONE)
 	{
 		static uint32 SourceIDs = 0;
@@ -202,7 +202,7 @@ void UMotoSynthSource::PostLoad()
 		{
 			// register this moto synth source data with the moto synth data manager using the new ID.		
 			FMotoSynthSourceDataManager& MotoSynthDataManager = FMotoSynthSourceDataManager::Get();
-			MotoSynthDataManager.RegisterData(SourceDataID, SourceDataPCM, SourceSampleRate, GrainTable, *RichRPMCurve);
+			MotoSynthDataManager.RegisterData(SourceDataID, MoveTemp(SourceDataPCM), SourceSampleRate, MoveTemp(GrainTable), *RichRPMCurve);
 		}
 		else
 		{
@@ -211,21 +211,6 @@ void UMotoSynthSource::PostLoad()
 	}
 
 }
-
-// void UMotoSynthSource::GetData(FMotoSynthData& OutData)
-// {
-// 	// Gotta copy the audio data out
-// 	OutData.AudioSource = SourceDataPCM;
-// 	OutData.SourceSampleRate = SourceSampleRate;
-// 	OutData.GrainTable = GrainTable;
-// 
-// 	// We need a curve data
-// 	FRichCurve* RichRPMCurve = RPMCurve.GetRichCurve();
-// 	if (ensure(RichRPMCurve))
-// 	{
-// 		OutData.RPMCurve = *RichRPMCurve;
-// 	}
-// }
 
 #if WITH_EDITOR
 void UMotoSynthSource::PlayToneMatch()

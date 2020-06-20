@@ -28,7 +28,7 @@ public:
 	static FMotoSynthSourceDataManager& Get();
 
 	// Registers the moto synth source data 
-	void RegisterData(uint32 InSourceID, const TArray<int16>& InSourceDataPCM, int32 InSourceSampleRate, const TArray<FGrainTableEntry>& InGrainTable, const FRichCurve& InRPMCurve);
+	void RegisterData(uint32 InSourceID, TArray<int16>&& InSourceDataPCM, int32 InSourceSampleRate, TArray<FGrainTableEntry>&& InGrainTable, const FRichCurve& InRPMCurve);
 	void UnRegisterData(uint32 InSourceID);
 
 	// Retrieves data view for the given SourceID if the source data exists. 
