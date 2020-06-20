@@ -541,7 +541,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Size of the file, or -1 if not specified
 		/// </summary>
-		public readonly int FileSize;
+		public readonly long FileSize;
 
 		/// <summary>
 		/// Digest of the file, or null if not specified
@@ -572,7 +572,7 @@ namespace AutomationTool
 		/// <param name="Digest">Digest of the file, or null if not specified</param>
 		/// <param name="Description">Description of the changelist</param>
 		/// <param name="Integrations">Integrations performed to the file</param>
-		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, int FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
+		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, long FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
 		{
 			this.RevisionNumber = RevisionNumber;
 			this.ChangeNumber = ChangeNumber;
@@ -3380,12 +3380,20 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="UserName"></param>
 		/// <returns>List of clients owned by the user.</returns>
-		public P4ClientInfo[] GetClientsForUser(string UserName, string PathUnderClientRoot = null)
+		public P4ClientInfo[] GetClientsForUser(string UserName, string PathUnderClientRoot = null, string AllowedStream = null)
 		{
 			var ClientList = new List<P4ClientInfo>();
 
 			// Get all clients for this user
-            var P4Result = P4(String.Format("clients -u {0}", UserName), AllowSpew: false, WithClient: false);
+			string P4Command = String.Format("clients -u {0}", UserName);
+
+			// filter by Stream if desired
+			if (AllowedStream != null)
+			{
+				P4Command += " -S " + AllowedStream;
+			}
+
+			var P4Result = P4(P4Command, AllowSpew: false, WithClient: false);
 			if (P4Result.ExitCode != 0)
 			{
 				throw new AutomationException("p4 clients -u {0} failed.", UserName);
@@ -3459,8 +3467,11 @@ namespace AutomationTool
             SpecInput += "Owner: " + ClientSpec.Owner + Environment.NewLine;
             SpecInput += "Host: " + ClientSpec.Host + Environment.NewLine;
             SpecInput += "Root: " + ClientSpec.RootPath + Environment.NewLine;
-            SpecInput += "Options: " + ClientSpec.Options.ToString().ToLowerInvariant().Replace(",", "") + Environment.NewLine;
-            SpecInput += "SubmitOptions: " + ClientSpec.SubmitOptions.ToString().ToLowerInvariant().Replace(", ", "+") + Environment.NewLine;
+			if (ClientSpec.Options != P4ClientOption.None)
+			{
+				SpecInput += "Options: " + ClientSpec.Options.ToString().ToLowerInvariant().Replace(",", "") + Environment.NewLine;
+			}
+			SpecInput += "SubmitOptions: " + ClientSpec.SubmitOptions.ToString().ToLowerInvariant().Replace(", ", "+") + Environment.NewLine;
             SpecInput += "LineEnd: " + ClientSpec.LineEnd.ToString().ToLowerInvariant() + Environment.NewLine;
 			if(ClientSpec.Stream != null)
 			{
@@ -3752,7 +3763,7 @@ namespace AutomationTool
 					string Type = RawRecord["type" + RevisionSuffix];
 					string UserName = RawRecord["user" + RevisionSuffix];
 					string ClientName = RawRecord["client" + RevisionSuffix];
-					int FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? int.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
+					long FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? long.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
 					string Digest = RawRecord.ContainsKey("digest" + RevisionSuffix)? RawRecord["digest" + RevisionSuffix] : null;
 					string Description = RawRecord["desc" + RevisionSuffix];
 

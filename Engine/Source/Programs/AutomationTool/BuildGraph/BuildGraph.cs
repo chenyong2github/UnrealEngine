@@ -77,7 +77,7 @@ namespace AutomationTool
 		{
 			// Parse the command line parameters
 			string ScriptFileName = ParseParamValue("Script", null);
-			string TargetNames = ParseParamValue("Target", null);
+			string[] TargetNames = ParseParamValues("Target").SelectMany(x => x.Split(';', '+').Select(y => y.Trim()).Where(y => y.Length > 0)).ToArray();
 			string DocumentationFileName = ParseParamValue("Documentation", null);
 			string SchemaFileName = ParseParamValue("Schema", null);
 			string ImportSchemaFileName = ParseParamValue("ImportSchema", null);
@@ -244,9 +244,9 @@ namespace AutomationTool
 
 			// Convert the supplied target references into nodes 
 			HashSet<Node> TargetNodes = new HashSet<Node>();
-			if(TargetNames == null)
+			if(TargetNames.Length == 0)
 			{
-				if(!bListOnly)
+				if (!bListOnly && SingleNodeName == null)
 				{
 					LogError("Missing -Target= parameter for BuildGraph");
 					return ExitCode.Error_Unknown;
@@ -265,7 +265,7 @@ namespace AutomationTool
 				}
 				else
 				{
-					NodesToResolve = TargetNames.Split(new char[] { '+', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim());
+					NodesToResolve = TargetNames;
 				}
 
 				foreach (string TargetName in NodesToResolve)
