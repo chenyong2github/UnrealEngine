@@ -90,11 +90,16 @@ public:
 	~UMotoSynthSource();
 	
 	//~ Begin UObject interface
+
+	// Needed to remove the data entry in the data manager
 	virtual void BeginDestroy() override;
+
+	// Used to register data w/ the data manager
 	virtual void PostLoad() override;
+	//~ End UObject interface
 
 #if WITH_EDITORONLY_DATA
-	// The source to sue for the moto synth source
+	// The source to use for the moto synth source
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grain Table | Analysis")
 	USoundWave* SoundWaveSource;
 #endif // #if WITH_EDITORONLY_DATA

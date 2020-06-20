@@ -23,7 +23,7 @@ FMotoSynthSourceDataManager::~FMotoSynthSourceDataManager()
 
 }
 
-void FMotoSynthSourceDataManager::RegisterData(uint32 InSourceID, const TArray<int16>& InSourceDataPCM, int32 InSourceSampleRate, const TArray<FGrainTableEntry>& InGrainTable, const FRichCurve& InRPMCurve)
+void FMotoSynthSourceDataManager::RegisterData(uint32 InSourceID, TArray<int16>&& InSourceDataPCM, int32 InSourceSampleRate, TArray<FGrainTableEntry>&& InGrainTable, const FRichCurve& InRPMCurve)
 {
 	FScopeLock ScopeLock(&DataCriticalSection);
 
@@ -34,9 +34,9 @@ void FMotoSynthSourceDataManager::RegisterData(uint32 InSourceID, const TArray<i
 	}
 
 	MotoSynthDataPtr NewData = MotoSynthDataPtr(new FMotoSynthSourceData);
-	NewData->AudioSource = InSourceDataPCM;
+	NewData->AudioSource = MoveTemp(InSourceDataPCM);
 	NewData->SourceSampleRate = InSourceSampleRate;
-	NewData->GrainTable = InGrainTable;
+	NewData->GrainTable = MoveTemp(InGrainTable);
 	NewData->RPMCurve = InRPMCurve;
 
 	SourceDataTable.Add(InSourceID, NewData);
