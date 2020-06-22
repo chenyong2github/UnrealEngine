@@ -8,6 +8,7 @@
 #include "OSCServer.h"
 
 #include "HAL/IConsoleManager.h"
+#include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
