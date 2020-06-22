@@ -1015,7 +1015,12 @@ void FVulkanDevice::SetupPresentQueue(VkSurfaceKHR Surface)
 		};
 
 		bool bGfx = SupportsPresent(Gpu, GfxQueue);
-		checkf(bGfx, TEXT("Graphics Queue doesn't support present!"));
+		if (!bGfx)
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Cannot find a compatible Vulkan device that supports surface presentation.\n\n"), TEXT("Vulkan device not available"));
+			FPlatformMisc::RequestExitWithStatus(true, 1);
+		}
+
 		bool bCompute = SupportsPresent(Gpu, ComputeQueue);
 		if (TransferQueue->GetFamilyIndex() != GfxQueue->GetFamilyIndex() && TransferQueue->GetFamilyIndex() != ComputeQueue->GetFamilyIndex())
 		{
