@@ -53,12 +53,13 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	, LockedAxis(0.0f, 0.0f, 1.0f)
 	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
-	AttributeBindings.Reserve(12);
+	AttributeBindings.Reserve(15);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&VelocityBinding);
 	AttributeBindings.Add(&MeshOrientationBinding);
 	AttributeBindings.Add(&ScaleBinding);
+	AttributeBindings.Add(&SubImageIndexBinding);
 	AttributeBindings.Add(&DynamicMaterialBinding);
 	AttributeBindings.Add(&DynamicMaterial1Binding);
 	AttributeBindings.Add(&DynamicMaterial2Binding);
@@ -66,6 +67,8 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&MaterialRandomBinding);
 	AttributeBindings.Add(&CustomSortingBinding);
 	AttributeBindings.Add(&NormalizedAgeBinding);
+	AttributeBindings.Add(&CameraOffsetBinding);
+	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
