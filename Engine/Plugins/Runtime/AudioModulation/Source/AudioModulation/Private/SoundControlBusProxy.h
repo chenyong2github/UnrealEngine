@@ -3,6 +3,7 @@
 
 #include "IAudioModulation.h"
 #include "SoundControlBus.h"
+#include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulatorLFOProxy.h"
 
@@ -23,15 +24,15 @@ namespace AudioModulation
 		float Max;
 
 		TArray<FModulatorLFOSettings> LFOSettings;
-		ESoundModulatorOperator Operator;
+		Audio::FModulationMixFunction MixFunction;
 
 		FControlBusSettings(const USoundControlBusBase& InBus)
 			: TModulatorBase<FBusId>(InBus.GetName(), InBus.GetUniqueID())
 			, bBypass()
-			, DefaultValue(InBus.DefaultValue)
-			, Min(InBus.Min)
-			, Max(InBus.Max)
-			, Operator(InBus.GetOperator())
+			, DefaultValue(InBus.GetDefaultValue())
+			, Min(InBus.GetMin())
+			, Max(InBus.GetMax())
+			, MixFunction(InBus.GetMixFunction())
 		{
 			for (const USoundBusModulatorBase* Modulator : InBus.Modulators)
 			{
@@ -74,8 +75,8 @@ namespace AudioModulation
 
 		bool bBypass;
 
+		Audio::FModulationMixFunction MixFunction;
 		TArray<FLFOHandle> LFOHandles;
-		ESoundModulatorOperator Operator;
 		FVector2D Range;
 	};
 
