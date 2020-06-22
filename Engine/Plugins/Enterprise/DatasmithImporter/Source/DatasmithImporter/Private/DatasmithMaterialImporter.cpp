@@ -323,7 +323,8 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 				FString TexturePath;
 				if ( MaterialSelector->GetTexture( Property, TexturePath ) )
 				{
-					FString TextureName = ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename( TexturePath ));
+					FString TextureName = FPackageName::IsValidObjectPath(TexturePath) ? TexturePath
+						: ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename( TexturePath ));
 
 					UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( ImportContext.AssetsContext, *TextureName );
 					MaterialInstanceTemplate->TextureParameterValues.Add( FName(*PropertyName), Texture );
