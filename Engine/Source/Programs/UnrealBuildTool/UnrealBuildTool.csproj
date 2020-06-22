@@ -158,7 +158,6 @@
     <Compile Include="Configuration\TargetDescriptor.cs" />
     <Compile Include="Configuration\UEBuildModuleExternal.cs" />
     <Compile Include="Configuration\UEBuildPlatformFactory.cs" />
-    <Compile Include="Configuration\UEBuildPlatformSDK.cs" />
     <Compile Include="Configuration\UEBuildPlugin.cs" />
     <Compile Include="Executors\Distcc.cs" />
     <Compile Include="Executors\LocalExecutor.cs" />
@@ -170,6 +169,8 @@
     <Compile Include="Platform\IOS\MobileProvisionContents.cs" />
     <Compile Include="Platform\Lumin\LuminPackageManifest.cs" />
     <Compile Include="Platform\Lumin\UEDeployLumin.cs" />
+    <Compile Include="Platform\Mac\ApplePlatformSDK.cs" />
+    <Compile Include="Platform\Windows\MicrosoftPlatformSDK.cs" />
     <Compile Include="Platform\Windows\VCManifestGenerator.cs" />
     <Compile Include="ProjectFiles\CLion\CLionGenerator.cs" />
     <Compile Include="ProjectFiles\CMake\CMakefileGenerator.cs" />
@@ -451,6 +452,10 @@
     </PreBuildEvent>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DotNETCommon\BuildUtilities\BuildUtilities.csproj">
+      <Project>{5965bed9-4823-4671-84a5-c8d6503d5848}</Project>
+      <Name>BuildUtilities</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj">
       <Project>{5d7d66e8-8c76-4af9-b3ec-2ef03421d730}</Project>
       <Name>DotNETUtilities</Name>

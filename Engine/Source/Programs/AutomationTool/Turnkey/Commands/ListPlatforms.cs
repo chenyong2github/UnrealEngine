@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnrealBuildTool;
 using AutomationTool;
-
+using Tools.DotNETCommon;
 
 namespace Turnkey.Commands
 {
@@ -14,18 +14,38 @@ namespace Turnkey.Commands
 		{
 			TurnkeyUtils.Log("");
 			TurnkeyUtils.Log("Valid Platforms:");
+			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
+
 			foreach (UnrealTargetPlatform TargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
-				Platform Platform = Platform.Platforms[new TargetPlatformDescriptor(TargetPlatform)];
+				// HACK UNTIUL WIN32 IS GONE COMPLETELY
+				if (TargetPlatform == UnrealTargetPlatform.Win32)
+				{
+					continue;
+				}
 
-				string InstalledSdk = Platform.GetInstalledSdk();
-				string AllowedSdks = Platform.GetAllowedSdks();
+				if (PlatformString != null && UnrealTargetPlatform.Parse(PlatformString) != TargetPlatform)
+				{
+					continue;
+				}
+
+				Platform Platform = Platform.Platforms[new TargetPlatformDescriptor(TargetPlatform)];
+				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(TargetPlatform.ToString());
+
+				string ManualSDKVersion, AutoSDKVersion;
+				string MinAllowedVersion, MaxAllowedVersion;
+				SDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
+				SDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+				
 				string AllowedSoftware = Platform.GetAllowedSoftwareVersions();
-				bool bIsSdkValid = TurnkeyUtils.IsValueValid(InstalledSdk, AllowedSdks, Platform);
+				bool bIsAutoSdkValid = SDK.IsVersionValid(AutoSDKVersion, bForAutoSDK:true);
+				bool bIsManualSdkValid = SDK.IsVersionValid(ManualSDKVersion, bForAutoSDK:false);
 				TurnkeyUtils.Log("  Platform: {0}", TargetPlatform.ToString());
-				TurnkeyUtils.Log("  Installed Sdk: {0}", InstalledSdk);
-				TurnkeyUtils.Log("  Allowed Sdk(s): {0}", AllowedSdks);
-				TurnkeyUtils.Log("  Valid SDK Installed? {0}", bIsSdkValid);
+				TurnkeyUtils.Log("  Installed Manual Sdk: {0}", ManualSDKVersion);
+				TurnkeyUtils.Log("  Installed Auto Sdk: {0}", AutoSDKVersion);
+				TurnkeyUtils.Log("  Allowed Sdk Range: {0}-{1}", MinAllowedVersion, MaxAllowedVersion);
+				TurnkeyUtils.Log("  Valid Manual SDK Installed? {0}", bIsManualSdkValid);
+				TurnkeyUtils.Log("  Valid Auto SDK Installed? {0}", bIsAutoSdkValid);
 
 				// look for available sdks
 				List<SdkInfo> MatchingFullSdks = TurnkeyManifest.GetDiscoveredSdks()?.FindAll(x => x.Type == SdkInfo.SdkType.Full && x.IsValid(TargetPlatform));

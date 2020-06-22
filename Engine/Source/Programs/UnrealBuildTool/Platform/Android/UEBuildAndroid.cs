@@ -8,6 +8,7 @@ using System.IO;
 using System.Xml;
 using System.Linq;
 using Tools.DotNETCommon;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -74,21 +75,16 @@ namespace UnrealBuildTool
 
 	class AndroidPlatform : UEBuildPlatform
 	{
-		AndroidPlatformSDK SDK;
+		UEBuildPlatformSDK SDK;
 
-		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, AndroidPlatformSDK InSDK) 
-			: base(InTargetPlatform)
+		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK) 
+			: base(InTargetPlatform, InSDK)
 		{
 			SDK = InSDK;
 		}
 
 		public AndroidPlatform(AndroidPlatformSDK InSDK) : this(UnrealTargetPlatform.Android, InSDK)
 		{
-		}
-
-		public override SDKStatus HasRequiredSDKsInstalled()
-		{
-			return SDK.HasRequiredSDKsInstalled();
 		}
 
 		public override void ResetTarget(TargetRules Target)
@@ -327,18 +323,14 @@ namespace UnrealBuildTool
 			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, false, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures);
 
 			// figure out the NDK version
-			string NDKToolchainVersion = ToolChain.NDKToolchainVersion;
-			string NDKDefine = ToolChain.NDKDefine;
-
-			string GccVersion = "4.9";
+			string NDKToolchainVersion = SDK.GetInstalledVersion();
+			UInt64 NDKVersionInt;
+			SDK.TryConvertVersionToInt(NDKToolchainVersion, out NDKVersionInt);
 
 			// PLATFORM_ANDROID_NDK_VERSION is in the form 150100, where 15 is major version, 01 is the letter (1 is 'a'), 00 indicates beta revision if letter is 00
-			Log.TraceInformation("PLATFORM_ANDROID_NDK_VERSION = {0}", NDKDefine);
-			CompileEnvironment.Definitions.Add("PLATFORM_ANDROID_NDK_VERSION=" + NDKDefine);
+			CompileEnvironment.Definitions.Add(string.Format("PLATFORM_ANDROID_NDK_VERSION={0}", NDKVersionInt));
 
-			int NDKVersionInt = ToolChain.GetNdkApiLevelInt();
-			Log.TraceInformation("NDK toolchain: {0}, NDK version: {1}, GccVersion: {2}, ClangVersion: {3}", NDKToolchainVersion, NDKVersionInt.ToString(), GccVersion, ToolChain.GetClangVersionString());
-			ToolChain.ShowNDKWarnings();
+			Log.TraceInformation("NDK toolchain: {0}, NDK version: {1}, ClangVersion: {2}", NDKToolchainVersion, NDKVersionInt, ToolChain.GetClangVersionString());
 
 			CompileEnvironment.Definitions.Add("PLATFORM_DESKTOP=0");
 			CompileEnvironment.Definitions.Add("PLATFORM_CAN_SUPPORT_EDITORONLY_DATA=0");
@@ -453,19 +445,114 @@ namespace UnrealBuildTool
 
 	class AndroidPlatformSDK : UEBuildPlatformSDK
 	{
+		public override string GetDesiredVersion()
+		{
+			return "-23";
+		}
+
+ 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+ 		{
+			MinVersion = "r21a";
+ 			MaxVersion = "r23a";
+ 		}
+
+		// the version we prefer
+		private string RecommendedVersion = "21b";
+
+		public override string GetInstalledSDKVersion()
+		{
+			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+
+			// don't register if we don't have an NDKROOT specified
+			if (String.IsNullOrEmpty(NDKPath))
+			{
+				return null;
+			}
+
+			NDKPath = NDKPath.Replace("\"", "");
+
+			// figure out the NDK version
+			string NDKToolchainVersion = null;
+			string SourcePropFilename = Path.Combine(NDKPath, "source.properties");
+			if (File.Exists(SourcePropFilename))
+			{
+				string RevisionString = "";
+				string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
+				foreach (string PropertyLine in PropertyContents)
+				{
+					if (PropertyLine.StartsWith("Pkg.Revision"))
+					{
+						RevisionString = PropertyLine;
+						break;
+					}
+				}
+
+				int EqualsIndex = RevisionString.IndexOf('=');
+				if (EqualsIndex > 0)
+				{
+					string[] RevisionParts = RevisionString.Substring(EqualsIndex + 1).Trim().Split('.');
+					int RevisionMinor = int.Parse(RevisionParts.Length > 1 ? RevisionParts[1] : "0");
+					char RevisionLetter = Convert.ToChar('a' + RevisionMinor);
+					NDKToolchainVersion = "r" + RevisionParts[0] + (RevisionMinor > 0 ? Char.ToString(RevisionLetter) : "");
+				}
+			}
+			else
+			{
+				string ReleaseFilename = Path.Combine(NDKPath, "RELEASE.TXT");
+				if (File.Exists(ReleaseFilename))
+				{
+					string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
+					NDKToolchainVersion = PropertyContents[0];
+				}
+			}
+
+			// return something like r10e, or null if anything went wrong above
+			return NDKToolchainVersion;
+
+		}
+
+
+		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		{
+			// convert r<num>[letter] to hex
+			Match Result = Regex.Match(StringValue, @"^r(\d*)([a-z])?");
+
+			if (Result.Success)
+			{
+				// 8 for number, 8 for letter, 8 for unused patch
+				int RevisionNumber = 0;
+				if (Result.Groups[2].Success)
+				{
+					RevisionNumber = (Result.Groups[2].Value[0] - 'a') + 1;
+				}
+				string VersionString = string.Format("{0}{1:00}{2:00}", Result.Groups[1], RevisionNumber, 0);
+				return UInt64.TryParse(VersionString, out OutValue);
+			}
+
+			OutValue = 0;
+			return false;
+		}
+
+
+		public override void PrintSDKInfo(LogEventType Verbosity, LogFormatOptions Options)
+		{
+			base.PrintSDKInfo(Verbosity, Options);
+
+			if (GetInstalledVersion() != RecommendedVersion)
+			{
+				Log.WriteLine(Verbosity, Options, "Note: Android toolchain NDK {0} recommended", RecommendedVersion);
+			}
+		}
+
+
 		protected override bool PlatformSupportsAutoSDKs()
 		{
 			return true;
 		}
 
-		public override string GetSDKTargetPlatformName()
-		{
-			return "Android";
-		}
-
 		protected override string GetRequiredSDKString()
 		{
-			return "-23";
+			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
@@ -632,7 +719,6 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			AndroidPlatformSDK SDK = new AndroidPlatformSDK();
-			SDK.ManageAndValidateSDK();
 
 			// Register this build platform
 			UEBuildPlatform.RegisterBuildPlatform(new AndroidPlatform(SDK));

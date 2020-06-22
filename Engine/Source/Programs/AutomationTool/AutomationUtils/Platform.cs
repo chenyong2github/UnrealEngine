@@ -158,20 +158,6 @@ namespace AutomationTool
 
 		#region Turnkey
 
-		public virtual string GetInstalledSdk()
-		{
-			return "";
-		}
-
-		public virtual string GetAllowedSdks()
-		{
-			return "";
-		}
-		public virtual string GetAutoSdkPlatformName()
-		{
-			return IniPlatformType.ToString();
-		}
-
 		public virtual DeviceInfo[] GetDevices()
 		{
 			return null;
@@ -198,11 +184,6 @@ namespace AutomationTool
 		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
 		{
 			return true;
-		}
-		public virtual bool TryConvertVersionToInt(string StringValue, out UInt64 IntValue)
-		{
-			IntValue = 0;
-			return false;
 		}
 
 		#endregion

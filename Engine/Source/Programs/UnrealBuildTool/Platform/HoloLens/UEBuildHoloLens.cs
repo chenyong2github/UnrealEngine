@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.Win32;
 using Tools.DotNETCommon;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -140,16 +141,9 @@ namespace UnrealBuildTool
 		public static readonly Version MaximumSDKVersionForVS2015 = new Version(10, 0, 14393, int.MaxValue);
 		public static readonly Version MinimumSDKVersionForD3D12RHI = new Version(10, 0, 15063, 0);
 
-		HoloLensPlatformSDK SDK;
 
-		public HoloLens(UnrealTargetPlatform InPlatform, HoloLensPlatformSDK InSDK) : base(InPlatform)
+		public HoloLens(UnrealTargetPlatform InPlatform, HoloLensPlatformSDK InSDK) : base(InPlatform, InSDK)
 		{
-			SDK = InSDK;
-		}
-
-		public override SDKStatus HasRequiredSDKsInstalled()
-		{
-			return SDK.HasRequiredSDKsInstalled();
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -749,45 +743,9 @@ namespace UnrealBuildTool
 
 
 
-	class HoloLensPlatformSDK : UEBuildPlatformSDK
+	class HoloLensPlatformSDK : MicrosoftPlatformSDK
 	{
-		static bool bIsInstalled = false;
-		//static string LatestVersionString = string.Empty;
-		//static string InstallLocation = string.Empty;
 
-		static HoloLensPlatformSDK()
-		{
-#if !__MonoCS__
-			if (Utils.IsRunningOnMono)
-			{
-				return;
-			}
-
-			string Version = "v10.0";
-			string[] possibleRegLocations =
-			{
-				@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\",
-				@"HKEY_CURRENT_USER\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\"
-			};
-			foreach (string regLocation in possibleRegLocations)
-			{
-				object Result = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\" + Version, "InstallationFolder", null);
-
-				if (Result != null)
-				{
-					bIsInstalled = true;
-					//InstallLocation = (string)Result;
-					//LatestVersionString = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\" + Version, "ProductVersion", null) as string;
-					break;
-				}
-			}
-#endif
-		}
-
-		protected override SDKStatus HasRequiredManualSDKInternal()
-		{
-			return (!Utils.IsRunningOnMono && bIsInstalled) ? SDKStatus.Valid : SDKStatus.Invalid;
-		}
 	}
 
 	class HoloLensPlatformFactory : UEBuildPlatformFactory
@@ -803,7 +761,6 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			HoloLensPlatformSDK SDK = new HoloLensPlatformSDK();
-			SDK.ManageAndValidateSDK();
 
 			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);

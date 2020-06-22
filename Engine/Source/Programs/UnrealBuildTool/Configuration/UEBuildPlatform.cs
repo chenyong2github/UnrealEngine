@@ -42,9 +42,13 @@ namespace UnrealBuildTool
 		/// Constructor.
 		/// </summary>
 		/// <param name="InPlatform">The enum value for this platform</param>
-		public UEBuildPlatform(UnrealTargetPlatform InPlatform)
+		/// <param name="SDK">The SDK management object for this platform</param>
+		public UEBuildPlatform(UnrealTargetPlatform InPlatform, UEBuildPlatformSDK SDK)
 		{
 			Platform = InPlatform;
+			UEBuildPlatformSDK.RegisterSDKForPlatform(SDK, Platform.ToString());
+
+			SDK.ManageAndValidateSDK();
 		}
 
 		/// <summary>
@@ -153,7 +157,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether the required external SDKs are installed for this platform. Could be either a manual install or an AutoSDK.
 		/// </summary>
-		public abstract SDKStatus HasRequiredSDKsInstalled();
+		public SDKStatus HasRequiredSDKsInstalled()
+		{
+			return UEBuildPlatform.GetSDK(Platform).HasRequiredSDKsInstalled();
+		}
 
 		/// <summary>
 		/// Whether this platform requires specific Visual Studio version.
@@ -798,6 +805,23 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+		}
+
+		/// <summary>
+		/// Gets the SDK object that was passed in to the constructor
+		/// </summary>
+		/// <returns>The SDK object</returns>
+		public UEBuildPlatformSDK GetSDK()
+		{
+			return UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
+		}
+		/// <summary>
+		/// Gets the SDK object that was passed in to the constructor to the UEBuildPlatform constructor for this platform
+		/// </summary>
+		/// <returns>The SDK object</returns>
+		public static UEBuildPlatformSDK GetSDK(UnrealTargetPlatform Platform)
+		{
+			return UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 		}
 
 		/// <summary>

@@ -15,11 +15,11 @@ public class MLSDK : ModuleRules
 
 		Type = ModuleType.External;
 
-		LuminSDKVersionHelper SDKVersionHelper = new LuminSDKVersionHelper();
+		UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(UnrealTargetPlatform.Lumin.ToString());
 		string MLSDKPath = System.Environment.GetEnvironmentVariable("MLSDK");
 		bool bIsMLSDKInstalled = false;
 		bool bIsSupportedTargetPlatformAndType = ((Target.Platform == UnrealTargetPlatform.Lumin) || (Target.Type == TargetRules.TargetType.Editor));
-		if (SDKVersionHelper.HasAnySDK() && !string.IsNullOrEmpty(MLSDKPath))
+		if (SDK.IsVersionValid(SDK.GetInstalledVersion(), bForAutoSDK:false) && !string.IsNullOrEmpty(MLSDKPath))
 		{
 			string IncludePath = Path.Combine(MLSDKPath, "include");
 			string LibraryPath = Path.Combine(MLSDKPath, "lib");

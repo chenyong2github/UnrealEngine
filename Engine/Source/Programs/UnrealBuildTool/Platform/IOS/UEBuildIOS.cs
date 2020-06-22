@@ -6,9 +6,7 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Xml;
 using Tools.DotNETCommon;
-using Microsoft.Win32;
 
 namespace UnrealBuildTool
 {
@@ -648,7 +646,7 @@ namespace UnrealBuildTool
 						if (idx > 0)
 						{
 							idx += "<string>".Length;
-							String FullID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
+							string FullID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
 							BundleIdentifier = FullID.Substring(FullID.IndexOf('.') + 1);
 						}
 					}
@@ -706,7 +704,6 @@ namespace UnrealBuildTool
 
 	class IOSPlatform : UEBuildPlatform
 	{
-		IOSPlatformSDK SDK;
 		List<IOSProjectSettings> CachedProjectSettings = new List<IOSProjectSettings>();
 		List<IOSProjectSettings> CachedProjectSettingsByBundle = new List<IOSProjectSettings>();
 		Dictionary<string, IOSProvisioningData> ProvisionCache = new Dictionary<string, IOSProvisioningData>();
@@ -714,15 +711,14 @@ namespace UnrealBuildTool
 		// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
 		public static string IOSArchitecture = "";
 
-		public IOSPlatform(IOSPlatformSDK InSDK)
+		public IOSPlatform(UEBuildPlatformSDK InSDK)
 			: this(InSDK, UnrealTargetPlatform.IOS)
 		{
 		}
 
-		protected IOSPlatform(IOSPlatformSDK InSDK, UnrealTargetPlatform TargetPlatform)
-			: base(TargetPlatform)
+		protected IOSPlatform(UEBuildPlatformSDK InSDK, UnrealTargetPlatform TargetPlatform)
+			: base(TargetPlatform, InSDK)
 		{
-			SDK = InSDK;
 		}
 
 		// The current architecture - affects everything about how UBT operates on IOS
@@ -807,11 +803,6 @@ namespace UnrealBuildTool
 
 
 			Target.bCheckSystemHeadersForModification = false;
-		}
-
-		public override SDKStatus HasRequiredSDKsInstalled()
-		{
-			return SDK.HasRequiredSDKsInstalled();
 		}
 
 		/// <summary>
@@ -1197,61 +1188,6 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class IOSPlatformSDK : UEBuildPlatformSDK
-	{
-		protected override SDKStatus HasRequiredManualSDKInternal()
-		{
-			if (!Utils.IsRunningOnMono)
-			{
-				// check to see if iTunes is installed
-				string dllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "iTunesMobileDeviceDLL", null) as string;
-				if (String.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
-				{
-					dllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
-					if (String.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
-					{
-						dllPath = FindWindowsStoreITunesDLL();
-
-						if (String.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
-						{
-							return SDKStatus.Invalid;
-						}
-					}
-				}
-			}
-			return SDKStatus.Valid;
-		}
-
-		static string FindWindowsStoreITunesDLL()
-		{
-			string InstallPath = null;
-
-			string PackagesKeyName = "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\PackageRepository\\Packages";
-
-			RegistryKey PackagesKey = Registry.LocalMachine.OpenSubKey(PackagesKeyName);
-			if (PackagesKey != null)
-			{
-				string[] PackageSubKeyNames = PackagesKey.GetSubKeyNames();
-
-				foreach (string PackageSubKeyName in PackageSubKeyNames)
-				{
-					if (PackageSubKeyName.Contains("AppleInc.iTunes") && (PackageSubKeyName.Contains("_x64") || PackageSubKeyName.Contains("_x86")))
-					{
-						string FullPackageSubKeyName = PackagesKeyName + "\\" + PackageSubKeyName;
-
-						RegistryKey iTunesKey = Registry.LocalMachine.OpenSubKey(FullPackageSubKeyName);
-						if (iTunesKey != null)
-						{
-							InstallPath = (string)iTunesKey.GetValue("Path") + "\\AMDS32\\MobileDevice.dll";
-							break;
-						}
-					}
-				}
-			}
-
-			return InstallPath;
-		}
-	}
 
 	class IOSPlatformFactory : UEBuildPlatformFactory
 	{
@@ -1265,8 +1201,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			IOSPlatformSDK SDK = new IOSPlatformSDK();
-			SDK.ManageAndValidateSDK();
+			ApplePlatformSDK SDK = new ApplePlatformSDK();
 
 			// Register this build platform for IOS
 			UEBuildPlatform.RegisterBuildPlatform(new IOSPlatform(SDK));

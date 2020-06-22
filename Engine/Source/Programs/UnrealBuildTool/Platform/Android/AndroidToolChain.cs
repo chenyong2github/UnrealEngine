@@ -13,11 +13,6 @@ namespace UnrealBuildTool
 {
 	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
 	{
-		// Android NDK toolchain that must be used for C++ compiling
-		readonly int MinimumNDKToolchain = 210100;
-		readonly int MaximumNDKToolchain = 230100;
-		readonly int RecommendedNDKToolchain = 210200;
-
 		public static readonly string[] AllCpuSuffixes =
 		{
 			"-armv7",
@@ -94,8 +89,7 @@ namespace UnrealBuildTool
 		};
 
 		public string NDKToolchainVersion;
-		public string NDKDefine;
-		public int NDKDefineInt;
+		public UInt64 NDKVersionInt;
 
 		protected void SetClangVersion(int Major, int Minor, int Patch)
 		{
@@ -107,14 +101,6 @@ namespace UnrealBuildTool
 		public string GetClangVersionString()
 		{
 			return string.Format("{0}.{1}.{2}", ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
-		}
-
-		public void ShowNDKWarnings()
-		{
-			if (NDKDefineInt < RecommendedNDKToolchain)
-			{
-				Log.TraceInformation("Note: Android toolchain NDK " + ToolchainIntToString(RecommendedNDKToolchain) + " recommended");
-			}
 		}
 
 		/// <summary>
@@ -135,17 +121,6 @@ namespace UnrealBuildTool
 			return ClangVersionMajor < Major ||
 				(ClangVersionMajor == Major && ClangVersionMinor < Minor) ||
 				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch < Patch);
-		}
-
-		private static string ToolchainIntToString(int ToolchainInt)
-		{
-			int RevisionNum = ToolchainInt / 10000;
-			int RevisionMinor = ToolchainInt - (RevisionNum * 10000);
-			int RevisionLetterNum = RevisionMinor / 100;
-			//int RevisionBeta = RevisionMinor - (RevisionLetterNum * 100);
-			char RevisionLetter = Convert.ToChar('a' + RevisionLetterNum - 1);
-
-			return "r" + RevisionNum + (RevisionLetterNum > 1 ? Char.ToString(RevisionLetter) : "");
 		}
 
 		[CommandLine("-Architectures=", ListSeparator = '+')]
@@ -198,49 +173,7 @@ namespace UnrealBuildTool
 
 			NDKPath = NDKPath.Replace("\"", "");
 
-			// figure out the NDK version
-			NDKToolchainVersion = "unknown";
-			NDKDefine = "100500";    // assume r10e
-			string SourcePropFilename = Path.Combine(NDKPath, "source.properties");
-			if (File.Exists(SourcePropFilename))
-			{
-				string RevisionString = "";
-				string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
-				foreach (string PropertyLine in PropertyContents)
-				{
-					if (PropertyLine.StartsWith("Pkg.Revision"))
-					{
-						RevisionString = PropertyLine;
-						break;
-					}
-				}
-
-				int EqualsIndex = RevisionString.IndexOf('=');
-				if (EqualsIndex > 0)
-				{
-					string[] RevisionParts = RevisionString.Substring(EqualsIndex + 1).Trim().Split('.');
-					int RevisionMinor = int.Parse(RevisionParts.Length > 1 ? RevisionParts[1] : "0");
-					char RevisionLetter = Convert.ToChar('a' + RevisionMinor);
-					int RevisionBeta = 0;  // @TODO
-					NDKToolchainVersion = "r" + RevisionParts[0] + (RevisionMinor > 0 ? Char.ToString(RevisionLetter) : "");
-					NDKDefine = RevisionParts[0] + string.Format("{0:00}", RevisionMinor + 1) + string.Format("{0:00}", RevisionBeta);
-				}
-			}
-			else
-			{
-				string ReleaseFilename = Path.Combine(NDKPath, "RELEASE.TXT");
-				if (File.Exists(ReleaseFilename))
-				{
-					string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
-					NDKToolchainVersion = PropertyContents[0];
-				}
-			}
-			if (!int.TryParse(NDKDefine, out NDKDefineInt))
-			{
-				NDKDefineInt = 100500;
-			}
-
-			string ArchitecturePath = "";
+			string ArchitecturePath;
 			string ArchitecturePathWindows32 = @"prebuilt/windows";
 			string ArchitecturePathWindows64 = @"prebuilt/windows-x86_64";
 			string ArchitecturePathMac = @"prebuilt/darwin-x86_64";
@@ -274,6 +207,11 @@ namespace UnrealBuildTool
 				throw new BuildException("Couldn't find 32-bit or 64-bit versions of the Android toolchain with NDKROOT: " + NDKPath);
 			}
 
+			// get the installed version (in the form r10e and 100500)
+			UEBuildPlatformSDK SDK = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Android);
+			NDKToolchainVersion = SDK.GetInstalledVersion();
+			SDK.TryConvertVersionToInt(NDKToolchainVersion, out NDKVersionInt);
+
 			// figure out clang version (will live in toolchains/llvm from NDK 21 forward
 			if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm")))
 			{
@@ -292,17 +230,9 @@ namespace UnrealBuildTool
 				throw new BuildException("Cannot find supported Android toolchain with NDKPath:" + NDKPath);
 			}
 
-			// verify NDK toolchain is supported
-			if ((NDKDefineInt < MinimumNDKToolchain || NDKDefineInt > MaximumNDKToolchain)
-				&& !bAllowMissingNDK)
-			{
-				throw new BuildException("Android toolchain NDK " + ToolchainIntToString(NDKDefineInt) + " not supported; please use NDK " + ToolchainIntToString(MinimumNDKToolchain) + " to NDK " + ToolchainIntToString(MaximumNDKToolchain) +
-					" (NDK " + ToolchainIntToString(RecommendedNDKToolchain) + " recommended)");
-			}
-
 			// set up the path to our toolchains
 			ClangPath = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/clang++" + ExeExtension));
-			if (NDKDefineInt < 210000 || ForceLDLinker())
+			if (ForceLDLinker())
 			{
 				// use ld before r21
 				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/arm-linux-androideabi-4.9", ArchitecturePath, @"bin/armv7a-linux-androideabi-ar" + ExeExtension));
@@ -891,7 +821,7 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
-			bool bUseLLD = NDKDefineInt >= 210000 && !ForceLDLinker();
+			bool bUseLLD = !ForceLDLinker();
 			bool bAllowLdGold = true;
 			if (Architecture == "-arm64")
 			{

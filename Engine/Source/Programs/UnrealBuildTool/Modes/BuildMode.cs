@@ -202,6 +202,9 @@ namespace UnrealBuildTool
 							FileMetadataPrefetch.QueueProjectDirectory(ProjectDirectory);
 							ProjectDirs.Add(ProjectDirectory);
 						}
+
+						// print out SDK info for only the platforms that are being compiled
+						UEBuildPlatformSDK.GetSDKForPlatform(TargetDesc.Platform.ToString()).PrintSDKInfo();
 					}
 
 					// Get all the build options

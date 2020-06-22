@@ -8,6 +8,7 @@ using System.IO;
 using System.Xml;
 using System.Linq;
 using Tools.DotNETCommon;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -71,90 +72,9 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
-	/// <summary>
-	/// Helper class for shared lumin platform functions and members
-	/// </summary>
-	public class LuminSDKVersionHelper
-	{
-		/// <summary>
-		/// This is the minimum SDK version we support.
-		/// </summary>
-		static uint MinimumSDKVersionMajor = 0;
-		static uint MinimumSDKVersionMinor = 23;
-
-		/// <summary>
-		/// Gets a string defining the minimum required sdk version.
-		/// </summary>
-		/// <returns></returns>
-		public string GetRequiredSDKString()
-		{
-			return string.Format("{0}.{1}", MinimumSDKVersionMajor, MinimumSDKVersionMinor);
-		}
-
-		/// <summary>
-		/// checks if the sdk is installed or has been synced, sets environment variable
-		/// </summary>
-		/// <returns></returns>
-		public bool HasAnySDK()
-		{
-			string EnvVarKey = "MLSDK";
-
-			string MLSDKPath = Environment.GetEnvironmentVariable(EnvVarKey);
-			if (String.IsNullOrEmpty(MLSDKPath))
-			{
-				Log.TraceLog("*** Unable to determine MLSDK location ***");
-				return false;
-			}
-
-			// detected SDK version is < minimum major/minor
-			uint DetectedMajorVersion;
-			uint DetectedMinorVersion;
-			String VersionFile = string.Format("{0}/include/ml_version.h", MLSDKPath).Replace('/', Path.DirectorySeparatorChar);
-			if (File.Exists(VersionFile))
-			{
-				string[] VersionText = File.ReadAllLines(VersionFile);
-
-				String MajorVersion = FindVersionNumber("MLSDK_VERSION_MAJOR", VersionText);
-				String MinorVersion = FindVersionNumber("MLSDK_VERSION_MINOR", VersionText);
-				DetectedMajorVersion = Convert.ToUInt32(MajorVersion);
-				DetectedMinorVersion = Convert.ToUInt32(MinorVersion);
-			}
-			else
-			{
-				Log.TraceLog("*** Unable to locate MLSDK version file ml_version.h ***");
-				return false;
-			}
-
-			if (DetectedMajorVersion < MinimumSDKVersionMajor || (DetectedMajorVersion == MinimumSDKVersionMajor && DetectedMinorVersion < MinimumSDKVersionMinor))
-			{
-				Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' but require at least {3}.{4} ***",
-					DetectedMajorVersion, DetectedMinorVersion, MLSDKPath, MinimumSDKVersionMajor, MinimumSDKVersionMinor);
-				return false;
-			}
-
-			Log.TraceLog("*** Found installed MLSDK version {0}.{1} at '{2}' ***", DetectedMajorVersion, DetectedMinorVersion, MLSDKPath);
-			return true;
-		}
-
-		private string FindVersionNumber(string StringToFind, string[] AllLines)
-		{
-			string FoundVersion = "Unknown";
-			foreach (string CurrentLine in AllLines)
-			{
-				int Index = CurrentLine.IndexOf(StringToFind);
-				if (Index != -1)
-				{
-					FoundVersion = CurrentLine.Substring(Index + StringToFind.Length);
-					break;
-				}
-			}
-			return FoundVersion.Trim();
-		}
-	}
-
 	class LuminPlatform : AndroidPlatform
 	{
-		public LuminPlatform(AndroidPlatformSDK InSDK)
+		public LuminPlatform(UEBuildPlatformSDK InSDK)
 			: base(UnrealTargetPlatform.Lumin, InSDK)
 		{
 		}
@@ -324,21 +244,87 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class LuminPlatformSDK : AndroidPlatformSDK
+	class LuminPlatformSDK : UEBuildPlatformSDK
 	{
-		/// <summary>
-		/// This is the minimum SDK version we support.
-		/// </summary>
-		LuminSDKVersionHelper SDKVersionHelper = new LuminSDKVersionHelper();
 
-		public override string GetSDKTargetPlatformName()
+		public override string GetDesiredVersion()
 		{
-			return "Lumin";
+			return "0.23";
+		}
+
+		// not needed just returning GetDesiredVersion()
+// 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+// 		{
+// 			MinVersion = "0.23";
+// 			MaxVersion = "0.23";
+// 		}
+
+
+		public override string GetInstalledSDKVersion()
+		{
+			string EnvVarKey = "MLSDK";
+
+			string MLSDKPath = Environment.GetEnvironmentVariable(EnvVarKey);
+			if (String.IsNullOrEmpty(MLSDKPath))
+			{
+				return null;
+			}
+
+			String VersionFile = Path.Combine(MLSDKPath, "include/ml_version.h");
+			if (File.Exists(VersionFile))
+			{
+				string[] VersionText = File.ReadAllLines(VersionFile);
+
+				String MajorVersion = FindVersionNumber("MLSDK_VERSION_MAJOR", VersionText);
+				String MinorVersion = FindVersionNumber("MLSDK_VERSION_MINOR", VersionText);
+
+				return string.Format("{0}.{1}", MajorVersion, MinorVersion);
+			}
+
+			return null;
+		}
+
+
+		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		{
+			// make major high 16 bits, minor low 16
+			Match Result = Regex.Match(StringValue, @"^(\d+).(\d+)$");
+			if (Result.Success)
+			{
+				OutValue = UInt64.Parse(Result.Groups[1].Value) << 16 | UInt64.Parse(Result.Groups[2].Value) << 0;
+				return true;
+			}
+			OutValue = 0;
+			return false;
+		}
+
+
+
+
+		private string FindVersionNumber(string StringToFind, string[] AllLines)
+		{
+			string FoundVersion = "Unknown";
+			foreach (string CurrentLine in AllLines)
+			{
+				int Index = CurrentLine.IndexOf(StringToFind);
+				if (Index != -1)
+				{
+					FoundVersion = CurrentLine.Substring(Index + StringToFind.Length);
+					break;
+				}
+			}
+			return FoundVersion.Trim();
+		}
+
+
+		protected override bool PlatformSupportsAutoSDKs()
+		{
+			return true;
 		}
 
 		protected override string GetRequiredSDKString()
 		{
-			return SDKVersionHelper.GetRequiredSDKString();
+			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
@@ -346,29 +332,10 @@ namespace UnrealBuildTool
 			return "Lumin_15";
 		}
 
-		/// <summary>
-		/// checks if the sdk is installed or has been synced, sets environment variable
-		/// </summary>
-		/// <returns></returns>
-		protected override bool HasAnySDK()
+		// prefer auto sdk on android as correct 'manual' sdk detection isn't great at the moment.
+		protected override bool PreferAutoSDK()
 		{
-			return SDKVersionHelper.HasAnySDK();
-		}
-
-		protected override SDKStatus HasRequiredManualSDKInternal()
-		{
-			// if any autosdk setup has been done then the local process environment is suspect
-			if (HasSetupAutoSDK())
-			{
-				return SDKStatus.Invalid;
-			}
-
-			if (SDKVersionHelper.HasAnySDK())
-			{
-				return SDKStatus.Valid;
-			}
-
-			return SDKStatus.Invalid;
+			return true;
 		}
 	}
 
@@ -382,7 +349,6 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			LuminPlatformSDK SDK = new LuminPlatformSDK();
-			SDK.ManageAndValidateSDK();
 
 			// Register this build platform
 			UEBuildPlatform.RegisterBuildPlatform(new LuminPlatform(SDK));

@@ -297,7 +297,7 @@ namespace Turnkey
 
 				// convert inputs to uint (unless already converted above by platform)
 				UInt64 ValueInt = 0;
-				if (!TryConvertToUint64(Value, out ValueInt) && !Platform.TryConvertVersionToInt(Value, out ValueInt))
+				if (!TryConvertToUint64(Value, out ValueInt) && !UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).TryConvertVersionToInt(Value, out ValueInt))
 				{
 					TurnkeyUtils.Log("Warning: range: input value [{0}] was not an unsigned integer, and platform couldn't convert it", Value);
 					return false;

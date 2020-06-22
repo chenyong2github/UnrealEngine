@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Tools.DotNETCommon;
 using UnrealBuildTool;
 using AutomationTool;
+using System.Threading;
 
 namespace Turnkey
 {
@@ -12,14 +13,33 @@ namespace Turnkey
 	{
 		public override ExitCode Execute()
 		{
+			// 			Thread t = new Thread(Turnkey.ThreadProc);
+			// 			Console.WriteLine("Before setting apartment state: {0}",
+			// 				t.GetApartmentState());
+			// 
+			// 			t.SetApartmentState(ApartmentState.STA);
+			// 			Console.WriteLine("After setting apartment state: {0}",
+			// 				t.GetApartmentState());
+			// 
+			// 			t.Start(this);
+			// 			t.Join();
+
+			ThreadProc(this);
+			return TurnkeyUtils.ExitCode;
+		}
+
+		private static void ThreadProc(object Data)
+		{
+			BuildCommand Build = (BuildCommand)Data;
+
 			IOProvider IOProvider;
-			if (ParseParam("EditorIO"))
+			if (Build.ParseParam("EditorIO"))
 			{
 				IOProvider = new HybridIOProvider();
 			}
 			else
 			{
-				string ReportFilename = ParseParamValue("ReportFilename");
+				string ReportFilename = Build.ParseParamValue("ReportFilename");
 				if (!string.IsNullOrEmpty(ReportFilename))
 				{
 					IOProvider = new ReportIOProvider(ReportFilename);
@@ -30,8 +50,9 @@ namespace Turnkey
 				}
 			}
 
-			return Turnkey.Execute(IOProvider, this);
+			Turnkey.Execute(IOProvider, Build);
 		}
+
 
 		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
 		{

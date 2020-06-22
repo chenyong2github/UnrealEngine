@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 
 		public static string WhichClang()
 		{
-			string InternalSDKPath = LinuxPlatformSDK.GetInternalSDKPath();
+			string InternalSDKPath = ((LinuxPlatformSDK)UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)).GetInternalSDKPath();
 			if (!String.IsNullOrEmpty(InternalSDKPath))
 			{
 				return Path.Combine(InternalSDKPath, "bin", "clang++");

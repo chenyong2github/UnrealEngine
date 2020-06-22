@@ -1161,11 +1161,6 @@ namespace UnrealBuildTool
 		private static List<FileItem> AllBinaries = new List<FileItem>();
 
 		/// <summary>
-		/// Tracks that information about used C++ library is only printed once
-		/// </summary>
-		private bool bHasPrintedBuildDetails = false;
-
-		/// <summary>
 		/// Checks if we actually can use LTO/PGO with this set of tools
 		/// </summary>
 		protected virtual bool CanUseAdvancedLinkerFeatures(string Architecture)
@@ -1263,52 +1258,12 @@ namespace UnrealBuildTool
 			Log.TraceInformation("------------------------------");
 		}
 
-		protected bool CheckSDKVersionFromFile(string VersionPath, out string ErrorMessage)
-		{
-			if (File.Exists(VersionPath))
-			{
-				StreamReader SDKVersionFile = new StreamReader(VersionPath);
-				string SDKVersionString = SDKVersionFile.ReadLine();
-				SDKVersionFile.Close();
-
-				if (SDKVersionString != null)
-				{
-					return PlatformSDK.CheckSDKCompatible(SDKVersionString, out ErrorMessage);
-				}
-			}
-
-			ErrorMessage = "Cannot use an old toolchain (missing " + PlatformSDK.SDKVersionFileName() + " file, assuming version earlier than v11)";
-			return false;
-		}
-
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			string Arguments = GetCLArguments_Global(CompileEnvironment);
 			string PCHArguments = "";
 
 			//var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
-
-			if (!bHasPrintedBuildDetails)
-			{
-				PrintBuildDetails(CompileEnvironment);
-
-				string LinuxDependenciesPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Source/ThirdParty/Linux", PlatformSDK.HaveLinuxDependenciesFile());
-				if (!File.Exists(LinuxDependenciesPath))
-				{
-					throw new BuildException("Please make sure that Engine/Source/ThirdParty/Linux is complete (re - run Setup script if using a github build)");
-				}
-
-				if (!String.IsNullOrEmpty(MultiArchRoot))
-				{
-					string ErrorMessage;
-					if (!CheckSDKVersionFromFile(Path.Combine(MultiArchRoot, PlatformSDK.SDKVersionFileName()), out ErrorMessage))
-					{
-						throw new BuildException(ErrorMessage);
-					}
-				}
-
-				bHasPrintedBuildDetails = true;
-			}
 
 			if ((CompileEnvironment.bAllowLTCG || CompileEnvironment.bPGOOptimize || CompileEnvironment.bPGOProfile) && !CanUseAdvancedLinkerFeatures(CompileEnvironment.Architecture))
 			{

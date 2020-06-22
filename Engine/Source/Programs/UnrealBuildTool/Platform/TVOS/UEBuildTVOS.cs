@@ -2,10 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
-using System.IO;
-using System.Xml;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -44,7 +40,7 @@ namespace UnrealBuildTool
 
 	class TVOSPlatform : IOSPlatform
     {
-		public TVOSPlatform(IOSPlatformSDK InSDK)
+		public TVOSPlatform(UEBuildPlatformSDK InSDK)
 			: base(InSDK, UnrealTargetPlatform.TVOS)
 		{
 		}
@@ -157,9 +153,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			IOSPlatformSDK SDK = new IOSPlatformSDK();
-			SDK.ManageAndValidateSDK();
-
+			ApplePlatformSDK SDK = new ApplePlatformSDK();
+		
 			// Register this build platform for IOS
 			UEBuildPlatform.RegisterBuildPlatform(new TVOSPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.TVOS, UnrealPlatformGroup.Apple);

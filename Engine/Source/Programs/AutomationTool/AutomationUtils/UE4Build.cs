@@ -1325,6 +1325,7 @@ namespace AutomationTool
 						"UnrealBuildTool.exe.config",
 						"AutomationUtils.Automation.dll",
 						"DotNETUtilities.dll",
+						"BuildUtilities.dll",
 						"MobileDeviceInterface.dll"
 					});
 

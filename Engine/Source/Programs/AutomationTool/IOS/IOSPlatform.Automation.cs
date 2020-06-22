@@ -169,22 +169,6 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
-	public override string GetAllowedSdks()
-	{
-		return "11.5";
-	}
-	public override string GetInstalledSdk()
-	{
-		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
-		{
-			return base.GetInstalledSdk();
-		}
-
-		// @todo turnkey: get installed Xcode version
-		string Output = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", "-c 'xcodebuild -version'");
-		Match Result = Regex.Match(Output, @"Xcode (\S*)");
-		return Result.Success ? Result.Groups[1].Value : "";
-	}
 	public override string GetAllowedSoftwareVersions()
 	{
 		return @"regex:^13\.5.*";

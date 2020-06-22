@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Tools.DotNETCommon;
 using UnrealBuildTool;
 
 namespace Turnkey.Commands
@@ -110,7 +111,9 @@ namespace Turnkey.Commands
 
 				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
-					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk found matching {1} - {2}]", Platform, AutomationPlatform.GetAllowedSdks(), LocalState.ToString());
+					string MinAllowedVersion, MaxAllowedVersion;
+					UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk in range {1}-{2} - {3}]", Platform, MinAllowedVersion, MaxAllowedVersion, LocalState.ToString());
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
@@ -119,17 +122,11 @@ namespace Turnkey.Commands
 					//					TurnkeyUtils.Log("{0}: Valid [Installed: '{1}', Required: '{2}']", Platform, PlatformObject.GetInstalledSdk(), PlatformObject.GetAllowedSdks());
 				}
 
-				// track if we installed an AutoSdk since we may need to setup autosdks before checking for devices
-				bool bAutoSdkSetupSucceeded = false;
-
 				// install if out of date, or if forcing it
 				if (bForceSdkInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
 				{
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
-					// if autosdk worked, we don't need to install full sdk
-					if (!bAutoSdkSetupSucceeded)
-					{
 // 						if (!bUnattended)
 // 						{
 // 							string Response = TurnkeyUtils.ReadInput("Your Sdk installation is not up to date. Would you like to install a valid Sdk? [Y/n]", "Y");
@@ -139,46 +136,38 @@ namespace Turnkey.Commands
 // 							}
 // 						}
 
-						SdkInfo BestSdk = null;
-						// find the best Sdk, prioritizing as request
-						if (bPreferFullSdk)
-						{
-							BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Full, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.AutoSdk }, bSelectBest: bUnattended);
-						}
-						else
-						{
-							BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.AutoSdk, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.Full }, bSelectBest: bUnattended);
-						}
-
-						if (BestSdk == null)
-						{
-							TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed");
-							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
-							continue;
-						}
-
-						TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
-
-						bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
-
-						// update LocalState
-						LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
-
-						// @todo turnkey: validate!
+					SdkInfo BestSdk = null;
+					// find the best Sdk, prioritizing as request
+					if (bPreferFullSdk)
+					{
+						BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Full, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.AutoSdk }, bSelectBest: bUnattended);
 					}
+					else
+					{
+						BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.AutoSdk, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.Full }, bSelectBest: bUnattended);
+					}
+
+					if (BestSdk == null)
+					{
+						TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed", Platform);
+						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+						continue;
+					}
+
+					TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
+
+					bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
+
+					// update LocalState
+					LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
+
+					// @todo turnkey: validate!
 				}
 
 				// use the per-platform device list, unless it's not specifed, then use the global device list (which is set when not using platform specifiers)
 				List<string> DeviceNames = Pair.Value != null ? Pair.Value : SplitDeviceList;
 				if (DeviceNames != null && DeviceNames.Count > 0)
 				{
-					// if we just setup AutoSdk, then run the setup so that we have a hope of finding devices
-					if (bAutoSdkSetupSucceeded)
-					{
-						// @todo turnkey: Run the autosdk thing
-						//							AutomationPlatform.
-					}
-
 					DeviceInfo[] Devices = AutomationPlatform.GetDevices();
 					if (Devices == null)
 					{

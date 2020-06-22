@@ -165,17 +165,9 @@ namespace UnrealBuildTool
 		}
 
 		public LinuxPlatform(UnrealTargetPlatform UnrealTarget, LinuxPlatformSDK InSDK)
-			: base(UnrealTarget)
+			: base(UnrealTarget, InSDK)
 		{
 			SDK = InSDK;
-		}
-
-		/// <summary>
-		/// Whether the required external SDKs are installed for this platform. Could be either a manual install or an AutoSDK.
-		/// </summary>
-		public override SDKStatus HasRequiredSDKsInstalled()
-		{
-			return SDK.HasRequiredSDKsInstalled();
 		}
 
 		/// <summary>
@@ -619,15 +611,81 @@ namespace UnrealBuildTool
 
 	class LinuxPlatformSDK : UEBuildPlatformSDK
 	{
-		/// <summary>
-		/// This is the SDK version we support
-		/// </summary>
-		static string ExpectedSDKVersion = "v16_clang-9.0.1-centos7";	// now unified for all the architectures
+		public override string GetDesiredVersion()
+		{
+			return "v15_clang-8.0.1-centos7";
+//			return "v16_clang-9.0.1-centos7";
+		}
+
+		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+ 		{
+			// all that matters is the number after the v, according to TryConvertVersionToInt()
+			MinVersion = "v10_clang-5.0.0-centos7";
+ 			MaxVersion = "v16_clang-9.0.1-centos7";
+ 		}
+
+		public override string GetAutoSDKPlatformName()
+		{
+			return TargetPlatformName;
+		}
+
+
+		public override string GetInstalledSDKVersion()
+		{
+			// @todo turnkey: ForceUseSystemCompiler() returns true, we should probably run system clang -V or similar to get version
+
+			string SDKDir = GetSDKLocation();
+			if (string.IsNullOrEmpty(SDKDir))
+			{
+				return null;
+			}
+
+			string VersionFile = Path.Combine(SDKDir, SDKVersionFileName());
+
+			if (!File.Exists(VersionFile))
+			{
+				// ErrorMessage = "Cannot use an old toolchain (missing " + PlatformSDK.SDKVersionFileName() + " file, assuming version earlier than v11)";
+				return null;
+			}
+
+			StreamReader SDKVersionFile = new StreamReader(VersionFile);
+			string SDKVersionString = SDKVersionFile.ReadLine();
+			SDKVersionFile.Close();
+
+			return SDKVersionString;
+		}
+
+
+		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		{
+			// Example: v11_clang-5.0.0-centos7
+			string FullVersionPattern = @"^v([0-9]+)_.*$";
+			Match Result = Regex.Match(StringValue, FullVersionPattern);
+			if (Result.Success)
+			{
+				return UInt64.TryParse(Result.Groups[1].Value, out OutValue);
+			}
+
+			OutValue = 0;
+			return false;
+		}
+
+
+
+
+
+		protected override bool PlatformSupportsAutoSDKs()
+		{
+			return true;
+		}
+
+
+
 
 		/// <summary>
 		/// Platform name (embeds architecture for now)
 		/// </summary>
-		static private string TargetPlatformName = "Linux_x64";
+		private const string TargetPlatformName = "Linux_x64";
 
 		/// <summary>
 		/// Force using system compiler and error out if not possible
@@ -648,37 +706,24 @@ namespace UnrealBuildTool
 		/// Whether platform supports switching SDKs during runtime
 		/// </summary>
 		/// <returns>true if supports</returns>
-		protected override bool PlatformSupportsAutoSDKs()
-		{
-			return true;
-		}
-
-		/// <summary>
-		/// Returns platform-specific name used in SDK repository
-		/// </summary>
-		/// <returns>path to SDK Repository</returns>
-		public override string GetSDKTargetPlatformName()
-		{
-			return TargetPlatformName;
-		}
 
 		/// <summary>
 		/// Returns a path to the internal SDK
 		/// </summary>
 		/// <returns>Valid path to the internal SDK, null otherwise</returns>
-		static public string GetInternalSDKPath()
+		public string GetInternalSDKPath()
 		{
 			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (!String.IsNullOrEmpty(SDKRoot))
 			{
-				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, ExpectedSDKVersion, LinuxPlatform.DefaultHostArchitecture);
+				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetDesiredVersion(), LinuxPlatform.DefaultHostArchitecture);
 				if (DirectoryReference.Exists(new DirectoryReference(AutoSDKPath)))
 				{
 					return AutoSDKPath;
 				}
 			}
 
-			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, ExpectedSDKVersion, LinuxPlatform.DefaultHostArchitecture);
+			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, GetDesiredVersion(), LinuxPlatform.DefaultHostArchitecture);
 			if (DirectoryReference.Exists(new DirectoryReference(InTreeSDKPath)))
 			{
 				return InTreeSDKPath;
@@ -693,7 +738,7 @@ namespace UnrealBuildTool
 		/// <returns>Valid SDK string</returns>
 		protected override string GetRequiredSDKString()
 		{
-			return ExpectedSDKVersion;
+			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
@@ -716,56 +761,6 @@ namespace UnrealBuildTool
 		public string SDKVersionFileName()
 		{
 			return "ToolchainVersion.txt";
-		}
-
-		protected static int GetLinuxToolchainVersionFromString(string SDKVersion)
-		{
-			// Example: v11_clang-5.0.0-centos7
-			string FullVersionPattern = @"^v[0-9]+_.*$";
-			Regex Regex = new Regex(FullVersionPattern);
-			if (Regex.IsMatch(SDKVersion))
-			{
-				string VersionPattern = @"[0-9]+";
-				Regex = new Regex(VersionPattern);
-				Match Match = Regex.Match(SDKVersion);
-				if (Match.Success)
-				{
-					int Version;
-					bool bParsed = Int32.TryParse(Match.Value, out Version);
-					if (bParsed)
-					{
-						return Version;
-					}
-				}
-			}
-
-			return -1;
-		}
-
-		public bool CheckSDKCompatible(string VersionString, out string ErrorMessage)
-		{
-			int Version = GetLinuxToolchainVersionFromString(VersionString);
-			int ExpectedVersion = GetLinuxToolchainVersionFromString(ExpectedSDKVersion);
-			if (Version >= 0 && ExpectedVersion >= 0 && Version != ExpectedVersion)
-			{
-				if (Version < ExpectedVersion)
-				{
-					ErrorMessage = "Toolchain found \"" + VersionString + "\" is older then the required version \"" + ExpectedSDKVersion + "\"";
-					return false;
-				}
-				else
-				{
-					Log.TraceWarning("Toolchain \"{0}\" is newer than the expected version \"{1}\", you may run into compilation errors", VersionString, ExpectedSDKVersion);
-				}
-			}
-			else if (VersionString != ExpectedSDKVersion)
-			{
-				ErrorMessage = "Failed to find a supported toolchain, found \"" + VersionString + "\", expected \"" + ExpectedSDKVersion + "\"";
-				return false;
-			}
-
-			ErrorMessage = "";
-			return true;
 		}
 
 		/// <summary>
@@ -816,7 +811,7 @@ namespace UnrealBuildTool
 				DirectoryReference InTreeSDKVersionRoot = GetInTreeSDKRoot();
 				if (InTreeSDKVersionRoot != null)
 				{
-					DirectoryReference InTreeSDKVersionPath = DirectoryReference.Combine(InTreeSDKVersionRoot, ExpectedSDKVersion);
+					DirectoryReference InTreeSDKVersionPath = DirectoryReference.Combine(InTreeSDKVersionRoot, GetDesiredVersion());
 					if (DirectoryReference.Exists(InTreeSDKVersionPath))
 					{
 						MultiArchRoot = InTreeSDKVersionPath.FullName;
@@ -903,7 +898,7 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			LinuxPlatformSDK SDK = new LinuxPlatformSDK();
-			SDK.ManageAndValidateSDK();
+			LinuxPlatformSDK SDKAarch64 = new LinuxPlatformSDK();
 
 			// Register this build platform for Linux x86-64 and AArch64
 			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK));
@@ -911,7 +906,7 @@ namespace UnrealBuildTool
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Unix);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Desktop);
 
-			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxAArch64, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxAArch64, SDKAarch64));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Linux);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Unix);
 		}

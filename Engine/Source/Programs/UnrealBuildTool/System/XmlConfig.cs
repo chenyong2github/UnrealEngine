@@ -154,12 +154,20 @@ namespace UnrealBuildTool
 		static List<Type> FindConfigurableTypes()
 		{
 			List<Type> ConfigTypes = new List<Type>();
-			foreach(Type ConfigType in Assembly.GetExecutingAssembly().GetTypes())
+			try
 			{
-				if(HasXmlConfigFileAttribute(ConfigType))
+				foreach (Type ConfigType in Assembly.GetExecutingAssembly().GetTypes())
 				{
-					ConfigTypes.Add(ConfigType);
+					if (HasXmlConfigFileAttribute(ConfigType))
+					{
+						ConfigTypes.Add(ConfigType);
+					}
 				}
+			}
+			catch (ReflectionTypeLoadException Ex)
+			{
+				Console.WriteLine("TypeLoadException: {0}", string.Join("\n", Ex.LoaderExceptions.Select(x => x.Message)));
+				throw;
 			}
 			return ConfigTypes;
 		}

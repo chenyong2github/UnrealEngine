@@ -83,21 +83,22 @@ namespace Turnkey.Commands
 
 				// cache the automation platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 
-// 				if (bAllowAutoSdk)
-// 				{
-// 					// first, attempt AutoSdk
-// 					SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
-// 					bool bWasAutoSdkSetup;
-// 					
-// 					SdkInfo.ConditionalSetupAutoSdk(Platform, ref LocalState, out bWasAutoSdkSetup, bUnattended: false);
-// 
-// 					// if we got an AutoSdk for this platform, then we don't need to continue
-// 					if (bWasAutoSdkSetup)
-// 					{
-// 						continue;
-// 					}
-// 				}
+				// 				if (bAllowAutoSdk)
+				// 				{
+				// 					// first, attempt AutoSdk
+				// 					SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
+				// 					bool bWasAutoSdkSetup;
+				// 					
+				// 					SdkInfo.ConditionalSetupAutoSdk(Platform, ref LocalState, out bWasAutoSdkSetup, bUnattended: false);
+				// 
+				// 					// if we got an AutoSdk for this platform, then we don't need to continue
+				// 					if (bWasAutoSdkSetup)
+				// 					{
+				// 						continue;
+				// 					}
+				// 				}
 
 
 				// filter the Sdks if a platform was given
@@ -108,14 +109,14 @@ namespace Turnkey.Commands
 				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.Flash || (AutomationPlatform.GetDevices() != null && AutomationPlatform.GetDevices().Length > 0));
 				bool bStrippedDevices = Sdks.Count != SdkCount;
 
-				// we don't need to do AutoSdks, we already attempted one above if we wanted to
-				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.AutoSdk);
+// 				// we don't need to do AutoSdks, we already attempted one above if we wanted to
+// 				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.AutoSdk);
 
 
 				// strip out Sdks where there is no Sdk installed yet
 				if (bUpdateOnly)
 				{
-					Sdks = Sdks.FindAll(x => !string.IsNullOrEmpty(AutomationPlatform.GetInstalledSdk()));
+					Sdks = Sdks.FindAll(x => !string.IsNullOrEmpty(SDK.GetInstalledVersion()));
 				}
 
 				// strip out Sdks not in the allowed range of the platform
@@ -205,7 +206,7 @@ namespace Turnkey.Commands
 					List<string> Options = new List<string>();
 					foreach (SdkInfo Sdk in Sdks)
 					{
-						string Current = AutomationPlatform.GetInstalledSdk();
+						string Current = SDK.GetInstalledVersion();
 						if (Sdk.Type == SdkInfo.SdkType.Flash)
 						{
 							// look for default device, or matching device [put this in a function!]

@@ -308,6 +308,9 @@ namespace UnrealBuildTool
 					// by looking for the one that contains a common utility class
 					Assembly UtilitiesAssembly = Assembly.GetAssembly(typeof(FileReference));
 					CompileParams.ReferencedAssemblies.Add(UtilitiesAssembly.Location);
+
+					Assembly BuildUtilitiesAssembly = Assembly.GetAssembly(typeof(UEBuildPlatformSDK));
+					CompileParams.ReferencedAssemblies.Add(BuildUtilitiesAssembly.Location);
 				}
 
 				// Add preprocessor definitions

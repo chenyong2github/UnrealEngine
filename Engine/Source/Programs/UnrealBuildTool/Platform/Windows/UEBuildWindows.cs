@@ -738,17 +738,9 @@ namespace UnrealBuildTool
 		/// <param name="InPlatform">Creates a windows platform with the given enum value</param>
 		/// <param name="InSDK">The installed Windows SDK</param>
 		public WindowsPlatform(UnrealTargetPlatform InPlatform, WindowsPlatformSDK InSDK)
-			: base(InPlatform)
+			: base(InPlatform, InSDK)
 		{
 			SDK = InSDK;
-		}
-
-		/// <summary>
-		/// Whether the required external SDKs are installed for this platform. Could be either a manual install or an AutoSDK.
-		/// </summary>
-		public override SDKStatus HasRequiredSDKsInstalled()
-		{
-			return SDK.HasRequiredSDKsInstalled();
 		}
 
 		/// <summary>
@@ -2307,12 +2299,8 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class WindowsPlatformSDK : UEBuildPlatformSDK
+	class WindowsPlatformSDK : MicrosoftPlatformSDK
 	{
-		protected override SDKStatus HasRequiredManualSDKInternal()
-		{
-			return SDKStatus.Valid;
-		}
 	}
 
 	class WindowsPlatformFactory : UEBuildPlatformFactory
@@ -2328,7 +2316,6 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			WindowsPlatformSDK SDK = new WindowsPlatformSDK();
-			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for Win64 (no more Win32)
 			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK));
