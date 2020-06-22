@@ -130,7 +130,7 @@ void FSlateVectorGraphicsCache::UpdateCache()
 
 	if (PendingRequests.Num() > 0)
 	{
-		UE_LOG(LogSlate, Log, TEXT("SVG raster took: %fms"), Time * 1000.f);
+		UE_LOG(LogSlate, Verbose, TEXT("SVG raster took: %fms"), Time * 1000.f);
 	}
 	PendingRequests.Empty();
 
