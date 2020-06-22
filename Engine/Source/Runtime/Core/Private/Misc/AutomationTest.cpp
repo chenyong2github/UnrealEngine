@@ -1012,7 +1012,7 @@ FAutomationEvent FAutomationScreenshotCompareResults::ToAutomationEvent(const FS
 
 			if (ErrorMessage.IsEmpty())
 			{
-				Event.Message = FString::Printf(TEXT("Screenshot '%s' test failed, Screnshots were different!  Global Difference = %f, Max Local Difference = %f"),
+				Event.Message = FString::Printf(TEXT("Screenshot '%s' test failed, Screenshots were different!  Global Difference = %f, Max Local Difference = %f"),
 					*ScreenhotName, GlobalDifference, MaxLocalDifference);
 			}
 			else
