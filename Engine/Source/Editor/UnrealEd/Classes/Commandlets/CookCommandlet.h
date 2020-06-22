@@ -70,8 +70,8 @@ class UCookCommandlet
 	 */
 	bool CookOnTheFly( FGuid InstanceId, int32 Timeout = 180, bool bForceClose = false, const TArray<ITargetPlatform*>& TargetPlatforms=TArray<ITargetPlatform*>() );
 
-	/** Cooks specified list of files */
-	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath);
+	/** Cooks for specified targets */
+	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms);
 
 	/**	Process deferred commands */
 	void ProcessDeferredCommands();
