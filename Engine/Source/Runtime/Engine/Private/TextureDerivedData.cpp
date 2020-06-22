@@ -1640,6 +1640,10 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 				if (PlatformDataLink)
 				{
 					ReleaseResource();
+
+					// Need to wait for any previous InitRHI() to complete before modifying PlatformData
+					// We could remove this flush if InitRHI() was modified to not access PlatformData directly
+					FlushRenderingCommands();
 				}
 				else
 				{

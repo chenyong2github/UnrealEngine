@@ -1080,12 +1080,6 @@ void UTexture2D::UpdateResource()
 	}
 
 #if WITH_EDITOR
-	// Wait for FTexture2DResource::InitRHI() complete before modifying the PlatformData.
-	FTexture2DResource* Texture2DResource = (FTexture2DResource*)GetResource();
-	if (Texture2DResource && !Texture2DResource->bReadyForStreaming)
-	{
-		FlushRenderingCommands();
-	}
 	// Recache platform data if the source has changed.
 	if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
 	{
