@@ -72,6 +72,7 @@ enum class ECookByTheBookOptions
 	FullLoadAndSave =					0x00002000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
 	PackageStore =						0x00004000, // Cook package header information into a global package store
 	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
+	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -608,10 +609,11 @@ private:
 	* Get all the packages which are listed in asset registry passed in.  
 	*
 	* @param AssetRegistryPath path of the assetregistry.bin file to read
+	* @param bVerifyPackagesExist whether or not we should verify the packages exist on disk.
 	* @param OutPackageNames out list of uncooked package filenames which were contained in the asset registry file
 	* @return true if successfully read false otherwise
 	*/
-	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const;
+	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const;
 
 	/**
 	* BuildMapDependencyGraph
@@ -873,6 +875,11 @@ private:
 	FString GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory = nullptr) const;
 
 	bool IsCookingDLC() const;
+
+	/**
+	* Returns true if we're cooking against a fixed release version
+	*/
+	bool IsCookingAgainstFixedBase() const;
 
 	/**
 	* GetBaseDirectoryForDLC
