@@ -9,6 +9,7 @@
 #include "AudioModulationStatics.h"
 #include "AudioModulationSystem.h"
 #include "SoundControlBus.h"
+#include "SoundControlBusMix.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
