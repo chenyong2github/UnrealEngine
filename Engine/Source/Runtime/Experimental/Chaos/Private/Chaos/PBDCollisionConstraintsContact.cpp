@@ -565,32 +565,6 @@ namespace Chaos
 				bool bHaveRestitutionPadding = (Contact.RestitutionPadding > 0.0f);
 				bool bApplyFriction = (Contact.Friction > 0);
 
-				// Calculate constraint velocity if we need it
-				FVec3 CV = FVec3(0);
-				FReal CVNormal = 0.0f;
-				bool bNeedVelocity = (bApplyFriction || (bApplyResitution && !bHaveRestitutionPadding));
-				if (bNeedVelocity)
-				{
-					FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
-					FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
-					FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
-					FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
-					FVec3 V0 = FVec3::CalculateVelocity(X0, P0, IterationParameters.Dt);
-					FVec3 W0 = FRotation3::CalculateAngularVelocity(R0, Q0, IterationParameters.Dt);
-					FVec3 V1 = FVec3::CalculateVelocity(X1, P1, IterationParameters.Dt);
-					FVec3 W1 = FRotation3::CalculateAngularVelocity(R1, Q1, IterationParameters.Dt);
-					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
-					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
-					CV = CV0 - CV1;
-					CVNormal = FVec3::DotProduct(CV, Contact.Normal);
-				}
-
-				// Disable restitution below threshold normal velocity (CVNormal is negative here)
-				if (bApplyResitution && (CVNormal >= -ParticleParameters.RestitutionVelocityThreshold))
-				{
-					bApplyResitution = false;
-				}
-
 				// If we have restitution, padd the constraint by an amount that enforces the outgoing velocity constraint
 				// Really this should be per contact point, not per constraint.
 				// NOTE: once we have calculated a padding, it is locked in for the rest of the iterations, and automatically
@@ -598,8 +572,21 @@ namespace Chaos
 				// add the padding to the Phi (since it was from pre-padded collision detection).
 				if (bApplyResitution && !bHaveRestitutionPadding)
 				{
-					Contact.RestitutionPadding = -(1.0f + Contact.Restitution) * CVNormal * IterationParameters.Dt + Contact.Phi;
-					Contact.Phi -= Contact.RestitutionPadding;
+					FVec3 V0 = Particle0->V();
+					FVec3 W0 = Particle0->W();
+					FVec3 V1 = Particle1->V();
+					FVec3 W1 = Particle1->W();
+					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
+					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
+					FVec3 CV = CV0 - CV1;
+					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+
+					// No restitution below threshold normal velocity (CVNormal is negative here)
+					if (CVNormal < -ParticleParameters.RestitutionVelocityThreshold)
+					{
+						Contact.RestitutionPadding = -(1.0f + Contact.Restitution) * CVNormal * IterationParameters.Dt + Contact.Phi;
+						Contact.Phi -= Contact.RestitutionPadding;
+					}
 				}
 			
 				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
@@ -618,21 +605,37 @@ namespace Chaos
 
 				// Calculate lateral correction, clamped to the friction cone. Kinda.
 				FVec3 LateralCorrection = FVec3(0);
-				if (bApplyFriction && (CVNormal < 0.0f))
+				if (bApplyFriction)
 				{
-					FVec3 CVLateral = CV - CVNormal * Contact.Normal;
-					FReal CVLateralMag = CVLateral.Size();
-					if (CVLateralMag > KINDA_SMALL_NUMBER)
+					// @todo(ccaulfield): use initial velocity (as for restitution) and accumulate friction force per contact point
+					FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
+					FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
+					FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
+					FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
+					FVec3 V0 = FVec3::CalculateVelocity(X0, P0, IterationParameters.Dt);
+					FVec3 W0 = FRotation3::CalculateAngularVelocity(R0, Q0, IterationParameters.Dt);
+					FVec3 V1 = FVec3::CalculateVelocity(X1, P1, IterationParameters.Dt);
+					FVec3 W1 = FRotation3::CalculateAngularVelocity(R1, Q1, IterationParameters.Dt);
+					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
+					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
+					FVec3 CV = CV0 - CV1;
+					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+					if (CVNormal < 0.0f)
 					{
-						FVec3 DirLateral = CVLateral / CVLateralMag;
-						FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
-						FReal LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
-						LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
-						FReal LateralImpulseMag = LateralCorrection.Size();
-						FReal NormalImpulseMag = NormalCorrection.Size();
-						if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
+						FVec3 CVLateral = CV - CVNormal * Contact.Normal;
+						FReal CVLateralMag = CVLateral.Size();
+						if (CVLateralMag > KINDA_SMALL_NUMBER)
 						{
-							LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
+							FVec3 DirLateral = CVLateral / CVLateralMag;
+							FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
+							FReal LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
+							LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
+							FReal LateralImpulseMag = LateralCorrection.Size();
+							FReal NormalImpulseMag = NormalCorrection.Size();
+							if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
+							{
+								LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
+							}
 						}
 					}
 				}
