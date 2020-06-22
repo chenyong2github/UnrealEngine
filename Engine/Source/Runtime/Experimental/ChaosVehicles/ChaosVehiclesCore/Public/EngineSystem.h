@@ -22,7 +22,7 @@ namespace Chaos
 	 * #todo: replace hardcoded graph with curve data
 	 */
 
-	struct FSimpleEngineConfig
+	struct CHAOSVEHICLESCORE_API FSimpleEngineConfig
 	{
 		FSimpleEngineConfig()
 			: MaxTorque(0.f)
@@ -48,21 +48,11 @@ namespace Chaos
 		float EngineBrakeEffect;	// [0..1]
 	};
 
-	class FSimpleEngineSim : public TVehicleSystem<FSimpleEngineConfig>
+	class CHAOSVEHICLESCORE_API FSimpleEngineSim : public TVehicleSystem<FSimpleEngineConfig>
 	{
 	public:
 
-		FSimpleEngineSim(const FSimpleEngineConfig* StaticDataIn)
-			: TVehicleSystem<FSimpleEngineConfig>(StaticDataIn)
-			, ThrottlePosition(0.f)
-			, EngineRPM(0.f)
-			, DriveTorque(0.f)
-		//	, Tce(0.f)
-		//	, Omega(0.f)
-			, EngineIdleSpeed(RPMToOmega(Setup().EngineIdleRPM))
-		{
-
-		}
+		FSimpleEngineSim(const FSimpleEngineConfig* StaticDataIn);
 
 		/** Pass in the throttle position to the engine */
 		void SetThrottle(float InThrottle)
@@ -91,34 +81,7 @@ namespace Chaos
 		}
 
 		/* get torque value from torque curve based on input RPM */
-		float GetTorqueFromRPM(float RPM, bool LimitToIdle = true)
-		{
-			if (RPM >= Setup().MaxRPM || Setup().MaxRPM == 0)
-			{
-				return 0.f;
-			}
-
-			if (LimitToIdle)
-			{
-				RPM = FMath::Clamp(RPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
-			}
-
-			float Step = Setup().MaxRPM / (Setup().TorqueCurve.Num()-1);
-			int StartIndex = RPM / Step;
-			float NormalisedRamp = ((float)RPM - (float)StartIndex * Step) / Step;
-
-			float NormYValue = 0.0f;
-			if (StartIndex >= Setup().TorqueCurve.Num()-1)
-			{
-				NormYValue = Setup().TorqueCurve[Setup().TorqueCurve.Num() - 1];
-			}
-			else
-			{
-				NormYValue = Setup().TorqueCurve[StartIndex] * (1.f - NormalisedRamp) + Setup().TorqueCurve[StartIndex + 1] * NormalisedRamp;
-			}
-
-			return NormYValue * Setup().MaxTorque;
-		}
+		float GetTorqueFromRPM(float RPM, bool LimitToIdle = true);
 
 		/** get the Engine speed in radians/sec */
 		float GetEngineSpeed() const
@@ -137,24 +100,7 @@ namespace Chaos
 		/** 
 		 * Simulate - NOP at the moment
 		 */
-		void Simulate(float DeltaTime)
-		{
-			//EngineIdleSpeed = RPMToOmega(Setup().EngineIdleRPM);
-
-			//// we don't let the engine stall
-			//if (Omega < EngineIdleSpeed)
-			//{
-			//	Omega = EngineIdleSpeed;
-			//}
-
-			//if (Omega > RPMToOmega(Setup().MaxRPM))
-			//{
-			//	Omega = RPMToOmega(Setup().MaxRPM);
-			//}
-
-			// EngineSpeed == Omega
-			//EngineRPM = OmegaToRPM(Omega);
-		}
+		void Simulate(float DeltaTime);
 
 	protected:
 

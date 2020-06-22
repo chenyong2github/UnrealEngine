@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
@@ -20,7 +21,7 @@ namespace Chaos
 
 	#define NUM_SUS_AVERAGING 10
 
-	struct FSimpleSuspensionConfig
+	struct CHAOSVEHICLESCORE_API FSimpleSuspensionConfig
 	{
 		FSimpleSuspensionConfig()
 			: SuspensionForceOffset(FVector::ZeroVector)
@@ -60,7 +61,7 @@ namespace Chaos
 	};
 
 	/** Suspension world ray/shape trace start and end positions */
-	struct FSuspensionTrace
+	struct CHAOSVEHICLESCORE_API FSuspensionTrace
 	{
 		FVector Start;
 		FVector End;
@@ -78,7 +79,7 @@ namespace Chaos
 		}
 	};
 
-	class FSimpleSuspensionSim : public TVehicleSystem<FSimpleSuspensionConfig>
+	class CHAOSVEHICLESCORE_API FSimpleSuspensionSim : public TVehicleSystem<FSimpleSuspensionConfig>
 	{
 	public:
 		FSimpleSuspensionSim(const FSimpleSuspensionConfig* SetupIn)
