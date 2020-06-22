@@ -866,7 +866,13 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 
 
 		UModel* Model = ModelHitProxy->GetModel();
-	
+		
+		// If our model doesn't exist or is part of a level that is being destroyed
+		if( !Model || Model && Model->GetOuter()->IsPendingKillOrUnreachable())
+		{
+			return false;
+		}
+
 		TArray<uint32> SelectedSurfaces;
 
 		bool bDropedOntoSelectedSurface = false;
@@ -1452,7 +1458,7 @@ bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 Mo
 				TargetMaterialSlot = -1;
 			}
 
-			if (TargetActor != NULL)
+			if (TargetActor != nullptr && !TargetActor->GetWorld()->IsPendingKillOrUnreachable())
 			{
 				FNavigationLockContext LockNavigationUpdates(TargetActor->GetWorld(), ENavigationLockReason::SpawnOnDragEnter, bCreateDropPreview);
 
