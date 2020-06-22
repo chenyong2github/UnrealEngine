@@ -3264,23 +3264,30 @@ void AActor::SetReplicates(bool bInReplicates)
 		RemoteRole = bInReplicates ? ROLE_SimulatedProxy : ROLE_None;
 		bReplicates = bInReplicates;
 
-		if (bReplicates)
+		if (bActorInitialized)
 		{
-			// GetWorld will return nullptr on CDO, FYI
-			if (UWorld* MyWorld = GetWorld())
+			if (bReplicates)
 			{
-				// Only call into net driver if we just started replicating changed
-				// This actor should already be in the Network Actors List if it was already replicating.
-				if (bNewlyReplicates)
+				// GetWorld will return nullptr on CDO, FYI
+				if (UWorld* MyWorld = GetWorld())
 				{
-					MyWorld->AddNetworkActor(this);
+					// Only call into net driver if we just started replicating changed
+					// This actor should already be in the Network Actors List if it was already replicating.
+					if (bNewlyReplicates)
+					{
+						MyWorld->AddNetworkActor(this);
+					}
+
+					ForcePropertyCompare();
 				}
-
-				ForcePropertyCompare();
 			}
-		}
 
-		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+		}
+		else
+		{
+			UE_LOG(LogActor, Warning, TEXT("SetReplicates called on non-initialized actor %s. Directly setting bReplicates is the correct procedure for pre-init actors."), *GetName());
+		}
 	}
 	else
 	{
