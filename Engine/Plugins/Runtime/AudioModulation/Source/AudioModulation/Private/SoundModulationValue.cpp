@@ -4,14 +4,6 @@
 #include "SoundModulationProxy.h"
 
 
-FSoundModulationValue::FSoundModulationValue()
-	: TargetValue(1.0f)
-	, AttackTime(0.1f)
-	, ReleaseTime(0.1f)
-	, Value(1.0f)
-{
-}
-
 FSoundModulationValue::FSoundModulationValue(float InValue, float InAttackTime, float InReleaseTime)
 	: TargetValue(InValue)
 	, AttackTime(InAttackTime)

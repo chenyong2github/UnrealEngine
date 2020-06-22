@@ -10,8 +10,8 @@ void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 	if (USourceEffectBitCrusherPreset* ProcPreset = Cast<USourceEffectBitCrusherPreset>(Preset.Get()))
 	{
 		const uint32 PresetId = ProcPreset->GetUniqueID();
-		BitMod.Init(InitData.AudioDeviceId, PresetId, false /* bInIsBuffered */, 1.0f, 24.0f);
-		SampleRateMod.Init(InitData.AudioDeviceId, PresetId, false /* bInIsBuffered */, 1.0f, 192000.0f);
+		BitMod.Init(InitData.AudioDeviceId, PresetId, "BitDepth", false /* bInIsBuffered */);
+		SampleRateMod.Init(InitData.AudioDeviceId, PresetId, "SampleRate", false /* bInIsBuffered */);
 
 		SetBitModulator(ProcPreset->Settings.BitModulation);
 		SetSampleRateModulator(ProcPreset->Settings.SampleRateModulation);
@@ -29,23 +29,23 @@ void FSourceEffectBitCrusher::ProcessAudio(const FSoundEffectSourceInputData& In
 {
 	if (BitMod.ProcessControl(SettingsCopy.BitModulation.Value))
 	{
-		BitCrusher.SetBitDepthCrush(BitMod.GetTarget());
+		BitCrusher.SetBitDepthCrush(BitMod.GetValue());
 	}
 
 	if (SampleRateMod.ProcessControl(SettingsCopy.SampleRateModulation.Value))
 	{
-		BitCrusher.SetSampleRateCrush(SampleRateMod.GetTarget());
+		BitCrusher.SetSampleRateCrush(SampleRateMod.GetValue());
 	}
 
 	BitCrusher.ProcessAudio(InData.InputSourceEffectBufferPtr, InData.NumSamples, OutAudioBufferData);
 }
 
-void FSourceEffectBitCrusher::SetBitModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectBitCrusher::SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	BitMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectBitCrusher::SetSampleRateModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectBitCrusher::SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	SampleRateMod.UpdateSettings(InModulatorSettings);
 }
@@ -78,7 +78,7 @@ void USourceEffectBitCrusherPreset::Serialize(FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 }
 
-void USourceEffectBitCrusherPreset::SetBitModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectBitCrusherPreset::SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectBitCrusher>([InModulatorSettings](FSourceEffectBitCrusher& InCrusher)
 	{
@@ -86,7 +86,7 @@ void USourceEffectBitCrusherPreset::SetBitModulator(const FSoundModulationParame
 	});
 }
 
-void USourceEffectBitCrusherPreset::SetSampleRateModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectBitCrusherPreset::SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectBitCrusher>([InModulatorSettings](FSourceEffectBitCrusher& InCrusher)
 	{

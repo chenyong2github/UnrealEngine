@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "IAudioModulation.h"
 #include "SoundControlBusProxy.h"
+#include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulatorLFOProxy.h"
+#include "Templates/Function.h"
 
 
 namespace AudioModulation
@@ -41,23 +44,11 @@ namespace AudioModulation
 		bool bSampleAndHold = false;
 	};
 
-	struct FModulationOutputSettings
-	{
-		/** Operator used to calculate the output proxy value */
-		ESoundModulatorOperator Operator = ESoundModulatorOperator::Multiply;
-
-		/** Final transform before passing to output */
-		FSoundModulationOutputTransform Transform;
-
-		FModulationOutputSettings() = default;
-		FModulationOutputSettings(const FSoundModulationOutputBase& InOutput);
-	};
-
 	/** Patch applied as the final stage of a modulation chain prior to output on the sound level (Always active, never removed) */
 	struct FModulationOutputProxy
 	{
 		FModulationOutputProxy() = default;
-		FModulationOutputProxy(const FModulationOutputSettings& InSettings);
+		FModulationOutputProxy(FSoundModulationOutputTransform InTransform, float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction);
 
 		/** Whether patch has been initialized or not */
 		bool bInitialized = false;
@@ -65,23 +56,61 @@ namespace AudioModulation
 		/** Cached value of sample-and-hold input values */
 		float SampleAndHoldValue = 1.0f;
 
-		/** Cached output settings */
-		FModulationOutputSettings Settings;
+		/** Function used to mix values together */
+		Audio::FModulationMixFunction MixFunction;
+
+		/** Default value if no inputs are provided */
+		float DefaultValue = 1.0f;
+
+		/** Final transform before passing to output */
+		FSoundModulationOutputTransform Transform;
 	};
 
 	struct FModulationPatchSettings : public TModulatorBase<FPatchId>
 	{
 		float DefaultInputValue = 1.0f;
+		float DefaultOutputValue = 1.0f;
+
 		TArray<FModulationInputSettings> InputSettings;
-		FModulationOutputSettings OutputSettings;
 		bool bBypass = true;
+
+		/** Final transform before passing to output */
+		FSoundModulationOutputTransform Transform;
+
+		/** Function used to mix patch inputs together */
+		Audio::FModulationMixFunction MixFunction;
 
 		FModulationPatchSettings() = default;
 
+		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch)
+			: bBypass(InPatch.bBypass)
+			, Transform(InPatch.Transform)
+		{
+			if (InPatch.InputParameter)
+			{
+				DefaultInputValue = InPatch.InputParameter->Settings.ValueLinear;
+				MixFunction = InPatch.InputParameter->GetMixFunction();
+			}
+
+			if (InPatch.OutputParameter)
+			{
+				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueLinear;
+			}
+
+			for (const FSoundControlModulationInput& Input : InPatch.Inputs)
+			{
+				if (Input.GetBus())
+				{
+					InputSettings.Emplace(Input);
+				}
+			}
+		}
+
 		FModulationPatchSettings(const FSoundModulationPatchBase& InPatch)
-			: DefaultInputValue(InPatch.DefaultInputValue)
-			, OutputSettings(FModulationOutputSettings(InPatch.GetOutputChecked()))
+			: DefaultInputValue(InPatch.GetDefaultInputValue())
 			, bBypass(InPatch.bBypass)
+			, Transform(InPatch.GetOutputChecked().Transform)
+			, MixFunction(InPatch.GetMixFunction())
 		{
 			TArray<const FSoundModulationInputBase*> Inputs = InPatch.GetInputs();
 			for (const FSoundModulationInputBase* Input : Inputs)
@@ -95,16 +124,25 @@ namespace AudioModulation
 
 		FModulationPatchSettings(const USoundModulationPatch& InPatch)
 			: TModulatorBase<FPatchId>(InPatch.GetName(), InPatch.GetUniqueID())
-			, DefaultInputValue(InPatch.PatchSettings.DefaultInputValue)
-			, OutputSettings(FModulationOutputSettings(InPatch.PatchSettings.GetOutputChecked()))
 			, bBypass(InPatch.PatchSettings.bBypass)
+			, Transform(InPatch.PatchSettings.Transform)
 		{
-			TArray<const FSoundModulationInputBase*> Inputs = InPatch.PatchSettings.GetInputs();
-			for (const FSoundModulationInputBase* Input : Inputs)
+			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.InputParameter)
 			{
-				if (Input && Input->GetBus())
+				MixFunction = Parameter->GetMixFunction();
+			}
+
+			DefaultInputValue = 1.0f;
+			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.InputParameter)
+			{
+				DefaultInputValue = Parameter->Settings.ValueLinear;
+			}
+
+			for (const FSoundControlModulationInput& Input : InPatch.PatchSettings.Inputs)
+			{
+				if (Input.GetBus())
 				{
-					InputSettings.Emplace(*Input);
+					InputSettings.Emplace(Input);
 				}
 			}
 		}

@@ -3,32 +3,24 @@
 
 #include "CoreMinimal.h"
 
-#include "Curves/SimpleCurve.h"
+#include "IAudioModulation.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
-#include "SCurveEditor.h"
-#include "SoundModulationTransform.h"
+#include "SoundControlBus.h"
 
 
-// Forward Declarations
-struct FSoundModulationOutputTransform;
-
-class FSoundModulationOutputTransformLayoutCustomization : public IPropertyTypeCustomization
+class FSoundControlBusMixChannelLayoutCustomization : public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FSoundModulationOutputTransformLayoutCustomization>();
+		return MakeShared<FSoundControlBusMixChannelLayoutCustomization>();
 	}
 
 	//~ Begin IPropertyTypeCustomization
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	//~ End IPropertyTypeCustomization
-
-private:
-	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<ESoundModulatorOutputCurve>& Filters) const;
-	bool IsSharedCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
 };

@@ -278,8 +278,11 @@ namespace AudioModulation
 				// in look-up and speed is key as this is possibly being queried often in the audio render pass.
 				if (const FModulationPatchRefProxy* PatchProxy = RefProxies.Patches.Find(static_cast<FPatchId>(InModulatorHandle.GetId())))
 				{
-					OutValue = PatchProxy->GetValue();
-					return true;
+					if (!PatchProxy->IsBypassed())
+					{
+						OutValue = PatchProxy->GetValue();
+						return true;
+					}
 				}
 			}
 			break;
@@ -288,8 +291,11 @@ namespace AudioModulation
 			{
 				if (const FControlBusProxy* BusProxy = RefProxies.Buses.Find(static_cast<FBusId>(InModulatorHandle.GetId())))
 				{
-					OutValue = BusProxy->GetValue();
-					return true;
+					if (!BusProxy->IsBypassed())
+					{
+						OutValue = BusProxy->GetValue();
+						return true;
+					}
 				}
 			}
 			break;
@@ -298,8 +304,11 @@ namespace AudioModulation
 			{
 				if (const FModulatorLFOProxy* LFOProxy = RefProxies.LFOs.Find(static_cast<FLFOId>(InModulatorHandle.GetId())))
 				{
-					OutValue = LFOProxy->GetValue();
-					return true;
+					if (!LFOProxy->IsBypassed())
+					{
+						OutValue = LFOProxy->GetValue();
+						return true;
+					}
 				}
 			}
 			break;
@@ -312,6 +321,37 @@ namespace AudioModulation
 		}
 
 		return false;
+	}
+
+	Audio::FModulationParameter FAudioModulationSystem::GetParameter(FName InParamName) const
+	{
+		Audio::FModulationParameter Parameter;
+		if (InParamName == FName())
+		{
+			return Parameter;
+		}
+
+		for (TObjectIterator<USoundModulationParameter> Itr; Itr; ++Itr)
+		{
+			if (USoundModulationParameter* Param = *Itr)
+			{
+				if (Param->GetFName() == InParamName)
+				{
+					Parameter.ParameterName			= InParamName;
+					Parameter.bRequiresConversion	= Param->RequiresUnitConversion();
+					Parameter.MixFunction			= Param->GetMixFunction();
+					Parameter.UnitFunction			= Param->GetUnitConversionFunction();
+					Parameter.LinearFunction		= Param->GetLinearConversionFunction();
+					Parameter.DefaultValue			= Param->GetUnitDefault();
+					Parameter.MinValue				= Param->GetUnitMin();
+					Parameter.MaxValue				= Param->GetUnitMax();
+					return Parameter;
+				}
+			}
+		}
+
+		UE_LOG(LogAudioModulation, Error, TEXT("Audio modulation parameter '%s' not found. Modulation may be disabled for destination referencing parameter."), *InParamName.ToString());
+		return Parameter;
 	}
 
 	bool FAudioModulationSystem::IsInProcessingThread() const
@@ -555,19 +595,19 @@ namespace AudioModulation
 		}
 	}
 
-	Audio::FModulatorTypeId FAudioModulationSystem::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase)
+	Audio::FModulatorTypeId FAudioModulationSystem::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter)
 	{
-		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InParentId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap))
+		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InParentId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Patch);
 		}
 			
-		if (RegisterModulator<FBusHandle, USoundControlBusBase, FControlBusSettings, FBusProxyMap>(InParentId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap))
+		if (RegisterModulator<FBusHandle, USoundControlBusBase, FControlBusSettings, FBusProxyMap>(InParentId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Bus);
 		}
 
-		if (RegisterModulator<FLFOHandle, USoundBusModulatorLFO, FModulatorLFOSettings, FLFOProxyMap>(InParentId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap))
+		if (RegisterModulator<FLFOHandle, USoundBusModulatorLFO, FModulatorLFOSettings, FLFOProxyMap>(InParentId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::LFO);
 		}

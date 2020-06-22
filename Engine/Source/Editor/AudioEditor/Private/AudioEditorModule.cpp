@@ -18,7 +18,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectPreset.h"
 #include "SoundCueEditor.h"
-#include "SoundModulationParameterLayout.h"
+#include "SoundModulationDestinationLayout.h"
 #include "SoundSubmixEditor.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueVoice.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
@@ -94,8 +94,8 @@ public:
 		UReimportSoundFactory::StaticClass();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationParameterSettings",
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationParameterLayoutCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationDestinationSettings",
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDestinationLayoutCustomization::MakeInstance));
 
 		SetupIcons();
 #if WITH_SNDFILE_IO

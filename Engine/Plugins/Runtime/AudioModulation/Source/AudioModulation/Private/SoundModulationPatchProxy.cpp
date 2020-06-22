@@ -6,64 +6,17 @@
 #include "AudioModulation.h"
 #include "AudioModulationStatics.h"
 #include "AudioModulationSystem.h"
+#include "IAudioModulation.h"
 #include "SoundControlBusProxy.h"
+#include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationTransform.h"
+
 
 
 namespace AudioModulation
 {
 	const FPatchId InvalidPatchId = INDEX_NONE;
-
-	void MixInModulationValue(ESoundModulatorOperator& Operator, float ModStageValue, float& Value)
-	{
-		switch (Operator)
-		{
-			case ESoundModulatorOperator::Max:
-			{
-				Value = FMath::Max(ModStageValue, Value);
-			}
-			break;
-
-			case ESoundModulatorOperator::Min:
-			{
-				Value = FMath::Min(ModStageValue, Value);
-			}
-			break;
-
-			case ESoundModulatorOperator::Multiply:
-			{
-				Value *= ModStageValue;
-			}
-			break;
-
-			case ESoundModulatorOperator::Divide:
-			{
-				Value /= ModStageValue;
-			}
-			break;
-
-			case ESoundModulatorOperator::Add:
-			{
-				Value += ModStageValue;
-			}
-			break;
-
-			case ESoundModulatorOperator::Subtract:
-			{
-				Value -= ModStageValue;
-			}
-			break;
-
-			case ESoundModulatorOperator::None:
-			default:
-			{
-				checkf(false, TEXT("Cannot apply 'None' as operator to modulator"));
-				static_assert(static_cast<int32>(ESoundModulatorOperator::Count) == 7, "Possible missing operator switch case coverage");
-			}
-			break;
-		}
-	}
 
 	FModulationInputProxy::FModulationInputProxy(const FModulationInputSettings& InSettings, FAudioModulationSystem& OutModSystem)
 		: BusHandle(FBusHandle::Create(InSettings.BusSettings, OutModSystem.RefProxies.Buses, OutModSystem))
@@ -72,14 +25,9 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationOutputSettings::FModulationOutputSettings(const FSoundModulationOutputBase& InOutput)
-		: Operator(InOutput.GetOperator())
-		, Transform(InOutput.Transform)
-	{
-	}
-
-	FModulationOutputProxy::FModulationOutputProxy(const FModulationOutputSettings& InSettings)
-		: Settings(InSettings)
+	FModulationOutputProxy::FModulationOutputProxy(FSoundModulationOutputTransform InTransform, float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction)
+		: MixFunction(InMixFunction)
+		, DefaultValue(InDefaultValue)
 	{
 	}
 
@@ -102,7 +50,7 @@ namespace AudioModulation
 			InputProxies.Emplace(Input, OutModSystem);
 		}
 
-		OutputProxy.Settings = InSettings.OutputSettings;
+		OutputProxy = FModulationOutputProxy(InSettings.Transform, InSettings.DefaultOutputValue, InSettings.MixFunction);
 	}
 
 	bool FModulationPatchProxy::IsBypassed() const
@@ -112,6 +60,11 @@ namespace AudioModulation
 
 	float FModulationPatchProxy::GetValue() const
 	{
+		if (bBypass)
+		{
+			return OutputProxy.DefaultValue;
+		}
+
 		return Value;
 	}
 
@@ -122,10 +75,7 @@ namespace AudioModulation
 		float& OutSampleHold = OutputProxy.SampleAndHoldValue;
 		if (!OutputProxy.bInitialized)
 		{
-			OutSampleHold = SoundModulatorOperator::GetDefaultValue(
-				OutputProxy.Settings.Operator,
-				OutputProxy.Settings.Transform.OutputMin,
-				OutputProxy.Settings.Transform.OutputMax);
+			OutSampleHold = DefaultInputValue;
 		}
 
 		for (const FModulationInputProxy& Input : InputProxies)
@@ -139,7 +89,7 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						MixInModulationValue(OutputProxy.Settings.Operator, ModStageValue, OutSampleHold);
+						OutputProxy.MixFunction(&OutSampleHold, &ModStageValue, 1);
 					}
 				}
 			}
@@ -152,7 +102,7 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						MixInModulationValue(OutputProxy.Settings.Operator, ModStageValue, Value);
+						OutputProxy.MixFunction(&Value, &ModStageValue, 1);
 					}
 				}
 			}
@@ -160,14 +110,14 @@ namespace AudioModulation
 
 		if (!OutputProxy.bInitialized)
 		{
-			const float OutputMin = OutputProxy.Settings.Transform.OutputMin;
-			const float OutputMax = OutputProxy.Settings.Transform.OutputMax;
+			const float OutputMin = OutputProxy.Transform.OutputMin;
+			const float OutputMax = OutputProxy.Transform.OutputMax;
 			OutSampleHold = FMath::Clamp(OutSampleHold, OutputMin, OutputMax);
 			OutputProxy.bInitialized = true;
 		}
 
-		OutputProxy.Settings.Transform.Apply(Value);
-		MixInModulationValue(OutputProxy.Settings.Operator, OutSampleHold, Value);
+		OutputProxy.Transform.Apply(Value);
+		OutputProxy.MixFunction(&Value, &OutSampleHold, 1);
 	}
 
 	FModulationPatchRefProxy::FModulationPatchRefProxy()

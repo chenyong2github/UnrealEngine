@@ -13,21 +13,10 @@
 
 // Forward Declarations
 class UCurveFloat;
-class USoundModulationSettings;
+class USoundModulationPatch;
 
 
-enum class EModSettingsEditorCurveOutput : uint8
-{
-	Volume,
-	Pitch,
-	Highpass,
-	Lowpass,
-	Control,
-	Count
-};
-
-
-enum class EModSettingsOutputEditorCurveSource : uint8
+enum class EModPatchOutputEditorCurveSource : uint8
 {
 	Custom,
 	Expression,
@@ -36,7 +25,7 @@ enum class EModSettingsOutputEditorCurveSource : uint8
 };
 
 
-struct FModSettingsViewGridDrawInfo
+struct FModPatchViewGridDrawInfo
 {
 	const FGeometry* AllottedGeometry;
 
@@ -62,7 +51,7 @@ private:
 	double PixelTop;
 
 public:
-	FModSettingsViewGridDrawInfo(const FGeometry* InAllottedGeometry, const FCurveEditorScreenSpace& InScreenSpace, FLinearColor InGridColor, int32 InBaseLayerId)
+	FModPatchViewGridDrawInfo(const FGeometry* InAllottedGeometry, const FCurveEditorScreenSpace& InScreenSpace, FLinearColor InGridColor, int32 InBaseLayerId)
 		: AllottedGeometry(InAllottedGeometry)
 		, ScreenSpace(InScreenSpace)
 		, BaseLayerId(InBaseLayerId)
@@ -83,7 +72,7 @@ public:
 
 		PaintGeometry = InAllottedGeometry->ToPaintGeometry();
 
-		LabelFormat.SetMaximumFractionalDigits(6);
+		LabelFormat.SetMaximumFractionalDigits(2);
 	}
 
 	void SetCurveModel(const FCurveModel * InCurveModel)
@@ -141,33 +130,30 @@ public:
 };
 
 
-class FModSettingsCurveEditorModel : public FRichCurveEditorModelRaw
+class FModPatchCurveEditorModel : public FRichCurveEditorModelRaw
 {
 public:
 
 	static ECurveEditorViewID ViewId;
 
-	FModSettingsCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, FName InControlName, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
-	FModSettingsCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModSettingsEditorCurveOutput InOutput, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
+	FModPatchCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModPatchOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
 
 	bool GetIsBypassed() const;
 
 	virtual bool IsReadOnly() const override;
 
 	virtual FLinearColor GetColor() const override;
-	EModSettingsEditorCurveOutput GetOutput() const;
-	EModSettingsOutputEditorCurveSource GetSource() const;
+	EModPatchOutputEditorCurveSource GetSource() const;
+
+	const USoundModulationPatch* GetPatch() const;
 
 private:
-	void Init(const FName* InControlName, UCurveFloat* InSharedCurve);
 
-	TWeakObjectPtr<USoundModulationSettings> Settings;
-
-	EModSettingsEditorCurveOutput Output;
-	EModSettingsOutputEditorCurveSource Source;
+	TWeakObjectPtr<USoundModulationPatch> Patch;
+	EModPatchOutputEditorCurveSource Source;
 };
 
-class SModulationSettingsEditorViewStacked : public SCurveEditorViewStacked
+class SModulationPatchEditorViewStacked : public SCurveEditorViewStacked
 {
 public:
 
@@ -187,6 +173,6 @@ protected:
 	virtual void DrawLabels(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const override;
 
 private:
-	void DrawViewGridLineX(FSlateWindowElementList& OutDrawElements, FModSettingsViewGridDrawInfo& DrawInfo, ESlateDrawEffect DrawEffect, double OffsetAlpha, bool bIsMajor) const;
-	void DrawViewGridLineY(const float VerticalLine, FSlateWindowElementList& OutDrawElements, FModSettingsViewGridDrawInfo &DrawInfo, ESlateDrawEffect DrawEffects, const FText* Label, bool bIsMajor) const;
+	void DrawViewGridLineX(FSlateWindowElementList& OutDrawElements, FModPatchViewGridDrawInfo& DrawInfo, ESlateDrawEffect DrawEffect, double OffsetAlpha, bool bIsMajor) const;
+	void DrawViewGridLineY(const float VerticalLine, FSlateWindowElementList& OutDrawElements, FModPatchViewGridDrawInfo &DrawInfo, ESlateDrawEffect DrawEffects, const FText* Label, bool bIsMajor) const;
 };

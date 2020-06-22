@@ -27,4 +27,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
 	static const FColor GetControlBusColor() { return FColor(215, 180, 210); }
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
+	static const FColor GetParameterColor() { return FColor(65, 90, 245); }
 };

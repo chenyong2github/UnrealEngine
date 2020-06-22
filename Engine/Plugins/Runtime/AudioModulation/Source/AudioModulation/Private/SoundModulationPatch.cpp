@@ -10,6 +10,8 @@
 #include "SoundModulationTransform.h"
 
 
+#define LOCTEXT_NAMESPACE "SoundModulationPatch"
+
 namespace AudioModulation
 {
 	template <typename T>
@@ -33,12 +35,22 @@ USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectIni
 #if WITH_EDITOR
 void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (FProperty* Property = InPropertyChangedEvent.Property)
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
 	{
-		AudioModulation::OnEditModulator(InPropertyChangedEvent, *this);
-	}
+		OutModSystem.UpdateModulator(*this);
+	});
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
+}
+
+void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.UpdateModulator(*this);
+	});
+
+	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
 }
 
 void FSoundModulationPatchBase::Clamp()
@@ -150,62 +162,39 @@ TArray<const FSoundModulationInputBase*> FSoundHPFModulationPatch::GetInputs() c
 	return OutInputs;
 }
 
-TArray<const FSoundModulationInputBase*> FSoundControlModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundControlModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-FSoundModulationOutput::FSoundModulationOutput()
-	: Operator(ESoundModulatorOperator::Multiply)
-{
-}
-
-FSoundModulationOutputFixedOperator::FSoundModulationOutputFixedOperator()
-	: Operator(ESoundModulatorOperator::Multiply)
-{
-}
-
 FSoundModulationInputBase::FSoundModulationInputBase()
 	: bSampleAndHold(0)
 {
 }
 
-FSoundVolumeModulationInput::FSoundVolumeModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundVolumeModulationInput::GetBus() const
 {
+	return Cast<USoundControlBusBase>(Bus);
 }
 
-FSoundPitchModulationInput::FSoundPitchModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundPitchModulationInput::GetBus() const
 {
+	return Cast<USoundControlBusBase>(Bus);
 }
 
-FSoundHPFModulationInput::FSoundHPFModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundLPFModulationInput::GetBus() const
 {
+	return Cast<USoundControlBusBase>(Bus);
 }
 
-FSoundControlModulationInput::FSoundControlModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundHPFModulationInput::GetBus() const
 {
+	return Cast<USoundControlBusBase>(Bus);
 }
 
-FSoundLPFModulationInput::FSoundLPFModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundControlModulationInput::GetBus() const
 {
+	return Cast<USoundControlBusBase>(Bus);
 }
 
 FSoundModulationPatchBase::FSoundModulationPatchBase()
-	: DefaultInputValue(1.0f)
-	, bBypass(1)
+	: bBypass(1)
 {
 }
+
+#undef LOCTEXT_NAMESPACE // SoundModulationPatch

@@ -6,9 +6,34 @@
 
 namespace Audio
 {
-	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, uint32 InParentId, const USoundModulatorBase& InModulatorBase)
+	FModulationParameter::FModulationParameter()
+		: MixFunction(GetDefaultMixFunction())
 	{
-		ModulatorTypeId = InModulation.RegisterModulator(InParentId, InModulatorBase);
+	}
+
+	const FModulationMixFunction& FModulationParameter::GetDefaultMixFunction()
+	{
+		static const FModulationMixFunction DefaultMixFunction = [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
+		{
+			if (InNumSamples % 4 == 0)
+			{
+				Audio::MultiplyBuffersInPlace(InValueBuffer, OutValueBuffer, InNumSamples);
+			}
+			else
+			{
+				for (int32 i = 0; i < InNumSamples; ++i)
+				{
+					OutValueBuffer[i] *= InValueBuffer[i];
+				}
+			}
+		};
+
+		return DefaultMixFunction;
+	}
+	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, uint32 InParentId, const USoundModulatorBase& InModulatorBase, FName InParameterName)
+	{
+		Parameter.ParameterName = InParameterName;
+		ModulatorTypeId = InModulation.RegisterModulator(InParentId, InModulatorBase, Parameter);
 		if (ModulatorTypeId != INDEX_NONE)
 		{
 			ParentId = InParentId;
@@ -22,6 +47,7 @@ namespace Audio
 		if (InOther.Modulation)
 		{
 			InOther.Modulation->RegisterModulator(InOther.ParentId, InOther.ModulatorId);
+			Parameter = InOther.Parameter;
 			ParentId = InOther.ParentId;
 			ModulatorId = InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
@@ -30,7 +56,8 @@ namespace Audio
 	}
 
 	FModulatorHandle::FModulatorHandle(FModulatorHandle&& InOther)
-		: ParentId(InOther.ParentId)
+		: Parameter(InOther.Parameter)
+		, ParentId(InOther.ParentId)
 		, ModulatorTypeId(InOther.ModulatorTypeId)
 		, ModulatorId(InOther.ModulatorId)
 		, Modulation(InOther.Modulation)
@@ -39,6 +66,7 @@ namespace Audio
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
+		InOther.Parameter = FModulationParameter();
 		InOther.ParentId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
 		InOther.ModulatorId = INDEX_NONE;
@@ -58,6 +86,7 @@ namespace Audio
 		if (InOther.Modulation)
 		{
 			InOther.Modulation->RegisterModulator(InOther.ParentId, InOther.ModulatorId);
+			Parameter = InOther.Parameter;
 			ParentId = InOther.ParentId;
 			ModulatorId = InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
@@ -65,6 +94,7 @@ namespace Audio
 		}
 		else
 		{
+			Parameter = FModulationParameter();
 			ParentId = INDEX_NONE;
 			ModulatorId = INDEX_NONE;
 			ModulatorTypeId = INDEX_NONE;
@@ -80,11 +110,13 @@ namespace Audio
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
+		Parameter = InOther.Parameter;
 		ParentId = InOther.ParentId;
 		ModulatorId = InOther.ModulatorId;
 		ModulatorTypeId = InOther.ModulatorTypeId;
 		Modulation = InOther.Modulation;
 
+		InOther.Parameter = FModulationParameter();
 		InOther.ParentId	= INDEX_NONE;
 		InOther.ModulatorId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
@@ -98,6 +130,11 @@ namespace Audio
 		return ModulatorId;
 	}
 
+	const FModulationParameter& FModulatorHandle::GetParameter() const
+	{
+		return Parameter;
+	}
+
 	FModulatorTypeId FModulatorHandle::GetTypeId() const
 	{
 		return ModulatorTypeId;
@@ -108,18 +145,12 @@ namespace Audio
 		return ParentId;
 	}
 
-	float FModulatorHandle::GetValue(const float InDefaultValue) const
+	bool FModulatorHandle::GetValue(float& OutValue) const
 	{
-		if (IsValid())
-		{
-			float Value = InDefaultValue;
-			if (Modulation->GetModulatorValue(*this, Value))
-			{
-				return Value;
-			}
-		}
+		check(IsValid());
 
-		return InDefaultValue;
+		OutValue = 1.0f;
+		return Modulation->GetModulatorValue(*this, OutValue);
 	}
 
 	bool FModulatorHandle::IsValid() const
