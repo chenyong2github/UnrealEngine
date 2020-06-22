@@ -111,6 +111,16 @@ struct FArrangement2d
 		return insert_point(Pt, VertexSnapTol);
 	}
 
+	/**
+	 * Insert isolated point P into the arrangement when you know by construction it's not too close to any vertex or edge
+	 * Much faster, but will break things if you use it to insert a point that is on top of any existing element!
+	 */
+	int32 InsertNewIsolatedPointUnsafe(const FVector2d& Pt)
+	{
+		int32 VID = Graph.AppendVertex(Pt);
+		PointHash.InsertPointUnsafe(VID, Pt);
+		return VID;
+	}
 
 	/**
 	 * insert segment [A,B] into the arrangement
@@ -190,7 +200,7 @@ protected:
 	/**
 	 * insert pt P into the arrangement, splitting existing edges as necessary
 	 */
-	int insert_point(const FVector2d &P, double Tol = 0)
+	int insert_point(const FVector2d& P, double Tol = 0)
 	{
 		int PIdx = find_existing_vertex(P);
 		if (PIdx > -1)
