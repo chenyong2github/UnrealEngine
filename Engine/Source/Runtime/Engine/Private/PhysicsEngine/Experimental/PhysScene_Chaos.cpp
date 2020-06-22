@@ -784,7 +784,12 @@ const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>,
 {
 	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
 	{
-		return GetSolver()->GetEvolution()->GetSpatialAcceleration();
+		if (GetSolver() && GetSolver()->GetEvolution())
+		{
+			return GetSolver()->GetEvolution()->GetSpatialAcceleration();
+		}
+
+		return nullptr;
 	}
 
 	return SolverAccelerationStructure.Get();
@@ -794,7 +799,12 @@ Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float
 {
 	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
 	{
-		return SceneSolver->GetEvolution()->GetSpatialAcceleration();
+		if (SceneSolver->GetEvolution())
+		{
+			return SceneSolver->GetEvolution()->GetSpatialAcceleration();
+		}
+
+		return nullptr;
 	}
 
 	return SolverAccelerationStructure.Get();
