@@ -263,12 +263,27 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	bool bResult = false;
-	USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
-	if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
 	{
-		AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
-		bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
+ 
+		if (SpawnableRestoreState.bWasChanged)
+		{
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			Player->Play();
+			Player->PlayToFrame(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()));
+		}
+ 
+		USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
+		if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
+		{
+			AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
+			bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+		}
 	}
+	
+	Player->Stop();
+	World->DestroyActor(OutActor);
+
 	return bResult;
 }
 
