@@ -14,13 +14,24 @@
  * The job of transporting these payloads to an external collector (generally expected to be via HTTP) is left to
  * higher level classes to implement.
  *
- * All public APIs in this class are threadsafe. Implemented via crappy critical sections for now, but they are safe. */
+ * All public APIs in this class are threadsafe. Implemented via crappy critical sections for now, but they are safe. 
+ */
 class ANALYTICSET_API FAnalyticsProviderETEventCache
 {
 public:
-	FAnalyticsProviderETEventCache();
+	/** Default ctor.
+	 * @param InPreallocatedPayloadSize - size to preallocate the payload buffer to during init and after flushing. 
+	 *        If negative, will match the INI-configured MaximumPayloadSize. 
+	 * @param MaximumPayloadSize - size before a payload will be queued for flush. 
+	 *        This ensures that no payload ever gets too large. See AddToCache() and HasFlushesQueued() for details. 
+	 *        If negative, will use INI-configured value: Engine:[AnalyticsProviderETEventCache]MaximumPayloadSize, or 100KB if not configured.
+	 */
+	FAnalyticsProviderETEventCache(int32 MaximumPayloadSize = -1, int32 InPreallocatedPayloadSize = -1);
 
-	/** This call is threadsafe (via crappy CS, but it's safe). */
+	/** 
+	 * Adds a new event to the cache.
+	 * If the estimated payload size will increase beyond MaximumPayloadSize then a flush will be queued here. This will make HasFlushesQueued() == true.
+	 */
 	UE_DEPRECATED(4.25, "This method has been deprecated. Use FJsonFragment to construct Json attributes instead, or call the version that doesn't take a bIsJsonEvent argument.")
 	void AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes, bool bIsJsonEvent);
 	void AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes);
@@ -30,7 +41,6 @@ public:
 	 * Sets an array of attributes that will automatically be appended to any event that is sent.
 	 * Logical effect is like adding them to all events before calling RecordEvent.
 	 * Practically, it is implemented much more efficiently from a storage and allocation perspective.
-	 * This call is threadsafe (via crappy CS, but it's safe).
 	 */
 	void SetDefaultAttributes(TArray<FAnalyticsEventAttribute>&& DefaultAttributes);
 
@@ -50,26 +60,38 @@ public:
 	 */
 	FAnalyticsEventAttribute GetDefaultAttribute(int32 AttributeIndex) const;
 
-	/** This call is threadsafe (via crappy CS, but it's safe). */
+	/** Flushes the cache as a string. This method is inefficient because we build up the array directly as UTF8. If nothing is cached, returns an empty string. */
+	UE_DEPRECATED(4.25, "This method has been deprecated, use FlushCacheUTF8() instead.")
 	FString FlushCache(SIZE_T* OutEventCount = nullptr);
 
-	/** Called by legacy provider configurations for data collectors that don't actually support caching events. This call is threadsafe (via crappy CS, but it's safe). */
-	void FlushCacheLegacy(TFunctionRef<void(const FString&, const FString&)> SendPayloadFunc);
+	/** Flushes the cache as a UTF8 char array. Returns a uint8 because that's what IHttpRequest prefers. If nothing is cached, returns an empty array. */
+	TArray<uint8> FlushCacheUTF8();
 
 	/**
-	* Determines whether we need to flush. Generally, this is only if we have cached events.
-	* Legacy method. This essentially returns GetNumCachedEvents() > 0
+	* Determines whether we have anything we need to flush, either a queued flush or existing events in the payload.
 	*/
 	bool CanFlush() const;
 
-	/** Gets the number of cached events. Expected to be used to approximate when to flush the cache due to too many events. */
+	/**
+	 * Lets external code know that there are payloads queued for flush.
+	 * This happens when AddCache() calls cause the payload size to exceed MaxPayloadSize. 
+	 * Calling code needs to notice this and flush the queue.
+	 */
+	bool HasFlushesQueued() const;
+
+	/**
+	 * Gets the number of cached events (doesn't include any flushes that are already queued for flush). 
+	 */
 	int GetNumCachedEvents() const;
 
-	/** Computes the approximate serialized number of bytes for this event. Used to help caching schemes flush when payloads reach a certain size. */
-	int ComputeApproximateEventChars(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) const;
+	/**
+	 * Sets the preallocated payload size
+	 * @param InPreallocatedCacheSize size to preallocate the payload buffer to during init and after flushing. If negative, will match the INI-configured MaximumPayloadSize.
+	 */
+	void SetPreallocatedPayloadSize(int32 InSetPreallocatedPayloadSize);
 
-	/** Computes an approximate size of the payload so far if it were flushed right now. Used to help caching schemes flush when payloads reach a certain size. */
-	int ComputeApproximatePayloadChars() const;
+	/** Gets the preallocated size of the payload buffer. */
+	int32 GetSetPreallocatedPayloadSize() const;
 
 	friend class Lock;
 
@@ -85,6 +107,8 @@ public:
 	};
 
 private:
+	void QueueFlush();
+
 	/**
 	* Analytics event entry to be cached
 	*/
@@ -92,32 +116,35 @@ private:
 	{
 		/** name of event */
 		FString EventName;
-		/** optional list of attributes */
-		TArray<FAnalyticsEventAttribute> Attributes;
 		/** local time when event was triggered */
 		FDateTime TimeStamp;
-		/** Whether this event is setting the default attributes to add to all events. Every cached event list will start with one of these, though it may be empty. */
-		uint32 bIsDefaultAttributes : 1;
+		/** byte offset into the payload stream that this DateOffset will be stored. Used when flushing the payload to set the proper DateOffset. */
+		int32 DateOffsetByteOffset;
+		/** Total charts used by the event. Mostly used for debugging large payloads. */
+		int32 EventSizeChars;
 		/**
 		* Constructor. Requires rvalue-refs to ensure we move values efficiently into this struct.
 		*/
-		FAnalyticsEventEntry(FString&& InEventName, TArray<FAnalyticsEventAttribute>&& InAttributes, bool bInIsDefaultAttributes)
+		FAnalyticsEventEntry(FString&& InEventName, int32 InDateOffsetByteOffset, int32 InEventSizeChars)
 			: EventName(MoveTemp(InEventName))
-			, Attributes(MoveTemp(InAttributes))
 			, TimeStamp(FDateTime::UtcNow())
-			, bIsDefaultAttributes(bInIsDefaultAttributes)
+			, DateOffsetByteOffset(InDateOffsetByteOffset)
+			, EventSizeChars(InEventSizeChars)
 		{}
 	};
 
+	int32 MaximumPayloadSize;
+	int32 PreallocatedPayloadSize;
+
 	/**
 	* List of analytic events pending a server update .
-	* NOTE: This MUST be accessed inside a lock on CachedEventsCS!!
+	* NOTE: The following members MUST be accessed inside a lock on CachedEventsCS!!
 	*/
-	TArray<FAnalyticsEventEntry> CachedEvents;
-
-	int EventSizeEstimate = 0;
-	int NumEventsCached = 0;
-	int CurrentDefaultAttributeSizeEstimate = 0;
+	TArray<FAnalyticsEventEntry> CachedEventEntries;
+	TArray<uint8> CachedEventUTF8Stream;
+	TArray<FAnalyticsEventAttribute> CachedDefaultAttributes;
+	TArray<uint8> CachedDefaultAttributeUTF8Stream;
+	TArray<TArray<uint8>> FlushQueue;
 
 	/** Critical section for updating the CachedEvents. Mutable to allow const methods to access the list. */
 	mutable FCriticalSection CachedEventsCS;
