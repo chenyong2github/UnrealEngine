@@ -675,7 +675,7 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 	RawTransforms.AddZeroed(NumBones);
 	NewTransforms.AddZeroed(NumBones);
 
-	InducedErrors.AddUninitialized(NumTracks);
+	InducedErrors.AddZeroed(NumTracks);
 
 	FTransform Perturbation(RotationNudge, PositionNudge, ScaleNudge);
 
