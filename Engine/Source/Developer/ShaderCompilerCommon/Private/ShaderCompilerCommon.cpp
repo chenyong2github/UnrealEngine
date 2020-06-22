@@ -1216,8 +1216,15 @@ static int Mali_ExtractNumberInstructions(const FString &MaliOutput)
 	int ReturnedNum = 0;
 
 	// Parse the instruction count
-	const int32 InstructionStringLength = FPlatformString::Strlen(TEXT("Instructions Emitted:"));
-	const int32 InstructionsIndex = MaliOutput.Find(TEXT("Instructions Emitted:"));
+	int32 InstructionStringLength = FPlatformString::Strlen(TEXT("Instructions Emitted:"));
+	int32 InstructionsIndex = MaliOutput.Find(TEXT("Instructions Emitted:"));
+
+	// new version of mali offline compiler uses a different string in its output
+	if (InstructionsIndex == INDEX_NONE)
+	{
+		InstructionStringLength = FPlatformString::Strlen(TEXT("Total instruction cycles:"));
+		InstructionsIndex = MaliOutput.Find(TEXT("Total instruction cycles:"));
+	}
 
 	if (InstructionsIndex != INDEX_NONE && InstructionsIndex + InstructionStringLength < MaliOutput.Len())
 	{
