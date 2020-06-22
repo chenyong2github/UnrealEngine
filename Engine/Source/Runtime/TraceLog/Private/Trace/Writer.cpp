@@ -698,7 +698,7 @@ static void Writer_WorkerThread()
 	{
 		Writer_WorkerUpdate();
 
-		const uint32 SleepMs = 24;
+		const uint32 SleepMs = 17;
 		ThreadSleep(SleepMs);
 	}
 
