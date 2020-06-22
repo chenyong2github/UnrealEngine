@@ -1362,7 +1362,10 @@ void FLinuxApplication::SetHighPrecisionMouseMode( const bool Enable, const TSha
 {
 	MessageHandler->OnCursorSet();
 	bUsingHighPrecisionMouseInput = Enable;
-	SDL_SetRelativeMouseMode(Enable ? SDL_TRUE : SDL_FALSE);
+	if (!FParse::Param(FCommandLine::Get(), TEXT("norelativemousemode")))
+	{
+		SDL_SetRelativeMouseMode(Enable ? SDL_TRUE : SDL_FALSE);
+	}
 }
 
 void FLinuxApplication::RefreshDisplayCache()
