@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 // Disable Optimizations in non debug build configurations
 #define VEHICLE_DEBUGGING_ENABLED 0
 
@@ -33,7 +35,7 @@ namespace Chaos
 
 	};
 
-	class FVehicleUtility
+	 class CHAOSVEHICLESCORE_API FVehicleUtility
 	{
 	public:
 
@@ -109,6 +111,13 @@ namespace Chaos
 		return M * 100.0f;
 	}
 
+	/** cm to meters - warning loss of precision */
+	FORCEINLINE float CmToMiles(float Cm)
+	{
+		return Cm * 0.0000062137119224f;
+	}
+
+
 	/** Km to miles */
 	FORCEINLINE float KmToMile(float Km)
 	{
@@ -143,4 +152,97 @@ namespace Chaos
 		return InRad * 180.f / PI;
 	}
 
+	 class CHAOSVEHICLESCORE_API FTimeAndDistanceMeasure
+	{
+	public:
+		FTimeAndDistanceMeasure(const FString& DescriptionIn, float InitialVelocityIn, float TargetVelocityIn, float TargetDistanceIn);
+
+		void Reset();
+
+		bool IsComplete() const { return MeasurementComplete; }
+
+		void Update(float DeltaTime, const FVector& CurrentLocation, float CurrentVelocity);
+
+		FString ToString() const;
+
+	private:
+		FString Description;
+		bool PreStartConditionsMet;
+		bool StartConditionsMet;
+		bool MeasurementComplete;
+
+		FVector InitialLocation;
+		double InitialTime;
+
+		float InitialVelocityMPH;
+		float FinalTargetVelocityMPH;
+		float FinalTargetDistanceMiles;
+
+		float VelocityResultMPH;
+		float DistanceResultMiles;
+		float TimeResultSeconds;
+	};
+
+	 class CHAOSVEHICLESCORE_API FPerformanceMeasure
+	{
+	public:
+		enum class EMeasure : uint8
+		{
+			ZeroToThirtyMPH = 0,
+			ZeroToSixtyMPH,
+			QuarterMile,
+			ThirtyToZeroMPH,
+			SixtyToZeroMPH,
+		};
+
+		FPerformanceMeasure();
+
+		void AddMeasure(FTimeAndDistanceMeasure& MeasureIn)
+		{
+			PerformanceMeasure.Add(MeasureIn);
+		}
+
+		const FTimeAndDistanceMeasure& GetMeasure(int MeasurementIdx)
+		{
+			return PerformanceMeasure[MeasurementIdx];
+		}
+
+		void ResetAll()
+		{
+			for (int I = 0; I < PerformanceMeasure.Num(); I++)
+			{
+				PerformanceMeasure[I].Reset();
+			}
+		}
+
+		void Update(float DeltaTime, const FVector& CurrentLocation, float CurrentVelocity)
+		{
+			for (int I = 0; I < PerformanceMeasure.Num(); I++)
+			{
+				PerformanceMeasure[I].Update(DeltaTime, CurrentLocation, CurrentVelocity);
+			}
+		}
+
+		int GetNumMeasures() const
+		{
+			return PerformanceMeasure.Num();
+		}
+
+		void Enable()
+		{
+			IsEnabledThisFrame = true;
+		}
+
+		bool IsEnabled() const
+		{
+			return IsEnabledThisFrame;
+		}
+
+	private:
+
+		bool IsEnabledThisFrame;
+		TArray<FTimeAndDistanceMeasure> PerformanceMeasure;
+	};
+
 } // namespace Chaos
+
