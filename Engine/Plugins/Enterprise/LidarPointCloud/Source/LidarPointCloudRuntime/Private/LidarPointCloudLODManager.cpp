@@ -407,7 +407,22 @@ void FLidarPointCloudLODManager::RegisterProxy(ULidarPointCloudComponent* Compon
 
 void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODManager::FRegisteredProxy>& InRegisteredProxies, const float CurrentTime)
 {
-	const int32 PointBudget = CVarLidarPointBudget.GetValueOnAnyThread();
+	int32 PointBudget = CVarLidarPointBudget.GetValueOnAnyThread();
+
+#if PLATFORM_MAC
+	static bool bMetalBudgetNotified = false;
+	if (PointBudget > 9586980)
+	{
+		PointBudget = 9586980;
+		
+		if (!bMetalBudgetNotified)
+		{
+			bMetalBudgetNotified = true;
+			PC_WARNING("Metal API supports a maximum point budget of 9,586,980. The requested budget has been automatically capped to avoid a crash. This will be fixed for 4.26.");
+		}
+	}
+#endif
+
 	static FLidarPointCloudDataBufferManager BufferManager(PointBudget * 17);
 	BufferManager.Resize(PointBudget * 17);
 
