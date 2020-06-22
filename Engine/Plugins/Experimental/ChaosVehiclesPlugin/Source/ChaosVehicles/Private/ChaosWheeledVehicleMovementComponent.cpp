@@ -43,6 +43,8 @@ FAutoConsoleVariableRef CVarChaosVehiclesApplyWheelForcetoSurface(TEXT("p.Vehicl
 FAutoConsoleVariableRef CVarChaosVehiclesThrottleOverride(TEXT("p.Vehicles.ThrottleOverride"), GWheeledVehicleDebugParams.ThrottleOverride, TEXT("Hard code throttle input on."));
 FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicles.SteeringOverride"), GWheeledVehicleDebugParams.SteeringOverride, TEXT("Hard code steering input on."));
 
+FAutoConsoleVariableRef CVarChaosVehiclesResetMeasurements(TEXT("p.Vehicles.ResetMeasurements"), GWheeledVehicleDebugParams.ResetPerformanceMeasurements, TEXT("Reset Vehicle Performance Measurements."));
+
 
 FAutoConsoleCommand CVarCommandVehiclesNextDebugPage(
 	TEXT("p.Vehicles.NextDebugPage"),
@@ -84,6 +86,7 @@ UChaosWheeledVehicleMovementComponent::UChaosWheeledVehicleMovementComponent(con
 	TransmissionSetup.ForwardGearRatios.Add(2.0f);
 	TransmissionSetup.ForwardGearRatios.Add(1.0f);
 	TransmissionSetup.FinalRatio = 4.0f;
+	TransmissionSetup.TransmissionEfficiency = 0.94f;
 
 	TransmissionSetup.ReverseGearRatios.Add(3.0f);
 }
@@ -617,6 +620,11 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		if (!GWheeledVehicleDebugParams.DisableFrictionForces && WheelFrictionEnabled)
 		{		
 			ApplyWheelFrictionForces(DeltaTime);
+		}
+
+		if (PerformanceMeasure.IsEnabled())
+		{
+			PerformanceMeasure.Update(DeltaTime, VehicleState.VehicleWorldTransform.GetLocation(), VehicleState.ForwardSpeed);
 		}
 
 	}
@@ -1219,6 +1227,25 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("SurfaceFriction: [%d] %.2f"), i, PVehicle->Wheels[i].GetSurfaceFriction()), 4, YPos);
 		}
 		
+	}
+
+	if (DebugPage == EDebugPages::PerformancePage)
+	{
+		if (GWheeledVehicleDebugParams.ResetPerformanceMeasurements)
+		{
+			GWheeledVehicleDebugParams.ResetPerformanceMeasurements = false;
+			PerformanceMeasure.ResetAll();
+		}
+
+		PerformanceMeasure.Enable();
+
+		YPos += 16;
+		for (int I=0; I<PerformanceMeasure.GetNumMeasures(); I++)
+		{
+			const FTimeAndDistanceMeasure& Measure = PerformanceMeasure.GetMeasure(I);
+
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s"), *Measure.ToString()), 4, YPos);
+		}
 	}
 
 	// draw wheel layout
