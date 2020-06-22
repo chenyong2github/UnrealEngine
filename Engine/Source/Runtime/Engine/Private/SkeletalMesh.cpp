@@ -5280,84 +5280,88 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		if (MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid())
 		{
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
-			
+
 			FRayTracingInstance RayTracingInstance;
 			RayTracingInstance.Geometry = MeshObject->GetRayTracingGeometry();
 
+			// Setup materials for each segment
+			const int32 LODIndex = MeshObject->GetLOD();
+			check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
+			const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
+
+			if (LODIndex < SkeletalMeshRenderData->CurrentFirstLODIdx)
 			{
-				// Setup materials for each segment
-				const int32 LODIndex = MeshObject->GetLOD();
-				check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
-				const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
+				// According to GetMeshElementsConditionallySelectable(), non-resident LODs should just be skipped
+				return;
+			}
 
-				ensure(LODSections.Num() > 0);
-				const FLODSectionElements& LODSection = LODSections[LODIndex];
-				check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
-				
-				//#dxr_todo: verify why this condition is not fulfilled sometimes
-				verify(LODSection.SectionElements.Num() == MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num());
-				if(LODSection.SectionElements.Num() != MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num())
+			ensure(LODSections.Num() > 0);
+			const FLODSectionElements& LODSection = LODSections[LODIndex];
+			check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
+
+			//#dxr_todo: verify why this condition is not fulfilled sometimes
+			verify(LODSection.SectionElements.Num() == MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num());
+			if (LODSection.SectionElements.Num() != MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num())
+			{
+				return;
+			}
+
+#if WITH_EDITORONLY_DATA
+			int32 SectionIndexPreview = MeshObject->SectionIndexPreview;
+			int32 MaterialIndexPreview = MeshObject->MaterialIndexPreview;
+			MeshObject->SectionIndexPreview = INDEX_NONE;
+			MeshObject->MaterialIndexPreview = INDEX_NONE;
+#endif
+			for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
+			{
+				const FSkelMeshRenderSection& Section = Iter.GetSection();
+				const int32 SectionIndex = Iter.GetSectionElementIndex();
+				const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
+
+				FMeshBatch MeshBatch;
+				CreateBaseMeshBatch(Context.ReferenceView, LODData, LODIndex, SectionIndex, SectionElementInfo, MeshBatch);
+
+				RayTracingInstance.Materials.Add(MeshBatch);
+			}
+#if WITH_EDITORONLY_DATA
+			MeshObject->SectionIndexPreview = SectionIndexPreview;
+			MeshObject->MaterialIndexPreview = MaterialIndexPreview;
+#endif
+			if (bAnySegmentUsesWorldPositionOffset)
+			{
+				RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+			}
+			else
+			{
+				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
+			}
+
+			if (bAnySegmentUsesWorldPositionOffset)
+			{
+				TArray<FRayTracingGeometrySegment> GeometrySections;
+				GeometrySections.Reserve(LODData.RenderSections.Num());
+				for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
 				{
-					return;
+					FRayTracingGeometrySegment Segment;
+					Segment.FirstPrimitive = Section.BaseIndex / 3;
+					Segment.NumPrimitives = Section.NumTriangles;
+					Segment.bEnabled = !Section.bDisabled;
+					GeometrySections.Add(Segment);
 				}
+				MeshObject->GetRayTracingGeometry()->Initializer.Segments = GeometrySections;
 
-			#if WITH_EDITORONLY_DATA
-				int32 SectionIndexPreview = MeshObject->SectionIndexPreview;
-				int32 MaterialIndexPreview = MeshObject->MaterialIndexPreview;
-				MeshObject->SectionIndexPreview = INDEX_NONE;
-				MeshObject->MaterialIndexPreview = INDEX_NONE;
-			#endif
-				for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
-				{
-					const FSkelMeshRenderSection& Section = Iter.GetSection();
-					const int32 SectionIndex = Iter.GetSectionElementIndex();
-					const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
-
-					FMeshBatch MeshBatch;
-					CreateBaseMeshBatch(Context.ReferenceView, LODData, LODIndex, SectionIndex, SectionElementInfo, MeshBatch);
-
-					RayTracingInstance.Materials.Add(MeshBatch);
-				}
-			#if WITH_EDITORONLY_DATA
-				MeshObject->SectionIndexPreview = SectionIndexPreview;
-				MeshObject->MaterialIndexPreview = MaterialIndexPreview;
-			#endif
-				if (bAnySegmentUsesWorldPositionOffset)
-				{
-					RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
-				}
-				else
-				{
-					RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
-				}
-
-				if (bAnySegmentUsesWorldPositionOffset)
-				{
-					TArray<FRayTracingGeometrySegment> GeometrySections;
-					GeometrySections.Reserve(LODData.RenderSections.Num());
-					for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
+				Context.DynamicRayTracingGeometriesToUpdate.Add(
+					FRayTracingDynamicGeometryUpdateParams
 					{
-						FRayTracingGeometrySegment Segment;
-						Segment.FirstPrimitive = Section.BaseIndex / 3;
-						Segment.NumPrimitives = Section.NumTriangles;
-						Segment.bEnabled = !Section.bDisabled;
-						GeometrySections.Add(Segment);
+						RayTracingInstance.Materials,
+						false,
+						LODData.GetNumVertices(),
+						LODData.GetNumVertices() * (uint32)sizeof(FVector),
+						MeshObject->GetRayTracingGeometry()->Initializer.TotalPrimitiveCount,
+						MeshObject->GetRayTracingGeometry(),
+						MeshObject->GetRayTracingDynamicVertexBuffer()
 					}
-					MeshObject->GetRayTracingGeometry()->Initializer.Segments = GeometrySections;
-
-					Context.DynamicRayTracingGeometriesToUpdate.Add(
-						FRayTracingDynamicGeometryUpdateParams
-						{
-							RayTracingInstance.Materials,
-							false,
-							LODData.GetNumVertices(),
-							LODData.GetNumVertices() * (uint32)sizeof(FVector),
-							MeshObject->GetRayTracingGeometry()->Initializer.TotalPrimitiveCount,
-							MeshObject->GetRayTracingGeometry(),
-							MeshObject->GetRayTracingDynamicVertexBuffer()
-						}
-					);
-				}
+				);
 			}
 
 			RayTracingInstance.BuildInstanceMaskAndFlags();
