@@ -142,7 +142,8 @@ namespace UnrealBuildTool
 		public static readonly Version MinimumSDKVersionForD3D12RHI = new Version(10, 0, 15063, 0);
 
 
-		public HoloLens(UnrealTargetPlatform InPlatform, HoloLensPlatformSDK InSDK) : base(InPlatform, InSDK)
+		public HoloLens(MicrosoftPlatformSDK InSDK) 
+			: base(UnrealTargetPlatform.HoloLens, InSDK)
 		{
 		}
 
@@ -743,11 +744,6 @@ namespace UnrealBuildTool
 
 
 
-	class HoloLensPlatformSDK : MicrosoftPlatformSDK
-	{
-
-	}
-
 	class HoloLensPlatformFactory : UEBuildPlatformFactory
 	{
 		public override UnrealTargetPlatform TargetPlatform
@@ -760,9 +756,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			HoloLensPlatformSDK SDK = new HoloLensPlatformSDK();
+			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
 
-			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
 		}

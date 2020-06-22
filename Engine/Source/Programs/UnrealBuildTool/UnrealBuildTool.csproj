@@ -165,9 +165,12 @@
     <Compile Include="Executors\SNDBS.cs" />
     <Compile Include="Executors\XGE.cs" />
     <Compile Include="Modes\WriteMetadataMode.cs" />
+    <Compile Include="Platform\Android\AndroidPlatformSDK.cs" />
     <Compile Include="Platform\IOS\IOSPostBuildSyncMode.cs" />
     <Compile Include="Platform\IOS\MobileProvisionContents.cs" />
+    <Compile Include="Platform\Linux\LinuxPlatformSDK.cs" />
     <Compile Include="Platform\Lumin\LuminPackageManifest.cs" />
+    <Compile Include="Platform\Lumin\LuminPlatformSDK.cs" />
     <Compile Include="Platform\Lumin\UEDeployLumin.cs" />
     <Compile Include="Platform\Mac\ApplePlatformSDK.cs" />
     <Compile Include="Platform\Windows\MicrosoftPlatformSDK.cs" />

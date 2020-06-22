@@ -730,14 +730,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static readonly bool bBuildLargeAddressAwareBinary = true;
 
-		WindowsPlatformSDK SDK;
+		MicrosoftPlatformSDK SDK;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InPlatform">Creates a windows platform with the given enum value</param>
 		/// <param name="InSDK">The installed Windows SDK</param>
-		public WindowsPlatform(UnrealTargetPlatform InPlatform, WindowsPlatformSDK InSDK)
+		public WindowsPlatform(UnrealTargetPlatform InPlatform, MicrosoftPlatformSDK InSDK)
 			: base(InPlatform, InSDK)
 		{
 			SDK = InSDK;
@@ -2299,10 +2299,6 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class WindowsPlatformSDK : MicrosoftPlatformSDK
-	{
-	}
-
 	class WindowsPlatformFactory : UEBuildPlatformFactory
 	{
 		public override UnrealTargetPlatform TargetPlatform
@@ -2315,7 +2311,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			WindowsPlatformSDK SDK = new WindowsPlatformSDK();
+			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
 
 			// Register this build platform for Win64 (no more Win32)
 			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK));
