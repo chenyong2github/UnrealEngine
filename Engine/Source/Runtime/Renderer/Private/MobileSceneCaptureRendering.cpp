@@ -116,6 +116,7 @@ IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyPS##SCENETYPE, TEXT("/E
 
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDR);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorLDR);
+IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_FinalColorHDR);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorHDRNoAlpha);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneColorSceneDepth);
 IMPLEMENT_MOBILE_SCENE_CAPTURECOPY(SCS_SceneDepth);
@@ -148,6 +149,8 @@ static TShaderRef<FShader> SetCaptureToTargetShaders(FRHICommandListImmediate& R
 			return SetCaptureToTargetShaders<SCS_SceneColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_FinalColorLDR:
 			return SetCaptureToTargetShaders<SCS_FinalColorLDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
+		case SCS_FinalColorHDR:
+			return SetCaptureToTargetShaders<SCS_FinalColorHDR>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorHDRNoAlpha:
 			return SetCaptureToTargetShaders<SCS_SceneColorHDRNoAlpha>(RHICmdList, GraphicsPSOInit, View, SourceTexSize, SourceTextureRHI);
 		case SCS_SceneColorSceneDepth:
@@ -324,7 +327,8 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
-	bool bUseSceneTextures = SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorLDR;
+	bool bUseSceneTextures = SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorLDR &&
+								SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorHDR;
 
 	{
 #if WANTS_DRAW_MESH_EVENTS
