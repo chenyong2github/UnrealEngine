@@ -636,7 +636,9 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	RotateGizmo->AxisSource = Cast<UObject>(AxisSource);
 
 	// parameter source maps angle-parameter-change to rotation of TransformSource's transform
-	RotateGizmo->AngleSource = UGizmoAxisRotationParameterSource::Construct(AxisSource, TransformSource, this);
+	UGizmoAxisRotationParameterSource* AngleSource = UGizmoAxisRotationParameterSource::Construct(AxisSource, TransformSource, this);
+	AngleSource->RotationConstraintFunction = [this](const FQuat& DeltaRotation){ return RotationSnapFunction(DeltaRotation); };
+	RotateGizmo->AngleSource = AngleSource;
 
 	// sub-component provides hit target
 	UGizmoComponentHitTarget* HitTarget = UGizmoComponentHitTarget::Construct(AxisComponent, this);
@@ -789,7 +791,7 @@ void UTransformGizmo::ClearActiveTarget()
 
 
 
-bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut)
+bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
 {
 	SnappedPositionOut = WorldPosition;
 
@@ -815,14 +817,29 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 		SnappedPositionOut = Results[0].Position;
 		return true;
 	};
-	
+
 	return false;
 }
 
+FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
+{
+	FQuat SnappedDeltaRotation = DeltaRotation;
 
-
-
-
+	// only snap if we want snapping obvs
+	if (bSnapToWorldRotGrid)
+	{
+		FSceneSnapQueryRequest Request;
+		Request.RequestType   = ESceneSnapQueryType::Rotation;
+		Request.TargetTypes   = ESceneSnapQueryTargetType::Grid;
+		Request.DeltaRotation = DeltaRotation;
+		TArray<FSceneSnapQueryResult> Results;
+		if (GetGizmoManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
+		{
+			SnappedDeltaRotation = Results[0].DeltaRotation;
+		};
+	}
+	return SnappedDeltaRotation;
+}
 
 void UTransformGizmo::BeginChange()
 {

@@ -87,7 +87,8 @@ UENUM()
 enum class ESceneSnapQueryType
 {
 	/** snapping a position */
-	Position = 1		
+	Position = 1,
+	Rotation = 2
 };
 
 /** Types of snap targets that a Tool may want to run snap queries against. */
@@ -125,6 +126,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 	FVector Direction;
 	/** Another direction must deviate less than this number of degrees from Direction to be considered an acceptable snap direction */
 	float DirectionAngleThresholdDegrees;
+
+	/** Snap input rotation delta */
+	FQuat DeltaRotation;
 };
 
 
@@ -146,6 +150,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
 	FVector Normal;
 	/** Snap direction (may not be set depending on query types) */
 	FVector Direction;
+	/** Snap rotation delta (may not be set depending on query types) */
+	FQuat   DeltaRotation;
 
 	/** Vertices of triangle that contains result (for debugging, may not be set) */
 	FVector TriVertices[3];

@@ -296,6 +296,11 @@ public:
 	UPROPERTY()
 	bool bSnapToWorldGrid = false;
 
+	/**
+	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
+	 */
+	UPROPERTY()
+	bool bSnapToWorldRotGrid = false;
 
 	/**
 	 * Whether to use the World/Local coordinate system provided by the context via the ContextyQueriesAPI.
@@ -484,7 +489,8 @@ protected:
 		IGizmoStateTarget* StateTarget);
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
-	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut);
+	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
+	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
 
 };
 
