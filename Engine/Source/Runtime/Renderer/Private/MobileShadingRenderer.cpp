@@ -439,7 +439,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = bRequiresTranslucencyPass || CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
-	bool bKeepDepthContent = bForceDepthResolve || (bRenderToSceneColor &&
+	bool bKeepDepthContent = bForceDepthResolve || bRequiresTranslucencyPass || (bRenderToSceneColor &&
 		(bSeparateTranslucencyActive ||
 		 View.bIsReflectionCapture ||
 		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth))));
