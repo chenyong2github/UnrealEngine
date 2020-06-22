@@ -374,10 +374,11 @@ void UNiagaraStackRendererItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 	if (RendererProperties->GetIsEnabled() && !RendererProperties->IsSimTargetSupported(GetEmitterViewModel()->GetEmitter()->SimTarget))
 	{
+		
 		FStackIssue TargetSupportError(
 			EStackIssueSeverity::Error,
 			LOCTEXT("FailedRendererDueToSimTarget", "Renderer incompatible with SimTarget mode."),
-			FText::Format(LOCTEXT("FailedRendererDueToSimTargetLong", "Renderer incompatible with SimTarget mode \"{0}\"."), (int32)GetEmitterViewModel()->GetEmitter()->SimTarget),
+			FText::Format(LOCTEXT("FailedRendererDueToSimTargetLong", "Renderer incompatible with SimTarget mode \"{0}\"."), FText::FromName(UEnum::GetValueAsName(GetEmitterViewModel()->GetEmitter()->SimTarget))),
 			GetStackEditorDataKey(),
 			false);
 
