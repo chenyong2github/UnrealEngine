@@ -20,12 +20,12 @@ struct FSoundControlBusMixChannel
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundControlBusMixChannel() = default;
+	FSoundControlBusMixChannel();
 	FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue);
 
 	/* Bus controlled by channel. */
 	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
-	USoundControlBusBase* Bus = nullptr;
+	USoundControlBusBase* Bus;
 
 	/* Value mix is set to. */
 	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
