@@ -278,6 +278,13 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisRotationParameterSource : public U
 {
 	GENERATED_BODY()
 public:
+	/**
+	 * Optional rotation constraint function. Called during interaction with the rotation delta
+	 * To snap the rotation delta, return the snapped quat
+	 * @return The snapped value of the rotation delta
+	 */
+	TUniqueFunction<FQuat(const FQuat&)> RotationConstraintFunction = [](const FQuat& DeltaRotation) { return DeltaRotation; };
+
 	virtual float GetParameter() const override
 	{
 		return Angle;
@@ -290,6 +297,7 @@ public:
 
 		// construct rotation as delta from initial position
 		FQuat DeltaRotation(CurRotationAxis, LastChange.GetChangeDelta());
+		DeltaRotation = RotationConstraintFunction(DeltaRotation);
 
 		// rotate the vector from the rotation origin to the transform origin, 
 		// to get the translation of the origin produced by the rotation
