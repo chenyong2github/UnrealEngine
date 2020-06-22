@@ -13,6 +13,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "PhysicsSolver.h"
 
+
 template< class CONSTRAINT_TYPE >
 TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, TJointConstraintProxy<CONSTRAINT_TYPE>::FConstraintHandle* InHandle, UObject* InOwner)
 	: Base(InOwner)
@@ -32,19 +33,18 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::~TJointConstraintProxy()
 }
 
 
-
 template< class CONSTRAINT_TYPE>
 EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
 {
 	return EPhysicsProxyType::NoneType;
 }
 
+
 template<>
 EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 {
 	return EPhysicsProxyType::JointConstraintType;
 }
-
 
 
 template < >
@@ -85,6 +85,11 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::CollisionEnabled);
 			}
 
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::ProjectionEnabled))
+			{
+				JointSettingsBuffer.bProjectionEnabled = Constraint->GetProjectionEnabled();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::ProjectionEnabled);
+			}
 
 			Constraint->ClearDirtyFlags();
 		}
@@ -148,6 +153,12 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 				}
 			}
 		}
+
+		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ProjectionEnabled))
+		{
+			ConstraintSettings.bProjectionEnabled = JointSettingsBuffer.bProjectionEnabled;
+		}
+
 		DirtyFlagsBuffer.Clear();
 	}
 }
@@ -159,7 +170,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chao
 {
 	// @todo(chaos) : Implement
 }
-
 
 
 template class TJointConstraintProxy< Chaos::FJointConstraint >;

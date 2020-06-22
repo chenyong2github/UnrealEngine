@@ -49,20 +49,4 @@ namespace Chaos
 	}
 
 
-
-	void FJointConstraint::SetCollisionEnabled(bool InValue)
-	{
-		if (InValue != JointSettings.bCollisionEnabled)
-		{
-			JointSettings.bCollisionEnabled = InValue;
-			MDirtyFlags.MarkDirty(EJointConstraintFlags::CollisionEnabled);
-			SetProxy(Proxy);
-		}
-	}
-
-	bool FJointConstraint::GetCollisionEnabled() const
-	{
-		return JointSettings.bCollisionEnabled;
-	}
-
 } // Chaos
