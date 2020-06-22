@@ -1441,6 +1441,8 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						const FString& AssetPath(Tokens[0]);
 						const FString& HotfixType(Tokens[1]);
 
+						bool bAddAssetToHotfixedList = false;
+
 						// Find or load the asset
 						UObject* Asset = StaticLoadObject(AssetClass, nullptr, *AssetPath);
 						if (Asset != nullptr)
@@ -1455,6 +1457,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 								//	+CurveTable=<curve table path>;RowUpdate;<row name>;<column name>;<new value>
 								//	+CurveFloat=<curve float path>;RowUpdate;None;<column name>;<new value>
 								HotfixRowUpdate(Asset, AssetPath, Tokens[2], Tokens[3], Tokens[4], ProblemStrings);
+								bAddAssetToHotfixedList = ProblemStrings.Num() == 0;
 							}
 							else if (HotfixType == TableUpdate && Tokens.Num() == 3)
 							{
@@ -1467,6 +1470,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 								if (FParse::QuotedString(*Tokens[2], JsonData))
 								{
 									HotfixTableUpdate(Asset, AssetPath, JsonData, ProblemStrings);
+									bAddAssetToHotfixedList = ProblemStrings.Num() == 0;
 								}
 								else
 								{
@@ -1480,11 +1484,14 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						}
 						else
 						{
-							const FString Problem(FString::Printf(TEXT("Couldn't find or load asset '%s' (class '%s').  This asset will not be patched.  Double check that your asset type and path string is correct."), *AssetPath, *AssetClass->GetPathName()));
-							ProblemStrings.Add(Problem);
+							if (ShouldWarnAboutMissingWhenPatchingFromIni(AssetPath))
+							{
+								const FString Problem(FString::Printf(TEXT("Couldn't find or load asset '%s' (class '%s').  This asset will not be patched.  Double check that your asset type and path string is correct."), *AssetPath, *AssetClass->GetPathName()));
+								ProblemStrings.Add(Problem);
+							}
 						}
 
-						if (ProblemStrings.Num() > 0)
+						if (!bAddAssetToHotfixedList)
 						{
 							for (const FString& ProblemString : ProblemStrings)
 							{

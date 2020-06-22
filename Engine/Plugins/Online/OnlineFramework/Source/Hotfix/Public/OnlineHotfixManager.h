@@ -285,6 +285,8 @@ protected:
 	/** Fires the progress delegate with our updated progress */
 	void UpdateProgress(uint32 FileCount, uint64 UpdateSize);
 
+	virtual bool ShouldWarnAboutMissingWhenPatchingFromIni(const FString& AssetPath) const { return true; }
+
 	/** Called after any hotfixes are applied to apply last-second changes to certain asset types from .ini file data */
 	virtual void PatchAssetsFromIniFiles();
 	
