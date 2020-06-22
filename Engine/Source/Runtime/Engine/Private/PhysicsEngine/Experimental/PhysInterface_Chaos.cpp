@@ -1148,7 +1148,17 @@ void FPhysInterface_Chaos::SetCollisionEnabled(const FPhysicsConstraintHandle& I
 
 void FPhysInterface_Chaos::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, bool bInProjectionEnabled, float InLinearTolerance, float InAngularToleranceDegrees)
 {
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetProjectionEnabled(bInProjectionEnabled);
 
+			// @todo(chaos) : Constraint solver data is solver specific, so it needs and interface against the solver not the constraint handle. 
+			//Constraint->SetSolverPositionTolerance(InLinearTolerance);
+			//Constraint->SetSolverAngularTolerance(InAngularToleranceDegrees);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetParentDominates_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, bool bInParentDominates)
