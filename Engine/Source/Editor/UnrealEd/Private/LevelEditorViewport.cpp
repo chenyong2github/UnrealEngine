@@ -879,7 +879,7 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 		UModel* Model = ModelHitProxy->GetModel();
 		
 		// If our model doesn't exist or is part of a level that is being destroyed
-		if( !Model || Model && Model->GetOuter()->IsPendingKillOrUnreachable())
+		if( !Model || (Model && Model->GetOuter()->IsPendingKillOrUnreachable()))
 		{
 			return false;
 		}
