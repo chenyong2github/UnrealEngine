@@ -1163,12 +1163,24 @@ void FPhysInterface_Chaos::SetProjectionEnabled_AssumesLocked(const FPhysicsCons
 
 void FPhysInterface_Chaos::SetParentDominates_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, bool bInParentDominates)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			if (bInParentDominates)
+			{
+				Constraint->SetParentInvMassScale(0.f);
+			}
+			else
+			{
+				Constraint->SetParentInvMassScale(1.f);
+			}
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLinearBreakForce, float InAngularBreakForce)
 {
-
 }
 
 void FPhysInterface_Chaos::SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame)
