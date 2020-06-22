@@ -284,7 +284,7 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 		}
 	}
 
-	const bool bWorldIsActive = GEditor ? GEditor->IsPlaySessionInProgress() : false;
+	const bool bWorldIsActive = GEditor->IsPlaySessionInProgress();
 	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable && !bWorldIsActive;
 }
 
