@@ -1008,7 +1008,10 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			{
 				for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
 				{
-					InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+					if (Component->GetStaticMesh())
+					{
+						InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+					}
 				}
 			}
 		}
