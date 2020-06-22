@@ -20,6 +20,11 @@
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
 
+FSoundControlBusMixChannel::FSoundControlBusMixChannel()
+	: Bus(nullptr)
+{
+}
+
 FSoundControlBusMixChannel::FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue)
 	: Bus(InBus)
 {
