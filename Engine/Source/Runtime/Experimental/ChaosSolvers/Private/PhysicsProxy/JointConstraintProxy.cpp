@@ -91,6 +91,12 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::ProjectionEnabled);
 			}
 
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
+			{
+				JointSettingsBuffer.ParentInvMassScale = Constraint->GetParentInvMassScale();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::ParentInvMassScale);
+			}
+
 			Constraint->ClearDirtyFlags();
 		}
 	}
@@ -157,6 +163,11 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ProjectionEnabled))
 		{
 			ConstraintSettings.bProjectionEnabled = JointSettingsBuffer.bProjectionEnabled;
+		}
+
+		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
+		{
+			ConstraintSettings.ParentInvMassScale = JointSettingsBuffer.ParentInvMassScale;
 		}
 
 		DirtyFlagsBuffer.Clear();
