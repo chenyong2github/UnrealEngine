@@ -11,6 +11,7 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/CString.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformTime.h"
 
 namespace EventCacheStatic
 {
