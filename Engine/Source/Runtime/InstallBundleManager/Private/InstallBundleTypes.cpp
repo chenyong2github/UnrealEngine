@@ -52,6 +52,7 @@ const TCHAR* LexToString(EInstallBundleManagerInitResult Result)
 		TEXT("BackgroundDownloadsIniDownloadError"),
 		TEXT("NoInternetConnectionError"),
 		TEXT("ConfigurationError"),
+		TEXT("ClientPatchRequiredError"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleManagerInitResult::Count) == UE_ARRAY_COUNT(Strings), "");
@@ -84,6 +85,7 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("ManifestArchiveError"),
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
+		TEXT("InitializationPending"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
