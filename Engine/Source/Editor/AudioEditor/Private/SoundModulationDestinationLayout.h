@@ -12,15 +12,15 @@
 
 
 // Forward Declarations
-struct FSoundModulationParameterSettings;
+struct FSoundModulationDestinationSettings;
 
 
-class FSoundModulationParameterLayoutCustomization : public IPropertyTypeCustomization
+class FSoundModulationDestinationLayoutCustomization : public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FSoundModulationParameterLayoutCustomization>();
+		return MakeShared<FSoundModulationDestinationLayoutCustomization>();
 	}
 
 	//~ Begin IPropertyTypeCustomization

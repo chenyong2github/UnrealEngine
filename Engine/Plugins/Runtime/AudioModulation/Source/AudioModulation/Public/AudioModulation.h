@@ -29,6 +29,7 @@ namespace AudioModulation
 		virtual ~FAudioModulation() = default;
 
 		//~ Begin IAudioModulation implementation
+		virtual Audio::FModulationParameter GetParameter(FName InParamName);
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
 		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;
 		virtual void OnInitSource(const uint32 SourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
@@ -54,7 +55,7 @@ namespace AudioModulation
 		FAudioModulationSystem* GetModulationSystem();
 
 	protected:
-		virtual Audio::FModulatorTypeId RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) override;
+		virtual Audio::FModulatorTypeId RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter) override;
 		virtual void RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) override;
 		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const override;
 		virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) override;
