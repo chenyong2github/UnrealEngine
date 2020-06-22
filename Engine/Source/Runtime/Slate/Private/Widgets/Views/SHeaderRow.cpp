@@ -200,6 +200,7 @@ public:
 			.HAlign( Column.HeaderHAlignment )
 			.VAlign( Column.HeaderVAlignment )
 			.Padding( Column.HeaderContentPadding.Get( AdjustedDefaultHeaderContentPadding ) )
+			.Clipping(EWidgetClipping::ClipToBounds)
 			[
 				Overlay
 			]
