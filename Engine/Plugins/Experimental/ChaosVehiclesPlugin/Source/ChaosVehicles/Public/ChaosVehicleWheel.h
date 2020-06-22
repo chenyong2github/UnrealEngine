@@ -123,6 +123,10 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bABSEnabled;
 
+		/** Straight Line Traction Control Enabled */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		bool bTractionControlEnabled;
+
 		/** Tire type for the wheel. Determines friction */
 		UPROPERTY(EditAnywhere, Category = Tire)
 		class UChaosTireConfig* TireConfig;
@@ -314,6 +318,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
+			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
 			PWheelConfig.CheatFrictionForceMultiplier = this->CheatFrictionForce;
 			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
 		}

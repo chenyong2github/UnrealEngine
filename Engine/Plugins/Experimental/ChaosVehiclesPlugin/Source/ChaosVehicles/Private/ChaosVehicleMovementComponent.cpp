@@ -949,31 +949,24 @@ void UChaosVehicleMovementComponent::SetupVehicleMass()
 	UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 }
 
-void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BI)
+void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BodyInstance)
 {
-	FBodyInstance* TargetInstance = GetBodyInstance();
+	if (BodyInstance && FPhysicsInterface::IsValid(BodyInstance->ActorHandle) && FPhysicsInterface::IsRigidBody(BodyInstance->ActorHandle))
+	{
+		FPhysicsCommand::ExecuteWrite(BodyInstance->ActorHandle, [&](FPhysicsActorHandle& Actor)
+			{
+				const float MassRatio = this->Mass > 0.0f ? this->Mass / BodyInstance->GetBodyMass() : 1.0f;
 
-	//FPhysicsCommand::ExecuteWrite(BI->ActorHandle, [&](const FPhysicsActorHandle& Actor)
-	//{
-	//	PxRigidActor* PActor = FPhysicsInterface::GetPxRigidActor_AssumesLocked(Actor);
-	//	if (!PActor)
-	//	{
-	//		return;
-	//	}
+				FVector InertiaTensor = BodyInstance->GetBodyInertiaTensor();
 
-	//	if (PxRigidDynamic* PVehicleActor = PActor->is<PxRigidDynamic>())
-	//	{
-	//		// Override mass
-	//		const float MassRatio = Mass > 0.0f ? Mass / PVehicleActor->getMass() : 1.0f;
+				InertiaTensor.X *= this->InertiaTensorScale.X * MassRatio;
+				InertiaTensor.Y *= this->InertiaTensorScale.Y * MassRatio;
+				InertiaTensor.Z *= this->InertiaTensorScale.Z * MassRatio;
 
-	//		PxVec3 PInertiaTensor = PVehicleActor->getMassSpaceInertiaTensor();
-
-	//		PInertiaTensor.x *= InertiaTensorScale.X * MassRatio;
-	//		PInertiaTensor.y *= InertiaTensorScale.Y * MassRatio;
-	//		PInertiaTensor.z *= InertiaTensorScale.Z * MassRatio;
-
-	//		PVehicleActor->setMassSpaceInertiaTensor(PInertiaTensor);
-	//		PVehicleActor->setMass(Mass);
+				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, InertiaTensor);
+				FPhysicsInterface::SetMass_AssumesLocked(Actor, this->Mass);
+			});
+	}
 
 	//		const PxVec3 PCOMOffset = U2PVector(GetLocalCOM());
 	//		PVehicleActor->setCMassLocalPose(PxTransform(PCOMOffset, PxQuat(physx::PxIdentity)));	//ignore the mass reference frame. TODO: expose this to the user
@@ -983,8 +976,6 @@ void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BI)
 	//		//	PxVehicleWheelsSimData& WheelData = PVehicle->mWheelsSimData;
 	//		//	SetupWheelMassProperties_AssumesLocked(WheelData.getNbWheels(), &WheelData, PVehicleActor);
 	//		//}
-	//	}
-	//});
 }
 
 void UChaosVehicleMovementComponent::ComputeConstants()

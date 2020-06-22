@@ -28,6 +28,8 @@ struct FWheeledVehicleDebugParams
 
 	float ThrottleOverride = 0.f;
 	float SteeringOverride = 0.f;
+
+	bool ResetPerformanceMeasurements = false;
 };
 
 /**
@@ -38,6 +40,7 @@ struct FWheeledVehicleDebugParams
 enum EDebugPages : uint8
 {
 	BasicPage = 0,
+	PerformancePage,
 	SteeringPage,
 	FrictionPage,
 	SuspensionPage,
@@ -129,10 +132,15 @@ private:
 	void FillEngineSetup()
 	{
 		// #todo: better Chaos torque curve representation
+
+		// The source curve does not need to be normalized, however we are normalizing it when it is passed on,
+		// since it's the MaxRPM and MaxTorque values that determine the range of RPM and Torque
 		PEngineConfig.TorqueCurve.Empty();
-		for (float X=0; X<1.1f; X+=0.1f)
+		float NumSamples = 20;
+		for (float X = 0; X <= this->MaxRPM; X+= (this->MaxRPM / NumSamples))
 		{ 
-			PEngineConfig.TorqueCurve.Add(this->TorqueCurve.GetRichCurveConst()->Eval(X));
+			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / this->MaxTorque;
+			PEngineConfig.TorqueCurve.Add(Y);
 		}
 		PEngineConfig.MaxTorque = this->MaxTorque;
 		PEngineConfig.MaxRPM = this->MaxRPM;
@@ -181,6 +189,11 @@ struct FVehicleTransmissionConfig
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float GearChangeTime;
 
+	/** Mechanical frictional losses mean transmission might operate at 0.94 (94% efficiency) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
+	float TransmissionEfficiency;
+
+
 	/** Value of engineRevs/maxEngineRevs that is high enough to increment gear*/
 	//UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	//float NeutralGearUpRatio;
@@ -189,9 +202,6 @@ struct FVehicleTransmissionConfig
 	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
 	//float ClutchStrength;
 
-	///** Loss of Power from mechanical friction in the transmission system (N.m) */
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float MechanicalFrictionLosses;
 
 	const Chaos::FSimpleTransmissionConfig& GetPhysicsTransmissionConfig()
 	{
@@ -210,6 +220,7 @@ private:
 		PTransmissionConfig.GearChangeTime = this->GearChangeTime;
 		PTransmissionConfig.FinalDriveRatio = this->FinalRatio;
 		PTransmissionConfig.ForwardRatios.Reset();
+		PTransmissionConfig.TransmissionEfficiency = this->TransmissionEfficiency;
 		for (float Ratio : this->ForwardGearRatios)
 		{
 			PTransmissionConfig.ForwardRatios.Add(Ratio);
@@ -470,6 +481,7 @@ protected:
 	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 
+	FPerformanceMeasure PerformanceMeasure;
 	bool MechanicalSimEnabled;
 	bool SuspensionEnabled;
 	bool WheelFrictionEnabled;

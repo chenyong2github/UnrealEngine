@@ -652,6 +652,7 @@ namespace ChaosTest
 	{
 		FSimpleWheelConfig Setup;
 		Setup.ABSEnabled = false;
+		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
 		Setup.WheelRadius = 30.0f;
@@ -733,6 +734,7 @@ namespace ChaosTest
 	{
 		FSimpleWheelConfig Setup;
 		Setup.ABSEnabled = false;
+		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
 
