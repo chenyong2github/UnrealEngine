@@ -389,10 +389,9 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 	HSConstantBuffer.Reset();
 	DSConstantBuffer.Reset();
 	GSConstantBuffer.Reset();
-	// Should this be here or in RHISetComputeShader? Might need a new bDiscardSharedConstants for CS.
-	CSConstantBuffer.Reset();
+	
 	// @TODO : really should only discard the constants if the shader state has actually changed.
-	bDiscardSharedConstants = true;
+	bDiscardSharedGraphicsConstants = true;
 
 	if (!GraphicsPipelineState->PipelineStateInitializer.bDepthBounds)
 	{
@@ -421,6 +420,9 @@ void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* 
 #endif
 
 	FD3D12ComputePipelineState* ComputePipelineState = FD3D12DynamicRHI::ResourceCast(ComputeState);
+
+	CSConstantBuffer.Reset();
+	bDiscardSharedComputeConstants = true;
 
 	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
 	{
@@ -1055,42 +1057,44 @@ void FD3D12CommandContext::CommitNonComputeShaderConstants()
 	// Otherwise we will overwrite a different constant buffer
 	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Vertex])
 	{
-		StateCache.SetConstantBuffer<SF_Vertex>(VSConstantBuffer, bDiscardSharedConstants);
+		StateCache.SetConstantBuffer<SF_Vertex>(VSConstantBuffer, bDiscardSharedGraphicsConstants);
 	}
 
 	// Skip HS/DS CB updates in cases where tessellation isn't being used
-	// Note that this is *potentially* unsafe because bDiscardSharedConstants is cleared at the
-	// end of the function, however we're OK for now because bDiscardSharedConstants
+	// Note that this is *potentially* unsafe because bDiscardSharedGraphicsConstants is cleared at the
+	// end of the function, however we're OK for now because bDiscardSharedGraphicsConstants
 	// is always reset whenever bUsingTessellation changes in SetBoundShaderState()
 	if (bUsingTessellation)
 	{
 		if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Hull])
 		{
-			StateCache.SetConstantBuffer<SF_Hull>(HSConstantBuffer, bDiscardSharedConstants);
+			StateCache.SetConstantBuffer<SF_Hull>(HSConstantBuffer, bDiscardSharedGraphicsConstants);
 		}
 
 		if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Domain])
 		{
-			StateCache.SetConstantBuffer<SF_Domain>(DSConstantBuffer, bDiscardSharedConstants);
+			StateCache.SetConstantBuffer<SF_Domain>(DSConstantBuffer, bDiscardSharedGraphicsConstants);
 		}
 	}
 
 	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Geometry])
 	{
-		StateCache.SetConstantBuffer<SF_Geometry>(GSConstantBuffer, bDiscardSharedConstants);
+		StateCache.SetConstantBuffer<SF_Geometry>(GSConstantBuffer, bDiscardSharedGraphicsConstants);
 	}
 
 	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Pixel])
 	{
-		StateCache.SetConstantBuffer<SF_Pixel>(PSConstantBuffer, bDiscardSharedConstants);
+		StateCache.SetConstantBuffer<SF_Pixel>(PSConstantBuffer, bDiscardSharedGraphicsConstants);
 	}
 
-	bDiscardSharedConstants = false;
+	bDiscardSharedGraphicsConstants = false;
 }
 
 void FD3D12CommandContext::CommitComputeShaderConstants()
 {
-	StateCache.SetConstantBuffer<SF_Compute>(CSConstantBuffer, bDiscardSharedConstants);
+	StateCache.SetConstantBuffer<SF_Compute>(CSConstantBuffer, bDiscardSharedComputeConstants);
+
+	bDiscardSharedComputeConstants = false;
 }
 
 template <EShaderFrequency Frequency>

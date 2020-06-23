@@ -152,8 +152,11 @@ public:
 	FRenderQueryRHIRef OuterOcclusionQuery;
 	bool bOuterOcclusionQuerySubmitted;
 
-	/** When a new shader is set, we discard all old constants set for the previous shader. */
-	bool bDiscardSharedConstants;
+	/** When a new graphics PSO is set, we discard all old constants set for the previous shader. */
+	bool bDiscardSharedGraphicsConstants;
+
+	/** When a new compute PSO is set, we discard all old constants set for the previous shader. */
+	bool bDiscardSharedComputeConstants;
 
 	/** Set to true when the current shading setup uses tessellation */
 	bool bUsingTessellation;
