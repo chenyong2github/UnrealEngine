@@ -59,40 +59,5 @@ namespace Metasound
 			TArray<uint32> Frames;
 	};
 
-	struct FTimeSeconds
-	{
-		FTimeSeconds()
-		:	Seconds(0.f)
-		{
-		}
-
-		FTimeSeconds(float InSeconds)
-		:	Seconds(InSeconds)
-		{
-		}
-
-		float Seconds;
-	};
-
-	struct FTimeMilliseconds
-	{
-		FTimeMilliseconds()
-		:	Milliseconds(0.f)
-		{
-		}
-
-		FTimeMilliseconds(float InMilliseconds)
-		:	Milliseconds(InMilliseconds)
-		{
-		}
-
-		float Milliseconds;
-	};
-
-	typedef float FFloat;
-
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FBop, "Bop", 2, FBopTypeInfo, FBopReadRef, FBopWriteRef);
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTimeSeconds, "Time:Seconds", 3, FTimeSecondsTypeInfo, FTimeSecondsReadRef, FTimeSecondsWriteRef);
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTimeMilliseconds, "Time:Milliseconds", 4, FTimeMillisecondsTypeInfo, FTimeMillisecondsReadRef, FTimeMillisecondsWriteRef);
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFloat, "Primitive:Float", 5, FFloatTypeInfo, FFloatReadRef, FFloatWriteRef);
 }

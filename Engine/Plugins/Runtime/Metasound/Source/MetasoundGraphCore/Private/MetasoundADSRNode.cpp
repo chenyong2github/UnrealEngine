@@ -2,6 +2,7 @@
 
 #include "MetasoundADSRNode.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundTime.h"
 #include "MetasoundDataReferenceTypes.h"
 #include "DSP/Envelope.h"
 
@@ -11,10 +12,10 @@ namespace Metasound
 {
 	struct FADSRDataReferences
 	{
-		FTimeMillisecondsReadRef Attack;
-		FTimeMillisecondsReadRef Decay;
-		FTimeMillisecondsReadRef Sustain;
-		FTimeMillisecondsReadRef Release;
+		FFloatTimeReadRef Attack;
+		FFloatTimeReadRef Decay;
+		FFloatTimeReadRef Sustain;
+		FFloatTimeReadRef Release;
 	};
 
 	class FADSROperator : public TExecutableOperator<FADSROperator>
@@ -46,13 +47,13 @@ namespace Metasound
 
 			void Execute()
 			{
-				Envelope.SetAttackTime(ADSRDataReferences.Attack->Milliseconds);
-				Envelope.SetDecayTime(ADSRDataReferences.Decay->Milliseconds);
-				Envelope.SetReleaseTime(ADSRDataReferences.Release->Milliseconds);
+				Envelope.SetAttackTime(ADSRDataReferences.Attack->GetMilliseconds());
+				Envelope.SetDecayTime(ADSRDataReferences.Decay->GetMilliseconds());
+				Envelope.SetReleaseTime(ADSRDataReferences.Release->GetMilliseconds());
 
-				float ADSMilliseconds = ADSRDataReferences.Attack->Milliseconds;
-				ADSMilliseconds += ADSRDataReferences.Decay->Milliseconds;
-				ADSMilliseconds += ADSRDataReferences.Sustain->Milliseconds;
+				float ADSMilliseconds = ADSRDataReferences.Attack->GetMilliseconds();
+				ADSMilliseconds += ADSRDataReferences.Decay->GetMilliseconds();
+				ADSMilliseconds += ADSRDataReferences.Sustain->GetMilliseconds();
 
 				// TODO: Bops need to be sorted.
 				// TODO: Make convenient way to do bop loops like this since it might happen alot.
@@ -134,10 +135,10 @@ namespace Metasound
 
 		FADSRDataReferences ADSRDataReferences = 
 			{
-				FTimeMillisecondsReadRef(ADSRNode.GetDefaultAttackMs()),
-				FTimeMillisecondsReadRef(ADSRNode.GetDefaultDecayMs()),
-				FTimeMillisecondsReadRef(ADSRNode.GetDefaultSustainMs()),
-				FTimeMillisecondsReadRef(ADSRNode.GetDefaultReleaseMs())
+				FFloatTimeReadRef(ADSRNode.GetDefaultAttackMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef(ADSRNode.GetDefaultDecayMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef(ADSRNode.GetDefaultSustainMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef(ADSRNode.GetDefaultReleaseMs(), ETimeResolution::Milliseconds)
 			};
 
 		// TODO: If none of these are connected, could pregenerate ADSR envelope and return a different operator. 
@@ -157,10 +158,10 @@ namespace Metasound
 	,	DefaultReleaseMs(InDefaultReleaseMs)
 	{
 		AddInputDataVertexDescription<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "Trigger for envelope."));
-		AddInputDataVertexDescription<FTimeMilliseconds>(TEXT("Attack"), LOCTEXT("AttackTooltip", "Attack time in milliseconds."));
-		AddInputDataVertexDescription<FTimeMilliseconds>(TEXT("Decay"), LOCTEXT("DecayTooltip", "Decay time in milliseconds."));
-		AddInputDataVertexDescription<FTimeMilliseconds>(TEXT("Sustain"), LOCTEXT("SustainTooltip", "Sustain time in milliseconds."));
-		AddInputDataVertexDescription<FTimeMilliseconds>(TEXT("Release"), LOCTEXT("ReleaseTooltip", "Release time in milliseconds."));
+		AddInputDataVertexDescription<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackTooltip", "Attack time in milliseconds."));
+		AddInputDataVertexDescription<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayTooltip", "Decay time in milliseconds."));
+		AddInputDataVertexDescription<FFloatTime>(TEXT("Sustain"), LOCTEXT("SustainTooltip", "Sustain time in milliseconds."));
+		AddInputDataVertexDescription<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseTooltip", "Release time in milliseconds."));
 
 		AddOutputDataVertexDescription<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope"));
 	}

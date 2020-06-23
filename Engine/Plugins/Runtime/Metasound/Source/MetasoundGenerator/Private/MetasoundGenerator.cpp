@@ -12,6 +12,7 @@
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundGraph.h"
+#include "MetasoundFrequency.h"
 
 namespace Metasound
 {
@@ -26,14 +27,14 @@ namespace Metasound
 			ExecuteOperator = Operator->GetExecuteFunction();
 			FDataReferenceCollection Inputs = Operator->GetInputs();
 
-			if (Inputs.ContainsDataWriteReference<FFloat>(TEXT("Frequency")))
+			if (Inputs.ContainsDataWriteReference<FFrequency>(TEXT("Frequency")))
 			{
-				FrequencyRef = Inputs.GetDataWriteReference<FFloat>(TEXT("Frequency"));
+				FrequencyRef = Inputs.GetDataWriteReference<FFrequency>(TEXT("Frequency"));
 			}
 
-			if (Inputs.ContainsDataWriteReference<FTimeSeconds>(TEXT("BopPeriod")))
+			if (Inputs.ContainsDataWriteReference<FFloatTime>(TEXT("BopPeriod")))
 			{
-				BopPeriodRef = Inputs.GetDataWriteReference<FTimeSeconds>(TEXT("BopPeriod"));
+				BopPeriodRef = Inputs.GetDataWriteReference<FFloatTime>(TEXT("BopPeriod"));
 			}
 		}
 	}
@@ -44,12 +45,12 @@ namespace Metasound
 
 	void FMetasoundGenerator::SetFrequency(float InFrequency)
 	{
-		*FrequencyRef = InFrequency;
+		FrequencyRef->SetHertz(InFrequency);
 	}
 
 	void FMetasoundGenerator::SetBopPeriod(float InPeriodInSeconds)
 	{
-		BopPeriodRef->Seconds = InPeriodInSeconds;
+		BopPeriodRef->SetSeconds(InPeriodInSeconds);
 	}
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
@@ -191,8 +192,8 @@ ISoundGeneratorPtr USynthComponentMetasoundGenerator::CreateSoundGenerator(int32
 	using FDataEdge = Metasound::FDataEdge; // Need to make explicit to disambiguate with existing FDataEdge.
 	using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
 
-	TInputNode<FTimeSeconds> BopPeriodInputNode(TEXT("BopPeriod"), 1.f);
-	TInputNode<FFloat> FrequencyInputNode(TEXT("Frequency"), 100.f);
+	TInputNode<FFloatTime> BopPeriodInputNode(TEXT("BopPeriod"), 1.f, ETimeResolution::Seconds);
+	TInputNode<FFrequency> FrequencyInputNode(TEXT("Frequency"), 100.f, EFrequencyResolution::Hertz);
 
 	FPeriodicBopNode BopNode(TEXT("Bop"), 1.f);
 	FOscNode OscNode(TEXT("Osc"), 100.f);

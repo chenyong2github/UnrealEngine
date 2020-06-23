@@ -7,6 +7,8 @@
 #include "DSP/Dsp.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReferenceTypes.h"
+#include "MetasoundTime.h"
+#include "MetasoundFrequency.h"
 #include "Sound/SoundGenerator.h"
 
 #include "MetasoundGenerator.generated.h"
@@ -38,8 +40,8 @@ namespace Metasound
 		FOperatorUniquePtr Operator;
 		FAudioReadRef OperatorReadBuffer;
 
-		FFloatWriteRef FrequencyRef;
-		FTimeSecondsWriteRef BopPeriodRef;
+		FFrequencyWriteRef FrequencyRef;
+		FFloatTimeWriteRef BopPeriodRef;
 
 		int32 OperatorReadNum;
 		FExecuteFunction ExecuteOperator;

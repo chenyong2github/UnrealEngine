@@ -2,7 +2,7 @@
 
 #include "MetasoundOscNode.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundDataReferenceTypes.h"
+#include "MetasoundPrimitives.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundOscNode"
 
@@ -11,7 +11,7 @@ namespace Metasound
 	class FOscOperator : public TExecutableOperator<FOscOperator>
 	{
 		public:
-			FOscOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InFrequency)
+			FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency)
 			:	OperatorSettings(InSettings)
 			,	TwoPi(2.f * PI)
 			,	Phase(0.f)
@@ -35,7 +35,7 @@ namespace Metasound
 
 			void Execute()
 			{
-				const float PhaseDelta = *Frequency * 2 * PI / OperatorSettings.SampleRate;
+				const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.SampleRate);
 				float* Data = AudioBuffer->GetData();
 
 				for (int32 i = 0; i < OperatorSettings.FramesPerExecute; i++)
@@ -52,7 +52,7 @@ namespace Metasound
 			const float TwoPi;
 			float Phase;
 
-			FFloatReadRef Frequency;
+			FFrequencyReadRef Frequency;
 			FAudioBufferWriteRef AudioBuffer;
 
 			FDataReferenceCollection InputDataReferences;
@@ -64,11 +64,11 @@ namespace Metasound
 	TUniquePtr<IOperator> FOscNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) 
 	{
 		const FOscNode& OscNode = static_cast<const FOscNode&>(InNode);
-		FFloatReadRef Frequency(OscNode.GetDefaultFrequency());
+		FFrequencyReadRef Frequency(OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
 
-		if (InInputDataReferences.ContainsDataReadReference<FFloat>(TEXT("Frequency")))
+		if (InInputDataReferences.ContainsDataReadReference<FFrequency>(TEXT("Frequency")))
 		{
-			Frequency = InInputDataReferences.GetDataReadReference<FFloat>(TEXT("Frequency"));
+			Frequency = InInputDataReferences.GetDataReadReference<FFrequency>(TEXT("Frequency"));
 		}
 
 		return MakeUnique<FOscOperator>(InOperatorSettings, Frequency);
@@ -78,7 +78,7 @@ namespace Metasound
 	:	FNode(InName)
 	,	DefaultFrequency(InDefaultFrequency)
 	{
-		AddInputDataVertexDescription<FFloat>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator in Hz."));
+		AddInputDataVertexDescription<FFrequency>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator."));
 		AddOutputDataVertexDescription<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
 	}
 
