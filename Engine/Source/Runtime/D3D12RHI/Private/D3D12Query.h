@@ -231,7 +231,7 @@ private:
 	void ReleaseResources();
 
 	/** This allocator can allocate up to (MaxNumChunks * GrowNumQueries) queries before a manual flush is needed */
-	static constexpr int32 MaxNumChunks = 64;
+	static constexpr int32 MaxNumChunks = 8;
 	/** Size in bytes of a single query result */
 	static constexpr SIZE_T ResultSize = sizeof(uint64);
 
