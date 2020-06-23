@@ -401,7 +401,7 @@ public:
 
 protected:
 
-	/** Whether this body instance has its own custom MaxDepenetrationVelocity*/
+	/** [PhysX Only] Whether this body instance has its own custom MaxDepenetrationVelocity*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(InlineEditConditionToggle))
 	uint8 bOverrideMaxDepenetrationVelocity : 1;
 
@@ -442,11 +442,11 @@ private:
 
 public:
 
-	/** This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
+	/** [PhysX Only] This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Physics)
 	uint8 PositionSolverIterationCount;
 
-	/** This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
+	/** [PhysX Only] This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics)
 	uint8 VelocitySolverIterationCount;
 
@@ -456,7 +456,7 @@ private:
 	struct FCollisionResponse CollisionResponses;
 
 protected:
-	/** The maximum velocity used to depenetrate this object*/
+	/** [PhysX Only] The maximum velocity used to depenetrate this object*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics, meta = (editcondition = "bOverrideMaxDepenetrationVelocity", ClampMin = "0.0", UIMin = "0.0"))
 	float MaxDepenetrationVelocity;
 
