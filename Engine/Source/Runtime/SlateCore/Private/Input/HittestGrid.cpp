@@ -12,15 +12,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogHittestDebug, Display, All);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid AddWidget"), STAT_SlateHTG_AddWidget, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid RemoveWidget"), STAT_SlateHTG_RemoveWidget, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid Clear"), STAT_SlateHTG_Clear, STATGROUP_Slate);
+DECLARE_CYCLE_STAT(TEXT("HitTestGrid GetCollapsedWidgets"), STAT_SlateHTG_GetCollapsedWidgets, STATGROUP_Slate);
 
-int32 SlateVerifyHitTestVisibility = 0;
-static FAutoConsoleVariableRef CVarSlateVerifyHitTestVisibility(TEXT("Slate.VerifyHitTestVisibility"), SlateVerifyHitTestVisibility, TEXT("Should we double check the visibility of widgets during hit testing, in case previously resolved hit tests that same frame may have changed state?"), ECVF_Default);
+#define LOCTEXT_NAMESPACE "HittestGrid"
 
-static TAutoConsoleVariable<bool> CVarSlateHittestGridRemoveAppendedGrid(
-	TEXT("Slate.HittestGrid.RemoveAppendedGrid"),
-	true,
-	TEXT("Remove the previous appended grid before adding the new version."));
-
+#if WITH_SLATE_DEBUGGING
+FHittestGrid::FDebuggingFindNextFocusableWidget FHittestGrid::OnFindNextFocusableWidgetExecuted;
+#endif //WITH_SLATE_DEBUGGING
 
 constexpr bool IsCompatibleUserIndex(int32 RequestedUserIndex, int32 TestUserIndex)
 {
@@ -95,6 +93,15 @@ bool ContainsInteractableWidget(const TArray<FWidgetAndPointer>& PathToTest)
 const FVector2D CellSize(128.0f, 128.0f);
 
 //
+// FHittestGrid::FWidgetIndex
+//
+const FHittestGrid::FWidgetData& FHittestGrid::FWidgetIndex::GetWidgetData() const
+{
+	check(Grid->WidgetArray.IsValidIndex(WidgetIndex));
+	return Grid->WidgetArray[WidgetIndex];
+}
+
+//
 // FHittestGrid::FGridTestingParams
 //
 struct FHittestGrid::FGridTestingParams
@@ -117,46 +124,15 @@ struct FHittestGrid::FGridTestingParams
 // FHittestGrid::FCell
 //
 
-FHittestGrid::FCell::FCell()
-	: bRequiresSort(false)
-{
-
-}
-
 void FHittestGrid::FCell::AddIndex(int32 WidgetIndex)
 {
-	CachedWidgetIndexes.Add(WidgetIndex);
-	bRequiresSort = true;
+	check(!WidgetIndexes.Contains(WidgetIndex));
+	WidgetIndexes.Add(WidgetIndex);
 }
 
 void FHittestGrid::FCell::RemoveIndex(int32 WidgetIndex)
 {
-	for (int32 CallArrayIndex = 0; CallArrayIndex < CachedWidgetIndexes.Num(); CallArrayIndex++)
-	{
-		if (CachedWidgetIndexes[CallArrayIndex] == WidgetIndex)
-		{
-			CachedWidgetIndexes.RemoveAt(CallArrayIndex);
-			break;
-		}
-	}
-}
-
-void FHittestGrid::FCell::Sort(const TSparseArray<FWidgetData>& InWidgetArray)
-{
-	if (bRequiresSort)
-	{
-		CachedWidgetIndexes.StableSort([&InWidgetArray](const int32& A, const int32& B)
-		{
-			return InWidgetArray[A].PrimarySort < InWidgetArray[B].PrimarySort || (InWidgetArray[A].PrimarySort == InWidgetArray[B].PrimarySort && InWidgetArray[A].SecondarySort < InWidgetArray[B].SecondarySort);
-		});
-
-		bRequiresSort = false;
-	}
-}
-
-const TArray<int32>& FHittestGrid::FCell::GetCachedWidgetIndexes() const
-{
-	return CachedWidgetIndexes;
+	WidgetIndexes.RemoveSingleSwap(WidgetIndex);
 }
 
 //
@@ -167,14 +143,13 @@ FHittestGrid::FHittestGrid()
 	: WidgetMap()
 	, WidgetArray()
 	, Cells()
+	, AppendedGridArray()
+	, Owner(nullptr)
+	, CullingRect()
 	, NumCells(0, 0)
 	, GridOrigin(0, 0)
 	, GridSize(0, 0)
 	, CurrentUserIndex(INDEX_NONE)
-{
-}
-
-FHittestGrid::~FHittestGrid()
 {
 }
 
@@ -186,8 +161,6 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 
 	if (WidgetArray.Num() > 0 && Cells.Num() > 0)
 	{
-		TArray<FIndexAndDistance, TInlineAllocator<9>> Hits;
-
 		FGridTestingParams TestingParams;
 		TestingParams.CursorPositionInGrid = CursorPositionInGrid;
 		TestingParams.CellCoord = GetCellCoordinate(CursorPositionInGrid);
@@ -195,43 +168,10 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 		TestingParams.bTestWidgetIsInteractive = false;
 
 		// First add the exact point test results
-		Hits.Add(GetHitIndexFromCellIndex(TestingParams));
-
-		// If we have a cursor radius greater than a pixel in size add any extra hit possibilities.
-		if (false) //CursorRadius >= 0.5f)
+		const FIndexAndDistance BestHit = GetHitIndexFromCellIndex(TestingParams);
+		if (BestHit.IsValid())
 		{
-			TestingParams.Radius = CursorRadius;
-			TestingParams.bTestWidgetIsInteractive = true;
-
-			const FVector2D RadiusVector(CursorRadius, CursorRadius);
-			const FIntPoint ULIndex = GetCellCoordinate(CursorPositionInGrid - RadiusVector);
-			const FIntPoint LRIndex = GetCellCoordinate(CursorPositionInGrid + RadiusVector);
-
-			for (int32 YIndex = ULIndex.Y; YIndex <= LRIndex.Y; ++YIndex)
-			{
-				for (int32 XIndex = ULIndex.X; XIndex <= LRIndex.X; ++XIndex)
-				{
-					const FIntPoint PointToTest(XIndex, YIndex);
-					if (IsValidCellCoord(PointToTest))
-					{
-						TestingParams.CellCoord = PointToTest;
-						Hits.Add(GetHitIndexFromCellIndex(TestingParams));
-					}
-				}
-			}
-
-			// sort the paths, and get the closest one that is valid
-			Hits.StableSort([](const FIndexAndDistance& A, const FIndexAndDistance& B)
-			{
-				return A.WidgetIndex != INDEX_NONE && A.DistanceSqToWidget < B.DistanceSqToWidget;
-			});
-		}
-
-		const FIndexAndDistance& BestHit = Hits[0];
-		if (BestHit.WidgetIndex != INDEX_NONE)
-		{
-			const FWidgetData& BestHitWidgetData = WidgetArray[BestHit.WidgetIndex];
-
+			const FWidgetData& BestHitWidgetData = BestHit.GetWidgetData();
 			const TSharedPtr<SWidget> FirstHitWidget = BestHitWidgetData.GetWidget();
 			// Make Sure we landed on a valid widget
 			if (FirstHitWidget.IsValid() && IsCompatibleUserIndex(UserIndex, BestHitWidgetData.UserIndex))
@@ -297,11 +237,7 @@ bool FHittestGrid::SetHittestArea(const FVector2D& HittestPositionInDesktop, con
 		NumCells = FIntPoint(FMath::CeilToInt(GridSize.X / CellSize.X), FMath::CeilToInt(GridSize.Y / CellSize.Y));
 		
 		const int32 NewTotalCells = NumCells.X * NumCells.Y;
-		Cells.Reset(NewTotalCells);
-		Cells.SetNum(NewTotalCells);
-
-		WidgetMap.Reset();
-		WidgetArray.Reset();
+		ClearInternal(NewTotalCells);
 
 		bWasCleared = true;
 	}
@@ -314,16 +250,22 @@ bool FHittestGrid::SetHittestArea(const FVector2D& HittestPositionInDesktop, con
 
 void FHittestGrid::Clear()
 {
-	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_Clear);
 	const int32 TotalCells = Cells.Num();
+	ClearInternal(TotalCells);
+}
+
+void FHittestGrid::ClearInternal(int32 TotalCells)
+{
+	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_Clear);
 	Cells.Reset(TotalCells);
 	Cells.SetNum(TotalCells);
 
 	WidgetMap.Reset();
 	WidgetArray.Reset();
+	AppendedGridArray.Reset();
 }
 
-bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidgetData& ChildData)
+bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidgetData& ChildData) const
 {
 	const TSharedPtr<SWidget> ChildWidgetPtr = ChildData.GetWidget();
 	if (ChildWidgetPtr == Parent)
@@ -332,7 +274,7 @@ bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidge
 	}
 
 	const SWidget* ParentWidget = &Parent.Get();
-	SWidget* CurWidget = ChildWidgetPtr.Get();
+	const SWidget* CurWidget = ChildWidgetPtr.Get();
 
 	while (CurWidget)
 	{
@@ -346,8 +288,24 @@ bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidge
 	return false;
 }
 
+#if WITH_SLATE_DEBUGGING
+namespace HittestGridDebuggingText
+{
+	static FText Valid = LOCTEXT("StateValid", "Valid"); //~ The widget is valid will be consider as the result
+	static FText NotCompatibleWithUserIndex = LOCTEXT("StateNotCompatibleWithUserIndex", "User Index not compatible"); //~ The widget is not compatible with the requested user index
+	static FText DoesNotIntersect = LOCTEXT("StateDoesNotIntersect", "Does not intersect"); //~ The widget rect is not in the correct direction or is not intersecting with the "swept" rectangle
+	static FText PreviousWidgetIsBetter = LOCTEXT("StatePreviousWidgetIsBetter", "Previous Widget was better"); //~ The widget would be valid but the previous valid is closer
+	static FText NotADescendant = LOCTEXT("StateNotADescendant", "Not a descendant"); //~ We have a non escape boundary condition and the widget isn't a descendant of our boundary
+	static FText Disabled = LOCTEXT("StateNotEnabled", "Disabled"); //~ The widget is not enabled
+	static FText DoesNotSuportKeyboardFocus = LOCTEXT("StateDoesNotSuportKeyboardFocus", "Keyboard focus unsupported"); //~ THe widget does not support keyboard focus
+}
+	#define AddToNextFocusableWidgetCondidateDebugResults(Candidate, Result) { if (IntermediateResultsPtr) { IntermediateResultsPtr->Emplace((Candidate), (Result)); } }
+#else
+	#define AddToNextFocusableWidgetCondidateDebugResults(Candidate, Result) CA_ASSUME(Candidate)
+#endif
+
 template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>
-TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex)
+TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex, TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult>* IntermediateResultsPtr) const
 {
 	FIntPoint CurrentCellPoint = GetCellCoordinate(WidgetRect.GetCenter());
 
@@ -390,45 +348,64 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 
 		for (StrideCellPoint[StrideAxis] = StrideAxisMin; StrideCellPoint[StrideAxis] <= StrideAxisMax; ++StrideCellPoint[StrideAxis])
 		{
-			const FHittestGrid::FCell& Cell = FHittestGrid::CellAt(StrideCellPoint.X, StrideCellPoint.Y);
-			const TArray<int32>& IndexesInCell = Cell.GetCachedWidgetIndexes();
+			TArray<FWidgetIndex, TMemStackAllocator<>> WidgetIndexes;
+			GetCollapsedWidgets(WidgetIndexes, StrideCellPoint.X, StrideCellPoint.Y);
 
-			for (int32 i = IndexesInCell.Num() - 1; i >= 0; --i)
+			for (int32 i = WidgetIndexes.Num() - 1; i >= 0; --i)
 			{
-				const int32 CurrentIndex = IndexesInCell[i];
-				checkSlow(WidgetArray.IsValidIndex(CurrentIndex));
-
-				const FWidgetData& TestCandidate = WidgetArray[CurrentIndex];
+				const FWidgetData& TestCandidate = WidgetIndexes[i].GetWidgetData();
 				const TSharedPtr<SWidget> TestWidget = TestCandidate.GetWidget();
-				if (TestWidget.IsValid() && IsCompatibleUserIndex(UserIndex, TestCandidate.UserIndex))
+				if (!TestWidget.IsValid())
 				{
-					FGeometry TestCandidateGeo = TestWidget->GetPaintSpaceGeometry();
-					TestCandidateGeo.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
-					const FSlateRect TestCandidateRect = TestCandidateGeo.GetRenderBoundingRect();
-
-					if (CompareFunc(DestSideFunc(TestCandidateRect), CurrentSourceSide) && FSlateRect::DoRectanglesIntersect(SweptRect, TestCandidateRect))
-					{
-						// If this found widget isn't closer then the previously found widget then keep looking.
-						if (BestWidget.IsValid() && !CompareFunc(DestSideFunc(BestWidgetRect), DestSideFunc(TestCandidateRect)))
-						{
-							continue;
-						}
-
-						// If we have a non escape boundary condition and this widget isn't a descendant of our boundary condition widget then it's invalid so we keep looking.
-						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape
-							&& NavigationReply.GetHandler().IsValid()
-							&& !IsDescendantOf(NavigationReply.GetHandler().ToSharedRef(), TestCandidate))
-						{
-							continue;
-						}
-
-						if (TestWidget->IsEnabled() && TestWidget->SupportsKeyboardFocus())
-						{
-							BestWidgetRect = TestCandidateRect;
-							BestWidget = TestWidget;
-						}
-					}
+					continue;
 				}
+
+				if (!IsCompatibleUserIndex(UserIndex, TestCandidate.UserIndex))
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::NotCompatibleWithUserIndex);
+					continue;
+				}
+
+				FGeometry TestCandidateGeo = TestWidget->GetPaintSpaceGeometry();
+				TestCandidateGeo.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
+				const FSlateRect TestCandidateRect = TestCandidateGeo.GetRenderBoundingRect();
+				if (!(CompareFunc(DestSideFunc(TestCandidateRect), CurrentSourceSide) && FSlateRect::DoRectanglesIntersect(SweptRect, TestCandidateRect)))
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::DoesNotIntersect);
+					continue;
+				}
+
+				// If this found widget isn't closer then the previously found widget then keep looking.
+				if (BestWidget.IsValid() && !CompareFunc(DestSideFunc(BestWidgetRect), DestSideFunc(TestCandidateRect)))
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::PreviousWidgetIsBetter);
+					continue;
+				}
+
+				// If we have a non escape boundary condition and this widget isn't a descendant of our boundary condition widget then it's invalid so we keep looking.
+				if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape
+					&& NavigationReply.GetHandler().IsValid()
+					&& !IsDescendantOf(NavigationReply.GetHandler().ToSharedRef(), TestCandidate))
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::NotADescendant);
+					continue;
+				}
+
+				if (!TestWidget->IsEnabled())
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::Disabled);
+					continue;
+				}
+				
+				if (!TestWidget->SupportsKeyboardFocus())
+				{
+					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::DoesNotSuportKeyboardFocus);
+					continue;
+				}
+
+				BestWidgetRect = TestCandidateRect;
+				BestWidget = TestWidget;
+				AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::Valid);
 			}
 		}
 
@@ -499,6 +476,8 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 	return TSharedPtr<SWidget>();
 }
 
+#undef AddToNextFocusableWidgetCondidateDebugResults
+
 TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex)
 {
 	FGeometry StartingWidgetGeo = StartingWidget.Widget->GetPaintSpaceGeometry();
@@ -513,6 +492,13 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 
 	TSharedPtr<SWidget> Widget = TSharedPtr<SWidget>();
 
+#if WITH_SLATE_DEBUGGING
+	TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult> IntermediateResults;
+	TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult>* IntermediateResultsPtr = OnFindNextFocusableWidgetExecuted.IsBound() ? &IntermediateResults : nullptr;
+#else
+	TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult>* IntermediateResultsPtr = nullptr;
+#endif
+
 	switch (Direction)
 	{
 	case EUINavigation::Left:
@@ -523,7 +509,8 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 0, -1, Direction, NavigationReply,
 			[](float A, float B) { return A - 0.1f < B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Left; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Right; }, UserIndex); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Right; }, // Dest side function
+			UserIndex, IntermediateResultsPtr);
 		break;
 	case EUINavigation::Right:
 		SweptWidgetRect.Left = BoundingRuleRect.Left;
@@ -533,7 +520,8 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 0, 1, Direction, NavigationReply,
 			[](float A, float B) { return A + 0.1f > B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Right; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Left; }, UserIndex); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Left; }, // Dest side function
+			UserIndex, IntermediateResultsPtr);
 		break;
 	case EUINavigation::Up:
 		SweptWidgetRect.Top = BoundingRuleRect.Top;
@@ -543,7 +531,8 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 1, -1, Direction, NavigationReply,
 			[](float A, float B) { return A - 0.1f < B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Top; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Bottom; }, UserIndex); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Bottom; }, // Dest side function
+			UserIndex, IntermediateResultsPtr);
 		break;
 	case EUINavigation::Down:
 		SweptWidgetRect.Top = BoundingRuleRect.Top;
@@ -553,17 +542,26 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 1, 1, Direction, NavigationReply,
 			[](float A, float B) { return A + 0.1f > B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Bottom; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Top; }, UserIndex); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Top; }, // Dest side function
+			UserIndex, IntermediateResultsPtr);
 		break;
 
 	default:
 		break;
 	}
 
+#if WITH_SLATE_DEBUGGING
+	if (IntermediateResultsPtr)
+	{
+		FDebuggingFindNextFocusableWidgetArgs Args {StartingWidget, Direction, NavigationReply, RuleWidget, UserIndex, Widget , MoveTemp(*IntermediateResultsPtr)};
+		OnFindNextFocusableWidgetExecuted.Broadcast(this, Args);
+	}
+#endif
+
 	return Widget;
 }
 
-FIntPoint FHittestGrid::GetCellCoordinate(FVector2D Position)
+FIntPoint FHittestGrid::GetCellCoordinate(FVector2D Position) const
 {
 	return FIntPoint(
 		FMath::Min(FMath::Max(FMath::FloorToInt(Position.X / CellSize.X), 0), NumCells.X - 1),
@@ -580,69 +578,337 @@ bool FHittestGrid::IsValidCellCoord(const int32 XCoord, const int32 YCoord) cons
 	return XCoord >= 0 && XCoord < NumCells.X && YCoord >= 0 && YCoord < NumCells.Y;
 }
 
-void FHittestGrid::AppendGrid(FHittestGrid& OtherGrid)
+void FHittestGrid::AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid)
 {
-	TSharedPtr<SWidget> NullOwner;
-	AppendGrid(OtherGrid, NullOwner);
+	const bool bIsContains = AppendedGridArray.ContainsByPredicate([OtherGrid](const FAppendedGridData& Other) { return Other.Grid == OtherGrid; });
+	if (!bIsContains && ensure(CanBeAppended(&OtherGrid.Get())))
+	{
+		{
+			// Check for recursion
+			TArray<const FHittestGrid*, TInlineAllocator<16>> AllHittestGrid;
+			GetCollapsedHittestGrid(AllHittestGrid);
+			const bool bIsInCollapsed = AllHittestGrid.ContainsByPredicate([OtherGrid](const FHittestGrid* Other) { return &*OtherGrid == Other; });
+			ensure(!bIsInCollapsed);
+			if (bIsInCollapsed)
+			{
+				return;
+			}
+		  }
+
+		AppendedGridArray.Emplace(OtherGrid->Owner, OtherGrid);
+	}
+	else
+	{
+		RemoveGrid(OtherGrid);
+	}
 }
 
-void FHittestGrid::AppendGrid(FHittestGrid& OtherGrid, const TSharedPtr<SWidget>& Owner)
+void FHittestGrid::RemoveGrid(const TSharedRef<const FHittestGrid>& OtherGrid)
 {
-	// The two grids must occupy the same space
-	if (ensure(this != &OtherGrid && GridOrigin == OtherGrid.GridOrigin && GridWindowOrigin == OtherGrid.GridWindowOrigin && GridSize == OtherGrid.GridSize))
+	const int32 AppendedGridIndex = AppendedGridArray.IndexOfByPredicate(
+		[OtherGrid](const FAppendedGridData& Other)
+		{
+			return Other.Grid == OtherGrid;
+		});
+	if (AppendedGridIndex != INDEX_NONE)
 	{
-		if (Owner.IsValid() && CVarSlateHittestGridRemoveAppendedGrid.GetValueOnGameThread())
+		AppendedGridArray.RemoveAtSwap(AppendedGridIndex);
+	}
+}
+
+void FHittestGrid::RemoveGrid(const SWidget* OtherGridOwner)
+{
+	const int32 AppendedGridIndex = AppendedGridArray.IndexOfByPredicate(
+		[OtherGridOwner](const FAppendedGridData& Other)
 		{
-			RemoveAppendedGrid(Owner.ToSharedRef());
+			return Other.CachedOwner == OtherGridOwner;
+		});
+	if (AppendedGridIndex != INDEX_NONE)
+	{
+#if WITH_SLATE_DEBUGGING
+		// Confirmed that the cached grid is valid
+		if (const TSharedPtr<const FHittestGrid> Pin = AppendedGridArray[AppendedGridIndex].Grid.Pin())
+		{
+			ensure(Pin->Owner == OtherGridOwner);
 		}
+#endif
+		AppendedGridArray.RemoveAtSwap(AppendedGridIndex);
+	}
+}
 
-		// Index is not valid in the other grid so remap it 
-		for (auto& Pair : OtherGrid.WidgetMap)
+bool FHittestGrid::CanBeAppended(const FHittestGrid* OtherGrid) const
+{
+	return OtherGrid && OtherGrid->Owner && this != OtherGrid && SameSize(OtherGrid);
+}
+
+bool FHittestGrid::SameSize(const FHittestGrid* OtherGrid) const
+{
+	return GridOrigin == OtherGrid->GridOrigin && GridWindowOrigin == OtherGrid->GridWindowOrigin && GridSize == OtherGrid->GridSize;
+}
+
+void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort)
+{
+	if (!InWidget->GetVisibility().IsHitTestVisible())
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_AddWidget);
+
+	// Track the widget and identify it's Widget Index
+	FGeometry GridSpaceGeometry = InWidget->GetPaintSpaceGeometry();
+	GridSpaceGeometry.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
+
+	// Currently using grid offset because the grid covers all desktop space.
+	const FSlateRect BoundingRect = GridSpaceGeometry.GetRenderBoundingRect();
+
+	// Starting and ending cells covered by this widget.	
+	const FIntPoint UpperLeftCell = GetCellCoordinate(BoundingRect.GetTopLeft());
+	const FIntPoint LowerRightCell = GetCellCoordinate(BoundingRect.GetBottomRight());
+
+	const int64 PrimarySort = (((int64)InBatchPriorityGroup << 32) | InLayerId);
+
+	bool bAddWidget = true;
+	if (int32* FoundIndex = WidgetMap.Find(&*InWidget))
+	{
+		FWidgetData& WidgetData = WidgetArray[*FoundIndex];
+		if (WidgetData.UpperLeftCell != UpperLeftCell || WidgetData.LowerRightCell != LowerRightCell)
 		{
-			int32& WidgetIndex = WidgetMap.Add(Pair.Key);
-			
-			// Get the already created widget data out of the other widget array
-			const FWidgetData& OtherData = OtherGrid.WidgetArray[Pair.Value];
+			// Need to be updated
+			RemoveWidget(InWidget);
+		}
+		else
+		{
+			// Only update
+			bAddWidget = false;
+			WidgetData.PrimarySort = PrimarySort;
+			WidgetData.SecondarySort = InSecondarySort;
+			WidgetData.UserIndex = CurrentUserIndex;
+		}
+	}
 
-			WidgetIndex = WidgetArray.Add(OtherData); 
-
-			// Add the new widget index to the correct cells in this grid
-			for (int32 XIndex = OtherData.UpperLeftCell.X; XIndex <= OtherData.LowerRightCell.X; ++XIndex)
+	if (bAddWidget)
+	{
+		int32& WidgetIndex = WidgetMap.Add(&*InWidget);
+		WidgetIndex = WidgetArray.Emplace(InWidget, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
+		for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
+		{
+			for (int32 YIndex = UpperLeftCell.Y; YIndex <= LowerRightCell.Y; ++YIndex)
 			{
-				for (int32 YIndex = OtherData.UpperLeftCell.Y; YIndex <= OtherData.LowerRightCell.Y; ++YIndex)
+				if (IsValidCellCoord(XIndex, YIndex))
 				{
-					if (IsValidCellCoord(XIndex, YIndex))
-					{
-						CellAt(XIndex, YIndex).AddIndex(WidgetIndex);
-					}
+					CellAt(XIndex, YIndex).AddIndex(WidgetIndex);
 				}
 			}
-
 		}
 	}
 }
 
-void FHittestGrid::RemoveAppendedGrid(const TSharedRef<SWidget>& Owner)
+void FHittestGrid::RemoveWidget(const TSharedRef<SWidget>& InWidget)
 {
-	if (WidgetArray.Num() != 0)
-	{
-		TArray<TSharedRef<SWidget>> ToRemove;
-		ToRemove.Reserve(WidgetArray.Num());
+	RemoveWidget(&*InWidget);
+}
 
-		for (const FWidgetData& Data : WidgetArray)
+void FHittestGrid::RemoveWidget(const SWidget* InWidget)
+{
+	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_RemoveWidget);
+
+	int32 WidgetIndex = INDEX_NONE;
+	if (WidgetMap.RemoveAndCopyValue(InWidget, WidgetIndex))
+	{
+		const FWidgetData& WidgetData = WidgetArray[WidgetIndex];
+
+		// Starting and ending cells covered by this widget.	
+		const FIntPoint& UpperLeftCell = WidgetData.UpperLeftCell;
+		const FIntPoint& LowerRightCell = WidgetData.LowerRightCell;
+
+		for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
 		{
-			if (Owner == Data.Owner)
+			for (int32 YIndex = UpperLeftCell.Y; YIndex <= LowerRightCell.Y; ++YIndex)
 			{
-				if (TSharedPtr<SWidget> Widget = Data.GetWidget())
-				{
-					ToRemove.Add(Widget.ToSharedRef());
-				}
+				checkSlow(IsValidCellCoord(XIndex, YIndex));
+				CellAt(XIndex, YIndex).RemoveIndex(WidgetIndex);
 			}
 		}
 
-		for (const TSharedRef<SWidget>& WidgetToRemove : ToRemove)
+		WidgetArray.RemoveAt(WidgetIndex);
+	}
+
+	RemoveGrid(InWidget);
+}
+
+void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath)
+{
+	int32 WidgetIndex = WidgetMap.FindChecked(&*InWidget);
+	FWidgetData& WidgetData = WidgetArray[WidgetIndex];
+	WidgetData.CustomPath = CustomHitTestPath;
+}
+
+FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGridTestingParams& Params) const
+{
+	//check if the cell coord 
+	if (IsValidCellCoord(Params.CellCoord))
+	{
+		// Get the cell and sort it 
+		TArray<FWidgetIndex, TMemStackAllocator<>> WidgetIndexes;
+		GetCollapsedWidgets(WidgetIndexes, Params.CellCoord.X, Params.CellCoord.Y);
+
+#if 0 //Unroll some data for debugging if necessary
+		struct FDebugData
 		{
-			RemoveWidget(WidgetToRemove);
+			FWidgetData WidgetData;
+			FName WidgetType;
+			FName WidgetLoc;
+			TSharedPtr<SWidget> Widget;
+		};
+
+		TArray<FDebugData> DebugData;
+		for (int32 i = 0; i < WidgetIndexes.Num(); ++i)
+		{
+			FDebugData& Cur = DebugData.AddDefaulted_GetRef();
+			Cur.WidgetData = WidgetIndexes[i].GetWidgetData();
+			Cur.Widget = Cur.WidgetData.GetWidget();
+			Cur.WidgetType = Cur.Widget.IsValid() ? Cur.Widget->GetType() : NAME_None;
+			Cur.WidgetLoc = Cur.Widget.IsValid() ? Cur.Widget->GetCreatedInLocation() : NAME_None;
+		}
+#endif
+
+		// Consider front-most widgets first for hittesting.
+		for (int32 i = WidgetIndexes.Num() - 1; i >= 0; --i)
+		{
+			check(WidgetIndexes[i].IsValid());
+			const FWidgetData& TestCandidate = WidgetIndexes[i].GetWidgetData();
+			const TSharedPtr<SWidget> TestWidget = TestCandidate.GetWidget();
+
+			// When performing a point hittest, accept all hittestable widgets.
+			// When performing a hittest with a radius, only grab interactive widgets.
+			const bool bIsValidWidget = TestWidget.IsValid() && (!Params.bTestWidgetIsInteractive || TestWidget->IsInteractable());
+			if (bIsValidWidget)
+			{
+				const FVector2D WindowSpaceCoordinate = Params.CursorPositionInGrid + GridWindowOrigin;
+
+				const FGeometry& TestGeometry = TestWidget->GetPaintSpaceGeometry();
+
+				bool bPointInsideClipMasks = true;
+
+				if (WidgetIndexes[i].GetCullingRect().IsValid())
+				{
+					bPointInsideClipMasks = WidgetIndexes[i].GetCullingRect().ContainsPoint(WindowSpaceCoordinate);
+				}
+
+				if (bPointInsideClipMasks)
+				{
+					const TOptional<FSlateClippingState>& WidgetClippingState = TestWidget->GetCurrentClippingState();
+					if (WidgetClippingState.IsSet())
+					{
+						// TODO: Solve non-zero radius cursors?
+						bPointInsideClipMasks = WidgetClippingState->IsPointInside(WindowSpaceCoordinate);
+					}
+				}
+
+				if (bPointInsideClipMasks)
+				{
+					// Compute the render space clipping rect (FGeometry exposes a layout space clipping rect).
+					const FSlateRotatedRect WindowOrientedClipRect = TransformRect(
+						Concatenate(
+							Inverse(TestGeometry.GetAccumulatedLayoutTransform()),
+							TestGeometry.GetAccumulatedRenderTransform()),
+						FSlateRotatedRect(TestGeometry.GetLayoutBoundingRect())
+					);
+
+					if (IsOverlappingSlateRotatedRect(WindowSpaceCoordinate, Params.Radius, WindowOrientedClipRect))
+					{
+						// For non-0 radii also record the distance to cursor's center so that we can pick the closest hit from the results.
+						const bool bNeedsDistanceSearch = Params.Radius > 0.0f;
+						const float DistSq = (bNeedsDistanceSearch) ? DistanceSqToSlateRotatedRect(WindowSpaceCoordinate, WindowOrientedClipRect) : 0.0f;
+						return FIndexAndDistance(WidgetIndexes[i], DistSq);
+					}
+				}
+			}
+		}
+	}
+
+	return FIndexAndDistance();
+}
+
+ void FHittestGrid::GetCollapsedHittestGrid(TArray<const FHittestGrid*, TInlineAllocator<16>>& OutResult) const
+{
+	OutResult.Add(this);
+	for (const FAppendedGridData& AppendedGridData : AppendedGridArray)
+	{
+		if (const TSharedPtr<const FHittestGrid>& AppendedGrid = AppendedGridData.Grid.Pin())
+		{
+			if (ensure(!OutResult.Contains(AppendedGrid.Get()))) // Check for recursion
+			{
+				if (ensure(SameSize(AppendedGrid.Get())))
+				{
+					AppendedGrid->GetCollapsedHittestGrid(OutResult);
+				}
+			}
+		}
+	}
+}
+
+#define UE_VERIFY_WIDGET_VALIDITE 0
+ void FHittestGrid::GetCollapsedWidgets(TArray<FWidgetIndex, TMemStackAllocator<>>& Out, const int32 X, const int32 Y) const
+ {
+	 SCOPE_CYCLE_COUNTER(STAT_SlateHTG_GetCollapsedWidgets);
+
+	 const int32 CellIndex = Y * NumCells.X + X;
+	 check(Cells.IsValidIndex(CellIndex));
+
+	 TArray<const FHittestGrid*, TInlineAllocator<16>> AllHitTestGrids;
+	 GetCollapsedHittestGrid(AllHitTestGrids);
+
+	 // N.B. it would be more efficient if we only rebuild if the cell has changed
+	 //but the PrimarySort and SecondaySort are not updated directly and the cell doesn't know about it
+
+	 {
+		 for (const FHittestGrid* HittestGrid : AllHitTestGrids)
+		 {
+			 const TArray<int32>& WidgetsIndexes = HittestGrid->CellAt(X, Y).GetWidgetIndexes();
+			 for (int32 WidgetIndex : WidgetsIndexes)
+			 {
+#if UE_VERIFY_WIDGET_VALIDITE
+				 ensureAlways(HittestGrid->WidgetArray.IsValidIndex(WidgetIndex));
+#endif
+				 Out.Emplace(HittestGrid, WidgetIndex);
+			 }
+		 }
+
+		 Out.StableSort([](const FWidgetIndex& A, const FWidgetIndex& B)
+			 {
+				 const FWidgetData& WidgetDataA = A.GetWidgetData();
+				 const FWidgetData& WidgetDataB = B.GetWidgetData();
+				 return WidgetDataA.PrimarySort < WidgetDataB.PrimarySort || (WidgetDataA.PrimarySort == WidgetDataB.PrimarySort && WidgetDataA.SecondarySort < WidgetDataB.SecondarySort);
+			 });
+	 }
+ }
+#undef UE_VERIFY_WIDGET_VALIDITE
+
+void FHittestGrid::RemoveStaleAppendedHittestGrid()
+{
+	for (int32 AppendedGridIndex = AppendedGridArray.Num() - 1; AppendedGridIndex >= 0; --AppendedGridIndex)
+	{
+		bool bToRemove = false;
+		const TWeakPtr<const FHittestGrid>& WeakAppendedGrid = AppendedGridArray[AppendedGridIndex].Grid;
+		if (const TSharedPtr<const FHittestGrid>& AppendedGrid = WeakAppendedGrid.Pin())
+		{
+			if (!SameSize(AppendedGrid.Get()))
+			{
+				bToRemove = true;
+			}
+		}
+		else
+		{
+			// grid was removed without notifying the SlateInvalidationRoot.
+			//That can happened when the widget containing the owner of the grid is removed in the same frame as it was added.
+			bToRemove = true;
+		}
+
+		if (bToRemove)
+		{
+			AppendedGridArray.RemoveAtSwap(AppendedGridIndex);
 		}
 	}
 }
@@ -651,13 +917,13 @@ void FHittestGrid::RemoveAppendedGrid(const TSharedRef<SWidget>& Owner)
 void FHittestGrid::LogGrid() const
 {
 	FString TempString;
-	for (int y = 0; y < NumCells.Y; ++y)
+	for (int32 y = 0; y < NumCells.Y; ++y)
 	{
 		for (int x = 0; x < NumCells.X; ++x)
 		{
 			TempString += "\t";
 			TempString += "[";
-			for (int i : CellAt(x, y).GetCachedWidgetIndexes())
+			for (int32 i : CellAt(x, y).GetWidgetIndexes())
 			{
 				TempString += FString::Printf(TEXT("%d,"), i);
 			}
@@ -700,194 +966,65 @@ constexpr FLinearColor GetUserColorFromIndex(int32 Index)
 };
 
 
-void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList) const
+void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList, EDisplayGridFlags DisplayFlags) const
 {
-	static const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
+	static const FSlateBrush* FocusRectangleBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
+	static const FSlateBrush* BorderBrush = FCoreStyle::Get().GetBrush(TEXT("Border"));
 
-	//WindowElementList.PushAbsoluteBatchPriortyGroup(INT_MAX);
-	for (TSparseArray<FWidgetData>::TConstIterator It(WidgetArray); It; ++It)
+	const FSlateBrush* Brush = EnumHasAnyFlags(DisplayFlags, EDisplayGridFlags::UseFocusBrush) ? FocusRectangleBrush : BorderBrush;
+
+	auto DisplayGrid = [&] (const FHittestGrid* HittestGrid)
 	{
-		const FWidgetData& CurWidgetData = *It;
-		const TSharedPtr<SWidget> CachedWidget = CurWidgetData.GetWidget();
-		if (CachedWidget.IsValid())
+		for (TSparseArray<FWidgetData>::TConstIterator It(HittestGrid->WidgetArray); It; ++It)
 		{
-			FSlateDrawElement::MakeBox(
-				WindowElementList,
-				InLayer,
-				CachedWidget->GetPaintSpaceGeometry().ToPaintGeometry(),
-				WhiteBrush,
-				ESlateDrawEffect::None,
-				GetUserColorFromIndex(CurWidgetData.UserIndex)
-			);
+			const FWidgetData& CurWidgetData = *It;
+			const TSharedPtr<SWidget> CachedWidget = CurWidgetData.GetWidget();
+			if (ensure(CachedWidget.IsValid())) // Widget should always be valid
+			{
+				if (EnumHasAnyFlags(DisplayFlags, EDisplayGridFlags::HideDisabledWidgets) && !CachedWidget->IsEnabled())
+				{
+					continue;
+				}
+				if (EnumHasAnyFlags(DisplayFlags, EDisplayGridFlags::HideUnsupportedKeyboardFocusWidgets) && !CachedWidget->SupportsKeyboardFocus())
+				{
+					continue;
+				}
+
+				FSlateDrawElement::MakeBox(
+					WindowElementList,
+					InLayer,
+					CachedWidget->GetPaintSpaceGeometry().ToPaintGeometry(),
+					Brush,
+					ESlateDrawEffect::None,
+					GetUserColorFromIndex(CurWidgetData.UserIndex)
+				);
+			}
 		}
+	};
+
+	TArray<const FHittestGrid*, TInlineAllocator<16>> AllHitTestGrids;
+	GetCollapsedHittestGrid(AllHitTestGrids);
+	for(const FHittestGrid* HittestGrid : AllHitTestGrids)
+	{
+		DisplayGrid(HittestGrid);
 	}
 
-	//WindowElementList.PopBatchPriortyGroup();
+	// Appended grid should always be valid
+	TArray<const FHittestGrid*, TInlineAllocator<16>> TestHitTestGrids;
+	TestHitTestGrids.Add(this);
+	for (int32 Index = 0; Index < TestHitTestGrids.Num(); ++Index)
+	{
+		const FHittestGrid* Grid = TestHitTestGrids[Index];
+		for (const FAppendedGridData& OtherGridData : Grid->AppendedGridArray)
+		{
+			const TSharedPtr<const FHittestGrid> OtherGridPin = OtherGridData.Grid.Pin();
+			if (ensureAlways(OtherGridPin.IsValid()))
+			{
+				TestHitTestGrids.Add(&*OtherGridPin);
+			}
+		}
+	}
 }
-
 #endif // WITH_SLATE_DEBUGGING
 
-
-void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort)
-{
-	if (!InWidget->GetVisibility().IsHitTestVisible())
-	{
-		return;
-	}
-
-	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_AddWidget);
-
-	if (WidgetMap.Contains(&*InWidget))
-	{
-		// TODO: Update can be faster than a Remove and Add
-		RemoveWidget(InWidget);
-	}
-
-	const int64 PrimarySort = (((int64)InBatchPriorityGroup << 32) | InLayerId);
-
-	// Track the widget and identify it's Widget Index
-	FGeometry GridSpaceGeometry = InWidget->GetPaintSpaceGeometry();
-	GridSpaceGeometry.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
-
-	// Currently using grid offset because the grid covers all desktop space.
-	const FSlateRect BoundingRect = GridSpaceGeometry.GetRenderBoundingRect();
-
-	// Starting and ending cells covered by this widget.	
-	const FIntPoint UpperLeftCell = GetCellCoordinate(BoundingRect.GetTopLeft());
-	const FIntPoint LowerRightCell = GetCellCoordinate(BoundingRect.GetBottomRight());
-
-	int32& WidgetIndex = WidgetMap.Add(&*InWidget);
-	FWidgetData Data(InWidget, nullptr, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
-	WidgetIndex = WidgetArray.Add(Data); // Bleh why doesn't Sparse Array have an emplace.
-
-	for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
-	{
-		for (int32 YIndex = UpperLeftCell.Y; YIndex <= LowerRightCell.Y; ++YIndex)
-		{
-			if (IsValidCellCoord(XIndex, YIndex))
-			{
-				CellAt(XIndex, YIndex).AddIndex(WidgetIndex);
-			}
-		}
-	}
-}
-
-void FHittestGrid::RemoveWidget(const TSharedRef<SWidget>& InWidget)
-{
-	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_RemoveWidget);
-
-	int32 WidgetIndex = INDEX_NONE;
-	if(WidgetMap.RemoveAndCopyValue(&*InWidget, WidgetIndex))
-	{
-		const FWidgetData& WidgetData = WidgetArray[WidgetIndex];
-
-		// Starting and ending cells covered by this widget.	
-		const FIntPoint& UpperLeftCell = WidgetData.UpperLeftCell;
-		const FIntPoint& LowerRightCell = WidgetData.LowerRightCell;
-
-		for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
-		{
-			for (int32 YIndex = UpperLeftCell.Y; YIndex <= LowerRightCell.Y; ++YIndex)
-			{
-				checkSlow(IsValidCellCoord(XIndex, YIndex));
-				CellAt(XIndex, YIndex).RemoveIndex(WidgetIndex);
-			}
-		}
-
-		WidgetArray.RemoveAt(WidgetIndex);
-	}
-}
-
-void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath)
-{
-	int32 WidgetIndex = WidgetMap.FindChecked(&*InWidget);
-	FWidgetData& WidgetData = WidgetArray[WidgetIndex];
-	WidgetData.CustomPath = CustomHitTestPath;
-}
-
-FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGridTestingParams& Params)
-{
-	//check if the cell coord 
-	if (IsValidCellCoord(Params.CellCoord))
-	{
-		// Get the cell and sort it 
-		FHittestGrid::FCell& Cell = CellAt(Params.CellCoord.X, Params.CellCoord.Y);
-		Cell.Sort(WidgetArray);
-
-		// Get the cell's index array for the search
-		const TArray<int32>& IndexesInCell = Cell.GetCachedWidgetIndexes();
-
-#if 0 //Unroll some data for debugging if necessary
-		struct FDebugData
-		{
-			int32 WidgetIndex;
-			int64 PrimarySort;
-			FName WidgetType;
-			FName WidgetLoc;
-			TSharedPtr<SWidget> Widget;
-		};
-
-		TArray<FDebugData> DebugData;
-		for (int32 i = 0; i < IndexesInCell.Num(); ++i)
-		{
-			FDebugData& Cur = DebugData.AddDefaulted_GetRef();
-			Cur.WidgetIndex = IndexesInCell[i];
-			Cur.PrimarySort = WidgetArray[Cur.WidgetIndex].PrimarySort;
-			Cur.Widget = WidgetArray[Cur.WidgetIndex].GetWidget();
-			Cur.WidgetType = Cur.Widget.IsValid() ? Cur.Widget->GetType() : NAME_None;
-			Cur.WidgetLoc = Cur.Widget.IsValid() ? Cur.Widget->GetCreatedInLocation() : NAME_None;
-		}
-
-#endif
-
-		// Consider front-most widgets first for hittesting.
-		for (int32 i = IndexesInCell.Num() - 1; i >= 0; --i)
-		{
-			const int32 WidgetIndex = IndexesInCell[i];
-
-			checkSlow(WidgetArray.IsValidIndex(WidgetIndex));
-
-			const FWidgetData& TestCandidate = WidgetArray[WidgetIndex];
-			const TSharedPtr<SWidget> TestWidget = TestCandidate.GetWidget();
-
-			// When performing a point hittest, accept all hittestable widgets.
-			// When performing a hittest with a radius, only grab interactive widgets.
-			const bool bIsValidWidget = TestWidget.IsValid() && (!Params.bTestWidgetIsInteractive || TestWidget->IsInteractable());
-			if (bIsValidWidget)
-			{
-				const FVector2D WindowSpaceCoordinate = Params.CursorPositionInGrid + GridWindowOrigin;
-
-				const FGeometry& TestGeometry = TestWidget->GetPaintSpaceGeometry();
-
-				bool bPointInsideClipMasks = true;
-				const TOptional<FSlateClippingState>& WidgetClippingState = TestWidget->GetCurrentClippingState();
-				if (WidgetClippingState.IsSet())
-				{
-					// TODO: Solve non-zero radius cursors?
-					bPointInsideClipMasks = WidgetClippingState->IsPointInside(WindowSpaceCoordinate);
-				}
-
-				if (bPointInsideClipMasks)
-				{
-					// Compute the render space clipping rect (FGeometry exposes a layout space clipping rect).
-					const FSlateRotatedRect WindowOrientedClipRect = TransformRect(
-						Concatenate(
-							Inverse(TestGeometry.GetAccumulatedLayoutTransform()),
-							TestGeometry.GetAccumulatedRenderTransform()),
-						FSlateRotatedRect(TestGeometry.GetLayoutBoundingRect())
-					);
-
-					if (IsOverlappingSlateRotatedRect(WindowSpaceCoordinate, Params.Radius, WindowOrientedClipRect))
-					{
-						// For non-0 radii also record the distance to cursor's center so that we can pick the closest hit from the results.
-						const bool bNeedsDistanceSearch = Params.Radius > 0.0f;
-						const float DistSq = (bNeedsDistanceSearch) ? DistanceSqToSlateRotatedRect(WindowSpaceCoordinate, WindowOrientedClipRect) : 0.0f;
-						return FIndexAndDistance(WidgetIndex, DistSq);
-					}
-				}
-			}
-		}
-	}
-
-	return FIndexAndDistance();
-}
+#undef LOCTEXT_NAMESPACE
