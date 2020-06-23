@@ -12,6 +12,10 @@
 #include "Chaos/PBDJointConstraintData.h"
 #include "PBDRigidsSolver.h"
 
+//#ifndef USE_CHAOS_JOINT_CONSTRAINTS
+//#define USE_CHAOS_JOINT_CONSTRAINTS 
+//#endif
+
 bool FPhysicsConstraintReference_Chaos::IsValid() const
 {
 	return Constraint!=nullptr ? Constraint->IsValid() : false;
@@ -907,7 +911,7 @@ void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsCon
 		{
 			Constraint->SetProjectionEnabled(bInProjectionEnabled);
 
-			// @todo(chaos) : Constraint solver data is solver specific, so it needs and interface against the solver not the constraint handle. 
+			// @todo(chaos) : Constraint tolerances are solver specific, so it needs to use the interface against the solver not the constraint handle. 
 			//Constraint->SetSolverPositionTolerance(InLinearTolerance);
 			//Constraint->SetSolverAngularTolerance(InAngularToleranceDegrees);
 		}
@@ -931,9 +935,16 @@ void FChaosEngineInterface::SetParentDominates_AssumesLocked(const FPhysicsConst
 	}
 }
 
-void FChaosEngineInterface::SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,float InLinearBreakForce,float InAngularBreakForce)
+void FChaosEngineInterface::SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,float InLinearBreakForce,float InAngularBreakTorque)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearBreakForce(InLinearBreakForce);
+			Constraint->SetAngularBreakTorque(InAngularBreakTorque);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,const FTransform& InPose,EConstraintFrame::Type InFrame)

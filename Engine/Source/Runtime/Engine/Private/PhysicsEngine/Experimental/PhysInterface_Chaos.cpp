@@ -50,10 +50,6 @@
 #include "Containers/ArrayView.h"
 #endif
 
-//#ifndef USE_CHAOS_JOINT_CONSTRAINTS
-//#define USE_CHAOS_JOINT_CONSTRAINTS 
-//#endif
-
 DEFINE_STAT(STAT_TotalPhysicsTime);
 DEFINE_STAT(STAT_NumCloths);
 DEFINE_STAT(STAT_NumClothVerts);
