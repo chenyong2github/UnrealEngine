@@ -1620,7 +1620,7 @@ public:
 	 * @param Skeleton	The skeleton that animation is import into
 	 * @param Filename	The FBX filename
 	 */
-	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename);
+	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions);
 
 
 	// Object management.

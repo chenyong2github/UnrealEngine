@@ -31,6 +31,7 @@ class UReimportFbxSkeletalMeshFactory : public UFbxFactory, public FReimportHand
 	}
 	virtual EReimportResult::Type Reimport( UObject* Obj, int32 SourceFileIndex );
 	virtual int32 GetPriority() const override;
+	virtual void PostImportCleanUp() { CleanUp(); }
 	//~ End FReimportHandler Interface
 
 	//~ Begin UFactory Interface
