@@ -48,6 +48,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "CascadeToNiagaraConverterModule.h"
 
 
 TMap<FGuid, TSharedPtr<FNiagaraEmitterHandleViewModel>> UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap;
