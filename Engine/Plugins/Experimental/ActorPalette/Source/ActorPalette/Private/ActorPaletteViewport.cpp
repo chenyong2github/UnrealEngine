@@ -6,6 +6,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "EngineUtils.h"
 #include "ContentBrowserModule.h"

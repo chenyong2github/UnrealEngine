@@ -3,7 +3,9 @@
 #include "ActorPaletteModule.h"
 #include "ActorPaletteStyle.h"
 #include "ActorPaletteCommands.h"
+
 #include "Widgets/Docking/SDockTab.h"
+#include "Framework/Commands/UICommandList.h"
 
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"

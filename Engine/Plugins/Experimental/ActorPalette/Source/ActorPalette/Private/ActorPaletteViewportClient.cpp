@@ -17,6 +17,8 @@
 #include "MouseDeltaTracker.h"
 #include "ActorPaletteSettings.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Widgets/SWindow.h"
+#include "SEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "ActorPalette"
 
