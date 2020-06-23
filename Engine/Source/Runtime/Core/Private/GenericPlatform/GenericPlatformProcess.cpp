@@ -276,7 +276,7 @@ void FGenericPlatformProcess::ModifyCreateProcParams(FString& InOutURL, FString&
 #elif PLATFORM_MAC || PLATFORM_LINUX
 		Command += TEXT(".sh");
 #else
-	#error Unknown platform - override this function!
+		UE_LOG(LogInit, Fatal, TEXT("ModifyCreateProcParams being called on a platform that is not supported"));
 #endif
 	}
 
