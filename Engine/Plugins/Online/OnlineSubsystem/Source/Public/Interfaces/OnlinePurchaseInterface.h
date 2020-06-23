@@ -62,6 +62,10 @@ public:
 	};	
 	/** List of offers being purchased */
 	TArray<FPurchaseOfferEntry> PurchaseOffers;
+
+	/** Optional AccountId to include with the purchase request (if supported) */
+	TOptional<FString> AccountId;
+
 };
 
 /**
