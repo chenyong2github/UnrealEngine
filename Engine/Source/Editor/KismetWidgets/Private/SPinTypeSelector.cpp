@@ -4,6 +4,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SMenuOwner.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -18,43 +19,6 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "PinTypeSelector"
-
-/** I need a widget that draws two images on top of each other. This is to represent a TMap (key type and value type): */
-class SDoubleImage : public SImage
-{
-public:
-	void Construct(const FArguments& InArgs, TAttribute<const FSlateBrush*> InSecondImage, TAttribute<FSlateColor> InSecondImageColor);
-
-private:
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-
-	TAttribute<const FSlateBrush*> SecondImage;
-	TAttribute<FSlateColor> SecondImageColor;
-};
-
-void SDoubleImage::Construct(const SDoubleImage::FArguments& InArgs, TAttribute<const FSlateBrush*> InSecondImage, TAttribute<FSlateColor> InSecondImageColor)
-{
-	SImage::Construct(InArgs);
-	SecondImage = InSecondImage;
-	SecondImageColor = InSecondImageColor;
-}
-
-int32 SDoubleImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
-{
-	// this will draw Image[0]:
-	SImage::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
-
-	const bool bIsEnabled = ShouldBeEnabled(bParentEnabled);
-	const ESlateDrawEffect DrawEffects = bIsEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	// draw rest of the images, we reuse the LayerId because images are assumed to note overlap:
-	const FSlateBrush* SecondImageResolved = SecondImage.Get();
-	if (SecondImageResolved && SecondImageResolved->DrawAs != ESlateBrushDrawType::NoDrawType)
-	{
-		const FLinearColor FinalColorAndOpacity(InWidgetStyle.GetColorAndOpacityTint() * SecondImageColor.Get().GetColor(InWidgetStyle) * SecondImageResolved->GetTint(InWidgetStyle));
-		FSlateDrawElement::MakeBox(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), SecondImageResolved, DrawEffects, FinalColorAndOpacity);
-	}
-	return LayerId;
-}
 
 static const FString BigTooltipDocLink = TEXT("Shared/Editor/Blueprint/VariableTypes");
 
@@ -139,7 +103,7 @@ static bool ContainerRequiresGetTypeHash(EPinContainerType InType)
 TSharedRef<SWidget> SPinTypeSelector::ConstructPinTypeImage(const FSlateBrush* PrimaryIcon, const FSlateColor& PrimaryColor, const FSlateBrush* SecondaryIcon, const FSlateColor& SecondaryColor, TSharedPtr<SToolTip> InToolTip)
 {
 	return
-		SNew(SDoubleImage, SecondaryIcon, SecondaryColor)
+		SNew(SLayeredImage, SecondaryIcon, SecondaryColor)
 		.Image(PrimaryIcon)
 		.ToolTip(InToolTip)
 		.ColorAndOpacity(PrimaryColor);
@@ -148,7 +112,7 @@ TSharedRef<SWidget> SPinTypeSelector::ConstructPinTypeImage(const FSlateBrush* P
 TSharedRef<SWidget> SPinTypeSelector::ConstructPinTypeImage(TAttribute<const FSlateBrush*> PrimaryIcon, TAttribute<FSlateColor> PrimaryColor, TAttribute<const FSlateBrush*> SecondaryIcon, TAttribute<FSlateColor> SecondaryColor )
 {
 	return
-		SNew(SDoubleImage, SecondaryIcon, SecondaryColor)
+		SNew(SLayeredImage, SecondaryIcon, SecondaryColor)
 		.Image(PrimaryIcon)
 		.ColorAndOpacity(PrimaryColor);
 }
@@ -279,7 +243,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			.ButtonContent()
 			[
 				SNew(
-					SDoubleImage,
+					SLayeredImage,
 					TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage),
 					TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
 				)
@@ -290,7 +254,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 	else if (SelectorType == ESelectorType::None)
 	{
 		Widget = SNew(
-					SDoubleImage,
+					SLayeredImage,
 					TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage),
 					TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
 				)
@@ -325,7 +289,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 										.Content()
 										[
 											SNew(
-												SDoubleImage,
+												SLayeredImage,
 													SecondaryIcon,
 													TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
 													)
@@ -361,7 +325,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 		.ButtonContent()
 		[
 			SNew(
-				SDoubleImage,
+				SLayeredImage,
 				TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage),
 				TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
 			)
