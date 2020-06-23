@@ -1605,7 +1605,20 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VertexFoggingForOpaque"));
-		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		bool bVertexFoggingForOpaque = CVar && CVar->GetValueOnAnyThread() > 0;
+		if (TargetPlatform)
+		{
+			const int32 PlatformHeightFogMode = TargetPlatform->GetHeightFogModeForOpaque();
+			if (PlatformHeightFogMode == 1)
+			{
+				bVertexFoggingForOpaque = false;
+			}
+			else if (PlatformHeightFogMode == 2)
+			{
+				bVertexFoggingForOpaque = true;
+			}
+		}
+		if (bVertexFoggingForOpaque)
 		{
 			KeyString += TEXT("_VFO");
 		}

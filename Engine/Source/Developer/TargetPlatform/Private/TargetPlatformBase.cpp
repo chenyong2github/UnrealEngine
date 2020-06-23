@@ -59,6 +59,13 @@ float FTargetPlatformBase::GetDownSampleMeshDistanceFieldDivider() const
 	return 1.0f;
 }
 
+int32 FTargetPlatformBase::GetHeightFogModeForOpaque() const
+{
+	// Don't override the project setting by default
+	// Platforms wish to support override need to implement the logic in their own target platform classes
+	return 0;
+}
+
 static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescriptor* Project, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType)
 {
 	if (!Plugin.GetDescriptor().SupportsTargetPlatform(Platform))

@@ -3828,9 +3828,9 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("PROJECT_ALLOW_GLOBAL_CLIP_PLANE"), CVar ? (CVar->GetInt() != 0) : 0);
 	}
 
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform));
 	bool bForwardShading = false;
 	{
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform));
 		if (TargetPlatform)
 		{
 			bForwardShading = TargetPlatform->UsesForwardShading();
@@ -3856,7 +3856,24 @@ void GlobalBeginCompileShader(
 
 	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexFoggingForOpaque"));
-		Input.Environment.SetDefine(TEXT("PROJECT_VERTEX_FOGGING_FOR_OPAQUE"), bForwardShading && (CVar ? (CVar->GetInt() != 0) : 0));
+		bool bVertexFoggingForOpaque = false;
+		if (bForwardShading)
+		{
+			bVertexFoggingForOpaque = CVar ? (CVar->GetInt() != 0) : 0;
+			if (TargetPlatform)
+			{
+				const int32 PlatformHeightFogMode = TargetPlatform->GetHeightFogModeForOpaque();
+				if (PlatformHeightFogMode == 1)
+				{
+					bVertexFoggingForOpaque = false;
+				}
+				else if (PlatformHeightFogMode == 2)
+				{
+					bVertexFoggingForOpaque = true;
+				}
+			}
+		}
+		Input.Environment.SetDefine(TEXT("PROJECT_VERTEX_FOGGING_FOR_OPAQUE"), bVertexFoggingForOpaque);
 	}
 
 	{
