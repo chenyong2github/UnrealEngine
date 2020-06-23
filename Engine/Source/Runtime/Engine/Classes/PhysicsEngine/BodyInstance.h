@@ -296,7 +296,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Physics)
 	ESleepFamily SleepFamily;
 
-	/** Locks physical movement along specified axis.*/
+	/** [Physx Only] Locks physical movement along specified axis.*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Mode"))
 	TEnumAsByte<EDOFMode::Type> DOFMode;
 
@@ -352,35 +352,35 @@ public:
 	UPROPERTY()
 	uint8 bUpdateMassWhenScaleChanges:1;
 
-	/** When a Locked Axis Mode is selected, will lock translation on the specified axis*/
+	/** [Physx Only] When a Locked Axis Mode is selected, will lock translation on the specified axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(DisplayName = "Lock Axis Translation"))
 	uint8 bLockTranslation : 1;
 	
-	/** When a Locked Axis Mode is selected, will lock rotation to the specified axis*/
+	/** [Physx Only] When a Locked Axis Mode is selected, will lock rotation to the specified axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(DisplayName = "Lock Axis Rotation"))
 	uint8 bLockRotation : 1;
 
-	/** Lock translation along the X-axis*/
+	/** [Physx Only] Lock translation along the X-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "X"))
 	uint8 bLockXTranslation : 1;
 
-	/** Lock translation along the Y-axis*/
+	/** [Physx Only] Lock translation along the Y-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Y"))
 	uint8 bLockYTranslation : 1;
 
-	/** Lock translation along the Z-axis*/
+	/** [Physx Only] Lock translation along the Z-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Z"))
 	uint8 bLockZTranslation : 1;
 
-	/** Lock rotation about the X-axis*/
+	/** [Physx Only] Lock rotation about the X-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "X"))
 	uint8 bLockXRotation : 1;
 
-	/** Lock rotation about the Y-axis*/
+	/** [Physx Only] Lock rotation about the Y-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Y"))
 	uint8 bLockYRotation : 1;
 
-	/** Lock rotation about the Z-axis*/
+	/** [Physx Only] Lock rotation about the Z-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Z"))
 	uint8 bLockZRotation : 1;
 
@@ -514,15 +514,16 @@ public:
 
 	void ClearExternalCollisionProfile();
 
-	/** Locks physical movement along axis. */
+	/** [Physx Only] Locks physical movement along axis. */
 	void SetDOFLock(EDOFMode::Type NewDOFMode);
 
+	/** [Physx Only] */
 	FVector GetLockedAxis() const;
 	void CreateDOFLock();
 
 	static EDOFMode::Type ResolveDOFMode(EDOFMode::Type DOFMode);
 
-	/** Constraint used to allow for easy DOF setup per bodyinstance */
+	/** [Physx Only] Constraint used to allow for easy DOF setup per bodyinstance */
 	FConstraintInstance* DOFConstraint;
 
 	/** The parent body that we are welded to*/
