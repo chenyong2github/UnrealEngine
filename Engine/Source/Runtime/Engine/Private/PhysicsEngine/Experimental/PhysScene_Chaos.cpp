@@ -405,10 +405,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 );
 	check(SceneSolver);
 
-	// #BGallagher Temporary while we're using the global scene singleton. Shouldn't be required
-	// once we have a better lifecycle for the scenes.
-	FCoreDelegates::OnPreExit.AddRaw(this, &FPhysScene_Chaos::Shutdown);
-
 	PhysicsProxyToComponentMap.Reset();
 	ComponentToPhysicsProxyMap.Reset();
 
