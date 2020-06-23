@@ -45,7 +45,7 @@ public:
 private:
 	struct FScheduledWork;
 
-	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority) override;
+	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override;
 	void Destroy() override;
 	void Schedule(FScheduledWork* Work = nullptr);
 

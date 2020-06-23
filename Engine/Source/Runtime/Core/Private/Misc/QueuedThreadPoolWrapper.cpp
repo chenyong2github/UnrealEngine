@@ -46,7 +46,7 @@ FQueuedThreadPoolWrapper::~FQueuedThreadPoolWrapper()
 	Destroy();
 }
 
-bool FQueuedThreadPoolWrapper::Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority)
+bool FQueuedThreadPoolWrapper::Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name)
 {
 	return true;
 }
