@@ -1034,6 +1034,7 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 
 	PlayInEditorSessionInfo = FPlayInEditorSessionInfo();
 	PlayInEditorSessionInfo->PlayRequestStartTime = FPlatformTime::Seconds();
+	PlayInEditorSessionInfo->PlayRequestStartTime_StudioAnalytics = FStudioAnalytics::GetAnalyticSeconds();
 
 	// Keep a copy of their original request settings for any late
 	// joiners or async processes that need access to the settings after launch.
@@ -1647,9 +1648,9 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 	else
 	{
 		FPieLoginStruct PIELoginInfo;
-		PIELoginInfo.PIEStartTime = FPlatformTime::Seconds();
 
 		FGameInstancePIEParameters GameInstancePIEParameters;
+		GameInstancePIEParameters.PIEStartTime = PlayInEditorSessionInfo->PlayRequestStartTime_StudioAnalytics;
 		GameInstancePIEParameters.bAnyBlueprintErrors = PlayInEditorSessionInfo->bAnyBlueprintErrors;
 		// If they require a server and one hasn't been launched then it is dedicated. If they're a client or listen server
 		// then it doesn't count as a dedicated server so this can be false (NetMode will handle ListenServer).

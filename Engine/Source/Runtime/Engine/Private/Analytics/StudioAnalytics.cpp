@@ -125,7 +125,7 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 	}
 
 	// Throw out anything over 10 hours - 
-	if (SecondsSpentLoading > 36000)
+	if (!ensureMsgf(SecondsSpentLoading < 36000, TEXT("The loading event shouldn't be over 10 hours, perhaps an uninitialized bit of memory?")))
 	{
 		return;
 	}

@@ -232,6 +232,7 @@ struct FPlayInEditorSessionInfo
 public:
 	FPlayInEditorSessionInfo()
 		: PlayRequestStartTime(0.0)
+		, PlayRequestStartTime_StudioAnalytics(0.0)
 		, PIEInstanceCount(0)
 		, NumViewportInstancesCreated(0)
 		, NumClientInstancesCreated(0)
@@ -244,6 +245,7 @@ public:
 	}
 
 	double PlayRequestStartTime;
+	double PlayRequestStartTime_StudioAnalytics;
 
 	// M
 	FRequestPlaySessionParams OriginalRequestParams;
