@@ -42,6 +42,8 @@ class UCurveTable
 {
 	GENERATED_UCLASS_BODY()
 
+	friend class UCompositeCurveTable;
+
 	DECLARE_MULTICAST_DELEGATE(FOnCurveTableChanged);
 
 	const TMap<FName, FRealCurve*>& GetRowMap() const { return RowMap; }

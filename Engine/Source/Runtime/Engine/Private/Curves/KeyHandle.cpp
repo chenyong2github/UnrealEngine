@@ -61,10 +61,10 @@ void FKeyHandleMap::SetKeyHandles(int32 Num)
 }
 
 
-void FKeyHandleMap::Empty()
+void FKeyHandleMap::Empty(uint32 Slack)
 {
-	KeyHandlesToIndices.Empty();
-	KeyHandles.Empty();
+	KeyHandlesToIndices.Empty(Slack);
+	KeyHandles.Empty(Slack);
 }
 
 
