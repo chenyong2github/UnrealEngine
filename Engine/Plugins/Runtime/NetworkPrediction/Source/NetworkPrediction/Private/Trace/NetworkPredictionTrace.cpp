@@ -13,7 +13,7 @@
 #include "UObject/CoreNet.h"
 #include "Engine/PackageMapClient.h"
 #include "Logging/LogMacros.h"
-//#include "Trace/Trace.inl" this will need to be included after next copy up from Dev-Core
+#include "Trace/Trace.inl"
 
 UE_TRACE_CHANNEL_DEFINE(NetworkPredictionChannel)
 
