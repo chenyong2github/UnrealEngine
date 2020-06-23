@@ -464,6 +464,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 						 TArray<FTargetMatch>& TargetMatchData, const TArray<FSkelMeshSection>& TargetSections, const TArray<int32>& TargetSectionMatchBaseIndex, const TCHAR* DebugContext)
 {
 	bool bNoMatchMsgDone = false;
+	bool bNoUVsMsgDisplayed = false;
 	TArray<FTriangleElement> Triangles;
 	//Project section target vertices on match base section using the UVs coordinates
 	for (int32 SectionIndex = 0; SectionIndex < TargetSections.Num(); ++SectionIndex)
@@ -500,7 +501,15 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 			TriangleElement.TriangleIndex = Triangles.Num();
 			Triangles.Add(TriangleElement);
 		}
-		check(!BaseMeshUVBound.GetExtent().IsNearlyZero());
+		if (BaseMeshUVBound.GetExtent().IsNearlyZero())
+		{
+			if(!bNoUVsMsgDisplayed)
+			{
+				UE_LOG(LogLODUtilities, Warning, TEXT("SkeletalMesh [%s] Remap morph target: Cannot remap morph target because source UVs are missings."), DebugContext ? DebugContext : TEXT("Unknown Source"));
+				bNoUVsMsgDisplayed = true;
+			}
+			continue;
+		}
 		//Setup the Quad tree
 		float UVsQuadTreeMinSize = 0.001f;
 		TQuadTree<uint32, 100> QuadTree(BaseMeshUVBound, UVsQuadTreeMinSize);
