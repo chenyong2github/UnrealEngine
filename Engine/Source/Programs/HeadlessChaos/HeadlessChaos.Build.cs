@@ -24,8 +24,7 @@ public class HeadlessChaos : ModuleRules
 				"GeometryCollectionSimulationCore",
 				"FieldSystemCore",
 				"FieldSystemSimulationCore",
-				"ChaosVehiclesCore",
-				"ChaosEngineBridge"
+				"ChaosVehiclesCore"
             }
         );
 
