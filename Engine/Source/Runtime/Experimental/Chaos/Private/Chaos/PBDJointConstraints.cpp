@@ -160,8 +160,8 @@ namespace Chaos
 		, AngularDriveForceMode(EJointForceMode::Acceleration)
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
-		, LinearBreakForce(0)
-		, AngularBreakTorque(0)
+		, LinearBreakForce(FLT_MAX)
+		, AngularBreakTorque(FLT_MAX)
 	{
 		if (bChaos_Joint_ISPC_Enabled)
 		{
@@ -1251,7 +1251,7 @@ namespace Chaos
 		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetInitP(1), Solver.GetInitQ(1), Solver.GetP(1), Solver.GetQ(1), bUpdateVelocity);
 
 		// @todo(ccaulfield): The break limit should really be applied to the impulse in the solver to prevent 1-frame impulses larger than the threshold
-		if ((JointSettings.LinearBreakForce > 0.0f) || (JointSettings.AngularBreakTorque > 0.0f))
+		if ((JointSettings.LinearBreakForce!=FLT_MAX) || (JointSettings.AngularBreakTorque!=FLT_MAX))
 		{
 			ApplyBreakThreshold(Dt, ConstraintIndex, Solver.GetNetLinearImpulse(), Solver.GetNetAngularImpulse());
 		}
@@ -1336,7 +1336,7 @@ namespace Chaos
 		// The Threshold is a force limit, so we need to convert it to a position delta caused by that force in one timestep
 
 		bool bBreak = false;
-		if (!bBreak && (JointSettings.LinearBreakForce > 0.0f))
+		if (!bBreak && JointSettings.LinearBreakForce!=FLT_MAX)
 		{
 			const FReal LinearThreshold = JointSettings.LinearBreakForce * Dt * Dt;
 			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Constraint %d Linear Break Check: %f / %f"), ConstraintIndex, LinearImpulse.Size(), LinearThreshold);
@@ -1345,7 +1345,7 @@ namespace Chaos
 			bBreak = LinearImpulse.SizeSquared() > LinearThresholdSq;
 		}
 
-		if (!bBreak && (JointSettings.AngularBreakTorque > 0.0f))
+		if (!bBreak && JointSettings.AngularBreakTorque!=FLT_MAX)
 		{
 			const FReal AngularThreshold = JointSettings.AngularBreakTorque * Dt * Dt;
 			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Constraint %d Angular Break Check: %f / %f"), ConstraintIndex, AngularImpulse.Size(), AngularThreshold);
