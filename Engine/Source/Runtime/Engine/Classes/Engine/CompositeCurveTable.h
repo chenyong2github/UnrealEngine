@@ -42,6 +42,13 @@ protected:
 
 	void OnParentTablesUpdated(EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
 
+private:
+
+	// Updates the contents of Table to be based on this table's ParentTables
+	void BuildTableFromParents(UCurveTable* Table);
+
+protected:
+
 	// Parent tables
 	// Tables with higher indices override data in tables with lower indices
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
