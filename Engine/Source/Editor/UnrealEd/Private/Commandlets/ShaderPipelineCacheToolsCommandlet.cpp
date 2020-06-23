@@ -1518,9 +1518,9 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 		{
 			if (A[Idx].Type != B[Idx].Type)
 			{
-				// when we see float2 vs float4 mismatch, we cannot know which one the vertex expects,
-				// and we assume it needs float4 to be on the safe side
-				if (NumElements(A[Idx].Type) == NumElements(B[Idx].Type))
+				// When we see float2 vs float4 mismatch, we cannot know which one the vertex shader expects.
+				// Alas we cannot err on a safe side here because it's a very frequent case that would filter out a lot of valid PSOs
+				//if (NumElements(A[Idx].Type) == NumElements(B[Idx].Type))
 				{
 					if (IsFloatOrTuple(A[Idx].Type) && IsFloatOrTuple(B[Idx].Type))
 					{
