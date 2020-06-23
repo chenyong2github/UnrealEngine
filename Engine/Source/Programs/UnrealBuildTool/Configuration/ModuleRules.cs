@@ -1151,10 +1151,9 @@ namespace UnrealBuildTool
             PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Chaos",
-					"FieldSystemCore",
-					"ChaosEngineBridge"
-				}
-			);
+					"FieldSystemCore"
+                }
+            );
 
             // 
             if (Target.bCompileChaos == true || Target.bUseChaos == true)
