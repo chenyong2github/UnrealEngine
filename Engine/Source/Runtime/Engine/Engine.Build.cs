@@ -376,8 +376,7 @@ public class Engine : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"PhysicsSQ",
-				"ChaosSolvers"
+				"PhysicsSQ"
 			}
 		);
 
