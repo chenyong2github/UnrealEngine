@@ -14,4 +14,4 @@ on the developer's workstation.
 Inside of Epic Games, when opening the Visual Studio C# project directly, environment variable Revit_<year>_API must be set
 to the developer's Perforce workspace directory Enterprise\Source\ThirdParty\NotForLicensees\Revit\Revit_<year>_API.
 
-At this time, <year> can be in the range [2018..2020].
+At this time, <year> can be in the range [2018..2021].
