@@ -478,7 +478,7 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 				for (int32 FileIndex = 0; FileIndex < SourceFilenames.Num(); ++FileIndex)
 				{
 					FString SourceFilename = SourceFilenames[FileIndex];
-					if (SourceFilename.IsEmpty() || IFileManager::Get().FileSize(*SourceFilename) == INDEX_NONE || (bForceNewFile && FileIndex == SourceFileIndex))
+					if (SourceFilename.IsEmpty() || IFileManager::Get().FileSize(*SourceFilename) == INDEX_NONE || (bForceNewFile && (FileIndex == SourceFileIndex || SourceFileIndex == INDEX_NONE)))
 					{
 						TArray<int32>& SourceIndexArray = MissingFileSelectedAssets.FindOrAdd(Asset);
 						SourceIndexArray.Add(FileIndex);
@@ -496,12 +496,12 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 
 	if (MissingFileSelectedAssets.Num() > 0)
 	{
-		// Ask the user how to handle missing files before doing the re-import when there is more then one missing file
+		// Ask the user how to handle missing files before doing the re-import when there is more then one missing file and the "force new file" parameter is false
 		// 1. Ask for missing file location for every missing file
 		// 2. Ignore missing file asset when doing the re-import
 		// 3. Cancel the whole reimport
 		EAppReturnType::Type UserChoice = EAppReturnType::Type::Yes;
-		if (MissingFileSelectedAssets.Num() > 1)
+		if (!bForceNewFile && MissingFileSelectedAssets.Num() > 1)
 		{
 			//Pop the dialog box asking the question
 			FFormatNamedArguments Arguments;
@@ -617,6 +617,12 @@ bool FReimportManager::ReimportMultiple(TArrayView<UObject*> Objects, bool bAskF
 		}
 
 		BulkReimportTask.EnterProgressFrame(1.0f);
+	}
+
+	//Cleanup the factories after using them
+	for (int32 HandlerIndex = 0; HandlerIndex < Handlers.Num(); ++HandlerIndex)
+	{
+		Handlers[HandlerIndex]->PostImportCleanUp();
 	}
 
 	return bBulkSuccess;

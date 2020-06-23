@@ -117,25 +117,21 @@ void FAssetTypeActions_AnimSequence::ExecuteReimportWithNewSource(TArray<TWeakOb
 {
 	FAssetImportInfo EmptyImportInfo;
 
+
+	TArray<UObject*> ReimportAssets;
 	for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		auto Object = (*ObjIt).Get();
+		UObject* Object = (*ObjIt).Get();
 		if (Object)
 		{
-			// Make note of the old import data
-			FAssetImportInfo OldImportData = Object->AssetImportData->SourceData;
-			// And reset the import data
-			Object->AssetImportData->SourceData = EmptyImportInfo;
-
-			bool bSuccess = FReimportManager::Instance()->Reimport(Object, /*bAskForNewFileIfMissing=*/true);
-
-			// restore the old source path in case reimport was not successful
-			if (!bSuccess)
-			{
-				Object->AssetImportData->SourceData = OldImportData;
-			}
+			ReimportAssets.Add(Object);
 		}
 	}
+	
+	const bool bShowNotification = !FApp::IsUnattended();
+	const bool bReimportWithNewFile = true;
+	const int32 SourceFileIndex = INDEX_NONE;
+	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(ReimportAssets, bShowNotification, SourceFileIndex, bReimportWithNewFile);
 }
 
 void FAssetTypeActions_AnimSequence::ExecuteNewAnimComposite(TArray<TWeakObjectPtr<UAnimSequence>> Objects) const

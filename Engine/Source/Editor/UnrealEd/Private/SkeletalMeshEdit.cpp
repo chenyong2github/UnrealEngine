@@ -112,7 +112,7 @@ UAnimSequence * UEditorEngine::ImportFbxAnimation( USkeleton* Skeleton, UObject*
 	return NewAnimation;
 }
 
-bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename)
+bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions)
 {
 	check(Skeleton);
 	bool bResult = true;
@@ -127,7 +127,7 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 	ReimportUI->bOverrideFullName = false;
 	ReimportUI->bImportAnimations = true;
 
-	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !GIsAutomationTesting;
+	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !GIsAutomationTesting && bFactoryShowOptions;
 	if (ImportData && !ShowImportDialogAtReimport)
 	{
 		// Prepare the import options
@@ -151,7 +151,6 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 		bool bImportOperationCanceled = false;
 		bool bShowOptionDialog = true;
 		bool bForceImportType = true;
-		bool bOutImportAll = false;
 		bool bIsObjFormat = false;
 		bool bIsAutomated = false;
 
