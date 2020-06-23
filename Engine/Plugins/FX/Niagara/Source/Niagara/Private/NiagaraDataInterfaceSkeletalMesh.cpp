@@ -2101,6 +2101,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	OtherTyped->FilteredSockets = FilteredSockets;
 	OtherTyped->bExcludeBone = bExcludeBone;
 	OtherTyped->ExcludeBoneName = ExcludeBoneName;
+	OtherTyped->bRequireCurrentFrameData = bRequireCurrentFrameData;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
 #endif
@@ -2125,7 +2126,8 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 		OtherTyped->FilteredBones == FilteredBones &&
 		OtherTyped->FilteredSockets == FilteredSockets &&
 		OtherTyped->bExcludeBone == bExcludeBone &&
-		OtherTyped->ExcludeBoneName == ExcludeBoneName;
+		OtherTyped->ExcludeBoneName == ExcludeBoneName &&
+		OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData;
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
@@ -2879,7 +2881,7 @@ ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* 
 {
 	const FNDISkeletalMesh_InstanceData* InstData = static_cast<const FNDISkeletalMesh_InstanceData*>(PerInstanceData);
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	if ( Component )
+	if ( Component  && bRequireCurrentFrameData)
 	{
 		return NDISKelMesh_GetComponentTickGroup(Component);
 	}

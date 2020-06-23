@@ -608,6 +608,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
 	uint8 bExcludeBone : 1;
 
+
+	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
+	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bRequireCurrentFrameData = true;
+
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
 

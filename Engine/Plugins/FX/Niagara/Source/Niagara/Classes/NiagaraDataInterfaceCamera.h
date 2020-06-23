@@ -27,6 +27,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	int32 PlayerControllerIndex = 0;
 
+
+	/** When this option is disabled, we use the previous frame's data for the camera and issue the simulation early. This greatly
+	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bRequireCurrentFrameData = true;
+
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	//UObject Interface End
@@ -42,6 +48,7 @@ public:
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool RequiresEarlyViewData() const override { return true; }
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 #if WITH_EDITOR	
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
         TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
@@ -53,7 +60,9 @@ public:
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
 	void GetClipSpaceTransformsGPU(FVectorVMContext& Context);
 	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
-	
+
+protected:
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 private:
 	static const FName GetViewPropertiesName;
 	static const FName GetClipSpaceTransformsName;
