@@ -121,7 +121,7 @@ private:
 	TSharedPtr<SWidget> MyWidget;
 	TSharedRef<SVirtualWindow> VirtualWindow;
 
-	mutable FHittestGrid HittestGrid;
+	TSharedRef<FHittestGrid> HittestGrid;
 
 	int32 Phase;
 	int32 PhaseCount;
