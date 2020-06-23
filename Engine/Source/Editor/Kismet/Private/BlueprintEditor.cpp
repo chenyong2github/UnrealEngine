@@ -5564,68 +5564,67 @@ void FBlueprintEditor::MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, 
 
 bool FBlueprintEditor::CanConvertFunctionToEvent() const
 {
-	if (UBlueprint* Blueprint = GetBlueprintObj())
-	{
-		if (BPTYPE_FunctionLibrary != Blueprint->BlueprintType)
-		{
-			if (UEdGraphNode* const SelectedNode = GetSingleSelectedNode())
-			{
-				if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
-				{
-					if (SelectedCallFunctionNode->FindSignatureFunction())
-					{
-						return true;
-					}
-				}
-			}
-		}
-	}
+	UEdGraphNode* const SelectedNode = GetSingleSelectedNode();	
 
+	if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+	{
+		return FBlueprintEditorUtils::IsFunctionConvertableToEvent(GetBlueprintObj(), SelectedCallFunctionNode->FindSignatureFunction());
+	}
+	
 	return false;
 }
 
 void FBlueprintEditor::OnConvertFunctionToEvent()
 {
+	UEdGraphNode* SelectedNode = GetSingleSelectedNode();
+
+	if (UK2Node_FunctionEntry* SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+	{
+		ConvertFunctionIfValid(SelectedCallFunctionNode);
+	}
+}
+
+bool FBlueprintEditor::ConvertFunctionIfValid(UK2Node_FunctionEntry* FuncEntryNode)
+{
 	FCompilerResultsLog LogResults;
 	FMessageLog MessageLog("BlueprintLog");
 	FText SpecificErrorMessage;
+	
+	UBlueprint* BlueprintObj = FuncEntryNode ? FuncEntryNode->GetBlueprint() : nullptr;
 
-	if (UEdGraphNode* SelectedNode = GetSingleSelectedNode())
+	if(BlueprintObj && FuncEntryNode)
 	{
-		if (UK2Node_FunctionEntry* SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
-		{
-			UFunction* Func = SelectedCallFunctionNode->FindSignatureFunction();
-			check(Func);
+		UFunction* Func = FuncEntryNode->FindSignatureFunction();
+		check(Func);
 
-			// Make sure there are no output parameters
-			if (UEdGraphSchema_K2::HasFunctionAnyOutputParameter(Func))
-			{
-				LogResults.Error(*LOCTEXT("FunctionHasOutput_Error", "A function can only be converted if it does not have any output parameters.").ToString());
-				SpecificErrorMessage = LOCTEXT("FunctionHasOutput_Error_Title", "Function cannot have output parameters");
-			}
-			// Make sure this is not a blueprint/macro function library
-			else if (GetBlueprintObj()->BlueprintType == BPTYPE_FunctionLibrary || GetBlueprintObj()->BlueprintType == BPTYPE_MacroLibrary)
-			{
-				LogResults.Error(*LOCTEXT("BlueprintFunctionLibarary_Error", "Cannot convert functions from blueprint or macro libraries.").ToString());
-				SpecificErrorMessage = LOCTEXT("BlueprintFunctionLibarary_Error_Title", "Cannot convert blueprint or macro library functions");
-			}
-			// Ensure that this is no the construction script
-			else if (SelectedCallFunctionNode->FunctionReference.GetMemberName() == UEdGraphSchema_K2::FN_UserConstructionScript)
-			{
-				LogResults.Error(*LOCTEXT("ConvertConstructionScript_Error", "Cannot convert the construction script!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertConstructionScript_Error_Title", "Cannot convert construction script");
-			}
-			// Make sure we are not on the animation graph
-			else if (IsEditingAnimGraph())
-			{
-				LogResults.Error(*LOCTEXT("ConvertAnimGraph_Error", "Cannot convert functions on the anim graph!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertAnimGraph_Error_Title", "Cannot convert on the anim graph");
-			}
-			else
-			{
-				ConvertFunctionToEvent(SelectedCallFunctionNode);
-			}
+		// Make sure there are no output parameters
+		if (UEdGraphSchema_K2::HasFunctionAnyOutputParameter(Func))
+		{
+			LogResults.Error(*LOCTEXT("FunctionHasOutput_Error", "A function can only be converted if it does not have any output parameters.").ToString());
+			SpecificErrorMessage = LOCTEXT("FunctionHasOutput_Error_Title", "Function cannot have output parameters");
 		}
+		// Make sure this is not a blueprint/macro function library
+		else if (BlueprintObj->BlueprintType == BPTYPE_FunctionLibrary || BlueprintObj->BlueprintType == BPTYPE_MacroLibrary)
+		{
+			LogResults.Error(*LOCTEXT("BlueprintFunctionLibarary_Error", "Cannot convert functions from blueprint or macro libraries.").ToString());
+			SpecificErrorMessage = LOCTEXT("BlueprintFunctionLibarary_Error_Title", "Cannot convert blueprint or macro library functions");
+		}
+		// Ensure that this is no the construction script
+		else if (FuncEntryNode->FunctionReference.GetMemberName() == UEdGraphSchema_K2::FN_UserConstructionScript)
+		{
+			LogResults.Error(*LOCTEXT("ConvertConstructionScript_Error", "Cannot convert the construction script!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertConstructionScript_Error_Title", "Cannot convert construction script");
+		}
+		// Make sure we are not on the animation graph
+		else if (IsEditingAnimGraph())
+		{
+			LogResults.Error(*LOCTEXT("ConvertAnimGraph_Error", "Cannot convert functions on the anim graph!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertAnimGraph_Error_Title", "Cannot convert on the anim graph");
+		}
+		else
+		{
+			ConvertFunctionToEvent(FuncEntryNode);
+		}		
 	}
 	else
 	{
@@ -5642,6 +5641,9 @@ void FBlueprintEditor::OnConvertFunctionToEvent()
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
 		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
+
+	// If there are no errors, we succeed and should return true
+	return LogResults.NumErrors == 0;
 }
 
 void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCallFunctionNode)
@@ -5819,34 +5821,31 @@ bool FBlueprintEditor::CanConvertEventToFunction() const
 	return false;
 }
 
-void FBlueprintEditor::OnConvertEventToFunction()
+bool FBlueprintEditor::ConvertEventIfValid(UK2Node_Event* EventToConv)
 {
 	FCompilerResultsLog LogResults;
 	FMessageLog MessageLog("BlueprintLog");
 	FText SpecificErrorMessage;
 
-	if (UEdGraphNode* SelectedNode = GetSingleSelectedNode())
+	if(EventToConv)
 	{
-		if (UK2Node_Event* SelectedEventNode = Cast<UK2Node_Event>(SelectedNode))
-		{
-			UFunction* const Func = FFunctionFromNodeHelper::FunctionFromNode(SelectedEventNode);
+		UFunction* const Func = FFunctionFromNodeHelper::FunctionFromNode(EventToConv);
 
-			// Ensure we are not trying to do this on an interface event
-			if (FBlueprintEditorUtils::IsInterfaceFunction(GetBlueprintObj(), Func) || SelectedEventNode->IsInterfaceEventNode())
-			{
-				LogResults.Error(*LOCTEXT("EventIsOnInterface_Error", "Only non-interface events can be converted to functions!").ToString());
-				SpecificErrorMessage = LOCTEXT("EventIsOnInterface_Error_Title", "Cannot convert interface events");
-			}
-			// Make sure that we are not on the animation graph
-			else if (IsEditingAnimGraph())
-			{
-				LogResults.Error(*LOCTEXT("ConvertAnimGraphEvent_Error", "Cannot convert events on the anim graph!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertAnimGraphEvent_Error_Title", "Cannot convert on the anim graph");
-			}
-			else
-			{
-				ConvertEventToFunction(SelectedEventNode);
-			}
+		// Ensure we are not trying to do this on an interface event
+		if (FBlueprintEditorUtils::IsInterfaceFunction(GetBlueprintObj(), Func) || EventToConv->IsInterfaceEventNode())
+		{
+			LogResults.Error(*LOCTEXT("EventIsOnInterface_Error", "Only non-interface events can be converted to functions!").ToString());
+			SpecificErrorMessage = LOCTEXT("EventIsOnInterface_Error_Title", "Cannot convert interface events");
+		}
+		// Make sure that we are not on the animation graph
+		else if (IsEditingAnimGraph())
+		{
+			LogResults.Error(*LOCTEXT("ConvertAnimGraphEvent_Error", "Cannot convert events on the anim graph!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertAnimGraphEvent_Error_Title", "Cannot convert on the anim graph");
+		}
+		else
+		{
+			ConvertEventToFunction(EventToConv);
 		}
 	}
 	else
@@ -5865,6 +5864,19 @@ void FBlueprintEditor::OnConvertEventToFunction()
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
 		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+	}
+
+	// If there are no errors, we succeed and should return true
+	return LogResults.NumErrors == 0;
+}
+
+void FBlueprintEditor::OnConvertEventToFunction()
+{
+	UEdGraphNode* SelectedNode = GetSingleSelectedNode();
+
+	if (UK2Node_Event* SelectedEventNode = Cast<UK2Node_Event>(SelectedNode))
+	{
+		ConvertEventIfValid(SelectedEventNode);
 	}
 }
 
