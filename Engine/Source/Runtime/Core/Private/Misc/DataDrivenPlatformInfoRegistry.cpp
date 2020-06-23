@@ -13,6 +13,13 @@
 
 TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> FDataDrivenPlatformInfoRegistry::DataDrivenPlatforms;
 
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+// delay the kick off of running UAT so we can check IsRunningCommandlet()
+FDelayedAutoRegisterHelper GPlatformInfoInit(EDelayedRegisterRunPhase::TaskGraphSystemReady, []()
+{
+	FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+});
+#endif
 
 static const TArray<FString>& GetDataDrivenIniFilenames()
 {
@@ -247,11 +254,6 @@ const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDriven
 				It.Value.IniParentChain.Insert(CurrentPlatform, 0);
 			}
 		}
-
-
-#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
-		UpdateSdkStatus();
-#endif
 	}
 
 	return DataDrivenPlatforms;
@@ -309,15 +311,37 @@ static FString ConvertToDDPIDeviceId(const FString& DeviceId)
 
 void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 {
+	// don't run UAT from commandlets (like the cooker) that are often launched from UAT and this will go poorly
+	if (IsRunningCommandlet())
+	{
+		for (auto& It : DataDrivenPlatforms)
+		{
+			It.Value.SdkStatus = DDPIPlatformSdkStatus::Unknown;
+
+			// reset the per-device status when querying general Sdk status
+			It.Value.ClearDeviceStatus();
+		}
+
+		return;
+	}
+
+
 	FString AutomationTool, ReportFilename;
 	PrepForTurnkeyReport(AutomationTool, ReportFilename);
 
 	// run Turnkey to get all of the platform statuses
-	FString Commandline = FString::Printf(TEXT("/c %s Turnkey -command=VerifySdk -platform=%s -ReportFilename=\"%s\""),
-		*AutomationTool,
+// 	FString ProcessURL = TEXT("{EngineDir}/Binaries/DotNET/AutomationTool.exe");
+// 	FString ProcessArguments = FString::Printf(TEXT("Turnkey -command=VerifySdk -platform=%s -ReportFilename=\"%s\""),
+// 		*FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key); }),
+// 		*ReportFilename);
+
+	FString ProcessURL = TEXT("{EngineDir}/Build/BatchFiles/RunuAT");
+	FString ProcessArguments = FString::Printf(TEXT("Turnkey -command=VerifySdk -platform=%s -ReportFilename=\"%s\""),
 		*FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key); }),
 		*ReportFilename);
 
+	// convert into appropriate calls for the current platform
+	FPlatformProcess::ModifyCreateProcParams(ProcessURL, ProcessArguments, FGenericPlatformProcess::ECreateProcHelperFlags::RunThroughShell | FGenericPlatformProcess::ECreateProcHelperFlags::AppendPlatformScriptExtension);
 
 	// reset status to unknown
 	for (auto& It : DataDrivenPlatforms)
@@ -328,7 +352,7 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 		It.Value.ClearDeviceStatus();
 	}
 
-	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(TEXT("cmd.exe"), Commandline, true, false);
+	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(ProcessURL, ProcessArguments, true, false);
 	TurnkeyProcess->OnCompleted().BindLambda([ReportFilename, TurnkeyProcess](int32 ExitCode)
 	{
 		AsyncTask(ENamedThreads::GameThread, [ReportFilename, TurnkeyProcess, ExitCode]()

@@ -256,6 +256,68 @@ void FGenericPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool K
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::TerminateProc not implemented on this platform"));
 }
 
+static FString ReplaceProcHelperVariables(const FString& Str)
+{
+	return Str.Replace(TEXT("{Platform}"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())).
+		Replace(TEXT("{BaseDir}"), FPlatformProcess::BaseDir()).
+		Replace(TEXT("{EngineDir}"), *FPaths::EngineDir()).
+		Replace(TEXT("{ProjectDir}"), *FPaths::ProjectDir());
+}
+
+void FGenericPlatformProcess::ModifyCreateProcParams(FString& InOutURL, FString& InOutParams, ECreateProcHelperFlags Flags)
+{
+	FString Command = ReplaceProcHelperVariables(InOutURL);
+	FString Arguments = ReplaceProcHelperVariables(InOutParams);
+
+	if ((Flags & ECreateProcHelperFlags::AppendPlatformScriptExtension) != ECreateProcHelperFlags::None)
+	{
+#if PLATFORM_WINDOWS
+		Command += TEXT(".bat");
+#elif PLATFORM_MAC || PLATFORM_LINUX
+		Command += TEXT(".sh");
+#else
+	#error Unknown platform - override this function!
+#endif
+	}
+
+	Command = FPaths::ConvertRelativePathToFull(Command);
+
+	// wrap in quotes if needed
+	if (Command.Contains(TEXT(" ")))
+	{
+		Command = FString::Printf(TEXT("\"%s\""), *Command);
+	}
+
+	// Mac and Linux need to run .exe files through Mono
+#if PLATFORM_MAC || PLATFORM_LINUX
+	if (Command.EndsWith(TEXT(".exe")))
+	{	
+		Command = FPaths::EngineDir() / TEXT("Build/BatchFiles/Mac/RunMono.sh ") + Command;
+		Flags = Flags | ECreateProcHelperFlags::RunThroughShell;
+	}
+#endif
+
+
+
+	if ((Flags & ECreateProcHelperFlags::RunThroughShell) != ECreateProcHelperFlags::None)
+	{
+#if PLATFORM_WINDOWS
+		InOutURL = TEXT("cmd.exe");
+		InOutParams = FString::Printf(TEXT("/c %s %s"), *Command, *Arguments);
+#elif PLATFORM_MAC || PLATFORM_LINUX
+		InOutURL = TEXT("/bin/bash");
+		InOutParams = FString::Printf(TEXT("-c '%s %s'"), *Command, *Arguments);
+#endif
+	}
+	else
+	{
+		// otherwise, we have done all we need to do, just return them!
+		InOutURL = Command;
+		InOutParams = Arguments;
+	}
+}
+
+
 FGenericPlatformProcess::EWaitAndForkResult FGenericPlatformProcess::WaitAndFork()
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::WaitAndFork not implemented on this platform"));

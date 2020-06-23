@@ -407,6 +407,36 @@ struct CORE_API FGenericPlatformProcess
 	 */
 	static void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
 
+
+	enum class ECreateProcHelperFlags : uint8
+	{
+		None = 0,
+		// If this is set, the command will be run via cmd.exe, sh, or similar
+		RunThroughShell = 1,
+		// If this is set, the Command will have a platform-specific script extension appended (.bat, .sh, etc)
+		AppendPlatformScriptExtension = 2,
+	};
+
+	/**
+	 * Generates the URL and Parms fields for CreateProc (or FMonitoredProcess) usable on any (generally host) platform. Target platforms that need this will likely need to override it.
+	 *
+	 * Flags are used to determine out to modify the passed in InURL and InParams
+	 * This function will replace instances (in Command or Arguments) of a few variables in {} with their values:
+	 *    {Platform} replaced with the name of the Host platform (Windows, Mac, Linux)
+	 *    {BaseDir} replaced with path to root directory (one up from Engine)
+	 *    {EngineDir} replaced with path to engine directory
+	 *    {ProjectDir} replaced with path to project directory
+	 *
+	 * Ex: CreateProcHelper("{BaseDir}/RunUAT", "MyScript -param", ECreateProcHelperFlags::RunThroughShell | ECreateProcHelperFlags::AppendPlatformScriptExtension)
+	 * Would run "cmd.exe /c RunUAT.bat" on Windows and "sh -c RunUAT.sh" on Mac and Linux
+	 *
+	 * @param InOutURL URL that will be modified and passed to CreateProc or FMonitoredProcess or the like
+	 * @param InOutParams Params to the program that will be modified
+	 * @param Flags to control how the strings are modified
+	 *
+	 */
+	static void ModifyCreateProcParams(FString& InOutURL, FString& InOutParams, ECreateProcHelperFlags Flags);
+
 	enum class EWaitAndForkResult : uint8
 	{
 		Error,
@@ -669,3 +699,4 @@ struct CORE_API FGenericPlatformProcess
 };
 
 
+ENUM_CLASS_FLAGS(FGenericPlatformProcess::ECreateProcHelperFlags);
