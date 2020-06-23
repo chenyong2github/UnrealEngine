@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "WidgetProxy.h"
+#include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "Rendering/DrawElements.h"
 
 struct FSlateCachedElementData;
 class FSlateWindowElementList;
 class FWidgetStyle;
+
+#define UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA 0
 
 struct FSlateInvalidationContext
 {
@@ -81,6 +84,7 @@ public:
 	}
 
 	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
+	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
 
 	SLATECORE_API FSlateInvalidationResult PaintInvalidationRoot(const FSlateInvalidationContext& Context);
 
@@ -135,9 +139,15 @@ private:
 
 	int32 CachedMaxLayerId;
 
+	FSlateInvalidationRootHandle InvalidationRootHandle;
+
 	bool bChildOrderInvalidated;
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
+
+#if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
+	TArray<const SWidget*> FastWidgetPathToClearedBecauseOfDelay;
+#endif
 
 	static TArray<FSlateInvalidationRoot*> ClearUpdateList;
 };

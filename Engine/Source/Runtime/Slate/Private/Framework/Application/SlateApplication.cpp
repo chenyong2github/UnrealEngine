@@ -504,7 +504,7 @@ FAutoConsoleVariableRef CVarEnableTooltips(
 
 static void HandleGlobalInvalidateCVarTriggered(const TArray<FString>& Args)
 {
-	FSlateApplication::Get().InvalidateAllWidgets(false);
+	FSlateApplication::Get().InvalidateAllWidgets(true);
 }
 
 static FAutoConsoleCommand GlobalInvalidateCommand(
