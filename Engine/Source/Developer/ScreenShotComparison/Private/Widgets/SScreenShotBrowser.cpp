@@ -30,7 +30,7 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 	ScreenShotManager = InScreenShotManager;
 	ComparisonRoot = FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir());
 	bReportsChanged = true;
-	bDisplayingSuccess = true;
+	bDisplayingSuccess = false;
 	bDisplayingError = true;
 	bDisplayingNew = true;
 	ReportFilterString = FString();

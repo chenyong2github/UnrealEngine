@@ -176,7 +176,12 @@ TSharedRef<SWidget> SScreenComparisonRow::GenerateWidgetForColumn(const FName& C
 
 			FSlateColor TextColor = FSlateColor::UseForeground();
 
-			FString Name = FString::Printf(TEXT("%s.%s"), *ModelMetaData->Context, *ModelMetaData->TestName);
+			FString Name = ModelMetaData->ScreenShotName;
+			if ((ModelMetaData->Context.Len() && ModelMetaData->TestName.Len())
+				|| !ModelMetaData->ScreenShotName.Len())
+			{
+				Name = FString::Printf(TEXT("%s.%s"), *ModelMetaData->Context, *ModelMetaData->TestName);
+			}
 
 			if (ComparisonResult.IsNew())
 			{
