@@ -45,6 +45,17 @@ public:
 		, Getter()
 	{ }
 
+	/** 
+	 * Construct implicitly from moving an initial value
+	 *
+	 * @param InInitialValue
+	 */
+	TAttribute( ObjectType&& InInitialValue)
+		: Value(MoveTemp(InInitialValue))
+		, bIsSet(true)
+		, Getter()
+	{ }
+
 	/**
 	 * Constructs by binding an arbitrary function that will be called to generate this attribute's value on demand. 
 	 * After binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
@@ -112,6 +123,18 @@ public:
 		bIsSet = true;
 	}
 
+	/**
+	 * Sets the attribute's value
+	 * 
+	 * @param InNewValue  The value to set the attribute to
+	 */
+	void Set( ObjectType&& InNewValue )
+	{
+		Getter.Unbind();
+		Value = MoveTemp(InNewValue);
+		bIsSet = true;
+	}
+
 	/** Was this TAttribute ever assigned? */
 	bool IsSet() const
 	{
@@ -161,6 +184,20 @@ public:
 	{
 		bIsSet = true;
 		Getter = InGetter;
+	}
+	
+
+	/**
+	 * Binds an arbitrary function that will be called to generate this attribute's value on demand.  After
+	 * binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
+	 * function will always be called to generate the value.
+	 *
+	 * @param  InGetter  The delegate object with your function binding
+	 */
+	void Bind( FGetter&& InGetter )
+	{
+		bIsSet = true;
+		Getter = MoveTemp(InGetter);
 	}
 
 	/**
