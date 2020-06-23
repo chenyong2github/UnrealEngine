@@ -203,6 +203,38 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 };
 
+// WorldNormal is the vector towards which the ray position will be offseted.
+void ApplyPositionBias(inout float3 RayOrigin, float3 RayDirection, const float3 WorldNormal, const float MaxNormalBias)
+{
+	// Apply normal perturbation when defining ray to:
+	// * avoid self intersection with current underlying triangle
+	// * hide mismatch between shading surface & geometric surface
+	//
+	// While using shading normal is not correct (we should use the 
+	// geometry normal, but it is not available atm/too costly to compute), 
+	// it is good enough for a cheap solution
+	const float MinBias = 0.01f;
+	const float MaxBias = max(MinBias, MaxNormalBias);
+	const float NormalBias = lerp(MaxBias, MinBias, saturate(dot(WorldNormal, RayDirection)));
+
+	RayOrigin += WorldNormal * NormalBias;
+}
+
+void ApplyCameraRelativeDepthBias(inout float3 RayOrigin, float3 RayDirection, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
+{
+	float3 WorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
+	float3 CameraDirection = WorldPosition - View.TranslatedWorldCameraOrigin;
+	float DistanceToCamera = length(CameraDirection);
+	CameraDirection = normalize(CameraDirection);
+	float Epsilon = 1.0e-4;
+	float RelativeBias = DistanceToCamera * Epsilon;
+	//float ProjectedBias = RelativeBias / dot(RayDirection, WorldNormal);
+
+	float RayBias = max(RelativeBias, AbsoluteNormalBias);
+	RayOrigin -= CameraDirection * RayBias;
+	ApplyPositionBias(RayOrigin, RayDirection, WorldNormal, RayBias);
+}
+
 #if !COMPUTESHADER
 
 RayDesc CreatePrimaryRay(float2 UV)
@@ -393,36 +425,14 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	return Output;
 }
 
-// WorldNormal is the vector towards which the ray position will be offseted.
 void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float MaxNormalBias)
 {
-	// Apply normal perturbation when defining ray to:
-	// * avoid self intersection with current underlying triangle
-	// * hide mismatch between shading surface & geometric surface
-	//
-	// While using shading normal is not correct (we should use the 
-	// geometry normal, but it is not available atm/too costly to compute), 
-	// it is good enough for a cheap solution
-	const float MinBias = 0.01f;
-	const float MaxBias = max(MinBias, MaxNormalBias);
-	const float NormalBias = lerp(MaxBias, MinBias, saturate(dot(WorldNormal, Ray.Direction)));
-
-	Ray.Origin += WorldNormal * NormalBias;
+	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, MaxNormalBias);
 }
 
 void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
 {
-	float3 WorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
-	float3 CameraDirection = WorldPosition - View.TranslatedWorldCameraOrigin;
-	float DistanceToCamera = length(CameraDirection);
-	CameraDirection = normalize(CameraDirection);
-	float Epsilon = 1.0e-4;
-	float RelativeBias = DistanceToCamera * Epsilon;
-	//float ProjectedBias = RelativeBias / dot(Ray.Direction, WorldNormal);
-
-	float RayBias = max(RelativeBias, AbsoluteNormalBias);
-	Ray.Origin -= CameraDirection * RayBias;
-	ApplyPositionBias(Ray, WorldNormal, RayBias);
+	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelCoord, DeviceZ, WorldNormal, AbsoluteNormalBias);
 }
 
 void TraceVisibilityRayPacked(

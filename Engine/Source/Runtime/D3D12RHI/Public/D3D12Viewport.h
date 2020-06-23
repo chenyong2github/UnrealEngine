@@ -11,6 +11,10 @@
 
 #define ALTERNATE_TIMESTAMP_METRIC 0
 
+#ifndef D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
+#define D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN 1
+#endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
+
 static DXGI_FORMAT GetRenderTargetFormat(EPixelFormat PixelFormat)
 {
 	DXGI_FORMAT	DXFormat = (DXGI_FORMAT)GPixelFormats[PixelFormat].PlatformFormat;
@@ -105,10 +109,12 @@ public:
 	void WaitForFrameEventCompletion();
 	void IssueFrameEvent();
 
+#if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	IDXGISwapChain1* GetSwapChain() const { return SwapChain1; }
 	IDXGISwapChain1* GetSDRSwapChain() const { return (PixelFormat == SDRPixelFormat) ? GetSwapChain() : (IDXGISwapChain1*)SDRSwapChain1; }
-
 	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
+#endif // #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
+
 	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer_RHIThread()->GetResource(); }
 	virtual void* GetNativeBackBufferRT() const override { return GetBackBuffer_RHIThread()->GetRenderTargetView(0, 0); }
 
@@ -170,15 +176,16 @@ private:
 	EPixelFormat PixelFormat;
 	bool bIsValid;
 	bool bAllowTearing;
-	TRefCountPtr<IDXGISwapChain1> SwapChain1;
 
+#if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
+	TRefCountPtr<IDXGISwapChain1> SwapChain1;
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	bool bHDRMetaDataSet;
 	DXGI_COLOR_SPACE_TYPE ColorSpace;
 	TRefCountPtr<IDXGISwapChain4> SwapChain4;
 #endif
-
 	TRefCountPtr<IDXGISwapChain1> SDRSwapChain1;
+#endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	TArray<TRefCountPtr<FD3D12Texture2D>> BackBuffers;
 	TArray<uint32> BackBufferGPUIndices;

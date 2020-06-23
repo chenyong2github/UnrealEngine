@@ -348,14 +348,14 @@ FD3D12Viewport::~FD3D12Viewport()
 {
 	check(IsInRenderingThread());
 
+#if !PLATFORM_HOLOLENS && D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
 	// DXGI throws an error otherwise.
-#if !PLATFORM_HOLOLENS
 	if (SwapChain1)
 	{
 		SwapChain1->SetFullscreenState(0, nullptr);
 	}
-#endif
+#endif // !PLATFORM_HOLOLENS && D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	GetParentAdapter()->GetViewports().Remove(this);
 
@@ -503,7 +503,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 		check(SizeX > 0);
 		check(SizeY > 0);
-
+#if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 		if (bNeedSwapChain)
 		{
 			if (bInIsFullscreen)
@@ -515,6 +515,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 				}
 			}
 		}
+#endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	}
 
 	if (bIsFullscreen != bInIsFullscreen)

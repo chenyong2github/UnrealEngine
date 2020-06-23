@@ -954,19 +954,22 @@ public:
 	/** Write the file  */
 	void DoWork()
 	{
-		if (InnerPlatformFile.FileExists(*Filename))
-		{
-			InnerPlatformFile.SetReadOnly(*Filename, false);
-			InnerPlatformFile.DeleteFile(*Filename);
-		}
 		// Read FileSize first so that the correct amount of data is read from the archive
 		// before exiting this worker.
 		uint64 FileSize;
 		*FileArchive << FileSize;
+
+		bool bCopiedExternally = (FileSize == MAX_uint64); // -1 filesize means that we already copied it via TargetPlatform
+
+		if (!bCopiedExternally && InnerPlatformFile.FileExists(*Filename) ) 
+		{
+			InnerPlatformFile.SetReadOnly(*Filename, false);
+			InnerPlatformFile.DeleteFile(*Filename);
+		}
+
 		if (ServerTimeStamp != FDateTime::MinValue())  // if the file didn't actually exist on the server, don't create a zero byte file
 		{
-			// -1 filesize means that we already copied it via TargetPlatform
-			if (FileSize != MAX_uint64)
+			if (!bCopiedExternally)
 			{
 				FString TempFilename = Filename + TEXT(".tmp");
 				InnerPlatformFile.CreateDirectoryTree(*FPaths::GetPath(Filename));
