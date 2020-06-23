@@ -8,6 +8,7 @@ class RENDERER_API FRayTracingDynamicGeometryCollection
 {
 public:
 	FRayTracingDynamicGeometryCollection();
+	~FRayTracingDynamicGeometryCollection();
 
 	void AddDynamicMeshBatchForGeometryUpdate(
 		const FScene* Scene, 
@@ -17,13 +18,21 @@ public:
 		uint32 PrimitiveId 
 	);
 
+	void BeginUpdate();
 	void DispatchUpdates(FRHIComputeCommandList& RHICmdList);
-
-	void Clear();
+	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
 private:
-	TUniquePtr<TArray<struct FMeshComputeDispatchCommand>> DispatchCommands;
+	TArray<struct FMeshComputeDispatchCommand> DispatchCommands;
 	TArray<FAccelerationStructureBuildParams> BuildParams;
+	TArray<FRayTracingGeometrySegment> Segments;
+
+	struct FVertexPositionBuffer
+	{
+		FRWBuffer RWBuffer;
+		uint32 UsedSize = 0;
+	};
+	TArray<FVertexPositionBuffer*> VertexPositionBuffers;
 };
 
 #endif // RHI_RAYTRACING
