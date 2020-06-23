@@ -3569,12 +3569,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		GRenderTargetPool.SetEventRecordingActive(true);
 	}
 
-	if (UseVirtualTexturing(SceneRenderer->FeatureLevel))
-	{
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, SceneRenderer->FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
-	}
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
 	
