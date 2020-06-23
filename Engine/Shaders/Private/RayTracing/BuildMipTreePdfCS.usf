@@ -48,7 +48,16 @@ float CalcSkyLightPdf(uint2 Pixel)
 		// Determine probability
 		uint2 MipOffset = (Pixel.xy >> (MipIndex - StopLevel)) - MipPixel;
 		uint LinearIndex = MipOffset.y << 1 | MipOffset.x;
-		MipPdf *= LinearIndex > 0 ? Cdf[LinearIndex] - Cdf[LinearIndex - 1] : Cdf[LinearIndex];
+
+		if (LinearIndex > 0)
+		{
+			MipPdf *= Cdf[LinearIndex] - Cdf[LinearIndex - 1];
+		}
+		else
+		{
+			MipPdf *= Cdf[LinearIndex];
+		}
+
 #if 0
 		float LevelPdf = Cdf[LinearIndex];
 		if (LinearIndex > 0)
