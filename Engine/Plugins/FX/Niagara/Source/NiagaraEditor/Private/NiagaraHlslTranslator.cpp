@@ -2339,6 +2339,25 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 						HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[i - 1].PassNamespace + TEXT(".DataInstance;\n");
 					}
 				}
+				
+				if (i == 1 && TranslationStages[i].ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript) // The Update Phase might need previous parameters set.
+				{
+					// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on transfer from previous stage if interpolated spawning.
+					TArray<FNiagaraVariable> Vars;
+					TArray<FNiagaraVariable> GatheredPreviousVariables;
+					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(Vars);
+
+					for (const FNiagaraVariable& Var : Vars)
+					{
+						if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
+						{
+							FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
+							const FString VarName = GetSanitizedSymbolName(SrcVar.GetName().ToString());
+							const FString VarPrevName = GetSanitizedSymbolName(Var.GetName().ToString());
+							HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".") + VarPrevName + TEXT(" = Context.") + TranslationStages[i-1].PassNamespace + TEXT(".") + VarName + TEXT(";\n");
+						}
+					}
+				}
 			}
 			
 			if (TranslationStages.Num() > 2)
@@ -2713,7 +2732,26 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 				{
 					OutHlslOutput += TEXT("\t\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".DataInstance;\n");
 				}
-				
+
+				if (StageIdx == 0 && UNiagaraScript::IsInterpolatedParticleSpawnScript(CompileOptions.TargetUsage)) // The Update Phase might need previous parameters set.
+				{
+					// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on transfer from previous stage if interpolated spawning.
+					TArray<FNiagaraVariable> Vars;
+					TArray<FNiagaraVariable> GatheredPreviousVariables;
+					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(Vars);
+
+					for (const FNiagaraVariable& Var : Vars)
+					{
+						if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
+						{
+							FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
+							const FString VarName =  GetSanitizedSymbolName(SrcVar.GetName().ToString());
+							const FString VarPrevName =  GetSanitizedSymbolName(Var.GetName().ToString());
+							OutHlslOutput += TEXT("\t\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".") + VarPrevName + TEXT(" = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".")+ VarName +  TEXT(";\n");
+						}
+					}
+				}
+			
 			}
 			OutHlslOutput += TEXT("\t//End Transfer of Attributes!\n\n");
 		}
