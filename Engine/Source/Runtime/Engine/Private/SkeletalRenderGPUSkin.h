@@ -266,11 +266,9 @@ public:
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */
 	FRayTracingGeometry RayTracingGeometry;
-	FRWBuffer RayTracingDynamicVertexBuffer;
 
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return &RayTracingGeometry; }
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return &RayTracingGeometry; }
-	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return &RayTracingDynamicVertexBuffer; }
 #endif // RHI_RAYTRACING
 
 	virtual int32 GetLOD() const override

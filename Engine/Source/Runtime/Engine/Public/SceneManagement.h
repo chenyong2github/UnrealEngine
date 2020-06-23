@@ -2328,7 +2328,6 @@ struct FRayTracingDynamicGeometryUpdateParams
 	uint32 NumTriangles;
 
 	FRayTracingGeometry* Geometry;
-	FRWBuffer* Buffer;
 };
 
 struct FRayTracingMaterialGatheringContext

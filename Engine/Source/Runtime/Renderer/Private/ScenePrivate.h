@@ -2490,9 +2490,6 @@ struct FMeshComputeDispatchCommand
 	TShaderRef<class FRayTracingDynamicGeometryConverterCS> MaterialShader;
 
 	uint32 NumMaxVertices;
-	uint32 NumCPUVertices;
-	uint32 MinVertexIndex;
-	uint32 PrimitiveId;
 	FRWBuffer* TargetBuffer;
 };
 #endif

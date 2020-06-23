@@ -946,6 +946,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_DynamicElements);
 
+		Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
+
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
 		{
 			const uint8 RayTracedMeshElementsMask = RelevantPrimitive.RayTracedMeshElementsMask;
@@ -1272,6 +1274,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		RHIAsyncCmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, nullptr, RayTracingDynamicGeometryUpdateEndFence);
 		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
 	}
+
+	Scene->GetRayTracingDynamicGeometryCollection()->EndUpdate(RHICmdList);
 
 	return true;
 }

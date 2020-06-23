@@ -540,6 +540,23 @@ private:
 	static bool NeedsShaderInitialisation;
 };
 
+enum { MAX_SRVs_PER_SHADER_STAGE = 128 };
+enum { MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE = 14 };
+enum { MAX_SAMPLERS_PER_SHADER_STAGE = 32 };
+
+class FShaderBindingState
+{
+public:
+	int32 MaxSRVUsed = -1;
+	FRHIShaderResourceView* SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
+	int32 MaxUniformBufferUsed = -1;
+	FRHIUniformBuffer* UniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
+	int32 MaxTextureUsed = -1;
+	FRHITexture* Textures[MAX_SRVs_PER_SHADER_STAGE] = {};
+	int32 MaxSamplerUsed = -1;
+	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
+};
+
 struct FMeshProcessorShaders
 {
 	mutable TShaderRef<FMeshMaterialShader> VertexShader;
@@ -710,7 +727,7 @@ public:
 
 	/** Set shader bindings on the commandlist, filtered by state cache. */
 	void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
-	void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const;
+	void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
 	void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndex, uint32 ShaderSlot) const;

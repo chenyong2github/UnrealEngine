@@ -778,7 +778,6 @@ public:
 		uint32 ReferencedTextureRHIHash;
 
 		FRayTracingGeometry Geometry;
-		FRWBuffer RayTracingDynamicVertexBuffer;
 		FLandscapeVertexFactoryMVFUniformBufferRef UniformBuffer;
 
 		FLandscapeSectionRayTracingState() 
