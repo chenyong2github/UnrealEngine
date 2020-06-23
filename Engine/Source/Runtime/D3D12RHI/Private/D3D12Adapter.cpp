@@ -314,6 +314,14 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("[DRED] DRED requested but interface was not found, error: %x. DRED only works on Windows 10 1903+."), hr);
 		}
+
+		TRefCountPtr<ID3D12DeviceRemovedExtendedDataSettings1> DredSettings1;
+		hr = D3D12GetDebugInterface(IID_PPV_ARGS(DredSettings1.GetInitReference()));
+		if (SUCCEEDED(hr))
+		{
+			DredSettings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred breadcrumb context enabled"));
+		}
 	}
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));

@@ -283,16 +283,56 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 
 #if PLATFORM_WINDOWS
 
+static TArrayView<D3D12_DRED_BREADCRUMB_CONTEXT> GetBreadcrumbContexts(const D3D12_AUTO_BREADCRUMB_NODE* Node)
+{
+	return {};
+}
+
+static TArrayView<D3D12_DRED_BREADCRUMB_CONTEXT> GetBreadcrumbContexts(const D3D12_AUTO_BREADCRUMB_NODE1* Node)
+{
+	return MakeArrayView<D3D12_DRED_BREADCRUMB_CONTEXT>(Node->pBreadcrumbContexts, Node->BreadcrumbContextsCount);
+}
+
+struct FDred_1_1
+{
+	FDred_1_1(ID3D12Device* Device)
+	{
+		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+		{
+			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+		}
+	}
+	TRefCountPtr<ID3D12DeviceRemovedExtendedData> Data;
+	const D3D12_AUTO_BREADCRUMB_NODE* BreadcrumbHead = nullptr;
+};
+
+struct FDred_1_2
+{
+	FDred_1_2(ID3D12Device* Device)
+	{
+		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
+		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput)))
+		{
+			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+		}
+	}
+	TRefCountPtr<ID3D12DeviceRemovedExtendedData1> Data;
+	const D3D12_AUTO_BREADCRUMB_NODE1* BreadcrumbHead = nullptr;
+};
 
 /** Log the DRED data to Error log if available */
-static void LogDREDData(ID3D12Device* Device)
+template <typename FDred_T>
+static bool LogDREDData(ID3D12Device* Device)
 {
 	// Should match all values from D3D12_AUTO_BREADCRUMB_OP
 	static const TCHAR* OpNames[] =
 	{
 		TEXT("SetMarker"),
 		TEXT("BeginEvent"),
-		TEXT("Endevent"),
+		TEXT("EndEvent"),
 		TEXT("DrawInstanced"),
 		TEXT("DrawIndexedInstanced"),
 		TEXT("ExecuteIndirect"),
@@ -370,30 +410,53 @@ static void LogDREDData(ID3D12Device* Device)
 	};
 	static_assert(UE_ARRAY_COUNT(AllocTypesNames) == D3D12_DRED_ALLOCATION_TYPE_VIDEO_EXTENSION_COMMAND - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE + 1, "AllocTypes array length mismatch");
 
-	ID3D12DeviceRemovedExtendedData* Dred = nullptr;
-	if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(&Dred))))
+	FDred_T Dred(Device);
+	if (Dred.Data.IsValid())
 	{
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
-		if (SUCCEEDED(Dred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+		if (Dred.BreadcrumbHead)
 		{
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Last tracked GPU operations:"));
 
-			const D3D12_AUTO_BREADCRUMB_NODE* Node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			FString ContextStr;
+			TMap<int32, const wchar_t*> ContextStrings;
+
+			auto Node = Dred.BreadcrumbHead;
 			while (Node)
 			{
 				int32 LastCompletedOp = *Node->pLastBreadcrumbValue;
 
-				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Commandlist \"%s\" on CommandQueue \"%s\", %d completed of %d"), Node->pCommandListDebugNameW, Node->pCommandQueueDebugNameW, LastCompletedOp, Node->BreadcrumbCount);
-
-				int32 FirstOp = FMath::Max(LastCompletedOp - 5, 0);
-				int32 LastOp = FMath::Min(LastCompletedOp + 5, int32(Node->BreadcrumbCount) - 1);
-
-				for (int32 Op = FirstOp; Op <= LastOp; ++Op)
+				if (LastCompletedOp != Node->BreadcrumbCount && LastCompletedOp != 0)
 				{
-					//uint32 LastOpIndex = (*Node->pLastBreadcrumbValue - 1) % 65536;
-					D3D12_AUTO_BREADCRUMB_OP BreadcrumbOp = Node->pCommandHistory[Op];
-					const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
-					UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s"), Op, OpName, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
+					UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Commandlist \"%s\" on CommandQueue \"%s\", %d completed of %d"), Node->pCommandListDebugNameW, Node->pCommandQueueDebugNameW, LastCompletedOp, Node->BreadcrumbCount);
+
+					int32 FirstOp = FMath::Max(LastCompletedOp - 100, 0);
+					int32 LastOp = FMath::Min(LastCompletedOp + 20, int32(Node->BreadcrumbCount) - 1);
+
+					ContextStrings.Reset();
+					for (const D3D12_DRED_BREADCRUMB_CONTEXT& Context : GetBreadcrumbContexts(Node))
+					{
+						ContextStrings.Add(Context.BreadcrumbIndex, Context.pContextString);
+					}
+
+					for (int32 Op = FirstOp; Op <= LastOp; ++Op)
+					{
+						D3D12_AUTO_BREADCRUMB_OP BreadcrumbOp = Node->pCommandHistory[Op];
+
+						auto OpContextStr = ContextStrings.Find(Op);
+						if (OpContextStr)
+						{
+							ContextStr = " [";
+							ContextStr += *OpContextStr;
+							ContextStr += "]";
+						}
+						else
+						{
+							ContextStr.Reset();
+						}
+
+						const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
+					}
 				}
 
 				Node = Node->pNext;
@@ -401,9 +464,9 @@ static void LogDREDData(ID3D12Device* Device)
 		}
 
 		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
-		if (SUCCEEDED(Dred->GetPageFaultAllocationOutput(&DredPageFaultOutput)) && DredPageFaultOutput.PageFaultVA != 0)
+		if (SUCCEEDED(Dred.Data->GetPageFaultAllocationOutput(&DredPageFaultOutput)) && DredPageFaultOutput.PageFaultVA != 0)
 		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: PageFault at VA GPUAddress \"0x%x\""), DredPageFaultOutput.PageFaultVA);
+			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: PageFault at VA GPUAddress \"0x%llX\""), (long long)DredPageFaultOutput.PageFaultVA);
 
 			const D3D12_DRED_ALLOCATION_NODE* Node = DredPageFaultOutput.pHeadExistingAllocationNode;
 			if (Node)
@@ -433,6 +496,12 @@ static void LogDREDData(ID3D12Device* Device)
 				}
 			}
 		}
+
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -490,7 +559,10 @@ namespace D3D12RHI
 			{
 				if (InDevice == nullptr || InDevice == IterationDevice->GetDevice())
 				{
-					LogDREDData(IterationDevice->GetDevice());
+					if (!LogDREDData<FDred_1_2>(IterationDevice->GetDevice()))
+					{
+						LogDREDData<FDred_1_1>(IterationDevice->GetDevice());
+					}
 				}
 			});
 #endif  // PLATFORM_WINDOWS
