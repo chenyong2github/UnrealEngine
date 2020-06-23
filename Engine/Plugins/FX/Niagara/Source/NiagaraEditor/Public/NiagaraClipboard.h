@@ -10,6 +10,7 @@
 class UNiagaraDataInterface;
 class UNiagaraScript;
 class UNiagaraRendererProperties;
+class UNiagaraNodeFunctionCall;
 
 UENUM()
 enum class ENiagaraClipboardFunctionInputValueMode
@@ -85,6 +86,8 @@ class NIAGARAEDITOR_API UNiagaraClipboardFunction : public UObject
 	GENERATED_BODY()
 
 public:
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnPastedFunctionCallNode, UNiagaraNodeFunctionCall*, PastedFunctionCall);
+
 	static UNiagaraClipboardFunction* CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript);
 
 	static UNiagaraClipboardFunction* CreateAssignmentFunction(UObject* InOuter, FString InFunctionName, const TArray<FNiagaraVariable>& InAssignmentTargets, const TArray<FString>& InAssignmentDefaults);
@@ -109,6 +112,9 @@ public:
 
 	UPROPERTY()
 	TArray<const UNiagaraClipboardFunctionInput*> Inputs;
+
+	UPROPERTY()
+	FOnPastedFunctionCallNode OnPastedFunctionCallNodeDelegate;
 };
 
 UCLASS()

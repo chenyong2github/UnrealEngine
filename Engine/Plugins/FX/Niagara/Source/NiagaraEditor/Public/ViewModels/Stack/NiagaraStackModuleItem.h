@@ -121,7 +121,7 @@ private:
 	bool FilterLinkedInputCollectionChild(const UNiagaraStackEntry& Child) const;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
 	void RefreshIsEnabled();
-	void OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages);
+	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 private:
 	UNiagaraNodeOutput* OutputNode;
@@ -144,4 +144,11 @@ private:
 	mutable TOptional<bool> bIsScratchModuleCache;
 
 	bool bIsModuleScriptReassignmentPending;
+
+	FGuid MessageManagerRegistrationKey;
+
+	//** Issues created outside of the RefreshChildren call that will be committed the next time the UI state is refreshed. */
+	TArray<FStackIssue> MessageManagerIssues;
+
+	FGuid MessageLogGuid;
 };

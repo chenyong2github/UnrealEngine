@@ -14,6 +14,7 @@
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraScriptHighlight.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraMessageDataBase.h"
 
 #include "NiagaraScript.generated.h"
 
@@ -799,4 +800,5 @@ private:
 	TArray<FNiagaraScriptDataInterfaceInfo> CachedDefaultDataInterfaces;
 
 	static UNiagaraDataInterface* CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner);
+
 };

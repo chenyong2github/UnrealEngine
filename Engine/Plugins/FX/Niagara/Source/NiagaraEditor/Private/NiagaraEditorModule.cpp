@@ -73,6 +73,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraClipboard.h"
+#include "NiagaraMessageManager.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -1041,6 +1042,10 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterParameterScopeInfo(FNiagaraConstants::OutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::UniqueOutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_MODULE_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::CustomScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Custom, FString()));
+
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::CompilerTopicName);
+	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::ObjectTopicName);
 }
 
 
