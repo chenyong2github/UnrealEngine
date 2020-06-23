@@ -158,12 +158,15 @@ void UControlRigBlueprint::PostLoad()
 
 #if WITH_EDITOR
 
-	Controller->DetachLinksFromPinObjects();
-	for (URigVMNode* Node : Model->GetNodes())
+	if (!IsInAsyncLoadingThread())
 	{
-		Controller->RepopulatePinsOnNode(Node);
+		Controller->DetachLinksFromPinObjects();
+		for (URigVMNode* Node : Model->GetNodes())
+		{
+			Controller->RepopulatePinsOnNode(Node);
+		}
+		Controller->ReattachLinksToPinObjects();
 	}
-	Controller->ReattachLinksToPinObjects();
 
 	RecompileVM();
 	RequestControlRigInit();
