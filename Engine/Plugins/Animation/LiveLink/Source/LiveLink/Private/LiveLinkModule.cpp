@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
-FLiveLinkClient* FLiveLinkModule::StaticLiveLinkClient = nullptr;
+FLiveLinkClient* FLiveLinkModule::LiveLinkClient_AnyThread = nullptr;
 
 FLiveLinkModule::FLiveLinkModule()
 	: LiveLinkClient()
@@ -26,7 +26,7 @@ void FLiveLinkModule::StartupModule()
 	FLiveLinkLogInstance::CreateInstance();
 	CreateStyle();
 
-	StaticLiveLinkClient = &LiveLinkClient;
+	FPlatformAtomics::InterlockedExchangePtr((void**)&LiveLinkClient_AnyThread, &LiveLinkClient);
 	IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 	LiveLinkMotionController.RegisterController();
 
@@ -41,9 +41,9 @@ void FLiveLinkModule::ShutdownModule()
 	HeartbeatEmitter->Exit();
 	DiscoveryManager->Stop();
 	LiveLinkMotionController.UnregisterController();
-	
+
 	IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
-	StaticLiveLinkClient = nullptr;
+	FPlatformAtomics::InterlockedExchangePtr((void**)&LiveLinkClient_AnyThread, nullptr);
 
 	FLiveLinkLogInstance::DestroyInstance();
 }

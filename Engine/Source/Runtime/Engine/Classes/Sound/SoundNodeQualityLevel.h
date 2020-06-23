@@ -24,11 +24,9 @@ class USoundNodeQualityLevel : public USoundNode
 
 public:
 
-#if WITH_EDITOR
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	//~ End UObject Interface
-#endif
 
 	//~ Begin USoundNode Interface.
 	virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;

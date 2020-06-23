@@ -41,7 +41,7 @@ void UUniformGridPanel::OnSlotAdded(UPanelSlot* InSlot)
 void UUniformGridPanel::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyUniformGridPanel.IsValid() )
+	if ( MyUniformGridPanel.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )

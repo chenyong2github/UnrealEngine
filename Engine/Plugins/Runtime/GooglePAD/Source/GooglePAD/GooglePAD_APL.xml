@@ -87,7 +87,7 @@
 	<gradleProperties>
 		<if condition="bEnabled">
 			<true>
-				<insertValue value="ANDROID_TOOLS_BUILD_GRADLE_VERSION=com.android.tools.build:gradle:4.0.0-beta01"/>
+				<insertValue value="ANDROID_TOOLS_BUILD_GRADLE_VERSION=com.android.tools.build:gradle:4.0.0"/>
 				<insertNewline/>
 			</true>
 		</if>
@@ -256,7 +256,7 @@ import com.google.android.play.core.tasks.Task;
 			Log.debug("Found obbassets asset pack");
 			AssetLocation obbLocation = assetPackManager.getAssetLocation("obbassets", "main.obb.png");
 			if (obbLocation != null) {
-				String mainpngPath = obbLocation.path()
+				String mainpngPath = obbLocation.path();
 				Log.debug("Found main.obb.png asset: " + mainpngPath);
 				if (mainpngPath.endsWith(".apk"))
 				{
@@ -264,7 +264,7 @@ import com.google.android.play.core.tasks.Task;
 					APKPath = obbLocation.path();
 				} else {
 					HasAllFiles = true;
-					nativeSetObbFilePaths(mainpngPath, "");
+					nativeSetObbFilePaths(mainpngPath, "", "", "");
 				}
 			} else {
 				Log.debug("Unable to locate main.obb.png; falling back to best guess location");

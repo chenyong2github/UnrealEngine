@@ -24,6 +24,7 @@
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutHelpers.h"
 #include "EditConditionParser.h"
+#include "Editor.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
@@ -347,6 +348,12 @@ void SDetailsViewBase::UpdatePropertyMaps()
 
 		// All the current detail layouts need to be deleted when it is safe
 		DetailLayoutsPendingDelete.Add(LayoutData.DetailLayout);
+	}
+
+	if (DetailLayouts.Num() > 0)
+	{
+		// Set timer to free memory even when widget is not visible or ticking
+		SetPendingCleanupTimer();
 	}
 
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
@@ -732,8 +739,34 @@ FReply SDetailsViewBase::OnFocusReceived(const FGeometry& MyGeometry, const FFoc
 	return Reply;
 }
 
-/** Ticks the property view.  This function performs a data consistency check */
-void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+void SDetailsViewBase::SetPendingCleanupTimer()
+{
+	if (!bPendingCleanupTimerSet)
+	{
+		if (GEditor && GEditor->IsTimerManagerValid())
+		{
+			bPendingCleanupTimerSet = true;
+			GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDetailsViewBase::HandlePendingCleanupTimer));
+		}
+	}
+}
+
+void SDetailsViewBase::HandlePendingCleanupTimer()
+{
+	bPendingCleanupTimerSet = false;
+
+	HandlePendingCleanup();
+
+	for (auto It = FilteredNodesRequestingExpansionState.CreateIterator(); It; ++It)
+	{
+		if (!It->Key.IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+void SDetailsViewBase::HandlePendingCleanup()
 {
 	for (int32 i = 0; i < CustomizationClassInstancesPendingDelete.Num(); ++i)
 	{
@@ -756,6 +789,12 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 
 	// Empty all the detail layouts that need to be deleted
 	DetailLayoutsPendingDelete.Empty();
+}
+
+/** Ticks the property view.  This function performs a data consistency check */
+void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+{
+	HandlePendingCleanup();
 
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
@@ -918,9 +957,13 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	if (FilteredNodesRequestingExpansionState.Num() > 0)
 	{
 		// change expansion state on the nodes that request it
-		for (TMap<TSharedRef<FDetailTreeNode>, bool >::TConstIterator It(FilteredNodesRequestingExpansionState); It; ++It)
+		for (TMap<TWeakPtr<FDetailTreeNode>, bool >::TConstIterator It(FilteredNodesRequestingExpansionState); It; ++It)
 		{
-			DetailTree->SetItemExpansion(It.Key(), It.Value());
+			TWeakPtr<FDetailTreeNode> DetailTreeNode = It.Key();
+			if (DetailTreeNode.IsValid())
+			{
+				DetailTree->SetItemExpansion(DetailTreeNode.Pin().ToSharedRef(), It.Value());
+			}
 		}
 
 		FilteredNodesRequestingExpansionState.Empty();

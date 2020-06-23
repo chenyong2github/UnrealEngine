@@ -7,27 +7,12 @@
 #include "SegmentTypes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"
-#include "ToolSceneQueriesUtil.h"
-#include "Intersection/IntersectionUtil.h"
+#include "Selections/MeshConnectedComponents.h"
 #include "Transforms/MultiTransformer.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
-#include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
-#include "Operations/MeshPlaneCut.h"
-#include "Selections/MeshEdgeSelection.h"
-#include "Selections/MeshFaceSelection.h"
-#include "Selections/MeshConnectedComponents.h"
-#include "FaceGroupUtil.h"
-#include "DynamicMeshEditor.h"
-#include "DynamicMeshChangeTracker.h"
-#include "Changes/MeshChange.h"
 
-#include "Operations/OffsetMeshRegion.h"
-#include "Operations/InsetMeshRegion.h"
-#include "MeshTransforms.h"
-
-#include "Async/ParallelFor.h"
-#include "Containers/BitArray.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "UEditUVIslandsTool"
 
@@ -75,15 +60,7 @@ void UEditUVIslandsTool::Setup()
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
-	// configure secondary render material
-	//UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.1f), GetToolManager());
-	UMaterialInterface* SelectionMaterial = MaterialSet.Materials[0];
-	if (SelectionMaterial != nullptr)
-	{
-		DynamicMeshComponent->SetSecondaryRenderMaterial(SelectionMaterial);
-	}
-
-	// enable secondary triangle buffers
+	// enable secondary triangle buffers. Will default to existing material unless we set override.
 	DynamicMeshComponent->EnableSecondaryTriangleBuffers(
 		[this](const FDynamicMesh3* Mesh, int32 TriangleID)
 	{
@@ -116,6 +93,7 @@ void UEditUVIslandsTool::Setup()
 	// init state flags flags
 	bInDrag = false;
 
+	// MultiTransformer abstracts the standard and "quick" Gizmo variants
 	MultiTransformer = NewObject<UMultiTransformer>(this);
 	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager());
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditUVIslandsTool::OnMultiTransformerTransformBegin);
@@ -128,11 +106,26 @@ void UEditUVIslandsTool::Setup()
 		| ETransformGizmoSubElements::ScaleAxisX | ETransformGizmoSubElements::ScaleAxisY
 		| ETransformGizmoSubElements::ScalePlaneXY | ETransformGizmoSubElements::ScaleUniform );
 	MultiTransformer->SetOverrideGizmoCoordinateSystem(EToolContextCoordinateSystem::Local);
+
+
+	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	MaterialSettings->RestoreProperties(this);
+	AddToolPropertySource(MaterialSettings);
+	MaterialSettings->GetOnModified().AddLambda([this](UObject*, FProperty*)
+	{
+		OnMaterialSettingsChanged();
+	});
+	OnMaterialSettingsChanged();
+
+	GetToolManager()->DisplayMessage(LOCTEXT("UEditUVIslandsToolStartupMessage", "Click on a UV Island to select it, and then use the Gizmo to translate/rotate/scale the UVs"), EToolMessageLevel::UserNotification);
 }
 
 void UEditUVIslandsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	MaterialSettings->SaveProperties(this);
+
 	MultiTransformer->Shutdown();
+	SelectionMechanic->Shutdown();
 
 	if (DynamicMeshComponent != nullptr)
 	{
@@ -174,7 +167,20 @@ void UEditUVIslandsTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 }
 
 
+void UEditUVIslandsTool::OnMaterialSettingsChanged()
+{
+	MaterialSettings->UpdateMaterials();
 
+	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+	if (OverrideMaterial != nullptr)
+	{
+		DynamicMeshComponent->SetSecondaryRenderMaterial(OverrideMaterial);
+	}
+	else
+	{
+		DynamicMeshComponent->ClearSecondaryRenderMaterial();
+	}
+}
 
 
 

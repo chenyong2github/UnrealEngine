@@ -124,7 +124,7 @@ struct CORE_API FWindowsPlatformMisc
 	 *
 	 * @return	Returns true if the current Windows version if equal or newer than MajorVersion
 	 */
-	static bool VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion);
+	static bool VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber = 0);
 
 #if !UE_BUILD_SHIPPING
 	static void PromptForRemoteDebugging(bool bIsEnsure);

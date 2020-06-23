@@ -197,7 +197,7 @@ TAABB<T, d> ComputeWorldSpaceBoundingBox(const TPBDRigidParticleHandleImp<T, d, 
 	return Handle.WorldSpaceInflatedBounds();
 }
 
-template<typename GenericEntry, typename T>
+template<typename T, typename GenericEntry>
 TAABB<T, 3> ComputeWorldSpaceBoundingBox(const GenericEntry& InEntry, bool bUseVelocity = false, T Dt = 0)
 {
 	ensure(!bUseVelocity);

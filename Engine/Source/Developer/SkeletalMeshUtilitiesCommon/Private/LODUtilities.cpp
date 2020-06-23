@@ -1029,6 +1029,9 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		//We must save the original reduction data, special case when we reduce inline we save even if its already simplified
 		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && (!SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified || DesiredLOD == Settings.BaseLOD))
 		{
+			//Caller should not call this in multithread if the LOD was never simplified or if its doing inline reduction
+			check(IsInGameThread());
+
 			FSkeletalMeshLODModel& SrcModel = SkeletalMeshResource->LODModels[DesiredLOD];
 			while (DesiredLOD >= SkeletalMeshResource->OriginalReductionSourceMeshData.Num())
 			{
@@ -1146,12 +1149,12 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 	}
 }
 
-void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex)
+bool FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex)
 {
 	if (!SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LodIndex) || SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->IsEmpty())
 	{
 		//There is nothing to restore
-		return;
+		return false;
 	}
 
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
@@ -1195,6 +1198,8 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		//Put back the clothing for the restore LOD
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
 	}
+
+	return true;
 }
 
 void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)
@@ -1214,14 +1219,10 @@ void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)
 	}
 }
 
-/*
- * The remap use the name to find the corresponding bone index between the source and destination skeleton
- */
-void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, const FSkeletalMeshImportData& ImportDataDest, const FString& SkeletalMeshDestName, const int32 LODIndexDest, TMap<int32, int32>& RemapBoneIndexSrcToDest)
+bool ValidateAlternateSkeleton(const FSkeletalMeshImportData& ImportDataSrc, const FSkeletalMeshImportData& ImportDataDest, const FString& SkeletalMeshDestName, const int32 LODIndexDest)
 {
 	bool bIsunattended = GIsRunningUnattendedScript || FApp::IsUnattended();
 
-	RemapBoneIndexSrcToDest.Empty(ImportDataSrc.RefBonesBinary.Num());
 	int32 BoneNumberDest = ImportDataDest.RefBonesBinary.Num();
 	int32 BoneNumberSrc = ImportDataSrc.RefBonesBinary.Num();
 	//We also want to report any missing bone, because skinning quality will be impacted if bones are missing
@@ -1230,18 +1231,18 @@ void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, c
 	for (int32 BoneIndexSrc = 0; BoneIndexSrc < BoneNumberSrc; ++BoneIndexSrc)
 	{
 		FString BoneNameSrc = ImportDataSrc.RefBonesBinary[BoneIndexSrc].Name;
+		bool bFoundMatch = false;
 		for (int32 BoneIndexDest = 0; BoneIndexDest < BoneNumberDest; ++BoneIndexDest)
 		{
 			if (ImportDataDest.RefBonesBinary[BoneIndexDest].Name.Equals(BoneNameSrc))
 			{
-				RemapBoneIndexSrcToDest.Add(BoneIndexSrc, BoneIndexDest);
+				bFoundMatch = true;
 				break;
 			}
 		}
-		if (!RemapBoneIndexSrcToDest.Contains(BoneIndexSrc))
+		if (!bFoundMatch)
 		{
 			SrcBonesNotUsedByDest.Add(BoneNameSrc);
-			RemapBoneIndexSrcToDest.Add(BoneIndexSrc, INDEX_NONE);
 		}
 	}
 
@@ -1267,7 +1268,6 @@ void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, c
 	if (SrcBonesNotUsedByDest.Num() > 0)
 	{
 		//Let the user know
-		UE_LOG(LogLODUtilities, Display, TEXT("Alternate skinning import: Not all the alternate mesh bones are used by the mesh."));
 		if (!bIsunattended)
 		{
 			FString BoneList;
@@ -1282,14 +1282,20 @@ void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, c
 			Args.Add(TEXT("LODIndex"), FText::AsNumber(LODIndexDest));
 			Args.Add(TEXT("BoneList"), FText::FromString(BoneList));
 			FText Message = FText::Format(NSLOCTEXT("UnrealEd", "AlternateSkinningImport_SourceBoneNotUseByDestination", "Not all the alternate mesh bones are used by the LOD {LODIndex} when importing alternate weights for skeletal mesh '{SkeletalMeshName}'.\nBones List:\n{BoneList}"), Args);
-			FMessageDialog::Open(EAppMsgType::Ok, Message);
+			if(FMessageDialog::Open(EAppMsgType::OkCancel, Message) == EAppReturnType::Cancel)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogLODUtilities, Error, TEXT("Alternate skinning import: Not all the alternate mesh bones are used by the mesh."));
+			return false;
 		}
 	}
-
-	if (DestBonesNotUsedBySrc.Num() > 0)
+	else if (DestBonesNotUsedBySrc.Num() > 0) //Do a else here since the DestBonesNotUsedBySrc is less prone to give a bad alternate influence result.
 	{
 		//Let the user know
-		UE_LOG(LogLODUtilities, Display, TEXT("Alternate skinning import: Not all the mesh bones are used by the alternate mesh."));
 		if (!bIsunattended)
 		{
 			FString BoneList;
@@ -1304,7 +1310,43 @@ void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, c
 			Args.Add(TEXT("LODIndex"), FText::AsNumber(LODIndexDest));
 			Args.Add(TEXT("BoneList"), FText::FromString(BoneList));
 			FText Message = FText::Format(NSLOCTEXT("UnrealEd", "AlternateSkinningImport_DestinationBoneNotUseBySource", "Not all the LOD {LODIndex} bones are used by the alternate mesh when importing alternate weights for skeletal mesh '{SkeletalMeshName}'.\nBones List:\n{BoneList}"), Args);
-			FMessageDialog::Open(EAppMsgType::Ok, Message);
+			if (FMessageDialog::Open(EAppMsgType::OkCancel, Message) == EAppReturnType::Cancel)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogLODUtilities, Display, TEXT("Alternate skinning import: Not all the mesh bones are used by the alternate mesh."));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/*
+ * The remap use the name to find the corresponding bone index between the source and destination skeleton
+ */
+void FillRemapBoneIndexSrcToDest(const FSkeletalMeshImportData& ImportDataSrc, const FSkeletalMeshImportData& ImportDataDest, TMap<int32, int32>& RemapBoneIndexSrcToDest)
+{
+	RemapBoneIndexSrcToDest.Empty(ImportDataSrc.RefBonesBinary.Num());
+	int32 BoneNumberDest = ImportDataDest.RefBonesBinary.Num();
+	int32 BoneNumberSrc = ImportDataSrc.RefBonesBinary.Num();
+	for (int32 BoneIndexSrc = 0; BoneIndexSrc < BoneNumberSrc; ++BoneIndexSrc)
+	{
+		FString BoneNameSrc = ImportDataSrc.RefBonesBinary[BoneIndexSrc].Name;
+		for (int32 BoneIndexDest = 0; BoneIndexDest < BoneNumberDest; ++BoneIndexDest)
+		{
+			if (ImportDataDest.RefBonesBinary[BoneIndexDest].Name.Equals(BoneNameSrc))
+			{
+				RemapBoneIndexSrcToDest.Add(BoneIndexSrc, BoneIndexDest);
+				break;
+			}
+		}
+		if (!RemapBoneIndexSrcToDest.Contains(BoneIndexSrc))
+		{
+			RemapBoneIndexSrcToDest.Add(BoneIndexSrc, INDEX_NONE);
 		}
 	}
 }
@@ -1353,10 +1395,10 @@ void MatchVertexIndexUsingPosition(
 	const FSkeletalMeshImportData& ImportDataDest
 	, const FSkeletalMeshImportData& ImportDataSrc
 	, TSortedMap<uint32, VertexMatchNameSpace::FVertexMatchResult>& VertexIndexSrcToVertexIndexDestMatches
-	, const TArray<uint32>& VertexIndexToMatchWithUVs
+	, const TArray<uint32>& VertexIndexToMatchWithPositions
 	, bool& bNoMatchMsgDone)
 {
-	if (VertexIndexToMatchWithUVs.Num() <= 0)
+	if (VertexIndexToMatchWithPositions.Num() <= 0)
 	{
 		return;
 	}
@@ -1364,7 +1406,6 @@ void MatchVertexIndexUsingPosition(
 
 	//Setup the Position Octree with the destination faces so we can match the source vertex index
 	TArray<FTriangleElement> TrianglesDest;
-	FBox2D BaseMeshUVBound(EForceInit::ForceInit);
 	FBox BaseMeshPositionBound(EForceInit::ForceInit);
 
 	for (int32 FaceIndexDest = 0; FaceIndexDest < FaceNumberDest; ++FaceIndexDest)
@@ -1388,7 +1429,6 @@ void MatchVertexIndexUsingPosition(
 			TriangleElement.PositionBound += SoftSkinVertex.Position;
 			BaseMeshPositionBound += SoftSkinVertex.Position;
 		}
-		BaseMeshUVBound += TriangleElement.UVsBound;
 		BaseMeshPositionBound += TriangleElement.PositionBound;
 		TriangleElement.TriangleIndex = FaceIndexDest;
 		TrianglesDest.Add(TriangleElement);
@@ -1434,7 +1474,7 @@ void MatchVertexIndexUsingPosition(
 		}
 	};
 
-	for (int32 VertexIndexSrc : VertexIndexToMatchWithUVs)
+	for (int32 VertexIndexSrc : VertexIndexToMatchWithPositions)
 	{
 		FVector PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
 		OcTreeTriangleResults.Reset();
@@ -1494,7 +1534,7 @@ void MatchVertexIndexUsingPosition(
 			uint32 FoundIndexMatch = INDEX_NONE;
 			if (!FindTrianglePositionMatch(PositionSrc, TrianglesDest, OcTreeTriangleResults, MatchTriangleIndexes))
 			{
-				//There is no UV match possible, use brute force fail safe
+				//There is no Position match possible, use brute force fail safe
 				if (!FailSafeUnmatchVertex(FoundIndexMatch))
 				{
 					//We should always have a match
@@ -1579,9 +1619,14 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	int32 ProfileIndex = 0;
 	if (!ImportDataDest.AlternateInfluenceProfileNames.Find(ProfileNameDest.ToString(), ProfileIndex))
 	{
-		UE_LOG(LogLODUtilities, Warning, TEXT("Failed to import Skin Weight Profile the alternate skinning imported source data is not available."), *SkeletalMeshName);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+
+		FText Message = FText::Format(NSLOCTEXT("FLODUtilities_UpdateAlternateSkinWeights", "AlternateDataNotAvailable", "Asset {SkeletalMeshName} failed to import skin weight profile the alternate skinning imported source data is not available."), Args);
+		UE_LOG(LogLODUtilities, Warning, TEXT("%s"), *(Message.ToString()));
 		return false;
 	}
+
 	check(ImportDataDest.AlternateInfluences.IsValidIndex(ProfileIndex));
 	//The data must be there and must be verified before getting here
 	const FSkeletalMeshImportData& ImportDataSrc = ImportDataDest.AlternateInfluences[ProfileIndex];
@@ -1589,12 +1634,18 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	int32 VertexNumberSrc = ImportDataSrc.Points.Num();
 	int32 InfluenceNumberSrc = ImportDataSrc.Influences.Num();
 
-	if (ImportDataDest.NumTexCoords <= 0 || ImportDataSrc.NumTexCoords <= 0)
+	if (PointNumberDest != PointNumberSrc)
 	{
-		UE_LOG(LogLODUtilities, Error, TEXT("Failed to import Skin Weight Profile as the target skeletal mesh (%s) or imported file does not contain UV coordinates."), *SkeletalMeshName);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+		Args.Add(TEXT("PointNumberSrc"), PointNumberSrc);
+		Args.Add(TEXT("PointNumberDest"), PointNumberDest);
+
+		FText Message = FText::Format(NSLOCTEXT("FLODUtilities_UpdateAlternateSkinWeights", "DifferentPointNumber", "Asset {SkeletalMeshName} failed to import skin weight profile the alternate skinning model has a different number of vertex. Alternate vertex count: {PointNumberSrc}, LOD vertex count: {PointNumberDest}"), Args);
+		UE_LOG(LogLODUtilities, Warning, TEXT("%s"), *(Message.ToString()));
 		return false;
 	}
-	
+
 	// Create a list of vertex Z/index pairs
 	TArray<FIndexAndZ> VertIndexAndZ;
 	VertIndexAndZ.Reserve(VertexNumberDest);
@@ -1641,12 +1692,12 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 
 	//Create a map to remap source bone index to destination bone index
 	TMap<int32, int32> RemapBoneIndexSrcToDest;
-	FillRemapBoneIndexSrcToDest(ImportDataSrc, ImportDataDest, SkeletalMeshName, LODIndexDest, RemapBoneIndexSrcToDest);
+	FillRemapBoneIndexSrcToDest(ImportDataSrc, ImportDataDest, RemapBoneIndexSrcToDest);
 
 	//Map to get the vertex index source to a destination vertex match
 	TSortedMap<uint32, VertexMatchNameSpace::FVertexMatchResult> VertexIndexSrcToVertexIndexDestMatches;
 	VertexIndexSrcToVertexIndexDestMatches.Reserve(VertexNumberSrc);
-	TArray<uint32> VertexIndexToMatchWithUVs;
+	TArray<uint32> VertexIndexToMatchWithPositions;
 	// Match all source vertex with destination vertex
 	for (int32 VertexIndexSrc = 0; VertexIndexSrc < PointNumberSrc; ++VertexIndexSrc)
 	{
@@ -1658,7 +1709,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 		if (SimilarDestinationVertex.Num() == 0)
 		{
 			//Match with UV projection
-			VertexIndexToMatchWithUVs.Add(VertexIndexSrc);
+			VertexIndexToMatchWithPositions.Add(VertexIndexSrc);
 		}
 		else
 		{
@@ -1673,10 +1724,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	}
 	
 	//Find a match for all unmatched source vertex, unmatched vertex happen when the geometry is different between source and destination mesh
-	bool bAllSourceVertexAreMatch = VertexIndexToMatchWithUVs.Num() <= 0 && VertexIndexSrcToVertexIndexDestMatches.Num() == PointNumberSrc;
+	bool bAllSourceVertexAreMatch = VertexIndexToMatchWithPositions.Num() <= 0 && VertexIndexSrcToVertexIndexDestMatches.Num() == PointNumberSrc;
 	if (!bAllSourceVertexAreMatch)
 	{
-		MatchVertexIndexUsingPosition(ImportDataDest, ImportDataSrc, VertexIndexSrcToVertexIndexDestMatches, VertexIndexToMatchWithUVs, bNoMatchMsgDone);
+		MatchVertexIndexUsingPosition(ImportDataDest, ImportDataSrc, VertexIndexSrcToVertexIndexDestMatches, VertexIndexToMatchWithPositions, bNoMatchMsgDone);
 		//Make sure each vertex index source has a match, warn the user in case there is no match
 		for (int32 VertexIndexSource = 0; VertexIndexSource < VertexNumberSrc; ++VertexIndexSource)
 		{
@@ -1912,6 +1963,19 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	//Remove all unnecessary array data from the structure (this will save a lot of memory)
 	ImportDataSrc.KeepAlternateSkinningBuildDataOnly();
 
+	FString SkeletalMeshDestName = SkeletalMeshDest->GetName();
+	if (ImportDataSrc.Points.Num() != PointNumberDest)
+	{
+		UE_LOG(LogLODUtilities, Error, TEXT("Asset %s failed to import Skin Weight Profile as the incomming alternate influence model vertex number is different. LOD model vertex count: %d Alternate model vertex count: %d"), *SkeletalMeshDestName, PointNumberDest, ImportDataSrc.Points.Num());
+		return false;
+	}
+
+	if (!ValidateAlternateSkeleton(ImportDataSrc, ImportDataDest, SkeletalMeshDestName, LODIndexDest))
+	{
+		//Log are print in the validate function
+		return false;
+	}
+
 	//Replace the data into the destination bulk data and save it
 	int32 ProfileIndex = 0;
 	if (ImportDataDest.AlternateInfluenceProfileNames.Find(ProfileNameDest.ToString(), ProfileIndex))
@@ -1942,6 +2006,9 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 	TArray<FRawSkinWeight>& SkinWeights = ImportedProfileData.SkinWeights;
 	SkinWeights.Empty(DestinationSoftVertices.Num());
 
+	//Get the maximum allow bone influence, so we can cut lowest weight properly and get the same result has the sk build
+	const int32 MaxInfluenceCount = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MAX_TOTAL_INFLUENCES) ? MAX_TOTAL_INFLUENCES : EXTRA_BONE_INFLUENCES;
+
 	for (int32 VertexInstanceIndex = 0; VertexInstanceIndex < DestinationSoftVertices.Num(); ++VertexInstanceIndex)
 	{
 		int32 SectionIndex = INDEX_NONE;
@@ -1962,6 +2029,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 			SkinWeight.InfluenceBones[InfluenceIndex] = 0;
 			SkinWeight.InfluenceWeights[InfluenceIndex] = 0;
 		}
+
 		TMap<FBoneIndexType, float> WeightForBone;
 		for (const SkeletalMeshImportData::FVertInfluence& VertInfluence : ImportedProfileData.SourceModelInfluences)
 		{
@@ -1978,6 +2046,8 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 				WeightForBone.Add(BoneMapIndex, VertInfluence.Weight);
 			}
 		}
+
+
 		//Add the prepared alternate influences for this skin vertex
 		uint32	TotalInfluenceWeight = 0;
 		int32 InfluenceBoneIndex = 0;
@@ -1987,6 +2057,10 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLOD
 			SkinWeight.InfluenceWeights[InfluenceBoneIndex] = FMath::Clamp((uint8)(Kvp.Value*((float)0xFF)), (uint8)0x00, (uint8)0xFF);
 			TotalInfluenceWeight += SkinWeight.InfluenceWeights[InfluenceBoneIndex];
 			InfluenceBoneIndex++;
+			if (InfluenceBoneIndex >= MaxInfluenceCount)
+			{
+				break;
+			}
 		}
 		//Use the same code has the build where we modify the index 0 to have a sum of 255 for all influence per skin vertex
 		SkinWeight.InfluenceWeights[0] += 255 - TotalInfluenceWeight;
@@ -2077,14 +2151,31 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			}
 
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
-			//Reduce all dependent LODs in parallel
+			//Reduce all dependent LODs
 			FThreadSafeBool bNeedsPackageDirtied(false);
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied](int32 IterationIndex)
+			TBitArray<> CanReduceLODInParallel;
+			CanReduceLODInParallel.Init(true, SkeletalMesh->GetLODNum());
+			//Reduce the LODs which need to save the OriginalReductionSourceMeshData in the main thread, bulkdata are not multithread safe.
+			for (int32 DependentLODIndex : DependentLODs)
+			{
+				const FSkeletalMeshLODInfo* DepLODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				if (!DepLODInfo || (!DepLODInfo->bHasBeenSimplified || DependentLODIndex == DepLODInfo->ReductionSettings.BaseLOD))
+				{
+					CanReduceLODInParallel[DependentLODIndex] = false;
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				}
+			}
+			
+			//Reduce LODs in parallel
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel](int32 IterationIndex)
 			{
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
-				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
-				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				if (CanReduceLODInParallel[DependentLODIndex])
+				{
+					check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+				}
 			});
 
 			if (bNeedsPackageDirtied)

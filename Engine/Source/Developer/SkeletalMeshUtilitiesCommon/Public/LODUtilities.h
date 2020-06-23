@@ -77,7 +77,7 @@ public:
 	* @param LodIndex - The LOD index to restore the imported LOD model
 	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
 	*/
-	static void RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex);
+	static bool RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex);
 	
 	/**
 	 * Refresh LOD Change

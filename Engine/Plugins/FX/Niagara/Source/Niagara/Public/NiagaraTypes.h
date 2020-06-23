@@ -70,7 +70,7 @@ private:
 	int32 Value = FNiagaraBool::False;
 };
 
-USTRUCT(meta = (DisplayName = "Half"))
+USTRUCT(meta = (DisplayName = "Half", NiagaraInternalType = "true"))
 struct FNiagaraHalf
 {
 	GENERATED_USTRUCT_BODY()
@@ -79,7 +79,7 @@ struct FNiagaraHalf
 	uint16 Value = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector2"))
+USTRUCT(meta = (DisplayName = "Half Vector2", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector2
 {
 	GENERATED_USTRUCT_BODY()
@@ -91,7 +91,7 @@ struct FNiagaraHalfVector2
 	uint16 y = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector3"))
+USTRUCT(meta = (DisplayName = "Half Vector3", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector3
 {
 	GENERATED_USTRUCT_BODY()
@@ -106,7 +106,7 @@ struct FNiagaraHalfVector3
 	uint16 z = 0;
 };
 
-USTRUCT(meta = (DisplayName = "Half Vector4"))
+USTRUCT(meta = (DisplayName = "Half Vector4", NiagaraInternalType = "true"))
 struct FNiagaraHalfVector4
 {
 	GENERATED_USTRUCT_BODY()
@@ -137,35 +137,6 @@ struct FNiagaraParameterMap
 	GENERATED_USTRUCT_BODY()
 };
 
-USTRUCT()
-struct FNiagaraTestStructInner
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector1 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector InnerVector2 = FVector::ZeroVector;
-};
-
-USTRUCT()
-struct FNiagaraTestStruct
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector1 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FVector Vector2 = FVector::ZeroVector;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FNiagaraTestStructInner InnerStruct1;
-
-	UPROPERTY(EditAnywhere, Category = TestStruct)
-	FNiagaraTestStructInner InnerStruct2;
-};
 
 USTRUCT(meta = (DisplayName = "Matrix"))
 struct FNiagaraMatrix
@@ -186,30 +157,30 @@ struct FNiagaraMatrix
 };
 
 /** Data controlling the spawning of particles */
-USTRUCT(meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
+USTRUCT(BlueprintType, meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
 struct FNiagaraSpawnInfo
 {
 	GENERATED_USTRUCT_BODY();
 	
 	/** How many particles to spawn. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	int32 Count = 0;
 	/** The sub frame delta time at which to spawn the first particle. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	float InterpStartDt = 0.0f;
 	/** The sub frame delta time between each particle. */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	float IntervalDt = 1.0f;
 	/**
 	 * An integer used to identify this spawn info.
 	 * Typically this is unused.
 	 * An example usage is when using multiple spawn modules to spawn from multiple discreet locations.
 	 */
-	UPROPERTY(EditAnywhere, Category = SpawnInfo)
+	UPROPERTY(BlueprintReadWrite, Category = SpawnInfo)
 	int32 SpawnGroup = 0;
 };
 
-USTRUCT(Blueprintable, meta = (DisplayName = "Niagara ID"))
+USTRUCT(BlueprintType, meta = (DisplayName = "Niagara ID"))
 struct FNiagaraID
 {
 	GENERATED_USTRUCT_BODY()
@@ -218,14 +189,14 @@ struct FNiagaraID
 	Index in the indirection table for this particle. Allows fast access to this particles data.
 	Is always unique among currently living particles but will be reused after the particle dies.
 	*/
-	UPROPERTY(EditAnywhere, Category = ID)
+	UPROPERTY(BlueprintReadWrite, Category = ID)
 	int32 Index = 0;
 
 	/** 
 	A unique tag for when this ID was acquired. 
 	Allows us to differentiate between particles when one dies and another reuses it's Index.
 	*/
-	UPROPERTY(EditAnywhere, Category = ID)
+	UPROPERTY(BlueprintReadWrite, Category = ID)
 	int32 AcquireTag = 0;
 
 	FNiagaraID() : Index(INDEX_NONE), AcquireTag(INDEX_NONE) {}
@@ -968,6 +939,10 @@ public:
 
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
+#if WITH_EDITORONLY_DATA
+	bool IsInternalType() const;
+#endif
+
 	/*
 	Underlying type for this variable, use FUnderlyingType to determine type without casting
 	This can be a UClass, UStruct or UEnum.  Pointing to something like the struct for an FVector, etc.
@@ -1152,7 +1127,6 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, FVector2D>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
 	if (TIsSame<T, FVector>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }
 	if (TIsSame<T, FVector4>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
-	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
 	if (TIsSame<T, FQuat>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }

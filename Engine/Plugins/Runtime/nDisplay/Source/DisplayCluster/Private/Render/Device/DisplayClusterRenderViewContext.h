@@ -17,4 +17,3 @@ struct FDisplayClusterRenderViewContext
 	// Location and size on a render target
 	FIntRect RenderTargetRect;
 };
-

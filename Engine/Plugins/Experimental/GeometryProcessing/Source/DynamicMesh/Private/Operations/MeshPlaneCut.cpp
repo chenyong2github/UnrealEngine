@@ -227,9 +227,9 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 			{
 				continue;
 			}
-			FIndex4i Edge = Mesh->GetEdge(EID);
-			BoundaryVertices.Add(Edge.A);
-			BoundaryVertices.Add(Edge.B);
+			const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EID);
+			BoundaryVertices.Add(Edge.Vert[0]);
+			BoundaryVertices.Add(Edge.Vert[1]);
 		}
 	}
 	TArray<int> Triangles;
@@ -282,13 +282,13 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 				{
 					continue;
 				}
-				FIndex4i Edge = Mesh->GetEdge(EID);
-				if (Edge.D >= 0) // only care about boundary edges
+				const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EID);
+				if (Edge.Tri[1] >= 0) // only care about boundary edges
 				{
 					continue;
 				}
 				{
-					int LabelID = TriLabels->GetValue(Edge.C);
+					int LabelID = TriLabels->GetValue(Edge.Tri[0]);
 					TSet<int>& LabelCutEdges = LabelToCutEdges.FindOrAdd(LabelID);
 					LabelCutEdges.Add(EID);
 				}
@@ -296,25 +296,25 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 				if (bAddBoundariesSecondHalf)
 				{
 					// try to find and add the corresponding edge
-					const int* SplitA = SplitVertices.Find(Edge.A);
-					const int* SplitB = SplitVertices.Find(Edge.B);
+					const int* SplitA = SplitVertices.Find(Edge.Vert[0]);
+					const int* SplitB = SplitVertices.Find(Edge.Vert[1]);
 					if (SplitA && SplitB)
 					{
 						int CorrEID = Mesh->FindEdge(*SplitA, *SplitB);
 						if (CorrEID >= 0) // corresponding edge exists
 						{
-							FIndex4i CorrEdge = Mesh->GetEdge(CorrEID);
-							if (CorrEdge.D < 0) // we only care if it's a boundary edge
+							FDynamicMesh3::FEdge CorrEdge = Mesh->GetEdge(CorrEID);
+							if (CorrEdge.Tri[1] < 0) // we only care if it's a boundary edge
 							{
-								int LabelID = TriLabels->GetValue(CorrEdge.C);
+								int LabelID = TriLabels->GetValue(CorrEdge.Tri[0]);
 								TSet<int>& LabelCutEdges = LabelToCutEdges.FindOrAdd(LabelID);
 								LabelCutEdges.Add(CorrEID);
 							}
 						}
 					}
 				}
-				BoundaryVertices.Add(Edge.A);
-				BoundaryVertices.Add(Edge.B);
+				BoundaryVertices.Add(Edge.Vert[0]);
+				BoundaryVertices.Add(Edge.Vert[1]);
 			}
 		}
 	

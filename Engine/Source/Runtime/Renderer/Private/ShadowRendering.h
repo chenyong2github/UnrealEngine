@@ -350,9 +350,6 @@ public:
 	/** View matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewMatrices;
 	
-	/** Frustums for each cubemap face, used for object culling one pass point light shadows. */
-	TArray<FConvexVolume> OnePassShadowFrustums;
-
 	/** Data passed from async compute begin to end. */
 	FComputeFenceRHIRef RayTracedShadowsEndFence;
 	TRefCountPtr<IPooledRenderTarget> RayTracedShadowsRT;
@@ -645,7 +642,7 @@ private:
 		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
 
 	/** Will return if we should draw the static mesh for the shadow, and will perform lazy init of primitive if it wasn't visible */
-	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool bInCustomDataRelevance, FPrimitiveSceneInfo* InPrimitiveSceneInfo);
+	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo);
 
 	bool ShouldDrawStaticMeshes_AnyThread(
 		FViewInfo& InCurrentView,
@@ -821,7 +818,6 @@ public:
 	void Bind(const FShader::CompiledShaderInitializerType& Initializer)
 	{
 		const FShaderParameterMap& ParameterMap = Initializer.ParameterMap;
-		SceneTextureParameters.Bind(Initializer);
 		ScreenToShadowMatrix.Bind(ParameterMap,TEXT("ScreenToShadowMatrix"));
 		SoftTransitionScale.Bind(ParameterMap,TEXT("SoftTransitionScale"));
 		ShadowBufferSize.Bind(ParameterMap,TEXT("ShadowBufferSize"));
@@ -842,8 +838,6 @@ public:
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, const FHairStrandsVisibilityData* HairVisibilityData, bool bModulatedShadows, bool bUseFadePlane)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		const FIntPoint ShadowBufferResolution = ShadowInfo->GetShadowBufferResolution();
 
@@ -953,29 +947,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, InvPerObjectShadowFadeLength, ShadowInfo->InvPerObjectShadowFadeLength);
 	}
 
-	/** Serializer. */
-	/*friend FArchive& operator<<(FArchive& Ar, TShadowProjectionShaderParameters& P)
-	{
-		Ar << P.SceneTextureParameters;
-		Ar << P.ScreenToShadowMatrix;
-		Ar << P.SoftTransitionScale;
-		Ar << P.ShadowBufferSize;
-		Ar << P.ShadowDepthTexture;
-		Ar << P.ShadowDepthTextureSampler;
-		Ar << P.ProjectionDepthBias;
-		Ar << P.FadePlaneOffset;
-		Ar << P.InvFadePlaneLength;
-		Ar << P.ShadowTileOffsetAndSizeParam;
-		Ar << P.LightPositionOrDirection;
-		Ar << P.HairCategorizationTexture;
-		Ar << P.PerObjectShadowFadeStart;
-		Ar << P.InvPerObjectShadowFadeLength;
-		Ar << P.ShadowNearAndFarDepth;
-		return Ar;
-	}*/
-
 private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FShaderParameter, ScreenToShadowMatrix);
 	LAYOUT_FIELD(FShaderParameter, SoftTransitionScale);
 	LAYOUT_FIELD(FShaderParameter, ShadowBufferSize);
@@ -1215,6 +1187,17 @@ public:
 };
 
 
+BEGIN_SHADER_PARAMETER_STRUCT(FOnePassPointShadowProjection, )
+	SHADER_PARAMETER_TEXTURE(TextureCube, ShadowDepthCubeTexture)
+	SHADER_PARAMETER_TEXTURE(TextureCube, ShadowDepthCubeTexture2)
+	SHADER_PARAMETER_SAMPLER(SamplerComparisonState, ShadowDepthCubeTextureSampler)
+	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
+	SHADER_PARAMETER(float, InvShadowmapResolution)
+END_SHADER_PARAMETER_STRUCT()
+
+extern void GetOnePassPointShadowProjectionParameters(const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters);
+
+
 /** One pass point light shadow projection parameters used by multiple shaders. */
 class FOnePassPointShadowProjectionShaderParameters
 {
@@ -1337,7 +1320,6 @@ public:
 	TOnePassPointShadowProjectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
 	{
-		SceneTextureParameters.Bind(Initializer);
 		OnePassShadowParameters.Bind(Initializer.ParameterMap);
 		ShadowDepthTextureSampler.Bind(Initializer.ParameterMap,TEXT("ShadowDepthTextureSampler"));
 		LightPosition.Bind(Initializer.ParameterMap,TEXT("LightPositionAndInvRadius"));
@@ -1373,7 +1355,6 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 		OnePassShadowParameters.Set(RHICmdList, ShaderRHI, ShadowInfo);
 
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
@@ -1428,7 +1409,6 @@ public:
 	}
 
 private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FOnePassPointShadowProjectionShaderParameters, OnePassShadowParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTextureSampler);
 	LAYOUT_FIELD(FShaderParameter, LightPosition);

@@ -18,6 +18,8 @@ void FSourceEffectStereoDelay::OnPresetChanged()
 	DelayStereo.SetWetLevel(Settings.WetLevel);
 	DelayStereo.SetDelayRatio(Settings.DelayRatio);
 	DelayStereo.SetMode((Audio::EStereoDelayMode::Type)Settings.DelayMode);
+	DelayStereo.SetFilterEnabled(Settings.bFilterEnabled);
+	DelayStereo.SetFilterSettings((Audio::EBiquadFilter::Type)Settings.FilterType, Settings.FilterFrequency, Settings.FilterQ);
 }
 
 void FSourceEffectStereoDelay::ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData)

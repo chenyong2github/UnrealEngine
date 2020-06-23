@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarEnableNiagaraMeshRendering(
 
 #if RHI_RAYTRACING
 static TAutoConsoleVariable<int32> CVarRayTracingNiagaraMeshes(
-	TEXT("r.RayTracing.Niagara.Meshes"),
+	TEXT("r.RayTracing.Geometry.NiagaraMeshes"),
 	1,
 	TEXT("Include Niagara meshes in ray tracing effects (default = 1 (Niagara meshes enabled in ray tracing))"));
 #endif
@@ -226,6 +226,7 @@ void FNiagaraRendererMeshes::SetupVertexFactory(FNiagaraMeshVertexFactory* InVer
 
 int32 FNiagaraRendererMeshes::GetLODIndex() const
 {
+	check(IsInRenderingThread());
 	const int32 LODCount = MeshRenderData->LODResources.Num();
 
 	// Doesn't seem to work for some reason. See comment in FDynamicMeshEmitterData::GetMeshLODIndexFromProxy()
@@ -930,7 +931,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 	{
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);
 
-		const int32 LODIndex = GetLODIndex();
+		// We must use LOD 0 when setting up materials as this is the super set of materials
+		// StaticMesh streaming will adjust LOD in a render command which can lead to differences in LOD selection between GT / RT
+		const int32 LODIndex = 0;
 		const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
 
 		check(BaseMaterials_GT.Num() == LODModel.Sections.Num());

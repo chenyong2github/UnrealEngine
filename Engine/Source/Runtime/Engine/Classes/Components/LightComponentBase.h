@@ -221,6 +221,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 
 	/** UActorComponent Interface */
 	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 

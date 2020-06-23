@@ -18,7 +18,7 @@ class FStatsAnalyzer
 public:
 	FStatsAnalyzer(Trace::IAnalysisSession& Session, Trace::ICounterProvider& CounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
 	enum : uint16

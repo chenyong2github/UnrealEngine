@@ -2,6 +2,8 @@
 
 #include "IAudioEndpoint.h"
 
+DEFINE_LOG_CATEGORY(LogAudioEndpoints);
+
 Audio::FPatchInput IAudioEndpoint::PatchNewInput(float ExpectedDurationPerRender, float& OutSampleRate, int32& OutNumChannels)
 {
 	OutSampleRate = GetSampleRate();
@@ -99,6 +101,49 @@ void IAudioEndpoint::RunCallbackSynchronously()
 
 		PollSettings(CallbackWithSettings);
 	}
+}
+
+FName IAudioEndpointFactory::GetTypeNameForDefaultEndpoint()
+{
+	static FName DefaultEndpointName = FName(TEXT("Default Endpoint"));
+	return DefaultEndpointName;
+}
+
+FName IAudioEndpointFactory::GetModularFeatureName()
+{
+	static FName ModularFeatureName = TEXT("External Audio Endpoint");
+	return ModularFeatureName;
+}
+
+void IAudioEndpointFactory::RegisterEndpointType(IAudioEndpointFactory* InFactory)
+{
+	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), InFactory);
+}
+
+void IAudioEndpointFactory::UnregisterEndpointType(IAudioEndpointFactory* InFactory)
+{
+	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), InFactory);
+}
+
+IAudioEndpointFactory* IAudioEndpointFactory::Get(const FName& InName)
+{
+	if (InName == GetTypeNameForDefaultEndpoint() || InName == FName())
+	{
+		return nullptr;
+	}
+
+	TArray<IAudioEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioEndpointFactory>(GetModularFeatureName());
+
+	for (IAudioEndpointFactory* Factory : Factories)
+	{
+		if (Factory && InName == Factory->GetEndpointTypeName())
+		{
+			return Factory;
+		}
+	}
+
+	UE_LOG(LogAudioEndpoints, Display, TEXT("No endpoint implementation for %s found for this platform. Endpoint Submixes set to this type will not do anything."), *InName.ToString());
+	return nullptr;
 }
 
 TArray<FName> IAudioEndpointFactory::GetAvailableEndpointTypes()

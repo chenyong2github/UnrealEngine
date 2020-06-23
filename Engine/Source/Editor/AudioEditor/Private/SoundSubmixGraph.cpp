@@ -2,20 +2,63 @@
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
 
 #include "GraphEditor.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "TimerManager.h"
 #include "UObject/Package.h"
 
 
 USoundSubmixGraph::USoundSubmixGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, RootSoundSubmix(nullptr)
 {
 }
 
 void USoundSubmixGraph::SetRootSoundSubmix(USoundSubmixBase* InSoundSubmix)
 {
-	check(!RootSoundSubmix);
+	if (RootSoundSubmix)
+	{
+		// Defer request to close stale editor(s) to avoid property assignments being
+		// added to undo/redo transaction stack from the process of reopening the new editor.
+		// This can occur if client code calling this function is performed within a scoped
+		// transaction (as it most likely is).
+		const int32 Size = StaleRoots.Num();
+		const int32 Index = StaleRoots.AddUnique(RootSoundSubmix);
+		if (Size == Index && GEditor)
+		{
+			GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+			{
+				if(StaleRoots.Num() > 0)
+				{
+					check(GEditor);
+					if (UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+					{
+						for (USoundSubmixBase* Submix : StaleRoots)
+						{
+							TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(Submix);
+							for (IAssetEditorInstance* Editor : SubmixEditors)
+							{
+								Editor->CloseWindow();
+							}
+						}
+
+						if (RootSoundSubmix)
+						{
+							if (EditorSubsystem->FindEditorsForAsset(RootSoundSubmix).Num() == 0)
+							{
+								EditorSubsystem->OpenEditorForAsset(RootSoundSubmix);
+							}
+						}
+					}
+
+					StaleRoots.Reset();
+				}
+			}));
+		}
+	}
+
 	RootSoundSubmix = InSoundSubmix;
 }
 

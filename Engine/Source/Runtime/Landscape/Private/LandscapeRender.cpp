@@ -1608,6 +1608,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		FMeshBatchElement* GrassBatchElement = &GrassMeshBatch.Elements[0];
 		FLandscapeBatchElementParams* BatchElementParams = &GrassBatchParams[0];
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+		BatchElementParams->FixedGridUniformShaderParameters = &LandscapeFixedGridUniformShaderParameters;
 		BatchElementParams->SceneProxy = this;
 		BatchElementParams->CurrentLOD = 0;
 		GrassBatchElement->UserData = BatchElementParams;
@@ -1645,6 +1646,10 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 
 				FRayTracingGeometryInitializer Initializer;
+				static const FName DebugName("FLandscapeComponentSceneProxy");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DebugName, DebugNumber++);
+
 				FRHIResourceCreateInfo CreateInfo;
 				Initializer.IndexBuffer = nullptr;
 				Initializer.GeometryType = RTGT_Triangles;
@@ -1657,6 +1662,10 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				Initializer.Segments.Add(Segment);
 				SectionRayTracingStates[SubSectionIdx].Geometry.SetInitializer(Initializer);
 				SectionRayTracingStates[SubSectionIdx].Geometry.InitResource();
+
+				FLandscapeVertexFactoryMVFParameters UniformBufferParams;
+				UniformBufferParams.SubXY = FIntPoint(SubX, SubY);
+				SectionRayTracingStates[SubSectionIdx].UniformBuffer = FLandscapeVertexFactoryMVFUniformBufferRef::CreateUniformBufferImmediate(UniformBufferParams, UniformBuffer_MultiFrame);
 			}
 		}
 	}
@@ -2064,6 +2073,7 @@ bool FLandscapeComponentSceneProxy::GetMeshElementForVirtualTexture(int32 InLodI
 	FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 	BatchElementParams->SceneProxy = this;
 	BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+	BatchElementParams->FixedGridUniformShaderParameters = &LandscapeFixedGridUniformShaderParameters;
 	BatchElementParams->CurrentLOD = InLodIndex;
 
 	int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> InLodIndex;
@@ -2171,6 +2181,7 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 
 		FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+		BatchElementParams->FixedGridUniformShaderParameters = &LandscapeFixedGridUniformShaderParameters;
 		BatchElementParams->SceneProxy = this;
 		BatchElementParams->CurrentLOD = LODIndex;
 
@@ -2639,7 +2650,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 #if RHI_RAYTRACING
 void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	if (!CVarRayTracingLandscape.GetValueOnRenderThread())
+	if (!bRegistered || !CVarRayTracingLandscape.GetValueOnRenderThread())
 	{
 		return;
 	}
@@ -2650,7 +2661,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	ForcedLODLevel = ViewLodOveride >= 0 ? ViewLodOveride : ForcedLODLevel;
 
 	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
-	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, Context.ReferenceView->LODDistanceFactor);
+	float LODScale = Context.ReferenceView->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
+	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
@@ -2696,6 +2708,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			FLandscapeBatchElementParams& BatchElementParams = ParameterArray.ElementParams[SubSectionIdx];
 
 			BatchElementParams.LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+			BatchElementParams.FixedGridUniformShaderParameters = &LandscapeFixedGridUniformShaderParameters;
 			BatchElementParams.SceneProxy = this;
 			BatchElementParams.CurrentLOD = CurrentLOD;
 			BatchElement.UserData = &BatchElementParams;
@@ -2714,13 +2727,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			SectionRayTracingStates[SubSectionIdx].Geometry.Initializer.IndexBuffer = BatchElement.IndexBuffer->IndexBufferRHI;
 
-			{
-				FLandscapeVertexFactoryMVFParameters UniformBufferParams;
-
-				UniformBufferParams.SubXY = FIntPoint(SubX, SubY);
-
-				BatchElementParams.LandscapeVertexFactoryMVFUniformBuffer = FLandscapeVertexFactoryMVFUniformBufferRef::CreateUniformBufferImmediate(UniformBufferParams, UniformBuffer_SingleFrame);
-			}
+			BatchElementParams.LandscapeVertexFactoryMVFUniformBuffer = SectionRayTracingStates[SubSectionIdx].UniformBuffer;
 
 			bool bNeedsRayTracingGeometryUpdate = false;
 
@@ -3359,7 +3366,7 @@ public:
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 
-		if (SceneProxy->bRegistered)
+		if (SceneProxy && SceneProxy->bRegistered)
 		{
 			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), LandscapeRenderSystems.FindChecked(SceneProxy->LandscapeKey)->UniformBuffer);
 		}
@@ -3401,12 +3408,17 @@ public:
 
 		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
 		check(BatchElementParams);
-		const FLandscapeComponentSceneProxy* SceneProxy = BatchElementParams->SceneProxy;
-		check(SceneProxy);
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeFixedGridUniformShaderParameters>(), SceneProxy->LandscapeFixedGridUniformShaderParameters[BatchElementParams->CurrentLOD]);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeFixedGridUniformShaderParameters>(), (*BatchElementParams->FixedGridUniformShaderParameters)[BatchElementParams->CurrentLOD]);
+
+#if RHI_RAYTRACING
+		if (IsRayTracingEnabled())
+		{
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
 		}
+#endif
+	}
 };
 
 //
@@ -3595,7 +3607,7 @@ void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 			UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
 
 			// TODO: This is only works for direct Coordinate Texture Sample cases
-			if (TextureSample && TextureSample->Coordinates.IsConnected())
+			if (TextureSample && TextureSample->Texture && TextureSample->Coordinates.IsConnected())
 			{
 				if (UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(TextureSample->Coordinates.Expression))
 				{
@@ -3725,7 +3737,12 @@ public:
 				// For now only compile FLandscapeFixedGridVertexFactory for grass and runtime virtual texture page rendering (can change if we need for other cases)
 				// Todo: only compile LandscapeXYOffsetVertexFactory if we are using it
 				bool bIsGrassShaderType = Algo::Find(GetGrassShaderTypes(), ShaderType->GetFName()) != nullptr;
+				bool bIsGPULightmassShaderType = Algo::Find(GetGPULightmassShaderTypes(), ShaderType->GetFName()) != nullptr;
 				bool bIsRuntimeVirtualTextureShaderType = Algo::Find(GetRuntimeVirtualTextureShaderTypes(), ShaderType->GetFName()) != nullptr;
+
+				bool bIsShaderTypeUsingFixedGrid = bIsGrassShaderType || bIsRuntimeVirtualTextureShaderType || bIsGPULightmassShaderType;
+
+				bool bIsRayTracingShaderType = FName(TEXT("FRayTracingDynamicGeometryConverterCS")) == ShaderType->GetFName();
 
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
@@ -3734,7 +3751,7 @@ public:
 					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeVertexFactoryMobile)
 				{
-					return !bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
+					return (bIsRayTracingShaderType || !bIsShaderTypeUsingFixedGrid) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
 
 				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
@@ -3742,7 +3759,7 @@ public:
 				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactoryMobile)
 				{
-					return (bIsGrassShaderType || bIsRuntimeVirtualTextureShaderType) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
+					return (bIsRayTracingShaderType || bIsShaderTypeUsingFixedGrid) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
 			}
 		}
@@ -4013,6 +4030,21 @@ public:
 #endif // RHI_RAYTRACING
 		};
 		return ExcludedShaderTypes;
+	}
+
+	static const TArray<FName>& GetGPULightmassShaderTypes()
+	{
+		static const TArray<FName> ShaderTypes =
+		{
+			FName(TEXT("TLightmapMaterialCHS<true>")),
+			FName(TEXT("TLightmapMaterialCHS<false>")),
+			FName(TEXT("FVLMVoxelizationVS")),
+			FName(TEXT("FVLMVoxelizationGS")),
+			FName(TEXT("FVLMVoxelizationPS")),
+			FName(TEXT("FLightmapGBufferVS")),
+			FName(TEXT("FLightmapGBufferPS")),
+		};
+		return ShaderTypes;		
 	}
 
 	static const TArray<FName>& GetGrassShaderTypes()
@@ -4480,16 +4512,19 @@ void FLandscapeNeighborInfo::UnregisterNeighbors(FLandscapeComponentSceneProxy* 
 			{
 				FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
 				RenderSystem.UnregisterEntity(SceneProxy);
+
+				if (RenderSystem.NumRegisteredEntities == 0)
+				{
+					FLandscapeRenderSystem* RenderSystemPtr = LandscapeRenderSystems.FindChecked(LandscapeKey);
+					delete RenderSystemPtr;
+					LandscapeRenderSystems.Remove(LandscapeKey);
+				}
 			}
 
 			if (SceneProxyMap->Num() == 0)
 			{
 				// remove the entire LandscapeKey entry as this is the last scene proxy
 				SharedSceneProxyMap.Remove(LandscapeKey);
-
-				FLandscapeRenderSystem* RenderSystem = LandscapeRenderSystems.FindChecked(LandscapeKey);
-				delete RenderSystem;
-				LandscapeRenderSystems.Remove(LandscapeKey);
 			}
 			else
 			{

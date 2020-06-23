@@ -142,7 +142,7 @@ public abstract class BaseWinPlatform : Platform
 					if(GroupIcon != null) Update.SetIcons(IconResourceId, GroupIcon);
 
 					const int ExecFileResourceId = 201;
-					Update.SetData(ExecFileResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedRelativeTargetPath + "\0"));
+					Update.SetData(ExecFileResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedRelativeTargetPath.ToString().Replace('/', '\\') + "\0"));
 
 					const int ExecArgsResourceId = 202;
 					Update.SetData(ExecArgsResourceId, ResourceType.RawData, Encoding.Unicode.GetBytes(StagedArguments + "\0"));
@@ -408,7 +408,7 @@ public abstract class BaseWinPlatform : Platform
 				// Copy everything to the temp symstore
 				ProcessStartInfo StartInfo = new ProcessStartInfo();
 				StartInfo.FileName = SymStoreExe.FullName;
-				StartInfo.Arguments = string.Format("add /f \"@{0}\" /s \"{1}\" /t \"{2}\" /compress", TempFileName, TempSymStoreDir, Product);
+				StartInfo.Arguments = string.Format("add /f \"@{0}\" /s \"{1}\" /t \"{2}\"", TempFileName, TempSymStoreDir, Product);
 				StartInfo.UseShellExecute = false;
 				StartInfo.CreateNoWindow = true;
 				if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)

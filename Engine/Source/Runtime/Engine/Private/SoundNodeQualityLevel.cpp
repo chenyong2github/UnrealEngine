@@ -16,7 +16,7 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
 
-static int32 CullSoundWaveHardReferencesCvar = 1;
+static int32 CullSoundWaveHardReferencesCvar = 0;
 FAutoConsoleVariableRef CVarCullSoundWaveHardReferences(
 	TEXT("au.CullSoundWaveHardReferences"),
 	CullSoundWaveHardReferencesCvar,
@@ -24,15 +24,21 @@ FAutoConsoleVariableRef CVarCullSoundWaveHardReferences(
 	TEXT("0: Cull soundwaves, 1: do not cull sound waves."),
 	ECVF_Default);
 
-#if WITH_EDITOR
+
 void USoundNodeQualityLevel::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
 	ReconcileNode(false);
+#endif
 
+	USoundCue::CacheQualityLevel();
 	uint32 CachedQualityLevel = USoundCue::GetCachedQualityLevel();
-	if (CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
+	
+	ensure(CachedQualityLevel != INDEX_NONE);
+
+	if (!GIsEditor && CullSoundWaveHardReferencesCvar && ChildNodes.IsValidIndex(CachedQualityLevel))
 	{
 		// go through any waveplayers on an unselcted quality level and null out their soundwave references.
 		for (int32 Index = 0; Index < ChildNodes.Num(); Index++)
@@ -49,6 +55,7 @@ void USoundNodeQualityLevel::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
 void USoundNodeQualityLevel::ReconcileNode(bool bReconstructNode)
 {
 	while (ChildNodes.Num() > GetMinChildNodes())
@@ -78,7 +85,10 @@ void USoundNodeQualityLevel::PrimeChildWavePlayers(bool bRecurse)
 {
 	// If we're able to retrieve a valid cached quality level for this sound cue,
 	// only prime that quality level.
-	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+	USoundCue::CacheQualityLevel();
+	uint32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+	ensure(QualityLevel != INDEX_NONE);
 
 #if WITH_EDITOR
 	if (GIsEditor && QualityLevel < 0)
@@ -97,7 +107,10 @@ void USoundNodeQualityLevel::RetainChildWavePlayers(bool bRecurse)
 {
 	// If we're able to retrieve a valid cached quality level for this sound cue,
 	// only retain that quality level.
-	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+	USoundCue::CacheQualityLevel();
+	uint32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+	ensure(QualityLevel != INDEX_NONE);
 
 #if WITH_EDITOR
 	if (GIsEditor && QualityLevel < 0)

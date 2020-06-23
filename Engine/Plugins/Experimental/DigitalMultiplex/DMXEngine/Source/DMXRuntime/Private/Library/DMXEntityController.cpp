@@ -8,16 +8,33 @@
 void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName&& PropertyName = PropertyChangedEvent.GetPropertyName();
+
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalStart)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalNum)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseRemoteStart)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol))
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UnicastIP)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode))
 	{
 		ValidateRangeValues();
 		UpdateUniversesFromRange();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+bool UDMXEntityController::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty != nullptr)
+	{
+		FString PropertyName = InProperty->GetName();
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityController, UnicastIP))
+		{
+			return CommunicationMode == EDMXCommunicationTypes::Unicast;
+		}
+	}
+
+	return Super::CanEditChange(InProperty);
 }
 
 void UDMXEntityController::PostLoad()
@@ -27,14 +44,14 @@ void UDMXEntityController::PostLoad()
 	UpdateUniversesFromRange();
 }
 
+#endif // WITH_EDITOR
+
 void UDMXEntityController::PostInitProperties()
 {
 	Super::PostInitProperties();
 	ValidateRangeValues();
 	UpdateUniversesFromRange();
 }
-
-#endif // WITH_EDITOR
 
 void UDMXEntityController::ValidateRangeValues()
 {
@@ -72,6 +89,7 @@ void UDMXEntityController::ValidateRangeValues()
 
 	UniverseRemoteEnd = UniverseRemoteStart + UniverseLocalNum - 1;
 	RemoteOffset = UniverseRemoteStart - UniverseLocalStart;
+
 }
 
 void UDMXEntityController::UpdateUniversesFromRange()
@@ -91,5 +109,6 @@ void UDMXEntityController::UpdateUniversesFromRange()
 	for (uint16 UniverseIndex = 0, UniverseID = UniverseRemoteStart; UniverseID <= UniverseRemoteEnd; ++UniverseIndex, ++UniverseID)
 	{
 		Universes[UniverseIndex].UniverseNumber = UniverseID;
+		Universes[UniverseIndex].UnicastIpAddress = (CommunicationMode == EDMXCommunicationTypes::Unicast) ? UnicastIP : FString();
 	}
 }

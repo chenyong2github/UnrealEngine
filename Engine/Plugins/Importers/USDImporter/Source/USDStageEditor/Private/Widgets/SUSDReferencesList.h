@@ -6,19 +6,12 @@
 
 #if USE_USD_SDK
 
-#include "USDMemory.h"
+#include "USDReferencesViewModel.h"
 
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/usd/prim.h"
-
-#include "USDIncludesEnd.h"
-
-struct FUsdReference : public TSharedFromThis< FUsdReference >
+namespace UE
 {
-	FString AssetPath;
-};
+	class FUsdStage;
+}
 
 class SUsdReferenceRow : public SMultiColumnTableRow< TSharedPtr< FUsdReference > >
 {
@@ -42,15 +35,14 @@ class SUsdReferencesList : public SListView< TSharedPtr< FUsdReference > >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath );
-	void SetPrimPath( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath );
+	void Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	void SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
 
 protected:
-	void UpdateReferences( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath );
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdReference > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
 
 private:
-	TArray< TSharedPtr< FUsdReference > > References;
+	FUsdReferencesViewModel ViewModel;
 	TSharedPtr< SHeaderRow > HeaderRowWidget;
 };
 

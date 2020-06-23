@@ -88,9 +88,8 @@ public:
 	void ResetStats();
 	void UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InStatsPacketStartIndex, uint32 InStatsPacketEndIndex, uint32 InStatsStartPosition, uint32 InStatsEndPosition);
 
-	void SelectNetEventNode(uint64 Id);
-
-	const FNetEventNodePtr* GetNetEventNode(uint64 Id) const { return NetEventNodesIdMap.Find(Id); }
+	FNetEventNodePtr GetNetEventNode(uint32 EventTypeIndex) const;
+	void SelectNetEventNode(uint32 EventTypeIndex);
 
 protected:
 	void UpdateTree();
@@ -149,13 +148,13 @@ protected:
 	/** Called by STreeView to generate a table row for the specified item. */
 	TSharedRef<ITableRow> TreeView_OnGenerateRow(FNetEventNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, const FNetEventNodePtr NodePtr);
+	bool TableRow_ShouldBeEnabled(FNetEventNodePtr NodePtr) const;
+
+	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, FNetEventNodePtr NodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
 	FName TableRow_GetHighlightedNodeName() const;
-
-	bool TableRow_ShouldBeEnabled(const uint32 NodeId) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Filtering
@@ -293,11 +292,8 @@ protected:
 	/** A filtered array of group nodes to be displayed in the tree widget. */
 	TArray<FNetEventNodePtr> FilteredGroupNodes;
 
-	/** All net event nodes. */
-	TSet<FNetEventNodePtr> NetEventNodes;
-
-	/** All net event nodes, stored as NodeId -> FNetEventNodePtr. */
-	TMap<uint64, FNetEventNodePtr> NetEventNodesIdMap;
+	/** All net event nodes. Index in this array is EventTypeIndex. */
+	TArray<FNetEventNodePtr> NetEventNodes;
 
 	/** Currently expanded group nodes. */
 	TSet<FNetEventNodePtr> ExpandedNodes;

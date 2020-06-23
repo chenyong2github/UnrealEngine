@@ -227,9 +227,6 @@ struct FMeshBatch
 
 	/** Whether the mesh batch can be selected through editor selection, aka hit proxies. */
 	uint32 bSelectable : 1;
-
-	/** Whether the mesh batch needs VertexFactory->GetStaticBatchElementVisibility to be called each frame to determine which elements of the batch are visible. */
-	uint32 bRequiresPerElementVisibility : 1;
 	
 	/** Whether the mesh batch should apply dithered LOD. */
 	uint32 bDitheredLODTransition : 1;
@@ -349,7 +346,6 @@ struct FMeshBatch
 	,	bUseWireframeSelectionColoring(false)
 	,	bUseSelectionOutline(true)
 	,	bSelectable(true)
-	,	bRequiresPerElementVisibility(false)
 	,	bDitheredLODTransition(false)
 	,	bRenderToVirtualTexture(false)
 	,	RuntimeVirtualTextureMaterialType(0)

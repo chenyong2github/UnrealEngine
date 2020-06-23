@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterCommonHelpers.h"
 
 
 namespace DisplayClusterHelpers

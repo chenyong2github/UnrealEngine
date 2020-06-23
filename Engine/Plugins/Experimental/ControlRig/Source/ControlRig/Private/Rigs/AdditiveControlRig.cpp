@@ -53,6 +53,11 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 {
 	Super::Initialize(bInitRigUnits);
 
+	if (GetObjectBinding() == nullptr)
+	{
+		return;
+	}
+
 	// we do this after Initialize because Initialize will copy from CDO. 
 	// create hierarchy from the incoming skeleton
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))

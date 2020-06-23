@@ -28,7 +28,14 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
 		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
-		const FNDIHairStrandsData* NDIStrandsDatas);
+		const TStaticArray<float, 32 * NumScales>& InParamsScale);  
+
+	/** Set the asset that will be used to affect the buffer */
+	void Update(const FHairStrandsDatas* HairStrandsDatas,
+		const FHairStrandsRestResource* HairStrandsRestResource,
+		const FHairStrandsDeformedResource* HairStrandsDeformedResource,
+		const FHairStrandsRestRootResource* HairStrandsRestRootResource,
+		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -45,11 +52,8 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Deformed position buffer in case no ressource are there */
 	FRWBuffer DeformedPositionBuffer;
 
-	/** Bounding Box Buffer A*/
-	FRWBuffer BoundingBoxBufferA;
-
-	/** Bounding Box Buffer B*/
-	FRWBuffer BoundingBoxBufferB;
+	/** Bounding Box Buffer*/
+	FRWBuffer BoundingBoxBuffer;
 
 	/** Params scale buffer */
 	FRWBuffer ParamsScaleBuffer;
@@ -69,8 +73,11 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** The strand root resource to write into */
 	const FHairStrandsDeformedRootResource* SourceDeformedRootResources;
 
-	/** Niagara datas interface datas */
-	const FNDIHairStrandsData* NDIDatas;
+	/** Scales along the strand */
+	TStaticArray<float, 32 * NumScales> ParamsScale;
+
+	/** Bounding box offsets */
+	FIntVector4 BoundingBoxOffsets;
 };
 
 /** Data stored per strand base instance*/
@@ -92,9 +99,6 @@ struct FNDIHairStrandsData
 	inline void ResetDatas()
 	{
 		WorldTransform.SetIdentity();
-		BoxCenter = FVector(0, 0, 0);
-		BoxExtent = FVector(0, 0, 0);
-
 		GlobalInterpolation = false;
 
 		TickCount = 0;
@@ -145,8 +149,6 @@ struct FNDIHairStrandsData
 			HairStrandsBuffer = OtherDatas->HairStrandsBuffer;
 
 			WorldTransform = OtherDatas->WorldTransform;
-			BoxCenter = OtherDatas->BoxCenter;
-			BoxExtent = OtherDatas->BoxExtent;
 
 			GlobalInterpolation = OtherDatas->GlobalInterpolation;
 
@@ -200,12 +202,6 @@ struct FNDIHairStrandsData
 
 	/** Strand size */
 	int32 StrandsSize;
-
-	/** Bounding box center */
-	FVector BoxCenter;
-
-	/** Bounding box extent */
-	FVector BoxExtent;
 
 	/** Tick Count*/
 	int32 TickCount;
@@ -464,10 +460,10 @@ public:
 	void UpdateAngularVelocity(FVectorVMContext& Context);
 
 	/** Get the bounding box center */
-	void GetBoxCenter(FVectorVMContext& Context);
+	void GetBoundingBox(FVectorVMContext& Context);
 
-	/** Get the bounding box extent */
-	void GetBoxExtent(FVectorVMContext& Context);
+	/** Reset the bounding box extent */
+	void ResetBoundingBox(FVectorVMContext& Context);
 
 	/** Build the groom bounding box */
 	void BuildBoundingBox(FVectorVMContext& Context);
@@ -553,8 +549,17 @@ public:
 	/** Eval the skinned position given a rest position*/
 	void EvalSkinnedPosition(FVectorVMContext& Context);
 
+	/** Init the samples along the strands that will be used to transfer informations to the grid */
+	void InitGridSamples(FVectorVMContext& Context);
+
+	/** Get the sample state given an index */
+	void GetSampleState(FVectorVMContext& Context);
+
 	/** Name of the world transform */
 	static const FString WorldTransformName;
+
+	/** Name of the bounding box offsets*/
+	static const FString BoundingBoxOffsetsName;
 
 	/** Name of the world transform */
 	static const FString WorldInverseName;
@@ -575,19 +580,10 @@ public:
 	static const FString CurvesOffsetsBufferName;
 
 	/** Name of bounding box buffer */
-	static const FString BoundingBoxBufferAName;
-
-	/** Name of node bound buffer */
-	static const FString BoundingBoxBufferBName;
+	static const FString BoundingBoxBufferName;
 
 	/** Name of the nodes positions buffer */
 	static const FString RestPositionBufferName;
-
-	/** Name of the box center  */
-	static const FString BoxCenterName;
-
-	/** Name of the box extent  */
-	static const FString BoxExtentName;
 
 	/** Param to check if the roots have been attached to the skin */
 	static const FString InterpolationModeName;

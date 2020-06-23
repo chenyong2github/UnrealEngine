@@ -80,6 +80,7 @@ public:
 
 	class FShaderLibraryInstance* LibraryInstance;
 	int32 ShaderMapIndex;
+	bool bShaderMapPreloaded;
 };
 
 static FString GetCodeArchiveFilename(const FString& BaseDir, const FString& LibraryName, FName Platform)
@@ -614,26 +615,13 @@ public:
 	void PreloadShader(int32 ShaderIndex, FArchive* Ar)
 	{
 		SCOPED_LOADTIMER(FShaderLibraryInstance_PreloadShader);
-		FGraphEventRef Event = Library->PreloadShader(ShaderIndex);
-		if (Ar && Event.IsValid())
+		FGraphEventArray PreloadCompletionEvents;
+		Library->PreloadShader(ShaderIndex, PreloadCompletionEvents);
+		if (Ar && PreloadCompletionEvents.Num() > 0)
 		{
-			FExternalReadCallback ExternalReadCallback = [this, Event](double ReaminingTime)
+			FExternalReadCallback ExternalReadCallback = [this, PreloadCompletionEvents = MoveTemp(PreloadCompletionEvents)](double ReaminingTime)
 			{
-				return this->OnExternalReadCallback(Event, ReaminingTime);
-			};
-			Ar->AttachExternalReadDependency(ExternalReadCallback);
-		}
-	}
-
-	void PreloadShaderMap(int32 ShaderMapIndex, FArchive* Ar)
-	{
-		SCOPED_LOADTIMER(FShaderLibraryInstance_PreloadShaderMap);
-		FGraphEventRef Event = Library->PreloadShaderMap(ShaderMapIndex);
-		if (Ar && Event.IsValid())
-		{
-			FExternalReadCallback ExternalReadCallback = [this, Event](double ReaminingTime)
-			{
-				return this->OnExternalReadCallback(Event, ReaminingTime);
+				return this->OnExternalReadCallback(PreloadCompletionEvents, ReaminingTime);
 			};
 			Ar->AttachExternalReadDependency(ExternalReadCallback);
 		}
@@ -645,21 +633,40 @@ public:
 		return Resources[ShaderMapIndex];
 	}
 
-	TRefCountPtr<FShaderMapResource_SharedCode> AddOrDeleteResource(FShaderMapResource_SharedCode* Resource)
+	TRefCountPtr<FShaderMapResource_SharedCode> AddOrDeleteResource(FShaderMapResource_SharedCode* Resource, FArchive* Ar)
 	{
 		const int32 ShaderMapIndex = Resource->ShaderMapIndex;
 		TRefCountPtr<FShaderMapResource_SharedCode> OutResource(Resource);
+		bool bPreload = false;
+		{
+			FRWScopeLock Locker(ResourceLock, SLT_Write);
+			FShaderMapResource_SharedCode* PrevResource = Resources[ShaderMapIndex];
+			if (!PrevResource)
+			{
+				Resources[ShaderMapIndex] = Resource;
+				bPreload = !GRHILazyShaderCodeLoading;
+			}
+			else
+			{
+				OutResource = PrevResource;
+			}
+		}
 
-		FRWScopeLock Locker(ResourceLock, SLT_Write);
-		FShaderMapResource_SharedCode* PrevResource = Resources[ShaderMapIndex];
-		if (!PrevResource)
+		if (bPreload)
 		{
-			Resources[ShaderMapIndex] = Resource;
+			SCOPED_LOADTIMER(FShaderLibraryInstance_PreloadShaderMap);
+			FGraphEventArray PreloadCompletionEvents;
+			Resource->bShaderMapPreloaded = Library->PreloadShaderMap(ShaderMapIndex, PreloadCompletionEvents);
+			if (Ar && PreloadCompletionEvents.Num() > 0)
+			{
+				FExternalReadCallback ExternalReadCallback = [this, PreloadCompletionEvents = MoveTemp(PreloadCompletionEvents)](double ReaminingTime)
+				{
+					return this->OnExternalReadCallback(PreloadCompletionEvents, ReaminingTime);
+				};
+				Ar->AttachExternalReadDependency(ExternalReadCallback);
+			}
 		}
-		else
-		{
-			OutResource = PrevResource;
-		}
+
 		return OutResource;
 	}
 
@@ -723,15 +730,19 @@ private:
 
 	FShaderLibraryInstance() {}
 
-	bool OnExternalReadCallback(const FGraphEventRef& Event, double RemainingTime)
+	bool OnExternalReadCallback(const FGraphEventArray& Events, double RemainingTime)
 	{
-		if (Event)
+		if (Events.Num())
 		{
 			if (RemainingTime < 0.0)
 			{
-				return Event->IsComplete();
+				for (const FGraphEventRef& Event : Events)
+				{
+					if (!Event->IsComplete()) return false;
+				}
+				return true;
 			}
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(Events);
 		}
 		return true;
 	}
@@ -746,6 +757,7 @@ FShaderMapResource_SharedCode::FShaderMapResource_SharedCode(FShaderLibraryInsta
 	: FShaderMapResource(InLibraryInstance->GetPlatform(), InLibraryInstance->GetNumShadersForShaderMap(InShaderMapIndex))
 	, LibraryInstance(InLibraryInstance)
 	, ShaderMapIndex(InShaderMapIndex)
+	, bShaderMapPreloaded(false)
 {
 }
 
@@ -759,7 +771,13 @@ TRefCountPtr<FRHIShader> FShaderMapResource_SharedCode::CreateRHIShader(int32 Sh
 	SCOPED_LOADTIMER(FShaderMapResource_SharedCode_InitRHI);
 
 	const int32 LibraryShaderIndex = LibraryInstance->Library->GetShaderIndex(ShaderMapIndex, ShaderIndex);
-	return LibraryInstance->GetOrCreateShader(LibraryShaderIndex);
+	TRefCountPtr<FRHIShader> ShaderRHI = LibraryInstance->GetOrCreateShader(LibraryShaderIndex);
+	if (bShaderMapPreloaded && ShaderRHI)
+	{
+		// Release our preload, once we've created the shader
+		LibraryInstance->Library->ReleasePreloadedShader(LibraryShaderIndex);
+	}
+	return ShaderRHI;
 }
 
 void FShaderMapResource_SharedCode::ReleaseRHI()
@@ -767,17 +785,19 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 	const int32 NumShaders = GetNumShaders();
 	for (int32 i = 0; i < NumShaders; ++i)
 	{
+		const int32 LibraryShaderIndex = LibraryInstance->Library->GetShaderIndex(ShaderMapIndex, i);
 		if (HasShader(i))
 		{
-			const int32 ShaderIndex = LibraryInstance->Library->GetShaderIndex(ShaderMapIndex, i);
-			LibraryInstance->ReleaseShader(ShaderIndex);
+			LibraryInstance->ReleaseShader(LibraryShaderIndex);
+		}
+		else if (bShaderMapPreloaded)
+		{
+			// Release the preloaded memory if it was preloaded, but not created yet
+			LibraryInstance->Library->ReleasePreloadedShader(LibraryShaderIndex);
 		}
 	}
 
-	if(LibraryInstance->Library.IsValid())
-	{
-		LibraryInstance->Library->ReleasePreloadedShaderMap(ShaderMapIndex);
-	}
+	bShaderMapPreloaded = false;
 
 	FShaderMapResource::ReleaseRHI();
 }
@@ -1626,12 +1646,7 @@ public:
 			if (!Resource)
 			{
 				SCOPED_LOADTIMER(LoadShaderResource_AddOrDeleteResource);
-				Resource = LibraryInstance->AddOrDeleteResource(new FShaderMapResource_SharedCode(LibraryInstance, ShaderMapIndex));
-			}
-
-			if (!GRHILazyShaderCodeLoading)
-			{
-				LibraryInstance->PreloadShaderMap(ShaderMapIndex, Ar);
+				Resource = LibraryInstance->AddOrDeleteResource(new FShaderMapResource_SharedCode(LibraryInstance, ShaderMapIndex), Ar);
 			}
 
 			return Resource;
@@ -2126,6 +2141,16 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	if (FShaderCodeLibraryImpl::Impl)
 	{
 		return FComputeShaderRHIRef(FShaderCodeLibraryImpl::Impl->CreateShader(SF_Compute, Hash));
+	}
+	return nullptr;
+}
+
+FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, const FSHAHash& Hash, EShaderFrequency Frequency)
+{
+	if (FShaderCodeLibraryImpl::Impl)
+	{
+		check(Frequency >= SF_RayGen && Frequency <= SF_RayCallable);
+		return FRayTracingShaderRHIRef(FShaderCodeLibraryImpl::Impl->CreateShader(Frequency, Hash));
 	}
 	return nullptr;
 }

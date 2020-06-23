@@ -13,22 +13,19 @@
 #include "USDConversionUtils.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdAttribute.h"
+
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/usd/usd/attribute.h"
-
-#include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
-typedef TFunction<void(void*, const pxr::UsdAttribute&, FProperty*, int32)> FStructSetterFunction;
+typedef TFunction<void(void*, const UE::FUsdAttribute&, FProperty*, int32)> FStructSetterFunction;
 
 FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	: ImportContext(InImportContext)
 {
 	RegisterStructSetter(NAME_LinearColor,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FLinearColor& Color = *(FLinearColor*)Value;
 			FUsdVector4Data Data;
@@ -40,7 +37,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Color,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FColor& Color = *(FColor*)Value;
 			FUsdVector4Data Data;
@@ -53,7 +50,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector2D,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector2D& Vec = *(FVector2D*)Value;
 			FUsdVector2Data Data;
@@ -65,7 +62,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector& Vec = *(FVector*)Value;
 			FUsdVectorData Data;
@@ -77,7 +74,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Vector4,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FVector4& Vec = *(FVector4*)Value;
 			FUsdVector4Data Data;
@@ -89,7 +86,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 
 	RegisterStructSetter(NAME_Rotator,
-		[this](void* Value, const pxr::UsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
+		[this](void* Value, const UE::FUsdAttribute& Attribute, FProperty* Property, int32 ArrayIndex)
 		{
 			FRotator& Rot = *(FRotator*)Value;
 			FUsdVectorData Data;
@@ -101,7 +98,7 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 	);
 }
 
-void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const pxr::UsdPrim& Prim, const FString& StartingPropertyPath)
+void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const UE::FUsdPrim& Prim, const FString& StartingPropertyPath)
 {
 	if ( !SpawnedActor )
 	{
@@ -111,7 +108,7 @@ void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const pxr:
 	ApplyPropertiesFromUsdAttributes(Prim, SpawnedActor, StartingPropertyPath);
 
 	// find prims that represent complicated properties 
-	for (const pxr::UsdPrim Child : Prim.GetChildren())
+	for (const UE::FUsdPrim& Child : Prim.GetChildren())
 	{
 		// Children with transforms are other actors so their entire hierarchy is skipped
 		if (!IUsdPrim::HasTransform( Child ) || IUsdPrim::IsUnrealProperty( Child ))
@@ -147,16 +144,16 @@ void FUSDPropertySetter::RegisterStructSetter(FName StructName, FStructSetterFun
 	StructToSetterMap.Add(StructName, Function);
 }
 
-void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Prim, AActor* SpawnedActor, const FString& StartingPropertyPath)
+void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const UE::FUsdPrim& Prim, AActor* SpawnedActor, const FString& StartingPropertyPath)
 {
-	const TUsdStore< std::vector<pxr::UsdAttribute> > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
+	const TArray<UE::FUsdAttribute > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
 
 	// For map properties.  Ignore prims set by maps
-	std::set< std::string > AttribsToIgnore;
+	TSet< FString > AttribsToIgnore;
 
-	for (const pxr::UsdAttribute& Attribute : Attributes.Get())
+	for (const UE::FUsdAttribute& Attribute : Attributes)
 	{
-		if ( AttribsToIgnore.find( Attribute.GetName().GetString() ) != AttribsToIgnore.end() )
+		if ( !AttribsToIgnore.Contains( Attribute.GetName().ToString() ) )
 		{
 			const FString PropertyPath = CombinePropertyPaths(StartingPropertyPath, UsdToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( Attribute ).c_str() ));
 
@@ -171,15 +168,15 @@ void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Pr
 				{
 					// Special case for maps.  SetFromUSDValue can set props we're iterating on.  Ignore these 
 					// to avoid duplicate setting
-					pxr::UsdAttribute Key;
-					TArray<pxr::UsdAttribute> Values;
+					UE::FUsdAttribute Key;
+					TArray<UE::FUsdAttribute> Values;
 					if (FindMapKeyAndValues(Prim, Key, Values))
 					{
-						AttribsToIgnore.insert( Key.GetName().GetString() );
+						AttribsToIgnore.Add( Key.GetName().ToString() );
 
-						for ( const pxr::UsdAttribute& Value : Values )
+						for ( const UE::FUsdAttribute& Value : Values )
 						{
-							AttribsToIgnore.insert( Value.GetName().GetString() );
+							AttribsToIgnore.Add( Value.GetName().ToString() );
 						}
 					}
 				}
@@ -189,7 +186,7 @@ void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Pr
 				ImportContext.AddErrorMessage(
 					EMessageSeverity::Error, FText::Format(LOCTEXT("CouldNotFindProperty", "Could not find property '{0}' for prim '{1}'"),
 						FText::FromString(PropertyPath),
-						FText::FromString(UsdToUnreal::ConvertString(Prim.GetName().GetString())))
+						FText::FromName(Prim.GetName()))
 				);
 			}
 		}
@@ -197,7 +194,7 @@ void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Pr
 }
 
 
-void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& PropertyAddress, const pxr::UsdPrim& Prim, const pxr::UsdAttribute& Attribute, int32 ArrayIndex)
+void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& PropertyAddress, const UE::FUsdPrim& Prim, const UE::FUsdAttribute& Attribute, int32 ArrayIndex)
 {
 	FProperty* Property = PropertyAddress.Property;
 	void* PropertyValue = Property->ContainerPtrToValuePtr<void>(PropertyAddress.Address);
@@ -209,7 +206,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			ImportContext.AddErrorMessage(
 				EMessageSeverity::Error, FText::Format(LOCTEXT("IncompatibleArrayTypes", "Tried to set ArrayProperty '{0}' from non-array USD attribute '{1}'"),
 					FText::FromName(Property->GetFName()),
-					FText::FromString(UsdToUnreal::ConvertString(Attribute.GetBaseName().GetString())))
+					FText::FromName(Attribute.GetBaseName()))
 			);
 		}
 		else
@@ -236,8 +233,8 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 	{
 		// Find Key Attribute and Value attributes.  Note, we dont use the attribute passed in
-		pxr::UsdAttribute Key;
-		TArray<pxr::UsdAttribute> Values;
+		UE::FUsdAttribute Key;
+		TArray<UE::FUsdAttribute> Values;
 
 		bool bResult = FindMapKeyAndValues(Prim, Key, Values);
 
@@ -261,7 +258,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			{
 				uint8* StructAddress = Helper.GetValuePtr(NewIndex);
 
-				for (const pxr::UsdAttribute& ValueRef : Values)
+				for (const UE::FUsdAttribute& ValueRef : Values)
 				{
 					FString PropertyPath = UsdToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( ValueRef ) );
 					TArray<FProperty*> ValuePropertyChain;
@@ -276,7 +273,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 						ImportContext.AddErrorMessage(
 							EMessageSeverity::Error, FText::Format(LOCTEXT("CouldNotFindProperty", "Could not find property '{0}' for prim '{1}'"),
 								FText::FromString(PropertyPath),
-								FText::FromString(UsdToUnreal::ConvertString(Prim.GetName().GetString())))
+								FText::FromName(Prim.GetName()))
 						);
 					}
 				}
@@ -340,7 +337,7 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 				EMessageSeverity::Error, FText::Format(LOCTEXT("InvalidPropertyNoConversion", "Property '{0}' could not be set.  No conversion exists between Unreal Type '{1}' and USD type '{2}'"),
 					FText::FromName(StructProperty->GetFName()),
 					FText::FromString(StructProperty->GetCPPType(nullptr, 0)),
-					FText::FromString(UsdToUnreal::ConvertString(Attribute.GetTypeName().GetAsToken().GetString())))
+					FText::FromName(Attribute.GetTypeName()))
 			);
 		}
 	}
@@ -457,17 +454,17 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 			EMessageSeverity::Error, FText::Format(LOCTEXT("InvalidPropertyNoConversion", "Property '{0}' could not be set.  No conversion exists between Unreal Type '{1}' and USD type '{2}'"),
 				FText::FromName(Property->GetFName()),
 				FText::FromString(Property->GetCPPType()),
-				FText::FromString(UsdToUnreal::ConvertString(Attribute.GetTypeName().GetAsToken().GetString())))
+				FText::FromName(Attribute.GetTypeName()))
 		);
 	}
 }
 
-bool FUSDPropertySetter::FindMapKeyAndValues(const pxr::UsdPrim& Prim, pxr::UsdAttribute& OutKey, TArray<pxr::UsdAttribute>& OutValues)
+bool FUSDPropertySetter::FindMapKeyAndValues(const UE::FUsdPrim& Prim, UE::FUsdAttribute& OutKey, TArray<UE::FUsdAttribute>& OutValues)
 {
-	const TUsdStore< std::vector<pxr::UsdAttribute> > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
+	const TArray< UE::FUsdAttribute > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
 
 	bool bFoundKey = false;
-	for (const pxr::UsdAttribute& Attrib : Attributes.Get())
+	for (const UE::FUsdAttribute& Attrib : Attributes)
 	{
 		if (UsdToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( Attrib ).c_str() ) == TEXT("_KEY"))
 		{
@@ -484,7 +481,7 @@ bool FUSDPropertySetter::FindMapKeyAndValues(const pxr::UsdPrim& Prim, pxr::UsdA
 	return bFoundKey && OutValues.Num() > 0;
 }
 
-bool FUSDPropertySetter::VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, FProperty* Property)
+bool FUSDPropertySetter::VerifyResult(bool bResult, const UE::FUsdAttribute& Attribute, FProperty* Property)
 {
 	if (!bResult)
 	{
@@ -492,7 +489,7 @@ bool FUSDPropertySetter::VerifyResult(bool bResult, const pxr::UsdAttribute& Att
 			EMessageSeverity::Error, FText::Format(LOCTEXT("IncompatibleType", "Could not set property '{0}'.  Unreal type '{1}' is incompatible with USD type '{2}'"),
 				FText::FromName(Property->GetFName()),
 				FText::FromString(Property->GetCPPType()),
-				FText::FromString(UsdToUnreal::ConvertString(Attribute.GetTypeName().GetAsToken().GetString())))
+				FText::FromName(Attribute.GetTypeName()))
 		);
 	}
 

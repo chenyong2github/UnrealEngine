@@ -45,14 +45,7 @@ void FTexture2DMipDataProvider_IO::Init(const FTextureUpdateContext& Context, co
 		}
 
 		FString IOFilename;
-#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 		IOFilename = OwnerMip.BulkData.GetFilename();
-#else
-		if (!Texture2D->GetMipDataFilename(MipIndex, IOFilename))
-		{
-			continue;
-		}
-#endif
 		if (FileInfos.IsValidIndex(CurrentFileIndex))
 		{
 			FFileInfo& FileInfo = FileInfos[CurrentFileIndex];

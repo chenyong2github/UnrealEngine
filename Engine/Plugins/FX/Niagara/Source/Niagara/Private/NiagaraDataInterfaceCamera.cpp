@@ -13,6 +13,8 @@
 #include "LevelEditorViewport.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCamera"
+
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CameraQuery);
 
@@ -372,10 +374,74 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 	}
 }
 
-ETickingGroup UNiagaraDataInterfaceCamera::CalculateTickGroup(void * PerInstanceData) const
+ETickingGroup UNiagaraDataInterfaceCamera::CalculateTickGroup(const void* PerInstanceData) const
 {
 	return ETickingGroup::TG_PostUpdateWork;
 }
+
+#if WITH_EDITOR	
+void UNiagaraDataInterfaceCamera::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component,
+	TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings,
+	TArray<FNiagaraDataInterfaceFeedback>& Info)
+{
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
+	// we need to check if the DI is used to access camera properties in a cpu context to warn the user that
+	// the Niagara viewport does not support cpu cameras and it only works correctly in the level viewport and PIE
+
+	TArray<UNiagaraScript*> Scripts;
+	Scripts.Add(Asset->GetSystemSpawnScript());
+	Scripts.Add(Asset->GetSystemUpdateScript());
+	for (auto&& EmitterHandle : Asset->GetEmitterHandles())
+	{
+		if (EmitterHandle.GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			// Ignore gpu emitters
+			continue;
+		}
+		TArray<UNiagaraScript*> OutScripts;
+		EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
+		Scripts.Append(OutScripts);
+	}
+
+	// Check if any CPU script uses camera functions
+	//TODO: This is the same as in the skel mesh DI, it doesn't guarantee that the DI used by these functions are THIS DI.
+	// Has a possibility of false positives
+	bool bHasCameraAccessWarning = [this, &Scripts]()
+	{
+		for (const auto Script : Scripts)
+		{
+			for (const auto& Info : Script->GetVMExecutableData().DataInterfaceInfo)
+			{
+				if (Info.GetDefaultDataInterface()->GetClass() == GetClass())
+				{
+					for (const auto& Func : Info.RegisteredFunctions)
+					{
+						if (Func.Name == GetCameraPropertiesName || Func.Name == GetFieldOfViewName)
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}();
+
+	if (bHasCameraAccessWarning)
+	{
+		FNiagaraDataInterfaceFeedback CPUAccessNotAllowedWarning(
+         LOCTEXT("CPUCameraAccessWarning", "The cpu camera is bound to a player controller and will therefore not work correctly in the Niagara viewport.\nTo correctly preview the effect, use it in the level editor or switch to a GPU emitter."),
+         LOCTEXT("CPUCameraAccessWarningSummary", "Camera properties accessed on CPU emitter!"),
+         FNiagaraDataInterfaceFix());
+
+		Warnings.Add(CPUAccessNotAllowedWarning);
+	}
+}
+#endif
 
 // ------- Dummy implementations for CPU execution ------------
 
@@ -437,3 +503,5 @@ void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Co
 }
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCamera, FNiagaraDataInterfaceParametersCS_CameraQuery);
+
+#undef LOCTEXT_NAMESPACE

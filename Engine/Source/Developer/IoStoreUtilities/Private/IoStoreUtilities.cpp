@@ -52,12 +52,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 
 #define OUTPUT_CHUNKID_DIRECTORY 0
 #define OUTPUT_NAMEMAP_CSV 0
-#define OUTPUT_IMPORTMAP_CSV 0
 #define OUTPUT_DEBUG_PACKAGE_HASHES 0
 
 static const FName DefaultCompressionMethod = NAME_Zlib;
-static const int64 DefaultCompressionBlockSize = 64 << 10;
-const int64 DefaultMemoryMappingAlignment = 16 << 10;
+static const uint64 DefaultCompressionBlockSize = 64 << 10;
+static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
+static const uint64 DefaultMemoryMappingAlignment = 16 << 10;
 
 struct FNamedAESKey
 {
@@ -90,7 +90,13 @@ static void ApplyEncryptionKeys(const FKeyChain& KeyChain)
 	{
 		if (Key.Key.IsValid())
 		{
+			// Deprecated version
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// New version
+			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
 		}
 	}
 }
@@ -378,6 +384,14 @@ public:
 		NameMapType = InNameMapType;
 	}
 
+	void AddName(const FName& Name)
+	{
+		const FNameEntryId Id = Name.GetComparisonIndex();
+		NameMap.Add(Id);
+		int32 Index = NameMap.Num();
+		NameIndices.Add(Id, Index);
+	}
+
 	void MarkNamesAsReferenced(const TArray<FName>& Names, TArray<int32>& OutNameIndices)
 	{
 		for (const FName& Name : Names)
@@ -386,8 +400,8 @@ public:
 			int32& Index = NameIndices.FindOrAdd(Id);
 			if (Index == 0)
 			{
-				Index = NameIndices.Num();
 				NameMap.Add(Id);
+				Index = NameMap.Num();
 			}
 
 			OutNameIndices.Add(Index - 1);
@@ -400,8 +414,8 @@ public:
 		int32& Index = NameIndices.FindOrAdd(Id);
 		if (Index == 0)
 		{
-			Index = NameIndices.Num();
 			NameMap.Add(Id);
+			Index = NameMap.Num();
 		}
 #if OUTPUT_NAMEMAP_CSV
 		// debug counts
@@ -511,7 +525,7 @@ private:
 #if OUTPUT_NAMEMAP_CSV
 	TMap<FNameEntryId, TTuple<int32,int32,int32>> DebugNameCounts; // <Number0Count,OtherNumberCount,MaxNumber>
 #endif
-	FMappedName::EType NameMapType = FMappedName::EType::Global;
+	FMappedName::EType NameMapType = FMappedName::EType::Package;
 };
 
 class FNameReaderProxyArchive
@@ -560,8 +574,10 @@ struct FContainerSourceSpec
 	FName Name;
 	FString OutputPath;
 	TArray<FContainerSourceFile> SourceFiles;
+	FString PatchTargetFile;
 	TArray<FString> PatchSourceContainerFiles;
-	bool bGenerateDiffPatch;
+	FGuid EncryptionKeyOverrideGuid;
+	bool bGenerateDiffPatch = false;
 };
 
 struct FCookedFileStatData
@@ -579,13 +595,6 @@ using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
 struct FPackage;
 struct FContainerTargetSpec;
 
-struct FContainerTargetFilePartialMapping
-{
-	FIoChunkId PartialChunkId;
-	uint64 Offset;
-	uint64 Length;
-};
-
 struct FContainerTargetFile
 {
 	FContainerTargetSpec* ContainerTarget = nullptr;
@@ -595,17 +604,23 @@ struct FContainerTargetFile
 	uint64 SourceSize = 0;
 	uint64 TargetSize = 0;
 	uint64 Offset = 0;
-	uint64 Padding = 0;
-	uint64 Alignment = 0;
 	FIoChunkId ChunkId;
 	FIoChunkHash ChunkHash;
 	TArray<uint8> PackageHeaderData;
 	TArray<int32> NameIndices;
-	TArray<FContainerTargetFilePartialMapping> PartialMappings;
+	FNameMapBuilder* NameMapBuilder = nullptr;
 	bool bIsBulkData = false;
 	bool bIsOptionalBulkData = false;
 	bool bIsMemoryMappedBulkData = false;
 	bool bForceUncompressed = false;
+
+	int64 UGraphSize = 0;
+	int64 NameMapSize = 0;
+	int64 ImportMapSize = 0;
+	int64 ExportMapSize = 0;
+	int64 ExportBundlesHeaderSize = 0;
+
+	uint64 HeaderSerialSize = 0;
 };
 
 struct FIoStoreArguments
@@ -613,33 +628,24 @@ struct FIoStoreArguments
 	FString GlobalContainerPath;
 	FString CookedDir;
 	ITargetPlatform* TargetPlatform = nullptr;
-	FString OutputReleaseVersionDir;
-	FString BasedOnReleaseVersionDir;
+	FString MetaDir;
 	TArray<FContainerSourceSpec> Containers;
 	FCookedFileStatMap CookedFileStatMap;
 	TMap<FName, uint64> GameOrderMap;
 	TMap<FName, uint64> CookerOrderMap;
-	int64 MemoryMappingAlignment = 0;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
-};
+	FString DLCPluginPath;
+	bool bSign = false;
 
-struct FContainerMeta
-{
-	FString ContainerName;
-	FIoContainerId ContainerId;
-	FGuid EncryptionKeyGuid;
-	FNameMapBuilder NameMapBuilder;
-	bool bIsEncrypted;
-
-	friend FArchive& operator<<(FArchive& Ar, FContainerMeta& ContainerMeta)
+	bool ShouldCreateContainers() const
 	{
-		Ar << ContainerMeta.ContainerName;
-		Ar << ContainerMeta.ContainerId;
-		Ar << ContainerMeta.EncryptionKeyGuid;
-		Ar << ContainerMeta.NameMapBuilder;
-		Ar << ContainerMeta.bIsEncrypted;
-		return Ar;
+		return GlobalContainerPath.Len() > 0 || DLCPluginPath.Len() > 0;
+	}
+
+	bool IsDLC() const
+	{
+		return DLCPluginPath.Len() > 0;
 	}
 };
 
@@ -654,11 +660,11 @@ struct FContainerTargetSpec
 	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	FNameMapBuilder LocalNameMapBuilder;
-	FNameMapBuilder* NameMapBuilder = nullptr;
-	bool bIsCompressed = false;
+	FNameMapBuilder* NameMapBuilder = &LocalNameMapBuilder;
+	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
+	uint32 PackageCount = 0;
 	bool bUseLocalNameMap = false;
 	bool bGenerateDiffPatch = false;
-	bool bIsEncrypted = false;
 };
 
 struct FPackageAssetData
@@ -669,8 +675,8 @@ struct FPackageAssetData
 };
 
 struct FPackage;
-using FPackageMap = TMap<FName, FPackage*>;
-using FPackageGlobalIdMap = TMap<FName, FPackageId>;
+using FPackageNameMap = TMap<FName, FPackage*>;
+using FPackageIdMap = TMap<FPackageId, FPackage*>;
 using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*, FPackage*>;
 using FLocalizedToSourceImportIndexMap = TMap<FPackageObjectIndex, FPackageObjectIndex>;
 
@@ -747,27 +753,9 @@ FChunkIdCsv ChunkIdCsv;
 
 static FIoChunkId CreateChunkId(FPackageId GlobalPackageId, uint16 ChunkIndex, EIoChunkType ChunkType, const TCHAR* DebugString)
 {
-	FIoChunkId ChunkId = CreateIoChunkId(GlobalPackageId.ToIndex(), ChunkIndex, ChunkType);
+	FIoChunkId ChunkId = CreateIoChunkId(GlobalPackageId.Value(), ChunkIndex, ChunkType);
 #if OUTPUT_CHUNKID_DIRECTORY
 	ChunkIdCsv.AddChunk(GlobalPackageId, 0, ChunkIndex, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
-#endif
-	return ChunkId;
-}
-
-static FIoChunkId CreateChunkIdForBulkData(FPackageId GlobalPackageId,EIoChunkType ChunkType, const TCHAR* DebugString)
-{
-	FIoChunkId ChunkId = CreateIoChunkId(GlobalPackageId.ToIndex(), 0, ChunkType);
-#if OUTPUT_CHUNKID_DIRECTORY
-	ChunkIdCsv.AddChunk(GlobalPackageId, 0, 0, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
-#endif
-	return ChunkId;
-}
-
-static FIoChunkId CreateChunkIdForBulkData(FPackageId GlobalPackageId, int64 BulkdataOffset, EIoChunkType ChunkType, const TCHAR* DebugString)
-{
-	FIoChunkId ChunkId = CreateBulkdataChunkId(GlobalPackageId.ToIndex(), BulkdataOffset, ChunkType);
-#if OUTPUT_CHUNKID_DIRECTORY
-	ChunkIdCsv.AddChunk(GlobalPackageId, 0, 0, (uint8)ChunkType, GetTypeHash(ChunkId), DebugString);
 #endif
 	return ChunkId;
 }
@@ -845,6 +833,7 @@ struct FExportGraphNode
 	FPackage* Package;
 	FExportBundleEntry BundleEntry;
 	TSet<FExportGraphNode*> ExternalDependencies;
+	TSet<FPackageId> BaseGamePackageDependencies;
 	uint64 NodeIndex;
 };
 
@@ -917,7 +906,6 @@ struct FPackage
 	FPackageId GlobalPackageId;
 	FString Region; // for localized packages
 	FPackageId SourceGlobalPackageId; // for localized packages
-	int32 ImportedPackagesSerializeCount = 0; // < ImportedPackages.Num() for source packages that have localized packages
 	uint32 PackageFlags = 0;
 	uint32 CookedHeaderSize = 0;
 	int32 NameCount = 0;
@@ -930,27 +918,19 @@ struct FPackage
 	int64 UExpSize = 0;
 	int64 UAssetSize = 0;
 	int64 SummarySize = 0;
-	int64 UGraphSize = 0;
-	int64 NameMapSize = 0;
-	int64 ImportMapSize = 0;
-	int64 ExportMapSize = 0;
-	int64 ExportBundlesHeaderSize = 0;
-
+	uint64 ExportsSerialSize = 0;
 	bool bIsLocalizedAndConformed = false;
-	bool bHasCircularImportDependencies = false;
 
 	TArray<FPackage*> ImportedPackages;
-	TArray<FPackage*> ImportedByPackages;
+	TArray<FPackageId> ImportedPackageIds;
 	TSet<FPackage*> AllReachablePackages;
 
-	TArray<FName> Names;
-	TArray<FNameEntryId> NameMap;
-
+	TArray<FName> SummaryNames;
+	FNameMapBuilder LocalNameMapBuilder;
+	
 	TArray<FPackageObjectIndex> Imports;
-	TArray<FPackageObjectIndex> PublicExports;
 	TArray<int32> Exports;
-	TArray<FArc> InternalArcs;
-	TMap<FPackage*, TArray<FArc>> ExternalArcs;
+	TMap<FPackageId, TArray<FArc>> ExternalArcs;
 	
 	TArray<FExportBundle> ExportBundles;
 	TMap<FExportGraphNode*, uint32> ExportBundleMap;
@@ -960,9 +940,6 @@ struct FPackage
 
 	TArray<FExportGraphNode*> NodesWithNoIncomingEdges;
 	FPackageGraphNode* Node = nullptr;
-
-	uint64 HeaderSerialSize = 0;
-	uint64 ExportsSerialSize = 0;
 
 	uint64 DiskLayoutOrder = MAX_uint64;
 #if OUTPUT_DEBUG_PACKAGE_HASHES
@@ -1150,28 +1127,16 @@ static void AddExternalExportArc(FExportGraph& ExportGraph, FPackage& FromPackag
 	ExportGraph.AddExternalDependency(FromNode, ToNode);
 }
 
-static void AddPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
+static void AddBaseGamePackageArc(FExportGraph& ExportGraph, FPackageId FromPackageId, FPackage& ToPackage, uint32 ToExportIndex, EPreloadDependencyType ToPhase)
 {
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad });
+	FExportGraphNode* ToNode = ToPhase == PreloadDependencyType_Create ? ToPackage.CreateExportNodes[ToExportIndex] : ToPackage.SerializeExportNodes[ToExportIndex];
+	ToNode->BaseGamePackageDependencies.Add(FromPackageId);
 }
 
-static void AddExportsDoneArc(FPackage& FromPackage, FPackage& ToPackage)
+static void AddUniqueExternalBundleArc(FPackageId FromPackageId, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
 {
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad });
-}
-
-static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
-{
-	uint32 FromNodeIndex = EEventLoadNode2::Package_NumPhases + FromBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	uint32 ToNodeIndex = EEventLoadNode2::Package_NumPhases + ToBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
-	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	ExternalArcs.AddUnique({ FromNodeIndex, ToNodeIndex });
+	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackageId);
+	ExternalArcs.AddUnique({ FromBundleIndex, ToBundleIndex });
 }
 
 static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWithImports, TSet<FPackage*>& Visited, bool bFirst)
@@ -1204,128 +1169,6 @@ static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWi
 		}
 	}
 }
-
-static bool FindNewCircularImportChains(
-	FPackage& Package,
-	FPackage& ImportedPackage,
-	TSet<FPackage*>& Visited,
-	TSet<FCircularImportChain>& CircularChains,
-	FCircularImportChain& CurrentChain)
-{
-	if (&ImportedPackage == &Package)
-	{
-		Package.bHasCircularImportDependencies = true;
-		CurrentChain.SortAndGenerateHash();
-		bool bAlreadyFound = true;
-		CircularChains.AddByHash(CurrentChain.Hash, CurrentChain, &bAlreadyFound);
-
-		if (bAlreadyFound)
-		{
-			// UE_LOG(LogIoStore, Display, TEXT("OLD-IsCircular: %s with %s"), *Package.Name.ToString(), *CurrentChain.ToString());
-			return false;
-		}
-		else
-		{
-			// UE_LOG(LogIoStore, Display, TEXT("NEW-IsCircular: %s with %s"), *Package.Name.ToString(), *CurrentChain.ToString());
-			return true;
-		}
-	}
-
-	bool bIsVisited = false;
-	Visited.Add(&ImportedPackage, &bIsVisited);
-	if (bIsVisited)
-	{
-		return false;
-	}
-
-	bool bFoundNew = false;
-	for (FPackage* DependentPackage : ImportedPackage.ImportedPackages)
-	{
-		CurrentChain.Add(DependentPackage);
-		bFoundNew |= FindNewCircularImportChains(Package, *DependentPackage, Visited, CircularChains, CurrentChain);
-		CurrentChain.Pop();
-	}
-
-	return bFoundNew;
-}
-
-static void AddPackagePostLoadDependencies(
-	FPackage& Package,
-	TSet<FPackage*>& Visited,
-	TSet<FCircularImportChain>& CircularChains)
-{
-	TSet<FPackage*> DependentPackages;
-
-	for (FPackage* ImportedPackage : Package.ImportedPackages)
-	{
-		Visited.Reset();
-		FCircularImportChain CurrentChain;
-		CurrentChain.Add(ImportedPackage);
-		if (FindNewCircularImportChains(Package, *ImportedPackage, Visited, CircularChains, CurrentChain))
-		{
-			DependentPackages.Append(MoveTemp(Visited));
-		}
-	}
-
-	// if (Package.bHasCircularImportDependencies /* || Package.bHasExternalReadDependencies*/)
-	{
-		for (FPackage* ImportedPackage : Package.ImportedPackages)
-		{
-			if (!DependentPackages.Contains(ImportedPackage))
-			{
-				AddPostLoadArc(*ImportedPackage, Package);
-			}
-		}
-
-		DependentPackages.Remove(&Package);
-		for (FPackage* DependentPackage : DependentPackages)
-		{
-			AddExportsDoneArc(*DependentPackage, Package);
-		}
-	}
-
-	/*
-	if (Package.bHasCircularImportDependencies)
-	{
-		int32 diff = Package.AllReachablePackages.Num() - 1 - DependentPackages.Num();
-		if (DependentPackages.Num() == 0)
-		{
-			UE_LOG(LogIoStore, Display, TEXT("OPT-ALL: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				diff,
-				Package.AllReachablePackages.Num() - 1);
-		}
-		else if (diff > 0)
-		{
-			UE_LOG(LogIoStore, Display, TEXT("OPT: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				diff,
-				Package.AllReachablePackages.Num() - 1);
-		}
-		else
-		{
-			UE_LOG(LogIoStore, Display, TEXT("NOP: %s: Skipping %d/%d arcs"), *Package.Name.ToString(),
-				0,
-				Package.AllReachablePackages.Num() - 1);
-		}
-	}
-	*/
-}
-
-static int32 AddPostLoadDependencies(TArray<FPackage*>& Packages)
-{
-	IOSTORE_CPU_SCOPE(PostLoadDependencies);
-	UE_LOG(LogIoStore, Display, TEXT("Adding postload dependencies..."));
-
-	TSet<FPackage*> Visited;
-	TSet<FCircularImportChain> CircularChains;
-
-	for (FPackage* Package : Packages)
-	{
-		Visited.Reset();
-		Visited.Add(Package);
-		AddPackagePostLoadDependencies(*Package, Visited, CircularChains);
-	}
-	return CircularChains.Num();
-};
 
 static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Packages)
 {
@@ -1362,10 +1205,11 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 		{
 			uint32* FindDependentBundleIndex = ExternalDependency->Package->ExportBundleMap.Find(ExternalDependency);
 			check(FindDependentBundleIndex);
-			if (BundleIndex > 0)
-			{
-				AddUniqueExternalBundleArc(*ExternalDependency->Package, *FindDependentBundleIndex, *Package, BundleIndex);
-			}
+			AddUniqueExternalBundleArc(ExternalDependency->Package->GlobalPackageId, *FindDependentBundleIndex, *Package, BundleIndex);
+		}
+		for (FPackageId FromPackageId : Node->BaseGamePackageDependencies)
+		{
+			AddUniqueExternalBundleArc(FromPackageId, MAX_uint32, *Package, BundleIndex);
 		}
 		Bundle->Nodes.Add(Node);
 		Package->ExportBundleMap.Add(Node, BundleIndex);
@@ -1491,40 +1335,18 @@ static void CreateDiskLayout(
 	const TArray<FContainerTargetSpec*>& ContainerTargets,
 	const TArray<FPackage*>& Packages,
 	const TMap<FName, uint64> PackageOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap,
-	uint64 CompressionBlockSize,
-	uint64 MemoryMappingAlignment)
+	const TMap<FName, uint64>& CookerOrderMap)
 {
 	IOSTORE_CPU_SCOPE(CreateDiskLayout);
 
 	struct FLayoutEntry
 	{
-		enum ELayoutEntryType
-		{
-			Invalid,
-			File,
-			FreeSpace,
-			BlockBoundary,
-		};
 		FLayoutEntry* Prev = nullptr;
 		FLayoutEntry* Next = nullptr;
-		int32 BeginBlockIndex = -1;
-		int32 EndBlockIndex = -1;
-		ELayoutEntryType Type = Invalid;
 		uint64 Size = 0;
-		uint64 PreviousBuildOffset = 0;
 		uint64 IdealOrder = 0;
+		FIoChunkHash Hash;
 		FContainerTargetFile* TargetFile = nullptr;
-		bool bHasPreviousBuildOffset = false;
-		bool bModified = false;
-		bool bLocked = false;
-	};
-
-	struct FLayoutBlock
-	{
-		FLayoutEntry* FirstEntry = nullptr;
-		FLayoutEntry* LastEntry = nullptr;
-		bool bModified = false;
 	};
 
 	AssignPackagesDiskOrder(Packages, PackageOrderMap, CookerOrderMap);
@@ -1532,82 +1354,34 @@ static void CreateDiskLayout(
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
 		TArray<FLayoutEntry*> Entries;
-
 		FLayoutEntry* EntriesHead = new FLayoutEntry();
 		Entries.Add(EntriesHead);
-
 		TMap<int64, FLayoutEntry*> EntriesByOrderMap;
 		FLayoutEntry* LastAddedEntry = EntriesHead;
-
-		TMap<FIoChunkHash, TArray<FLayoutEntry*>> PreviousBuildFileByHash;
-		TMap<FIoChunkId, FIoChunkHash> PreviousBuildHashByChunkId;
-		uint64 CurrentOffset = 0;
+		TMap<FIoChunkId, FLayoutEntry*> PreviousBuildFileByChunkId;
 		FLayoutEntry* PrevEntryLink = EntriesHead;
 		
-		if (ContainerTarget->bGenerateDiffPatch)
+		for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : ContainerTarget->PatchSourceReaders)
 		{
-			for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : ContainerTarget->PatchSourceReaders)
+			PatchSourceReader->EnumerateChunks([&PrevEntryLink, &Entries, &PreviousBuildFileByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
 			{
-				PatchSourceReader->EnumerateChunks([&PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
-				{
-					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
-					return true;
-				});
+				FLayoutEntry* FileEntry = new FLayoutEntry();
+				FileEntry->Size = ChunkInfo.Size;
+				FileEntry->Hash = ChunkInfo.Hash;
+				PrevEntryLink->Next = FileEntry;
+				FileEntry->Prev = PrevEntryLink;
+				PrevEntryLink = FileEntry;
+				Entries.Add(FileEntry);
+				PreviousBuildFileByChunkId.Add(ChunkInfo.Id, FileEntry);
+				return true;
+			});
+
+			if (!ContainerTarget->bGenerateDiffPatch)
+			{
+				break;
 			}
 		}
-		else
-		{
-			if (ContainerTarget->PatchSourceReaders.Num())
-			{
-				ContainerTarget->PatchSourceReaders[0]->EnumerateChunks([&CurrentOffset, &PrevEntryLink, &Entries, &PreviousBuildFileByHash, &PreviousBuildHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
-				{
-					if (CurrentOffset < ChunkInfo.Offset)
-					{
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = ChunkInfo.Offset - CurrentOffset;
-						FreeSpaceEntry->PreviousBuildOffset = CurrentOffset;
-						FreeSpaceEntry->bHasPreviousBuildOffset = true;
-						CurrentOffset = ChunkInfo.Offset;
-						PrevEntryLink->Next = FreeSpaceEntry;
-						FreeSpaceEntry->Prev = PrevEntryLink;
-						PrevEntryLink = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-					FLayoutEntry* FileEntry = new FLayoutEntry();
-					FileEntry->Type = FLayoutEntry::File;
-					FileEntry->Size = ChunkInfo.Size;
-					FileEntry->PreviousBuildOffset = ChunkInfo.Offset;
-					FileEntry->bHasPreviousBuildOffset = true;
-
-					PrevEntryLink->Next = FileEntry;
-					FileEntry->Prev = PrevEntryLink;
-					PrevEntryLink = FileEntry;
-
-					CurrentOffset += ChunkInfo.Size;
-
-					Entries.Add(FileEntry);
-
-					TArray<FLayoutEntry*>& PreviousBuildFileHashesArray = PreviousBuildFileByHash.FindOrAdd(ChunkInfo.Hash);
-					PreviousBuildFileHashesArray.Push(FileEntry);
-					PreviousBuildHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
-
-					return true;
-				});
-			}
-		}
-		if (CurrentOffset % CompressionBlockSize != 0)
-		{
-			FLayoutEntry* LastFreeSpace = new FLayoutEntry();
-			LastFreeSpace->Type = FLayoutEntry::FreeSpace;
-			LastFreeSpace->Size = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-			LastFreeSpace->Prev = PrevEntryLink;
-			PrevEntryLink->Next = LastFreeSpace;
-			PrevEntryLink = LastFreeSpace;
-			Entries.Add(LastFreeSpace);
-			CurrentOffset += LastFreeSpace->Size;
-		}
-
+	
 		FLayoutEntry* EntriesTail = new FLayoutEntry();
 		Entries.Add(EntriesTail);
 		PrevEntryLink->Next = EntriesTail;
@@ -1636,15 +1410,20 @@ static void CreateDiskLayout(
 		for (FContainerTargetFile& ContainerTargetFile : ContainerTarget->TargetFiles)
 		{
 			bool bIsAddedOrModified = false;
-			const FIoChunkHash* FindPreviousHashByChunkId = PreviousBuildHashByChunkId.Find(ContainerTargetFile.ChunkId);
-			if (FindPreviousHashByChunkId)
+			FLayoutEntry* FindPreviousEntry = PreviousBuildFileByChunkId.FindRef(ContainerTargetFile.ChunkId);
+			if (FindPreviousEntry)
 			{
-				if (*FindPreviousHashByChunkId != ContainerTargetFile.ChunkHash)
+				if (FindPreviousEntry->Hash != ContainerTargetFile.ChunkHash)
 				{
 					//UE_LOG(LogIoStore, Display, TEXT("Diffing: %s"), *ContainerTargetFile.TargetPath);
 					++DiffFileCount;
 					DiffFileSize += ContainerTargetFile.TargetSize;
 					bIsAddedOrModified = true;
+				}
+				else
+				{
+					FindPreviousEntry->TargetFile = &ContainerTargetFile;
+					FindPreviousEntry->IdealOrder = IdealOrder;
 				}
 			}
 			else
@@ -1654,40 +1433,12 @@ static void CreateDiskLayout(
 				AddedFileSize += ContainerTargetFile.TargetSize;
 				bIsAddedOrModified = true;
 			}
-
-			bool bAddToUnassignedPool = true;
-			if (ContainerTarget->bGenerateDiffPatch)
-			{
-				if (!bIsAddedOrModified)
-				{
-					bAddToUnassignedPool = false;
-				}
-			}
-			else
-			{
-				FLayoutEntry* FindPreviousFileEntry = nullptr;
-				TArray<FLayoutEntry*>* FindPreviousBuildFileHashesArray = PreviousBuildFileByHash.Find(ContainerTargetFile.ChunkHash);
-				if (FindPreviousBuildFileHashesArray && FindPreviousBuildFileHashesArray->Num())
-				{
-					FindPreviousFileEntry = FindPreviousBuildFileHashesArray->Pop(false);
-				}
-
-				if (FindPreviousFileEntry && !FindPreviousFileEntry->TargetFile && ContainerTargetFile.TargetSize == FindPreviousFileEntry->Size)
-				{
-					FindPreviousFileEntry->TargetFile = &ContainerTargetFile;
-					FindPreviousFileEntry->IdealOrder = IdealOrder;
-					EntriesByOrderMap.Add(IdealOrder, FindPreviousFileEntry);
-					bAddToUnassignedPool = false;
-				}
-			}
-			if (bAddToUnassignedPool)
+			if (bIsAddedOrModified)
 			{
 				FLayoutEntry* NewEntry = new FLayoutEntry();
-				NewEntry->Type = FLayoutEntry::File;
 				NewEntry->Size = ContainerTargetFile.TargetSize;
 				NewEntry->TargetFile = &ContainerTargetFile;
 				NewEntry->IdealOrder = IdealOrder;
-				NewEntry->bModified = true;
 				Entries.Add(NewEntry);
 				UnassignedEntries.Add(NewEntry);
 			}
@@ -1696,327 +1447,49 @@ static void CreateDiskLayout(
 		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified entries (%fMB)"), *ContainerTarget->Name.ToString(), DiffFileCount, ContainerTarget->TargetFiles.Num(), DiffFileSize / 1024.0 / 1024.0);
 		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d added entries (%fMB)"), *ContainerTarget->Name.ToString(), AddedFileCount, ContainerTarget->TargetFiles.Num(), AddedFileSize / 1024.0 / 1024.0);
 
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		if (ContainerTarget->bGenerateDiffPatch)
 		{
-			if (EntryIt->Type == FLayoutEntry::File && !EntryIt->TargetFile)
-			{
-				EntryIt->Type = FLayoutEntry::FreeSpace;
-				EntryIt->bModified = true;
-			}
+			EntriesHead->Next = EntriesTail;
+			EntriesTail->Prev = EntriesHead;
 		}
-
-		// Assign entries to blocks
-		TArray<FLayoutBlock> Blocks;
-		Blocks.SetNum(CurrentOffset / CompressionBlockSize);
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
+		else
 		{
-			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
-			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
-			CurrentOffset += EntryIt->Size;
-			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+			for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
 			{
-				FLayoutBlock& Block = Blocks[BlockIndex];
-				Block.bModified |= EntryIt->bModified;
-				if (!Block.FirstEntry)
+				if (!EntryIt->TargetFile)
 				{
-					Block.FirstEntry = EntryIt;
+					EntryIt->Prev->Next = EntryIt->Next;
+					EntryIt->Next->Prev = EntryIt->Prev;
 				}
-				Block.LastEntry = EntryIt;
-			}
-		}
-		// Put all file entries that only touch already modified blocks back to the unassigned pool
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (EntryIt->Type == FLayoutEntry::File)
-			{
-				bool bAllBlocksTouchedByEntryModified = true;
-				for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
+				else
 				{
-					FLayoutBlock& Block = Blocks[BlockIndex];
-					if (!Block.bModified)
-					{
-						bAllBlocksTouchedByEntryModified = false;
-						break;
-					}
-				}
-				if (bAllBlocksTouchedByEntryModified)
-				{
-					FLayoutEntry* ReleasedEntry = new FLayoutEntry();
-					ReleasedEntry->Type = FLayoutEntry::File;
-					ReleasedEntry->Size = EntryIt->Size;
-					ReleasedEntry->TargetFile = EntryIt->TargetFile;
-					ReleasedEntry->IdealOrder = EntryIt->IdealOrder;
-					ReleasedEntry->bModified = true;
-					Entries.Add(ReleasedEntry);
-					UnassignedEntries.Add(ReleasedEntry);
-
-					EntryIt->Type = FLayoutEntry::FreeSpace;
-					EntryIt->TargetFile = nullptr;
-					EntryIt->bModified = true;
+					EntriesByOrderMap.Add(EntryIt->IdealOrder, EntryIt);
 				}
 			}
 		}
-		uint64 UnmodifiedBlocksCount = 0;
-		for (const FLayoutBlock& Block : Blocks)
-		{
-			if (!Block.bModified)
-			{
-				++UnmodifiedBlocksCount;
-			}
-		}
-
-		// Split all free space entries so that they don't cross any block boundaries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			uint64 NextOffset = CurrentOffset + EntryIt->Size;
-			if (EntryIt->Type == FLayoutEntry::FreeSpace)
-			{
-				if (EntryIt->BeginBlockIndex != EntryIt->EndBlockIndex - 1)
-				{
-					uint64 SizeInFirstBlock = Align(CurrentOffset, CompressionBlockSize) - CurrentOffset;
-					if (SizeInFirstBlock)
-					{
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = SizeInFirstBlock;
-						FreeSpaceEntry->bModified = EntryIt->bModified;
-						EntryIt->Size -= SizeInFirstBlock;
-						FreeSpaceEntry->Prev = EntryIt->Prev;
-						FreeSpaceEntry->Next = EntryIt;
-						EntryIt->Prev->Next = FreeSpaceEntry;
-						EntryIt->Prev = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-					uint64 SizeInLastBlock = EntryIt->Size % CompressionBlockSize;
-					if (SizeInLastBlock != EntryIt->Size)
-					{
-						uint64 SizeInMiddleBlocks = EntryIt->Size - SizeInLastBlock;
-						FLayoutEntry* FreeSpaceEntry = new FLayoutEntry();
-						FreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-						FreeSpaceEntry->Size = SizeInMiddleBlocks;
-						FreeSpaceEntry->bModified = EntryIt->bModified;
-						EntryIt->Size -= SizeInMiddleBlocks;
-						FreeSpaceEntry->Prev = EntryIt->Prev;
-						FreeSpaceEntry->Next = EntryIt;
-						EntryIt->Prev->Next = FreeSpaceEntry;
-						EntryIt->Prev = FreeSpaceEntry;
-						Entries.Add(FreeSpaceEntry);
-					}
-				}
-			}
-			CurrentOffset = NextOffset;
-		}
-		// Update entry block assignment
-		// Lock all file entries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			EntryIt->BeginBlockIndex = int32(CurrentOffset / CompressionBlockSize);
-			EntryIt->EndBlockIndex = int32(Align(CurrentOffset + EntryIt->Size, CompressionBlockSize) / CompressionBlockSize);
-			CurrentOffset += EntryIt->Size;
-			for (int32 BlockIndex = EntryIt->BeginBlockIndex; BlockIndex < EntryIt->EndBlockIndex; ++BlockIndex)
-			{
-				FLayoutBlock& Block = Blocks[BlockIndex];
-				check(!EntryIt->bModified || Block.bModified);
-				if (!Block.FirstEntry)
-				{
-					Block.FirstEntry = EntryIt;
-				}
-				Block.LastEntry = EntryIt;
-			}
-			if (EntryIt->Type == FLayoutEntry::File)
-			{
-				check(!EntryIt->bModified);
-				EntryIt->bLocked = true;
-			}
-		}
-		// Lock all free space entries in unmodified blocks
-		for (FLayoutBlock& Block : Blocks)
-		{
-			if (!Block.bModified)
-			{
-				for (FLayoutEntry* EntryIt = Block.FirstEntry; EntryIt != Block.LastEntry->Next; EntryIt = EntryIt->Next)
-				{
-					if (EntryIt->Type == FLayoutEntry::FreeSpace)
-					{
-						EntryIt->bLocked = true;
-					}
-				}
-			}
-		}
-		// Merge and shrink all unlocked free space
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (EntryIt->Type == FLayoutEntry::FreeSpace && !EntryIt->bLocked)
-			{
-				if (EntryIt->Prev->Type == FLayoutEntry::FreeSpace && !EntryIt->Prev->bLocked)
-				{
-					FLayoutEntry* MergeWithFreeSpace = EntryIt->Prev;
-					EntryIt->Size += MergeWithFreeSpace->Size;
-					MergeWithFreeSpace->Prev->Next = EntryIt;
-					EntryIt->Prev = MergeWithFreeSpace->Prev;
-				}
-				EntryIt->Size %= CompressionBlockSize;
-			}
-		}
-		// Insert block boundaries
-		CurrentOffset = 0;
-		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
-		{
-			if (CurrentOffset % CompressionBlockSize == 0)
-			{
-				FLayoutEntry* BlockBoundaryEntry = new FLayoutEntry();
-				BlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-				BlockBoundaryEntry->Prev = EntryIt->Prev;
-				BlockBoundaryEntry->Next = EntryIt;
-				EntryIt->Prev->Next = BlockBoundaryEntry;
-				EntryIt->Prev = BlockBoundaryEntry;
-				Entries.Add(BlockBoundaryEntry);
-			}
-			
-			CurrentOffset += EntryIt->Size;
-		}
-		check(CurrentOffset % CompressionBlockSize == 0);
-		FLayoutEntry* LastBlockBoundaryEntry = new FLayoutEntry();
-		LastBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-		LastBlockBoundaryEntry->Prev = EntriesTail->Prev;
-		LastBlockBoundaryEntry->Next = EntriesTail;
-		EntriesTail->Prev->Next = LastBlockBoundaryEntry;
-		EntriesTail->Prev = LastBlockBoundaryEntry;
-		Entries.Add(LastBlockBoundaryEntry);
-
-		FLayoutEntry* MemoryMappedFilesTarget = new FLayoutEntry();
-		MemoryMappedFilesTarget->Type = FLayoutEntry::BlockBoundary;
-		MemoryMappedFilesTarget->Prev = LastBlockBoundaryEntry;
-		LastBlockBoundaryEntry->Next = MemoryMappedFilesTarget;
-		EntriesTail->Prev = MemoryMappedFilesTarget;
-		MemoryMappedFilesTarget->Next = EntriesTail;
-		Entries.Add(MemoryMappedFilesTarget);
-
-		// Insert new/modified entries according to their ideal order
-		Algo::Sort(UnassignedEntries, [](const FLayoutEntry* A, const FLayoutEntry* B)
-		{
-			return A->IdealOrder < B->IdealOrder;
-		});
 		for (FLayoutEntry* UnassignedEntry : UnassignedEntries)
 		{
 			check(UnassignedEntry->TargetFile);
-			if (UnassignedEntry->TargetFile->bIsMemoryMappedBulkData)
+			FLayoutEntry* PutAfterEntry = EntriesByOrderMap.FindRef(UnassignedEntry->IdealOrder - 1);
+			if (!PutAfterEntry)
 			{
-				UnassignedEntry->Prev = MemoryMappedFilesTarget->Prev;
-				UnassignedEntry->Next = MemoryMappedFilesTarget;
-				MemoryMappedFilesTarget->Prev->Next = UnassignedEntry;
-				MemoryMappedFilesTarget->Prev = UnassignedEntry;
-
-				uint64 AlignedSize = Align(UnassignedEntry->Size, MemoryMappingAlignment);
-				uint64 MemoryMapPadding = AlignedSize - UnassignedEntry->Size;
-				if (MemoryMapPadding)
-				{
-					FLayoutEntry* PaddingEntry = new FLayoutEntry();
-					PaddingEntry->Type = FLayoutEntry::FreeSpace;
-					PaddingEntry->Size = MemoryMapPadding;
-
-					PaddingEntry->Prev = UnassignedEntry;
-					PaddingEntry->Next = UnassignedEntry->Next;
-					UnassignedEntry->Next->Prev = PaddingEntry;
-					UnassignedEntry->Next = PaddingEntry;
-					Entries.Add(PaddingEntry);
-				}
+				PutAfterEntry = LastAddedEntry;
 			}
-			else
-			{
-				FLayoutEntry* PutAfterEntry = EntriesByOrderMap.FindRef(UnassignedEntry->IdealOrder - 1);
-				if (!PutAfterEntry)
-				{
-					PutAfterEntry = LastAddedEntry;
-				}
 				
-				FLayoutEntry* TargetFreeSpace = nullptr;
-				FLayoutEntry* CandidateTarget = PutAfterEntry->Next;
-				if (CandidateTarget->Type == FLayoutEntry::FreeSpace && !CandidateTarget->bLocked)
-				{
-					TargetFreeSpace = CandidateTarget;
-					if (TargetFreeSpace->Size < UnassignedEntry->Size)
-					{
-						uint64 SizeExtension = Align(UnassignedEntry->Size - TargetFreeSpace->Size, CompressionBlockSize);
-						TargetFreeSpace->Size += SizeExtension;
-					}
-				}
-
-				if (!TargetFreeSpace)
-				{
-					FLayoutEntry* NextBlockBoundary = PutAfterEntry->Next;
-					check(NextBlockBoundary);
-					while (NextBlockBoundary->Type != FLayoutEntry::BlockBoundary)
-					{
-						NextBlockBoundary = NextBlockBoundary->Next;
-					}
-					FLayoutEntry* NewFreeSpaceEntry = new FLayoutEntry();
-					NewFreeSpaceEntry->Type = FLayoutEntry::FreeSpace;
-					NewFreeSpaceEntry->Size = Align(UnassignedEntry->Size, CompressionBlockSize);
-					Entries.Add(NewFreeSpaceEntry);
-					FLayoutEntry* NewBlockBoundaryEntry = new FLayoutEntry();
-					NewBlockBoundaryEntry->Type = FLayoutEntry::BlockBoundary;
-					Entries.Add(NewBlockBoundaryEntry);
-
-					NewFreeSpaceEntry->Prev = NextBlockBoundary;
-					NewFreeSpaceEntry->Next = NewBlockBoundaryEntry;
-					NewBlockBoundaryEntry->Prev = NewFreeSpaceEntry;
-					NewBlockBoundaryEntry->Next = NextBlockBoundary->Next;
-					NextBlockBoundary->Next->Prev = NewBlockBoundaryEntry;
-					NextBlockBoundary->Next = NewFreeSpaceEntry;
-					TargetFreeSpace = NewFreeSpaceEntry;
-				}
-
-				check(TargetFreeSpace->Type == FLayoutEntry::FreeSpace);
-				check(TargetFreeSpace->Size >= UnassignedEntry->Size);
-				check(!TargetFreeSpace->bLocked);
-				UnassignedEntry->Prev = TargetFreeSpace->Prev;
-				UnassignedEntry->Next = TargetFreeSpace;
-				TargetFreeSpace->Prev->Next = UnassignedEntry;
-				TargetFreeSpace->Prev = UnassignedEntry;
-				TargetFreeSpace->Size -= UnassignedEntry->Size;
-
-				EntriesByOrderMap.Add(UnassignedEntry->IdealOrder, UnassignedEntry);
-				LastAddedEntry = UnassignedEntry;
-			}
+			UnassignedEntry->Prev = PutAfterEntry;
+			UnassignedEntry->Next = PutAfterEntry->Next;
+			PutAfterEntry->Next->Prev = UnassignedEntry;
+			PutAfterEntry->Next = UnassignedEntry;
+			EntriesByOrderMap.Add(UnassignedEntry->IdealOrder, UnassignedEntry);
+			LastAddedEntry = UnassignedEntry;
 		}
+
 		TArray<FContainerTargetFile> IncludedContainerTargetFiles;
-		CurrentOffset = 0;
-		uint64 PaddingBytes = 0;
-		uint64 TotalChunkPaddingSize = 0;
 		for (FLayoutEntry* EntryIt = EntriesHead->Next; EntryIt != EntriesTail; EntryIt = EntryIt->Next)
 		{
-			if (EntryIt->Type == FLayoutEntry::FreeSpace)
-			{
-				PaddingBytes += EntryIt->Size;
-			}
-			else if (EntryIt->Type == FLayoutEntry::File)
-			{
-				check(EntryIt->TargetFile);
-				EntryIt->TargetFile->Padding = PaddingBytes;
-				TotalChunkPaddingSize += PaddingBytes;
-				PaddingBytes = 0;
-				EntryIt->TargetFile->Offset = CurrentOffset;
-
-				if (EntryIt->bHasPreviousBuildOffset && EntryIt->bLocked)
-				{
-					check(EntryIt->PreviousBuildOffset % CompressionBlockSize == EntryIt->TargetFile->Offset % CompressionBlockSize);
-				}
-				if (EntryIt->TargetFile->bIsMemoryMappedBulkData)
-				{
-					check(IsAligned(CurrentOffset, MemoryMappingAlignment));
-				}
-				IncludedContainerTargetFiles.Add(*EntryIt->TargetFile);
-			}
-			CurrentOffset += EntryIt->Size;
+			check(EntryIt->TargetFile);
+			IncludedContainerTargetFiles.Add(*EntryIt->TargetFile);
 		}
-		uint64 TotalBlockCount = Align(CurrentOffset, CompressionBlockSize) / CompressionBlockSize;
-		uint64 ModifiedBlocksCount = TotalBlockCount - UnmodifiedBlocksCount;
-		UE_LOG(LogIoStore, Display, TEXT("%s: %d/%d modified blocks (%fMB)"), *ContainerTarget->Name.ToString(), ModifiedBlocksCount, TotalBlockCount, (ModifiedBlocksCount * CompressionBlockSize) / 1024.0 / 1024.0);
-		UE_LOG(LogIoStore, Display, TEXT("%s: Total chunk padding %fMB"), *ContainerTarget->Name.ToString(), TotalChunkPaddingSize / 1024.0 / 1024.0);
 
 		for (FLayoutEntry* Entry : Entries)
 		{
@@ -2043,41 +1516,6 @@ static EIoChunkType BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBu
 	}
 }
 
-static bool MapAdditionalBulkDataChunks(FContainerTargetFile& TargetFile, const FPackageStoreBulkDataManifest& BulkDataManifest)
-{
-	const FPackage& Package = *TargetFile.Package;
-	const FPackageStoreBulkDataManifest::FPackageDesc* PackageDesc = BulkDataManifest.Find(Package.FileName);
-	if (PackageDesc != nullptr)
-	{
-		FPackageStoreBulkDataManifest::EBulkdataType BulkDataType = TargetFile.bIsOptionalBulkData
-			? FPackageStoreBulkDataManifest::EBulkdataType::Optional
-			: TargetFile.bIsMemoryMappedBulkData
-				? FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped
-				: FPackageStoreBulkDataManifest::EBulkdataType::Normal;
-
-		const EIoChunkType ChunkIdType = BulkdataTypeToChunkIdType(BulkDataType);
-
-		// Create additional mapping chunks as needed
-		for (const FPackageStoreBulkDataManifest::FPackageDesc::FBulkDataDesc& BulkDataDesc : PackageDesc->GetDataArray())
-		{
-			if (BulkDataDesc.Type == BulkDataType)
-			{
-				FContainerTargetFilePartialMapping& PartialMapping = TargetFile.PartialMappings.AddDefaulted_GetRef();
-				PartialMapping.PartialChunkId = CreateChunkIdForBulkData(Package.GlobalPackageId, BulkDataDesc.ChunkId, ChunkIdType, *Package.FileName);
-				PartialMapping.Offset = BulkDataDesc.Offset;
-				PartialMapping.Length = BulkDataDesc.Size;
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogIoStore, Warning, TEXT("Unable to find an entry in the bulkdata manifest for '%s' the file might be out of date!"), *Package.FileName);
-		return false;
-	}
-
-	return true;
-}
-
 struct FScriptObjectData
 {
 	FName ObjectName;
@@ -2085,7 +1523,6 @@ struct FScriptObjectData
 	FPackageObjectIndex GlobalIndex;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
-	bool bInitialized = false;
 
 	friend FArchive& operator<<(FArchive& Ar, FScriptObjectData& Data)
 	{
@@ -2125,6 +1562,11 @@ struct FExportObjectData
 	FExportGraphNode* CreateNode = nullptr;
 	FExportGraphNode* SerializeNode = nullptr;
 
+	bool IsPublicExport() const
+	{
+		return !!(ObjectFlags & RF_Public);
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FExportObjectData& Data)
 	{
 		FString ObjectNameStr;
@@ -2152,16 +1594,17 @@ struct FExportObjectData
 };
 
 using FImportObjectsByFullName = TMap<FString, FPackageObjectIndex>;
+using FImportObjectsById = TMap<FPackageObjectIndex, FPackageObjectIndex>;
 using FExportObjectsByFullName = TMap<FString, int32>;
 
-using FGlobalScriptObjects = TArray<FScriptObjectData>;
+using FGlobalScriptObjects = TMap<FPackageObjectIndex, FScriptObjectData>;
 using FGlobalExportObjects = TArray<FExportObjectData>;
 
 struct FGlobalPackageData
 {
 	FGlobalScriptObjects ScriptObjects;
 	FGlobalExportObjects ExportObjects;
-	TArray<int32> PublicExportIndices;
+	TMap<FPackageObjectIndex, int32> PublicExportIndices;
 	FImportObjectsByFullName ImportsByFullName;
 	FExportObjectsByFullName ExportsByFullName;
 
@@ -2176,47 +1619,36 @@ struct FGlobalPackageData
 		ImportsByFullName.Reserve(EstimatedScriptObjectCount + EstimatedPublicExportObjectCount);
 	}
 
-	FExportObjectData& GetPublicExport(FPackageObjectIndex Index)
+	const FExportObjectData* FindPublicExport(FPackageObjectIndex Index) const
 	{
 		check(Index.IsPackageImport());
-		int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-		return ExportObjects[GlobalExportIndex];
-	}
-
-	const FExportObjectData& GetPublicExport(FPackageObjectIndex Index) const
-	{
-		check(Index.IsPackageImport());
-		int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-		return ExportObjects[GlobalExportIndex];
+		if (const int32* GlobalExportIndex = PublicExportIndices.Find(Index))
+		{
+			return &ExportObjects[*GlobalExportIndex];
+		}
+		return nullptr;
 	}
 
 	FName GetObjectName(FPackageObjectIndex Index, const TArray<int32>* PackageExportIndices) const
 	{
 		if (Index.IsScriptImport())
 		{
-			return ScriptObjects[Index.GetIndex()].ObjectName;
+			const FScriptObjectData* ScriptObjectData = ScriptObjects.Find(Index);
+			check(ScriptObjectData);
+			return ScriptObjectData->ObjectName;
 		}
 		if (Index.IsPackageImport())
 		{
-			int32 GlobalExportIndex = PublicExportIndices[Index.GetIndex()];
-			return ExportObjects[GlobalExportIndex].ObjectName;
+			const int32* GlobalExportIndex = PublicExportIndices.Find(Index);
+			check(GlobalExportIndex);
+			return ExportObjects[*GlobalExportIndex].ObjectName;
 		}
 		if (Index.IsExport() && PackageExportIndices)
 		{
-			int32 GlobalExportIndex = (*PackageExportIndices)[Index.GetIndex()];
+			int32 GlobalExportIndex = (*PackageExportIndices)[Index.ToExport()];
 			return ExportObjects[GlobalExportIndex].ObjectName;
 		}
 		return FName();
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FGlobalPackageData& Data)
-	{
-		Ar << Data.ScriptObjects;
-		Ar << Data.ExportObjects;
-		Ar << Data.PublicExportIndices;
-		Ar << Data.ImportsByFullName;
-		Ar << Data.ExportsByFullName;
-		return Ar;
 	}
 };
 
@@ -2235,6 +1667,7 @@ static void FindImportFullName(
 		if (Import->OuterIndex.IsNull())
 		{
 			Import->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 		else
 		{
@@ -2246,15 +1679,24 @@ static void FindImportFullName(
 			FullName.Append(OuterName);
 			FullName.AppendChar(TEXT('/'));
 			Import->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 	}
+}
+
+static uint64 GenerateImportHash(const FString& FullName)
+{
+	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*FullName), FullName.Len() * sizeof(TCHAR));
+	Hash &= ~(3ull << 62ull);
+	return Hash;
 }
 
 static FPackageObjectIndex FindAndVerifyGlobalImport(
 	const FPackage* Package,
 	FGlobalPackageData& GlobalPackageData,
 	FObjectImport& Import,
-	FString& FullName)
+	const FString& FullName,
+	const FString& DLCPrefix)
 {
 	FPackageObjectIndex GlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(FullName);
 	if (GlobalImportIndex.IsNull())
@@ -2267,7 +1709,7 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 			{
 				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script package '%s'. Editor only?"),
 					*Package->Name.ToString(),
-					Package->GlobalPackageId.ToIndexForDebugging(),
+					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
 			}
 			else
@@ -2281,14 +1723,14 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 			{
 				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script object '%s'. Editor only?"),
 					*Package->Name.ToString(),
-					Package->GlobalPackageId.ToIndexForDebugging(),
+					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
 			}
-			else
+			else if (!DLCPrefix.Len() || FullName.StartsWith(DLCPrefix))
 			{
 				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import object '%s' due to missing public export. Editor only?"),
 					*Package->Name.ToString(),
-					Package->GlobalPackageId.ToIndexForDebugging(),
+					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
 			}
 		}
@@ -2315,6 +1757,7 @@ static int32 FindExport(
 			Package->Name.AppendString(FullName);
 			FullName.AppendChar(TEXT('/'));
 			Export->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 		else
 		{
@@ -2326,12 +1769,23 @@ static int32 FindExport(
 			FullName.Append(OuterName);
 			FullName.AppendChar(TEXT('/'));
 			Export->ObjectName.AppendString(FullName);
+			FullName.ToLowerInline();
 		}
 
-		const int32 GlobalExportIndex = GlobalPackageData.ExportObjects.Num();
-		GlobalPackageData.ExportsByFullName.Add(FullName, GlobalExportIndex);
-
-		FExportObjectData& ExportData = GlobalPackageData.ExportObjects.AddDefaulted_GetRef();
+		int32 GlobalExportIndex = -1;
+		int32* FindGlobalExportIndex = GlobalPackageData.ExportsByFullName.Find(FullName);
+		if (!FindGlobalExportIndex)
+		{
+			GlobalExportIndex = GlobalPackageData.ExportObjects.Num();
+			GlobalPackageData.ExportsByFullName.Add(FullName, GlobalExportIndex);
+			GlobalPackageData.ExportObjects.AddDefaulted();
+		}
+		else
+		{
+			GlobalExportIndex = *FindGlobalExportIndex;
+		}
+		FExportObjectData& ExportData = GlobalPackageData.ExportObjects[GlobalExportIndex];
+		
 		ExportData.GlobalIndex = GlobalExportIndex;
 		ExportData.Package = Package;
 		ExportData.ObjectName = Export->ObjectName;
@@ -2351,51 +1805,35 @@ static int32 FindExport(
 
 FContainerTargetSpec* AddContainer(
 	FName Name,
-	FIoContainerId Id,
-	TArray<FContainerTargetSpec*>& Containers,
-	TMap<FName, FContainerTargetSpec*>& ContainerMap)
+	TArray<FContainerTargetSpec*>& Containers)
 {
-	for (const FContainerTargetSpec* ExistingContainer : Containers)
+	FIoContainerId ContainerId = FIoContainerId::FromName(Name);
+	for (FContainerTargetSpec* ExistingContainer : Containers)
 	{
-		check(ExistingContainer->Header.ContainerId != Id);
+		if (ExistingContainer->Name == Name)
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Duplicate container name: '%s'"), *Name.ToString());
+			return nullptr;
+		}
+		if (ExistingContainer->Header.ContainerId == ContainerId)
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Hash collision for container names: '%s' and '%s'"), *Name.ToString(), *ExistingContainer->Name.ToString());
+			return nullptr;
+		}
 	}
-	check(!ContainerMap.Contains(Name));
+	
 	FContainerTargetSpec* ContainerTargetSpec = new FContainerTargetSpec();
 	ContainerTargetSpec->Name = Name;
-	ContainerTargetSpec->Header.ContainerId = Id;
-	ContainerMap.Add(Name, ContainerTargetSpec);
+	ContainerTargetSpec->Header.ContainerId = ContainerId;
 	Containers.Add(ContainerTargetSpec);
-	return ContainerTargetSpec;
-}
-
-FContainerTargetSpec* FindOrAddContainer(
-	FName Name,
-	TArray<FContainerTargetSpec*>& Containers,
-	TMap<FName, FContainerTargetSpec*>& ContainerMap)
-{
-	FContainerTargetSpec* ContainerTargetSpec = ContainerMap.FindRef(Name);
-	if (!ContainerTargetSpec)
-	{
-		uint16 NextContainerTargetId = 1;
-		for (const FContainerTargetSpec* ExistingContainer : Containers)
-		{
-			check(ExistingContainer->Header.ContainerId.IsValid());
-			NextContainerTargetId = FMath::Max<uint16>(ExistingContainer->Header.ContainerId.ToIndex() + 1, NextContainerTargetId);
-		}
-		ContainerTargetSpec = new FContainerTargetSpec();
-		ContainerTargetSpec->Name = Name;
-		ContainerTargetSpec->Header.ContainerId = FIoContainerId::FromIndex(NextContainerTargetId);
-		ContainerMap.Add(Name, ContainerTargetSpec);
-		Containers.Add(ContainerTargetSpec);
-	}
 	return ContainerTargetSpec;
 }
 
 FPackage* FindOrAddPackage(
 	const TCHAR* RelativeFileName,
 	TArray<FPackage*>& Packages,
-	FPackageMap& PackageMap,
-	FPackageGlobalIdMap& PackageGlobalIdMap)
+	FPackageNameMap& PackageNameMap,
+	FPackageIdMap& PackageIdMap)
 {
 	FString PackageName;
 	FString ErrorMessage;
@@ -2407,31 +1845,31 @@ FPackage* FindOrAddPackage(
 
 	FName PackageFName = *PackageName;
 
-	FPackage* Package = PackageMap.FindRef(PackageFName);
+	FPackage* Package = PackageNameMap.FindRef(PackageFName);
 	if (!Package)
 	{
+		FPackageId PackageId = FPackageId::FromName(PackageFName);
+		FPackage* FindById = PackageIdMap.FindRef(PackageId);
+		if (FindById)
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Package name hash collision \"%s\" and \"%s"), *FindById->Name.ToString(), *PackageFName.ToString());
+		}
+
 		Package = new FPackage();
 		Package->Name = PackageFName;
 		Package->SourcePackageName = *RemapLocalizationPathIfNeeded(PackageName, &Package->Region);
-		const FPackageId* FindPackageGlobalId = PackageGlobalIdMap.Find(PackageFName);
-		if (FindPackageGlobalId)
-		{
-			Package->GlobalPackageId = *FindPackageGlobalId;
-		}
-		else
-		{
-			Package->GlobalPackageId = FPackageId::FromIndex(PackageGlobalIdMap.Num());
-			PackageGlobalIdMap.Add(PackageFName, Package->GlobalPackageId);
-		}
+		Package->GlobalPackageId = PackageId;
+	
 		Packages.Add(Package);
-		PackageMap.Add(PackageFName, Package);
+		PackageNameMap.Add(PackageFName, Package);
+		PackageIdMap.Add(PackageId, Package);
 	}
 
 	return Package;
 }
 
 static bool ConformLocalizedPackage(
-	const FPackageMap& PackageMap,
+	const FPackageNameMap& PackageMap,
 	FGlobalPackageData& GlobalPackageData,
 	const FPackage& SourcePackage,
 	FPackage& LocalizedPackage,
@@ -2446,9 +1884,9 @@ static bool ConformLocalizedPackage(
 		TEXT("For culture '%s': Localized package '%s' (%d) for source package '%s' (%d)  - Has ExportCount %d vs. %d"),
 			*LocalizedPackage.Region,
 			*LocalizedPackage.Name.ToString(),
-			LocalizedPackage.GlobalPackageId.ToIndexForDebugging(),
+			LocalizedPackage.GlobalPackageId.ValueForDebugging(),
 			*LocalizedPackage.SourcePackageName.ToString(),
-			SourcePackage.GlobalPackageId.ToIndexForDebugging(),
+			SourcePackage.GlobalPackageId.ValueForDebugging(),
 			LocalizedPackage.ExportCount,
 			SourcePackage.ExportCount);
 
@@ -2493,13 +1931,11 @@ static bool ConformLocalizedPackage(
 		FString LocString = GlobalPackageData.GetObjectName(LocIndex, &LocalizedPackage.Exports).ToString();
 		FString SrcString = GlobalPackageData.GetObjectName(SrcIndex, &SourcePackage.Exports).ToString();
 
-		FailReason.Appendf(TEXT("Public export '%s' has %s %s (%d) vs. %s (%d)"),
+		FailReason.Appendf(TEXT("Public export '%s' has %s %s vs. %s"),
 			*ExportName.ToString(),
 			Text,
 			*LocString,
-			LocIndex.GetIndex(),
-			*SrcString,
-			SrcIndex.GetIndex());
+			*SrcString);
 	};
 
 	const int32 LocalizedPackageNameLen = LocalizedPackage.Name.GetStringLength();
@@ -2528,9 +1964,9 @@ static bool ConformLocalizedPackage(
 				TEXT("Culture '%s': Localized package '%s' (%d) for source package '%s' (%d) - Has some bad data from an earlier phase."),
 				*LocalizedPackage.Region,
 				*LocalizedPackage.Name.ToString(),
-				LocalizedPackage.GlobalPackageId.ToIndexForDebugging(),
+				LocalizedPackage.GlobalPackageId.ValueForDebugging(),
 				*LocalizedPackage.SourcePackageName.ToString(),
-				SourcePackage.GlobalPackageId.ToIndexForDebugging())
+				SourcePackage.GlobalPackageId.ValueForDebugging())
 			return false;
 		}
 
@@ -2539,7 +1975,7 @@ static bool ConformLocalizedPackage(
 		{
 			++LocalizedIndex;
 
-			if (LocalizedExportData.GlobalImportIndex.IsImport())
+			if (LocalizedExportData.IsPublicExport())
 			{
 				// public localized export is missing in the source package, so just keep it as it is
 				NewPublicExports.Emplace(LocalizedIndex - 1, 1);
@@ -2549,7 +1985,7 @@ static bool ConformLocalizedPackage(
 		{
 			++SourceIndex;
 
-			if (SourceExportData.GlobalImportIndex.IsImport())
+			if (SourceExportData.IsPublicExport())
 			{
 				FailReason.Appendf(TEXT("Public source export '%s' is missing in the localized package"),
 					*SourceExportData.ObjectName.ToString());
@@ -2560,9 +1996,15 @@ static bool ConformLocalizedPackage(
 			++LocalizedIndex;
 			++SourceIndex;
 
-			if (SourceExportData.GlobalImportIndex.IsImport())
+			if (SourceExportData.IsPublicExport())
 			{
-				if (LocalizedExportData.ClassIndex != SourceExportData.ClassIndex)
+				if (!LocalizedExportData.IsPublicExport())
+				{
+					FailReason.Appendf(TEXT("Public source export '%s' exists in the localized package")
+						TEXT(", but is not a public localized export."),
+						*SourceExportData.ObjectName.ToString());
+				}
+				else if (LocalizedExportData.ClassIndex != SourceExportData.ClassIndex)
 				{
 					AppendMismatchMessage(TEXT("class"), LocalizedExportData.ObjectName,
 						LocalizedExportData.ClassIndex, SourceExportData.ClassIndex, FailReason);
@@ -2582,10 +2024,10 @@ static bool ConformLocalizedPackage(
 					NewPublicExports.Emplace(LocalizedIndex - 1, SourceIndex - 1);
 				}
 			}
-			else if (LocalizedExportData.GlobalImportIndex.IsImport())
+			else if (LocalizedExportData.IsPublicExport())
 			{
 				FailReason.Appendf(TEXT("Public localized export '%s' exists in the source package")
-					TEXT(", but is not part of the source package interface (it is not imported by any other package)."),
+					TEXT(", but is not a public source export."),
 					*LocalizedExportData.ObjectName.ToString());
 			}
 		}
@@ -2596,9 +2038,9 @@ static bool ConformLocalizedPackage(
 				TEXT("Culture '%s': Localized package '%s' (%d) for '%s' (%d) - %s"),
 				*LocalizedPackage.Region,
 				*LocalizedPackage.Name.ToString(),
-				LocalizedPackage.GlobalPackageId.ToIndexForDebugging(),
+				LocalizedPackage.GlobalPackageId.ValueForDebugging(),
 				*LocalizedPackage.SourcePackageName.ToString(),
-				SourcePackage.GlobalPackageId.ToIndexForDebugging(),
+				SourcePackage.GlobalPackageId.ValueForDebugging(),
 				*FailReason);
 			bSuccess = false;
 		}
@@ -2606,7 +2048,6 @@ static bool ConformLocalizedPackage(
 
 	if (bSuccess)
 	{
-		LocalizedPackage.PublicExports.Reset();
 		for (TPair<int32, int32>& Pair : NewPublicExports)
 		{
 			FExportObjectData& LocalizedExportData = GlobalPackageData.ExportObjects[LocalizedPackage.Exports[Pair.Key]];
@@ -2614,13 +2055,10 @@ static bool ConformLocalizedPackage(
 			{
 				const FExportObjectData& SourceExportData = GlobalPackageData.ExportObjects[SourcePackage.Exports[Pair.Value]];
 
-				LocalizedToSourceImportIndexMap.Add(
-					LocalizedExportData.GlobalImportIndex,
-					SourceExportData.GlobalImportIndex);
+				LocalizedToSourceImportIndexMap.Add(LocalizedExportData.GlobalImportIndex, SourceExportData.GlobalImportIndex);
 
 				LocalizedExportData.GlobalImportIndex = SourceExportData.GlobalImportIndex;
 			}
-			LocalizedPackage.PublicExports.Add(LocalizedExportData.GlobalImportIndex);
 		}
 	}
 
@@ -2659,22 +2097,34 @@ static void AddPreloadDependencies(
 					FPackageObjectIndex ImportIndex = Package->Imports[Dep.ToImport()];
 					if (ImportIndex.IsPackageImport())
 					{
-						const FExportObjectData& Export = GlobalPackageData.GetPublicExport(ImportIndex);
-						check(Export.GlobalImportIndex == ImportIndex);
-
-						AddExternalExportArc(ExportGraph, *Export.Package, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
-
-						LocalizedPackages.Reset();
-						SourceToLocalizedPackageMap.MultiFind(Export.Package, LocalizedPackages);
-						for (FPackage* LocalizedPackage : LocalizedPackages)
+						// When building DLC's exports can be missing
+						if (const FExportObjectData* Export = GlobalPackageData.FindPublicExport(ImportIndex))
 						{
-							UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
-								*Package->Name.ToString(),
-								Package->GlobalPackageId.ToIndexForDebugging(),
-								*Export.ObjectName.ToString(),
-								*LocalizedPackage->Name.ToString());
+							check(Export->GlobalImportIndex == ImportIndex);
 
-							AddExternalExportArc(ExportGraph, *LocalizedPackage, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+							AddExternalExportArc(ExportGraph, *Export->Package, Export->SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+
+							LocalizedPackages.Reset();
+							SourceToLocalizedPackageMap.MultiFind(Export->Package, LocalizedPackages);
+							for (FPackage* LocalizedPackage : LocalizedPackages)
+							{
+								UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
+									*Package->Name.ToString(),
+									Package->GlobalPackageId.ValueForDebugging(),
+									*Export->ObjectName.ToString(),
+									*LocalizedPackage->Name.ToString());
+
+								AddExternalExportArc(ExportGraph, *LocalizedPackage, Export->SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+							}
+						}
+						else
+						{
+							const FObjectImport* Import = PackageAssetData.ObjectImports.GetData() + Package->ImportIndexOffset + Dep.ToImport();
+							const bool bIsPackage = Import->OuterIndex.IsNull();
+							if (bIsPackage)
+							{
+								AddBaseGamePackageArc(ExportGraph, FPackageId::FromName(Import->ObjectName), *Package, I, PhaseTo);
+							}
 						}
 					}
 				}
@@ -2716,14 +2166,18 @@ static void AddPreloadDependencies(
 	}
 };
 
-void BuildContainerNameMap(FContainerTargetSpec& ContainerTarget)
+void FinalizeNameMaps(FContainerTargetSpec& ContainerTarget)
 {
-	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
-
 	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
-		NameMapBuilder.MarkNameAsReferenced(TargetFile.Package->Name);
-		NameMapBuilder.MarkNamesAsReferenced(TargetFile.Package->Names, TargetFile.NameIndices);
+		if (TargetFile.bIsBulkData)
+		{
+			continue;
+		}
+		FPackage* Package = TargetFile.Package;
+		TargetFile.NameMapBuilder->MarkNameAsReferenced(Package->Name);
+		TargetFile.NameMapBuilder->MarkNameAsReferenced(Package->SourcePackageName);
+		TargetFile.NameMapBuilder->MarkNamesAsReferenced(Package->SummaryNames, TargetFile.NameIndices);
 	}
 }
 
@@ -2733,13 +2187,14 @@ void FinalizePackageHeaders(
 	const TArray<FExportObjectData>& GlobalExports,
 	const FImportObjectsByFullName& GlobalImportsByFullName)
 {
-	const uint16 NameMapIndex = ContainerTarget.bUseLocalNameMap ? ContainerTarget.Header.ContainerId.ToIndex() : 0;
-
 	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
+		if (TargetFile.bIsBulkData)
+		{
+			continue;
+		}
+
 		FPackage* Package = TargetFile.Package;
-		check(TargetFile.ContainerTarget->NameMapBuilder);
-		const FNameMapBuilder& NameMapBuilder = *TargetFile.ContainerTarget->NameMapBuilder;
 
 		// Temporary Archive for serializing ImportMap
 		FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
@@ -2747,28 +2202,24 @@ void FinalizePackageHeaders(
 		{
 			ImportMapArchive << GlobalImportIndex;
 		}
-		Package->ImportMapSize = ImportMapArchive.Tell();
+		TargetFile.ImportMapSize = ImportMapArchive.Tell();
 
 		// Temporary Archive for serializing EDL graph data
 		FBufferWriter GraphArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
-
-		int32 InternalArcCount = Package->InternalArcs.Num();
-		GraphArchive << InternalArcCount;
-		GraphArchive.Serialize(Package->InternalArcs.GetData(), Package->InternalArcs.Num() * sizeof(FArc));
 
 		int32 ReferencedPackagesCount = Package->ExternalArcs.Num();
 		GraphArchive << ReferencedPackagesCount;
 		for (auto& KV : Package->ExternalArcs)
 		{
-			FPackage* ImportedPackage = KV.Key;
+			FPackageId ImportedPackageId = KV.Key;
 			TArray<FArc>& Arcs = KV.Value;
 			int32 ExternalArcCount = Arcs.Num();
 
-			GraphArchive << ImportedPackage->GlobalPackageId;
+			GraphArchive << ImportedPackageId;
 			GraphArchive << ExternalArcCount;
 			GraphArchive.Serialize(Arcs.GetData(), ExternalArcCount * sizeof(FArc));
 		}
-		Package->UGraphSize = GraphArchive.Tell();
+		TargetFile.UGraphSize = GraphArchive.Tell();
 
 		// Temporary Archive for serializing export map data
 		FBufferWriter ExportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
@@ -2780,7 +2231,7 @@ void FinalizePackageHeaders(
 			FExportMapEntry ExportMapEntry;
 			ExportMapEntry.CookedSerialOffset = ObjectExport.SerialOffset;
 			ExportMapEntry.CookedSerialSize = ObjectExport.SerialSize;
-			ExportMapEntry.ObjectName = NameMapBuilder.MapName(ObjectExport.ObjectName);
+			ExportMapEntry.ObjectName = TargetFile.NameMapBuilder->MapName(ObjectExport.ObjectName);
 			ExportMapEntry.OuterIndex = ExportData.OuterIndex;
 			ExportMapEntry.ClassIndex = ExportData.ClassIndex;
 			ExportMapEntry.SuperIndex = ExportData.SuperIndex;
@@ -2799,7 +2250,7 @@ void FinalizePackageHeaders(
 
 			ExportMapArchive << ExportMapEntry;
 		}
-		Package->ExportMapSize = ExportMapArchive.Tell();
+		TargetFile.ExportMapSize = ExportMapArchive.Tell();
 
 		// Temporary archive for serializing export bundle data
 		FBufferWriter ExportBundlesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
@@ -2819,82 +2270,92 @@ void FinalizePackageHeaders(
 				ExportBundlesArchive << ExportNode->BundleEntry;
 			}
 		}
-		Package->ExportBundlesHeaderSize = ExportBundlesArchive.Tell();
+		TargetFile.ExportBundlesHeaderSize = ExportBundlesArchive.Tell();
 
-		const uint64 NameMapSize = TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize();
-		check(Package->NameMapSize == 0 || Package->NameMapSize == NameMapSize);
-		Package->NameMapSize = NameMapSize;
+		TArray<uint8> NamesBuffer;
+		TArray<uint8> NameHashesBuffer;
+		SaveNameBatch(Package->LocalNameMapBuilder.GetNameMap(), NamesBuffer, NameHashesBuffer);
+		TargetFile.NameMapSize = Align(NamesBuffer.Num(), 8) + NameHashesBuffer.Num();
 
-		const uint64 PackageHeaderSize =
+		TargetFile.HeaderSerialSize =
 			sizeof(FPackageSummary)
-			+ Package->NameMapSize
-			+ Package->ImportMapSize
-			+ Package->ExportMapSize
-			+ Package->ExportBundlesHeaderSize
-			+ Package->UGraphSize;
+			+ TargetFile.NameMapSize
+			+ TargetFile.ImportMapSize
+			+ TargetFile.ExportMapSize
+			+ TargetFile.ExportBundlesHeaderSize
+			+ TargetFile.UGraphSize;
 
-		check(Package->HeaderSerialSize == 0 || Package->HeaderSerialSize == PackageHeaderSize);
-		Package->HeaderSerialSize = PackageHeaderSize;
-
-		TargetFile.PackageHeaderData.AddZeroed(PackageHeaderSize);
+		TargetFile.PackageHeaderData.AddZeroed(TargetFile.HeaderSerialSize);
 		uint8* PackageHeaderBuffer = TargetFile.PackageHeaderData.GetData();
 		FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageHeaderBuffer);
 
+		PackageSummary->Name = TargetFile.NameMapBuilder->MapName(Package->Name);
+		PackageSummary->SourceName = TargetFile.NameMapBuilder->MapName(Package->SourcePackageName);
 		PackageSummary->PackageFlags = Package->PackageFlags;
 		PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
-		PackageSummary->NameMapIndex = NameMapIndex;
-		PackageSummary->Pad = 0;
-		PackageSummary->GraphDataSize = Package->UGraphSize;
+		PackageSummary->GraphDataSize = TargetFile.UGraphSize;
 
-		FBufferWriter SummaryArchive(PackageHeaderBuffer, PackageHeaderSize);
+		FBufferWriter SummaryArchive(PackageHeaderBuffer, TargetFile.HeaderSerialSize);
 		SummaryArchive.Seek(sizeof(FPackageSummary));
 
 		// NameMap data
 		{
-			PackageSummary->NameMapOffset = SummaryArchive.Tell();
-			SummaryArchive.Serialize(TargetFile.NameIndices.GetData(),
-				TargetFile.NameIndices.Num() * TargetFile.NameIndices.GetTypeSize());
+			PackageSummary->NameMapNamesOffset = SummaryArchive.Tell();
+			check(PackageSummary->NameMapNamesOffset % 8 == 0);
+			PackageSummary->NameMapNamesSize = NamesBuffer.Num();
+			SummaryArchive.Serialize(NamesBuffer.GetData(), NamesBuffer.Num());
+			PackageSummary->NameMapHashesOffset = Align(SummaryArchive.Tell(), 8);
+			int32 PaddingByteCount = PackageSummary->NameMapHashesOffset - SummaryArchive.Tell();
+			if (PaddingByteCount)
+			{
+				check(PaddingByteCount < 8);
+				uint8 PaddingBytes[8]{ 0 };
+				SummaryArchive.Serialize(PaddingBytes, PaddingByteCount);
+			}
+			PackageSummary->NameMapHashesSize = NameHashesBuffer.Num();
+			SummaryArchive.Serialize(NameHashesBuffer.GetData(), NameHashesBuffer.Num());
 		}
 
 		// ImportMap data
 		{
-			check(ImportMapArchive.Tell() == Package->ImportMapSize);
+			check(ImportMapArchive.Tell() == TargetFile.ImportMapSize);
 			PackageSummary->ImportMapOffset = SummaryArchive.Tell();
 			SummaryArchive.Serialize(ImportMapArchive.GetWriterData(), ImportMapArchive.Tell());
 		}
 
 		// ExportMap data
 		{
-			check(ExportMapArchive.Tell() == Package->ExportMapSize);
+			check(ExportMapArchive.Tell() == TargetFile.ExportMapSize);
 			PackageSummary->ExportMapOffset = SummaryArchive.Tell();
 			SummaryArchive.Serialize(ExportMapArchive.GetWriterData(), ExportMapArchive.Tell());
 		}
 
 		// ExportBundle data
 		{
-			check(ExportBundlesArchive.Tell() == Package->ExportBundlesHeaderSize);
+			check(ExportBundlesArchive.Tell() == TargetFile.ExportBundlesHeaderSize);
 			PackageSummary->ExportBundlesOffset = SummaryArchive.Tell();
 			SummaryArchive.Serialize(ExportBundlesArchive.GetWriterData(), ExportBundlesArchive.Tell());
 		}
 
 		// Graph data
 		{
-			check(GraphArchive.Tell() == Package->UGraphSize);
+			check(GraphArchive.Tell() == TargetFile.UGraphSize);
 			PackageSummary->GraphDataOffset = SummaryArchive.Tell();
 			SummaryArchive.Serialize(GraphArchive.GetWriterData(), GraphArchive.Tell());
 		}
 	}
 }
 
-void SerializePackageStoreEntries(
-	TArray<FPackage*> Packages,
-	FArchive& StoreTocArchive,
-	FArchive& StoreDataArchive)
+void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 {
-	IOSTORE_CPU_SCOPE(SerializePackageStoreEntries);
-	UE_LOG(LogIoStore, Display, TEXT("Finalizing package store..."));
-
-	int32 StoreTocSize = Packages.Num() * sizeof(FPackageStoreEntry);
+	check(ContainerTarget.NameMapBuilder);
+	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
+	FCulturePackageMap& CulturePackageMap = ContainerTarget.Header.CulturePackageMap;
+	TArray<FPackageId>& PackageIds = ContainerTarget.Header.PackageIds;
+	
+	int32 StoreTocSize = ContainerTarget.PackageCount * sizeof(FPackageStoreEntry);
+	FLargeMemoryWriter StoreTocArchive(0, true);
+	FLargeMemoryWriter StoreDataArchive(0, true);
 
 	auto SerializePackageEntryCArrayHeader = [&StoreTocSize,&StoreTocArchive,&StoreDataArchive](int32 Count)
 	{
@@ -2907,48 +2368,59 @@ void SerializePackageStoreEntries(
 		StoreTocArchive << OffsetToDataFromThis;
 	};
 
-	for (FPackage* Package : Packages)
+	PackageIds.Reserve(ContainerTarget.PackageCount);
+	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
-		FMappedName PackageName;
-		StoreTocArchive << PackageName;
-		StoreTocArchive << Package->SourceGlobalPackageId;
-		StoreTocArchive << Package->ExportCount;
-
-		// Global imported packages meta data
+		if (TargetFile.bIsBulkData)
 		{
-			SerializePackageEntryCArrayHeader(Package->ImportedPackagesSerializeCount);
-			for (int32 I = 0; I < Package->ImportedPackagesSerializeCount; ++I)
-			{
-				FPackage* ImportedPackage = Package->ImportedPackages[I];
-				StoreDataArchive << ImportedPackage->GlobalPackageId;
-			}
+			continue;
 		}
 
-		// Global public exports meta data
+		FPackage* Package = TargetFile.Package;
+
+		// PackageIds
 		{
-			SerializePackageEntryCArrayHeader(Package->PublicExports.Num());
-			for (FPackageObjectIndex ObjectIndex : Package->PublicExports)
-			{
-				StoreDataArchive << ObjectIndex;
-			}
+			check(!PackageIds.Contains(Package->GlobalPackageId));
+			PackageIds.Add(Package->GlobalPackageId);
 		}
 
-		// Global export bundle meta data
+		// CulturePackageMap
+		if (Package->bIsLocalizedAndConformed)
 		{
-			// TODO: Request IO for each package export bundle individually in the loader,
-			//       or just store the data for the first entry directly on the package entry itself
-			SerializePackageEntryCArrayHeader(Package->ExportBundles.Num());
-			FExportBundleMetaEntry ExportBundleMetaEntry;
-			ExportBundleMetaEntry.PayloadSize = Package->HeaderSerialSize + Package->ExportsSerialSize;
-			for (const FExportBundle& ExportBundle : Package->ExportBundles)
-			{
-				ExportBundleMetaEntry.LoadOrder = ExportBundle.LoadOrder;
-				StoreDataArchive << ExportBundleMetaEntry;
+			CulturePackageMap.FindOrAdd(Package->Region).Emplace(Package->SourceGlobalPackageId, Package->GlobalPackageId);
+		}
 
-				ExportBundleMetaEntry.PayloadSize = 0; // currently only specified for the first entry
+		// StoreEntries
+		{
+			uint64 ExportBundlesSize = TargetFile.HeaderSerialSize + Package->ExportsSerialSize;
+			int32 ExportBundleCount = Package->ExportBundles.Num();
+			uint32 LoadOrder = Package->ExportBundles.Num() > 0 ? Package->ExportBundles[0].LoadOrder : 0;
+			uint32 Pad = 0;
+
+			StoreTocArchive << ExportBundlesSize;
+			StoreTocArchive << Package->ExportCount;
+			StoreTocArchive << ExportBundleCount;
+			StoreTocArchive << LoadOrder;
+			StoreTocArchive << Pad;
+
+			// ImportedPackages
+			{
+				SerializePackageEntryCArrayHeader(Package->ImportedPackageIds.Num());
+				for (FPackageId PackageId : Package->ImportedPackageIds)
+				{
+					check(PackageId.IsValid());
+					StoreDataArchive << PackageId;
+				}
 			}
 		}
 	}
+
+	const int32 StoreByteCount = StoreTocArchive.TotalSize() + StoreDataArchive.TotalSize();
+	ContainerTarget.Header.PackageCount = ContainerTarget.PackageCount;
+	ContainerTarget.Header.StoreEntries.AddUninitialized(StoreByteCount);
+	FBufferWriter PackageStoreArchive(ContainerTarget.Header.StoreEntries.GetData(), StoreByteCount);
+	PackageStoreArchive.Serialize(StoreTocArchive.GetData(), StoreTocArchive.TotalSize());
+	PackageStoreArchive.Serialize(StoreDataArchive.GetData(), StoreDataArchive.TotalSize());
 }
 
 static void SerializeInitialLoad(
@@ -2962,11 +2434,13 @@ static void SerializeInitialLoad(
 	int32 NumScriptObjects = GlobalScriptImports.Num();
 	InitialLoadArchive << NumScriptObjects; 
 
-	for (const FScriptObjectData& ImportData : GlobalScriptImports)
+	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalScriptImports)
 	{
+		const FScriptObjectData& ImportData = Pair.Value;
 		GlobalNameMapBuilder.MarkNameAsReferenced(ImportData.ObjectName);
 		FScriptObjectEntry Entry;
 		Entry.ObjectName = GlobalNameMapBuilder.MapName(ImportData.ObjectName).ToUnresolvedMinimalName();
+		Entry.GlobalIndex = ImportData.GlobalIndex;
 		Entry.OuterIndex = ImportData.OuterIndex;
 		Entry.CDOClassIndex = ImportData.CDOClassIndex;
 
@@ -3133,15 +2607,15 @@ static void ParsePackageAssets(
 			{
 				Ar.Seek(Summary.NameOffset);
 
-				Package.Names.Reserve(Summary.NameCount);
-				Package.NameMap.Reserve(Summary.NameCount);
 				FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
 
+				Package.SummaryNames.Reserve(Summary.NameCount);
 				for (int32 I = 0; I < Summary.NameCount; ++I)
 				{
 					Ar << NameEntry;
-					FName& Name = Package.Names.Emplace_GetRef(NameEntry);
-					Package.NameMap.Emplace(Name.GetDisplayIndex());
+					FName Name(NameEntry);
+					Package.SummaryNames.Add(Name);
+					Package.LocalNameMapBuilder.AddName(Name);
 				}
 			}
 		}
@@ -3167,7 +2641,7 @@ static void ParsePackageAssets(
 
 			if (Summary.ImportCount > 0)
 			{
-				FNameReaderProxyArchive ProxyAr(Ar, Package.NameMap);
+				FNameReaderProxyArchive ProxyAr(Ar, Package.LocalNameMapBuilder.GetNameMap());
 				ProxyAr.Seek(Summary.ImportOffset);
 
 				for (int32 I = 0; I < Summary.ImportCount; ++I)
@@ -3185,7 +2659,7 @@ static void ParsePackageAssets(
 
 			if (Summary.ExportCount > 0)
 			{
-				FNameReaderProxyArchive ProxyAr(Ar, Package.NameMap);
+				FNameReaderProxyArchive ProxyAr(Ar, Package.LocalNameMapBuilder.GetNameMap());
 				ProxyAr.Seek(Summary.ExportOffset);
 
 				for (int32 I = 0; I < Summary.ExportCount; ++I)
@@ -3238,6 +2712,7 @@ static void FindScriptPackages(TArray<FObjectImport>& ObjectImports, TArray<UPac
 	}
 }
 
+// modified copy from SavePackage
 EObjectMark GetExcludedObjectMarksForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
 	EObjectMark Marks = OBJECTMARK_NOMARKS;
@@ -3256,6 +2731,7 @@ EObjectMark GetExcludedObjectMarksForTargetPlatform(const ITargetPlatform* Targe
 	return Marks;
 }
 
+// modified copy from SavePackage
 EObjectMark GetExcludedObjectMarksForObject(const UObject* Object, const ITargetPlatform* TargetPlatform)
 {
 	EObjectMark Marks = OBJECTMARK_NOMARKS;
@@ -3295,7 +2771,7 @@ static void FindScriptObjectsRecursive(
 		return;
 	}
 
-	const UObject* ObjectForExclusion = Object->HasAnyFlags(RF_ClassDefaultObject) ? Object->GetClass() : Object;
+	const UObject* ObjectForExclusion = Object->HasAnyFlags(RF_ClassDefaultObject) ? (const UObject*)Object->GetClass() : Object;
 	const EObjectMark ObjectMarks = GetExcludedObjectMarksForObject(ObjectForExclusion, TargetPlatform);
 
 	if (ObjectMarks & ExcludedObjectMarks)
@@ -3304,59 +2780,57 @@ static void FindScriptObjectsRecursive(
 		return;
 	}
 
+	FGlobalScriptObjects& ScriptObjects = GlobalPackageData.ScriptObjects;
+	const FScriptObjectData* Outer = ScriptObjects.Find(OuterIndex);
+	check(Outer);
+
 	FName ObjectName = Object->GetFName();
 
-	FString TempFullName = GlobalPackageData.ScriptObjects[OuterIndex.GetIndex()].FullName;
+	FString TempFullName = ScriptObjects.FindRef(OuterIndex).FullName;
 	TempFullName.AppendChar(TEXT('/'));
 	ObjectName.AppendString(TempFullName);
 
-	FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(TempFullName);
-	FScriptObjectData* ScriptImport = nullptr;
+	TempFullName.ToLowerInline();
+	const uint64 Hash = GenerateImportHash(TempFullName);
+	FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
 
-	if (FindGlobalImportIndex.IsNull())
+	check(!GlobalPackageData.ImportsByFullName.Contains(TempFullName));
+	FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
+	if (ScriptImport)
 	{
-		TArray<FScriptObjectData>& ScriptObjects = GlobalPackageData.ScriptObjects;
-		FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, ScriptObjects.Num());
-		GlobalPackageData.ImportsByFullName.Add(TempFullName, GlobalImportIndex);
+		UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"), *TempFullName, *ScriptImport->FullName);
+	}
 
-		ScriptImport = &GlobalPackageData.ScriptObjects.AddDefaulted_GetRef();
-		ScriptImport->GlobalIndex = GlobalImportIndex;
-		ScriptImport->FullName = MoveTemp(TempFullName);
-	}
-	else
+	FPackageObjectIndex CDOClassIndex = Outer->CDOClassIndex;
+	if (CDOClassIndex.IsNull())
 	{
-		ScriptImport = &GlobalPackageData.ScriptObjects[FindGlobalImportIndex.GetIndex()];
-	}
-	if (!ScriptImport->bInitialized)
-	{
-		FScriptObjectData& Outer = GlobalPackageData.ScriptObjects[OuterIndex.GetIndex()];
-		FPackageObjectIndex CDOClassIndex = Outer.CDOClassIndex;
-		if (CDOClassIndex.IsNull())
+		TCHAR NameBuffer[FName::StringBufferSize];
+		uint32 Len = ObjectName.ToString(NameBuffer);
+		if (FCString::Strncmp(NameBuffer, TEXT("Default__"), 9) == 0)
 		{
-			TCHAR NameBuffer[FName::StringBufferSize];
-			uint32 Len = ObjectName.ToString(NameBuffer);
-			if (FCString::Strncmp(NameBuffer, TEXT("Default__"), 9) == 0)
-			{
-				FString CDOClassFullName = Outer.FullName;
-				CDOClassFullName.AppendChar(TEXT('/'));
-				CDOClassFullName.AppendChars(NameBuffer + 9, Len - 9);
+			FString CDOClassFullName = Outer->FullName;
+			CDOClassFullName.AppendChar(TEXT('/'));
+			CDOClassFullName.AppendChars(NameBuffer + 9, Len - 9);
+			CDOClassFullName.ToLowerInline();
 
-				CDOClassIndex = GlobalPackageData.ImportsByFullName.FindRef(CDOClassFullName);
-				check(CDOClassIndex.IsScriptImport());
-			}
+			CDOClassIndex = GlobalPackageData.ImportsByFullName.FindRef(CDOClassFullName);
+			check(CDOClassIndex.IsScriptImport());
 		}
-		ScriptImport->OuterIndex = Outer.GlobalIndex;
-		ScriptImport->ObjectName = ObjectName;
-		ScriptImport->CDOClassIndex = CDOClassIndex;
-		ScriptImport->bInitialized = true;
 	}
 
-	OuterIndex = ScriptImport->GlobalIndex;
+	GlobalPackageData.ImportsByFullName.Add(TempFullName, GlobalImportIndex);
+	ScriptImport = &ScriptObjects.Add(GlobalImportIndex);
+	ScriptImport->GlobalIndex = GlobalImportIndex;
+	ScriptImport->FullName = MoveTemp(TempFullName);
+	ScriptImport->OuterIndex = Outer->GlobalIndex;
+	ScriptImport->ObjectName = ObjectName;
+	ScriptImport->CDOClassIndex = CDOClassIndex;
+
 	TArray<UObject*> InnerObjects;
 	GetObjectsWithOuter(Object, InnerObjects, /*bIncludeNestedObjects*/false);
 	for (UObject* InnerObject : InnerObjects)
 	{
-		FindScriptObjectsRecursive(GlobalPackageData, OuterIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
+		FindScriptObjectsRecursive(GlobalPackageData, GlobalImportIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
 	}
 };
 
@@ -3377,61 +2851,62 @@ static void CreateGlobalScriptObjects(
 	{
 		if (!Package->HasAnyPackageFlags(PKG_CompiledIn))
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Skipping script package: %s"), *Package->GetName());
-			continue;
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s is missing the flag PKG_CompiledIn"), *Package->GetName());
+		}
+		else if (Package->HasAnyPackageFlags(PKG_EditorOnly))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_EditorOnly"), *Package->GetName());
+		}
+		else if (Package->HasAnyPackageFlags(PKG_Developer))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_Developer"), *Package->GetName());
+		}
+		else if (Package->HasAnyPackageFlags(PKG_UncookedOnly))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Referenced script package %s has the flag PKG_UncookedOnly"), *Package->GetName());
 		}
 
-		if (Package->HasAnyPackageFlags(PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly))
-		{
-			UE_LOG(LogIoStore, Warning, TEXT("Skipping script package: %s"), *Package->GetName());
-			continue;
-		}
+		FGlobalScriptObjects& ScriptObjects = GlobalPackageData.ScriptObjects;
 
 		FName ObjectName = Package->GetFName();
 		FString FullName = Package->GetName();
 
-		FPackageObjectIndex FindGlobalImportIndex = GlobalPackageData.ImportsByFullName.FindRef(FullName);
-		FScriptObjectData* ScriptImport = nullptr;
+		FullName.ToLowerInline();
+		const uint64 Hash = GenerateImportHash(FullName);
+		FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, Hash);
 
-		if (FindGlobalImportIndex.IsNull())
+		check(!GlobalPackageData.ImportsByFullName.Contains(FullName));
+		FScriptObjectData* ScriptImport = ScriptObjects.Find(GlobalImportIndex);
+		if (ScriptImport)
 		{
-			TArray<FScriptObjectData>& ScriptObjects = GlobalPackageData.ScriptObjects;
-			FPackageObjectIndex GlobalImportIndex(FPackageObjectIndex::ScriptImport, ScriptObjects.Num());
-			GlobalPackageData.ImportsByFullName.Add(FullName, GlobalImportIndex);
-
-			ScriptImport = &ScriptObjects.AddDefaulted_GetRef();
-			ScriptImport->GlobalIndex = GlobalImportIndex;
-			ScriptImport->FullName = FullName;
-		}
-		else
-		{
-			ScriptImport = &GlobalPackageData.ScriptObjects[FindGlobalImportIndex.GetIndex()];
-		}
-		if (!ScriptImport->bInitialized)
-		{
-			ScriptImport->OuterIndex = FPackageObjectIndex();
-			ScriptImport->ObjectName = ObjectName;
-			ScriptImport->bInitialized = true;
+			UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"), *FullName, *ScriptImport->FullName);
 		}
 
-		FPackageObjectIndex OuterIndex = ScriptImport->GlobalIndex;
+		GlobalPackageData.ImportsByFullName.Add(FullName, GlobalImportIndex);
+		ScriptImport = &ScriptObjects.Add(GlobalImportIndex);
+		ScriptImport->GlobalIndex = GlobalImportIndex;
+		ScriptImport->FullName = FullName;
+		ScriptImport->OuterIndex = FPackageObjectIndex();
+		ScriptImport->ObjectName = ObjectName;
+
 		InnerObjects.Reset();
 		GetObjectsWithOuter(Package, InnerObjects, /*bIncludeNestedObjects*/false);
 		for (UObject* InnerObject : InnerObjects)
 		{
-			FindScriptObjectsRecursive(GlobalPackageData, OuterIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
+			FindScriptObjectsRecursive(GlobalPackageData, GlobalImportIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
 		}
 	}
 
-	for (FScriptObjectData ScriptObject : GlobalPackageData.ScriptObjects)
+	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalPackageData.ScriptObjects)
 	{
-		NameMapBuilder.MarkNameAsReferenced(ScriptObject.ObjectName);
+		NameMapBuilder.MarkNameAsReferenced(Pair.Value.ObjectName);
 	}
 }
 
 static void CreateGlobalImportsAndExports(
+	const FIoStoreArguments& Arguments,
 	TArray<FPackage*>& Packages,
-	const FPackageMap& PackageMap,
+	const FPackageNameMap& PackageMap,
 	FPackageAssetData& PackageAssetData,
 	FGlobalPackageData& GlobalPackageData,
 	FExportGraph& ExportGraph)
@@ -3440,6 +2915,7 @@ static void CreateGlobalImportsAndExports(
 	UE_LOG(LogIoStore, Display, TEXT("Creating global imports and exports..."));
 
 	TArray<FString> TempFullNames;
+	const FString DLCPrefix = Arguments.IsDLC() ? FString::Printf(TEXT("/%s/"), *FPaths::GetBaseFilename(Arguments.DLCPluginPath)) : FString();
 
 	TSet<FPackage*> TempImportedPackages;
 	for (FPackage* Package : Packages)
@@ -3474,15 +2950,23 @@ static void CreateGlobalImportsAndExports(
 
 	for (FExportObjectData& Export : GlobalPackageData.ExportObjects)
 	{
-		const bool bIsPublicExport = !!(Export.ObjectFlags & RF_Public);
-		if (bIsPublicExport)
+		if (Export.IsPublicExport())
 		{
-			TArray<int32>& PublicExports = GlobalPackageData.PublicExportIndices;
-			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, PublicExports.Num());
+			TMap<FPackageObjectIndex, int32>& PublicExports = GlobalPackageData.PublicExportIndices;
+			const uint64 Hash = GenerateImportHash(Export.FullName);
+			FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex(FPackageObjectIndex::PackageImport, Hash);
+
+			check(!GlobalPackageData.ImportsByFullName.Contains(Export.FullName));
+			int32* ExportIndex = PublicExports.Find(GlobalImportIndex);
+			if (ExportIndex)
+			{
+				UE_LOG(LogIoStore, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"),
+					*Export.FullName,
+					*GlobalPackageData.ExportObjects[*ExportIndex].FullName);
+			}
 			GlobalPackageData.ImportsByFullName.Add(Export.FullName, GlobalImportIndex);
-			PublicExports.Add(Export.GlobalIndex);
+			PublicExports.Add(GlobalImportIndex, Export.GlobalIndex);
 			Export.GlobalImportIndex = GlobalImportIndex;
-			Export.Package->PublicExports.Add(GlobalImportIndex);
 		}
 	}
 
@@ -3503,26 +2987,46 @@ static void CreateGlobalImportsAndExports(
 		for (int32 ImportIndex = 0; ImportIndex < Package->ImportCount; ++ImportIndex)
 		{
 			FindImportFullName(TempFullNames, ImportMap, ImportIndex);
+			const FString& FullName = TempFullNames[ImportIndex];
 
 			FPackageObjectIndex GlobalImportIndex = FindAndVerifyGlobalImport(
 				Package,
 				GlobalPackageData,
 				ImportMap[ImportIndex],
-				TempFullNames[ImportIndex]);
+				FullName,
+				DLCPrefix);
+
+			// The global import can be missing when building DLC:s and we don't have all packages available
+			if (GlobalImportIndex.IsNull())
+			{
+				const FPackageObjectIndex::Type ImportType = FullName.StartsWith(ScriptPrefix)
+					? FPackageObjectIndex::ScriptImport
+					: FPackageObjectIndex::PackageImport;
+
+				GlobalImportIndex = FPackageObjectIndex(ImportType, GenerateImportHash(FullName));
+			}
 
 			Package->Imports.Add(GlobalImportIndex);
+			const bool bIsPackage = ImportMap[ImportIndex].OuterIndex.IsNull();
+			FPackageId PackageId = bIsPackage ? FPackageId::FromName(*FullName) : FPackageId();
 
 			if (GlobalImportIndex.IsPackageImport())
 			{
-				const FExportObjectData& Export = GlobalPackageData.GetPublicExport(GlobalImportIndex);
-				check(Export.Package);
-
-				bool bAlreadyInSet;
-				TempImportedPackages.Add(Export.Package, &bAlreadyInSet);
-				if (!bAlreadyInSet)
+				if (bIsPackage)
 				{
-					Package->ImportedPackages.Add(Export.Package);
-					Export.Package->ImportedByPackages.Add(Package);
+					check(PackageId.IsValid());
+					Package->ImportedPackageIds.AddUnique(PackageId);
+				}
+
+				if (const FExportObjectData* Export = GlobalPackageData.FindPublicExport(GlobalImportIndex))
+				{
+					check(Export->Package);
+					bool bAlreadyInSet;
+					TempImportedPackages.Add(Export->Package, &bAlreadyInSet);
+					if (!bAlreadyInSet)
+					{
+						Package->ImportedPackages.Add(Export->Package);
+					}
 				}
 			}
 		}
@@ -3537,7 +3041,7 @@ static void MapExportEntryIndices(
 	IOSTORE_CPU_SCOPE(ExportData);
 	UE_LOG(LogIoStore, Display, TEXT("Converting export map import indices..."));
 
-	auto PackageObjectIndexFromPackageIndex =
+	auto PackageObjectIdFromPackageIndex =
 		[](const TArray<FPackageObjectIndex>& Imports, const FPackageIndex& PackageIndex) -> FPackageObjectIndex 
 		{ 
 			if (PackageIndex.IsImport())
@@ -3557,18 +3061,18 @@ static void MapExportEntryIndices(
 		{
 			const FObjectExport& ObjectExport = ObjectExports[Package->ExportIndexOffset + I];
 			FExportObjectData& ExportData = GlobalExports[Package->Exports[I]];
-			ExportData.OuterIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
-			ExportData.ClassIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.ClassIndex);
-			ExportData.SuperIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.SuperIndex);
-			ExportData.TemplateIndex = PackageObjectIndexFromPackageIndex(Package->Imports, ObjectExport.TemplateIndex);
+			ExportData.OuterIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
+			ExportData.ClassIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.ClassIndex);
+			ExportData.SuperIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.SuperIndex);
+			ExportData.TemplateIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.TemplateIndex);
 		}
 	}
 };
+
 static void ProcessLocalizedPackages(
 	const TArray<FPackage*>& Packages,
-	const FPackageMap& PackageMap,
+	const FPackageNameMap& PackageMap,
 	FGlobalPackageData& GlobalPackageData,
-	FCulturePackageMap& OutCulturePackageMap,
 	FSourceToLocalizedPackageMultimap& OutSourceToLocalizedPackageMap)
 {
 	IOSTORE_CPU_SCOPE(ProcessLocalizedPackages);
@@ -3589,7 +3093,7 @@ static void ProcessLocalizedPackages(
 				TEXT("For culture '%s': Localized package '%s' (%d) should have a package name different from source name."),
 				*Package->Region,
 				*Package->Name.ToString(),
-				Package->GlobalPackageId.ToIndexForDebugging())
+				Package->GlobalPackageId.ValueForDebugging())
 			continue;
 		}
 
@@ -3601,7 +3105,7 @@ static void ProcessLocalizedPackages(
 				TEXT("For culture '%s': Localized package '%s' (%d) is unique and does not override a source package."),
 				*Package->Region,
 				*Package->Name.ToString(),
-				Package->GlobalPackageId.ToIndexForDebugging());
+				Package->GlobalPackageId.ValueForDebugging());
 			continue;
 		}
 
@@ -3617,23 +3121,22 @@ static void ProcessLocalizedPackages(
 				TEXT("When loading the source package, it will be remapped to this localized package."),
 				*Package->Region,
 				*Package->Name.ToString(),
-				Package->GlobalPackageId.ToIndexForDebugging(),
+				Package->GlobalPackageId.ValueForDebugging(),
 				*Package->SourcePackageName.ToString(),
-				SourcePackage->GlobalPackageId.ToIndexForDebugging());
+				SourcePackage->GlobalPackageId.ValueForDebugging());
 
 			OutSourceToLocalizedPackageMap.Add(SourcePackage, Package);
-			OutCulturePackageMap.FindOrAdd(Package->Region).Add(SourcePackage->GlobalPackageId, Package->GlobalPackageId);
 		}
 		else
 		{
-			UE_LOG(LogIoStore, Warning,
+			UE_LOG(LogIoStore, Display,
 				TEXT("For culture '%s': Localized package '%s' (%d) does not conform to source package '%s' (%d) due to mismatching public exports. ")
 				TEXT("When loading the source package, it will never be remapped to this localized package."),
 				*Package->Region,
 				*Package->Name.ToString(),
-				Package->GlobalPackageId.ToIndexForDebugging(),
+				Package->GlobalPackageId.ValueForDebugging(),
 				*Package->SourcePackageName.ToString(),
-				SourcePackage->GlobalPackageId.ToIndexForDebugging());
+				SourcePackage->GlobalPackageId.ValueForDebugging());
 		}
 	}
 
@@ -3651,12 +3154,11 @@ static void ProcessLocalizedPackages(
 			{
 				UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized imported package '%s' (%d)"),
 					*Package->Name.ToString(),
-					Package->GlobalPackageId.ToIndexForDebugging(),
+					Package->GlobalPackageId.ValueForDebugging(),
 					*LocalizedPackage->Name.ToString(),
-					LocalizedPackage->GlobalPackageId.ToIndexForDebugging());
+					LocalizedPackage->GlobalPackageId.ValueForDebugging());
 			}
 		}
-		Package->ImportedPackagesSerializeCount = Package->ImportedPackages.Num();
 		Package->ImportedPackages.Append(LocalizedPackages);
 	}
 
@@ -3667,30 +3169,33 @@ static void ProcessLocalizedPackages(
 		{
 			if (GlobalImportIndex.IsPackageImport())
 			{
-				const FExportObjectData& ExportData = GlobalPackageData.GetPublicExport(GlobalImportIndex);
-				if (ExportData.Package->SourcePackageName != ExportData.Package->Name)
+				// When building DLC's the export can be missing
+				if (const FExportObjectData* Export = GlobalPackageData.FindPublicExport(GlobalImportIndex))
 				{
-					const FPackageObjectIndex* SourceGlobalImportIndex = LocalizedToSourceImportIndexMap.Find(GlobalImportIndex);
-					if (SourceGlobalImportIndex)
+					if (Export->Package->SourcePackageName != Export->Package->Name)
 					{
-						GlobalImportIndex = *SourceGlobalImportIndex;
+						const FPackageObjectIndex* SourceGlobalImportIndex = LocalizedToSourceImportIndexMap.Find(GlobalImportIndex);
+						if (SourceGlobalImportIndex)
+						{
+							GlobalImportIndex = *SourceGlobalImportIndex;
 
-						const FExportObjectData& SourceExportData = GlobalPackageData.GetPublicExport(*SourceGlobalImportIndex);
-						UE_LOG(LogIoStore, Verbose,
-							TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
-							*Package->Name.ToString(),
-							Package->GlobalPackageId.ToIndexForDebugging(),
-							*ExportData.FullName,
-							*SourceExportData.FullName);
-					}
-					else
-					{
-						UE_LOG(LogIoStore, Verbose,
-							TEXT("For package '%s' (%d): Skip remap for localized import %s")
-							TEXT(", either there is no source package or the localized package did not conform to it."),
-							*Package->Name.ToString(),
-							Package->GlobalPackageId.ToIndexForDebugging(),
-							*ExportData.FullName);
+							const FExportObjectData& SourceExportData = *GlobalPackageData.FindPublicExport(*SourceGlobalImportIndex);
+							UE_LOG(LogIoStore, Verbose,
+								TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
+								*Package->Name.ToString(),
+								Package->GlobalPackageId.ValueForDebugging(),
+								*Export->FullName,
+								*SourceExportData.FullName);
+						}
+						else
+						{
+							UE_LOG(LogIoStore, Verbose,
+								TEXT("For package '%s' (%d): Skip remap for localized import %s")
+								TEXT(", either there is no source package or the localized package did not conform to it."),
+								*Package->Name.ToString(),
+								Package->GlobalPackageId.ValueForDebugging(),
+								*Export->FullName);
+						}
 					}
 				}
 			}
@@ -3698,148 +3203,50 @@ static void ProcessLocalizedPackages(
 	}
 }
 
-static void SaveReleaseVersionMeta(const TCHAR* ReleaseVersionOutputDir, const FNameMapBuilder& GlobalNameMap, const FPackageGlobalIdMap& PackageGlobalIdMap, FGlobalPackageData& GlobalPackageData, const TArray<FContainerTargetSpec*>& ContainerTargets)
+TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain)
 {
-	UE_LOG(LogIoStore, Display, TEXT("Saving release meta data to '%s'"), ReleaseVersionOutputDir);
+	FIoStoreEnvironment IoEnvironment;
+	IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Path, TEXT("")));
+	TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
 
-	IPlatformFile::GetPlatformPhysical().CreateDirectoryTree(ReleaseVersionOutputDir);
-
+	TMap<FGuid, FAES::FAESKey> DecryptionKeys;
+	for (const auto& KV : KeyChain.EncryptionKeys)
 	{
-		FString NameMapOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
-		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileWriter(*NameMapOutputPath));
-		(*NameMapArchive) << const_cast<FNameMapBuilder&>(GlobalNameMap);
+		DecryptionKeys.Add(KV.Key, KV.Value.Key);
 	}
-
+	FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, DecryptionKeys);
+	if (Status.IsOk())
 	{
-		FString PackageMapOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.upackagemap"));
-		TUniquePtr<FArchive> PackageMapArchive(IFileManager::Get().CreateFileWriter(*PackageMapOutputPath));
-
-		TArray<FName> OrderedGlobalIdMap;
-		OrderedGlobalIdMap.SetNum(PackageGlobalIdMap.Num());
-		for (const auto& KV : PackageGlobalIdMap)
-		{
-			FName PackageName = KV.Key;
-			FPackageId PackageGlobalId = KV.Value;
-			OrderedGlobalIdMap[PackageGlobalId.ToIndex()] = PackageName;
-		}
-
-		int32 PackageCount = OrderedGlobalIdMap.Num();
-		(*PackageMapArchive) << PackageCount;
-		for (const FName& PackageName : OrderedGlobalIdMap)
-		{
-			const FNameEntry* NameEntry = FName::GetEntry(PackageName.GetComparisonIndex());
-			NameEntry->Write(*PackageMapArchive);
-			int32 NameNumber = PackageName.GetNumber();
-			(*PackageMapArchive) << NameNumber;
-		}
+		return IoStoreReader;
 	}
-
+	else
 	{
-		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
-		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileWriter(*ImportExportOutputPath));
-		(*ImportExportArchive) << GlobalPackageData;
+		UE_LOG(LogIoStore, Warning, TEXT("Failed creating IoStore reader '%s' [%s]"), *Path, *Status.ToString())
+		return nullptr;
 	}
-
-	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
-	{
-		FContainerMeta ContainerMeta;
-		ContainerMeta.ContainerId = ContainerTarget->Header.ContainerId;
-		ContainerMeta.ContainerName = ContainerTarget->Name.ToString();
-		ContainerMeta.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-		// Should be safe now as all container(s) has been saved.
-		ContainerMeta.NameMapBuilder = MoveTemp(ContainerTarget->LocalNameMapBuilder);
-		ContainerMeta.bIsEncrypted = ContainerTarget->bIsEncrypted;
-
-		FString MetaOutputPath = FPaths::Combine(ReleaseVersionOutputDir, ContainerTarget->Name.ToString() + TEXT(".ucontainermeta"));
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*MetaOutputPath));
-		*Ar << ContainerMeta;
-
-		UE_LOG(LogIoStore, Display,
-			TEXT("Saved container release meta '%s' with container ID '%d' and '%d' names"),
-			*MetaOutputPath,
-			ContainerMeta.ContainerId.ToIndex(),
-			ContainerMeta.NameMapBuilder.GetNameMap().Num());
-	}	
 }
 
-static void LoadReleaseVersionMeta(
-	const TCHAR* ReleaseVersionOutputDir,
-	FNameMapBuilder& GlobalNameMap,
-	FPackageGlobalIdMap& PackageGlobalIdMap,
-	FGlobalPackageData& GlobalPackageData,
-	TArray<FContainerTargetSpec*>& ContainerTargets,
-	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap)
+TArray<TUniquePtr<FIoStoreReader>> CreatePatchSourceReaders(const TArray<FString>& Files, const FIoStoreArguments& Arguments)
 {
-	UE_LOG(LogIoStore, Display, TEXT("Loading release meta data from '%s'"), ReleaseVersionOutputDir);
-
+	TArray<TUniquePtr<FIoStoreReader>> Readers;
+	for (const FString& PatchSourceContainerFile : Files)
 	{
-		FString NameMapPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.unamemap"));
-		TUniquePtr<FArchive> NameMapArchive(IFileManager::Get().CreateFileReader(*NameMapPath));
-		if (NameMapArchive)
+		TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*PatchSourceContainerFile, Arguments.PatchKeyChain);
+		if (Reader.IsValid())
 		{
-			(*NameMapArchive) << GlobalNameMap;
+			UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
+			Readers.Add(MoveTemp(Reader));
 		}
 	}
-	{
-		FString PackageMapPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.upackagemap"));
-		TUniquePtr<FArchive> PackageMapArchive(IFileManager::Get().CreateFileReader(*PackageMapPath));
-		if (PackageMapArchive)
-		{
-			int32 PackageCount;
-			(*PackageMapArchive) << PackageCount;
-			for (int32 PackageIndex = 0; PackageIndex < PackageCount; ++PackageIndex)
-			{
-				FNameEntrySerialized NameEntrySerialized(ENAME_LinkerConstructor);
-				(*PackageMapArchive) << NameEntrySerialized;
-				int32 NameNumber;
-				(*PackageMapArchive) << NameNumber;
-				FName Name(NameEntrySerialized, NameNumber);
-				check(!PackageGlobalIdMap.Contains(Name));
-				PackageGlobalIdMap.Add(Name, FPackageId::FromIndex(PackageIndex));
-			}
-			check(PackageGlobalIdMap.Num() == PackageCount);
-		}
-	}
-
-	{
-		FString ImportExportOutputPath = FPaths::Combine(ReleaseVersionOutputDir, TEXT("iodispatcher.uimportexport"));
-		TUniquePtr<FArchive> ImportExportArchive(IFileManager::Get().CreateFileWriter(*ImportExportOutputPath));
-		(*ImportExportArchive) << GlobalPackageData;
-	}
-
-	FString ContainerMetaWildcard = FPaths::Combine(ReleaseVersionOutputDir, TEXT("*.ucontainermeta"));
-	TArray<FString> ContainerMetaFileNames;
-	IFileManager::Get().FindFiles(ContainerMetaFileNames, *ContainerMetaWildcard, true, false);
-	for (FString& ContainerMetaFileName : ContainerMetaFileNames)
-	{
-		ContainerMetaFileName = ReleaseVersionOutputDir / ContainerMetaFileName;
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*ContainerMetaFileName));
-		if (Ar)
-		{
-			FContainerMeta ContainerMeta;
-			*Ar << ContainerMeta;
-
-			FContainerTargetSpec* ContainerTarget = AddContainer(FName(ContainerMeta.ContainerName), ContainerMeta.ContainerId, ContainerTargets, ContainerTargetMap);
-			ContainerTarget->EncryptionKeyGuid = ContainerMeta.EncryptionKeyGuid;
-			ContainerTarget->LocalNameMapBuilder = MoveTemp(ContainerMeta.NameMapBuilder);
-			ContainerTarget->bIsEncrypted = ContainerMeta.bIsEncrypted;
-
-			UE_LOG(LogIoStore, Display,
-				TEXT("Loaded container release meta '%s' with container ID '%d' and '%d' names"),
-				*ContainerMetaFileName,
-				ContainerTarget->Header.ContainerId.ToIndex(),
-				ContainerTarget->LocalNameMapBuilder.GetNameMap().Num());
-		}
-	}
+	return Readers;
 }
 
 void InitializeContainerTargetsAndPackages(
 	const FIoStoreArguments& Arguments,
 	TArray<FPackage*>& Packages,
-	FPackageMap& PackageMap,
-	FPackageGlobalIdMap& PackageGlobalIdMap,
+	FPackageNameMap& PackageNameMap,
+	FPackageIdMap& PackageIdMap,
 	TArray<FContainerTargetSpec*>& ContainerTargets,
-	TMap<FName, FContainerTargetSpec*>& ContainerTargetMap,
 	FNameMapBuilder& GlobalNameMapBuilder)
 {
 	FString ProjectName = FApp::GetProjectName();
@@ -3878,39 +3285,21 @@ void InitializeContainerTargetsAndPackages(
 
 	for (const FContainerSourceSpec& ContainerSource : Arguments.Containers)
 	{
-		FContainerTargetSpec* ContainerTarget = FindOrAddContainer(ContainerSource.Name, ContainerTargets, ContainerTargetMap);
+		FContainerTargetSpec* ContainerTarget = AddContainer(ContainerSource.Name, ContainerTargets);
 		ContainerTarget->OutputPath = ContainerSource.OutputPath;
 		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
-
-		for (const FString& PatchSourceContainerFile : ContainerSource.PatchSourceContainerFiles)
+		if (Arguments.bSign)
 		{
-			FIoStoreEnvironment PatchSourceEnvironment;
-			PatchSourceEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(PatchSourceContainerFile, TEXT("")));
-			TUniquePtr<FIoStoreReader> PatchSourceReader(new FIoStoreReader());
-
-			FIoEncryptionKey EncryptionKey;
-			if (ContainerTarget->bIsEncrypted)
-			{
-				const FNamedAESKey* PatchKey = Arguments.PatchKeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
-				if (!PatchKey)
-				{
-					PatchKey = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
-				}
-				UE_CLOG(!PatchKey, LogIoStore, Fatal, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
-				EncryptionKey = FIoEncryptionKey { ContainerTarget->EncryptionKeyGuid, PatchKey->Key };
-			}
-			FIoStatus Status = PatchSourceReader->Initialize(PatchSourceEnvironment, EncryptionKey);
-			if (Status.IsOk())
-			{
-				UE_LOG(LogIoStore, Display, TEXT("Loaded patch source container '%s'"), *PatchSourceContainerFile);
-				ContainerTarget->PatchSourceReaders.Add(MoveTemp(PatchSourceReader));
-			}
-			else
-			{
-				UE_LOG(LogIoStore, Warning, TEXT("Failed loading patch source container '%s' [%s]"), *PatchSourceContainerFile, *Status.ToString())
-			}
+			ContainerTarget->ContainerFlags |= EIoContainerFlags::Signed;
 		}
-		
+
+		if (!ContainerTarget->EncryptionKeyGuid.IsValid())
+		{
+			ContainerTarget->EncryptionKeyGuid = ContainerSource.EncryptionKeyOverrideGuid;
+		}
+
+		ContainerTarget->PatchSourceReaders = CreatePatchSourceReaders(ContainerSource.PatchSourceContainerFiles, Arguments);
+
 		ContainerTarget->LocalNameMapBuilder.SetNameMapType(FMappedName::EType::Container);
 		{
 			IOSTORE_CPU_SCOPE(ProcessSourceFiles);
@@ -3942,11 +3331,11 @@ void InitializeContainerTargetsAndPackages(
 				if (bIsMemoryMappedBulkData)
 				{
 					FString TmpFileName = FString(RelativeFileName.Len() - 8, GetData(RelativeFileName)) + TEXT(".ubulk");
-					Package = FindOrAddPackage(*TmpFileName, Packages, PackageMap, PackageGlobalIdMap);
+					Package = FindOrAddPackage(*TmpFileName, Packages, PackageNameMap, PackageIdMap);
 				}
 				else
 				{
-					Package = FindOrAddPackage(*RelativeFileName, Packages, PackageMap, PackageGlobalIdMap);
+					Package = FindOrAddPackage(*RelativeFileName, Packages, PackageNameMap, PackageIdMap);
 				}
 
 				if (Package)
@@ -3959,7 +3348,7 @@ void InitializeContainerTargetsAndPackages(
 					TargetFile.Package = Package;
 					if (SourceFile.bNeedsCompression)
 					{
-						ContainerTarget->bIsCompressed = true;
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Compressed;
 					}
 					else
 					{
@@ -3967,7 +3356,7 @@ void InitializeContainerTargetsAndPackages(
 					}
 					if (SourceFile.bNeedsEncryption)
 					{
-						ContainerTarget->bIsEncrypted = true;
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Encrypted;
 						ContainerTarget->bUseLocalNameMap = true;
 					}
 
@@ -3977,17 +3366,17 @@ void InitializeContainerTargetsAndPackages(
 						if (CookedFileStatData->FileExt == FCookedFileStatData::UPtnl)
 						{
 							TargetFile.bIsOptionalBulkData = true;
-							TargetFile.ChunkId = CreateChunkIdForBulkData(Package->GlobalPackageId, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Optional), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Optional), *TargetFile.TargetPath);
 						}
 						else if (CookedFileStatData->FileExt == FCookedFileStatData::UMappedBulk)
 						{
 							TargetFile.bIsMemoryMappedBulkData = true;
 							TargetFile.bForceUncompressed = true;
-							TargetFile.ChunkId = CreateChunkIdForBulkData(Package->GlobalPackageId, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped), *TargetFile.TargetPath);
 						}
 						else
 						{
-							TargetFile.ChunkId = CreateChunkIdForBulkData(Package->GlobalPackageId, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Normal), *TargetFile.TargetPath);
+							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, BulkdataTypeToChunkIdType(FPackageStoreBulkDataManifest::EBulkdataType::Normal), *TargetFile.TargetPath);
 						}
 						if (Package->FileName.IsEmpty())
 						{
@@ -3997,22 +3386,20 @@ void InitializeContainerTargetsAndPackages(
 					else
 					{
 						check(CookedFileStatData->FileType == FCookedFileStatData::PackageData);
+
+						++ContainerTarget->PackageCount;
+
 						Package->FileName = SourceFile.NormalizedPath; // .uasset path
 						Package->UAssetSize = OriginalCookedFileStatData->FileSize;
 						Package->UExpSize = CookedFileStatData->FileSize;
 						TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::ExportBundleData, *TargetFile.TargetPath);
+						TargetFile.NameMapBuilder = &Package->LocalNameMapBuilder;
 					}
 				}
 			}
 
-			if (ContainerTarget->bUseLocalNameMap)
+			if (!ContainerTarget->bUseLocalNameMap)
 			{
-				ContainerTarget->NameMapBuilder = &ContainerTarget->LocalNameMapBuilder;
-			}
-			else
-			{
-				// Clear the local container map in case this was used in a previous release
-				ContainerTarget->LocalNameMapBuilder.Empty();
 				ContainerTarget->NameMapBuilder = &GlobalNameMapBuilder;
 			}
 		}
@@ -4023,6 +3410,184 @@ void InitializeContainerTargetsAndPackages(
 		return A->GlobalPackageId < B->GlobalPackageId;
 	});
 };
+
+void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
+{
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoDispatcher --------------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15s %15s %15s %25s"),
+		TEXT("Container"), TEXT("Flags"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+	uint64 TotalTocSize = 0;
+	uint64 TotalTocEntryCount = 0;
+	uint64 TotalUncompressedContainerSize = 0;
+	uint64 TotalPaddingSize = 0;
+	for (const FIoStoreWriterResult& Result : Results)
+	{
+		FString CompressionInfo = TEXT("-");
+
+		if (Result.CompressionMethod != NAME_None)
+		{
+			double Procentage = (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
+			CompressionInfo = FString::Printf(TEXT("%.2lf (%.2lf%% %s)"),
+				(double)Result.CompressedContainerSize / 1024.0 / 1024.0,
+				Procentage,
+				*Result.CompressionMethod.ToString());
+		}
+
+		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
+
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
+			*Result.ContainerName,
+			*ContainerSettings,
+			(double)Result.TocSize / 1024.0,
+			Result.TocEntryCount,
+			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
+			*CompressionInfo);
+
+
+		TotalTocSize += Result.TocSize;
+		TotalTocEntryCount += Result.TocEntryCount;
+		TotalUncompressedContainerSize += Result.UncompressedContainerSize;
+		TotalPaddingSize += Result.PaddingSize;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
+		TEXT("TOTAL"),
+		TEXT(""),
+		(double)TotalTocSize / 1024.0,
+		TotalTocEntryCount,
+		(double)TotalUncompressedContainerSize / 1024.0 / 1024.0,
+		TEXT("-"));
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2lf MB"), (double)TotalPaddingSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT(""));
+}
+
+void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTargets)
+{
+	uint64 TotalStoreSize = 0;
+	uint64 TotalPackageCount = 0;
+	uint64 TotalLocalizedPackageCount = 0;
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageStore (KB) ---------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %20s %20s %20s"),
+		TEXT("Container"),
+		TEXT("Store Size"),
+		TEXT("Packages"),
+		TEXT("Localized"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+
+	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		uint64 StoreSize = ContainerTarget->Header.StoreEntries.Num();
+		uint64 PackageCount = ContainerTarget->PackageCount;
+		uint64 LocalizedPackageCount = 0;
+
+		for (const auto& KV : ContainerTarget->Header.CulturePackageMap)
+		{
+			LocalizedPackageCount += KV.Value.Num();
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %20.0lf %20llu %20llu"),
+			*ContainerTarget->Name.ToString(),
+			(double)StoreSize / 1024.0,
+			PackageCount,
+			LocalizedPackageCount);
+
+		TotalStoreSize += StoreSize;
+		TotalPackageCount += PackageCount;
+		TotalLocalizedPackageCount += LocalizedPackageCount;
+	}
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %20.0lf %20llu %20llu"),
+		TEXT("TOTAL"),
+		(double)TotalStoreSize / 1024.0,
+		TotalPackageCount,
+		TotalLocalizedPackageCount);
+
+
+	uint64 TotalHeaderSize = 0;
+	uint64 TotalSummarySize = 0;
+	uint64 TotalUGraphSize = 0;
+	uint64 TotalImportMapSize = 0;
+	uint64 TotalExportMapSize = 0;
+	uint64 TotalNameMapSize = 0;
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- PackageHeader (KB) --------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %13s %13s %13s %13s %13s %13s"),
+		TEXT("Container"),
+		TEXT("Header"),
+		TEXT("Summary"),
+		TEXT("Graph"),
+		TEXT("ImportMap"),
+		TEXT("ExportMap"),
+		TEXT("NameMap"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
+	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		uint64 HeaderSize = 0;
+		uint64 SummarySize = ContainerTarget->PackageCount * sizeof(FPackageSummary);
+		uint64 UGraphSize = 0;
+		uint64 ImportMapSize = 0;
+		uint64 ExportMapSize = 0;
+		uint64 NameMapSize = 0;
+
+		for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+		{
+			if (TargetFile.bIsBulkData)
+			{
+				continue;
+			}
+
+			UGraphSize += TargetFile.UGraphSize;
+			ImportMapSize += TargetFile.ImportMapSize;
+			ExportMapSize += TargetFile.ExportMapSize;
+			NameMapSize += TargetFile.NameMapSize;
+		}
+
+		HeaderSize = SummarySize + UGraphSize + ImportMapSize + ExportMapSize + NameMapSize;
+
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
+			*ContainerTarget->Name.ToString(),
+			(double)HeaderSize / 1024.0,
+			(double)SummarySize / 1024.0,
+			(double)UGraphSize / 1024.0,
+			(double)ImportMapSize / 1024.0,
+			(double)ExportMapSize / 1024.0,
+			(double)NameMapSize / 1024.0);
+
+		TotalHeaderSize += HeaderSize;
+		TotalSummarySize += SummarySize;
+		TotalUGraphSize += UGraphSize;
+		TotalImportMapSize += ImportMapSize;
+		TotalExportMapSize += ExportMapSize;
+		TotalNameMapSize += NameMapSize;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf %13.0lf"),
+		TEXT("TOTAL"),
+		(double)TotalHeaderSize / 1024.0,
+		(double)TotalSummarySize / 1024.0,
+		(double)TotalUGraphSize / 1024.0,
+		(double)TotalImportMapSize / 1024.0,
+		(double)TotalExportMapSize / 1024.0,
+		(double)TotalNameMapSize / 1024.0);
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT(""));
+}
 
 int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
@@ -4043,28 +3608,27 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 
 	FNameMapBuilder GlobalNameMapBuilder;
+	GlobalNameMapBuilder.SetNameMapType(FMappedName::EType::Global);
 	FPackageAssetData PackageAssetData;
 	FGlobalPackageData GlobalPackageData;
 
 	TArray<FPackage*> Packages;
-	FPackageMap PackageMap;
-	FPackageGlobalIdMap PackageGlobalIdMap;
+	FPackageNameMap PackageNameMap;
+	FPackageIdMap PackageIdMap;
 
 #if OUTPUT_DEBUG_PACKAGE_HASHES
 	TMap<FName, FPackageHashes> PreviousBuildPackageHashes;
 #endif
 
 	TArray<FContainerTargetSpec*> ContainerTargets;
-	TMap<FName, FContainerTargetSpec*> ContainerTargetMap;
 	UE_LOG(LogIoStore, Display, TEXT("Creating container targets..."));
 	{
 		IOSTORE_CPU_SCOPE(CreateContainerTargets);
 
-		if (!Arguments.BasedOnReleaseVersionDir.IsEmpty())
+		if (!Arguments.MetaDir.IsEmpty())
 		{
-			LoadReleaseVersionMeta(*Arguments.BasedOnReleaseVersionDir, GlobalNameMapBuilder, PackageGlobalIdMap, GlobalPackageData, ContainerTargets, ContainerTargetMap);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.BasedOnReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
+			FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
 			TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileReader(*PackageHashesOutputPath));
 			if (PackageHashesArchive)
 			{
@@ -4086,7 +3650,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 		}
 
-		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageMap, PackageGlobalIdMap, ContainerTargets, ContainerTargetMap, GlobalNameMapBuilder);
+		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets, GlobalNameMapBuilder);
 	}
 
 	ParsePackageAssets(Packages, PackageAssetData);
@@ -4097,20 +3661,16 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	TArray<UPackage*> ScriptPackages;
 	FindScriptPackages(PackageAssetData.ObjectImports, ScriptPackages);
 	CreateGlobalScriptObjects(ScriptPackages, GlobalNameMapBuilder, GlobalPackageData, Arguments.TargetPlatform);
-	CreateGlobalImportsAndExports(Packages, PackageMap, PackageAssetData, GlobalPackageData, ExportGraph);
+	CreateGlobalImportsAndExports(Arguments, Packages, PackageNameMap, PackageAssetData, GlobalPackageData, ExportGraph);
 
 	// Mapped import and exports are required before processing localization, and preload/postload arcs
 	MapExportEntryIndices(PackageAssetData.ObjectExports, GlobalPackageData.ExportObjects, Packages);
-
+	// Intermediate map for adding extra ImportedPackages and ExternalArcs to the build graph
+	// for every dependency on a source package with localizations, add dependencies to all language localizations
 	FSourceToLocalizedPackageMultimap SourceToLocalizedPackageMap;
-	FCulturePackageMap CulturePackageMap;
 
-	ProcessLocalizedPackages(
-		Packages, PackageMap, GlobalPackageData, 
-		CulturePackageMap, SourceToLocalizedPackageMap);
+	ProcessLocalizedPackages(Packages, PackageNameMap, GlobalPackageData, SourceToLocalizedPackageMap);
 
-	const int32 CircularChainCount = AddPostLoadDependencies(Packages);
-	
 	AddPreloadDependencies(
 		PackageAssetData,
 		GlobalPackageData,
@@ -4121,12 +3681,12 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	BuildBundles(ExportGraph, Packages);
 
 	{
-		IOSTORE_CPU_SCOPE(BuildContainerNameMaps);
-		UE_LOG(LogIoStore, Display, TEXT("Creating container local name map(s)..."));
+		IOSTORE_CPU_SCOPE(FinalizeNameMaps);
+		UE_LOG(LogIoStore, Display, TEXT("Finalizing name maps..."));
 
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
-			BuildContainerNameMap(*ContainerTarget);
+			FinalizeNameMaps(*ContainerTarget);
 		}
 	}
 
@@ -4142,58 +3702,23 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				GlobalPackageData.ExportObjects,
 				GlobalPackageData.ImportsByFullName);
 
+			FinalizePackageStoreContainerHeader(*ContainerTarget);
+
 			const FNameMapBuilder& NameMapBuilder = *ContainerTarget->NameMapBuilder;
 			SaveNameBatch(ContainerTarget->LocalNameMapBuilder.GetNameMap(), ContainerTarget->Header.Names, ContainerTarget->Header.NameHashes);
-			ContainerTarget->Header.PackageIds.Reserve(ContainerTarget->TargetFiles.Num());
-			ContainerTarget->Header.PackageNames.Reserve(ContainerTarget->TargetFiles.Num());
-			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
-			{
-				if (!TargetFile.bIsBulkData)
-				{
-					ContainerTarget->Header.PackageIds.Add(TargetFile.Package->GlobalPackageId);
-					ContainerTarget->Header.PackageNames.Add(NameMapBuilder.MapName(TargetFile.Package->Name));
-				}
-			}
 		}
 	}
 
-	FLargeMemoryWriter GlobalMetaArchive(0, true);
 	FLargeMemoryWriter InitialLoadArchive(0, true);
-	int32 StoreTocByteCount = 0;
-	int32 StoreDataByteCount = 0;
-	int32 GlobalImportNamesByteCount = 0;
 
 	{
 		IOSTORE_CPU_SCOPE(SerializeGlobalMetaData);
 		UE_LOG(LogIoStore, Display, TEXT("Serializing global meta data"));
 
-		FLargeMemoryWriter StoreTocArchive(0, true);
-		FLargeMemoryWriter StoreDataArchive(0, true);
-
-		SerializePackageStoreEntries(
-			Packages,
-			StoreTocArchive,
-			StoreDataArchive);
-
 		SerializeInitialLoad(
 			GlobalNameMapBuilder,
 			GlobalPackageData.ScriptObjects,
 			InitialLoadArchive);
-
-		StoreTocByteCount = StoreTocArchive.TotalSize();
-		StoreDataByteCount = StoreDataArchive.TotalSize();
-
-		int32 NumPackages = Packages.Num();
-		int32 NumPublicExports = GlobalPackageData.PublicExportIndices.Num();
-		int32 StoreByteCount = StoreTocByteCount + StoreDataByteCount;
-
-		GlobalMetaArchive << NumPackages;
-		GlobalMetaArchive << NumPublicExports;
-		GlobalMetaArchive << StoreByteCount;
-		GlobalMetaArchive.Serialize(StoreTocArchive.GetData(), StoreTocByteCount);
-		GlobalMetaArchive.Serialize(StoreDataArchive.GetData(), StoreDataByteCount);
-
-		GlobalMetaArchive << CulturePackageMap;
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Calculating hashes"));
@@ -4273,33 +3798,22 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 #endif
 	}
 
-	{
-		IOSTORE_CPU_SCOPE(MapAdditionalBulkDataChunkIds);
-		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
-		{
-			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
-			{
-				if (TargetFile.bIsBulkData)
-				{
-					MapAdditionalBulkDataChunks(TargetFile, BulkDataManifest);
-				}
-			}
-		}
-	}
-
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
-	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap, GeneralIoWriterSettings.CompressionBlockSize, Arguments.MemoryMappingAlignment);
+	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap);
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	TArray<FIoStoreWriter*> IoStoreWriters;
 	FIoStoreEnvironment GlobalIoStoreEnv;
-	FIoStoreWriter* GlobalIoStoreWriter;
+	FIoStoreWriter* GlobalIoStoreWriter = nullptr;
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
-		GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
-		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv, FIoContainerId::FromIndex(0));
-		IoStoreWriters.Add(GlobalIoStoreWriter);
+		if (!Arguments.IsDLC())
+		{
+			GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
+			GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
+			IoStoreWriters.Add(GlobalIoStoreWriter);
+		}
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			check(ContainerTarget->Header.ContainerId.IsValid());
@@ -4307,26 +3821,44 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			{
 				ContainerTarget->IoStoreEnv.Reset(new FIoStoreEnvironment());
 				ContainerTarget->IoStoreEnv->InitializeFileEnvironment(ContainerTarget->OutputPath);
-				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv, ContainerTarget->Header.ContainerId);
+				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 		}
 		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 		check(IoStatus.IsOk());
-		IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, /* bIsCompressed */ false, FIoEncryptionKey());
+
+		FIoContainerSettings GlobalContainerSettings;
+		if (Arguments.bSign)
+		{
+			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+			GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+		}
+		if (GlobalIoStoreWriter)
+		{
+			IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, GlobalContainerSettings);
+		}
 		check(IoStatus.IsOk());
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			if (ContainerTarget->IoStoreWriter && ContainerTarget->IoStoreWriter != GlobalIoStoreWriter)
 			{
-				FIoEncryptionKey EncryptionKey;
-				if (ContainerTarget->bIsEncrypted)
+				FIoContainerSettings ContainerSettings;
+				ContainerSettings.ContainerId = ContainerTarget->Header.ContainerId;
+				ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags;
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
 					const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
 					check(Key);
-					EncryptionKey = FIoEncryptionKey { Key->Guid, Key->Key };
+					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+					ContainerSettings.EncryptionKey = Key->Key;
 				}
-				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerTarget->bIsCompressed, EncryptionKey);
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
+				{
+					ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+				}
+				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerSettings);
 				check(IoStatus.IsOk());
 			}
 		}
@@ -4388,7 +3920,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			FIoWriteOptions WriteOptions;
 			WriteOptions.DebugName = TEXT("ContainerHeader");
 			FIoStatus Status = ContainerTarget->IoStoreWriter->Append(
-				CreateIoChunkId(0, ContainerTarget->Header.ContainerId.ToIndex(), EIoChunkType::ContainerHeader), 
+				CreateIoChunkId(ContainerTarget->Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
 				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions);
 
 			UE_CLOG(!Status.IsOk(), LogIoStore, Error, TEXT("Failed to serialize container header"));
@@ -4425,25 +3957,12 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ReadFileTask.IoBuffer = CreateExportBundleBuffer(TargetFile, ObjectExports, ReadFileTask.IoBuffer);
 				}
 
-				if (TargetFile.Padding)
-				{
-					ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
-				}
 				FIoWriteOptions WriteOptions;
 				WriteOptions.DebugName = *TargetFile.TargetPath;
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-				WriteOptions.Alignment = TargetFile.Alignment;
+				WriteOptions.bIsMemoryMapped = TargetFile.bIsMemoryMappedBulkData;
 				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
-
-				for (const FContainerTargetFilePartialMapping& PartialMapping : TargetFile.PartialMappings)
-				{
-					const FIoStatus PartialResult = ReadFileTask.IoStoreWriter->MapPartialRange(TargetFile.ChunkId, PartialMapping.Offset, PartialMapping.Length, PartialMapping.PartialChunkId);
-					if (!PartialResult.IsOk())
-					{
-						UE_LOG(LogIoStore, Warning, TEXT("Failed to map partial range for '%s' due to: %s"), *TargetFile.Package->FileName, *PartialResult.ToString());
-					}
-				}
 
 				ReadFileTask.IoBuffer = FIoBuffer();
 				BufferMemoryAllocated -= BufferSize;
@@ -4485,17 +4004,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FPlatformProcess::ReturnSynchEventToPool(TaskStartedEvent);
 	}
 
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
-		FIoWriteOptions WriteOptions;
-		WriteOptions.DebugName = TEXT("LoaderGlobalMeta");
-		const FIoStatus Status = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta), FIoBuffer(FIoBuffer::Wrap, GlobalMetaArchive.GetData(), GlobalMetaArchive.TotalSize()), WriteOptions);
-		if (!Status.IsOk())
-		{
-			UE_LOG(LogIoStore, Error, TEXT("Failed to save global meta data to container file"));
-		}
-	}
-
+	if (GlobalIoStoreWriter)
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving initial load meta data to container file"));
 		FIoWriteOptions WriteOptions;
@@ -4509,6 +4018,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	uint64 GlobalNamesMB = 0;
 	uint64 GlobalNameHashesMB = 0;
+	if (GlobalIoStoreWriter)
 	{
 		IOSTORE_CPU_SCOPE(SerializeGlobalNameMap);
 
@@ -4548,11 +4058,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 	IoStoreWriters.Empty();
 
-	if (!Arguments.OutputReleaseVersionDir.IsEmpty())
+	if (!Arguments.MetaDir.IsEmpty())
 	{
-		SaveReleaseVersionMeta(*Arguments.OutputReleaseVersionDir, GlobalNameMapBuilder, PackageGlobalIdMap, GlobalPackageData, ContainerTargets);
 #if OUTPUT_DEBUG_PACKAGE_HASHES
-		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.OutputReleaseVersionDir, TEXT("iodispatcher.upackagehashes"));
+		FString PackageHashesOutputPath = FPaths::Combine(*Arguments.MetaDir, TEXT("iodispatcher.upackagehashes"));
 		TUniquePtr<FArchive> PackageHashesArchive(IFileManager::Get().CreateFileWriter(*PackageHashesOutputPath));
 
 		int32 PackageCount = Packages.Num();
@@ -4637,117 +4146,149 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	uint64 UExpSize = 0;
 	uint64 UAssetSize = 0;
 	uint64 SummarySize = 0;
-	uint64 UGraphSize = 0;
-	uint64 ImportMapSize = 0;
-	uint64 ExportMapSize = 0;
-	uint64 NameMapSize = 0;
-	uint64 NameMapCount = 0;
 	uint64 PackageSummarySize = Packages.Num() * sizeof(FPackageSummary);
 	uint64 ImportedPackagesCount = 0;
+	uint64 NoImportedPackagesCount = 0;
 	uint64 PublicExportsCount = 0;
-	uint64 ExportBundlesMetaCount = 0;
 	uint64 InitialLoadSize = InitialLoadArchive.Tell();
-	uint64 CircularPackagesCount = 0;
-	uint64 TotalInternalArcCount = 0;
 	uint64 TotalExternalArcCount = 0;
-	uint64 NameCount = 0;
+	uint64 NameMapCount = 0;
 
-	uint64 PackagesWithoutImportDependenciesCount = 0;
-	uint64 PackagesWithoutPreloadDependenciesCount = 0;
 	uint64 BundleCount = 0;
 	uint64 BundleEntryCount = 0;
 
-	uint64 PackageHeaderSize = 0;
-
-	for (auto& PackageKV : PackageMap)
+	for (const FPackage* Package : Packages)
 	{
-		FPackage& Package = *PackageKV.Value;
+		UExpSize += Package->UExpSize;
+		UAssetSize += Package->UAssetSize;
+		SummarySize += Package->SummarySize;
+		NameMapCount += Package->SummaryNames.Num();
+		ImportedPackagesCount += Package->ImportedPackages.Num();
+		NoImportedPackagesCount += Package->ImportedPackages.Num() == 0;
 
-		UExpSize += Package.UExpSize;
-		UAssetSize += Package.UAssetSize;
-		SummarySize += Package.SummarySize;
-		UGraphSize += Package.UGraphSize;
-		ImportMapSize += Package.ImportMapSize;
-		ExportMapSize += Package.ExportMapSize;
-		NameMapSize += Package.NameMapSize;
-		NameMapCount += Package.NameMap.Num();
-		CircularPackagesCount += Package.bHasCircularImportDependencies;
-		TotalInternalArcCount += Package.InternalArcs.Num();
-		ImportedPackagesCount += Package.ImportedPackagesSerializeCount;
-		PublicExportsCount += Package.PublicExports.Num();
-		ExportBundlesMetaCount += Package.ExportBundles.Num();
-		NameCount += Package.NameMap.Num();
-		PackagesWithoutImportDependenciesCount += Package.ImportedPackages.Num() == 0;
-
-		for (auto& KV : Package.ExternalArcs)
+		for (auto& KV : Package->ExternalArcs)
 		{
-			TArray<FArc>& Arcs = KV.Value;
+			const TArray<FArc>& Arcs = KV.Value;
 			TotalExternalArcCount += Arcs.Num();
 		}
 
-		for (FExportBundle& Bundle : Package.ExportBundles)
+		for (const FExportBundle& Bundle : Package->ExportBundles)
 		{
 			++BundleCount;
 			BundleEntryCount += Bundle.Nodes.Num();
 		}
 	}
 
-	PackageHeaderSize = PackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
-
-	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------------- IoStore Summary -----------------------------------------------------"));
-
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("%-4s %-30s %10s %15s %15s %15s %25s"), TEXT("ID"), TEXT("Container"), TEXT("Encrypted"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
-	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------------------"));
-	int64 TotalPaddingSize = 0;
-	for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
+	for (FExportObjectData& Export : GlobalPackageData.ExportObjects)
 	{
-		FString CompressionInfo = TEXT("-");
-		
-		if (Result.CompressionMethod != NAME_None)
+		if (Export.IsPublicExport())
 		{
-			double Procentage = (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
-			CompressionInfo = FString::Printf(TEXT("%.2lf (%.2lf%% %s)"),
-				(double)Result.CompressedContainerSize / 1024.0 / 1024.0,
-				Procentage ,
-				*Result.CompressionMethod.ToString());
+			++PublicExportsCount;
+		}
+	}
+
+	LogWriterResults(IoStoreWriterResults);
+	LogContainerPackageInfo(ContainerTargets);
+	
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UExp"), (double)UExpSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UAsset"), (double)UAssetSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB FPackageFileSummary"), (double)SummarySize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Packages"), Packages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Imported package entries"), ImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Packages without imports"), NoImportedPackagesCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Referenced script packages"), ScriptPackages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Name map entries"), NameMapCount);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d PreloadDependencies entries"), PackageAssetData.PreloadDependencies.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d ImportMap entries"), PackageAssetData.ObjectImports.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d ExportMap entries"), PackageAssetData.ObjectExports.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8llu Public exports"), PublicExportsCount);
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundles"), BundleCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle entries"), BundleEntryCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle arcs"), TotalExternalArcCount);
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8d Script objects (in referenced script packages)"), GlobalPackageData.ScriptObjects.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Output: %8.2lf MB InitialLoadData"), (double)InitialLoadSize / 1024.0 / 1024.0);
+
+	return 0;
+}
+
+int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
+{
+	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
+	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
+	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
+	check(IoStatus.IsOk());
+	TArray<FIoStoreWriterResult> Results;
+	for (const FContainerSourceSpec& Container : Arguments.Containers)
+	{
+		TArray<TUniquePtr<FIoStoreReader>> SourceReaders = CreatePatchSourceReaders(Container.PatchSourceContainerFiles, Arguments);
+		TUniquePtr<FIoStoreReader> TargetReader = CreateIoStoreReader(*Container.PatchTargetFile, Arguments.KeyChain);
+		if (!TargetReader.IsValid())
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed loading target container"));
+			return -1;
 		}
 
-		UE_LOG(LogIoStore, Display, TEXT("%-4d %-30s %10s %15.2lf %15d %15.2lf %25s"),
-			Result.ContainerId.ToIndex(),
-			*Result.ContainerName,
-			Result.bIsEncrypted ? TEXT("Yes") : TEXT("No"),
-			(double)Result.TocSize / 1024.0,
-			Result.TocEntryCount,
-			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
-			*CompressionInfo);
-		TotalPaddingSize += Result.PaddingSize;
-	}
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2f MB"), TotalPaddingSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no import dependencies"),
-		PackageMap.Num(), CircularPackagesCount, PackagesWithoutImportDependenciesCount);
-	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects"), BundleCount, BundleEntryCount, GlobalPackageData.ExportObjects.Num());
+		FIoStoreEnvironment IoStoreEnv;
+		FIoStoreWriter IoStoreWriter(IoStoreEnv);
+		IoStoreEnv.InitializeFileEnvironment(*Container.OutputPath);
+		
+		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, GlobalNameMapBuilder.GetNameMap().Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameHashes"), (double)GlobalNameHashesMB);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreToc"), (double)StoreTocByteCount / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageStoreData, %d imported packages, %d public exports, %d export bundles"),
-		(double)StoreDataByteCount / 1024.0 / 1024.0,
-		ImportedPackagesCount,
-		PublicExportsCount,
-		ExportBundlesMetaCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportNames, %d imports"),
-		(double)GlobalImportNamesByteCount / 1024.0 / 1024.0, GlobalPackageData.ImportsByFullName.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script objects (%d packages)"), (double)InitialLoadSize / 1024.0 / 1024.0, GlobalPackageData.ScriptObjects.Num(), ScriptPackages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageHeader, %d packages"), (double)PackageHeaderSize / 1024.0 / 1024.0, Packages.Num());
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageSummary"), (double)PackageSummarySize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageNameMap, %d indices"), (double)NameMapSize / 1024.0 / 1024.0, NameMapCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
-		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChainCount);
+		FIoContainerSettings ContainerSettings;
+		ContainerSettings.ContainerId = TargetReader->GetContainerId();
+		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
+		{
+			ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+		}
+
+		if (EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Encrypted))
+		{
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Encrypted;
+			const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(TargetReader->GetEncryptionKeyGuid());
+			if (!Key)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Missing encryption key for target container"));
+				return -1;
+			}
+			ContainerSettings.EncryptionKeyGuid = Key->Guid;
+			ContainerSettings.EncryptionKey = Key->Key;
+		}
+
+		IoStatus = IoStoreWriter.Initialize(*IoStoreWriterContext, ContainerSettings);
+		check(IoStatus.IsOk());
+
+		TMap<FIoChunkId, FIoChunkHash> SourceHashByChunkId;
+		for (const TUniquePtr<FIoStoreReader>& SourceReader : SourceReaders)
+		{
+			SourceReader->EnumerateChunks([&SourceHashByChunkId](const FIoStoreTocChunkInfo& ChunkInfo)
+			{
+				SourceHashByChunkId.Add(ChunkInfo.Id, ChunkInfo.Hash);
+				return true;
+			});
+		}
+		TargetReader->EnumerateChunks([&TargetReader, &SourceHashByChunkId, &IoStoreWriter](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			FIoChunkHash* FindSourceHash = SourceHashByChunkId.Find(ChunkInfo.Id);
+			if (!FindSourceHash || *FindSourceHash != ChunkInfo.Hash)
+			{
+				FIoReadOptions ReadOptions;
+				TIoStatusOr<FIoBuffer> ChunkBuffer = TargetReader->Read(ChunkInfo.Id, ReadOptions);
+				FIoWriteOptions WriteOptions;
+				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
+				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
+				FIoStatus Status = IoStoreWriter.Append(ChunkInfo.Id, ChunkInfo.Hash, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
+			}
+			return true;
+		});
+
+
+		Results.Emplace(IoStoreWriter.Flush().ConsumeValueOrDie());
+	}
+
+	LogWriterResults(Results);
 
 	return 0;
 }
@@ -4943,6 +4484,28 @@ public:
 	}
 };
 
+static bool ParseSizeArgument(const TCHAR* CmdLine, const TCHAR* Argument, uint64& OutSize, uint64 DefaultSize = 0)
+{
+	FString SizeString;
+	if (FParse::Value(CmdLine, Argument, SizeString) && FParse::Value(CmdLine, Argument, OutSize))
+	{
+		if (SizeString.EndsWith(TEXT("MB")))
+		{
+			OutSize *= 1024*1024;
+		}
+		else if (SizeString.EndsWith(TEXT("KB")))
+		{
+			OutSize *= 1024;
+		}
+		return true;
+	}
+	else
+	{
+		OutSize = DefaultSize;
+		return false;
+	}
+}
+
 int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 {
 	IOSTORE_CPU_SCOPE(CreateIoStoreContainerFiles);
@@ -4952,6 +4515,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FIoStoreArguments Arguments;
 
 	LoadKeyChain(FCommandLine::Get(), Arguments.KeyChain);
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("sign")))
+	{
+		Arguments.bSign = true;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Container signing - %s"), Arguments.bSign ? TEXT("ENABLED") : TEXT("DISABLED"));
 
 	FString PatchReferenceCryptoKeysFilename;
 	FKeyChain PatchKeyChain;
@@ -4981,12 +4551,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
 
-	if (!FParse::Value(CmdLine, TEXT("-AlignForMemoryMapping="), Arguments.MemoryMappingAlignment))
-	{
-		Arguments.MemoryMappingAlignment = DefaultMemoryMappingAlignment;
-	}
-	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), Arguments.MemoryMappingAlignment);
-	
 	TArray<FName> CompressionFormats;
 	FString DesiredCompressionFormats;
 	if (FParse::Value(CmdLine, TEXT("-compressionformats="), DesiredCompressionFormats) ||
@@ -5017,49 +4581,137 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
-	FString CompressionBlockSizeString;
-	if (FParse::Value(CmdLine, TEXT("-compressionblocksize="), CompressionBlockSizeString))
-	{
-		FParse::Value(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize);
+	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
+	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
+	ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment);
 
-		if (CompressionBlockSizeString.EndsWith(TEXT("MB")))
+	uint64 PatchPaddingAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
+	{
+		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
-			GeneralIoWriterSettings.CompressionBlockSize *= 1024 * 1024;
-		}
-		else if (CompressionBlockSizeString.EndsWith(TEXT("KB")))
-		{
-			GeneralIoWriterSettings.CompressionBlockSize *= 1024;
+			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
-	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
+	if (!GeneralIoWriterSettings.CompressionBlockAlignment)
+	{
+		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
+	}
 
-	FParse::Value(CmdLine, TEXT("-compressionblockalignment="), GeneralIoWriterSettings.CompressionBlockAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
 
-	FParse::Value(CmdLine, TEXT("-CreateReleaseVersionDirectory="), Arguments.OutputReleaseVersionDir);
-	FParse::Value(CmdLine, TEXT("-BasedOnReleaseVersionDirectory="), Arguments.BasedOnReleaseVersionDir);
+	FParse::Value(CmdLine, TEXT("-MetaDirectory="), Arguments.MetaDir);
 
-	FString TargetPlatform;
-	if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
+	FString CommandListFile;
+	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatform);
-		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatform);
-		if (!Arguments.TargetPlatform)
+		UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
+		TArray<FString> Commands;
+		if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatform);
-			return 1;
+			UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+			return -1;
+		}
+
+		Arguments.Containers.Reserve(Commands.Num());
+		for (const FString& Command : Commands)
+		{
+			FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
+
+			if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
+				return -1;
+			}
+			ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
+
+			FString ContainerName;
+			if (FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
+			{
+				ContainerSpec.Name = FName(ContainerName);
+			}
+
+			FString PatchSourceWildcard;
+			if (FParse::Value(*Command, TEXT("PatchSource="), PatchSourceWildcard))
+			{
+				IFileManager::Get().FindFiles(ContainerSpec.PatchSourceContainerFiles, *PatchSourceWildcard, true, false);
+				FString PatchSourceContainersDirectory = FPaths::GetPath(*PatchSourceWildcard);
+				for (FString& PatchSourceContainerFile : ContainerSpec.PatchSourceContainerFiles)
+				{
+					PatchSourceContainerFile = PatchSourceContainersDirectory / PatchSourceContainerFile;
+					FPaths::NormalizeFilename(PatchSourceContainerFile);
+				}
+			}
+
+			ContainerSpec.bGenerateDiffPatch = FParse::Param(*Command, TEXT("GenerateDiffPatch"));
+
+			FParse::Value(*Command, TEXT("PatchTarget="), ContainerSpec.PatchTargetFile);
+
+			FString ResponseFilePath;
+			if (FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
+			{
+				if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
+					return -1;
+				}
+
+				FString EncryptionKeyOverrideGuidString;
+				if (FParse::Value(*Command, TEXT("EncryptionKeyOverrideGuid="), EncryptionKeyOverrideGuidString))
+				{
+					FGuid::Parse(EncryptionKeyOverrideGuidString, ContainerSpec.EncryptionKeyOverrideGuid);
+				}
+			}
 		}
 	}
-	else
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("DLCFile="), Arguments.DLCPluginPath))
 	{
-		UE_LOG(LogIoStore, Error, TEXT("TargetPlatform must be specified"));
-		return 1;
+		UE_LOG(LogIoStore, Display, TEXT("DLC: '%s'"), *Arguments.DLCPluginPath);
 	}
 
 	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
 	{
 		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
+	}
+
+	if (Arguments.ShouldCreateContainers())
+	{
+		FString TargetPlatform;
+		if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatform);
+			ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+			Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatform);
+			if (!Arguments.TargetPlatform)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatform);
+				return 1;
+			}
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Error, TEXT("TargetPlatform must be specified"));
+			return 1;
+		}
+
+		// Now that we have the target platform we need to error out if LegacyBulkDataOffsets is enabled for it
+		{
+			FConfigFile PlatformEngineIni;
+			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *Arguments.TargetPlatform->IniPlatformName());
+
+			bool bLegacyBulkDataOffsets = false;
+			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
+
+			if (bLegacyBulkDataOffsets)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("'LegacyBulkDataOffsets' is enabled for the target platform '%s', this needs to be disabled and the data recooked in order for the IoStore to work"), *Arguments.TargetPlatform->IniPlatformName());
+				return 1;
+			}
+		}
+
 
 		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), Arguments.CookedDir))
 		{
@@ -5067,78 +4719,39 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return 1;
 		}
 
-		FContainerSourceSpec* CookedFilesVisitorContainerSpec = nullptr;
-		FString CommandListFile;
-		if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
+		for (const FContainerSourceSpec& Container : Arguments.Containers)
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Using command list file: '%s'"), *CommandListFile);
-			TArray<FString> Commands;
-			if (!FFileHelper::LoadFileToStringArray(Commands, *CommandListFile))
+			if (Container.Name.IsNone())
 			{
-				UE_LOG(LogIoStore, Error, TEXT("Failed to read command list file '%s'."), *CommandListFile);
+				UE_LOG(LogIoStore, Error, TEXT("ContainerName argument missing for container '%s'"), *Container.OutputPath);
 				return -1;
 			}
-
-			Arguments.Containers.Reserve(Commands.Num());
-			for (const FString& Command : Commands)
-			{
-				FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
-
-				if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
-					return -1;
-				}
-				ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
-
-				FString ContainerName;
-				if (!FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("ContainerName argument missing from command '%s'"), *Command);
-					return -1;
-				}
-				ContainerSpec.Name = FName(ContainerName);
-
-				FString PatchSourceWildcard;
-				if (FParse::Value(*Command, TEXT("PatchSource="), PatchSourceWildcard))
-				{
-					IFileManager::Get().FindFiles(ContainerSpec.PatchSourceContainerFiles, *PatchSourceWildcard, true, false);
-					FString PatchSourceContainersDirectory = FPaths::GetPath(*PatchSourceWildcard);
-					for (FString& PatchSourceContainerFile : ContainerSpec.PatchSourceContainerFiles)
-					{
-						PatchSourceContainerFile = PatchSourceContainersDirectory / PatchSourceContainerFile;
-						FPaths::NormalizeFilename(PatchSourceContainerFile);
-					}
-				}
-
-				ContainerSpec.bGenerateDiffPatch = FParse::Param(*Command, TEXT("GenerateDiffPatch"));
-				
-				FString ResponseFilePath;
-				if (!FParse::Value(*Command, TEXT("ResponseFile="), ResponseFilePath))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("ResponseFile argument missing from command '%s'"), *Command);
-					return -1;
-				}
-
-				if (!ParsePakResponseFile(*ResponseFilePath, ContainerSpec.SourceFiles))
-				{
-					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
-					return -1;
-				}
-			}
-		}
-		else
-		{
-			CookedFilesVisitorContainerSpec = &Arguments.Containers.AddDefaulted_GetRef();
 		}
 
 		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *Arguments.CookedDir);
 		FCookedFileStatMap CookedFileStatMap;
-		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, CookedFilesVisitorContainerSpec);
+		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, nullptr);
 		IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), Arguments.CookedFileStatMap.Num());
 
 		int32 ReturnValue = CreateTarget(Arguments, GeneralIoWriterSettings);
+		if (ReturnValue != 0)
+		{
+			return ReturnValue;
+		}
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("CreateContentPatch")))
+	{
+		for (const FContainerSourceSpec& Container : Arguments.Containers)
+		{
+			if (Container.PatchTargetFile.IsEmpty())
+			{
+				UE_LOG(LogIoStore, Error, TEXT("PatchTarget argument missing for container '%s'"), *Container.OutputPath);
+				return -1;
+			}
+		}
+
+		int32 ReturnValue = CreateContentPatch(Arguments, GeneralIoWriterSettings);
 		if (ReturnValue != 0)
 		{
 			return ReturnValue;

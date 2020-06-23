@@ -874,11 +874,11 @@ namespace IncludeTool
 			DirectoryReference WorkingDir = DirectoryReference.Combine(RootDir, "Engine");
 
 			FileReference UnrealBuildTool = FileReference.Combine(RootDir, "Engine", "Binaries", "DotNET", "UnrealBuildTool.exe");
-			if (Utility.Run(UnrealBuildTool, String.Format("-Mode=JsonExport {0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -execcodegenactions -outputfile=\"{4}\"", Target, Configuration, Platform, Precompile? " -precompile" : "", TaskListFile.ChangeExtension(".json").FullName), WorkingDir, Log) != 0)
+			if (Utility.Run(UnrealBuildTool, String.Format("-Mode=JsonExport {0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1 -execcodegenactions -outputfile=\"{4}\"", Target, Configuration, Platform, Precompile? " -precompile" : "", TaskListFile.ChangeExtension(".json").FullName), WorkingDir, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
 			}
-			if (Utility.Run(UnrealBuildTool, String.Format("{0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo", Target, Configuration, Platform, Precompile? " -precompile" : ""), WorkingDir, Log) != 0)
+			if (Utility.Run(UnrealBuildTool, String.Format("{0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1", Target, Configuration, Platform, Precompile? " -precompile" : ""), WorkingDir, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
 			}
@@ -1016,7 +1016,7 @@ namespace IncludeTool
 					}
 					catch(PreprocessorException Ex)
 					{
-						Log.WriteLine("{0}({1}): error: {2}", File.Location, Markup.Location.LineIdx, Ex.Message);
+						Log.WriteLine("{0}({1}): error: {2}", File.Location, Markup.Location.LineIdx + 1, Ex.Message);
 						return;
 					}
 				}

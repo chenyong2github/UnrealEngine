@@ -65,6 +65,7 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture allocator wastage"), STAT_D3D12TextureA
 /**
 * Detailed Descriptor heap stats
 */
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Unique Samplers"), STAT_UniqueSamplers, STATGROUP_D3D12DescriptorHeap, );
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("View: Heap changed"), STAT_ViewHeapChanged, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Heap changed"), STAT_SamplerHeapChanged, STATGROUP_D3D12DescriptorHeap, );
@@ -72,12 +73,19 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Heap changed"), STAT_SamplerHea
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View: Num descriptor heaps"), STAT_NumViewOnlineDescriptorHeaps, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Sampler: Num descriptor heaps"), STAT_NumSamplerOnlineDescriptorHeaps, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Sampler: Num reusable unique descriptor table entries"), STAT_NumReuseableSamplerOnlineDescriptorTables, STATGROUP_D3D12DescriptorHeap, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Sampler: Num reusable unique descriptors"), STAT_NumReuseableSamplerOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("View: Num reserved descriptors"), STAT_NumReservedViewOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Num reserved descriptors"), STAT_NumReservedSamplerOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Sampler: Num reused descriptors"), STAT_NumReusedSamplerOnlineDescriptors, STATGROUP_D3D12DescriptorHeap, );
 
 DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("View: Total descriptor heap memory (SRV, CBV, UAV)"), STAT_ViewOnlineDescriptorHeapMemory, STATGROUP_D3D12DescriptorHeap, FPlatformMemory::MCR_GPUSystem, );
 DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Sampler: Total descriptor heap memory"), STAT_SamplerOnlineDescriptorHeapMemory, STATGROUP_D3D12DescriptorHeap, FPlatformMemory::MCR_GPUSystem, );
+
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Free Descriptors"), STAT_GlobalViewHeapFreeDescriptors, STATGROUP_D3D12DescriptorHeap, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Reserved Descriptors"), STAT_GlobalViewHeapReservedDescriptors, STATGROUP_D3D12DescriptorHeap, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Used Descriptors"), STAT_GlobalViewHeapUsedDescriptors, STATGROUP_D3D12DescriptorHeap, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("View Global: Wasted Descriptors"), STAT_GlobalViewHeapWastedDescriptors, STATGROUP_D3D12DescriptorHeap, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("View Global: Block Allocations"), STAT_GlobalViewHeapBlockAllocations, STATGROUP_D3D12DescriptorHeap, );
 
 struct FD3D12GlobalStats
 {
@@ -95,7 +103,7 @@ struct FD3D12GlobalStats
 };
 
 // This class has multiple inheritance but really FGPUTiming is a static class
-class FD3D12BufferedGPUTiming : public FRenderResource, public FGPUTiming, public FD3D12AdapterChild
+class FD3D12BufferedGPUTiming : public FRenderResource, public FGPUTiming, public FD3D12DeviceChild
 {
 public:
 	/**
@@ -104,7 +112,7 @@ public:
 	* @param InD3DRHI			RHI interface
 	* @param InBufferSize		Number of buffered measurements
 	*/
-	FD3D12BufferedGPUTiming(class FD3D12Adapter* InParent, int32 BufferSize);
+	FD3D12BufferedGPUTiming(class FD3D12Device* InParent, int32 BufferSize);
 
 	FD3D12BufferedGPUTiming()
 	{
@@ -213,13 +221,13 @@ struct TD3D12ResourceTraits<FD3D12BufferedGPUTiming::QueryHeap>
 };
 
 /** A single perf event node, which tracks information about a appBeginDrawEvent/appEndDrawEvent range. */
-class FD3D12EventNode : public FGPUProfilerEventNode, public FD3D12AdapterChild
+class FD3D12EventNode : public FGPUProfilerEventNode, public FD3D12DeviceChild
 {
 public:
-	FD3D12EventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent, class FD3D12Adapter* InParentAdapter) :
+	FD3D12EventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent, class FD3D12Device* InParentDevice) :
 		FGPUProfilerEventNode(InName, InParent),
-		FD3D12AdapterChild(InParentAdapter),
-		Timing(InParentAdapter, 1)
+		FD3D12DeviceChild(InParentDevice),
+		Timing(InParentDevice, 1)
 	{
 		// Initialize Buffered timestamp queries 
 		Timing.InitDynamicRHI();
@@ -250,13 +258,13 @@ public:
 };
 
 /** An entire frame of perf event nodes, including ancillary timers. */
-class FD3D12EventNodeFrame : public FGPUProfilerEventNodeFrame, public FD3D12AdapterChild
+class FD3D12EventNodeFrame : public FGPUProfilerEventNodeFrame, public FD3D12DeviceChild
 {
 public:
 
-	FD3D12EventNodeFrame(class FD3D12Adapter* InParent) :
+	FD3D12EventNodeFrame(class FD3D12Device* InParent) :
 		FGPUProfilerEventNodeFrame(),
-		FD3D12AdapterChild(InParent),
+		FD3D12DeviceChild(InParent),
 		RootEventTiming(InParent, 1)
 	{
 		RootEventTiming.InitDynamicRHI();
@@ -288,13 +296,13 @@ namespace D3D12RHI
 	* Encapsulates GPU profiling logic and data.
 	* There's only one global instance of this struct so it should only contain global data, nothing specific to a frame.
 	*/
-	struct FD3DGPUProfiler : public FGPUProfiler, public FD3D12AdapterChild
+	struct FD3DGPUProfiler : public FGPUProfiler, public FD3D12DeviceChild
 	{
 		/** GPU hitch profile histories */
 		TIndirectArray<FD3D12EventNodeFrame> GPUHitchEventNodeFrames;
 
-		FD3DGPUProfiler(FD3D12Adapter* Parent)
-			: FD3D12AdapterChild(Parent)
+		FD3DGPUProfiler(FD3D12Device* Parent)
+			: FD3D12DeviceChild(Parent)
 			, FrameTiming(Parent, 8)
 		{}
 
@@ -315,7 +323,7 @@ namespace D3D12RHI
 
 		virtual FGPUProfilerEventNode* CreateEventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent) override
 		{
-			FD3D12EventNode* EventNode = new FD3D12EventNode(InName, InParent, GetParentAdapter());
+			FD3D12EventNode* EventNode = new FD3D12EventNode(InName, InParent, GetParentDevice());
 			return EventNode;
 		}
 
@@ -349,6 +357,11 @@ namespace D3D12RHI
 		/** Used to measure GPU time per frame. */
 		FD3D12BufferedGPUTiming FrameTiming;
 
+		static uint32 GetGPUFrameCycles(uint32 GPUIndex)
+		{
+			return GGPUFrameCycles[GPUIndex];
+		}
+
 	private:
 		/** Flush existing command lists and start command list execution time tracking */
 		void DoPreProfileGPUWork();
@@ -358,9 +371,9 @@ namespace D3D12RHI
 
 		typedef typename FD3D12CommandListManager::FResolvedCmdListExecTime FResolvedCmdListExecTime;
 
-		/** Timstamps marking the beginning of tracked command lists */
+		/** Timestamps marking the beginning of tracked command lists */
 		TArray<uint64> CmdListStartTimestamps;
-		/** Timstamps marking the end of tracked command lists */
+		/** Timestamps marking the end of tracked command lists */
 		TArray<uint64> CmdListEndTimestamps;
 		/** Accumulated idle GPU ticks before each corresponding command list */
 		TArray<uint64> IdleTimeCDF;
@@ -368,5 +381,8 @@ namespace D3D12RHI
 		/** Map containing all the currently hashed event strings */
 		FRWLock	CacheEventStringsRWLock;
 		TMap<uint32, FString> CachedEventStrings;
+
+		/** The GPU time taken to render the last frame. Same metric as FPlatformTime::Cycles(). */
+		static TStaticArray<uint32, MAX_NUM_GPUS> GGPUFrameCycles;
 	};
 }

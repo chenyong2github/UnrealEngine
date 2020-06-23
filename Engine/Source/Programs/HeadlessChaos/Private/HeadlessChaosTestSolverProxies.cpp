@@ -70,9 +70,6 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);		
 	}
 
-	template void SingleParticleProxySingleThreadTest<float>();
-
-	
 	template<typename Traits, class T>
 	void SingleParticleProxyTaskGraphTest()
 	{
@@ -137,6 +134,7 @@ namespace ChaosTest {
 	template<typename Traits, class T>
 	void SingleParticleProxyWakeEventPropergationTest()
 	{
+		using namespace Chaos;
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -148,20 +146,20 @@ namespace ChaosTest {
 
 		// Make a particle
 
-		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
+		TUniquePtr<TPBDRigidParticle<float, 3>> Particle = TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle->SetGeometry(Sphere);
 		Particle->SetX(TVector<float, 3>(0, 0, 220));
 		Particle->SetV(TVector<float, 3>(0, 0, -10));
 		Solver->RegisterObject(Particle.Get());
 		Solver->AddDirtyProxy(Particle->GetProxy());
 
-		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle2 = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
+		TUniquePtr<TPBDRigidParticle<float, 3>> Particle2 = TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle2->SetGeometry(Sphere);
 		Particle2->SetX(TVector<float, 3>(0, 0, 100));
 		Particle2->SetV(TVector<float, 3>(0, 0, 0));
 		Solver->RegisterObject(Particle2.Get());
 		Solver->AddDirtyProxy(Particle2->GetProxy());
-		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping, true);
+		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(),Particle2.Get() });
 
@@ -169,7 +167,7 @@ namespace ChaosTest {
 
 		// let top paticle collide and wake up second particle
 		int32 LoopCount = 0;
-		while (!Particle2->HasAwakeEvent() && LoopCount++ < 20)
+		while (Particle2->GetWakeEvent() == EWakeEventEntry::None && LoopCount++ < 20)
 		{
 			FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
 			AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
@@ -181,14 +179,14 @@ namespace ChaosTest {
 
 		// Make sure game thread data has changed
 		TVector<float, 3> V = Particle->V();
-		EXPECT_EQ(Particle->HasAwakeEvent(), false);
+		EXPECT_EQ(Particle->GetWakeEvent(), EWakeEventEntry::None);
 		EXPECT_EQ(Particle->ObjectState(), Chaos::EObjectStateType::Dynamic);
 
-		EXPECT_EQ(Particle2->HasAwakeEvent(), true);
+		EXPECT_EQ(Particle2->GetWakeEvent(), EWakeEventEntry::Awake);
 		EXPECT_EQ(Particle2->ObjectState(), Chaos::EObjectStateType::Dynamic);
 
 		Particle2->ClearEvents();
-		EXPECT_EQ(Particle2->HasAwakeEvent(), false);
+		EXPECT_EQ(Particle2->GetWakeEvent(), EWakeEventEntry::None);
 
 		// Throw out the proxy
 		Solver->UnregisterObject(Particle.Get());

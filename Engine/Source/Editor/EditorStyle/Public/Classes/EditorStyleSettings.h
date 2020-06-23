@@ -169,8 +169,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Log Font Size", ConfigRestartRequired=true))
 	int32 LogFontSize;
 
-	/** The display mode for timestamps in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log")
+	/** The display mode for timestamps in the output log window*/
+	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName = "Output Log Window Timestamp Mode"))
 	TEnumAsByte<ELogTimes::Type> LogTimestampMode;
 
 	/** Should warnings and errors in the Output Log during "Play in Editor" be promoted to the message log? */

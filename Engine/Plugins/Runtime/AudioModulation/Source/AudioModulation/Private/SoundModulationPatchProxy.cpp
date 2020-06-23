@@ -65,45 +65,44 @@ namespace AudioModulation
 		}
 	}
 
-	FModulationInputProxy::FModulationInputProxy(const FSoundModulationInputBase& Input, FAudioModulationSystem& ModSystem)
-		: Transform(Input.Transform)
-		, bSampleAndHold(Input.bSampleAndHold)
-	{
-		if (const USoundControlBusBase* Bus = Input.GetBus())
-		{
-			auto OnCreate = [Bus](FControlBusProxy& NewProxy)
-			{
-				NewProxy.InitLFOs(*Bus);
-			};
-			BusHandle = FBusHandle::Create(*Bus, ModSystem.RefProxies.Buses, ModSystem, OnCreate);
-		}
-	}
-
-	FModulationOutputProxy::FModulationOutputProxy(const FSoundModulationOutputBase& Output)
-		: Operator(Output.GetOperator())
-		, Transform(Output.Transform)
+	FModulationInputProxy::FModulationInputProxy(const FModulationInputSettings& InSettings, FAudioModulationSystem& OutModSystem)
+		: BusHandle(FBusHandle::Create(InSettings.BusSettings, OutModSystem.RefProxies.Buses, OutModSystem))
+		, Transform(InSettings.Transform)
+		, bSampleAndHold(InSettings.bSampleAndHold)
 	{
 	}
 
-	FModulationPatchProxy::FModulationPatchProxy(const FSoundModulationPatchBase& InPatch, FAudioModulationSystem& InModSystem)
+	FModulationOutputSettings::FModulationOutputSettings(const FSoundModulationOutputBase& InOutput)
+		: Operator(InOutput.GetOperator())
+		, Transform(InOutput.Transform)
 	{
-		Init(InPatch, InModSystem);
 	}
 
-	void FModulationPatchProxy::Init(const FSoundModulationPatchBase& InPatch, FAudioModulationSystem& InModSystem)
+	FModulationOutputProxy::FModulationOutputProxy(const FModulationOutputSettings& InSettings)
+		: Settings(InSettings)
 	{
-		bBypass = InPatch.bBypass;
+	}
 
-		DefaultInputValue = InPatch.DefaultInputValue;
+	FModulationPatchProxy::FModulationPatchProxy(const FModulationPatchSettings& InSettings, FAudioModulationSystem& OutModSystem)
+	{
+		Init(InSettings, OutModSystem);
+	}
+
+	void FModulationPatchProxy::Init(const FModulationPatchSettings& InSettings, FAudioModulationSystem& OutModSystem)
+	{
+		bBypass = InSettings.bBypass;
+		DefaultInputValue = InSettings.DefaultInputValue;
+
+		// Cache proxies to avoid releasing bus state (and potentially referenced bus state) when reinitializing
+		TArray<FModulationInputProxy> CachedProxies = InputProxies;
 
 		InputProxies.Reset();
-		TArray<const FSoundModulationInputBase*> Inputs = InPatch.GetInputs();
-		for (const FSoundModulationInputBase* Input : Inputs)
+		for (const FModulationInputSettings& Input : InSettings.InputSettings)
 		{
-			InputProxies.Emplace_GetRef(*Input, InModSystem);
+			InputProxies.Emplace(Input, OutModSystem);
 		}
 
-		OutputProxy = *InPatch.GetOutput();
+		OutputProxy.Settings = InSettings.OutputSettings;
 	}
 
 	bool FModulationPatchProxy::IsBypassed() const
@@ -111,14 +110,22 @@ namespace AudioModulation
 		return bBypass;
 	}
 
-	float FModulationPatchProxy::Update()
+	float FModulationPatchProxy::GetValue() const
 	{
-		float OutValue = DefaultInputValue;
+		return Value;
+	}
+
+	void FModulationPatchProxy::Update()
+	{
+		Value = DefaultInputValue;
 
 		float& OutSampleHold = OutputProxy.SampleAndHoldValue;
 		if (!OutputProxy.bInitialized)
 		{
-			OutSampleHold = SoundModulatorOperator::GetDefaultValue(OutputProxy.Operator, OutputProxy.Transform.OutputMin, OutputProxy.Transform.OutputMax);
+			OutSampleHold = SoundModulatorOperator::GetDefaultValue(
+				OutputProxy.Settings.Operator,
+				OutputProxy.Settings.Transform.OutputMin,
+				OutputProxy.Settings.Transform.OutputMax);
 		}
 
 		for (const FModulationInputProxy& Input : InputProxies)
@@ -132,7 +139,7 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						MixInModulationValue(OutputProxy.Operator, ModStageValue, OutSampleHold);
+						MixInModulationValue(OutputProxy.Settings.Operator, ModStageValue, OutSampleHold);
 					}
 				}
 			}
@@ -145,7 +152,7 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						MixInModulationValue(OutputProxy.Operator, ModStageValue, OutValue);
+						MixInModulationValue(OutputProxy.Settings.Operator, ModStageValue, Value);
 					}
 				}
 			}
@@ -153,15 +160,14 @@ namespace AudioModulation
 
 		if (!OutputProxy.bInitialized)
 		{
-			const float OutputMin = OutputProxy.Transform.OutputMin;
-			const float OutputMax = OutputProxy.Transform.OutputMax;
+			const float OutputMin = OutputProxy.Settings.Transform.OutputMin;
+			const float OutputMax = OutputProxy.Settings.Transform.OutputMax;
 			OutSampleHold = FMath::Clamp(OutSampleHold, OutputMin, OutputMax);
 			OutputProxy.bInitialized = true;
 		}
 
-		OutputProxy.Transform.Apply(OutValue);
-		MixInModulationValue(OutputProxy.Operator, OutSampleHold, OutValue);
-		return OutValue;
+		OutputProxy.Settings.Transform.Apply(Value);
+		MixInModulationValue(OutputProxy.Settings.Operator, OutSampleHold, Value);
 	}
 
 	FModulationPatchRefProxy::FModulationPatchRefProxy()
@@ -170,15 +176,16 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationPatchRefProxy::FModulationPatchRefProxy(const USoundModulationPatch& InPatch, FAudioModulationSystem& InModSystem)
-		: FModulationPatchProxy(InPatch.PatchSettings, InModSystem)
-		, TModulatorProxyRefType(InPatch.GetName(), InPatch.GetUniqueID(), InModSystem)
+	FModulationPatchRefProxy::FModulationPatchRefProxy(const FModulationPatchSettings& InSettings, FAudioModulationSystem& OutModSystem)
+		: FModulationPatchProxy(InSettings, OutModSystem)
+		, TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), OutModSystem)
 	{
 	}
 
-	FModulationPatchRefProxy& FModulationPatchRefProxy::operator =(const USoundModulationPatch& InPatch)
+	FModulationPatchRefProxy& FModulationPatchRefProxy::operator =(const FModulationPatchSettings& InSettings)
 	{
-		Init(InPatch.PatchSettings, *ModSystem);
+		check(ModSystem);
+		Init(InSettings, *ModSystem);
 		return *this;
 	}
 } // namespace AudioModulation

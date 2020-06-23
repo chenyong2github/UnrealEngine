@@ -450,7 +450,24 @@ void FLidarPointCloudEditorViewportClient::ResetCamera()
 {
 	if (ULidarPointCloudComponent* PointCloudComponentRawPtr = PointCloudComponent.Get())
 	{
-		FocusViewportOnBox(PointCloudComponentRawPtr->Bounds.GetBox());
+		FBox FocusBounds(EForceInit::ForceInit);
+
+		// Focus on selection, if possible
+		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+		{
+			for (FLidarPointCloudPoint** Point = Editor->GetSelectedPoints().GetData(), **DataEnd = Point + Editor->GetSelectedPoints().Num(); Point != DataEnd; ++Point)
+			{
+				FocusBounds += (*Point)->Location;
+			}
+		}
+
+		// Fallback to the whole cloud's bounds
+		if(!FocusBounds.IsValid)
+		{
+			FocusBounds = PointCloudComponentRawPtr->Bounds.GetBox();
+		}
+
+		FocusViewportOnBox(FocusBounds);
 		Invalidate();
 	}
 }

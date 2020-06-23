@@ -17,24 +17,52 @@ namespace AudioModulation
 {
 	const FBusMixId InvalidBusMixId = INDEX_NONE;
 
-	FModulatorBusMixChannelProxy::FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel, FAudioModulationSystem& InModSystem)
-		: TModulatorProxyBase<FBusId>(Channel.Bus->GetName(), Channel.Bus->GetUniqueID())
-		, Address(Channel.Bus->Address)
-		, ClassId(Channel.Bus->GetClass()->GetUniqueID())
-		, Value(Channel.Value)
-		, BusHandle(FBusHandle::Create(*Channel.Bus, InModSystem.RefProxies.Buses, InModSystem))
+	FModulatorBusMixChannelSettings::FModulatorBusMixChannelSettings(const FSoundControlBusMixChannel& InChannel)
+		: TModulatorBase<FBusId>(InChannel.Bus->GetName(), InChannel.Bus->GetUniqueID())
+		, Address(InChannel.Bus->Address)
+		, ClassId(InChannel.Bus->GetClass()->GetUniqueID())
+		, Value(InChannel.Value)
+		, BusSettings(FControlBusSettings(*InChannel.Bus))
 	{
 	}
 
-	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundControlBusMix& InBusMix, FAudioModulationSystem& InModSystem)
-		: TModulatorProxyRefType(InBusMix.GetName(), InBusMix.GetUniqueID(), InModSystem)
+	FModulatorBusMixChannelProxy::FModulatorBusMixChannelProxy(const FModulatorBusMixChannelSettings& InSettings, FAudioModulationSystem& OutModSystem)
+		: TModulatorBase<FBusId>(InSettings.BusSettings.GetName(), InSettings.BusSettings.GetId())
+		, Address(InSettings.Address)
+		, ClassId(InSettings.ClassId)
+		, Value(InSettings.Value)
+		, BusHandle(FBusHandle::Create(InSettings.BusSettings, OutModSystem.RefProxies.Buses, OutModSystem))
 	{
-		SetEnabled(InBusMix);
 	}
 
-	FModulatorBusMixProxy& FModulatorBusMixProxy::operator =(const USoundControlBusMix& InBusMix)
+	FModulatorBusMixSettings::FModulatorBusMixSettings(const USoundControlBusMix& InBusMix)
+		: TModulatorBase<FBusMixId>(InBusMix.GetName(), InBusMix.GetUniqueID())
 	{
-		SetEnabled(InBusMix);
+		for (const FSoundControlBusMixChannel& Channel : InBusMix.Channels)
+		{
+			if (Channel.Bus)
+			{
+				Channels.Add(FModulatorBusMixChannelSettings(Channel));
+			}
+			else
+			{
+				UE_LOG(LogAudioModulation, Warning,
+					TEXT("USoundControlBusMix '%s' has channel with no bus specified. "
+						"Mix instance initialized with channel ignored."),
+					*InBusMix.GetFullName());
+			}
+		}
+	}
+
+	FModulatorBusMixProxy::FModulatorBusMixProxy(const FModulatorBusMixSettings& InSettings, FAudioModulationSystem& OutModSystem)
+		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), OutModSystem)
+	{
+		SetEnabled(InSettings);
+	}
+
+	FModulatorBusMixProxy& FModulatorBusMixProxy::operator =(const FModulatorBusMixSettings& InSettings)
+	{
+		SetEnabled(InSettings);
 
 		return *this;
 	}
@@ -49,51 +77,39 @@ namespace AudioModulation
 		Channels.Reset();
 	}
 
-	void FModulatorBusMixProxy::SetEnabled(const USoundControlBusMix& InBusMix)
+	void FModulatorBusMixProxy::SetEnabled(const FModulatorBusMixSettings& InSettings)
 	{
+		check(ModSystem);
+
+		// Cache channels to avoid releasing channel state (and potentially referenced bus state) when re-enabling
 		FChannelMap CachedChannels = Channels;
-		Channels.Reset();
 
 		Status = EStatus::Enabled;
-		for (const FSoundControlBusMixChannel& Channel : InBusMix.Channels)
+		Channels.Reset();
+		for (const FModulatorBusMixChannelSettings& ChannelSettings : InSettings.Channels)
 		{
-			if (Channel.Bus)
+			FModulatorBusMixChannelProxy ChannelProxy(ChannelSettings, *ModSystem);
+
+			const FBusId BusId = ChannelSettings.GetId();
+			if (const FModulatorBusMixChannelProxy* CachedChannel = CachedChannels.Find(BusId))
 			{
-				auto BusId = static_cast<const FBusId>(Channel.Bus->GetUniqueID());
-
-				check(ModSystem);
-				FModulatorBusMixChannelProxy ChannelProxy(Channel, *ModSystem);
-
-				if (const FModulatorBusMixChannelProxy* CachedChannel = CachedChannels.Find(BusId))
-				{
-					ChannelProxy.Value.SetCurrentValue(CachedChannel->Value.GetCurrentValue());
-				}
-
-				Channels.Emplace(BusId, ChannelProxy);
+				ChannelProxy.Value.SetCurrentValue(CachedChannel->Value.GetCurrentValue());
 			}
-			else
-			{
-				UE_LOG(LogAudioModulation, Warning,
-					TEXT("USoundControlBusMix '%s' has channel with no bus specified. "
-						"Mix instance initialized but channel ignored."),
-					*InBusMix.GetFullName());
-			}
+
+			Channels.Emplace(BusId, ChannelProxy);
 		}
 	}
 
-	void FModulatorBusMixProxy::SetMix(const TArray<FSoundControlBusMixChannel>& InChannels)
+	void FModulatorBusMixProxy::SetMix(const TArray<FModulatorBusMixChannelSettings>& InChannels)
 	{
-		for (const FSoundControlBusMixChannel& NewChannel : InChannels)
+		for (const FModulatorBusMixChannelSettings& NewChannel : InChannels)
 		{
-			if(NewChannel.Bus)
+			const FBusId BusId = NewChannel.GetId();
+			if (FModulatorBusMixChannelProxy* ChannelProxy = Channels.Find(BusId))
 			{
-				FBusId BusId = static_cast<FBusId>(NewChannel.Bus->GetUniqueID());
-				if (FModulatorBusMixChannelProxy* ChannelProxy = Channels.Find(BusId))
-				{
-					ChannelProxy->Value.TargetValue = NewChannel.Value.TargetValue;
-					ChannelProxy->Value.AttackTime = NewChannel.Value.AttackTime;
-					ChannelProxy->Value.ReleaseTime = NewChannel.Value.ReleaseTime;
-				}
+				ChannelProxy->Value.TargetValue = NewChannel.Value.TargetValue;
+				ChannelProxy->Value.AttackTime = NewChannel.Value.AttackTime;
+				ChannelProxy->Value.ReleaseTime = NewChannel.Value.ReleaseTime;
 			}
 		}
 	}
@@ -137,7 +153,7 @@ namespace AudioModulation
 		}
 	}
 
-	void FModulatorBusMixProxy::Update(float Elapsed, FBusProxyMap& ProxyMap)
+	void FModulatorBusMixProxy::Update(const double InElapsed, FBusProxyMap& OutProxyMap)
 	{
 		bool bRequestStop = true;
 		for (TPair<FBusId, FModulatorBusMixChannelProxy>& Channel : Channels)
@@ -145,9 +161,9 @@ namespace AudioModulation
 			FModulatorBusMixChannelProxy& ChannelProxy = Channel.Value;
 			FSoundModulationValue& MixChannelValue = ChannelProxy.Value;
 
-			if (FControlBusProxy* BusProxy = ProxyMap.Find(ChannelProxy.GetId()))
+			if (FControlBusProxy* BusProxy = OutProxyMap.Find(ChannelProxy.GetId()))
 			{
-				MixChannelValue.Update(Elapsed);
+				MixChannelValue.Update(InElapsed);
 
 				const float CurrentValue = MixChannelValue.GetCurrentValue();
 				if (Status == EStatus::Stopping)

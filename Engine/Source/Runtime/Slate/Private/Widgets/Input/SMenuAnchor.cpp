@@ -571,6 +571,11 @@ void SMenuAnchor::OnMenuClosed(TSharedRef<IMenu> InMenu)
 	{
 		OnMenuOpenChanged.Execute(false);
 	}
+
+	if ( OnGetMenuContent.IsBound() )
+	{
+		SetMenuContent(SNullWidget::NullWidget);
+	}
 }
 
 void SMenuAnchor::ResetPopupMenuContent()

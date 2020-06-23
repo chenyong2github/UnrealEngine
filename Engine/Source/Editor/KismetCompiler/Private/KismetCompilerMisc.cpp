@@ -1086,8 +1086,10 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 	}
 	else if (PinCategory == UEdGraphSchema_K2::PC_FieldPath)
 	{
-		NewProperty = new FFieldPathProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
-		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		FFieldPathProperty* NewFieldPathProperty = new FFieldPathProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
+		NewFieldPathProperty->PropertyClass = FProperty::StaticClass();
+		NewFieldPathProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		NewProperty = NewFieldPathProperty;
 	}
 	else
 	{

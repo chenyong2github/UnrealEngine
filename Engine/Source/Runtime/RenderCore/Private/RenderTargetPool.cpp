@@ -312,20 +312,20 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 				if (Element && Element->GetDesc().Compare(Desc, bExactMatch))
 				{
 					int a = 0;
-				}
-    
-				if (Element && Element->IsFree() && Element->GetDesc().Compare(Desc, bExactMatch))
-				{
-					if ( ( Desc.Flags & TexCreate_Transient ) && bAllowMultipleDiscards == false && Element->HasBeenDiscardedThisFrame() )
+				
+					if (Element->IsFree())
 					{
-						// We can't re-use transient resources if they've already been discarded this frame
-						continue;
+						if ((Desc.Flags & TexCreate_Transient) && bAllowMultipleDiscards == false && Element->HasBeenDiscardedThisFrame())
+						{
+							// We can't re-use transient resources if they've already been discarded this frame
+							continue;
+						}
+						check(!Element->IsSnapshot());
+						Found = Element;
+						FoundIndex = i;
+						bReusingExistingTarget = true;
+						goto Done;
 					}
-					check(!Element->IsSnapshot());
-					Found = Element;
-					FoundIndex = i;
-					bReusingExistingTarget = true;
-					goto Done;
 				}
 			}
 		}

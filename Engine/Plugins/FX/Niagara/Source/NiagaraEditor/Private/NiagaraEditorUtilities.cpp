@@ -1814,8 +1814,6 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 	UNiagaraEmitter* CreatedAsset = Cast<UNiagaraEmitter>(AssetToolsModule.Get().DuplicateAssetWithDialogAndTitle(EmitterName.GetPlainNameString(), PackagePath, EmitterToCopy, LOCTEXT("CreateEmitterAssetDialogTitle", "Create Emitter As")));
 	if (CreatedAsset != nullptr)
 	{
-		CreatedAsset->SetFlags(RF_Standalone | RF_Public);
-
 		CreatedAsset->SetUniqueEmitterName(CreatedAsset->GetName());
 
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedAsset);

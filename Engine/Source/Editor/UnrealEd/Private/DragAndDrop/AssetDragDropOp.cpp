@@ -37,15 +37,7 @@ TSharedRef<FAssetDragDropOp> FAssetDragDropOp::New(TArray<FAssetData> InAssetDat
 {
 	TSharedRef<FAssetDragDropOp> Operation = MakeShared<FAssetDragDropOp>();
 
-	Operation->MouseCursor = EMouseCursor::GrabHandClosed;
-
-	Operation->ThumbnailSize = 64;
-
-	Operation->AssetData = MoveTemp(InAssetData);
-	Operation->AssetPaths = MoveTemp(InAssetPaths);
-	Operation->ActorFactory = ActorFactory;
-
-	Operation->Init();
+	Operation->Init(MoveTemp(InAssetData), MoveTemp(InAssetPaths), ActorFactory);
 
 	Operation->Construct();
 	return Operation;
@@ -58,14 +50,14 @@ FAssetDragDropOp::~FAssetDragDropOp()
 
 TSharedPtr<SWidget> FAssetDragDropOp::GetDefaultDecorator() const
 {
-	const int32 TotalCount = AssetData.Num() + AssetPaths.Num();
+	const int32 TotalCount = GetTotalCount();
 
 	TSharedPtr<SWidget> ThumbnailWidget;
 	if (AssetThumbnail.IsValid())
 	{
 		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
 	}
-	else if (AssetPaths.Num() > 0)
+	else if (HasFolders())
 	{
 		ThumbnailWidget = 
 			SNew(SOverlay)
@@ -92,12 +84,12 @@ TSharedPtr<SWidget> FAssetDragDropOp::GetDefaultDecorator() const
 	
 	const FSlateBrush* SubTypeBrush = FEditorStyle::GetDefaultBrush();
 	FLinearColor SubTypeColor = FLinearColor::White;
-	if (AssetThumbnail.IsValid() && AssetPaths.Num() > 0)
+	if (AssetThumbnail.IsValid() && HasFolders())
 	{
 		SubTypeBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
 		SubTypeColor = FLinearColor::Gray;
 	}
-	else if (ActorFactory.IsValid() && AssetData.Num() > 0)
+	else if (ActorFactory.IsValid() && HasFiles())
 	{
 		AActor* DefaultActor = ActorFactory->GetDefaultActor(AssetData[0]);
 		SubTypeBrush = FClassIconFinder::FindIconForActor(DefaultActor);
@@ -192,10 +184,10 @@ FText FAssetDragDropOp::GetDecoratorText() const
 {
 	if (CurrentHoverText.IsEmpty())
 	{
-		const int32 TotalCount = AssetData.Num() + AssetPaths.Num();
+		const int32 TotalCount = GetTotalCount();
 		if (TotalCount > 0)
 		{
-			const FText FirstItemText = AssetData.Num() > 0 ? FText::FromName(AssetData[0].AssetName) : FText::FromString(AssetPaths[0]);
+			const FText FirstItemText = GetFirstItemText();
 			return (TotalCount == 1)
 				? FirstItemText
 				: FText::Format(NSLOCTEXT("ContentBrowser", "AssetDragDropOpDescriptionMulti", "'{0}' and {1} {1}|plural(one=other,other=others)"), FirstItemText, TotalCount - 1);
@@ -205,17 +197,29 @@ FText FAssetDragDropOp::GetDecoratorText() const
 	return CurrentHoverText;
 }
 
-void FAssetDragDropOp::Init()
+void FAssetDragDropOp::Init(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* InActorFactory)
+{
+	MouseCursor = EMouseCursor::GrabHandClosed;
+	ThumbnailSize = 64;
+
+	AssetData = MoveTemp(InAssetData);
+	AssetPaths = MoveTemp(InAssetPaths);
+	ActorFactory = InActorFactory;
+
+	// Load all assets first so that there is no loading going on while attempting to drag
+	// Can cause unsafe frame reentry 
+	for (FAssetData& Data : AssetData)
+	{
+		Data.GetAsset();
+	}
+
+	InitThumbnail();
+}
+
+void FAssetDragDropOp::InitThumbnail()
 {
 	if (AssetData.Num() > 0 && ThumbnailSize > 0)
 	{
-		// Load all assets first so that there is no loading going on while attempting to drag
-		// Can cause unsafe frame reentry 
-		for (FAssetData& Data : AssetData)
-		{
-			Data.GetAsset();
-		}
-
 		// Create a thumbnail pool to hold the single thumbnail rendered
 		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, /*InAreRealTileThumbnailsAllowed=*/false);
 
@@ -226,4 +230,34 @@ void FAssetDragDropOp::Init()
 		AssetThumbnail->GetViewportRenderTargetTexture();
 		ThumbnailPool->Tick(0);
 	}
+}
+
+bool FAssetDragDropOp::HasFiles() const
+{
+	return AssetData.Num() > 0;
+}
+
+bool FAssetDragDropOp::HasFolders() const
+{
+	return AssetPaths.Num() > 0;
+}
+
+int32 FAssetDragDropOp::GetTotalCount() const
+{
+	return AssetData.Num() + AssetPaths.Num();
+}
+
+FText FAssetDragDropOp::GetFirstItemText() const
+{
+	if (AssetData.Num() > 0)
+	{
+		return FText::FromName(AssetData[0].AssetName);
+	}
+
+	if (AssetPaths.Num() > 0)
+	{
+		return FText::FromString(AssetPaths[0]);
+	}
+
+	return FText::GetEmpty();
 }

@@ -14,6 +14,7 @@ class UBlueprint;
 class UEdGraph;
 class UEdGraphPin;
 class UDMXEntityFixturePatch;
+class UDMXEntityFixtureType;
 struct FDMXFixtureMode;
 struct FDMXFixtureFunction;
 
@@ -29,6 +30,8 @@ public:
 	//~ Begin UEdGraphNode Interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void AllocateDefaultPins() override;
+	virtual void PostPasteNode() override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface
@@ -50,6 +53,15 @@ public:
 
 	void RemovePinsRecursive(UEdGraphPin* Pin);
 	void RemoveOutputPin(UEdGraphPin* Pin);
+
+	/**
+	 * Called when DataType is chnaged in any existing UDMXEntityFixtureType UObject
+	 *
+	 * @param	InFixtureType		Fixture type UObject
+	 * @param	InDMXFixtureModes	Changed Mode
+	 *
+	 */
+	void OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode);
 
 public:
 	bool IsExposed() const { return bIsExposed; }
@@ -74,6 +86,9 @@ private:
 
 	/**  Get pinter to active mode, never cache this pointer and keep it dynamic */
 	const FDMXFixtureMode* GetActiveFixtureMode() const;
+
+	/** Get the fixture type from active fixture mode */
+	UDMXEntityFixtureType* GetParentFixtureType() const;
 
 public:
 	static const FName InputDMXFixturePatchPinName;

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectPreset.h"
@@ -147,7 +148,7 @@ namespace ResonanceAudio
 		FResonanceAudioModule* ResonanceAudioModule;
 		UResonanceAudioReverbPluginPreset* ReverbPluginPreset;
 		UResonanceAudioReverbPluginPreset* GlobalReverbPluginPreset;
-		TArray<float, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>>  TemporaryStereoBuffer;
+		Audio::AlignedFloatBuffer TemporaryStereoBuffer;
 
 		FSoundEffectSubmixPtr SubmixEffect;
 	};

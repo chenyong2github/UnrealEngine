@@ -2,11 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdMode.h"
 #include "InteractiveToolsContext.h"
 #include "Delegates/Delegate.h"
+#include "InputCoreTypes.h"
+#include "Engine/EngineBaseTypes.h"
+
 #include "EdModeInteractiveToolsContext.generated.h"
+
+class FEdMode;
+class FEditorModeTools;
+class FEditorViewportClient;
+class FSceneView;
+class FViewport;
+class UMaterialInterface;
+class FPrimitiveDrawInterface;
+class FViewportClient;
 
 /**
  * EdModeInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext which 
@@ -23,7 +33,9 @@ public:
 	UEdModeInteractiveToolsContext();
 
 
-	virtual void InitializeContextFromEdMode(FEdMode* EditorMode, 
+	virtual void InitializeContextFromEdMode(FEdMode* EditorModeIn,
+		IToolsContextAssetAPI* UseAssetAPI = nullptr);
+	virtual void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
 	virtual void ShutdownContext();
 
@@ -90,8 +102,6 @@ public:
 	UMaterialInterface* StandardVertexColorMaterial;
 
 protected:
-	FEdMode* EditorMode;
-
 	// called when PIE is about to start, shuts down active tools
 	FDelegateHandle BeginPIEDelegateHandle;
 	// called before a Save starts. This currently shuts down active tools.
@@ -106,8 +116,14 @@ protected:
 	IToolsContextTransactionsAPI* TransactionAPI;
 	IToolsContextAssetAPI* AssetAPI;
 
-	// if true, we invalidate the ViewportClient on next tick
-	bool bInvalidationPending;
+	// Tools need to be able to Invalidate the view, in case it is not Realtime.
+	// Currently we do this very aggressively, and also force Realtime to be on, but in general we should be able to rely on Invalidation.
+	// However there are multiple Views and we do not want to Invalidate immediately, so we store a timestamp for each
+	// ViewportClient, and invalidate it when we see it if it's timestamp is out-of-date.
+	// (In theory this map will continually grow as new Viewports are created...)
+	TMap<FViewportClient*, int32> InvalidationMap;
+	// current invalidation timestamp, incremented by invalidation calls
+	int32 InvalidationTimestamp = 0;
 
 	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
 	FInputDeviceState CurrentMouseState;
@@ -130,4 +146,8 @@ protected:
 	// push the input action onto the NextTickExecuteActions list. Use this to defer execution to a "simpler" time, 
 	// eg so we are not kicking off a complicated static mesh rebuild process inside a slate button handler
 	void ScheduleExecuteAction(TUniqueFunction<void()> Action);
+
+private:
+	FEditorModeTools* EditorModeManager = nullptr;
+
 };

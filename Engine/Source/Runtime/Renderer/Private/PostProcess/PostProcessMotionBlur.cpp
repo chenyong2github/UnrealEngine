@@ -97,7 +97,7 @@ bool IsMotionBlurEnabled(const FViewInfo& View)
 		&& ViewFamily.bRealtimeUpdate
 		&& MotionBlurQuality > 0
 		&& !IsSimpleForwardShadingEnabled(GShaderPlatformForFeatureLevel[View.GetFeatureLevel()])
-		&& (CVarAllowMotionBlurInVR->GetInt() != 0 || !(ViewFamily.Views.Num() > 1));
+		&& (CVarAllowMotionBlurInVR->GetInt() != 0 || !GEngine->StereoRenderingDevice.IsValid() || !GEngine->StereoRenderingDevice->IsStereoEnabled());
 }
 
 bool IsVisualizeMotionBlurEnabled(const FViewInfo& View)

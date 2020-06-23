@@ -6,8 +6,6 @@
 #include "CADData.h"
 
 
-#include <vector>
-
 // If attached with a debugger, errors from CT assigned to a Checked_IO_ERROR will break.
 #define BREAK_ON_CT_USAGE_ERROR 0
 

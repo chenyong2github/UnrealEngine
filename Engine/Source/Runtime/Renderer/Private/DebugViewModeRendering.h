@@ -33,7 +33,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, ERHIFeatureLevel::Type FeatureLevel, FDebugViewModePassPassUniformParameters& PassParameters);
+void SetupDebugViewModePassUniformBuffer(FSceneRenderTargets& SceneContext, const FViewInfo& ViewInfo, FDebugViewModePassPassUniformParameters& PassParameters);
 
 class FDebugViewModeShaderElementData : public FMeshMaterialShaderElementData
 {

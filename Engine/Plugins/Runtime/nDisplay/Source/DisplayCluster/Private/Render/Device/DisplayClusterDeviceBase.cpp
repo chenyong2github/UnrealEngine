@@ -22,9 +22,9 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include <utility>
 
@@ -54,12 +54,10 @@ FDisplayClusterDeviceBase::FDisplayClusterDeviceBase(uint32 ViewsPerViewport)
 	: FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport, EyeRegions)
 	, ViewsAmountPerViewport(ViewsPerViewport)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceBase::~FDisplayClusterDeviceBase()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 
@@ -68,8 +66,6 @@ FDisplayClusterDeviceBase::~FDisplayClusterDeviceBase()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterDeviceBase::Initialize()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
 	{
 		return false;
@@ -139,9 +135,9 @@ bool FDisplayClusterDeviceBase::Initialize()
 	// Initialize all local Postprocess
 	for (const FDisplayClusterConfigPostprocess& CfgPostprocess : LocalPostprocess)
 	{
-		if (Postprocess.Contains(CfgPostprocess.PostprocessId))
+		if (Postprocess.Contains(CfgPostprocess.Type))
 		{
-			Postprocess[CfgPostprocess.PostprocessId].Operation->InitializePostProcess(CfgPostprocess.ConfigLine);
+			Postprocess[CfgPostprocess.Type].Operation->InitializePostProcess(CfgPostprocess.ConfigLine);
 		}
 	}
 
@@ -150,8 +146,6 @@ bool FDisplayClusterDeviceBase::Initialize()
 
 void FDisplayClusterDeviceBase::StartScene(UWorld* InWorld)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	bIsSceneOpen = true;
 
 	for (FDisplayClusterRenderViewport& Viewport : RenderViewports)
@@ -189,8 +183,6 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 
 void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* = FString() */, const FString& InViewportId /* = FString() */)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	// Assign to all viewports if camera ID is empty (default camera will be used by all viewports)
 	if (InViewportId.IsEmpty())
 	{
@@ -336,25 +328,21 @@ bool FDisplayClusterDeviceBase::GetBufferRatio(int32 ViewIdx, float& OutBufferRa
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterDeviceBase::IsStereoEnabled() const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 bool FDisplayClusterDeviceBase::IsStereoEnabledOnNextFrame() const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 bool FDisplayClusterDeviceBase::EnableStereo(bool stereo /*= true*/)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
 	if (!bIsCustomPresentSet)
 	{
@@ -378,14 +366,11 @@ void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, cla
 
 void FDisplayClusterDeviceBase::AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	UE_LOG(LogDisplayClusterRender, Warning, TEXT("We should never be here!"));
 }
 
 void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
 
@@ -489,8 +474,6 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 
 FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInGameThread());
 	check(StereoPassType != EStereoscopicPass::eSSP_FULL);
 
@@ -572,14 +555,11 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 int32 FDisplayClusterDeviceBase::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return RenderViewports.Num() * ViewsAmountPerViewport;
 }
 
 EStereoscopicPass FDisplayClusterDeviceBase::GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const int CurrentPass = EncodeStereoscopicPass(ViewIndex);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("GetViewPassForIndex: %d"), (int)CurrentPass);
 
@@ -616,7 +596,6 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, const class FViewport& Viewport, class SViewport* ViewportWidget)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
 	// Store viewport
@@ -629,7 +608,6 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 
 void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
 	InOutSizeX = Viewport.GetSizeXY().X;
@@ -651,8 +629,6 @@ void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport&
 
 bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class FViewport& Viewport)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInGameThread());
 
 	// Get current RT size
@@ -782,8 +758,6 @@ uint32 FDisplayClusterDeviceBase::DecodeViewIndex(const enum EStereoscopicPass S
 
 void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio /* = 1.f */, bool IsRTT /*= false*/)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	FScopeLock lock(&InternalsSyncScope);
 
 	// Check viewport ID
@@ -821,8 +795,6 @@ void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const F
 
 void FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInRenderingThread());
 
 	const FIntPoint BBSize = BackBuffer->GetSizeXY();
@@ -881,5 +853,5 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 	{
 		*FinalPostProcessingSettings = ViewportFinalPostProcessingSettings[ViewportNumber];
 		ViewportFinalPostProcessingSettings.Remove(ViewportNumber);
-	}		
+	}
 }

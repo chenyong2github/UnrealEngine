@@ -9,6 +9,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
+#include "TraceServices/Model/Diagnostics.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
@@ -102,11 +103,11 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs)
 
 	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
 	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
-	//AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",		"Platform:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetPlatformText));
-	//AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",		"Application Name:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetAppNameText));
-	//AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
-	//AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
-	//AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText));
+	AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",		"Platform:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetPlatformText));
+	AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",		"Application Name:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetAppNameText));
+	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
+	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
+	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText));
 	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
 	AddInfoLine(VerticalBox, LOCTEXT("Status_HeaderText",		"Status:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetStatusText));
 	AddInfoLine(VerticalBox, LOCTEXT("Modules_HeaderText",		"Modules:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetModulesText));
@@ -143,6 +144,30 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	// If we already have the session info data we no longer poll for it.
+	if (bIsSessionInfoSet)
+	{
+		return;
+	}
+
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::IDiagnosticsProvider& DiagnosticsProvider = Trace::ReadDiagnosticsProvider(*Session.Get());
+
+		if (DiagnosticsProvider.IsSessionInfoAvailable())
+		{
+			Trace::FSessionInfo SessionInfo = DiagnosticsProvider.GetSessionInfo();
+			PlatformText = FText::FromString(SessionInfo.Platform);
+			AppNameText = FText::FromString(SessionInfo.AppName);
+			CommandLineText = FText::FromString(SessionInfo.CommandLine);
+			BuildConfigurationTypeText = FText::FromString(LexToString(SessionInfo.ConfigurationType));
+			BuildTargetTypeText = FText::FromString(LexToString(SessionInfo.TargetType));
+			bIsSessionInfoSet = true;
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,40 +259,35 @@ FText SSessionInfoWindow::GetUriText() const
 
 FText SSessionInfoWindow::GetPlatformText() const
 {
-	//TODO
-	return FText::GetEmpty();
+	return PlatformText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText SSessionInfoWindow::GetAppNameText() const
 {
-	//TODO
-	return FText::GetEmpty();
+	return AppNameText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText SSessionInfoWindow::GetBuildConfigText() const
 {
-	//TODO
-	return FText::GetEmpty();
+	return BuildConfigurationTypeText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText SSessionInfoWindow::GetBuildTargetText() const
 {
-	//TODO
-	return FText::GetEmpty();
+	return BuildTargetTypeText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText SSessionInfoWindow::GetCommandLineText() const
 {
-	//TODO
-	return FText::GetEmpty();
+	return CommandLineText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -283,15 +303,16 @@ FText SSessionInfoWindow::GetFileSizeText() const
 FText SSessionInfoWindow::GetStatusText() const
 {
 	//TODO: add also info from a SessionInfo provider
-	FText Status;
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Status = FText::Format(LOCTEXT("StatusFmt", "{0} Session Duration: {1}"),
-			Session->IsAnalysisComplete() ? FText::FromString(FString(TEXT("ANALYSIS COMPLETED."))) : FText::FromString(FString(TEXT("ANALYZING..."))),
-			FText::FromString(TimeUtils::FormatTimeAuto(Session->GetDurationSeconds(), 2)));
-	}
+
+	TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
+	InsightsManager->UpdateSessionDuration();
+
+	FText Status = FText::Format(LOCTEXT("StatusFmt", "{0}\nSession Duration: {1}\nAnalyzed in {2} at {3}X speed."),
+		InsightsManager->IsAnalysisComplete() ? FText::FromString(FString(TEXT("ANALYSIS COMPLETED."))) : FText::FromString(FString(TEXT("ANALYZING..."))),
+		FText::FromString(TimeUtils::FormatTimeAuto(InsightsManager->GetSessionDuration(), 2)),
+		FText::FromString(TimeUtils::FormatTimeAuto(InsightsManager->GetAnalysisDuration(), 2)),
+		FMath::RoundToInt(static_cast<float>(InsightsManager->GetAnalysisSpeedFactor())));
+
 	return Status;
 }
 

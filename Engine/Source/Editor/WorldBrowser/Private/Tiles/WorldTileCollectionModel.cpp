@@ -1582,7 +1582,6 @@ static void SetupLandscapeImportLayers(const FTiledLandscapeImportSettings& InIm
 	}
 }
 
-
 void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 {
 	/** Create the window to host widget */
@@ -1593,7 +1592,7 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 											.SupportsMaximize(false);
 
 	/** Set the content of the window */
-	TSharedRef<STiledLandcapeImportDlg> ImportDialog = SNew(STiledLandcapeImportDlg, ImportWindow);
+	TSharedRef<STiledLandscapeImportDlg> ImportDialog = SNew(STiledLandscapeImportDlg, ImportWindow);
 	ImportWindow->SetContent(ImportDialog);
 
 	/** Show the dialog window as a modal window */
@@ -1627,7 +1626,7 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 			SetupLandscapeImportLayers(ImportSettings, GetWorld()->GetOutermost()->GetName(), INDEX_NONE, ImportLayers);
 
 			// Set landscape configuration
-			Landscape->bCanHaveLayersContent = false; 
+			Landscape->bCanHaveLayersContent = ImportSettings.bEditLayersEnabled;
 			Landscape->LandscapeMaterial	= ImportSettings.LandscapeMaterial.Get();
 			Landscape->ComponentSizeQuads	= ImportSettings.QuadsPerSection*ImportSettings.SectionsPerComponent;
 			Landscape->NumSubsections		= ImportSettings.SectionsPerComponent;
@@ -1770,12 +1769,20 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 
 		ULandscapeLayerInfoObject* DataLayer = ALandscapeProxy::VisibilityLayer;
 
+		// Check to ensure that if layer data is enabled, the import layer is set correctly
+		if (!Landscape->ReimportDestinationLayerGuid.IsValid())
+		{
+			// Set the destination layer to the default layer
+			Landscape->ReimportDestinationLayerGuid = Landscape->GetLandscapeActor()->GetLayer(0)->Guid;
+		}
+
 		if (TargetLayer == HeightmapLayerName) // Heightmap
 		{
 			if (!Landscape->ReimportHeightmapFilePath.IsEmpty())
 			{
 				TArray<uint16> RawData;
 				ReadHeightmapFile(RawData, *Landscape->ReimportHeightmapFilePath, NumSamplesX, NumSamplesY);
+				FScopedSetLandscapeEditingLayer Scope(Landscape->GetLandscapeActor(), Landscape->ReimportDestinationLayerGuid);
 				LandscapeEditorUtils::SetHeightmapData(Landscape, RawData);
 			}
 		}
@@ -1789,6 +1796,7 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 					{
 						TArray<uint8> RawData;
 						ReadWeightmapFile(RawData, *LayerSettings.ReimportLayerFilePath, LayerSettings.LayerInfoObj->LayerName, NumSamplesX, NumSamplesY);
+						FScopedSetLandscapeEditingLayer Scope(Landscape->GetLandscapeActor(), Landscape->ReimportDestinationLayerGuid);
 						LandscapeEditorUtils::SetWeightmapData(Landscape, LayerSettings.LayerInfoObj, RawData);
 
 						if (TargetLayer != NAME_None)
@@ -1816,7 +1824,6 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 		}
 	}
 }
-
 
 void FWorldTileCollectionModel::OnToggleLockTilesLocation()
 {

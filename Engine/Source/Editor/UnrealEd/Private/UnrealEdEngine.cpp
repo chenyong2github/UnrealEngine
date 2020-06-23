@@ -361,9 +361,6 @@ void UUnrealEdEngine::PreExit()
 {
 	FAssetSourceFilenameCache::Get().Shutdown();
 
-	// Notify edit modes we're mode at exit
-	FEditorModeRegistry::Get().Shutdown();
-
 	Super::PreExit();
 }
 
@@ -1440,24 +1437,6 @@ EWriteDisallowedWarningState UUnrealEdEngine::GetWarningStateForWritePermission(
 
 	return WarningState;
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void UUnrealEdEngine::OnMatineeEditorClosed( FEdMode* Mode, bool IsEntering )
-{
-	// if we are closing the Matinee editor
-	if ( !IsEntering && Mode->GetID() == FBuiltinEditorModes::EM_InterpEdit )
-	{
-		// set the autosave timer to save soon
-		if(PackageAutoSaver)
-		{
-			PackageAutoSaver->ForceMinimumTimeTillAutoSave();
-		}
-
-		// Remove this delegate. 
-		GLevelEditorModeTools().OnEditorModeChanged().Remove( OnMatineeEditorClosedDelegateHandle );
-	}	
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)
 {

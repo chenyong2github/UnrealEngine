@@ -304,7 +304,9 @@ public:
 
 #if STATS
 	TArray<FCycleCounter, TInlineAllocator<64>> StatCounterStack;
-	const TArray<TStatId>* StatScopes;
+	TArrayView<const TStatId> StatScopes;
+#elif ENABLE_STATNAMEDEVENTS
+	TArrayView<const FString> StatNamedEventScopes;
 #endif
 
 	TArray<uint8, TAlignedHeapAllocator<VECTOR_WIDTH_BYTES>> TempRegTable;
@@ -337,7 +339,9 @@ public:
 		bool bInParallelExecution);
 
 #if STATS
-	void SetStatScopes(const TArray<TStatId>* InStatScopes);
+	void SetStatScopes(TArrayView<const TStatId> InStatScopes);
+#elif ENABLE_STATNAMEDEVENTS
+	void SetStatNamedEventScopes(TArrayView<const FString> InStatNamedEventScopes);
 #endif
 
 	void FinishExec();
@@ -460,7 +464,9 @@ namespace VectorVM
 		void** UserPtrTable,
 		int32 NumInstances
 #if STATS
-		, const TArray<TStatId>& StatScopes
+		, TArrayView<const TStatId> StatScopes
+#elif ENABLE_STATNAMEDEVENTS
+		, TArrayView<const FString> StatNamedEventsScopes
 #endif
 	);
 

@@ -15,17 +15,27 @@ namespace AudioModulation
 	// Forward Declarations
 	class FAudioModulationSystem;
 
-	class FModulationSettingsProxy : public TModulatorProxyBase<uint32>
+	class FSoundModulationSettings : public TModulatorBase<uint32>
+	{
+	public:
+		FSoundModulationSettings() = default;
+		FSoundModulationSettings(const USoundModulationSettings& InSettings);
+
+		FModulationPatchSettings Volume;
+		FModulationPatchSettings Pitch;
+		FModulationPatchSettings Lowpass;
+		FModulationPatchSettings Highpass;
+	};
+
+	class FModulationSettingsProxy : public TModulatorBase<uint32>
 	{
 	public:
 		FModulationSettingsProxy();
-		FModulationSettingsProxy(const USoundModulationSettings& Settings, FAudioModulationSystem& InModSystem);
+		FModulationSettingsProxy(const FSoundModulationSettings& InSettings, FAudioModulationSystem& OutModSystem);
 
 		FModulationPatchProxy Volume;
 		FModulationPatchProxy Pitch;
 		FModulationPatchProxy Lowpass;
 		FModulationPatchProxy Highpass;
-
-		TMap<FName, FModulationPatchProxy> Controls;
 	};
 } // namespace AudioModulation

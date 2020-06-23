@@ -272,24 +272,6 @@ void FUnixCrashContext::GenerateReport(const FString & DiagnosticsPath) const
 	}
 }
 
-/** 
- * Creates (fake so far) minidump
- */
-void GenerateMinidump(const FString & Path)
-{
-	FArchive* ReportFile = IFileManager::Get().CreateFileWriter(*Path);
-	if (ReportFile != NULL)
-	{
-		// write BOM
-		static uint32 Garbage = 0xDEADBEEF;
-		ReportFile->Serialize(&Garbage, sizeof(Garbage));
-
-		ReportFile->Close();
-		delete ReportFile;
-	}
-}
-
-
 void FUnixCrashContext::CaptureStackTrace()
 {
 	// Only do work the first time this function is called - this is mainly a carry over from Windows where it can be called multiple times, left intact for extra safety.
@@ -524,9 +506,6 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		{
 			// generate "minidump"
 			GenerateReport(FPaths::Combine(*CrashInfoAbsolute, TEXT("Diagnostics.txt")));
-
-			// generate "minidump" (just >1 byte)
-			GenerateMinidump(FPaths::Combine(*CrashInfoAbsolute, TEXT("minidump.dmp")));
 
 			// Introduces a new runtime crash context. Will replace all Windows related crash reporting.
 			FString FilePath(CrashInfoFolder);
@@ -824,7 +803,17 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 
 	if (GCrashErrorMessage == nullptr)
 	{
-		Type = ECrashContextType::Crash;
+#if UE_SERVER
+		// External watchers should send SIGQUIT to kill an hanged server
+		if( Signal == SIGQUIT )
+		{
+			Type = ECrashContextType::Hang;
+		}
+		else
+#endif
+		{
+			Type = ECrashContextType::Crash;
+		}
 
 		DefaultErrorMessage.Append(TEXT("Caught signal "));
 		DefaultErrorMessage.AppendAnsi(ItoANSI(Signal, 10));

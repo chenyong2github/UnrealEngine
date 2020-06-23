@@ -17,6 +17,7 @@
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
 #include "RenderingThread.h"
+#include "RHISurfaceDataConversion.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MeshDescription.h"
 #include "TextureCompiler.h"
@@ -510,7 +511,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 							// Prepare a lambda for final processing that will be executed asynchronously
 							NumTasks++;
 							auto FinalProcessing_AnyThread =
-								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex](FTexture2DRHIRef& StagingBuffer, void * Data, int32 Width, int32 Height)
+								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex](FTexture2DRHIRef& StagingBuffer, void * Data, int32 DataWidth, int32 DataHeight)
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FinalProcessing)
 
@@ -518,17 +519,19 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 									TArray<FColor>& OutputColor = CurrentOutput.PropertyData[Property];
 									FIntPoint& OutputSize       = CurrentOutput.PropertySizes[Property];
 
-									OutputColor.SetNum(Width * Height);
+									OutputColor.SetNum(OutputSize.X * OutputSize.Y);
 
 									if (Property == MP_EmissiveColor)
 									{
 										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutput
-										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, OutputSize, OutputColor, CurrentOutput.EmissiveScale);
+										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale);
 									}
 									else
 									{
-										TRACE_CPUPROFILER_EVENT_SCOPE(Memcpy)
-										FPlatformMemory::Memcpy(OutputColor.GetData(), Data, OutputColor.Num() * sizeof(FColor));
+										TRACE_CPUPROFILER_EVENT_SCOPE(ConvertRawB8G8R8A8DataToFColor)
+										
+										check(StagingBuffer->GetFormat() == PF_B8G8R8A8);
+										ConvertRawB8G8R8A8DataToFColor(OutputSize.X, OutputSize.Y, (uint8*)Data, DataWidth * sizeof(FColor), OutputColor.GetData());
 									}
 
 									// We can't unmap ourself since we're not on the render thread
@@ -756,7 +759,7 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 	return Proxy;
 }
 
-void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, const FIntPoint& OutputSize, TArray<FColor>& OutputColor, float& EmissiveScale)
+void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, int32 Color16Pitch, const FIntPoint& OutputSize, TArray<FColor>& OutputColor, float& EmissiveScale)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::ProcessEmissiveOutput)
 
@@ -770,17 +773,17 @@ void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, 
 	const int32 LinesPerThread = FMath::CeilToInt((float)OutputSize.Y / (float)NumThreads);
 
 	// Find maximum float value across texture
-	ParallelFor(NumThreads, [&Color16, LinesPerThread, MaxValue, OutputSize](int32 Index)
+	ParallelFor(NumThreads, [&Color16, LinesPerThread, MaxValue, OutputSize, Color16Pitch](int32 Index)
 	{
 		const int32 EndY = FMath::Min((Index + 1) * LinesPerThread, OutputSize.Y);			
 		float& CurrentMaxValue = MaxValue[Index];
 		const FFloat16Color MagentaFloat16 = FFloat16Color(FLinearColor(1.0f, 0.0f, 1.0f));
 		for (int32 PixelY = Index * LinesPerThread; PixelY < EndY; ++PixelY)
 		{
-			const int32 YOffset = PixelY * OutputSize.X;
+			const int32 SrcYOffset = PixelY * Color16Pitch;
 			for (int32 PixelX = 0; PixelX < OutputSize.X; PixelX++)
 			{
-				const FFloat16Color& Pixel16 = Color16[PixelX + YOffset];
+				const FFloat16Color& Pixel16 = Color16[PixelX + SrcYOffset];
 				// Find maximum channel value across texture
 				if (!(Pixel16 == MagentaFloat16))
 				{
@@ -809,18 +812,21 @@ void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, 
 	// Now convert Float16 to Color using the scale
 	OutputColor.SetNumUninitialized(OutputSize.X * OutputSize.Y);
 	const float Scale = 255.0f / GlobalMaxValue;
-	ParallelFor(NumThreads, [&Color16, LinesPerThread, &OutputColor, OutputSize, Scale](int32 Index)
+	ParallelFor(NumThreads, [&Color16, LinesPerThread, &OutputColor, OutputSize, Color16Pitch, Scale](int32 Index)
 	{
+		const FFloat16Color MagentaFloat16 = FFloat16Color(FLinearColor(1.0f, 0.0f, 1.0f));
+
 		const int32 EndY = FMath::Min((Index + 1) * LinesPerThread, OutputSize.Y);
 		for (int32 PixelY = Index * LinesPerThread; PixelY < EndY; ++PixelY)
 		{
-			const int32 YOffset = PixelY * OutputSize.X;
+			const int32 SrcYOffset = PixelY * Color16Pitch;
+			const int32 DstYOffset = PixelY * OutputSize.X;
+
 			for (int32 PixelX = 0; PixelX < OutputSize.X; PixelX++)
 			{
-				const FFloat16Color& Pixel16 = Color16[PixelX + YOffset];
+				const FFloat16Color& Pixel16 = Color16[PixelX + SrcYOffset];
+				FColor& Pixel8 = OutputColor[PixelX + DstYOffset];
 
-				const FFloat16Color MagentaFloat16 = FFloat16Color(FLinearColor(1.0f, 0.0f, 1.0f));
-				FColor& Pixel8 = OutputColor[PixelX + YOffset];
 				if (Pixel16 == MagentaFloat16)
 				{
 					Pixel8.R = 255;
@@ -831,9 +837,8 @@ void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, 
 				{
 					Pixel8.R = (uint8)FMath::RoundToInt(Pixel16.R.GetFloat() * Scale);
 					Pixel8.G = (uint8)FMath::RoundToInt(Pixel16.G.GetFloat() * Scale);
-					Pixel8.B = (uint8)FMath::RoundToInt(Pixel16.B.GetFloat() * Scale);						
+					Pixel8.B = (uint8)FMath::RoundToInt(Pixel16.B.GetFloat() * Scale);
 				}
-					
 					
 				Pixel8.A = 255;
 			}

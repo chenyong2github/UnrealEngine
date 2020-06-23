@@ -628,7 +628,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 		if(!DestSeq)
 		{
 			DestSeq = NewObject<UAnimSequence>(ParentPackage, *SequenceName, RF_Public | RF_Standalone);
-	
+			CreatedObjects.Add(DestSeq);
 			// Notify the asset registry
 			FAssetRegistryModule::AssetCreated(DestSeq);
 		}

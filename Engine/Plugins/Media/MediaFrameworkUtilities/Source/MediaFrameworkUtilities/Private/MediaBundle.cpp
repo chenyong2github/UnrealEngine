@@ -22,10 +22,77 @@
 #include "MediaPlayerFacade.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
+#include "Misc/CoreDelegates.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
 
 #define LOCTEXT_NAMESPACE "MediaBundle"
+
+
+namespace MediaBundlePrivate
+{
+	/**
+	 * Class made to handle closing bundles at the end of the frame in case it was requested during garbage collection
+	 */
+	class FMediaBundleDeferredCloser
+	{
+	public:
+
+		static FMediaBundleDeferredCloser* Get()
+		{
+			static FMediaBundleDeferredCloser Instance;
+			return &Instance;
+		}
+
+		/** Disallow Copying / Moving */
+		FMediaBundleDeferredCloser(FMediaBundleDeferredCloser&& Other) = delete;
+		FMediaBundleDeferredCloser& operator=(FMediaBundleDeferredCloser&& Other) = delete;
+		FMediaBundleDeferredCloser(const FMediaBundleDeferredCloser& Other) = delete;
+		FMediaBundleDeferredCloser& operator=(const FMediaBundleDeferredCloser& Other) = delete;
+
+		~FMediaBundleDeferredCloser()
+		{
+			FCoreDelegates::OnEndFrame.RemoveAll(this);
+		}
+
+		void AddBundle(UMediaBundle* Bundle)
+		{
+			BundlesToClose.AddUnique(Bundle);
+		}
+
+		void RemoveBundle(UMediaBundle* Bundle)
+		{
+			BundlesToClose.RemoveSingleSwap(Bundle, false);
+		}
+
+	private:
+
+		FMediaBundleDeferredCloser()
+		{
+			FCoreDelegates::OnEndFrame.AddRaw(this, &FMediaBundleDeferredCloser::OnEndFrame);
+		}
+
+		void OnEndFrame()
+		{
+			for (UMediaBundle* Bundle : BundlesToClose)
+			{
+				//Our bundles need to close their player. Only do it if both are "valid" 
+				if (!Bundle->IsPendingKillOrUnreachable() && !Bundle->GetMediaPlayer()->IsPendingKillOrUnreachable())
+				{
+					Bundle->GetMediaPlayer()->Close();
+				}
+			}
+
+			//Clear bundles. All closed or unusable at this point
+			BundlesToClose.Empty();
+		}
+
+	private:
+
+		TArray<UMediaBundle*> BundlesToClose;
+	};
+}
+
 
 /* UMediaBundle
  *****************************************************************************/
@@ -69,6 +136,9 @@ bool UMediaBundle::OpenMediaSource()
 				MediaPlayer->OnMediaOpenFailed.AddUniqueDynamic(this, &UMediaBundle::OnMediaOpenFailed);
 				++ReferenceCount;
 
+				//Clear our entry in the closer since someone else requested playback
+				MediaBundlePrivate::FMediaBundleDeferredCloser::Get()->RemoveBundle(this);
+
 				if (ReferenceCount == 1)
 				{
 					IMediaProfileManager::Get().OnMediaProfileChanged().AddUObject(this, &UMediaBundle::OnMediaProfileChanged);
@@ -99,7 +169,16 @@ void UMediaBundle::CloseMediaSource()
 	--ReferenceCount;
 	if (ReferenceCount == 0 && MediaPlayer)
 	{
-		MediaPlayer->Close();
+		//Closing the player creates a newobject (playlist). If we are garbage collecting, defer closing it to avoid asserting
+		if (IsGarbageCollecting())
+		{
+			MediaBundlePrivate::FMediaBundleDeferredCloser::Get()->AddBundle(this);
+		}
+		else
+		{
+			MediaPlayer->Close();
+		}
+
 		IMediaProfileManager::Get().OnMediaProfileChanged().RemoveAll(this);
 	}
 }

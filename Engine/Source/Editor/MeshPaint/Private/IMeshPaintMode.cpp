@@ -36,6 +36,7 @@
 
 #include "IMeshPainter.h"
 #include "MeshPaintSettings.h"
+#include "AssetData.h"
 
 #define LOCTEXT_NAMESPACE "IMeshPaint_Mode"
 

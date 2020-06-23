@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/ContainersFwd.h"
 #include "Misc/Guid.h"
 #include "Templates/SharedPointer.h"
 #include "Misc/FrameNumber.h"
@@ -13,7 +14,6 @@ class IKeyArea;
 
 template<typename> struct TOptional;
 template<typename> class TRange;
-template<typename> class TArrayView;
 
 /** Enumeration used to define how to search for keys */
 enum class EFindKeyDirection

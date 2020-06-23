@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlBase.h"
 #include "Network/DisplayClusterMessage.h"
 
@@ -18,7 +17,7 @@ class FDisplayClusterClusterNodeCtrlSlave
 	: public FDisplayClusterClusterNodeCtrlBase
 {
 public:
-	FDisplayClusterClusterNodeCtrlSlave(const FString& ctrlName, const FString& nodeName);
+	FDisplayClusterClusterNodeCtrlSlave(const FString& CtrlName, const FString& NodeName);
 	virtual ~FDisplayClusterClusterNodeCtrlSlave();
 
 public:
@@ -47,7 +46,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterSwapSyncProtocol
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync(double* pThreadWaitTime, double* pBarrierWaitTime) override final;
+	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) override final;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

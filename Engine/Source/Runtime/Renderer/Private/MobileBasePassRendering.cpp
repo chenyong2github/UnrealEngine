@@ -79,14 +79,9 @@ static_assert(MAX_BASEPASS_DYNAMIC_POINT_LIGHTS == 4, "If you change MAX_BASEPAS
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, FNoLightMapPolicy);
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>, TLightMapPolicyLQ);
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP>, FMobileDistanceFieldShadowsAndLQLightMapPolicy);
-IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_DISTANCE_FIELD_SHADOWS_LIGHTMAP_AND_CSM>, FMobileDistanceFieldShadowsLightMapAndCSMLightingPolicy);
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT>, FMobileDirectionalLightAndSHIndirectPolicy);
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT>, FMobileMovableDirectionalLightAndSHIndirectPolicy);
-IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT>, FMobileMovableDirectionalLightCSMAndSHIndirectPolicy);
-IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT>, FMobileDirectionalLightCSMAndSHIndirectPolicy);
-IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM>, FMobileMovableDirectionalLightCSMLightingPolicy);
 IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP>, FMobileMovableDirectionalLightWithLightmapPolicy);
-IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_SHADER_TYPE(TUniformLightMapPolicy<LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_WITH_LIGHTMAP>, FMobileMovableDirectionalLightCSMWithLightmapPolicy);
 
 template<typename LightMapPolicyType>
 bool TMobileBasePassPSPolicyParamType<LightMapPolicyType>::ModifyCompilationEnvironmentForQualityLevel(EShaderPlatform Platform, EMaterialQualityLevel::Type QualityLevel, FShaderCompilerEnvironment& OutEnvironment)
@@ -156,6 +151,7 @@ void SetupMobileBasePassUniformParameters(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View, 
 	bool bTranslucentPass, 
+	bool bCanUseCSM,
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(View, BasePassParameters.Fog);
@@ -166,9 +162,13 @@ void SetupMobileBasePassUniformParameters(
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, bTranslucentPass, View.bCustomDepthStencilValid, BasePassParameters.SceneTextures);
-	if (View.HasValidEyeAdaptation() && View.GetEyeAdaptationBuffer())
+	BasePassParameters.UseCSM = bCanUseCSM ? 1 : 0;
+	if (View.HasValidEyeAdaptation())
 	{
-		BasePassParameters.SceneTextures.EyeAdaptationBuffer = View.GetEyeAdaptationBuffer()->SRV;
+		if (const FExposureBufferData* ExposureBufferData = View.GetEyeAdaptationBuffer())
+		{
+			BasePassParameters.SceneTextures.EyeAdaptationBuffer = ExposureBufferData->SRV;
+		}
 	}
 
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
@@ -179,10 +179,11 @@ void CreateMobileBasePassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
 	bool bTranslucentPass,
+	bool bCanUseCSM,
 	TUniformBufferRef<FMobileBasePassUniformParameters>& BasePassUniformBuffer)
 {
 	FMobileBasePassUniformParameters BasePassParameters;
-	SetupMobileBasePassUniformParameters(RHICmdList, View, bTranslucentPass, BasePassParameters);
+	SetupMobileBasePassUniformParameters(RHICmdList, View, bTranslucentPass, bCanUseCSM, BasePassParameters);
 	BasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(BasePassParameters, UniformBuffer_SingleFrame);
 }
 

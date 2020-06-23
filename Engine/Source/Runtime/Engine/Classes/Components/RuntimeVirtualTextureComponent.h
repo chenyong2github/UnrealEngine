@@ -43,10 +43,6 @@ public:
 	/** Get the streaming virtual texture object on this component. */
 	class UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
 
-	/** Get the runtime virtual texture UV to World transform on this component. */
-	UFUNCTION(BlueprintPure, Category = VirtualTexture)
-	FTransform GetVirtualTextureTransform() const;
-
 	/** Public getter for virtual texture streaming low mips */
 	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
 

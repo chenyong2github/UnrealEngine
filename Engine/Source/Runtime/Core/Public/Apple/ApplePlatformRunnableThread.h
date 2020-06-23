@@ -83,7 +83,8 @@ private:
 			case TPri_SlightlyBelowNormal: return 30;
 			case TPri_BelowNormal: return 25;
 			case TPri_Lowest: return 20;
-			default: UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to FRunnableThreadApple::TranslateThreadPriority()"));
+			case TPri_Num:
+			default: UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to FRunnableThreadApple::TranslateThreadPriority()")); return 31;
 		}
 	}
     

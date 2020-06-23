@@ -44,6 +44,10 @@
 #include "RayTracingInstance.h"
 #include "PrimitiveSceneInfo.h"
 
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
 
@@ -113,10 +117,25 @@ static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshes(
 	1,
 	TEXT("Include static meshes in ray tracing effects (default = 1 (static meshes enabled in ray tracing))"));
 
-static TAutoConsoleVariable<int32> CVarRayTracingWPOStaticMeshes(
-	TEXT("r.RayTracing.Geometry.WPOStaticMeshes"),
+static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPO(
+	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO"),
 	1,
-	TEXT("Include static meshes with world position offset in ray tracing effects (default = 1 (static meshes with world position offset enabled in ray tracing))"));
+	TEXT("World position offset evaluation for static meshes with EvaluateWPO enabled in ray tracing effects")
+	TEXT(" 0: static meshes with world position offset hidden in ray tracing")
+	TEXT(" 1: static meshes with world position offset visible in ray tracing, WPO evaluation enabled (default)")
+	TEXT(" 2: static meshes with world position offset visible in ray tracing, WPO evaluation disabled")
+);
+
+static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPOCulling(
+	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO.Culling"),
+	0,
+	TEXT("Enable culling for WPO evaluation for static meshes in ray tracing (default = 1 (Culling enabled))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingStaticMeshesWPOCullingRadius(
+	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO.CullingRadius"),
+	5000.0f, // 50 m
+	TEXT("Do not evaluate world position offset for static meshes outside of this radius in ray tracing effects (default = 5000 (50m))"));
+
 
 /** Initialization constructor. */
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
@@ -1647,7 +1666,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #if RHI_RAYTRACING
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
-	if (DynamicRayTracingGeometries.Num() <= 0 || !CVarRayTracingStaticMeshes.GetValueOnRenderThread() || !CVarRayTracingWPOStaticMeshes.GetValueOnRenderThread())
+	if (DynamicRayTracingGeometries.Num() <= 0 || CVarRayTracingStaticMeshes.GetValueOnRenderThread() == 0 || CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 0)
 	{
 		return;
 	}
@@ -1655,8 +1674,22 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
 	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+	bool bEvaluateWPO = CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 1;
 
-	FRayTracingGeometry& Geometry = DynamicRayTracingGeometries[LODIndex];
+	if (bEvaluateWPO && CVarRayTracingStaticMeshesWPOCulling.GetValueOnRenderThread() > 0)
+	{
+		FVector ViewCenter = Context.ReferenceView->ViewMatrices.GetViewOrigin();		
+		FVector MeshCenter = GetLocalToWorld().TransformPosition({ 0.0f, 0.0f, 0.0f });
+		const float CullingRadius = CVarRayTracingStaticMeshesWPOCullingRadius.GetValueOnRenderThread();
+		const float BoundingRadius = GetBounds().SphereRadius;
+
+		if (FVector(ViewCenter - MeshCenter).Size() > (CullingRadius + BoundingRadius))
+		{
+			bEvaluateWPO = false;
+		}
+	}
+
+	FRayTracingGeometry& Geometry = bEvaluateWPO? DynamicRayTracingGeometries[LODIndex] : RenderData->LODResources[LODIndex].RayTracingGeometry;
 	{
 		FRayTracingInstance RayTracingInstance;
 	
@@ -1682,20 +1715,28 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		}
 
 		RayTracingInstance.Geometry = &Geometry;
-		RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
 
-		Context.DynamicRayTracingGeometriesToUpdate.Add(
-			FRayTracingDynamicGeometryUpdateParams
-			{
-				RayTracingInstance.Materials,
-				false,
-				(uint32)LODModel.GetNumVertices(),
-				uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
-				Geometry.Initializer.TotalPrimitiveCount,
-				&Geometry,
-				&DynamicRayTracingGeometryVertexBuffers[LODIndex]
-			}
+		if (bEvaluateWPO)
+		{
+			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+	
+			Context.DynamicRayTracingGeometriesToUpdate.Add(
+				FRayTracingDynamicGeometryUpdateParams
+				{
+					RayTracingInstance.Materials,
+					false,
+					(uint32)LODModel.GetNumVertices(),
+					uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+					Geometry.Initializer.TotalPrimitiveCount,
+					&Geometry,
+					&DynamicRayTracingGeometryVertexBuffers[LODIndex]
+				}
 		);
+		}
+		else
+		{
+			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
+		}
 		
 		RayTracingInstance.BuildInstanceMaskAndFlags();
 
@@ -1917,19 +1958,41 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		SetGlobalVolumeLightmap(true);
 	}
 
+	bool bMeshMapBuildDataOverriddenByLightmapPreview = false;
+
+#if WITH_EDITOR
+	// The component may not have corresponding FStaticMeshComponentLODInfo in its LODData, and that's why we're overriding MeshMapBuildData here (instead of inside GetMeshMapBuildData).
+	if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, LODIndex))
+	{
+		const FMeshMapBuildData* MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, LODIndex);
+		if (MeshMapBuildData)
+		{
+			bMeshMapBuildDataOverriddenByLightmapPreview = true;
+
+			SetLightMap(MeshMapBuildData->LightMap);
+			SetShadowMap(MeshMapBuildData->ShadowMap);
+			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+		}
+	}
+#endif
+
 	if (LODIndex < InComponent->LODData.Num() && LODIndex >= InClampedMinLOD)
 	{
 		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[LODIndex];
 
-		if (InComponent->LightmapType != ELightmapType::ForceVolumetric)
+		if (!bMeshMapBuildDataOverriddenByLightmapPreview)
 		{
-			const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
-			if (MeshMapBuildData)
+			if (InComponent->LightmapType != ELightmapType::ForceVolumetric)
 			{
-				SetLightMap(MeshMapBuildData->LightMap);
-				SetShadowMap(MeshMapBuildData->ShadowMap);
-				SetResourceCluster(MeshMapBuildData->ResourceCluster);
-				IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+				const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
+				if (MeshMapBuildData)
+				{
+					SetLightMap(MeshMapBuildData->LightMap);
+					SetShadowMap(MeshMapBuildData->ShadowMap);
+					SetResourceCluster(MeshMapBuildData->ResourceCluster);
+					IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+				}
 			}
 		}
 		
@@ -1975,22 +2038,25 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 			}
 		}
 	}
-
-	if (LODIndex > 0 
-		&& bLODsShareStaticLighting 
-		&& InComponent->LODData.IsValidIndex(0)
-		&& InComponent->LightmapType != ELightmapType::ForceVolumetric
-		&& LODIndex >= InClampedMinLOD)
+	
+	if (!bMeshMapBuildDataOverriddenByLightmapPreview)
 	{
-		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[0];
-		const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
-
-		if (MeshMapBuildData)
+		if (LODIndex > 0
+			&& bLODsShareStaticLighting
+			&& InComponent->LODData.IsValidIndex(0)
+			&& InComponent->LightmapType != ELightmapType::ForceVolumetric
+			&& LODIndex >= InClampedMinLOD)
 		{
-			SetLightMap(MeshMapBuildData->LightMap);
-			SetShadowMap(MeshMapBuildData->ShadowMap);
-			SetResourceCluster(MeshMapBuildData->ResourceCluster);
-			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+			const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[0];
+			const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(ComponentLODInfo);
+
+			if (MeshMapBuildData)
+			{
+				SetLightMap(MeshMapBuildData->LightMap);
+				SetShadowMap(MeshMapBuildData->ShadowMap);
+				SetResourceCluster(MeshMapBuildData->ResourceCluster);
+				IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+			}
 		}
 	}
 

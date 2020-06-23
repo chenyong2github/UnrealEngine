@@ -432,7 +432,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			if (ClassIterator->IsChildOf(USplineMetadataDetailsFactoryBase::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 			{
 				USplineMetadataDetailsFactoryBase* Factory = ClassIterator->GetDefaultObject<USplineMetadataDetailsFactoryBase>();
-				USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
+				const USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
 				if (SplineMetadata && SplineMetadata->GetClass() == Factory->GetMetadataClass())
 				{
 					SplineMetaDataDetails = Factory->Create();
@@ -759,7 +759,8 @@ void FSplineComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	{
 		if (USplineComponent* SplineComp = Cast<USplineComponent>(ObjectsBeingCustomized[0]))
 		{
-			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Selected Points");
+			// Set the spline points details as important in order to have it on top 
+			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Selected Points", FText::GetEmpty(), ECategoryPriority::Important);
 			TSharedRef<FSplinePointDetails> SplinePointDetails = MakeShareable(new FSplinePointDetails(SplineComp));
 			Category.AddCustomBuilder(SplinePointDetails);
 		}

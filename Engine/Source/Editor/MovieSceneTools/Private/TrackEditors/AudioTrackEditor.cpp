@@ -291,33 +291,17 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 	
 	check(SoundWave->NumChannels == 1 || SoundWave->NumChannels == 2);
 
-	// decompress PCM data if necessary
-	if (SoundWave->RawPCMData == NULL)
+	uint32 SampleRate;
+	uint16 NumChannels;
+	TArray<uint8> RawPCMData;
+	if (!SoundWave->GetImportedSoundWaveData(RawPCMData, SampleRate, NumChannels))
 	{
-		// @todo Sequencer optimize - We might want to generate the data when we generate the texture
-		// and then discard the data afterwards, though that might be a perf hit traded for better memory usage
-		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-		if (AudioDevice)
-		{
-			AudioDevice->StopAllSounds(true);
-
-			EDecompressionType DecompressionType =  SoundWave->DecompressionType;
-			SoundWave->DecompressionType = DTYPE_Native;
-
-			if ( SoundWave->InitAudioResource( AudioDevice->GetRuntimeFormat( SoundWave ) ) && (SoundWave->DecompressionType != DTYPE_RealTime || SoundWave->CachedRealtimeFirstBuffer == nullptr ) )
-			{
-				FAsyncAudioDecompress TempDecompress(SoundWave, AudioDevice->NumPrecacheFrames);
-				TempDecompress.StartSynchronousTask();
-			}
-
-			SoundWave->DecompressionType = DecompressionType;
-		}
+		UE_LOG(LogMovieScene, Warning, TEXT("Failed to get sound wave data for: %s Waveform will not be visible."), *SoundWave->GetPathName());
+		return;
 	}
 
-	const int32 NumChannels = SoundWave->NumChannels;
-	const int16* LookupData = (int16*)SoundWave->RawPCMData;
-	const int32 LookupDataSize = SoundWave->RawPCMDataSize;
-	const int32 LookupSize = LookupDataSize * sizeof(uint8) / sizeof(int16);
+	const int16* LookupData = (int16*)RawPCMData.GetData();
+	const int32 LookupSize = RawPCMData.Num() * sizeof(uint8) / sizeof(int16);
 
 	if (!LookupData || !AudioSection->HasStartFrame() || !AudioSection->HasEndFrame())
 	{
@@ -362,6 +346,11 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 		float NextLookupFractionLooping = FMath::Fmod(NextLookupFraction, 1.f);
 		int32 NextLookupIndex = FMath::TruncToInt(NextLookupFractionLooping * LookupSize);
 		
+		if (!AudioSection->GetLooping() && LookupFraction > 1.f)
+		{
+			break;
+		}
+
 		SampleAudio(SoundWave->NumChannels, LookupData, LookupIndex, NextLookupIndex, LookupSize, MaxAmplitude);
 	}
 
@@ -614,6 +603,7 @@ FAudioSection::FAudioSection( UMovieSceneSection& InSection, TWeakPtr<ISequencer
 	: Section( InSection )
 	, StoredDrawRange(TRange<float>::Empty())
 	, StoredSectionHeight(0.f)
+	, bStoredLooping(true)
 	, Sequencer(InSequencer)
 	, InitialStartOffsetDuringResize(0)
 	, InitialStartTimeDuringResize(0)
@@ -709,6 +699,11 @@ int32 FAudioSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 			);
 
 			OffsetTime += AudioDuration;
+
+			if (!AudioSection->GetLooping())
+			{
+				break;
+			}
 		}
 	}
 
@@ -752,7 +747,8 @@ void FAudioSection::Tick( const FGeometry& AllottedGeometry, const FGeometry& Pa
 			XOffset != StoredXOffset || XSize != StoredXSize || Track->GetColorTint() != StoredColor ||
 			StoredSoundWave != SoundWave ||
 			StoredSectionHeight != GetSectionHeight() ||
-			StoredStartOffset != AudioSection->GetStartOffset())
+			StoredStartOffset != AudioSection->GetStartOffset() ||
+			bStoredLooping != AudioSection->GetLooping())
 		{
 			float DisplayScale = XSize / DrawRange.Size<float>();
 
@@ -834,6 +830,7 @@ void FAudioSection::RegenerateWaveforms(TRange<float> DrawRange, int32 XOffset, 
 	StoredColor = ColorTint;
 	StoredStartOffset = AudioSection->GetStartOffset();
 	StoredSectionHeight = GetSectionHeight();
+	bStoredLooping = AudioSection->GetLooping();
 
 	if (DrawRange.IsDegenerate() || DrawRange.IsEmpty() || AudioSection->GetSound() == NULL)
 	{

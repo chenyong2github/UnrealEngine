@@ -102,7 +102,7 @@ bool GetSectionBool(const FConfigSection& Section, FName Key)
 
 EPlatformFlags::Flags ConvertPlatformFlags(const FString& String)
 {
-	if (String == TEXT("") == 0 || String == TEXT("None")) { return EPlatformFlags::None; }
+	if (String == TEXT("") || String == TEXT("None")) { return EPlatformFlags::None; }
 	if (String == TEXT("CookFlavor")) { return EPlatformFlags::CookFlavor; }
 	if (String == TEXT("BuildFlavor")) { return EPlatformFlags::BuildFlavor; }
 

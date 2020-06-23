@@ -24,6 +24,9 @@ public:
 	TSoftObjectPtr< USceneComponent > AttachParent;
 
 	UPROPERTY()
+	bool bVisible;
+
+	UPROPERTY()
 	TSet<FName> Tags;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;

@@ -213,24 +213,25 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 		Record << SA_VALUE(TEXT("Guid"), Sum.Guid);
 
-		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER)
+#if WITH_EDITORONLY_DATA
+		if (!BaseArchive.IsFilterEditorOnly())
 		{
-			if (!BaseArchive.IsFilterEditorOnly())
+			if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER)
 			{
-#if WITH_EDITORONLY_DATA
-				Record << SA_VALUE(TEXT("PersistentGuid"), Sum.PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), Sum.OwnerPersistentGuid);
-#else
-				FGuid PersistentGuid;
-				FGuid OwnerPersistentGuid;
-				Record << SA_VALUE(TEXT("PersistentGuid"), PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), OwnerPersistentGuid);
-#endif
+				Record << SA_VALUE(TEXT("PersistentGuid"), Sum.PersistentGuid);
 			}
-		}
-#if WITH_EDITORONLY_DATA
-		else
-		{
-			// By assigning the current package guid, we maintain a stable persistent guid, so we can reference this package even if it wasn't resaved.
-			Sum.PersistentGuid = Sum.Guid;
+			else
+			{
+				// By assigning the current package guid, we maintain a stable persistent guid, so we can reference this package even if it wasn't resaved.
+				Sum.PersistentGuid = Sum.Guid;
+			}
+
+			// The owner persistent guid was added in VER_UE4_ADDED_PACKAGE_OWNER but removed in the next version VER_UE4_NON_OUTER_PACKAGE_IMPORT
+			if (BaseArchive.IsLoading() && Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER && Sum.FileVersionUE4 < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
+			{
+				FGuid OwnerPersistentGuid;
+				Record << SA_VALUE(TEXT("OwnerPersistentGuid"), OwnerPersistentGuid);
+			}
 		}
 #endif
 

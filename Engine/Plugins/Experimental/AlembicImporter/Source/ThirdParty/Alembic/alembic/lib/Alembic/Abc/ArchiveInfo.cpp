@@ -48,7 +48,8 @@ GetArchiveInfo(
     std::string & oAlembicVersion,
     Util::uint32_t & oAlembicApiVersion,
     std::string & oDateWritten,
-    std::string & oUserDescription )
+    std::string & oUserDescription,
+    double & oDCCFPS)
 {
     if ( ! iArchive.getPtr() )
     {
@@ -62,6 +63,21 @@ GetArchiveInfo(
 
     oDateWritten = md.get( kDateWrittenKey );
     oUserDescription = md.get( kUserDescriptionKey );
+    oDCCFPS = atof( md.get( kDCCFPSKey ).c_str() );
+}
+
+void
+GetArchiveInfo(
+    IArchive & iArchive,
+    std::string & oApplicationWriter,
+    std::string & oAlembicVersion,
+    Util::uint32_t & oAlembicApiVersion,
+    std::string & oDateWritten,
+    std::string & oUserDescription)
+{
+    double unusedFps;
+    GetArchiveInfo( iArchive, oApplicationWriter, oAlembicVersion,
+        oAlembicApiVersion, oDateWritten, oUserDescription, unusedFps );
 }
 
 void

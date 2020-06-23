@@ -188,10 +188,13 @@ namespace nDisplay
 				string appPath = ExtractApplicationPath(data).Trim();
 				string argList = data.Substring(appPath.Length).Trim();
 
+				appPath = appPath.Trim(new char[] { '"' });
+
 				// For now we just forward arguments list as is.
 				Process proc = new Process();
 				proc.StartInfo.FileName = appPath;
 				proc.StartInfo.Arguments = argList;
+				proc.StartInfo.WorkingDirectory = Path.GetDirectoryName(appPath);
 				proc.Start();
 
 				lock (LockPIDList)

@@ -164,8 +164,6 @@ void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	//FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	//MeshDebugDraw::DrawSimpleGrid(ShapeFrame, 13, 5.0f, 1.0f, FColor::Orange, false, PDI, FTransform::Identity);
 }
 
 
@@ -234,6 +232,21 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			}
 			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
+		}
+	}
+
+	// Snap to grid if applicable
+	if (ShapeSettings->bSnapToGrid
+		&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	{
+		FSceneSnapQueryRequest Request;
+		Request.RequestType = ESceneSnapQueryType::Position;
+		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+		Request.Position = (FVector)ShapeFrame.Origin;
+		TArray<FSceneSnapQueryResult> Results;
+		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
+		{
+			ShapeFrame.Origin = Results[0].Position;
 		}
 	}
 

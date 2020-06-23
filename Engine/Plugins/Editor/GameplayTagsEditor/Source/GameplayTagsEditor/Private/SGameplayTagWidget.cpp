@@ -1084,11 +1084,48 @@ void SGameplayTagWidget::VerifyAssetTagValidity()
 
 void SGameplayTagWidget::LoadSettings()
 {
+	MigrateSettings();
+
 	TArray< TSharedPtr<FGameplayTagNode> > TagArray;
 	UGameplayTagsManager::Get().GetFilteredGameplayRootTags(TEXT(""), TagArray);
 	for (int32 TagIdx = 0; TagIdx < TagArray.Num(); ++TagIdx)
 	{
 		LoadTagNodeItemExpansion(TagArray[TagIdx] );
+	}
+}
+
+const FString& SGameplayTagWidget::GetGameplayTagsEditorStateIni()
+{
+	static FString Filename;
+
+	if (Filename.Len() == 0)
+	{
+		Filename = FString::Printf(TEXT("%s%s/GameplayTagsEditorState.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
+		FPaths::MakeStandardFilename(Filename);
+	}
+
+	return Filename;
+}
+
+void SGameplayTagWidget::MigrateSettings()
+{
+	if (FConfigSection* EditorPerProjectIniSection = GConfig->GetSectionPrivate(*SettingsIniSection, /*Force=*/false, /*Const=*/true, GEditorPerProjectIni))
+	{
+		if (EditorPerProjectIniSection->Num() > 0)
+		{
+			FConfigSection* DestinationSection = GConfig->GetSectionPrivate(*SettingsIniSection, /*Force=*/true, /*Const=*/false, GetGameplayTagsEditorStateIni());
+
+			DestinationSection->Reserve(DestinationSection->Num() + EditorPerProjectIniSection->Num());
+			for (const auto& It : *EditorPerProjectIniSection)
+			{
+				DestinationSection->FindOrAdd(It.Key, It.Value);
+			}
+
+			GConfig->Flush(false, GetGameplayTagsEditorStateIni());
+		}
+
+		GConfig->EmptySection(*SettingsIniSection, GEditorPerProjectIni);
+		GConfig->Flush(false, GEditorPerProjectIni);
 	}
 }
 
@@ -1118,7 +1155,7 @@ void SGameplayTagWidget::LoadTagNodeItemExpansion( TSharedPtr<FGameplayTagNode> 
 	{
 		bool bExpanded = false;
 
-		if( GConfig->GetBool(*SettingsIniSection, *(TagContainerName + Node->GetCompleteTagString() + TEXT(".Expanded")), bExpanded, GEditorPerProjectIni) )
+		if( GConfig->GetBool(*SettingsIniSection, *(TagContainerName + Node->GetCompleteTagString() + TEXT(".Expanded")), bExpanded, GetGameplayTagsEditorStateIni()) )
 		{
 			TagTreeWidget->SetItemExpansion( Node, bExpanded );
 		}
@@ -1138,7 +1175,7 @@ void SGameplayTagWidget::LoadTagNodeItemExpansion( TSharedPtr<FGameplayTagNode> 
 void SGameplayTagWidget::OnExpansionChanged( TSharedPtr<FGameplayTagNode> InItem, bool bIsExpanded )
 {
 	// Save the new expansion setting to ini file
-	GConfig->SetBool(*SettingsIniSection, *(TagContainerName + InItem->GetCompleteTagString() + TEXT(".Expanded")), bIsExpanded, GEditorPerProjectIni);
+	GConfig->SetBool(*SettingsIniSection, *(TagContainerName + InItem->GetCompleteTagString() + TEXT(".Expanded")), bIsExpanded, GetGameplayTagsEditorStateIni());
 }
 
 void SGameplayTagWidget::SetContainer(FGameplayTagContainer* OriginalContainer, FGameplayTagContainer* EditedContainer, UObject* OwnerObj)

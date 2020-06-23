@@ -6,16 +6,28 @@
 #include "Evaluation/MovieSceneEvaluationTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Compilation/MovieSceneEvaluationTemplateGenerator.h"
+#include "HAL/IConsoleManager.h"
 
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Tracks/MovieSceneSubTrack.h"
+#include "Tracks/MovieSceneSpawnTrack.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 
+#include "Algo/Find.h"
+
 DECLARE_CYCLE_STAT(TEXT("Full Compile"),  MovieSceneEval_CompileFull,  STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Compile Range"), MovieSceneEval_CompileRange, STATGROUP_MovieSceneEval);
+
+int32 GMovieSceneUnspawnedSpawnableTrackOptimization = 1;
+FAutoConsoleVariableRef CVarMovieSceneUnspawnedSpawnableTrackOptimization(
+	TEXT("Sequencer.UnspawnedSpawnableTrackOptimization"),
+	GMovieSceneUnspawnedSpawnableTrackOptimization,
+	TEXT("(default: 1) Aggressive optimization: defines whether spawn tracks should bake unspawned ranges to any sibling tracks and child bindings.\n"),
+	ECVF_Default
+);
 
 /** Parameter structure used for keeping sub-sequence information we need for compilation */
 struct FMovieSceneSubSequenceGatherData
@@ -583,9 +595,9 @@ void FMovieSceneCompiler::GatherCompileDataForSubSection(const UMovieSceneSequen
 		if (LocalSectionEndTime.IsSet() && !SubSection.SectionRange.GetLowerBound().IsOpen())
 		{
 			uint32 LoopCount = 0;
-			FFrameTime CurRootRangeStart = MovieScene::DiscreteInclusiveLower(SubSection.SectionRange.GetLowerBound()) * SequenceToRootTransform;
+			FFrameTime CurRootRangeStart = MovieScene::DiscreteInclusiveLower(SubSection.SectionRange.GetLowerBound()) * SequenceToRootTransform.LinearTransform;
 			TRange<FFrameNumber> CurRootRange(CurRootRangeStart.FloorToFrame(), (CurRootRangeStart + FirstRootLoopLength).FloorToFrame());
-			const FFrameNumber RootSectionEndTime = (LocalSectionEndTime.GetValue() * SequenceToRootTransform).FloorToFrame();
+			const FFrameNumber RootSectionEndTime = (LocalSectionEndTime.GetValue() * SequenceToRootTransform.LinearTransform).FloorToFrame();
 
 			while (CurRootRange.GetLowerBoundValue() < RootSectionEndTime)
 			{
@@ -681,6 +693,43 @@ const FMovieSceneSubSequenceData* FMovieSceneCompiler::GetOrCreateSubSequenceDat
 	return InOutHierarchy.FindSubData(InnerSequenceID);
 }
 
+const UMovieSceneSpawnTrack* FindSpawnableMaskTrack(UMovieScene* MovieScene, const FGuid& ObjectBinding)
+{
+	if (!ObjectBinding.IsValid() || GMovieSceneUnspawnedSpawnableTrackOptimization == 0)
+	{
+		return nullptr;
+	}
+
+	if (const FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding))
+	{
+		if (Spawnable->bEvaluateTracksWhenNotSpawned == true)
+		{
+			return nullptr;
+		}
+
+		// This track exists on a spawnable
+		const FMovieSceneBinding* SpawnableBinding = MovieScene->FindBinding(ObjectBinding);
+		if (SpawnableBinding)
+		{
+			// Spawn track lives in the wrong module here, so we have to find it by name
+			const UMovieSceneTrack* const * SpawnTrack = Algo::FindBy(SpawnableBinding->GetTracks(), UMovieSceneSpawnTrack::StaticClass(), [](UMovieSceneTrack* Track){ return Track ? Track->GetClass() : nullptr; });
+			if (SpawnTrack)
+			{
+				return CastChecked<const UMovieSceneSpawnTrack>(*SpawnTrack);
+			}
+		}
+	}
+	else if (const FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBinding))
+	{
+		if (Possessable->GetParent().IsValid())
+		{
+			return FindSpawnableMaskTrack(MovieScene, Possessable->GetParent());
+		}
+	}
+
+	return nullptr;
+}
+
 void FMovieSceneCompiler::GatherCompileDataForTrack(FMovieSceneEvaluationTrack& Track, FMovieSceneTrackIdentifier TrackID, const FGatherParameters& Params, FMovieSceneGatheredCompilerData& OutData)
 {
 	auto RequiresInit = [&Track](FSectionEvaluationData EvalData)
@@ -698,34 +747,55 @@ void FMovieSceneCompiler::GatherCompileDataForTrack(FMovieSceneEvaluationTrack& 
 	FMovieSceneSequenceTransform SequenceToRootTransform  = Params.RootToSequenceTransform.InverseFromWarp(Params.SequenceLoopCounter);
 	FMovieSceneSequenceID        CurrentSequenceID        = Params.RootPath.Remap(MovieSceneSequenceID::Root);
 	TRange<FFrameNumber>         CompileClampIntersection = TRange<FFrameNumber>::Intersection(Params.LocalCompileRange, Params.LocalClampRange);
+	TArray<TRange<FFrameNumber>, TInlineAllocator<1>> MaskedRanges;
+
+	const UMovieSceneTrack* TrackObject = Track.GetSourceTrack();
+	const UMovieSceneSpawnTrack* TrackMask = TrackObject->IsA<UMovieSceneSpawnTrack>() ? nullptr : FindSpawnableMaskTrack(TrackObject->GetTypedOuter<UMovieScene>(), Track.GetObjectBindingID());
 	
 	FMovieSceneEvaluationTreeRangeIterator TrackIter = Track.IterateFrom(CompileClampIntersection.GetLowerBound());
 	for ( ; TrackIter && TrackIter.Range().Overlaps(CompileClampIntersection); ++TrackIter)
 	{
 		FMovieSceneSegmentIdentifier SegmentID = Track.GetSegmentFromIterator(TrackIter);
-		if (!SegmentID.IsValid())
+
+		MaskedRanges.Reset();
+		if (TrackMask)
 		{
-			// No segment at this time, so just report the time range of the empty space.
-			TRange<FFrameNumber> ClampedEmptyTrackSpaceRoot = Params.ClampRoot(TrackIter.Range() * SequenceToRootTransform.LinearTransform);
-			OutData.EmptySpace.AddTimeRange(ClampedEmptyTrackSpaceRoot);
+			TrackMask->PopulateSpawnedRangeMask(TrackIter.Range(), MaskedRanges);
 		}
 		else
 		{
-			const FMovieSceneSegment& ThisSegment = Track.GetSegment(SegmentID);
+			MaskedRanges.Add(TrackIter.Range());
+		}
 
-			FCompileOnTheFlyData Data;
-			Data.Segment = FMovieSceneEvaluationFieldSegmentPtr(CurrentSequenceID, TrackID, SegmentID);
-			Data.GroupEvaluationPriority = GetMovieSceneModule().GetEvaluationGroupParameters(Track.GetEvaluationGroup()).EvaluationPriority;
-			Data.HierarchicalBias = Params.HierarchicalBias;
-			Data.EvaluationPriority = Track.GetEvaluationPriority();
-			Data.Track = &Track;
-			Data.bRequiresInit = ThisSegment.Impls.ContainsByPredicate(RequiresInit);
-
-			TRange<FFrameNumber> SegmentTrackIntersection = TRange<FFrameNumber>::Intersection(ThisSegment.Range, TrackIter.Range());
-			TRange<FFrameNumber> IntersectionRange        = Params.ClampRoot(SegmentTrackIntersection * SequenceToRootTransform.LinearTransform);
-			if (!IntersectionRange.IsEmpty())
+		for (const TRange<FFrameNumber>& MaskedRange : MaskedRanges)
+		{
+			if (!SegmentID.IsValid())
 			{
-				OutData.Tracks.Add(IntersectionRange, Data);
+				// No segment at this time, so just report the time range of the empty space.
+				TRange<FFrameNumber> ClampedEmptyTrackSpaceRoot = Params.ClampRoot(MaskedRange * SequenceToRootTransform.LinearTransform);
+				if (!ClampedEmptyTrackSpaceRoot.IsEmpty())
+				{
+					OutData.EmptySpace.AddTimeRange(ClampedEmptyTrackSpaceRoot);
+				}
+			}
+			else
+			{
+				const FMovieSceneSegment& ThisSegment = Track.GetSegment(SegmentID);
+
+				FCompileOnTheFlyData Data;
+				Data.Segment = FMovieSceneEvaluationFieldSegmentPtr(CurrentSequenceID, TrackID, SegmentID);
+				Data.GroupEvaluationPriority = GetMovieSceneModule().GetEvaluationGroupParameters(Track.GetEvaluationGroup()).EvaluationPriority;
+				Data.HierarchicalBias = Params.HierarchicalBias;
+				Data.EvaluationPriority = Track.GetEvaluationPriority();
+				Data.Track = &Track;
+				Data.bRequiresInit = ThisSegment.Impls.ContainsByPredicate(RequiresInit);
+
+				TRange<FFrameNumber> SegmentTrackIntersection = TRange<FFrameNumber>::Intersection(ThisSegment.Range, MaskedRange);
+				TRange<FFrameNumber> IntersectionRange        = Params.ClampRoot(SegmentTrackIntersection * SequenceToRootTransform.LinearTransform);
+				if (!IntersectionRange.IsEmpty())
+				{
+					OutData.Tracks.Add(IntersectionRange, Data);
+				}
 			}
 		}
 	}

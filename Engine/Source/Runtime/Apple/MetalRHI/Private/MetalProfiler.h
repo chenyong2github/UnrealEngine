@@ -161,8 +161,7 @@ public:
 	
 	void SetCalibrationTimestamp(uint64 GPU, uint64 CPU)
 	{
-		GCalibrationTimestamp.GPUMicroseconds = GPU;
-		GCalibrationTimestamp.CPUMicroseconds = CPU;
+		FGPUTiming::SetCalibrationTimestamp({ GPU, CPU });
 	}
 	
 private:
@@ -176,7 +175,7 @@ private:
 		if ( !GAreGlobalsInitialized )
 		{
 			GIsSupported = true;
-			GTimingFrequency = 1000 * 1000 * 1000;
+			SetTimingFrequency(1000 * 1000 * 1000);
 			GAreGlobalsInitialized = true;
 		}
 	}

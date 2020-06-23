@@ -503,7 +503,7 @@ void FDatasmithSceneXmlWriterImpl::WriteBeginOfMeshActorElement(const TSharedPtr
 
 	if (!FString(MeshActorElement->GetStaticMeshPathName()).IsEmpty())
 	{
-		XmlString += TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MeshActorElement->GetStaticMeshPathName())) + TEXT("\"");
+		XmlString += TEXT(" name=\"") + SanitizeXMLText(MeshActorElement->GetStaticMeshPathName()) + TEXT("\"");
 	}
 	XmlString += FString(TEXT("/>")) + LINE_TERMINATOR;
 
@@ -1231,6 +1231,7 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialElement( const TSharedRef< 
 		WriteBool( Archive, Indent + 1, DATASMITH_FUNCTIONLYVALUENAME, MaterialElement->GetMaterialFunctionOnly() );
 	}
 	WriteValue( Archive, Indent + 1, DATASMITH_BLENDMODE, MaterialElement->GetBlendMode() );
+	WriteValue( Archive, Indent + 1, DATASMITH_OPACITYMASKCLIPVALUE, MaterialElement->GetOpacityMaskClipValue() );
 
 	WriteIndent( Archive, Indent );
 	XmlString = TEXT("</") + FString(DATASMITH_UEPBRMATERIALNAME) + TEXT(">") + LINE_TERMINATOR;

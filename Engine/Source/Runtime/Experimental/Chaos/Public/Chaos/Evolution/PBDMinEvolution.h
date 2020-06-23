@@ -2,8 +2,9 @@
 #pragma once
 
 #include "Chaos/Core.h"
-#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/Evolution/SimulationSpace.h"
+#include "Chaos/ParticleHandleFwd.h"
 
 
 namespace Chaos
@@ -14,6 +15,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TPBDRigidsSOAs;
+
 
 	/**
 	 * A minimal optimized evolution with support for
@@ -79,6 +81,26 @@ namespace Chaos
 			PostApplyPushOutCallback = Cb;
 		}
 
+		void SetSimulationSpace(const FSimulationSpace& InSimulationSpace)
+		{
+			SimulationSpace = InSimulationSpace;
+		}
+
+		FSimulationSpaceSettings& GetSimulationSpaceSettings()
+		{
+			return SimulationSpaceSettings;
+		}
+
+		const FSimulationSpaceSettings& GetSimulationSpaceSettings() const
+		{
+			return SimulationSpaceSettings;
+		}
+
+		void SetSimulationSpaceSettings(const FSimulationSpaceSettings& InSimulationSpaceSettings)
+		{
+			SimulationSpaceSettings = InSimulationSpaceSettings;
+		}
+
 	private:
 		void PrepareTick();
 		void UnprepareTick();
@@ -106,6 +128,8 @@ namespace Chaos
 		int32 NumApplyPushOutIterations;
 		FReal BoundsExtension;
 		FVec3 Gravity;
+		FSimulationSpaceSettings SimulationSpaceSettings;
+		FSimulationSpace SimulationSpace;
 
 		FEvolutionCallback PostIntegrateCallback;
 		FEvolutionCallback PostDetectCollisionsCallback;

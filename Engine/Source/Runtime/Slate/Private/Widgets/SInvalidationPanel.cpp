@@ -225,7 +225,8 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 		const FSlateInvalidationResult Result = MutableThis->PaintInvalidationRoot(Context);
 
 		// add our widgets to the root hit test grid
-		Args.RootGrid.AppendGrid(HittestGrid);
+		TSharedPtr<SWidget> Owner = MutableThis->AsShared();
+		Args.RootGrid.AppendGrid(HittestGrid, Owner);
 
 		return Result.MaxLayerIdPainted;
 	}

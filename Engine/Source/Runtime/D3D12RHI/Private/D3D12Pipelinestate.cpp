@@ -10,16 +10,9 @@
 
 static TAutoConsoleVariable<float> CVarPSOStallWarningThresholdInMs(
 	TEXT("D3D12.PSO.StallWarningThresholdInMs"),
-	.5f,
+	100.0f,
 	TEXT("Sets a threshold of when to logs messages about stalls due to PSO creation.\n")
-	TEXT("Value is in milliseconds. (.5 is the default)\n"),
-	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<float> CVarPSOStallTimeoutInMs(
-	TEXT("D3D12.PSO.StallTimeoutInMs"),
-	2000.0f,
-	TEXT("The timeout interval. If a nonzero value is specified, the function waits until the PSO is created or the interval elapses.\n")
-	TEXT("Value is in milliseconds. (2000.0 is the default)\n"),
+	TEXT("Value is in milliseconds. (100 is the default)\n"),
 	ECVF_ReadOnly);
 
 /// @cond DOXYGEN_WARNINGS
@@ -258,7 +251,7 @@ FD3D12PipelineState::FD3D12PipelineState(FD3D12Adapter* Parent)
 	: FD3D12AdapterChild(Parent)
 	, FD3D12MultiNodeGPUObject(FRHIGPUMask::All(), FRHIGPUMask::All()) //Create on all, visible on all
 	, Worker(nullptr)
-	, bInitialized(false)
+	, InitState(PSOInitState::Uninitialized)
 {
 	INC_DWORD_STAT(STAT_D3D12NumPSOs);
 }
@@ -283,7 +276,7 @@ ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
 
 	if (Worker)
 	{
-		check(!bInitialized);
+		check(InitState == PSOInitState::Uninitialized);
 
 		Worker->EnsureCompletion(true);
 		check(Worker->IsWorkDone());
@@ -294,23 +287,23 @@ ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
 		delete Worker;
 		Worker = nullptr;
 
-		bInitialized = true;
+		InitState = (PipelineState.GetReference() != nullptr)? PSOInitState::Initialized : PSOInitState::CreationFailed;
 	}
 	else
 	{
 		// Busy-wait for the PSO. This avoids giving up our time slice.
-		if (!bInitialized)
+		if (InitState == PSOInitState::Uninitialized)
 		{
-			const double StartTime = FPlatformTime::Seconds();
-			static const float BusyWaitTimeoutInMs = CVarPSOStallTimeoutInMs.GetValueOnAnyThread();
-			while (!bInitialized)
+			double StartTime = FPlatformTime::Seconds();
+			double BusyWaitWarningTime = CVarPSOStallWarningThresholdInMs.GetValueOnAnyThread() * 0.001;
+			while (InitState == PSOInitState::Uninitialized)
 			{
-				const double Time = (FPlatformTime::Seconds() - StartTime) * 1000.0;
+				const double Time = FPlatformTime::Seconds();
 
-				if (Time > BusyWaitTimeoutInMs)
+				if (Time - StartTime > BusyWaitWarningTime)
 				{
-					UE_LOG(LogD3D12RHI, Fatal, TEXT("Waiting for PSO creation failed to complete within the timeout interval (%.3f ms)."), BusyWaitTimeoutInMs);
-					break;
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Waited for PSO creation for %fms"), BusyWaitWarningTime * 1000.0);
+					BusyWaitWarningTime *= 2.0;
 				}
 			}
 		}

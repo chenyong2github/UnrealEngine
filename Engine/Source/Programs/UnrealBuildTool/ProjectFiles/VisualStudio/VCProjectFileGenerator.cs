@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version of Visual Studio to generate project files for.
 		/// </summary>
-		[XmlConfigFile(Name = "Version")]
+		[XmlConfigFile(Category = "VCProjectFileGenerator", Name = "Version")]
 		public VCProjectFileFormat ProjectFileFormat = VCProjectFileFormat.Default;
 
 		/// <summary>

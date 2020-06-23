@@ -28,9 +28,8 @@ public:
 					   Trace::FFrameProvider& FrameProvider, 
 					   Trace::FChannelProvider& ChannelProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-	virtual void OnChannelAnnounce(const ANSICHAR* ChannelName, uint32 ChannelId) override;
-	virtual void OnChannelToggle(uint32 ChannelId, bool bEnabled) override;
+	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
 	enum : uint16
@@ -48,6 +47,8 @@ private:
 		RouteId_EndGameFrame,
 		RouteId_BeginRenderFrame,
 		RouteId_EndRenderFrame,
+		RouteId_ChannelAnnounce,
+		RouteId_ChannelToggle,
 	};
 
 	struct FThreadState
@@ -56,6 +57,8 @@ private:
 	};
 
 	FThreadState* GetThreadState(uint32 ThreadId);
+	void OnChannelAnnounce(const FOnEventContext& Context);
+	void OnChannelToggle(const FOnEventContext& Context);
 
 	Trace::IAnalysisSession& Session;
 	Trace::FThreadProvider& ThreadProvider;

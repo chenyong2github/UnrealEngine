@@ -9,5 +9,5 @@
  */
 struct FDisplayClusterVrpnAnalogChannelData
 {
-	float axisValue;
+	float AxisValue;
 };

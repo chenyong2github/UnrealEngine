@@ -102,9 +102,12 @@ static const unsigned int DT_NULL_LINK = 0xffffffff;
 
 /// A flag that indicates that an off-mesh connection can be traversed in both directions. (Is bidirectional.)
 static const unsigned char DT_OFFMESH_CON_BIDIR = 0x01;
+
+//@UE4 BEGIN
 static const unsigned char DT_OFFMESH_CON_POINT = 0x02;
 static const unsigned char DT_OFFMESH_CON_SEGMENT = 0x04;
 static const unsigned char DT_OFFMESH_CON_CHEAPAREA = 0x08;
+//@UE4 END
 
 /// The maximum number of user defined area ids.
 /// @ingroup detour
@@ -115,9 +118,11 @@ static const int DT_MAX_AREAS = 64;
 static const int DT_MIN_SALT_BITS = 5;
 static const int DT_SALT_BASE = 1;
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 /// Max segment parts for segment-to-segment off mesh connection
 static const int DT_MAX_OFFMESH_SEGMENT_PARTS = 4;
 static const int DT_INVALID_SEGMENT_PART = 0xffff;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 /// flags use to annotate dtLink::side with addotional data
 static const unsigned char DT_CONNECTION_INTERNAL = (1 << 7);
@@ -127,13 +132,14 @@ static const unsigned char DT_LINK_FLAG_OFFMESH_CON_BACKTRACKER = (1 << 4);
 static const unsigned char DT_LINK_FLAG_OFFMESH_CON_ENABLED = (1 << 3);
 static const unsigned char DT_LINK_FLAG_SIDE_MASK = 7;
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 /// flags used to annotate dtClusterLink::flags with additional data
 static const unsigned char DT_CLINK_VALID_FWD = 0x01;
 static const unsigned char DT_CLINK_VALID_BCK = 0x02;
 
 /// Index of first cluster link within tile
 static const unsigned int DT_CLINK_FIRST = 0x80000000;
-
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 //@UE4 END
 
 /// Tile flags used for various functions and fields.
@@ -165,8 +171,13 @@ enum dtPolyTypes
 	DT_POLYTYPE_GROUND = 0,
 	/// The polygon is an off-mesh connection consisting of two vertices.
 	DT_POLYTYPE_OFFMESH_POINT = 1,
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	/// The polygon is an off-mesh connection consisting of four vertices.
 	DT_POLYTYPE_OFFMESH_SEGMENT = 2,
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+	//@UE4 END
 };
 
 
@@ -239,6 +250,8 @@ struct dtBVNode
 	int i;							///< The node's index. (Negative for escape sequence.)
 };
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 struct dtOffMeshSegmentConnection
 {
 	float startA[3];				///< Start point of segment A
@@ -273,6 +286,8 @@ struct dtOffMeshSegmentConnection
 	/// Gets the link direction
 	inline bool getBiDirectional() const { return (flags & 0x80) != 0; }
 };
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+//@UE4 END
 
 /// Defines an navigation mesh off-mesh connection within a dtMeshTile object.
 /// An off-mesh connection is a user defined traversable connection made up to two vertices.
@@ -284,8 +299,10 @@ struct dtOffMeshConnection
 	/// The radius of the endpoints. [Limit: >= 0]
 	float rad;		
 
+	//@UE4 BEGIN
 	/// The snap height of endpoints (less than 0 = use step height)
 	float height;
+	//@UE4 END
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
 	unsigned int userId;
@@ -299,6 +316,7 @@ struct dtOffMeshConnection
 	/// Link flags. 
 	unsigned char flags;
 
+	//@UE4 BEGIN
 	/// Sets link flags
 	inline void setFlags(unsigned char conFlags)
 	{
@@ -311,8 +329,11 @@ struct dtOffMeshConnection
 
 	/// Gets the link snap mode
 	inline bool getSnapToCheapestArea() const { return (flags & 0x40) != 0; }
+	//@UE4 END
 };
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 /// Cluster of polys
 struct dtCluster
 {
@@ -328,6 +349,8 @@ struct dtClusterLink
 	unsigned int next;				///< Next link in dtMeshTile.links array
 	unsigned char flags;			///< Link traversing data
 };
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 /// Provides high level information related to a dtMeshTile object.
 /// @ingroup detour
@@ -350,10 +373,20 @@ struct dtMeshHeader
 	int detailTriCount;			///< The number of triangles in the detail mesh.
 	int bvNodeCount;			///< The number of bounding volume nodes. (Zero if bounding volumes are disabled.)
 	int offMeshConCount;		///< The number of point type off-mesh connections.
-	int offMeshSegConCount;		///< The number of segment type off-mesh connections.
 	int offMeshBase;			///< The index of the first polygon which is an point type off-mesh connection.
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
+	int offMeshSegConCount;		///< The number of segment type off-mesh connections.
 	int offMeshSegPolyBase;		///< The index of the first polygon which is an segment type off-mesh connection
 	int offMeshSegVertBase;		///< The index of the first vertex used by segment type off-mesh connection
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+	int clusterCount;			///< Number of clusters
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
+
 	float walkableHeight;		///< The height of the agents using the tile.
 	float walkableRadius;		///< The radius of the agents using the tile.
 	float walkableClimb;		///< The maximum climb height of the agents using the tile.
@@ -362,8 +395,6 @@ struct dtMeshHeader
 	
 	/// The bounding volume quantization factor. 
 	float bvQuantFactor;
-
-	int clusterCount;			///< Number of clusters
 };
 
 /// Defines a navigation mesh tile.
@@ -390,20 +421,28 @@ struct dtMeshTile
 	dtBVNode* bvTree;
 
 	dtOffMeshConnection* offMeshCons;		///< The tile off-mesh connections. [Size: dtMeshHeader::offMeshConCount]
-	dtOffMeshSegmentConnection* offMeshSeg;	///< The tile off-mesh connections. [Size: dtMeshHeader::offMeshSegConCount]
-		
+
 	unsigned char* data;					///< The tile data. (Not directly accessed under normal situations.)
 	int dataSize;							///< Size of the tile data.
 	int flags;								///< Tile flags. (See: #dtTileFlags)
 	dtMeshTile* next;						///< The next free tile, or the next tile in the spatial grid.
 
-	dtCluster* clusters;					///< Cluster data
-	unsigned short* polyClusters;			///< Cluster Id for each ground type polygon [Size: dtMeshHeader::polyCount]
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
+	dtOffMeshSegmentConnection* offMeshSeg;		///< The tile off-mesh connections. [Size: dtMeshHeader::offMeshSegConCount]
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+	dtCluster* clusters;						///< Cluster data
+	unsigned short* polyClusters;				///< Cluster Id for each ground type polygon [Size: dtMeshHeader::polyCount]
+
+	dtChunkArray<dtClusterLink> dynamicLinksC;	///< Dynamic links array (indices starting from DT_CLINK_FIRST)
+	unsigned int dynamicFreeListC;				///< Index of the next free dynamic link
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	dtChunkArray<dtLink> dynamicLinksO;			///< Dynamic links array (indices starting from dtMeshHeader::maxLinkCount)
 	unsigned int dynamicFreeListO;				///< Index of the next free dynamic link
-	dtChunkArray<dtClusterLink> dynamicLinksC;	///< Dynamic links array (indices starting from DT_CLINK_FIRST)
-	unsigned int dynamicFreeListC;				///< Index of the next free dynamic link
+	//@UE4 END
 };
 
 /// Configuration parameters used to define multi-tile navigation meshes.
@@ -566,20 +605,24 @@ public:
 	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
 	const dtOffMeshConnection* getOffMeshConnectionByRef(dtPolyRef ref) const;
 
-	/// Gets the specified off-mesh connection: segment type
-	///  @param[in]	ref		The polygon reference of the off-mesh connection.
-	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
-	const dtOffMeshSegmentConnection* getOffMeshSegmentConnectionByRef(dtPolyRef ref) const;
-
 	/// Updates area and flags for specified off-mesh connection: point type
 	///  @param[in] userId	User Id of connection
 	///	 @param[in] newArea	Area code to apply
 	void updateOffMeshConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags);
 
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
+	/// Gets the specified off-mesh connection: segment type
+	///  @param[in]	ref		The polygon reference of the off-mesh connection.
+	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
+	const dtOffMeshSegmentConnection* getOffMeshSegmentConnectionByRef(dtPolyRef ref) const;
+
 	/// Updates area and flags for specified off-mesh connection: segment type
 	///  @param[in] userId	User Id of connection
 	///	 @param[in] newArea	Area code to apply
 	void updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+	//@UE4 END
 
 	/// @}
 
@@ -701,6 +744,8 @@ public:
 		return decodePolyIdTile(ref);
 	}
 
+	//@UE4 BEGIN 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	/// Extracts the cluster's index (within its tile) from the specified cluster reference.
 	///  @note This function is generally meant for internal use only.
 	///  @param[in]	ref		The cluster reference.
@@ -708,10 +753,8 @@ public:
 	{
 		return decodePolyIdPoly(ref);
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
-	/// @}
-	
-	//@UE4 BEGIN 
 	/// Shift navigation mesh by provided offset
 	void applyWorldOffset(const float* offset);
 
@@ -726,6 +769,7 @@ public:
 		return (linkIdx < (unsigned int)tile->header->maxLinkCount) ? tile->links[linkIdx] : tile->dynamicLinksO[linkIdx - tile->header->maxLinkCount];
 	}
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	/// Helper for accessing cluster links
 	inline dtClusterLink& getClusterLink(dtMeshTile* tile, unsigned int linkIdx)
 	{
@@ -736,6 +780,7 @@ public:
 	{
 		return tile->dynamicLinksC[linkIdx - DT_CLINK_FIRST];
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	/// Helper for creating links in off-mesh connections
 	void linkOffMeshHelper(dtMeshTile* tile0, unsigned int polyIdx0, dtMeshTile* tile1, unsigned int polyIdx1, unsigned char side, unsigned char edge);
@@ -780,7 +825,8 @@ public:
 		return (unsigned int)(tile - m_tiles);
 	}
 	//@UE4 END
-	
+	/// @}
+
 private:
 
 	// [UE4] result struct for findConnectingPolys
@@ -821,6 +867,8 @@ private:
 	/// Removes external links at specified side.
 	void unconnectExtLinks(dtMeshTile* tile, dtMeshTile* target);
 	
+	//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 	/// Try to connect clusters
 	void connectClusterLink(dtMeshTile* tile0, unsigned int cluster0,
 							dtMeshTile* tile1, unsigned int cluster1,
@@ -828,6 +876,8 @@ private:
 	
 	/// Removes cluster links at specified side.
 	void unconnectClusterLinks(dtMeshTile* tile, dtMeshTile* target);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 
 	// TODO: These methods are duplicates from dtNavMeshQuery, but are needed for off-mesh connection finding.
 	

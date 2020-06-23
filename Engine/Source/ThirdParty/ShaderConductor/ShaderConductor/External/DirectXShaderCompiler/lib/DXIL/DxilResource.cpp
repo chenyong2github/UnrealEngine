@@ -25,6 +25,7 @@ DxilResource::DxilResource()
 : DxilResourceBase(DxilResourceBase::Class::Invalid)
 , m_SampleCount(0)
 , m_ElementStride(0)
+, m_SamplerFeedbackType((DXIL::SamplerFeedbackType)0)
 , m_bGloballyCoherent(false)
 , m_bHasCounter(false)
 , m_bROV(false) {
@@ -64,6 +65,14 @@ unsigned DxilResource::GetElementStride() const {
 
 void DxilResource::SetElementStride(unsigned ElemStride) {
   m_ElementStride = ElemStride;
+}
+
+DXIL::SamplerFeedbackType DxilResource::GetSamplerFeedbackType() const {
+  return m_SamplerFeedbackType;
+}
+
+void DxilResource::SetSamplerFeedbackType(DXIL::SamplerFeedbackType Value) {
+  m_SamplerFeedbackType = Value;
 }
 
 bool DxilResource::IsGloballyCoherent() const {
@@ -112,7 +121,8 @@ bool DxilResource::IsAnyTexture(Kind ResourceKind) {
 }
 
 bool DxilResource::IsStructuredBuffer() const {
-  return GetKind() == Kind::StructuredBuffer;
+  return GetKind() == Kind::StructuredBuffer ||
+         GetKind() == Kind::StructuredBufferWithCounter;
 }
 
 bool DxilResource::IsTypedBuffer() const {
@@ -125,6 +135,10 @@ bool DxilResource::IsRawBuffer() const {
 
 bool DxilResource::IsTBuffer() const {
   return GetKind() == Kind::TBuffer;
+}
+
+bool DxilResource::IsFeedbackTexture() const {
+  return GetKind() == Kind::FeedbackTexture2D || GetKind() == Kind::FeedbackTexture2DArray;
 }
 
 unsigned DxilResource::GetNumCoords(Kind ResourceKind) {
@@ -146,6 +160,10 @@ unsigned DxilResource::GetNumCoords(Kind ResourceKind) {
       0, // Sampler,
       1, // TBuffer,
       0, // RaytracingAccelerationStructure,
+      2, // FeedbackTexture2D,
+      3, // FeedbackTexture2DArray,
+      2, // StructureBufferWithCounter,
+      0, // SamplerComparation,
   };
   static_assert(_countof(CoordSizeTab) == (unsigned)Kind::NumEntries, "check helper array size");
   DXASSERT(ResourceKind > Kind::Invalid && ResourceKind < Kind::NumEntries, "otherwise the caller passed wrong resource type");
@@ -171,6 +189,10 @@ unsigned DxilResource::GetNumDimensions(Kind ResourceKind) {
       0, // Sampler,
       1, // TBuffer,
       0, // RaytracingAccelerationStructure,
+      2, // FeedbackTexture2D,
+      2, // FeedbackTexture2DArray,
+      2, // StructureBufferWithCounter,
+      0, // SamplerComparation,
   };
   static_assert(_countof(NumDimTab) == (unsigned)Kind::NumEntries, "check helper array size");
   DXASSERT(ResourceKind > Kind::Invalid && ResourceKind < Kind::NumEntries, "otherwise the caller passed wrong resource type");
@@ -196,6 +218,10 @@ unsigned DxilResource::GetNumDimensionsForCalcLOD(Kind ResourceKind) {
       0, // Sampler,
       1, // TBuffer,
       0, // RaytracingAccelerationStructure,
+      2, // FeedbackTexture2D,
+      2, // FeedbackTexture2DArray,
+      2, // StructureBufferWithCounter,
+      0, // SamplerComparation,
   };
   static_assert(_countof(NumDimTab) == (unsigned)Kind::NumEntries, "check helper array size");
   DXASSERT(ResourceKind > Kind::Invalid && ResourceKind < Kind::NumEntries, "otherwise the caller passed wrong resource type");
@@ -221,6 +247,10 @@ unsigned DxilResource::GetNumOffsets(Kind ResourceKind) {
       0, // Sampler,
       1, // TBuffer,
       0, // RaytracingAccelerationStructure,
+      2, // FeedbackTexture2D,
+      2, // FeedbackTexture2DArray,
+      0, // StructureBufferWithCounter,
+      0, // SamplerComparation,
   };
   static_assert(_countof(OffsetSizeTab) == (unsigned)Kind::NumEntries, "check helper array size");
   DXASSERT(ResourceKind > Kind::Invalid && ResourceKind < Kind::NumEntries, "otherwise the caller passed wrong resource type");

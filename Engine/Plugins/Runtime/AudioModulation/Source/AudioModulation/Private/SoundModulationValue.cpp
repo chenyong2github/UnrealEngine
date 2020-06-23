@@ -42,14 +42,14 @@ float FSoundModulationValue::GetCurrentValue() const
 	return Value;
 }
 
-void FSoundModulationValue::Update(float Elapsed)
+void FSoundModulationValue::Update(double InElapsed)
 {
 	// Attacking
 	if (Value < TargetValue)
 	{
 		if (AttackTime > 0.0f)
 		{
-			Value = Value + (Elapsed / AttackTime);
+			Value = Value + static_cast<float>(InElapsed / AttackTime);
 			Value = FMath::Min(Value, TargetValue);
 		}
 		else
@@ -62,7 +62,7 @@ void FSoundModulationValue::Update(float Elapsed)
 	{
 		if (ReleaseTime > 0.0f)
 		{
-			Value = Value - (Elapsed / ReleaseTime);
+			Value = Value - static_cast<float>(InElapsed / ReleaseTime);
 			Value = FMath::Max(Value, TargetValue);
 		}
 		else

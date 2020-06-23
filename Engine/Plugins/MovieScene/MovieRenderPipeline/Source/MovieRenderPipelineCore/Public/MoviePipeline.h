@@ -22,12 +22,15 @@ struct FMoviePipelineTimeController;
 class FMoviePipelineOutputMerger;
 class IImageWriteQueue;
 class UMoviePipelineExecutorJob;
+class UMoviePipelineExecutorShot;
 class UMoviePipelineSetting;
 class UTexture;
 
 
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinishedNative, UMoviePipeline*);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline);
+
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineErrored, UMoviePipeline* /*Pipeline*/, bool /*bIsFatal*/, FText /*ErrorText*/);
 
 UCLASS(Blueprintable)
@@ -42,6 +45,7 @@ public:
 	* Initialize the movie pipeline with the specified settings. This kicks off the rendering process. 
 	* @param InJob	- This contains settings and sequence to render this Movie Pipeline with.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Initialize(UMoviePipelineExecutorJob* InJob);
 
 
@@ -54,6 +58,7 @@ public:
 	*
 	* This function is thread safe.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void RequestShutdown();
 	
 	/** 
@@ -63,11 +68,13 @@ public:
 	*
 	* This function should only be called from the game thread.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Shutdown();
 
 	/**
 	* Has RequestShutdown() been called?
 	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool IsShutdownRequested() const { return bShutdownRequested; }
 
 	/** 
@@ -76,10 +83,13 @@ public:
 	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
 	* and are no longer trying to do anything (even if we still exist).
 	*/
-	FMoviePipelineFinished& OnMoviePipelineFinished()
+	FMoviePipelineFinishedNative& OnMoviePipelineFinished()
 	{
-		return OnMoviePipelineFinishedDelegate;
+		return OnMoviePipelineFinishedDelegateNative;
 	}
+
+	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
+	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
 
 	/**
 	* Called when there was an error during the rendering of this movie pipeline (such as missing sequence, i/o failure, etc.)
@@ -104,7 +114,7 @@ public:
 
 	void SetPreviewTexture(UTexture* InTexture) { PreviewTexture = InTexture; }
 
-	const TArray<FMoviePipelineShotInfo>& GetShotList() const { return ShotList; }
+	const TArray<UMoviePipelineExecutorShot*>& GetActiveShotList() const { return ActiveShotList; }
 
 	int32 GetCurrentShotIndex() const { return CurrentShotIndex; }
 	const FMoviePipelineFrameOutputState& GetOutputState() const { return CachedOutputState; }
@@ -119,12 +129,12 @@ public:
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
 public:
 	template<typename SettingType>
-	SettingType* FindOrAddSetting(const FMoviePipelineShotInfo& InShot) const
+	SettingType* FindOrAddSetting(const UMoviePipelineExecutorShot* InShot) const
 	{
 		return (SettingType*)FindOrAddSetting(SettingType::StaticClass(), InShot);
 	}
 
-	UMoviePipelineSetting* FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const FMoviePipelineShotInfo& InShot) const;
+	UMoviePipelineSetting* FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const;
 	
 	/**
 	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
@@ -135,6 +145,17 @@ public:
 	*/
 	FString ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides) const;
 
+protected:
+	/**
+	* This function should be called by the Executor when execution has finished (this should still be called in the event of an error)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	virtual void OnMoviePipelineFinishedImpl()
+	{
+		// Broadcast to both Native and Python/BP
+		OnMoviePipelineFinishedDelegateNative.Broadcast(this);
+		OnMoviePipelineFinishedDelegate.Broadcast(this);
+	}
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -152,7 +173,7 @@ private:
 	/** Runs the per-tick logic when doing the ProducingFrames state. */
 	void TickProducingFrames();
 
-	void ProcessEndOfCameraCut(FMoviePipelineShotInfo &CurrentShot, FMoviePipelineCameraCutInfo &CurrentCameraCut);
+	void ProcessEndOfCameraCut(UMoviePipelineExecutorShot* InCameraCut);
 
 
 	/** Called once when first moving to the Finalize state. */
@@ -183,13 +204,13 @@ private:
 	void OnSequenceEvaluated(const UMovieSceneSequencePlayer& Player, FFrameTime CurrentTime, FFrameTime PreviousTime);
 
 	/** Set up per-shot state for the specific shot, tearing down old state (if it exists) */
-	void InitializeShot(FMoviePipelineShotInfo& InShot);
-	void TeardownShot(FMoviePipelineShotInfo& InShot);
+	void InitializeShot(UMoviePipelineExecutorShot* InShot);
+	void TeardownShot(UMoviePipelineExecutorShot* InShot);
 
 	/** Initialize the rendering pipeline for the given shot. This should not get called if rendering work is still in progress for a previous shot. */
-	void SetupRenderingPipelineForShot(FMoviePipelineShotInfo& InShot);
+	void SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot);
 	/** Deinitialize the rendering pipeline for the given shot. */
-	void TeardownRenderingPipelineForShot(FMoviePipelineShotInfo& InShot);
+	void TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot);
 
 	/** Flush any async resources in the engine that need to be finalized before submitting anything to the GPU, ie: Streaming Levels and Shaders */
 	void FlushAsyncEngineSystems();
@@ -223,6 +244,34 @@ private:
 
 
 private:
+	/** Previous values for data that we modified in the sequence for restoration in shutdown. */
+	struct FMovieSceneChanges
+	{
+		// Master level settings
+		EMovieSceneEvaluationType EvaluationType;
+		TRange<FFrameNumber> PlaybackRange;
+		bool bSequenceReadOnly;
+		bool bSequencePlaybackRangeLocked;
+		bool bSequencePackageDirty;
+
+		struct FSegmentChange
+		{
+			TWeakObjectPtr<class UMovieScene> MovieScene;
+			bool bMovieScenePackageDirty;
+			TRange<FFrameNumber> MovieScenePlaybackRange;
+			bool bMovieSceneReadOnly;
+			TWeakObjectPtr<UMovieSceneCinematicShotSection> ShotSection;
+			bool bShotSectionIsLocked;
+			TRange<FFrameNumber> ShotSectionRange;
+			bool bShotSectionIsActive;
+			TWeakObjectPtr<UMovieSceneCameraCutSection> CameraSection;
+			bool bCameraSectionIsActive;
+		};
+
+		// Shot-specific settings
+		TArray<FSegmentChange> Segments;
+	};
+
 	/** Iterates through the changes we've made to a shot and applies the original settings. */
 	void RestoreTargetSequenceToOriginalState();
 
@@ -236,16 +285,16 @@ private:
 	* Modifies the TargetSequence to ensure that only the specified Shot has it's associated Cinematic Shot Section enabled.
 	* This way when Handle Frames are enabled and the sections are expanded, we don't end up evaluating the previous shot. 
 	*/
-	void SetSoloShot(const FMoviePipelineShotInfo& InShot);
+	void SetSoloShot(const UMoviePipelineExecutorShot* InShot);
 
 	/* Expands the specified shot (and contained camera cuts)'s ranges for the given settings. */
-	void ExpandShot(FMoviePipelineShotInfo& InShot);
+	void ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovieSceneChanges::FSegmentChange& InSegmentData, const int32 InNumHandleFrames);
 
 	/** Calculates lots of useful numbers used in timing based off of the current shot. These are constant for a given shot. */
-	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const FMoviePipelineShotInfo& InShot) const;
+	MoviePipeline::FFrameConstantMetrics CalculateShotFrameMetrics(const UMoviePipelineExecutorShot* InShot) const;
 
 	/** It can be useful to know where the data we're generating was relative to the original Timeline, so this calculates that. */
-	void CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineCameraCutInfo& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const;
+	void CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const UMoviePipelineExecutorShot* InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const;
 
 	/** Handles transitioning between states, preventing reentrancy. Normal state flow should be respected, does not handle arbitrary x to y transitions. */
 	void TransitionToState(const EMovieRenderPipelineState InNewState);
@@ -277,7 +326,7 @@ private:
 	UTexture* PreviewTexture;
 
 	/** A list of all of the shots we are going to render out from this sequence. */
-	TArray<FMoviePipelineShotInfo> ShotList;
+	TArray<UMoviePipelineExecutorShot*> ActiveShotList;
 
 	/** What state of the overall flow are we in? See enum for specifics. */
 	EMovieRenderPipelineState PipelineState;
@@ -313,7 +362,7 @@ private:
 	float AccumulatedTickSubFrameDeltas;
 
 	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
-	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
+	FMoviePipelineFinishedNative OnMoviePipelineFinishedDelegateNative;
 
 	/** Called when there is a warning/error that the user should pay attention to.*/
 	FMoviePipelineErrored OnMoviePipelineErroredDelegate;
@@ -338,30 +387,6 @@ private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
 	UMoviePipelineExecutorJob* CurrentJob;
-
-
-	/** Previous values for data that we modified in the sequence for restoration in shutdown. */
-	struct FMovieSceneChanges
-	{
-		// Master level settings
-		EMovieSceneEvaluationType EvaluationType;
-		TRange<FFrameNumber> PlaybackRange;
-		bool bSequenceReadOnly;
-		bool bSequencePlaybackRangeLocked;
-
-		struct FSegmentChange
-		{
-			TWeakObjectPtr<class UMovieScene> MovieScene;
-			TRange<FFrameNumber> MovieScenePlaybackRange;
-			bool bMovieSceneReadOnly;
-			TWeakObjectPtr<UMovieSceneCinematicShotSection> ShotSection;
-			bool bShotSectionIsLocked;
-			TRange<FFrameNumber> ShotSectionRange;
-		};
-
-		// Shot-specific settings
-		TArray<FSegmentChange> Segments;
-	};
 
 	FMovieSceneChanges SequenceChanges;
 };

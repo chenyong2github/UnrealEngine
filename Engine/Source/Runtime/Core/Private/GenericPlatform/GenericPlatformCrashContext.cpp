@@ -503,6 +503,9 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
 	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
 	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
+
+	// Need to set this at the time of the crash to check if requesting exit had been called
+	NCached::Session.bIsExitRequested = IsEngineExitRequested();
 	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), NCached::Session.bIsExitRequested);
 
 	// Remove periods from user names to match AutoReporter user names

@@ -215,7 +215,6 @@ protected:
 	// Begin FBlueprintEditor
 	virtual void RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false) override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
-	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) override;
 	virtual TSubclassOf<UEdGraphSchema> GetDefaultSchemaClass() const override;
 	// End FBlueprintEditor
 
@@ -376,9 +375,6 @@ private:
 	TWeakObjectPtr<UWidgetAnimation> CurrentAnimation;
 
 	FDelegateHandle SequencerAddTrackExtenderHandle;
-
-	/** Messages we want to append to the compiler results. */
-	TArray< TSharedRef<class FTokenizedMessage> > DesignerCompilerMessages;
 
 	/** When true the animation data in the generated class should be replaced with the current animation data. */
 	bool bRefreshGeneratedClassAnimations;

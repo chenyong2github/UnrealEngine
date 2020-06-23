@@ -45,7 +45,7 @@ inline void PrintEventAndAttributes(const FString& StatsEvent, const TArray<FAna
 	for (int32 AttrIdx = 0; AttrIdx<Attributes.Num(); AttrIdx++)
 	{
 		const FAnalyticsEventAttribute& Attr = Attributes[AttrIdx];
-		UE_LOG(LogQos, Display, TEXT("\t%s : %s"), *Attr.AttrName, *Attr.ToString());
+		UE_LOG(LogQos, Display, TEXT("\t%s : %s"), *Attr.GetName(), *Attr.GetValue());
 	}
 #endif
 }

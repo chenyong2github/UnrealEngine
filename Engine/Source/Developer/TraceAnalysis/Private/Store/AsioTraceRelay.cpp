@@ -78,10 +78,9 @@ bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioTraceRelay::OnTick()
 {
-	if (!bTimedOut && FAsioTcpServer::IsOpen())
+	if (FAsioTcpServer::IsOpen())
 	{
 		Close();
-		bTimedOut = true;
 		return;
 	}
 
@@ -100,7 +99,8 @@ void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 				const FAsioRecorder::FSession* Session = Recorder.GetSessionInfo(i);
 				if (Session->GetId() == SessionId)
 				{
-					return TickOnce(200);
+					TickOnce(200);
+					return;
 				}
 			}
 		}

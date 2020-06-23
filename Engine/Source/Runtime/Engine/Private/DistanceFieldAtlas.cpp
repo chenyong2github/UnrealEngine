@@ -89,11 +89,18 @@ static TAutoConsoleVariable<int32> CVarDistFieldAtlasResZ(
 	TEXT("Max size of the global mesh distance field atlas volume texture in Z."));
 
 int32 GDistanceFieldForceAtlasRealloc = 0;
- 
+
 FAutoConsoleVariableRef CVarDistFieldForceAtlasRealloc(
 	TEXT("r.DistanceFields.ForceAtlasRealloc"),
 	GDistanceFieldForceAtlasRealloc,
 	TEXT("Force a full realloc."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarDistFieldDiscardCPUData(
+	TEXT("r.DistanceFields.DiscardCPUData"),
+	0,
+	TEXT("Discard Mesh DF CPU data once it has been ULed to Atlas. WIP - This cant be used if atlas gets reallocated and mesh DF needs to be ULed again to new atlas"),
 	ECVF_RenderThreadSafe
 );
 
@@ -182,8 +189,8 @@ FDistanceFieldVolumeTextureAtlas::FDistanceFieldVolumeTextureAtlas() :
 	FailedAllocatedPixels(0),
 	MaxUsedAtlasX(0),
 	MaxUsedAtlasY(0),
-	MaxUsedAtlasZ(0)
-
+	MaxUsedAtlasZ(0),
+	AllocatedCPUDataInBytes(0)
 {
 	// Warning: can't access cvars here, this is called during global init
 	Generation = 0;
@@ -309,6 +316,12 @@ void FDistanceFieldVolumeTextureAtlas::ListMeshDistanceFields() const
 void FDistanceFieldVolumeTextureAtlas::AddAllocation(FDistanceFieldVolumeTexture* Texture)
 {
 	InitializeIfNeeded();
+
+	if (!PendingAllocations.Contains(Texture))
+	{
+		AllocatedCPUDataInBytes += Texture->VolumeData.CompressedDistanceFieldVolume.GetAllocatedSize();
+	}
+
 	PendingAllocations.AddUnique(Texture);
 	const int32 ThrottleSize = CVarDistFieldThrottleCopyToAtlasInBytes.GetValueOnAnyThread();
 	if (ThrottleSize >= 1024)
@@ -322,6 +335,7 @@ void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeText
 {
 	InitializeIfNeeded();
 	PendingAllocations.Remove(Texture);
+	AllocatedCPUDataInBytes -= Texture->VolumeData.CompressedDistanceFieldVolume.GetAllocatedSize();
 
 	if (FailedAllocations.Remove(Texture) > 0)
 	{
@@ -425,6 +439,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxY, float(MaxUsedAtlasY), ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxZ, float(MaxUsedAtlasZ), ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT_GLOBAL(DFAtlasFailedAllocatedMagaPixels, (float(FailedAllocatedPixels)/1024)/1024, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(DFPersistentCPUMemory, float(AllocatedCPUDataInBytes) / 1024, ECsvCustomStatOp::Set);
 	}
 
 	static const auto CVarXY = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeXY"));
@@ -432,6 +447,8 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 
 	static const auto CVarZ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeZ"));
 	const int32 AtlasZ = CVarZ->GetValueOnAnyThread();
+	
+	const bool bDiscardCPUData = (CVarDistFieldDiscardCPUData.GetValueOnAnyThread() != 0);
 
 	if (bInitialized && (BlockAllocator.GetMaxSizeX() != AtlasXY || BlockAllocator.GetMaxSizeZ() != AtlasZ))
 	{
@@ -462,6 +479,15 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 			for (int32 AllocationIndex = 0; AllocationIndex < LocalPendingAllocations->Num(); AllocationIndex++)
 			{
 				FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[AllocationIndex];
+
+				if (bDiscardCPUData && Texture->VolumeData.CompressedDistanceFieldVolume.Num() == 0)
+				{
+					// CPU data has been discarded. Do not UL to the atlas
+					LocalPendingAllocations->RemoveAt(AllocationIndex);
+					AllocationIndex--;
+					continue;
+				}
+
 				FIntVector Size = Texture->VolumeData.Size;
 				
 				if (bRuntimeDownsampling)
@@ -633,7 +659,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 				}
 
 				// @todo arne @todo beni: can you verify i properly merged the optimizations here and in Main?
-				ParallelFor(LocalPendingAllocations->Num(), [FormatSize, this, bDataIsCompressed, bRuntimeDownsampling, LocalPendingAllocations, AtlasUpdateDataPtr, &UpdateDataArray](int32 AllocationIndex)
+				ParallelFor(LocalPendingAllocations->Num(), [FormatSize, this, bDataIsCompressed, bRuntimeDownsampling, bDiscardCPUData, LocalPendingAllocations, AtlasUpdateDataPtr, &UpdateDataArray](int32 AllocationIndex)
 				{
 					TArray<uint8> UncompressedData;
 					FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[AllocationIndex];
@@ -672,6 +698,13 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 					}
 					
 					CopyToUpdateTextureData(Size, FormatSize, *SourceDataPtr, *TextureUpdateDataPtr, DstOffset);
+
+					if (bDiscardCPUData)
+					{
+						AllocatedCPUDataInBytes -= Texture->VolumeData.CompressedDistanceFieldVolume.GetAllocatedSize(); 
+						Texture->DiscardCPUData();
+					}
+
 				}, !GDistanceFieldParallelAtlasUpdate, false);
 
 				if (!bRuntimeDownsampling)
@@ -717,7 +750,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 			// Copy data to upload buffers and decompress source data if necessary
 			ParallelFor(
 				NumUpdates,
-				[this, FormatSize, bDataIsCompressed, bRuntimeDownsampling, &UpdateDataArray, LocalPendingAllocations](int32 Idx)
+				[this, FormatSize, bDataIsCompressed, bRuntimeDownsampling, bDiscardCPUData, &UpdateDataArray, LocalPendingAllocations](int32 Idx)
 				{
 					FUpdateTexture3DData& UpdateData = UpdateDataArray[Idx];
 					FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[Idx];
@@ -737,6 +770,13 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 						
 						CopyToUpdateTextureData(Size, FormatSize, UncompressedData, UpdateDataArray[Idx], FIntVector::ZeroValue);
 					}
+
+					if (bDiscardCPUData)
+					{
+						AllocatedCPUDataInBytes -= Texture->VolumeData.CompressedDistanceFieldVolume.GetAllocatedSize();
+						Texture->DiscardCPUData();
+					}
+
 				}, !GDistanceFieldParallelAtlasUpdate, false);
 
 			if (!bRuntimeDownsampling)
@@ -806,6 +846,11 @@ void FDistanceFieldVolumeTexture::Release()
 				GDistanceFieldVolumeTextureAtlas.RemoveAllocation(DistanceFieldVolumeTexture);
 			});
 	}
+}
+
+void FDistanceFieldVolumeTexture::DiscardCPUData()
+{
+	VolumeData.CompressedDistanceFieldVolume.Empty();
 }
 
 FIntVector FDistanceFieldVolumeTexture::GetAllocationSize() const
@@ -966,7 +1011,7 @@ private:
 	volatile bool bForceFinish;
 };
 
-FQueuedThreadPool* CreateWorkerThreadPool()
+static FQueuedThreadPool* CreateWorkerThreadPool()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateWorkerThreadPool)
 	const int32 NumThreads = FMath::Max<int32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 1);
@@ -991,15 +1036,27 @@ uint32 FBuildDistanceFieldThreadRunnable::Run()
 		// LIFO build order, since meshes actually visible in a map are typically loaded last
 		FAsyncDistanceFieldTask* Task = AsyncQueue.TaskQueue.Pop();
 
+		FQueuedThreadPool* ThreadPool = nullptr;
+		
+#if WITH_EDITOR
+		ThreadPool = GLargeThreadPool;
+#endif
+
 		if (Task)
 		{
-			if (!WorkerThreadPool)
+			if (!ThreadPool)
 			{
-				WorkerThreadPool.Reset(CreateWorkerThreadPool());
+				if (!WorkerThreadPool)
+				{
+					WorkerThreadPool.Reset(CreateWorkerThreadPool());
+				}
+
+				ThreadPool = WorkerThreadPool.Get();
 			}
 
-			AsyncQueue.Build(Task, *WorkerThreadPool);
+			AsyncQueue.Build(Task, *ThreadPool);
 			LastWorkCycle = FPlatformTime::Cycles64();
+
 			bHasWork = true;
 		}
 		else

@@ -66,6 +66,9 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 /** Landscape stats */
 
@@ -153,6 +156,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 , LayerUpdateFlagPerMode(0)
 , WeightmapsHash(0)
 , SplineHash(0)
+, PhysicalMaterialHash(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
@@ -616,10 +620,10 @@ bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
 	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
 	if (!HoleMaterial)
 	{
-		return false;
+		HoleMaterial = GetLandscapeMaterial();
 	}
 
-	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+	return HoleMaterial ? HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>() : false;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
@@ -1318,6 +1322,13 @@ const FMeshMapBuildData* ULandscapeComponent::GetMeshMapBuildData() const
 	{
 		ULevel* OwnerLevel = Owner->GetLevel();
 
+#if WITH_EDITOR
+		if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this))
+		{
+			return FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this);
+		}
+#endif
+
 		if (OwnerLevel && OwnerLevel->OwningWorld)
 		{
 			ULevel* ActiveLightingScenario = OwnerLevel->OwningWorld->GetActiveLightingScenario();
@@ -1936,7 +1947,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				FixupWeightmaps();
 
 				const bool bNeedOldDataMigration = !bHasLayersContentBefore && CanHaveLayersContent();
-				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
+				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor.Get()->HasLayersContent())
 				{
 					LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
 				}
@@ -2245,7 +2256,7 @@ int32 ULandscapeInfo::GetLayerInfoIndex(FName LayerName, ALandscapeProxy* Owner 
 }
 
 
-bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bool bInvalidate /*= false*/)
+bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bInvalidate)
 {
 	bool bHasCollision = false;
 	if (GIsEditor)
@@ -2406,10 +2417,10 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 				ForAllLandscapeProxies([this](ALandscapeProxy* EachProxy)
 				{
 					if (!EachProxy->IsPendingKillPending())
-				{
+					{
 						checkSlow(EachProxy->GetLandscapeInfo() == this);
-						UpdateLayerInfoMap(EachProxy, false);
-				}
+						UpdateLayerInfoMapInternal(EachProxy, false);
+					}
 				});
 			}
 		}
@@ -2420,6 +2431,20 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 		//}
 	}
 	return bHasCollision;
+}
+
+bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bool bInvalidate /*= false*/)
+{
+	bool bResult = UpdateLayerInfoMapInternal(Proxy, bInvalidate);
+	if (GIsEditor)
+	{
+		ALandscape* Landscape = LandscapeActor.Get();
+		if (Landscape && Landscape->HasLayersContent())
+		{
+			Landscape->RequestLayersInitialization(/*bInRequestContentUpdate*/false);
+		}
+	}
+	return bResult;
 }
 #endif
 
@@ -2676,22 +2701,16 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	}
 }
 
-
 void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 {
 	FIntPoint Difference = InSectionBase - LandscapeSectionOffset;
 	LandscapeSectionOffset = InSectionBase;
 
-	for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
+	RecreateComponentsRenderState([Difference](ULandscapeComponent* Comp)
 	{
-		ULandscapeComponent* Comp = LandscapeComponents[CompIdx];
-		if (Comp)
-		{
-			FIntPoint AbsoluteSectionBase = Comp->GetSectionBase() + Difference;
-			Comp->SetSectionBase(AbsoluteSectionBase);
-			Comp->RecreateRenderState_Concurrent();
-		}
-	}
+		FIntPoint AbsoluteSectionBase = Comp->GetSectionBase() + Difference;
+		Comp->SetSectionBase(AbsoluteSectionBase);
+	});
 
 	for (int32 CompIdx = 0; CompIdx < CollisionComponents.Num(); CompIdx++)
 	{
@@ -2706,17 +2725,12 @@ void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 
 void ALandscapeProxy::RecreateComponentsState()
 {
-	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
+	RecreateComponentsRenderState([](ULandscapeComponent* Comp)
 	{
-		ULandscapeComponent* Comp = LandscapeComponents[ComponentIndex];
-		if (Comp)
-		{
-			Comp->UpdateComponentToWorld();
-			Comp->UpdateCachedBounds();
-			Comp->UpdateBounds();
-			Comp->RecreateRenderState_Concurrent(); // @todo UE4 jackp just render state needs update?
-		}
-	}
+		Comp->UpdateComponentToWorld();
+		Comp->UpdateCachedBounds();
+		Comp->UpdateBounds();
+	});
 
 	for (int32 ComponentIndex = 0; ComponentIndex < CollisionComponents.Num(); ComponentIndex++)
 	{
@@ -2725,6 +2739,23 @@ void ALandscapeProxy::RecreateComponentsState()
 		{
 			Comp->UpdateComponentToWorld();
 			Comp->RecreatePhysicsState();
+		}
+	}
+}
+
+void ALandscapeProxy::RecreateComponentsRenderState(TFunctionRef<void(ULandscapeComponent*)> Fn)
+{
+	// Batch component render state recreation
+	TArray<FComponentRecreateRenderStateContext> ComponentRecreateRenderStates;
+	ComponentRecreateRenderStates.Reserve(LandscapeComponents.Num());
+
+	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
+	{
+		ULandscapeComponent* Comp = LandscapeComponents[ComponentIndex];
+		if (Comp)
+		{
+			Fn(Comp);
+			ComponentRecreateRenderStates.Emplace(Comp);
 		}
 	}
 }
@@ -3125,12 +3156,6 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			}
 			StreamingProxy->LandscapeActor = LandscapeActor;
 			StreamingProxy->FixupSharedData(LandscapeActor.Get());
-		}
-
-		if (LandscapeActor && LandscapeActor->HasLayersContent())
-		{
-			const bool bInRequestContentUpdate = false;
-			LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);
 		}
 
 		UpdateLayerInfoMap(Proxy);
@@ -3911,6 +3936,26 @@ bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FStri
 		return true;
 	}
 	return false;
+}
+
+FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if LANDSCAPE_LOD_STREAMING_USE_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
+#else
+	if (LandscapeComponent && LandscapeComponent->PlatformData.StreamingLODDataArray.IsValidIndex(MipIndex))
+	{
+		return LandscapeComponent->PlatformData.StreamingLODDataArray[MipIndex].GetIoFilenameHash();
+	}
+#endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 bool ULandscapeLODStreamingProxy::IsReadyForStreaming() const

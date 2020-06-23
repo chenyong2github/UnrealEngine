@@ -41,14 +41,10 @@ void SPluginTile::Construct( const FArguments& Args, const TSharedRef<SPluginTil
 
 	RecreateWidgets();
 }
-FString SPluginTile::GetPluginDisplayName(const IPlugin* InPlugin)
-{
-	return InPlugin ? (!InPlugin->GetDescriptor().FriendlyName.IsEmpty() ? InPlugin->GetDescriptor().FriendlyName : InPlugin->GetName()) : "";
-}
 
-FText SPluginTile::GetPluginDisplayText() const
-{	
-	return FText::FromString(GetPluginDisplayName(Plugin.Get()));
+FText SPluginTile::GetPluginNameText() const
+{
+	return FText::FromString(Plugin->GetFriendlyName());
 }
 
 void SPluginTile::RecreateWidgets()
@@ -245,7 +241,7 @@ void SPluginTile::RecreateWidgets()
 											.Padding(PaddingAmount)
 											[
 												SNew(STextBlock)
-													.Text(GetPluginDisplayText())
+													.Text(GetPluginNameText())
 													.HighlightText_Raw(&OwnerWeak.Pin()->GetOwner().GetPluginTextFilter(), &FPluginTextFilter::GetRawFilterText)
 													.TextStyle(FPluginStyle::Get(), "PluginTile.NameText")
 											]
@@ -470,7 +466,7 @@ void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 		// If this is plugin is marked as beta, make sure the user is aware before enabling it.
 		if (PluginDescriptor.bIsBetaVersion)
 		{
-			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version and might be unstable or removed without notice. Please use with caution. Are you sure you want to enable the plugin?"), GetPluginDisplayText());
+			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version and might be unstable or removed without notice. Please use with caution. Are you sure you want to enable the plugin?"), GetPluginNameText());
 			if (EAppReturnType::No == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 			{
 				return;
@@ -527,24 +523,23 @@ void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 		}
 	}
 
-	// Finally, enable the plugin we selected
+	// Finally, enable/disable the plugin we selected
 	FText FailMessage;
-	if (!IProjectManager::Get().SetPluginEnabled(Plugin->GetName(), bNewEnabledState, FailMessage))
+	bool bSuccess = IProjectManager::Get().SetPluginEnabled(Plugin->GetName(), bNewEnabledState, FailMessage);
+
+	if (bSuccess && IProjectManager::Get().IsCurrentProjectDirty())
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, FailMessage);
+		FGameProjectGenerationModule::Get().TryMakeProjectFileWriteable(FPaths::GetProjectFilePath());
+		bSuccess = IProjectManager::Get().SaveCurrentProjectToDisk(FailMessage);
+	}
+
+	if (bSuccess)
+	{
+		FPluginBrowserModule::Get().SetPluginPendingEnableState(Plugin->GetName(), Plugin->IsEnabled(), bNewEnabledState);
 	}
 	else
 	{
-		FGameProjectGenerationModule::Get().TryMakeProjectFileWriteable(FPaths::GetProjectFilePath());
-
-		if (!IProjectManager::Get().SaveCurrentProjectToDisk(FailMessage))
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, FailMessage);
-		}
-		else
-		{
-			FPluginBrowserModule::Get().SetPluginPendingEnableState(Plugin->GetName(), Plugin->IsEnabled(), bNewEnabledState);
-		}
+		FMessageDialog::Open(EAppMsgType::Ok, FailMessage);
 	}
 }
 

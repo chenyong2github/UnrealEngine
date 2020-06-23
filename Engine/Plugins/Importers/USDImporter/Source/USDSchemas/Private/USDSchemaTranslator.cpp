@@ -5,6 +5,9 @@
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdTyped.h"
+
 #include "Algo/Find.h"
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
@@ -18,11 +21,15 @@ int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
 
 #include "USDIncludesStart.h"
 	#include "pxr/base/tf/token.h"
+	#include "pxr/usd/usd/typed.h"
 #include "USDIncludesEnd.h"
 
-TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema )
+#endif // #if USE_USD_SDK
+
+TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const UE::FUsdTyped& InSchema )
 {
-	TUsdStore< pxr::UsdPrim > Prim = InSchema.GetPrim();
+#if USE_USD_SDK
+	TUsdStore< pxr::UsdPrim > Prim = pxr::UsdPrim( InSchema.GetPrim() );
 	if ( !Prim.Get() )
 	{
 		return {};
@@ -38,12 +45,14 @@ TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslato
 			return RegisteredSchemasStack.Value.Top().CreateFunction( InTranslationContext, InSchema );
 		}
 	}
+#endif // #if USE_USD_SDK
 
 	return {};
 }
 
 FRegisteredSchemaTranslatorHandle FUsdSchemaTranslatorRegistry::Register( const FString& SchemaName, FCreateTranslator CreateFunction )
 {
+#if USE_USD_SDK
 	FSchemaTranslatorsStack* SchemaTranslatorsStack = FindSchemaTranslatorStack( SchemaName );
 
 	if ( !SchemaTranslatorsStack )
@@ -80,6 +89,9 @@ FRegisteredSchemaTranslatorHandle FUsdSchemaTranslatorRegistry::Register( const 
 	SchemaTranslatorsStack->Push( RegisteredSchemaTranslator );
 
 	return RegisteredSchemaTranslator.Handle;
+#else
+	return FRegisteredSchemaTranslatorHandle();
+#endif // #if USE_USD_SDK
 }
 
 void FUsdSchemaTranslatorRegistry::Unregister( const FRegisteredSchemaTranslatorHandle& TranslatorHandle )
@@ -144,6 +156,7 @@ void FUsdSchemaTranslationContext::CompleteTasks()
 
 bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 {
+#if USE_USD_SDK
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSchemaTranslator::IsCollapsed );
 
 	if ( !CanBeCollapsed( CollapsingType ) )
@@ -151,14 +164,14 @@ bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 		return false;
 	}
 
-	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
+	TUsdStore< pxr::UsdPrim > Prim = pxr::UsdPrim( Schema.GetPrim() );
 	TUsdStore< pxr::UsdPrim > ParentPrim = Prim.Get().GetParent();
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
 	while ( ParentPrim.Get() )
 	{
-		TSharedPtr< FUsdSchemaTranslator > ParentSchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, pxr::UsdTyped( ParentPrim.Get() ) );
+		TSharedPtr< FUsdSchemaTranslator > ParentSchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, UE::FUsdTyped( ParentPrim.Get() ) );
 
 		if ( ParentSchemaTranslator && ParentSchemaTranslator->CollapsesChildren( CollapsingType ) )
 		{
@@ -169,6 +182,7 @@ bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 			ParentPrim = ParentPrim.Get().GetParent();
 		}
 	}
+#endif // #if USE_USD_SDK
 
 	return false;
 }
@@ -278,7 +292,5 @@ ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute()
 
 	return CurrentTask ? ESchemaTranslationStatus::InProgress : ESchemaTranslationStatus::Done;
 }
-
-#endif //#if USE_USD_SDK
 
 #undef LOCTEXT_NAMESPACE

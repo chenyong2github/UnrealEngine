@@ -612,6 +612,9 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 	UObject* NewObject = ObjectTools::DuplicateSingleObject(OriginalObject, PGN, ObjectsUserRefusedToFullyLoad, bPromtToOverwrite);
 	if(NewObject != nullptr)
 	{
+		// Assets must have RF_Public and RF_Standalone
+		NewObject->SetFlags(RF_Public | RF_Standalone);
+
 		if ( ISourceControlModule::Get().IsEnabled() )
 		{
 			// Save package here if SCC is enabled because the user can use SCC to revert a change
@@ -625,6 +628,9 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 			// now attempt to branch, we can do this now as we should have a file on disk
 			SourceControlHelpers::BranchPackage(NewObject->GetOutermost(), OriginalObject->GetOutermost());
 		}
+
+		// Notify the asset registry
+		FAssetRegistryModule::AssetCreated(NewObject);
 
 		// analytics create record
 		UAssetToolsImpl::OnNewCreateRecord(NewObject->GetClass(), true);
@@ -1644,7 +1650,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	TMap< FString, TArray<UFactory*> > ExtensionToFactoriesMap;
 
 	FScopedSlowTask SlowTask(Files.Num(), LOCTEXT("ImportSlowTask", "Importing"));
-	SlowTask.MakeDialog();
+	if (Files.Num() > 1)
+	{	
+		//Always allow user to cancel the import task if they are importing multiple files.
+		//If we're importing a single file, then the factory policy will dictate if the import if cancelable.
+		SlowTask.MakeDialog(true);
+	}
 
 
 	TArray<TPair<FString, FString>> FilesAndDestinations;
@@ -1778,23 +1789,20 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	}
 
 	TArray<UFactory*> UsedFactories;
-
+	bool bImportWasCancelled = false;
 	// Now iterate over the input files and use the same factory object for each file with the same extension
-	for(int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num(); ++FileIdx)
+	for(int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num() && !bImportWasCancelled; ++FileIdx)
 	{
 		// Filename and DestinationPath will need to get santized before we create an asset out of them as they
 		// can be created out of sources that contain spaces and other invalid characters. Filename cannot be sanitized
 		// until other checks are done that rely on looking at the actual source file so sanitation is delayed.
 		const FString& Filename = FilesAndDestinations[FileIdx].Key;
 		const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
-
-
-		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Import_ImportingFile", "Importing \"{0}\"..."), FText::FromString(FPaths::GetBaseFilename(Filename))));
-
 		FString FileExtension = FPaths::GetExtension(Filename);
-
 		const TArray<UFactory*>* FactoriesPtr = ExtensionToFactoriesMap.Find(FileExtension);
 		UFactory* Factory = nullptr;
+		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Import_ImportingFile", "Importing \"{0}\"..."), FText::FromString(FPaths::GetBaseFilename(Filename))));
+
 		// Assume that for automated import, the user knows exactly what factory to use if it exists
 		if(bAutomatedImport && SpecifiedFactory && SpecifiedFactory->FactoryCanImport(Filename))
 		{
@@ -1843,6 +1851,11 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 		if(Factory != nullptr)
 		{
+			if (FilesAndDestinations.Num() == 1)
+			{
+				SlowTask.MakeDialog(Factory->CanImportBeCanceled());
+			}
+
 			// Reset the 'Do you want to overwrite the existing object?' Yes to All / No to All prompt, to make sure the
 			// user gets a chance to select something when the factory is first used during this import
 			if (!UsedFactories.Contains(Factory))
@@ -1853,7 +1866,6 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 			UClass* ImportAssetType = Factory->SupportedClass;
 			bool bImportSucceeded = false;
-			bool bImportWasCancelled = false;
 			FDateTime ImportStartTime = FDateTime::UtcNow();
 
 			FString Name;
@@ -2073,6 +2085,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		else
 		{
 			// A factory or extension was not found. The extension warning is above. If a factory was not found, the user likely canceled a factory configuration dialog.
+		}
+
+		bImportWasCancelled |= SlowTask.ShouldCancel();
+		if (bImportWasCancelled)
+		{
+			UE_LOG(LogAssetTools, Log, TEXT("The import task was canceled."));
 		}
 	}
 

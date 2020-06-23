@@ -301,6 +301,10 @@ public:
 	virtual int32 Clamp(int32 X,int32 A,int32 B) = 0;
 	virtual int32 Saturate(int32 X) = 0;
 
+	virtual int32 SmoothStep(int32 X,int32 Y,int32 A) = 0;
+	virtual int32 Step(int32 Y,int32 X) = 0;
+	virtual int32 InvLerp(int32 X,int32 Y,int32 A) = 0;
+
 	virtual int32 ComponentMask(int32 Vector,bool R,bool G,bool B,bool A) = 0;
 	virtual int32 AppendVector(int32 A,int32 B) = 0;
 	virtual int32 TransformVector(EMaterialCommonBasis SourceCoordBasis, EMaterialCommonBasis DestCoordBasis, int32 A) = 0;
@@ -322,7 +326,7 @@ public:
 	virtual int32 VertexTangent() = 0;
 	virtual int32 PixelNormalWS() = 0;
 
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) = 0;
+	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) = 0;
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) = 0;
 	virtual int32 VirtualTextureOutput(uint8 AttributeMask) = 0;
 
@@ -348,12 +352,19 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
+
 	virtual int32 SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereViewLuminance() = 0;
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) = 0;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
+
+	virtual int32 GetCloudSampleAltitude() = 0;
+	virtual int32 GetCloudSampleAltitudeInLayer() = 0;
+	virtual int32 GetCloudSampleNormAltitudeInLayer() = 0;
+	virtual int32 GetVolumeSampleConservativeDensity() = 0;
+
 	virtual int32 GetHairUV() = 0;
 	virtual int32 GetHairDimensions() = 0;
 	virtual int32 GetHairSeed() = 0;
@@ -558,6 +569,10 @@ public:
 	virtual int32 Clamp(int32 X,int32 A,int32 B) override { return Compiler->Clamp(X,A,B); }
 	virtual int32 Saturate(int32 X) override { return Compiler->Saturate(X); }
 
+	virtual int32 SmoothStep(int32 X,int32 Y,int32 A) override { return Compiler->SmoothStep(X,Y,A); }
+	virtual int32 Step(int32 Y,int32 X) override { return Compiler->Step(Y,X); }
+	virtual int32 InvLerp(int32 X,int32 Y,int32 A) override { return Compiler->InvLerp(X,Y,A); }
+
 	virtual int32 ComponentMask(int32 Vector,bool R,bool G,bool B,bool A) override { return Compiler->ComponentMask(Vector,R,G,B,A); }
 	virtual int32 AppendVector(int32 A,int32 B) override { return Compiler->AppendVector(A,B); }
 	virtual int32 TransformVector(EMaterialCommonBasis SourceCoordBasis, EMaterialCommonBasis DestCoordBasis, int32 A) override
@@ -588,7 +603,7 @@ public:
 	virtual int32 VertexTangent() override { return Compiler->VertexTangent(); }
 	virtual int32 PixelNormalWS() override { return Compiler->PixelNormalWS(); }
 
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override { return Compiler->CustomExpression(Custom,CompiledInputs); }
+	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override { return Compiler->CustomExpression(Custom, OutputIndex, CompiledInputs); }
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) override{ return Compiler->CustomOutput(Custom, OutputIndex, OutputCode); }
 	virtual int32 VirtualTextureOutput(uint8 AttributeMask) override { return Compiler->VirtualTextureOutput(AttributeMask); }
 
@@ -681,6 +696,26 @@ public:
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override
 	{
 		return Compiler->SkyAtmosphereDistantLightScatteredLuminance();
+	}
+
+	virtual int32 GetCloudSampleAltitude() override
+	{
+		return Compiler->GetCloudSampleAltitude();
+	}
+
+	virtual int32 GetCloudSampleAltitudeInLayer() override
+	{
+		return Compiler->GetCloudSampleAltitudeInLayer();
+	}
+
+	virtual int32 GetCloudSampleNormAltitudeInLayer() override
+	{
+		return Compiler->GetCloudSampleNormAltitudeInLayer();
+	}
+
+	virtual int32 GetVolumeSampleConservativeDensity() override
+	{
+		return Compiler->GetVolumeSampleConservativeDensity();
 	}
 	
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override

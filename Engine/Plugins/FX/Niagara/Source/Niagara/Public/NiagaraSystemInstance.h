@@ -161,8 +161,8 @@ public:
 	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
-	FORCEINLINE const TArray<int32>& GetEmitterExecutionOrder() const { return EmitterExecutionOrder; }
 	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
+	TConstArrayView<const int32> GetEmitterExecutionOrder() const;
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
@@ -281,8 +281,15 @@ public:
 	void RaiseNeedsUIResync();
 #endif
 
-private:
+	/** Get the current tick behavior */
+	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+	/** Set a new tick behavior, this will not move the instance straight away and will wait until the next time it is evaluated */
+	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
+	
+	/** Calculates which tick group the instance should be in. */
+	ETickingGroup CalculateTickGroup() const;
 
+private:
 	void DestroyDataInterfaceInstanceData();
 
 	/** Builds the emitter simulations. */
@@ -301,21 +308,6 @@ private:
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
-
-	/** Calculates which tick group the instance should be in. */
-	ETickingGroup CalculateTickGroup();
-
-	/** Computes emitter priorities based on the dependency information. */
-	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
-
-	/** Queries all the data interfaces in the array for emitter dependencies. */
-	void FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies);
-
-	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
-	void FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies);
-
-	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
-	void ComputeEmittersExecutionOrder();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
@@ -427,9 +419,6 @@ private:
 	ENiagaraExecutionState ActualExecutionState;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
-
-	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
-	TArray<int32> EmitterExecutionOrder;
 
 	/** Tag we feed into crash reporter for this instance. */
 	mutable FString CrashReporterTag;

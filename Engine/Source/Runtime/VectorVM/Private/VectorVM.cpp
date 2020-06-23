@@ -459,9 +459,6 @@ FVectorVMContext::FVectorVMContext()
 	, UserPtrTable(nullptr)
 	, NumInstances(0)
 	, StartInstance(0)
-#if STATS
-	, StatScopes(nullptr)
-#endif
 	, TempRegisterSize(0)
 	, TempBufferSize(0)
 {
@@ -503,11 +500,15 @@ void FVectorVMContext::PrepareForExec(
 }
 
 #if STATS
-void FVectorVMContext::SetStatScopes(const TArray<TStatId>* InStatScopes)
+void FVectorVMContext::SetStatScopes(TArrayView<const TStatId> InStatScopes)
 {
-	check(InStatScopes);
 	StatScopes = InStatScopes;
-	StatCounterStack.Reserve(StatScopes->Num());
+	StatCounterStack.Reserve(StatScopes.Num());
+}
+#elif ENABLE_STATNAMEDEVENTS
+void FVectorVMContext::SetStatNamedEventScopes(TArrayView<const FString> InStatNamedEventScopes)
+{
+	StatNamedEventScopes = InStatNamedEventScopes;
 }
 #endif
 
@@ -560,6 +561,12 @@ void FVectorVMContext::FinishExec()
 			*MaxUsedID = FMath::Max(*MaxUsedID, Data.MaxID);
 		}
 	}
+
+#if STATS
+	StatScopes = TArrayView<TStatId>();
+#elif ENABLE_STATNAMEDEVENTS
+	StatNamedEventScopes = TArrayView<FString>();
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1147,6 +1154,16 @@ struct FVectorKernelEnterStatScope
 #if STATS
 		Context.WriteExecFunction(Exec);
 		FConstantHandler<int32>::Optimize(Context);
+#elif ENABLE_STATNAMEDEVENTS
+		if ( GbDetailedVMScriptStats )
+		{
+			Context.WriteExecFunction(Exec);
+			FConstantHandler<int32>::Optimize(Context);
+		}
+		else
+		{
+			FConstantHandler<int32>::OptimizeSkip(Context);
+		}
 #else
 		// just skip the op if we don't have stats enabled
 		FConstantHandler<int32>::OptimizeSkip(Context);
@@ -1157,10 +1174,15 @@ struct FVectorKernelEnterStatScope
 	{
 		FConstantHandler<int32> ScopeIdx(Context);
 #if STATS
-		if (GbDetailedVMScriptStats && Context.StatScopes)
+		if (GbDetailedVMScriptStats && Context.StatScopes.Num())
 		{
 			int32 CounterIdx = Context.StatCounterStack.AddDefaulted(1);
-			Context.StatCounterStack[CounterIdx].Start((*Context.StatScopes)[ScopeIdx.Get()]);
+			Context.StatCounterStack[CounterIdx].Start(Context.StatScopes[ScopeIdx.Get()]);
+		}
+#elif ENABLE_STATNAMEDEVENTS
+		if (Context.StatNamedEventScopes.Num())
+		{
+			FPlatformMisc::BeginNamedEvent(FColor::Red, *Context.StatNamedEventScopes[ScopeIdx.Get()]);
 		}
 #endif
 	}
@@ -1172,16 +1194,26 @@ struct FVectorKernelExitStatScope
 	{
 #if STATS
 		Context.WriteExecFunction(Exec);
+#elif ENABLE_STATNAMEDEVENTS
+		if (GbDetailedVMScriptStats)
+		{
+			Context.WriteExecFunction(Exec);
+		}
 #endif
 	}
 		
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 #if STATS
-		if (GbDetailedVMScriptStats)
+		if (GbDetailedVMScriptStats && Context.StatScopes.Num())
 		{
 			Context.StatCounterStack.Last().Stop();
 			Context.StatCounterStack.Pop(false);
+		}
+#elif ENABLE_STATNAMEDEVENTS
+		if (Context.StatNamedEventScopes.Num())
+		{
+			FPlatformMisc::EndNamedEvent();
 		}
 #endif
 	}
@@ -2459,12 +2491,22 @@ void VectorVM::Exec(
 	void** UserPtrTable,
 	int32 NumInstances
 #if STATS
-	, const TArray<TStatId>& StatScopes
+	, TArrayView<const TStatId> StatScopes
+#elif ENABLE_STATNAMEDEVENTS
+	, TArrayView<const FString> StatNamedEventsScopes
 #endif
 	)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
+
+#if UE_BUILD_TEST
+	const bool bNumInstancesEvent = GbDetailedVMScriptStats != 0;
+	if (bNumInstancesEvent)
+	{
+		FPlatformMisc::BeginNamedEvent(FColor::Red, *FString::Printf(TEXT("STAT_VVMExec - %d"), NumInstances));
+	}
+#endif
 
 	const int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
 	const int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
@@ -2482,7 +2524,9 @@ void VectorVM::Exec(
 		FVectorVMContext& Context = FVectorVMContext::Get();
 		Context.PrepareForExec(NumTempRegisters, ConstantTableCount, ConstantTable, ConstantTableSizes, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances, bParallel);
 #if STATS
-		Context.SetStatScopes(&StatScopes);
+		Context.SetStatScopes(StatScopes);
+#elif ENABLE_STATNAMEDEVENTS
+		Context.SetStatNamedEventScopes(StatNamedEventsScopes);
 #endif
 
 		// Process one chunk at a time.
@@ -2652,6 +2696,13 @@ void VectorVM::Exec(
 	{
 		ExecChunkBatch(0);
 	}
+
+#if UE_BUILD_TEST
+	if (bNumInstancesEvent)
+	{
+		FPlatformMisc::EndNamedEvent();
+	}
+#endif
 }
 
 uint8 VectorVM::GetNumOpCodes()

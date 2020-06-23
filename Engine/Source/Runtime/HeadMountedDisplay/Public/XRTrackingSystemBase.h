@@ -70,6 +70,26 @@ public:
 	}
 
 	/**
+	 * If the device id represents a tracking sensor, reports the device type.
+	 * @param DeviceId the device to request information for.
+	 * @return the device type enum.
+	 */
+	virtual EXRTrackedDeviceType GetTrackedDeviceType(int32 DeviceId) const override
+	{
+		return EXRTrackedDeviceType::Invalid;
+	}
+
+	/**
+	 * If the device id represents a tracking sensor, reports the serial number as a string if the device supports it.
+	 * @param DeviceId the device to request information for.
+	 * @return the serial number of the device if it's available.
+	 */
+	virtual FString GetTrackedDevicePropertySerialNumber(int32 DeviceId) override
+	{
+		return FString(TEXT("NoSerial"));
+	}
+
+	/**
 	 * Get the IXCamera instance for the given device.
 	 * @param DeviceId the device the camera should track.
 	 * @return a shared pointer to an IXRCamera.

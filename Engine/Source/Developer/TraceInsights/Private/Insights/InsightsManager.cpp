@@ -8,13 +8,17 @@
 #include "Templates/UniquePtr.h"
 #include "Trace/StoreClient.h"
 #include "TraceServices/Model/NetProfiler.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
+#include "Insights/Widgets/SSessionInfoWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,14 +30,39 @@ const FName FInsightsManagerTabs::SessionInfoTabId(TEXT("SessionInfo"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
 const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
+const FName FInsightsManagerTabs::MemoryProfilerTabId(TEXT("MemoryProfiler"));
 
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FInsightsManager> FInsightsManager::Get()
+{
+	return FInsightsManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
+															  TSharedRef<Trace::IModuleService> TraceModuleService)
+{
+	ensure(!FInsightsManager::Instance.IsValid());
+	if (FInsightsManager::Instance.IsValid())
+	{
+		FInsightsManager::Instance.Reset();
+	}
+
+	FInsightsManager::Instance = MakeShared<FInsightsManager>(TraceAnalysisService, TraceModuleService);
+
+	return FInsightsManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
 								   TSharedRef<Trace::IModuleService> InTraceModuleService)
-	: AnalysisService(InTraceAnalysisService)
+	: bIsInitialized(false)
+	, AnalysisService(InTraceAnalysisService)
 	, ModuleService(InTraceModuleService)
 	, StoreDir()
 	, StoreClient()
@@ -41,25 +70,63 @@ FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAn
 	, ActionManager(this)
 	, Settings()
 	, bIsDebugInfoEnabled(false)
-	, bIsNetworkingProfilerAvailable(false)
 #if WITH_EDITOR
 	, bShouldOpenAnalysisInSeparateProcess(false)
 #else
 	, bShouldOpenAnalysisInSeparateProcess(true)
 #endif
+	, AnalysisStopwatch()
+	, bIsAnalysisComplete(false)
+	, SessionDuration(0.0)
+	, AnalysisDuration(0.0)
+	, AnalysisSpeedFactor(0.0)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::PostConstructor()
+void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 {
+	ensure(!bIsInitialized);
+	if (bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = true;
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsManager::Tick);
 	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
 
 	FInsightsCommands::Register();
 	BindCommands();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::Shutdown()
+{
+	if (!bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = false;
+
+	ResetSession(false);
+
+	FInsightsCommands::Unregister();
+
+	// Unregister tick function.
+	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+
+	FInsightsManager::Instance.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FInsightsManager::~FInsightsManager()
+{
+	ensure(!bIsInitialized);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -73,21 +140,113 @@ void FInsightsManager::BindCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FInsightsManager::~FInsightsManager()
+void FInsightsManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
 {
-	ResetSession(false);
+	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory();
 
-	FInsightsCommands::Unregister();
+	const FInsightsMajorTabConfig& StartPageConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::StartPageTabId);
+	if (StartPageConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Start Page.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId,
+			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnStartPageTab))
+			.SetDisplayName(StartPageConfig.TabLabel.IsSet() ? StartPageConfig.TabLabel.GetValue() : LOCTEXT("StartPageTabTitle", "Unreal Insights"))
+			.SetTooltipText(StartPageConfig.TabTooltip.IsSet() ? StartPageConfig.TabTooltip.GetValue() : LOCTEXT("StartPageTooltipText", "Open the start page for Unreal Insights."))
+			.SetIcon(StartPageConfig.TabIcon.IsSet() ? StartPageConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
 
-	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+		TSharedRef<FWorkspaceItem> Group = StartPageConfig.WorkspaceGroup.IsValid() ? StartPageConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory;
+		TabSpawnerEntry.SetGroup(Group);
+	}
+
+	const FInsightsMajorTabConfig& SessionInfoConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::SessionInfoTabId);
+	if (SessionInfoConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Session Info.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId,
+			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnSessionInfoTab))
+			.SetDisplayName(SessionInfoConfig.TabLabel.IsSet() ? SessionInfoConfig.TabLabel.GetValue() : LOCTEXT("SessionInfoTabTitle", "Session Info"))
+			.SetTooltipText(SessionInfoConfig.TabTooltip.IsSet() ? SessionInfoConfig.TabTooltip.GetValue() : LOCTEXT("SessionInfoTooltipText", "Open the Session Info tab."))
+			.SetIcon(SessionInfoConfig.TabIcon.IsSet() ? SessionInfoConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
+
+		TSharedRef<FWorkspaceItem> Group = SessionInfoConfig.WorkspaceGroup.IsValid() ? SessionInfoConfig.WorkspaceGroup.ToSharedRef() : ToolsCategory;
+		TabSpawnerEntry.SetGroup(Group);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FInsightsManager> FInsightsManager::Get()
+void FInsightsManager::UnregisterMajorTabs()
 {
-	return FInsightsManager::Instance;
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FInsightsManager::SpawnStartPageTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+		//.OnCanCloseTab_Lambda([]() { return false; })
+		//.ContentPadding(FMargin(2.0f, 20.0f, 2.0f, 2.0f));
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnStartPageTabClosed));
+
+	// Create the SStartPageWindow widget.
+	TSharedRef<SStartPageWindow> Window = SNew(SStartPageWindow);
+	DockTab->SetContent(Window);
+
+	AssignStartPageWindow(Window);
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OnStartPageTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveStartPageWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FInsightsManager::SpawnSessionInfoTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnSessionInfoTabClosed));
+
+	// Create the SSessionInfoWindow widget.
+	TSharedRef<SSessionInfoWindow> Window = SNew(SSessionInfoWindow);
+	DockTab->SetContent(Window);
+
+	AssignSessionInfoWindow(Window);
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveSessionInfoWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
+{
+	using namespace Trace;
+	FStoreClient* Client = FStoreClient::Connect(Host, Port);
+	StoreClient = TUniquePtr<FStoreClient>(Client);
+	return StoreClient.IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,44 +286,33 @@ FInsightsSettings& FInsightsManager::GetSettings()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
+bool FInsightsManager::Tick(float DeltaTime)
 {
-	using namespace Trace;
-	FStoreClient* Client = FStoreClient::Connect(Host, Port);
-	StoreClient = TUniquePtr<FStoreClient>(Client);
-	return StoreClient.IsValid();
+	UpdateSessionDuration();
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FInsightsManager::Tick(float DeltaTime)
+void FInsightsManager::UpdateSessionDuration()
 {
-	if (!bIsNetworkingProfilerAvailable)
+	if (Session.IsValid())
 	{
-		uint32 NetTraceVersion = 0;
-
-		if (Session.IsValid())
+		double LocalSessionDuration = 0.0;
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
-			NetTraceVersion = NetProfilerProvider.GetNetTraceVersion();
+			bIsAnalysisComplete = Session->IsAnalysisComplete();
+			LocalSessionDuration = Session->GetDurationSeconds();
 		}
 
-		if (NetTraceVersion > 0)
+		if (LocalSessionDuration != SessionDuration)
 		{
-			bIsNetworkingProfilerAvailable = true;
-
-			if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId))
-			{
-				FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
-				FGlobalTabmanager::Get()->TryInvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
-			}
-
-			ActivateTimingInsightsTab();
+			SessionDuration = LocalSessionDuration;
+			AnalysisStopwatch.Update();
+			AnalysisDuration = AnalysisStopwatch.GetAccumulatedTime();
+			AnalysisSpeedFactor = SessionDuration / AnalysisDuration;
 		}
 	}
-
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,13 +326,18 @@ void FInsightsManager::ResetSession(bool bNotify)
 
 		CurrentTraceId = 0;
 		CurrentTraceFilename.Reset();
-		bIsNetworkingProfilerAvailable = false;
 
 		if (bNotify)
 		{
 			OnSessionChanged();
 		}
 	}
+
+	bIsAnalysisComplete = false;
+	SessionDuration = 0.0;
+	AnalysisStopwatch.Restart();
+	AnalysisDuration = 0.0;
+	AnalysisSpeedFactor = 0.0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -235,12 +388,17 @@ void FInsightsManager::SpawnAndActivateTabs()
 	}
 
 	// Close the existing Networking Insights tabs.
-	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId))
+	//for (int32 ReservedId = 0; ReservedId < 10; ++ReservedId)
 	{
-		TSharedPtr<SDockTab> NetworkingProfilerTab;
-		while ((NetworkingProfilerTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FInsightsManagerTabs::NetworkingProfilerTabId)).IsValid())
+		FName TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
+		//TabId.SetNumber(ReservedId);
+		if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
 		{
-			NetworkingProfilerTab->RequestCloseTab();
+			TSharedPtr<SDockTab> NetworkingProfilerTab;
+			while ((NetworkingProfilerTab = FGlobalTabmanager::Get()->FindExistingLiveTab(TabId)).IsValid())
+			{
+				NetworkingProfilerTab->RequestCloseTab();
+			}
 		}
 	}
 
@@ -328,7 +486,6 @@ void FInsightsManager::LoadTrace(uint32 InTraceId)
 	{
 		CurrentTraceId = InTraceId;
 		CurrentTraceFilename = TraceName;
-		bIsNetworkingProfilerAvailable = false;
 		OnSessionChanged();
 	}
 }
@@ -352,7 +509,6 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename)
 	{
 		CurrentTraceId = 0;
 		CurrentTraceFilename = InTraceFilename;
-		bIsNetworkingProfilerAvailable = false;
 		OnSessionChanged();
 	}
 }

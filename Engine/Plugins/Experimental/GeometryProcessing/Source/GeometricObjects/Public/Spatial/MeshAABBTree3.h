@@ -7,6 +7,7 @@
 #include "Util/DynamicVector.h"
 #include "Intersection/IntrRay3AxisAlignedBox3.h"
 #include "Intersection/IntrTriangle3Triangle3.h"
+#include "Intersection/IntersectionUtil.h"
 #include "MeshQueries.h"
 #include "Spatial/SpatialInterfaces.h"
 #include "Distance/DistTriangle3Triangle3.h"
@@ -141,7 +142,7 @@ public:
 	/**
 	 * Get the overall bounding box of the whole tree
 	 */
-	FAxisAlignedBox3d GetBoundingBox()
+	FAxisAlignedBox3d GetBoundingBox() const
 	{
 		if (!ensure(RootIndex >= 0))
 		{
@@ -362,7 +363,7 @@ public:
 		// Note: using TNumericLimits<float>::Max() here because we need to use <= to compare Box hit
 		//   to NearestT, and Box hit returns TNumericLimits<double>::Max() on no-hit. So, if we set
 		//   nearestT to TNumericLimits<double>::Max(), then we will test all boxes (!)
-		NearestT = (Options.MaxDistance < TNumericLimits<double>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
+		NearestT = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
 
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 		check(RootIndex >= 0);
@@ -377,6 +378,7 @@ public:
 		return TID != IndexConstants::InvalidID;
 	}
 
+protected:
 	void FindHitTriangle(
 		int IBox, const FRay3d& Ray, double& NearestT, int& TID,
 		const FQueryOptions& Options = FQueryOptions()) const
@@ -453,6 +455,116 @@ public:
 		}
 	}
 
+
+public:
+	/**
+	 * @return true if ray hits the mesh at some point (doesn't necessarily find the nearest hit).
+	 */
+	virtual bool TestAnyHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
+	{
+		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		check(RootIndex >= 0);
+		if (RootIndex < 0)
+		{
+			return false;
+		}
+		double MaxDistance = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
+		int32 HitTID = IndexConstants::InvalidID;
+		bool bFoundHit = TestAnyHitTriangle(RootIndex, Ray, HitTID, MaxDistance, Options);
+		return bFoundHit;
+	}
+
+protected:
+	bool TestAnyHitTriangle(
+		int IBox, const FRay3d& Ray, int32& HitTIDOut, double MaxDistance,
+		const FQueryOptions& Options = FQueryOptions()) const
+	{
+		int idx = BoxToIndex[IBox];
+		if (idx < TrianglesEnd)
+		{ // triangle-list case, array is [N t1 t2 ... tN]
+			FVector3d A, B, C;
+			int num_tris = IndexList[idx];
+			for (int i = 1; i <= num_tris; ++i)
+			{
+				int ti = IndexList[idx + i];
+				if (Options.TriangleFilterF != nullptr && Options.TriangleFilterF(ti) == false)
+				{
+					continue;
+				}
+				Mesh->GetTriVertices(ti, A, B, C);
+				if ( IntersectionUtil::RayTriangleTest(Ray.Origin, Ray.Direction, A,B,C) ) 
+				{
+					HitTIDOut = ti;
+					return true;
+				}
+			}
+		}
+		else
+		{ // internal node, either 1 or 2 child boxes
+			double e = FMathd::ZeroTolerance;
+			int iChild1 = IndexList[idx];
+			if (iChild1 < 0)
+			{ // 1 child, descend if nearer than cur min-dist
+				iChild1 = (-iChild1) - 1;
+				double fChild1T = box_ray_intersect_t(iChild1, Ray);
+				if (fChild1T <= MaxDistance + e)
+				{
+					if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+					{
+						return true;
+					}
+				}
+			}
+			else
+			{ // 2 children, descend closest first
+				iChild1 = iChild1 - 1;
+				int iChild2 = IndexList[idx + 1] - 1;
+
+				double fChild1T = box_ray_intersect_t(iChild1, Ray);
+				double fChild2T = box_ray_intersect_t(iChild2, Ray);
+				if (fChild1T < fChild2T)
+				{
+					if (fChild1T <= MaxDistance + e)
+					{
+						if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+						{
+							return true;
+						}
+						if (fChild2T <= MaxDistance + e)
+						{
+							if (TestAnyHitTriangle(iChild2, Ray, HitTIDOut, MaxDistance, Options))
+							{
+								return true;
+							}
+						}
+					}
+				}
+				else
+				{
+					if (fChild2T <= MaxDistance + e)
+					{
+						if (TestAnyHitTriangle(iChild2, Ray, HitTIDOut, MaxDistance, Options))
+						{
+							return true;
+						}
+						if (fChild1T <= MaxDistance + e)
+						{
+							if (TestAnyHitTriangle(iChild1, Ray, HitTIDOut, MaxDistance, Options))
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+
+
+
+public:
 	/**
 	 * Find nearest pair of triangles on this tree with OtherTree, within Options.MaxDistance.
 	 * TransformF transforms vertices of OtherTree into our coordinates. can be null.
@@ -525,6 +637,7 @@ public:
 		TreeTraversalImpl(RootIndex, 0, Traversal, Options);
 	}
 
+protected:
 	// Traversal implementation. you can override to customize this if necessary.
 	virtual void TreeTraversalImpl(
 		int IBox, int Depth, FTreeTraversal& Traversal, const FQueryOptions& Options
@@ -580,6 +693,7 @@ public:
 	}
 
 
+public:
 	/**
 	 * return true if *any* triangle of TestMesh intersects with our tree.
 	 * If TestMeshBounds is not empty, only test collision if the provided bounding box intersects the root AABB box
@@ -640,7 +754,11 @@ public:
 	{
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 
-		if (find_any_intersection(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0, Options, OtherTreeOptions))
+		if (find_any_intersection(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0,
+			[this](const FTriangle3d& A, const FTriangle3d& B)
+			{
+				return TMeshAABBTree3<TriangleMeshType>::TriangleIntersectionFilter(A, B);
+			}, Options, OtherTreeOptions))
 		{
 			return true;
 		}
@@ -659,7 +777,12 @@ public:
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 
 		FAxisAlignedBox3d triBounds(Triangle.V[0], Triangle.V[1], Triangle.V[2]);
-		int interTri = find_any_intersection(RootIndex, Triangle, triBounds, Options);
+		int interTri = find_any_intersection(RootIndex, Triangle, triBounds,
+			[](const FTriangle3d& A, const FTriangle3d& B)
+			{
+				return TMeshAABBTree3<TriangleMeshType>::TriangleIntersectionFilter(A, B);
+			},
+		Options);
 		return (interTri >= 0);
 	}
 
@@ -672,15 +795,20 @@ public:
 	 */
 	virtual MeshIntersection::FIntersectionsQueryResult FindAllIntersections(
 		const TMeshAABBTree3& OtherTree, const TFunction<FVector3d(const FVector3d&)>& TransformF = nullptr,
-		const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions()
+		const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions(),
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
+		{
+			return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
+		}
 	) const
 	{
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 
 		MeshIntersection::FIntersectionsQueryResult result;
 
-		FIntrTriangle3Triangle3d intr;
-		find_intersections(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0, intr, result, Options, OtherTreeOptions);
+		
+		find_intersections(RootIndex, OtherTree, TransformF, OtherTree.RootIndex, 0, result, 
+						   IntersectionFn, Options, OtherTreeOptions);
 
 		return result;
 	}
@@ -694,15 +822,18 @@ public:
 	 */
 	virtual MeshIntersection::FIntersectionsQueryResult FindAllSelfIntersections(
 		bool bIgnoreTopoConnected = true,
-		const FQueryOptions& Options = FQueryOptions()
+		const FQueryOptions& Options = FQueryOptions(),
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectionFn = [](FIntrTriangle3Triangle3d& Intr)
+		{
+			return TMeshAABBTree3<TriangleMeshType>::TriangleIntersection(Intr);
+		}
 	) const
 	{
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 
 		MeshIntersection::FIntersectionsQueryResult Result;
 
-		FIntrTriangle3Triangle3d Intr;
-		find_self_intersections(Intr, &Result, bIgnoreTopoConnected, Options);
+		find_self_intersections(&Result, bIgnoreTopoConnected, IntersectionFn, Options);
 
 		return Result;
 	}
@@ -711,8 +842,15 @@ public:
 	{
 		check(MeshTimestamp == Mesh->GetShapeTimestamp());
 
-		FIntrTriangle3Triangle3d Intr;
-		return find_self_intersections(Intr, nullptr, bIgnoreTopoConnected, Options);
+		return find_self_intersections(nullptr, bIgnoreTopoConnected, 
+			[](FIntrTriangle3Triangle3d& Intr)
+			{
+				// only compute the boolean test value, and manually set result, to skip computing the actual intersection
+				bool bIsIntersecting = TMeshAABBTree3<TriangleMeshType>::TriangleIntersectionFilter(Intr.GetTriangle0(), Intr.GetTriangle1());
+				Intr.SetResult(bIsIntersecting);
+				return bIsIntersecting;
+			},
+			Options);
 	}
 
 
@@ -752,7 +890,19 @@ protected:
 		return FAxisAlignedBox3d(Min, Max);
 	}
 
-	const double BoxEps = FMathd::ZeroTolerance;
+protected:
+	// TODO: move BoxEps to IMeshSpatial::FQueryOptions
+	double BoxEps = FMathd::ZeroTolerance;
+public:
+
+	/**
+	 * Sets the box intersection tolerance
+	 * TODO: move into the IMeshSpatial::FQueryOptions and delete this function
+	 */
+	void SetTolerance(double Tolerance)
+	{
+		BoxEps = Tolerance;
+	}
 
 	double BoxDistanceSqr(int IBox, const FVector3d& V) const
 	{
@@ -1229,8 +1379,36 @@ protected:
 	}
 
 
+
+	/**
+	 * Standard tri tri intersection test (without computing intersection geometry)
+	 */
+	static bool TriangleIntersectionFilter(const FTriangle3d& A, const FTriangle3d& B)
+	{
+		return FIntrTriangle3Triangle3d::Intersects(A, B);
+	}
+	/**
+	 * Standard tri tri intersection test (with computing intersection geometry)
+	 * @param Intr Stores intersection problem; after call, should be set with intersection result
+	 * @return true if triangles were intersecting
+	 */
+	static bool TriangleIntersection(FIntrTriangle3Triangle3d& Intr)
+	{
+		// Note: Test() is much faster than Find() so it makes sense to call it first, as most
+		// triangles will not intersect (right?  TODO: actually test this somehow, though it is very data dependent)
+		bool bFound = Intr.Test();
+		if (bFound)
+		{
+			Intr.Find();
+		}
+		return bFound;
+	}
+
+
 	int find_any_intersection(
-		int iBox, const FTriangle3d& Triangle, const FAxisAlignedBox3d& triBounds, const FQueryOptions& Options
+		int iBox, const FTriangle3d& Triangle, const FAxisAlignedBox3d& triBounds, 
+		TFunctionRef<bool(const FTriangle3d& A, const FTriangle3d& B)> TriangleIntersectionTest,
+		const FQueryOptions& Options
 	) const
 	{
 		int idx = BoxToIndex[iBox];
@@ -1246,7 +1424,7 @@ protected:
 					continue;
 				}
 				Mesh->GetTriVertices(ti, box_tri.V[0], box_tri.V[1], box_tri.V[2]);
-				if (FIntrTriangle3Triangle3d::Intersects(Triangle, box_tri))
+				if (TriangleIntersectionTest(Triangle, box_tri))
 				{
 					return ti;
 				}
@@ -1260,7 +1438,7 @@ protected:
 				iChild1 = (-iChild1) - 1;
 				if (box_box_intersect(iChild1, triBounds))
 				{
-					return find_any_intersection(iChild1, Triangle, triBounds, Options);
+					return find_any_intersection(iChild1, Triangle, triBounds, TriangleIntersectionTest, Options);
 				}
 
 			}
@@ -1272,11 +1450,11 @@ protected:
 				int interTri = -1;
 				if (box_box_intersect(iChild1, triBounds))
 				{
-					interTri = find_any_intersection(iChild1, Triangle, triBounds, Options);
+					interTri = find_any_intersection(iChild1, Triangle, triBounds, TriangleIntersectionTest, Options);
 				}
 				if (interTri == -1 && box_box_intersect(iChild2, triBounds))
 				{
-					interTri = find_any_intersection(iChild2, Triangle, triBounds, Options);
+					interTri = find_any_intersection(iChild2, Triangle, triBounds, TriangleIntersectionTest, Options);
 				}
 				return interTri;
 			}
@@ -1288,6 +1466,7 @@ protected:
 
 	bool find_any_intersection(
 		int iBox, const TMeshAABBTree3& OtherTree, const TFunction<FVector3d(const FVector3d&)>& TransformF, int oBox, int depth,
+		TFunctionRef<bool(const FTriangle3d & A, const FTriangle3d & B)> TriangleIntersectionTest,
 		const FQueryOptions& Options, const FQueryOptions& OtherTreeOptions
 	) const
 	{
@@ -1325,7 +1504,7 @@ protected:
 						continue;
 					}
 					Mesh->GetTriVertices(ti, Tri.V[0], Tri.V[1], Tri.V[2]);
-					if (TIntrTriangle3Triangle3<double>::Intersects(otri, Tri))
+					if (TriangleIntersectionTest(otri, Tri))
 					{
 						return true;
 					}
@@ -1361,7 +1540,7 @@ protected:
 				FAxisAlignedBox3d oChild1Box = OtherTree.GetBox(oChild1, TransformF);
 				if (oChild1Box.Intersects(bounds))
 				{
-					return find_any_intersection(iBox, OtherTree, TransformF, oBox, depth + 1, Options, OtherTreeOptions);
+					return find_any_intersection(iBox, OtherTree, TransformF, oBox, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 				}
 
 			}
@@ -1374,7 +1553,7 @@ protected:
 				FAxisAlignedBox3d oChild1Box = OtherTree.GetBox(oChild1, TransformF);
 				if (oChild1Box.Intersects(bounds))
 				{
-					intersects = find_any_intersection(iBox, OtherTree, TransformF, oChild1, depth + 1, Options, OtherTreeOptions);
+					intersects = find_any_intersection(iBox, OtherTree, TransformF, oChild1, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 				}
 
 				if (intersects == false)
@@ -1382,7 +1561,7 @@ protected:
 					FAxisAlignedBox3d oChild2Box = OtherTree.GetBox(oChild2, TransformF);
 					if (oChild2Box.Intersects(bounds))
 					{
-						intersects = find_any_intersection(iBox, OtherTree, TransformF, oChild2, depth + 1, Options, OtherTreeOptions);
+						intersects = find_any_intersection(iBox, OtherTree, TransformF, oChild2, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 					}
 				}
 				return intersects;
@@ -1399,7 +1578,7 @@ protected:
 				iChild1 = (-iChild1) - 1;
 				if (box_box_intersect(iChild1, oBounds))
 				{
-					return find_any_intersection(iChild1, OtherTree, TransformF, oBox, depth + 1, Options, OtherTreeOptions);
+					return find_any_intersection(iChild1, OtherTree, TransformF, oBox, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 				}
 			}
 			else                             // 2 children
@@ -1410,11 +1589,11 @@ protected:
 				bool intersects = false;
 				if (box_box_intersect(iChild1, oBounds))
 				{
-					intersects = find_any_intersection(iChild1, OtherTree, TransformF, oBox, depth + 1, Options, OtherTreeOptions);
+					intersects = find_any_intersection(iChild1, OtherTree, TransformF, oBox, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 				}
 				if (intersects == false && box_box_intersect(iChild2, oBounds))
 				{
-					intersects = find_any_intersection(iChild2, OtherTree, TransformF, oBox, depth + 1, Options, OtherTreeOptions);
+					intersects = find_any_intersection(iChild2, OtherTree, TransformF, oBox, depth + 1, TriangleIntersectionTest, Options, OtherTreeOptions);
 				}
 				return intersects;
 			}
@@ -1426,8 +1605,10 @@ protected:
 	
 	// helper for find_self_intersections that checks intersections between triangles from separate boxes
 	bool find_self_intersections_acrossboxes(
-		int Box1, int Box2, FIntrTriangle3Triangle3d& Intr, MeshIntersection::FIntersectionsQueryResult* Result,
-		bool bIgnoreTopoConnected, int depth, const FQueryOptions& Options
+		int Box1, int Box2, MeshIntersection::FIntersectionsQueryResult* Result,
+		bool bIgnoreTopoConnected, int depth,
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectFn,
+		const FQueryOptions& Options
 	) const
 	{
 		bool bFound = false;
@@ -1450,7 +1631,7 @@ protected:
 			for (int IdxA = Box1Idx + 1, Box1End = Box1Idx + 1 + IndexList[Box1Idx]; IdxA < Box1End; IdxA++)
 			{
 				int TID_A = IndexList[IdxA];
-				bFound = find_tri_tri_intersections(TID_A, Box2Idx + 1, Box2Idx + 1 + IndexList[Box2Idx], Intr, Result, bIgnoreTopoConnected, Options) || bFound;
+				bFound = find_tri_tri_intersections(TID_A, Box2Idx + 1, Box2Idx + 1 + IndexList[Box2Idx], Result, bIgnoreTopoConnected, IntersectFn, Options) || bFound;
 				if (!Result && bFound)
 				{
 					return true;
@@ -1482,7 +1663,7 @@ protected:
 
 				if (Box2 > -1 && box_box_intersect(iChild1, Box2Box))
 				{
-					bFound = find_self_intersections_acrossboxes(iChild1, Box2, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+					bFound = find_self_intersections_acrossboxes(iChild1, Box2, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 					if (!Result && bFound)
 					{
 						return true;
@@ -1496,7 +1677,7 @@ protected:
 
 				if (Box2 > -1 && box_box_intersect(iChild1, Box2Box))
 				{
-					bFound = find_self_intersections_acrossboxes(iChild1, Box2, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+					bFound = find_self_intersections_acrossboxes(iChild1, Box2, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 					if (!Result && bFound)
 					{
 						return true;
@@ -1504,7 +1685,7 @@ protected:
 				}
 				if (Box2 > -1 && box_box_intersect(iChild2, Box2Box))
 				{
-					bFound = find_self_intersections_acrossboxes(iChild2, Box2, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+					bFound = find_self_intersections_acrossboxes(iChild2, Box2, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 					if (!Result && bFound)
 					{
 						return true;
@@ -1520,7 +1701,7 @@ protected:
 			{
 				iChild1 = (-iChild1) - 1;
 
-				bFound = find_self_intersections_acrossboxes(iChild1, -1, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+				bFound = find_self_intersections_acrossboxes(iChild1, -1, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 				if (!Result && bFound)
 				{
 					return true;
@@ -1531,12 +1712,12 @@ protected:
 				iChild1 = iChild1 - 1;
 				int iChild2 = IndexList[Box1Idx + 1] - 1;
 
-				bFound = find_self_intersections_acrossboxes(iChild1, -1, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+				bFound = find_self_intersections_acrossboxes(iChild1, -1, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 				if (!Result && bFound)
 				{
 					return true;
 				}
-				bFound = find_self_intersections_acrossboxes(iChild2, -1, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+				bFound = find_self_intersections_acrossboxes(iChild2, -1, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 				if (!Result && bFound)
 				{
 					return true;
@@ -1546,7 +1727,7 @@ protected:
 
 				if (box_box_intersect(iChild1, Child2Box))
 				{
-					bFound = find_self_intersections_acrossboxes(iChild1, iChild2, Intr, Result, bIgnoreTopoConnected, depth + 1, Options) || bFound;
+					bFound = find_self_intersections_acrossboxes(iChild1, iChild2, Result, bIgnoreTopoConnected, depth + 1, IntersectFn, Options) || bFound;
 					if (!Result && bFound)
 					{
 						return true;
@@ -1560,9 +1741,10 @@ protected:
 
 	// helper for find_self_intersections that intersects a single triangle vs a range of triangles
 	bool find_tri_tri_intersections(int TID_A, int IdxRangeStart, int IdxRangeEnd, 
-		FIntrTriangle3Triangle3d& Intr,
 		MeshIntersection::FIntersectionsQueryResult* Result,
-		bool bIgnoreTopoConnected, const FQueryOptions& Options
+		bool bIgnoreTopoConnected,
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectFn,
+		const FQueryOptions& Options
 	) const
 	{
 		if (Options.TriangleFilterF != nullptr && Options.TriangleFilterF(TID_A) == false)
@@ -1573,8 +1755,10 @@ protected:
 		bool bFound = false;
 		FTriangle3d TriA, TriB;
 		Mesh->GetTriVertices(TID_A, TriA.V[0], TriA.V[1], TriA.V[2]);
-		FIndex3i TriA_VID = Mesh->GetTriangle(TID_A);
+		FIntrTriangle3Triangle3d Intr;
 		Intr.SetTriangle0(TriA);
+		FIndex3i TriA_VID = Mesh->GetTriangle(TID_A);
+		
 		for (int IdxB = IdxRangeStart; IdxB < IdxRangeEnd; IdxB++)
 		{
 			int TID_B = IndexList[IdxB];
@@ -1583,9 +1767,7 @@ protected:
 				continue;
 			}
 
-			Mesh->GetTriVertices(TID_B, TriB.V[0], TriB.V[1], TriB.V[2]);
 			FIndex3i TriB_VID = Mesh->GetTriangle(TID_B);
-
 			if (bIgnoreTopoConnected)
 			{
 				// ignore triangles that share a vertex
@@ -1608,35 +1790,18 @@ protected:
 				}
 			}
 
+			Mesh->GetTriVertices(TID_B, TriB.V[0], TriB.V[1], TriB.V[2]);
 			Intr.SetTriangle1(TriB);
-
-			// Note: Test() is much faster than Find() so it makes sense to call it first, as most
-			// triangles will not intersect (right?)
-			if (Intr.Test())
+			bFound = IntersectFn(Intr);
+			if (bFound)
 			{
-				bFound = true;
 				if (!Result)
 				{
 					return true;
 				}
-				if (Intr.Find())
+				else
 				{
-					if (Intr.Quantity == 1)
-					{
-						Result->Points.Add(MeshIntersection::FPointIntersection{ {TID_A, TID_B}, Intr.Points[0] });
-					}
-					else if (Intr.Quantity == 2)
-					{
-						Result->Segments.Add(MeshIntersection::FSegmentIntersection{ {TID_A, TID_B}, {Intr.Points[0], Intr.Points[1]} });
-					}
-					else
-					{
-						// this can't happen unless tri-tri intersection is set to detect coplanar intersection, which it currently is not!
-						// TODO: change this check to test whether coplanar intersection is enabled, once the option to enable it exists
-						checkf(false, TEXT("Coplanar intersection not enabled but found intr.Quanitity > 2?  Quantity=%d"), Intr.Quantity);
-
-						//result.Polygons.Add(MeshIntersection::FPolygonIntersection{ {ti, tj}, intr.Points, intr.Quantity });
-					}
+					AddTriTriIntersectionResult(Intr, TID_A, TID_B, *Result);
 				}
 			}
 		}
@@ -1644,9 +1809,42 @@ protected:
 		return bFound;
 	}
 
+	/**
+	 * Helper to add a triangle-triangle intersection result from to a intersection result struct
+	 */
+	static void AddTriTriIntersectionResult(const FIntrTriangle3Triangle3d& Intr, int TID_A, int TID_B, MeshIntersection::FIntersectionsQueryResult& Result)
+	{
+		if (Intr.Quantity == 1)
+		{
+			Result.Points.Add(MeshIntersection::FPointIntersection{ {TID_A, TID_B}, Intr.Points[0] });
+		}
+		else if (Intr.Quantity == 2)
+		{
+			Result.Segments.Add(MeshIntersection::FSegmentIntersection{ {TID_A, TID_B}, {Intr.Points[0], Intr.Points[1]} });
+		}
+		else if (Intr.Quantity > 2)
+		{
+			if (Intr.Type == EIntersectionType::MultiSegment)
+			{
+				Result.Segments.Add(MeshIntersection::FSegmentIntersection{ {TID_A, TID_B}, {Intr.Points[0], Intr.Points[1]} });
+				Result.Segments.Add(MeshIntersection::FSegmentIntersection{ {TID_A, TID_B}, {Intr.Points[2], Intr.Points[3]} });
+				if (Intr.Quantity > 4)
+				{
+					Result.Segments.Add(MeshIntersection::FSegmentIntersection{ {TID_A, TID_B}, {Intr.Points[4], Intr.Points[5]} });
+				}
+			}
+			else
+			{
+				Result.Polygons.Add(MeshIntersection::FPolygonIntersection{ {TID_A, TID_B},
+					{Intr.Points[0],Intr.Points[1],Intr.Points[2],Intr.Points[3],Intr.Points[4],Intr.Points[5]}, Intr.Quantity });
+			}
+		}
+	}
+
 
 	bool find_self_intersections(
-		FIntrTriangle3Triangle3d& Intr, MeshIntersection::FIntersectionsQueryResult* Result, bool bIgnoreTopoConnected,
+		MeshIntersection::FIntersectionsQueryResult* Result, bool bIgnoreTopoConnected,
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectFn,
 		const FQueryOptions & Options
 	) const
 	{
@@ -1659,7 +1857,7 @@ protected:
 			for (int IdxA = StartIdx + 1; IdxA + 1 < EndIdx; IdxA++)
 			{
 				int TID_A = IndexList[IdxA];
-				bFound = find_tri_tri_intersections(TID_A, IdxA + 1, EndIdx, Intr, Result, bIgnoreTopoConnected, Options) || bFound;
+				bFound = find_tri_tri_intersections(TID_A, IdxA + 1, EndIdx, Result, bIgnoreTopoConnected, IntersectFn, Options) || bFound;
 				if (!Result && bFound) // early out if not filling Result
 				{
 					return bFound;
@@ -1669,18 +1867,20 @@ protected:
 		}
 
 		// Recursively check across boxes
-		return find_self_intersections_acrossboxes(RootIndex, -1, Intr, Result, bIgnoreTopoConnected, 0, Options) || bFound;
+		return find_self_intersections_acrossboxes(RootIndex, -1, Result, bIgnoreTopoConnected, 0, IntersectFn, Options) || bFound;
 	}
 
 
 	void find_intersections(
 		int iBox, const TMeshAABBTree3& OtherTree, const TFunction<FVector3d(const FVector3d&)>& TransformF,
-		int oBox, int depth, FIntrTriangle3Triangle3d& intr, MeshIntersection::FIntersectionsQueryResult& result,
+		int oBox, int depth, MeshIntersection::FIntersectionsQueryResult& result,
+		TFunctionRef<bool(FIntrTriangle3Triangle3d&)> IntersectFn,
 		const FQueryOptions& Options, const FQueryOptions& OtherTreeOptions
 	) const
 	{
 		int idx = BoxToIndex[iBox];
 		int odx = OtherTree.BoxToIndex[oBox];
+		FIntrTriangle3Triangle3d Intr;
 
 		if (idx < TrianglesEnd && odx < OtherTree.TrianglesEnd)
 		{
@@ -1703,7 +1903,7 @@ protected:
 					otri.V[1] = TransformF(otri.V[1]);
 					otri.V[2] = TransformF(otri.V[2]);
 				}
-				intr.SetTriangle0(otri);
+				Intr.SetTriangle0(otri);
 
 				// inner iteration over "our" triangles
 				for (int i = 1; i <= num_tris; ++i)
@@ -1714,31 +1914,12 @@ protected:
 						continue;
 					}
 					Mesh->GetTriVertices(ti, Tri.V[0], Tri.V[1], Tri.V[2]);
-					intr.SetTriangle1(Tri);
+					Intr.SetTriangle1(Tri);
 
-					// Note: Test() is much faster than Find() so it makes sense to call it first, as most
-					// triangles will not intersect (right?)
-					if (intr.Test())
+
+					if (IntersectFn(Intr))
 					{
-						if (intr.Find())
-						{
-							if (intr.Quantity == 1)
-							{
-								result.Points.Add(MeshIntersection::FPointIntersection{ {ti, tj}, intr.Points[0] });
-							}
-							else if (intr.Quantity == 2)
-							{
-								result.Segments.Add(MeshIntersection::FSegmentIntersection{ {ti, tj}, {intr.Points[0], intr.Points[1]} });
-							}
-							else
-							{
-								// this can't happen unless tri-tri intersection is set to detect coplanar intersection, which it currently is not!
-								// TODO: change this check to test whether coplanar intersection is enabled, once the option to enable it exists
-								checkf(false, TEXT("Coplanar intersection not enabled but found intr.Quanitity > 2?  Quantity=%d"), intr.Quantity);
-
-								//result.Polygons.Add(MeshIntersection::FPolygonIntersection{ {ti, tj}, intr.Points, intr.Quantity });
-							}
-						}
+						AddTriTriIntersectionResult(Intr, ti, tj, result);
 					}
 				}
 			}
@@ -1762,7 +1943,7 @@ protected:
 
 			// [TODO] could we do efficient box.intersects(transform(box)) test?
 			//   ( Contains() on each xformed point? )
-			FAxisAlignedBox3d bounds = GetBoxEps(iBox);
+			FAxisAlignedBox3d bounds = GetBoxEps(iBox, BoxEps);
 
 			int oChild1 = OtherTree.IndexList[odx];
 			if (oChild1 < 0)                  // 1 child, descend if nearer than cur min-dist
@@ -1770,7 +1951,7 @@ protected:
 				oChild1 = (-oChild1) - 1;
 				FAxisAlignedBox3d oChild1Box = OtherTree.GetBox(oChild1, TransformF);
 				if (oChild1Box.Intersects(bounds))
-					find_intersections(iBox, OtherTree, TransformF, oChild1, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iBox, OtherTree, TransformF, oChild1, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 
 			}
 			else                             // 2 children
@@ -1780,14 +1961,14 @@ protected:
 				FAxisAlignedBox3d oChild1Box = OtherTree.GetBox(oChild1, TransformF);
 				if (oChild1Box.Intersects(bounds))
 				{
-					find_intersections(iBox, OtherTree, TransformF, oChild1, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iBox, OtherTree, TransformF, oChild1, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 				}
 
 				int oChild2 = OtherTree.IndexList[odx + 1] - 1;
 				FAxisAlignedBox3d oChild2Box = OtherTree.GetBox(oChild2, TransformF);
 				if (oChild2Box.Intersects(bounds))
 				{
-					find_intersections(iBox, OtherTree, TransformF, oChild2, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iBox, OtherTree, TransformF, oChild2, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 				}
 			}
 
@@ -1803,7 +1984,7 @@ protected:
 				iChild1 = (-iChild1) - 1;
 				if (box_box_intersect(iChild1, oBounds))
 				{
-					find_intersections(iChild1, OtherTree, TransformF, oBox, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iChild1, OtherTree, TransformF, oBox, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 				}
 
 			}
@@ -1812,13 +1993,13 @@ protected:
 				iChild1 = iChild1 - 1;
 				if (box_box_intersect(iChild1, oBounds))
 				{
-					find_intersections(iChild1, OtherTree, TransformF, oBox, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iChild1, OtherTree, TransformF, oBox, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 				}
 
 				int iChild2 = IndexList[idx + 1] - 1;
 				if (box_box_intersect(iChild2, oBounds))
 				{
-					find_intersections(iChild2, OtherTree, TransformF, oBox, depth + 1, intr, result, Options, OtherTreeOptions);
+					find_intersections(iChild2, OtherTree, TransformF, oBox, depth + 1, result, IntersectFn, Options, OtherTreeOptions);
 				}
 			}
 

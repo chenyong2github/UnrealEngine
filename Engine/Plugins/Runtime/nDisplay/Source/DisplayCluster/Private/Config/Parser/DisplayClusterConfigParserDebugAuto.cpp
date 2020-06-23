@@ -3,9 +3,9 @@
 #include "Config/Parser/DisplayClusterConfigParserDebugAuto.h"
 #include "Config/DisplayClusterConfigTypes.h"
 
-#include "DisplayClusterBuildConfig.h"
-#include "DisplayClusterConstants.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterBuildConfig.h"
+#include "Misc/DisplayClusterConstants.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FDisplayClusterConfigParserDebugAuto::FDisplayClusterConfigParserDebugAuto(IDisplayClusterConfigParserListener* pListener) :

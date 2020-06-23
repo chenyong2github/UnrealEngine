@@ -21,7 +21,13 @@
 #define AP_KM_PER_SLICE 4.0f
 #define AP_KM_PER_SLICE_INV (1.0f / AP_KM_PER_SLICE)
 
+
+float2 FromUnitToSubUvs(float2 uv, float4 SizeAndInvSize) { return (uv + 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy + 1.0f)); }
+float2 FromSubUvsToUnit(float2 uv, float4 SizeAndInvSize) { return (uv - 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy - 1.0f)); }
+
+
 float4 GetAerialPerspectiveLuminanceTransmittance(
+	bool ViewIsRealTimeReflectionCapture, float4 CameraAerialPerspectiveVolumeSizeAndInvSize,
 	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos, 
 	Texture3D<float4> AerialPerspectiveVolumeTexture, SamplerState AerialPerspectiveVolumeTextureSampler,
 	float AerialPerspectiveVolumeDepthResolutionInv,
@@ -48,6 +54,25 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 		Weight = saturate(NonLinSlice*NonLinSlice * 2.0f); // Square to have a linear falloff from the change of distribution above
 	}
 
+	if (ViewIsRealTimeReflectionCapture)
+	{
+		// We modify ScreenUv to sample the correct AP accordign to 360 reflection AP LUT.
+		// This is the inverse of what is in RenderCameraAerialPerspectiveVolumeCS.
+		float3 WorldDir = normalize(SampledWorldPos - CameraWorldPos);
+
+		float SinPhi = WorldDir.z;
+		float CosPhi = sqrt(1.0f - SinPhi * SinPhi);
+		ScreenUv.y = WorldDir.z * 0.5f + 0.5f;
+
+		float CosTheta = WorldDir.x / CosPhi;
+		float SinTheta = WorldDir.y / CosPhi;
+		float Theta = acos(CosTheta);
+		Theta = SinTheta < 0.0f ? (PI-Theta) + PI : Theta;
+		ScreenUv.x = Theta / (2.0 * PI);
+
+		ScreenUv = FromUnitToSubUvs(ScreenUv, CameraAerialPerspectiveVolumeSizeAndInvSize);
+	}
+
 	float4 AP = Texture3DSampleLevel(AerialPerspectiveVolumeTexture, AerialPerspectiveVolumeTextureSampler, float3(ScreenUv, NonLinW), 0.0f);
 
 	// Lerp to no contribution near the camera (careful as AP contains transmittance)
@@ -69,8 +94,8 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	return AP;
 }
 
-
 float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
+	bool ViewIsRealTimeReflectionCapture, float4 CameraAerialPerspectiveVolumeSizeAndInvSize,
 	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos,
 	Texture3D<float4> AerialPerspectiveVolumeTexture, SamplerState AerialPerspectiveVolumeTextureSampler,
 	float AerialPerspectiveVolumeDepthResolutionInv,
@@ -81,6 +106,7 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 	float OneOverExposure, float4 FogToApplyOver)
 {
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+		ViewIsRealTimeReflectionCapture, CameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDC, SampledWorldPos, CameraWorldPos,
 		AerialPerspectiveVolumeTexture, AerialPerspectiveVolumeTextureSampler,
 		AerialPerspectiveVolumeDepthResolutionInv,
@@ -98,11 +124,6 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 
 	return FinalFog;
 }
-
-
-
-float2 FromUnitToSubUvs(float2 uv, float4 SizeAndInvSize) { return (uv + 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy + 1.0f)); }
-float2 FromSubUvsToUnit(float2 uv, float4 SizeAndInvSize) { return (uv - 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy - 1.0f)); }
 
 void getTransmittanceLutUvs(
 	in float viewHeight, in float viewZenithCosAngle, in float BottomRadius, in float TopRadius,
@@ -156,18 +177,10 @@ void SkyViewLutParamsToUv(
 	UV = FromUnitToSubUvs(UV, SkyViewLutSizeAndInvSize);
 }
 
-float3x3 GetSkyViewLutReferential(in float3 WorldPos, in float3 ViewForward, in float3 ViewRight)
+float3x3 GetSkyViewLutReferential(in float4x4 ViewSkyViewLutReferential)
 {
-	float3	Up = normalize(WorldPos);
-	float3	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
-	float3	Left = normalize(cross(Forward, Up));
-	if (abs(dot(Forward, Up)) > 0.99f)
-	{
-		Left = -ViewRight;
-	}
-	Forward = normalize(cross(Up, Left));
-	float3x3 LocalReferencial = transpose(float3x3(Forward, Left, Up));
-	return LocalReferencial;
+	float3x3 SkyViewLutReferential = (float3x3) ViewSkyViewLutReferential;
+	return SkyViewLutReferential;
 }
 
 float3 GetAtmosphereTransmittance(

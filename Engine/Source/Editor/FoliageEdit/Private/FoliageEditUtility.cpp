@@ -12,6 +12,7 @@
 #include "AssetRegistryModule.h"
 #include "FoliageEdMode.h"
 #include "FileHelpers.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FoliageEdMode"
 

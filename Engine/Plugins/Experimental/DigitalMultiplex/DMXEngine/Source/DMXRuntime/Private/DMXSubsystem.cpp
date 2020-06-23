@@ -16,6 +16,8 @@
 #include "Async/Async.h"
 #include "Engine/Engine.h"
 
+const FName InvalidUniverseError = FName("InvalidUniverseError");
+
 DECLARE_LOG_CATEGORY_CLASS(DMXSubsystemLog, Log, All);
 
 void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> FunctionMap, EDMXSendResult& OutResult)
@@ -102,14 +104,21 @@ void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixture
 	}
 }
 
-void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> ChannelValuesMap, EDMXSendResult& OutResult)
+void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> AddressValueMap, EDMXSendResult& OutResult)
 {
 	OutResult = EDMXSendResult::ErrorSetBuffer;
+
+	if (UniverseIndex < 0)
+	{
+		OutResult = EDMXSendResult::ErrorGetUniverse;
+		FFrame::KismetExecutionMessage(TEXT("Invalid Universe Number: SendDMXRaw"), ELogVerbosity::Error, InvalidUniverseError);
+		return;
+	}
 
 	if (SelectedProtocol)
 	{
 		IDMXFragmentMap DMXFragmentMap;
-		for (auto& Elem : ChannelValuesMap)
+		for (auto& Elem : AddressValueMap)
 		{
 			if (Elem.Key != 0)
 			{
@@ -205,7 +214,7 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Univer
 			TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> ProtocolUniverse = Protocol->GetUniverseById(UniverseIndex);
 			if (ProtocolUniverse.IsValid())
 			{
-				FDMXBufferPtr Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
+				TSharedPtr<FDMXBuffer> Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
 				if (Buffer.IsValid())
 				{
 					Buffer->AccessDMXData([&DMXBuffer](TArray<uint8>& InData)
@@ -322,7 +331,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 		return false;
 	}
 
-	FDMXBufferPtr InputDMXBuffer = Universe->GetInputDMXBuffer();
+	TSharedPtr<FDMXBuffer> InputDMXBuffer = Universe->GetInputDMXBuffer();
 	if (!InputDMXBuffer.IsValid())
 	{
 		UE_LOG(DMXSubsystemLog, Warning, TEXT("InputDMXBuffer Not Valid"));

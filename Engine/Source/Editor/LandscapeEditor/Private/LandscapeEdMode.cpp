@@ -2407,6 +2407,10 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 			SetCurrentTool("NewLandscape");
 		}
 	}
+	else if (!HasValidLandscapeEditLayerSelection())
+	{
+		SetCurrentLayer(0);
+	}
 
 	if (!CanEditCurrentTarget())
 	{
@@ -2415,6 +2419,11 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	}
 
 	return CurrentIndex;
+}
+
+bool FEdModeLandscape::HasValidLandscapeEditLayerSelection() const
+{
+	return !CanHaveLandscapeLayersContent() || GetCurrentLayer();
 }
 
 void FEdModeLandscape::SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo)
@@ -3320,16 +3329,12 @@ bool FEdModeLandscape::IsSelectionAllowed(AActor* InActor, bool bInSelection) co
 	{
 		return true;
 	}
-	else if (InActor->IsA(ALight::StaticClass()))
-	{
-		return true;
-	}
 	else if (InActor->IsA(ALandscapeBlueprintBrushBase::StaticClass()))
 	{
 		return true;
 	}
 
-	return true;
+	return false;
 }
 
 /** FEdMode: Called when the currently selected actor has changed */

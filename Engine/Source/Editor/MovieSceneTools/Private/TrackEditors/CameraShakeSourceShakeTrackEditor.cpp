@@ -44,7 +44,16 @@ public:
 		const TSubclassOf<UCameraShake> ShakeClass = GetCameraShakeClass();
 		if (const UClass* ShakeClassPtr = ShakeClass.Get())
 		{
-			return FText::FromString(ShakeClassPtr->GetName());
+			float ShakeDuration = -1.f;
+			const bool bHasDuration = UCameraShake::GetCameraShakeDuration(ShakeClass, ShakeDuration);
+			if (bHasDuration && ShakeDuration != 0.f)
+			{
+				return FText::FromString(ShakeClassPtr->GetName());
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("ShakeHasNoDurationWarning", "{0} (warning: shake has no duration)"), FText::FromString(ShakeClassPtr->GetName()));
+			}
 		}
 		return LOCTEXT("NoCameraShake", "No Camera Shake");
 	}
@@ -91,95 +100,134 @@ public:
 		const float SectionEndTime = SectionObject->GetExclusiveEndFrame() / TickResolution;
 		const float SectionEndTimeInPixels = TimeConverter.SecondsToPixel(SectionEndTime);
 
-		float ShakeDuration = -1.f;
 		const TSubclassOf<UCameraShake> CameraShakeClass = GetCameraShakeClass();
-		UCameraShake::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
-
-		const float ShakeEndInPixels = (ShakeDuration > SMALL_NUMBER) ? 
-			TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration, SectionEndTime)) :
-			SectionEndTimeInPixels;
-		const bool bSectionContainsEntireShake = (ShakeDuration > SMALL_NUMBER && SectionDuration > ShakeDuration);
-
-		if (bSectionContainsEntireShake && SectionRange.HasLowerBound())
+		const bool bHasValidCameraShake = (CameraShakeClass.Get() != nullptr);
+		if (bHasValidCameraShake)
 		{
-			// Add some separator where the shake ends.
-			float OffsetPixel = ShakeEndInPixels - SectionStartTimeInPixels;
+			float ShakeDuration = -1.f;
+			UCameraShake::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
 
-			FSlateDrawElement::MakeBox(
-					Painter.DrawElements,
-					Painter.LayerId++,
-					Painter.SectionGeometry.MakeChild(
-						FVector2D(2.f, Painter.SectionGeometry.Size.Y - 2.f),
-						FSlateLayoutTransform(FVector2D(OffsetPixel, 1.f))
-						).ToPaintGeometry(),
-					GenericDivider,
-					DrawEffects
+			const float ShakeEndInPixels = (ShakeDuration > 0.f) ? 
+				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration, SectionEndTime)) :
+				SectionEndTimeInPixels;
+			const bool bShakeHasNoDuration = (ShakeDuration == 0.f);
+			const bool bSectionContainsEntireShake = (ShakeDuration > 0.f && SectionDuration > ShakeDuration);
+
+			if (!bShakeHasNoDuration)
+			{
+				if (bSectionContainsEntireShake && SectionRange.HasLowerBound())
+				{
+					// Add some separator where the shake ends.
+					float OffsetPixel = ShakeEndInPixels - SectionStartTimeInPixels;
+
+					FSlateDrawElement::MakeBox(
+							Painter.DrawElements,
+							Painter.LayerId++,
+							Painter.SectionGeometry.MakeChild(
+								FVector2D(2.f, Painter.SectionGeometry.Size.Y - 2.f),
+								FSlateLayoutTransform(FVector2D(OffsetPixel, 1.f))
+							).ToPaintGeometry(),
+							GenericDivider,
+							DrawEffects
 					);
 
-			// Draw the rest in a "muted" color.
-			const float OverflowSizeInPixels = SectionEndTimeInPixels - ShakeEndInPixels;
+					// Draw the rest in a "muted" color.
+					const float OverflowSizeInPixels = SectionEndTimeInPixels - ShakeEndInPixels;
 
+					FSlateDrawElement::MakeBox(
+							Painter.DrawElements,
+							Painter.LayerId++,
+							Painter.SectionGeometry.MakeChild(
+								FVector2D(OverflowSizeInPixels, Painter.SectionGeometry.Size.Y),
+								FSlateLayoutTransform(FVector2D(OffsetPixel, 0))
+							).ToPaintGeometry(),
+							FEditorStyle::GetBrush("WhiteBrush"),
+							ESlateDrawEffect::None,
+							FLinearColor::Black.CopyWithNewOpacity(0.5f)
+					);
+				}
+
+				float ShakeBlendIn = 0.f, ShakeBlendOut = 0.f;
+				UCameraShake::GetCameraShakeBlendTimes(CameraShakeClass, ShakeBlendIn, ShakeBlendOut);
+				{
+					// Draw the shake "intensity" as a line that goes up and down according to
+					// blend in and out times.
+					const FLinearColor LineColor(0.25f, 0.25f, 1.f, 0.75f);
+
+					const bool bHasBlendIn = (ShakeBlendIn > SMALL_NUMBER);
+					const bool bHasBlendOut = (ShakeBlendOut > SMALL_NUMBER);
+
+					float ShakeBlendInEndInPixels = TimeConverter.SecondsToPixel(SectionStartTime + ShakeBlendIn);
+					float ShakeBlendOutStartInPixels = ShakeEndInPixels - TimeConverter.SecondsDeltaToPixel(ShakeBlendOut);
+					if (ShakeBlendInEndInPixels > ShakeBlendOutStartInPixels)
+					{
+						// If we have to blend out before we're done blending in, let's switch over
+						// at the half mark.
+						ShakeBlendInEndInPixels = ShakeBlendOutStartInPixels = (ShakeBlendInEndInPixels + ShakeBlendOutStartInPixels) / 2.f;
+					}
+
+					TArray<FVector2D> LinePoints;
+
+					if (bHasBlendIn)
+					{
+						LinePoints.Add(FVector2D(SectionStartTimeInPixels, Painter.SectionGeometry.Size.Y - 2.f));
+						LinePoints.Add(FVector2D(ShakeBlendInEndInPixels, 2.f));
+					}
+					else
+					{
+						LinePoints.Add(FVector2D(SectionStartTimeInPixels, 2.f));
+					}
+
+					if (bHasBlendOut)
+					{
+						LinePoints.Add(FVector2D(ShakeBlendOutStartInPixels, 2.f));
+						LinePoints.Add(FVector2D(ShakeEndInPixels, Painter.SectionGeometry.Size.Y - 2.f));
+					}
+					else
+					{
+						LinePoints.Add(FVector2D(ShakeEndInPixels, 2.f));
+					}
+
+					FSlateDrawElement::MakeLines(
+							Painter.DrawElements,
+							Painter.LayerId++,
+							Painter.SectionGeometry.ToPaintGeometry(),
+							LinePoints,
+							DrawEffects,
+							LineColor);
+				}
+			}
+			else
+			{
+				// Draw the shake in a "warning" orange colour.
+				const float SectionDurationInPixels = TimeConverter.SecondsDeltaToPixel(SectionDuration);
+				FSlateDrawElement::MakeBox(
+						Painter.DrawElements,
+						Painter.LayerId++,
+						Painter.SectionGeometry.MakeChild(
+							FVector2D(SectionDurationInPixels, Painter.SectionGeometry.Size.Y),
+							FSlateLayoutTransform(FVector2D(SectionStartTimeInPixels, 0))
+						).ToPaintGeometry(),
+						FEditorStyle::GetBrush("WhiteBrush"),
+						ESlateDrawEffect::None,
+						FLinearColor(1.f, 0.5f, 0.f, 0.5f)
+				);
+			}
+		}
+		else
+		{
+			const float SectionDurationInPixels = TimeConverter.SecondsDeltaToPixel(SectionDuration);
 			FSlateDrawElement::MakeBox(
 					Painter.DrawElements,
 					Painter.LayerId++,
 					Painter.SectionGeometry.MakeChild(
-						FVector2D(OverflowSizeInPixels, Painter.SectionGeometry.Size.Y),
-						FSlateLayoutTransform(FVector2D(OffsetPixel, 0))
+						FVector2D(SectionDurationInPixels, Painter.SectionGeometry.Size.Y),
+						FSlateLayoutTransform(FVector2D(SectionStartTimeInPixels, 0))
 						).ToPaintGeometry(),
 					FEditorStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None,
-					FLinearColor::Black.CopyWithNewOpacity(0.5f)
+					FLinearColor::Red.CopyWithNewOpacity(0.5f)
 					);
-		}
-
-		float ShakeBlendIn = 0.f, ShakeBlendOut = 0.f;
-		UCameraShake::GetCameraShakeBlendTimes(CameraShakeClass, ShakeBlendIn, ShakeBlendOut);
-		{
-			// Draw the shake "intensity" as a line that goes up and down according to
-			// blend in and out times.
-			const FLinearColor LineColor(0.25f, 0.25f, 1.f, 0.75f);
-
-			const bool bHasBlendIn = (ShakeBlendIn > SMALL_NUMBER);
-			const bool bHasBlendOut = (ShakeBlendOut > SMALL_NUMBER);
-
-			float ShakeBlendInEndInPixels = TimeConverter.SecondsToPixel(SectionStartTime + ShakeBlendIn);
-			float ShakeBlendOutStartInPixels = ShakeEndInPixels - TimeConverter.SecondsDeltaToPixel(ShakeBlendOut);
-			if (ShakeBlendInEndInPixels > ShakeBlendOutStartInPixels)
-			{
-				// If we have to blend out before we're done blending in, let's switch over
-				// at the half mark.
-				ShakeBlendInEndInPixels = ShakeBlendOutStartInPixels = (ShakeBlendInEndInPixels + ShakeBlendOutStartInPixels) / 2.f;
-			}
-
-			TArray<FVector2D> LinePoints;
-
-			if (bHasBlendIn)
-			{
-				LinePoints.Add(FVector2D(SectionStartTimeInPixels, Painter.SectionGeometry.Size.Y - 2.f));
-				LinePoints.Add(FVector2D(ShakeBlendInEndInPixels, 2.f));
-			}
-			else
-			{
-				LinePoints.Add(FVector2D(SectionStartTimeInPixels, 2.f));
-			}
-
-			if (bHasBlendOut)
-			{
-				LinePoints.Add(FVector2D(ShakeBlendOutStartInPixels, 2.f));
-				LinePoints.Add(FVector2D(ShakeEndInPixels, Painter.SectionGeometry.Size.Y - 2.f));
-			}
-			else
-			{
-				LinePoints.Add(FVector2D(ShakeEndInPixels, 2.f));
-			}
-
-			FSlateDrawElement::MakeLines(
-					Painter.DrawElements,
-					Painter.LayerId++,
-					Painter.SectionGeometry.ToPaintGeometry(),
-					LinePoints,
-					DrawEffects,
-					LineColor);
 		}
 
 		return Painter.LayerId;

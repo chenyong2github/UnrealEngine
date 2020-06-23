@@ -56,6 +56,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -298,6 +299,24 @@ UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName
 	if (!FoundObject)
 	{
 		FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, ExactClass);
+	}
+
+	return FoundObject;
+}
+
+UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool ExactClass, bool AnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	UObject* FoundObject = nullptr;
+	
+	if (!GIsSavingPackage && !IsGarbageCollectingOnGameThread())
+	{
+		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, ExactClass, AnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+		if (!FoundObject)
+		{
+			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, ExactClass);
+		}
 	}
 
 	return FoundObject;
@@ -693,7 +712,7 @@ const FString* GetIniFilenameFromObjectsReference(const FString& Name)
 //
 // Resolve a package and name.
 //
-bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Throw, uint32 LoadFlags /*= LOAD_None*/, FUObjectSerializeContext* InLoadContext /*= nullptr*/)
+bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Throw, uint32 LoadFlags /*= LOAD_None*/, FLinkerInstancingContext* InstancingContext)
 {
 	// Strip off the object class.
 	ConstructorHelpers::StripObjectClass( InOutName );
@@ -764,7 +783,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			InPackage = StaticFindObjectFast(UPackage::StaticClass(), InPackage, *PartialName);
 			if (!ScriptPackageName && !InPackage)
 			{
-				InPackage = LoadPackage(dynamic_cast<UPackage*>(InPackage), *PartialName, LoadFlags, nullptr, InLoadContext);
+				InPackage = LoadPackage(Cast<UPackage>(InPackage), *PartialName, LoadFlags, nullptr, InstancingContext);
 			}
 			if (!InPackage)
 			{
@@ -813,7 +832,7 @@ bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObjec
 	}
 }
 
-UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FUObjectSerializeContext* InSerializeContext)
+UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FLinkerInstancingContext* InstancingContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LoadObject);
 	check(ObjectClass);
@@ -825,7 +844,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 	const bool bContainsObjectName = !!FCString::Strstr(InName, TEXT("."));
 
 	// break up the name into packages, returning the innermost name and its outer
-	ResolveName(InOuter, StrName, true, true, LoadFlags & (LOAD_EditorOnly | LOAD_Quiet | LOAD_NoWarn | LOAD_DeferDependencyLoads), InSerializeContext);
+	ResolveName(InOuter, StrName, true, true, LoadFlags & (LOAD_EditorOnly | LOAD_NoVerify | LOAD_Quiet | LOAD_NoWarn | LOAD_DeferDependencyLoads), InstancingContext);
 	if (InOuter)
 	{
 		// If we have a full UObject name then attempt to find the object in memory first,
@@ -848,7 +867,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 			if (!InOuter->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
 			{
 				// now that we have one asset per package, we load the entire package whenever a single object is requested
-				LoadPackage(NULL, *InOuter->GetOutermost()->GetName(), LoadFlags & ~LOAD_Verify, nullptr, InSerializeContext);
+				LoadPackage(NULL, *InOuter->GetOutermost()->GetName(), LoadFlags & ~LOAD_Verify, nullptr, InstancingContext);
 			}
 
 			// now, find the object in the package
@@ -877,7 +896,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 		StrName = InName;
 		StrName += TEXT(".");
 		StrName += FPackageName::GetShortName(InName);
-		Result = StaticLoadObjectInternal(ObjectClass, InOuter, *StrName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InSerializeContext);
+		Result = StaticLoadObjectInternal(ObjectClass, InOuter, *StrName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InstancingContext);
 	}
 #if WITH_EDITORONLY_DATA
 	else if (Result && !(LoadFlags & LOAD_EditorOnly))
@@ -889,7 +908,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 	return Result;
 }
 
-UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FUObjectSerializeContext* InSerializeContext)
+UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FLinkerInstancingContext* InstancingContext)
 {
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	if (ThreadContext.IsRoutingPostLoad && IsInAsyncLoadingThread())
@@ -901,11 +920,11 @@ UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* In
 			*GetFullNameSafe(ThreadContext.CurrentlyPostLoadedObjectByALT));
 	}
 
-	UObject* Result = StaticLoadObjectInternal(ObjectClass, InOuter, InName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InSerializeContext);
+	UObject* Result = StaticLoadObjectInternal(ObjectClass, InOuter, InName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InstancingContext);
 	if (!Result)
 	{
 		FString ObjectName = InName;
-		ResolveName(InOuter, ObjectName, true, true, LoadFlags & LOAD_EditorOnly);
+		ResolveName(InOuter, ObjectName, true, true, LoadFlags & LOAD_EditorOnly, InstancingContext);
 
 		if (InOuter == nullptr || FLinkerLoad::IsKnownMissingPackage(FName(*InOuter->GetPathName())) == false)
 		{
@@ -1059,9 +1078,15 @@ public:
 // @todo: remove this in the new loader
 static int32 GGameThreadLoadCounter = 0;
 
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext)
+UE_TRACE_EVENT_BEGIN(CUSTOM_LOADTIMER_LOG, LoadPackageInternal, NoSync)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, PackageName)
+UE_TRACE_EVENT_END()
+
+UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FLinkerInstancingContext* InstancingContext)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
+	SCOPED_CUSTOM_LOADTIMER(LoadPackageInternal)
+		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, InLongPackageNameOrFilename);
 
 	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), InLongPackageNameOrFilename);
 
@@ -1205,7 +1230,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 
 		{
 			FUObjectSerializeContext* InOutLoadContext = LoadContext;
-			Linker = GetPackageLinker(InOuter, *FileToLoad, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext);
+			Linker = GetPackageLinker(InOuter, *FileToLoad, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
 			if (InOutLoadContext != LoadContext && InOutLoadContext)
 			{
 				// The linker already existed and was associated with another context
@@ -1409,7 +1434,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 	return Result;
 }
 
-UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext)
+UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride, FLinkerInstancingContext* InstancingContext)
 {
 	COOK_STAT(LoadPackageStats::NumPackagesLoaded++);
 	COOK_STAT(FScopedDurationTimer LoadTimer(LoadPackageStats::LoadPackageTimeSec));
@@ -1424,7 +1449,7 @@ UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 
 	// since we are faking the object name, this is basically a duplicate of LLM_SCOPED_TAG_WITH_OBJECT_IN_SET
 	FString FakePackageName = FString(TEXT("Package ")) + InLongPackageName;
 	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ? FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*FakePackageName)).GetName() : NAME_None, ELLMTagSet::Assets, ELLMTracker::Default);
-	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InLoadContext);
+	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext);
 }
 
 /**
@@ -1511,6 +1536,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 		LoadContext->DecrementBeginLoadCount();
 		return;
 	}
+	SCOPED_LOADTIMER(EndLoad);
 
 #if WITH_EDITOR
 	TOptional<FScopedSlowTask> SlowTask;
@@ -1545,14 +1571,17 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			ObjLoaded.Sort(FCompareUObjectByLinkerAndOffset());
 
 			// Finish loading everything.
-			for (int32 i = 0; i < ObjLoaded.Num(); i++)
 			{
-				// Preload.
-				UObject* Obj = ObjLoaded[i];
-				if (Obj->HasAnyFlags(RF_NeedLoad))
+				SCOPED_LOADTIMER(PreLoadAndSerialize);
+				for (int32 i = 0; i < ObjLoaded.Num(); i++)
 				{
-					check(Obj->GetLinker());
-					Obj->GetLinker()->Preload(Obj);
+					// Preload.
+					UObject* Obj = ObjLoaded[i];
+					if (Obj->HasAnyFlags(RF_NeedLoad))
+					{
+						check(Obj->GetLinker());
+						Obj->GetLinker()->Preload(Obj);
+					}
 				}
 			}
 
@@ -1585,6 +1614,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			}
 
 			{
+				SCOPED_LOADTIMER(PostLoad);
 				// set this so that we can perform certain operations in which are only safe once all objects have been de-serialized.
 				TGuardValue<bool> GuardIsRoutingPostLoad(FUObjectThreadContext::Get().IsRoutingPostLoad, true);
 				FLinkerLoad* VisitedLinkerLoad = nullptr;
@@ -1667,7 +1697,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			// Empty array before next iteration as we finished postloading all objects.
 			ObjLoaded.Reset();
 		}
-
+		
 		if ( GIsEditor && LoadedLinkers.Num() > 0 )
 		{
 			for (FLinkerLoad* LoadedLinker : LoadedLinkers)
@@ -2259,7 +2289,8 @@ UObject* StaticAllocateObject
 	EObjectFlags	InFlags,
 	EInternalObjectFlags InternalSetFlags,
 	bool bCanRecycleSubobjects,
-	bool* bOutRecycledSubobject
+	bool* bOutRecycledSubobject,
+	UPackage* ExternalPackage
 )
 {
 	LLM_SCOPE(ELLMTag::UObject);
@@ -2457,6 +2488,12 @@ UObject* StaticAllocateObject
 		// Propagate flags to subobjects created in the native constructor.
 		Obj->SetFlags(InFlags);
 		Obj->SetInternalFlags(InternalSetFlags);
+	}
+
+	// if an external package was specified, assign it to the object
+	if (ExternalPackage)
+	{
+		Obj->SetExternalPackage(ExternalPackage);
 	}
 
 	if (bWasConstructedOnOldObject)
@@ -3126,14 +3163,15 @@ void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 UObject* StaticConstructObject_Internal
 (
 	const UClass*	InClass,
-	UObject*		InOuter								/*=GetTransientPackage()*/,
-	FName			InName								/*=NAME_None*/,
-	EObjectFlags	InFlags								/*=0*/,
-	EInternalObjectFlags InternalSetFlags				/*=0*/,
-	UObject*		InTemplate							/*=NULL*/,
-	bool bCopyTransientsFromClassDefaults				/*=false*/,
-	FObjectInstancingGraph* InInstanceGraph				/*=NULL*/,
-	bool bAssumeTemplateIsArchetype	/*=false*/
+	UObject*		InOuter,					/*=GetTransientPackage()*/
+	FName			InName,						/*=NAME_None*/
+	EObjectFlags	InFlags,					/*=0*/
+	EInternalObjectFlags InternalSetFlags,		/*=0*/
+	UObject*		InTemplate,					/*=NULL*/
+	bool bCopyTransientsFromClassDefaults,		/*=false*/
+	FObjectInstancingGraph* InInstanceGraph,	/*=NULL*/
+	bool bAssumeTemplateIsArchetype,			/*=false*/
+	UPackage* ExternalPackage					/*=nullptr*/
 )
 {
 	LLM_SCOPE(ELLMTag::UObject);
@@ -3163,7 +3201,7 @@ UObject* StaticConstructObject_Internal
 		;
 
 	bool bRecycledSubobject = false;	
-	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject);
+	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, ExternalPackage);
 	check(Result != NULL);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
@@ -3840,13 +3878,13 @@ COREUOBJECT_API UFunction* FindDelegateSignature(FName DelegateSignatureName)
  */
 FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 {
-	static bool Once = false;
+	static bool ShowDiskPathOnce = false;
 	static bool ShowDiskPath = true;
 
-	if (!Once)
+	if (!ShowDiskPathOnce)
 	{
 		GConfig->GetBool(TEXT("Core.System"), TEXT("AssetLogShowsDiskPath"), ShowDiskPath, GEngineIni);
-		Once = true;
+		ShowDiskPathOnce = true;
 	}
 
 	if (FPlatformProperties::RequiresCookedData() || !ShowDiskPath)
@@ -3876,8 +3914,20 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 		return FString::Printf(TEXT("%s (no disk path found)"), InPath);
 	}
 
-	// turn this into an absolute path for error logging
-	FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FilePath);
+	static bool DiskPathAbsolueOnce = false;
+	static bool DiskPathAbsolue = true;
+
+	if (!DiskPathAbsolueOnce)
+	{
+		GConfig->GetBool(TEXT("Core.System"), TEXT("AssetLogShowsAbsolutePath"), DiskPathAbsolue, GEngineIni);
+		DiskPathAbsolueOnce = true;
+	}
+
+	if (DiskPathAbsolue)
+	{
+		// turn this into an absolute path for error logging
+		FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FilePath);
+	}
 	
 	// turn into a native platform file
 	FPaths::MakePlatformFilename(FilePath);
@@ -3889,17 +3939,24 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
  */
 FString FAssetMsg::FormatPathForAssetLog(const UObject* Object)
 {
-	FString ResolvedPath;
-	ResolvedPath = FormatPathForAssetLog(*Object->GetPathName());
-	return ResolvedPath;
+	return ensure(Object) ? FormatPathForAssetLog(*Object->GetPathName()) : FString();
 }
 
+FString FAssetMsg::GetAssetLogString(const TCHAR* Path, const FString& Message)
+{
+	return FString::Printf(ASSET_LOG_FORMAT_STRING TEXT("%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
+}
+
+FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Message)
+{
+	return ensure(Object) ? GetAssetLogString(*Object->GetOutermost()->GetName(), Message) : FString();
+}
 
 namespace UE4CodeGen_Private
 {
 	void ConstructFProperty(FFieldVariant Outer, const FPropertyParamsBase* const*& PropertyArray, int32& NumProperties)
 	{
-		const FPropertyParamsBase* PropBase = *PropertyArray++;
+		const FPropertyParamsBase* PropBase = *--PropertyArray;
 
 		uint32 ReadMore = 0;
 
@@ -4367,8 +4424,10 @@ namespace UE4CodeGen_Private
 		}
 	}
 
-	void ConstructUProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
+	void ConstructFProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
 	{
+		// Move pointer to the end, because we'll iterate backwards over the properties
+		PropertyArray += NumProperties;
 		while (NumProperties)
 		{
 			ConstructFProperty(Outer, PropertyArray, NumProperties);
@@ -4444,7 +4503,7 @@ namespace UE4CodeGen_Private
 		NewFunction->RPCId = Params.RPCId;
 		NewFunction->RPCResponseId = Params.RPCResponseId;
 
-		ConstructUProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
 
 		NewFunction->Bind();
 		NewFunction->StaticLink();
@@ -4502,7 +4561,7 @@ namespace UE4CodeGen_Private
 		UScriptStruct* NewStruct = new(EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UScriptStruct(FObjectInitializer(), Super, StructOps, (EStructFlags)Params.StructFlags, Params.SizeOf, Params.AlignOf);
 		OutStruct = NewStruct;
 
-		ConstructUProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
 
 		NewStruct->StaticLink();
 
@@ -4585,7 +4644,7 @@ namespace UE4CodeGen_Private
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 
-		ConstructUProperties(NewClass, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewClass, Params.PropertyArray, Params.NumProperties);
 
 		if (Params.ClassConfigNameUTF8)
 		{

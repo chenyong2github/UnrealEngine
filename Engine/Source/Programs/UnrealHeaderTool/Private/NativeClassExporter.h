@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Classes.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class FUnrealSourceFile;
 class UPackage;
@@ -16,8 +17,9 @@ class UEnum;
 class UScriptStruct;
 class UDelegateFunction;
 class FClassMetaData;
-struct FFuncInfo;
 class FOutputDevice;
+struct FFuncInfo;
+struct FPreloadHeaderFileInfo;
 
 //
 //	FNativeClassHeaderGenerator
@@ -117,6 +119,9 @@ private:
 	/** the existing disk version of the header for this package's names */
 	FString OriginalNamesHeader;
 
+	/** References to the tasks to save the temp files so as to be able to wait and be sure they are complete before moving them */
+	FGraphEventArray TempSaveTasks;
+
 	/** If false, exported headers will not be saved to disk */
 	bool bAllowSaveExportedHeaders;
 
@@ -213,7 +218,7 @@ private:
 	 *
 	 * @param	SourceFile			Source file to export.
 	 */
-	bool WriteHeader(const TCHAR* Path, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers) const;
+	bool WriteHeader(const FPreloadHeaderFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers, FGraphEventRef& OutTempSaveTask) const;
 
 	/**
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
@@ -296,7 +301,7 @@ private:
 	* @param	PackageName	Name of the package being saved
 	* @param	TempHeaderPaths	Names of all the headers to move
 	*/
-	static void ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths);
+	static void ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths, FGraphEventArray& InTempSaveTasks);
 
 	/**
 	 * Exports the generated cpp file for all functions/events/delegates in package.
@@ -476,7 +481,7 @@ private:
 	 * @param NewHeaderContents	Contents of the generated header.
 	 * @return True if the header contents has changed, false otherwise.
 	 */
-	bool SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const TCHAR* HeaderPath, const TCHAR* NewHeaderContents) const;
+	bool SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const FPreloadHeaderFileInfo& FileInfo, FString&& NewHeaderContents, FGraphEventRef& OutSaveTaskRef) const;
 
 	/**
 	 * Deletes all .generated.h files which do not correspond to any of the classes.

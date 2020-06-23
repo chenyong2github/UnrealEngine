@@ -6,13 +6,13 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-namespace Modulation
+namespace SoundVolumeControlBusActionUtils
 {
 	static const TArray<FText> SubMenus
 	{
-		FText(LOCTEXT("AssetSoundMixSubMenu", "Mix"))
+		LOCTEXT("AssetSoundModulationSubMenu", "Modulation")
 	};
-} // namespace <>
+} // namespace SoundVolumeControlBusActionUtils
 
 UClass* FAssetTypeActions_SoundVolumeControlBus::GetSupportedClass() const
 {
@@ -21,7 +21,7 @@ UClass* FAssetTypeActions_SoundVolumeControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundVolumeControlBus::GetSubMenus() const
 {
-	return Modulation::SubMenus;
+	return SoundVolumeControlBusActionUtils::SubMenus;
 }
 
 UClass* FAssetTypeActions_SoundPitchControlBus::GetSupportedClass() const
@@ -31,7 +31,7 @@ UClass* FAssetTypeActions_SoundPitchControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundPitchControlBus::GetSubMenus() const
 {
-	return Modulation::SubMenus;
+	return SoundVolumeControlBusActionUtils::SubMenus;
 }
 
 UClass* FAssetTypeActions_SoundLPFControlBus::GetSupportedClass() const
@@ -41,7 +41,7 @@ UClass* FAssetTypeActions_SoundLPFControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundLPFControlBus::GetSubMenus() const
 {
-	return Modulation::SubMenus;
+	return SoundVolumeControlBusActionUtils::SubMenus;
 }
 
 UClass* FAssetTypeActions_SoundHPFControlBus::GetSupportedClass() const
@@ -51,7 +51,7 @@ UClass* FAssetTypeActions_SoundHPFControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundHPFControlBus::GetSubMenus() const
 {
-	return Modulation::SubMenus;
+	return SoundVolumeControlBusActionUtils::SubMenus;
 }
 
 UClass* FAssetTypeActions_SoundControlBus::GetSupportedClass() const
@@ -61,6 +61,6 @@ UClass* FAssetTypeActions_SoundControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundControlBus::GetSubMenus() const
 {
-	return Modulation::SubMenus;
+	return SoundVolumeControlBusActionUtils::SubMenus;
 }
 #undef LOCTEXT_NAMESPACE

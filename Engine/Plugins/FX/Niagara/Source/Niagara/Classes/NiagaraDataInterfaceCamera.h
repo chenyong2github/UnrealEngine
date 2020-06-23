@@ -40,8 +40,12 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool RequiresEarlyViewData() const override { return true; }
+#if WITH_EDITOR	
+	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+        TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
+#endif
 	//UNiagaraDataInterface Interface
 
 	void GetCameraFOV(FVectorVMContext& Context);

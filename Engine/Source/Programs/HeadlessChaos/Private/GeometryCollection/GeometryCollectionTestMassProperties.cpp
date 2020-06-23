@@ -74,26 +74,24 @@ namespace GeometryCollectionTest
 			CalculateInertiaAndRotationOfMass(Vertices, SurfaceElements, MassProperties.Mass / MassProperties.Volume, MassProperties.CenterOfMass, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 		}
 		EXPECT_EQ(MassProperties.Mass, 1.f);
-		EXPECT_TRUE((MassProperties.CenterOfMass-FVector(1,2,3)).Size() < SMALL_NUMBER);
+		EXPECT_TRUE(MassProperties.CenterOfMass.Equals(FVector(1, 2, 3)));
 		
 		// This is just measured data to let us know when it changes. Ideally this would be derived. 
 		FVector EulerAngle = MassProperties.RotationOfMass.Euler();
-		EXPECT_TRUE((MassProperties.RotationOfMass.Euler()-FVector(115.8153,-12.4347,1.9705)).Size() > SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[0][0] - 14.9866095 < SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[1][1] - 1.40656376 < SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[2][2] - 13.7401619 < SMALL_NUMBER);
-
-
+		EXPECT_TRUE(MassProperties.RotationOfMass.Euler().Equals(FVector(115.8153, -12.4347, 1.9705)));
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(14.9866095), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(1.40656376), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(13.7401619), KINDA_SMALL_NUMBER));
 	}
 
-	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_MassProperties_Cube)
+	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Cube)
 	{
 		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(0); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -120,7 +118,8 @@ namespace GeometryCollectionTest
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
 				Visible,
-				Indices));
+				Indices,
+				false));
 
 		//TArray<Chaos::TVector<int32, 3>> Faces;
 		//Faces.SetNum(Indices.Num());
@@ -160,24 +159,20 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE((MassProperties.CenterOfMass - GlobalTranslation).Size() < SMALL_NUMBER);
 
 		// This is just measured data to let us know when it changes. Ideally this would be derived. 
-		FVector EulerAngle = MassProperties.RotationOfMass.Euler();
-		EXPECT_TRUE((MassProperties.RotationOfMass.Euler() - FVector(115.8153, -12.4347, 1.9705)).Size() > SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[0][0] - 4.99521351 < SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[1][1] - 4.07145357 < SMALL_NUMBER);
-		EXPECT_TRUE(MassProperties.InertiaTensor.M[2][2] - 4.26666689 < SMALL_NUMBER);
+		EXPECT_TRUE((MassProperties.RotationOfMass.Euler() - FVector(115.8153, -12.4347, 1.9705)).Size() > KINDA_SMALL_NUMBER);
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(4.99521351), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(4.07145357), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(4.26666689), KINDA_SMALL_NUMBER));
 	}
 
-
-
-
-	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_MassProperties_Sphere)
+	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Sphere)
 	{
 		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0)); FVector Scale(1);
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation, Scale); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -204,8 +199,8 @@ namespace GeometryCollectionTest
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
 				Visible,
-				Indices));
-
+				Indices,
+				false));
 
 		TArray<TMassProperties<float, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
@@ -251,14 +246,14 @@ namespace GeometryCollectionTest
 	}
 
 
-	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_MassProperties_Tetrahedron)
+	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Tetrahedron)
 	{
 		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(0); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Tetrahedron; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -285,8 +280,8 @@ namespace GeometryCollectionTest
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
 				Visible,
-				Indices));
-
+				Indices,
+				false));
 
 		TArray<TMassProperties<float, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
@@ -329,7 +324,7 @@ namespace GeometryCollectionTest
 
 
 
-	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_MassProperties_ScaledSphere)
+	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_ScaledSphere)
 	{
 		// This test has points that are scaled, rotated and translated within mass space. 
 		// So the resulting surface is not about the center of mass and needs to be
@@ -340,7 +335,7 @@ namespace GeometryCollectionTest
 		FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(45,0,0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation,GlobalTranslation, FVector(1, 5, 11)); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -362,13 +357,13 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-
 		TUniquePtr<TTriangleMesh<float>> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
 				Visible,
-				Indices));
+				Indices,
+				false));
 
 
 		TArray<TMassProperties<float, 3>> MassPropertiesArray;
@@ -384,23 +379,14 @@ namespace GeometryCollectionTest
 			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
 			FVector MassSpacePoint = FVector(MassSpaceParticles.X(Idx)[0], MassSpaceParticles.X(Idx)[1], MassSpaceParticles.X(Idx)[2]);
 			SomeVec.Add(MassSpacePoint);
-			//UE_LOG(LogChaos, Log, TEXT("...(%3.5f,%3.5f,%3.5f)"), MassSpacePoint[0], MassSpacePoint[1], MassSpacePoint[2]);
-			UE_LOG(LogChaos, Log, TEXT("...(%3.5f,%3.5f,%3.5f)"), VertexPoint[0], VertexPoint[1], VertexPoint[2]);
 		}
 
 		FBox Bounds(SomeVec);
-		UE_LOG(LogChaos, Log, TEXT("Bounds[%3.5f,%3.5f,%3.5f] -> [%3.5f,%3.5f,%3.5f]"),
-			Bounds.Min[0], Bounds.Min[1], Bounds.Min[2], Bounds.Max[0], Bounds.Max[1], Bounds.Max[2]);
 		CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), MassProperties.Volume, MassProperties.CenterOfMass);
-
-		UE_LOG(LogChaos, Log, TEXT("CenterOfMass[%3.5f,%3.5f,%3.5f]"),
-			MassProperties.CenterOfMass[0], MassProperties.CenterOfMass[1], MassProperties.CenterOfMass[2]);
-		UE_LOG(LogChaos, Log, TEXT("Volume: %3.5f"), MassProperties.Volume);
 		
 		EXPECT_NEAR(MassProperties.CenterOfMass.X - GlobalTranslation[0], 0.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(MassProperties.CenterOfMass.Y - GlobalTranslation[1], 0.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(MassProperties.CenterOfMass.Z - GlobalTranslation[2], 0.0f, KINDA_SMALL_NUMBER);
-
 
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -411,16 +397,10 @@ namespace GeometryCollectionTest
 		TVector<float, 3> ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
-
-		UE_LOG(LogChaos, Log, TEXT("InertiaTensor[%3.5f,%3.5f,%3.5f]"),
-			MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]);
-		UE_LOG(LogChaos, Log, TEXT("RotationOfMass[%3.5f,%3.5f,%3.5f]"),
-			MassProperties.RotationOfMass.Euler()[0], MassProperties.RotationOfMass.Euler()[1], MassProperties.RotationOfMass.Euler()[2]);
-
 		// rotational alignment.
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[0], 135.f, SMALL_NUMBER);
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[1], 0, SMALL_NUMBER);
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[2], 0, SMALL_NUMBER);
+		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[0], 135.f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[1], 0, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[2], 0, KINDA_SMALL_NUMBER);
 		// X dominate inertia tensor
 		EXPECT_GT(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[2][2]);
 		EXPECT_GT(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1]);

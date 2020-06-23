@@ -104,7 +104,7 @@ void AController::FailedToSpawnPawn()
 
 void AController::SetInitialLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation)
 {
-	SetActorLocationAndRotation(NewLocation, NewRotation);
+	SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::ResetPhysics);
 	SetControlRotation(NewRotation);
 }
 

@@ -5,7 +5,6 @@
 
 UDMXProtocolSettings::UDMXProtocolSettings()
 	: InterfaceIPAddress(TEXT("0.0.0.0"))
-	, bShouldUseUnicast(false)
 {
 	FixtureCategories =
 	{
@@ -15,6 +14,16 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 		TEXT("Moving Mirror"),
 		TEXT("Strobe"),
 		TEXT("Other")
+	};
+
+	// Default Attributes
+	Attributes =
+	{
+		// Label					Keywords
+		{ TEXT("Red"),				TEXT("red") },
+		{ TEXT("Green"),			TEXT("green") },
+		{ TEXT("Blue"),				TEXT("blue") },
+		{ TEXT("Brightess"),		TEXT("brightness luminosity intensity strength") }
 	};
 }
 
@@ -28,19 +37,27 @@ void UDMXProtocolSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		PropertyName = PropertyChangedEvent.Property->GetFName();
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress) || PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, UnicastEndpoint))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress))
 	{
 		IDMXProtocol::OnNetworkInterfaceChanged.Broadcast(InterfaceIPAddress);
 	}
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{
 		if (FixtureCategories.Num() == 0)
 		{
 			FixtureCategories.Add(TEXT("Other"));
 		}
 
-		FDMXFixtureCategory::OnPossibleValuesUpdated.Broadcast();
+		FDMXFixtureCategory::OnValuesChanged.Broadcast();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes))
+	{
+		if (Attributes.Num() == 0)
+		{
+			Attributes.Add({ NAME_None, TEXT("") });
+		}
+
+		FDMXAttributeName::OnValuesChanged.Broadcast();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

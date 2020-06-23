@@ -139,8 +139,9 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	{
 		return EProcessResult::Failed_NotAnEdge;
 	}
-	FIndex4i edge_info = Mesh->GetEdge(edgeID);
-	int a = edge_info.A, b = edge_info.B, t0 = edge_info.C, t1 = edge_info.D;
+	const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(edgeID);
+	int a = Edge.Vert[0], b = Edge.Vert[1];
+	int t0 = Edge.Tri[0], t1 = Edge.Tri[1];
 	bool bIsBoundaryEdge = (t1 == IndexConstants::InvalidID);
 
 	// look up 'other' verts c (from t0) and d (from t1, if it exists)
@@ -242,24 +243,35 @@ abort_collapse:
 	if (bEnableFlips && constraint.CanFlip() && bIsBoundaryEdge == false) 
 	{
 		// can we do this more efficiently somehow?
-		bool a_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(a));
-		bool b_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(b));
-		bool c_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(c);
-		bool d_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(d);
-		int valence_a = Mesh->GetVtxEdgeCount(a), valence_b = Mesh->GetVtxEdgeCount(b);
-		int valence_c = Mesh->GetVtxEdgeCount(c), valence_d = Mesh->GetVtxEdgeCount(d);
-		int valence_a_target = (a_is_boundary_vtx) ? valence_a : 6;
-		int valence_b_target = (b_is_boundary_vtx) ? valence_b : 6;
-		int valence_c_target = (c_is_boundary_vtx) ? valence_c : 6;
-		int valence_d_target = (d_is_boundary_vtx) ? valence_d : 6;
+		bool bTryFlip = false;
+		if (FlipMetric == EFlipMetric::OptimalValence)
+		{
+			bool a_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(a));
+			bool b_is_boundary_vtx = (bMeshIsClosed) ? false : (bIsBoundaryEdge || Mesh->IsBoundaryVertex(b));
+			bool c_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(c);
+			bool d_is_boundary_vtx = (bMeshIsClosed) ? false : Mesh->IsBoundaryVertex(d);
+			int valence_a = Mesh->GetVtxEdgeCount(a), valence_b = Mesh->GetVtxEdgeCount(b);
+			int valence_c = Mesh->GetVtxEdgeCount(c), valence_d = Mesh->GetVtxEdgeCount(d);
+			int valence_a_target = (a_is_boundary_vtx) ? valence_a : 6;
+			int valence_b_target = (b_is_boundary_vtx) ? valence_b : 6;
+			int valence_c_target = (c_is_boundary_vtx) ? valence_c : 6;
+			int valence_d_target = (d_is_boundary_vtx) ? valence_d : 6;
 
-		// if total valence error improves by flip, we want to do it
-		int curr_err = abs(valence_a - valence_a_target) + abs(valence_b - valence_b_target)
-			+ abs(valence_c - valence_c_target) + abs(valence_d - valence_d_target);
-		int flip_err = abs((valence_a - 1) - valence_a_target) + abs((valence_b - 1) - valence_b_target)
-			+ abs((valence_c + 1) - valence_c_target) + abs((valence_d + 1) - valence_d_target);
+			// if total valence error improves by flip, we want to do it
+			int curr_err = abs(valence_a - valence_a_target) + abs(valence_b - valence_b_target)
+				+ abs(valence_c - valence_c_target) + abs(valence_d - valence_d_target);
+			int flip_err = abs((valence_a - 1) - valence_a_target) + abs((valence_b - 1) - valence_b_target)
+				+ abs((valence_c + 1) - valence_c_target) + abs((valence_d + 1) - valence_d_target);
 
-		bool bTryFlip = flip_err < curr_err;
+			bTryFlip = flip_err < curr_err;
+		}
+		else
+		{
+			double CurDistSqr = Mesh->GetVertex(a).DistanceSquared(Mesh->GetVertex(b));
+			double FlipDistSqr = Mesh->GetVertex(c).DistanceSquared(Mesh->GetVertex(d));
+			bTryFlip = (FlipDistSqr < MinLengthFlipThresh*MinLengthFlipThresh * CurDistSqr);
+		}
+
 		if (bTryFlip && bPreventNormalFlips && CheckIfFlipInvertsNormals(a, b, c, d, t0))
 		{
 			bTryFlip = false;
@@ -640,7 +652,18 @@ void FRemesher::FullProjectionPass(bool bParallel)
 	{
 		auto VertexMoveFunction = [this](int VertexID, bool& bModified)
 		{
+			bModified = false;
 			FVector3d CurrentPosition = Mesh->GetVertex(VertexID);
+
+			if (IsVertexPositionConstrained(VertexID))
+			{
+				return CurrentPosition;
+			}
+			if (VertexControlF != nullptr && ((int)VertexControlF(VertexID) & (int)EVertexControl::NoProject) != 0)
+			{
+				return CurrentPosition;
+			}
+
 			FVector3d ProjectedPosition = ProjTarget->Project(CurrentPosition, VertexID);
 			bModified = !VectorUtil::EpsilonEqual(CurrentPosition, ProjectedPosition, FMathd::ZeroTolerance);
 
@@ -655,7 +678,7 @@ void FRemesher::FullProjectionPass(bool bParallel)
 
 		auto UseProjectionFunc = [this](int vID)
 		{
-			if (IsVertexConstrained(vID))
+			if (IsVertexPositionConstrained(vID))
 			{
 				return;
 			}

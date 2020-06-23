@@ -2,8 +2,9 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/PBDParticles.h"
 #include "Chaos/Utilities.h"
+#include "Chaos/RigidParticles.h"
+#include "Chaos/DynamicParticles.h"
 
 #include "Templates/EnableIf.h"
 
@@ -19,6 +20,12 @@ namespace Chaos
 		    : MStiffness(Stiffness)
 		{}
 		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1)
+		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
+		{
+			RemoveDuplicateConstraints();
+			UpdateDistances(InParticles);
+		}
+		TPBDSpringConstraintsBase(const TRigidParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1)
 		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 		{
 			RemoveDuplicateConstraints();

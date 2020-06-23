@@ -119,6 +119,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Cache Size (KB)"))
 	int32 CacheSizeKB;
 
+	/** This overrides the default max chunk size used when chunking audio for stream caching (ignored if < 0) */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Chunk Size Override (KB)"))
+	int32 MaxChunkSizeOverrideKB;
+
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides")
 	bool bResampleForDevice;
 

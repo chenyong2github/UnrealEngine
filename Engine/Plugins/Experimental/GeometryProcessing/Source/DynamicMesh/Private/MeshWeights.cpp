@@ -25,6 +25,24 @@ FVector3d FMeshWeights::UniformCentroid(const FDynamicMesh3& mesh, int32 VertexI
 }
 
 
+FVector3d FMeshWeights::FilteredUniformCentroid(const FDynamicMesh3& mesh, int32 VertexIndex, 
+	TFunctionRef<FVector3d(int32)> VertexPositionFunc, TFunctionRef<bool(int32)> VertexFilterFunc)
+{
+	FVector3d Centroid = FVector3d::Zero();
+	int32 Count = 0;
+	for (int32 nbrvid : mesh.VtxVerticesItr(VertexIndex))
+	{
+		if (VertexFilterFunc(nbrvid))
+		{
+			Centroid += VertexPositionFunc(nbrvid);
+			Count++;
+		}
+	}
+	return (Count == 0) ? VertexPositionFunc(VertexIndex) : (Centroid / (double)Count);
+}
+
+
+
 template<typename GetPositionFuncType>
 FVector3d TMeanValueCentroid(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncType GetPositionFunc, double WeightClamp)
 {

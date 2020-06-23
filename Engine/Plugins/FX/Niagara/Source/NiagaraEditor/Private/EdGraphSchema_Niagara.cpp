@@ -447,8 +447,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	{
 		const FText MenuCat = LOCTEXT("NiagaraEventMenuCat", "Events");
 		const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredPayloadTypes();
-		for (FNiagaraTypeDefinition Type : RegisteredTypes)
+		for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 		{
+			if (Type.IsInternalType())
+			{
+				continue;
+			}
+
 			if (Type.GetStruct() && !Type.GetStruct()->IsA(UNiagaraDataInterface::StaticClass()))
 			{
 				{
@@ -562,8 +567,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				if (bAddMakes)
 				{
 					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (FNiagaraTypeDefinition Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 					{
+						if (Type.IsInternalType())
+						{
+							continue;
+						}
+
 						// Data interfaces can't be made.
 						if (!UNiagaraDataInterface::IsDataInterfaceType(Type))
 						{
@@ -575,8 +585,13 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				if (bAddBreaks)
 				{
 					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (FNiagaraTypeDefinition Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 					{
+						if (Type.IsInternalType())
+						{
+							continue;
+						}
+
 						//Don't break scalars. Allow makes for now as a convenient method of getting internal script constants when dealing with numeric pins.
 						// Data interfaces can't be broken.
 						if (!FNiagaraTypeDefinition::IsScalarDefinition(Type) && !UNiagaraDataInterface::IsDataInterfaceType(Type))
@@ -1293,13 +1308,14 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 	{
 		return FNiagaraTypeDefinition();
 	}
+	UEdGraphNode* OwningNode = Pin->GetOwningNodeUnchecked();
 	if (Pin->PinType.PinCategory == PinCategoryType && Pin->PinType.PinSubCategoryObject.IsValid())
 	{
 		UScriptStruct* Struct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
 		if (Struct == nullptr)
 		{
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of struct type, but is missing its struct object. This is usually the result of a registered type going away. Pin Name '%s' Owning Node '%s'."),
-				*Pin->PinName.ToString(), *Pin->GetOwningNode()->GetName());
+				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition();
 		}
 		return FNiagaraTypeDefinition(Struct);
@@ -1310,7 +1326,7 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 		if (Class == nullptr)
 		{
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of class type, but is missing its class object. This is usually the result of a registered type going away. Pin Name '%s' Owning Node '%s'."),
-				*Pin->PinName.ToString(), *Pin->GetOwningNode()->GetName());
+				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition();
 		}
 		return FNiagaraTypeDefinition(Class);
@@ -1321,7 +1337,7 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 		if (Enum == nullptr)
 		{
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *Pin->PinName.ToString(),
-				*Pin->GetOwningNode()->GetName());
+				OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetIntDef());
 		}
 		return FNiagaraTypeDefinition(Enum);

@@ -1048,8 +1048,8 @@ namespace UnrealBuildTool
 		{
 			MetadataCache = SourceFileMetadataCache.CreateHierarchy(InDescriptor.ProjectFile);
 			ProjectFile = InDescriptor.ProjectFile;
-			AppName = InDescriptor.Name;
-			TargetName = InDescriptor.Name;
+			TargetName = InRules.Name;
+			AppName = InRules.Name;
 			Platform = InDescriptor.Platform;
 			Configuration = InDescriptor.Configuration;
 			Architecture = InDescriptor.Architecture;
@@ -3536,7 +3536,7 @@ namespace UnrealBuildTool
 				if (BaseDir != OutputDir)
 				{
 					string RelativeBaseDir = BaseDir.MakeRelativeTo(OutputDir).Replace(Path.DirectorySeparatorChar, '/');
-					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_RELATIVE_BASE_DIR=\"{0}\"", RelativeBaseDir));
+					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_RELATIVE_BASE_DIR=\"{0}/\"", RelativeBaseDir));
 				}
 			}
 

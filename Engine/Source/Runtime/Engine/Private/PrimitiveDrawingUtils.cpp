@@ -1445,24 +1445,6 @@ void ApplyViewModeOverrides(
 			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
 		}
 	}
-	else if (EngineShowFlags.HLODColoration)
-	{
-		if (!Mesh.IsTranslucent(FeatureLevel) && GEngine->HLODColorationColors.Num() > 0)
-		{
-			int32 hlodColorationIndex = FMath::Clamp((int32)Mesh.VisualizeHLODIndex, 0, GEngine->HLODColorationColors.Num() - 1);
-
-			bool bLit = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetShadingModels().IsLit();
-			const UMaterial* HLODColorationMaterial = (bLit && EngineShowFlags.Lighting) ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
-
-			auto HLODColorationMaterialInstance = new FColoredMaterialRenderProxy(
-				HLODColorationMaterial->GetRenderProxy(),
-				GetSelectionColor(GEngine->HLODColorationColors[hlodColorationIndex], bSelected, PrimitiveSceneProxy->IsHovered())
-				);
-
-			Mesh.MaterialRenderProxy = HLODColorationMaterialInstance;
-			Collector.RegisterOneFrameMaterialProxy(HLODColorationMaterialInstance);
-		}
-	}
 	else if (!EngineShowFlags.Materials)
 	{
 		// Don't render unlit translucency when in 'lighting only' viewmode.

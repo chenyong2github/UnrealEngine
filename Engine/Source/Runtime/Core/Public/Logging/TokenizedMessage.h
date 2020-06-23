@@ -11,8 +11,6 @@
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
 
-class Error;
-
 /** The severity of the message type */
 namespace EMessageSeverity
 {

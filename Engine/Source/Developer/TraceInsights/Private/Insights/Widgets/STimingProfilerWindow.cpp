@@ -176,6 +176,8 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 			SAssignNew(TimingView, STimingView)
 		];
 
+	TimingView->Reset(true);
+
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimingViewTabClosed));
 
 	return DockTab;
@@ -503,6 +505,8 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		FName(TEXT("Menu"))
 	);
 
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
+
 	ChildSlot
 		[
 			SNew(SOverlay)
@@ -529,7 +533,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							MenuBarBuilder.MakeWidget()
+							MenuWidget
 						]
 
 					+ SVerticalBox::Slot()
@@ -556,7 +560,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		];
 
 	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
 
 	// Tell clients about creation
 	TraceInsightsModule.OnMajorTabCreated().Broadcast(FInsightsManagerTabs::TimingProfilerTabId, TabManager.ToSharedRef());

@@ -325,11 +325,12 @@ static const FName PolyGroupsTabName(TEXT("PolyGroups"));
 static const FName UVNormalTabName(TEXT("UVs/Normals"));
 static const FName TransformTabName(TEXT("Transform"));
 static const FName DeformTabName(TEXT("Deform"));
+static const FName VolumesTabName(TEXT("Volumes"));
 static const FName PrototypesTabName(TEXT("Prototypes"));
 
 
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, PrototypesTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName, PrototypesTabName };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -395,9 +396,11 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelSolidifyTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBlendTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMorphologyTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelfUnionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
@@ -421,8 +424,10 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMirrorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonCutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginOffsetMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
 		ToolbarBuilder.AddSeparator();
@@ -464,6 +469,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditTangentsTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGlobalUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupUVGenerateTool);
@@ -473,6 +479,13 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
+	else if (PaletteIndex == VolumesTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVolumeToMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshToVolumeTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
 	}
 
 }
@@ -512,10 +525,11 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelSolidifyTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBlendTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMorphologyTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSelfUnionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
@@ -539,8 +553,10 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPlaneCutTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMirrorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonCutTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginOffsetMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
 		ToolbarBuilder.AddSeparator();
@@ -582,6 +598,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyGroupsTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditNormalsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditTangentsTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGlobalUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupUVGenerateTool);
@@ -592,10 +609,19 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
+	else if (PaletteIndex == VolumesTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginVolumeToMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshToVolumeTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
+	}
 	else if (PaletteIndex == PrototypesTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeMapsTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPatchTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginShapeSprayTool);

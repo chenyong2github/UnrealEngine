@@ -48,7 +48,7 @@ enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
 };
 
 /** Defines options for the niagara System view model */
-struct FNiagaraSystemViewModelOptions
+struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
 {
 	FNiagaraSystemViewModelOptions();
 
@@ -143,12 +143,12 @@ public:
 		ResetSystem,
 	};
 	/** Creates a new view model with the supplied System and System instance. */
-	FNiagaraSystemViewModel();
+	NIAGARAEDITOR_API FNiagaraSystemViewModel();
 	
 	/** Initializes this system view model with the supplied system and options. */
-	void Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
+	NIAGARAEDITOR_API void Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
-	~FNiagaraSystemViewModel();
+	NIAGARAEDITOR_API ~FNiagaraSystemViewModel();
 
 	NIAGARAEDITOR_API FText GetDisplayName() const;
 

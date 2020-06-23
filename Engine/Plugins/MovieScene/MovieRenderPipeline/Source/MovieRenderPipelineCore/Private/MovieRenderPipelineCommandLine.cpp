@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "UObject/UObjectHash.h"
 #include "ObjectTools.h"
+#include "MoviePipelinePythonHostExecutor.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
@@ -47,7 +48,7 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	else
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Successfully detected and loaded required movie arguments. Rendering will begin once the map is loaded."));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("NumJobs: %d ExecutorClass: %s PipelineClass: %s"), Queue->GetJobs().Num(), *ExecutorBase->GetPathName(), *MoviePipelineClassType);
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("NumJobs: %d ExecutorClass: %s PipelineClass: %s"), Queue->GetJobs().Num(), *ExecutorBase->GetClass()->GetName(), *MoviePipelineClassType);
 	}
 
 	// We add the Executor to the root set. It will own all of the configuration data so this keeps it nicely in memory until finished,
@@ -72,7 +73,7 @@ void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePip
 
 void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored(UMoviePipelineExecutorBase* InExecutor, UMoviePipeline* InPipelineWithError, bool bIsFatal, FText ErrorText)
 {
-
+	UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error caught in Executor. Error: %s"), *ErrorText.ToString());
 }
 
 
@@ -80,11 +81,11 @@ UClass* GetLocalExecutorClass(const FString& MoviePipelineLocalExecutorClassType
 {
 	if (MoviePipelineLocalExecutorClassType.Len() > 0)
 	{
-		UMoviePipelineExecutorBase* LoadedExecutor = LoadObject<UMoviePipelineExecutorBase>(GetTransientPackage(), *MoviePipelineLocalExecutorClassType);
-		if (LoadedExecutor)
+		UClass* LoadedExecutorClass = LoadClass<UMoviePipelineExecutorBase>(GetTransientPackage(), *MoviePipelineLocalExecutorClassType);
+		if (LoadedExecutorClass)
 		{
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Loaded explicitly specified Movie Pipeline Executor %s."), *MoviePipelineLocalExecutorClassType);
-			return LoadedExecutor->GetClass();
+			return LoadedExecutorClass;
 		}
 		else
 		{
@@ -103,27 +104,27 @@ UClass* GetLocalExecutorClass(const FString& MoviePipelineLocalExecutorClassType
 	}
 }
 
-UClass* GetMoviePipelineClass(const FString& MoviePipelineLocalExecutorClassType, const FString ExecutorClassFormatString)
+UClass* GetMoviePipelineClass(const FString& MoviePipelineClassType, const FString ExecutorClassFormatString)
 {
-	if (MoviePipelineLocalExecutorClassType.Len() > 0)
+	if (MoviePipelineClassType.Len() > 0)
 	{
-		UMoviePipelineExecutorBase* LoadedExecutor = LoadObject<UMoviePipelineExecutorBase>(GetTransientPackage(), *MoviePipelineLocalExecutorClassType);
-		if (LoadedExecutor)
+		UClass* LoadedMoviePipelineClass = LoadClass<UMoviePipelineExecutorBase>(GetTransientPackage(), *MoviePipelineClassType);
+		if (LoadedMoviePipelineClass)
 		{
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Loaded explicitly specified Movie Pipeline Executor %s."), *MoviePipelineLocalExecutorClassType);
-			return LoadedExecutor->GetClass();
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Loaded explicitly specified Movie Pipeline %s."), *MoviePipelineClassType);
+			return LoadedMoviePipelineClass;
 		}
 		else
 		{
 			// They explicitly specified an object, but that couldn't be loaded so it's an error.
-			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to load specified Local Executor class. Executor Class: %s"), *MoviePipelineLocalExecutorClassType);
+			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to load specified Movie Pipeline class. Pipeline Class: %s"), *MoviePipelineClassType);
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("%s"), *ExecutorClassFormatString);
 			return nullptr;
 		}
 	}
 	else
 	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Using default Movie Pipeline %s. See '-MoviePipelineClass' if you need to override this."), *MoviePipelineLocalExecutorClassType);
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Using default Movie Pipeline %s. See '-MoviePipelineClass' if you need to override this."), *MoviePipelineClassType);
 		return UMoviePipeline::StaticClass();
 	}
 }
@@ -151,7 +152,9 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 	// "/Script/ModuleName.ClassNameNoUPrefix"
 	FParse::Value(FCommandLine::Get(), TEXT("-MoviePipelineClass="), OutPipelineType);
 
-	return OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0;
+	// If they've specified any of them we'll assume they're trying to start - generous here to give people more flexibility
+	// with what they are trying to do.
+	return OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0 || OutExecutorType.Len() > 0 || OutPipelineType.Len() > 0;
 }
 
 uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
@@ -212,7 +215,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 		else if (UMoviePipelineMasterConfig* AssetAsConfig = Cast<UMoviePipelineMasterConfig>(AssetPath.TryLoad()))
 		{
 			OutQueue = NewObject<UMoviePipelineQueue>();
-			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob();
+			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob(UMoviePipelineExecutorJob::StaticClass()); // Only the default job type is supported right now.
 			NewJob->Sequence = FSoftObjectPath(InSequenceAssetPath);
 
 			// Duplicate the configuration in case we modify it and in case multiple jobs will use it.
@@ -239,8 +242,16 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 
 			FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + InFileName;
 
+			// Relative paths are considered relative to the game's save directory to avoid having to hard code
+			// game names into relative paths.
+			FString ConfigAssetPath = InConfigAssetPath;
+			if (FPaths::IsRelative(InConfigAssetPath))
+			{
+				ConfigAssetPath = FPaths::Combine(FPaths::ProjectSavedDir(), InConfigAssetPath);
+			}
+
 			UPackage* OuterPackage = CreatePackage(nullptr, *NewPackageName);
-			UPackage* QueuePackage = LoadPackage(OuterPackage, *InConfigAssetPath, LOAD_None);
+			UPackage* QueuePackage = LoadPackage(OuterPackage, *ConfigAssetPath, LOAD_None);
 			if (QueuePackage)
 			{
 				OutQueue = Cast<UMoviePipelineQueue>((UObject*)FindObjectWithOuter(QueuePackage, UMoviePipelineQueue::StaticClass()));
@@ -285,6 +296,21 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 		}
 #endif
 
+	}
+
+	// We have a special edge case for our Python Host class. It relies on Python modifying the CDO to point to a specific class, so
+	// if we detect that their executor is of that type we use the class type specified in its CDO instead. Note that this only works
+	// in editor builds (-game mode).
+	if (ExecutorClass == UMoviePipelinePythonHostExecutor::StaticClass())
+	{
+		const UMoviePipelinePythonHostExecutor* CDO = GetDefault<UMoviePipelinePythonHostExecutor>();
+		ExecutorClass = CDO->ExecutorClass;
+
+		if (!ExecutorClass)
+		{
+			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No class set in Python Host Executor. This does nothing without setting a class via \"unreal.get_default_object(unreal.MoviePipelinePythonHostExecutor).executor_class = MyPythonClassName\"."));
+			return MoviePipelineErrorCodes::Critical;
+		}
 	}
 
 

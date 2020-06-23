@@ -250,21 +250,21 @@ void FGenericPlatformMemory::DumpStats( class FOutputDevice& Ar )
 {
 	if (GenericPlatformMemory::GLogPlatformMemoryStats)
 	{
-		const float InvMB = 1.0f / 1024.0f / 1024.0f;
-		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+	const float InvMB = 1.0f / 1024.0f / 1024.0f;
+	FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 #if !NO_LOGGING
-		const FName CategoryName(LogMemory.GetCategoryName());
+	const FName CategoryName(LogMemory.GetCategoryName());
 #else
-		const FName CategoryName(TEXT("LogMemory"));
+	const FName CategoryName(TEXT("LogMemory"));
 #endif
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Platform Memory Stats for %s"), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Process Physical Memory: %.2f MB used, %.2f MB peak"), MemoryStats.UsedPhysical * InvMB, MemoryStats.PeakUsedPhysical * InvMB);
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Process Virtual Memory: %.2f MB used, %.2f MB peak"), MemoryStats.UsedVirtual * InvMB, MemoryStats.PeakUsedVirtual * InvMB);
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Platform Memory Stats for %s"), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Process Physical Memory: %.2f MB used, %.2f MB peak"), MemoryStats.UsedPhysical*InvMB, MemoryStats.PeakUsedPhysical*InvMB);
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Process Virtual Memory: %.2f MB used, %.2f MB peak"), MemoryStats.UsedVirtual*InvMB, MemoryStats.PeakUsedVirtual*InvMB);
 
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Physical Memory: %.2f MB used,  %.2f MB free, %.2f MB total"),
-			(MemoryStats.TotalPhysical - MemoryStats.AvailablePhysical) * InvMB, MemoryStats.AvailablePhysical * InvMB, MemoryStats.TotalPhysical * InvMB);
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Virtual Memory: %.2f MB used,  %.2f MB free, %.2f MB total"),
-			(MemoryStats.TotalVirtual - MemoryStats.AvailableVirtual) * InvMB, MemoryStats.AvailableVirtual * InvMB, MemoryStats.TotalVirtual * InvMB);
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Physical Memory: %.2f MB used,  %.2f MB free, %.2f MB total"), 
+		(MemoryStats.TotalPhysical - MemoryStats.AvailablePhysical)*InvMB, MemoryStats.AvailablePhysical*InvMB, MemoryStats.TotalPhysical*InvMB);
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Virtual Memory: %.2f MB used,  %.2f MB free, %.2f MB total"), 
+		(MemoryStats.TotalVirtual - MemoryStats.AvailableVirtual)*InvMB, MemoryStats.AvailableVirtual*InvMB, MemoryStats.TotalVirtual*InvMB);
 	}
 }
 

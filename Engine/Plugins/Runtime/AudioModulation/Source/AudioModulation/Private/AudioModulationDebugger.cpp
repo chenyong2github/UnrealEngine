@@ -4,6 +4,7 @@
 #if WITH_AUDIOMODULATION
 #if !UE_BUILD_SHIPPING
 #include "CoreMinimal.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "AudioThread.h"
@@ -15,11 +16,21 @@
 #include "SoundModulationPatch.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
+#include "HAL/IConsoleManager.h"
 
+
+
+static float AudioModulationDebugUpdateRateCVar = 0.25f;
+FAutoConsoleVariableRef CVarAudioModulationDebugUpdateRate(
+	TEXT("au.Debug.SoundModulators.UpdateRate"),
+	AudioModulationDebugUpdateRateCVar,
+	TEXT("Sets update rate for modulation debug statistics (in seconds).\n")
+	TEXT("Default: 0.25f"),
+	ECVF_Default);
 
 namespace AudioModulation
 {
-	namespace
+	namespace Debug
 	{
 		const int32 MaxNameLength = 40;
 		const int32 XIndent       = 36;
@@ -43,6 +54,7 @@ namespace AudioModulation
 			static const FString AmplitudeHeader = TEXT("Amplitude");
 			static const FString FrequencyHeader = TEXT("Frequency");
 			static const FString OffsetHeader    = TEXT("Offset");
+			static const FString TypeHeader		= TEXT("Type");
 			static const TArray<int32> StaticCellWidths =
 			{
 				NameHeader.Len(),
@@ -50,6 +62,7 @@ namespace AudioModulation
 				AmplitudeHeader.Len(),
 				FrequencyHeader.Len(),
 				OffsetHeader.Len(),
+				TypeHeader.Len()
 			};
 
 			int32 CellWidth = FMath::Max(StaticCellWidths);
@@ -78,6 +91,9 @@ namespace AudioModulation
 			Canvas.DrawShadowedString(RowX, Y, *OffsetHeader, &Font, FColor::White);
 			RowX += Width * CellWidth;
 
+			Canvas.DrawShadowedString(RowX, Y, *TypeHeader, &Font, FColor::White);
+			RowX += Width * CellWidth;
+
 			Y += Height;
 			for (const FLFODebugInfo& LFODebugInfo : FilteredLFOs)
 			{
@@ -91,12 +107,26 @@ namespace AudioModulation
 					Name = Name.RightPad(MaxNameLength - Name.Len());
 				}
 
-				const FString ValueString  = FString::Printf(TEXT("%.6f"), LFODebugInfo.Value);
-
 				Canvas.DrawShadowedString(RowX, Y, *Name, &Font, FColor::Green);
 				RowX += Width * CellWidth;
 
+				const FString ValueString = FString::Printf(TEXT("%.6f"), LFODebugInfo.Value);
 				Canvas.DrawShadowedString(RowX, Y, *ValueString, &Font, FColor::Green);
+				RowX += Width * CellWidth;
+
+				const FString AmpString = FString::Printf(TEXT("%.3f"), LFODebugInfo.Amplitude);
+				Canvas.DrawShadowedString(RowX, Y, *AmpString, &Font, FColor::Green);
+				RowX += Width * CellWidth;
+
+				const FString FreqString = FString::Printf(TEXT("%.4f"), LFODebugInfo.Frequency);
+				Canvas.DrawShadowedString(RowX, Y, *FreqString, &Font, FColor::Green);
+				RowX += Width * CellWidth;
+
+				const FString OffsetString = FString::Printf(TEXT("%.4f"), LFODebugInfo.Offset);
+				Canvas.DrawShadowedString(RowX, Y, *OffsetString, &Font, FColor::Green);
+				RowX += Width * CellWidth;
+
+				Canvas.DrawShadowedString(RowX, Y, *LFODebugInfo.Type, &Font, FColor::Green);
 				RowX += Width * CellWidth;
 
 				Y += Height;
@@ -216,7 +246,7 @@ namespace AudioModulation
 				}
 				else
 				{
-					const FColor Color = GetUnitRenderColor(Value, Bus.Range);
+					const FColor Color = Debug::GetUnitRenderColor(Value, Bus.Range);
 					Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 				}
 			}
@@ -228,7 +258,7 @@ namespace AudioModulation
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 				const float Value = Bus.LFOValue;
-				const FColor Color = GetUnitRenderColor(Value, Bus.Range);
+				const FColor Color = Debug::GetUnitRenderColor(Value, Bus.Range);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 			}
 
@@ -238,7 +268,7 @@ namespace AudioModulation
 			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
-				const FColor Color = GetUnitRenderColor(Bus.Value, Bus.Range);
+				const FColor Color = Debug::GetUnitRenderColor(Bus.Value, Bus.Range);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Bus.Value), &Font, Color);
 			}
 			Y += Height;
@@ -271,27 +301,34 @@ namespace AudioModulation
 				}
 			}
 		}
-	} // namespace <>
+	} // namespace Debug
 
 	FAudioModulationDebugger::FAudioModulationDebugger()
 		: bActive(0)
 		, bShowRenderStatLFO(1)
 		, bShowRenderStatMix(1)
+		, ElapsedSinceLastUpdate(0.0f)
 	{
 	}
 
-	void FAudioModulationDebugger::UpdateDebugData(const FReferencedProxies& RefProxies)
+	void FAudioModulationDebugger::UpdateDebugData(double InElapsed, const FReferencedProxies& InRefProxies)
 	{
-		check(IsInAudioThread());
-
 		if (!bActive)
 		{
+			ElapsedSinceLastUpdate = 0.0f;
 			return;
 		}
 
+		ElapsedSinceLastUpdate += InElapsed;
+		if (AudioModulationDebugUpdateRateCVar > ElapsedSinceLastUpdate)
+		{
+			return;
+		}
+		ElapsedSinceLastUpdate = 0.0f;
+
 		static const int32 MaxFilteredBuses = 8;
 		TArray<const FControlBusProxy*> FilteredBusProxies;
-		FilterDebugArray<FBusProxyMap, FControlBusProxy>(RefProxies.Buses, BusStringFilter, MaxFilteredBuses, FilteredBusProxies);
+		Debug::FilterDebugArray<FBusProxyMap, FControlBusProxy>(InRefProxies.Buses, BusStringFilter, MaxFilteredBuses, FilteredBusProxies);
 		TArray<FControlBusDebugInfo> RefreshedFilteredBuses;
 		for (const FControlBusProxy* Proxy : FilteredBusProxies)
 		{
@@ -309,7 +346,7 @@ namespace AudioModulation
 
 		static const int32 MaxFilteredMixes = 16;
 		TArray<const FModulatorBusMixProxy*> FilteredMixProxies;
-		FilterDebugArray<FBusMixProxyMap, FModulatorBusMixProxy>(RefProxies.BusMixes, MixStringFilter, MaxFilteredMixes, FilteredMixProxies);
+		Debug::FilterDebugArray<FBusMixProxyMap, FModulatorBusMixProxy>(InRefProxies.BusMixes, MixStringFilter, MaxFilteredMixes, FilteredMixProxies);
 		TArray<FControlBusMixDebugInfo> RefreshedFilteredMixes;
 		for (const FModulatorBusMixProxy* Proxy : FilteredMixProxies)
 		{
@@ -328,7 +365,7 @@ namespace AudioModulation
 
 		static const int32 MaxFilteredLFOs = 8;
 		TArray<const FModulatorLFOProxy*> FilteredLFOProxies;
-		FilterDebugArray<FLFOProxyMap, FModulatorLFOProxy>(RefProxies.LFOs, LFOStringFilter, MaxFilteredLFOs, FilteredLFOProxies);
+		Debug::FilterDebugArray<FLFOProxyMap, FModulatorLFOProxy>(InRefProxies.LFOs, LFOStringFilter, MaxFilteredLFOs, FilteredLFOProxies);
 
 		TArray<FLFODebugInfo> RefreshedFilteredLFOs;
 		for (const FModulatorLFOProxy* Proxy : FilteredLFOProxies)
@@ -337,20 +374,59 @@ namespace AudioModulation
 			DebugInfo.Name = Proxy->GetName();
 			DebugInfo.RefCount = Proxy->GetRefCount();
 			DebugInfo.Value = Proxy->GetValue();
+			DebugInfo.Amplitude = Proxy->GetLFO().GetGain();
+			DebugInfo.Frequency = Proxy->GetLFO().GetFrequency();
+			DebugInfo.Offset = Proxy->GetOffset();
+
+			switch (Proxy->GetLFO().GetType())
+			{
+				case Audio::ELFO::DownSaw:
+				DebugInfo.Type = TEXT("DownSaw");
+				break;
+
+				case Audio::ELFO::Exponential:
+				DebugInfo.Type = TEXT("Exponential");
+				break;
+
+				case Audio::ELFO::RandomSampleHold:
+				DebugInfo.Type = TEXT("Random (Sample & Hold)");
+				break;
+
+				case Audio::ELFO::Sine:
+				DebugInfo.Type = TEXT("Sine");
+				break;
+
+				case Audio::ELFO::Square:
+				DebugInfo.Type = TEXT("Square");
+				break;
+
+				case Audio::ELFO::Triangle:
+				DebugInfo.Type = TEXT("Triangle");
+				break;
+
+				case Audio::ELFO::UpSaw:
+				DebugInfo.Type = TEXT("Up Saw");
+				break;
+
+				default:
+				static_assert(static_cast<int32>(Audio::ELFO::NumLFOTypes) == 7, "Missing LFO type case coverage");
+				break;
+			}
+
 			RefreshedFilteredLFOs.Add(DebugInfo);
 		}
 
-		FAudioThread::RunCommandOnGameThread([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredLFOs]()
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredLFOs]()
 		{
 			FilteredBuses = RefreshedFilteredBuses;
-			FilteredBuses.Sort(&CompareNames<FControlBusDebugInfo>);
+			FilteredBuses.Sort(&Debug::CompareNames<FControlBusDebugInfo>);
 
 			FilteredMixes = RefreshedFilteredMixes;
-			FilteredMixes.Sort(&CompareNames<FControlBusMixDebugInfo>);
+			FilteredMixes.Sort(&Debug::CompareNames<FControlBusMixDebugInfo>);
 
 			FilteredLFOs = RefreshedFilteredLFOs;
-			FilteredLFOs.Sort(&CompareNames<FLFODebugInfo>);
-		});
+			FilteredLFOs.Sort(&Debug::CompareNames<FLFODebugInfo>);
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
 	}
 
 	bool FAudioModulationDebugger::OnPostHelp(FCommonViewportClient& ViewportClient, const TCHAR* Stream)
@@ -382,12 +458,12 @@ namespace AudioModulation
 
 		if (bShowRenderStatMix)
 		{
-			Y = RenderStatMixMatrix(FilteredMixes, FilteredBuses, Canvas, X, Y, Font);
+			Y = Debug::RenderStatMixMatrix(FilteredMixes, FilteredBuses, Canvas, X, Y, Font);
 		}
 
 		if (bShowRenderStatLFO)
 		{
-			Y = RenderStatLFO(FilteredLFOs, Canvas, X, Y, Font);
+			Y = Debug::RenderStatLFO(FilteredLFOs, Canvas, X, Y, Font);
 		}
 
 		return Y;

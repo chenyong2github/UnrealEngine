@@ -154,6 +154,8 @@ void rcFreeContourSet(rcContourSet* cset)
 	rcFree(cset);
 }
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 rcClusterSet* rcAllocClusterSet()
 {
 	rcClusterSet* clusters = (rcClusterSet*)rcAlloc(sizeof(rcClusterSet), RC_ALLOC_PERM);
@@ -169,6 +171,8 @@ void rcFreeClusterSet(rcClusterSet* clusters)
 	rcFree(clusters->links);
 	rcFree(clusters);
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 rcPolyMesh* rcAllocPolyMesh()
 {

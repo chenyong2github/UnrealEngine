@@ -255,6 +255,7 @@ public:
 	void FinishRenderingTranslucency(FRHICommandList& RHICmdList);
 
 	/** Begin rendering translucency in a separate (offscreen) buffer. This can be any translucency pass. */
+	FIntRect GetSeparateTranslucencyViewRect(const FViewInfo& View) const;
 	void BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame);
 	void ResolveSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View);
 
@@ -298,9 +299,6 @@ public:
 
 	void BeginRenderingPrePass(FRHICommandList& RHICmdList, bool bPerformClear, bool bStencilClear = true);
 	void FinishRenderingPrePass(FRHICommandListImmediate& RHICmdList);
-
-	void BeginRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList);
-	void FinishRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList);
 
 	void BeginRenderingLightAttenuation(FRHICommandList& RHICmdList, bool bClearToWhite = false);
 	void FinishRenderingLightAttenuation(FRHICommandList& RHICmdList);
@@ -395,9 +393,6 @@ public:
 	const FTextureRHIRef& GetSceneColorTexture() const;
 	const FUnorderedAccessViewRHIRef& GetSceneColorTextureUAV() const;
 
-	const FTexture2DRHIRef& GetSceneAlphaCopyTexture() const { return (const FTexture2DRHIRef&)SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture; }
-	bool HasSceneAlphaCopyTexture() const { return SceneAlphaCopy.GetReference() != 0; }
-
 	const FTexture2DRHIRef& GetSceneDepthTexture() const
 	{
 		static const FTexture2DRHIRef EmptyTexture;
@@ -419,7 +414,6 @@ public:
 	}
 
 	const FTextureRHIRef& GetSceneColorSurface() const;
-	const FTexture2DRHIRef& GetSceneAlphaCopySurface() const						{ return (const FTexture2DRHIRef&)SceneAlphaCopy->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetSceneDepthSurface() const							{ return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
@@ -566,8 +560,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SceneVelocity;
 
 	TRefCountPtr<IPooledRenderTarget> LightingChannels;
-	// Mobile without frame buffer fetch (to get depth from alpha).
-	TRefCountPtr<IPooledRenderTarget> SceneAlphaCopy;
 	// Quarter-sized version of the scene depths
 	TRefCountPtr<IPooledRenderTarget> SmallDepthZ;
 

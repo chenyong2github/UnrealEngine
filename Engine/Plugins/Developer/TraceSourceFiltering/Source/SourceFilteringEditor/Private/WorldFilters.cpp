@@ -4,8 +4,11 @@
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Algo/Transform.h"
+#include "Widgets/Input/SCheckBox.h" 
+#include "Widgets/SBoxPanel.h"
 
 #include "SourceFilteringEditorModule.h"
+#include "SourceFilterStyle.h"
 
 #if WITH_ENGINE
 #include "Engine/EngineBaseTypes.h"
@@ -43,34 +46,42 @@ FText FWorldTypeTraceFilter::GetToolTipText()
 	return LOCTEXT("WorldTypeTraceFilterToolTip", "Marks World's on the analyis session as Traceable if it is of (any) specified World Type(s)");
 }
 
-void FWorldTypeTraceFilter::PopulateMenuBuilder(FMenuBuilder& InBuilder)
+TSharedRef<SWidget> FWorldTypeTraceFilter::GenerateWidget()
 {
+	TSharedPtr<SHorizontalBox> ToggleButtonBox = SNew(SHorizontalBox);
+	
 	for (const TPair<FText, TArray<uint8>>& TypePair : WorldTypeFilterValues)
 	{
-		InBuilder.AddMenuEntry(TypePair.Key,
-			FText::Format(LOCTEXT("WorldTypeFilterTooltipFormat", "Set Filtered state for World Type: {0}"), TypePair.Key),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this, TypePair]()
+		ToggleButtonBox->AddSlot()
+		.AutoWidth()
+		.Padding(0, 0, 2.f, 0.f)
+		[
+			SNew(SCheckBox)
+			.Style(FSourceFilterStyle::Get(), "WorldFilterToggleButton")
+			.IsChecked_Lambda([this, TypePair]() -> ECheckBoxState
+			{
+				return OnGetWorldTypeFilterState(TypePair.Value[0]) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.Padding(4.f)
+			.OnCheckStateChanged_Lambda([this, TypePair](ECheckBoxState State)
+			{
+				const bool bNewState = State == ECheckBoxState::Checked;
+				for (const uint8& Type : TypePair.Value)
 				{
-					const bool bNewState = !OnGetWorldTypeFilterState(TypePair.Value[0]);
-					for (const uint8& Type : TypePair.Value)
-					{
-						OnSetWorldTypeFilterState(Type, bNewState);
-					}
+					OnSetWorldTypeFilterState(Type, bNewState);
+				}
 
-					SaveSettings();
-				}),
-				FCanExecuteAction(),
-				FGetActionCheckState::CreateLambda([this, TypePair]()
-				{
-					return OnGetWorldTypeFilterState(TypePair.Value[0]) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+				SaveSettings();
+			})
+			[
+				SNew(STextBlock)
+				.TextStyle(FSourceFilterStyle::Get(), "SourceFilter.TextStyle")
+				.Text(TypePair.Key)
+			]
+		];
 	}
+
+	return ToggleButtonBox.ToSharedRef();
 }
 
 void FWorldTypeTraceFilter::SaveSettings()
@@ -158,34 +169,42 @@ FText FWorldNetModeTraceFilter::GetToolTipText()
 	return LOCTEXT("WorldNetModeTraceFilterToolTip", "Marks World's on the analysis session as Traceable if it is running in (any) of the specified Net Mode(s)");
 }
 
-void FWorldNetModeTraceFilter::PopulateMenuBuilder(FMenuBuilder& InBuilder)
+TSharedRef<SWidget> FWorldNetModeTraceFilter::GenerateWidget()
 {
+	TSharedPtr<SHorizontalBox> ToggleButtonBox = SNew(SHorizontalBox);
+
 	for (const TPair<FText, TArray<uint8>>& TypePair : WorldNetModeFilterValues)
 	{
-		InBuilder.AddMenuEntry(TypePair.Key,
-			FText::Format(LOCTEXT("NetModeFilterTooltipFormat", "Set Filtered state for Net Mode: {0}"), TypePair.Key),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this, TypePair]()
+		ToggleButtonBox->AddSlot()
+		.AutoWidth()
+		.Padding(0, 0, 2.f, 0.f)
+		[
+			SNew(SCheckBox)
+			.Style(FSourceFilterStyle::Get(), "WorldFilterToggleButton")
+			.IsChecked_Lambda([this, TypePair]() -> ECheckBoxState
+			{
+				return OnGetWorldNetModeFilterState(TypePair.Value[0]) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.Padding(4.f)
+			.OnCheckStateChanged_Lambda([this, TypePair](ECheckBoxState State)
+			{
+				const bool bNewState = State == ECheckBoxState::Checked;
+				for (const uint8& Type : TypePair.Value)
 				{
-					const bool bNewState = !OnGetWorldNetModeFilterState(TypePair.Value[0]);
-					for (const uint8& Type : TypePair.Value)
-					{
-						OnSetWorldNetModeFilterState(Type, bNewState);
-					}
+					OnSetWorldNetModeFilterState(Type, bNewState);
+				}
 
-					SaveSettings();
-				}),
-				FCanExecuteAction(),
-				FGetActionCheckState::CreateLambda([this, TypePair]()
-				{
-					return OnGetWorldNetModeFilterState(TypePair.Value[0]) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+				SaveSettings();
+			})
+			[
+				SNew(STextBlock)
+				.TextStyle(FSourceFilterStyle::Get(), "SourceFilter.TextStyle")
+				.Text(TypePair.Key)
+			]
+		];
 	}
+
+	return ToggleButtonBox.ToSharedRef();
 }
 
 void FWorldNetModeTraceFilter::SaveSettings()

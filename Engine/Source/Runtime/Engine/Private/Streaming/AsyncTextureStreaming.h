@@ -185,6 +185,8 @@ private:
 
 	friend class FAsyncTask<FRenderAssetStreamingMipCalcTask>;
 
+	void ApplyPakStateChanges_Async();
+
 	void TryDropMaxResolutions(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);
 
 	void TryDropMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);

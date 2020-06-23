@@ -20,6 +20,7 @@
 #include "IPersonaToolkit.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/Font.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditorEditMode"
 

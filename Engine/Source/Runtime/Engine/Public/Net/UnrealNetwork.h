@@ -230,7 +230,7 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 #define DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(c,v,active) \
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
-	ChangedPropertyTracker.SetCustomIsActiveOverride((int32)c::ENetFields_Private::v, active); \
+	ChangedPropertyTracker.SetCustomIsActiveOverride(this, (int32)c::ENetFields_Private::v, active); \
 }
 
 #define DOREPLIFETIME_ACTIVE_OVERRIDE_FAST_STATIC_ARRAY(c,v,active) \
@@ -238,7 +238,7 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
 	for (int32 i = 0; i < (int32)c::EArrayDims_Private::v; ++i) \
 	{ \
-		ChangedPropertyTracker.SetCustomIsActiveOverride((int32)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
+		ChangedPropertyTracker.SetCustomIsActiveOverride(this, (int32)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
 	} \
 }
 

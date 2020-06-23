@@ -703,7 +703,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 */
 		void UnregisterAllTabSpawners();
 
-		TSharedPtr<SWidget> RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent = false, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr = EOutputCanBeNullptr::Never);
+		TSharedPtr<SWidget> RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent = false,
+			const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr = EOutputCanBeNullptr::Never);
 
 		void PopulateLocalTabSpawnerMenu( FMenuBuilder& PopulateMe );
 
@@ -765,17 +766,24 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		{
 		}
 
+		/** Sets whether or not this tab manager supports a custom menu bar for the active major tab that will be shown on top of the major tab area in the window this tab manager resides in. */
+		void SetAllowWindowMenuBar(bool bInAllowWindowMenuBar);
+
+		/** Whether or not this tab manager supports a custom menu bar for the active major tab that will be shown on top of the major tab area in the window this tab manager resides in. */
+		bool AllowsWindowMenuBar() const { return bAllowPerWindowMenu; }
+
 		/**
-		 * Set the multi-box to use for generating a native, global menu bar.
+		 * Set the multi-box to use for generating a global menu bar.  The implementation is platform and setting specific
+		 * On Mac the menu bar appears globally at the top of the desktop in all cases regardless of whether or not SetAllowWindowMenuBar is called.  On other desktop platforms the menu appears at the top of the window this tab manager is a part of only if SetAllowWindowMenuBar(true) is called.
 		 * @param NewMenuMutliBox The multi-box to generate the global menu bar from.
 		 */
-		void SetMenuMultiBox(const TSharedPtr< FMultiBox >& NewMenuMutliBox);
+		void SetMenuMultiBox(const TSharedPtr<FMultiBox> NewMenuMutliBox, const TSharedPtr<SWidget> MenuWidget);
 
 		/**
 		 * Update the native, global menu bar if it is being used.
 		 * @param bForce Used to force an update even if the parent window doesn't contain the widget with keyboard focus.
 		 */
-		void UpdateMainMenu(bool const bForce);
+		void UpdateMainMenu(TSharedPtr<SDockTab> ForTab, const bool bForce);
 
 		/** Provide a tab that will be the main tab and cannot be closed. */
 		void SetMainTab(const TSharedRef<const SDockTab>& InTab);
@@ -800,10 +808,6 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/** Clears all categories in the local workspace menu */
 		void ClearLocalWorkspaceMenuCategories();
-
-		/** @return true if the tab has a factory registered for it that allows it to be spawned. */
-		UE_DEPRECATED(4.23, "CanSpawnTab has been replaced by HasTabSpawner")
-		bool CanSpawnTab(FName TabId) const;
 
 		/** @return true if the tab has a factory registered for it that allows it to be spawned. */
 		bool HasTabSpawner(FName TabId) const;
@@ -939,7 +943,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TWeakPtr<SDockTab> OwnerTabPtr;
 
 		/** The current menu multi-box for the tab, used to construct platform native main menus */
-		TSharedPtr< FMultiBox > MenuMultiBox;
+		TSharedPtr<FMultiBox> MenuMultiBox;
+		TSharedPtr<SWidget> MenuWidget;
 
 		/** Protected private API that must only be accessed by the docking framework internals */
 		TSharedRef<FPrivateApi> PrivateApi;
@@ -981,6 +986,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/* Prevent or allow Drag operation. */
 		bool bCanDoDragOperation;
+
+		/** Whether or not this tab manager puts any registered menus in the windows menu bar area */
+		bool bAllowPerWindowMenu = false;
 
 		/** Allow systems to dynamically hide tabs */
 		TSharedRef<FBlacklistNames> TabBlacklist;

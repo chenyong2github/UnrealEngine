@@ -488,6 +488,11 @@ void FAudioDeviceManager::UnregisterWorld(UWorld* InWorld, Audio::FDeviceId Devi
 			DeviceContainer->WorldsUsingThisDevice.Remove(InWorld);
 			FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);
 		}
+
+		if (MainAudioDeviceHandle.World.Get() == InWorld)
+		{
+			MainAudioDeviceHandle.World.Reset();
+		}
 	}
 }
 
@@ -758,18 +763,7 @@ bool FAudioDeviceManager::Initialize()
 {
 	if (!Singleton)
 	{
-		bool bUseSound = true;
-
-		// If dedicated server, the -nosound, or -benchmark parameters are used, disable sound.
-		if (FParse::Param(FCommandLine::Get(), TEXT("nosound")) || FApp::IsBenchmarking() || IsRunningDedicatedServer() || (IsRunningCommandlet() && !IsAllowCommandletAudio()))
-		{
-			bUseSound = false;
-		}
-
-		if (FParse::Param(FCommandLine::Get(), TEXT("enablesound")))
-		{
-			bUseSound = true;
-		}
+		bool bUseSound = FApp::CanEverRenderAudio();
 
 		if (bUseSound)
 		{
@@ -871,7 +865,7 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 	}
 }
 
-void FAudioDeviceManager::IterateOverAllDevices(TFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice)
+void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -880,7 +874,7 @@ void FAudioDeviceManager::IterateOverAllDevices(TFunction<void(Audio::FDeviceId,
 	}
 }
 
-void FAudioDeviceManager::IterateOverAllDevices(TFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const
+void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const
 {
 	// We have to cheat a little to make this safe: we cast our crit section to a mutable pointer in order to scope lock.
 	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
@@ -1460,7 +1454,7 @@ FAudioDeviceHandle::~FAudioDeviceHandle()
 		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 		if (ensure(AudioDeviceManager))
 		{
-			AudioDeviceManager->DecrementDevice(DeviceId, World);
+			AudioDeviceManager->DecrementDevice(DeviceId, World.Get());
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 			check(StackWalkID != INDEX_NONE);
@@ -1475,7 +1469,7 @@ FAudioDevice* FAudioDeviceHandle::GetAudioDevice() const
 	return Device;
 }
 
-UWorld* FAudioDeviceHandle::GetWorld() const
+TWeakObjectPtr<UWorld> FAudioDeviceHandle::GetWorld() const
 {
 	return World;
 }
@@ -1497,11 +1491,9 @@ void FAudioDeviceHandle::Reset()
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Other)
 {
-	FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
-
 	const bool bWasValid = IsValid();
 	const Audio::FDeviceId OldDeviceId = DeviceId;
-	UWorld* OldWorld = World;
+	UWorld* OldWorld = World.Get();
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 	const uint32 OldStackWalkID = StackWalkID;
@@ -1511,23 +1503,26 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 	DeviceId = Other.DeviceId;
 	World = Other.World;
 
-	if (AudioDeviceManager && IsValid())
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
-		AudioDeviceManager->IncrementDevice(DeviceId);
+		if (IsValid())
+		{
+			AudioDeviceManager->IncrementDevice(DeviceId);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		AddStackDumpToAudioDeviceContainer();
+			AddStackDumpToAudioDeviceContainer();
 #endif
-	}
+		}
 
-	if (AudioDeviceManager && bWasValid)
-	{
+		if (bWasValid)
+		{
+			AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
+
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		check(OldStackWalkID != INDEX_NONE);
-		AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
+			check(OldStackWalkID != INDEX_NONE);
+			AudioDeviceManager->RemoveStackWalkForContainer(OldDeviceId, OldStackWalkID);
 #endif
-
-		AudioDeviceManager->DecrementDevice(OldDeviceId, OldWorld);
+		}
 	}
 
 	return *this;
@@ -1541,7 +1536,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 
 	const bool bWasValid = IsValid();
 	const Audio::FDeviceId OldDeviceId = DeviceId;
-	UWorld* OldWorld = World;
+	UWorld* OldWorld = World.Get();
 
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
@@ -1575,7 +1570,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 
 	Other.Device = nullptr;
 	Other.DeviceId = INDEX_NONE;
-	Other.World = nullptr;
+	Other.World.Reset();
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 	Other.StackWalkID = INDEX_NONE;

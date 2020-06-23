@@ -26,9 +26,9 @@ public:
 		SLATE_ARGUMENT(ELevelViewportType, ViewportType)
 		SLATE_ARGUMENT(bool, Realtime)
 		SLATE_ARGUMENT(FName, ConfigKey)
-	SLATE_END_ARGS()
+		SLATE_END_ARGS()
 
-
+	void Construct(const FArguments& InArgs);
 	void OnSetViewportConfiguration(FName ConfigurationName);
 	bool IsViewportConfigurationSet(FName ConfigurationName) const;
 
@@ -39,9 +39,12 @@ public:
 protected:
 	virtual void BindCommands() override;
 
-	TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override {
-		EditorViewportClient = MakeShareable(new FEditorViewportClient(nullptr));
-
+	TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override 
+	{
+		if (!EditorViewportClient.IsValid())
+		{
+			EditorViewportClient = MakeShareable(new FEditorViewportClient(nullptr));
+		}
 		return EditorViewportClient.ToSharedRef();
 	};
 

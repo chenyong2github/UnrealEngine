@@ -1032,9 +1032,9 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		CollisionComp->RegisterComponent();
 	}
 
-	// Kick off asynchronous rendering task for physical materials
-	// This task will be updated in UpdatePhysicalMaterialTasks()
-	PhysicalMaterialTask.Init(this);
+	// Invalidate rendered physical materials
+	// These are updated in UpdatePhysicalMaterialTasks()
+ 	PhysicalMaterialHash = 0;
 }
 
 void ULandscapeComponent::DestroyCollisionData()
@@ -1438,9 +1438,9 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 			CollisionComp->DominantLayerData.Unlock();
 		}
 
-		// Kick off asynchronous rendering task for physical materials
-		// This task will be updated in UpdatePhysicalMaterialTasks()
-		PhysicalMaterialTask.Init(this);
+		// Invalidate rendered physical materials
+		// These are updated in UpdatePhysicalMaterialTasks()
+ 		PhysicalMaterialHash = 0;
 
 		// We do not force an update of the physics data here. We don't need the layer information in the editor and it
 		// causes problems if we update it multiple times in a single frame.
@@ -1481,8 +1481,38 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	UpdateCollisionLayerData(WeightmapTextureMipDataParam.GetData(), SimpleCollisionWeightmapMipDataParam.GetData());
 }
 
+uint32 ULandscapeComponent::CalculatePhysicalMaterialTaskHash() const
+{
+	uint32 Hash = 0;
+	
+	// Take into account any material changes.
+	UMaterialInterface* Material = GetLandscapeMaterial();
+	for (UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(Material); MIC; MIC = Cast<UMaterialInstanceConstant>(Material))
+	{
+		Hash = FCrc::TypeCrc32(MIC->ParameterStateId, Hash);
+		Material = MIC->Parent;
+	}
+	UMaterial* MaterialBase = Cast<UMaterial>(Material);
+	if (MaterialBase != nullptr)
+	{
+		Hash = FCrc::TypeCrc32(MaterialBase->StateId, Hash);
+	}
+
+	// We could take into account heightmap and weightmap changes here by adding to the hash.
+	// Instead we are resetting the stored hash in UpdateCollisionHeightData() and UpdateCollisionLayerData().
+
+	return Hash;
+}
+
 void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 {
+	uint32 Hash = CalculatePhysicalMaterialTaskHash();
+	if (PhysicalMaterialHash != Hash)
+	{
+		PhysicalMaterialTask.Init(this);
+		PhysicalMaterialHash = Hash;
+	}
+
 	if (PhysicalMaterialTask.IsValid())
 	{
 		if (PhysicalMaterialTask.IsComplete())
@@ -1491,7 +1521,8 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 
 			PhysicalMaterialTask.Release();
 
-			// We do not force an update of the physics data here. We don't need the information in the editor.
+			// We do not force an update of the physics data here. 
+			// We don't need the information immediately in the editor and update will happen on cook or PIE.
 		}
 		else
 		{
@@ -2999,6 +3030,10 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 			ComponentsToProcess.Append(LandscapeComponents);
 		}
+
+		check(LayerImportSettings.Num() != 0);
+		// Currently only supports reimporting heightmap data into a single edit layer, which will always be the default layer
+		ReimportDestinationLayerGuid = LayerImportSettings[0].DestinationLayerGuid;
 
 		TSet<UTexture2D*> LayersTextures;
 
@@ -5008,7 +5043,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		}
 
 		// Update normals if DrawScale3D is changed
-		if (PropertyName == FName(TEXT("RelativeScale3D")))
+		if (MemberPropertyName == FName(TEXT("RelativeScale3D")))
 		{
 			FLandscapeEditDataInterface LandscapeEdit(Info);
 			LandscapeEdit.RecalculateNormals();
@@ -7084,6 +7119,13 @@ bool ALandscapeProxy::LandscapeImportHeightmapFromRenderTarget(UTextureRenderTar
 		return false;
 	}
 
+	if (Landscape->HasLayersContent())
+	{
+		//todo: Support an edit layer name input parameter to support import to edit layers.
+		FMessageLog("Blueprint").Error(LOCTEXT("LandscapeImportHeightmapFromRenderTarget_LandscapeLayersNotSupported", "LandscapeImportHeightmapFromRenderTarget: Cannot import to landscape with Edit Layers enabled."));
+		return false;
+	}
+
 	int32 MinX, MinY, MaxX, MaxY;
 	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 
@@ -7315,6 +7357,13 @@ bool ALandscapeProxy::LandscapeImportWeightmapFromRenderTarget(UTextureRenderTar
 	ALandscape* Landscape = GetLandscapeActor();
 	if (Landscape != nullptr)
 	{
+		if (Landscape->HasLayersContent())
+		{
+			//todo: Support an edit layer name input parameter to support import to edit layers.
+			FMessageLog("Blueprint").Error(LOCTEXT("LandscapeImportWeightmapFromRenderTarget_LandscapeLayersNotSupported", "LandscapeImportWeightmapFromRenderTarget: Cannot import to landscape with Edit Layers enabled."));
+			return false;
+		}
+
 		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 
 		int32 MinX, MinY, MaxX, MaxY;

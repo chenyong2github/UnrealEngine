@@ -600,6 +600,88 @@ void UWidgetBlueprint::NotifyGraphRenamed(class UEdGraph* Graph, FName OldName, 
 	});
 }
 
+EDataValidationResult UWidgetBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = UBlueprint::IsDataValid(ValidationErrors);
+
+	const bool bFoundLeak = DetectSlateWidgetLeaks(ValidationErrors);
+
+	return bFoundLeak ? EDataValidationResult::Invalid : Result;
+}
+
+bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
+{
+	// We can't safely run this in anything but a running editor, since widgets
+	// rely on a functioning slate application.
+	if (IsRunningCommandlet())
+	{
+		return false;
+	}
+
+	UWorld* DummyWorld = NewObject<UWorld>();
+	UUserWidget* TempUserWidget = NewObject<UUserWidget>(DummyWorld, GeneratedClass);
+	TempUserWidget->ClearFlags(RF_Transactional);
+	TempUserWidget->SetDesignerFlags(EWidgetDesignFlags::Designing);
+
+	// If there's no widget tree, there's no test to be performed.
+	if (WidgetTree == nullptr)
+	{
+		return false;
+	}
+
+	// Update the widget tree directly to match the blueprint tree.  That way the preview can update
+	// without needing to do a full recompile.
+	TempUserWidget->DuplicateAndInitializeFromWidgetTree(WidgetTree);
+
+	// We don't want this widget doing all the normal startup and acting like it's the real deal
+	// trying to do gameplay stuff, so make sure it's in design mode.
+	TempUserWidget->SetDesignerFlags(EWidgetDesignFlags::Designing);
+
+	// Force construction of the slate widgets, and immediately let it go.
+	TWeakPtr<SWidget> PreviewSlateWidgetWeak = TempUserWidget->TakeWidget();
+
+	bool bFoundLeak = false;
+
+	// NOTE: This doesn't explore sub UUserWidget trees, searching for leaks there on purpose,
+	//       those widgets will be handled by their own validation steps.
+
+	// Verify everything is going to be garbage collected.
+	TempUserWidget->WidgetTree->ForEachWidget([&ValidationErrors, &bFoundLeak](UWidget* Widget) {
+		if (!bFoundLeak)
+		{
+			TWeakPtr<SWidget> PreviewChildWidget = Widget->GetCachedWidget();
+			if (PreviewChildWidget.IsValid())
+			{
+				bFoundLeak = true;
+				if (UPanelWidget* ParentWidget = Widget->GetParent())
+				{
+					ValidationErrors.Add(
+						FText::Format(
+							LOCTEXT("LeakingWidgetsWithParent_WarningFmt", "Leak Detected!  {0} ({1}) still has living Slate widgets, it or the parent {2} ({3}) is keeping them in memory.  Make sure all Slate resources (TSharedPtr<SWidget>'s) are being released in the UWidget's ReleaseSlateResources().  Also check the USlot's ReleaseSlateResources()."),
+							FText::FromString(Widget->GetName()),
+							FText::FromString(Widget->GetClass()->GetName()),
+							FText::FromString(ParentWidget->GetName()),
+							FText::FromString(ParentWidget->GetClass()->GetName())
+						)
+					);
+				}
+				else
+				{
+					ValidationErrors.Add(
+						FText::Format(
+							LOCTEXT("LeakingWidgetsWithoutParent_WarningFmt", "Leak Detected!  {0} ({1}) still has living Slate widgets, it or the parent widget is keeping them in memory.  Make sure all Slate resources (TSharedPtr<SWidget>'s) are being released in the UWidget's ReleaseSlateResources().  Also check the USlot's ReleaseSlateResources()."),
+							FText::FromString(Widget->GetName()),
+							FText::FromString(Widget->GetClass()->GetName())
+						)
+					);
+				}
+			}
+		}
+	});
+
+	return bFoundLeak;
+}
+
 bool UWidgetBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const
 {
 	const UWidgetBlueprint* OtherWidgetBP = Cast<UWidgetBlueprint>(OtherBlueprint);

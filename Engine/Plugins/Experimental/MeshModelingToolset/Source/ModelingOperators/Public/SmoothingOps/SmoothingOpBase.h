@@ -6,6 +6,7 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 #include "VectorTypes.h"
+#include "WeightMapTypes.h"
 
 class FDynamicMesh3;
 class FMeshNormals;
@@ -17,6 +18,9 @@ public:
 	{
 		// value in range [0,1] where 0 is no smoothing and 1 is full smoothing
 		float SmoothAlpha = 1.0;
+
+		// value in range [0,1] where 0 is no smoothing and 1 is full smoothing
+		float BoundarySmoothAlpha = 1.0;
 
 		// number of iterations for iterative smoothing 
 		int32 Iterations = 1;
@@ -42,6 +46,10 @@ public:
 
 		// offset used by some smoothers
 		double NormalOffset = 0.0;
+
+		TSharedPtr<FIndexedWeightMap1f> WeightMap;
+		bool bUseWeightMap = false;
+		float WeightMapMinMultiplier = 0.0;
 	};
 
 
@@ -50,7 +58,7 @@ public:
 	virtual ~FSmoothingOpBase() override {}
 
 	// set ability on protected transform.
-	void SetTransform(FTransform3d& XForm);
+	void SetTransform(const FTransform3d& XForm);
 
 	// base class overrides this.  Results in updated ResultMesh.
 	virtual void CalculateResult(FProgressCancel* Progress) override = 0;

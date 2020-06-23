@@ -978,6 +978,7 @@ void FFoliageStaticMesh::AddInstance(AInstancedFoliageActor* IFA, const FFoliage
 {
 	check(Component);
 	Component->AddInstanceWorldSpace(NewInstance.GetInstanceWorldTransform());
+	bInvalidateLightingCache = true;
 }
 
 void FFoliageStaticMesh::RemoveInstance(int32 InstanceIndex)
@@ -999,6 +1000,7 @@ void FFoliageStaticMesh::SetInstanceWorldTransform(int32 InstanceIndex, const FT
 {
 	check(Component);
 	Component->UpdateInstanceTransform(InstanceIndex, Transform, true, true, bTeleport);
+	bInvalidateLightingCache = true;
 }
 
 FTransform FFoliageStaticMesh::GetInstanceWorldTransform(int32 InstanceIndex) const
@@ -1749,6 +1751,12 @@ void FFoliageInfo::AddInstanceImpl(AInstancedFoliageActor* InIFA, const FFoliage
 void FFoliageInfo::AddInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances)
 {
 	AddInstancesImpl(InIFA, InSettings, InNewInstances, [](FFoliageImpl* Impl, AInstancedFoliageActor* LocalIFA, const FFoliageInstance& LocalInstance) { Impl->AddInstance(LocalIFA, LocalInstance); });
+}
+
+void FFoliageInfo::ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum)
+{
+	Instances.Reserve(Instances.Num() + ReserveNum);
+	Implementation->PreAddInstances(InIFA, InSettings, ReserveNum);
 }
 
 void FFoliageInfo::AddInstancesImpl(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc)
@@ -3360,6 +3368,8 @@ void AInstancedFoliageActor::MapRebuild()
 	// Most BSP-painted foliage is attached to a Brush's UModelComponent which persist across rebuilds,
 	// but any foliage attached directly to the level BSP's ModelComponents will need to try to find a new base.
 
+	CleanupDeletedFoliageType();
+
 	TMap<UFoliageType*, TArray<FFoliageInstance>> NewInstances;
 	TArray<UModelComponent*> RemovedModelComponents;
 	UWorld* World = GetWorld();
@@ -4229,11 +4239,11 @@ void AInstancedFoliageActor::OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InW
 
 void AInstancedFoliageActor::CleanupDeletedFoliageType()
 {
-	for (auto& Pair : FoliageInfos)
+	for (auto It = FoliageInfos.CreateIterator(); It; ++It)
 	{
-		if (Pair.Key == nullptr)
+		if (It->Key == nullptr)
 		{
-			FFoliageInfo& Info = *Pair.Value;
+			FFoliageInfo& Info = *It->Value;
 			TArray<int32> InstancesToRemove;
 			for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 			{
@@ -4244,12 +4254,10 @@ void AInstancedFoliageActor::CleanupDeletedFoliageType()
 			{
 				Info.RemoveInstances(this, InstancesToRemove, true);
 			}
+
+			It.RemoveCurrent();
 		}
-
 	}
-
-	while (FoliageInfos.Remove(nullptr)) {}	//remove entries from the map
-
 }
 
 

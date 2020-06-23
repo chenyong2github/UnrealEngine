@@ -15,6 +15,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 #include "ScreenRendering.h"
 #include "ResolveShader.h"
 #include "SceneUtils.h"
+#include "RenderUtils.h"
 
 int32 AFRSyncTemporalResources = 1;
 static FAutoConsoleVariableRef CVarSyncTemporalResources(
@@ -141,7 +142,7 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
-	FD3D12VertexBuffer* ArgumentBuffer = FD3D12DynamicRHI::ResourceCast(ArgumentBufferRHI);
+	FD3D12VertexBuffer* ArgumentBuffer = RetrieveObject<FD3D12VertexBuffer>(ArgumentBufferRHI);
 
 	if (IsDefaultContext())
 	{
@@ -256,119 +257,13 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], InNumUAVs);
-	const bool bTransitionBetweenShaderStages = (TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute) || (TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx);
-	const bool bUAVTransition = (TransitionType == EResourceTransitionAccess::EReadable) || (TransitionType == EResourceTransitionAccess::EWritable || TransitionType == EResourceTransitionAccess::ERWBarrier);
-	
-	// When transitioning between shader stage usage, we can avoid a UAV barrier as an optimization if the resource will be transitioned to a different resource state anyway (E.g RT -> UAV).
-	// That being said, there is a danger when going from UAV usage on one stage (E.g. Pixel Shader UAV) to UAV usage on another stage (E.g. Compute Shader UAV), 
-	// IFF the 2nd UAV usage relies on the output of the 1st. That would require a UAV barrier since the D3D12 RHI state tracking system would optimize that transition out.
-	// The safest option is to always do a UAV barrier when ERWBarrier is passed in. However there is currently no usage like this so we're ok for now. 
-	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier && !bTransitionBetweenShaderStages);
 
+	// Always perform UAV barrier when transition type is ERWBarrier because we don't know if the transition will be UAV -> UAV or any other state when ERWBarrier is set
+	// This is the safest path, but sadly enough not the fastest path. Barrier refactor code and RDG will fix this in the future
+	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier);
 	if (bUAVBarrier)
 	{
-		// UAV barrier between Dispatch() calls to ensure all R/W accesses are complete.
 		StateCache.FlushComputeShaderCache(true);
-	}
-	else if (bUAVTransition)
-	{
-		// We do a special transition now when called with a particular set of parameters (ERWBarrier && EGfxToCompute) as an optimization when the engine wants to use uavs on the async compute queue.
-		// This will transition all specifed UAVs to the UAV state on the 3D queue to avoid stalling the compute queue with pending resource state transitions later.
-		if ((TransitionType == EResourceTransitionAccess::ERWBarrier) && (TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute))
-		{
-			// The 3D queue can safely transition resources to the UAV state, regardless of their current state (RT, SRV, etc.). However the compute queue is limited in what states 
-			// it can transition to/from, so we limit this transition logic to only happen when going from Gfx -> Compute. (E.g. The compute queue cannot transition to/from RT, Pixel Shader SRV, etc.).
-			for (int32 i = 0; i < InNumUAVs; ++i)
-			{
-				if (InUAVs[i])
-				{
-					FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-					FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				}
-			}
-		}
-		else
-		{
-#if USE_D3D12RHI_RESOURCE_STATE_TRACKING
-			if (TransitionType == EResourceTransitionAccess::EReadable)
-			{
-				const D3D12_COMMAND_LIST_TYPE CmdListType = CommandListHandle.GetCommandListType();
-
-				// Compute pipeline can't transition to graphics states such as PIXEL_SHADER_RESOURCE. Best bet is to transition to COMMON given that we're going to consume it on a different queue anyway.
-				// Technically we should be able to transition NON_PIXEL_SHADER_RESOURCE on ComputeToCompute cases, but it appears an AMD driver issue is causing that to hang the GPU, so we're using COMMON
-				// in that case also, which is not ideal, but avoids the hang.
-				D3D12_RESOURCE_STATES AfterState = (CmdListType == D3D12_COMMAND_LIST_TYPE_DIRECT && TransitionPipeline == EResourceTransitionPipeline::EComputeToGfx)?
-					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON;
-
-				for (int32 i = 0; i < InNumUAVs; ++i)
-				{
-					if (InUAVs[i])
-					{
-						FD3D12UnorderedAccessView* const UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-						FD3D12DynamicRHI::TransitionResource(CommandListHandle, UnorderedAccessView, AfterState);
-					}
-				}
-			}
-#else
-			// Determine the direction of the transitions.
-			// Note in this method, the writeable state is always UAV, regardless of the FD3D12Resource's Writeable state.
-			const D3D12_RESOURCE_STATES* pBefore = nullptr;
-			const D3D12_RESOURCE_STATES* pAfter = nullptr;
-			const D3D12_RESOURCE_STATES WritableComputeState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-			D3D12_RESOURCE_STATES WritableGraphicsState;
-			D3D12_RESOURCE_STATES ReadableState;
-			switch (TransitionType)
-			{
-			case EResourceTransitionAccess::EReadable:
-				// Write -> Read
-				pBefore = &WritableComputeState;
-				pAfter = &ReadableState;
-				break;
-
-			case EResourceTransitionAccess::EWritable:
-				// Read -> Write
-				pBefore = &ReadableState;
-				pAfter = &WritableComputeState;
-				break;
-
-			case EResourceTransitionAccess::ERWBarrier:
-				// Write -> Write, but switching from Grfx to Compute.
-				check(TransitionPipeline == EResourceTransitionPipeline::EGfxToCompute);
-				pBefore = &WritableGraphicsState;
-				pAfter = &WritableComputeState;
-				break;
-
-			default:
-				check(false);
-				break;
-			}
-
-			// Create the resource barrier descs for each texture to transition.
-			for (int32 i = 0; i < InNumUAVs; ++i)
-			{
-				if (InUAVs[i])
-				{
-					FD3D12UnorderedAccessView* UnorderedAccessView = RetrieveObject<FD3D12UnorderedAccessView>(InUAVs[i]);
-					FD3D12Resource* Resource = UnorderedAccessView->GetResource();
-					check(Resource->RequiresResourceStateTracking());
-
-					SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResourcesLoop, bShowTransitionEvents, TEXT("To:%i - %s"), i, *Resource->GetName().ToString());
-
-					// The writable compute state is always UAV.
-					WritableGraphicsState = Resource->GetWritableState();
-					ReadableState = Resource->GetReadableState();
-
-					// Some ERWBarriers might have the same before and after states.
-					if (*pBefore != *pAfter)
-					{
-						CommandListHandle.AddTransitionBarrier(Resource, *pBefore, *pAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-						DUMP_TRANSITION(Resource->GetName(), TransitionType);
-					}
-				}
-			}
-#endif // USE_D3D12RHI_RESOURCE_STATE_TRACKING
-		}
 	}
 
 	if (WriteComputeFenceRHI)
@@ -398,13 +293,11 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 	check(StagingBuffer);
 	ensureMsgf(!StagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 
-	FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
+	FD3D12VertexBuffer* VertexBuffer = RetrieveObject<FD3D12VertexBuffer>(SourceBufferRHI);
 	check(VertexBuffer);
 
 	ensureMsgf((SourceBufferRHI->GetUsage() & BUF_SourceCopy) != 0, TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));
 
-	// Only get data from the first gpu for now.
-	FD3D12Device* StagingDevice = VertexBuffer->GetParentDevice();
 
 	// Ensure our shadow buffer is large enough to hold the readback.
 	if (!StagingBuffer->StagedRead || StagingBuffer->ShadowBufferSize < NumBytes)
@@ -964,7 +857,7 @@ FRTVDesc GetRenderTargetViewDesc(FD3D12RenderTargetView* RenderTargetView)
 	return ret;
 }
 
-void FD3D12CommandContext::RHISetRenderTargets(
+void FD3D12CommandContext::SetRenderTargets(
 	uint32 NewNumSimultaneousRenderTargets,
 	const FRHIRenderTargetView* NewRenderTargetsRHI,
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI
@@ -1051,11 +944,11 @@ void FD3D12CommandContext::RHISetRenderTargets(
 	}
 }
 
-void FD3D12CommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
+void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
 	FRHIUnorderedAccessView* UAVs[MaxSimultaneousUAVs] = {};
 
-	this->RHISetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
+	this->SetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
 
@@ -1242,6 +1135,11 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 
 			FD3D12TextureBase* TextureD3D12 = CmdContext.RetrieveTextureBase(TextureRHI);
 			FD3D12ShaderResourceView* D3D12Resource = TextureD3D12->GetShaderResourceView();
+			if (!ensure(D3D12Resource))
+			{
+				D3D12Resource = CmdContext.RetrieveTextureBase(GBlackTexture->TextureRHI)->GetShaderResourceView();
+			}
+
 			check(D3D12Resource != nullptr);
 
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
@@ -1822,7 +1720,7 @@ void FD3D12DynamicRHI::RHISubmitCommandsAndFlushGPU()
 */
 uint32 FD3D12DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
-	return GGPUFrameTime;
+	return D3D12RHI::FD3DGPUProfiler::GetGPUFrameCycles(GPUIndex);
 }
 
 void FD3D12DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
@@ -1933,7 +1831,6 @@ void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 		return;
 	}
 
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
 	FD3D12Adapter* Adapter = GetParentAdapter();
 	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
 
@@ -1945,7 +1842,6 @@ void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 
 		Effect->WaitForPrevious(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
 	}
-#endif
 #endif // WITH_MGPU
 }
 
@@ -1960,13 +1856,13 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	}
 
 	const uint32 GPUIndex = GetGPUIndex();
-	TArray<FD3D12TextureBase*, TInlineAllocator<8>> SrcTextures, DstTextures;
+	TArray<FD3D12TextureBase*, TInlineAllocator<MAX_NUM_GPUS>> SrcTextures, DstTextures;
 	const int32 NumTextures = InTextures.Num();
 	for (int32 i = 0; i < NumTextures; i++)
 	{
 		SrcTextures.Emplace(RetrieveTextureBase(InTextures[i]));
 		const uint32 NextSiblingGPUIndex = AFRUtils::GetNextSiblingGPUIndex(GPUIndex);
-		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], [NextSiblingGPUIndex](FD3D12Device* Device) { return Device->GetGPUIndex() == NextSiblingGPUIndex; }));
+		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], NextSiblingGPUIndex));
 	}
 
 #if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
@@ -2023,6 +1919,10 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 		numCopies++;
 		CommandListHandle->CopyResource(DstTextures[i]->GetResource()->GetResource(), SrcTextures[i]->GetResource()->GetResource());
 	}
+
+	FlushCommands();
+
+	Effect->SignalSyncComplete(GPUIndex, bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
 
 #endif // USE_COPY_QUEUE_FOR_RESOURCE_SYNC
 #endif // WITH_MGPU

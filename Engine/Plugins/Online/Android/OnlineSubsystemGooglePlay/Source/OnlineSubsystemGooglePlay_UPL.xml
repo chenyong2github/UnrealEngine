@@ -6,6 +6,12 @@
 	  <log text="Subsystem Google Play SDK Android init"/>
 	</init>
 	
+	<prebuildCopies>
+		<log text="Copying Google Play java files"/>
+		<copyDir src="$S(PluginDir)/Java"
+			dst = "$S(BuildDir)/src" />
+	</prebuildCopies>
+
 	<!-- gradle dependencies additions -->
 	<buildGradleAdditions>
 		<insert>
@@ -14,6 +20,48 @@
 			}
 		</insert>
 	</buildGradleAdditions>
+
+	<!-- optional additions to GameActivity imports in GameActivity.java -->
+	<gameActivityImportAdditions>
+		<insert>
+import com.epicgames.ue4.GooglePlayStoreHelper;
+		</insert>
+	</gameActivityImportAdditions>
+
+	<!-- optional additions to GameActivity class in GameActivity.java -->
+	<gameActivityClassAdditions>
+		<insert>
+	/** Implement this if app wants to handle IAB activity launch. For e.g use DaydreamApi for transitions **/
+	GooglePlayStoreHelper.PurchaseLaunchCallback purchaseLaunchCallback = null;
+
+	public GooglePlayStoreHelper.PurchaseLaunchCallback getPurchaseLaunchCallback()
+	{
+		return purchaseLaunchCallback;
+	}
+		</insert>
+	</gameActivityClassAdditions>
+
+	<gameActivityIapSetupServiceAdditions>
+		<insert>
+		if (getPackageManager().checkPermission("com.android.vending.BILLING", getPackageName()) == getPackageManager().PERMISSION_GRANTED)
+		{
+			IapStoreHelper = new GooglePlayStoreHelper(InProductKey, this, Log);
+			if (IapStoreHelper != null)
+			{
+				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Setup started");
+			}
+			else
+			{
+				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Failed to setup IAP service");
+			}
+		}
+		else
+		{
+			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - You do not have the appropriate permission setup.");
+			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Please ensure com.android.vending.BILLING is added to the manifest.");
+		}
+		</insert>
+	</gameActivityIapSetupServiceAdditions>
 	
 	<!-- optional additions to GameActivity onCreate in GameActivity.java -->
 	<gameActivityOnCreateAdditions>

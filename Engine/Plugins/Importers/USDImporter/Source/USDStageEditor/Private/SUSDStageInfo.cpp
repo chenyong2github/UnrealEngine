@@ -2,9 +2,12 @@
 
 #include "SUSDStageInfo.h"
 
+#include "USDConversionUtils.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfLayer.h"
 
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
@@ -14,14 +17,6 @@
 #include "Widgets/Text/STextBlock.h"
 
 #if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/usd/stage.h"
-#include "pxr/usd/usdGeom/metrics.h"
-
-#include "USDIncludesEnd.h"
 
 
 #define LOCTEXT_NAMESPACE "UsdStageInfo"
@@ -81,19 +76,10 @@ void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 		return;
 	}
 
-	if ( const pxr::UsdStageRefPtr& UsdStage = UsdStageActor->GetUsdStage() )
+	if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
 	{
-		TUsdStore< std::string > UsdDisplayName = UsdStage->GetRootLayer()->GetDisplayName();
-		StageInfos.RootLayerDisplayName = FText::FromString( UsdToUnreal::ConvertString( UsdDisplayName.Get() ) );
-
-		if ( pxr::UsdGeomStageHasAuthoredMetersPerUnit( UsdStage ) )
-		{
-			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
-		}
-		else
-		{
-			StageInfos.MetersPerUnit.Reset();
-		}
+		StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
+		StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
 	}
 }
 

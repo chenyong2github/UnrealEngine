@@ -65,6 +65,29 @@ static FAutoConsoleVariableRef CVarUnbindResourcesBetweenDrawsInDX11(
 	ECVF_Default
 	);
 
+
+int32 GDX11ReduceRTVRebinds = 1;
+static FAutoConsoleVariableRef CVarDX11ReduceRTVRebinds(
+	TEXT("r.DX11.ReduceRTVRebinds"),
+	GDX11ReduceRTVRebinds,
+	TEXT("Reduce # of SetRenderTargetCalls."),
+	ECVF_ReadOnly
+);
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+int32 GLogDX11RTRebinds = 0;
+static FAutoConsoleVariableRef CVarLogDx11RTRebinds(
+	TEXT("r.DX11.LogRTRebinds"),
+	GLogDX11RTRebinds,
+	TEXT("Log # of rebinds of RTs per frame"),
+	ECVF_Default
+);
+FThreadSafeCounter GDX11RTRebind;
+FThreadSafeCounter GDX11CommitGraphicsResourceTables;
+#endif
+
+
+
 void FD3D11BaseShaderResource::SetDirty(bool bInDirty, uint32 CurrentFrame)
 {
 	bDirty = bInDirty;
@@ -824,6 +847,9 @@ void FD3D11DynamicRHI::CommitRenderTargetsAndUAVs()
 void FD3D11DynamicRHI::CommitRenderTargets(bool bClearUAVs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D11RenderTargetCommits);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	GDX11RTRebind.Increment();
+#endif
 	ID3D11RenderTargetView* RTArray[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (uint32 RenderTargetIndex = 0; RenderTargetIndex < NumSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
@@ -999,7 +1025,7 @@ FRTVDesc GetRenderTargetViewDesc(ID3D11RenderTargetView* RenderTargetView)
 	return ret;
 }
 
-void FD3D11DynamicRHI::RHISetRenderTargets(
+void FD3D11DynamicRHI::SetRenderTargets(
 	uint32 NewNumSimultaneousRenderTargets,
 	const FRHIRenderTargetView* NewRenderTargetsRHI,
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI)
@@ -1150,6 +1176,14 @@ void FD3D11DynamicRHI::RHISetRenderTargets(
 	if(NumSimultaneousRenderTargets != NewNumSimultaneousRenderTargets)
 	{
 		NumSimultaneousRenderTargets = NewNumSimultaneousRenderTargets;
+		uint32 Bit = 1;
+		uint32 Mask = 0;
+		for (uint32 Index = 0; Index < NumSimultaneousRenderTargets; ++Index)
+		{
+			Mask |= Bit;
+			Bit <<= 1;
+		}
+		CurrentRTVOverlapMask = Mask;
 		bTargetChanged = true;
 	}
 
@@ -1157,6 +1191,7 @@ void FD3D11DynamicRHI::RHISetRenderTargets(
 	if(bTargetChanged)
 	{
 		CommitRenderTargets(true);
+		CurrentUAVMask = 0;
 	}
 
 	// Set the viewport to the full size of render target 0.
@@ -1178,10 +1213,9 @@ void FD3D11DynamicRHI::RHISetRenderTargets(
 	}
 }
 
-void FD3D11DynamicRHI::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
+void FD3D11DynamicRHI::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
-
-	this->RHISetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
+	this->SetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
 	
@@ -1592,12 +1626,13 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 }
 
 template <class ShaderType>
-int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader)
+int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader, bool bForceInvalidate)
 {
 	checkSlow(Shader);
 	int32 NumChanged = 0;
 	// Mask the dirty bits by those buffers from which the shader has bound resources.
-	uint32 DirtyBits = Shader->ShaderResourceTable.ResourceTableBits & DirtyUniformBuffers[ShaderType::StaticFrequency];
+	uint16 DirtyMask = bForceInvalidate ? 0xffff : DirtyUniformBuffers[ShaderType::StaticFrequency];
+	uint32 DirtyBits = Shader->ShaderResourceTable.ResourceTableBits & DirtyMask;
 	while (DirtyBits)
 	{
 		// Scan for the lowest set bit, compute its index, clear it in the set of dirty bits.
@@ -1621,12 +1656,37 @@ static int32 PeriodicCheck = 0;
 
 void FD3D11DynamicRHI::CommitGraphicsResourceTables()
 {
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	GDX11CommitGraphicsResourceTables.Increment();
+#endif
 	FD3D11BoundShaderState* RESTRICT CurrentBoundShaderState = (FD3D11BoundShaderState*)BoundShaderStateHistory.GetLast();
 	check(CurrentBoundShaderState);
 	auto* PixelShader = CurrentBoundShaderState->GetPixelShader();
 	if(PixelShader)
 	{
-		if(SetUAVPSResourcesFromTables(PixelShader)|| UAVSChanged)
+		//because d3d11 binding uses the same slots for UAVS and RTVS, we have to rebind, when two shaders with different sets of rendertargets are bound
+		//as they can potentially be used by UAVS, which can cause them to unbind RTVs used by subsequent shaders.
+		bool bRTVInvalidate = false;
+		uint32 UAVMask = PixelShader->UAVMask & CurrentRTVOverlapMask;
+		if (GDX11ReduceRTVRebinds && 
+			(0 != ((~CurrentUAVMask) & UAVMask) && CurrentUAVMask == (CurrentUAVMask & UAVMask)))
+		{
+			//if the mask only -adds- uav binds, no RTs will be missing so we just grow the mask
+			CurrentUAVMask = UAVMask;
+		}
+		else if (CurrentUAVMask != UAVMask)
+		{
+			bRTVInvalidate = true;
+			CurrentUAVMask = UAVMask;
+		}
+
+
+		if(bRTVInvalidate)
+		{
+			CommitRenderTargets(true);
+		}
+
+		if(SetUAVPSResourcesFromTables(PixelShader, bRTVInvalidate) || UAVSChanged)
 		{
 			CommitUAVs();
 		}
@@ -1899,6 +1959,7 @@ void FD3D11DynamicRHI::RHIBlockUntilGPUIdle()
  */
 uint32 FD3D11DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
+	check(GPUIndex == 0);
 #if INTEL_METRICSDISCOVERY
 	if (GDX11IntelMetricsDiscoveryEnabled)
 	{
@@ -1942,7 +2003,14 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 				bOnce = true;
 				if (bRenderDoc)
 				{
-					UE_LOG(LogD3D11RHI, Error, TEXT("NvAPI is not available under RenderDoc"));
+					if (FApp::IsUnattended())
+					{
+						UE_LOG(LogD3D11RHI, Display, TEXT("NvAPI is not available under RenderDoc"));
+					}
+					else
+					{
+						UE_LOG(LogD3D11RHI, Warning, TEXT("NvAPI is not available under RenderDoc"));
+					}
 				}
 				else
 				{
@@ -1962,7 +2030,14 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 				bOnce = true;
 				if (bRenderDoc)
 				{
-					UE_LOG(LogD3D11RHI, Error, TEXT("AGS is not available under RenderDoc"));
+					if (FApp::IsUnattended())
+					{
+						UE_LOG(LogD3D11RHI, Display, TEXT("AGS is not available under RenderDoc"));
+					}
+					else
+					{
+						UE_LOG(LogD3D11RHI, Warning, TEXT("AGS is not available under RenderDoc"));
+					}
 				}
 				else
 				{

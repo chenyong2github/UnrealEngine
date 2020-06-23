@@ -55,9 +55,17 @@ FCoreDelegates::FOnActorLabelChanged FCoreDelegates::OnActorLabelChanged;
 FCoreDelegates::FRegisterMovieStreamerDelegate FCoreDelegates::RegisterMovieStreamerDelegate;
 FCoreDelegates::FUnRegisterMovieStreamerDelegate FCoreDelegates::UnRegisterMovieStreamerDelegate;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FRegisterEncryptionKeyDelegate& FCoreDelegates::GetRegisterEncryptionKeyDelegate()
 {
 	static FRegisterEncryptionKeyDelegate RegisterEncryptionKeyDelegate;
+	return RegisterEncryptionKeyDelegate;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FCoreDelegates::FRegisterEncryptionKeyMulticastDelegate& FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate()
+{
+	static FRegisterEncryptionKeyMulticastDelegate RegisterEncryptionKeyDelegate;
 	return RegisterEncryptionKeyDelegate;
 }
 

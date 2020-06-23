@@ -399,19 +399,6 @@ void FSkeletalMeshStreamIn_IO::Abort()
 	}
 }
 
-FString FSkeletalMeshStreamIn_IO::GetIOFilename(const FContext& Context)
-{
-	USkeletalMesh* Mesh = Context.Mesh;
-	if (!IsCancelled() && Mesh)
-	{
-		FString Filename;
-		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
-		return Filename;
-	}
-	MarkAsCancelled();
-	return FString();
-}
-
 void FSkeletalMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
 	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
@@ -421,6 +408,11 @@ void FSkeletalMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 
 		if (bWasCancelled)
 		{
+			// If IO requests was cancelled but the streaming request wasn't, this is an IO error.
+			if (!bIsCancelled)
+			{
+				bFailedOnIOError = true;
+			}
 			MarkAsCancelled();
 		}
 
@@ -438,7 +430,7 @@ void FSkeletalMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 	};
 }
 
-void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FString& IOFilename)
+void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 {
 	if (IsCancelled())
 	{
@@ -446,15 +438,15 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 	}
 	check(!IORequest && PendingFirstMip < CurrentFirstLODIdx);
 
+	USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
-	FString debugName;
-	if (Context.Mesh)
+	if (Mesh && RenderData)
 	{
-		debugName = Context.Mesh->GetName();
-	}
+#if USE_BULKDATA_STREAMING_TOKEN
+		FString Filename;
+		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
+#endif	
 
-	if (RenderData != nullptr)
-	{
 		SetAsyncFileCallback(Context);
 
 		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
@@ -468,7 +460,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context, const FStri
 		TaskSynchronization.Increment();
 
 		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
-			STREAMINGTOKEN_PARAM(IOFilename)
+			STREAMINGTOKEN_PARAM(Filename)
 			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);
@@ -491,6 +483,21 @@ void FSkeletalMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 		}
 		delete IORequest;
 		IORequest = nullptr;
+	}
+}
+
+void FSkeletalMeshStreamIn_IO::ReportIOError(const FContext& Context)
+{
+	// Invalidate the cache state of all initial mips (note that when using FIoChunkId each mip has a different value).
+	if (bFailedOnIOError && Context.Mesh)
+	{
+		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetTextureStreamingManager();
+		for (int32 MipIndex = 0; MipIndex < CurrentFirstLODIdx; ++MipIndex)
+		{
+			StreamingManager.MarkMountedStateDirty(Context.Mesh->GetMipIoFilenameHash(MipIndex));
+		}
+
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Mesh->GetName());
 	}
 }
 
@@ -521,6 +528,12 @@ void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	}
 }
 
+void FSkeletalMeshStreamIn_IO::Cancel(const FContext& Context)
+{
+	DoCancel(Context);
+	ReportIOError(Context);
+}
+
 void FSkeletalMeshStreamIn_IO::CancelIORequest()
 {
 	if (IORequest)
@@ -542,12 +555,7 @@ void TSkeletalMeshStreamIn_IO<bRenderThread>::DoInitiateIO(const FContext& Conte
 {
 	check(Context.CurrentThread == TT_Async);
 
-#if USE_BULKDATA_STREAMING_TOKEN
-	const FString IOFilename = GetIOFilename(Context);
-	SetIORequest(Context, IOFilename);
-#else
-	SetIORequest(Context, FString());
-#endif
+	SetIORequest(Context);
 
 	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(DoSerializeLODData), TT_Async, SRA_UPDATE_CALLBACK(DoCancelIO));
 }
@@ -560,7 +568,7 @@ void TSkeletalMeshStreamIn_IO<bRenderThread>::DoSerializeLODData(const FContext&
 	ClearIORequest(Context);
 	const EThreadType TThread = bRenderThread ? TT_Render : TT_Async;
 	const EThreadType CThread = (EThreadType)Context.CurrentThread;
-	PushTask(Context, TThread, SRA_UPDATE_CALLBACK(DoCreateBuffers), CThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TThread, SRA_UPDATE_CALLBACK(DoCreateBuffers), CThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template <bool bRenderThread>
@@ -575,14 +583,14 @@ void TSkeletalMeshStreamIn_IO<bRenderThread>::DoCreateBuffers(const FContext& Co
 		CreateBuffers_Async(Context);
 	}
 	check(!TaskSynchronization.GetValue());
-	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoFinishUpdate), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoFinishUpdate), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template <bool bRenderThread>
 void TSkeletalMeshStreamIn_IO<bRenderThread>::DoCancelIO(const FContext& Context)
 {
 	ClearIORequest(Context);
-	PushTask(Context, TT_None, nullptr, (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(DoCancel));
+	PushTask(Context, TT_None, nullptr, (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 template class TSkeletalMeshStreamIn_IO<true>;

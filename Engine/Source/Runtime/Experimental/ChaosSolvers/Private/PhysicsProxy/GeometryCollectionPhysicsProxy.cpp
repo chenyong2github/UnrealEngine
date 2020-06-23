@@ -107,7 +107,8 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 	const int32 FaceStart,
 	const int32 FaceCount, 
 	const TManagedArray<bool>& Visible, 
-	const TManagedArray<FIntVector>& Indices)
+	const TManagedArray<FIntVector>& Indices,
+	bool bRotateWinding)
 {
 	TArray<Chaos::TVector<int32, 3>> Faces;
 	Faces.Reserve(FaceCount);
@@ -121,7 +122,15 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 		if (Visible[Idx])
 		{
 			const FIntVector& Tri = Indices[Idx];
-			Faces.Add(Chaos::TVector<int32, 3>(Tri.Z, Tri.Y, Tri.X));
+
+			if(bRotateWinding)
+			{
+				Faces.Add(Chaos::TVector<int32, 3>(Tri.Z, Tri.Y, Tri.X));
+			}
+			else
+			{
+				Faces.Add(Chaos::TVector<int32, 3>(Tri.X, Tri.Y, Tri.Z));
+			}
 		}
 	}
 	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces)); // Culls geometrically degenerate faces
@@ -1714,7 +1723,9 @@ void TGeometryCollectionPhysicsProxy<Traits>::InitializeSharedCollisionStructure
 
 	// fracture tools can create an empty GC before appending new geometry
 	if (RestCollection.NumElements(FGeometryCollection::GeometryGroup) == 0)
+	{
 		return;
+	}
 
 	// clamps
 	const float MinBoundsExtents = SharedParams.MinimumBoundingExtentClamp;
@@ -2124,25 +2135,31 @@ void TGeometryCollectionPhysicsProxy<Traits>::InitializeSharedCollisionStructure
 				MakeSerializable(CollectionSpaceParticles), Idx, Idx));
 			HandleToTransformIdx.Add(Handles[Handles.Num() - 1].Get(), Idx);
 		}
-		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; ++GeometryIdx)
-		{
-			const int32 TransformGroupIndex = TransformIndex[GeometryIdx];
-			if (CollectionSimulatableParticles[TransformGroupIndex])
-			{
-				PopulateSimulatedParticle(
-					Handles[TransformGroupIndex].Get(),
-					SharedParams, 
-					CollectionSimplicials[TransformGroupIndex].Get(),
-					CollectionImplicits[TransformGroupIndex],
-					FCollisionFilterData(),		// SimFilter
-					FCollisionFilterData(),		// QueryFilter
-					CollectionMass[TransformGroupIndex],
-					CollectionInertiaTensor[TransformGroupIndex], 
-					CollectionSpaceTransforms[TransformGroupIndex],
-					(uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic, 
-					INDEX_NONE); // CollisionGroup
-			}
-		}
+
+		// We use PopulateSimulatedParticle here just to give us some valid particles to operate on - with correct
+		// position, mass and inertia so we can accumulate data for clusters just below.
+ 		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; ++GeometryIdx)
+ 		{
+ 			const int32 TransformGroupIndex = TransformIndex[GeometryIdx];
+
+ 			if (CollectionSimulatableParticles[TransformGroupIndex])
+ 			{
+				FTransform GeometryWorldTransform = CollectionSpaceTransforms[TransformGroupIndex] * CollectionMassToLocal[TransformGroupIndex];
+
+ 				PopulateSimulatedParticle(
+ 					Handles[TransformGroupIndex].Get(),
+ 					SharedParams, 
+ 					CollectionSimplicials[TransformGroupIndex].Get(),
+ 					CollectionImplicits[TransformGroupIndex],
+ 					FCollisionFilterData(),		// SimFilter
+ 					FCollisionFilterData(),		// QueryFilter
+ 					CollectionMass[TransformGroupIndex],
+ 					CollectionInertiaTensor[TransformGroupIndex], 
+					GeometryWorldTransform,
+ 					(uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic, 
+ 					INDEX_NONE); // CollisionGroup
+ 			}
+ 		}
 
 		const TArray<int32> RecursiveOrder = ComputeRecursiveOrder(RestCollection);
 		const TArray<int32> TransformToGeometry = ComputeTransformToGeometryMap(RestCollection);

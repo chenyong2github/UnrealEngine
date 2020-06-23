@@ -243,10 +243,23 @@ public:
 	void EndTrackingCommandListTime();
 
 	/** Get the start/end timestamps of all tracked commandlists obtained from this manager */
-	void GetCommandListTimingResults(TArray<FResolvedCmdListExecTime>& OutTimingPairs);
+	void GetCommandListTimingResults(TArray<FResolvedCmdListExecTime>& OutTimingPairs, bool bUseBlockingCall = true);
+
+	/** Get the start/end timestamps of all tracked command lists obtained from this manager */
+	void SortTimingResults();
 
 	/** Called back by commandlists when they are closed */
 	void AddCommandListTimingPair(int32 StartTimeQueryIdx, int32 EndTimeQueryIdx);
+
+	/** Resolve all commandlist start/end timestamp queries and get results. This method is blocking by default */
+	void FlushPendingTimingPairs(bool block = true);
+
+	TArray<uint64> &GetStartTimestamps() { return CmdListStartTimestamps; }
+	TArray<uint64> &GetEndTimestamps() { return CmdListEndTimestamps; }
+	TArray<uint64> &GetIdleTime() { return IdleTimeCDF; }
+
+	bool GetShouldTrackCmdListTime() const { return bShouldTrackCmdListTime; }
+	void SetShouldTrackCmdListTime(bool val) { bShouldTrackCmdListTime = val; }
 
 protected:
 	struct FCmdListExecTime
@@ -269,9 +282,6 @@ protected:
 	/** Should this commandlist track its execution time */
 	bool ShouldTrackCommandListTime() const;
 
-	/** Resolve all commandlist start/end timestamp queries and get results. This method is blocking */
-	void FlushPendingTimingPairs();
-
 	TRefCountPtr<ID3D12CommandQueue>		D3DCommandQueue;
 
 	FThreadsafeQueue<FD3D12CommandListHandle> ReadyLists;
@@ -292,10 +302,18 @@ protected:
 	TRefCountPtr<FD3D12Heap> BreadCrumbHeap;
 	TRefCountPtr<FD3D12Resource> BreadCrumbResource;
 	
-#if WITH_PROFILEGPU
-	bool bShouldTrackCmdListTime;
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	FCriticalSection CmdListTimingCS;
+	TArray<FCmdListExecTime> PrevPendingTimingPairs;
 	TArray<FCmdListExecTime> PendingTimingPairs;
 	TArray<FResolvedCmdListExecTime> ResolvedTimingPairs;
 #endif
+
+	bool bShouldTrackCmdListTime;
+	/** Timstamps marking the beginning of tracked command lists */
+	TArray<uint64> CmdListStartTimestamps;
+	/** Timstamps marking the end of tracked command lists */
+	TArray<uint64> CmdListEndTimestamps;
+	/** Accumulated idle GPU ticks before each corresponding command list */
+	TArray<uint64> IdleTimeCDF;
 };

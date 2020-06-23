@@ -950,15 +950,16 @@ namespace EditorUtilities
 		UActorComponent* TargetComponent = StartIndex < TargetComponents.Num() ? TargetComponents[ StartIndex ] : nullptr;
 
 		// If the source and target components do not match (e.g. context-specific), attempt to find a match in the target's array elsewhere
-		const int32 NumTargetComponents = TargetComponents.Num();
 		if( (SourceComponent != nullptr) 
 			&& ((TargetComponent == nullptr) 
+				|| (SourceComponent->GetClass() != TargetComponent->GetClass())
 				|| (SourceComponent->GetFName() != TargetComponent->GetFName()) ))
 		{
 			const bool bSourceIsArchetype = SourceComponent->HasAnyFlags(RF_ArchetypeObject);
 			// Reset the target component since it doesn't match the source
 			TargetComponent = nullptr;
 
+			const int32 NumTargetComponents = TargetComponents.Num();
 			if (NumTargetComponents > 0)
 			{
 				// Attempt to locate a match elsewhere in the target's component list

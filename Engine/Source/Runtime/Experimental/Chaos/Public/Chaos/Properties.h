@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Chaos/ParticleDirtyFlags.h"
+#include "Framework/PhysicsProxyBase.h"
 #include "Framework/PhysicsSolverBase.h"
 
 namespace Chaos

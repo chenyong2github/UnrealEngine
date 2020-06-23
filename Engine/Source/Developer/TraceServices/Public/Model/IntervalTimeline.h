@@ -42,6 +42,7 @@ public:
 		{
 			Callback(true, InStartTime, InEvent);
 			Callback(false, InEndTime, InEvent);
+			return Trace::EEventEnumerate::Continue;
 		});
 	}
 	
@@ -64,7 +65,10 @@ public:
 			{
 				if (!(Event->EndTime < IntervalStart || IntervalEnd < Event->StartTime))
 				{
-					Callback(Event->StartTime, Event->EndTime, 0, Event->Event);
+					if (Callback(Event->StartTime, Event->EndTime, 0, Event->Event) == EEventEnumerate::Stop)
+					{
+						return;
+					}
 				}
 				Event = EventIterator.NextItem();
 			}

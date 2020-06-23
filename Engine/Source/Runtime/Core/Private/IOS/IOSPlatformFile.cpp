@@ -867,30 +867,34 @@ IMappedFileHandle* FIOSPlatformFile::OpenMapped(const TCHAR* Filename)
 	FString FinalPath = ConvertToIOSPath(NormalizedFilename, false, false);
 	FILE* FP;
 	FP = fopen(TCHAR_TO_UTF8(*FinalPath), "r");
-//	if(Handle == -1)
-//	{
-//		// if not in the read path, check the private write path
-//		FinalPath = ConvertToIOSPath(NormalizedFilename, true, false);
-//		Handle = open(TCHAR_TO_UTF8(*FinalPath), O_RDONLY);
-//
-//		if(Handle == -1)
-//		{
-//			// if not in the private write path, check the public write path
-//			FinalPath = ConvertToIOSPath(NormalizedFilename, true, true);
-//			Handle = open(TCHAR_TO_UTF8(*FinalPath), O_RDONLY);
-//		}
-//	}
-	int32 Handle = fileno(FP);
-	
-	if (Handle != -1)
+	if(FP == nullptr)
 	{
-		struct stat FileInfo;
-		FileInfo.st_size = -1;
-		// check the read path
-		fstat(Handle, &FileInfo);
-		uint64 FileSize = FileInfo.st_size;
+		// if not in the read path, check the private write path
+		FinalPath = ConvertToIOSPath(NormalizedFilename, true, false);
+		FP = fopen(TCHAR_TO_UTF8(*FinalPath), "r");
 
-		return new FIOSMappedFileHandle(Handle, FileSize, FinalPath);
+		if(FP == nullptr)
+		{
+			// if not in the private write path, check the public write path
+			FinalPath = ConvertToIOSPath(NormalizedFilename, true, true);
+			FP = fopen(TCHAR_TO_UTF8(*FinalPath), "r");
+		}
+	}
+	
+	if (FP != nullptr)
+	{
+		int32 Handle = fileno(FP);
+	
+		if (Handle != -1)
+		{
+			struct stat FileInfo;
+			FileInfo.st_size = -1;
+			// check the read path
+			fstat(Handle, &FileInfo);
+			uint64 FileSize = FileInfo.st_size;
+
+			return new FIOSMappedFileHandle(Handle, FileSize, FinalPath);
+		}
 	}
 	return NULL;
 }

@@ -74,6 +74,14 @@ static FAutoConsoleVariableRef CVarNiagaraComponentWarnAsleepCullReaction(
 	ECVF_Default
 );
 
+static int32 GNiagaraUseSupressActivateList = 0;
+static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
+	TEXT("fx.Niagara.UseSupressActivateList"),
+	GNiagaraUseSupressActivateList,
+	TEXT("When a component is activated we will check the surpession list."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -528,10 +536,13 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 void UNiagaraComponent::ReleaseToPool()
 {
 	if (PoolingMethod != ENCPoolMethod::ManualRelease)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
-			Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
-		);
+	{		
+		if (UNiagaraComponentPool::Enabled())//Only emit this warning if pooling is enabled. If it's not, all components will have PoolingMethod none.
+		{	
+			UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
+				Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
+			);
+		}
 		return;
 	}
 
@@ -599,7 +610,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->GetCompletionHandle());
+			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
@@ -838,7 +849,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		SetComponentTickEnabled(false);
 		return;
 	}
-	
+
 	UWorld* World = GetWorld();
 	// If the particle system can't ever render (ie on dedicated server or in a commandlet) than do not activate...
 	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer))
@@ -849,6 +860,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (!IsRegistered())
 	{
 		return;
+	}
+
+	// Temporary change to allow specific Niagara assets to not activate
+	if ( GNiagaraUseSupressActivateList )
+	{
+		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
+		{
+			const FName AssetName = Asset->GetFName();
+			if (ComponentSettings->SupressActivationList.Contains(AssetName))
+			{
+				return;
+			}
+		}
 	}
 
 	// On the off chance that the user changed the asset, we need to clear out the existing data.
@@ -882,19 +906,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		UnregisterWithScalabilityManager();
 	}
 
-	if (!bIsScalabilityCull && bIsCulledByScalability)
+	if (!bIsScalabilityCull && bIsCulledByScalability && ScalabilityManagerHandle != INDEX_NONE)
 	{
-		check(ScalabilityManagerHandle != INDEX_NONE);
 		//If this is a non scalability activate call and we're still registered with the manager.
 		//If we reach this point then we must have been previously culled by scalability so bail here.
 		return;
 	}
 
-	bIsCulledByScalability = false;
+	bIsCulledByScalability = false; 
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
 		bIsCulledByScalability = true;
+		OnSystemComplete();
 		return;
 	}
 
@@ -961,6 +985,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	SystemInstance->Activate(ResetMode);
 
+	if (SystemInstance->IsSolo())
+	{
+		const ETickingGroup SoloTickGroup = SystemInstance->CalculateTickGroup();
+		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
+		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
+	}
+
 	/** We only need to tick the component if we require solo mode. */
 	SetComponentTickEnabled(SystemInstance->IsSolo());
 }
@@ -1000,7 +1031,8 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 		SystemInstance->Deactivate();
 
 		// We are considered active until we are complete
-		SetActiveFlag(!SystemInstance->IsComplete());
+		// Note: Deactivate call can finalize -> complete the system -> release to pool -> unregister which will result in a nullptr for the SystemInstance
+		SetActiveFlag(SystemInstance ? !SystemInstance->IsComplete() : false);
 	}
 	else
 	{
@@ -1177,6 +1209,13 @@ void UNiagaraComponent::DestroyInstance()
 
 void UNiagaraComponent::OnRegister()
 {
+	if (IsActive() && SystemInstance.IsValid() == false)
+	{
+		// If we're active but don't have an active system instance clear the active flag so that the component
+		// gets activated.
+		SetActiveFlag(false);
+	}
+
 	if (bAutoManageAttachment && !IsActive())
 	{
 		// Detach from current parent, we are supposed to wait for activation.
@@ -1227,6 +1266,28 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
 	//DestroyInstance();//Can't do this here as we can call this from inside the system instance currently during completion 
 
+	if (PoolingMethod != ENCPoolMethod::None)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+		}
+
+		// Set pooling method to none as we are destroyed and can not go into the pool after this point
+		PoolingMethod = ENCPoolMethod::None;
+	}
+
 	UnregisterWithScalabilityManager();
 
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
@@ -1246,19 +1307,45 @@ void UNiagaraComponent::OnUnregister()
 
 		SystemInstance->Deactivate(true);
 
-		// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
-		// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
-		FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
-		check(SystemInstance.Get() == nullptr);
-#if WITH_EDITORONLY_DATA
-		OnSystemInstanceChangedDelegate.Broadcast();
-#endif
+		//TODO: Don't destroy the instance for pooled systems. This is removing half or more of the gains of pooling in the first place.
+		//if (PoolingMethod == ENCPoolMethod::None)
+		{
+			// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
+			// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
+			FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
+			check(SystemInstance.Get() == nullptr);
+	#if WITH_EDITORONLY_DATA
+			OnSystemInstanceChangedDelegate.Broadcast();
+	#endif
+		}
 	}
 }
 
 void UNiagaraComponent::BeginDestroy()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+
+	if (PoolingMethod != ENCPoolMethod::None)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+			{
+				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
+				{
+					ComponentPool->PooledComponentDestroyed(this);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+		}
+
+		// Set pooling method to none as we are destroyed and can not go into the pool after this point
+		PoolingMethod = ENCPoolMethod::None;
+	}
 
 	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
 	ScalabilityManagerHandle = INDEX_NONE;
@@ -1517,6 +1604,15 @@ FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
 	return SystemInstance.Get();
 }
 
+void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
+{
+	TickBehavior = NewTickBehavior;
+	if (SystemInstance.IsValid())
+	{
+		SystemInstance->SetTickBehavior(TickBehavior);
+	}
+}
+
 void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue)
 {
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetColorDef(), InVariableName);
@@ -1734,6 +1830,91 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 	return Values;
 }
 
+void FixInvalidUserParameters(FNiagaraUserRedirectionParameterStore& ParameterStore)
+{
+	static const FString UserPrefix = FNiagaraConstants::UserNamespace.ToString() + TEXT(".");
+
+	TArray<FNiagaraVariable> Parameters;
+	ParameterStore.GetParameters(Parameters);
+	TArray<FNiagaraVariable> IncorrectlyNamedParameters;
+	for (FNiagaraVariable& Parameter : Parameters)
+	{
+		if (Parameter.GetName().ToString().StartsWith(UserPrefix) == false)
+		{
+			IncorrectlyNamedParameters.Add(Parameter);
+		}
+	}
+
+	bool bParameterRenamed = false;
+	for(FNiagaraVariable& IncorrectlyNamedParameter : IncorrectlyNamedParameters)
+	{
+		FString FixedNameString = UserPrefix + IncorrectlyNamedParameter.GetName().ToString();
+		FName FixedName = *FixedNameString;
+		FNiagaraVariable FixedParameter(IncorrectlyNamedParameter.GetType(), FixedName);
+		if (Parameters.Contains(FixedParameter))
+		{
+			// If the correctly named parameter is also in the collection then both parameters need to be removed and the 
+			// correct one re-added.  First we need to cache the value of the parameter so that it's not lost on removal.
+			UNiagaraDataInterface* DataInterfaceValue = nullptr;
+			UObject* ObjectValue = nullptr;
+			TArray<uint8> DataValue;
+			int32 ValueIndex = ParameterStore.IndexOf(IncorrectlyNamedParameter);
+			if (IncorrectlyNamedParameter.IsDataInterface())
+			{
+				DataInterfaceValue = ParameterStore.GetDataInterface(IncorrectlyNamedParameter);
+			}
+			else if (IncorrectlyNamedParameter.IsUObject())
+			{
+				ObjectValue = ParameterStore.GetUObject(IncorrectlyNamedParameter);
+			}
+			else
+			{
+				const uint8* DataValuePtr = ParameterStore.GetParameterData(IncorrectlyNamedParameter);
+				if (DataValuePtr != nullptr)
+				{
+					DataValue.AddUninitialized(IncorrectlyNamedParameter.GetSizeInBytes());
+					FMemory::Memcpy(DataValue.GetData(), DataValuePtr, IncorrectlyNamedParameter.GetSizeInBytes());
+				}
+			}
+
+			// Next we remove the parameter twice because the first removal of the incorrect parameter will actually remove
+			// the correct version due to the user redirection table.
+			ParameterStore.RemoveParameter(IncorrectlyNamedParameter);
+			ParameterStore.RemoveParameter(IncorrectlyNamedParameter);
+
+			// Last we add back the fixed parameter and set the value.
+			ParameterStore.AddParameter(FixedParameter, false);
+			if (DataInterfaceValue != nullptr)
+			{
+				ParameterStore.SetDataInterface(DataInterfaceValue, FixedParameter);
+			}
+			else if (ObjectValue != nullptr)
+			{
+				ParameterStore.SetUObject(ObjectValue, FixedParameter);
+			}
+			else
+			{
+				if (DataValue.Num() == FixedParameter.GetSizeInBytes())
+				{
+					ParameterStore.SetParameterData(DataValue.GetData(), FixedParameter);
+				}
+			}
+		}
+		else 
+		{
+			// If the correctly named parameter was not in the collection already we can just rename the incorrect parameter
+			// to the correct one.
+			ParameterStore.RenameParameter(IncorrectlyNamedParameter, FixedName);
+			bParameterRenamed = true;
+		}
+	}
+
+	if (bParameterRenamed)
+	{
+		ParameterStore.RecreateRedirections();
+	}
+}
+
 void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -1744,6 +1925,8 @@ void UNiagaraComponent::PostLoad()
 	if (Asset != nullptr)
 	{
 		Asset->ConditionalPostLoad();
+
+		FixInvalidUserParameters(OverrideParameters);
 		
 		UpgradeDeprecatedParameterOverrides();
 		SynchronizeWithSourceSystem();
@@ -2110,44 +2293,50 @@ void UNiagaraComponent::SetParameterOverride(const FNiagaraVariableBase& InKey, 
 		return;
 	}
 
+	// we want to be sure we're storing data based on the fully qualified key name (i.e. taking the user redirection into account)
+	const FNiagaraVariableBase ParameterKey = OverrideParameters.FindRedirection(InKey);
+
 	if (IsTemplate())
 	{
-		TemplateParameterOverrides.Add(InKey, InValue);
+		TemplateParameterOverrides.Add(ParameterKey, InValue);
 	}
 	else
 	{
-		InstanceParameterOverrides.Add(InKey, InValue);
+		InstanceParameterOverrides.Add(ParameterKey, InValue);
 	}
 
-	SetOverrideParameterStoreValue(InKey, InValue);
+	SetOverrideParameterStoreValue(ParameterKey, InValue);
 }
 
 void UNiagaraComponent::RemoveParameterOverride(const FNiagaraVariableBase& InKey)
 {
+	// we want to be sure we're storing data based on the fully qualified key name (i.e. taking the user redirection into account)
+	const FNiagaraVariableBase ParameterKey = OverrideParameters.FindRedirection(InKey);
+
 	if (!IsTemplate())
 	{
-		InstanceParameterOverrides.Remove(InKey);
+		InstanceParameterOverrides.Remove(ParameterKey);
 	}
 	else
 	{
-		TemplateParameterOverrides.Remove(InKey);
+		TemplateParameterOverrides.Remove(ParameterKey);
 
 		// we are an archetype, but check if we have an archetype and inherit the value from there
 		const UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype());
 		if (Archetype != nullptr)
 		{
-			FNiagaraVariant ArchetypeValue = Archetype->FindParameterOverride(InKey);
+			FNiagaraVariant ArchetypeValue = Archetype->FindParameterOverride(ParameterKey);
 			if (ArchetypeValue.IsValid())
 			{
 				// defined in archetype, reset value to that
-				if (InKey.IsDataInterface())
+				if (ParameterKey.IsDataInterface())
 				{
 					UNiagaraDataInterface* DataInterface = DuplicateObject(ArchetypeValue.GetDataInterface(), this);
-					TemplateParameterOverrides.Add(InKey, FNiagaraVariant(DataInterface));
+					TemplateParameterOverrides.Add(ParameterKey, FNiagaraVariant(DataInterface));
 				}
 				else
 				{
-					TemplateParameterOverrides.Add(InKey, ArchetypeValue);
+					TemplateParameterOverrides.Add(ParameterKey, ArchetypeValue);
 				}
 			}
 		}
@@ -2208,6 +2397,14 @@ float UNiagaraComponent::GetMaxSimTime() const
 void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 {
 	MaxSimTime = InMaxTime;
+}
+
+void UNiagaraComponent::SetAutoDestroy(bool bInAutoDestroy)
+{
+	if (ensureMsgf(!bInAutoDestroy || (PoolingMethod == ENCPoolMethod::None), TEXT("Attempting to set AutoDestroy on a pooled component!  Component(%s) Asset(%s)"), *GetFullName(), GetAsset() != nullptr ? *GetAsset()->GetPathName() : TEXT("None")))
+	{
+		bAutoDestroy = bInAutoDestroy;
+	}
 }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

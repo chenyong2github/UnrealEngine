@@ -7,12 +7,15 @@
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
+#include "WeightMapTypes.h"
 #include "MeshOpPreviewHelpers.h"
+#include "PropertySets/WeightMapSetProperties.h"
 #include "BaseMeshProcessingTool.generated.h"
 
 // predeclarations
 struct FMeshDescription;
 class FMeshNormals;
+class FMeshBoundaryLoops;
 class USimpleDynamicMeshComponent;
 class UPreviewMesh;
 
@@ -47,6 +50,10 @@ public:
  *   - The Subclass provides FDynamicMeshOperator instances (via IDynamicMeshOperatorFactory) that process/modify and update this Preview
  *   - PropertySets with custom visibility can be registered, and on change will invalidate the current computation
  *   
+ * Optional support for a WeightMap property set and tracking of active weight map can be enabled by calling
+ * AddWeightMapPropertySet(), GetActiveWeightMap() will then return the active WeightMap, and changes to the 
+ * WeightMap selection will invalidate the computation.
+ *
  * Most subclasses will only need to define their PropertySets and implement MakeNewOperator(), see eg SmoothMeshTool for a minimal example
  *
  * Other functions:
@@ -58,9 +65,11 @@ public:
  * The Base tool will do various optional precomputations or changes to the input mesh, which can be configured by
  * overriding various functions below.
  * 
- *   RequiresBaseNormals() : return true (default) to calculate per-vertex normals on the input mesh, returned by GetBaseNormals()
- * 
- *   RequiresScaleNormalization() : return true (default) to apply an initial scale to the input mesh so that it has consistent size
+ *   RequiresInitialVtxNormals() : return true (default=false) to calculate per-vertex normals on the input mesh, returned by GetInitialVtxNormals()
+ *
+ *   RequiresInitialBoundaryLoops() : return true (default=false) to calculate boundary loops on the input mesh, returned by GetInitialBoundaryLoops()
+ *
+ *   RequiresScaleNormalization() : return true (default=true) to apply an initial scale to the input mesh so that it has consistent size
  *     before being sent into the computation. Scaling factor (eg for scaling UI constants) can be accessed via GetScaleNormalizationFactor()
  *
  */
@@ -110,7 +119,7 @@ protected:
 	 */
 	virtual bool HasMeshTopologyChanged() const
 	{
-		check(false);
+		unimplemented();
 		return true;
 	}
 
@@ -214,20 +223,71 @@ protected:
 
 
 	//
-	// Optional base mesh per-vertex normals
+	// Optional base mesh per-vertex normals. Default enabled.
+	// These are computed at Tool startup if required, and then not modified, so can be passed to multithreaded operators/etc
 	//
 protected:
 	/** 
 	 * If this function returns true, BaseNormals will be initialized in Tool ::Setup(). 
 	 * This has some cost and should be disabled if not necessary. 
 	 */
-	virtual bool RequiresBaseNormals() const { return true; }
+	virtual bool RequiresInitialVtxNormals() const { return false; }
 
 	/** @return calculated base normals. This pointer does not change for the lifetime of the Tool. */
-	TSharedPtr<FMeshNormals>& GetBaseNormals();
+	TSharedPtr<FMeshNormals>& GetInitialVtxNormals();
 
 private:
-	TSharedPtr<FMeshNormals> BaseNormals;
+	TSharedPtr<FMeshNormals> InitialVtxNormals;
+
+
+
+	//
+	// Optional base mesh boundary loops. Default enabled.
+	// These are computed at Tool startup if required, and then not modified, so can be passed to multithreaded operators/etc
+	//
+protected:
+	/** 
+	 * If this function returns true, InitialBoundaryLoops will be initialized in Tool ::Setup(). 
+	 * This has some cost and should be disabled if not necessary. 
+	 */
+	virtual bool RequiresInitialBoundaryLoops() const { return false; }
+
+	/** @return calculated base normals. This pointer does not change for the lifetime of the Tool. */
+	TSharedPtr<FMeshBoundaryLoops>& GetInitialBoundaryLoops();
+
+private:
+	TSharedPtr<FMeshBoundaryLoops> InitialBoundaryLoops;
+
+
+
+
+
+	//
+	// Optional weight map support
+	// Weight map will only be enabled if base class registers a weight map property set
+	//
+protected:
+	template<class PropSetType>
+	PropSetType* AddWeightMapPropertySet(TUniqueFunction<bool()> VisibilityFunc = []() {return true; } )
+	{
+		PropSetType* PropSet = NewObject<PropSetType>(this);
+		SetupWeightMapPropertySet(PropSet);
+		WeightMapPropertySetVisibleFunc = MoveTemp(VisibilityFunc);
+		return PropSet;
+	}
+
+	virtual void SetupWeightMapPropertySet(UWeightMapSetProperties* Properties);
+
+	bool HasActiveWeightMap() const;
+	TSharedPtr<FIndexedWeightMap1f>& GetActiveWeightMap();
+
+private:
+	TWeakObjectPtr<UWeightMapSetProperties> WeightMapPropertySet;
+	TUniqueFunction<bool()> WeightMapPropertySetVisibleFunc;
+	TSharedPtr<FIndexedWeightMap1f> ActiveWeightMap;
+	void OnSelectedWeightMapChanged(bool bInvalidate);
+
+
 
 
 	//

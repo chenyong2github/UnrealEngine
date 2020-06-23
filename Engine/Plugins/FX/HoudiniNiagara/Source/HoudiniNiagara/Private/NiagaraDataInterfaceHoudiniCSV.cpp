@@ -119,6 +119,10 @@ void UNiagaraDataInterfaceHoudiniCSV::PostLoad()
 {
     Super::PostLoad();
 
+#if WITH_EDITOR
+	UE_LOG(LogHoudiniNiagara, Warning, TEXT("You are using an old version of the Houdini plugin! Please visit https://github.com/sideeffects/HoudiniNiagara to get the newest version."));
+#endif
+	
 	LastSpawnedPointID = -1;
 	LastSpawnTime = -1.0f;
 

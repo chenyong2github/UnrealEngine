@@ -247,6 +247,25 @@ TEST(Handles, FrameworkTests)
 	ChaosTest::Handles::HandleSerializeTest<float>();
 }
 
+//TEST(Vehicle, VehicleTests) {
+//
+//	ChaosTest::SystemTemplateTest<float>();
+//
+//	ChaosTest::AerofoilTestLiftDrag<float>();
+//	
+//	ChaosTest::TransmissionTestManualGearSelection<float>();
+//	ChaosTest::TransmissionTestAutoGearSelection<float>();
+//	ChaosTest::TransmissionTestGearRatios<float>();
+//
+//	ChaosTest::EngineRPM<float>();
+//
+//	ChaosTest::WheelLateralSlip<float>();
+//	ChaosTest::WheelBrakingLongitudinalSlip<float>();
+//	ChaosTest::WheelAcceleratingLongitudinalSlip<float>();
+//
+//	ChaosTest::SuspensionForce<float>();
+//}
+
 
 //////////////////////////////////////////////////////////
 ///// GEOMETRY COLLECTION ///////////////////////////////

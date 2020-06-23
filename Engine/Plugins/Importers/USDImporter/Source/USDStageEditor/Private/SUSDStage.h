@@ -11,6 +11,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+#include "USDStageViewModel.h"
+
 class AUsdStageActor;
 class FLevelCollectionModel;
 class FMenuBuilder;
@@ -51,7 +53,6 @@ protected:
 	void OnPrimSelected( FString PrimPath );
 
 	void OpenStage( const TCHAR* FilePath );
-	void CloseStage();
 
 	void Refresh();
 
@@ -66,8 +67,6 @@ protected:
 	TSharedPtr< class SUsdPrimInfo > UsdPrimInfoWidget;
 	TSharedPtr< class SUsdLayersTreeView > UsdLayersTreeView;
 
-	TWeakObjectPtr< AUsdStageActor > UsdStageActor;
-
 	FDelegateHandle OnActorLoadedHandle;
 	FDelegateHandle OnActorDestroyedHandle;
 	FDelegateHandle OnStageActorPropertyChangedHandle;
@@ -76,6 +75,8 @@ protected:
 	FDelegateHandle OnPrimChangedHandle;
 
 	FString SelectedPrimPath;
+
+	FUsdStageViewModel ViewModel;
 };
 
 #endif // #if USE_USD_SDK

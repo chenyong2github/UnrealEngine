@@ -23,6 +23,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/MemStack.h"
+#include "ShaderCompilerCore.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -158,6 +159,14 @@ int32 FShaderMapResourceCode::FindShaderIndex(const FSHAHash& InHash) const
 	return Algo::BinarySearch(ShaderHashes, InHash);
 }
 
+void FShaderMapResourceCode::AddShaderCompilerOutput(const FShaderCompilerOutput& Output)
+{
+#if WITH_EDITORONLY_DATA
+	AddPlatformDebugData(Output.PlatformDebugData);
+#endif
+	AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode.GetReadAccess());
+}
+
 void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, TConstArrayView<uint8> InCode)
 {
 	const int32 Index = Algo::LowerBound(ShaderHashes, InHash);
@@ -271,18 +280,23 @@ void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPl
 #endif // WITH_EDITORONLY_DATA
 
 FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders)
-	: Platform(InPlatform)
+	: NumRHIShaders(NumShaders)
+	, Platform(InPlatform)
 	, NumRefs(0)
 {
-	RHIShaders.AddZeroed(NumShaders);
+	RHIShaders = MakeUnique<std::atomic<FRHIShader*>[]>(NumRHIShaders); // this MakeUnique() zero-initializes the array
 #if RHI_RAYTRACING
-	RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
-	FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
+	if (GRHISupportsRayTracing)
+	{
+		RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
+		FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
+	}
 #endif // RHI_RAYTRACING
 }
 
 FShaderMapResource::~FShaderMapResource()
 {
+	ReleaseShaders();
 	check(NumRefs == 0);
 }
 
@@ -304,6 +318,23 @@ void FShaderMapResource::Release()
 	}
 }
 
+void FShaderMapResource::ReleaseShaders()
+{
+	if (RHIShaders)
+	{
+		for (int32 Idx = 0; Idx < NumRHIShaders; ++Idx)
+		{
+			if (FRHIShader* Shader = RHIShaders[Idx].load(std::memory_order_acquire))
+			{
+				Shader->Release();
+			}
+		}
+		RHIShaders = nullptr;
+		NumRHIShaders = 0;
+	}
+}
+
+
 void FShaderMapResource::ReleaseRHI()
 {
 #if RHI_RAYTRACING
@@ -314,7 +345,7 @@ void FShaderMapResource::ReleaseRHI()
 	RayTracingMaterialLibraryIndices.Empty();
 #endif // RHI_RAYTRACING
 
-	RHIShaders.Empty();
+	ReleaseShaders();
 }
 
 void FShaderMapResource::BeginCreateAllShaders()
@@ -330,10 +361,10 @@ void FShaderMapResource::BeginCreateAllShaders()
 	});
 }
 
-void FShaderMapResource::CreateShader(int32 ShaderIndex)
+FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 {
 	check(IsInParallelRenderingThread());
-	check(!RHIShaders[ShaderIndex]);
+	check(!RHIShaders[ShaderIndex].load(std::memory_order_acquire));
 
 	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);
 #if RHI_RAYTRACING
@@ -342,7 +373,13 @@ void FShaderMapResource::CreateShader(int32 ShaderIndex)
 		RayTracingMaterialLibraryIndices[ShaderIndex] = AddToRayTracingLibrary(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
 	}
 #endif // RHI_RAYTRACING
-	RHIShaders[ShaderIndex] = MoveTemp(RHIShader);
+
+	// keep the reference alive (the caller will release)
+	if (RHIShader.IsValid())
+	{
+		RHIShader->AddRef();
+	}
+	return RHIShader.GetReference();
 }
 
 TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 ShaderIndex)

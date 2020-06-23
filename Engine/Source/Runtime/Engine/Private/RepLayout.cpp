@@ -4585,7 +4585,7 @@ static bool DiffProperties_r(FDiffPropertiesSharedParams& Params, TDiffPropertie
 					UE_LOG(LogRep, Warning, TEXT("FDiffPropertiesImpl: Array sizes different: %s %i / %i"), *Cmd.Property->GetFullName(), SourceArray->Num(), DestinationArray->Num());
 					continue;
 				}
-				else if (EnumHasAnyFlags(Parent.Flags, Params.PropertyFlags))
+				else if (!EnumHasAnyFlags(Parent.Flags, Params.PropertyFlags))
 				{
 					continue;
 				}

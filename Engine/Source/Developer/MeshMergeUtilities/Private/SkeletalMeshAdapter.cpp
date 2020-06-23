@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshAdapter.h"
-#include "MeshMergeHelpers.h"
+
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
-#include "UObject/Package.h"
+#include "MeshMergeHelpers.h"
+#include "MeshUtilities.h"
+#include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "UObject/Package.h"
 
 FSkeletalMeshComponentAdapter::FSkeletalMeshComponentAdapter(USkeletalMeshComponent* InSkeletalMeshComponent)
 	: SkeletalMeshComponent(InSkeletalMeshComponent), SkeletalMesh(InSkeletalMeshComponent->SkeletalMesh)
@@ -49,11 +52,21 @@ FString FSkeletalMeshComponentAdapter::GetBaseName() const
 	return SkeletalMesh->GetOutermost()->GetName();
 }
 
+FName FSkeletalMeshComponentAdapter::GetMaterialSlotName(int32 MaterialIndex) const
+{
+	return SkeletalMesh->Materials[MaterialIndex].MaterialSlotName;
+}
+
+FName FSkeletalMeshComponentAdapter::GetImportedMaterialSlotName(int32 MaterialIndex) const
+{
+	return SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName;
+}
+
 void FSkeletalMeshComponentAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Material)
 {
-	//Use the material name has the slot name and imported slot name
-	//TODO: find a way to pass the original Material names MaterialSlotName and ImportedMaterialSlotName
-	SkeletalMesh->Materials[MaterialIndex] = FSkeletalMaterial(Material, true, false, Material->GetFName(), Material->GetFName());
+	//We need to preserve the original material slot data
+	const FSkeletalMaterial& OriginalMaterialSlot = SkeletalMesh->Materials[MaterialIndex];
+	SkeletalMesh->Materials[MaterialIndex] = FSkeletalMaterial(Material, true, false, OriginalMaterialSlot.MaterialSlotName, OriginalMaterialSlot.ImportedMaterialSlotName);
 }
 
 void FSkeletalMeshComponentAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex)
@@ -77,7 +90,18 @@ void FSkeletalMeshComponentAdapter::RemapMaterialIndex(int32 LODIndex, int32 Sec
 
 int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material)
 {
-	return SkeletalMesh->Materials.Add(Material);
+	const int32 Index = SkeletalMesh->Materials.Emplace(Material);
+	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+	MeshUtilities.FixupMaterialSlotNames(SkeletalMesh);
+	return Index;
+}
+
+int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material, const FName& SlotName, const FName& ImportedSlotName)
+{
+	const int32 Index = SkeletalMesh->Materials.Emplace(Material, true, false, SlotName, ImportedSlotName);
+	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+	MeshUtilities.FixupMaterialSlotNames(SkeletalMesh);
+	return Index;
 }
 
 void FSkeletalMeshComponentAdapter::UpdateUVChannelData()

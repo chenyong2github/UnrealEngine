@@ -9,6 +9,7 @@
 
 class FEditorViewportClient;
 class FViewport;
+class SWindow;
 
 namespace EPickState
 {

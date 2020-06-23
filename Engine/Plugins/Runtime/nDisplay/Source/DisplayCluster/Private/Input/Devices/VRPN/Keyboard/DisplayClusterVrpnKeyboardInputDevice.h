@@ -18,7 +18,7 @@ class FDisplayClusterVrpnKeyboardInputDevice
 	: public FDisplayClusterVrpnKeyboardInputDataHolder
 {
 public:
-	FDisplayClusterVrpnKeyboardInputDevice(const FDisplayClusterConfigInput& config);
+	FDisplayClusterVrpnKeyboardInputDevice(const FDisplayClusterConfigInput& Config);
 	virtual ~FDisplayClusterVrpnKeyboardInputDevice();
 
 public:
@@ -31,7 +31,7 @@ public:
 
 private:
 	// Data update handler
-	static void VRPN_CALLBACK HandleKeyboardDevice(void *userData, vrpn_BUTTONCB const b);
+	static void VRPN_CALLBACK HandleKeyboardDevice(void *UserData, vrpn_BUTTONCB const ButtonData);
 
 private:
 	// The device (PIMPL)

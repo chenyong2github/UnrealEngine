@@ -38,10 +38,14 @@ bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 	FHttpRouteHandle DuplicateHandle = HttpRouter->BindRoute(HttpPath, EHttpServerRequestVerbs::VERB_GET, RequestHandler);
 	TestFalse(TEXT("HttpRouteHandle Duplicated"), DuplicateHandle.IsValid());
 
+	FHttpServerModule::Get().StartAllListeners();
+
 	// Make a request
 	/*
 	ADD_LATENT_AUTOMATION_COMMAND(FExecStringLatentCommand(TEXT("HTTP TEST 1 http://localhost:8888/TestHttpServer")));
 	*/
+
+	FHttpServerModule::Get().StopAllListeners();
 
 	HttpRouter->UnbindRoute(HttpRouteHandle);
 	return true;

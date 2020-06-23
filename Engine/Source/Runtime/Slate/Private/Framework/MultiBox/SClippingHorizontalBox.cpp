@@ -26,7 +26,9 @@ void SClippingHorizontalBox::OnArrangeChildren( const FGeometry& AllottedGeometr
 	for (int32 ChildIdx = NumChildren - 2; ChildIdx >= 0; --ChildIdx)
 	{
 		const FArrangedWidget& CurWidget = ArrangedChildren[ChildIdx];
-		if (FMath::TruncToInt(CurWidget.Geometry.AbsolutePosition.X + CurWidget.Geometry.GetLocalSize().X * CurWidget.Geometry.Scale) > FMath::TruncToInt(AllottedGeometry.AbsolutePosition.X + AllottedGeometry.GetLocalSize().X * CurWidget.Geometry.Scale))
+		FVector2D AbsWidgetPos = CurWidget.Geometry.LocalToAbsolute(CurWidget.Geometry.GetLocalSize());
+		FVector2D AbsBoxPos = AllottedGeometry.AbsolutePosition + AllottedGeometry.GetLocalSize() * AllottedGeometry.Scale;
+		if (FMath::TruncToInt(AbsWidgetPos.X) > FMath::TruncToInt(AbsBoxPos.X))
 		{
 			++NumClippedChildren;
 			ArrangedChildren.Remove(ChildIdx);

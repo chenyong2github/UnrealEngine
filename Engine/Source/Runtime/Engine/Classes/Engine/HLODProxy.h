@@ -3,61 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LODActor.h"
+#include "HLOD/HLODProxyDesc.h"
+#include "HLOD/HLODProxyMesh.h"
 #include "HLODProxy.generated.h"
 
+class ALODActor;
+class UMaterialInterface;
+class UPrimitiveComponent;
 class UStaticMesh;
-
-/** A mesh proxy entry */
-USTRUCT()
-struct FHLODProxyMesh
-{
-	GENERATED_BODY()
-
-	FHLODProxyMesh()
-		: StaticMesh(nullptr)
-	{
-	}
-
-#if WITH_EDITOR
-	FHLODProxyMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey)
-		: LODActor(InLODActor)
-		, StaticMesh(InStaticMesh)
-		, Key(InKey)
-
-	{
-	}
-
-	bool operator==(const FHLODProxyMesh& InHLODProxyMesh) const
-	{
-		return LODActor == InHLODProxyMesh.LODActor &&
-			   StaticMesh == InHLODProxyMesh.StaticMesh &&
-			   Key == InHLODProxyMesh.Key;
-	}
-#endif
-
-	/** Get the mesh for this proxy mesh */
-	const UStaticMesh* GetStaticMesh() const { return StaticMesh; }
-
-	/** Get the actor for this proxy mesh */
-	const TLazyObjectPtr<ALODActor>& GetLODActor() const { return LODActor; }
-
-	/** Get the key for this proxy mesh */
-	const FName& GetKey() const { return Key; }
-
-private:
-	/** The ALODActor that we were generated from */
-	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
-	TLazyObjectPtr<ALODActor> LODActor;
-
-	/** The mesh used to display this proxy */
-	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
-	UStaticMesh* StaticMesh;
-
-	/** The key generated from an ALODActor. If this differs from that generated from the ALODActor, then the mesh needs regenerating. */
-	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
-	FName Key;
-};
+class UStaticMeshComponent;
+class UTexture;
 
 /** This asset acts as a proxy to a static mesh for ALODActors to display */
 UCLASS()
@@ -73,11 +28,20 @@ public:
     /** Get the owner map for this HLOD proxy */
 	TSoftObjectPtr<UWorld> GetMap() const;
 
+	/** Register an HLODProxyDesc, building it from an existing LODActor */
+	UHLODProxyDesc* AddLODActor(ALODActor* InLODActor);
+
 	/** Adds a static mesh and the key used to generate it */
 	void AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey);
 
 	/** Clean out invalid proxy mesh entries */
 	void Clean();
+
+	/** Spawn LODActors from the HLODProxyDescs found in this proxy. */
+ 	void SpawnLODActors(ULevel* InLevel);
+
+	/** Update the HLODDesc stored in this proxy using existing LODActors from the level */
+	void UpdateHLODDescs(const ULevel* InLevel);
 
 	/** Helper for recursive traversing LODActors to retrieve a semi deterministic first AActor for resulting asset naming */
 	static const AActor* FindFirstActor(const ALODActor* LODActor);
@@ -93,6 +57,7 @@ public:
 	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0);
 	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0, const FTransform& TransformComponents = FTransform::Identity);
 
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 #endif
 
 	/**
@@ -118,4 +83,7 @@ private:
 	/** All the mesh proxies we contain */
 	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
 	TArray<FHLODProxyMesh> ProxyMeshes;
+
+	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
+	TMap<UHLODProxyDesc*, FHLODProxyMesh> HLODActors;
 };

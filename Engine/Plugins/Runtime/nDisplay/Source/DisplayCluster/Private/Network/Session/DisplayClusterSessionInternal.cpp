@@ -3,8 +3,8 @@
 #include "Network/Session/DisplayClusterSessionInternal.h"
 #include "Network/DisplayClusterMessage.h"
 
-#include "DisplayClusterConstants.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterConstants.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterSessionInternal::FDisplayClusterSessionInternal(FSocket* InSocket, IDisplayClusterSessionListener* InListener, const FString& InName) :

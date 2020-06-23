@@ -27,60 +27,79 @@ public:
 	 * Specify how log errors & warnings should be handled during tests. If values are not set then the project
 	 * defaults will be used.
 	 */
-	void SetLogErrorAndWarningHandling(TOptional<bool> LogErrorsAreErrors, TOptional<bool> LogWarningsAreErrors)
+	void SetLogErrorAndWarningHandling(TOptional<bool> InSuppressErrors, TOptional<bool> InSuppressWarnings, TOptional<bool> InWarningsAreErrors)
 	{
 		SetLogErrorAndWarningHandlingToDefault();
 
-		if (LogErrorsAreErrors.IsSet())
+		if (InSuppressErrors.IsSet())
 		{
-			bTreatLogErrorsAsErrors = LogErrorsAreErrors.GetValue();
+			bSuppressLogErrors = InSuppressErrors.GetValue();
 		}
 
-		if (LogWarningsAreErrors.IsSet())
+		if (InSuppressWarnings.IsSet())
 		{
-			bTreatLogWarningsAsErrors = LogWarningsAreErrors.GetValue();
+			bSuppressLogWarnings = InSuppressWarnings.GetValue();
+		}
+
+		if (InWarningsAreErrors.IsSet())
+		{
+			bElevateLogWarningsToErrors = InWarningsAreErrors.GetValue();
 		}
 	}	
 
 	/**
-	 * Determines if Error logs should be considered test errors
+	 * Determines if Error logs should be suppressed from test results
 	 */
-	virtual bool TreatLogErrorsAsErrors() override
+	virtual bool SuppressLogErrors() override
 	{
-		return bTreatLogErrorsAsErrors;
+		return bSuppressLogErrors;
 	}
 
 	/**
-	 * Determines if Warning logs should be considered test errors
+	 * Determines if Warning logs should be suppressed from test results
 	 */
-	virtual bool TreatLogWarningsAsErrors() override
+	virtual bool SuppressLogWarnings() override
 	{
-		return bTreatLogWarningsAsErrors;
+		return bSuppressLogWarnings;
 	}
 
 	/**
-	 * Returns true if a functional test is running (does not include map setup)
+	 * Determines if Warning logs should be treated as errors
 	 */
-	bool IsFunctionalTestRunning()
+	virtual bool ElevateLogWarningsToErrors() override
 	{
-		return bIsFunctionalTestRunning;
+		return bElevateLogWarningsToErrors;
 	}
 
 	/**
 	 * Marks us as actively running a functional test
 	 */
-	void SetFunctionalTestRunning(bool bIsRunning)
-	{
-		bIsFunctionalTestRunning = bIsRunning;
-	}
+	void SetFunctionalTestRunning(const FString& InName);
+
+	/**
+	 * Marks us as no longer running a test
+	 */
+	void SetFunctionalTestComplete(const FString& InName);
+
+	/**
+	 * Returns the name of the running functional test. Empty if no test is running
+	 */
+	static FString GetRunningTestName() { return ActiveTestName; }
+
+	/**
+	 * Returns true if a functional test is running (does not include map setup)
+	 */
+	static bool IsFunctionalTestRunning()	{ return bIsFunctionalTestRunning;	}
 
 protected:
 
 	void SetLogErrorAndWarningHandlingToDefault();
 
-
-	bool bTreatLogErrorsAsErrors;
-	bool bTreatLogWarningsAsErrors;
+	bool bSuppressLogErrors;
+	bool bSuppressLogWarnings;
+	bool bElevateLogWarningsToErrors;
 	bool bSuppressLogs;
-	bool bIsFunctionalTestRunning;
+
+	static bool bIsFunctionalTestRunning;
+	static FString ActiveTestName;
 };

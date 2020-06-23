@@ -374,6 +374,24 @@ public:
 	}
 
 	/**
+	 * Checks whether this application can render audio.
+	 * Certain application types produce sound, while for others this can be controlled via the -nosound cmdline.
+	 * This can be used for decisions like omitting code paths that make no sense on servers or games running in headless mode (e.g. automated tests).
+	 *
+	 * @return true if the application can render audio, false otherwise.
+	 */
+	INLINE_CANEVERRENDER static bool CanEverRenderAudio()
+	{
+#if UE_SERVER
+		return false;
+#else
+		static bool bHasNoAudioOnCommandline = FParse::Param(FCommandLine::Get(), TEXT("nosound")) && !FParse::Param(FCommandLine::Get(), TEXT("enablesound"));
+		static bool bApplicationTypeDoesNotRenderAudio = FApp::IsBenchmarking() || IsRunningDedicatedServer() || (IsRunningCommandlet() && !IsAllowCommandletAudio());
+		return !bApplicationTypeDoesNotRenderAudio && !bHasNoAudioOnCommandline;
+#endif // UE_SERVER
+	}
+
+	/**
 	 * Checks whether this application has been installed.
 	 *
 	 * Non-server desktop shipping builds are assumed to be installed.

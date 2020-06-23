@@ -17,6 +17,10 @@
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
@@ -25,6 +29,7 @@
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usdGeom/xformable.h"
+	#include "pxr/usd/usdGeom/mesh.h"
 #include "USDIncludesEnd.h"
 
 namespace UsdGeomXformableTranslatorImpl
@@ -64,7 +69,7 @@ namespace UsdGeomXformableTranslatorImpl
 				if ( pxr::UsdGeomXformable ChildXformable = pxr::UsdGeomXformable( ChildPrim ) )
 				{
 					FTransform LocalChildTransform;
-					UsdToUnreal::ConvertXformable( ChildPrim.GetStage(), ChildXformable, LocalChildTransform, TimeCode );
+					UsdToUnreal::ConvertXformable( ChildPrim.GetStage(), ChildXformable, LocalChildTransform, TimeCode.GetValue() );
 
 					ChildTransform = LocalChildTransform * CurrentTransform;
 				}
@@ -89,7 +94,7 @@ class FUsdGeomXformableCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
 	explicit FUsdGeomXformableCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdGeomXformable >& InGeomXformable )
-		: FBuildStaticMeshTaskChain( InContext, TUsdStore< pxr::UsdTyped >( InGeomXformable.Get() ) )
+		: FBuildStaticMeshTaskChain( InContext, UE::FUsdTyped( InGeomXformable.Get() ) )
 	{
 		SetupTasks();
 	}
@@ -107,7 +112,7 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 	Do( bIsAsyncTask,
 		[ this ]() -> bool
 		{
-			MeshDescription = UsdGeomXformableTranslatorImpl::LoadMeshDescription( pxr::UsdGeomXformable( Schema.Get() ), Context->PurposesToLoad, pxr::UsdTimeCode( Context->Time ) );
+			MeshDescription = UsdGeomXformableTranslatorImpl::LoadMeshDescription( pxr::UsdGeomXformable( Schema ), Context->PurposesToLoad, pxr::UsdTimeCode( Context->Time ) );
 
 			return !MeshDescription.IsEmpty();
 		} );
@@ -125,10 +130,10 @@ void FUsdGeomXformableTranslator::CreateAssets()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
 
-	Context->TranslatorTasks.Add( MakeShared< FUsdGeomXformableCreateAssetsTaskChain >( Context, pxr::UsdGeomXformable( Schema.Get() ) ) );
+	Context->TranslatorTasks.Add( MakeShared< FUsdGeomXformableCreateAssetsTaskChain >( Context, pxr::UsdGeomXformable( Schema ) ) );
 }
 
-FUsdGeomXformableTranslator::FUsdGeomXformableTranslator( TSubclassOf< USceneComponent > InComponentTypeOverride, TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema )
+FUsdGeomXformableTranslator::FUsdGeomXformableTranslator( TSubclassOf< USceneComponent > InComponentTypeOverride, TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema )
 	: FUsdSchemaTranslator( InContext, InSchema )
 	, ComponentTypeOverride( InComponentTypeOverride )
 {
@@ -146,7 +151,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		return nullptr;
 	}
 
-	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
+	TUsdStore< pxr::UsdPrim > Prim( pxr::UsdPrim ( Schema.GetPrim() ) );
 
 	if ( !Prim.Get() )
 	{
@@ -157,19 +162,13 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 	if ( !bNeedsActor.IsSet() )
 	{
-		// We should only add components to our transient/instanced actors, never to the AUsdStageActor or any other permanent actor
-		bool bOwnerActorIsPersistent = false;
-		if ( USceneComponent* RootComponent = Context->ParentComponent )
-		{
-			if ( AActor* Actor = RootComponent->GetOwner() )
-			{
-				bOwnerActorIsPersistent = !Actor->HasAnyFlags(RF_Transient);
-			}
-		}
+		// Don't add components to the AUsdStageActor or the USDStageImport 'scene actor'
+		TUsdStore< pxr::UsdPrim > ParentPrim = Prim.Get().GetParent();
+		bool bIsTopLevelPrim = ParentPrim.Get().IsValid() && ParentPrim.Get().IsPseudoRoot();
 
 		bNeedsActor =
 		(
-			bOwnerActorIsPersistent ||
+			bIsTopLevelPrim ||
 			Context->ParentComponent == nullptr ||
 			Prim.Get().IsPseudoRoot() ||
 			Prim.Get().IsModel() ||
@@ -193,8 +192,13 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( SpawnedActor )
 		{
-			SpawnedActor->SetActorLabel( Prim.Get().GetName().GetText() );
-			SpawnedActor->Tags.AddUnique( TEXT("SequencerActor") );	// Hack to show transient actors in world outliner
+			SpawnedActor->SetActorLabel( Schema.GetPrim().GetName().ToString() );
+
+			// Hack to show transient actors in world outliner
+			if (SpawnedActor->HasAnyFlags(EObjectFlags::RF_Transient))
+			{
+				SpawnedActor->Tags.AddUnique( TEXT("SequencerActor") );
+			}
 
 			SceneComponent = SpawnedActor->GetRootComponent();
 
@@ -216,11 +220,11 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			}
 			else
 			{
-				ComponentType = UsdUtils::GetComponentTypeForPrim( Schema.Get().GetPrim() );
+				ComponentType = UsdUtils::GetComponentTypeForPrim( Schema.GetPrim() );
 
 				if ( CollapsesChildren( ECollapsingType::Assets ) )
 				{
-					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) ) )
+					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( Schema.GetPath().GetString() ) ) )
 					{
 						// At this time, we only support collapsing static meshes together
 						ComponentType = UStaticMeshComponent::StaticClass();
@@ -231,8 +235,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
 		{
-			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), FName( Prim.Get().GetName().GetText() ), Context->ObjectFlags );
-		
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), FName( Schema.GetPrim().GetName() ), Context->ObjectFlags );
+
 			if ( AActor* Owner = SceneComponent->GetOwner() )
 			{
 				Owner->AddInstanceComponent( SceneComponent );
@@ -247,8 +251,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
 		}
 
-		UpdateComponents( SceneComponent );
-
 		// Don't call SetMobility as it would trigger a reregister, queuing unnecessary rhi commands since this is a brand new component
 		if ( Context->ParentComponent && Context->ParentComponent->Mobility == EComponentMobility::Movable )
 		{
@@ -258,6 +260,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		{
 			SceneComponent->Mobility = UsdUtils::IsAnimated( Prim.Get() ) ? EComponentMobility::Movable : EComponentMobility::Static;
 		}
+
+		UpdateComponents( SceneComponent );
 
 		// Attach to parent
 		SceneComponent->AttachToComponent( Context->ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
@@ -275,13 +279,13 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 {
 	if ( SceneComponent )
 	{
-		UsdToUnreal::ConvertXformable( Schema.Get().GetPrim().GetStage(), pxr::UsdGeomXformable( Schema.Get() ), *SceneComponent, pxr::UsdTimeCode( Context->Time ) );
+		UsdToUnreal::ConvertXformable( Schema.GetPrim().GetStage(), pxr::UsdGeomXformable( Schema ), *SceneComponent, Context->Time );
 
 		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
 		// so we must check for this and assign the new StaticMesh
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) );
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( Schema.GetPath().GetString() ) );
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{
@@ -307,11 +311,16 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
 {
+	if ( !Context->bAllowCollapsing || !Schema )
+	{
+		return false;
+	}
+
 	bool bCollapsesChildren = false;
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdModelAPI Model( Schema.Get() );
+	pxr::UsdModelAPI Model{ pxr::UsdTyped( Schema ) };
 
 	if ( Model )
 	{
@@ -327,11 +336,11 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		{
 			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-			TArray< TUsdStore< pxr::UsdPrim > > ChildXformPrims = UsdUtils::GetAllPrimsOfType( Schema.Get().GetPrim(), pxr::TfType::Find< pxr::UsdGeomXformable >() );
+			TArray< TUsdStore< pxr::UsdPrim > > ChildXformPrims = UsdUtils::GetAllPrimsOfType( Schema.GetPrim(), pxr::TfType::Find< pxr::UsdGeomXformable >() );
 
 			for ( const TUsdStore< pxr::UsdPrim >& ChildXformPrim : ChildXformPrims )
 			{
-				if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, pxr::UsdTyped( ChildXformPrim.Get() ) ) )
+				if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, UE::FUsdTyped( ChildXformPrim.Get() ) ) )
 				{
 					if ( !SchemaTranslator->CanBeCollapsed( CollapsingType ) )
 					{
@@ -344,7 +353,7 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 	if ( bCollapsesChildren )
 	{
-		TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshes = UsdUtils::GetAllPrimsOfType( Schema.Get().GetPrim(), pxr::TfType::Find< pxr::UsdGeomMesh >() );
+		TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshes = UsdUtils::GetAllPrimsOfType( Schema.GetPrim(), pxr::TfType::Find< pxr::UsdGeomMesh >() );
 
 		// We only support collapsing GeomMeshes for now and we only want to do it when there are multiple meshes as the resulting mesh is considered unique
 		if ( ChildGeomMeshes.Num() < 2 )

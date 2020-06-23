@@ -53,11 +53,19 @@ public:
 		// if we tried to put it up there but it isn't there now, retry
 		if (InflightCache && bDidTry && !InnerBackend->CachedDataProbablyExists(*CacheKey))
 		{
-			// retry
+			// retry after a brief wait
+			FPlatformProcess::SleepNoStats(0.2f);
 			InnerBackend->PutCachedData(*CacheKey, Data, false);
+
 			if (!InnerBackend->CachedDataProbablyExists(*CacheKey))
 			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Put failed, keeping in memory copy %s."),*InnerBackend->GetName(), *CacheKey);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Put failed, keeping in memory copy %s."),*InnerBackend->GetName(), *CacheKey);
+
+				// log the filesystem error
+				uint32 ErrorCode = FPlatformMisc::GetLastError();
+				TCHAR ErrorBuffer[1024];
+				FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to write %s to %s. Error: %u (%s)"), *CacheKey, *InnerBackend->GetName(), ErrorCode, ErrorBuffer);
 				bOk = false;
 			}
 		}

@@ -178,6 +178,7 @@ namespace MenuStackInternal
 		return FReply::Unhandled();
 	}
 
+	FSimpleDelegate MenuStackPushDebuggingInfo;
 }	// anon namespace
 
 TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, TOptional<EPopupMethod> InMethod, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
@@ -206,6 +207,30 @@ TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TShared
 		// This must be set prior to PushInternal below, as it will be referenced if the menu being created is a new root menu.
 		SetHostPath(InOwnerPath);
 	}
+
+	MenuStackInternal::MenuStackPushDebuggingInfo.Unbind();
+
+#if WITH_EDITOR
+	// If there is an error, this delegate will be called to print out additional details
+	if (InOwnerPath.Widgets.Num() > 0)
+	{
+		// Copy data in case this array is modified
+		TArray<FName> DebugSourceFilenames;
+		DebugSourceFilenames.Reserve(InOwnerPath.Widgets.Num());
+		for (int32 i=0; i < InOwnerPath.Widgets.Num(); ++i)
+		{
+			DebugSourceFilenames.Add(InOwnerPath.Widgets[i].Widget->GetCreatedInLocation());
+		}
+
+		MenuStackInternal::MenuStackPushDebuggingInfo.BindLambda([DebugSourceFilenames]()
+		{
+			for (const FName SourceFilename : DebugSourceFilenames)
+			{
+				UE_LOG(LogSlate, Warning, TEXT("  WidgetSourceFile: %s"), *SourceFilename.ToString());
+			}
+		});
+	}
+#endif
 
 	TGuardValue<bool> Guard(bHostWindowGuard, true);
 	return PushInternal(ParentMenu, InContent, Anchor, TransitionEffect, bFocusImmediately, ActiveMethod.GetShouldThrottle(), bIsCollapsedByParent, bEnablePerPixelTransparency);
@@ -538,7 +563,14 @@ void FMenuStack::PostPush(TSharedPtr<IMenu> InParentMenu, TSharedRef<FMenuBase> 
 	// Insert menu after the dismiss when possible to avoid menu being deleted
 	if (bInInsertAfterDismiss)
 	{
-		check(InsertIndex == Stack.Num());
+		if (InsertIndex != Stack.Num())
+		{
+			MenuStackInternal::MenuStackPushDebuggingInfo.ExecuteIfBound();
+
+			// A menu was unexpectedly removed or added
+			checkf(InsertIndex != Stack.Num(), TEXT("InsertIndex:%d, Stack.Num:%d, InParentMenu.IsValid:%d"), InsertIndex, Stack.Num(), InParentMenu.IsValid());
+		}
+
 		Stack.Add(InMenu);
 		CachedContentMap.Add(InMenu->GetContent(), InMenu);
 	}

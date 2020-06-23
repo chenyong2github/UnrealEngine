@@ -8,6 +8,7 @@
 struct FRDMUID;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolUniverseArtNet
+
 	: public IDMXProtocolUniverse
 {
 public:
@@ -15,12 +16,13 @@ public:
 
 	//~ Begin IDMXProtocolDevice implementation
 	virtual IDMXProtocolPtr GetProtocol() const override;
-	virtual FDMXBufferPtr GetInputDMXBuffer() const override;
-	virtual FDMXBufferPtr GetOutputDMXBuffer() const override;
+	virtual TSharedPtr<FDMXBuffer> GetInputDMXBuffer() const override;
+	virtual TSharedPtr<FDMXBuffer> GetOutputDMXBuffer() const override;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) override;
 	virtual uint8 GetPriority() const override;
 	virtual uint32 GetUniverseID() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
+	virtual void UpdateSettings(const FJsonObject& InSettings) override;
 	virtual bool IsSupportRDM() const override;
 	//~ End IDMXProtocolDevice implementation
 
@@ -60,6 +62,12 @@ public:
 
 	void AddTODUID(const FRDMUID& InUID);
 
+	// Returns current IP Address broadcast or unicast
+	uint32 GetIpAddress() const { return IpAddress; }
+
+	// Returns ArtNet Protocol Ethernet port
+	uint16 GetPort() const { return EthernetPort; }
+
 private:
 
 	//~ ArtNet specific implemntation
@@ -69,8 +77,8 @@ private:
 
 private:
 	IDMXProtocolPtrWeak WeakDMXProtocol;
-	FDMXBufferPtr OutputDMXBuffer;
-	FDMXBufferPtr InputDMXBuffer;
+	TSharedPtr<FDMXBuffer> OutputDMXBuffer;
+	TSharedPtr<FDMXBuffer> InputDMXBuffer;
 	uint8 Priority;
 	uint16 UniverseID;
 
@@ -84,4 +92,10 @@ private:
 
 	// Array of TODs UID. This is using for RDM discovery
 	TArray<FRDMUID> TODUIDs;
+
+	/** Universe IP Address */
+	uint32 IpAddress;
+
+	/** Universe Ethernet Port*/
+	uint16 EthernetPort;
 };

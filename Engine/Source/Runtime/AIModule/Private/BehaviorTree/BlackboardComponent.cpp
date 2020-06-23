@@ -349,7 +349,16 @@ void UBlackboardComponent::UnregisterObserver(FBlackboard::FKey KeyID, FDelegate
 				}
 			}
 
-			It.RemoveCurrent();
+			// Make sure to not remove observer while iterating through them in the notification code
+			if (NotifyObserversRecursionCount == 0)
+			{
+				It.RemoveCurrent();
+			}
+			else if (!It.Value().bToBeRemoved)
+			{
+				It.Value().bToBeRemoved = true;
+				++ObserversToRemoveCount;
+			}
 			break;
 		}
 	}
@@ -363,7 +372,16 @@ void UBlackboardComponent::UnregisterObserversFrom(UObject* NotifyOwner)
 		{
 			if (ObsIt.Value().GetHandle() == It.Value())
 			{
-				ObsIt.RemoveCurrent();
+				// Make sure to not remove observer while iterating through them in the notification code
+				if (NotifyObserversRecursionCount == 0)
+				{
+					ObsIt.RemoveCurrent();
+				}
+				else if (!ObsIt.Value().bToBeRemoved)
+				{
+					ObsIt.Value().bToBeRemoved = true;
+					++ObserversToRemoveCount;
+				}
 				break;
 			}
 		}
@@ -413,7 +431,7 @@ void UBlackboardComponent::ResumeUpdates()
 
 void UBlackboardComponent::NotifyObservers(FBlackboard::FKey KeyID) const
 {
-	TMultiMap<uint8, FOnBlackboardChangeNotification>::TKeyIterator KeyIt(Observers, KeyID);
+	TMultiMap<uint8, FOnBlackboardChangeNotificationInfo>::TKeyIterator KeyIt(Observers, KeyID);
 
 	// checking it here mostly to avoid storing this update in QueuedUpdates while
 	// at this point no one observes it, and there can be someone added before QueuedUpdates
@@ -426,15 +444,66 @@ void UBlackboardComponent::NotifyObservers(FBlackboard::FKey KeyID) const
 		}
 		else
 		{
+			++NotifyObserversRecursionCount;
 			for (; KeyIt; ++KeyIt)
 			{
-				const FOnBlackboardChangeNotification& ObserverDelegate = KeyIt.Value();
+				FOnBlackboardChangeNotificationInfo& ObserverDelegateInfo = KeyIt.Value();
+				if (ObserverDelegateInfo.bToBeRemoved)
+				{
+					continue;
+				}
+
+				const FOnBlackboardChangeNotification& ObserverDelegate = ObserverDelegateInfo.DelegateHandle;
 				const bool bWantsToContinueObserving = ObserverDelegate.IsBound() && (ObserverDelegate.Execute(*this, KeyID) == EBlackboardNotificationResult::ContinueObserving);
 
 				if (bWantsToContinueObserving == false)
 				{
-					KeyIt.RemoveCurrent();
+					// Remove from the ObserverHandle map, if not already removed
+					if (!ObserverDelegateInfo.bToBeRemoved)
+					{
+						for (auto HandleIt = ObserverHandles.CreateIterator(); HandleIt; ++HandleIt)
+						{
+							if (HandleIt.Value() == ObserverDelegate.GetHandle())
+							{
+								HandleIt.RemoveCurrent();
+								break;
+							}
+						}
+					}
+
+					if (NotifyObserversRecursionCount == 1)
+					{
+						KeyIt.RemoveCurrent();
+
+						// If we are removing it and it was already queued up for removal, remove it from that count
+						if (ObserverDelegateInfo.bToBeRemoved)
+						{
+							--ObserversToRemoveCount;
+						}
+					}
+					else if(!ObserverDelegateInfo.bToBeRemoved)
+					{
+						ObserverDelegateInfo.bToBeRemoved = true;
+						++ObserversToRemoveCount;
+					}
 				}
+			}
+			--NotifyObserversRecursionCount;
+
+			if (NotifyObserversRecursionCount == 0 && ObserversToRemoveCount > 0)
+			{
+				for (auto ObsIt = Observers.CreateIterator(); ObsIt; ++ObsIt)
+				{
+					if (ObsIt.Value().bToBeRemoved)
+					{
+						ObsIt.RemoveCurrent();
+						if (--ObserversToRemoveCount == 0)
+                        {
+                            break;
+                        }
+					}
+				}
+				ObserversToRemoveCount = 0;
 			}
 		}
 	}

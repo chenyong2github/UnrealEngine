@@ -67,6 +67,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSavePackage, Log, All);
 
+#if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
+UE_TRACE_CHANNEL(SaveTimeChannel)
+#define SCOPED_SAVETIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, SaveTimeChannel)
+#else
+#define SCOPED_SAVETIMER(TimerName)
+#endif
+
 static const FName WorldClassName = FName("World");
 static const FName PrestreamPackageClassName = FName("PrestreamPackage");
 static FCriticalSection InitializeCoreClassesCritSec;
@@ -554,8 +561,6 @@ static void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark Exclud
 {
 #if WITH_EDITOR
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(ConditionallyExcludeObjectForTarget);
-
 	if (!Obj || Obj->GetOutermost()->GetFName() == GLongCoreUObjectPackageName)
 	{
 		// No object or in CoreUObject, don't exclude
@@ -774,7 +779,7 @@ FArchive& FArchiveSaveTagExports::operator<<(FWeakObjectPtr& Value)
 
 FArchive& FArchiveSaveTagExports::operator<<(UObject*& Obj)
 {
-	if (!Obj || Obj->HasAnyMarks(OBJECTMARK_TagExp) || Obj->HasAnyFlags(RF_Transient) || !Obj->IsIn(Outer))
+	if (!Obj || Obj->HasAnyMarks(OBJECTMARK_TagExp) || Obj->HasAnyFlags(RF_Transient) || !Obj->IsInPackage(Outer))
 	{
 		return *this;
 	}
@@ -1032,7 +1037,7 @@ FArchive& FArchiveSaveTagImports::operator<<( UObject*& Obj )
 				DependencyArray.Add(Obj);
 			}
 			
-			if( !Obj->HasAnyMarks(OBJECTMARK_TagExp) )  
+			if (!Obj->HasAnyMarks(OBJECTMARK_TagExp))  
 			{
 				// Add into other imports list unless it's already there
 				if (bIsTopLevelPackage || bIgnoreDependencies)
@@ -1091,6 +1096,13 @@ FArchive& FArchiveSaveTagImports::operator<<( UObject*& Obj )
 				if( Parent )
 				{
 					*this << Parent;
+				}
+
+				// if the object has a non null package set, recurse into it
+				UPackage* Package = Obj->GetExternalPackage();
+				if (Package && Package != Obj)
+				{
+					*this << Package;
 				}
 
 				// For things with a BP-created class we need to recurse into that class so the import ClassPackage will load properly
@@ -2563,13 +2575,13 @@ struct FPackageExportTagger
 {
 	UObject*		Base;
 	EObjectFlags	TopLevelFlags;
-	UObject*		Outer;
+	UPackage*		Package;
 	const class ITargetPlatform* TargetPlatform;
 
-	FPackageExportTagger(UObject* CurrentBase, EObjectFlags CurrentFlags, UObject* InOuter, const class ITargetPlatform* InTargetPlatform)
+	FPackageExportTagger(UObject* CurrentBase, EObjectFlags CurrentFlags, UPackage* InPackage, const class ITargetPlatform* InTargetPlatform)
 	:	Base(CurrentBase)
 	,	TopLevelFlags(CurrentFlags)
-	,	Outer(InOuter)
+	,	Package(InPackage)
 	,	TargetPlatform(InTargetPlatform)
 	{}
 
@@ -2612,16 +2624,17 @@ struct FPackageExportTagger
 		}
 		if (TopLevelFlags != RF_NoFlags)
 		{
-			TArray<UObject *> ObjectsInOuter;
+			TArray<UObject *> ObjectsInPackage;
 			{
 				COOK_STAT(FScopedDurationTimer SerializeTimer(SavePackageStats::TagPackageExportsGetObjectsWithOuter));
-				GetObjectsWithOuter(Outer, ObjectsInOuter);
+				GetObjectsWithPackage(Package, ObjectsInPackage);
 			}
 			// Serialize objects to tag them as OBJECTMARK_TagExp.
-			for( int32 Index = 0; Index < ObjectsInOuter.Num(); Index++ )
+			for( int32 Index = 0; Index < ObjectsInPackage.Num(); Index++ )
 			{
-				UObject* Obj = ObjectsInOuter[Index];
-				if( Obj->HasAnyFlags(TopLevelFlags) )
+				UObject* Obj = ObjectsInPackage[Index];
+				// Allowed object that have any of the top level flags or have an assigned that we are saving
+				if( Obj->HasAnyFlags(TopLevelFlags))
 				{
 					ExportTagger.ProcessBaseObject(Obj);
 				}
@@ -3251,13 +3264,17 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 	FSavePackageContext* SavePackageContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage::Save);
-
 	COOK_STAT(FScopedDurationTimer FuncSaveTimer(SavePackageStats::SavePackageTimeSec));
 	COOK_STAT(SavePackageStats::NumPackagesSaved++);
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save);
+	SCOPED_SAVETIMER(UPackage_Save);
 
 	FLinkerLoad* Conform = nullptr;
+
+	// Sanity checks
+	check(InOuter);
+	check(Filename);
+	FString PackageFilename(Filename);
+	const bool bIsCooking = TargetPlatform != nullptr;
 
 #if WITH_EDITOR
 	TMap<UObject*, UObject*> ReplacedImportOuters;
@@ -3313,11 +3330,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			return ESavePackageResult::Error;
 		}
 
-		// Sanity checks
-		check(InOuter);
-		check(Filename);
-
-		const bool bIsCooking = TargetPlatform != nullptr;
 		bool bDiffOnlyIdentical = true;
 		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 		FEDLCookChecker& EDLCookChecker = FEDLCookChecker::Get();
@@ -3522,7 +3534,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			// Tag exports and route presave.
 			FPackageExportTagger PackageExportTagger(Base, TopLevelFlags, InOuter, TargetPlatform);
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_TagExportsWithPresave);
+				SCOPED_SAVETIMER(UPackage_Save_TagExportsWithPresave);
 
 				COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::TagPackageExportsPresaveTimeSec));
 				// Do not route presave if saving concurrently. This should have been done before the concurrent save started.
@@ -3592,7 +3604,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 			
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_TagExports);
+					SCOPED_SAVETIMER(UPackage_Save_TagExports);
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::TagPackageExportsTimeSec));
 					// Clear all marks (OBJECTMARK_TagExp and exclusion marks) again as we need to redo tagging below.
 					UnMarkAllObjects();
@@ -3661,7 +3673,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				};
 	
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_CreateLinkerSave);
+					SCOPED_SAVETIMER(UPackage_Save_CreateLinkerSave);
 
 #if WITH_EDITOR
 					FString DiffCookedPackagesPath;
@@ -3696,6 +3708,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 					else if ((!!TargetPlatform) && FParse::Value(FCommandLine::Get(), TEXT("DiffCookedPackages="), DiffCookedPackagesPath))
 					{
+						UE_LOG(LogSavePackage, Warning, TEXT("The DiffCookedPackages command line argument is now deprecated, please use the -diffonly commandline for the cook commandlet instead."));
+
 						FString TestArchiveFilename = Filename;
 						// TestArchiveFilename.ReplaceInline(TEXT("Cooked"), TEXT("CookedDiff"));
 						DiffCookedPackagesPath.ReplaceInline(TEXT("\\"), TEXT("/"));
@@ -3857,7 +3871,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Import objects & names.
 				TSet<UPackage*> PrestreamPackages;
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_TagImports);
+					SCOPED_SAVETIMER(UPackage_Save_TagImports);
 					
 					TArray<UObject*> TagExpObjects;
 					GetObjectsWithAnyMarks(TagExpObjects, OBJECTMARK_TagExp);
@@ -3885,6 +3899,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 						ImportTagger << Class;
 
+						// Obj can be saved in package different than their outer, if our outer isn't the package being saved check if we need to tag it as import
+						UObject* Outer = Obj->GetOuter();
+						if (Outer->GetOutermost() != InOuter)
+						{
+							ImportTagger << Outer;
+						}
+						
 						UObject* Template = Obj->GetArchetype();
 						if (Template)
 						{
@@ -3907,6 +3928,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									FString LocalObjectName;
 									if (FParse::Value(CommandLine, TEXT("dumpsavestate="), LocalObjectName))
 									{
+										UE_LOG(LogSavePackage, Warning, TEXT("The -dumpsavestate command line argument is now deprecated. It will soon be removed in a future release."));
 										ObjectName = MoveTemp(LocalObjectName);
 									}
 
@@ -3914,6 +3936,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									FString LocalArchetypeName;
 									if (FParse::Value(CommandLine, TEXT("dumpsavestatebyarchetype="), LocalArchetypeName))
 									{
+										UE_LOG(LogSavePackage, Warning, TEXT("The -dumpsavestatebyarchetype command line argument is now deprecated. It will soon be removed in a future release."));
 										ArchetypeName = MoveTemp(LocalArchetypeName);
 									}
 								}
@@ -3984,7 +4007,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							}
 						}
 
-						if( Obj->IsIn(GetTransientPackage()) )
+						if( Obj->IsInPackage(GetTransientPackage()) )
 						{
 							UE_LOG(LogSavePackage, Fatal, TEXT("%s"), *FString::Printf( TEXT("Transient object imported: %s"), *Obj->GetFullName() ) );
 						}
@@ -4034,7 +4057,45 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				// Tag the names for all relevant object, classes, and packages.
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_TagNames);
+					SCOPED_SAVETIMER(UPackage_Save_TagNames);
+					// Gather the top level objects to validate references
+					TArray<UObject*> TopLevelObjects;
+					GetObjectsWithPackage(InOuter, TopLevelObjects, false);
+					auto IsInAnyTopLevelObject = [&TopLevelObjects](UObject* InObject) -> bool
+					{
+						for (UObject* TopObject : TopLevelObjects)
+						{
+							if (InObject->IsInOuter(TopObject))
+							{
+								return true;
+							}
+						}
+						return false;
+					};
+					auto AnyTopLevelObjectIsIn = [&TopLevelObjects](UObject* InObject) -> bool
+					{
+						for (UObject* TopObject : TopLevelObjects)
+						{
+							if (TopObject->IsInOuter(InObject))
+							{
+								return true;
+							}
+						}
+						return false;
+					};
+					auto AnyTopLevelObjectHasSameOutermostObject = [&TopLevelObjects](UObject* InObject) -> bool
+					{
+						UObject* Outermost = InObject->GetOutermostObject();
+						for (UObject* TopObject : TopLevelObjects)
+						{
+							if (TopObject->GetOutermostObject() == Outermost)
+							{
+								return true;
+							}
+						}
+						return false;
+
+					};
 
 					TArray<UObject*> TagExpImpObjects;
 					GetObjectsWithAnyMarks(TagExpImpObjects, EObjectMark(OBJECTMARK_TagExp|OBJECTMARK_TagImp));
@@ -4054,6 +4115,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 						if( Obj->HasAnyMarks(OBJECTMARK_TagImp) )
 						{
+							// Make sure the package name of an import is referenced as it might be different than its outer
+							UPackage* ObjPackage = Obj->GetOutermost();
+							NameMapSaver.MarkNameAsReferenced(ObjPackage->GetFName());
+
 							NameMapSaver.MarkNameAsReferenced(Obj->GetClass()->GetFName());
 							check(Obj->GetClass()->GetOuter());
 							NameMapSaver.MarkNameAsReferenced(Obj->GetClass()->GetOuter()->GetFName());
@@ -4072,7 +4137,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							// When Startup is cooked, it will pull in C and A. When M is cooked, it will pull in B, but not A, because
 							// A was already marked by the cooker. M.xxx now has a private import to A, which is normally illegal, hence
 							// the OBJECTMARK_MarkedByCooker check below
-							UPackage* ObjPackage = Obj->GetOutermost();
 							if (PrestreamPackages.Contains(ObjPackage))
 							{
 								NameMapSaver.MarkNameAsReferenced(PrestreamPackageClassName);
@@ -4081,13 +4145,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								continue;
 							}
 
-#if WITH_EDITORONLY_DATA
-							// Allow referencing private objects into/from/between owned packages
-							if (ObjPackage && (ObjPackage->IsOwnedBy(InOuter) || InOuter->IsOwnedBy(ObjPackage) || InOuter->HasSameOwner(ObjPackage)))
+							// if this import shares a outer with top level object of this package then the reference is acceptable if we aren't cooking
+							if (!bIsCooking && (IsInAnyTopLevelObject(Obj) || AnyTopLevelObjectIsIn(Obj) || AnyTopLevelObjectHasSameOutermostObject(Obj)))
 							{
 								continue;
 							}
-#endif
+
 							if( !Obj->HasAnyFlags(RF_Public) && !Obj->HasAnyFlags(RF_Transient))
 							{
 								if (!IsEventDrivenLoaderEnabledInCookedBuilds() || !TargetPlatform || !ObjPackage->HasAnyPackageFlags(PKG_CompiledIn))
@@ -4097,7 +4160,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							}
 
 							// See whether the object we are referencing is in another map package.
-							if( ObjPackage && ObjPackage->ContainsMap() )
+							if( ObjPackage->ContainsMap() )
 							{
 								if ( ObjPackage != Obj && Obj->GetFName() != NAME_PersistentLevel && Obj->GetClass()->GetFName() != WorldClassName )
 								{
@@ -4106,11 +4169,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									if ( DependenciesReferencedByNonRedirectors.Contains(Obj) )
 									{
 										UE_LOG(LogSavePackage, Warning, TEXT( "Obj in another map: %s"), *Obj->GetFullName() );
-
-										if (!(SaveFlags & SAVE_NoError))
-										{
-											Error->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format( NSLOCTEXT( "Core", "SavePackageObjInAnotherMap", "Object '{0}' is in another map" ), FText::FromString( *Obj->GetFullName() ) ).ToString() );
-										}
 									}
 								}
 								else
@@ -4178,7 +4236,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					const FText Message = FText::Format( NSLOCTEXT("Core", "LinkedToObjectsInOtherMap_FindCulpritQ", "Can't save {FileName}: Graph is linked to object(s) in external map.\nExternal Object(s):\n{ObjectNames}  \nTry to find the chain of references to that object (may take some time)?"), Args );
 
 					FString CulpritString = TEXT( "Unknown" );
-					if (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes)
+					bool bFindCulprit = IsRunningCommandlet() || (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::Yes);
+					if (bFindCulprit)
 					{
 						FindMostLikelyCulprit(IllegalObjectsInOtherMaps, MostLikelyCulprit, PropertyRef);
 						if (MostLikelyCulprit != nullptr && PropertyRef != nullptr)
@@ -4191,9 +4250,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 					}
 
+					FString ErrorMessage = FString::Printf(TEXT("Can't save %s: Graph is linked to object %s in external map"), Filename, *CulpritString);
 					if (!(SaveFlags & SAVE_NoError))
 					{
-						Error->Logf(ELogVerbosity::Warning, TEXT("Can't save %s: Graph is linked to object %s in external map"), Filename, *CulpritString);
+						Error->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorMessage);
+					}
+					else
+					{
+						UE_LOG(LogSavePackage, Error, TEXT("%s"), *ErrorMessage);
 					}
 					return ESavePackageResult::Error;
 				}
@@ -4254,8 +4318,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					UE_LOG(LogSavePackage, Log,  TEXT("Conformal save, relative to: %s, Generation %i"), *Conform->Filename, Conform->Summary.Generations.Num()+1 );
 					Linker->Summary.Guid = Conform->Summary.Guid;
 #if WITH_EDITORONLY_DATA
-					Linker->Summary.PersistentGuid = Conform->Summary.PersistentGuid;
-					Linker->Summary.OwnerPersistentGuid	= Conform->Summary.OwnerPersistentGuid;
+					Linker->Summary.PersistentGuid = Conform->Summary.PersistentGuid;					
 #endif
 					Linker->Summary.Generations = Conform->Summary.Generations;
 				}
@@ -4265,7 +4328,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.Guid = InOuter->Guid;
 #if WITH_EDITORONLY_DATA
 					Linker->Summary.PersistentGuid = InOuter->PersistentGuid;
-					Linker->Summary.OwnerPersistentGuid = InOuter->OwnerPersistentGuid;
 #endif
 					Linker->Summary.Generations = TArray<FGenerationInfo>();
 				}
@@ -4275,7 +4337,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.Guid = FGuid::NewGuid();
 #if WITH_EDITORONLY_DATA
 					Linker->Summary.PersistentGuid = InOuter->PersistentGuid;
-					Linker->Summary.OwnerPersistentGuid = InOuter->OwnerPersistentGuid;
 #endif
 					Linker->Summary.Generations = TArray<FGenerationInfo>();
 
@@ -4317,7 +4378,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Build NameMap.
 				Linker->Summary.NameOffset = Linker->Tell();
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildNameMap);
+					SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
 #if WITH_EDITOR
 					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
@@ -4335,7 +4396,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->Summary.GatherableTextDataCount = 0;
 				if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteGatherableTextData);
+					SCOPED_SAVETIMER(UPackage_Save_WriteGatherableTextData);
 
 					// The Editor version is used as part of the check to see if a package is too old to use the gather cache, so we always have to add it if we have gathered loc for this asset
 					// Note that using custom version here only works because we already added it to the export tagger before the package summary was serialized
@@ -4373,7 +4434,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				// Build ImportMap.
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildImportMap);
+					SCOPED_SAVETIMER(UPackage_Save_BuildImportMap);
 
 					TArray<UObject*> TagImpObjects;
 
@@ -4447,7 +4508,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// sort and conform imports
 				FObjectImportSortHelper ImportSortHelper;
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SortImports);
+					SCOPED_SAVETIMER(UPackage_Save_SortImports);
 					ImportSortHelper.SortImports(Linker.Get(), Conform);
 					Linker->Summary.ImportCount = Linker->ImportMap.Num();
 				}
@@ -4461,7 +4522,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				
 				// Build ExportMap.
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildExportMap);
+					SCOPED_SAVETIMER(UPackage_Save_BuildExportMap);
 
 					TArray<UObject*> TagExpObjects;
 					GetObjectsWithAnyMarks(TagExpObjects, OBJECTMARK_TagExp);
@@ -4500,13 +4561,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Sort exports alphabetically and conform the export table (if necessary)
 				FObjectExportSortHelper ExportSortHelper;
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SortExports);
+					SCOPED_SAVETIMER(UPackage_Save_SortExports);
 					ExportSortHelper.SortExports(Linker.Get(), Conform);
 				}
 				
 				// Sort exports for seek-free loading.
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SortExportsForSeekFree);
+					SCOPED_SAVETIMER(UPackage_Save_SortExportsForSeekFree);
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SortExportsSeekfreeInnerTimeSec));
 					FObjectExportSeekFreeSorter SeekFreeSorter;
 					SeekFreeSorter.SortExports( Linker.Get(), Conform );
@@ -4538,7 +4599,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				// go back over the (now sorted) exports and fill out the DependsMap
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_BuildExportDependsMap);
+					SCOPED_SAVETIMER(UPackage_Save_BuildExportDependsMap);
 					for (int32 ExpIndex = 0; ExpIndex < Linker->ExportMap.Num(); ExpIndex++)
 					{
 						UObject* Object = Linker->ExportMap[ExpIndex].Object;
@@ -4567,7 +4628,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 							FPackageIndex DependencyIndex;
 
-							// if the dependency is in the same pacakge, we need to save an index into our ExportMap
+							// if the dependency is in the same package, we need to save an index into our ExportMap
 							if (DependentObject->GetOutermost() == Linker->LinkerRoot)
 							{
 								// ... find the associated ExportIndex
@@ -4735,7 +4796,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Save dummy import map, overwritten later.
 				if (!bTextFormat)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDummyImportMap);
+					SCOPED_SAVETIMER(UPackage_Save_WriteDummyImportMap);
 #if WITH_EDITOR
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
 #endif // WITH_EDITOR
@@ -4758,7 +4819,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Save dummy export map, overwritten later.
 				if (!bTextFormat)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDummyExportMap);
+					SCOPED_SAVETIMER(UPackage_Save_WriteDummyExportMap);
 #if WITH_EDITOR
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
 #endif // WITH_EDITOR
@@ -4780,7 +4841,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				if (!bTextFormat)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WriteDependsMap);
+					SCOPED_SAVETIMER(UPackage_Save_WriteDependsMap);
 
 					FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("DependsMap")));
 					if (Linker->IsCooking())
@@ -4819,7 +4880,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Only save string asset and searchable name map if saving for editor
 				if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveSoftPackagesAndSearchableNames);
+					SCOPED_SAVETIMER(UPackage_Save_SaveSoftPackagesAndSearchableNames);
 
 					// Save soft package references
 					Linker->Summary.SoftPackageReferencesOffset = Linker->Tell();
@@ -4854,27 +4915,27 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 					// Save thumbnails
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveThumbnails);
+						SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
 						SaveThumbnails(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Thumbnails"))));
 					}
 
 					if (!bTextFormat)
 					{	
 						// Save asset registry data so the editor can search for information about assets in this package
-						TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveAssetRegistryData);
+						SCOPED_SAVETIMER(UPackage_Save_SaveAssetRegistryData);
 						SaveAssetRegistryData(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("AssetRegistry"))));
 					}
 
 					// Save level information used by World browser
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_WorldLevelData);
+						SCOPED_SAVETIMER(UPackage_Save_WorldLevelData);
 						SaveWorldLevelInfo(InOuter, Linker.Get(), StructuredArchiveRoot);
 					}
 				}
 
 				// Map export indices
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_MapExportIndices);
+					SCOPED_SAVETIMER(UPackage_Save_MapExportIndices);
 
 					for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
 					{
@@ -4933,15 +4994,17 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							if (Export.Object->GetOuter() != InOuter)
 							{
 								check(Export.Object->GetOuter());
-								checkf(Export.Object->GetOuter()->IsIn(InOuter),
-									TEXT("Export Object (%s) Outer (%s) mismatch."),
-									*(Export.Object->GetPathName()),
-									*(Export.Object->GetOuter()->GetPathName()));
 								Export.OuterIndex = Linker->MapObject(Export.Object->GetOuter());
-								checkf(!Export.OuterIndex.IsImport(),
-									TEXT("Export Object (%s) Outer (%s) is an Import."),
-									*(Export.Object->GetPathName()),
-									*(Export.Object->GetOuter()->GetPathName()));
+
+								// The outer of an object is now allowed to be an export hence, the following asserts do not stand anymore:
+								//checkf(Export.Object->GetOuter()->IsInPackage(InOuter),
+								//	TEXT("Export Object (%s) Outer (%s) mismatch."),
+								//	*(Export.Object->GetPathName()),
+								//	*(Export.Object->GetOuter()->GetPathName()));
+								//checkf(!Export.OuterIndex.IsImport(),
+								//	TEXT("Export Object (%s) Outer (%s) is an Import."),
+								//	*(Export.Object->GetPathName()),
+								//	*(Export.Object->GetOuter()->GetPathName()));
 
 								if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
 								{
@@ -5258,7 +5321,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #endif
 				{
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SerializeExportsTimeSec));
-					TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveExports);
+					SCOPED_SAVETIMER(UPackage_Save_SaveExports);
 #if WITH_EDITOR
 					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 #endif
@@ -5279,8 +5342,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						FObjectExport& Export = Linker->ExportMap[i];
 						if (Export.Object)
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(UPackage_Save_SaveExport);
-
 							// Save the object data.
 							Export.SerialOffset = Linker->Tell();
 							Linker->CurrentlySavingExport = FPackageIndex::FromExport(i);
@@ -5435,7 +5496,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								// Set the package index.
 								if (Import.XObject->GetOuter())
 								{
-									if (Import.XObject->GetOuter()->IsIn(InOuter))
+									// if an import outer is an export and that import doesn't have a specific package set then, there's an error
+									const bool bWrongImport = Import.XObject->GetOuter()->IsInPackage(InOuter) && Import.XObject->GetExternalPackage() == nullptr;
+									if (bWrongImport)
 									{
 										if (!Import.XObject->HasAllFlags(RF_Transient) || !Import.XObject->IsNative())
 										{
@@ -5445,12 +5508,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 										{
 											// if an object is marked RF_Transient and native, it is either an intrinsic class or
 											// a property of an intrinsic class.  Only properties of intrinsic classes will have
-											// an Outer that passes the check for "GetOuter()->IsIn(InOuter)" (thus ending up in this
+											// an Outer that passes the check for "GetOuter()->IsInPackage(InOuter)" (thus ending up in this
 											// block of code).  Just verify that the Outer for this property is also marked RF_Transient and Native
 											check(Import.XObject->GetOuter()->HasAllFlags(RF_Transient) && Import.XObject->GetOuter()->IsNative());
 										}
 									}
-									check(!Import.XObject->GetOuter()->IsIn(InOuter) || Import.XObject->HasAllFlags(RF_Transient) || Import.XObject->IsNative());
+									check(!bWrongImport || Import.XObject->HasAllFlags(RF_Transient) || Import.XObject->IsNative());
 #if WITH_EDITOR
 									UObject** ReplacedOuter = ReplacedImportOuters.Find(Import.XObject);
 									if (ReplacedOuter && *ReplacedOuter)
@@ -5462,6 +5525,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #endif
 									{
 										Import.OuterIndex = Linker->MapObject(Import.XObject->GetOuter());
+									}
+
+									// if the import has a package set, set it up
+									if (UPackage* ImportPackage = Import.XObject->GetExternalPackage())
+									{
+										Import.SetPackageName(ImportPackage->GetFName());
 									}
 
 									if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
@@ -6052,7 +6121,7 @@ static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStruc
 		}
 	}
 
-	// Store the asset registry offser in the file
+	// Store the asset registry offset in the file
 	Linker->Summary.AssetRegistryDataOffset = Linker->Tell();
 
 	// Save the number of objects in the tag map
@@ -6064,8 +6133,8 @@ static void SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FStruc
 	{
 		const UObject* Object = AssetObjects[ObjectIdx];
 
-		// Exclude the package name in the object path, we just need to know the path relative to the outermost
-		FString ObjectPath = Object->GetPathName(Object->GetOutermost());
+		// Exclude the package name in the object path, we just need to know the path relative to the package we are saving
+		FString ObjectPath = Object->GetPathName(InOuter);
 		FString ObjectClassName = Object->GetClass()->GetName();
 		
 		TArray<UObject::FAssetRegistryTag> SourceTags;
@@ -6151,6 +6220,16 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			MappedBulkArchive.Reset(new FLargeMemoryWriter(0, /* IsPersistent */ true));
 		}
 
+		// If we are not allowing BulkData to go to the IoStore and we will be saving the BulkData to a separate file then 
+		// we cannot manipulate the offset as we cannot 'fix' it at runtime with the AsyncLoader2
+		// 
+		// We should remove the manipulated offset entirely, at least for separate files but for now we need to leave it to
+		// prevent larger patching sizes.
+		if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets == false && bShouldUseSeparateBulkFile)
+		{
+			ExtraBulkDataFlags |= BULKDATA_NoOffsetFixUp;
+		}
+
 		bool bAlignBulkData = false;
 		int64 BulkDataAlignment = 0;
 
@@ -6233,7 +6312,7 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			const int64 BulkStartOffset = TargetArchive->Tell();
 
-			int64 StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
+			int64 StoredBulkStartOffset = (ModifiedBulkDataFlags& BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
 
 			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));
 
@@ -6379,38 +6458,20 @@ bool UPackage::IsEmptyPackage(UPackage* Package, const UObject* LastReferencer)
 			Package->FullyLoad();
 		}
 
-		if (LastReferencer != nullptr)
+		bool bIsEmpty = true;
+		ForEachObjectWithPackage(Package, [LastReferencer, &bIsEmpty](UObject* InObject)
 		{
-			// See if there will be no remaining non-redirector, non-metadata objects within this package other than LastReferencer
-			for (TObjectIterator<UObject> ObjIt; ObjIt; ++ObjIt)
+			// if the package contains at least one object that has asset registry data and isn't the `LastReferencer` consider it not empty
+			if (InObject->IsAsset()/*HasAssetRegistryData()*/ && InObject != LastReferencer)
 			{
-				UObject* Object = *ObjIt;
-				if ( Object->IsIn(Package)								// Is inside this package
-					&& Object->IsAsset()								// Is an asset
-					&& Object != LastReferencer )						// Is not the object being deleted
-				{
-					// The package contains at least one more UObject
-					return false;
-				}
+				bIsEmpty = false;
+				// we can break out of the iteration as soon as we find one valid object
+				return false;
 			}
-		}
-		else
-		{
-			// See if there are no more objects within this package other than redirectors and meta data objects
-			for (TObjectIterator<UObject> ObjIt; ObjIt; ++ObjIt)
-			{
-				UObject* Object = *ObjIt;
-				if ( Object->IsIn(Package)								// Is inside this package
-					&& Object->IsAsset() )								// Is an asset
-				{
-					// The package contains at least one more UObject
-					return false;
-				}
-			}
-		}
-
-		// There are no more valid UObjects with this package as an outer
-		return true;
+			return true;
+		// Don't consider transient, class default or pending kill objects
+		}, false, RF_Transient | RF_ClassDefaultObject, EInternalObjectFlags::PendingKill);
+		return bIsEmpty;
 	}
 
 	// Invalid package

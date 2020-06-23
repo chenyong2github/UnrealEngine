@@ -148,6 +148,9 @@ private:
 ENGINE_API bool IsAudioPluginEnabled(EAudioPlugin PluginType);
 ENGINE_API UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType);
 
+/** accessor for our Spatialization enabled CVar. */
+ENGINE_API bool IsSpatializationCVarEnabled();
+
 /** Bus send types */
 enum class EBusSendType : uint8
 {
@@ -170,9 +173,6 @@ struct ENGINE_API FWaveInstance
 
 	/** Sound class */
 	USoundClass* SoundClass;
-
-	/** Modulation controls */
-	FSoundModulationControls SoundModulationControls;
 
 	/** Sound submix object to send audio to for mixing in audio mixer.  */
 	USoundSubmixBase* SoundSubmix;

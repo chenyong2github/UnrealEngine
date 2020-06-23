@@ -3,12 +3,11 @@
 #pragma once
 
 #include "Widgets/Views/SListView.h"
+#include "USDPrimAttributesViewModel.h"
 
 #if USE_USD_SDK
 
-struct FUsdPrimProperty;
-
-class SUsdPrimPropertiesList : public SListView< TSharedPtr< FUsdPrimProperty > >
+class SUsdPrimPropertiesList : public SListView< TSharedPtr< FUsdPrimAttributeViewModel > >
 {
 	SLATE_BEGIN_ARGS( SUsdPrimPropertiesList ) {}
 	SLATE_END_ARGS()
@@ -16,16 +15,13 @@ class SUsdPrimPropertiesList : public SListView< TSharedPtr< FUsdPrimProperty > 
 public:
 	void Construct( const FArguments& InArgs, const TCHAR* InPrimPath );
 	void SetPrimPath( const TCHAR* InPrimPath );
-	const FString& GetPrimPath() { return PrimPath; };
 
 protected:
-	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdPrimProperty > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
+	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdPrimAttributeViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
 	void GeneratePropertiesList( const TCHAR* InPrimPath );
 
 private:
-	FString PrimPath;
-
-	TArray< TSharedPtr< FUsdPrimProperty > > PrimProperties;
+	FUsdPrimAttributesViewModel ViewModel;
 	TSharedPtr< SHeaderRow > HeaderRowWidget;
 };
 

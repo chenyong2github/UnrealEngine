@@ -16,16 +16,6 @@ UClass* FAssetTypeActions_AudioImpulseResponse::GetSupportedClass() const
 	return UAudioImpulseResponse::StaticClass();
 }
 
-const TArray<FText>& FAssetTypeActions_AudioImpulseResponse::GetSubMenus() const
-{
-	static const TArray<FText> SubMenus
-	{
-		FText(LOCTEXT("AssetConvolutionReverbSubmenu", "Convolution Reverb"))
-	};
-
-	return SubMenus;
-}
-
 void FAudioImpulseResponseExtension::RegisterMenus()
 {
 	if (!UToolMenus::IsToolMenuUIEnabled())
@@ -85,7 +75,7 @@ UAudioImpulseResponseFactory::UAudioImpulseResponseFactory(const FObjectInitiali
 {
 	SupportedClass = UAudioImpulseResponse::StaticClass();
 
-	bCreateNew = true;
+	bCreateNew = false;
 	bEditorImport = false;
 	bEditAfterNew = true;
 }
@@ -98,32 +88,30 @@ UObject* UAudioImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* 
 	{
 		USoundWave* Wave = StagedSoundWave.Get();
 
-		constexpr bool bForceSynchronousLoad = true;
+		TArray<uint8> ImportedSoundWaveData;
+		uint32 ImportedSampleRate;
+		uint16 ImportedChannelCount;
+		Wave->GetImportedSoundWaveData(ImportedSoundWaveData, ImportedSampleRate, ImportedChannelCount);
 
-		Loader.LoadSoundWave(Wave, [&](const USoundWave* SoundWave, const Audio::FSampleBuffer& LoadedSampleBuffer)
+		NewAsset->NumChannels = ImportedChannelCount;
+		NewAsset->SampleRate = ImportedSampleRate;
+
+		NewAsset->ImpulseResponse.Reset();
+
+		int32 NumSamples = ImportedSoundWaveData.Num() / sizeof(int16);
+		if (NumSamples > 0)
 		{
-			NewAsset->NumChannels = LoadedSampleBuffer.GetNumChannels();
-			NewAsset->SampleRate = LoadedSampleBuffer.GetSampleRate();
-			const int32 NumSamples = LoadedSampleBuffer.GetNumSamples();
+			NewAsset->ImpulseResponse.AddUninitialized(NumSamples);
 
-			NewAsset->ImpulseResponse.Reset();
+			// Convert to float.
+			const int16* InputBuffer = (int16*)ImportedSoundWaveData.GetData();
+			float* OutputBuffer = NewAsset->ImpulseResponse.GetData();
 
-			if (NumSamples > 0)
+			for (int32 i = 0; i < NumSamples; ++i)
 			{
-				NewAsset->ImpulseResponse.AddUninitialized(NumSamples);
-
-				// Convert to float.
-				const int16* InputBuffer = LoadedSampleBuffer.GetData();
-				float* OutputBuffer = NewAsset->ImpulseResponse.GetData();
-
-				for (int32 i = 0; i < NumSamples; ++i)
-				{
-					OutputBuffer[i] = static_cast<float>(InputBuffer[i]) / 32768.0f;
-				}
+				OutputBuffer[i] = static_cast<float>(InputBuffer[i]) / 32768.0f;
 			}
-		}, bForceSynchronousLoad);
-
-		Loader.Update();
+		}
 
 		StagedSoundWave.Reset();
 	}

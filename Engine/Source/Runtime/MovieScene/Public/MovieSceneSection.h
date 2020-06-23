@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ContainersFwd.h"
 #include "Misc/FrameTime.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneFwd.h"
@@ -20,8 +21,6 @@ class FStructOnScope;
 struct FKeyHandle;
 struct FMovieSceneChannelProxy;
 struct FMovieSceneEvalTemplatePtr;
-
-template<typename> class TArrayView;
 
 /** Enumeration specifying how to handle state when this section is no longer evaluated */
 UENUM(BlueprintType)

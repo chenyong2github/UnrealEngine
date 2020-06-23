@@ -63,6 +63,10 @@
 #endif
 #include "RHIGPUReadback.h"
 
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
 // Enable this define to do slow checks for components being added to the wrong
 // world's scene, when using PIE. This can happen if a PIE component is reattached
 // while GWorld is the editor world, for example.
@@ -390,8 +394,6 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 	: NumObjectsInBuffer(0)
 	, NumHeightFieldObjectsInBuffer(0)
 	, ObjectBufferIndex(0)
-	, SurfelBuffers(NULL)
-	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 	, HeightFieldAtlasGeneration(0)
 	, HFVisibilityAtlasGenerattion(0)
@@ -996,6 +998,7 @@ void FPersistentUniformBuffers::Initialize()
 
 	FMobileBasePassUniformParameters MobileBasePassUniformParameters;
 	MobileOpaqueBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+	MobileCSMOpaqueBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	MobileTranslucentBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	
 	FMobileDistortionPassUniformParameters MobileDistortionPassUniformParameters;
@@ -1129,6 +1132,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	bScenesPrimitivesNeedStaticMeshElementUpdate(false)
 ,	bPathTracingNeedsInvalidation(true)
 ,	SkyLight(NULL)
+,	bRealTimeSlicedReflectionCaptureFirstFrame(true)
+,	RealTimeSlicedReflectionCaptureState(0)
 ,	SimpleDirectionalLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
@@ -1137,6 +1142,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
 ,	SkyAtmosphere(NULL)
+,	VolumetricCloud(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
 ,	LocalShadowCastingLightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
 ,	PrimitiveOctree(FVector::ZeroVector,HALF_WORLD_MAX)
@@ -1153,7 +1159,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	DynamicIndirectShadowsSelfShadowingIntensity(FMath::Clamp(InWorld->GetWorldSettings()->DynamicIndirectShadowsSelfShadowingIntensity, 0.0f, 1.0f))
 ,	ReadOnlyCVARCache(FReadOnlyCVARCache::Get())
 #if RHI_RAYTRACING
-, RayTracingDynamicGeometryCollection(nullptr)
+,	RayTracingDynamicGeometryCollection(nullptr)
 #endif
 ,	AsyncCreateLightPrimitiveInteractionsTask(nullptr)
 ,	NumVisibleLights_GameThread(0)
@@ -2380,11 +2386,23 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 
 const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld()))
+	{
+		return FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld());
+	}
+#endif
 	return &GlobalVolumetricLightmap;
 }
 
 bool FVolumetricLightmapSceneData::HasData() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld()))
+	{
+		return true;
+	}
+#endif
 	if (LevelVolumetricLightmaps.Num() > 0)
 	{
 		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
@@ -2402,6 +2420,12 @@ bool FVolumetricLightmapSceneData::HasData() const
 
 bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(GetWorld()))
+	{
+		return true;
+	}
+#endif
 	return VolumetricLightmapSceneData.HasData();
 }
 
@@ -2964,7 +2988,7 @@ void FScene::GetWindParameters_GameThread(const FVector& Position, FVector& OutD
 	{
 		float Weight = 0.0f;
 		FWindData CurrentComponentData;
-		if(Component->GetWindParameters(Position, CurrentComponentData, Weight))
+		if(Component && Component->GetWindParameters(Position, CurrentComponentData, Weight))
 		{
 			AccumWindData.AddWeighted(CurrentComponentData, Weight);
 			TotalWeight += Weight;
@@ -3561,6 +3585,13 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 			FogData.Height += InOffset.Z;
 		}
 	}
+
+	// SkyAtmospheres
+	for (FSkyAtmosphereSceneProxy* SkyAtmosphereProxy : SkyAtmosphereStack)
+	{
+		SkyAtmosphereProxy->ApplyWorldOffset(InOffset);
+	}
+	
 	
 	VelocityData.ApplyOffset(InOffset);
 }
@@ -4342,6 +4373,11 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return NULL; }
+
+	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}
+	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}
+	virtual FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() override { return NULL; }
+	virtual const FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() const override { return NULL; }
 
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}

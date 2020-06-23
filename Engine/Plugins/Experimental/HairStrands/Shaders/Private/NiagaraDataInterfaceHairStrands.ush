@@ -31,17 +31,15 @@ struct FDIHairStrandsContext
 	float4				WorldRotation;
 	int					NumStrands;
 	int					StrandSize;
-	float3				BoxCenter;
-	float3				BoxExtent;
 	int					InterpolationMode;
 	float3				RestRootOffset;
 	float3				DeformedRootOffset;
 	float3				RestPositionOffset;
 	float3				DeformedPositionOffset;
 	bool				ResetSimulation;
-	RWBuffer<uint>		BoundingBoxBufferA;
-	Buffer<uint>		BoundingBoxBufferB;
+	RWBuffer<uint>		BoundingBoxBuffer;
 	int					SampleCount;
+	int4				BoundingBoxOffsets;
 	Buffer<float4>		RestSamplePositionsBuffer;
 	Buffer<float4>		MeshSampleWeightsBuffer;
 	Buffer<float>		ParamsScaleBuffer;
@@ -63,17 +61,15 @@ float4x4			WorldInverse_##NAME;\
 float4				WorldRotation_##NAME;\
 int					NumStrands_##NAME;\
 int					StrandSize_##NAME;\
-float3				BoxCenter_##NAME;\
-float3				BoxExtent_##NAME;\
 int					InterpolationMode_##NAME;\
 float3				RestRootOffset_##NAME;\
 float3				DeformedRootOffset_##NAME;\
 float3				RestPositionOffset_##NAME;\
 float3				DeformedPositionOffset_##NAME;\
 bool				ResetSimulation_##NAME;\
-RWBuffer<uint>	    BoundingBoxBufferA_##NAME;\
-Buffer<uint>		BoundingBoxBufferB_##NAME;\
+RWBuffer<uint>	    BoundingBoxBuffer_##NAME;\
 int					SampleCount_##NAME;\
+int4				BoundingBoxOffsets_##NAME;\
 Buffer<float4>		RestSamplePositionsBuffer_##NAME;\
 Buffer<float4>		MeshSampleWeightsBuffer_##NAME;\
 Buffer<float>		ParamsScaleBuffer_##NAME;\
@@ -95,17 +91,15 @@ DIContext.WorldInverse = WorldInverse_##NAME;\
 DIContext.WorldRotation = WorldRotation_##NAME;\
 DIContext.NumStrands = NumStrands_##NAME;\
 DIContext.StrandSize = StrandSize_##NAME;\
-DIContext.BoxCenter = BoxCenter_##NAME;\
-DIContext.BoxExtent = BoxExtent_##NAME;\
 DIContext.InterpolationMode =	InterpolationMode_##NAME;\
 DIContext.RestRootOffset =	RestRootOffset_##NAME;\
 DIContext.DeformedRootOffset = DeformedRootOffset_##NAME;\
 DIContext.RestPositionOffset =	RestPositionOffset_##NAME;\
 DIContext.DeformedPositionOffset = DeformedPositionOffset_##NAME;\
 DIContext.ResetSimulation = ResetSimulation_##NAME;\
-DIContext.BoundingBoxBufferA = BoundingBoxBufferA_##NAME;\
-DIContext.BoundingBoxBufferB = BoundingBoxBufferB_##NAME;\
+DIContext.BoundingBoxBuffer = BoundingBoxBuffer_##NAME;\
 DIContext.SampleCount = SampleCount_##NAME;\
+DIContext.BoundingBoxOffsets = BoundingBoxOffsets_##NAME;\
 DIContext.RestSamplePositionsBuffer = RestSamplePositionsBuffer_##NAME;\
 DIContext.MeshSampleWeightsBuffer = MeshSampleWeightsBuffer_##NAME;\
 DIContext.ParamsScaleBuffer = ParamsScaleBuffer_##NAME;\
@@ -135,52 +129,82 @@ DIContext.ParamsScaleBuffer = ParamsScaleBuffer_##NAME;\
 	return UnsignedVector;
  }
 
+ uint FloatToUint( in float FloatValue)
+{
+	uint UnsignedValue = asuint(FloatValue);
+	UnsignedValue ^= (1+~(UnsignedValue >> 31) | 0x80000000);
+
+	return UnsignedValue;
+}
+
 /* -----------------------------------------------------------------
  * Box utilities
  * -----------------------------------------------------------------
  */
 
-// Return the bounding box center
-void DIHairStrands_GetBoxCenter(in FDIHairStrandsContext DIContext, out float3 OutBoxCenter)
+// Get the boundingh box
+void DIHairStrands_GetBoundingBox(in FDIHairStrandsContext DIContext, in int BoxIndex, out float3 OutBoxCenter, out float3 OutBoxExtent)
 {
-	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[0],DIContext.BoundingBoxBufferB[1],DIContext.BoundingBoxBufferB[2]));
-	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[3],DIContext.BoundingBoxBufferB[4],DIContext.BoundingBoxBufferB[5]));
+	const int BufferOffset = DIContext.BoundingBoxOffsets[BoxIndex] * 6;
 
+	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.BoundingBoxBuffer[0+BufferOffset],
+											  DIContext.BoundingBoxBuffer[1+BufferOffset],
+											  DIContext.BoundingBoxBuffer[2+BufferOffset]));
+
+	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.BoundingBoxBuffer[3+BufferOffset],
+											  DIContext.BoundingBoxBuffer[4+BufferOffset],
+											  DIContext.BoundingBoxBuffer[5+BufferOffset]));
+
+	OutBoxExtent = (BoxMax-BoxMin);
 	OutBoxCenter = 0.5 * (BoxMin+BoxMax);
 }
 
-// Return the bounding box extent
-void DIHairStrands_GetBoxExtent(in FDIHairStrandsContext DIContext, out float3 OutBoxExtent)
+// Reset the bounding box
+void DIHairStrands_ResetBoundingBox(in FDIHairStrandsContext DIContext, out bool FunctionStatus)
 {
-	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[0],DIContext.BoundingBoxBufferB[1],DIContext.BoundingBoxBufferB[2]));
-	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[3],DIContext.BoundingBoxBufferB[4],DIContext.BoundingBoxBufferB[5]));
+	FunctionStatus = false;
 
-	OutBoxExtent =   (BoxMax-BoxMin);
+	if(GDispatchThreadId.x == 0)
+	{
+		FunctionStatus = true;
+
+		const int BufferOffset = DIContext.BoundingBoxOffsets[3] * 6;
+
+		const uint UINT_MAX = FloatToUint(1e+8);
+		const uint UINT_MIN = FloatToUint(-1e+8);
+
+		DIContext.BoundingBoxBuffer[0+BufferOffset] = UINT_MAX;
+		DIContext.BoundingBoxBuffer[1+BufferOffset] = UINT_MAX;
+		DIContext.BoundingBoxBuffer[2+BufferOffset] = UINT_MAX;
+
+		DIContext.BoundingBoxBuffer[3+BufferOffset] = UINT_MIN;
+		DIContext.BoundingBoxBuffer[4+BufferOffset] = UINT_MIN;
+		DIContext.BoundingBoxBuffer[5+BufferOffset] = UINT_MIN;
+	}
+	DeviceMemoryBarrier();
 }
 
- #define WRAP_SIZE 32
-
-void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in float3 NodePosition, out bool BuildStatus, out float3 OutBoundMin, out float3 OutBoundMax)
+void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in float3 NodePosition, out bool FunctionStatus)
 {
-	BuildStatus = true;
+	FunctionStatus = false;
 
 	const uint3 LocalPosition = Float3ToUint3(NodePosition);
 
 	if(isfinite(NodePosition.x) && isfinite(NodePosition.y) && isfinite(NodePosition.z))
 	{
-		InterlockedMin(DIContext.BoundingBoxBufferA[0],LocalPosition.x);
-		InterlockedMin(DIContext.BoundingBoxBufferA[1],LocalPosition.y);
-		InterlockedMin(DIContext.BoundingBoxBufferA[2],LocalPosition.z);
+		FunctionStatus = true;
 
-		InterlockedMax(DIContext.BoundingBoxBufferA[3],LocalPosition.x);
-		InterlockedMax(DIContext.BoundingBoxBufferA[4],LocalPosition.y);
-		InterlockedMax(DIContext.BoundingBoxBufferA[5],LocalPosition.z);
+		const int BufferOffset = DIContext.BoundingBoxOffsets[2] * 6;
+
+		InterlockedMin(DIContext.BoundingBoxBuffer[0+BufferOffset],LocalPosition.x);
+		InterlockedMin(DIContext.BoundingBoxBuffer[1+BufferOffset],LocalPosition.y);
+		InterlockedMin(DIContext.BoundingBoxBuffer[2+BufferOffset],LocalPosition.z);
+
+		InterlockedMax(DIContext.BoundingBoxBuffer[3+BufferOffset],LocalPosition.x);
+		InterlockedMax(DIContext.BoundingBoxBuffer[4+BufferOffset],LocalPosition.y);
+		InterlockedMax(DIContext.BoundingBoxBuffer[5+BufferOffset],LocalPosition.z);
 	}
-
 	DeviceMemoryBarrier();
-
-	OutBoundMin = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[0],DIContext.BoundingBoxBufferB[1],DIContext.BoundingBoxBufferB[2]));
-	OutBoundMax = Uint3ToFloat3(uint3(DIContext.BoundingBoxBufferB[3],DIContext.BoundingBoxBufferB[4],DIContext.BoundingBoxBufferB[5])); 
 }
 
 /* -----------------------------------------------------------------
@@ -399,6 +423,62 @@ void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, in
 	OutNodeOrientation = 	SharedNodeOrientation[GGroupThreadId.x];
 }
 
+/* -----------------------------------------------------------------
+ * Edge volume, length, rotation, direction
+ * -----------------------------------------------------------------
+ */
+
+// Init the samples along the strands that will be used to transfer informations to the grid
+void DIHairStrands_InitGridSamples(in FDIHairStrandsContext DIContext, in float3 NodePosition, in float3 NodeVelocity, 
+	in float NodeMass, in float GridLength, out int OutNumSamples,
+						out float3 OutDeltaPosition, out float3 OutDeltaVelocity, out float OutSampleMass)
+{
+	SharedNodePosition[GGroupThreadId.x] = NodePosition;
+	SharedPreviousPosition[GGroupThreadId.x] = NodeVelocity;
+	SharedInverseMass[GGroupThreadId.x] = NodeMass;
+	GroupMemoryBarrier();
+
+	const int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
+
+	if( LocalIndex > 0 )
+	{
+		OutDeltaVelocity = SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousPosition[GGroupThreadId.x-1];
+		OutDeltaPosition = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
+
+		const float2 SegmentWeight = (LocalIndex == 1) ? float2(1.0,0.5) : (LocalIndex == (DIContext.StrandSize-1) ) ? float2(0.5,1.0) : float2(0.5,0.5);
+		const float SegmentMass =  (SharedInverseMass[GGroupThreadId.x-1] * SegmentWeight.x + SharedInverseMass[GGroupThreadId.x] * SegmentWeight.y);
+		const float SegmentLength = length(OutDeltaPosition);
+
+		OutNumSamples = ceil(SegmentLength / GridLength);
+		OutSampleMass = SegmentMass / OutNumSamples;
+	}
+	else
+	{
+		OutNumSamples = 0;
+		OutDeltaPosition = float3(0,0,0);
+		OutDeltaVelocity = float3(0,0,0);
+		OutSampleMass = 0.0;
+	}
+}
+
+// Get the sample state given an index and a delta position/velocity
+void DIHairStrands_GetSampleState(in FDIHairStrandsContext DIContext, in float3 NodePosition, in float3 NodeVelocity, in float3 DeltaPosition, in float3 DeltaVelocity, 
+			in int NumSamples, in int SampleIndex, out float3 OutSamplePosition, out float3 OutSampleVelocity)
+{
+	const int LocalIndex = GGroupThreadId.x % DIContext.StrandSize;
+
+	if( LocalIndex > 0 )
+	{
+		const float SampleCoord = (0.5+SampleIndex) / NumSamples;
+		OutSamplePosition = NodePosition + SampleCoord * DeltaPosition;
+		OutSampleVelocity = NodeVelocity + SampleCoord * DeltaVelocity;
+	}
+	else
+	{
+		OutSamplePosition = float3(0,0,0);
+		OutSampleVelocity = float3(0,0,0);
+	}
+}
 
 /* -----------------------------------------------------------------
  * Edge volume, length, rotation, direction

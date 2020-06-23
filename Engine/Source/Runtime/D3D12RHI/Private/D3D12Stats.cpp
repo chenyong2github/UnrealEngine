@@ -8,6 +8,8 @@ D3D12Stats.cpp:RHI Stats and timing implementation.
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 
+TStaticArray<uint32, MAX_NUM_GPUS> D3D12RHI::FD3DGPUProfiler::GGPUFrameCycles(0);
+
 void D3D12RHI::FD3DGPUProfiler::BeginFrame(FD3D12DynamicRHI* InRHI)
 {
 	CurrentEventNode = NULL;
@@ -48,7 +50,7 @@ void D3D12RHI::FD3DGPUProfiler::BeginFrame(FD3D12DynamicRHI* InRHI)
 			SetEmitDrawEvents(true);  // thwart an attempt to turn this off on the game side
 			bTrackingEvents = true;
 			DoPreProfileGPUWork();
-			CurrentEventNodeFrame = new FD3D12EventNodeFrame(GetParentAdapter());
+			CurrentEventNodeFrame = new FD3D12EventNodeFrame(GetParentDevice());
 			CurrentEventNodeFrame->StartFrame();
 		}
 	}
@@ -78,15 +80,16 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 
 	FrameTiming.EndTiming();
 
+	const uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
 	if (FrameTiming.IsSupported())
 	{
 		uint64 GPUTiming = FrameTiming.GetTiming();
-		uint64 GPUFreq = FrameTiming.GetTimingFrequency();
-		GGPUFrameTime = FMath::TruncToInt(double(GPUTiming) / double(GPUFreq) / FPlatformTime::GetSecondsPerCycle());
+		uint64 GPUFreq = FrameTiming.GetTimingFrequency(GPUIndex);
+		GGPUFrameCycles[GPUIndex] = FMath::TruncToInt(double(GPUTiming) / double(GPUFreq) / FPlatformTime::GetSecondsPerCycle());
 	}
 	else
 	{
-		GGPUFrameTime = 0;
+		GGPUFrameCycles[GPUIndex] = 0;
 	}
 
 	double HwGpuFrameTime = 0.0;
@@ -244,7 +247,7 @@ float FD3D12EventNodeFrame::GetRootTimingResults()
 	if (RootEventTiming.IsSupported())
 	{
 		const uint64 GPUTiming = RootEventTiming.GetTiming(true);
-		const uint64 GPUFreq = RootEventTiming.GetTimingFrequency();
+		const uint64 GPUFreq = RootEventTiming.GetTimingFrequency(GetParentDevice()->GetGPUIndex());
 
 		RootResult = double(GPUTiming) / double(GPUFreq);
 	}
@@ -264,7 +267,7 @@ float FD3D12EventNode::GetTiming()
 	{
 		// Get the timing result and block the CPU until it is ready
 		const uint64 GPUTiming = Timing.GetTiming(true);
-		const uint64 GPUFreq = Timing.GetTimingFrequency();
+		const uint64 GPUFreq = Timing.GetTimingFrequency(GetParentDevice()->GetGPUIndex());
 
 		Result = double(GPUTiming) / double(GPUFreq);
 	}
@@ -371,8 +374,15 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 			{
 				GIsGPUCrashed = true;
 				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
-				check(Status < ARRAYSIZE(AftermathReason));
-				UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
+				if (Status < UE_ARRAY_COUNT(AftermathReason))
+				{
+					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
+				}
+				else
+				{
+					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Invalid Status result value: %u"), Status);
+				}
+
 
 				TArray<GFSDK_Aftermath_ContextData> ContextDataOut;
 				ContextDataOut.AddUninitialized(AftermathContexts.Num());
@@ -395,7 +405,10 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 									UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
 								}
 							}
-							UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
+							if (NumCRCs > 0)
+							{
+								UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
+							}
 						}
 					}
 				}
@@ -438,17 +451,21 @@ static int32 FindCmdListTimingPairIndex(const TArray<uint64>& CmdListStartTimest
 
 uint64 D3D12RHI::FD3DGPUProfiler::CalculateIdleTime(uint64 StartTime, uint64 EndTime)
 {
-	const int32 NumTimingPairs = CmdListStartTimestamps.Num();
-	check(NumTimingPairs == CmdListEndTimestamps.Num() && NumTimingPairs == IdleTimeCDF.Num());
+	FD3D12Device* Device = GetParentDevice();
+
+	FD3D12CommandListManager &CLManager = Device->GetCommandListManager();
+
+	const int32 NumTimingPairs = CLManager.GetStartTimestamps().Num();
+	check(NumTimingPairs == CLManager.GetEndTimestamps().Num() && NumTimingPairs == CLManager.GetIdleTime().Num());
 	
 	if (!NumTimingPairs)
 	{
 		return 0;
 	}
 
-	const int32 StartIdx = FindCmdListTimingPairIndex(CmdListStartTimestamps, StartTime);
-	const int32 EndIdx = FindCmdListTimingPairIndex(CmdListStartTimestamps, EndTime);
-	return IdleTimeCDF[EndIdx] - IdleTimeCDF[StartIdx];
+	const int32 StartIdx = FindCmdListTimingPairIndex(CLManager.GetStartTimestamps(), StartTime);
+	const int32 EndIdx = FindCmdListTimingPairIndex(CLManager.GetStartTimestamps(), EndTime);
+	return CLManager.GetIdleTime()[EndIdx] - CLManager.GetIdleTime()[StartIdx];
 }
 
 void D3D12RHI::FD3DGPUProfiler::DoPreProfileGPUWork()
@@ -457,12 +474,8 @@ void D3D12RHI::FD3DGPUProfiler::DoPreProfileGPUWork()
 	constexpr bool bWaitForCommands = false;
 	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_StartProfilingGPU;
 
-	FD3D12Adapter* Adapter = GetParentAdapter();
-	for (uint32 GPUIdx : FRHIGPUMask::All())
-	{
-		FD3D12Device* Device = Adapter->GetDevice(GPUIdx);
-		Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
-	}
+	FD3D12Device* Device = GetParentDevice();
+	Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
 }
 
 void D3D12RHI::FD3DGPUProfiler::DoPostProfileGPUWork()
@@ -472,7 +485,7 @@ void D3D12RHI::FD3DGPUProfiler::DoPostProfileGPUWork()
 	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_EndProfilingGPU;
 
 	TArray<FResolvedCmdListExecTime> CmdListExecTimes;
-	FD3D12Adapter* Adapter = GetParentAdapter();
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 	for (uint32 GPUIdx : FRHIGPUMask::All())
 	{
 		FD3D12Device* Device = Adapter->GetDevice(GPUIdx);

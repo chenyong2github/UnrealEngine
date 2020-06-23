@@ -10,8 +10,8 @@
 #include "USDPrimResolver.h"
 #include "USDImporterProjectSettings.generated.h"
 
-UCLASS(config=Editor, meta=(DisplayName=USDImporter))
-class UUSDImporterProjectSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName=USDImporter), Deprecated)
+class UDEPRECATED_UUSDImporterProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -22,6 +22,6 @@ public:
 	/**
 	 * Allows a custom class to be specified that will resolve UsdPrim objects in a usd file to actors and assets
 	 */
-	UPROPERTY(config, EditAnywhere, Category = General)
-	TSubclassOf<UUSDPrimResolver> CustomPrimResolver;
+	UPROPERTY(config)
+	TSubclassOf<UDEPRECATED_UUSDPrimResolver> CustomPrimResolver_DEPRECATED;
 };

@@ -20,6 +20,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "ScreenPass.h"
 #include "SkyAtmosphereRendering.h"
+#include "VolumetricCloudRendering.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -222,6 +223,11 @@ struct FRenderLightParams
 	FShaderResourceViewRHIRef HairVisibilityNodeDataSRV = nullptr;
 
 	IPooledRenderTarget* ScreenShadowMaskSubPixelTexture = nullptr;
+
+	// Cloud shadow data
+	FMatrix Cloud_WorldToLightClipShadowMatrix;
+	float Cloud_ShadowmapFarDepthKm = 0.0f;
+	IPooledRenderTarget* Cloud_ShadowmapTexture = nullptr;
 };
 
 
@@ -297,7 +303,8 @@ class FDeferredLightPS : public FGlobalShader
 	class FLightingChannelsDim	: SHADER_PERMUTATION_BOOL("USE_LIGHTING_CHANNELS");
 	class FTransmissionDim		: SHADER_PERMUTATION_BOOL("USE_TRANSMISSION");
 	class FHairLighting			: SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 3);
-	class FAtmosphereTransmittance: SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
+	class FAtmosphereTransmittance : SHADER_PERMUTATION_BOOL("USE_ATMOSPHERE_TRANSMITTANCE");
+	class FCloudTransmittance 	: SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSourceShapeDim,
@@ -308,7 +315,8 @@ class FDeferredLightPS : public FGlobalShader
 		FLightingChannelsDim,
 		FTransmissionDim,
 		FHairLighting,
-		FAtmosphereTransmittance>;
+		FAtmosphereTransmittance,
+		FCloudTransmittance>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -321,7 +329,7 @@ class FDeferredLightPS : public FGlobalShader
 			return false;
 		}
 
-		if (PermutationVector.Get< FSourceShapeDim >() != ELightSourceShape::Directional && PermutationVector.Get<FAtmosphereTransmittance>())
+		if (PermutationVector.Get< FSourceShapeDim >() != ELightSourceShape::Directional && (PermutationVector.Get<FAtmosphereTransmittance>() || PermutationVector.Get<FCloudTransmittance>()))
 		{
 			return false;
 		}
@@ -367,7 +375,6 @@ class FDeferredLightPS : public FGlobalShader
 	FDeferredLightPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	:	FGlobalShader(Initializer)
 	{
-		SceneTextureParameters.Bind(Initializer);
 		LightAttenuationTexture.Bind(Initializer.ParameterMap, TEXT("LightAttenuationTexture"));
 		LightAttenuationTextureSampler.Bind(Initializer.ParameterMap, TEXT("LightAttenuationTextureSampler"));
 		LTCMatTexture.Bind(Initializer.ParameterMap, TEXT("LTCMatTexture"));
@@ -397,6 +404,11 @@ class FDeferredLightPS : public FGlobalShader
 		HairVisibilityNodeData.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeData"));
 
 		DummyRectLightTextureForCapsuleCompilerWarning.Bind(Initializer.ParameterMap, TEXT("DummyRectLightTextureForCapsuleCompilerWarning"));
+
+		CloudShadowmapTexture.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapTexture"));
+		CloudShadowmapSampler.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapSampler"));
+		CloudShadowmapFarDepthKm.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapFarDepthKm"));
+		CloudShadowmapWorldToLightClipMatrix.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapWorldToLightClipMatrix"));
 	}
 
 	FDeferredLightPS()
@@ -433,7 +445,6 @@ private:
 		FRenderLightParams* RenderLightParams)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 
@@ -647,9 +658,34 @@ private:
 				GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture
 			);
 		}
+
+		if (CloudShadowmapTexture.IsBound())
+		{
+			if (RenderLightParams && RenderLightParams->Cloud_ShadowmapTexture)
+			{
+				SetTextureParameter(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapTexture,
+					CloudShadowmapSampler,
+					TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+					RenderLightParams->Cloud_ShadowmapTexture ? RenderLightParams->Cloud_ShadowmapTexture->GetRenderTargetItem().ShaderResourceTexture : GBlackVolumeTexture->TextureRHI);
+
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapFarDepthKm,
+					RenderLightParams->Cloud_ShadowmapFarDepthKm);
+
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapWorldToLightClipMatrix,
+					RenderLightParams->Cloud_WorldToLightClipShadowMatrix);
+			}
+		}
 	}
 
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTextureSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
@@ -678,6 +714,11 @@ private:
 	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
 
 	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightTextureForCapsuleCompilerWarning);
+
+	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapSampler);
+	LAYOUT_FIELD(FShaderParameter, CloudShadowmapFarDepthKm);
+	LAYOUT_FIELD(FShaderParameter, CloudShadowmapWorldToLightClipMatrix);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
@@ -705,7 +746,6 @@ public:
 	:	FGlobalShader(Initializer)
 	{
 		HasValidChannel.Bind(Initializer.ParameterMap, TEXT("HasValidChannel"));
-		SceneTextureParameters.Bind(Initializer);
 	}
 
 	TDeferredLightOverlapPS()
@@ -718,13 +758,11 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 		const float HasValidChannelValue = LightSceneInfo->Proxy->GetPreviewShadowMapChannel() == INDEX_NONE ? 0.0f : 1.0f;
 		SetShaderValue(RHICmdList, ShaderRHI, HasValidChannel, HasValidChannelValue);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
 private:
 	LAYOUT_FIELD(FShaderParameter, HasValidChannel);
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(template<>, TDeferredLightOverlapPS<true>, TEXT("/Engine/Private/StationaryLightOverlapShaders.usf"), TEXT("OverlapRadialPixelMain"), SF_Pixel);
@@ -1989,7 +2027,8 @@ static void SetShaderTemplLightingSimple(
 	PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( false );
 	PermutationVector.Set< FDeferredLightPS::FHairLighting>( 0 );
-	PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >( false );
+	PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >( false );
+	PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >( false );
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2047,8 +2086,10 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
 
+	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
@@ -2063,6 +2104,9 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 		{
 			continue;
 		}
+
+		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 		bool bUseIESTexture = false;
 
@@ -2102,6 +2146,17 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			{
 				const bool bAtmospherePerPixelTransmittance = LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && ShouldApplyAtmosphereLightPerPixelTransmittance(Scene, View.Family->EngineShowFlags);
 
+				// Only atmospheric light 0 supports cloud shadow as of today.
+				FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+				FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
+				const bool bCloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap.IsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
+				if (bCloudPerPixelTransmittance)
+				{
+					RenderLightParams.Cloud_ShadowmapTexture = View.VolumetricCloudShadowMap;
+					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm;
+					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix;
+				}
+
 				FDeferredLightPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >( ELightSourceShape::Directional );
 				PermutationVector.Set< FDeferredLightPS::FIESProfileDim >( false );
@@ -2112,6 +2167,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
 				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
+				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bCloudPerPixelTransmittance);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -2119,7 +2175,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, (bHairLighting) ? &RenderLightParams : nullptr);
+				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, &RenderLightParams);
 			}
 
 			VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
@@ -2168,6 +2224,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
 				PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
+				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2362,6 +2419,9 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHIComma
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 	// Use additive blending for color
 	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
@@ -2375,6 +2435,9 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHIComma
 		{
 			const FSimpleLightPerViewEntry& SimpleLightPerViewData = SimpleLights.GetViewDependentData(LightIndex, ViewIndex, NumViews);
 			const FSphere LightBounds(SimpleLightPerViewData.Position, SimpleLight.Radius);
+			
+			FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+			SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 			FViewInfo& View = Views[ViewIndex];
 

@@ -39,7 +39,7 @@ void UVerticalBox::OnSlotAdded(UPanelSlot* InSlot)
 void UVerticalBox::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyVerticalBox.IsValid() )
+	if ( MyVerticalBox.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )

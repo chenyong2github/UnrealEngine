@@ -4,6 +4,8 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/CastingUtilities.h"
+#include "Chaos/Convex.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
@@ -12,16 +14,15 @@
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/UniformGrid.h"
-#include "Chaos/Convex.h"
-
-#include "PhysicsEngine/BoxElem.h"
-#include "PhysicsEngine/ConvexElem.h"
-#include "PhysicsEngine/SphylElem.h"
-#include "PhysicsEngine/SphereElem.h"
 
 #include "Physics/PhysicsInterfaceTypes.h"
+
 #include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "PhysicsEngine/SphylElem.h"
+#include "PhysicsEngine/SphereElem.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
@@ -361,5 +362,144 @@ namespace ChaosInterface
 		}
 #endif
 	}
+
+#if WITH_CHAOS
+	bool CalculateMassPropertiesOfImplicitType(
+		Chaos::TMassProperties<float, 3>& OutMassProperties,
+		const Chaos::TRigidTransform<float, 3>& WorldTransform,
+		const Chaos::FImplicitObject* ImplicitObject,
+		float InDensityKGPerCM)
+	{
+		// WIP
+		// @todo : Support center of mass offsets.
+		// @todo : Support Mass space alignment. 
+
+		using namespace Chaos;
+
+		if (ImplicitObject)
+		{
+			// Hack to handle Transformed and Scaled<ImplicitObjectTriangleMesh> until CastHelper can properly support transformed
+			// Commenting this out temporarily as it breaks vehicles
+			/*	if (Chaos::IsScaled(ImplicitObject->GetType(true)) && Chaos::GetInnerType(ImplicitObject->GetType(true)) & Chaos::ImplicitObjectType::TriangleMesh)
+				{
+					OutMassProperties.Volume = 0.f;
+					OutMassProperties.Mass = FLT_MAX;
+					OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
+					OutMassProperties.CenterOfMass = FVector(0);
+					OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+					return false;
+				}
+				else if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::TriangleMesh)
+				{
+					OutMassProperties.Volume = 0.f;
+					OutMassProperties.Mass = FLT_MAX;
+					OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
+					OutMassProperties.CenterOfMass = FVector(0);
+					OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+					return false;
+				}
+			else*/
+
+			//todo: Still need to handle scaled
+			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
+				{
+					OutMassProperties.Volume = Object.GetVolume();
+					OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
+					OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
+					OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
+					OutMassProperties.RotationOfMass = LocalTM.GetRotation();
+				});
+			return true;
+		}
+		return false;
+	}
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+	{
+		float TotalMass = 0.f;
+		Chaos::FVec3 TotalCenterOfMass(0.f);
+		TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
+		for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
+		{
+			if (const Chaos::FPerShapeData* Shape = ShapeHandle.Shape)
+			{
+				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
+				{
+					FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
+					Chaos::TMassProperties<float, 3> MassProperties;
+					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
+					{
+						MassPropertiesList.Add(MassProperties);
+						TotalMass += MassProperties.Mass;
+						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
+					}
+				}
+			}
+		}
+
+		if (TotalMass > 0.f)
+		{
+			TotalCenterOfMass /= TotalMass;
+		}
+
+		Chaos::PMatrix<float, 3, 3> Tensor;
+		if (MassPropertiesList.Num())
+		{
+			Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+		}
+		else
+		{
+			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
+			Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5, 5.24e5, 5.24e5);
+			TotalMass = 523.f;
+		}
+
+		OutProperties.InertiaTensor = Tensor;
+		OutProperties.Mass = TotalMass;
+		OutProperties.CenterOfMass = TotalCenterOfMass;
+	}
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const Chaos::FShapesArray& InShapes, float InDensityKGPerCM)
+	{
+		float TotalMass = 0.f;
+		Chaos::FVec3 TotalCenterOfMass(0.f);
+		TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
+		for (const TUniquePtr<Chaos::FPerShapeData>& Shape : InShapes)
+		{
+			if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
+			{
+				Chaos::TMassProperties<float, 3> MassProperties;
+				if (CalculateMassPropertiesOfImplicitType(MassProperties, FTransform::Identity, ImplicitObject, InDensityKGPerCM))
+				{
+					MassPropertiesList.Add(MassProperties);
+					TotalMass += MassProperties.Mass;
+					TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
+				}
+			}
+		}
+
+		if (TotalMass > 0.f)
+		{
+			TotalCenterOfMass /= TotalMass;
+		}
+
+		Chaos::PMatrix<float, 3, 3> Tensor;
+		if (MassPropertiesList.Num())
+		{
+			Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+		}
+		else
+		{
+			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
+			Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5f, 5.24e5f, 5.24e5f);
+			TotalMass = 523.0f;
+		}
+
+		OutProperties.InertiaTensor = Tensor;
+		OutProperties.Mass = TotalMass;
+		OutProperties.CenterOfMass = TotalCenterOfMass;
+	}
+
+#endif // WITH_CHAOS
 
 }

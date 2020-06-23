@@ -9,6 +9,7 @@
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
+#include "GroomComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "ShaderParameterUtils.h"
@@ -131,10 +132,7 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 				TArray<FTransform> RestTransforms;
 				FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
 
-				TArray<FTransform> BoneTransforms = (SkeletalMesh != nullptr) ? SkeletalMesh->GetComponentSpaceTransforms() : RestTransforms;
-				const bool bHasMasterPoseComponent = (SkeletalMesh != nullptr) && SkeletalMesh->MasterPoseComponent.IsValid();
-
-				if (BoneTransforms.Num() == RestTransforms.Num())
+				if (RestTransforms.Num() > 0)
 				{
 					uint32 NumBoxes = 0;
 					uint32 NumSpheres = 0;
@@ -143,7 +141,7 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 					{
 						const FName BoneName = BodySetup->BoneName;
 						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-						if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num())
+						if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 						{
 							NumBoxes += BodySetup->AggGeom.BoxElems.Num();
 							NumSpheres += BodySetup->AggGeom.SphereElems.Num();
@@ -172,10 +170,10 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 					{
 						const FName BoneName = BodySetup->BoneName;
 						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-						if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num())
+						if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 						{
 							const FTransform RestTransform = RestTransforms[BoneIndex];
-							const FTransform BoneTransform = bHasMasterPoseComponent ? SkeletalMesh->GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex] * WorldTransform;
+							const FTransform BoneTransform = (SkeletalMesh != nullptr) ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransform * WorldTransform;
 
 							for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 							{
@@ -227,28 +225,20 @@ void UpdateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 		const FReferenceSkeleton* RefSkeleton = &PhysicsAsset->GetPreviewMesh()->RefSkeleton;
 		if (RefSkeleton != nullptr)
 		{
-			TArray<FTransform> BoneTransforms;
-			if (SkeletalMesh != nullptr)
-			{
-				BoneTransforms = SkeletalMesh->GetComponentSpaceTransforms();
-			}
-			else
-			{
-				FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), BoneTransforms);
-			}
-			const bool bHasMasterPoseComponent = (SkeletalMesh != nullptr) && SkeletalMesh->MasterPoseComponent.IsValid();
+			TArray<FTransform> RestTransforms;
+			FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
 
 			OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-			OutAssetArrays->PreviousInverse= OutAssetArrays->InverseTransform;
+			OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 
 			uint32 ElementCount = 0;
 			for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 			{
 				const FName BoneName = BodySetup->BoneName;
 				const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-				if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num() )
+				if (BoneIndex != INDEX_NONE && BoneIndex < RestTransforms.Num())
 				{
-					const FTransform BoneTransform = bHasMasterPoseComponent ? SkeletalMesh->GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex] * WorldTransform;
+					const FTransform BoneTransform = (SkeletalMesh != nullptr) ? SkeletalMesh->GetBoneTransform(BoneIndex) : RestTransforms[BoneIndex] * WorldTransform;
 
 					for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
 					{
@@ -325,8 +315,8 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->ElementExtent.Num(), AssetArrays->ElementExtent, ElementExtentBuffer);
 		CreateInternalBuffer<FVector4, FVector4, 1, EPixelFormat::PF_A32B32G32R32F, true>(AssetArrays->PreviousInverse.Num(), AssetArrays->PreviousInverse, PreviousInverseBuffer);
 
-		UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
-			AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
+		//UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
+		//	AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
 }
 
@@ -611,11 +601,31 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 						break;
 					}
 				}
-
 			}
 		}
 	}
-	PhysicsAsset = (SourceComponent != nullptr) ? SourceComponent->GetPhysicsAsset() : (DefaultSource != nullptr) ? DefaultSource : nullptr;
+	UPhysicsAsset* GroomPhysicsAsset = nullptr;
+	if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+	{
+		TArray<USceneComponent*> SceneComponents;
+		SimComp->GetParentComponents(SceneComponents);
+
+		for (USceneComponent* ActorComp : SceneComponents)
+		{
+			UGroomComponent* SourceComp = Cast<UGroomComponent>(ActorComp);
+			if (SourceComp && SourceComp->PhysicsAsset)
+			{
+				GroomPhysicsAsset = SourceComp->PhysicsAsset;
+				break;
+			}
+		}
+	}
+	const bool IsAssetMatching = (SourceComponent != nullptr) && (GroomPhysicsAsset != nullptr) &&
+		(GroomPhysicsAsset->GetPreviewMesh() == SourceComponent->SkeletalMesh);
+
+	PhysicsAsset = (SourceComponent != nullptr) ? ( IsAssetMatching ? GroomPhysicsAsset : SourceComponent->GetPhysicsAsset() ) :
+												  ( (GroomPhysicsAsset != nullptr) ? GroomPhysicsAsset : 
+													( (DefaultSource != nullptr) ? DefaultSource : nullptr) );
 }
 
 bool UNiagaraDataInterfacePhysicsAsset::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)

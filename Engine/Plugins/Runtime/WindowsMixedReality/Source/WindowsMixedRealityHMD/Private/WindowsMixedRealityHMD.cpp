@@ -414,10 +414,8 @@ namespace WindowsMixedReality
 			return true;
 		}
 
-#if WITH_EDITOR
 #if WITH_WINDOWS_MIXED_REALITY
 		UpdateRemotingStatus();
-#endif
 #endif
 
 #if WITH_WINDOWS_MIXED_REALITY
@@ -530,7 +528,6 @@ namespace WindowsMixedReality
 		return true;
 	}
 
-#if WITH_EDITOR
 #if WITH_WINDOWS_MIXED_REALITY
 	void FWindowsMixedRealityHMD::UpdateRemotingStatus()
 	{
@@ -542,6 +539,7 @@ namespace WindowsMixedReality
 		// Set Remoting status
 		HMDRemotingConnectionState state = HMD->GetConnectionState();
 
+#if WITH_EDITOR
 		if (state != prevState)
 		{
 			switch (state)
@@ -560,10 +558,29 @@ namespace WindowsMixedReality
 				break;
 			}
 		}
+#else
+		if (state != prevState)
+		{
+			switch (state)
+			{
+			case HMDRemotingConnectionState::Unknown:
+				UE_LOG(LogWmrHmd, Log, TEXT("Connection State Unknown - See log for any errors"));
+				break;
+			case HMDRemotingConnectionState::Connecting:
+				UE_LOG(LogWmrHmd, Log, TEXT("Connecting..."));
+				break;
+			case HMDRemotingConnectionState::Connected:
+				UE_LOG(LogWmrHmd, Log, TEXT("Connected"));
+				break;
+			case HMDRemotingConnectionState::Disconnected:
+				UE_LOG(LogWmrHmd, Log, TEXT("Disconnected"));
+				break;
+			}
+		}
+#endif
 
 		prevState = state;
 	}
-#endif
 #endif
 
 	void FWindowsMixedRealityHMD::SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin)
@@ -2236,7 +2253,6 @@ namespace WindowsMixedReality
 	// Remoting
 	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1)
 	{
-#if WITH_EDITOR
 		D3D11Device = InternalGetD3D11Device();
 
 #  if WITH_WINDOWS_MIXED_REALITY
@@ -2245,18 +2261,15 @@ namespace WindowsMixedReality
 #  else
 		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityHMD::ConnectToRemoteHoloLens() is doing nothing because !WITH_WINDOWS_MIXED_REALITY."));
 #  endif
-#else
-		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityHMD::ConnectToRemoteHoloLens() is doing nothing because !WITH_EDITOR."));
-#endif
 	}
 
 	void FWindowsMixedRealityHMD::DisconnectFromRemoteHoloLens()
 	{
-#if WITH_EDITOR
 #if WITH_WINDOWS_MIXED_REALITY
 		HMD->DisconnectFromDevice();
 		HMD->SetLogCallback(nullptr);
 
+#if WITH_EDITOR
 		// Close PIE if it's running:
 		UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
 		FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();

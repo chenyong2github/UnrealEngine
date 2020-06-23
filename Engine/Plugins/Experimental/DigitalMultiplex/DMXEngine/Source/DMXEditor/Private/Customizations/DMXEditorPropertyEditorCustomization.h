@@ -223,10 +223,8 @@ private:
 
 public:
 	/** Construction requires a delegate that returns the source list of possible names */
-	FNameListCustomization(TAttribute<TArray<FName>> InOptionsList, FSimpleMulticastDelegate* InUpdateOptionsDelegate)
-		: ListDelegate(InOptionsList)
-		, UpdateOptionsDelegate(InUpdateOptionsDelegate)
-		, StructPropertyHandle(nullptr)
+	FNameListCustomization()
+		: StructPropertyHandle(nullptr)
 	{}
 
 	//~ IPropertyTypeCustomization interface begin
@@ -243,13 +241,18 @@ public:
 				StructPropertyHandle->CreatePropertyNameWidget()
 			]
 			.ValueContent()
+			.MinDesiredWidth(125.0f)
+			.MaxDesiredWidth(0.0f)
 			[
 				SNew(SNameListPicker)
 				.Font(CustomizationUtils.GetRegularFont())
 				.HasMultipleValues(this, &TNameListType::HasMultipleValues)
-				.OptionsSource(ListDelegate)
-				.UpdateOptionsDelegate(UpdateOptionsDelegate)
+				.OptionsSource(MakeAttributeLambda(&TStructType::GetPossibleValues))
+				.UpdateOptionsDelegate(&TStructType::OnValuesChanged)
+				.IsValid(this, &TNameListType::HideWarningIcon)
 				.Value(this, &TNameListType::GetValue)
+				.bCanBeNone(TStructType::bCanBeNone)
+				.bDisplayWarningIcon(true)
 				.OnValueChanged(this, &TNameListType::SetValue)
 			]
 		.IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }));
@@ -268,7 +271,8 @@ private:
 		{
 			if (RawPtr != nullptr)
 			{
-				return reinterpret_cast<const TStructType*>(RawPtr)->Name;
+				// The types we use with this customization must have a cast constructor to FName
+				return reinterpret_cast<const TStructType*>(RawPtr)->GetName();
 			}
 		}
 
@@ -282,7 +286,8 @@ private:
 		TArray<void*> RawData;
 		StructPropertyHandle->AccessRawData(RawData);
 		TStructType* PreviousValue = reinterpret_cast<TStructType*>(RawData[0]);
-		TStructType NewProtocolName(NewValue);
+		TStructType NewProtocolName;
+		NewProtocolName.SetFromName(NewValue);
 
 		// Export new value to text format that can be imported later
 		FString TextValue;
@@ -325,9 +330,23 @@ private:
 		return false;
 	}
 
+	bool HideWarningIcon() const
+	{
+		if (HasMultipleValues())
+		{
+			return true;
+		}
+
+		const FName CurrentValue = GetValue();
+		if (CurrentValue.IsEqual(FDMXNameListItem::None))
+		{
+			return true;
+		}
+
+		return TStructType::IsValid(GetValue());
+	}
+
 private:
-	TAttribute< TArray<FName> > ListDelegate;
-	FSimpleMulticastDelegate* UpdateOptionsDelegate;
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
 };
 
@@ -371,11 +390,5 @@ struct FDMXCustomizationFactory
 	static TSharedRef<TReturnType> MakeInstance()
 	{
 		return MakeShared<TDetailCustomizationType>();
-	}
-
-	template<typename TDetailCustomizationType>
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance(TAttribute<TArray<FName>> InListOptions, FSimpleMulticastDelegate* UpdateListDelegate)
-	{
-		return MakeShared<TDetailCustomizationType>(InListOptions, UpdateListDelegate);
 	}
 };

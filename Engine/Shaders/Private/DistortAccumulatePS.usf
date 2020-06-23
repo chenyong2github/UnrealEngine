@@ -20,7 +20,15 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "DistortionCommon.ush"
 
-
+void ClipOccludedPixel(float PixelZ, float SceneZ)
+{
+#if	HAS_INVERTED_Z_BUFFER
+	float ClipDepth = PixelZ - SceneZ;
+#else
+	float ClipDepth = SceneZ - PixelZ;
+#endif
+	clip(ClipDepth);
+}
 
 /** output distortion offsets as color so they can be accumulated (via blending) */
 void Main(
@@ -44,13 +52,12 @@ void Main(
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
 
-#if (ES3_1_PROFILE) 
+#if SHADING_PATH_MOBILE
 	// Mobile specific: 
 	// distortion primtitives rendered without depth testing
-	// discard pixels that are hidden by comparing them to scene depth stored in SceneColor.A
+	// discard pixels that are hidden by comparing them to depth stored in SceneColor.A
 	float2 BufferUV = SvPositionToBufferUV(SvPosition);
-	float ClipDepth = CalcFullSceneColor(BufferUV).a - SvPosition.w;
-	clip(ClipDepth);
+	ClipOccludedPixel(SvPosition.z, CalcFullSceneColor(BufferUV).a);
 #endif
 	
 	// material distortion offset
@@ -71,12 +78,12 @@ void Main(
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
 
-#if (ES3_1_PROFILE)
+#if SHADING_PATH_MOBILE
 	// sample depth from SceneColor.A on Mobile
-	float DistortSceneDepth = CalcFullSceneColor(DistortBufferUV).a; 
+	float DistortSceneDepth = ConvertFromDeviceZ(CalcFullSceneColor(DistortBufferUV).a); 
 #else
 	float DistortSceneDepth = CalcSceneDepth(DistortBufferUV);
-#endif // (ES3_1_PROFILE) 
+#endif
 
 	// Post process UV distortion according to depth
 	PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, DistortSceneDepth, BufferUVDistortion, Refraction);

@@ -137,7 +137,17 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::OnPakFileMounted2.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted2.AddLambda([this](const IPakFile& PakFile)
+	{
+		FScopeLock ScopeLock(&MountedStateDirtyFilesCS);
+		bRecacheAllFiles = true;
+		MountedStateDirtyFiles.Empty();
+	});
+
+	FCoreDelegates::NewFileAddedDelegate.AddLambda([this](const FString& FileName)
+	{
+		MarkMountedStateDirty(MakeIoFilenameHash(FileName));
+	});
 }
 
 FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
@@ -190,12 +200,13 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 	SetRenderAssetsRemovedTimestamp(RemovedRenderAssets);
 }
 
-
-
-void FRenderAssetStreamingManager::OnPakFileMounted(const IPakFile& PakFile)
+void FRenderAssetStreamingManager::MarkMountedStateDirty(FIoFilenameHash FilenameHash)
 {
-	// clear the cached file exists checks which failed as they may now be loaded
-	bNewFilesLoaded = true;
+	if (!bRecacheAllFiles && FilenameHash != INVALID_IO_FILENAME_HASH)
+	{
+		FScopeLock ScopeLock(&MountedStateDirtyFilesCS);
+		MountedStateDirtyFiles.Emplace(FilenameHash);
+	}
 }
 
 /**
@@ -562,13 +573,10 @@ void FRenderAssetStreamingManager::ProcessLevelsToReferenceToStreamedTextures()
 
 			TBitArray<>& LevelIndexUsage = StreamingRenderAsset.LevelIndexUsage;
 
-			if (LevelIndex >= LevelIndexUsage.Num())
+			if (LevelIndex >= (int)(LevelIndexUsage.Num()))
 			{
 				uint32 NumBits = LevelIndex + 1 - LevelIndexUsage.Num();
-				for (uint32 Index = 0; Index < NumBits; ++Index)
-				{
-					LevelIndexUsage.Add(false);
-				}
+				LevelIndexUsage.Add(false, NumBits);
 			}
 
 			LevelIndexUsage[LevelIndex] = true;

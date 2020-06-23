@@ -32,6 +32,7 @@
 #include "FoliageEditActions.h"
 #include "FoliageHelper.h"
 #include "ISceneOutliner.h"
+#include "AssetData.h"
 
 #include "AssetRegistryModule.h"
 #include "Misc/ScopeExit.h"

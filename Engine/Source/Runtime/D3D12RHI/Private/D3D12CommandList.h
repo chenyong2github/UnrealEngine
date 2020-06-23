@@ -226,6 +226,7 @@ private:
 		typedef TPair<uint64, FD3D12SyncPoint>	GenerationSyncPointPair;	// Pair of command list generation to a sync point
 		TQueue<GenerationSyncPointPair>			ActiveGenerations;	// Queue of active command list generations and their sync points. Used to determine what command lists have been completed on the GPU.
 		FCriticalSection						ActiveGenerationsCS;	// While only a single thread can record to a command list at any given time, multiple threads can ask for the state of a given command list. So the associated tracking must be thread-safe.
+		uint32									FrameSubmitted;				// Used by the gap recorder to track which frame the command list was issued on
 
 		// Array of resources who's state needs to be synced between submits.
 		TArray<FD3D12PendingResourceBarrier>	PendingResourceBarriers;
@@ -251,6 +252,11 @@ private:
 		// Used to track which resources are used on this CL so that they may be made resident when appropriate
 		FD3D12ResidencySet* ResidencySet;
 
+		// Unique ID of this command list used to avoid costly redundant operations, such as resource residency updates.
+		// This value is updated every time the command list is reset, so it is safe to use even when command list object is recycled.
+		// Value should be only used for identity, not for synchronization. Valid values are guaranteed to be > 0.
+		uint64 CommandListID;
+
 		// Batches resource barriers together until it's explicitly flushed
 		FD3D12ResourceBarrierBatcher ResourceBarrierBatcher;
 
@@ -269,7 +275,7 @@ private:
 		/** Disable execution time tracking and mark commandlist end time */
 		void FinishTrackingCommandListTime();
 
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 		int32 StartTimeQueryIdx;
 #endif
 	};
@@ -474,6 +480,18 @@ public:
 		return CommandListData->IsClosed;
 	}
 
+	uint32 FrameSubmitted() const
+	{
+		check(CommandListData);
+		return CommandListData->FrameSubmitted;
+	}
+
+	void SetFrameSubmitted(uint32 FrameSubmitted) 
+	{
+		check(CommandListData);
+		CommandListData->FrameSubmitted = FrameSubmitted;
+	}
+
 	bool IsComplete(uint64 Generation) const
 	{
 		if (CommandListData) // Can be null with mGPU
@@ -597,6 +615,12 @@ public:
 	FORCEINLINE uint32 GetGPUIndex() const 
 	{
 		return CommandListData ? CommandListData->GetGPUIndex() : 0;
+	}
+
+	// Returns unique identity that can be used to distinguish between command lists even after they were recycled.
+	FORCEINLINE uint64 GetCommandListID() const
+	{
+		return CommandListData ? CommandListData->CommandListID : 0;
 	}
 
 private:

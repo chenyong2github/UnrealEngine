@@ -6,7 +6,7 @@
 
 #include "Dom/JsonObject.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterClusterEventsClient::FDisplayClusterClusterEventsClient() :
@@ -14,8 +14,8 @@ FDisplayClusterClusterEventsClient::FDisplayClusterClusterEventsClient() :
 {
 }
 
-FDisplayClusterClusterEventsClient::FDisplayClusterClusterEventsClient(const FString& name) :
-	FDisplayClusterClient(name)
+FDisplayClusterClusterEventsClient::FDisplayClusterClusterEventsClient(const FString& InName) :
+	FDisplayClusterClient(InName)
 {
 }
 

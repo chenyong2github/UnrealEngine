@@ -178,6 +178,8 @@ public:
 
 	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
+
+	LAYOUT_FIELD(FName, DebugName);
 };
 
 enum ERayTracingSceneLifetime
@@ -212,6 +214,8 @@ struct FRayTracingSceneInitializer
 	// Defines whether data in this scene should persist between frames.
 	// Currently only single-frame lifetime is supported.
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
+
+	FName DebugName;
 };
 
 struct FShaderResourceViewInitializer
@@ -767,6 +771,7 @@ public:
 	*/
 	// FlushType: Flush RHI Thread
 	virtual void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData) { unimplemented(); };
+	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params) { unimplemented(); };
 
 	/**
 	* Creates a Array RHI texture resource
@@ -1271,7 +1276,6 @@ public:
 
 	// FlushType: Thread safe
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) = 0;
-
 
 #if WITH_MGPU
 	/** Returns a context for sending commands to the given GPU mask. Default implementation is only valid when not using multi-gpu. */

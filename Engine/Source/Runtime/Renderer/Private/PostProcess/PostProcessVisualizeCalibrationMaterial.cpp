@@ -3,28 +3,28 @@
 #include "PostProcess/PostProcessVisualizeCalibrationMaterial.h"
 #include "EngineGlobals.h"
 
-static bool IsPostProcessVisualizeCalibrationColorMaterialEnabled(const FViewInfo& View) 
+static bool IsPostProcessVisualizeCalibrationColorMaterialEnabled(const FSceneView& View)
 {
 	return View.Family->EngineShowFlags.VisualizeCalibrationColor && View.CurrentVisualizeCalibrationColorMaterialName != NAME_None;
 }
 
-static bool IsPostProcessVisualizeCalibrationGrayscaleMaterialEnabled(const FViewInfo& View) 
+static bool IsPostProcessVisualizeCalibrationGrayscaleMaterialEnabled(const FSceneView& View) 
 {
 	return View.Family->EngineShowFlags.VisualizeCalibrationGrayscale && View.CurrentVisualizeCalibrationGrayscaleMaterialName != NAME_None;
 }
 
-static bool IsPostProcessVisualizeCalibrationCustomMaterialEnabled(const FViewInfo& View) 
+static bool IsPostProcessVisualizeCalibrationCustomMaterialEnabled(const FSceneView& View)
 {
 	return View.Family->EngineShowFlags.VisualizeCalibrationCustom && View.CurrentVisualizeCalibrationCustomMaterialName != NAME_None;
 }
 
-bool IsPostProcessVisualizeCalibrationMaterialEnabled(const FViewInfo& View) 
+bool IsPostProcessVisualizeCalibrationMaterialEnabled(const FSceneView& View)
 {
 	return (IsPostProcessVisualizeCalibrationColorMaterialEnabled(View) || IsPostProcessVisualizeCalibrationGrayscaleMaterialEnabled(View) || IsPostProcessVisualizeCalibrationCustomMaterialEnabled(View));
 }
 
 // Returns whether the Calibration custom material pass needs to render on screen.
-const UMaterialInterface* GetPostProcessVisualizeCalibrationMaterialInterface(const FViewInfo& View) 
+const UMaterialInterface* GetPostProcessVisualizeCalibrationMaterialInterface(const FSceneView& View)
 {
 	if (IsPostProcessVisualizeCalibrationColorMaterialEnabled(View))
 	{

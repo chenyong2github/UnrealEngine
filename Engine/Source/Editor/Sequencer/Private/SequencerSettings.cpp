@@ -46,6 +46,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
 	bDeleteKeysWhenTrimming = true;
+	bDisableSectionsAfterBaking = true;
 	bCleanPlaybackMode = true;
 	bActivateRealtimeViewports = true;
 	bEvaluateSubSequencesInIsolation = false;
@@ -573,6 +574,20 @@ void USequencerSettings::SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimmin
 	if (bDeleteKeysWhenTrimming != bInDeleteKeysWhenTrimming)
 	{
 		bDeleteKeysWhenTrimming = bInDeleteKeysWhenTrimming;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetDisableSectionsAfterBaking() const
+{
+	return bDisableSectionsAfterBaking;
+}
+
+void USequencerSettings::SetDisableSectionsAfterBaking(bool bInDisableSectionsAfterBaking)
+{
+	if (bDisableSectionsAfterBaking != bInDisableSectionsAfterBaking)
+	{
+		bDisableSectionsAfterBaking = bInDisableSectionsAfterBaking;
 		SaveConfig();
 	}
 }

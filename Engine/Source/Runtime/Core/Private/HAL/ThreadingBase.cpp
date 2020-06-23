@@ -200,6 +200,33 @@ uint32 FFakeThread::ThreadIdCounter = 0xffff;
 
 void FThreadManager::AddThread(uint32 ThreadId, FRunnableThread* Thread)
 {
+	// Convert the thread's priority into an ordered value that is suitable
+	// for sorting. Note we're using higher values so as to not collide with
+	// existing trace data that's using TPri directly, and leaving gaps so
+	// values can be added in between should need be
+	int8 PriRemap[][2] = {
+		{ TPri_TimeCritical,		0x10 },
+		{ TPri_Highest,				0x20 },
+		{ TPri_AboveNormal,			0x30 },
+		{ TPri_Normal,				0x40 },
+		{ TPri_SlightlyBelowNormal,	0x50 },
+		{ TPri_BelowNormal,			0x60 },
+		{ TPri_Lowest,				0x70 },
+	};
+	static_assert(TPri_Num == UE_ARRAY_COUNT(PriRemap), "Please update PriRemap when adding/removing thread priorities. Many thanks.");
+	int32 SortHint = UE_ARRAY_COUNT(PriRemap);
+	for (auto Candidate : PriRemap)
+	{
+		if (Candidate[0] == Thread->GetThreadPriority())
+		{
+			SortHint = Candidate[1];
+			break;
+		}
+	}
+
+	// Note that this must be called from thread being registered.
+	Trace::ThreadRegister(*(Thread->GetThreadName()), Thread->GetThreadID(), SortHint);
+
 	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
 
 	if (bIsSingleThreadEnvironment && Thread->GetThreadType() == FRunnableThread::ThreadType::Real)
@@ -415,6 +442,20 @@ FScopedEvent::~FScopedEvent()
 	}
 }
 
+
+/*-----------------------------------------------------------------------------
+	FEventRef
+-----------------------------------------------------------------------------*/
+
+FEventRef::FEventRef(EEventMode Mode /* = EEventMode::AutoReset */)
+	: Event(FPlatformProcess::GetSynchEventFromPool(Mode == EEventMode::ManualReset))
+{}
+
+FEventRef::~FEventRef()
+{
+	FPlatformProcess::ReturnSynchEventToPool(Event);
+}
+
 /*-----------------------------------------------------------------------------
 	FRunnableThread
 -----------------------------------------------------------------------------*/
@@ -498,8 +539,6 @@ void FRunnableThread::SetupCreatedThread(FRunnableThread*& NewThread, class FRun
 
 void FRunnableThread::PostCreate(EThreadPriority InThreadPriority)
 {
-	TRACE_CREATE_THREAD(GetThreadID(), *GetThreadName(), InThreadPriority);
-
 #if	STATS
 	FStartupMessages::Get().AddThreadMetadata( FName( *GetThreadName() ), GetThreadID() );
 #endif // STATS
@@ -745,8 +784,10 @@ public:
 		Destroy();
 	}
 
-	virtual bool Create(uint32 InNumQueuedThreads,uint32 StackSize = (32 * 1024),EThreadPriority ThreadPriority=TPri_Normal) override
+	virtual bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override
 	{
+		Trace::ThreadGroupBegin(Name);
+
 		// Make sure we have synch objects
 		bool bWasSuccessful = true;
 		check(SynchQueue == nullptr);
@@ -786,6 +827,8 @@ public:
 		{
 			Destroy();
 		}
+
+		Trace::ThreadGroupEnd();
 		return bWasSuccessful;
 	}
 
@@ -930,6 +973,9 @@ FQueuedThreadPool* FQueuedThreadPool::Allocate()
 {
 	return new FQueuedThreadPoolBase;
 }
+
+FQueuedThreadPool::FQueuedThreadPool() = default;
+FQueuedThreadPool::~FQueuedThreadPool() = default;
 
 //////////////////////////////////////////////////////////////////////////
 

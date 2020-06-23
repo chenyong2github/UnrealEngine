@@ -113,6 +113,8 @@
 #include "StudioAnalytics.h"
 #include "UObject/SoftObjectPath.h"
 #include "IAssetViewport.h"
+#include "IPIEAuthorizer.h"
+#include "Features/IModularFeatures.h"
 
 DEFINE_LOG_CATEGORY(LogPlayLevel);
 
@@ -1326,7 +1328,8 @@ bool UEditorEngine::SpawnPlayFromHereStart(UWorld* World, AActor*& PlayerStart)
 {
 	if (PlayInEditorSessionInfo.IsSet() && PlayInEditorSessionInfo->OriginalRequestParams.HasPlayWorldPlacement())
 	{
-		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.GetValue());
+		// Rotation may be optional in original request.
+		return SpawnPlayFromHereStart(World, PlayerStart, PlayInEditorSessionInfo->OriginalRequestParams.StartLocation.GetValue(), PlayInEditorSessionInfo->OriginalRequestParams.StartRotation.Get(FRotator::ZeroRotator));
 	}
 
 	// Not having a location set is still considered a success.
@@ -2355,6 +2358,20 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		return;
 	}
 
+	TArray<IPIEAuthorizer*> PlayAuthorizers = IModularFeatures::Get().GetModularFeatureImplementations<IPIEAuthorizer>(IPIEAuthorizer::GetModularFeatureName());
+	for (const IPIEAuthorizer* Authority : PlayAuthorizers)
+	{
+		FString DeniedReason;
+		if (!Authority->RequestPIEPermission(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor, DeniedReason))
+		{
+			// In case the authorizer didn't notify the user as to why this was blocked.
+			UE_LOG(LogPlayLevel, Warning, TEXT("Play-In-Editor canceled by plugin: %s"), *DeniedReason);
+
+			CancelRequestPlaySession();
+			return;
+		}
+	}
+
 	// Make sure there's no outstanding load requests
 	FlushAsyncLoading();
 
@@ -2767,9 +2784,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			else
 			{
 				// Generate a new Window to put this instance in.
-				EPlayNetMode NetMode;
-				InParams.EditorPlaySettings->GetPlayNetMode(NetMode);
-				PIEViewport = GeneratePIEViewportWindow(InParams, PlayInEditorSessionInfo->NumViewportInstancesCreated, *PieWorldContext, NetMode, ViewportClient, SlatePlayInEditorSession);
+				PIEViewport = GeneratePIEViewportWindow(InParams, PlayInEditorSessionInfo->NumViewportInstancesCreated, *PieWorldContext, InPIEParameters.NetMode, ViewportClient, SlatePlayInEditorSession);
 
 				// Increment for each viewport so that the window titles get correct numbers and it uses the right save/load setting. Non-visible
 				// servers won't be bumping this number as it's used for saving/restoring window positions.

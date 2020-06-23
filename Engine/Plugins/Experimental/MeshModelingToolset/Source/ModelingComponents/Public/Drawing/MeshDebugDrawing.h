@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DynamicMeshAttributeSet.h"
 #include "FrameTypes.h"
+#include "ToolContextInterfaces.h"  // for FViewCameraState
 
 class FPrimitiveDrawInterface;
 
@@ -74,10 +75,28 @@ namespace MeshDebugDraw
 	 * @param DepthPriority drawing depth priority
 	 * @param PDI drawing interface
 	 * @param Transform transform applied to LocalFrame. Pass as Identity() if you have world frame.
-	 * @return 
 	 */
 	void MODELINGCOMPONENTS_API DrawSimpleGrid(
 		const FFrame3f& LocalFrame, int GridLines, float GridLineSpacing,
+		float LineWidth, FColor Color, bool bDepthTested,
+		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
+
+
+	/**
+	 * Draw a basic 2D grid with a given number of lines that covers roughly a constant area of the screen
+	 * @param CameraState camera state, required to size grid appropriately
+	 * @param LocalFrame Pre-transform frame of grid (grid lies in XY plane).
+	 * @param GridLines number of grid lines. If odd, there is a center-line, if even then frame center is at center of a grid square
+	 * @param VisualAngleSpan visual angle that grid should cover (in degrees, relative to default 90-degree FOV)
+	 * @param LineWidth thickness of the lines in screen space
+	 * @param Color color of the lines
+	 * @param DepthPriority drawing depth priority
+	 * @param PDI drawing interface
+	 * @param Transform transform applied to LocalFrame. Pass as Identity() if you have world frame.
+	 */
+	void MODELINGCOMPONENTS_API DrawSimpleFixedScreenAreaGrid(
+		const FViewCameraState& CameraState, 
+		const FFrame3f& LocalFrame, int32 NumGridLines, float VisualAngleSpan,
 		float LineWidth, FColor Color, bool bDepthTested,
 		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 

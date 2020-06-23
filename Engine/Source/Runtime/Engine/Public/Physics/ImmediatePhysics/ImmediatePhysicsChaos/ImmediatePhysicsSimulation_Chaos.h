@@ -53,22 +53,49 @@ namespace ImmediatePhysics_Chaos
 		/** Set bodies that require no collision */
 		void SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors);
 
+		/** Set up potential collisions between the actor and all other dynamic actors */
+		void AddToCollidingPairs(FActorHandle* ActorHandle);
+
 		/** Advance the simulation by DeltaTime */
 		void Simulate(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
 		void Simulate_AssumesLocked(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
 
-		void SetSimulationSpaceTransform(const FTransform& Transform);
+		void InitSimulationSpace(
+			const FTransform& Transform);
+
+		void UpdateSimulationSpace(
+			const FTransform& Transform,
+			const FVector& LinearVel,
+			const FVector& AngularVel,
+			const FVector& LinearAcc,
+			const FVector& AngularAcc);
+
+		void SetSimulationSpaceSettings(
+			const FReal MasterAlpha, 
+			const FReal ExternalLinearEtherDrag);
+
 
 		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
-		void SetSolverIterations(const FReal FixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
+		void SetSolverIterations(
+			const FReal FixedDt,
+			const int32 SolverIts,
+			const int32 JointIts,
+			const int32 CollisionIts,
+			const int32 SolverPushOutIts,
+			const int32 JointPushOutIts,
+			const int32 CollisionPushOutIts);
 
 	private:
+		void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
+		void PackCollidingPairs();
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
+		void DebugDrawStaticParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+		void DebugDrawSimulationSpace();
 
 		struct FImplementation;
 		TUniquePtr<FImplementation> Implementation;

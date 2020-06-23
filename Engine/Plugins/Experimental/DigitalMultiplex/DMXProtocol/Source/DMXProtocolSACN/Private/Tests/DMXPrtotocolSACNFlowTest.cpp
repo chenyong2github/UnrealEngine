@@ -24,8 +24,19 @@ struct DMXPrtotocolSACNHelper
 
 		// Init Universe
 		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), InUniverseID);
-		Universe = DMXProtocol->AddUniverse(UniverseSettings);
+		DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
+
+		Universe = DMXProtocol->GetUniverseById(InUniverseID);
+		if (Universe.IsValid())
+		{
+			UniverseExists = true;
+		}
+		else
+		{
+			Universe = DMXProtocol->AddUniverse(UniverseSettings);
+			UniverseExists = false;
+		}
+
 
 		// Call get buffer for start listening socket
 		Universe->GetInputDMXBuffer();
@@ -33,11 +44,15 @@ struct DMXPrtotocolSACNHelper
 
 	~DMXPrtotocolSACNHelper()
 	{
-		DMXProtocol->RemoveUniverseById(UniverseID);
+		if (!UniverseExists)
+		{
+			DMXProtocol->RemoveUniverseById(UniverseID);
+		}
 	}
 
 	FDMXProtocolSACN* DMXProtocol;
 	IDMXProtocolUniversePtr Universe;
+	bool UniverseExists;
 	uint16 UniverseID;
 	uint8 FixtureChannels[6] = { 1, 2, 3, 4, 5, 6 };
 	uint8 FixtureValues[6] = { 255, 155, 50, 100, 200, 220 };
@@ -73,7 +88,7 @@ bool DMXPrtotocolSACNBasicFlow_SendDMX1_Part2::Update()
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(DMXPrtotocolSACNBasicFlow_CheckDMX1_Part3, TSharedPtr<DMXPrtotocolSACNHelper>, Helper);
 bool DMXPrtotocolSACNBasicFlow_CheckDMX1_Part3::Update()
 {
-	FDMXBufferPtr InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
+	TSharedPtr<FDMXBuffer> InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
 
 	// Test package ACNPacketIdentifier
 	{
@@ -94,7 +109,7 @@ bool DMXPrtotocolSACNBasicFlow_CheckDMX1_Part3::Update()
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(DMXPrtotocolSACNBasicFlow_SendDMX2_Part4, TSharedPtr<DMXPrtotocolSACNHelper>, Helper);
 bool DMXPrtotocolSACNBasicFlow_SendDMX2_Part4::Update()
 {
-	FDMXBufferPtr InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
+	TSharedPtr<FDMXBuffer> InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
 
 	IDMXFragmentMap DMXFragmentMap;
 
@@ -109,7 +124,7 @@ bool DMXPrtotocolSACNBasicFlow_SendDMX2_Part4::Update()
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(DMXPrtotocolSACNBasicFlow_CheckDMX2_Part5, TSharedPtr<DMXPrtotocolSACNHelper>, Helper);
 bool DMXPrtotocolSACNBasicFlow_CheckDMX2_Part5::Update()
 {
-	FDMXBufferPtr InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
+	TSharedPtr<FDMXBuffer> InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
 
 	Helper->Test->TestEqual(TEXT("Old value DMX input should be the same"), Helper->FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(Helper->FixtureChannels[0] - 1));
 	Helper->Test->TestEqual(TEXT("Incoming buffer should be same"), Helper->FixtureValues[4], InputDMXBuffer->GetDMXDataAddress(Helper->FixtureChannels[4] - 1));
@@ -178,7 +193,7 @@ bool FDMXPrtotocolSACNConsoleCommands_SendDMX1_Part1::Update()
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FDMXPrtotocolSACNConsoleCommands_CheckDMX1_Part2, TSharedPtr<DMXPrtotocolSACNHelper>, Helper);
 bool FDMXPrtotocolSACNConsoleCommands_CheckDMX1_Part2::Update()
 {
-	FDMXBufferPtr InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
+	TSharedPtr<FDMXBuffer> InputDMXBuffer = Helper->Universe->GetInputDMXBuffer();
 	Helper->Test->TestEqual(TEXT("Incoming buffer should be same"), Helper->FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(Helper->FixtureChannels[0] - 1));
 	Helper->Test->TestEqual(TEXT("Incoming buffer should be same"), Helper->FixtureValues[1], InputDMXBuffer->GetDMXDataAddress(Helper->FixtureChannels[1] - 1));
 	Helper->Test->TestEqual(TEXT("Incoming buffer should be same"), Helper->FixtureValues[2], InputDMXBuffer->GetDMXDataAddress(Helper->FixtureChannels[2] - 1));

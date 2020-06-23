@@ -45,7 +45,8 @@ public:
 #if D3D12_RHI_RAYTRACING
 	void									InitRayTracing();
 	void									CleanupRayTracing();
-	ID3D12Device5*							GetRayTracingDevice();
+	ID3D12Device5*							GetDevice5();
+	ID3D12Device7*							GetDevice7();
 	const FD3D12BasicRayTracingPipeline*	GetBasicRayTracingPipeline() const { return BasicRayTracingPipeline; }
 	FD3D12RayTracingDescriptorHeapCache*	GetRayTracingDescriptorHeapCache() { return RayTracingDescriptorHeapCache; }
 	FD3D12RayTracingPipelineCache*			GetRayTracingPipelineCache() { return RayTracingPipelineCache; }
@@ -74,8 +75,8 @@ public:
 	inline FD3D12CommandListManager& GetAsyncCommandListManager() { return *AsyncCommandListManager; }
 	inline FD3D12CommandAllocatorManager& GetTextureStreamingCommandAllocatorManager() { return TextureStreamingCommandAllocatorManager; }
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
-	inline FD3D12GlobalOnlineHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
-	inline FD3D12GlobalOnlineHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
+	inline FD3D12GlobalOnlineSamplerHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
+	inline FD3D12GlobalHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
 
 	bool IsGPUIdle();
 
@@ -118,6 +119,8 @@ public:
 
 	void BlockUntilIdle();
 
+	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
+
 protected:
 
 	/** A pool of command lists we can cycle through for the global D3D device */
@@ -138,12 +141,12 @@ protected:
 #endif
 	FD3D12OfflineDescriptorManager SamplerAllocator;
 
-	FD3D12GlobalOnlineHeap GlobalSamplerHeap;
-	FD3D12GlobalOnlineHeap GlobalViewHeap;
+	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
+	FD3D12GlobalHeap GlobalViewHeap;
 
 	FD3D12QueryHeap OcclusionQueryHeap;
 	FD3D12QueryHeap TimestampQueryHeap;
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12LinearQueryHeap CmdListExecTimeQueryHeap;
 #endif
 
@@ -190,8 +193,9 @@ protected:
 	FD3D12RayTracingDescriptorHeapCache* RayTracingDescriptorHeapCache = nullptr;
 	void DestroyRayTracingDescriptorCache();
 #endif
-};
 
+	FD3DGPUProfiler GPUProfilingData;
+};
 template <typename TDesc> 
 void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()
 {

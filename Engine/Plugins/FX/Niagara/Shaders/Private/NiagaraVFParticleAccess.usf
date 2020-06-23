@@ -11,7 +11,12 @@
 
 float GetFloat(int RegisterIdx, uint InstanceID)
 {
-	bool IsHalf = RegisterIdx & (1 << 31);
+	// this was originally: bool IsHalf = RegisterIdx & (1 << 31);
+	// but the glsl comes out as -2147483648 and this appears to be upsetting some old android glsl compilers. Doing this forces an
+	// unsigned 2147483648u literal into glsl. FORT-286011.
+	uint HalfBit = (1 << 31);
+	bool IsHalf = RegisterIdx & HalfBit;
+
 	RegisterIdx &= (~(1 << 31));
 
 	if(IsHalf)

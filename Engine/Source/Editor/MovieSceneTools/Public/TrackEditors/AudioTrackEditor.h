@@ -145,6 +145,7 @@ private:
 	int32 StoredXSize;
 	FColor StoredColor;
 	float StoredSectionHeight;
+	bool bStoredLooping;
 
 	/** Stored sound wave to determine when it is invalidated. */
 	TWeakObjectPtr<USoundWave> StoredSoundWave;

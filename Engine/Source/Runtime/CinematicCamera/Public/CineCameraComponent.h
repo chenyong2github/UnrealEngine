@@ -46,16 +46,16 @@ struct FCameraFilmbackSettings
 };
 
 /** A named bundle of filmback settings used to implement filmback presets */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FNamedFilmbackPreset
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Name for the preset. */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Filmback")
 	FString Name;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Filmback")
 	FCameraFilmbackSettings FilmbackSettings;
 };
 
@@ -296,6 +296,10 @@ public:
 	/** Set the current lens settings by preset name. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
 	void SetLensPresetByName(const FString& InPresetName);
+
+	/** Returns a copy of the list of available filmback presets. */
+	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
+	static TArray<FNamedFilmbackPreset> GetFilmbackPresetsCopy();
 
 	/** Returns a copy of the list of available lens presets. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")

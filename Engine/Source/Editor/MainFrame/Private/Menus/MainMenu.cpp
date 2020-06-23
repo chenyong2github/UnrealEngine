@@ -220,7 +220,7 @@ void FMainMenu::RegisterWindowMenu()
 		// Make sure at least one is enabled before creating the section
 		if (bLocalizationDashboard || bTranslationPicker)
 		{
-			FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
+			FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
 			{
 				// Localization Dashboard
 				if (bLocalizationDashboard)
@@ -553,10 +553,11 @@ void FMainMenu::RegisterRecentFileAndExitMenuItems()
 #endif
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef< SWidget > FMainMenu::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext )
 {
 	return FMainMenu::MakeMainMenu( TabManager, MenuName, ToolMenuContext );
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

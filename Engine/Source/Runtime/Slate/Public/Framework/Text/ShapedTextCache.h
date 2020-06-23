@@ -57,7 +57,7 @@ public:
 	/** Create a new shaped text cache */
 	static FShapedTextCacheRef Create(const TSharedRef<FSlateFontCache>& InFontCache)
 	{
-		return MakeShareable(new FShapedTextCache(InFontCache));
+		return MakeShared<FShapedTextCache>(InFontCache);
 	}
 
 	/**
@@ -109,6 +109,8 @@ public:
 	}
 
 private:
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FShapedTextCache>;
+
 	/** Constructor */
 	FShapedTextCache(const TSharedRef<FSlateFontCache>& InFontCache)
 		: FontCachePtr(InFontCache)

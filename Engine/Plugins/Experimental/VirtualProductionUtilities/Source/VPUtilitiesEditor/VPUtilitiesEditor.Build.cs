@@ -17,7 +17,6 @@ public class VPUtilitiesEditor : ModuleRules
 				"EditorSubsystem",
 				"VPUtilities",                
 				"VREditor",
-				"Blutility",
             }
         );
 
@@ -38,6 +37,7 @@ public class VPUtilitiesEditor : ModuleRules
 				"VPBookmark",
 				"WorkspaceMenuStructure",
                 "CinematicCamera",
+				"OSC"
             }
 		);
 	}

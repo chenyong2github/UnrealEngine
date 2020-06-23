@@ -386,10 +386,17 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	}
 	
 	// Off-mesh connections are stored as polygons, adjust values.
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int firstSegVert = params->vertCount + storedOffMeshConCount*2;
 	const int firstSegPoly = params->polyCount + storedOffMeshConCount;
 	const int totPolyCount = firstSegPoly + storedOffMeshSegCount*DT_MAX_OFFMESH_SEGMENT_PARTS;
 	const int totVertCount = firstSegVert + storedOffMeshSegCount*DT_MAX_OFFMESH_SEGMENT_PARTS*4;
+#else
+	const int totPolyCount = params->polyCount + storedOffMeshConCount;
+	const int totVertCount = params->vertCount + storedOffMeshConCount * 2;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+	//@UE4 END
 	
 	// Find portal edges which are at tile borders.
 	int edgeCount = 0;
@@ -411,8 +418,9 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		}
 	}
 
-	// offmesh links will be added in dynamic array
+//@UE4 BEGIN: offmesh links will be added in dynamic array
 	const int maxLinkCount = edgeCount + portalCount*2;
+//@UE4 END
 	
 	// Find unique detail vertices.
 	int uniqueDetailVertCount = 0;
@@ -463,11 +471,23 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*detailTriCount);
 	const int bvTreeSize = params->buildBvTree ? dtAlign4(sizeof(dtBVNode)*params->polyCount*2) : 0;
 	const int offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection)*storedOffMeshConCount);
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int offMeshSegSize = dtAlign4(sizeof(dtOffMeshSegmentConnection)*storedOffMeshSegCount);
+#else
+	const int offMeshSegSize = 0;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	const int clustersSize = dtAlign4(sizeof(dtCluster)*params->clusterCount);
 	const int polyClustersSize = dtAlign4(sizeof(unsigned short)*params->polyCount);
- 
-	
+#else
+	const int clustersSize = 0;
+	const int polyClustersSize = 0;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
+
 	const int dataSize = headerSize + vertsSize + polysSize + linksSize +
 						 detailMeshesSize + detailVertsSize + detailTrisSize +
 						 bvTreeSize + offMeshConsSize + offMeshSegSize +
@@ -491,9 +511,17 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	unsigned char* navDTris = (unsigned char*)d; d += detailTrisSize;
 	dtBVNode* navBvtree = (dtBVNode*)d; d += bvTreeSize;
 	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshConsSize;
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	dtOffMeshSegmentConnection* offMeshSegs = (dtOffMeshSegmentConnection*)d; d += offMeshSegSize;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	dtCluster* clusters = (dtCluster*)d; d += clustersSize;
 	unsigned short* polyClusters = (unsigned short*)d; d += polyClustersSize;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 	
 	// Store header
 	header->magic = DT_NAVMESH_MAGIC;
@@ -512,15 +540,23 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	header->detailTriCount = detailTriCount;
 	header->bvQuantFactor = 1.0f / params->cs;
 	header->offMeshBase = params->polyCount;
-	header->offMeshSegPolyBase = firstSegPoly;
-	header->offMeshSegVertBase = firstSegVert;
 	header->walkableHeight = params->walkableHeight;
 	header->walkableRadius = params->walkableRadius;
 	header->walkableClimb = params->walkableClimb;
 	header->offMeshConCount = storedOffMeshConCount;
-	header->offMeshSegConCount = storedOffMeshSegCount;
 	header->bvNodeCount = params->buildBvTree ? params->polyCount*2 : 0;
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
+	header->offMeshSegPolyBase = firstSegPoly;
+	header->offMeshSegVertBase = firstSegVert;
+	header->offMeshSegConCount = storedOffMeshSegCount;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	header->clusterCount = params->clusterCount; 
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 
 	const int offMeshVertsBase = params->vertCount;
 	const int offMeshPolyBase = params->polyCount;
@@ -611,6 +647,8 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 				p->setType(DT_POLYTYPE_OFFMESH_POINT);
 				n++;
 			}
+			//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 			else
 			{
 				for (int j = 0; j < DT_MAX_OFFMESH_SEGMENT_PARTS; j++)
@@ -623,6 +661,8 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 					nseg++;
 				}
 			}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+			//@UE4 END
 		}
 	}
 
@@ -713,6 +753,8 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 					con->userId = offMeshCon.userID;
 				n++;
 			}
+			//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 			else
 			{
 				dtOffMeshSegmentConnection* con = &offMeshSegs[nseg];
@@ -729,11 +771,15 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 
 				nseg++;
 			}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+			//@UE4 END
 		}
 	}
 
 	dtFree(offMeshConClass);
 	
+	//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 	// Store clusters
 	if (params->polyClusters)
 	{
@@ -767,6 +813,8 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			break;
 		}
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
  
 	*outData = data;
 	*outDataSize = dataSize;
@@ -803,10 +851,7 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 	dtSwapEndian(&header->detailTriCount);
 	dtSwapEndian(&header->bvNodeCount);
 	dtSwapEndian(&header->offMeshConCount);
-	dtSwapEndian(&header->offMeshSegConCount);
 	dtSwapEndian(&header->offMeshBase);
-	dtSwapEndian(&header->offMeshSegPolyBase);
-	dtSwapEndian(&header->offMeshSegVertBase);
 	dtSwapEndian(&header->walkableHeight);
 	dtSwapEndian(&header->walkableRadius);
 	dtSwapEndian(&header->walkableClimb);
@@ -817,7 +862,18 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 	dtSwapEndian(&header->bmax[1]);
 	dtSwapEndian(&header->bmax[2]);
 	dtSwapEndian(&header->bvQuantFactor);
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
+	dtSwapEndian(&header->offMeshSegConCount);
+	dtSwapEndian(&header->offMeshSegPolyBase);
+	dtSwapEndian(&header->offMeshSegVertBase);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	dtSwapEndian(&header->clusterCount);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 
 	// Freelist index and pointers are updated when tile is added, no need to swap.
 
@@ -849,9 +905,17 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int offMeshSegSize = dtAlign4(sizeof(dtOffMeshSegmentConnection)*header->offMeshSegConCount);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	const int clustersSize = dtAlign4(sizeof(dtCluster)*header->clusterCount);
 	const int polyClustersSize = dtAlign4(sizeof(unsigned short)*header->offMeshBase);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 
 	unsigned char* d = data + headerSize;
 	float* verts = (float*)d; d += vertsSize;
@@ -862,10 +926,18 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 	/*unsigned char* detailTris = (unsigned char*)d;*/ d += detailTrisSize;
 	dtBVNode* bvTree = (dtBVNode*)d; d += bvtreeSize;
 	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
+
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	dtOffMeshSegmentConnection* offMeshSegs = (dtOffMeshSegmentConnection*)d; d += offMeshSegSize;
+#endif // WITH_NAVMESH_SEGMENT_LINKS	
+ 	
+#if WITH_NAVMESH_CLUSTER_LINKS
 	dtCluster* clusters = (dtCluster*)d; d += clustersSize;
 	unsigned short* polyClusters = (unsigned short*)d; d += polyClustersSize;
- 	
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
+
 	// Vertices
 	for (int i = 0; i < header->vertCount*3; ++i)
 	{
@@ -924,6 +996,8 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 		dtSwapEndian(&con->userId);
 	}
 
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	// Off-mesh Connections: segment type
 	for (int i = 0; i < header->offMeshSegConCount; ++i)
 	{
@@ -939,16 +1013,21 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 		dtSwapEndian(&con->firstPoly);
 		dtSwapEndian(&con->userId);
 	}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	for (int i = 0; i < header->offMeshBase; i++)
 	{
 		dtSwapEndian(&polyClusters[i]);
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
  
 	return true;
 }
 
 // @UE4 BEGIN
+// Experimental tile transform
 bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const float tileWidth, const float tileHeight, const float rotationDeg)
 {
 	// Make sure the data is in right format.
@@ -972,9 +1051,15 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int offMeshSegsSize = dtAlign4(sizeof(dtOffMeshSegmentConnection)*header->offMeshSegConCount);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	const int clustersSize = dtAlign4(sizeof(dtCluster)*header->clusterCount);
 	const int clusterPolysSize = dtAlign4(sizeof(unsigned short)*header->offMeshBase);
+#endif //WITH_NAVMESH_CLUSTER_LINKS
 
 	dtMeshTile tile;
 	tile.header = header;
@@ -988,9 +1073,15 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 	tile.detailTris = (unsigned char*)d; d += detailTrisSize;
 	tile.bvTree = (dtBVNode*)d; d += bvtreeSize;
 	tile.offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	tile.offMeshSeg = (dtOffMeshSegmentConnection*)d; d += offMeshSegsSize;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	tile.clusters = (dtCluster*)d; d += clustersSize;
 	tile.polyClusters = (unsigned short*)d; d += clusterPolysSize;
+#endif //WITH_NAVMESH_CLUSTER_LINKS
 
 	// Rotate on original center position
 	float rotationCenter[3];
@@ -1047,10 +1138,9 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 			// 3 2 1
 			// 4   0
 			// 5 6 7
-			const unsigned short sideMask = 0xff;
-			const unsigned short side = poly->neis[vi] & sideMask;
+			const unsigned short side = poly->neis[vi] & DT_LINK_FLAG_SIDE_MASK;
 			const unsigned short newSide = (side + (2*rot)) % 8; //rot [0..3], newSide [0,2,4,6]
-			poly->neis[vi] = (poly->neis[vi] & 0xff00) | newSide;
+			poly->neis[vi] = (poly->neis[vi] & ~DT_LINK_FLAG_SIDE_MASK) | newSide;
 		}
 	}
 
@@ -1092,9 +1182,12 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 		dtVadd(&(tile.offMeshCons[j].pos[0]), &(tile.offMeshCons[j].pos[0]), offset);
 		dtVadd(&(tile.offMeshCons[j].pos[3]), &(tile.offMeshCons[j].pos[3]), offset);
 
-		tile.offMeshCons[j].side = (tile.offMeshCons[j].side + (2*rot)) % 8; //rot [0..3], side [0,1,2,3,4,5,6,7]
+		const unsigned short realSide = tile.offMeshCons[j].side & DT_LINK_FLAG_SIDE_MASK;
+		const unsigned short newSide = (realSide + (2*rot)) % 8; //rot [0..3], side [0,1,2,3,4,5,6,7]
+		tile.offMeshCons[j].side = (tile.offMeshCons[j].side & ~DT_LINK_FLAG_SIDE_MASK) | newSide;
 	}
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 	// Transform off-mesh segment connections
 	for (int j = 0; j < tile.header->offMeshSegConCount; ++j)
 	{
@@ -1107,13 +1200,16 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 		dtVadd(&(tile.offMeshSeg[j].startB[0]), &(tile.offMeshSeg[j].startB[0]), offset);
 		dtVadd(&(tile.offMeshSeg[j].endB[0]), &(tile.offMeshSeg[j].endB[0]), offset);
 	}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	// Transform clusters
 	for (int j = 0; j < tile.header->clusterCount; ++j)
 	{
 		dtRotate90(&(tile.clusters[j].center[0]), &(tile.clusters[j].center[0]), rotationCenter, rot);
 		dtVadd(&(tile.clusters[j].center[0]), &(tile.clusters[j].center[0]), offset);
 	}
+#endif //WITH_NAVMESH_CLUSTER_LINKS
 
 	return true;
 }

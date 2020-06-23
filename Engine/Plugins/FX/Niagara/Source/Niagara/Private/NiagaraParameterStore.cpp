@@ -168,16 +168,9 @@ FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParamete
 
 FNiagaraParameterStore::~FNiagaraParameterStore()
 {
-	//Ensure that any stores bound to drive this one are unbound.
-	UnbindFromSourceStores();
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
-
-	//Also unbind from any stores we're feeding.
-	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
-	{
-		Binding.Value.Empty(Binding.Key, this);
-	}
-	Bindings.Empty();
+	
+	UnbindAll();
 }
 
 void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters)
@@ -334,6 +327,16 @@ void FNiagaraParameterStore::Unbind(FNiagaraParameterStore* DestStore)
 	}
 }
 
+void FNiagaraParameterStore::UnbindAll()
+{
+	UnbindFromSourceStores();
+	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
+	{
+		Binding.Value.Empty(Binding.Key, this);
+	}
+	Bindings.Empty();
+}
+
 void FNiagaraParameterStore::Rebind()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreRebind);
@@ -350,7 +353,7 @@ void FNiagaraParameterStore::TransferBindings(FNiagaraParameterStore& OtherStore
 		OtherStore.Bind(Binding.Key);
 	}
 
-	Bindings.Empty();
+	UnbindAll();
 }
 
 bool FNiagaraParameterStore::VerifyBinding(const FNiagaraParameterStore* DestStore)const
@@ -426,6 +429,7 @@ void FNiagaraParameterStore::TickBindings()
 
 void FNiagaraParameterStore::UnbindFromSourceStores()
 {
+	//UE_LOG(LogNiagara, Log, TEXT("FNiagaraParameterStore::UnUnbindFromSourceStoresbind() - Src: 0x%p - SrcName: %s"), this, *DebugName);
 	//Each source store will remove itself from this array as it is unbound so after N unbinds the array should be empty.
 	int32 NumSourceStores = SourceStores.Num();
 	while (NumSourceStores--)
@@ -433,6 +437,7 @@ void FNiagaraParameterStore::UnbindFromSourceStores()
 		SourceStores[0]->Unbind(this);
 	}
 	ensureMsgf(SourceStores.Num() == 0, TEXT("Parameter store source array was not empty after unbinding all sources. Something seriously wrong."));
+	SourceStores.Empty();
 }
 
 void FNiagaraParameterStore::DumpParameters(bool bDumpBindings)const
@@ -912,8 +917,7 @@ void FNiagaraParameterStore::Empty(bool bClearBindings)
 
 	if (bClearBindings)
 	{
-		UnbindFromSourceStores();
-		Bindings.Empty();
+		UnbindAll();
 	}
 }
 
@@ -935,8 +939,7 @@ void FNiagaraParameterStore::Reset(bool bClearBindings)
 
 	if (bClearBindings)
 	{
-		UnbindFromSourceStores();
-		Bindings.Reset();
+		UnbindAll();
 	}
 }
 

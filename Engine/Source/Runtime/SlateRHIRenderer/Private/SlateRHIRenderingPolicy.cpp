@@ -975,7 +975,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					GlobalVertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
 					PixelShader->SetTexture(RHICmdList, TextureRHI, SamplerState);
-					PixelShader->SetShaderParams(RHICmdList, ShaderParams.PixelParams);
+					PixelShader->SetShaderParams(RHICmdList, ShaderParams);
 					const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? (1.0f / EngineGamma) : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 					const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
 					PixelShader->SetDisplayGammaAndInvertAlphaAndContrast(RHICmdList, FinalGamma, EnumHasAllFlags(DrawEffects, ESlateDrawEffect::InvertAlpha) ? 1.0f : 0.0f, FinalContrast);
@@ -1041,6 +1041,14 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					if (VertexShader.IsValid() && PixelShader.IsValid())
 					{
+						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
+							RHICmdList,
+							ActiveSceneView.GetFeatureLevel(),
+							ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SSAO | ESceneTextureSetupMode::CustomDepth,
+							UniformBuffer_SingleDraw);
+						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 						{
@@ -1089,7 +1097,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material);
 
-								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material, ShaderParams.PixelParams);
+								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material, ShaderParams);
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
 								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);
@@ -1333,6 +1341,9 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 		case ESlateShader::LineSegment:
 			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, true> >(ShaderMap);
 			break;
+		case ESlateShader::RoundedBox:
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::RoundedBox, true> >(ShaderMap);
+			break;
 		}
 	}
 	else
@@ -1368,6 +1379,9 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 			break;
 		case ESlateShader::LineSegment:
 			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, false> >(ShaderMap);
+			break;
+		case ESlateShader::RoundedBox:
+			PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::RoundedBox, false> >(ShaderMap);
 			break;
 		}
 	}

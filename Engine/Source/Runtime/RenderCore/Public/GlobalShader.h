@@ -180,6 +180,7 @@ public:
 	bool IsEmpty() const;
 
 	void Empty();
+	void ReleaseAllSections();
 
 	FShader* FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader);
 	FShaderPipeline* FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline);
@@ -202,7 +203,7 @@ public:
 #endif // WITH_EDITOR
 
 private:
-	TMap<FHashedName, FGlobalShaderMapSection*> SectionMap;
+	TMap<FHashedName, TRefCountPtr<FGlobalShaderMapSection>> SectionMap;
 	EShaderPlatform Platform;
 };
 

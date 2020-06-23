@@ -4,15 +4,21 @@
 #include "Containers/UnrealString.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
+#include "Misc/MemStack.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/NameTypes.h"
 #include "Hash/CityHash.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Misc/ScopeRWLock.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/Archive.h"
+#include "Misc/MemStack.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMemoryImage, Log, All);
 
 IMPLEMENT_TYPE_LAYOUT(FMemoryImageString);
 IMPLEMENT_TYPE_LAYOUT(FPlatformTypeLayoutParameters);
+IMPLEMENT_TYPE_LAYOUT(FHashedName);
 
 static const uint32 NumTypeLayoutDescHashBuckets = 4357u;
 static const FTypeLayoutDesc* GTypeLayoutHashBuckets[NumTypeLayoutDescHashBuckets] = { nullptr };
@@ -883,40 +889,213 @@ void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, void*, const 
 	Writer.WriteRawPointerSizedBytes(0u);
 }
 
+#if WITH_EDITORONLY_DATA
+static void AppendNumber(ANSICHAR* Dst, int32 Num)
+{
+	const ANSICHAR* DigitToChar = "9876543210123456789";
+	constexpr int32 ZeroDigitIndex = 9;
+	bool bIsNumberNegative = Num < 0;
+	const int32 TempBufferSize = 16; // 16 is big enough
+	ANSICHAR TempNum[TempBufferSize];
+	int32 TempAt = TempBufferSize; // fill the temp string from the top down.
+
+	// Convert to string assuming base ten.
+	do
+	{
+		TempNum[--TempAt] = DigitToChar[ZeroDigitIndex + (Num % 10)];
+		Num /= 10;
+	} while (Num);
+
+	if (bIsNumberNegative)
+	{
+		TempNum[--TempAt] = TEXT('-');
+	}
+
+	const ANSICHAR* CharPtr = TempNum + TempAt;
+	const int32 NumChars = TempBufferSize - TempAt;
+	FMemory::Memcpy(Dst, CharPtr, NumChars);
+	Dst[NumChars] = 0;
+}
+
+class FHashedNameRegistry
+{
+public:
+	static FHashedNameRegistry& Get()
+	{
+		static FHashedNameRegistry Instance;
+		return Instance;
+	}
+
+	FHashedNameRegistry() : MemStack(0)
+	{
+		const char NoneString[] = "None";
+		EmptyString = RegisterString(FName(), NoneString, sizeof(NoneString), "", 0u);
+	}
+
+	const char* FindString(uint64 InHash)
+	{
+		FReadScopeLock ReadLock(Lock);
+		const FStringEntry* Entry = Entries.Find(InHash);
+		if (Entry)
+		{
+			return Entry->String;
+		}
+		return EmptyString;
+	}
+
+	const char* RegisterString(const FName& InName, const char* InString, int32 InLength, const char* InHashedString, uint64 InHash)
+	{
+		FStringEntry Result;
+		{
+			FReadScopeLock ReadLock(Lock);
+			const FStringEntry* Entry = Entries.Find(InHash);
+			if (Entry)
+			{
+				Result = *Entry;
+			}
+		}
+
+		if (!Result.String)
+		{
+			FWriteScopeLock WriteLock(Lock);
+			FStringEntry* Entry = Entries.Find(InHash);
+			if (Entry)
+			{
+				Result = *Entry;
+			}
+			else
+			{
+				char* InternedString = nullptr;
+				const int32 Number = InName.GetNumber();
+				if (Number == NAME_NO_NUMBER_INTERNAL)
+				{
+					InternedString = (char*)MemStack.Alloc(InLength + 1, 4); // need to align debug string, to ensure we have free bits for TMemoryImagePtr
+					FMemory::Memcpy(InternedString, InString, InLength);
+					InternedString[InLength] = 0;
+				}
+				else
+				{
+					InternedString = (char*)MemStack.Alloc(InLength + 17, 4);
+					FMemory::Memcpy(InternedString, InString, InLength);
+					InternedString[InLength] = '_';
+					AppendNumber(&InternedString[InLength + 1], NAME_INTERNAL_TO_EXTERNAL(Number));
+				}
+
+				TCHAR NameString[NAME_SIZE + 32];
+				InName.ToString(NameString);
+				checkSlow(FCString::Stricmp(NameString, UTF8_TO_TCHAR(InternedString)) == 0);
+
+				UE_LOG(LogMemoryImage, Verbose, TEXT("FHashedName: \"%s\", \"%s\", %016llX"), NameString, UTF8_TO_TCHAR(InHashedString), InHash);
+
+				Entry = &Entries.Add(InHash);
+				Entry->String = InternedString;
+				Entry->Name = InName;
+				Result = *Entry;
+			}
+		}
+
+		ensure(InName == Result.Name);
+		return Result.String;
+	}
+
+	struct FStringEntry
+	{
+		const char* String = nullptr;
+		FName Name;
+	};
+
+	FRWLock Lock;
+	const char* EmptyString;
+	TMap<uint64, FStringEntry> Entries;
+	FMemStackBase MemStack;
+};
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FHashedNameDebugString& Object, const FTypeLayoutDesc&)
+{
+	const char* Data = Object.String.Get();
+	FMemoryImageWriter StringWriter = Writer.WritePointer("String");
+	if (Data)
+	{
+		const int32 Length = FCStringAnsi::Strlen(Data);
+		StringWriter.WriteBytes(Data, Length + 1); // include null-term
+	}
+	else
+	{
+		StringWriter.WriteBytes((uint8)0u);
+	}
+}
+
+void Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FHashedNameDebugString& Object, void* OutDst)
+{
+	const FName Name(Object.String.Get());
+	const FHashedName HashedName(Name);
+	FHashedNameDebugString* Result = new(OutDst) FHashedNameDebugString(HashedName.GetDebugString());
+}
+
+#endif // WITH_EDITORONLY_DATA
+
 FHashedName::FHashedName(const TCHAR* InString) : FHashedName(FName(InString)) {}
 FHashedName::FHashedName(const FString& InString) : FHashedName(FName(InString.Len(), *InString)) {}
 
+FHashedName::FHashedName(uint64 InHash) : Hash(InHash)
+{
+#if WITH_EDITORONLY_DATA
+	DebugString.String = FHashedNameRegistry::Get().FindString(Hash);
+#endif
+}
+
 FHashedName::FHashedName(const FName& InName)
 {
+	union FNameBuffer
+	{
+		WIDECHAR Wide[NAME_SIZE];
+		ANSICHAR Ansi[NAME_SIZE];
+	};
+
 	if (!InName.IsNone())
 	{
 		const FNameEntry* Entry = InName.GetComparisonNameEntry();
+		const int32 NameLength = Entry->GetNameLength();
 		const int32 InternalNumber = InName.GetNumber();
+		FNameBuffer NameBuffer;
+		FNameBuffer UpperNameBuffer;
 		if (Entry->IsWide())
 		{
-			WIDECHAR WideNameBuffer[NAME_SIZE];
-			Entry->GetWideName(WideNameBuffer);
-			for (int32 i = 0; i < Entry->GetNameLength(); ++i)
+			Entry->GetWideName(NameBuffer.Wide);
+			for (int32 i = 0; i < NameLength; ++i)
 			{
-				WideNameBuffer[i] = FCharWide::ToUpper(WideNameBuffer[i]);
+				UpperNameBuffer.Wide[i] = FCharWide::ToUpper(NameBuffer.Wide[i]);
 			}
-			const FTCHARToUTF8 NameUTF8(WCHAR_TO_TCHAR(WideNameBuffer));
-			Hash = CityHash64WithSeed(NameUTF8.Get(), NameUTF8.Length(), InternalNumber);
+			UpperNameBuffer.Wide[NameLength] = 0;
+			const FTCHARToUTF8 UpperNameUTF8(WCHAR_TO_TCHAR(UpperNameBuffer.Wide));
+			Hash = CityHash64WithSeed(UpperNameUTF8.Get(), UpperNameUTF8.Length(), InternalNumber);
+#if WITH_EDITORONLY_DATA
+			{
+				const FTCHARToUTF8 NameUTF8(WCHAR_TO_TCHAR(NameBuffer.Wide));
+				DebugString.String = FHashedNameRegistry::Get().RegisterString(InName, (char*)NameUTF8.Get(), NameUTF8.Length(), (char*)UpperNameUTF8.Get(), Hash);
+			}
+#endif
 		}
 		else
 		{
-			ANSICHAR AnsiNameBuffer[NAME_SIZE];
-			Entry->GetAnsiName(AnsiNameBuffer);
-			for (int32 i = 0; i < Entry->GetNameLength(); ++i)
+			Entry->GetAnsiName(NameBuffer.Ansi);
+			for (int32 i = 0; i < NameLength; ++i)
 			{
-				AnsiNameBuffer[i] = FCharAnsi::ToUpper(AnsiNameBuffer[i]);
+				UpperNameBuffer.Ansi[i] = FCharAnsi::ToUpper(NameBuffer.Ansi[i]);
 			}
-			Hash = CityHash64WithSeed(AnsiNameBuffer, Entry->GetNameLength(), InternalNumber);
+			UpperNameBuffer.Ansi[NameLength] = 0;
+			Hash = CityHash64WithSeed(UpperNameBuffer.Ansi, NameLength, InternalNumber);
+#if WITH_EDITORONLY_DATA
+			DebugString.String = FHashedNameRegistry::Get().RegisterString(InName, (char*)NameBuffer.Ansi, NameLength, (char*)UpperNameBuffer.Ansi, Hash);
+#endif
 		}
 	}
 	else
 	{
 		Hash = 0u;
+#if WITH_EDITORONLY_DATA
+		DebugString.String = FHashedNameRegistry::Get().EmptyString;
+#endif
 	}
 }
 

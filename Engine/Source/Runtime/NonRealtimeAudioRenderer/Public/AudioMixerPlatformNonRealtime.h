@@ -46,8 +46,10 @@ namespace Audio
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
 		virtual void OnHardwareUpdate() override;
 		virtual bool IsNonRealtime() const override;
-		virtual void FadeOut() override {}
-		virtual void FadeIn() override {}
+		virtual void FadeOut() override;
+
+		virtual void FadeIn() override;
+
 		//~ End IAudioMixerPlatformInterface
 
 	private:

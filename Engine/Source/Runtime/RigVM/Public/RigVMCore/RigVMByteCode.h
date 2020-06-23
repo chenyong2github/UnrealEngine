@@ -127,6 +127,13 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 	uint16 FunctionIndex;
 
 	FORCEINLINE uint8 GetOperandCount() const { return uint8(OpCode) - uint8(ERigVMOpCode::Execute_0_Operands); }
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMExecuteOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // operator used for zero, false, true, increment, decrement
@@ -156,6 +163,13 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 	}
 
 	FRigVMOperand Arg;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMUnaryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // copy the content of one register to another
@@ -180,6 +194,13 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 
 	FRigVMOperand Source;
 	FRigVMOperand Target;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // used for equals and not equals comparisons
@@ -213,6 +234,13 @@ struct RIGVM_API FRigVMComparisonOp : public FRigVMBaseOp
 	FRigVMOperand A;
 	FRigVMOperand B;
 	FRigVMOperand Result;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMComparisonOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // jump to a new instruction index.
@@ -235,6 +263,13 @@ struct RIGVM_API FRigVMJumpOp : public FRigVMBaseOp
 	}
 
 	int32 InstructionIndex;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // jump to a new instruction index based on a condition.
@@ -260,6 +295,13 @@ struct RIGVM_API FRigVMJumpIfOp : public FRigVMUnaryOp
 
 	int32 InstructionIndex;
 	bool Condition;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpIfOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 // change the type of a register
@@ -287,6 +329,13 @@ struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 	uint16 ElementSize;
 	uint16 ElementCount;
 	uint16 SliceCount;
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMChangeTypeOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 };
 
 /**
@@ -489,12 +538,14 @@ public:
 		return Statistics;
 	}
 
+	FString DumpToText() const;
+
 private:
 
 	template<class OpType>
 	FORCEINLINE uint64 AddOp(const OpType& InOp)
 	{
-		uint64 ByteIndex = (uint64)ByteCode.AddUninitialized(sizeof(OpType));
+		uint64 ByteIndex = (uint64)ByteCode.AddZeroed(sizeof(OpType));
 		FMemory::Memcpy(ByteCode.GetData() + ByteIndex, &InOp, sizeof(OpType));
 		return ByteIndex;
 	}

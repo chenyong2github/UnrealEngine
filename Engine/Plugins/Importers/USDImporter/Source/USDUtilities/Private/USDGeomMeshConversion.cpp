@@ -23,6 +23,7 @@
 #include "pxr/usd/ar/resolverScopedCache.h"
 #include "pxr/usd/sdf/layer.h"
 #include "pxr/usd/sdf/layerUtils.h"
+#include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/subset.h"
 #include "pxr/usd/usdShade/material.h"
@@ -52,12 +53,12 @@ namespace UsdToUnrealImpl
 	}
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode )
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode )
 {
-	return ConvertGeomMesh( UsdMesh, MeshDescription, FTransform::Identity, TimeCode );
+	return ConvertGeomMesh( UsdSchema, MeshDescription, FTransform::Identity, TimeCode );
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMesh );
 
@@ -65,8 +66,15 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 	FScopedUsdAllocs UsdAllocs;
 
+	pxr::UsdGeomMesh UsdMesh( UsdSchema );
+
+	if ( !UsdMesh )
+	{
+		return false;
+	}
+
 	pxr::UsdStageRefPtr Stage = UsdMesh.GetPrim().GetStage();
-	const UsdToUnreal::FUsdStageInfo StageInfo( Stage );
+	const FUsdStageInfo StageInfo( Stage );
 
 	const double TimeCodeValue = TimeCode.GetValue();
 
@@ -443,6 +451,12 @@ bool UsdToUnreal::ConvertDisplayColor( const pxr::UsdGeomMesh& UsdMesh, UMateria
 	}
 }
 
+bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode )
+{
+	pxr::UsdGeomMesh UsdMesh( UsdPrim  );
+	return ConvertStaticMesh( StaticMesh, UsdMesh, TimeCode );
+}
+
 bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode )
 {
 	FScopedUsdAllocs UsdAllocs;
@@ -454,7 +468,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 		return false;
 	}
 
-	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Stage );
+	const FUsdStageInfo StageInfo( Stage );
 
 	const FStaticMeshLODResources& RenderMesh = StaticMesh->GetLODForExport( 0 /*ExportLOD*/ );
 
@@ -484,7 +498,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexPosition = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
-					PointsArray.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexPosition ) );
+					PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexPosition ) );
 				}
 
 				Points.Set( PointsArray, TimeCode );
@@ -502,7 +516,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdGeom
 				for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 				{
 					FVector VertexNormal = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
-					Normals.push_back( UnrealToUsd::ConvertVector( StageUpAxis, VertexNormal ) );
+					Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexNormal ) );
 				}
 
 				NormalsAttribute.Set( Normals, TimeCode );

@@ -85,9 +85,6 @@ public:
 	/** Check if path exists */
 	ENavigationQueryResult::Type TestPath(const FVector& StartLoc, const FVector& EndLoc, const FNavigationQueryFilter& Filter, const UObject* Owner, int32* NumVisitedNodes = 0) const;
 
-	/** Check if path exists using cluster graph */
-	ENavigationQueryResult::Type TestClusterPath(const FVector& StartLoc, const FVector& EndLoc, int32* NumVisitedNodes = 0) const;
-
 	/** Checks if the whole segment is in navmesh */
 	void Raycast(const FVector& StartLoc, const FVector& EndLoc, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner,
 		ARecastNavMesh::FRaycastResult& RaycastResult, NavNodeRef StartNode = INVALID_NAVNODEREF) const;
@@ -98,8 +95,13 @@ public:
 	/** Returns a random location on the navmesh. */
 	FNavLocation GetRandomPoint(const FNavigationQueryFilter& Filter, const UObject* Owner) const;
 
+#if WITH_NAVMESH_CLUSTER_LINKS
+	/** Check if path exists using cluster graph */
+	ENavigationQueryResult::Type TestClusterPath(const FVector& StartLoc, const FVector& EndLoc, int32* NumVisitedNodes = 0) const;
+
 	/** Returns a random location on the navmesh within cluster */
 	bool GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLocation& OutLocation) const;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	/**	Tries to move current nav location towards target constrained to navigable area. Faster than ProjectPointToNavmesh.
 	 *	@param OutLocation if successful this variable will be filed with result
@@ -138,8 +140,11 @@ public:
 
 	/** Updates area on polygons creating point-to-point connection with given UserId */
 	void UpdateNavigationLinkArea(int32 UserId, uint8 AreaType, uint16 PolyFlags) const;
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	/** Updates area on polygons creating segment-to-segment connection with given UserId */
 	void UpdateSegmentLinkArea(int32 UserId, uint8 AreaType, uint16 PolyFlags) const;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 	/** Retrieves center of the specified polygon. Returns false on error. */
 	bool GetPolyCenter(NavNodeRef PolyID, FVector& OutCenter) const;
@@ -168,11 +173,13 @@ public:
 	/** Check if poly is a custom link */
 	bool IsCustomLink(NavNodeRef PolyRef) const;
 
+#if	WITH_NAVMESH_CLUSTER_LINKS
 	/** Retrieves bounds of cluster. Returns false on error. */
 	bool GetClusterBounds(NavNodeRef ClusterRef, FBox& OutBounds) const;
+	NavNodeRef GetClusterRefFromPolyRef(const NavNodeRef PolyRef) const;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	uint32 GetTileIndexFromPolyRef(const NavNodeRef PolyRef) const { return DetourNavMesh != NULL ? DetourNavMesh->decodePolyIdTile(PolyRef) : uint32(INDEX_NONE); }
-	NavNodeRef GetClusterRefFromPolyRef(const NavNodeRef PolyRef) const;
 
 	static uint16 GetFilterForbiddenFlags(const FRecastQueryFilter* Filter);
 	static void SetFilterForbiddenFlags(FRecastQueryFilter* Filter, uint16 ForbiddenFlags);

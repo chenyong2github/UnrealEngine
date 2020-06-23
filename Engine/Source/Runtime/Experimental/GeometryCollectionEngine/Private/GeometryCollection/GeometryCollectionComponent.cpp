@@ -165,6 +165,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 	EventDispatcher = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
 
+	DynamicCollection = nullptr;
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
 }
 
@@ -1125,32 +1126,40 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+#if WITH_CHAOS
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
 	if(RestCollection)
 	{
-		if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
+		if(ensureMsgf(DynamicCollection, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
-			MarkRenderTransformDirty();
-			MarkRenderDynamicDataDirty();
-			bRenderStateDirty = false;
-			//DynamicCollection->MakeClean(); clean?
-
-			const UWorld* MyWorld = GetWorld();
-			if (MyWorld && MyWorld->IsGameWorld())
+			if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
-				//cycle every 0xff frames
-				//@todo - Need way of seeing if the collection is actually changing
-				if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
+				MarkRenderTransformDirty();
+				MarkRenderDynamicDataDirty();
+				bRenderStateDirty = false;
+				//DynamicCollection->MakeClean(); clean?
+
+				const UWorld* MyWorld = GetWorld();
+				if (MyWorld && MyWorld->IsGameWorld())
 				{
-					UpdateNavigationData();
+					//cycle every 0xff frames
+					//@todo - Need way of seeing if the collection is actually changing
+					if (bNavigationRelevant && bRegistered && (((GFrameCounter + NavmeshInvalidationTimeSliceIndex) & 0xff) == 0))
+					{
+						UpdateNavigationData();
+					}
 				}
 			}
 		}
 	}
+#endif
+
 }
 
 void UGeometryCollectionComponent::OnRegister()
 {
+#if WITH_CHAOS
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
 
@@ -1159,6 +1168,9 @@ void UGeometryCollectionComponent::OnRegister()
 	ColorEdit.ResetBoneSelection();
 	ColorEdit.ResetHighlightedBones();
 #endif
+
+#endif // WITH_CHAOS
+
 	Super::OnRegister();
 }
 
@@ -1217,6 +1229,8 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 	DummyBodyInstance.SetResponseToAllChannels(ECR_Block);
 #endif
 */
+
+#if WITH_CHAOS
 	// Static mesh uses an init framework that goes through FBodyInstance.  We
 	// do the same thing, but through the geometry collection proxy and lambdas
 	// defined below.  FBodyInstance doesn't work for geometry collections 
@@ -1499,12 +1513,14 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		GlobalGeomCollectionAccelerator.AddComponent(this);
 	}
 #endif
+#endif // WITH_CHAOS
 }
 
 void UGeometryCollectionComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
 
+#if WITH_CHAOS
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	GlobalGeomCollectionAccelerator.RemoveComponent(this);
 #endif
@@ -1525,6 +1541,7 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 		// Discard the pointer (cleanup happens through the scene or dedicated thread)
 		PhysicsProxy = nullptr;
 	}
+#endif
 }
 
 void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
@@ -2046,7 +2063,7 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
-		PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
+		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
 			PhysicsProxy->BufferCommand(nullptr, NewCommand);

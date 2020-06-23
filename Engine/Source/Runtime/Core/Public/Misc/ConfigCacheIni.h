@@ -436,7 +436,10 @@ public:
 
 	/** Generate a correctly escaped line to add to the config file for the given property */
 	static FString GenerateExportedPropertyLine(const FString& PropertyName, const FString& PropertyValue);
-	
+
+	/** Append a correctly escaped line to add to the config file for the given property */
+	static void AppendExportedPropertyLine(FString& Out, const FString& PropertyName, const FString& PropertyValue);
+
 	/** Checks the command line for any overridden config settings */
 	CORE_API static void OverrideFromCommandline(FConfigFile* File, const FString& Filename);
 
@@ -468,10 +471,7 @@ private:
 	 * @param SectionName - The section name the array property is being written to
 	 * @param PropertyName - The property name of the array
 	 */
-	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<FConfigValue>& InCompletePropertyToProcess, FStringBuilderBase& OutText, const FString& SectionName, const FString& PropertyName);
-
-	/** Version of ProcessPropertyAndWriteForDefaults that takes an FString to append to rather than a StringBuilder */
-	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<FConfigValue>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName);
+	void ProcessPropertyAndWriteForDefaults(int32 IniCombineThreshold, const TArray<const FConfigValue*>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName);
 
 	/**
 	 * Creates a chain of ini filenames to load and combine.

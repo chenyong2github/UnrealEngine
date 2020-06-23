@@ -42,9 +42,16 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_ChaosMinEvolution);
 
+	//
+	//
+	//
 
 	bool bChaos_MinEvolution_RewindLerp = true;
 	FAutoConsoleVariableRef CVarChaosMinEvolutionRewindLerp(TEXT("p.Chaos.MinEvolution.RewindLerp"), bChaos_MinEvolution_RewindLerp, TEXT("If rewinding (fixed dt mode) use Backwards-Lerp as opposed to Backwards Velocity"));
+
+	//
+	//
+	//
 
 	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
@@ -55,6 +62,7 @@ namespace Chaos
 		, NumApplyPushOutIterations(0)
 		, BoundsExtension(InBoundsExtension)
 		, Gravity(FVec3(0))
+		, SimulationSpaceSettings()
 	{
 	}
 
@@ -211,6 +219,19 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
+		// Simulation space velocity and acceleration
+		FVec3 SpaceV = FVec3(0);	// Velocity
+		FVec3 SpaceW = FVec3(0);	// Angular Velocity
+		FVec3 SpaceA = FVec3(0);	// Acceleration
+		FVec3 SpaceB = FVec3(0);	// Angular Acceleration
+		if (SimulationSpaceSettings.MasterAlpha > 0.0f)
+		{
+			SpaceV = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.LinearVelocity);
+			SpaceW = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.AngularVelocity);
+			SpaceA = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.LinearAcceleration);
+			SpaceB = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.AngularAcceleration);
+		}
+
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
 			if (Particle.ObjectState() == EObjectStateType::Dynamic)
@@ -220,17 +241,43 @@ namespace Chaos
 
 				const FVec3 XCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
 				const FRotation3 RCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
-
-				// Calculate new velocities from forces, torques and drag
+				
+				// Forces and torques
 				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Particle.InvI());
-				const FVec3 GDt = (Particle.GravityEnabled()) ? Gravity * Dt : FVec3(0);
-				const FVec3 DV = GDt + Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
-				const FVec3 DW = WorldInvI * (Particle.Torque() * Dt + Particle.AngularImpulse());
-				const FReal LinearDrag = FMath::Max(FReal(0), FReal(1) - (Particle.LinearEtherDrag() * Dt));
-				const FReal AngularDrag = FMath::Max(FReal(0), FReal(1) - (Particle.AngularEtherDrag() * Dt));
-				const FVec3 V = LinearDrag * (Particle.V() + DV);
-				const FVec3 W = AngularDrag * (Particle.W() + DW);
+				FVec3 DV = Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
+				FVec3 DW = WorldInvI * (Particle.Torque() * Dt + Particle.AngularImpulse());
+				FVec3 TargetV = FVec3(0);
+				FVec3 TargetW = FVec3(0);
 
+				// Gravity
+				if (Particle.GravityEnabled())
+				{
+					DV += Gravity * Dt;
+				}
+
+				// Moving and accelerating simulation frame
+				// https://en.wikipedia.org/wiki/Rotating_reference_frame
+				if (SimulationSpaceSettings.MasterAlpha > 0.0f)
+				{
+					const FVec3 CoriolisAcc = SimulationSpaceSettings.CoriolisAlpha * 2.0f * FVec3::CrossProduct(SpaceW, Particle.V());
+					const FVec3 CentrifugalAcc = SimulationSpaceSettings.CentrifugalAlpha * FVec3::CrossProduct(SpaceW, FVec3::CrossProduct(SpaceW, XCoM));
+					const FVec3 EulerAcc = SimulationSpaceSettings.EulerAlpha * FVec3::CrossProduct(SpaceB, XCoM);
+					const FVec3 LinearAcc = SimulationSpaceSettings.LinearAccelerationAlpha * SpaceA;
+					const FVec3 AngularAcc = SimulationSpaceSettings.AngularAccelerationAlpha * SpaceB;
+					const FVec3 LinnearDragAcc = SimulationSpaceSettings.ExternalLinearEtherDrag * SpaceV;
+					DV -= SimulationSpaceSettings.MasterAlpha * (LinearAcc + LinnearDragAcc + CoriolisAcc + CentrifugalAcc + EulerAcc) * Dt;
+					DW -= SimulationSpaceSettings.MasterAlpha * AngularAcc * Dt;
+					TargetV = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
+					TargetW = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
+				}
+
+				// New velocity
+				const FReal LinearDrag = FMath::Min(FReal(1), Particle.LinearEtherDrag() * Dt);
+				const FReal AngularDrag = FMath::Min(FReal(1), Particle.AngularEtherDrag() * Dt);
+				const FVec3 V = FMath::Lerp(Particle.V() + DV, TargetV, LinearDrag);
+				const FVec3 W = FMath::Lerp(Particle.W() + DW, TargetW, AngularDrag);
+
+				// New position
 				const FVec3 PCoM = XCoM + V * Dt;
 				const FRotation3 QCoM = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, W, Dt);
 

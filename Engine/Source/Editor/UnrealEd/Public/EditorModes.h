@@ -6,6 +6,7 @@
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "Editor.h"
+#include "Tools/Modes.h"
 
 enum EModeTools : int8;
 class FEditorViewportClient;

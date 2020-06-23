@@ -476,7 +476,7 @@ static const TCHAR* GDefaultMaterialNames[MD_MAX] =
 	// User Interface 
 	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName"),
 	// Virtual Texture
-	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName"),
+	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName")
 };
 
 void UMaterialInterface::InitDefaultMaterials()
@@ -675,7 +675,7 @@ void SerializeInlineShaderMaps(
 	{
 		int32 NumResourcesToSave = 0;
 		const TArray<FMaterialResource*> *MaterialResourcesToSavePtr = NULL;
-		if (Ar.IsCooking())
+		if (Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData())
 		{
 			check( PlatformMaterialResourcesToSavePtr );
 			auto& PlatformMaterialResourcesToSave = *PlatformMaterialResourcesToSavePtr;
@@ -1299,6 +1299,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_Water: UsageValue = bUsedWithWater; break;
 		case MATUSAGE_HairStrands: UsageValue = bUsedWithHairStrands; break;
 		case MATUSAGE_LidarPointCloud: UsageValue = bUsedWithLidarPointCloud; break;
+		case MATUSAGE_VirtualHeightfieldMesh: UsageValue = bUsedWithVirtualHeightfieldMesh; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1446,7 +1447,11 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithLidarPointCloud = NewValue; break;
 		}
-		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
+		case MATUSAGE_VirtualHeightfieldMesh:
+		{
+			bUsedWithVirtualHeightfieldMesh = NewValue; break;
+		}
+		default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
 	FEditorSupportDelegates::MaterialUsageFlagsChanged.Broadcast(this, Usage);
@@ -1476,6 +1481,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_Water: UsageName = TEXT("bUsedWithWater"); break;
 		case MATUSAGE_HairStrands: UsageName = TEXT("bUsedWithHairStrands"); break;
 		case MATUSAGE_LidarPointCloud: UsageName = TEXT("bUsedWithLidarPointCloud"); break;
+		case MATUSAGE_VirtualHeightfieldMesh: UsageName = TEXT("bUsedWithVirtualHeightfieldMesh"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;
@@ -3293,6 +3299,28 @@ void UMaterial::Serialize(FArchive& Ar)
 		SaveShaderStableKeys(Ar.CookingTarget());
 	}
 #endif
+
+#if WITH_EDITORONLY_DATA
+	if (MaterialDomain == MD_Volume && Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::VolumeExtinctionBecomesRGB)
+	{
+		if (Opacity.IsConnected()) // Base material input cannot have default values so we only deal with connected expression
+		{
+			// Change expression output from the Opacity to SubSurfaceColor that is now representing RGB extinction. Leave opacity connected as it is unused now anyway
+			SubsurfaceColor.Connect(Opacity.OutputIndex, Opacity.Expression);
+			// Now disconnect Opacity
+			Opacity.Expression = nullptr;
+
+			// Now force the material to recompile and we use a hash of the original StateId.
+			// This is to avoid having different StateId each time we load the material and to not forever recompile it,i.e. use a cached version.
+			uint32 HashBuffer[5];
+			FSHA1::HashBuffer(&StateId, sizeof(FGuid), reinterpret_cast<uint8*>(HashBuffer));
+			StateId.A = HashBuffer[0];
+			StateId.B = HashBuffer[1];
+			StateId.C = HashBuffer[2];
+			StateId.D = HashBuffer[3];
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UMaterial::PostDuplicate(bool bDuplicateForPIE)
@@ -5791,7 +5819,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	else if (Domain == MD_Volume)
 	{
 		return InProperty == MP_EmissiveColor
-			|| InProperty == MP_Opacity
+			|| InProperty == MP_SubsurfaceColor
 			|| InProperty == MP_BaseColor;
 	}
 	else if (Domain == MD_UI)

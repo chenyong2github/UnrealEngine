@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMXEditorFactoryNew.h"
+#include "Factories/DMXEditorFactoryNew.h"
 #include "AssetTypeCategories.h"
 #include "Library/DMXLibrary.h"
 #include "DMXEditorLog.h"

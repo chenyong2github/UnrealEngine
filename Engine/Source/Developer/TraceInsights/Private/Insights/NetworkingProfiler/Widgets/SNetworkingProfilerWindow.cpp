@@ -198,7 +198,7 @@ void SNetworkingProfilerWindow::OnNetStatsViewTabClosed(TSharedRef<SDockTab> Tab
 
 void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
-	CommandList = MakeShareable(new FUICommandList);
+	CommandList = MakeShared<FUICommandList>();
 
 	// Create & initialize tab manager.
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
@@ -284,6 +284,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 		FName(TEXT("MENU"))
 	);
 
+	TSharedRef<SWidget> Menu = MenuBarBuilder.MakeWidget();
 	ChildSlot
 		[
 			SNew(SOverlay)
@@ -310,7 +311,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							MenuBarBuilder.MakeWidget()
+							Menu
 						]
 
 					+ SVerticalBox::Slot()
@@ -337,7 +338,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 		];
 
 	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), Menu);
 
 	BindCommands();
 }

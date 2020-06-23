@@ -13,6 +13,7 @@
 class UToolMenu;
 class IBlueprintEditor;
 class UEdGraph;
+class USCS_Node;
 struct Rect;
 
 enum class EBlueprintBytecodeRecompileOptions
@@ -146,6 +147,14 @@ public:
 	/** @return true is it's possible to create a blueprint from the specified class */
 	static bool CanCreateBlueprintOfClass(const UClass* Class);
 
+	/** 
+	 * Given an array of Actors, identifies which of those Actors are roots of attachment hierarchies (and implicitly which are attached to another actor in the array)
+	 * Optionally will also populate an attachment map that indicates which actors in the array are attached to each other actor (potentially indirectly)
+	 * For example if A is attached to B is attached to C and E is attached to D, and A, C, and E are in the Actors array, C and E will be in the RootActors, 
+	 * and the AttachmentMap will indicate that C has A as an attachment 
+	 */
+	static void IdentifyRootActors(const TArray<AActor*>& Actors, TArray<AActor*>& RootActors, TMap<AActor*, TArray<AActor*>>* AttachmentMap = nullptr);
+
 	enum class EAddComponentToBPHarvestMode : uint8
 	{
 		/* Not harvesting */
@@ -158,15 +167,132 @@ public:
 		Havest_AppendOwnerName
 	};
 
-	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
-	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, EAddComponentToBPHarvestMode HarvestMode = EAddComponentToBPHarvestMode::None, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false);
-
-	UE_DEPRECATED(4.25, "Use version that specifies harvest mode via enum instead of boolean")
-	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false)
+	/** Parameter struct for customizing calls to AddComponentsToBlueprint */
+	struct FAddComponentsToBlueprintParams
 	{
-		AddComponentsToBlueprint(Blueprint, Components, (bHarvesting ? EAddComponentToBPHarvestMode::Harvest_UseComponentName : EAddComponentToBPHarvestMode::None), OptionalNewRootNode, bKeepMobility);
+		FAddComponentsToBlueprintParams()
+			: HarvestMode(EAddComponentToBPHarvestMode::None)
+			, bKeepMobility(false)
+			, OptionalNewRootNode(nullptr)
+			, OutNodes(nullptr)
+		{
+		}
+
+		/** Which harvest mode to use when harvesting the components in to the blueprint */
+		EAddComponentToBPHarvestMode HarvestMode;
+
+		/** Whether the components should keep their mobility or be adjusted to the new parent */
+		bool bKeepMobility;
+
+		/** Which SCSNode to attach the new components to, if null attachment will be to Root */
+		USCS_Node* OptionalNewRootNode;
+
+		/** Optional pointer to an array for the caller to get a list of the created SCSNodes */
+		TArray<USCS_Node*>* OutNodes;
+	};
+
+	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, const FAddComponentsToBlueprintParams& Params = FAddComponentsToBlueprintParams());
+
+	UE_DEPRECATED(4.26, "Use version that uses parameter struct instead of individual parameters")
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, EAddComponentToBPHarvestMode HarvestMode, USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false)
+	{
+		FAddComponentsToBlueprintParams Params;
+		Params.HarvestMode = HarvestMode;
+		Params.OptionalNewRootNode = OptionalNewRootNode;
+		Params.bKeepMobility = bKeepMobility;
+		AddComponentsToBlueprint(Blueprint, Components, Params);
 	}
 
+	UE_DEPRECATED(4.25, "Use version that specifies harvest mode via enum instead of boolean")
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting, USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false)
+	{
+		FAddComponentsToBlueprintParams Params;
+		Params.HarvestMode = (bHarvesting ? EAddComponentToBPHarvestMode::Harvest_UseComponentName : EAddComponentToBPHarvestMode::None);
+		Params.OptionalNewRootNode = OptionalNewRootNode;
+		Params.bKeepMobility = bKeepMobility;
+		AddComponentsToBlueprint(Blueprint, Components, Params);
+	}
+
+	/** Parameter struct for customizing calls to AddActorsToBlueprint */
+	struct FAddActorsToBlueprintParams
+	{
+		FAddActorsToBlueprintParams()
+			: bReplaceActors(true)
+			, bDeferCompilation(false)
+			, AttachNode(nullptr)
+			, RelativeToInstance(nullptr)
+		{
+		}
+
+		/** Whether the Actors being added to the blueprint should be deleted */
+		bool bReplaceActors;
+
+		/** Puts off compilation of the blueprint as additional manipulation is going to be done before it compiles */
+		bool bDeferCompilation;
+
+		/** Which SCSNode the ChildActorComponents should be attached to. If null, attachment will be to the Root */
+		USCS_Node* AttachNode;
+
+		/** An Actor in the level to use as the pivot point when setting the component's relative transform */
+		AActor* RelativeToInstance;
+
+		/** 
+		 * If RelativeToInstance is null, RelativeToTransform is the WorldLocation Pivot
+		 * If RelativeToInstance is non-null, RelativeToTransform is a relative transform to the instances WorldLocation
+		 */
+		FTransform RelativeToTransform;
+	};
+
+	/** Take a list of actors and add them to a blueprint as Child Actor Components */
+	static void AddActorsToBlueprint(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const FAddActorsToBlueprintParams& Params = FAddActorsToBlueprintParams());
+
+	/** Parameter struct for customizing calls to CreateBlueprintFromActor */
+	struct FCreateBlueprintFromActorParams
+	{
+		FCreateBlueprintFromActorParams()
+			: bReplaceActor(true)
+			, bKeepMobility(false)
+			, bDeferCompilation(false)
+			, bOpenBlueprint(true)
+			, ParentClassOverride(nullptr)
+		{
+		}
+
+		/** If true, replace the actor in the scene with one based on the created blueprint */
+		bool bReplaceActor;
+
+		/** If true, The mobility of each actor components will be copied */
+		bool bKeepMobility;
+
+		/** Puts off compilation of the blueprint as additional manipulation is going to be done before it compiles */
+		bool bDeferCompilation;
+
+		/** Whether the newly created blueprint should be opened in the editor */
+		bool bOpenBlueprint;
+
+		/** The parent class to use when creating the blueprint.If null, the class of Actor will be used.If specified, must be a subclass of the Actor's class */
+		UClass* ParentClassOverride;
+	};
+
+	/**
+	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class.
+	 * @param Path					The path to use when creating the package for the new blueprint
+	 * @param Actor					The actor to use as the template for the blueprint
+	 * @param Params				The parameter struct of additional behaviors
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
+
+	/** 
+	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
+	 * @param BlueprintName			The name to use for the Blueprint
+	 * @param Outer					The outer object to create the blueprint within
+	 * @param Actor					The actor to use as the template for the blueprint
+	 * @param Params				The parameter struct of additional behaviors
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -176,7 +302,15 @@ public:
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr);
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr)
+	{
+		FCreateBlueprintFromActorParams Params;
+		Params.bReplaceActor = bReplaceActor;
+		Params.bKeepMobility = bKeepMobility;
+		Params.ParentClassOverride = ParentClassOverride;
+		return CreateBlueprintFromActor(Path, Actor, Params);
+	}
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -185,18 +319,39 @@ public:
 	 * @param Actor					The actor to use as the template for the blueprint
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param ParentClassOverride	The parent class to use when creating the blueprint. If null, the class of Actor will be used. If specified, must be a subclass of the Actor's class.
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr);
+	UE_DEPRECATED(4.26, "Use version that passes parameters via parameter struct")
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr)
+	{
+		FCreateBlueprintFromActorParams Params;
+		Params.bReplaceActor = bReplaceInWorld;
+		Params.bKeepMobility = bKeepMobility;
+		Params.ParentClassOverride = ParentClassOverride;
+		return CreateBlueprintFromActor(BlueprintName, Outer, Actor, Params);
+	}
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
 	 * @param Path					The path to use when creating the package for the new blueprint
 	 * @param Actors				The actors to use when creating child actor components
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
+	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actor
 	 */
 	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor, UClass* ParentClass = AActor::StaticClass());
+
+	/**
+	 * Take a collection of Actors and generate a blueprint based on it using the RootActor as the base class and the ChildActors as templates for child actor components.
+	 * @param Path					The path to use when creating the package for the new blueprint
+	 * @param Actor					The actor to use as the template for the blueprint
+	 * @param ChildActors			The actors to use when creating child actor components
+	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
+	 * @param ParentClass			The parent class to use when creating the blueprint.
+	 * @return The blueprint created from the actor
+	 */
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, AActor* RootActor, const TArray<AActor*>& ChildActors, const bool bReplaceInWorld);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -205,6 +360,7 @@ public:
 	 * @param Actors				The actors to use when creating child actor components
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
+	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actor
 	 */
 	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
@@ -214,6 +370,7 @@ public:
 	 * @param Path					The path to use when creating the package for the new blueprint
 	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
+	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actors
 	 */
 	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
@@ -224,6 +381,7 @@ public:
 	 * @param Outer					The package to create the blueprint within
 	 * @param Actors				The actor list to use as the template for the new blueprint, typically this is the currently selected actors
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
+	 * @param ParentClass			The parent class to use when creating the blueprint.
 	 * @return The blueprint created from the actors
 	 */
 	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());

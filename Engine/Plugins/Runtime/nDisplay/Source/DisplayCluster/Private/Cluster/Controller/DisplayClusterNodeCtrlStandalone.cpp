@@ -3,8 +3,8 @@
 #include "Cluster/Controller/DisplayClusterNodeCtrlStandalone.h"
 
 
-FDisplayClusterNodeCtrlStandalone::FDisplayClusterNodeCtrlStandalone(const FString& ctrlName, const FString& nodeName)
-	: FDisplayClusterNodeCtrlBase(ctrlName, nodeName)
+FDisplayClusterNodeCtrlStandalone::FDisplayClusterNodeCtrlStandalone(const FString& CtrlName, const FString& NodeName)
+	: FDisplayClusterNodeCtrlBase(CtrlName, NodeName)
 {
 }
 

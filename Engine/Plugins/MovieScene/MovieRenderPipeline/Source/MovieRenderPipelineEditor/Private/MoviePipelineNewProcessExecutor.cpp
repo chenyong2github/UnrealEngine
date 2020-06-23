@@ -15,11 +15,12 @@
 #include "UnrealEdMisc.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
-#include "Misc/MessageDialog.h"
+#include "MoviePipelineEditorBlueprintLibrary.h"
+#include "MoviePipelineGameMode.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineNewProcessExecutor"
 
-void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipelineQueue)
+void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
 {
 	if (InPipelineQueue->GetJobs().Num() == 0)
 	{
@@ -38,68 +39,18 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 	}
 
 	// Make sure all of the maps in the queue exist on disk somewhere, otherwise the remote process boots up and then fails.
-	bool bHasValidMap = true;
-	for (const UMoviePipelineExecutorJob* Job : InPipelineQueue->GetJobs())
-	{
-		FString PackageName = Job->Map.GetLongPackageName();
-		if (!FPackageName::IsValidLongPackageName(PackageName))
-		{
-			bHasValidMap = false;
-			break;
-		}
-	}
-
+	bool bHasValidMap = UMoviePipelineEditorBlueprintLibrary::IsMapValidForRemoteRender(InPipelineQueue->GetJobs());
 	if (!bHasValidMap)
 	{
-		FText FailureReason = LOCTEXT("UnsavedMapFailureDialog", "One or more jobs in the queue have an unsaved map as their target map. These unsaved maps cannot be loaded by an external process, and the render has been aborted.");
-		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
-
+		UMoviePipelineEditorBlueprintLibrary::WarnUserOfUnsavedMap();
 		OnExecutorFinishedImpl();
 		return;
 	}
-
 
 	if (!ensureMsgf(!ProcessHandle.IsValid(), TEXT("Attempted to start another New Process Executor without the last one quitting. Force killing. This executor only supports one at a time.")))
 	{
 		FPlatformProcess::TerminateProc(ProcessHandle, true);
 	}
-
-	// Place the Queue in a package and serialize it to disk so we can pass their dynamic object
-	// to another process without having to save/check in/etc.
-	FString InFileName = TEXT("QueueManifest");
-	FString InPackagePath = TEXT("/Engine/MovieRenderPipeline/Editor/Transient");
-
-	FString FixedAssetName = ObjectTools::SanitizeObjectName(InFileName);
-	FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + FixedAssetName; 
-
-	// If there's already a package with this name, rename it so that the newly created one can always get a fixed name.
-	// The fixed name is important because in the new process it'll start the unique name count over.
-	if (UPackage* OldPackage = FindObject<UPackage>(nullptr, *NewPackageName))
-	{
-		FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), UPackage::StaticClass(), "DEAD_NewProcessExecutor_SerializedPackage");
-		OldPackage->Rename(*UniqueName.ToString());
-		OldPackage->SetFlags(RF_Transient);
-	}
-
-	UPackage* NewPackage = CreatePackage(nullptr, *NewPackageName);
-
-	// Duplicate the Queue into this package as we don't want to just rename the existing that belongs to the editor subsystem.
-	UMoviePipelineQueue* DuplicatedQueue = CastChecked<UMoviePipelineQueue>(StaticDuplicateObject(InPipelineQueue, NewPackage));
-	DuplicatedQueue->SetFlags(RF_Public | RF_Transactional | RF_Standalone);
-
-	// Save the package to disk.
-	FString ManifestFileName = TEXT("MovieRenderPipeline/QueueManifest") + FPackageName::GetTextAssetPackageExtension();
-	FString ManifestFilePath = FPaths::ProjectSavedDir() / ManifestFileName;
-	if (!SavePackageHelper(NewPackage, *ManifestFilePath))
-	{
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Could not save manifest package to disk. Path: %s"), *ManifestFilePath);
-		OnExecutorFinishedImpl();
-		return;
-	}
-	NewPackage->SetFlags(RF_Transient);
-	NewPackage->ClearFlags(RF_Standalone);
-	DuplicatedQueue->SetFlags(RF_Transient);
-	DuplicatedQueue->ClearFlags(RF_Public | RF_Transactional | RF_Standalone);
 
 	// Arguments to pass to the executable. This can be modified by settings in the event a setting needs to be applied early. In the format of -foo -bar
 	FString CommandLineArgs;
@@ -117,6 +68,20 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 	CommandLineArgs += TEXT(" -nohmd");
 	CommandLineArgs += TEXT(" -windowed");
 	CommandLineArgs += FString::Printf(TEXT(" -ResX=%d -ResY=%d"), 1280, 720);
+
+	// Place the Queue in a package and serialize it to disk so we can pass their dynamic object
+	// to another process without having to save/check in/etc.
+	FString ManifestFilePath;
+	UMoviePipelineQueue* DuplicatedQueue = UMoviePipelineEditorBlueprintLibrary::SaveQueueToManifestFile(InPipelineQueue, ManifestFilePath);
+	if (!DuplicatedQueue)
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Could not save manifest package to disk. Path: %s"), *ManifestFilePath);
+		OnExecutorFinishedImpl();
+		return;
+	}
+
+	// Boot into our custom Game Mode (to go with our custom map). Once booted the in-process Executor will load the correct map with correct gamemode.
+	UnrealURLParams += FString::Printf(TEXT("?game=%s"), *AMoviePipelineGameMode::StaticClass()->GetPathName());
 
 	// Loop through our settings in the job and let them modify the command line arguments/params. Because we could have multiple jobs,
 	// we go through all jobs and all settings and hope the user doesn't have conflicting settings.
@@ -141,30 +106,10 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 
 	FString MoviePipelineArgs;
 	{
-		FString PipelineConfig;
-#if 0
-		if (true)
-		{
-			// Due to API limitations we can't convert package -> text directly and instead need to re-load it, escape it, and then put it onto the command line :-)
-			FString OutString;
-			if (FFileHelper::LoadFileToString(OutString, *ManifestFilePath))
-			{
-				// Sanitize the string so we can pass it on the command line. We wrap the whole thing with quotes too in case newlines.
-				PipelineConfig = FString::Printf(TEXT("\"%s\""), *OutString.ReplaceCharWithEscapedChar());
-			}
-			else
-			{
-				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to load manifest file from path: %s"), *ManifestFilePath);
-				return;
-			}
-		}
-		else
-#endif
-		{
-			// We will pass the path to the saved manifest file on the command line and parse it on the other end from disk.
-			PipelineConfig = ManifestFilePath;
-		}
-
+		// We will pass the path to the saved manifest file on the command line and parse it on the other end from disk.
+		// This is assumed to be relative to the game's Saved directory on load.
+		FString PipelineConfig = TEXT("MovieRenderPipeline/QueueManifest.utxt");
+		
 		// Because the Queue has multiple jobs in it, we don't need to pass which sequence to render. That's only needed if you're rendering a 
 		// specific sequence with a specific master config.
 		MoviePipelineArgs = FString::Printf(TEXT("-MoviePipelineConfig=\"%s\""), *PipelineConfig); // -MoviePipeline=\"%s\" -MoviePipelineLocalExecutorClass=\"%s\" -MoviePipelineClass=\"%s\""),
@@ -172,8 +117,8 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 
 	TMap<FString, FStringFormatArg> NamedArguments;
 	NamedArguments.Add(TEXT("GameNameOrProjectFile"), GameNameOrProjectFile);
-	NamedArguments.Add(TEXT("PlayWorld"), DuplicatedQueue->GetJobs()[0]->Map.GetAssetPathString()); // Boot up on the first job's intended map.
-	NamedArguments.Add(TEXT("UnrealURL"), UnrealURLParams); // Boot up on the first job's intended map.
+	NamedArguments.Add(TEXT("PlayWorld"), TEXT("MoviePipelineEntryMap")); // Boot up on an empty map, the executor will immediately transition to the correct one.
+	NamedArguments.Add(TEXT("UnrealURL"), UnrealURLParams); // Pass the command line arguments for this job
 	NamedArguments.Add(TEXT("SubprocessCommandLine"), FCommandLine::GetSubprocessCommandline());
 	NamedArguments.Add(TEXT("CommandLineParams"), CommandLineArgs);
 	NamedArguments.Add(TEXT("MoviePipelineArgs"), MoviePipelineArgs);

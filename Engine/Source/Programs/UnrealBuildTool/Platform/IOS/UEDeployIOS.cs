@@ -208,12 +208,6 @@ namespace UnrealBuildTool
 			// read the old file
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
-			string LaunchStoryboard = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
-			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))
-			{
-				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";
-			}
-
 			// get the settings from the ini file
 			// plist replacements
 			DirectoryReference DirRef = bIsUE4Game ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()) : null) : new DirectoryReference(ProjectDirectory);
@@ -344,6 +338,9 @@ namespace UnrealBuildTool
 					break;
 				case "IOS_12":
 					MinVersion = "12.0";
+					break;
+				case "IOS_13":
+					MinVersion = "13.0";
 					break;
 				}
 			}
@@ -574,14 +571,22 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
 			Text.AppendLine("\t<string>LaunchScreen</string>");
 
-			// Custom Launchscreen storyboard only compatible on Mac for now.
-			if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac) && File.Exists(LaunchStoryboard) && VersionUtilities.bCustomLaunchscreenStoryboard)
+			if (File.Exists(DirectoryReference.FromFile(ProjectFile) + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard") && VersionUtilities.bCustomLaunchscreenStoryboard)
 			{
-				string outputStoryboard = LaunchStoryboard + "c";
-				string argsStoryboard = "--compile " + outputStoryboard + " " + LaunchStoryboard;
-				string stdOutLaunchScreen = Utils.RunLocalProcessAndReturnStdOut("ibtool", argsStoryboard);
+				string LaunchStoryboard = DirectoryReference.FromFile(ProjectFile) + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
 
-				Log.TraceInformation("LaunchScreen Storyboard compilation results : " + stdOutLaunchScreen);
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				{
+					string outputStoryboard = LaunchStoryboard + "c";
+					string argsStoryboard = "--compile " + outputStoryboard + " " + LaunchStoryboard;
+					string stdOutLaunchScreen = Utils.RunLocalProcessAndReturnStdOut("ibtool", argsStoryboard);
+
+					Log.TraceInformation("LaunchScreen Storyboard compilation results : " + stdOutLaunchScreen);
+				}
+				else
+				{
+					Log.TraceWarning("Custom Launchscreen compilation storyboard only compatible on Mac for now");
+				}
 			}
 
 			Text.AppendLine("\t<key>CFBundleSupportedPlatforms</key>");
@@ -801,33 +806,44 @@ namespace UnrealBuildTool
 			CopyFiles(InEngineDir + "/Build/IOS/Cloud", AppDirectory, "*.*", true);
 		}
 
+		protected virtual void CopyCustomLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		{
+			if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
+			{
+				CopyFolder(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+				CopyFiles(BuildDirectory + "/Resources/Interface/Assets", AppDirectory, "*", true);
+			}
+			else
+			{
+				Log.TraceWarning("Custom LaunchScreen Storyboard is checked but no compiled Storyboard could be found. Custom Storyboard compilation is only Mac compatible for now. Fallback to default Launchscreen");
+				CopyStandardLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
+			}
+		}
+
+		protected virtual void CopyStandardLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		{
+			CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+
+			if (File.Exists(BuildDirectory + "/Resources/Graphics/LaunchScreenIOS.png"))
+			{
+				CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
+			}
+			else
+			{
+				CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
+			}
+
+		}
+
 		protected virtual void CopyLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
 		{
 			if (VersionUtilities.bCustomLaunchscreenStoryboard)
 			{
-				if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
-				{
-					CopyFolder(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
-					CopyFiles(BuildDirectory + "/Resources/Interface/Assets", AppDirectory, "*", true);
-				}
-				else
-				{
-					CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Interface/Assets", AppDirectory, "*", true);
-				}
+				CopyCustomLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
 			}
 			else
 			{
-				if (File.Exists(BuildDirectory + "/Resources/Graphics/LaunchScreenIOS.png"))
-				{
-					CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
-				}
-				else
-				{
-					CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
-				}
+				CopyStandardLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
 			}
 
 			if (!File.Exists(AppDirectory + "/LaunchScreen.storyboardc/LaunchScreen.nib"))
@@ -1046,6 +1062,7 @@ namespace UnrealBuildTool
 			// copy the GameName binary
 			File.Copy(BinaryPath + "/" + GameExeName, AppDirectory + "/" + GameName, true);
 
+			//tvos support
 			if (SubDir == GetTargetPlatformName())
 			{
 				string BuildDirectoryFortvOS = InProjectDirectory + "/Build/IOS";

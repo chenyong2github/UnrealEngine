@@ -111,6 +111,9 @@ private:
 	/** Checks if the current drop event is being dropped into a valid location
 	 */
 	bool CheckValidDrop(const TSharedPtr<SDetailSingleItemRow> RowPtr) const;
+
+	TSharedPtr<FPropertyNode> GetPropertyNode() const;
+	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */

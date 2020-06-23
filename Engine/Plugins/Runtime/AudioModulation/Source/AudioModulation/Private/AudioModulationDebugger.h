@@ -47,6 +47,10 @@ namespace AudioModulation
 	{
 		FString Name;
 		float Value;
+		float Amplitude;
+		float Frequency;
+		float Offset;
+		FString Type;
 		uint32 RefCount;
 	};
 
@@ -55,7 +59,7 @@ namespace AudioModulation
 	public:
 		FAudioModulationDebugger();
 
-		void UpdateDebugData(const FReferencedProxies& RefProxies);
+		void UpdateDebugData(double InElapsed, const FReferencedProxies& InRefProxies);
 		bool OnPostHelp(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
 		int32 OnRenderStat(FCanvas& Canvas, int32 X, int32 Y, const UFont& Font);
 		bool OnToggleStat(FCommonViewportClient& ViewportClient, const TCHAR* Stream);
@@ -72,6 +76,8 @@ namespace AudioModulation
 		FString BusStringFilter;
 		FString LFOStringFilter;
 		FString MixStringFilter;
+
+		float ElapsedSinceLastUpdate;
 	};
 } // namespace AudioModulation
 #endif // !UE_BUILD_SHIPPING

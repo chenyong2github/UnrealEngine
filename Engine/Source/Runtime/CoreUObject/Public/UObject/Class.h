@@ -79,6 +79,7 @@ class COREUOBJECT_API UField : public UObject
 	virtual void PostLoad() override;
 	virtual bool NeedsLoadForClient() const override;
 	virtual bool NeedsLoadForServer() const override;
+	virtual bool IsDestructionThreadSafe() const override { return true; }
 
 	// UField interface.
 	virtual void AddCppProperty(FProperty* Property);
@@ -946,11 +947,11 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	 * Selection of AddStructReferencedObjects check.
 	 */
 	template<class CPPSTRUCT>
-	FORCEINLINE void AddStructReferencedObjectsOrNot(const void* A, FReferenceCollector& Collector)
+	FORCEINLINE void AddStructReferencedObjectsOrNot(void* A, FReferenceCollector& Collector)
 	{
 		if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithAddStructReferencedObjects)
 		{
-			((CPPSTRUCT const*)A)->AddStructReferencedObjects(Collector);
+			((CPPSTRUCT*)A)->AddStructReferencedObjects(Collector);
 		}
 	}
 
@@ -960,14 +961,14 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	 * Selection of AddStructReferencedObjects check.
 	 */
 	template<class CPPSTRUCT>
-	FORCEINLINE typename TEnableIf<!TStructOpsTypeTraits<CPPSTRUCT>::WithAddStructReferencedObjects>::Type AddStructReferencedObjectsOrNot(const void* A, FReferenceCollector& Collector)
+	FORCEINLINE typename TEnableIf<!TStructOpsTypeTraits<CPPSTRUCT>::WithAddStructReferencedObjects>::Type AddStructReferencedObjectsOrNot(void* A, FReferenceCollector& Collector)
 	{
 	}
 
 	template<class CPPSTRUCT>
-	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithAddStructReferencedObjects>::Type AddStructReferencedObjectsOrNot(const void* A, FReferenceCollector& Collector)
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithAddStructReferencedObjects>::Type AddStructReferencedObjectsOrNot(void* A, FReferenceCollector& Collector)
 	{
-		((CPPSTRUCT const*)A)->AddStructReferencedObjects(Collector);
+		((CPPSTRUCT*)A)->AddStructReferencedObjects(Collector);
 	}
 
 #endif
@@ -1093,7 +1094,7 @@ public:
 		 * return a pointer to a function that can add referenced objects
 		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
 		 */
-		typedef void (*TPointerToAddStructReferencedObjects)(const void* A, class FReferenceCollector& Collector);
+		typedef void (*TPointerToAddStructReferencedObjects)(void* A, class FReferenceCollector& Collector);
 		virtual TPointerToAddStructReferencedObjects AddStructReferencedObjects() = 0;
 
 		/** return true if this class wants to serialize from some other tag (usually for conversion purposes) **/
@@ -3037,6 +3038,12 @@ public:
 	 * Realtime garbage collection helper function used to indicated the end of a fixed array.
 	 */
 	void EmitFixedArrayEnd();
+
+	/**
+	 * Realtime garbage collection helper function used to emit token containing information about an
+	 * external package reference.
+	 */
+	void EmitExternalPackageReference();
 
 	/**
 	 * Assembles the token stream for realtime garbage collection by combining the per class only

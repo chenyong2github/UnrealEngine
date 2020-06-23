@@ -21,8 +21,15 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "ContentBrowser",
-                }
+				}
 			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"AudioSynesthesiaCore",
+			});
+
+			OptimizeCode = CodeOptimization.Never;
 
             PrivateIncludePathModuleNames.AddRange(
             new string[] {

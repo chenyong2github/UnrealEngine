@@ -768,7 +768,7 @@ void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Conta
 			{
 				FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
 				UObject* LoadingObject = LoadContext ? LoadContext->SerializedObject : nullptr;
-				UE_LOG(LogGameplayTags, Warning, TEXT("Invalid GameplayTag %s found while loading %s in property %s."), *TagName.ToString(), *GetPathNameSafe(LoadingObject), *GetPathNameSafe(SerializingProperty));
+				UE_ASSET_LOG(LogGameplayTags, Warning, *GetPathNameSafe(LoadingObject), TEXT("Invalid GameplayTag %s found in property %s."), *TagName.ToString(), *GetPathNameSafe(SerializingProperty));
 			}
 		}
 #endif
@@ -816,7 +816,7 @@ void UGameplayTagsManager::RedirectSingleGameplayTag(FGameplayTag& Tag, FPropert
 		{
 			FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
 			UObject* LoadingObject = LoadContext ? LoadContext->SerializedObject : nullptr;
-			UE_LOG(LogGameplayTags, Warning, TEXT("Invalid GameplayTag %s found while loading %s in property %s."), *TagName.ToString(), *GetPathNameSafe(LoadingObject), *GetPathNameSafe(SerializingProperty));
+			UE_ASSET_LOG(LogGameplayTags, Warning, *GetPathNameSafe(LoadingObject), TEXT("Invalid GameplayTag %s found in property %s."), *TagName.ToString(), *GetPathNameSafe(SerializingProperty));
 		}
 	}
 #endif

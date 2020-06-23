@@ -565,6 +565,11 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 		}
 		FDynamicHitBuffer<FHitOverlap> OverlapBuffer;
 
+		FQueryDebugParams DebugParams;
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+		DebugParams.bDebugQuery = Params.bDebugQuery;
+#endif
+
 		// Enable scene locks, in case they are required
 		FPhysScene& PhysScene = *World->GetPhysicsScene();
 
@@ -574,7 +579,7 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 				FScopedSQHitchRepeater<TRemoveReference<decltype(OverlapBuffer)>::Type> HitchRepeater(OverlapBuffer, QueryCallback, FHitchDetectionInfo(GeomPose, TraceChannel, Params));
 				do
 				{
-					LowLevelOverlap(PhysScene, Geom, GeomPose, HitchRepeater.GetBuffer(), QueryFlags, Filter, MakeQueryFilterData(Filter, QueryFlags, Params), &QueryCallback, FQueryDebugParams());
+					LowLevelOverlap(PhysScene, Geom, GeomPose, HitchRepeater.GetBuffer(), QueryFlags, Filter, MakeQueryFilterData(Filter, QueryFlags, Params), &QueryCallback, DebugParams);
 				} while(HitchRepeater.RepeatOnHitch());
 
 				if(GetHasBlock(OverlapBuffer) && InfoType != EQueryInfo::GatherAll)	//just want true or false so don't bother gathering info

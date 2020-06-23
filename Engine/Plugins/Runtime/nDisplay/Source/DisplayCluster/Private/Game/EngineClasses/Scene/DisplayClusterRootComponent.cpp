@@ -14,25 +14,21 @@
 #include "DisplayClusterSceneComponent.h"
 #include "DisplayClusterScreenComponent.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 UDisplayClusterRootComponent::UDisplayClusterRootComponent(const FObjectInitializer& ObjectInitializer)
-	: USceneComponent(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	// This component settings
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UDisplayClusterRootComponent::BeginPlay()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	// Store current operation mode on BeginPlay (not in the constructor)
 	const EDisplayClusterOperationMode OperationMode = GDisplayCluster->GetOperationMode();
 
@@ -48,8 +44,6 @@ void UDisplayClusterRootComponent::BeginPlay()
 
 void UDisplayClusterRootComponent::BeginDestroy()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	{
 		FScopeLock lock(&InternalsSyncScope);
 
@@ -65,8 +59,6 @@ void UDisplayClusterRootComponent::BeginDestroy()
 
 bool UDisplayClusterRootComponent::InitializeHierarchy()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	// Now create all child components
 	if (!(CreateCameras() && CreateScreens() && CreateNodes()))
 	{

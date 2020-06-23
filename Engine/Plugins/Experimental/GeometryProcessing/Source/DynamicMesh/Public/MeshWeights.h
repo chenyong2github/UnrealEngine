@@ -27,6 +27,12 @@ public:
 	static FVector3d UniformCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc );
 
 	/**
+	 * Compute uniform centroid of a subset of vertex one-ring (eg boundary vertices)
+	 * These weights are strictly positive and all equal to 1 / valence
+	 */
+	static FVector3d FilteredUniformCentroid(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc, TFunctionRef<bool(int32)> VertexFilterFunc);
+
+	/**
 	 * Compute mean-value centroid of a vertex one-ring.
 	 * These weights are strictly positive.
 	 */

@@ -53,12 +53,12 @@ namespace GeometryCollectionTest
 
 		void RegisterHandler1()
 		{
-			EventManager.RegisterHandler<EventTestData>(CustomEvent1, this, &MyEventHandler::HandleEvent);
+			EventManager.template RegisterHandler<EventTestData>(CustomEvent1, this, &MyEventHandler::HandleEvent);
 		}
 
 		void RegisterHandler2()
 		{
-			EventManager.RegisterHandler<TArray<EventTestData>>(CustomEvent2, this, &MyEventHandler::HandleEvent);
+			EventManager.template RegisterHandler<TArray<EventTestData>>(CustomEvent2, this, &MyEventHandler::HandleEvent);
 		}
 
 		void UnregisterHandler1()
@@ -94,7 +94,7 @@ namespace GeometryCollectionTest
 		// the data injected into the buffer for CustomEvent1 will be whatever is currently the variable TestData
 		EventTestData TestData;
 		EventTestData* TestDataPtr = &TestData;
-		EventManager.RegisterEvent<EventTestData>(CustomEvent1, [TestDataPtr]
+		EventManager.template RegisterEvent<EventTestData>(CustomEvent1, [TestDataPtr]
 		(const auto* Solver, EventTestData& MyData)
 		{
 			MyData = *TestDataPtr;
@@ -103,7 +103,7 @@ namespace GeometryCollectionTest
 		// the data injected into the buffer for CustomEvent2 will be whatever is currently the variable TestArrayData
 		TArray<EventTestData> TestArrayData;
 		TArray<EventTestData>* TestDataPtr2 = &TestArrayData;
-		EventManager.RegisterEvent<TArray<EventTestData>>(CustomEvent2, [TestDataPtr2]
+		EventManager.template RegisterEvent<TArray<EventTestData>>(CustomEvent2, [TestDataPtr2]
 		(const auto* Solver, TArray<EventTestData>& MyData)
 		{
 			MyData = *TestDataPtr2;

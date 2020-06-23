@@ -10,7 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PBDRigidsSolver.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
@@ -18,7 +18,6 @@ DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FieldSystem(nullptr)
-	, PhysicsProxy(nullptr)
 	, ChaosModule(nullptr)
 	, bHasPhysicsState(false)
 {
@@ -75,15 +74,6 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 		check(ChaosModule);
 
-		PhysicsProxy = new FFieldSystemPhysicsProxy(this);
-#if INCLUDE_CHAOS
-		TSet<FPhysScene_Chaos*> Scenes = GetPhysicsScenes();
-		for (auto* Scene : Scenes)
-		{
-			// Does each scene need its own proxy?
-			Scene->AddObject(this, PhysicsProxy);
-		}
-#endif
 		bHasPhysicsState = true;
 
 		if(FieldSystem)
@@ -99,24 +89,9 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 void UFieldSystemComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
-	if (!PhysicsProxy)
-	{
-		check(!bHasPhysicsState);
-		return;
-	}
-
-#if INCLUDE_CHAOS
-	//TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
-	TSet<FPhysScene_Chaos*> Scenes = GetPhysicsScenes();
-	for (auto* Scene : Scenes)
-	{
-		Scene->RemoveObject(PhysicsProxy);
-	}
-#endif
 
 	ChaosModule = nullptr;
-	// Discard the pointer (cleanup happens through the scene or dedicated thread)
-	PhysicsProxy = nullptr;
+
 
 	bHasPhysicsState = false;
 }
@@ -133,6 +108,7 @@ bool UFieldSystemComponent::HasValidPhysicsState() const
 
 void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
 {
+	using namespace Chaos;
 	if (HasValidPhysicsState())
 	{
 		checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
@@ -140,7 +116,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
 		// Assemble a list of compatible solvers
-		TArray<Chaos::FPhysicsSolverBase*> SupportedSolverList;
+		TArray<FPhysicsSolverBase*> SupportedSolverList;
 		if(SupportedSolvers.Num() > 0)
 		{
 			for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
@@ -152,30 +128,25 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 			}
 		}
 
-		TArray<Chaos::FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
+		TArray<FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
+		const int32 NumFilterSolvers = SupportedSolverList.Num();
 
-		// #BGTODO Currently all commands will end up actually executing a frame late. That's because this command has to be logged as a global command
-		// so we don't end up with multiple solver threads writing to the proxy. We need a better way to buffer up multi-solver commands so they can be
-		// executed in parallel and then move those commands to the respective solver queues to fix the frame delay.
-		if(WorldSolverList.Num() > 0)
+		for(FPhysicsSolverBase* Solver : WorldSolverList)
 		{
-			PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand, ChaosModule = this->ChaosModule, SupportedSolverList, WorldSolvers = MoveTemp(WorldSolverList)]()
+			const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
+			if(bSolverValid)
 			{
-				const int32 NumFilterSolvers = SupportedSolverList.Num();
-
-				for(Chaos::FPhysicsSolverBase* Solver : WorldSolvers)
+				Solver->CastHelper([&InCommand](auto& Concrete)
 				{
-					Solver->CastHelper([NumFilterSolvers, &SupportedSolverList, PhysicsProxy, &NewCommand](auto& Concrete)
+					Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
 					{
-						const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(&Concrete);
-
-						if(Concrete.Enabled() && Concrete.HasActiveParticles() && bSolverValid)
+						if(ConcreteSolver->Enabled() && ConcreteSolver->HasActiveParticles())
 						{
-							PhysicsProxy->BufferCommand(&Concrete,NewCommand);
+							ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
 						}
 					});
-				}
-			});
+				});
+			}
 		}
 	}
 }

@@ -30,21 +30,23 @@ void MainCopyPS(
 	out float4 OutColor : SV_Target0
 	)
 {
-    float4 EncodedColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
-	OutColor = EncodedColor;
-
-	// will sample SceneColor.A
-	float SceneW = CalcSceneDepth(Input.UV);
-
+    float4 SceneColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor = SceneColor;
+	
+	// FP16 DeviceZ is stored in SceneColor.A
+	float DeviceZ = SceneColor.a;
 #if SOURCE_MODE_SCENE_COLOR_AND_OPACITY
 	// Put inverse opacity in alpha channel. (determined via depth, translucency is combined with another pass.)
-	float MaxSceneDepth = 65000.0f;
-	OutColor.a = SceneW >= MaxSceneDepth ? 1.0f : 0.0f;
+	#if HAS_INVERTED_Z_BUFFER
+		OutColor.a = DeviceZ > 0.0 ? 0.0 : 1.0;
+	#else
+		OutColor.a = DeviceZ < 1.0 ? 0.0 : 1.0;
+	#endif
 #elif SOURCE_MODE_SCENE_COLOR_NO_ALPHA
 	OutColor.a = 0;
 #elif SOURCE_MODE_SCENE_COLOR_SCENE_DEPTH
-	OutColor.a = SceneW;
+	OutColor.a = ConvertFromDeviceZ(DeviceZ);
 #elif SOURCE_MODE_SCENE_DEPTH
-	OutColor.r = float4(SceneW,0,0,0);
+	OutColor.r = float4(ConvertFromDeviceZ(DeviceZ),0,0,0);
 #endif
 }

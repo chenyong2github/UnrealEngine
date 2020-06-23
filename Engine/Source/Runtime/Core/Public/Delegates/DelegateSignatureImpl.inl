@@ -111,9 +111,7 @@ public:
 	 * Static: Creates a raw C++ pointer global function delegate
 	 */
 	template <typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateStatic(typename TIdentity<RetValType (*)(ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateStatic(typename TIdentity<RetValType (*)(ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseStaticDelegateInstance<TFuncType, VarTypes...>::Create(Result, InFunc, Vars...);
@@ -125,9 +123,7 @@ public:
 	 * technically this works for any functor types, but lambdas are the primary use case
 	 */
 	template<typename FunctorType, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateLambda(FunctorType&& InFunctor, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateLambda(FunctorType&& InFunctor, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseFunctorDelegateInstance<TFuncType, typename TRemoveReference<FunctorType>::Type, VarTypes...>::Create(Result, Forward<FunctorType>(InFunctor), Vars...);
@@ -139,9 +135,7 @@ public:
 	 * technically this works for any functor types, but lambdas are the primary use case
 	 */
 	template<typename UserClass, typename FunctorType, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateWeakLambda(UserClass* InUserObject, FunctorType&& InFunctor, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateWeakLambda(UserClass* InUserObject, FunctorType&& InFunctor, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TWeakBaseFunctorDelegateInstance<UserClass, TFuncType, typename TRemoveReference<FunctorType>::Type, VarTypes...>::Create(Result, InUserObject, Forward<FunctorType>(InFunctor), Vars...);
@@ -155,23 +149,19 @@ public:
 	 * deleted out from underneath your delegate. Be careful when calling Execute()!
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseRawMethodDelegateInstance<false, UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateRaw(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateRaw(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
-		TBaseRawMethodDelegateInstance<true , UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
+		TBaseRawMethodDelegateInstance<true, const UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
 	}
 	
@@ -182,23 +172,19 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseSPMethodDelegateInstance<false, UserClass, ESPMode::Fast, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
-		TBaseSPMethodDelegateInstance<true , UserClass, ESPMode::Fast, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
+		TBaseSPMethodDelegateInstance<true, const UserClass, ESPMode::Fast, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
 	}
 
@@ -209,20 +195,16 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		return CreateSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		return CreateSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
+		return CreateSP(StaticCastSharedRef<const UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 	
 	/**
@@ -232,23 +214,19 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseSPMethodDelegateInstance<false, UserClass, ESPMode::ThreadSafe, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
-		TBaseSPMethodDelegateInstance<true , UserClass, ESPMode::ThreadSafe, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
+		TBaseSPMethodDelegateInstance<true, const UserClass, ESPMode::ThreadSafe, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
 	}
 
@@ -259,20 +237,16 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		return CreateThreadSafeSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		return CreateThreadSafeSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
+		return CreateThreadSafeSP(StaticCastSharedRef<const UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 
 	/**
@@ -282,9 +256,7 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UObjectTemplate, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateUFunction(UObjectTemplate* InUserObject, const FName& InFunctionName, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateUFunction(UObjectTemplate* InUserObject, const FName& InFunctionName, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseUFunctionDelegateInstance<UObjectTemplate, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunctionName, Vars...);
@@ -298,23 +270,19 @@ public:
 	 * You can use ExecuteIfBound() to call them.
 	 */
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseUObjectMethodDelegateInstance<false, UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
 	}
 	template <typename UserClass, typename... VarTypes>
-	FUNCTION_CHECK_RETURN_START
-	inline static TBaseDelegate<RetValType, ParamTypes...> CreateUObject(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
-	FUNCTION_CHECK_RETURN_END
+	UE_NODISCARD inline static TBaseDelegate<RetValType, ParamTypes...> CreateUObject(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		TBaseDelegate<RetValType, ParamTypes...> Result;
-		TBaseUObjectMethodDelegateInstance<true , UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
+		TBaseUObjectMethodDelegateInstance<true, const UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
 	}
 
@@ -452,12 +420,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateRaw(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...);
+		*this = CreateRaw(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline void BindRaw(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline void BindRaw(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		*this = CreateRaw(InUserObject, InFunc, Vars...);
 	}
@@ -468,9 +436,9 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateSP(ConstCastSharedRef<typename TRemoveConst<UserClass>::Type>(InUserObjectRef), InFunc, Vars...);
+		*this = CreateSP(InUserObjectRef, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
 	inline void BindSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
@@ -487,12 +455,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateSP(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...);
+		*this = CreateSP(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline void BindSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline void BindSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		*this = CreateSP(InUserObject, InFunc, Vars...);
 	}
@@ -506,9 +474,9 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateThreadSafeSP(ConstCastSharedRef<typename TRemoveConst<UserClass>::Type>(InUserObjectRef), InFunc, Vars...);
+		*this = CreateThreadSafeSP(InUserObjectRef, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
 	inline void BindThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
@@ -525,12 +493,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateThreadSafeSP(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...);
+		*this = CreateThreadSafeSP(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline void BindThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline void BindThreadSafeSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		*this = CreateThreadSafeSP(InUserObject, InFunc, Vars...);
 	}
@@ -556,12 +524,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		*this = CreateUObject(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...);
+		*this = CreateUObject(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline void BindUObject(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline void BindUObject(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		*this = CreateUObject(InUserObject, InFunc, Vars...);
 	}
@@ -785,12 +753,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateRaw(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...));
+		return Add(FDelegate::CreateRaw(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline FDelegateHandle AddRaw(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline FDelegateHandle AddRaw(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		return Add(FDelegate::CreateRaw(InUserObject, InFunc, Vars...));
 	}
@@ -806,9 +774,9 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateSP(ConstCastSharedRef<typename TRemoveConst<UserClass>::Type>(InUserObjectRef), InFunc, Vars...));
+		return Add(FDelegate::CreateSP(InUserObjectRef, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
@@ -827,12 +795,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateSP(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...));
+		return Add(FDelegate::CreateSP(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline FDelegateHandle AddSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline FDelegateHandle AddSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		return Add(FDelegate::CreateSP(InUserObject, InFunc, Vars...));
 	}
@@ -846,9 +814,9 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateThreadSafeSP(ConstCastSharedRef<typename TRemoveConst<UserClass>::Type>(InUserObjectRef), InFunc, Vars...));
+		return Add(FDelegate::CreateThreadSafeSP(InUserObjectRef, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
@@ -867,12 +835,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateThreadSafeSP(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...));
+		return Add(FDelegate::CreateThreadSafeSP(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline FDelegateHandle AddThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline FDelegateHandle AddThreadSafeSP(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		return Add(FDelegate::CreateThreadSafeSP(InUserObject, InFunc, Vars...));
 	}
@@ -902,12 +870,12 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
-		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+		static_assert(!TIsConst<UserClass>::Value, "Attempting to bind a delegate with a const object pointer and non-const member function.");
 
-		return Add(FDelegate::CreateUObject(const_cast<typename TRemoveConst<UserClass>::Type*>(InUserObject), InFunc, Vars...));
+		return Add(FDelegate::CreateUObject(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
-	inline FDelegateHandle AddUObject(UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
+	inline FDelegateHandle AddUObject(const UserClass* InUserObject, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
 		return Add(FDelegate::CreateUObject(InUserObject, InFunc, Vars...));
 	}

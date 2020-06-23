@@ -36,7 +36,12 @@ void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class
 			return;
 		}
 
-		if (APawn* Pawn = Cast<APawn>(MeshComp->GetOwner()))
+		UWorld* World = MeshComp->GetWorld();
+		if (World && World->WorldType == EWorldType::EditorPreview)
+		{
+			UGameplayStatics::PlaySound2D(World, Sound, VolumeMultiplier, PitchMultiplier);
+		}
+		else
 		{
 			if (bFollow)
 			{
@@ -46,10 +51,6 @@ void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class
 			{
 				UGameplayStatics::PlaySoundAtLocation(MeshComp->GetWorld(), Sound, MeshComp->GetComponentLocation(), VolumeMultiplier, PitchMultiplier);
 			}
-		}
-		else
-		{
-			UGameplayStatics::PlaySound2D(MeshComp->GetWorld(), Sound, VolumeMultiplier, PitchMultiplier);
 		}
 	}
 }

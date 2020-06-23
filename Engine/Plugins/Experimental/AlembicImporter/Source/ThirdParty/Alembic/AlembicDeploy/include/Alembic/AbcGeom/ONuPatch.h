@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcGeom_ONuPatch_h_
-#define _Alembic_AbcGeom_ONuPatch_h_
+#ifndef Alembic_AbcGeom_ONuPatch_h
+#define Alembic_AbcGeom_ONuPatch_h
 
 #include <Alembic/Util/Export.h>
 #include <Alembic/AbcGeom/Foundation.h>
@@ -254,7 +254,7 @@ public:
                 (m_numV != ABC_GEOM_NUPATCH_NULL_INT_VALUE) ||
                 (m_uOrder != ABC_GEOM_NUPATCH_NULL_INT_VALUE) ||
                 (m_vOrder != ABC_GEOM_NUPATCH_NULL_INT_VALUE) ||
-                 m_uKnot || m_uKnot)
+                 m_uKnot || m_vKnot)
                  return true;
             else
                 return false;
@@ -402,7 +402,7 @@ public:
         m_positionsProperty.reset();
         m_positionWeightsProperty.reset();
         m_velocitiesProperty.reset();
-        m_numFProperty.reset();
+        m_numUProperty.reset();
         m_numVProperty.reset();
         m_uOrderProperty.reset();
         m_vOrderProperty.reset();
@@ -419,7 +419,7 @@ public:
         m_trimKnotProperty.reset();
         m_trimMinProperty.reset();
         m_trimMaxProperty.reset();
-        m_trimFProperty.reset();
+        m_trimUProperty.reset();
         m_trimVProperty.reset();
         m_trimWProperty.reset();
 
@@ -469,7 +469,7 @@ protected:
     Abc::OP3fArrayProperty m_positionsProperty;
 
     // required properties
-    Abc::OInt32Property m_numFProperty;
+    Abc::OInt32Property m_numUProperty;
     Abc::OInt32Property m_numVProperty;
     Abc::OInt32Property m_uOrderProperty;
     Abc::OInt32Property m_vOrderProperty;
@@ -490,7 +490,7 @@ protected:
     Abc::OFloatArrayProperty m_trimKnotProperty;
     Abc::OFloatArrayProperty m_trimMinProperty;
     Abc::OFloatArrayProperty m_trimMaxProperty;
-    Abc::OFloatArrayProperty m_trimFProperty;
+    Abc::OFloatArrayProperty m_trimUProperty;
     Abc::OFloatArrayProperty m_trimVProperty;
     Abc::OFloatArrayProperty m_trimWProperty;
 

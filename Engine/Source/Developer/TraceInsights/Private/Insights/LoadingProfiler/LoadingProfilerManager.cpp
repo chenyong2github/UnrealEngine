@@ -4,30 +4,55 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 // Insights
-#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "LoadingProfilerManager"
 
-//DEFINE_LOG_CATEGORY(LoadingProfiler);
-//
-//DEFINE_STAT(STAT_FT_OnPaint);
-//DEFINE_STAT(STAT_GT_OnPaint);
-//DEFINE_STAT(STAT_TT_OnPaint);
-//DEFINE_STAT(STAT_IOPM_Tick);
+DEFINE_LOG_CATEGORY(LoadingProfiler);
 
 TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Get()
+{
+	return FLoadingProfilerManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::CreateInstance()
+{
+	ensure(!FLoadingProfilerManager::Instance.IsValid());
+	if (FLoadingProfilerManager::Instance.IsValid())
+	{
+		FLoadingProfilerManager::Instance.Reset();
+	}
+
+	FLoadingProfilerManager::Instance = MakeShared<FLoadingProfilerManager>(FInsightsManager::Get()->GetCommandList());
+
+	return FLoadingProfilerManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCommandList)
-	: CommandList(InCommandList)
+	: bIsInitialized(false)
+	, bIsAvailable(false)
+	, AvailabilityCheckNextTimestamp(0)
+	, AvailabilityCheckWaitTimeSec(1.0)
+	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
 	, bIsTimingViewVisible(true)
@@ -40,14 +65,46 @@ FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingProfilerManager::PostConstructor()
+void FLoadingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 {
+	ensure(!bIsInitialized);
+	if (bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = true;
+
 	// Register tick functions.
-	//OnTick = FTickerDelegate::CreateSP(this, &FLoadingProfilerManager::Tick);
-	//OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTick = FTickerDelegate::CreateSP(this, &FLoadingProfilerManager::Tick);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
 
 	FLoadingProfilerCommands::Register();
 	BindCommands();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingProfilerManager::Shutdown()
+{
+	if (!bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = false;
+
+	FLoadingProfilerCommands::Unregister();
+
+	// Unregister tick function.
+	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+
+	FLoadingProfilerManager::Instance.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLoadingProfilerManager::~FLoadingProfilerManager()
+{
+	ensure(!bIsInitialized);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,19 +120,58 @@ void FLoadingProfilerManager::BindCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLoadingProfilerManager::~FLoadingProfilerManager()
+void FLoadingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
 {
-	FLoadingProfilerCommands::Unregister();
+	const FInsightsMajorTabConfig& Config = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId);
 
-	// Unregister tick function.
-	//FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	if (Config.bIsAvailable)
+	{
+		// Register tab spawner for the Asset Loading Insights.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
+			FOnSpawnTab::CreateRaw(this, &FLoadingProfilerManager::SpawnTab))
+			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("LoadingProfilerTabTitle", "Asset Loading Insights"))
+			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
+			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
+
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TabSpawnerEntry.SetGroup(Group);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Get()
+void FLoadingProfilerManager::UnregisterMajorTabs()
 {
-	return FLoadingProfilerManager::Instance;
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FLoadingProfilerManager::SpawnTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	// Register OnTabClosed to handle I/O profiler manager shutdown.
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FLoadingProfilerManager::OnTabClosed));
+
+	// Create the SLoadingProfilerWindow widget.
+	TSharedRef<SLoadingProfilerWindow> Window = SNew(SLoadingProfilerWindow, DockTab, Args.GetOwnerWindow());
+	DockTab->SetContent(Window);
+
+	AssignProfilerWindow(Window);
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingProfilerManager::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveProfilerWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +199,41 @@ FLoadingProfilerActionManager& FLoadingProfilerManager::GetActionManager()
 
 bool FLoadingProfilerManager::Tick(float DeltaTime)
 {
-	//SCOPE_CYCLE_COUNTER(STAT_IOPM_Tick);
+	if (!bIsAvailable)
+	{
+		// Check if session has Load Time events (to spawn the tab), but not too often.
+		const uint64 Time = FPlatformTime::Cycles64();
+		if (Time > AvailabilityCheckNextTimestamp)
+		{
+			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
+			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
+			AvailabilityCheckNextTimestamp = Time + WaitTime;
+
+			uint32 TimelineCount = 0;
+
+			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
+			{
+				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+				if (LoadTimeProfilerProvider)
+				{
+					TimelineCount = LoadTimeProfilerProvider->GetTimelineCount();
+				}
+			}
+
+			if (TimelineCount > 0)
+			{
+				bIsAvailable = true;
+
+				const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
+				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+				{
+					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
+				}
+			}
+		}
+	}
 
 	return true;
 }
@@ -112,6 +242,10 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 
 void FLoadingProfilerManager::OnSessionChanged()
 {
+	bIsAvailable = false;
+	AvailabilityCheckNextTimestamp = 0;
+	AvailabilityCheckWaitTimeSec = 1.0;
+
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{

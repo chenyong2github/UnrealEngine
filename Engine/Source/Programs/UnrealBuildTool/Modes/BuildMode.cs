@@ -367,7 +367,10 @@ namespace UnrealBuildTool
 					{
 						foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
 						{
-							ActionToOutdatedFlag[PrerequisiteActions.FirstOrDefault(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile))] = true;
+							foreach (Action PrerequisiteAction in PrerequisiteActions.Where(x => x.PrerequisiteItems.Any(y => y.Location == SpecificFile)))
+							{
+								ActionToOutdatedFlag[PrerequisiteAction] = true;
+							}
 						}
 					}
 				}

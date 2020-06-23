@@ -85,6 +85,17 @@ void FRemoteSessionInputChannel::TryRouteTouchMessageToWidget(bool bRouteMessage
 	}
 }
 
+FOnRouteTouchDownToWidgetFailedDelegate* FRemoteSessionInputChannel::GetOnRouteTouchDownToWidgetFailedDelegate()
+{
+	if (PlaybackHandler)
+	{
+		return &PlaybackHandler->GetOnRouteTouchDownToWidgetFailedDelegate();
+	}
+
+	// if the PlaybackHandler is null, this instance used for recording. The delegate is only useful for playback.
+	return nullptr;
+}
+
 void FRemoteSessionInputChannel::SetInputRect(const FVector2D& TopLeft, const FVector2D& Extents)
 {
 	if (RecordingHandler.IsValid())

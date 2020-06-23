@@ -6,7 +6,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/CString.h"
 #include "ProfilingDebugging/MiscTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
 #if GPUPROFILERTRACE_ENABLED
@@ -30,7 +30,8 @@ struct
 
 static TSet<uint32> GEventNames;
 
-UE_TRACE_CHANNEL(GpuChannel)
+RHI_API UE_TRACE_CHANNEL_EXTERN(GpuChannel)
+UE_TRACE_CHANNEL_DEFINE(GpuChannel)
 
 UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, Important)
 	UE_TRACE_EVENT_FIELD(uint32, EventType)
@@ -98,7 +99,7 @@ void FGpuProfilerTrace::BeginEventByName(const FName& Name, uint32 FrameNumber, 
 		return;
 	}
 
-	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 17) // 9 + 8
+	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 18) // 10 + 8
 	{
 		return;
 	}

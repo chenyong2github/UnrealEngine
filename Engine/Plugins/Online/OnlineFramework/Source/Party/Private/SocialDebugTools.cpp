@@ -240,7 +240,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 												FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 												if (PartyMemberData.IsValid())
 												{
-													OnlineParty->UpdatePartyMemberData(UserIdTmp, PartyId, *PartyMemberData);
+													OnlineParty->UpdatePartyMemberData(UserIdTmp, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
 												}
 											}
 											else
@@ -270,7 +270,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 									FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 									if (PartyMemberData.IsValid())
 									{
-										OnlineParty->UpdatePartyMemberData(UserId, PartyId, *PartyMemberData);
+										OnlineParty->UpdatePartyMemberData(UserId, PartyId, DefaultPartyDataNamespace, *PartyMemberData);
 									}
 								}
 								else
@@ -382,7 +382,7 @@ void USocialDebugTools::SetPartyMemberData(const FString& Instance, const UStruc
 							if (StructType->IsChildOf(FPartyMemberRepData::StaticStruct()))
 							{
 								UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
-								bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, *Context.PartyMemberData);
+								bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
 							}
 						}
 					}
@@ -426,7 +426,7 @@ void USocialDebugTools::SetPartyMemberDataJson(const FString& Instance, const FS
 						{
 							const FOnlinePartyId& PartyId = *ExistingParty->PartyId;
 							UE_LOG(LogParty, Display, TEXT("Sending rep data update for member within party [%s]."), *PartyId.ToDebugString());
-							bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, *Context.PartyMemberData);
+							bResult = OnlineParty->UpdatePartyMemberData(*UserId, PartyId, DefaultPartyDataNamespace, *Context.PartyMemberData);
 						}
 					}
 				}
@@ -662,7 +662,7 @@ void USocialDebugTools::FInstanceContext::Init()
 		if (OnlineParty.IsValid())
 		{
 			PartyInviteReceivedDelegateHandle = OnlineParty->AddOnPartyInviteReceivedDelegate_Handle(FOnPartyInviteReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyInviteReceived));
-			PartyJoinRequestReceivedDelegateHandle = OnlineParty->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyGroupJoinRequestReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyJoinRequestReceived));
+			PartyJoinRequestReceivedDelegateHandle = OnlineParty->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyJoinRequestReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyJoinRequestReceived));
 		}
 	}
 }
@@ -733,7 +733,7 @@ void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserI
 								FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 								if (PartyMemberData.IsValid())
 								{
-									OnlineParty->UpdatePartyMemberData(UserId, PartyIdTmp, *PartyMemberData);
+									OnlineParty->UpdatePartyMemberData(UserId, PartyIdTmp, DefaultPartyDataNamespace, *PartyMemberData);
 								}
 							}
 							else

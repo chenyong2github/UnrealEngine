@@ -23,6 +23,7 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/BodyUtils.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/IConsoleManager.h"
 #include "Logging/TokenizedMessage.h"
@@ -82,21 +83,12 @@ DECLARE_CYCLE_STAT(TEXT("CreatePhysicsActor"), STAT_CreatePhysicsActor, STATGROU
 DECLARE_CYCLE_STAT(TEXT("BodyInstance SetCollisionProfileName"), STAT_BodyInst_SetCollisionProfileName, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Phys SetBodyTransform"), STAT_SetBodyTransform, STATGROUP_Physics);
 
-static int32 GUseDeferredPhysicsBodyCreation = 0;
-
 // @HACK Guard to better encapsulate game related hacks introduced into UpdatePhysicsFilterData()
 TAutoConsoleVariable<int32> CVarEnableDynamicPerBodyFilterHacks(
 	TEXT("p.EnableDynamicPerBodyFilterHacks"), 
 	0, 
 	TEXT("Enables/Disables the use of a set of game focused hacks - allowing users to modify skel body collision dynamically (changes the behavior of per-body collision filtering)."),
 	ECVF_ReadOnly
-);
-
-FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
-	TEXT("p.EnableDeferredPhysicsCreation"), 
-	GUseDeferredPhysicsBodyCreation,
-	TEXT("Enables/Disables deferred physics creation."),
-	ECVF_Default
 );
 
 TAutoConsoleVariable<int32> CVarIgnoreAnalyticCollisionsOverride(
@@ -106,12 +98,6 @@ TAutoConsoleVariable<int32> CVarIgnoreAnalyticCollisionsOverride(
 	ECVF_ReadOnly
 );
 
-bool FBodyInstance::UseDeferredPhysicsBodyCreation()
-{
-	// @todo: this could be improved by tracking all oustanding delayed creations, and return true if there are any at all. 
-	// or maybe keep a list of instances that have them, so we don't loop over all actors, etc
-	return GUseDeferredPhysicsBodyCreation != 0;
-}
 
 using namespace PhysicsInterfaceTypes;
 
@@ -553,9 +539,9 @@ bool FBodyInstance::ReplaceResponseToChannels(ECollisionResponse OldResponse, EC
 	return false;
 }
 
-bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewReponses)
+bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewResponses)
 {
-	if (CollisionResponses.SetCollisionResponseContainer(NewReponses))
+	if (CollisionResponses.SetCollisionResponseContainer(NewResponses))
 	{
 		InvalidateCollisionProfileName();
 		UpdatePhysicsFilterData();
@@ -563,6 +549,63 @@ bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& New
 	}
 
 	return false;
+}
+
+bool FBodyInstance::SetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& NewResponses)
+{
+	if (!ShapeCollisionResponses.IsSet())
+	{
+		ShapeCollisionResponses = TArray<TPair<int32, FCollisionResponse>>();
+	}
+
+	TArray<TPair<int32, FCollisionResponse>>& ShapeCollisionResponsesValue = ShapeCollisionResponses.GetValue();
+
+	bool bIndexExists = false;
+	int32 ResponseIndex = 0;
+	const int32 ResponseNum = ShapeCollisionResponsesValue.Num();
+	for (; ResponseIndex < ResponseNum; ++ResponseIndex)
+	{
+		if (ShapeCollisionResponsesValue[ResponseIndex].Key == ShapeIndex)
+		{
+			break;
+		}
+	}
+
+	if (ResponseIndex == ResponseNum)
+	{
+		ShapeCollisionResponsesValue.Add(TPair<int32, FCollisionResponse>(ShapeIndex, FCollisionResponse()));
+	}
+
+	if (ShapeCollisionResponsesValue[ResponseIndex].Value.SetCollisionResponseContainer(NewResponses))
+	{
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
+}
+
+const FCollisionResponseContainer& FBodyInstance::GetShapeResponseToChannels(const int32 ShapeIndex) const
+{
+	return GetShapeResponseToChannels(ShapeIndex, GetResponseToChannels());
+}
+
+const FCollisionResponseContainer& FBodyInstance::GetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& DefaultResponseContainer) const
+{
+	// Return per-shape collision response override if there is one
+	if (ShapeCollisionResponses.IsSet())
+	{
+		for (int32 ResponseIndex = 0; ResponseIndex < ShapeCollisionResponses.GetValue().Num(); ++ResponseIndex)
+		{
+			if (ShapeCollisionResponses.GetValue()[ResponseIndex].Key == ShapeIndex)
+			{
+				return ShapeCollisionResponses.GetValue()[ResponseIndex].Value.GetResponseContainer();
+			}
+		}
+	}
+
+	// Return base collision response
+	return DefaultResponseContainer;
 }
 
 void FBodyInstance::SetObjectType(ECollisionChannel Channel)
@@ -686,14 +729,6 @@ void FBodyInstance::SetShapeCollisionEnabled(const int32 ShapeIndex, ECollisionE
 			if (bUpdatePhysicsFilterData)
 			{
 				UpdatePhysicsFilterData();
-			}
-
-			if (CollisionEnabledHasPhysics(OldType) != CollisionEnabledHasPhysics(NewType))
-			{
-				if(UPrimitiveComponent* PrimComponent = OwnerComponent.Get())
-				{
-					PrimComponent->RecreatePhysicsState();
-				}
 			}
 		}
 	}
@@ -964,8 +999,11 @@ void FBodyInstance::UpdatePhysicsFilterData()
 			}
 
 			const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
-			if (SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
+			if (BI->BodySetup.IsValid() && SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
 			{
+				// Get the shape's CollisionResponses
+				BI->BuildBodyFilterData(PerShapeCollisionData.CollisionFilterData, SetupShapeIndex);
+
 				// Get the shape's CollisionEnabled masked with the body's CollisionEnabled and compute the shape's collisionflags.
 				const ECollisionEnabled::Type FilteredShapeCollision = CollisionEnabledIntersection(BI->GetCollisionEnabled(), BI->GetShapeCollisionEnabled(SetupShapeIndex));
 				BuildBodyCollisionFlags(PerShapeCollisionData.CollisionFlags, FilteredShapeCollision, bInstanceComplexAsSimple);
@@ -1436,27 +1474,13 @@ void FBodyInstance::InitBody(class UBodySetup* Setup, const FTransform& Transfor
 	bool bIsStatic = SpawnParams.bStaticPhysics;
 	if(bIsStatic)
 	{
-		if (GUseDeferredPhysicsBodyCreation)
-		{
-			InitBodiesDeferredListStatic.Add(FInitBodiesHelperWithData<true>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
-		}
-		else
-		{
-			FInitBodiesHelper<true> InitBodiesHelper(Bodies, Transforms, Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate);
-			InitBodiesHelper.InitBodies();
-		}
+		FInitBodiesHelper<true> InitBodiesHelper(Bodies, Transforms, Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate);
+		InitBodiesHelper.InitBodies();
 	}
 	else
 	{
-		if (GUseDeferredPhysicsBodyCreation)
-		{
-			InitBodiesDeferredListDynamic.Add(FInitBodiesHelperWithData<false>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
-		}
-		else
-		{
-			FInitBodiesHelper<false> InitBodiesHelper(Bodies, Transforms, Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate);
-			InitBodiesHelper.InitBodies();
-		}
+		FInitBodiesHelper<false> InitBodiesHelper(Bodies, Transforms, Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate);
+		InitBodiesHelper.InitBodies();
 	}
 
 	Bodies.Reset();
@@ -2750,27 +2774,6 @@ FPhysScene* FBodyInstance::GetPhysicsScene()
 	return FPhysicsInterface::GetCurrentScene(ActorHandle);
 }
 
-void FBodyInstance::InitAllBodies(FPhysScene* PhysScene)
-{
-	for (FInitBodiesHelperWithData<true>& BodyToInit : InitBodiesDeferredListStatic)
-	{
-		// allow this to reset the PhysScene on World cleanup
-		if (PhysScene == nullptr || !ensure(BodyToInit.PhysScene == PhysScene))
-		{
-			BodyToInit.PhysScene = PhysScene;
-		}
-		BodyToInit.InitBodies();
-	}
-	for (FInitBodiesHelperWithData<false>& BodyToInit : InitBodiesDeferredListDynamic)
-	{
-		if (PhysScene == nullptr || !ensure(PhysScene == nullptr || BodyToInit.PhysScene == PhysScene))
-		{
-			BodyToInit.PhysScene = PhysScene;
-		}
-		BodyToInit.InitBodies();
-	}
-}
-
 FPhysicsActorHandle& FBodyInstance::GetPhysicsActorHandle()
 {
 	return ActorHandle;
@@ -2993,128 +2996,6 @@ int32 GetNumSimShapes_AssumesLocked(const FPhysicsActorHandle& ActorRef)
 	return NumSimShapes;
 }
 
-float KgPerM3ToKgPerCm3(float KgPerM3)
-{
-	//1m = 100cm => 1m^3 = (100cm)^3 = 1000000cm^3
-	//kg/m^3 = kg/1000000cm^3
-	const float M3ToCm3Inv = 1.f / (100.f * 100.f * 100.f);
-	return KgPerM3 * M3ToCm3Inv;
-}
-
-float gPerCm3ToKgPerCm3(float gPerCm3)
-{
-	//1000g = 1kg
-	//kg/cm^3 = 1000g/cm^3 => g/cm^3 = kg/1000 cm^3
-	const float gToKG = 1.f / 1000.f;
-	return gPerCm3 * gToKG;
-}
-
-#if WITH_CHAOS
-/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
-{
-	// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
-	float DensityKGPerCubicUU = 1.0f;
-	float RaiseMassToPower = 0.75f;
-	if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
-	{
-		DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
-		RaiseMassToPower = PhysMat->RaiseMassToPower;
-	}
-
-	Chaos::TMassProperties<float, 3> MassProps;
-	FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
-
-	float OldMass = MassProps.Mass;
-	float NewMass = 0.f;
-
-	if (OwningBodyInstance->bOverrideMass == false)
-	{
-		float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
-		NewMass = FMath::Pow(OldMass, UsePow);
-
-		// Apply user-defined mass scaling.
-		NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
-	}
-	else
-	{
-		NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
-	}
-
-	check(NewMass > 0.f);
-
-	float MassRatio = NewMass / OldMass;
-
-
-	MassProps.Mass *= MassRatio;
-	MassProps.InertiaTensor *= MassRatio;
-
-	MassProps.CenterOfMass += MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge);
-
-	// Scale the inertia tensor by the owning body instance's InertiaTensorScale (see PxMassProperties::scaleInertia)
-	FVector diagonal(MassProps.InertiaTensor.M[0][0] , MassProps.InertiaTensor.M[1][1], MassProps.InertiaTensor.M[2][2]);
-
-	FVector xyz2 = FVector(FVector::DotProduct(diagonal, FVector(0.5f))) - diagonal; // original x^2, y^2, z^2
-	FVector scaledxyz2 = xyz2 * OwningBodyInstance->InertiaTensorScale * OwningBodyInstance->InertiaTensorScale;
-
-	float	xx = scaledxyz2.Y + scaledxyz2.Z,
-			yy = scaledxyz2.Z + scaledxyz2.X,
-			zz = scaledxyz2.X + scaledxyz2.Y;
-
-	float	xy = MassProps.InertiaTensor.M[0][1] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Y,
-			xz = MassProps.InertiaTensor.M[0][2] * OwningBodyInstance->InertiaTensorScale.X * OwningBodyInstance->InertiaTensorScale.Z,
-			yz = MassProps.InertiaTensor.M[1][2] * OwningBodyInstance->InertiaTensorScale.Y * OwningBodyInstance->InertiaTensorScale.Z;
-
-	MassProps.InertiaTensor = Chaos::PMatrix<float, 3, 3>(	FVector(xx, xy, xz),
-															FVector(xy, yy, yz),
-															FVector(xz, yz, zz));
-
-	return MassProps;
-}
-#elif PHYSICS_INTERFACE_PHYSX
-/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
-{
-	// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
-	float DensityKGPerCubicUU = 1.0f;
-	float RaiseMassToPower = 0.75f;
-	if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
-	{
-		DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
-		RaiseMassToPower = PhysMat->RaiseMassToPower;
-	}
-
-	PxMassProperties MassProps;
-	FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
-
-	float OldMass = MassProps.mass;
-	float NewMass = 0.f;
-
-	if (OwningBodyInstance->bOverrideMass == false)
-	{
-		float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
-		NewMass = FMath::Pow(OldMass, UsePow);
-
-		// Apply user-defined mass scaling.
-		NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
-	}
-	else
-	{
-		NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
-	}
-
-	check(NewMass > 0.f);
-
-	float MassRatio = NewMass / OldMass;
-	
-	PxMassProperties FinalMassProps = MassProps * MassRatio;
-
-	FinalMassProps.centerOfMass += U2PVector(MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge));
-	FinalMassProps.inertiaTensor = PxMassProperties::scaleInertia(FinalMassProps.inertiaTensor, PxQuat(PxIdentity), U2PVector(OwningBodyInstance->InertiaTensorScale));
-
-	return FinalMassProps;
-}
-#endif
 
 void FBodyInstance::UpdateMassProperties()
 {
@@ -3200,7 +3081,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
 						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						Chaos::TMassProperties<float, 3> BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						Chaos::TMassProperties<float, 3> BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 					}
 
@@ -3215,7 +3096,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
 						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						PxMassProperties BodyMassProperties = ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						PxMassProperties BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 						MassTMs.Add(PxTransform(PxIdentity));
 					}
@@ -3230,7 +3111,7 @@ void FBodyInstance::UpdateMassProperties()
 					{
 						//No children welded so just get this body's mass properties
 						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
-						TotalMassProperties = ComputeMassProperties(this, Shapes, MassModifierTransform);
+						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform);
 					}
 				}
 
@@ -4159,7 +4040,7 @@ void FBodyInstance::InitDynamicProperties_AssumesLocked()
 	}
 }
 
-void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData) const
+void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData, const int32 ShapeIndex) const
 {
 	// this can happen in landscape height field collision component
 	if(!BodySetup.IsValid())
@@ -4172,11 +4053,16 @@ void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData)
 	AActor* Owner = OwnerComponentInst ? OwnerComponentInst->GetOwner() : NULL;
 	const bool bPhysicsStatic = !OwnerComponentInst || OwnerComponentInst->IsWorldGeometry();
 
-	// Grab collision setting from body instance
-	ECollisionEnabled::Type UseCollisionEnabled = GetCollisionEnabled(); // this checks actor/component override
-	bool bUseNotifyRBCollision = bNotifyRigidBodyCollision;
+	// Grab collision setting from body instance.
+	// If we're looking at a specific shape, intersect it with the shape's specific collision setting.
+	ECollisionEnabled::Type UseCollisionEnabled // this checks actor/component override. 
+		= ShapeIndex == INDEX_NONE
+		? GetCollisionEnabled()
+		: CollisionEnabledIntersection(GetCollisionEnabled(), GetShapeCollisionEnabled(ShapeIndex));
 	FCollisionResponseContainer UseResponse = CollisionResponses.GetResponseContainer();
+	bool bUseNotifyRBCollision = bNotifyRigidBodyCollision;
 	ECollisionChannel UseChannel = ObjectType;
+
 
 	bool bUseContactModification = bContactModification;
 
@@ -4211,6 +4097,14 @@ void FBodyInstance::BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData)
 		{
 			UseChannel = SkelMeshComp->GetCollisionObjectType();
 			UseResponse = FCollisionResponseContainer::CreateMinContainer(UseResponse, SkelMeshComp->BodyInstance.CollisionResponses.GetResponseContainer());
+		}
+
+		if (ShapeIndex != INDEX_NONE)
+		{
+			// If we're looking at a specific shape, take the intersection of its collision responses
+			// with the base primitive component's collision responses.
+			FCollisionResponseContainer ShapeResponse = GetShapeResponseToChannels(ShapeIndex, UseResponse);
+			UseResponse = FCollisionResponseContainer::CreateMinContainer(UseResponse, ShapeResponse);
 		}
 
 		bUseNotifyRBCollision = bUseNotifyRBCollision && SkelMeshComp->BodyInstance.bNotifyRigidBodyCollision;

@@ -62,7 +62,7 @@ UObject* USoundSubmixEffectFactory::FactoryCreateNew(UClass* InClass, UObject* I
 
 bool USoundSubmixEffectFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }
 
 

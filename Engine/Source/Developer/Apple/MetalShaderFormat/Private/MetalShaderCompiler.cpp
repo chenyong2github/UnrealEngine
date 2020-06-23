@@ -33,8 +33,8 @@ THIRD_PARTY_INCLUDES_END
 #include "MetalDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 
-// The Metal standard library extensions we need for UE4.
-#include "ue4_stdlib.h"
+// The Metal standard library extensions we need for Unreal Engine.
+#include "Shaders/MetalUnrealStdLib.h"
 
 #if !PLATFORM_WINDOWS
 #if PLATFORM_TCHAR_IS_CHAR16

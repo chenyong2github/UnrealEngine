@@ -30,6 +30,7 @@ namespace WindowsMixedReality
 			m_SpatialAudioStream(nullptr),
 			m_RenderState(RenderState::Inactive),
 			m_bufferCompletionEvent(nullptr),
+			m_MaxDynamicObjects(0),
 			m_SampleRate(0),
 			m_NumSources(0)
 		{
@@ -80,6 +81,15 @@ namespace WindowsMixedReality
 				// Get the pointer for the Audio Client
 				punkAudioInterface.Get()->QueryInterface(IID_PPV_ARGS(&m_SpatialAudioClient));
 				if (nullptr == m_SpatialAudioClient)
+				{
+					hr = E_FAIL;
+					goto exit;
+				}
+
+				// Store the max dynamic object count
+				//Note: we do not actually use this value other than to put a warning in the log.
+				hr = m_SpatialAudioClient->GetMaxDynamicObjectCount(&m_MaxDynamicObjects);
+				if (FAILED(hr))
 				{
 					hr = E_FAIL;
 					goto exit;
@@ -289,6 +299,15 @@ namespace WindowsMixedReality
 		return false;
 	}
 
+	UINT32 SpatialAudioClient::GetMaxDynamicObjects() const
+	{
+		if (ComPtr<SpatialAudioClientRendererWinRT> sac = GetSac(sacId))
+		{
+			return sac->GetMaxDynamicObjects();
+		}
+		return 0;
+	}
+	
 	ISpatialAudioObject* SpatialAudioClient::ActivatDynamicSpatialAudioObject()
 	{
 		if (ComPtr<SpatialAudioClientRendererWinRT> sac = GetSac(sacId))

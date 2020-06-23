@@ -10,20 +10,14 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-uint8*	MemoryReserve(SIZE_T Size);
-void	MemoryFree(void* Address, SIZE_T Size);
-void	MemoryMap(void* Address, SIZE_T Size);
-void	MemoryUnmap(void* Address, SIZE_T Size);
-
-////////////////////////////////////////////////////////////////////////////////
 UPTRINT	ThreadCreate(const ANSICHAR* Name, void (*Entry)());
 void	ThreadSleep(uint32 Milliseconds);
 void	ThreadJoin(UPTRINT Handle);
 void	ThreadDestroy(UPTRINT Handle);
 
 ////////////////////////////////////////////////////////////////////////////////
-uint64	TimeGetFrequency();
-uint64	TimeGetTimestamp();
+uint64				TimeGetFrequency();
+TRACELOG_API uint64	TimeGetTimestamp();
 
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT	TcpSocketConnect(const ANSICHAR* Host, uint16 Port);

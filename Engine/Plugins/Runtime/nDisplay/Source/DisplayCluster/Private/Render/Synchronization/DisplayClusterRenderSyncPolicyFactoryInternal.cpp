@@ -8,7 +8,7 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaDX12.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
 
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 FDisplayClusterRenderSyncPolicyFactoryInternal::FDisplayClusterRenderSyncPolicyFactoryInternal()

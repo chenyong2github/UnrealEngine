@@ -820,8 +820,10 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				ActorToUse = Cast<AActor>(SelectedActors[0]);
 			}
 
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, bReplaceActor, false, ParentClass);
+			FKismetEditorUtilities::FCreateBlueprintFromActorParams Params;
+			Params.bReplaceActor = true;
+			Params.ParentClassOverride = ParentClass;
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, Params);
 		}
 		break;
 

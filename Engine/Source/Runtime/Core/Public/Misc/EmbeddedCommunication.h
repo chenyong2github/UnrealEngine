@@ -37,6 +37,11 @@ public:
 	// calling out from engine to native wrapper
 	static FEmbeddedCommunicationParamsDelegate& GetEmbeddedToNativeParamsDelegateForSubsystem(FName SubsystemName);
 
+	// returns true if NativeToEmbedded delegate for subsystem exists
+	static bool IsEmbeddedSubsystemAvailable(FName SubsystemName);
+	
+	// FTicker-like delegate, to bind things to be ticked at a regular interval while the game thread is otherwise asleep.
+	static FSimpleMulticastDelegate SleepTickDelegate;
 
 	// get/set an object by name, thread safe
 	static void SetNamedObject(const FString& Name, void* Object);

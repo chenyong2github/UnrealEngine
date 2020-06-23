@@ -21,6 +21,7 @@ namespace ToolSceneQueriesUtil
 	 * Test if two points are close enough to snap together.
 	 * This is done by computing visual angle between points for current camera position.
 	 * @param VisualAngleThreshold visual angle threshold to use. If 0, GetDefaultVisualAngleSnapThresh() is used
+	 * @return true if visual angle is < threshold
 	 */
 	MODELINGCOMPONENTS_API bool PointSnapQuery(const UInteractiveTool* Tool, const FVector3d& Point1, const FVector3d& Point2, double VisualAngleThreshold = 0);
 
@@ -42,6 +43,12 @@ namespace ToolSceneQueriesUtil
 	 * @return visual angle between two 3D points, relative to the current camera position
 	 */
 	MODELINGCOMPONENTS_API double CalculateViewVisualAngleD(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2);
+
+	/**
+	 * @return visual angle between two 3D points, relative to the current camera position, normalized relative to 90-degree FOV
+	 */
+	MODELINGCOMPONENTS_API double CalculateNormalizedViewVisualAngleD(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2);
+
 
 
 	/**

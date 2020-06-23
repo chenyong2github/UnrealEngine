@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _AbcExport_AbcExport_h_
-#define _AbcExport_AbcExport_h_
+#ifndef AbcExport_AbcExport_h
+#define AbcExport_AbcExport_h
 
 #include "Foundation.h"
 
@@ -43,11 +43,11 @@ class AbcExport : public MPxCommand
 {
   public:
     AbcExport();
-    virtual ~AbcExport();
-    MStatus doIt(const MArgList& args);
+    ~AbcExport() override;
+    MStatus doIt(const MArgList& args) override;
 
     static MSyntax  createSyntax();
     static void* creator();
 };
 
-#endif  // _AbcExport_AbcExport_h_
+#endif  // AbcExport_AbcExport_h

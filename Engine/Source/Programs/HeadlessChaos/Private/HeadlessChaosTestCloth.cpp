@@ -99,7 +99,7 @@ namespace ChaosTest {
 	{
 		check(Stiffness >= 0. && Stiffness <= 1.);
 		Evolution->AddPBDConstraintFunction(
-			[SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(
+			[SpringConstraints = Chaos::FPBDSpringConstraints(
 				Evolution->Particles(), Topology, Stiffness)](
 					TPBDParticles<float, 3>& InParticles, const float Dt) 
 			{

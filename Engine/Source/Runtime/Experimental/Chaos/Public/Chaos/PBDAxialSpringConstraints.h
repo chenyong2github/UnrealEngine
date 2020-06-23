@@ -5,49 +5,33 @@
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/GraphColoring.h"
+#include "Chaos/Core.h"
 #include "ChaosStats.h"
 
-#include <algorithm>
-
-DECLARE_CYCLE_STAT(TEXT("Chaos PBD Axial Spring Constraint"), STAT_PBD_AxialSpring, STATGROUP_Chaos);
 namespace Chaos
 {
-template<class T, int d>
-class TPBDAxialSpringConstraints : public TParticleRule<T, d>, public TPBDAxialSpringConstraintsBase<T, d>
+
+class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, public TPBDAxialSpringConstraintsBase<FReal, 3>
 {
-	typedef TPBDAxialSpringConstraintsBase<T, d> Base;
+	typedef TPBDAxialSpringConstraintsBase<FReal, 3> Base;
 	using Base::MBarys;
 	using Base::MConstraints;
 
   public:
-	TPBDAxialSpringConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const T Stiffness = (T)1)
-	    : TPBDAxialSpringConstraintsBase<T, d>(InParticles, MoveTemp(Constraints), Stiffness) {}
-	virtual ~TPBDAxialSpringConstraints() {}
-
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override //-V762
+	FPBDAxialSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1)
+	    : TPBDAxialSpringConstraintsBase<FReal, 3>(InParticles, MoveTemp(Constraints), Stiffness)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_PBD_AxialSpring);
-		for (int32 i = 0; i < MConstraints.Num(); ++i)
-		{
-			const auto& constraint = MConstraints[i];
-			int32 i1 = constraint[0];
-			int32 i2 = constraint[1];
-			int32 i3 = constraint[2];
-			auto Delta = Base::GetDelta(InParticles, i);
-			T Multiplier = 2 / (FMath::Max(MBarys[i], 1 - MBarys[i]) + 1);
-			if (InParticles.InvM(i1) > 0)
-			{
-				InParticles.P(i1) -= Multiplier * InParticles.InvM(i1) * Delta;
-			}
-			if (InParticles.InvM(i2))
-			{
-				InParticles.P(i2) += Multiplier * InParticles.InvM(i2) * MBarys[i] * Delta;
-			}
-			if (InParticles.InvM(i3))
-			{
-				InParticles.P(i3) += Multiplier * InParticles.InvM(i3) * (1 - MBarys[i]) * Delta;
-			}
-		}
+		MConstraintsPerColor = FGraphColoring::ComputeGraphColoring(MConstraints, InParticles);
 	}
+	virtual ~FPBDAxialSpringConstraints() {}
+
+  private:
+	void ApplyImp(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 i) const;
+  public:
+	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const override; //-V762
+
+	TArray<TArray<int32>> MConstraintsPerColor;
 };
+
 }

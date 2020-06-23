@@ -29,38 +29,13 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// find view to use for gizmo sizing/etc
-		const FSceneView* GizmoControlView = GizmoRenderingUtil::FindActiveSceneView(Views, ViewFamily, VisibilityMap);
-		if (GizmoControlView == nullptr)
-		{
-			return;
-		}
+		// try to find focused scene view. May return nullptr.
+		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-
 		FVector PlaneX, PlaneY;
 		GizmoMath::MakeNormalPlaneBasis(Normal, PlaneX, PlaneY);
-
-		// direction to origin of gizmo
-		FVector GizmoViewDirection = Origin - GizmoControlView->ViewLocation;
-		GizmoViewDirection.Normalize();
-
-		float LengthScale = 1.0f;
-		if (ExternalDynamicPixelToWorldScale != nullptr)
-		{
-			float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoControlView, Origin);
-			*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-			LengthScale = PixelToWorldScale;
-		}
-
-		double UseRadius = LengthScale * Radius;
-
-		FLinearColor BackColor = FLinearColor(0.5f, 0.5f, 0.5f);
-		float BackThickness = 0.5f;
-
-		float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ? 
-			(HoverThicknessMultiplier*Thickness) : (Thickness);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -68,15 +43,50 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-
+				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
+				bool bIsOrtho = !View->IsPerspectiveProjection();
 				FVector UpVector = View->GetViewUp();
+				FVector ViewVector = View->GetViewDirection();
+
+				// direction to origin of gizmo
+				FVector GizmoViewDirection = 
+					(bIsOrtho) ? (View->GetViewDirection()) : (Origin - View->ViewLocation);
+				GizmoViewDirection.Normalize();
+
+				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
+				float LengthScale = PixelToWorldScale;
+				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				{
+					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+				}
+
+				double UseRadius = LengthScale * Radius;
+
+				FLinearColor BackColor = FLinearColor(0.5f, 0.5f, 0.5f);
+				float BackThickness = 0.5f;
+				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
+					(HoverThicknessMultiplier * Thickness) : (Thickness);
+				if (!bIsOrtho)
+				{
+					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					BackThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+				}
 
 				const float	AngleDelta = 2.0f * PI / NumSides;
 
 				if (bViewAligned)
 				{
-					FVector ViewVector = View->GetViewDirection();
+					//if (bIsOrtho)		// skip in ortho views?
+					//{
+					//	if (bIsFocusedView && bExternalRenderVisibility != nullptr)
+					//	{
+					//		*bExternalRenderVisibility = false;
+					//	}
+					//	continue;
+					//}
+
 					FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
+					WorldOrigin += 0.001 * ViewVector;
 					FVector WorldPlaneX, WorldPlaneY;
 					GizmoMath::MakeNormalPlaneBasis(ViewVector, WorldPlaneX, WorldPlaneY);
 
@@ -91,32 +101,65 @@ public:
 						LastVertex = Vertex;
 					}
 				}
-				else
+				else 
 				{
 					FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
 					bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
 					FVector WorldPlaneX = (bWorldAxis) ? PlaneX : FVector{ LocalToWorldMatrix.TransformVector(PlaneX) };
 					FVector WorldPlaneY = (bWorldAxis) ? PlaneY : FVector{ LocalToWorldMatrix.TransformVector(PlaneY) };
 
-					FVector	LastVertex = WorldOrigin + WorldPlaneX * UseRadius;
-					bool bLastVisible = FVector::DotProduct(WorldPlaneX, GizmoViewDirection) < 0;
-					for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+					FVector PlaneWorldNormal = (bWorldAxis) ? Normal : FVector{ LocalToWorldMatrix.TransformVector(Normal) };
+					double ViewDot = FVector::DotProduct(GizmoViewDirection, PlaneWorldNormal);
+					bool bOnEdge = FMath::Abs(ViewDot) < 0.05;
+					bool bIsViewPlaneParallel = FMath::Abs(ViewDot) > 0.95;
+					if (bIsFocusedView && bExternalIsViewPlaneParallel != nullptr)
 					{
-						float DeltaX = FMath::Cos(AngleDelta * (SideIndex + 1));
-						float DeltaY = FMath::Sin(AngleDelta * (SideIndex + 1));
-						const FVector DeltaVector = WorldPlaneX * DeltaX + WorldPlaneY * DeltaY;
-						const FVector Vertex = WorldOrigin + UseRadius * DeltaVector;
-						bool bVertexVisible = FVector::DotProduct(DeltaVector, GizmoViewDirection) < 0;
-						if (bLastVisible && bVertexVisible)
+						*bExternalIsViewPlaneParallel = bIsViewPlaneParallel;
+					}
+
+					bool bRenderVisibility = !bOnEdge;
+					if (bIsFocusedView && bExternalRenderVisibility != nullptr)
+					{
+						*bExternalRenderVisibility = bRenderVisibility;
+					}
+					if (bRenderVisibility)
+					{
+						if (bIsViewPlaneParallel)
 						{
-							PDI->DrawLine(LastVertex, Vertex, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+							FVector	LastVertex = WorldOrigin + WorldPlaneX * UseRadius;
+							for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+							{
+								float DeltaX = FMath::Cos(AngleDelta * (SideIndex + 1));
+								float DeltaY = FMath::Sin(AngleDelta * (SideIndex + 1));
+								const FVector DeltaVector = WorldPlaneX * DeltaX + WorldPlaneY * DeltaY;
+								const FVector Vertex = WorldOrigin + UseRadius * DeltaVector;
+								PDI->DrawLine(LastVertex, Vertex, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+								LastVertex = Vertex;
+							}
 						}
 						else
 						{
-							PDI->DrawLine(LastVertex, Vertex, BackColor, SDPG_Foreground, BackThickness, 0.0f, true);
+							FVector	LastVertex = WorldOrigin + WorldPlaneX * UseRadius;
+							bool bLastVisible = FVector::DotProduct(WorldPlaneX, GizmoViewDirection) < 0;
+							for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+							{
+								float DeltaX = FMath::Cos(AngleDelta * (SideIndex + 1));
+								float DeltaY = FMath::Sin(AngleDelta * (SideIndex + 1));
+								const FVector DeltaVector = WorldPlaneX * DeltaX + WorldPlaneY * DeltaY;
+								const FVector Vertex = WorldOrigin + UseRadius * DeltaVector;
+								bool bVertexVisible = FVector::DotProduct(DeltaVector, GizmoViewDirection) < 0;
+								if (bLastVisible && bVertexVisible)
+								{
+									PDI->DrawLine(LastVertex, Vertex, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+								}
+								else
+								{
+									PDI->DrawLine(LastVertex, Vertex, BackColor, SDPG_Foreground, BackThickness, 0.0f, true);
+								}
+								bLastVisible = bVertexVisible;
+								LastVertex = Vertex;
+							}
 						}
-						bLastVisible = bVertexVisible;
-						LastVertex = Vertex;
 					}
 				}
 			}
@@ -148,6 +191,16 @@ public:
 		ExternalDynamicPixelToWorldScale = DynamicPixelToWorldScale;
 	}
 
+	void SetExternalRenderVisibility(bool* bRenderVisibility)
+	{
+		bExternalRenderVisibility = bRenderVisibility;
+	}
+
+	void SetExternalIsViewPlaneParallel(bool* bIsViewPlaneParallel)
+	{
+		bExternalIsViewPlaneParallel = bIsViewPlaneParallel;
+	}
+
 	void SetExternalHoverState(bool* HoverState)
 	{
 		bExternalHoverState = HoverState;
@@ -168,9 +221,14 @@ private:
 	bool bViewAligned;
 	float HoverThicknessMultiplier;
 
-	float* ExternalDynamicPixelToWorldScale = nullptr;
+	// set on Component for use in ::GetDynamicMeshElements()
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
+
+	// set in ::GetDynamicMeshElements() for use by Component hit testing
+	float* ExternalDynamicPixelToWorldScale = nullptr;
+	bool* bExternalRenderVisibility = nullptr;
+	bool* bExternalIsViewPlaneParallel = nullptr;
 };
 
 
@@ -180,6 +238,8 @@ FPrimitiveSceneProxy* UGizmoCircleComponent::CreateSceneProxy()
 {
 	FGizmoCircleComponentSceneProxy* NewProxy = new FGizmoCircleComponentSceneProxy(this);
 	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
+	NewProxy->SetExternalIsViewPlaneParallel(&bCircleIsViewPlaneParallel);
+	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
 	NewProxy->SetExternalWorldLocalState(&bWorld);
 	return NewProxy;
@@ -192,18 +252,26 @@ FBoxSphereBounds UGizmoCircleComponent::CalcBounds(const FTransform& LocalToWorl
 
 bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
 {
+	if (bRenderVisibility == false)
+	{
+		return false;
+	}
+
 	float LengthScale = DynamicPixelToWorldScale;
 	double UseRadius = LengthScale * Radius;
 
 	const FTransform& Transform = this->GetComponentToWorld();
 	FVector WorldNormal = (bWorld) ? Normal : Transform.TransformVector(Normal);
 	FVector WorldOrigin = Transform.TransformPosition(FVector::ZeroVector);
-	FPlane CirclePlane(WorldOrigin, WorldNormal);
 
 	FRay Ray(Start, End - Start, false);
-	FVector HitPos = FMath::RayPlaneIntersection(Ray.Origin, Ray.Direction, CirclePlane);
-	float RayParameter = Ray.GetParameter(HitPos);
-	if (RayParameter < 0 || RayParameter > Ray.GetParameter(End))
+
+	// Find the intresection with the circle plane. Note that unlike the FMath version, GizmoMath::RayPlaneIntersectionPoint() 
+	// checks that the ray isn't parallel to the plane.
+	bool bIntersects;
+	FVector HitPos;
+	GizmoMath::RayPlaneIntersectionPoint(WorldOrigin, WorldNormal, Ray.Origin, Ray.Direction, bIntersects, HitPos);
+	if (!bIntersects || Ray.GetParameter(HitPos) > Ray.GetParameter(End))
 	{
 		return false;
 	}
@@ -219,9 +287,8 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 		return false;
 	}
 
-
 	// filter out hits on "back" of sphere that circle lies on
-	if (bOnlyAllowFrontFacingHits)
+	if (bOnlyAllowFrontFacingHits && bCircleIsViewPlaneParallel == false)
 	{
 		bool bSphereIntersects = false;
 		FVector SphereHitPoint;

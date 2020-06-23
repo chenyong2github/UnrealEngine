@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "UObject/UnrealType.h"
 #include "Misc/ScopeLock.h"
@@ -252,7 +253,7 @@ private:
 		 void LogDetailedStatsSummary();
 	 };
 
-	 class FSampleCollctor : public FReferenceCollector 
+	 class FSampleCollector : public FReferenceCollector 
 	 {
 	   // Needs to implement FReferenceCollector pure virtual functions
 	 };
@@ -760,6 +761,16 @@ private:
 						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 					}
 					break;
+					case GCRT_ExternalPackage:
+					{
+						// We're dealing with the external package reference.
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						// Test if the object isn't itself, since currently package are their own external and tracking that reference is pointless
+						UObject* Object = CurrentObject->GetExternalPackageInternal();
+						Object = Object != CurrentObject ? Object : nullptr;
+						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+					}
+					break;
 					case GCRT_FixedArray:
 					{
 						// We're dealing with a fixed size array
@@ -776,7 +787,7 @@ private:
 					case GCRT_AddStructReferencedObjects:
 					{
 						// We're dealing with a function call
-						void const*	StructPtr = (void*)(StackEntryData + ReferenceInfo.Offset);
+						void* StructPtr = (void*)(StackEntryData + ReferenceInfo.Offset);
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						UScriptStruct::ICppStructOps::TPointerToAddStructReferencedObjects Func = (UScriptStruct::ICppStructOps::TPointerToAddStructReferencedObjects) TokenStream->ReadPointer(TokenStreamIndex);
 						Func(StructPtr, ReferenceCollector);

@@ -200,7 +200,9 @@ void UNiagaraNodeOp::PostLoad()
 		Pins.FindByPredicate([this](UEdGraphPin* Pin) { return IsAddPin(Pin); }) == nullptr)
 	{
 		// Add the pin directly here rather than calling allocate default pins to prevent the graph id from being invalidated
-		// since adding the add pin doesn't change the compile behavior.
+		// since adding the add pin doesn't change the compile behavior.  We do modify here so that when running the resave 
+		// commandlet the package will be marked dirty, it will be ignored during regular post load.
+		Modify();
 		CreateAddPin(EGPD_Input);
 	}
 }

@@ -305,6 +305,7 @@ public:
 	uint32 GetVertexCount() const { return VertexCount; }
 
 	bool IsSamplingRegionsAllAreaWeighted() const { return bSamplingRegionsAllAreaWeighted; }
+	bool IsUseGpuUniformlyDistributedSampling() const { return bUseGpuUniformlyDistributedSampling; }
 	int32 GetNumSamplingRegionTriangles() const { return NumSamplingRegionTriangles; }
 	int32 GetNumSamplingRegionVertices() const { return NumSamplingRegionVertices; }
 	FShaderResourceViewRHIRef GetSampleRegionsProbSRV() const { return SampleRegionsProbSRV; }
@@ -534,9 +535,10 @@ struct FNDISkeletalMesh_InstanceData
 
 	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
 	{
-		if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
+		USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get());
+		if (SkelComp != nullptr && SkelComp->SkeletalMesh != nullptr)
 		{
-			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);
+			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);			
 		}
 		return CachedLODData ? &CachedLODData->SkinWeightVertexBuffer : nullptr;
 	}
@@ -633,7 +635,7 @@ public:
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	//~ UNiagaraDataInterface interface END
 
@@ -798,8 +800,6 @@ public:
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMContext& Context);	
-	template<typename TransformHandlerType, typename bInterpolated>
-	void GetSkinnedBoneDataFallback(FVectorVMContext& Context);
 	
 	void IsValidBone(FVectorVMContext& Context);
 	void RandomBone(FVectorVMContext& Context);
@@ -825,6 +825,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 	void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
+	void SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions);
 };
 
 

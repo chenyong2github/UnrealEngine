@@ -3,13 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
+#include "Properties/MeshMaterialProperties.h"
 #include "SimpleDynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
-#include "Transforms/QuickAxisTranslater.h"
-#include "Transforms/QuickAxisRotator.h"
 #include "Changes/MeshVertexChange.h"
 #include "GroupTopology.h"
 #include "Selection/GroupTopologySelector.h"
@@ -94,6 +92,14 @@ public:
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
+
+public:
+	UPROPERTY()
+	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
+
 protected:
 	UPROPERTY()
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
@@ -154,5 +160,7 @@ protected:
 	void BeginChange();
 	void EndChange();
 	void UpdateChangeFromROI(bool bFinal);
+
+	void OnMaterialSettingsChanged();
 };
 

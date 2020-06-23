@@ -97,6 +97,7 @@ public:
 	virtual bool EnumerateTrackedDevices(TArray<int32>& TrackedIds, EXRTrackedDeviceType DeviceType = EXRTrackedDeviceType::Any) override;
 
 	virtual bool GetTrackingSensorProperties(int32 InDeviceId, FQuat& OutOrientation, FVector& OutOrigin, FXRSensorProperties& OutSensorProperties) override;
+	virtual FString GetTrackedDevicePropertySerialNumber(int32 DeviceId) override;
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition) override;
 	virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) override;
 	virtual bool IsTracking(int32 DeviceId) override;
@@ -322,7 +323,7 @@ public:
 #endif // PLATFORM_MAC
 
 	/** Motion Controllers */
-	EXRTrackedDeviceType GetTrackedDeviceType(int32 DeviceId) const;
+	virtual EXRTrackedDeviceType GetTrackedDeviceType(int32 DeviceId) const override;
 	STEAMVR_API ETrackingStatus GetControllerTrackingStatus(int32 DeviceId) const;
 
 	/** Chaperone */

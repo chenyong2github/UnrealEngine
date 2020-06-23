@@ -9,6 +9,7 @@
 #include "VulkanContext.h"
 #include "EngineGlobals.h"
 #include "VulkanLLM.h"
+#include "RenderUtils.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(
 	TEXT("r.Vulkan.SubmitOnDispatch"),
@@ -443,11 +444,7 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			}
 			else
 			{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid sampler in SRT table for shader '%s'"), *Shader->GetDebugName());
-#else
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid sampler in SRT table"));
-#endif
 			}
 		}
 			break;
@@ -459,17 +456,18 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			if (TexRef)
 			{
 				const FVulkanTextureBase* BaseTexture = FVulkanTextureBase::Cast(TexRef);
+				if (!ensure(BaseTexture))
+				{
+					BaseTexture = FVulkanTextureBase::Cast(GBlackTexture->TextureRHI.GetReference());
+				}
+
 				VkImageLayout Layout = Context->GetLayoutForDescriptor(BaseTexture->Surface);
 				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, BaseTexture, Layout);
 				TexRef->SetLastRenderTime(CurrentTime);
 			}
 			else
 			{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-#else
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table"));
-#endif
 			}
 		}
 			break;
@@ -488,11 +486,7 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			}
 			else
 			{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-#else
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table"));
-#endif
 			}
 		}
 		break;
@@ -510,11 +504,7 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			}
 			else
 			{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-#else
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table"));
-#endif
 			}
 		}
 		break;
@@ -891,6 +881,7 @@ void FVulkanDynamicRHI::RHIBlockUntilGPUIdle()
 
 uint32 FVulkanDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
+	check(GPUIndex == 0);
 	return GGPUFrameTime;
 }
 

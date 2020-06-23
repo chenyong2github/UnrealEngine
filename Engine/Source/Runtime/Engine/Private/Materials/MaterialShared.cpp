@@ -43,6 +43,10 @@
 #include "UObject/CoreRedirects.h"
 #include "RayTracingDefinitions.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/ConfigCacheIni.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -828,7 +832,7 @@ FMaterialShaderMap* FMaterial::GetRenderingThreadShaderMap() const
 	return RenderingThreadShaderMap; 
 }
 
-void FMaterial::SetRenderingThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
+void FMaterial::SetRenderingThreadShaderMap(const TRefCountPtr<FMaterialShaderMap>& InMaterialShaderMap)
 {
 	check(IsInRenderingThread());
 	RenderingThreadShaderMap = InMaterialShaderMap;
@@ -920,7 +924,6 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 		{
 #if WITH_EDITOR
 			FinishCompilation();
-#endif
 
 			bool bValid = GameThreadShaderMap != nullptr && GameThreadShaderMap->CompiledSuccessfully();
 			
@@ -928,8 +931,22 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 
 			if (bValid)
 			{
-				GameThreadShaderMap->Serialize(Ar);
+				// do not put shader code of certain materials into the library
+				bool bEnableInliningWorkaround = false;
+
+				checkf(GConfig, TEXT("We expect GConfig to exist at this point"));
+				FString SettingName(TEXT("bEnableInliningWorkaround_"));
+				SettingName += Ar.CookingTarget()->IniPlatformName();
+
+				GConfig->GetBool(TEXT("ShaderCodeLibrary"), *SettingName, bEnableInliningWorkaround, GEngineIni);
+
+				bool bInlineShaderCode = bEnableInliningWorkaround && ShouldInlineShaderCode();
+				GameThreadShaderMap->Serialize(Ar, true, false, bInlineShaderCode);
 			}
+#else
+			UE_LOG(LogMaterial, Fatal, TEXT("Internal error: cooking outside the editor is not possible."));
+			// unreachable
+#endif
 		}
 		else
 		{
@@ -1455,6 +1472,49 @@ FString FMaterialResource::GetAssetPath() const
 
 	FString Result = FPackageName::LongPackageNameToFilename(OutermostName, TEXT(".uasset"));
 	return Result;
+}
+
+bool FMaterialResource::ShouldInlineShaderCode() const
+{
+	if (IsSpecialEngineMaterial() || IsDefaultMaterial())
+	{
+		UE_LOG(LogMaterial, Display, TEXT("%s: shader code is inlined because the workaround is enabled and it's a special or default material"), *GetFriendlyName());
+		return true;
+	}
+
+	// Check the material name against those configured to be enabled.
+	// For the cooker commandlet, this check could be cached, but due to concerns of that cache possibly getting stale for edge cases like COTF and general work-aroundness of this
+	// function, let's check the configs every time.
+
+	FString OutermostName;
+	if (MaterialInstance)
+	{
+		OutermostName = MaterialInstance->GetOutermost()->GetName();
+	}
+	else if (Material)
+	{
+		OutermostName = Material->GetOutermost()->GetName();
+	}
+
+	bool bNeedsToBeInlined = false;
+	const FConfigSection* ShaderLibrarySec = GConfig->GetSectionPrivate(TEXT("ShaderCodeLibrary"), false, true, GEngineIni);
+	if (ShaderLibrarySec)
+	{
+		TArray<FString> ConfiguredMaterials;
+		ShaderLibrarySec->MultiFind(TEXT("MaterialToInline"), ConfiguredMaterials);
+
+		for(const FString& ConfiguredMaterial : ConfiguredMaterials)
+		{
+			if (ConfiguredMaterial == OutermostName)
+			{
+				bNeedsToBeInlined = true;
+				break;
+			}
+		}
+	}
+
+	UE_LOG(LogMaterial, Display, TEXT("%s (package %s): shader code is %s to be inlined as a workaround"), *GetFriendlyName(), *OutermostName, bNeedsToBeInlined ? TEXT("configured") : TEXT("NOT configured"));
+	return bNeedsToBeInlined;
 }
 #endif
 
@@ -2481,6 +2541,10 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 {
 	check(IsInRenderingThread());
 
+#if WITH_EDITOR
+	FStaticLightingSystemInterface::OnMaterialInvalidated.Broadcast(this);
+#endif
+
 	if (HasVirtualTextureCallbacks)
 	{
 		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
@@ -3113,7 +3177,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 	TArray<const FMaterial*> MaterialResourcesToUpdate;
 	TArray<UMaterialInstance*> InstancesToUpdate;
 
-	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext;
+	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext && FApp::CanEverRender();
 
 	// If static draw lists must be updated, gather material resources from all updated materials.
 	if (bUpdateStaticDrawLists)
@@ -3679,7 +3743,7 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 	case MP_EmissiveColor:
 		return Material->IsUIMaterial() ? LOCTEXT("UIOutputColor", "Final Color") : LOCTEXT("EmissiveColor", "Emissive Color");
 	case MP_Opacity:
-		return Material->MaterialDomain == MD_Volume ? LOCTEXT("Extinction", "Extinction") : LOCTEXT("Opacity", "Opacity");
+		return LOCTEXT("Opacity", "Opacity");
 	case MP_OpacityMask:
 		return LOCTEXT("OpacityMask", "Opacity Mask");
 	case MP_DiffuseColor:
@@ -3709,6 +3773,10 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 	case MP_TessellationMultiplier:
 		return LOCTEXT("TessellationMultiplier", "Tessellation Multiplier");
 	case MP_SubsurfaceColor:
+		if (Material->MaterialDomain == MD_Volume)
+		{
+			return LOCTEXT("Extinction", "Extinction");
+		}
 		CustomPinNames.Add({MSM_Cloth, "Fuzz Color"});
 		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Subsurface Color"));
 	case MP_CustomData0:	
@@ -4033,7 +4101,7 @@ void FMaterialResourceProxyReader::Initialize(
 	}
 }
 
-typedef TMap<FMaterial*, FMaterialShaderMap*> FMaterialsToUpdateMap;
+typedef TMap<FMaterial*, TRefCountPtr<FMaterialShaderMap>> FMaterialsToUpdateMap;
 
 void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHICmdList, const FMaterialsToUpdateMap& MaterialsToUpdate)
 {
@@ -4045,7 +4113,7 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 	for (FMaterialsToUpdateMap::TConstIterator It(MaterialsToUpdate); It; ++It)
 	{
 		FMaterial* Material = It.Key();
-		FMaterialShaderMap* ShaderMap = It.Value();
+		const TRefCountPtr<FMaterialShaderMap>& ShaderMap = It.Value();
 		Material->SetRenderingThreadShaderMap(ShaderMap);
 		check(!ShaderMap || ShaderMap->IsValidForRendering());
 		MaterialArray.Add(Material);
@@ -4085,12 +4153,19 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 	}
 }
 
-void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*>& MaterialsToUpdate)
+void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*>& InMaterialsToUpdate)
 {
-	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
-	[InMaterialsToUpdate = MaterialsToUpdate](FRHICommandListImmediate& RHICmdList)
+	TMap<FMaterial*, TRefCountPtr<FMaterialShaderMap>> MaterialsToUpdate;
+	MaterialsToUpdate.Empty(InMaterialsToUpdate.Num());
+	for (auto It : InMaterialsToUpdate)
 	{
-		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
+		MaterialsToUpdate.Add(It.Key, It.Value);
+	}
+
+	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
+	[MaterialsToUpdate = MoveTemp(MaterialsToUpdate)](FRHICommandListImmediate& RHICmdList)
+	{
+		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, MaterialsToUpdate);
 	});
 }
 

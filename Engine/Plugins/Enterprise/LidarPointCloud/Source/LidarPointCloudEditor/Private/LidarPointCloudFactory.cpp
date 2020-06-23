@@ -10,6 +10,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
 #include "Misc/ScopedSlowTask.h"
+#include "AssetRegistryModule.h"
+#include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"
 
@@ -104,28 +106,33 @@ void FAssetTypeActions_LidarPointCloud::ExecuteMerge(TArray<ULidarPointCloud*> P
 	}
 
 	FString PackageName = PointClouds[0]->GetOutermost()->GetName() + TEXT("_Merged");
-	UPackage* MergedCloudPackage = CreatePackage(nullptr, *PackageName);
-	MergedCloudPackage->SetPackageFlags(PKG_NewlyCreated);
-
-	ULidarPointCloud* PC = NewObject<ULidarPointCloud>(MergedCloudPackage, FName(*FPaths::GetBaseFilename(PackageName)), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone | EObjectFlags::RF_Transactional);
-	if (IsValid(PC))
+	UPackage* MergedCloudPackage = UPackageTools::FindOrCreatePackageForAssetType(FName(*PackageName), ULidarPointCloud::StaticClass());
+	if (IsValid(MergedCloudPackage))
 	{
-		TArray<FString> Names({ "Initializing", "Self" });
+		MergedCloudPackage->SetPackageFlags(PKG_NewlyCreated);
 
-		for (ULidarPointCloud* Asset : PointClouds)
+		ULidarPointCloud* PC = NewObject<ULidarPointCloud>(MergedCloudPackage, FName(*FPaths::GetBaseFilename(MergedCloudPackage->GetName())), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone | EObjectFlags::RF_Transactional);
+		if (IsValid(PC))
 		{
-			Names.Add(FPaths::GetBaseFilename(FStringAssetReference(Asset).ToString()));
+			TArray<FString> Names({ "Initializing", "Self" });
+
+			for (ULidarPointCloud* Asset : PointClouds)
+			{
+				Names.Add(FPaths::GetBaseFilename(FStringAssetReference(Asset).ToString()));
+			}
+
+			FScopedSlowTask ProgressDialog(PointClouds.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
+			ProgressDialog.MakeDialog();
+			int32 i = 0;
+
+			PC->Merge(PointClouds, [&ProgressDialog, &i, &Names](float Progress) {
+				ProgressDialog.EnterProgressFrame(1.f, FText::FromString(Names[i++]));
+			});
+
+			PC->MarkPackageDirty();
+
+			FAssetRegistryModule::AssetCreated(PC);
 		}
-
-		FScopedSlowTask ProgressDialog(PointClouds.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
-		ProgressDialog.MakeDialog();
-		int32 i = 0;
-
-		PC->Merge(PointClouds, [&ProgressDialog, &i, &Names](float Progress) {
-			ProgressDialog.EnterProgressFrame(1.f, FText::FromString(Names[i++]));
-		});
-
-		PC->MarkPackageDirty();
 	}
 }
 

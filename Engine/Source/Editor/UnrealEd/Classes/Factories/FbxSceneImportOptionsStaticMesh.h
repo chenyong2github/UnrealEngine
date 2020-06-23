@@ -60,7 +60,7 @@ class UFbxSceneImportOptionsStaticMesh : public UObject
 	FName StaticMeshLODGroup;
 
 	/** If checked, collision will automatically be generated (ignored if custom collision is imported or used). */
-	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
+	UPROPERTY(EditAnywhere, config, Category = StaticMesh, DisplayName = "Generate Missing Collision")
 	uint32 bAutoGenerateCollision : 1;
 
 	/** Specify how vertex colors should be imported */

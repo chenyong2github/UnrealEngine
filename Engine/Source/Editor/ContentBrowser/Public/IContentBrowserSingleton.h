@@ -8,6 +8,7 @@
 #include "AssetData.h"
 #include "Developer/AssetTools/Public/AssetTypeCategories.h"
 #include "ARFilter.h"
+#include "ContentBrowserItem.h"
 #include "ContentBrowserDelegates.h"
 #include "Developer/CollectionManager/Public/CollectionManagerTypes.h"
 #include "Misc/FilterCollection.h"
@@ -17,7 +18,7 @@
 class FViewport;
 class UFactory;
 
-typedef const FAssetData& FAssetFilterType;
+typedef const FContentBrowserItem& FAssetFilterType;
 typedef TFilterCollection<FAssetFilterType> FAssetFilterCollectionType;
 
 class UFactory;
@@ -40,22 +41,32 @@ namespace EAssetViewType
 /** A selection of items in the Content Browser */
 struct FContentBrowserSelection
 {
+	TArray<FContentBrowserItem> SelectedItems;
+
+	// Legacy data - if set will take precedence over SelectedItems
 	TArray<FAssetData> SelectedAssets;
 	TArray<FString> SelectedFolders;
 
+	bool IsLegacy() const
+	{
+		return SelectedAssets.Num() > 0 || SelectedFolders.Num() > 0;
+	}
+
 	int32 Num() const
 	{
-		return SelectedAssets.Num() + SelectedFolders.Num();
+		return SelectedItems.Num() + SelectedAssets.Num() + SelectedFolders.Num();
 	}
 
 	void Reset()
 	{
+		SelectedItems.Reset();
 		SelectedAssets.Reset();
 		SelectedFolders.Reset();
 	}
 
 	void Empty()
 	{
+		SelectedItems.Reset();
 		SelectedAssets.Empty();
 		SelectedFolders.Empty();
 	}
@@ -546,13 +557,24 @@ public:
 	/** 
 	 * Selects the supplied assets in the primary content browser. 
      *
-	 * @param AssetList                     An array of strings represeting folder asset paths to sync
+	 * @param AssetList                     An array of strings representing folder asset paths to sync
 	 * @param bAllowLockedBrowsers 	        When true, even locked browsers may handle the sync. Only set to true if the sync doesn't seem external to the content browser
 	 * @param bFocusContentBrowser          When true, brings the ContentBrowser into the foreground.
 	 * @param InstanceName					When supplied, will only sync the Content Browser with the matching InstanceName.  bAllowLockedBrowsers is ignored.
 	 * @param bNewSpawnBrowser				When supplied, will spawn a new Content Browser instead of selecting the assets in an existing one.
 	 */ 
 	virtual void SyncBrowserToFolders(const TArray<FString>& FolderList, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) = 0;
+
+	/**
+	 * Selects the supplied items in the primary content browser.
+	 *
+	 * @param ItemsToSync                   An array of items to sync
+	 * @param bAllowLockedBrowsers 	        When true, even locked browsers may handle the sync. Only set to true if the sync doesn't seem external to the content browser
+	 * @param bFocusContentBrowser          When true, brings the ContentBrowser into the foreground.
+	 * @param InstanceName					When supplied, will only sync the Content Browser with the matching InstanceName.  bAllowLockedBrowsers is ignored.
+	 * @param bNewSpawnBrowser				When supplied, will spawn a new Content Browser instead of selecting the assets in an existing one.
+	 */
+	virtual void SyncBrowserToItems(const TArray<FContentBrowserItem>& ItemsToSync, bool bAllowLockedBrowsers = false, bool bFocusContentBrowser = true, const FName& InstanceName = FName(), bool bNewSpawnBrowser = false) = 0;
 
 	/** 
 	 * Selects the supplied assets in the primary content browser. 

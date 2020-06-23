@@ -34,7 +34,7 @@ void UPreviewMesh::CreateInWorld(UWorld* World, const FTransform& WithTransform)
 	FActorSpawnParameters SpawnInfo;
 	TemporaryParentActor = World->SpawnActor<APreviewMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
 
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TemporaryParentActor, "Mesh");
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TemporaryParentActor);
 	TemporaryParentActor->SetRootComponent(DynamicMeshComponent);
 	//DynamicMeshComponent->SetupAttachment(TemporaryParentActor->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
@@ -162,7 +162,7 @@ void UPreviewMesh::SetTangentsMode(EDynamicMeshTangentCalcType TangentsType)
 	DynamicMeshComponent->TangentsType = TangentsType;
 }
 
-FMeshTangentsf* UPreviewMesh::GetTangents() const
+const TMeshTangents<float>* UPreviewMesh::GetTangents() const
 {
 	return DynamicMeshComponent->GetTangents();
 }

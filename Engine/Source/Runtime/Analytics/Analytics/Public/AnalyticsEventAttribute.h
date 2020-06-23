@@ -9,11 +9,28 @@ struct FJsonNull
 {
 };
 
+FORCEINLINE const TCHAR* LexToString(FJsonNull)
+{
+	return TEXT("null");
+}
+
 struct FJsonFragment
 {
 	explicit FJsonFragment(FString&& StringRef) : FragmentString(MoveTemp(StringRef)) {}
 	FString FragmentString;
 };
+
+FORCEINLINE const FString& LexToString(const FJsonFragment& Fragment)
+{
+	return Fragment.FragmentString;
+}
+
+FORCEINLINE FString LexToString(FJsonFragment&& Fragment)
+{
+	return MoveTemp(Fragment.FragmentString);
+}
+
+
 
 /**
  * Struct to hold key/value pairs that will be sent as attributes along with analytics events.
@@ -22,10 +39,14 @@ struct FJsonFragment
  */
 struct FAnalyticsEventAttribute
 {
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetName() instead")
 	const FString AttrName;
 
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead")
 	const FString AttrValueString;
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
 	const double AttrValueNumber;
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead. You cannot recover the original non-string value anymore")
 	const bool AttrValueBool;
 
 	enum class AttrTypeEnum
@@ -36,174 +57,160 @@ struct FAnalyticsEventAttribute
 		Null,
 		JsonFragment
 	};
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetType() instead")
 	const AttrTypeEnum AttrType;
 
+	template <typename ValueType>
+	FAnalyticsEventAttribute(FString InName, ValueType&& InValue);
+
+	const FString& GetName() const;
+	const FString& GetValue() const;
+	bool IsJsonFragment() const;
+
+	/** Allow setting value for any type that supports LexToString */
+	template<typename ValueType>
+	void SetValue(ValueType&& InValue);
+
 	/** Default ctor since we declare a custom ctor. */
-	FAnalyticsEventAttribute()
-		: AttrName()
-		, AttrValueString()
-		, AttrValueNumber(0)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::String)
-	{}
+	FAnalyticsEventAttribute();
+	~FAnalyticsEventAttribute();
 
 	/** Reinstate the default copy ctor because that one still works fine. */
-	FAnalyticsEventAttribute(const FAnalyticsEventAttribute& RHS) = default;
+	FAnalyticsEventAttribute(const FAnalyticsEventAttribute& RHS);
 
 	/** Hack to allow copy ctor using an rvalue-ref. This class only "sort of" acts like an immutable class because the const members prevents assignment, which was not intended when this code was changed. */
-	FAnalyticsEventAttribute(FAnalyticsEventAttribute&& RHS)
-		: AttrName(MoveTemp(const_cast<FString&>(RHS.AttrName)))
-		, AttrValueString(MoveTemp(const_cast<FString&>(RHS.AttrValueString)))
-		// no need to use MoveTemp on intrinsic types.
-		, AttrValueNumber(RHS.AttrValueNumber)
-		, AttrValueBool(RHS.AttrValueBool)
-		, AttrType(RHS.AttrType)
-	{
-	}
+	FAnalyticsEventAttribute(FAnalyticsEventAttribute&& RHS);
 
 	/** Hack to allow assignment. This class only "sort of" acts like an immutable class because the const members prevents assignment, which was not intended when this code was changed. */
-	FAnalyticsEventAttribute& operator=(const FAnalyticsEventAttribute& RHS)
-	{
-		if (&RHS == this)
-		{
-			return *this;
-		}
-
-		const_cast<FString&>(AttrName) = RHS.AttrName;
-		const_cast<FString&>(AttrValueString) = RHS.AttrValueString;
-		const_cast<double&>(AttrValueNumber) = RHS.AttrValueNumber;
-		const_cast<bool&>(AttrValueBool) = RHS.AttrValueBool;
-		const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
-		return *this;
-	}
+	FAnalyticsEventAttribute& operator=(const FAnalyticsEventAttribute& RHS);
 
 	/** Hack to allow assignment. This class only "sort of" acts like an immutable class because the const members prevents assignment, which was not intended when this code was changed. */
-	FAnalyticsEventAttribute& operator=(FAnalyticsEventAttribute&& RHS)
-	{
-		if (&RHS == this)
-		{
-			return *this;
-		}
-
-		const_cast<FString&>(AttrName) = MoveTemp(const_cast<FString&>(RHS.AttrName));
-		const_cast<FString&>(AttrValueString) = MoveTemp(const_cast<FString&>(RHS.AttrValueString));
-		// no need to use MoveTemp on intrinsic types.
-		const_cast<double&>(AttrValueNumber) = RHS.AttrValueNumber;
-		const_cast<bool&>(AttrValueBool) = RHS.AttrValueBool;
-		const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
-		return *this;
-	}
+	FAnalyticsEventAttribute& operator=(FAnalyticsEventAttribute&& RHS);
 
 	/** If you need the old AttrValue behavior (i.e. stringify everything), call this function instead. */
-	FString ToString() const
-	{
-		switch (AttrType)
-		{
-		case AttrTypeEnum::String:
-		case AttrTypeEnum::JsonFragment:
-			return AttrValueString;
-		case AttrTypeEnum::Number:
-			// From CL #3669417 : Integer numbers are formatted as "1" and not "1.00"
-			if (AttrValueNumber - FMath::FloorToDouble(AttrValueNumber) == 0.0)
-				return LexToSanitizedString((int64)AttrValueNumber);
-			return LexToSanitizedString(AttrValueNumber);
-		case AttrTypeEnum::Boolean:
-			return LexToString(AttrValueBool);
-		case AttrTypeEnum::Null:
-			return TEXT("null");
-		default:
-			ensure(false);
-			return FString();
-		}
-	}
+	UE_DEPRECATED(4.25, "This property has been deprecated, use GetValue() instead")
+	FString ToString() const;
 
-public: // null
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, FJsonNull)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(0)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::Null)
-	{
-	}
+	/** Legacy support for old RecordEventJson API. Don't call this directly. */
+	UE_DEPRECATED(4.25, "This property is used to support the deprecated APIs, construct Json values using FJsonFragment instead")
+	void SwitchToJsonFragment();
 
-public: // numeric types
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, double InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(InValue)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::Number)
+private:
+	FString& CheckName(FString& InName)
 	{
+		// These are reserved names in our environment. Enforce things don't use it.
+		check(InName != TEXT("") && InName != TEXT("EventName") && InName != TEXT("DateOffset"));
+		return InName;
 	}
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, float InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(InValue)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::Number)
-	{
-	}
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, int32 InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(InValue)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::Number)
-	{
-	}
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, uint32 InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(InValue)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::Number)
-	{
-	}
-
-public: // boolean
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, bool InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString()
-		, AttrValueNumber(0)
-		, AttrValueBool(InValue)
-		, AttrType(AttrTypeEnum::Boolean)
-	{
-	}
-
-public: // json fragment
-	template <typename NameType>
-	FAnalyticsEventAttribute(NameType&& InName, FJsonFragment&& Fragment)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString(MoveTemp(Fragment.FragmentString))
-		, AttrValueNumber(0)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::JsonFragment)
-	{
-	}
-
-public: // string (catch-all)
-	/**
-	 * Helper constructor to make an attribute from a name/value pair by forwarding through LexToString and AnalyticsConversionToString.
-	 * 
-	 * @param InName Name of the attribute. Will be converted to a string via forwarding to LexToString
-	 * @param InValue Value of the attribute. Will be converted to a string via forwarding to AnalyticsConversionToString (same as Lex but with basic support for arrays and maps)
-	 */
-	template <typename NameType, typename ValueType>
-	FAnalyticsEventAttribute(NameType&& InName, ValueType&& InValue)
-		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString(AnalyticsConversionToString(Forward<ValueType>(InValue)))
-		, AttrValueNumber(0)
-		, AttrValueBool(false)
-		, AttrType(AttrTypeEnum::String)
-	{}
 };
+
+
+// The implementation of this class references deprecated members. Don't fire warnings for these.
+// For this reason we actually implement the entire class out-of-line, but still in the header files, so we can wrap
+// all the implementations in DISABLE macro easily.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+inline FAnalyticsEventAttribute::FAnalyticsEventAttribute() 
+: AttrName()
+, AttrValueString()
+, AttrValueNumber(0)
+, AttrValueBool(false)
+, AttrType(AttrTypeEnum::String)
+{
+
+}
+
+inline FAnalyticsEventAttribute::~FAnalyticsEventAttribute() = default;
+
+inline FAnalyticsEventAttribute::FAnalyticsEventAttribute(const FAnalyticsEventAttribute& RHS) = default;
+
+inline FAnalyticsEventAttribute::FAnalyticsEventAttribute(FAnalyticsEventAttribute&& RHS) : AttrName(MoveTemp(const_cast<FString&>(RHS.AttrName)))
+, AttrValueString(MoveTemp(const_cast<FString&>(RHS.AttrValueString)))
+// no need to use MoveTemp on intrinsic types.
+, AttrValueNumber(RHS.AttrValueNumber)
+, AttrValueBool(RHS.AttrValueBool)
+, AttrType(RHS.AttrType)
+{
+
+}
+
+template <typename ValueType>
+inline FAnalyticsEventAttribute::FAnalyticsEventAttribute(FString InName, ValueType&& InValue)
+: AttrName(MoveTemp(CheckName(InName)))
+, AttrValueString(AnalyticsConversionToString(Forward<ValueType>(InValue)))
+, AttrValueNumber(0)
+, AttrValueBool(false)
+, AttrType(TIsArithmetic<typename TDecay<ValueType>::Type>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String)
+{
+
+}
+
+
+inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator=(const FAnalyticsEventAttribute& RHS)
+{
+	if (&RHS == this)
+	{
+		return *this;
+	}
+
+	const_cast<FString&>(AttrName) = RHS.AttrName;
+	const_cast<FString&>(AttrValueString) = RHS.AttrValueString;
+	const_cast<double&>(AttrValueNumber) = RHS.AttrValueNumber;
+	const_cast<bool&>(AttrValueBool) = RHS.AttrValueBool;
+	const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
+	return *this;
+}
+
+inline FAnalyticsEventAttribute& FAnalyticsEventAttribute::operator=(FAnalyticsEventAttribute&& RHS)
+{
+	if (&RHS == this)
+	{
+		return *this;
+	}
+
+	const_cast<FString&>(AttrName) = MoveTemp(const_cast<FString&>(RHS.AttrName));
+	const_cast<FString&>(AttrValueString) = MoveTemp(const_cast<FString&>(RHS.AttrValueString));
+	// no need to use MoveTemp on intrinsic types.
+	const_cast<double&>(AttrValueNumber) = RHS.AttrValueNumber;
+	const_cast<bool&>(AttrValueBool) = RHS.AttrValueBool;
+	const_cast<AttrTypeEnum&>(AttrType) = RHS.AttrType;
+	return *this;
+}
+
+inline FString FAnalyticsEventAttribute::ToString() const
+{
+	return GetValue();
+}
+
+inline const FString& FAnalyticsEventAttribute::GetName() const
+{
+	return AttrName;
+}
+
+inline const FString& FAnalyticsEventAttribute::GetValue() const
+{
+	return AttrValueString;
+}
+
+inline bool FAnalyticsEventAttribute::IsJsonFragment() const
+{
+	return AttrType == AttrTypeEnum::JsonFragment;
+}
+
+template<typename ValueType>
+inline void FAnalyticsEventAttribute::SetValue(ValueType&& InValue)
+{
+	const_cast<FString&>(AttrValueString) = AnalyticsConversionToString(Forward<ValueType>(InValue));
+	const_cast<AttrTypeEnum&>(AttrType) = TIsArithmetic<typename TDecay<ValueType>::Type>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonNull>::Value || TIsSame<typename TDecay<ValueType>::Type, FJsonFragment>::Value ? AttrTypeEnum::JsonFragment : AttrTypeEnum::String;
+}
+
+inline void FAnalyticsEventAttribute::SwitchToJsonFragment()
+{
+	const_cast<AttrTypeEnum&>(AttrType) = AttrTypeEnum::JsonFragment;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 /** Helper functions for MakeAnalyticsEventAttributeArray. */
 namespace ImplMakeAnalyticsEventAttributeArray

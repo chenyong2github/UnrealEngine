@@ -37,12 +37,7 @@ bool UDataSourceFilterSet::DoesActorPassFilter_Internal(const AActor* InActor) c
 		if (Filter->IsEnabled())
 		{
 			const bool bResult = Filter->DoesActorPassFilter(InActor);
-
-			if (!bResult)
-			{
-				FFilterLedger::Get().RejectedFilters.Add(Filter);
-			}
-
+			
 			// OR, at least one filter has to be passed 
 			if (Mode == EFilterSetMode::OR)
 			{
@@ -89,7 +84,17 @@ void UDataSourceFilterSet::GetDisplayText_Internal(FText& OutDisplayText) const
 		PerFilterTextStrings.Add(FilterText.ToString());
 	}
 
-	const FString Delimiter = [this]()
+	const FString Prefix = [this]()
+	{
+		if (Mode == EFilterSetMode::NOT)
+		{
+			return TEXT("!");
+		}
+			
+		return TEXT("");
+	}();
+
+	const FString PostFix = [this]()
 	{
 		if (Mode == EFilterSetMode::OR)
 		{
@@ -101,7 +106,7 @@ void UDataSourceFilterSet::GetDisplayText_Internal(FText& OutDisplayText) const
 		}
 		else if (Mode == EFilterSetMode::NOT)
 		{
-			return TEXT(" !");
+			return TEXT(" || ");
 		}
 
 		return TEXT(" ");
@@ -110,11 +115,12 @@ void UDataSourceFilterSet::GetDisplayText_Internal(FText& OutDisplayText) const
 	FString ComposedString = TEXT("(");
 	for (const FString& FilterString : PerFilterTextStrings)
 	{
+		ComposedString += Prefix;
 		ComposedString += FilterString;
-		ComposedString += Delimiter;
+		ComposedString += PostFix;
 	}
 
-	ComposedString.RemoveFromEnd(Delimiter);
+	ComposedString.RemoveFromEnd(PostFix);
 	ComposedString += TEXT(")");
 
 	OutDisplayText = FText::FromString(ComposedString);

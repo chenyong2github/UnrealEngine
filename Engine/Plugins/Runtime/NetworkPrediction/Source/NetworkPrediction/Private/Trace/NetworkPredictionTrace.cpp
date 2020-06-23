@@ -13,7 +13,7 @@
 #include "UObject/CoreNet.h"
 #include "Engine/PackageMapClient.h"
 #include "Logging/LogMacros.h"
-//#include "Trace/Trace.inl" this will need to be included after next copy up from Dev-Core
+#include "Trace/Trace.inl"
 
 UE_TRACE_CHANNEL_DEFINE(NetworkPredictionChannel)
 
@@ -405,7 +405,7 @@ void FNetworkPredictionTrace::TraceOOBStrInternal(int32 SimulationId, ETraceUser
 	; \
 \
 	SerializeFunc; \
-	FMemory::SystemFree(AllocatedBuffer);
+	/*FMemory::SystemFree(AllocatedBuffer);*/
 
 
 void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
@@ -417,10 +417,12 @@ void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
 		check(Result >= 0 );
 		const uint16 AttachmentSize = (Result+1) * sizeof(TCHAR);
 
-		UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
-			<< SystemFault.SimulationId(SimulationId)
-			<< SystemFault.Attachment(Buffer, AttachmentSize);
-
 		UE_LOG(LogNetworkSim, Warning, TEXT("SystemFault: %s"), Buffer);
 	);
+
+	UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
+		<< SystemFault.SimulationId(SimulationId)
+		<< SystemFault.Attachment(Buffer, AttachmentSize);
+
+	FMemory::SystemFree(AllocatedBuffer);
 }

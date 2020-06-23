@@ -118,7 +118,6 @@ public:
 	static FORCEINLINE bool SupportsVertexArrayObjects()				{ return false; }
 	static FORCEINLINE bool SupportsDrawIndexOffset()					{ return true; }
 	static FORCEINLINE bool SupportsResourceView()						{ return true; }
-	static FORCEINLINE bool SupportsCopyBuffer()						{ return true; }
 	static FORCEINLINE bool SupportsDiscardFrameBuffer()				{ return false; }
 	static FORCEINLINE bool SupportsIndexedExtensions()					{ return true; }
 	static FORCEINLINE bool SupportsVertexHalfFloat()					{ return true; }

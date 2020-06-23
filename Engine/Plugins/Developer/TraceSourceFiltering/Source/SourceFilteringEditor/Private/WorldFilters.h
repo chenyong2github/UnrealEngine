@@ -17,7 +17,7 @@ public:
 	/** Begin IWorldTraceFilter Overrides */
 	virtual FText GetDisplayText() override;
 	virtual FText GetToolTipText() override;
-	virtual void PopulateMenuBuilder(FMenuBuilder& InBuilder) override;
+	virtual TSharedRef<SWidget> GenerateWidget() override;
 	/** End IWorldTraceFilter Overrides */
 protected:	
 	/** Load / save any settings to config that should be persistent between editor sessions */
@@ -41,7 +41,7 @@ public:
 	/** Begin IWorldTraceFilter Overrides */
 	virtual FText GetDisplayText() override;
 	virtual FText GetToolTipText() override;
-	virtual void PopulateMenuBuilder(FMenuBuilder& InBuilder) override;
+	virtual TSharedRef<SWidget> GenerateWidget() override;
 	/** End IWorldTraceFilter Overrides */
 protected:
 	/** Load / save any settings to config that should be persistent between editor sessions */

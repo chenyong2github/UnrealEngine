@@ -31,7 +31,20 @@ void UNiagaraNodeWithDynamicPins::PinConnectionListChanged(UEdGraphPin* Pin)
 	{
 		FNiagaraTypeDefinition LinkedPinType = Schema->PinToTypeDefinition(Pin->LinkedTo[0]);
 		Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
-		Pin->PinName = Pin->LinkedTo[0]->GetFName();
+
+		FName NewPinName;
+		FNiagaraParameterHandle LinkedPinHandle(Pin->LinkedTo[0]->PinName);
+		FNiagaraNamespaceMetadata LinkedPinNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(LinkedPinHandle.GetHandleParts());
+		if (LinkedPinNamespaceMetadata.IsValid())
+		{
+			// If the linked pin had valid namespace metadata then it's a parameter pin and we only want the name portion of the parameter.
+			NewPinName = LinkedPinHandle.GetHandleParts().Last();
+		}
+		else 
+		{
+			NewPinName = Pin->LinkedTo[0]->PinName;
+		}
+		Pin->PinName = NewPinName;
 
 		CreateAddPin(Pin->Direction);
 		OnNewTypedPinAdded(Pin);
@@ -56,7 +69,9 @@ UEdGraphPin* GetAddPin(TArray<UEdGraphPin*> Pins, EEdGraphPinDirection Direction
 
 bool UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)
 {
-	return  InType != FNiagaraTypeDefinition::GetGenericNumericDef() && InType.GetScriptStruct() != nullptr;
+	return InType.GetScriptStruct() != nullptr
+		&& InType != FNiagaraTypeDefinition::GetGenericNumericDef()
+		&& !InType.IsInternalType();
 }
 
 UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type)

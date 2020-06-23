@@ -356,32 +356,17 @@ bool USoundSubmixGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin
 		USoundSubmixBase* SubmixA = CastChecked<USoundSubmixGraphNode>(PinA->GetOwningNode())->SoundSubmix;
 		USoundSubmixBase* SubmixB = CastChecked<USoundSubmixGraphNode>(PinB->GetOwningNode())->SoundSubmix;
 
-		bool bReopenEditors = false;
-
 		USoundSubmixWithParentBase* SubmixWithParentA = Cast<USoundSubmixWithParentBase>(SubmixA);
 		USoundSubmixWithParentBase* SubmixWithParentB = Cast<USoundSubmixWithParentBase>(SubmixA);
 
 		// If re-basing root, re-open editor.  This will force the root to be the primary edited node
 		if (Graph->GetRootSoundSubmix() == SubmixA && SubmixWithParentA && SubmixWithParentA->ParentSubmix != nullptr)
 		{
-			bReopenEditors = true;
+			Graph->SetRootSoundSubmix(SubmixWithParentA->ParentSubmix);
 		}
 		else if (Graph->GetRootSoundSubmix() == SubmixB && SubmixWithParentB && SubmixWithParentB->ParentSubmix != nullptr)
 		{
-			bReopenEditors = true;
-		}
-
-		if (bReopenEditors)
-		{
-			check(GEditor);
-			UAssetEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-			TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(SubmixA);
-			for (IAssetEditorInstance* Editor : SubmixEditors)
-			{
-				Editor->CloseWindow();
-			}
-
-			EditorSubsystem->OpenEditorForAsset(SubmixA);
+			Graph->SetRootSoundSubmix(SubmixWithParentB->ParentSubmix);
 		}
 	}
 

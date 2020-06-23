@@ -52,7 +52,7 @@ FRigVMCompileSettings::FRigVMCompileSettings()
 	, SurpressErrors(false)
 	, EnablePinWatches(true)
 	, SplitLiteralsFromWorkMemory(true)
-	, ConsolidateWorkRegisters(true)
+	, ConsolidateWorkRegisters(false)
 	, ASTSettings(FRigVMParserASTSettings::Optimized())
 {
 }

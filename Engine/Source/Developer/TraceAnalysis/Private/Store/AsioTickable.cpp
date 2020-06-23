@@ -59,11 +59,11 @@ bool FAsioTickable::StopTick()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAsioTickable::TickOnce(uint32 InMillisecondRate)
+bool FAsioTickable::TickOnce(uint32 InMillisecondRate)
 {
 	if (MillisecondRate)
 	{
-		return;
+		return false;
 	}
 
 	MillisecondRate = InMillisecondRate;
@@ -71,7 +71,10 @@ void FAsioTickable::TickOnce(uint32 InMillisecondRate)
 	{
 		AsyncTick();
 		MillisecondRate = 0;
+		return true;
 	}
+
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -6,8 +6,6 @@ public class AudioModulationEditor : ModuleRules
 {
 	public AudioModulationEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		OptimizeCode = CodeOptimization.Never;
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

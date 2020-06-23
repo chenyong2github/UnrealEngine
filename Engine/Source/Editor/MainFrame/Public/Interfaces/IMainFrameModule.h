@@ -73,6 +73,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
+	UE_DEPRECATED(4.26, "MakeMainTabMenu has been deprecated.  Use MakeMainMenu instead")
 	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext ) const = 0;
 
 	/**
@@ -142,7 +143,7 @@ public:
 	 */
 	virtual FString GetLoadedLevelName() const = 0;
 
-	virtual const TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) = 0;
+	virtual TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) = 0;
 
 	/**
 	 * Gets the MRU/Favorites list

@@ -97,6 +97,7 @@ bool FSkeletalMeshCurvesTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeries
 						bFoundEvents = true;
 					}
 				});
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -134,6 +135,7 @@ void FSkeletalMeshCurvesTrack::UpdateSeries(FGameplayGraphSeries& InSeries, cons
 						LastFrameWithCurve = FrameCounter;
 					}
 				});
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -200,6 +202,7 @@ void FSkeletalMeshCurvesTrack::FindSkeletalMeshPoseMessage(const FTimingEventSea
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -233,6 +236,7 @@ void FSkeletalMeshCurvesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, 
 						Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(CurveName), InCurve.Value));
 					});
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}

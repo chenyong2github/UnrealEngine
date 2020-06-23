@@ -98,6 +98,7 @@ FORCEINLINE void operator&=(EMoveComponentFlags& Dest,EMoveComponentFlags Arg)		
 FORCEINLINE void operator|=(EMoveComponentFlags& Dest,EMoveComponentFlags Arg)					{ Dest = EMoveComponentFlags(Dest | Arg); }
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPhysicsVolumeChanged, USceneComponent, PhysicsVolumeChangedDelegate, class APhysicsVolume*, NewVolume);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FIsRootComponentChanged, USceneComponent, IsRootComponentChanged, USceneComponent*, UpdatedComponent, bool, bIsRootComponent);
 DECLARE_EVENT_ThreeParams(USceneComponent, FTransformUpdated, USceneComponent* /*UpdatedComponent*/, EUpdateTransformFlags /*UpdateTransformFlags*/, ETeleportType /*Teleport*/);
 
 /**
@@ -1202,6 +1203,14 @@ public:
 
 	/** Get the extent used when placing this component in the editor, used for 'pulling back' hit. */
 	virtual FBoxSphereBounds GetPlacementExtent() const;
+
+	/** Delegate invoked when this scene component becomes the actor's root component or when it no longer is. */
+	FIsRootComponentChanged IsRootComponentChanged;
+
+private:
+	friend class AActor;
+
+	void NotifyIsRootComponentChanged(bool bIsRootComponent) { IsRootComponentChanged.Broadcast(this, bIsRootComponent); }
 
 protected:
 	/**

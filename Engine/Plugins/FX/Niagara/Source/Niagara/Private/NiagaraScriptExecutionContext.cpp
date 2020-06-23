@@ -269,6 +269,8 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, const FScriptE
 			NumInstances
 #if STATS
 			, Script->GetStatScopeIDs()
+#elif ENABLE_STATNAMEDEVENTS
+			, Script->GetStatNamedEvents()
 #endif
 		);
 	}
@@ -344,6 +346,10 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 		for (auto& Pair : InSystemInstance->DataInterfaceInstanceDataOffsets)
 		{
 			UNiagaraDataInterface* Interface = Pair.Key.Get();
+			if (Interface == nullptr)
+			{
+				continue;
+			}
 
 			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
 			int32 Offset = Pair.Value;
@@ -414,15 +420,35 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
-	for (int32 EmitterIdx : InSystemInstance->GetEmitterExecutionOrder())
-	{
-		FNiagaraEmitterInstance* Emitter = &InSystemInstance->GetEmitters()[EmitterIdx].Get();
 
-		if (Emitter && Emitter->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext() != nullptr && !Emitter->IsComplete())
+	const TConstArrayView<int32> EmitterExecutionOrder = InSystemInstance->GetEmitterExecutionOrder();
+	for (const int32& EmitterIdx : EmitterExecutionOrder)
+	{
+		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
-			check(Emitter->HasTicked() == true);
-			
-			FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+			if (EmitterInstance->IsComplete() )
+			{
+				continue;
+			}
+
+			const UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
+			FNiagaraComputeExecutionContext* GPUContext = EmitterInstance->GetGPUContext();
+
+			check(Emitter);
+
+			if (!Emitter || !GPUContext || Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim)
+			{
+				continue;
+			}
+
+			// Handle edge case where an emitter was set to inactive on the first frame by scalability
+			// In which case it will never have ticked so we should not execute a GPU tick for this until it becomes active
+			// See FNiagaraSystemInstance::Tick_Concurrent for details
+			if (EmitterInstance->HasTicked() == false)
+			{
+				ensure((EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Inactive) || (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::InactiveClear));
+				continue;
+			}
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;
@@ -449,16 +475,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
 
-			UNiagaraEmitter* EmitterRaw = Emitter->GetCachedEmitter();
-			if (EmitterRaw)
-			{
-				InstanceData->bUsesSimStages = EmitterRaw->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
-				InstanceData->bUsesOldShaderStages = EmitterRaw->bDeprecatedShaderStagesEnabled;
-			}
-			else
-			{
-				InstanceData->bUsesSimStages = false;
-			}
+			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
+			InstanceData->bUsesOldShaderStages = Emitter->bDeprecatedShaderStagesEnabled;
 
 			if (InstanceData->bUsesSimStages || InstanceData->bUsesOldShaderStages)
 			{
@@ -546,8 +564,9 @@ const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Ty
 		}
 		case UBT_External:
 		{
+			// External is special and interpolated parameters are already included inside of the combined parameter store
 			check(Instance);
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout.ConstantBufferSize);
+			return Instance->ExternalParamData;
 		}
 	}
 
@@ -560,10 +579,9 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
-
 {
+	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
@@ -580,6 +598,8 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 #endif
 
 	SetDataToRender(nullptr);
+
+	ExternalCBufferLayout = nullptr;
 }
 
 void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)

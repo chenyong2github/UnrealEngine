@@ -15,7 +15,7 @@ const TArray<FText>& FAssetTypeActions_SoundModulatorLFO::GetSubMenus() const
 {
 	static const TArray<FText> SubMenus
 	{
-		FText(LOCTEXT("AssetSoundMixSubMenu", "Mix"))
+		LOCTEXT("AssetSoundModulationSubMenu", "Modulation")
 	};
 
 	return SubMenus;

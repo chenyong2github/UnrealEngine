@@ -3,55 +3,54 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SWrapBox;
-class SDMXInputInfoChannelValue;
-class SDMXInputInfoSelecter;
-
-/** DMX Input inspector widget */
+/** DMX Container for Universe and Channel Monitor widget */
 class SDMXInputInfo
 	: public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXInputInfo)
 	{}
-	SLATE_ARGUMENT(TWeakPtr<SDMXInputInfoSelecter>, InfoSelecter)
+	SLATE_ARGUMENT(TWeakPtr<class SDMXInputInfoSelecter>, InfoSelecter)
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	//~ Begin SWidget interface
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	//~End of SWidget interface
+	/** Switch to  Channel monitor mode */
+	void ChangeToLookForAddresses();
 
-	const TArray<uint8>& GetChannelsValues() const { return ChannelsValues; }
-
-	void ResetUISequanceID() { UISequenceID = 0; }
+	/** Switch to Universe Monitor mode*/
+	void ChangeToLookForUniverses();
 	
+	/** Clear universe values store by UI */
+	void ClearUniverses();
+
+	/** Clear channel values stored by UI */
+	void ClearChannelsView();
+
+	/** Propgates changes to universe value for Channel monitor*/
+	void UniverseSelectionChanged();
+
+	const TSharedPtr<class SDMXInputInfoChannelsView>& GetChannelsView() const
+	{
+		return ChannelsView;
+	}
+
+	const TSharedPtr<class SDMXInputInfoUniverseMonitor>& GetUniversesView() const
+	{
+		return UniversesView;
+	}
+
 protected:
-	/** Container widget for all the channels' values */
-	TSharedPtr<SWrapBox> ChannelValuesBox;
+	TWeakPtr<class SDMXInputInfoSelecter> WeakInfoSelecter;
+	
+	TSharedPtr<class SDMXInputInfoChannelsView> ChannelsView;
 
-	/** Channels' values for testing purpose */
-	TArray<uint8> ChannelsValues;
+	TSharedPtr<class SDMXInputInfoUniverseMonitor> UniversesView;
 
-	TArray<TSharedPtr<SDMXInputInfoChannelValue>> ChannelValueWidgets;
+};
 
-	TWeakPtr<SDMXInputInfoSelecter> WeakInfoSelecter;
-
-protected:
-	/** Spawns the channel value widgets */
-	void CreateChannelValueWidgets();
-
-	/** channel values */
-	void UpdateChannelsValues();
-
-	void UpdateChannelWidgetsValues(const TArray<uint8>& NewValues);
-
-private:
-	/** ID of the sequence on input info widget */
-	uint32 UISequenceID;
-}; 

@@ -31,9 +31,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> FunctionMap, EDMXSendResult& OutResult);
 
-	/**  Send DMX using channel and value raw values. */
+	/**  Send DMX using channel and value raw values.
+	* NOTE: Universe Index cannot be lower than 0.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> ChannelValuesMap, EDMXSendResult& OutResult);
+	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> AddressValueMap, EDMXSendResult& OutResult);
 
 	/**  Return reference to array of Fixture Patch objects of a given type. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))

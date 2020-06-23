@@ -857,6 +857,9 @@ private:
 	/** Set if sinks are to be flushed at the request of the player. **/
 	TAtomic<bool>	bIsSinkFlushPending;
 
+	/** Latch for error state of the most recently used player to be queried after it may have been closed. **/
+	bool bDidRecentPlayerHaveError;
+
 	/** Mediamodule we are working in */
 	IMediaModule* MediaModule;
 };

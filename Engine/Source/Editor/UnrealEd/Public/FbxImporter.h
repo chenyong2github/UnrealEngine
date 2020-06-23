@@ -98,6 +98,7 @@ class FSkelMeshOptionalImportData;
 class ASkeletalMeshActor;
 class UInterpTrackMoveAxis;
 struct FbxSceneInfo;
+struct FExistingStaticMeshData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFbx, Log, All);
 
@@ -121,6 +122,7 @@ struct FBXImportOptions
 {
 	// General options
 	bool bCanShowDialog;
+	bool bIsImportCancelable;
 	bool bImportScene;
 	bool bImportAsSkeletalGeometry;
 	bool bImportAsSkeletalSkinning;
@@ -729,7 +731,7 @@ public:
 	 *
 	 * @returns UObject*	the UStaticMesh object.
 	 */
-	UNREALED_API UStaticMesh* ImportStaticMesh(UObject* InParent, FbxNode* Node, const FName& Name, EObjectFlags Flags, UFbxStaticMeshImportData* ImportData, UStaticMesh* InStaticMesh = NULL, int LODIndex = 0, void *ExistMeshDataPtr = nullptr);
+	UNREALED_API UStaticMesh* ImportStaticMesh(UObject* InParent, FbxNode* Node, const FName& Name, EObjectFlags Flags, UFbxStaticMeshImportData* ImportData, UStaticMesh* InStaticMesh = NULL, int LODIndex = 0, const FExistingStaticMeshData* ExistMeshDataPtr = nullptr);
 
 	/**
 	* Creates a static mesh from all the meshes in FBX scene with the given name and flags.
@@ -744,7 +746,7 @@ public:
 	*
 	* @returns UObject*	the UStaticMesh object.
 	*/
-	UNREALED_API UStaticMesh* ImportStaticMeshAsSingle(UObject* InParent, TArray<FbxNode*>& MeshNodeArray, const FName InName, EObjectFlags Flags, UFbxStaticMeshImportData* TemplateImportData, UStaticMesh* InStaticMesh, int LODIndex = 0, void *ExistMeshDataPtr = nullptr);
+	UNREALED_API UStaticMesh* ImportStaticMeshAsSingle(UObject* InParent, TArray<FbxNode*>& MeshNodeArray, const FName InName, EObjectFlags Flags, UFbxStaticMeshImportData* TemplateImportData, UStaticMesh* InStaticMesh, int LODIndex = 0, const FExistingStaticMeshData* ExistMeshDataPtr = nullptr);
 
 	/**
 	* Finish the import of the staticmesh after all LOD have been process (cannot be call before all LOD are imported). There is two main operation done by this function
@@ -823,7 +825,6 @@ public:
 			, Flags(RF_NoFlags)
 			, TemplateImportData(nullptr)
 			, LodIndex(0)
-			, bCancelOperation(nullptr)
 			, FbxShapeArray(nullptr)
 			, OutData(nullptr)
 			, bCreateRenderData(true)
@@ -838,7 +839,6 @@ public:
 		EObjectFlags Flags;
 		UFbxSkeletalMeshImportData* TemplateImportData;
 		int32 LodIndex;
-		bool* bCancelOperation;
 		TArray<FbxShape*> *FbxShapeArray;
 		FSkeletalMeshImportData* OutData;
 		bool bCreateRenderData;
@@ -1093,6 +1093,10 @@ public:
 	 */
 	void MergeAllLayerAnimation(FbxAnimStack* AnimStack, int32 ResampleRate);
 
+	/**
+	 * Get the UObjects that have been created so far during the import process.
+	 */
+	const TArray<TWeakObjectPtr<UObject>>& GetCreatedObjects() const { return CreatedObjects; }
 private:
 
 	/**
@@ -1292,6 +1296,8 @@ protected:
 	 */
 	FbxMap<FbxString, TSharedPtr< FbxArray<FbxNode* > > > CollisionModels;
 	 
+	TArray<TWeakObjectPtr<UObject>> CreatedObjects;
+
 	FFbxImporter();
 
 
@@ -1428,14 +1434,16 @@ protected:
 	/**
 	 * Import bones from skeletons that NodeArray bind to.
 	 *
-	 * @param NodeArray Fbx Nodes to import, they are bound to the same skeleton system
-	 * @param ImportData object to store skeletal mesh data
-	 * @param OutSortedLinks return all skeletons sorted by depth traversal
+	 * @param NodeArray							Fbx Nodes to import, they are bound to the same skeleton system
+	 * @param ImportData						object to store skeletal mesh data
+	 * @param OutSortedLinks					return all skeletons (bone nodes) sorted by depth traversal
 	 * @param bOutDiffPose
 	 * @param bDisableMissingBindPoseWarning
-	 * @param bUseTime0AsRefPose	in/out - Use Time 0 as Ref Pose 
+	 * @param bUseTime0AsRefPose				in/out - Use Time 0 as Ref Pose
+	 * @param SkeletalMeshNode					A pointer to the skeletal mesh node used when we need to calculate the relative transform during scene import
+	 * @param bIsReimport						Are we reimporting
 	 */
-	bool ImportBone(TArray<FbxNode*>& NodeArray, FSkeletalMeshImportData &ImportData, UFbxSkeletalMeshImportData* TemplateData, TArray<FbxNode*> &OutSortedLinks, bool& bOutDiffPose, bool bDisableMissingBindPoseWarning, bool & bUseTime0AsRefPose, FbxNode *SkeletalMeshNode, bool bIsReimport);
+	bool ImportBones(TArray<FbxNode*>& NodeArray, FSkeletalMeshImportData &ImportData, UFbxSkeletalMeshImportData* TemplateData, TArray<FbxNode*> &OutSortedLinks, bool& bOutDiffPose, bool bDisableMissingBindPoseWarning, bool & bUseTime0AsRefPose, FbxNode *SkeletalMeshNode, bool bIsReimport);
 	
 	/**
 	 * Skins the control points of the given mesh or shape using either the default pose for skinning or the first frame of the
@@ -1750,8 +1758,14 @@ public:
 
 	float GetOriginalFbxFramerate() { return OriginalFbxFramerate; }
 
+	/**
+	 * Returns true if the last import operation was canceled.
+	 */
+	bool GetImportOperationCancelled() const { return bImportOperationCanceled; }
+
 private:
 	friend class FFbxLoggerSetter;
+	friend struct FFbxScopedOperation;
 
 	// logger set/clear function
 	class FFbxLogger * Logger;
@@ -1764,6 +1778,16 @@ private:
 	TArray<FString> MeshNamesCache;
 
 	float OriginalFbxFramerate;
+
+	/** 
+	 * Holds if the current import operation was canceled or not.
+	 */
+	bool bImportOperationCanceled = false;
+
+	/**
+	 * Internal counter used to group import operation together when canceling (ie: Import Skeletal Mesh can trigger Import of Morph Targets.)
+	 */
+	int32 ImportOperationStack = 0;
 
 private:
 
@@ -1827,6 +1851,16 @@ public:
 			Importer->ClearLogger();
 		}
 	}
+};
+
+struct FFbxScopedOperation
+{
+public:
+	FFbxScopedOperation(FFbxImporter* FbxImporter);
+	~FFbxScopedOperation();
+
+private:
+	FFbxImporter* Importer;
 };
 
 } // namespace UnFbx

@@ -1008,6 +1008,12 @@ FSlateColor SWidget::GetForegroundColor() const
 	return NoColor;
 }
 
+FSlateColor SWidget::GetDisabledForegroundColor() const
+{
+	// By default just return the same as the non-disabled foreground color
+	return GetForegroundColor();
+}
+
 const FGeometry& SWidget::GetCachedGeometry() const
 {
 	return GetTickSpaceGeometry();
@@ -1479,7 +1485,7 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 
 TSharedRef<FActiveTimerHandle> SWidget::RegisterActiveTimer(float TickPeriod, FWidgetActiveTimerDelegate TickFunction)
 {
-	TSharedRef<FActiveTimerHandle> ActiveTimerHandle = MakeShareable(new FActiveTimerHandle(TickPeriod, TickFunction, FSlateApplicationBase::Get().GetCurrentTime() + TickPeriod));
+	TSharedRef<FActiveTimerHandle> ActiveTimerHandle = MakeShared<FActiveTimerHandle>(TickPeriod, TickFunction, FSlateApplicationBase::Get().GetCurrentTime() + TickPeriod);
 	FSlateApplicationBase::Get().RegisterActiveTimer(ActiveTimerHandle);
 	ActiveTimers.Add(ActiveTimerHandle);
 

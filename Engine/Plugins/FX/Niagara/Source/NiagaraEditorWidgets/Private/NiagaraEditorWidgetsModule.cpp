@@ -6,6 +6,7 @@
 #include "DetailCustomizations/NiagaraDataInterfaceCurveDetails.h"
 #include "DetailCustomizations/NiagaraDataInterfaceDetails.h"
 #include "DetailCustomizations/NiagaraDataInterfaceSkeletalMeshDetails.h"
+#include "DetailCustomizations/NiagaraDataInterfaceStaticMeshDetails.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "SNiagaraOverviewGraph.h"
 #include "NiagaraEditorWidgetsUtilities.h"
@@ -117,6 +118,7 @@ void FNiagaraEditorWidgetsModule::StartupModule()
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceVector4Curve", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceVector4CurveDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceColorCurve", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceColorCurveDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceSkeletalMesh", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceSkeletalMeshDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceStaticMesh", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceStaticMeshDetails::MakeInstance));
 
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.NiagaraEditorWidgets.ReinitializeStyle"),
@@ -145,6 +147,7 @@ void FNiagaraEditorWidgetsModule::ShutdownModule()
 		PropertyModule->UnregisterCustomClassLayout("NiagaraDataInterfaceVector4Curve");
 		PropertyModule->UnregisterCustomClassLayout("NiagaraDataInterfaceColorCurve");
 		PropertyModule->UnregisterCustomClassLayout("NiagaraDataInterfaceSkeletalMesh");
+		PropertyModule->UnregisterCustomClassLayout("NiagaraDataInterfaceStaticMesh");
 	}
 
 	if (ReinitializeStyleCommand != nullptr)

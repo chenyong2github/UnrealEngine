@@ -42,6 +42,40 @@ class UMoviePipelineAntiAliasingSetting;
 	} \
 }
 
+#define MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT_IF_EXIST(InOutVariable, CVarName, OverrideValue, bUseOverride) \
+{ \
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(CVarName); \
+	if(CVar) \
+	{ \
+		if(bUseOverride) \
+		{ \
+			InOutVariable = CVar->GetInt(); \
+			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+		} \
+		else \
+		{ \
+			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+		} \
+	} \
+}
+
+#define MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_FLOAT_IF_EXIST(InOutVariable, CVarName, OverrideValue, bUseOverride) \
+{ \
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(CVarName); \
+	if(CVar) \
+	{ \
+		if(bUseOverride) \
+		{ \
+			InOutVariable = CVar->GetFloat(); \
+			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+		} \
+		else \
+		{ \
+			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+		} \
+	} \
+}
+
 namespace UE
 {
 	namespace MovieRenderPipeline

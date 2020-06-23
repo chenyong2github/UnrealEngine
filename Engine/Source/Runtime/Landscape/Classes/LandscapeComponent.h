@@ -400,7 +400,7 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 	virtual int32 GetNumNonStreamingMips() const final override;
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual LANDSCAPE_API int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
+	virtual LANDSCAPE_API FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const  final override;
 	virtual bool IsReadyForStreaming() const final override;
 	virtual int32 GetNumResidentMips() const final override;
 	virtual int32 GetNumRequestedMips() const final override;
@@ -411,6 +411,8 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
 	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
 	//~ End UStreamableRenderAsset Interface
+
+	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
 
 	LANDSCAPE_API void LinkStreaming();
 	void UnlinkStreaming();
@@ -624,6 +626,10 @@ public:
 
 	UPROPERTY()
 	uint32 SplineHash;
+
+	/** Represents hash for last PhysicalMaterialTask */
+	UPROPERTY()
+	uint32 PhysicalMaterialHash;
 #endif
 
 	/** For ES2 */
@@ -667,6 +673,7 @@ public:
 #if WITH_EDITOR
 	/** Physical material update task */
 	FLandscapePhysicalMaterialRenderTask PhysicalMaterialTask;
+	uint32 CalculatePhysicalMaterialTaskHash() const;
 #endif
 
 	//~ Begin UObject Interface.	

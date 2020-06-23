@@ -6,7 +6,6 @@
 #include "Containers/Queue.h"
 #include "Framework/Threading.h"
 #include "Chaos/Declares.h"
-#include "Framework/CommandBuffer.h"
 
 class FChaosSolversModule;
 class FPhysicsCommandsTask;
@@ -14,8 +13,6 @@ class FPhysicsCommandsTask;
 namespace Chaos
 {
 	class FPersistentPhysicsTask;
-	class FCommandList;
-	class FCommandListData;
 }
 
 namespace Chaos
@@ -39,13 +36,9 @@ namespace Chaos
 		{
 		}
 
-		virtual void EnqueueCommandImmediate(FGlobalCommand InCommand) final override;
 		virtual void EnqueueCommandImmediate(FTaskCommand InCommand) final override;
-		virtual void EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand) final override;
 
 		virtual EThreadingMode GetMode() const final override { return Mode; }
-
-		virtual void SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData) override;
 
 		virtual void Execute() override;
 
@@ -53,43 +46,24 @@ namespace Chaos
 
 		FChaosSolversModule* Owner;
 
-		TQueue<TFunction<void()>, EQueueMode::Mpsc> GlobalCommandQueue;
 		TQueue<TFunction<void(FPersistentPhysicsTask*)>, EQueueMode::Mpsc> TaskCommandQueue;
-		TQueue<TUniquePtr<FCommandListData>, EQueueMode::Mpsc> CommandLists;
 
 		FCriticalSection ConsumerLock;
 	};
 
 	////////////////////////////////////////////////////////////////////////////
 
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
 
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::DedicatedThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
-
+	
 	template<>
 	void FDispatcher<EThreadingMode::DedicatedThread>::Execute();
 
 	////////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
-
-	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FTaskCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommandImmediate(FGlobalCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::SingleThread>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
 
 	template<>
 	void FDispatcher<EThreadingMode::SingleThread>::Execute();
@@ -97,16 +71,7 @@ namespace Chaos
 	////////////////////////////////////////////////////////////////////////////
 
 	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FPhysicsSolverBase* InSolver, FSolverCommand InCommand);
-
-	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FTaskCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::EnqueueCommandImmediate(FGlobalCommand InCommand);
-
-	template<>
-	void FDispatcher<EThreadingMode::TaskGraph>::SubmitCommandList(TUniquePtr<FCommandListData>&& InCommandData);
 
 	template<>
 	void FDispatcher<EThreadingMode::TaskGraph>::Execute();

@@ -200,10 +200,16 @@ public:
 				Filters.Add(FAutomatedTestFilter(ArgumentName));
 			}
 		}
+
+		// #agrant temp
+		TArray<FString> AllTests = AllTestNames;
+		/*AllTests = AllTests.FilterByPredicate([](const FString E) {
+			return E.Contains(TEXT("Collision"));
+			});*/
 		
-		for (int32 TestIndex = 0; TestIndex < AllTestNames.Num(); ++TestIndex)
+		for (int32 TestIndex = 0; TestIndex < AllTests.Num(); ++TestIndex)
 		{
-			FString TestNamesNoWhiteSpaces = AllTestNames[TestIndex].Replace(TEXT(" "), TEXT(""));
+			FString TestNamesNoWhiteSpaces = AllTests[TestIndex].Replace(TEXT(" "), TEXT(""));
 
 			for (const FAutomatedTestFilter& Filter : Filters)
 			{
@@ -212,7 +218,7 @@ public:
 
 				if (IsMatch)
 				{
-					OutTestNames.Add(AllTestNames[TestIndex]);
+					OutTestNames.Add(AllTests[TestIndex]);
 					TestCount++;
 					break;
 				}

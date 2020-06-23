@@ -401,18 +401,23 @@ void SGraphNodeComment::EndUserInteraction() const
 
 		for ( int32 NodeIndex=0; NodeIndex < NumChildren; ++NodeIndex )
 		{
-			TSharedPtr<SGraphNodeComment> CommentWidget = StaticCastSharedRef<SGraphNodeComment>(PanelChildren->GetChildAt(NodeIndex));
+			const TSharedPtr<SGraphNode> SomeNodeWidget = StaticCastSharedRef<SGraphNode>(PanelChildren->GetChildAt(NodeIndex));
 
-			if( CommentWidget.IsValid() )
+			UObject* GraphObject = SomeNodeWidget->GetObjectBeingDisplayed();
+			if ( !GraphObject->IsA<UEdGraphNode_Comment>() )
 			{
-				const FVector2D SomeNodePosition = CommentWidget->GetPosition();
-				const FVector2D SomeNodeSize = CommentWidget->GetDesiredSize();
+				continue;
+			}
 
-				const FSlateRect NodeGeometryGraphSpace( SomeNodePosition.X, SomeNodePosition.Y, SomeNodePosition.X + SomeNodeSize.X, SomeNodePosition.Y + SomeNodeSize.Y );
-				if( FSlateRect::DoRectanglesIntersect( CommentRect, NodeGeometryGraphSpace ) )
-				{
-					CommentWidget->HandleSelection( CommentWidget->bIsSelected, true );
-				}
+			const FVector2D SomeNodePosition = SomeNodeWidget->GetPosition();
+			const FVector2D SomeNodeSize = SomeNodeWidget->GetDesiredSize();
+
+			const FSlateRect NodeGeometryGraphSpace(SomeNodePosition.X, SomeNodePosition.Y, SomeNodePosition.X + SomeNodeSize.X, SomeNodePosition.Y + SomeNodeSize.Y);
+			if (FSlateRect::DoRectanglesIntersect(CommentRect, NodeGeometryGraphSpace))
+			{
+				// This downcast *should* be valid at this point, since we verified the GraphObject is a comment node
+				TSharedPtr<SGraphNodeComment> CommentWidget = StaticCastSharedPtr<SGraphNodeComment>(SomeNodeWidget);
+				CommentWidget->HandleSelection(CommentWidget->bIsSelected, true);
 			}
 		}
 	}

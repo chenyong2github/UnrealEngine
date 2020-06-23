@@ -34,10 +34,10 @@
 ##-*****************************************************************************
 
 ADD_EXECUTABLE(abcdiff AbcDiff.cpp)
-TARGET_LINK_LIBRARIES(abcdiff ${CORE_LIBS})
+TARGET_LINK_LIBRARIES(abcdiff Alembic::Alembic)
 
-set_target_properties(abcconvert PROPERTIES
+set_target_properties(abcdiff PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE
     INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 
-INSTALL(TARGETS abcconvert DESTINATION bin)
+INSTALL(TARGETS abcdiff DESTINATION bin)

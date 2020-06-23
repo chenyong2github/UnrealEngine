@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 class FDisplayClusterMessage;
 class FDisplayClusterSessionBase;

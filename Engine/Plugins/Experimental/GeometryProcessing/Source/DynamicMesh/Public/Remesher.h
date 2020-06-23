@@ -54,6 +54,19 @@ public:
 	 */
 	bool bPreventNormalFlips = false;
 
+	/** Available Edge Flip metrics */
+	enum class EFlipMetric
+	{
+		OptimalValence = 0,		/** Flip towards Valence=6 */
+		MinEdgeLength = 1		/** Flip towards minimum edge lengths */
+	};
+
+	/** Type of flip metric that will be applied */
+	EFlipMetric FlipMetric = EFlipMetric::OptimalValence;
+
+	/** For MinEdgeLength metric, only flip if NewLength < (MinLengthFlipThresh * CurLength) */
+	double MinLengthFlipThresh = 0.9;
+
 	/** Minimum target edge length. Edges shorter than this will be collapsed if possible. */
 	double MinEdgeLength = 1.0;
 	/** Maximum target edge length. Edges longer than this will be split if possible. */
@@ -106,6 +119,7 @@ public:
 	{
 	}
 
+	virtual ~FRemesher() {}
 
 	/** Set min/max edge-lengths to sane values for given target edge length */
 	void SetTargetEdgeLength(double fLength);

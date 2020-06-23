@@ -101,6 +101,29 @@ void UBehaviorTreeComponent::UninitializeComponent()
 	Super::UninitializeComponent();
 }
 
+void UBehaviorTreeComponent::RegisterComponentTickFunctions(bool bRegister)
+{
+	if (bRegister)
+	{
+		ScheduleNextTick(0.0f);
+	}
+	Super::RegisterComponentTickFunctions(bRegister);
+}
+
+void UBehaviorTreeComponent::SetComponentTickEnabled(bool bEnabled)
+{
+	bool bWasEnabled = IsComponentTickEnabled();
+	Super::SetComponentTickEnabled(bEnabled);
+
+	// If enabling the component, this acts like a new component to tick in the TickTaskManager
+	// So act like the component was never ticked
+	if(!bWasEnabled && IsComponentTickEnabled())
+	{
+		bTickedOnce = false;
+		ScheduleNextTick(0.0f);
+	}
+}
+
 void UBehaviorTreeComponent::StartLogic()
 {
 	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
@@ -156,6 +179,7 @@ EAILogicResuming::Type UBehaviorTreeComponent::ResumeLogic(const FString& Reason
 	if (!!bIsPaused)
 	{
 		bIsPaused = false;
+		ScheduleNextTick(0.0f);
 
 		if (SuperResumeResult == EAILogicResuming::Continue)
 		{
@@ -262,6 +286,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 	if (StopTreeLock)
 	{
 		bDeferredStopTree = true;
+		ScheduleNextTick(0.0f);
 		return;
 	}
 
@@ -432,6 +457,12 @@ void UBehaviorTreeComponent::Cleanup()
 	KnownInstances.Reset();
 	InstanceStack.Reset();
 	NodeInstances.Reset();
+}
+
+void UBehaviorTreeComponent::HandleMessage(const FAIMessage& Message)
+{
+	Super::HandleMessage(Message);
+	ScheduleNextTick(0.0f);
 }
 
 void UBehaviorTreeComponent::OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult)
@@ -809,6 +840,7 @@ static void FindCommonParent(const TArray<FBehaviorTreeInstance>& Instances, con
 
 void UBehaviorTreeComponent::ScheduleExecutionUpdate()
 {
+	ScheduleNextTick(0.0f);
 	bRequestedFlowUpdate = true;
 }
 
@@ -1202,7 +1234,9 @@ void UBehaviorTreeComponent::ApplySearchData(UBTNode* NewActiveNode)
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[UpdateInfo.InstanceIndex];
 			uint8* NodeMemory = UpdateInfo.AuxNode->GetNodeMemory<uint8>(InstanceInfo);
 
-			UpdateInfo.AuxNode->WrappedTickNode(*this, NodeMemory, CurrentFrameDeltaSeconds);
+            // We do not care about the next needed DeltaTime, it will be recalculated in the tick later.
+			float NextNeededDeltaTime = 0.0f;
+			UpdateInfo.AuxNode->WrappedTickNode(*this, NodeMemory, CurrentFrameDeltaSeconds, NextNeededDeltaTime);
 		}
 	}
 
@@ -1242,12 +1276,52 @@ void UBehaviorTreeComponent::ApplyDiscardedSearch()
 
 void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	// Warn if BT asked to be ticked the next frame and did not.
+	if (bTickedOnce && NextTickDeltaTime == 0.0f)
+	{
+		UWorld* MyWorld = GetWorld();
+		if (MyWorld)
+		{
+			const float CurrentGameTime = MyWorld->GetTimeSeconds();
+			const float CurrentDeltaTime = MyWorld->GetDeltaSeconds();
+			if (CurrentGameTime - LastRequestedDeltaTimeGameTime - CurrentDeltaTime > KINDA_SMALL_NUMBER)
+			{
+				UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("BT(%i) expected to be tick next frame, current deltatime(%f) and calculated deltatime(%f)."), GFrameCounter, CurrentDeltaTime, CurrentGameTime - LastRequestedDeltaTimeGameTime);
+			}
+		}
+	}
+
+	// Check if we really have reached the asked DeltaTime, 
+	// If not then accumulate it and reschedule
+	NextTickDeltaTime -= DeltaTime;
+	if (NextTickDeltaTime > 0.0f)
+	{
+		// The TickManager is using global time to calculate delta since last ticked time. When the value is big, we can get into float precision errors compare to our calculation.
+		if (NextTickDeltaTime > KINDA_SMALL_NUMBER)
+		{
+			UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("BT(%i) did not need to be tick, ask deltatime of %fs got %fs with a diff of %fs."), GFrameCounter, NextTickDeltaTime + AccumulatedTickDeltaTime + DeltaTime, DeltaTime + AccumulatedTickDeltaTime, NextTickDeltaTime);
+		}
+		AccumulatedTickDeltaTime += DeltaTime;
+		ScheduleNextTick(NextTickDeltaTime);
+		return;
+	}
+	DeltaTime += AccumulatedTickDeltaTime;
+	AccumulatedTickDeltaTime = 0.0f;
+
+	const bool bWasTickedOnce = bTickedOnce;
+	bTickedOnce = true;
+
+	bool bDoneSomething = MessagesToProcess.Num() > 0;
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	SCOPE_CYCLE_COUNTER(STAT_AI_Overall);
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_Tick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(BehaviorTreeTick);
+#if CSV_PROFILER
+	// Configurable CSV_SCOPED_TIMING_STAT_EXCLUSIVE(BehaviorTreeTick);
+	FScopedCsvStatExclusive _ScopedCsvStatExclusive_BehaviorTreeTick(CSVTickStatName);
+#endif
 
 	check(this != nullptr && this->IsPendingKill() == false);
+	float NextNeededDeltaTime = FLT_MAX;
 
 	// tick active auxiliary nodes (in execution order, before task)
 	// do it before processing execution request to give BP driven logic chance to accumulate execution requests
@@ -1260,68 +1334,127 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 			const UBTAuxiliaryNode* AuxNode = InstanceInfo.ActiveAuxNodes[AuxIndex];
 			uint8* NodeMemory = AuxNode->GetNodeMemory<uint8>(InstanceInfo);
 			SCOPE_CYCLE_UOBJECT(AuxNode, AuxNode);
-			AuxNode->WrappedTickNode(*this, NodeMemory, DeltaTime);
+			bDoneSomething |= AuxNode->WrappedTickNode(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
 		}
 	}
 
+	bool bActiveAuxiliaryNodeDTDirty = false;
 	if (bRequestedFlowUpdate)
 	{
 		ProcessExecutionRequest();
+		bDoneSomething = true;
+
+        // Since hierarchy might changed in the ProcessExecutionRequest, we need to go through all the active auxiliary nodes again to fetch new next DeltaTime
+		bActiveAuxiliaryNodeDTDirty = true;
+		NextNeededDeltaTime = FLT_MAX;
 	}
 
-	if (InstanceStack.Num() == 0 || !bIsRunning || bIsPaused)
+	if (InstanceStack.Num() > 0 && bIsRunning && !bIsPaused)
 	{
-		return;
+		{
+			FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockTick);
+
+			// tick active parallel tasks (in execution order, before task)
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
+			{
+				FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+				for (int32 TaskIndex = 0; TaskIndex < InstanceInfo.ParallelTasks.Num(); TaskIndex++)
+				{
+					const UBTTaskNode* ParallelTask = InstanceInfo.ParallelTasks[TaskIndex].TaskNode;
+					uint8* NodeMemory = ParallelTask->GetNodeMemory<uint8>(InstanceInfo);
+					SCOPE_CYCLE_UOBJECT(ParallelTask, ParallelTask);
+					bDoneSomething |= ParallelTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+				}
+			}
+
+			// tick active task
+			if (InstanceStack.IsValidIndex(ActiveInstanceIdx))
+			{
+				FBehaviorTreeInstance& ActiveInstance = InstanceStack[ActiveInstanceIdx];
+				if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask ||
+					ActiveInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
+				{
+					UBTTaskNode* ActiveTask = (UBTTaskNode*)ActiveInstance.ActiveNode;
+					uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(ActiveInstance);
+					SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
+					bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+				}
+			}
+
+			// tick aborting task from abandoned subtree
+			if (InstanceStack.IsValidIndex(ActiveInstanceIdx + 1))
+			{
+				FBehaviorTreeInstance& LastInstance = InstanceStack.Last();
+				if (LastInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
+				{
+					UBTTaskNode* ActiveTask = (UBTTaskNode*)LastInstance.ActiveNode;
+					uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(LastInstance);
+					SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
+					bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+				}
+			}
+		}
+
+		if (bDeferredStopTree)
+		{
+			StopTree(EBTStopMode::Safe);
+			bDoneSomething = true;
+		}
 	}
 
+	// Go through all active auxiliary nodes to calculate the next NeededDeltaTime if needed
+	if (bActiveAuxiliaryNodeDTDirty)
 	{
-		FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockTick);
-
-		// tick active parallel tasks (in execution order, before task)
-		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num() && NextNeededDeltaTime > 0.0f; InstanceIndex++)
 		{
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
-			for (int32 TaskIndex = 0; TaskIndex < InstanceInfo.ParallelTasks.Num(); TaskIndex++)
+			for (const UBTAuxiliaryNode* AuxNode : InstanceInfo.ActiveAuxNodes)
 			{
-				const UBTTaskNode* ParallelTask = InstanceInfo.ParallelTasks[TaskIndex].TaskNode;
-				uint8* NodeMemory = ParallelTask->GetNodeMemory<uint8>(InstanceInfo);
-				SCOPE_CYCLE_UOBJECT(ParallelTask, ParallelTask);
-				ParallelTask->WrappedTickTask(*this, NodeMemory, DeltaTime);
-			}
-		}
-
-		// tick active task
-		if (InstanceStack.IsValidIndex(ActiveInstanceIdx))
-		{
-			FBehaviorTreeInstance& ActiveInstance = InstanceStack[ActiveInstanceIdx];
-			if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask ||
-				ActiveInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
-			{
-				UBTTaskNode* ActiveTask = (UBTTaskNode*)ActiveInstance.ActiveNode;
-				uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(ActiveInstance);
-				SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
-				ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime);
-			}
-		}
-
-		// tick aborting task from abandoned subtree
-		if (InstanceStack.IsValidIndex(ActiveInstanceIdx + 1))
-		{
-			FBehaviorTreeInstance& LastInstance = InstanceStack.Last();
-			if (LastInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
-			{
-				UBTTaskNode* ActiveTask = (UBTTaskNode*)LastInstance.ActiveNode;
-				uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(LastInstance);
-				SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
-				ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime);
+				uint8* NodeMemory = AuxNode->GetNodeMemory<uint8>(InstanceInfo);
+				const float NextNodeNeededDeltaTime = AuxNode->GetNextNeededDeltaTime(*this, NodeMemory);
+				if (NextNeededDeltaTime > NextNodeNeededDeltaTime)
+				{
+					NextNeededDeltaTime = NextNodeNeededDeltaTime;
+				}
 			}
 		}
 	}
 
-	if (bDeferredStopTree)
+	if (bWasTickedOnce && !bDoneSomething)
 	{
-		StopTree(EBTStopMode::Safe);
+		UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("BT(%i) planned to do something but actually did not."), GFrameCounter);
 	}
+	ScheduleNextTick(NextNeededDeltaTime);
+}
+
+void UBehaviorTreeComponent::ScheduleNextTick(const float NextNeededDeltaTime)
+{
+	NextTickDeltaTime = NextNeededDeltaTime;
+	if (bRequestedFlowUpdate)
+	{
+		NextTickDeltaTime = 0.0f;
+	}
+
+	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("BT(%i) schedule next tick %f, asked %f."), GFrameCounter, NextTickDeltaTime, NextNeededDeltaTime);
+	if (NextTickDeltaTime == FLT_MAX)
+	{
+		if (IsComponentTickEnabled())
+		{
+			SetComponentTickEnabled(false);
+		}
+	}
+	else
+	{
+		if (!IsComponentTickEnabled())
+		{
+			SetComponentTickEnabled(true);
+		}
+		// We need to force a small dt to tell the TickTaskManager we might not want to be tick every frame.
+		const float FORCE_TICK_INTERVAL_DT = KINDA_SMALL_NUMBER;
+		SetComponentTickIntervalAndCooldown(!bTickedOnce && NextTickDeltaTime < FORCE_TICK_INTERVAL_DT ? FORCE_TICK_INTERVAL_DT : NextTickDeltaTime);
+	}
+	UWorld* MyWorld = GetWorld();
+	LastRequestedDeltaTimeGameTime = MyWorld ? MyWorld->GetTimeSeconds() : 0.0f;
 }
 
 void UBehaviorTreeComponent::ProcessExecutionRequest()

@@ -209,6 +209,9 @@ public:
 	virtual bool GetMaterialFunctionOnly() const = 0;
 	virtual void SetMaterialFunctionOnly(bool bInMaterialFunctionOnly) = 0;
 
+	virtual float GetOpacityMaskClipValue() const = 0;
+	virtual void SetOpacityMaskClipValue(float InClipValue) = 0;
+
 	virtual int32 GetExpressionsCount() const = 0;
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) = 0;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const = 0;

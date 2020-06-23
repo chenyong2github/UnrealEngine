@@ -222,11 +222,11 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 	return NewWidget;
 }
 
-void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, const FString& PlatformName)
+void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailLayout, const FString& PlatformName, const UStruct* ClassOuterMost)
 {
 	IDetailCategoryBuilder& AudioCategory = DetailLayout.EditCategory(TEXT("Audio"));
 
-	TSharedPtr<IPropertyHandle> AudioSpatializationPropertyHandle = DetailLayout.GetProperty("SpatializationPlugin");
+	TSharedPtr<IPropertyHandle> AudioSpatializationPropertyHandle = DetailLayout.GetProperty("SpatializationPlugin", ClassOuterMost);
 	IDetailPropertyRow& AudioSpatializationPropertyRow = AudioCategory.AddProperty(AudioSpatializationPropertyHandle);
 
 	AudioSpatializationPropertyRow.CustomWidget()
@@ -241,7 +241,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 			MakeAudioPluginSelectorWidget(AudioSpatializationPropertyHandle, EAudioPlugin::SPATIALIZATION, PlatformName)
 		];
 
-	TSharedPtr<IPropertyHandle> AudioReverbPropertyHandle = DetailLayout.GetProperty("ReverbPlugin");
+	TSharedPtr<IPropertyHandle> AudioReverbPropertyHandle = DetailLayout.GetProperty("ReverbPlugin", ClassOuterMost);
 	IDetailPropertyRow& AudioReverbPropertyRow = AudioCategory.AddProperty(AudioReverbPropertyHandle);
 
 	AudioReverbPropertyRow.CustomWidget()
@@ -256,7 +256,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 			MakeAudioPluginSelectorWidget(AudioReverbPropertyHandle, EAudioPlugin::REVERB, PlatformName)
 		];
 
-	TSharedPtr<IPropertyHandle> AudioOcclusionPropertyHandle = DetailLayout.GetProperty("OcclusionPlugin");
+	TSharedPtr<IPropertyHandle> AudioOcclusionPropertyHandle = DetailLayout.GetProperty("OcclusionPlugin", ClassOuterMost);
 	IDetailPropertyRow& AudioOcclusionPropertyRow = AudioCategory.AddProperty(AudioOcclusionPropertyHandle);
 
 	AudioOcclusionPropertyRow.CustomWidget()
@@ -273,7 +273,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 		
 	
 	// Not really a plugin, but this is common to all TargetPlatforms
-	TSharedPtr<IPropertyHandle> SoundQualityNamePropHandle = DetailLayout.GetProperty("SoundCueCookQualityIndex");
+	TSharedPtr<IPropertyHandle> SoundQualityNamePropHandle = DetailLayout.GetProperty("SoundCueCookQualityIndex", ClassOuterMost);
 	ensure(SoundQualityNamePropHandle.IsValid());
 	IDetailPropertyRow& SoundQualityNamePropRow = AudioCategory.AddProperty(SoundQualityNamePropHandle);
 

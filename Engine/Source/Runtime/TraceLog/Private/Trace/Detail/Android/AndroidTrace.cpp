@@ -18,33 +18,6 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-uint8* MemoryReserve(SIZE_T Size)
-{
-	void* Ptr = mmap(nullptr, Size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-	return (Ptr != MAP_FAILED) ? (uint8*)Ptr : nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryFree(void* Address, SIZE_T Size)
-{
-	munmap(Address, Size);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryMap(void* Address, SIZE_T Size)
-{
-	// no-op if mmap()ed with R/W
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryUnmap(void* Address, SIZE_T Size)
-{
-	madvise(Address, Size, MADV_DONTNEED);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 {
 	void* (*PthreadThunk)(void*) = [] (void* Param) -> void * {

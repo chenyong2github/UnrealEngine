@@ -60,7 +60,7 @@ namespace IFC
 	static const FString IfcTransportElement_Type = TEXT("IFCTRANSPORTELEMENT");
 	static const FString IfcVirtualElement_Type = TEXT("IFCVIRTUALELEMENT");
 	static const FString IfcReinforcingElement_Type = TEXT("IFCREINFORCINGELEMENT");
-
+	static const FString IfcOpeningElement_Type = TEXT("IFCOPENINGELEMENT");
 
 	static const FString IfcRepresentation_Name = TEXT("Representation");
 	static const FString IfcRepresentations_Name = TEXT("Representations");
@@ -336,6 +336,7 @@ namespace IFC
 		IfcTransportElementEntity = sdaiGetEntity(gIFCModel, (char*)*IfcTransportElement_Type);
 		IfcVirtualElementEntity = sdaiGetEntity(gIFCModel, (char*)*IfcVirtualElement_Type);
 		IfcReinforcingElementEntity = sdaiGetEntity(gIFCModel, (char*)*IfcReinforcingElement_Type);
+		IfcOpeningElementEntity = sdaiGetEntity(gIFCModel, (char*)*IfcOpeningElement_Type);
 	}
 #endif
 
@@ -1614,6 +1615,11 @@ namespace IFC
 
 	void FFileReader::GatherObjects(int64 InIFCModel, int64 Entity, int_t* ObjectInstances, bool bVisible, int64 iCircleSegments)
 	{
+		if (Entity == IfcOpeningElementEntity)
+		{
+			return; // Ignore openings.
+		}
+
 		// Getting all root entities with name.
 		int_t ObjectInstancesCount = sdaiGetMemberCount(ObjectInstances);
 		if (ObjectInstancesCount == 0)

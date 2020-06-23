@@ -5,6 +5,17 @@
 #include "IO/IoDispatcher.h"
 
 /**
+ * I/O store container format version
+ */
+enum class EIoStoreTocVersion : uint8
+{
+	Invalid = 0,
+	Initial,
+	LatestPlusOne,
+	Latest = LatestPlusOne - 1
+};
+
+/**
  * I/O Store TOC header.
  */
 struct FIoStoreTocHeader
@@ -12,11 +23,9 @@ struct FIoStoreTocHeader
 	static constexpr char TocMagicImg[] = "-==--==--==--==-";
 
 	uint8	TocMagic[16];
+	uint8	Version;
 	uint32	TocHeaderSize;
 	uint32	TocEntryCount;
-	uint32	TocEntrySize;	// For sanity checking
-	uint32	TocPartialEntryCount;
-	uint32	TocPartialEntrySize;	// For sanity checking
 	uint32	TocCompressedBlockEntryCount;
 	uint32	TocCompressedBlockEntrySize;	// For sanity checking
 	uint32	CompressionMethodNameCount;
@@ -24,8 +33,8 @@ struct FIoStoreTocHeader
 	uint32	CompressionBlockSize;
 	FIoContainerId ContainerId;
 	FGuid	EncryptionKeyGuid;
-	uint8	bIsEncrypted;
-	uint8	Pad[53];
+	EIoContainerFlags ContainerFlags;
+	uint8	Pad[64];
 
 	void MakeMagic()
 	{
@@ -88,61 +97,22 @@ private:
 	uint8 OffsetAndLength[5 + 5];
 };
 
-/**
- * I/O Store TOC entry.
- */
-struct FIoStoreTocEntry
+enum class FIoStoreTocEntryMetaFlags : uint8
 {
-	FIoOffsetAndLength OffsetAndLength;
-	FIoChunkId ChunkId;
-	FIoChunkHash ChunkHash;
-	
-	inline uint64 GetOffset() const
-	{
-		return OffsetAndLength.GetOffset();
-	}
-
-	inline uint64 GetLength() const
-	{
-		return OffsetAndLength.GetLength();
-	}
-
-	inline void SetOffset(uint64 Offset)
-	{
-		OffsetAndLength.SetOffset(Offset);
-	}
-
-	inline void SetLength(uint64 Length)
-	{
-		OffsetAndLength.SetLength(Length);
-	}
+	None,
+	Compressed		= (1 << 0),
+	MemoryMapped	= (1 << 1)
 };
 
-struct FIoStoreTocPartialEntry
+ENUM_CLASS_FLAGS(FIoStoreTocEntryMetaFlags);
+
+/**
+ * TOC entry meta data
+ */
+struct FIoStoreTocEntryMeta
 {
-	FIoOffsetAndLength OffsetAndLength;
-	FIoChunkId ChunkId;
-	FIoChunkId OriginalChunkId;
-
-	inline uint64 GetOffset() const
-	{
-		return OffsetAndLength.GetOffset();
-	}
-
-	inline uint64 GetLength() const
-	{
-		return OffsetAndLength.GetLength();
-	}
-
-	inline void SetOffset(uint64 Offset)
-	{
-		OffsetAndLength.SetOffset(Offset);
-	}
-
-	inline void SetLength(uint64 Length)
-	{
-		OffsetAndLength.SetLength(Length);
-	}
+	FIoChunkHash ChunkHash;
+	FIoStoreTocEntryMetaFlags Flags;
 };
 
 /**
@@ -150,70 +120,96 @@ struct FIoStoreTocPartialEntry
  */
 struct FIoStoreTocCompressedBlockEntry
 {
-	/** Offset and size of the compressed block. */
-	FIoOffsetAndLength OffsetAndLength;
-	/** Index into the compression methods array. */
-	uint8 CompressionMethodIndex;
-};
+	static constexpr uint32 OffsetBits = 40;
+	static constexpr uint64 OffsetMask = (1ull << OffsetBits) - 1ull;
+	static constexpr uint32 SizeBits = 24;
+	static constexpr uint32 SizeMask = (1 << SizeBits) - 1;
+	static constexpr uint32 SizeShift = 8;
 
-class FIoStoreTocReader
-{
-public:
-	UE_NODISCARD FIoStatus Initialize(const TCHAR* TocFilePath);
-	
-	const FIoStoreTocEntry* GetEntries(uint32& OutCount) const
+	inline uint64 GetOffset() const
 	{
-		OutCount = EntryCount;
-		return EntryCount > 0 ? Entries : nullptr;
+		const uint64* Offset = reinterpret_cast<const uint64*>(Data);
+		return *Offset & OffsetMask;
 	}
 
-	const FIoStoreTocPartialEntry* GetPartialEntries(uint32& OutCount) const
+	inline void SetOffset(uint64 InOffset)
 	{
-		OutCount = PartialEntryCount;
-		return PartialEntryCount > 0 ? PartialEntries : nullptr;
+		uint64* Offset = reinterpret_cast<uint64*>(Data);
+		*Offset = InOffset & OffsetMask;
 	}
 
-	const FIoStoreTocCompressedBlockEntry* GetCompressedBlockEntries(uint32& OutCount) const
+	inline uint64 GetSize() const
 	{
-		OutCount = CompressedBlockEntryCount;
-		return CompressedBlockEntryCount > 0 ? CompressedBlockEntries : nullptr;
+		const uint32* Size = reinterpret_cast<const uint32*>(Data) + 1;
+		return (*Size >> SizeShift) & SizeMask;
 	}
 
-	const FName* GetCompressionMethodNames(uint32& OutCount) const
+	inline void SetSize(uint64 InSize)
 	{
-		OutCount = CompressionMethodNames.Num();
-		return CompressionMethodNames.Num() > 0 ? CompressionMethodNames.GetData() : nullptr;
+		uint32* Size = reinterpret_cast<uint32*>(Data) + 1;
+		*Size |= (uint32(InSize) << SizeShift);
 	}
 
-	uint32 GetCompressionBlockSize() const
+	inline uint64 GetUncompressedSize() const
 	{
-		return Header->CompressionBlockSize;
+		const uint32* UncompressedSize = reinterpret_cast<const uint32*>(Data) + 2;
+		return *UncompressedSize & SizeMask;
 	}
 
-	FIoContainerId GetContainerId() const
+	inline void SetUncompressedSize(uint64 InSize)
 	{
-		return Header->ContainerId;
+		uint32* UncompressedSize = reinterpret_cast<uint32*>(Data) + 2;
+		*UncompressedSize = InSize & SizeMask;
 	}
 
-	const FGuid& GetEncryptionKeyGuid() const
+	inline uint8 GetCompressionMethodIndex() const
 	{
-		return Header->EncryptionKeyGuid;
+		const uint32* Index = reinterpret_cast<const uint32*>(Data) + 2;
+		return static_cast<uint8>(*Index >> SizeBits);
 	}
 
-	bool IsContainerEncrypted() const
+	inline void SetCompressionMethodIndex(uint8 InIndex)
 	{
-		return Header->bIsEncrypted > 0;
+		uint32* Index = reinterpret_cast<uint32*>(Data) + 2;
+		*Index |= uint32(InIndex) << SizeBits;
 	}
 
 private:
-	TArray<FName> CompressionMethodNames;
-	TUniquePtr<uint8[]> TocBuffer;
-	const FIoStoreTocHeader* Header = nullptr;
-	const FIoStoreTocEntry* Entries = nullptr;
-	const FIoStoreTocPartialEntry* PartialEntries = nullptr;
-	const FIoStoreTocCompressedBlockEntry* CompressedBlockEntries = nullptr;
-	uint32 EntryCount = 0;
-	uint32 PartialEntryCount = 0;
-	uint32 CompressedBlockEntryCount = 0;
+	/* 5 bytes offset, 3 bytes for size / uncompressed size and 1 byte for compresseion method. */
+	uint8 Data[5 + 3 + 3 + 1];
 };
 
+/**
+ * TOC resource read options.
+ */
+enum class EIoStoreTocReadOptions
+{
+	IncludeTocMeta,
+	ExcludeTocMeta
+};
+
+/**
+ * Container TOC data.
+ */
+struct FIoStoreTocResource
+{
+	enum { CompressionMethodNameLen = 32 };
+
+	FIoStoreTocHeader Header;
+
+	TArray<FIoChunkId> ChunkIds;
+
+	TArray<FIoOffsetAndLength> ChunkOffsetLengths;
+
+	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
+
+	TArray<FName> CompressionMethods;
+
+	TArray<FSHAHash> ChunkBlockSignatures;
+
+	TArray<FIoStoreTocEntryMeta> ChunkMetas;
+
+	UE_NODISCARD static FIoStatus Read(const TCHAR* TocFilePath, EIoStoreTocReadOptions ReadOptions, FIoStoreTocResource& OutTocResource);
+
+	UE_NODISCARD static TIoStatusOr<uint64> Write(const TCHAR* TocFilePath, FIoStoreTocResource& TocResource, const FIoContainerSettings& ContainerSettings, const FIoStoreWriterSettings& WriterSettings);
+};

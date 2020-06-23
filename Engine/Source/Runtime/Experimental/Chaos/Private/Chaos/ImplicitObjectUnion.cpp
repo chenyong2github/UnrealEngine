@@ -182,6 +182,34 @@ FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(FImplicitObjectUnio
 	Type = ImplicitObjectType::UnionClustered;
 }
 
+void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*,const TBVHParticles<FReal, 3>*>,FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const
+{
+	if (LargeUnionData)
+	{
+		TArray<int32> Overlaps = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
+		Out.Reserve(Out.Num() + Overlaps.Num());
+		for (int32 Idx : Overlaps)
+		{
+			const FImplicitObject* Obj = LargeUnionData->GeomParticles.Geometry(Idx).Get();
+			const TBVHParticles<FReal, 3>* Simplicial = MOriginalParticleLookupHack.IsValidIndex(Idx) ? MOriginalParticleLookupHack[Idx]->CollisionParticles().Get() : nullptr;
+			Out.Add(MakePair(MakePair(Obj,Simplicial),FRigidTransform3(LargeUnionData->GeomParticles.X(Idx), LargeUnionData->GeomParticles.R(Idx))));
+		}
+	}
+	else
+	{
+		TArray<Pair<const FImplicitObject*, FRigidTransform3>> LocalOut;
+		for (const TUniquePtr<FImplicitObject>& Object : MObjects)
+		{
+			Object->FindAllIntersectingObjects(LocalOut, LocalBounds);
+		}
+		for (auto& OutElem : LocalOut)
+		{
+			const TBVHParticles<FReal, 3>* Simplicial = nullptr;
+			Out.Add(MakePair(MakePair(OutElem.First, Simplicial), OutElem.Second));
+		}
+	}
+}
+
 TArray<TPBDRigidParticleHandle<FReal, 3>*>
 FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>& LocalBounds) const
 {
@@ -205,5 +233,20 @@ FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>
 	return IntersectingChildren;
 }
 
+
+const TPBDRigidParticleHandle<FReal, 3>* FImplicitObjectUnionClustered::FindParticleForImplicitObject(const FImplicitObject* Object) const
+{
+	typedef TPBDRigidParticleHandle<FReal, 3>* ValueType;
+
+	const TImplicitObjectTransformed<FReal, 3>* AsTransformed = Object->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
+	if(AsTransformed)
+	{
+		const ValueType* Handle = MCollisionParticleLookupHack.Find(AsTransformed->GetTransformedObject());
+		return Handle ? *Handle : nullptr;
+	}
+
+	const ValueType* Handle = MCollisionParticleLookupHack.Find(Object);
+	return Handle ? *Handle : nullptr;
+}
 
 } // namespace Chaos

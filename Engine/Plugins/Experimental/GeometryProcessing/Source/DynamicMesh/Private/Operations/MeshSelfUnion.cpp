@@ -20,7 +20,14 @@ bool FMeshSelfUnion::Compute()
 {
 	// build spatial data and use it to find intersections
 	FDynamicMeshAABBTree3 Spatial(Mesh);
-	MeshIntersection::FIntersectionsQueryResult Intersections = Spatial.FindAllSelfIntersections();
+	Spatial.SetTolerance(SnapTolerance);
+	MeshIntersection::FIntersectionsQueryResult Intersections = Spatial.FindAllSelfIntersections(true, IMeshSpatial::FQueryOptions(),
+		[this](FIntrTriangle3Triangle3d& Intr)
+		{
+			Intr.SetTolerance(SnapTolerance);
+			return Intr.Find();
+		}
+	);
 
 	if (Cancelled())
 	{
@@ -29,6 +36,7 @@ bool FMeshSelfUnion::Compute()
 
 	// cut the meshes
 	FMeshSelfCut Cut(Mesh);
+	Cut.SnapTolerance = SnapTolerance;
 	Cut.bTrackInsertedVertices = bCollapseDegenerateEdgesOnCut; // to collect candidates to collapse
 	Cut.Cut(Intersections);
 
@@ -40,7 +48,7 @@ bool FMeshSelfUnion::Compute()
 	// collapse tiny edges along cut boundary
 	if (bCollapseDegenerateEdgesOnCut)
 	{
-		double DegenerateEdgeTolSq = DegenerateEdgeTol * DegenerateEdgeTol;
+		double DegenerateEdgeTolSq = DegenerateEdgeTolFactor * DegenerateEdgeTolFactor * SnapTolerance * SnapTolerance;
 
 		// convert vertex chains to edge IDs to simplify logic of finding remaining candidate edges after collapses
 		TArray<int> EIDs;
@@ -58,9 +66,11 @@ bool FMeshSelfUnion::Compute()
 			}
 			ChainIdx = ChainEnd;
 		}
-		for (int EID : EIDs)
+		TSet<int> AllEIDs(EIDs);
+		for (int Idx = 0; Idx < EIDs.Num(); Idx++)
 		{
-			if (!ensure(Mesh->IsEdge(EID)))
+			int EID = EIDs[Idx];
+			if (!Mesh->IsEdge(EID))
 			{
 				continue;
 			}
@@ -83,7 +93,23 @@ bool FMeshSelfUnion::Compute()
 				}
 			}
 			FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
-			EMeshResult CollapseResult = Mesh->CollapseEdge(EV.A, EV.B, CollapseInfo);
+			EMeshResult CollapseResult = Mesh->CollapseEdge(EV.A, EV.B, .5, CollapseInfo);
+			if (CollapseResult == EMeshResult::Ok)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					if (AllEIDs.Contains(CollapseInfo.RemovedEdges[i]))
+					{
+						int ToAdd = CollapseInfo.KeptEdges[i];
+						bool bWasPresent;
+						AllEIDs.Add(ToAdd, &bWasPresent);
+						if (!bWasPresent)
+						{
+							EIDs.Add(ToAdd);
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -147,9 +173,9 @@ bool FMeshSelfUnion::Compute()
 			}
 			FVector3d Centroid = Mesh->GetTriCentroid(TID);
 
-			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset) > WindingThreshold;
 			
-			if (WindingNum > -.0001 && WindingNum < 1.0001) // TODO tune these / don't hardcode?
+			
+			// first check for the coplanar case
 			{
 				double DSq;
 				int MyComponentID = TriToComponentID[TID];
@@ -163,9 +189,7 @@ bool FMeshSelfUnion::Compute()
 				if (OtherTID > -1) // only consider it coplanar if there is a matching tri
 				{
 					double DotNormals = Normals[OtherTID].Dot(Normals[TID]);
-					// don't consider it actually coplanar unless the tris are actually somewhat aligned
-					// TODO: tweak this tolerance?  Or maybe even map back to normals pre-mesh-cut?  Degenerate tris can mess this up.
-					if (FMath::Abs(DotNormals) > .9)
+					//if (FMath::Abs(DotNormals) > .9) // TODO: do we actually want to check for a normal match? coplanar vertex check below is more robust?
 					{
 						// To be extra sure it's a coplanar match, check the vertices are *also* on the other mesh (w/in SnapTolerance)
 						FTriangle3d Tri;
@@ -197,7 +221,14 @@ bool FMeshSelfUnion::Compute()
 				}
 			}
 
-			KeepTri[TID] = WindingNum < WindingThreshold;
+			// didn't already return a coplanar result; use the winding number
+			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset);
+			bool bKeep = WindingNum < WindingThreshold;
+			if (bTrimFlaps && bKeep)
+			{
+				bKeep = Winding.FastWindingNumber(Centroid - Normals[TID] * NormalOffset) > WindingThreshold;
+			}
+			KeepTri[TID] = bKeep;
 		});
 
 		// track where we will create new boundary edges
@@ -241,6 +272,7 @@ bool FMeshSelfUnion::Compute()
 	TMap<int, int> FoundMatches;
 
 	{ // for scope
+		double SnapToleranceSq = SnapTolerance * SnapTolerance;
 		TArray<int> BoundaryNbrEdges;
 		TArray<int> ExcludeVertices;
 		for (int BoundaryVID : PossUnmatchedBdryVerts)
@@ -253,7 +285,7 @@ bool FMeshSelfUnion::Compute()
 
 			FVector3d Pos = Mesh->GetVertex(BoundaryVID);
 
-			// Find a neighborhood of topologically-connected vertices that we can't match to
+			// Find a neighborhood of topologically-connected vertices, and exclude these from matching
 			// TODO: in theory we should walk SnapTolerance away on the connected boundary edges to build the full exclusion set
 			// (in practice just filtering the immediate neighbors should usually be ok?)
 			BoundaryNbrEdges.Reset();
@@ -319,17 +351,21 @@ bool FMeshSelfUnion::Compute()
 				{
 					FVector3d EdgePts[2];
 					Mesh->GetEdgeV(OtherEID, EdgePts[0], EdgePts[1]);
-					FSegment3d Seg(EdgePts[0], EdgePts[1]);
-					double Along = Seg.ProjectUnitRange(Pos);
-					FDynamicMesh3::FEdgeSplitInfo SplitInfo;
-					if (ensure(EMeshResult::Ok == Mesh->SplitEdge(OtherEID, SplitInfo, Along)))
+					// only accept the match if it's not going to create a degenerate edge -- TODO: filter already-matched edges from the FindNearestEdge query!
+					if (EdgePts[0].DistanceSquared(Pos) > SnapToleranceSq && EdgePts[1].DistanceSquared(Pos) > SnapToleranceSq)
 					{
-						FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
-						FoundMatches.Add(BoundaryVID, SplitInfo.NewVertex);
-						Mesh->SetVertex(SplitInfo.NewVertex, Pos);
-						CutBoundaryEdges.Add(SplitInfo.NewEdges.A);
-						// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
-						// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
+						FSegment3d Seg(EdgePts[0], EdgePts[1]);
+						double Along = Seg.ProjectUnitRange(Pos);
+						FDynamicMesh3::FEdgeSplitInfo SplitInfo;
+						if (ensure(EMeshResult::Ok == Mesh->SplitEdge(OtherEID, SplitInfo, Along)))
+						{
+							FoundMatches.Add(SplitInfo.NewVertex, BoundaryVID);
+							FoundMatches.Add(BoundaryVID, SplitInfo.NewVertex);
+							Mesh->SetVertex(SplitInfo.NewVertex, Pos);
+							CutBoundaryEdges.Add(SplitInfo.NewEdges.A);
+							// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
+							// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
+						}
 					}
 				}
 			}

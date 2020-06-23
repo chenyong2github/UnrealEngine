@@ -2,13 +2,13 @@
 
 #include "Input/Devices/VRPN/Button/DisplayClusterVrpnButtonInputDevice.h"
 
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
-FDisplayClusterVrpnButtonInputDevice::FDisplayClusterVrpnButtonInputDevice(const FDisplayClusterConfigInput& config) :
-	FDisplayClusterVrpnButtonInputDataHolder(config)
+FDisplayClusterVrpnButtonInputDevice::FDisplayClusterVrpnButtonInputDevice(const FDisplayClusterConfigInput& Config) :
+	FDisplayClusterVrpnButtonInputDataHolder(Config)
 {
 }
 
@@ -25,7 +25,7 @@ void FDisplayClusterVrpnButtonInputDevice::PreUpdate()
 	// Update 'old' states before calling mainloop
 	for (auto it = DeviceData.CreateIterator(); it; ++it)
 	{
-		it->Value.btnStateOld = it->Value.btnStateNew;
+		it->Value.BtnStateOld = it->Value.BtnStateNew;
 	}
 }
 
@@ -40,15 +40,15 @@ void FDisplayClusterVrpnButtonInputDevice::Update()
 
 bool FDisplayClusterVrpnButtonInputDevice::Initialize()
 {
-	FString addr;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), addr))
+	FString Addr;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), Addr))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - device address not found"), *ToString());
 		return false;
 	}
 
 	// Instantiate device implementation
-	DevImpl.Reset(new vrpn_Button_Remote(TCHAR_TO_UTF8(*addr)));
+	DevImpl.Reset(new vrpn_Button_Remote(TCHAR_TO_UTF8(*Addr)));
 	// Register update handler
 	if(DevImpl->register_change_handler(this, &FDisplayClusterVrpnButtonInputDevice::HandleButtonDevice) != 0)
 	{
@@ -64,16 +64,16 @@ bool FDisplayClusterVrpnButtonInputDevice::Initialize()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterVrpnButtonInputDevice
 //////////////////////////////////////////////////////////////////////////////////////////////
-void VRPN_CALLBACK FDisplayClusterVrpnButtonInputDevice::HandleButtonDevice(void *userData, vrpn_BUTTONCB const b)
+void VRPN_CALLBACK FDisplayClusterVrpnButtonInputDevice::HandleButtonDevice(void *UserData, vrpn_BUTTONCB const ButtonData)
 {
-	auto pDev = reinterpret_cast<FDisplayClusterVrpnButtonInputDevice*>(userData);
+	auto Dev = reinterpret_cast<FDisplayClusterVrpnButtonInputDevice*>(UserData);
 	
-	auto pItem = pDev->DeviceData.Find(b.button);
-	if (!pItem)
+	auto Item = Dev->DeviceData.Find(ButtonData.button);
+	if (!Item)
 	{
-		pItem = &pDev->DeviceData.Add(b.button);
+		Item = &Dev->DeviceData.Add(ButtonData.button);
 		// Explicit initial old state set
-		pItem->btnStateOld = false;
+		Item->BtnStateOld = false;
 	}
 
 	//@note: Actually the button can change state for several time during one update cycle. For example
@@ -85,6 +85,6 @@ void VRPN_CALLBACK FDisplayClusterVrpnButtonInputDevice::HandleButtonDevice(void
 
 	// Convert button state from int to bool here. Actually VRPN has only two states for
 	// buttons (0-released, 1-pressed) but still uses int32 type for the state.
-	pItem->btnStateNew = (b.state != 0);
-	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("Button %s:%d - %d"), *pDev->GetId(), b.button, b.state);
+	Item->BtnStateNew = (ButtonData.state != 0);
+	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("Button %s:%d - %d"), *Dev->GetId(), ButtonData.button, ButtonData.state);
 }

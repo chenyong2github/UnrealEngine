@@ -26,7 +26,7 @@ public:
 	{ }
 
 	// Called on each session start before first level start (before the first tick)
-	virtual bool StartSession(const FString& configPath, const FString& nodeId)
+	virtual bool StartSession(const FString& InConfigPath, const FString& InNodeId)
 	{ return true; }
 
 	// Called on each session end at early step before exit (before UGameEngine::Preexit)
@@ -34,7 +34,7 @@ public:
 	{ }
 
 	// Called each time a new game level starts
-	virtual bool StartScene(UWorld* pWorld)
+	virtual bool StartScene(UWorld* InWorld)
 	{ return true; }
 
 	// Called when current level is going to be closed (i.e. when loading new map)

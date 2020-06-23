@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
                     "DirectXMesh",
                     "OpenVDB",
                     "UEOpenExr",
+                    "TraceLog",
                     "Core",
                     "CoreUObject",
                     "Engine",

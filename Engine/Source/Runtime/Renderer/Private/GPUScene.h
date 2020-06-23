@@ -12,5 +12,5 @@ class FViewInfo;
 
 extern void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View);
 extern void UpdateGPUScene(FRHICommandListImmediate& RHICmdList, FScene& Scene);
-extern void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId);
+extern RENDERER_API void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId);
 

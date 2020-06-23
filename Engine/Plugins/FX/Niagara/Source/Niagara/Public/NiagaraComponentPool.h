@@ -99,6 +99,9 @@ public:
 	/** Returns a component to the pool. */
 	void Reclaim(UNiagaraComponent* NC, const float CurrentTimeSeconds);
 
+	/** Forces us to remove a component, returns true if the component exists inside the pool. */
+	bool RemoveComponent(UNiagaraComponent* Component);
+
 	/** Kills any components that have not been used since the passed KillTime. */
 	void KillUnusedComponents(float KillTime, UNiagaraSystem* Template);
 
@@ -117,6 +120,8 @@ private:
 	float LastParticleSytemPoolCleanTime;
 public:
 
+	static bool Enabled();
+
 	~UNiagaraComponentPool();
 
 	void Cleanup();
@@ -129,6 +134,9 @@ public:
 	/** Call if you want to halt & reclaim all active particle systems and return them to their respective pools. */
 	void ReclaimActiveParticleSystems();
 	
+	/** Notification that the component is being destroyed but has relevance to the component pool. */
+	void PooledComponentDestroyed(UNiagaraComponent* Component);
+
 	/** Dumps the current state of the pool to the log. */
 	void Dump();
 };

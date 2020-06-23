@@ -362,7 +362,7 @@ private:
 #if CHAOS_DEBUG_DRAW && WITH_CHAOS
 		if (DebugParams.IsDebugQuery() && ChaosSQDrawDebugVisitorQueries)
 		{
-			DebugDraw<SQ>(Instance, CurData->CurrentLength, bAllShapesIgnoredInPrefilter, bHitBufferIncreased);
+			DebugDraw<SQ>(Instance, CurData, bAllShapesIgnoredInPrefilter, bHitBufferIncreased);
 		}
 #endif
 
@@ -376,12 +376,16 @@ private:
 	void DebugDrawPayload(const TPayload& Payload, const bool bExternal, const bool bHit) { DebugDrawPayloadImpl(Payload, bExternal, bHit, 0); }
 
 	template <ESQType SQ>
-	void DebugDraw(const Chaos::TSpatialVisitorData<TPayload>& Instance, const float CurLength, const bool bPrefiltered, const bool bHit)
+	void DebugDraw(const Chaos::TSpatialVisitorData<TPayload>& Instance, const Chaos::FQueryFastData* CurData, const bool bPrefiltered, const bool bHit)
 	{
 		if (SQ == ESQType::Raycast)
 		{
-			const FVector EndPoint = StartPoint + (Dir * CurLength);
+			const FVector EndPoint = StartPoint + (Dir * CurData->CurrentLength);
 			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(StartPoint, EndPoint, 5.f, bHit ? FColor::Red : FColor::Green);
+		}
+		else if (SQ == ESQType::Overlap)
+		{
+			Chaos::DebugDraw::DrawShape(StartTM, QueryGeom, bHit ? FColor::Red : FColor::Green);
 		}
 
 		if (Instance.bHasBounds)

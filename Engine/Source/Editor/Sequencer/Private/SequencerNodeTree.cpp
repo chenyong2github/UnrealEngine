@@ -11,6 +11,7 @@
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "MovieSceneSequence.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "Sequencer.h"
 #include "MovieSceneFolder.h"
 #include "ISequencerTrackEditor.h"
@@ -978,6 +979,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 
 	bool bPassedAnyFilters = false;
 	bool bIsTrackOrObjectBinding = false;
+	bool bIsSubTrack = false;
 
 	switch(StartNode->GetType())
 	{
@@ -986,6 +988,15 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 			bIsTrackOrObjectBinding = true;
 
 			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
+
+			// Always show subsequence tracks so that the user can navigate up and down the hierarchy with the filter
+			if (Track && Track->IsA<UMovieSceneSubTrack>())
+			{
+				bPassedAnyFilters = true;
+				bIsSubTrack = true;
+				break;
+			}
+
 			TSharedPtr<FSequencerSectionKeyAreaNode> TopLevelKeyArea = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTopLevelKeyNode();
 			if (TopLevelKeyArea.IsValid())
 			{
@@ -1217,7 +1228,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 		}
 	}
 
-	if (bPassedAnyFilters)
+	if (bPassedAnyFilters && !bIsSubTrack)
 	{
 		// If filtering on selection set is enabled, we need to run another pass to verify we're in an enabled node group
 		UMovieSceneNodeGroupCollection& NodeGroups = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups();

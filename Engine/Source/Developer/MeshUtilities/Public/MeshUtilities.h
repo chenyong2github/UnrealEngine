@@ -156,6 +156,20 @@ public:
 	/** Returns a string uniquely identifying this version of mesh utilities. */
 	virtual const FString& GetVersionString() const = 0;
 
+	/** Used to make sure all imported material slot name are unique and non empty. 
+	 * 
+	 * @param StaticMesh
+	 * @param bForceUniqueSlotName	If true, make sure all slot names are unique as well.
+	 */
+	virtual void FixupMaterialSlotNames(UStaticMesh* StaticMesh) const = 0;
+
+	/** Used to make sure all imported material slot name are unique and non empty. 
+	 *
+	 * @param SkeletalMesh
+	 * @param bForceUniqueSlotName	If true, make sure all slot names are unique as well.
+	 */
+	virtual void FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const = 0;
+
 	/**
 	 * Builds a renderable static mesh using the provided source models and the LOD groups settings.
 	 * @returns true if the renderable mesh was built successfully.

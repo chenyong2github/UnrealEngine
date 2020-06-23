@@ -87,15 +87,15 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 
 		for (int32 k = 0; k < NumEdges; ++k)
 		{
-			FIndex4i EdgeVT = Mesh->GetEdge(LoopPair.InnerEdges[k]);
-			FVector3d A = Mesh->GetVertex(EdgeVT.A);
-			FVector3d B = Mesh->GetVertex(EdgeVT.B);
+			const FDynamicMesh3::FEdge EdgeVT = Mesh->GetEdge(LoopPair.InnerEdges[k]);
+			FVector3d A = Mesh->GetVertex(EdgeVT.Vert[0]);
+			FVector3d B = Mesh->GetVertex(EdgeVT.Vert[1]);
 			FVector3d EdgeDir = (A - B).Normalized();
 			FVector3d Midpoint = (A + B) * 0.5;
-			int32 EdgeTri = EdgeVT.C;
+			int32 EdgeTri = EdgeVT.Tri[0];
 			FVector3d Normal, Centroid; double Area;
 			Mesh->GetTriInfo(EdgeTri, Normal, Area, Centroid);
-			
+
 			FVector3d InsetDir = Normal.Cross(EdgeDir);
 			if ((Centroid - Midpoint).Dot(InsetDir) < 0)
 			{

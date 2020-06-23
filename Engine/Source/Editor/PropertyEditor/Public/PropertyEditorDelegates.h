@@ -74,6 +74,30 @@ DECLARE_DELEGATE_RetVal(bool, FIsPropertyEditingEnabled );
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFinishedChangingProperties, const FPropertyChangedEvent&);
 
+struct FOnGenerateGlobalRowExtensionArgs
+{
+	enum class EWidgetPosition : uint8
+	{
+		Left,
+		Right
+	};
+
+	/** The detail row's property handle. */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	/** The detail row's property node. */
+	TSharedPtr<class FPropertyNode> PropertyNode;
+	/** The detail row's owner tree node. */
+	TWeakPtr<class IDetailTreeNode> OwnerTreeNode;
+};
+
+/**
+ * Delegate called to get add an extension to a property row's name column.
+ * To use, bind an handler to the delegate that adds an extension to the out array parameter.
+ * When called, EWidgetPosition indicates the position for which the delegate is gathering extensions.
+ * ie. The favorite system is implemented by adding the star widget when the delegate is called with the left position.
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGenerateGlobalRowExtension, const FOnGenerateGlobalRowExtensionArgs& /*InArgs*/, FOnGenerateGlobalRowExtensionArgs::EWidgetPosition /*InWidgetPosition*/, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
+
 /**
  * Callback executed to query the custom layout of details
  */

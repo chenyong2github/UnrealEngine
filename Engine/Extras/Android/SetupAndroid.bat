@@ -72,7 +72,7 @@ IF EXIST "%SDKMANAGER%" (
 	)
 )
 
-call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
+call "%SDKMANAGER%" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
 
 IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Update failed. Please check the Android Studio install.

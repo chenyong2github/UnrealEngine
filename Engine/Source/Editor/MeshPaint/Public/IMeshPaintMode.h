@@ -13,6 +13,7 @@ class FViewport;
 class UFactory;
 class IMeshPainter;
 class UViewportInteractor;
+struct FAssetData;
 
 /**
  * Mesh Paint editor mode

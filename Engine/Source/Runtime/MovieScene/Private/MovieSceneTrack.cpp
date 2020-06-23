@@ -50,10 +50,19 @@ void UMovieSceneTrack::PostLoad()
 	// Remove any null sections
 	for (int32 SectionIndex = 0; SectionIndex < GetAllSections().Num(); )
 	{
-		if (GetAllSections()[SectionIndex] == nullptr)
+		UMovieSceneSection* Section = GetAllSections()[SectionIndex];
+
+		if (Section == nullptr)
 		{
 #if WITH_EDITOR
 			UE_LOG(LogMovieScene, Warning, TEXT("Removing null section from %s:%s"), *GetPathName(), *GetDisplayName().ToString());
+#endif
+			RemoveSectionAt(SectionIndex);
+		}
+		else if (Section->GetRange().IsEmpty())
+		{
+#if WITH_EDITOR
+			//UE_LOG(LogMovieScene, Warning, TEXT("Removing section %s:%s with empty range"), *GetPathName(), *GetDisplayName().ToString());
 #endif
 			RemoveSectionAt(SectionIndex);
 		}

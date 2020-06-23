@@ -39,7 +39,7 @@ void UHorizontalBox::OnSlotAdded(UPanelSlot* InSlot)
 void UHorizontalBox::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyHorizontalBox.IsValid() )
+	if ( MyHorizontalBox.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )

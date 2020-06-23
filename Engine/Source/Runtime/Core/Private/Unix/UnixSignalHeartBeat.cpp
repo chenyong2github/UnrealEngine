@@ -107,6 +107,8 @@ void FUnixSignalGameHitchHeartBeat::Init()
 		HitchThresholdS = CmdLine_HitchDurationS;
 	}
 
+	SuspendCount = 0;
+
 	InitSettings();
 #endif
 }
@@ -124,6 +126,18 @@ void FUnixSignalGameHitchHeartBeat::InitSettings()
 			HitchThresholdS = Config_HitchDurationS;
 		}
 	}
+
+	bool bStartSuspended = false;
+	GConfig->GetBool(TEXT("Core.System"), TEXT("GameThreadHeartBeatStartSuspended"), bStartSuspended, GEngineIni);
+	if (FParse::Param(FCommandLine::Get(), TEXT("hitchdetectionstartsuspended")))
+	{
+		bStartSuspended = true;
+	}
+
+	if( bStartSuspended )
+	{
+		SuspendCount = 1;
+	}
 }
 
 void FUnixSignalGameHitchHeartBeat::FrameStart(bool bSkipThisFrame)
@@ -131,7 +145,7 @@ void FUnixSignalGameHitchHeartBeat::FrameStart(bool bSkipThisFrame)
 #if USE_HITCH_DETECTION
 	check(IsInGameThread());
 
-	if (!bDisabled && TimerId)
+	if (!bDisabled && SuspendCount == 0 && TimerId)
 	{
 		if (!bSkipThisFrame)
 		{
@@ -187,6 +201,8 @@ void FUnixSignalGameHitchHeartBeat::SuspendHeartBeat()
 		return;
 	}
 
+	SuspendCount++;
+
 	if (TimerId)
 	{
 		struct itimerspec DisarmTime;
@@ -209,7 +225,12 @@ void FUnixSignalGameHitchHeartBeat::ResumeHeartBeat()
 		return;
 	}
 
-	FrameStart(true);
+	if( SuspendCount > 0)
+	{
+		SuspendCount--;
+
+		FrameStart(true);
+	}
 #endif
 }
 

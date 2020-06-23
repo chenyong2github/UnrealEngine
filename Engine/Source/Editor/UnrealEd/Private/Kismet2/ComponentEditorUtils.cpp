@@ -763,7 +763,8 @@ UActorComponent* FComponentEditorUtils::DuplicateComponent(UActorComponent* Temp
 		TemplateComponent->SetFlags(RF_Transactional);
 
 		NewCloneComponent = DuplicateObject<UActorComponent>(TemplateComponent, Actor, NewComponentName );
-		
+		NewCloneComponent->ClearFlags(RF_DefaultSubObject);
+
 		if (!bTemplateTransactional)
 		{
 			TemplateComponent->ClearFlags(RF_Transactional);

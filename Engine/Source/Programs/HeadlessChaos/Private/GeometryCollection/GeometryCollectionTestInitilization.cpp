@@ -16,7 +16,7 @@ TYPED_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 	CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 	Params.RootTransform = FTransform(GlobalRotation,GlobalTranslation); Params.NestedTransforms ={FTransform(FVector(10)),FTransform::Identity,FTransform::Identity};
-	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 	EXPECT_EQ(Collection->DynamicCollection->Parent[0],1); // is a child of index one
 
 	TFramework<Traits> UnitTest;
@@ -49,7 +49,7 @@ TYPED_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 	CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 	Params.RootTransform = FTransform(GlobalRotation,GlobalTranslation); Params.NestedTransforms ={FTransform::Identity,FTransform(FVector(10)),FTransform::Identity};
-	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 	TFramework<Traits> UnitTest;
 	UnitTest.AddSimulationObject(Collection);
@@ -81,7 +81,7 @@ TYPED_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 	CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 	Params.RootTransform = FTransform(GlobalRotation,GlobalTranslation); Params.NestedTransforms ={FTransform::Identity,FTransform::Identity,FTransform(FVector(10))};
-	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 	TFramework<Traits> UnitTest;
 	UnitTest.AddSimulationObject(Collection);
@@ -114,15 +114,15 @@ TYPED_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 	Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 	Params.GeomTransform = FTransform(GlobalRotation,GlobalTranslation); Params.NestedTransforms ={FTransform::Identity,FTransform::Identity,FTransform::Identity};
-	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+	TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 	//
 	// validate the vertices have been moved.  
 	//
 	TArray<FTransform> RestTransforms;
 	int32 NumVertices = Collection->DynamicCollection->NumElements(FGeometryCollection::VerticesGroup);
-	TManagedArray<FVector>& Vertices = Collection->RestCollection->GetAttribute<FVector>("Vertex",FGeometryCollection::VerticesGroup);
-	TManagedArray<int32>& BoneMap = Collection->RestCollection->GetAttribute<int32>("BoneMap",FGeometryCollection::VerticesGroup);
+	TManagedArray<FVector>& Vertices = Collection->RestCollection->template GetAttribute<FVector>("Vertex",FGeometryCollection::VerticesGroup);
+	TManagedArray<int32>& BoneMap = Collection->RestCollection->template GetAttribute<int32>("BoneMap",FGeometryCollection::VerticesGroup);
 	GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform,Collection->RestCollection->Parent,RestTransforms);
 	FVector CenterOfMass(0);  for(int VertexIndex =0; VertexIndex <NumVertices; VertexIndex++) CenterOfMass += RestTransforms[BoneMap[VertexIndex]].TransformPosition(Vertices[VertexIndex]); CenterOfMass /= NumVertices;
 	EXPECT_NEAR(CenterOfMass.X - GlobalTranslation[0],0.0f,KINDA_SMALL_NUMBER);
@@ -137,7 +137,7 @@ TYPED_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	UnitTest.Advance();
 
 	{ // test results
-		TManagedArray<FTransform>& MassToLocal = Collection->RestCollection->GetAttribute<FTransform>("MassToLocal",FGeometryCollection::TransformGroup);
+		TManagedArray<FTransform>& MassToLocal = Collection->RestCollection->template GetAttribute<FTransform>("MassToLocal",FGeometryCollection::TransformGroup);
 
 
 		//EXPECT_EQ(UnitTest.Solver->GetParticles().GetGeometryCollectionParticles().Size(), 1);

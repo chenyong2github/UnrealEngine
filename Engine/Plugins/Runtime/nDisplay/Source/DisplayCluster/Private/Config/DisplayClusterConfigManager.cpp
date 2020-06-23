@@ -9,24 +9,22 @@
 #include "Config/Parser/DisplayClusterConfigParserXml.h"
 #include "Config/Parser/DisplayClusterConfigParserDebugAuto.h"
 
-#include "DisplayClusterBuildConfig.h"
 #include "Misc/Paths.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterBuildConfig.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 #include "HAL/FileManager.h"
 
 
 FDisplayClusterConfigManager::FDisplayClusterConfigManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 }
 
 FDisplayClusterConfigManager::~FDisplayClusterConfigManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 }
 
 
@@ -35,22 +33,17 @@ FDisplayClusterConfigManager::~FDisplayClusterConfigManager()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterConfigManager::Init(EDisplayClusterOperationMode OperationMode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-	
 	return true;
 }
 
 void FDisplayClusterConfigManager::Release()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 }
 
-bool FDisplayClusterConfigManager::StartSession(const FString& configPath, const FString& nodeId)
+bool FDisplayClusterConfigManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-	
-	ConfigPath = configPath;
-	ClusterNodeId = nodeId;
+	ConfigPath = InConfigPath;
+	ClusterNodeId = InNodeId;
 
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Starting session with config: %s"), *ConfigPath);
 
@@ -60,8 +53,6 @@ bool FDisplayClusterConfigManager::StartSession(const FString& configPath, const
 
 void FDisplayClusterConfigManager::EndSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-
 	ConfigPath.Empty();
 	ClusterNodeId.Empty();
 
@@ -83,25 +74,25 @@ int32 FDisplayClusterConfigManager::GetClusterNodesAmount() const
 	return CfgClusterNodes.Num();
 }
 
-bool FDisplayClusterConfigManager::GetClusterNode(const FString& id, FDisplayClusterConfigClusterNode& node) const
+bool FDisplayClusterConfigManager::GetClusterNode(const FString& ClusterNodeID, FDisplayClusterConfigClusterNode& CfgClusterNode) const
 {
-	return GetItem(CfgClusterNodes, id, node, FString("GetNode"));
+	return GetItem(CfgClusterNodes, ClusterNodeID, CfgClusterNode, FString("GetClusterNode"));
 }
 
-bool FDisplayClusterConfigManager::GetMasterClusterNode(FDisplayClusterConfigClusterNode& node) const
+bool FDisplayClusterConfigManager::GetMasterClusterNode(FDisplayClusterConfigClusterNode& CfgMasterNode) const
 {
-	const FDisplayClusterConfigClusterNode* const pFound = CfgClusterNodes.FindByPredicate([](const FDisplayClusterConfigClusterNode& item)
+	const FDisplayClusterConfigClusterNode* const FoundItem = CfgClusterNodes.FindByPredicate([](const FDisplayClusterConfigClusterNode& Item)
 	{
-		return item.IsMaster == true;
+		return Item.IsMaster == true;
 	});
 
-	if (!pFound)
+	if (!FoundItem)
 	{
 		UE_LOG(LogDisplayClusterConfig, Error, TEXT("Master node configuration not found"));
 		return false;
 	}
 
-	node = *pFound;
+	CfgMasterNode = *FoundItem;
 	return true;
 }
 
@@ -154,9 +145,9 @@ int32 FDisplayClusterConfigManager::GetScreensAmount() const
 	return CfgScreens.Num();
 }
 
-bool FDisplayClusterConfigManager::GetScreen(const FString& id, FDisplayClusterConfigScreen& screen) const
+bool FDisplayClusterConfigManager::GetScreen(const FString& ScreenID, FDisplayClusterConfigScreen& CfgScreen) const
 {
-	return GetItem(CfgScreens, id, screen, FString("GetScreen"));
+	return GetItem(CfgScreens, ScreenID, CfgScreen, FString("GetScreen"));
 }
 
 
@@ -171,9 +162,9 @@ int32 FDisplayClusterConfigManager::GetCamerasAmount() const
 	return CfgCameras.Num();
 }
 
-bool FDisplayClusterConfigManager::GetCamera(const FString& id, FDisplayClusterConfigCamera& camera) const
+bool FDisplayClusterConfigManager::GetCamera(const FString& CameraID, FDisplayClusterConfigCamera& CfgCamera) const
 {
-	return GetItem(CfgCameras, id, camera, FString("GetCamera"));
+	return GetItem(CfgCameras, CameraID, CfgCamera, FString("GetCamera"));
 }
 
 
@@ -188,9 +179,9 @@ int32 FDisplayClusterConfigManager::GetViewportsAmount() const
 	return CfgViewports.Num();
 }
 
-bool FDisplayClusterConfigManager::GetViewport(const FString& id, FDisplayClusterConfigViewport& viewport) const
+bool FDisplayClusterConfigManager::GetViewport(const FString& ViewportID, FDisplayClusterConfigViewport& CfgViewport) const
 {
-	return GetItem(CfgViewports, id, viewport, FString("GetViewport"));
+	return GetItem(CfgViewports, ViewportID, CfgViewport, FString("GetViewport"));
 }
 
 
@@ -205,9 +196,9 @@ int32 FDisplayClusterConfigManager::GetPostprocessAmount() const
 	return CfgPostprocess.Num();
 }
 
-bool FDisplayClusterConfigManager::GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const
+bool FDisplayClusterConfigManager::GetPostprocess(const FString& PostprocessID, FDisplayClusterConfigPostprocess& OutCfgPostprocess) const
 {
-	return GetItem(CfgPostprocess, id, postprocess, FString("GetPostprocess"));
+	return GetItem(CfgPostprocess, PostprocessID, OutCfgPostprocess, FString("GetPostprocess"));
 }
 
 
@@ -222,9 +213,9 @@ int32 FDisplayClusterConfigManager::GetSceneNodesAmount() const
 	return CfgSceneNodes.Num();
 }
 
-bool FDisplayClusterConfigManager::GetSceneNode(const FString& id, FDisplayClusterConfigSceneNode& actor) const
+bool FDisplayClusterConfigManager::GetSceneNode(const FString& SceneNodeID, FDisplayClusterConfigSceneNode& CfgSceneNode) const
 {
-	return GetItem(CfgSceneNodes, id, actor, FString("GetActor"));
+	return GetItem(CfgSceneNodes, SceneNodeID, CfgSceneNode, FString("GetSceneNode"));
 }
 
 
@@ -239,9 +230,9 @@ int32 FDisplayClusterConfigManager::GetInputDevicesAmount() const
 	return CfgInputDevices.Num();
 }
 
-bool FDisplayClusterConfigManager::GetInputDevice(const FString& id, FDisplayClusterConfigInput& input) const
+bool FDisplayClusterConfigManager::GetInputDevice(const FString& InputDeviceID, FDisplayClusterConfigInput& CfgInput) const
 {
-	return GetItem(CfgInputDevices, id, input, FString("GetInputDevice"));
+	return GetItem(CfgInputDevices, InputDeviceID, CfgInput, FString("GetInputDevice"));
 }
 
 TArray<FDisplayClusterConfigInputSetup> FDisplayClusterConfigManager::GetInputSetupRecords() const
@@ -249,9 +240,9 @@ TArray<FDisplayClusterConfigInputSetup> FDisplayClusterConfigManager::GetInputSe
 	return CfgInputSetupRecords;
 }
 
-bool FDisplayClusterConfigManager::GetInputSetupRecord(const FString& id, FDisplayClusterConfigInputSetup& input) const
+bool FDisplayClusterConfigManager::GetInputSetupRecord(const FString& InputSetupID, FDisplayClusterConfigInputSetup& CfgInputSetup) const
 {
-	return GetItem(CfgInputSetupRecords, id, input, FString("GetInputSetupRecord"));
+	return GetItem(CfgInputSetupRecords, InputSetupID, CfgInputSetup, FString("GetInputSetupRecord"));
 }
 
 TArray<FDisplayClusterConfigProjection> FDisplayClusterConfigManager::GetProjections() const
@@ -259,9 +250,9 @@ TArray<FDisplayClusterConfigProjection> FDisplayClusterConfigManager::GetProject
 	return CfgProjections;
 }
 
-bool FDisplayClusterConfigManager::GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const
+bool FDisplayClusterConfigManager::GetProjection(const FString& ProjectionID, FDisplayClusterConfigProjection& CfgProjection) const
 {
-	return GetItem(CfgProjections, id, projection, FString("GetProjection"));
+	return GetItem(CfgProjections, ProjectionID, CfgProjection, FString("GetProjection"));
 }
 
 
@@ -270,127 +261,109 @@ bool FDisplayClusterConfigManager::GetProjection(const FString& id, FDisplayClus
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterConfigManager::AddInfo(const FDisplayClusterConfigInfo& InCfgInfo)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found info node: %s"), *InCfgInfo.ToString());
 	CfgInfo = InCfgInfo;
 }
 
 void FDisplayClusterConfigManager::AddClusterNode(const FDisplayClusterConfigClusterNode& InCfgCNode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found cluster node: %s"), *InCfgCNode.ToString());
 	CfgClusterNodes.Add(InCfgCNode);
 }
 
 void FDisplayClusterConfigManager::AddWindow(const FDisplayClusterConfigWindow& InCfgWindow)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found window: %s"), *InCfgWindow.ToString());
 	CfgWindows.Add(InCfgWindow);
 }
 
 void FDisplayClusterConfigManager::AddScreen(const FDisplayClusterConfigScreen& InCfgScreen)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found screen: %s"), *InCfgScreen.ToString());
 	CfgScreens.Add(InCfgScreen);
 }
 
 void FDisplayClusterConfigManager::AddViewport(const FDisplayClusterConfigViewport& InCfgViewport)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found viewport: %s"), *InCfgViewport.ToString());
 	CfgViewports.Add(InCfgViewport);
 }
 
 void FDisplayClusterConfigManager::AddPostprocess(const FDisplayClusterConfigPostprocess& InCfgPostprocess)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found postprocess: %s"), *InCfgPostprocess.ToString());
 	CfgPostprocess.Add(InCfgPostprocess);
 }
 
 void FDisplayClusterConfigManager::AddCamera(const FDisplayClusterConfigCamera& InCfgCamera)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found camera: %s"), *InCfgCamera.ToString());
 	CfgCameras.Add(InCfgCamera);
 }
 
 void FDisplayClusterConfigManager::AddSceneNode(const FDisplayClusterConfigSceneNode& InCfgSNode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found scene node: %s"), *InCfgSNode.ToString());
 	CfgSceneNodes.Add(InCfgSNode);
 }
 
 void FDisplayClusterConfigManager::AddInput(const FDisplayClusterConfigInput& InCfgInput)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found input device: %s"), *InCfgInput.ToString());
 	CfgInputDevices.Add(InCfgInput);
 }
 
 void FDisplayClusterConfigManager::AddInputSetup(const FDisplayClusterConfigInputSetup& InCfgInputSetup)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found input setup record: %s"), *InCfgInputSetup.ToString());
 	CfgInputSetupRecords.Add(InCfgInputSetup);
 }
 
 void FDisplayClusterConfigManager::AddGeneral(const FDisplayClusterConfigGeneral& InCfgGeneral)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found general: %s"), *InCfgGeneral.ToString());
 	CfgGeneral = InCfgGeneral;
 }
 
 void FDisplayClusterConfigManager::AddRender(const FDisplayClusterConfigRender& InCfgRender)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found render: %s"), *InCfgRender.ToString());
 	CfgRender = InCfgRender;
 }
 
 void FDisplayClusterConfigManager::AddNvidia(const FDisplayClusterConfigNvidia& InCfgNvidia)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found NVIDIA: %s"), *InCfgNvidia.ToString());
 	CfgNvidia = InCfgNvidia;
 }
 
 void FDisplayClusterConfigManager::AddStereo(const FDisplayClusterConfigStereo& InCfgStereo)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found stereo: %s"), *InCfgStereo.ToString());
 	CfgStereo = InCfgStereo;
 }
 
 void FDisplayClusterConfigManager::AddNetwork(const FDisplayClusterConfigNetwork& InCfgNetwork)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found network: %s"), *InCfgNetwork.ToString());
 	CfgNetwork = InCfgNetwork;
 }
 
 void FDisplayClusterConfigManager::AddDebug(const FDisplayClusterConfigDebug& InCfgDebug)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found debug: %s"), *InCfgDebug.ToString());
 	CfgDebug = InCfgDebug;
 }
 
 void FDisplayClusterConfigManager::AddCustom(const FDisplayClusterConfigCustom& InCfgCustom)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found custom: %s"), *InCfgCustom.ToString());
 	CfgCustom = InCfgCustom;
 }
 
 void FDisplayClusterConfigManager::AddProjection(const FDisplayClusterConfigProjection& InCfgProjection)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found projeciton: %s"), *InCfgProjection.ToString());
+	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found projection: %s"), *InCfgProjection.ToString());
 	CfgProjections.Add(InCfgProjection);
 }
 
@@ -398,22 +371,20 @@ void FDisplayClusterConfigManager::AddProjection(const FDisplayClusterConfigProj
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterConfigManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterConfigManager::EConfigFileType FDisplayClusterConfigManager::GetConfigFileType(const FString& cfgPath) const
+FDisplayClusterConfigManager::EConfigFileType FDisplayClusterConfigManager::GetConfigFileType(const FString& InConfigPath) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-
 #ifdef DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
-	if (cfgPath == DisplayClusterStrings::misc::DbgStubConfig)
+	if (InConfigPath == DisplayClusterStrings::misc::DbgStubConfig)
 	{
 		UE_LOG(LogDisplayClusterConfig, Log, TEXT("Debug auto config requested"));
 		return EConfigFileType::DebugAuto;
 	}
 #endif
 
-	const FString ext = FPaths::GetExtension(cfgPath).ToLower();
+	const FString ext = FPaths::GetExtension(InConfigPath).ToLower();
 	if (ext == FString(DisplayClusterStrings::cfg::file::FileExtXml).ToLower())
 	{
-		UE_LOG(LogDisplayClusterConfig, Log, TEXT("XML config: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Log, TEXT("XML config: %s"), *InConfigPath);
 		return EConfigFileType::Xml;
 	}
 	else if (
@@ -422,7 +393,7 @@ FDisplayClusterConfigManager::EConfigFileType FDisplayClusterConfigManager::GetC
 		ext == FString(DisplayClusterStrings::cfg::file::FileExtCfg3).ToLower() ||
 		ext == FString(DisplayClusterStrings::cfg::file::FileExtTxt).ToLower())
 	{
-		UE_LOG(LogDisplayClusterConfig, Log, TEXT("TXT config: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Log, TEXT("TXT config: %s"), *InConfigPath);
 		return EConfigFileType::Text;
 	}
 
@@ -430,11 +401,9 @@ FDisplayClusterConfigManager::EConfigFileType FDisplayClusterConfigManager::GetC
 	return EConfigFileType::Unknown;
 }
 
-bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
+bool FDisplayClusterConfigManager::LoadConfig(const FString& InConfigPath)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-
-	FString ConfigFile = cfgPath;
+	FString ConfigFile = InConfigPath;
 	ConfigFile.TrimStartAndEndInline();
 
 	if (FPaths::IsRelative(ConfigFile))
@@ -462,21 +431,21 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 #endif
 
 	// Instantiate appropriate parser
-	TUniquePtr<FDisplayClusterConfigParser> parser;
+	TUniquePtr<FDisplayClusterConfigParser> Parser;
 	switch (GetConfigFileType(ConfigFile))
 	{
 	case EConfigFileType::Text:
-		parser.Reset(new FDisplayClusterConfigParserText(this));
+		Parser.Reset(new FDisplayClusterConfigParserText(this));
 		break;
 
 	case EConfigFileType::Xml:
-		parser.Reset(new FDisplayClusterConfigParserXml(this));
+		Parser.Reset(new FDisplayClusterConfigParserXml(this));
 		break;
 
 #ifdef DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
 	case EConfigFileType::DebugAuto:
 		bIsDebugAuto = true;
-		parser.Reset(new FDisplayClusterConfigParserDebugAuto(this));
+		Parser.Reset(new FDisplayClusterConfigParserDebugAuto(this));
 		break;
 #endif
 
@@ -485,13 +454,11 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 		return false;
 	}
 
-	return parser->ParseFile(ConfigFile);
+	return Parser->ParseFile(ConfigFile);
 }
 
 void FDisplayClusterConfigManager::ResetConfigData()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
-
 	CfgClusterNodes.Reset();
 	CfgWindows.Reset();
 	CfgScreens.Reset();
@@ -514,20 +481,20 @@ void FDisplayClusterConfigManager::ResetConfigData()
 }
 
 template <typename DataType>
-bool FDisplayClusterConfigManager::GetItem(const TArray<DataType>& container, const FString& id, DataType& item, const FString& logHeader) const
+bool FDisplayClusterConfigManager::GetItem(const TArray<DataType>& Container, const FString& ID, DataType& Item, const FString& LogHeader) const
 {
-	auto pFound = container.FindByPredicate([id](const DataType& _item)
+	auto pFound = Container.FindByPredicate([ID](const DataType& _item)
 	{
-		return _item.Id == id;
+		return _item.Id == ID;
 	});
 
 	if (!pFound)
 	{
-		UE_LOG(LogDisplayClusterConfig, Warning, TEXT("%s: ID not found <%s>"), *logHeader, *id);
+		UE_LOG(LogDisplayClusterConfig, Warning, TEXT("%s: ID not found <%s>"), *LogHeader, *ID);
 		return false;
 	}
 
-	item = *pFound;
+	Item = *pFound;
 	return true;
 }
 

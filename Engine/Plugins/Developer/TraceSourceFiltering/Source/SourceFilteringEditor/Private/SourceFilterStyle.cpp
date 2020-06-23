@@ -5,9 +5,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 
-
 FSlateBrush* FSourceFilterStyle::FilterBrush = nullptr;
-FSlateBrush* FSourceFilterStyle::FilterSetOperationBrush = nullptr;
 FSlateBrush* FSourceFilterStyle::FilterSetBrush = nullptr;
 
 TSharedPtr< FSlateStyleSet > FSourceFilterStyle::StyleSet = nullptr;
@@ -65,14 +63,13 @@ void FSourceFilterStyle::Initialize()
 		.SetHighlightShape(BOX_BRUSH("Common/TextBlockHighlightShape", FMargin(3.f / 8.f)));
 
 
-	FSourceFilterStyle::FilterBrush = new BOX_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(0.25f, 0.25f, 0.25f, 0.9f));
+	FSourceFilterStyle::FilterBrush = new BOX_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(0.9f, 0.9f, 0.9f, 0.9f));
 	StyleSet->Set("SourceFilter.FilterBrush", FSourceFilterStyle::FilterBrush);
-
-	FSourceFilterStyle::FilterSetOperationBrush = new BOX_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(0.85f, 0.25f, 0.25f, 0.9f));
-	StyleSet->Set("SourceFilter.FilterSetOperationBrush", FSourceFilterStyle::FilterSetOperationBrush);
-		
+	
 	FSourceFilterStyle::FilterSetBrush = new BOX_BRUSH("Common/FlatButton", 2.0f / 8.0f, FLinearColor(0.125f, 0.125f, 0.125f, 0.9f));
 	StyleSet->Set("SourceFilter.FilterSetBrush", FSourceFilterStyle::FilterSetBrush);
+
+	StyleSet->Set("ExpandableAreaBrush", new BOX_BRUSH("PropertyView/DetailCategoryTop", FMargin(4 / 16.0f, 8.0f / 16.0f, 4 / 16.0f, 4 / 16.0f)));
 
 	// Normal button
 	FButtonStyle Button = FButtonStyle()
@@ -106,10 +103,21 @@ void FSourceFilterStyle::Initialize()
 	FlatButtons.Add(ButtonColor("SourceFilter.Filter", FLinearColor(0.25f, 0.25f, 0.25f, 0.9f)));
 
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.NOT", FLinearColor(0.85f, 0.25f, 0.25f, 0.9f)));
-	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.AND", FLinearColor(0.25f, 0.85f, 0.25f, 0.9f)));
+	ButtonColor ANDButtonColors("SourceFilter.FilterSetOperation.AND", FLinearColor(0.25f, 0.85f, 0.25f, 0.9f));
+	FlatButtons.Add(ANDButtonColors);
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSetOperation.OR", FLinearColor(0.25f, 0.25f, 0.85f, 0.9f)));
 
 	FlatButtons.Add(ButtonColor("SourceFilter.FilterSet", FLinearColor(0.125f, 0.125f, 0.125f, 0.9f)));
+
+	StyleSet->Set("WorldFilterToggleButton", FCheckBoxStyle()		
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, FLinearColor(1, 1, 1, 0.1f)))
+		.SetUncheckedHoveredImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Hovered))  
+		.SetUncheckedPressedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Pressed)) 
+		.SetCheckedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Normal)) 
+		.SetCheckedHoveredImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Hovered)) 
+		.SetCheckedPressedImage(BOX_BRUSH("Common/FlatButton", 4.0f / 16.0f, ANDButtonColors.Pressed)) 
+	);
 	
 	for (const ButtonColor& Entry : FlatButtons)
 	{
@@ -154,6 +162,7 @@ void FSourceFilterStyle::Initialize()
 	StyleSet->Set("SourceFilter.DragDrop.Border", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
 
 	StyleSet->Set("FontAwesome.9", ICON_FONT(9));
+	StyleSet->Set("FontAwesome.12", ICON_FONT(12));
 		
 	FSlateStyleRegistry::RegisterSlateStyle( *StyleSet.Get() );
 }

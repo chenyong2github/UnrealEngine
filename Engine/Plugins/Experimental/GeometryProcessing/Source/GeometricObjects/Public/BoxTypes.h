@@ -183,6 +183,12 @@ struct TInterval1
 	{
 		return Max > Min;
 	}
+
+	void Expand(RealType Radius)
+	{
+		Max += Radius;
+		Min -= Radius;
+	}
 };
 
 typedef TInterval1<float> FInterval1f;
@@ -449,6 +455,16 @@ struct TAxisAlignedBox3
 	{
 		return Max.X > Min.X || Max.Y > Min.Y || Max.Z > Min.Z;
 	}
+
+	void Expand(RealType Radius)
+	{
+		Max.X += Radius;
+		Max.Y += Radius;
+		Max.Z += Radius;
+		Min.X -= Radius;
+		Min.Y -= Radius;
+		Min.Z -= Radius;
+	}
 };
 
 template <typename RealType>
@@ -631,6 +647,14 @@ struct TAxisAlignedBox2
 	inline bool IsEmpty() const
 	{
 		return Max.X > Min.X || Max.Y > Min.Y;
+	}
+
+	void Expand(RealType Radius)
+	{
+		Max.X += Radius;
+		Max.Y += Radius;
+		Min.X -= Radius;
+		Min.Y -= Radius;
 	}
 };
 

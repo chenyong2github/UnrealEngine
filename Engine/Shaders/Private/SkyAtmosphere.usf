@@ -19,11 +19,11 @@
 #ifndef COLORED_TRANSMITTANCE_ENABLED	// Never used, UE4 does not supports dual blending
 #define COLORED_TRANSMITTANCE_ENABLED 0 
 #endif
-#ifndef MULTISCATTERING_APPROX_ENABLED 
-#define MULTISCATTERING_APPROX_ENABLED 0 
+#ifndef MULTISCATTERING_APPROX_SAMPLING_ENABLED
+#define MULTISCATTERING_APPROX_SAMPLING_ENABLED 0
 #endif
-#ifndef HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED 
-#define HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED 0 
+#ifndef HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED
+#define HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED 0
 #endif
 #ifndef FASTSKY_ENABLED 
 #define FASTSKY_ENABLED 0 
@@ -53,6 +53,48 @@
 #ifndef SKYLIGHT_PASS
 #define SKYLIGHT_PASS 0
 #endif
+#ifndef SKYVIEWLUT_PASS
+#define SKYVIEWLUT_PASS 0
+#endif
+
+#ifndef SAMPLE_OPAQUE_SHADOW
+#define SAMPLE_OPAQUE_SHADOW 0
+#endif
+#ifndef SAMPLE_CLOUD_SHADOW
+#define SAMPLE_CLOUD_SHADOW 0
+#endif
+#ifndef SAMPLE_CLOUD_SKYAO
+#define SAMPLE_CLOUD_SKYAO 0
+#endif
+
+#if SAMPLE_OPAQUE_SHADOW
+
+#define DYNAMICALLY_SHADOWED 1
+#define TREAT_MAXDEPTH_UNSHADOWED 1
+
+#define SHADOW_QUALITY 2
+#define NO_TRANSLUCENCY_AVAILABLE
+
+#include "ShadowProjectionCommon.ush"
+#include "ShadowFilteringCommon.ush"
+
+#define VOLUME_SHADOW_SAMPLING_INPUT 0
+#include "VolumeLightingCommonSampling.ush"
+#undef VOLUME_SHADOW_SAMPLING_INPUT
+
+#if SECOND_ATMOSPHERE_LIGHT_ENABLED
+#define VOLUME_SHADOW_SAMPLING_INPUT 1
+#include "VolumeLightingCommonSampling.ush"
+#undef VOLUME_SHADOW_SAMPLING_INPUT
+#endif
+
+#endif
+
+
+#if (SAMPLE_CLOUD_SHADOW || SAMPLE_CLOUD_SKYAO)
+#include "VolumetricCloudCommon.ush" 
+#endif
+
 
 // View data is not available for passes running once per scene (and not once per view).
 #define VIEWDATA_AVAILABLE (TRANSMITTANCE_PASS!=1 && MULTISCATT_PASS!=1 && SKYLIGHT_PASS!=1)
@@ -308,33 +350,39 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 ////////////////////////////////////////////////////////////
 
 #if USE_PREEXPOSURE && VIEWDATA_AVAILABLE
-#define ViewPreExposure View.PreExposure
-#define ViewOneOverPreExposure View.OneOverPreExposure
+// Exposure used for regular views by the FastSky and AP LUTs.
+#define ViewPreExposure			View.PreExposure
+#define ViewOneOverPreExposure	View.OneOverPreExposure
+// When rendering a real time reflection capture (sky envmap) whe use a different exposure
+#define OutputPreExposure		(View.RealTimeReflectionCapture ? View.RealTimeReflectionCapturePreExposure : View.PreExposure)
 #else
-#define ViewPreExposure 1.0f
-#define ViewOneOverPreExposure 1.0f
+#define ViewPreExposure			1.0f
+#define ViewOneOverPreExposure	1.0f
+#define OutputPreExposure		1.0f
 #endif
-
-#define NearDepthValue (HAS_INVERTED_Z_BUFFER ? 1.0f : 0.0f)
-#define FarDepthValue  (HAS_INVERTED_Z_BUFFER ? 0.0f : 1.0f)
-
 
 
 SamplerState TransmittanceLutTextureSampler;
 SamplerState MultiScatteredLuminanceLutTextureSampler;
 SamplerState SkyViewLutTextureSampler;
 SamplerState CameraAerialPerspectiveVolumeTextureSampler;
+SamplerState VolumetricCloudShadowMapTextureSampler;
+SamplerState VolumetricCloudSkyAOTextureSampler;
 
 Texture2D<float4> TransmittanceLutTexture;
 Texture2D<float4> MultiScatteredLuminanceLutTexture;
 Texture2D<float4> SkyViewLutTexture;
 Texture3D<float4> CameraAerialPerspectiveVolumeTexture;
+Texture2D<float2> VolumetricCloudShadowMapTexture;
+Texture2D<float2> VolumetricCloudSkyAOTexture;
 
 
+#if SOURCE_DISK_ENABLED
+
+uint SourceDiskEnabled; 
 
 float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 {
-#if SOURCE_DISK_ENABLED
 	float t = RaySphereIntersectNearest(WorldPos, WorldDir, float3(0.0f, 0.0f, 0.0f), Atmosphere.BottomRadiusKm);
 	if (t < 0.0f												// No intersection with the planet
 		&& View.RenderingReflectionCaptureMask==0.0f)	// Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
@@ -346,7 +394,7 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 
 		// Clamp to avoid crazy high values (and exposed 64000.0f luminance is already crazy high, solar system sun is 1.6x10^9). Also this removes +inf float and helps TAA.
 		const float3 MaxLightLuminance = 64000.0f;
-		float3 ExposedLightLuminance = LightDiskLuminance * ViewPreExposure;
+		float3 ExposedLightLuminance = LightDiskLuminance * OutputPreExposure;
 		ExposedLightLuminance = min(ExposedLightLuminance, MaxLightLuminance);
 
 #if 1
@@ -361,9 +409,9 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 
 		return ExposedLightLuminance;
 	}
-#endif
 	return 0.0f;
 }
+#endif
 
 
 float3 GetMultipleScattering(float3 WorlPos, float ViewZenithCosAngle)
@@ -528,10 +576,17 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float t = 0.0f;
 	float tPrev = 0.0f;
 
-	float3 ExposedLight0Illuminance = Light0Illuminance * ViewPreExposure;
+	float3 ExposedLight0Illuminance = Light0Illuminance * OutputPreExposure;
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
-	float3 ExposedLight1Illuminance = Light1Illuminance * ViewPreExposure;
+	float3 ExposedLight1Illuminance = Light1Illuminance * OutputPreExposure;
 #endif
+
+//#if SAMPLE_OPAQUE_SHADOW
+	// Get the referencial when rendering the SkyView lut being in a special Z-top space
+#if SKYVIEWLUT_PASS
+	float3x3 LocalReferencial = GetSkyViewLutReferential(View.SkyViewLutReferential);
+#endif
+//#endif
 
 	float PixelNoise = PER_PIXEL_NOISE ? SkyAtmosphereNoise(PixPos.xy) : DEFAULT_SAMPLE_OFFSET;
 	for (float SampleI = 0.0f; SampleI < SampleCount; SampleI += 1.0f)
@@ -602,13 +657,30 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 		// Multiple scattering approximation
 		float3 MultiScatteredLuminance0 = 0.0f;
-#if MULTISCATTERING_APPROX_ENABLED
+#if MULTISCATTERING_APPROX_SAMPLING_ENABLED
 		MultiScatteredLuminance0 = GetMultipleScattering(P, Light0ZenithCosAngle);
 #endif
 
 		// Planet shadow
 		float tPlanet0 = RaySphereIntersectNearest(P, Light0Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere.BottomRadiusKm);
 		float PlanetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
+		float3 ShadowP0 = P;
+#if SKYVIEWLUT_PASS
+		ShadowP0 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
+#endif
+#if SAMPLE_OPAQUE_SHADOW
+		PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false);
+#endif
+#if SAMPLE_CLOUD_SKYAO
+		float OutOpticalDepth = 0.0f;
+		MultiScatteredLuminance0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudSkyAOWorldToLightClipMatrix,
+			VolumetricCloudCommonParameters.CloudSkyAOFarDepthKm, VolumetricCloudSkyAOTexture, VolumetricCloudSkyAOTextureSampler, OutOpticalDepth);
+#endif
+#if SAMPLE_CLOUD_SHADOW
+		float OutOpticalDepth2 = 0.0f;
+		PlanetShadow0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix,
+			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm, VolumetricCloudShadowMapTexture, VolumetricCloudShadowMapTextureSampler, OutOpticalDepth2);
+#endif
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
 		float3 S = ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0 + MultiScatteredLuminance0 * Medium.Scattering);
@@ -616,6 +688,13 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		float tPlanet1 = RaySphereIntersectNearest(P, Light1Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere.BottomRadiusKm);
 		float PlanetShadow1 = tPlanet1 >= 0.0f ? 0.0f : 1.0f;
+#if SAMPLE_OPAQUE_SHADOW
+		float3 ShadowP1 = P;
+	#if SKYVIEWLUT_PASS
+		ShadowP1 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
+	#endif
+		PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false);
+#endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
 		S += ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1;// +MultiScatteredLuminance * Medium.Scattering);
 #endif
@@ -697,10 +776,15 @@ void SkyAtmosphereVS(
 
 
 
-float4 PrepareOutput(float3 Luminance, float3 Transmittance = float3(1.0f, 1.0f, 1.0f))
+float4 PrepareOutput(float3 PreExposedLuminance, float3 Transmittance = float3(1.0f, 1.0f, 1.0f))
 {
+	// Sky materials can result in high luminance values, e.g. the sun disk. 
+	// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
+	// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
+	float3 SafePreExposedLuminance = min(PreExposedLuminance, Max10BitsFloat.xxx * 0.5f);
+
 	const float GreyScaleTransmittance = dot(Transmittance, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
-	return float4(min(Luminance, Max10BitsFloat.xxx), GreyScaleTransmittance);
+	return float4(SafePreExposedLuminance, GreyScaleTransmittance);
 }
 
 void RenderSkyAtmosphereRayMarchingPS(
@@ -734,10 +818,15 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float DeviceZ = LookupDeviceZ(UvBuffer);
 	if (DeviceZ == FarDepthValue)
 	{
-		LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
-		PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 0);
-#if SECOND_ATMOSPHERE_LIGHT_ENABLED
-		PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);
+#if SOURCE_DISK_ENABLED
+		if (SourceDiskEnabled > 0)
+		{
+			LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
+			PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 0);
+		#if SECOND_ATMOSPHERE_LIGHT_ENABLED
+			PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);
+		#endif
+		}
 #endif
 
 #if RENDERSKY_ENABLED==0
@@ -752,6 +841,12 @@ void RenderSkyAtmosphereRayMarchingPS(
 		return;
 #endif
 	}
+	else if (SkyAtmosphere.FogShowFlagFactor <= 0.0f)
+	{ 
+		OutLuminance = PrepareOutput(float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+		clip(-1.0f);
+		return;
+	}
 
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED && RENDERSKY_ENABLED
@@ -760,21 +855,21 @@ void RenderSkyAtmosphereRayMarchingPS(
 		float2 UV;
 
 		// The referencial used to build the Sky View lut
-		float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward, View.ViewRight);
+		float3x3 LocalReferencial = GetSkyViewLutReferential(View.SkyViewLutReferential);
 
 		// Input vectors expressed in this referencial: Up is always Z. Also note that ViewHeight is unchanged in this referencial.
 		float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
 		float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
-		float3 WorldDirLocal = mul(WorldDir, LocalReferencial);
-
-		// Now evaluate inputs in the referential.
+		float3 WorldDirLocal = mul(LocalReferencial, WorldDir);
 		float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
+
+		// Now evaluate inputs in the referential
 		bool IntersectGround = RaySphereIntersectNearest(WorldPosLocal, WorldDirLocal, float3(0, 0, 0), Atmosphere.BottomRadiusKm) >= 0.0f;
 
 		SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, Atmosphere.BottomRadiusKm, SkyAtmosphere.SkyViewLutSizeAndInvSize, UV);
 		float3 SkyLuminance = SkyViewLutTexture.SampleLevel(SkyViewLutTextureSampler, UV, 0).rgb;
 
-		PreExposedL += SkyLuminance * LuminanceScale;
+		PreExposedL += SkyLuminance * LuminanceScale * (ViewOneOverPreExposure * OutputPreExposure);
 		OutLuminance = PrepareOutput(PreExposedL);
 		return;
 	}
@@ -786,12 +881,11 @@ void RenderSkyAtmosphereRayMarchingPS(
 #error The FASTAERIALPERSPECTIVE_ENABLED path does not support COLORED_TRANSMITTANCE_ENABLED.
 #else
 
-	const float OneOverPreExposure = 1.0f;
-
 	float3 DepthBufferWorldPos = GetScreenWorldPos(SVPos, DeviceZ).xyz;
 	float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), View.WorldToClip);
 
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDCPosition, DepthBufferWorldPos*CM_TO_SKY_UNIT, GetCameraWorldPos()*CM_TO_SKY_UNIT,
 		CameraAerialPerspectiveVolumeTexture, CameraAerialPerspectiveVolumeTextureSampler,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -799,7 +893,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		AerialPerspectiveStartDepthKm,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthKm,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-		OneOverPreExposure);
+		ViewOneOverPreExposure * OutputPreExposure);
 
 	PreExposedL += AP.rgb * LuminanceScale;
 	float Transmittance = AP.a;
@@ -822,7 +916,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 	// Apply the start depth offset after moving to the top of atmosphere for consistency (and to avoid wrong out-of-atmosphere test resulting in black pixels).
 	WorldPos += WorldDir * AerialPerspectiveStartDepthKm;
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = true;
 		Sampling.MinSampleCount = SkyAtmosphere.SampleCountMin;
@@ -879,7 +973,7 @@ void RenderTransmittanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float3 WorldPos = float3(0.0f, 0.0f, ViewHeight);
 	float3 WorldDir = float3(0.0f, sqrt(1.0f - ViewZenithCosAngle * ViewZenithCosAngle), ViewZenithCosAngle);
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = SkyAtmosphere.TransmittanceSampleCount;
@@ -927,7 +1021,7 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float3 WorldPos = float3(0.0f, 0.0f, ViewHeight);
 	float3 WorldDir = float3(0.0f, 0.0f, 1.0f);
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = SkyAtmosphere.MultiScatteringSampleCount;
@@ -1043,7 +1137,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
 
 	// This is the local referencial
-	float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward, View.ViewRight);
+	float3x3 LocalReferencial = GetSkyViewLutReferential(View.SkyViewLutReferential);
 
 	// This is the LUT camera height and position in the local referential
 	float ViewHeight = length(WorldPos);
@@ -1054,9 +1148,9 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	UvToSkyViewLutParams(WorldDir, ViewHeight, UV);
 	// And also both light source direction
 	float3 AtmosphereLightDirection0 = View.AtmosphereLightDirection[0].xyz;
-	AtmosphereLightDirection0 = mul(AtmosphereLightDirection0, LocalReferencial);
+	AtmosphereLightDirection0 = mul(LocalReferencial, AtmosphereLightDirection0);
 	float3 AtmosphereLightDirection1 = View.AtmosphereLightDirection[1].xyz;
-	AtmosphereLightDirection1 = mul(AtmosphereLightDirection1, LocalReferencial);
+	AtmosphereLightDirection1 = mul(LocalReferencial, AtmosphereLightDirection1);
 
 
 	// Move to top atmospehre
@@ -1068,7 +1162,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	}
 
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = true;
 		Sampling.MinSampleCount = SkyAtmosphere.FastSkySampleCountMin;
@@ -1125,7 +1219,7 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	// Select a direction for this thread
 	const float3 SampleDir = UniformSphereSamplesBuffer[LinearIndex].xyz;
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = 10.0f;
@@ -1194,16 +1288,37 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////
 
 RWTexture3D<float4> CameraAerialPerspectiveVolumeUAV;
+float RealTimeReflection360Mode;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 {
+	if (SkyAtmosphere.FogShowFlagFactor <= 0.0f)
+	{ 
+		CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		return;
+	}
+
 	float2 PixPos = float2(ThreadId.xy) + 0.5f;
 	float2 UV = PixPos  * SkyAtmosphere.CameraAerialPerspectiveVolumeSizeAndInvSize.zw;
 
 	float4 SVPos = float4(UV*View.ViewSizeAndInvSize.xy, 0.0f, 1.0f);// SV_POS as if resolution was the one from the scene view.
 	float3 WorldDir = GetScreenWorldDir(SVPos);
 	float3 CamPos = GetCameraPlanetPos();
+
+	if (RealTimeReflection360Mode)
+	{
+		float2 UnitUV = FromSubUvsToUnit(UV, SkyAtmosphere.CameraAerialPerspectiveVolumeSizeAndInvSize);
+
+		// Simple lat-long mapping  with with UV.y=sin(ElevationAngle)
+		float SinPhi = 2.0f * UnitUV.y - 1.0f;
+		float CosPhi = sqrt(1.0f - SinPhi * SinPhi);
+		float Theta = 2.0f * PI * UnitUV.x;
+		float CosTheta = cos(Theta);
+		float SinTheta = sqrt(1.0f - CosTheta * CosTheta) * (Theta > PI ? -1.0f : 1.0f);
+		WorldDir = float3(CosTheta * CosPhi, SinTheta * CosPhi, SinPhi);
+		WorldDir = normalize(WorldDir);
+	}
 
 	float Slice = ((float(ThreadId.z) + 0.5f) * SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolutionInv); // +0.5 to always have a distance to integrate over
 	Slice *= Slice;	// squared distribution
@@ -1290,7 +1405,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	}
 
 
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = max(1.0f, (float(ThreadId.z) + 1.0f) * SkyAtmosphere.CameraAerialPerspectiveSampleCountPerSlice);
@@ -1332,7 +1447,7 @@ void RenderSkyAtmosphereDebugPS(
 	float2 PixPos = SVPos.xy;
 
 	// Common ray marching input
-	SamplingSetup Sampling;
+	SamplingSetup Sampling = (SamplingSetup)0;
 	{
 		Sampling.VariableSampleCount = false;
 		Sampling.SampleCountIni = 128.0f;

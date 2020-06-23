@@ -83,6 +83,9 @@ public:
 	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
+	FToolMenuOwner Owner;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	TArray<FToolMenuEntry> Blocks;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")

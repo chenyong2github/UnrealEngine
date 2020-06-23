@@ -69,7 +69,12 @@ private:
 
 FFileIoStoreEncryptionKeys::FFileIoStoreEncryptionKeys()
 {
-	FCoreDelegates::GetRegisterEncryptionKeyDelegate().BindRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().AddRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
+}
+
+FFileIoStoreEncryptionKeys::~FFileIoStoreEncryptionKeys()
+{
+	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().RemoveAll(this);
 }
 
 bool FFileIoStoreEncryptionKeys::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const
@@ -131,70 +136,46 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	ContainerFile.FilePath = ContainerFilePath;
 
-	FIoStoreTocReader TocReader;
-	FIoStatus Status = TocReader.Initialize(*TocFilePath);
+	FIoStoreTocResource TocResource;
+	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ExcludeTocMeta, TocResource);
 	if (!Status.IsOk())
 	{
 		return Status;
 	}
 
-	uint32 TocEntryCount;
-	const FIoStoreTocEntry* TocEntry = TocReader.GetEntries(TocEntryCount);
+	uint64 ContainerUncompressedSize = TocResource.Header.TocCompressedBlockEntryCount > 0
+		? uint64(TocResource.Header.TocCompressedBlockEntryCount) * uint64(TocResource.Header.CompressionBlockSize)
+		: ContainerFile.FileSize;
 
-	uint32 TocPartialEntryCount;
-	const FIoStoreTocPartialEntry* TocPartialEntry = TocReader.GetPartialEntries(TocPartialEntryCount);
+	Toc.Reserve(TocResource.Header.TocEntryCount);
 
-	uint32 CompressedBlockEntryCount;
-	const FIoStoreTocCompressedBlockEntry* CompressedBlockEntry = TocReader.GetCompressedBlockEntries(CompressedBlockEntryCount);
-
-	uint64 ContainerUncompressedSize = CompressedBlockEntryCount > 0 ? uint64(CompressedBlockEntryCount) * uint64(TocReader.GetCompressionBlockSize()) : ContainerFile.FileSize;
-	Toc.Reserve(TocEntryCount + TocPartialEntryCount);
-	while (TocEntryCount--)
+	for (uint32 ChunkIndex = 0; ChunkIndex < TocResource.Header.TocEntryCount; ++ChunkIndex)
 	{
-		if (TocEntry->GetOffset() + TocEntry->GetLength() > ContainerUncompressedSize)
+		const FIoOffsetAndLength& ChunkOffsetLength = TocResource.ChunkOffsetLengths[ChunkIndex];
+		if (ChunkOffsetLength.GetOffset() + ChunkOffsetLength.GetLength() > ContainerUncompressedSize)
 		{
 			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 		}
 
-		Toc.Add(TocEntry->ChunkId, TocEntry->OffsetAndLength);
-		++TocEntry;
-	}
-	while (TocPartialEntryCount--)
-	{
-		if (TocPartialEntry->GetOffset() + TocPartialEntry->GetLength() > ContainerUncompressedSize)
-		{
-			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocPartialEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
-		}
-
-		Toc.Add(TocPartialEntry->ChunkId, TocPartialEntry->OffsetAndLength);
-		++TocPartialEntry;
+		Toc.Add(TocResource.ChunkIds[ChunkIndex], ChunkOffsetLength);
 	}
 
-	uint32 CompressionMethodNameCount;
-	const FName* CompressionMethodName = TocReader.GetCompressionMethodNames(CompressionMethodNameCount);
-	while (CompressionMethodNameCount--)
+	for (const FIoStoreTocCompressedBlockEntry& CompressedBlockEntry : TocResource.CompressionBlocks)
 	{
-		ContainerFile.CompressionMethods.Add(*CompressionMethodName);
-		++CompressionMethodName;
-	}
-
-	ContainerFile.CompressionBlockSize = TocReader.GetCompressionBlockSize();
-	ContainerFile.CompressionBlocks.Reserve(CompressedBlockEntryCount);
-	ContainerFile.bIsEncrypted = TocReader.IsContainerEncrypted();
-	ContainerFile.EncryptionKeyGuid = TocReader.GetEncryptionKeyGuid();
-
-	while (CompressedBlockEntryCount--)
-	{
-		if (CompressedBlockEntry->OffsetAndLength.GetOffset() + CompressedBlockEntry->OffsetAndLength.GetLength() > ContainerFile.FileSize)
+		if (CompressedBlockEntry.GetOffset() + CompressedBlockEntry.GetSize() > ContainerFile.FileSize)
 		{
 			return (FIoStatus)(FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'"));
 		}
-
-		ContainerFile.CompressionBlocks.Emplace(*CompressedBlockEntry);
-		++CompressedBlockEntry;
 	}
 
-	ContainerId = TocReader.GetContainerId();
+	ContainerFile.CompressionMethods	= MoveTemp(TocResource.CompressionMethods);
+	ContainerFile.CompressionBlockSize	= TocResource.Header.CompressionBlockSize;
+	ContainerFile.CompressionBlocks		= MoveTemp(TocResource.CompressionBlocks);
+	ContainerFile.ContainerFlags		= TocResource.Header.ContainerFlags;
+	ContainerFile.EncryptionKeyGuid		= TocResource.Header.EncryptionKeyGuid;
+	ContainerFile.BlockSignatureHashes	= MoveTemp(TocResource.ChunkBlockSignatures);
+
+	ContainerId = TocResource.Header.ContainerId;
 	Order = Environment.GetOrder();
 	return FIoStatus::Ok;
 }
@@ -235,9 +216,10 @@ IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle()
 	return new FMappedFileProxy(ContainerFile.MappedFileHandle.Get(), ContainerFile.FileSize);
 }
 
-FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
+FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent)
 	: ReadBufferSize(GIoDispatcherBufferSizeKB > 0 ? uint64(GIoDispatcherBufferSizeKB) << 10 : 256 << 10)
 	, EventQueue(InEventQueue)
+	, SignatureErrorEvent(InSignatureErrorEvent)
 	, PlatformImpl(InEventQueue, ReadBufferSize)
 	, BufferAvailableEvent(FPlatformProcess::GetSynchEventFromPool())
 	, PendingBlockEvent(FPlatformProcess::GetSynchEventFromPool())
@@ -268,6 +250,7 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
 		{
 			if (Reader->IsEncrypted() && !Reader->GetEncryptionKey().IsValid() && Reader->GetEncryptionKeyGuid() == Guid)
 			{
+				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().Value(), *Guid.ToString());
 				Reader->SetEncryptionKey(Key);
 			}
 		}
@@ -300,7 +283,7 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 		}
 		else
 		{
-			UE_LOG(LogIoDispatcher, Warning, TEXT("Failed to find valid encryption key for encrypted container '%s'"), *FPaths::GetBaseFilename(Environment.GetPath()));
+			UE_LOG(LogIoDispatcher, Warning, TEXT("Mounting container '%s' with invalid encryption key"), *FPaths::GetBaseFilename(Environment.GetPath()));
 		}
 	}
 
@@ -415,6 +398,7 @@ ENamedThreads::Type FFileIoStore::FDecompressAsyncTask::GetDesiredThread()
 
 void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherScatter);
 	
 	FFileIoStoreCompressionContext* CompressionContext = CompressedBlock->CompressionContext;
@@ -432,9 +416,34 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 		uint64 OffsetInBuffer = CompressedBlock->RawOffset - RawBlock->Offset;
 		CompressedBuffer = RawBlock->Buffer->Memory + OffsetInBuffer;
 	}
+	const uint64 BufferSize = CompressedBlock->CompressionMethod.IsNone() ? CompressedBlock->Size : CompressedBlock->RawSize;
+	if (CompressedBlock->SignatureHash)
+	{
+		FSHAHash BlockHash;
+		FSHA1::HashBuffer(CompressedBuffer, BufferSize, BlockHash.Hash);
+		if (*CompressedBlock->SignatureHash != BlockHash)
+		{
+			FIoSignatureError Error;
+			{
+				FReadScopeLock _(IoStoreReadersLock);
+				const FFileIoStoreReader& Reader = *IoStoreReaders[CompressedBlock->Key.FileIndex];
+				Error.ContainerName = FPaths::GetBaseFilename(Reader.GetContainerFile().FilePath);
+				Error.BlockIndex = CompressedBlock->Key.BlockIndex;
+				Error.ExpectedHash = *CompressedBlock->SignatureHash;
+				Error.ActualHash = BlockHash;
+			}
+
+			UE_LOG(LogIoDispatcher, Warning, TEXT("Signature error detected in container '%s' at block index '%d'"), *Error.ContainerName, Error.BlockIndex);
+
+			FScopeLock _(&SignatureErrorEvent.CriticalSection);
+			if (SignatureErrorEvent.SignatureErrorDelegate.IsBound())
+			{
+				SignatureErrorEvent.SignatureErrorDelegate.Broadcast(Error);
+			}
+		}
+	}
 	if (CompressedBlock->EncryptionKey.IsValid())
 	{
-		const uint64 BufferSize = CompressedBlock->CompressionMethod.IsNone() ? CompressedBlock->Size : CompressedBlock->RawSize;
 		FAES::DecryptData(CompressedBuffer, static_cast<uint32>(BufferSize), CompressedBlock->EncryptionKey);
 	}
 	uint8* UncompressedBuffer;
@@ -475,6 +484,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 void FFileIoStore::AllocMemoryForRequest(FIoRequestImpl* Request)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	if (!Request->IoBuffer.Data())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
@@ -508,8 +518,9 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	delete CompressedBlock;
 }
 
-void FFileIoStore::ProcessCompletedBlocks()
+void FFileIoStore::ProcessCompletedBlocks(const bool bIsMultithreaded)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
 	//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedBlocks);
 	
 	FFileIoStoreRawBlock* CompletedBlock = PlatformImpl.GetCompletedBlocks();
@@ -615,14 +626,16 @@ void FFileIoStore::ProcessCompletedBlocks()
 		{
 			AllocMemoryForRequest(Scatter.Request);
 		}
-		if (BlockToDecompress->CompressionMethod.IsNone() && !BlockToDecompress->EncryptionKey.IsValid())
+		// Scatter block asynchronous when the block is compressed, encrypted or signed
+		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
+		if (bScatterAsync)
 		{
-			ScatterBlock(BlockToDecompress, false);
-			FinalizeCompressedBlock(BlockToDecompress);
+			TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
 		}
 		else
 		{
-			TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
+			ScatterBlock(BlockToDecompress, false);
+			FinalizeCompressedBlock(BlockToDecompress);
 		}
 		BlockToDecompress = Next;
 	}
@@ -662,7 +675,7 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 
 			int32 BlockIndex = int32(ResolvedOffset / ContainerFile.CompressionBlockSize);
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
-			const int64 BlockOffset = (int64)CompressionBlockEntry.OffsetAndLength.GetOffset();
+			const int64 BlockOffset = (int64)CompressionBlockEntry.GetOffset();
 			check(BlockOffset > 0 && IsAligned(BlockOffset, FPlatformProperties::GetMemoryMappingAlignment()));
 
 			MappedFileRegion = MappedFileHandle->MapRegion(BlockOffset + Options.GetOffset(), ResolvedSize);
@@ -685,7 +698,7 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 	const FFileIoStoreReader& Reader = *IoStoreReaders[ReaderIndex];
 	UE_CLOG(Reader.IsEncrypted() && !Reader.GetEncryptionKey().IsValid(),
 		LogIoDispatcher, Fatal, TEXT("Reading from encrypted container (ID = '%d') with invalid encryption key (Guid = '%s')"),
-		Reader.GetContainerId().ToIndex(),
+		Reader.GetContainerId().Value(),
 		*Reader.GetEncryptionKeyGuid().ToString());
 	const FFileIoStoreContainerFile& ContainerFile = Reader.GetContainerFile();
 	const uint64 CompressionBlockSize = ContainerFile.CompressionBlockSize;
@@ -715,10 +728,11 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 			bool bCacheable = OffsetInRequest > 0 || RequestRemainingBytes < CompressionBlockSize;
 
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[CompressedBlockIndex];
-			CompressedBlock->Size = ContainerFile.CompressionBlockSize;
-			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethodIndex];
-			uint64 RawOffset = CompressionBlockEntry.OffsetAndLength.GetOffset();
-			uint64 RawSize = CompressionBlockEntry.OffsetAndLength.GetLength();
+			CompressedBlock->Size = CompressionBlockEntry.GetUncompressedSize();
+			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.GetCompressionMethodIndex()];
+			CompressedBlock->SignatureHash = Reader.IsSigned() ? &ContainerFile.BlockSignatureHashes[CompressedBlockIndex] : nullptr;
+			uint64 RawOffset = CompressionBlockEntry.GetOffset();
+			uint64 RawSize = CompressionBlockEntry.GetSize();
 			CompressedBlock->RawOffset = RawOffset;
 			CompressedBlock->RawSize = RawSize;
 			const uint32 RawBeginBlockIndex = uint32(RawOffset / ReadBufferSize);

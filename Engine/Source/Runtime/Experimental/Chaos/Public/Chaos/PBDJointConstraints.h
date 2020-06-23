@@ -14,6 +14,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDJointConstraintTypes.h"
+#include "Chaos/PBDJointConstraintData.h"
 
 namespace Chaos
 {
@@ -35,6 +36,9 @@ namespace Chaos
 		int32 GetConstraintColor() const;
 		int32 GetConstraintBatch() const;
 
+		FVec3 GetLinearImpulse() const;
+		FVec3 GetAngularImpulse() const;
+
 		const FPBDJointSettings& GetSettings() const;
 		void SetSettings(const FPBDJointSettings& Settings);
 		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
@@ -55,6 +59,8 @@ namespace Chaos
 		int32 Color;
 		int32 IslandSize;
 		bool bDisabled;
+		FVec3 LinearImpulse;
+		FVec3 AngularImpulse;
 	};
 
 	/**
@@ -166,6 +172,9 @@ namespace Chaos
 		int32 GetConstraintColor(int32 ConstraintIndex) const;
 		int32 GetConstraintBatch(int32 ConstraintIndex) const;
 
+		FVec3 GetConstraintLinearImpulse(int32 ConstraintIndex) const;
+		FVec3 GetConstraintAngularImpulse(int32 ConstraintIndex) const;
+
 		//
 		// General Rule API
 		//
@@ -217,9 +226,9 @@ namespace Chaos
 		void BatchConstraints();
 		void CheckBatches();
 
-		int32 ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		int32 ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		int32 ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		bool ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		bool ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		bool ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse);
 
 		FPBDJointSolverSettings Settings;

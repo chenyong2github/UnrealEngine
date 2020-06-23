@@ -62,7 +62,26 @@ bool FClothMeshPaintAdapter::Initialize()
 	return bHaveAsset && bBaseInit;
 }
 
+bool ClothSegmentTriangleIntersection(const FVector& StartPoint, const FVector& EndPoint, const FVector& A, const FVector& B, const FVector& C, FVector& OutIntersectPoint, FVector& OutTriangleNormal)
+{
+	const FVector BA = A - B;
+	const FVector CB = B - C;
+	const FVector TriNormal = BA ^ CB;
 
+	bool bCollide = FMath::SegmentPlaneIntersection(StartPoint, EndPoint, FPlane(A, TriNormal), OutIntersectPoint);
+	if (!bCollide)
+	{
+		return false;
+	}
+
+	FVector BaryCentric = FMath::ComputeBaryCentric2D(OutIntersectPoint, A, B, C);
+	if (BaryCentric.X > 0.0f && BaryCentric.Y > 0.0f && BaryCentric.Z > 0.0f)
+	{
+		OutTriangleNormal = TriNormal;
+		return true;
+	}
+	return false;
+}
 bool FClothMeshPaintAdapter::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
 {
 	const int32 NumTriangles = MeshIndices.Num() / 3;
@@ -74,7 +93,7 @@ bool FClothMeshPaintAdapter::LineTraceComponent(struct FHitResult& OutHit, const
 	{
 		FVector IntersectPoint;
 		FVector HitNormal;
-		bool bHit = FMath::SegmentTriangleIntersection(Start, End, MeshVertices[MeshIndices[(TriangleIndex * 3) + 0]], MeshVertices[MeshIndices[(TriangleIndex * 3) + 1]], MeshVertices[MeshIndices[(TriangleIndex * 3) + 2]], IntersectPoint, HitNormal);
+		bool bHit = ClothSegmentTriangleIntersection(Start, End, MeshVertices[MeshIndices[(TriangleIndex * 3) + 0]], MeshVertices[MeshIndices[(TriangleIndex * 3) + 1]], MeshVertices[MeshIndices[(TriangleIndex * 3) + 2]], IntersectPoint, HitNormal);
 
 		if (bHit)
 		{
@@ -99,7 +118,6 @@ bool FClothMeshPaintAdapter::LineTraceComponent(struct FHitResult& OutHit, const
 
 	return false;
 }
-
 
 void FClothMeshPaintAdapter::QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList)
 {

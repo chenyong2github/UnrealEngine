@@ -49,6 +49,7 @@
 #if WITH_EDITOR
 #include "SLevelViewport.h"
 #endif
+#include "FunctionalTestBase.h"
 
 
 #define LOCTEXT_NAMESPACE "Automation"
@@ -353,9 +354,9 @@ void FAutomationTestScreenshotEnvSetup::Restore()
 class FAutomationScreenshotTaker
 {
 public:
-	FAutomationScreenshotTaker(UWorld* InWorld, const FString& InName, const FString& InNotes, FAutomationScreenshotOptions InOptions)
+	FAutomationScreenshotTaker(UWorld* InWorld, const FString& InScreenShotName, const FString& InNotes, FAutomationScreenshotOptions InOptions)
 		: World(InWorld)
-		, Name(InName)
+		, ScreenShotName(InScreenShotName)
 		, Notes(InNotes)
 		, Options(InOptions)
 		, bNeedsViewportSizeRestore(false)
@@ -438,7 +439,7 @@ public:
 
 		if (World.IsValid())
 		{
-			FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(World->GetName(), Name, InSizeX, InSizeY);
+			FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(World->GetName(), ScreenShotName, InSizeX, InSizeY);
 
 			// Copy the relevant data into the metadata for the screenshot.
 			Data.bHasComparisonRules = true;
@@ -484,7 +485,7 @@ public:
 
 		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
 		{
-			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(Name));
+			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(ScreenShotName));
 		}
 
 		DeleteSelfNextFrame();
@@ -505,7 +506,8 @@ private:
 
 	TWeakObjectPtr<UWorld> World;
 	
-	FString	Name;
+	FString	Context;
+	FString	ScreenShotName;
 	FString Notes;
 	FAutomationScreenshotOptions Options;
 
@@ -518,9 +520,9 @@ private:
 class FAutomationHighResScreenshotGrabber
 {
 public:
-	FAutomationHighResScreenshotGrabber(const FString& InContext, const FString& InName, const FString& InNotes, FAutomationScreenshotOptions InOptions)
+	FAutomationHighResScreenshotGrabber(const FString& InContext, const FString& InScreenShotName, const FString& InNotes, FAutomationScreenshotOptions InOptions)
 		: Context(InContext)
-		, Name(InName)
+		, ScreenShotName(InScreenShotName)
 		, Notes(InNotes)
 		, Options(InOptions)
 	{
@@ -542,7 +544,7 @@ public:
 	{
 		FScreenshotRequest::OnScreenshotCaptured().RemoveAll(this);
 
-		FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(Context, Name, InSizeX, InSizeY);
+		FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(Context, ScreenShotName, InSizeX, InSizeY);
 
 		// Copy the relevant data into the metadata for the screenshot.
 		Data.bHasComparisonRules = true;
@@ -573,7 +575,7 @@ public:
 
 		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
 		{
-			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(Name));
+			CurrentTest->AddEvent(CompareResults.ToAutomationEvent(ScreenShotName));
 		}
 
 		delete this;
@@ -592,7 +594,7 @@ public:
 
 private:
 	FString	Context;
-	FString	Name;
+	FString	ScreenShotName;
 	FString Notes;
 	FAutomationScreenshotOptions Options;
 };
@@ -710,19 +712,32 @@ FIntPoint UAutomationBlueprintFunctionLibrary::GetAutomationScreenshotSize(const
 	return FIntPoint(ResolutionX, ResolutionY);
 }
 
-bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& Name, const FString& Notes, FAutomationScreenshotOptions Options)
+FAutomationScreenshotData UAutomationBlueprintFunctionLibrary::BuildScreenshotData(const FString& MapOrContext, const FString& ScreenShotName, int32 Width, int32 Height)
+{
+	FString TestName = TEXT("NoTest");
+	if (FFunctionalTestBase::IsFunctionalTestRunning())
+	{
+		TestName = FFunctionalTestBase::GetRunningTestName();
+	}
+
+	FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(MapOrContext, TestName, ScreenShotName, Width, Height);	
+
+	return Data;
+}
+
+bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options)
 {
 	UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot();
 
 #if WITH_AUTOMATION_TESTS
-	FAutomationScreenshotTaker* TempObject = new FAutomationScreenshotTaker(WorldContextObject ? WorldContextObject->GetWorld() : nullptr, Name, Notes, Options);
+	FAutomationScreenshotTaker* TempObject = new FAutomationScreenshotTaker(WorldContextObject ? WorldContextObject->GetWorld() : nullptr, ScreenShotName, Notes, Options);
 #endif
 
 	FScreenshotRequest::RequestScreenshot(false);
 	return true; //-V773
 }
 
-void UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshot(UObject* WorldContextObject, FLatentActionInfo LatentInfo, const FString& Name, const FString& Notes, const FAutomationScreenshotOptions& Options)
+void UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshot(UObject* WorldContextObject, FLatentActionInfo LatentInfo, const FString& ScreenShotName, const FString& Notes, const FAutomationScreenshotOptions& Options)
 {
 	if ( GIsAutomationTesting )
 	{
@@ -731,7 +746,7 @@ void UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshot(UObject* Worl
 			FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
 			if ( LatentActionManager.FindExistingAction<FTakeScreenshotAfterTimeLatentAction>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr )
 			{
-				LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FTakeScreenshotAfterTimeLatentAction(LatentInfo, Name, Notes, Options));
+				LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FTakeScreenshotAfterTimeLatentAction(LatentInfo, ScreenShotName, Notes, Options));
 			}
 		}
 	}
@@ -779,7 +794,7 @@ void UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotAtCamera(UObje
 	}
 }
 
-bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotOfUI_Immediate(UObject* WorldContextObject, const FString& Name, const FAutomationScreenshotOptions& Options)
+bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotOfUI_Immediate(UObject* WorldContextObject, const FString& ScreenShotName, const FAutomationScreenshotOptions& Options)
 {
 	UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot();
 
@@ -805,9 +820,9 @@ bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotOfUI_Immediate
 					}
 
 					// The screenshot taker deletes itself later.
-					FAutomationScreenshotTaker* TempObject = new FAutomationScreenshotTaker(World, Name, TEXT(""), Options);
+					FAutomationScreenshotTaker* TempObject = new FAutomationScreenshotTaker(World, ScreenShotName, TEXT(""), Options);
 
-					FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(World->GetName(), Name, OutSize.X, OutSize.Y);
+					FAutomationScreenshotData Data = BuildScreenshotData(World->GetName(), ScreenShotName, OutSize.X, OutSize.Y);
 
 					// Copy the relevant data into the metadata for the screenshot.
 					Data.bHasComparisonRules = true;
@@ -969,35 +984,74 @@ bool UAutomationBlueprintFunctionLibrary::AreAutomatedTestsRunning()
 class FWaitForLoadingToFinish : public FPendingLatentAction
 {
 public:
-	FWaitForLoadingToFinish(const FLatentActionInfo& LatentInfo)
+	FWaitForLoadingToFinish(const FLatentActionInfo& LatentInfo, UObject* InWorldContextObject, const FAutomationWaitForLoadingOptions& InOptions)
 		: ExecutionFunction(LatentInfo.ExecutionFunction)
 		, OutputLink(LatentInfo.Linkage)
 		, CallbackTarget(LatentInfo.CallbackTarget)
+		, WorldPtr(InWorldContextObject ? InWorldContextObject->GetWorld() : nullptr)
+		, Options(InOptions)
 	{
-		WaitingFrames = 0;
 		UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot();
+		
+		WaitingFrames = 0;
+		LastLoadTime = FPlatformTime::Seconds();
+
+		if (Options.WaitForReplicationToSettle)
+		{
+			if (UWorld* MyWorld = GetWorld())
+			{
+				FOnActorSpawned::FDelegate ActorSpawnedDelegate = FOnActorSpawned::FDelegate::CreateRaw(this, &FWaitForLoadingToFinish::OnActorSpawned);
+				ActorSpawnedDelegateHandle = MyWorld->AddOnActorSpawnedHandler(ActorSpawnedDelegate);
+			}
+		}
 	}
 
 	virtual ~FWaitForLoadingToFinish()
 	{
+		if (UWorld* MyWorld = GetWorld())
+		{
+			MyWorld->RemoveOnActorSpawnedHandler(ActorSpawnedDelegateHandle);
+		}
+	}
+
+	UWorld* GetWorld()
+	{
+		if (UWorld* World = WorldPtr.Get())
+		{
+			return World;
+		}
+		else
+		{
+			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+			{
+				return GameEngine->GetGameWorld();
+			}
+		}
+
+		return nullptr;
+	}
+
+	void OnActorSpawned(AActor* SpawnedActor)
+	{
+		if (SpawnedActor->GetLocalRole() != ROLE_Authority)
+		{
+			bActorReplicationDetected = true;
+		}
 	}
 
 	bool AnyLevelStreaming()
 	{
 		// Make sure we finish all level streaming
-		if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+		if (UWorld* World = GetWorld())
 		{
-			if (UWorld* GameWorld = GameEngine->GetGameWorld())
+			for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
 			{
-				for (ULevelStreaming* LevelStreaming : GameWorld->GetStreamingLevels())
+				// See whether there's a level with a pending request.
+				if (LevelStreaming)
 				{
-					// See whether there's a level with a pending request.
-					if (LevelStreaming)
+					if (LevelStreaming->HasLoadRequestPending())
 					{
-						if (LevelStreaming->HasLoadRequestPending())
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 			}
@@ -1018,17 +1072,26 @@ public:
 		{
 			bResetWaiting = true;
 		}
+		else if (bActorReplicationDetected)
+		{
+			bResetWaiting = true;
+			bActorReplicationDetected = false;
+		}
 
 		if (bResetWaiting)
 		{
 			WaitingFrames = 0;
+			LastLoadTime = FPlatformTime::Seconds();
 		}
 		else
 		{
 			WaitingFrames++;
 		}
 
-		if (WaitingFrames > 60)
+		const double WaitingTime = (FPlatformTime::Seconds() - LastLoadTime);
+
+		// Needs to have been both 60 frames, and at least 5 seconds from the last load event.
+		if (WaitingFrames > 60 && WaitingTime > 5)
 		{
 			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
 		}
@@ -1047,18 +1110,27 @@ private:
 	int32 OutputLink;
 	FWeakObjectPtr CallbackTarget;
 
-	int32 WaitingFrames;
+	TWeakObjectPtr<UWorld> WorldPtr;
+
+	FDelegateHandle ActorSpawnedDelegateHandle;
+
+	FAutomationWaitForLoadingOptions Options;
+
+	int32 WaitingFrames = 0;
+	double LastLoadTime = 0;
+
+	bool bActorReplicationDetected = false;
 };
 
 
-void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo)
+void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo, FAutomationWaitForLoadingOptions Options)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
 		if (LatentActionManager.FindExistingAction<FWaitForLoadingToFinish>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr)
 		{
-			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FWaitForLoadingToFinish(LatentInfo));
+			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FWaitForLoadingToFinish(LatentInfo, WorldContextObject, Options));
 		}
 	}
 }

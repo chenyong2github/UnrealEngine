@@ -74,15 +74,13 @@ class IPropertyTypeIdentifier
 public:
 	virtual ~IPropertyTypeIdentifier() {}
 
-/**
+	/**
 	 * Called to identify if a property type is customized
 	 *
 	 * @param IPropertyHandle	Handle to the property being tested
 	 */
 	virtual bool IsPropertyTypeCustomized( const IPropertyHandle& PropertyHandle ) const = 0;
 };
-
-
 
 typedef TMap< TWeakObjectPtr<UStruct>, FDetailLayoutCallback > FCustomDetailLayoutMap;
 typedef TMap< FName, FDetailLayoutCallback > FCustomDetailLayoutNameMap;
@@ -279,6 +277,10 @@ public:
 	virtual FPropertyEditorOpenedEvent& OnPropertyEditorOpened() { return PropertyEditorOpened; }
 
 	const FCustomDetailLayoutNameMap& GetClassNameToDetailLayoutNameMap() const { return ClassNameToDetailLayoutNameMap; }
+
+	/** Get the global row extension generators. */
+	FOnGenerateGlobalRowExtension& GetGlobalRowExtensionDelegate() { return OnGenerateGlobalRowExtension; }
+
 private:
 
 	/**
@@ -314,5 +316,6 @@ private:
 	TSharedPtr<class FAssetThumbnailPool> GlobalThumbnailPool;
 	/** Container for ScopeOnStruct FStructProperty objects */
 	UStruct* StructOnScopePropertyOwner;
-
+	/** Delegate called to extend the name column widget on a property row. */
+	FOnGenerateGlobalRowExtension OnGenerateGlobalRowExtension;
 };

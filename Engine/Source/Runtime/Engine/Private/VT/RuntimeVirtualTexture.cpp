@@ -265,11 +265,28 @@ int32 URuntimeVirtualTexture::GetLayerCount() const
 
 static EPixelFormat PlatformCompressedRVTFormat(EPixelFormat Format)
 {
-	if (IsMobilePlatform(GMaxRHIShaderPlatform))
+	if (GPixelFormats[Format].Supported)
 	{
-		return PF_B8G8R8A8;
+		return Format;
 	}
-	
+	else if (GPixelFormats[PF_ETC2_RGB].Supported)
+	{
+		switch(Format)
+		{
+		case PF_DXT1:
+			Format = PF_ETC2_RGB;
+			break;
+		case PF_DXT5:
+			Format = PF_ETC2_RGBA;
+			break;
+		case PF_BC5:
+			Format = PF_ETC2_RG11_EAC;
+			break;
+		default:
+			check(false);
+		};
+	}
+
 	return Format;
 }
 

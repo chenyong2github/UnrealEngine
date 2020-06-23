@@ -334,7 +334,7 @@ void FAssetTypeActions_SoundBase::ExecuteSoloSound(TArray<TWeakObjectPtr<USoundB
 			}
 			else if (USoundWave* Wave = Cast<USoundWave>(SoundBase.Get()))
 			{
-				Debugger.SetSoloSoundCue(Wave->GetFName(), !bAnySoloed);
+				Debugger.SetSoloSoundWave(Wave->GetFName(), !bAnySoloed);
 			}
 		}
 	}

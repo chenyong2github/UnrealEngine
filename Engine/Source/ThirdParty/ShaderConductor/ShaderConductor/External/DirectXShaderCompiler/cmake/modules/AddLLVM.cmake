@@ -305,6 +305,22 @@ function(set_windows_version_resource_properties name resource_file)
                "RC_INTERNAL_NAME=\"${name}\""
                "RC_PRODUCT_NAME=\"${ARG_PRODUCT_NAME}\""
                "RC_PRODUCT_VERSION=\"${ARG_VERSION_STRING}\"")
+
+# UE Change Begin: Don't bake version into dxcompiler library for Mac platform
+  # HLSL change begin - set common version
+#  if(${HLSL_EMBED_VERSION})
+#    if (DEFINED resource_file)
+#      add_dependencies(${name} hlsl_version_autogen)
+#      set_property(SOURCE ${resource_file}
+#                  PROPERTY COMPILE_DEFINITIONS
+#                  "INCLUDE_HLSL_VERSION_FILE=1")
+#      set_property(SOURCE ${resource_file}
+#                  PROPERTY COMPILE_OPTIONS
+#                  "/I" "${HLSL_VERSION_LOCATION}")
+#    endif (DEFINED resource_file)
+#  endif(${HLSL_EMBED_VERSION})
+  # HLSL change ends
+# UE Change End: Don't bake version into dxcompiler library for Mac platform
 endfunction(set_windows_version_resource_properties)
 
 # llvm_add_library(name sources...
@@ -430,10 +446,12 @@ function(llvm_add_library name)
         )
     endif()
 
-    set_target_properties(${name}
-      PROPERTIES
-      SOVERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-      VERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX})
+	# UE Change Begin: Don't bake version into dxcompiler library for Mac platform
+    #set_target_properties(${name}
+    #  PROPERTIES
+    #  SOVERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
+    #  VERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX})
+	# UE Change End: Don't bake version into dxcompiler library for Mac platform
   endif()
 
   if(ARG_MODULE OR ARG_SHARED)
@@ -951,23 +969,3 @@ function(add_lit_testsuites project directory)
     endforeach()
   endif()
 endfunction()
-
-# HLSL Change Starts
-function(hlsl_update_product_ver RC_INTERNAL_NAME)
-  if (HLSL_ENABLE_FIXED_VER)
-    set_property(SOURCE ${windows_resource_file}
-                 PROPERTY COMPILE_DEFINITIONS
-                 "RC_COMPANY_NAME=\"Microsoft(r) Corporation\""
-                 "RC_VERSION_FIELD_1=0"
-                 "RC_VERSION_FIELD_2=2019"
-                 "RC_VERSION_FIELD_3=05"
-                 "RC_VERSION_FIELD_4=00"
-                 "RC_FILE_VERSION=\"0.2019.05.00\""
-                 "RC_FILE_DESCRIPTION=\"DirectX Compiler - Out Of Band\""
-                 "RC_INTERNAL_NAME=\"${RC_INTERNAL_NAME}\""
-                 "RC_COPYRIGHT=\"(c) Microsoft Corporation. All rights reserved.\""
-                 "RC_PRODUCT_NAME=\"Microsoft(r) DirectX for Windows(r) - Out Of Band\""
-                 "RC_PRODUCT_VERSION=\"0.2019.05.00\"")
-  endif (HLSL_ENABLE_FIXED_VER)
-endfunction(hlsl_update_product_ver)
-# HLSL Change Ends

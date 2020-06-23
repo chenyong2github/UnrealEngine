@@ -5,7 +5,6 @@ import os
 import logging
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from itertools import izip_longest, chain
 
 import vrFileIO
 import vrFileDialog

@@ -20,6 +20,75 @@
 
 namespace RuntimeVirtualTexture
 {
+	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FEtcParameters, )
+		SHADER_PARAMETER_ARRAY(FVector4, ALPHA_DISTANCE_TABLES, [16])
+		SHADER_PARAMETER_ARRAY(FVector4, RGB_DISTANCE_TABLES, [8])
+	END_GLOBAL_SHADER_PARAMETER_STRUCT()
+	
+	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FEtcParameters, "EtcParameters");
+
+	class FEtcParametersUniformBuffer : public TUniformBuffer<FEtcParameters>
+	{
+		typedef TUniformBuffer<FEtcParameters> Super;
+	public:
+		FEtcParametersUniformBuffer()
+		{
+			FEtcParameters Parameters;
+			Parameters.ALPHA_DISTANCE_TABLES[0] = FVector4(2,  5,  8, 14);
+			Parameters.ALPHA_DISTANCE_TABLES[1] = FVector4(2,  6,  9, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[2] = FVector4(1,  4,  7, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[3] = FVector4(1,  3,  5, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[4] = FVector4(2,  5,  7, 11);
+			Parameters.ALPHA_DISTANCE_TABLES[5] = FVector4(2,  6,  8, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[6] = FVector4(3,  6,  7, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[7] = FVector4(2,  4,  7, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[8] = FVector4(1,  5,  7,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[9] = FVector4(1,  4,  7,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[10] = FVector4(1,  3,  7,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[11] = FVector4(1,  4,  6,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[12] = FVector4(2,  3,  6,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[13] = FVector4(0,  1,  2,  9);
+			Parameters.ALPHA_DISTANCE_TABLES[14] = FVector4(3,  5,  7,  8);
+			Parameters.ALPHA_DISTANCE_TABLES[15] = FVector4(2,  4,  6,  8);
+			
+			Parameters.RGB_DISTANCE_TABLES[0] = FVector4(-8, -2, 2,  8);
+			Parameters.RGB_DISTANCE_TABLES[1] = FVector4(-17, -5, 5,  17);
+			Parameters.RGB_DISTANCE_TABLES[2] = FVector4(-29, -9, 9,  29);
+			Parameters.RGB_DISTANCE_TABLES[3] = FVector4(-42, -13, 13, 42);
+			Parameters.RGB_DISTANCE_TABLES[4] = FVector4(-60, -18, 18, 60);
+			Parameters.RGB_DISTANCE_TABLES[5] = FVector4(-80, -24, 24, 80);
+			Parameters.RGB_DISTANCE_TABLES[6] = FVector4(-106, -33, 33, 106);
+			Parameters.RGB_DISTANCE_TABLES[7] = FVector4(-183, -47, 47, 183);
+
+			SetContents(Parameters);
+		}
+	};
+	
+	const TUniformBufferRef<FEtcParameters>& GetEtcParametersUniformBufferRef()
+	{
+		check(IsInRenderingThread());
+		static TGlobalResource<FEtcParametersUniformBuffer> EtcParametersUniformBuffer;
+		return EtcParametersUniformBuffer.GetUniformBufferRef();
+	}
+
+	bool UseEtcProfile(EShaderPlatform ShaderPlatform)
+	{
+		switch (ShaderPlatform)
+		{
+		case SP_METAL:
+		case SP_METAL_MRT:
+		case SP_METAL_TVOS:
+		case SP_METAL_MRT_TVOS:
+		case SP_VULKAN_ES3_1_ANDROID:
+		case SP_OPENGL_ES3_1_ANDROID:
+		case SP_VULKAN_SM5_ANDROID:
+			return true;
+		default:
+			break;
+		}
+		return false;
+	}
+				
 	/** Mesh material shader for writing to the virtual texture. */
 	class FShader_VirtualTextureMaterialDraw : public FMeshMaterialShader
 	{
@@ -489,6 +558,7 @@ namespace RuntimeVirtualTexture
 	public:
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(FIntVector4, DestRect)
+			SHADER_PARAMETER_STRUCT_REF(FEtcParameters, EtcParameters)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RenderTexture0)
 			SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler0)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RenderTexture1)
@@ -505,6 +575,12 @@ namespace RuntimeVirtualTexture
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
 			return RHISupportsComputeShaders(Parameters.Platform);
+		}
+		
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("ETC_PROFILE"), UseEtcProfile(Parameters.Platform) ? 1 : 0);
 		}
 
 		FShader_VirtualTextureCompress()
@@ -745,7 +821,9 @@ namespace RuntimeVirtualTexture
 		{
 			bRenderPass = OutputTexture0 != nullptr;
 			bCopyThumbnailPass = bRenderPass && bIsThumbnails;
-			bCompressPass = bRenderPass && !bCopyThumbnailPass && (OutputTexture0->GetFormat() == PF_DXT1 || OutputTexture0->GetFormat() == PF_DXT5 || OutputTexture0->GetFormat() == PF_BC5);
+			EPixelFormat OutputFormat = (OutputTexture0 != nullptr ? OutputTexture0->GetFormat() : PF_Unknown);
+			bool bCompressedFormat = GPixelFormats[OutputFormat].BlockSizeX == 4 && GPixelFormats[OutputFormat].BlockSizeY == 4;
+			bCompressPass = bRenderPass && !bCopyThumbnailPass && bCompressedFormat;
 			bCopyPass = bRenderPass && !bCopyThumbnailPass && !bCompressPass && (MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg);
 			// Not all mobile RHIs support sRGB texture views/aliasing, use only linear targets on mobile
 			uint32 VT_SRGB = GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1 ? TexCreate_SRGB : TexCreate_None;
@@ -924,8 +1002,8 @@ namespace RuntimeVirtualTexture
 
 		const FVector UVCenter = FVector(UVRange.GetCenter(), 0.f);
 		const FVector CameraLookAt = UVToWorld.TransformPosition(UVCenter);
-		const float BoundBoxHalfZ = UVToWorld.GetScale3D().Z;
-		const FVector CameraPos = CameraLookAt + BoundBoxHalfZ * UVToWorld.GetUnitAxis(EAxis::Z);
+		const float BoundBoxZ = UVToWorld.GetScale3D().Z;
+		const FVector CameraPos = CameraLookAt + BoundBoxZ * UVToWorld.GetUnitAxis(EAxis::Z);
 		ViewInitOptions.ViewOrigin = CameraPos;
 
 		const float OrthoWidth = UVToWorld.GetScaledAxis(EAxis::X).Size() * UVRange.GetExtent().X;
@@ -939,7 +1017,7 @@ namespace RuntimeVirtualTexture
 			FPlane(0, 0, 0, 1));
 
 		const float NearPlane = 0;
-		const float FarPlane = BoundBoxHalfZ * 2.f;
+		const float FarPlane = BoundBoxZ;
 		const float ZScale = 1.0f / (FarPlane - NearPlane);
 		const float ZOffset = -NearPlane;
 		ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(OrthoWidth, OrthoHeight, ZScale, ZOffset);
@@ -996,6 +1074,7 @@ namespace RuntimeVirtualTexture
 		{
 			FShader_VirtualTextureCompress::FParameters* PassParameters = GraphBuilder.AllocParameters<FShader_VirtualTextureCompress::FParameters>();
 			PassParameters->DestRect = FIntVector4(0, 0, TextureSize.X, TextureSize.Y);
+			PassParameters->EtcParameters = GetEtcParametersUniformBufferRef();
 			PassParameters->RenderTexture0 = GraphSetup.RenderTexture0;
 			PassParameters->TextureSampler0 = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->RenderTexture1 = GraphSetup.RenderTexture1;

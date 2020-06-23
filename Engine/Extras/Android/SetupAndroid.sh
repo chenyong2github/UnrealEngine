@@ -63,7 +63,7 @@ if [ ! -d "$SDKMANAGERPATH" ]; then
 	fi
 fi
 
-"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "lldb;3.1" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
+"$SDKMANAGERPATH/sdkmanager" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462"
 
 retVal=$?
 if [ $retVal -ne 0 ]; then

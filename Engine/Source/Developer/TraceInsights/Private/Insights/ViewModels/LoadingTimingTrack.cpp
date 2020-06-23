@@ -88,7 +88,8 @@ void FLoadingSharedState::Tick(Insights::ITimingViewSession& InSession, const Tr
 					//const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
 					const FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
 					TSharedRef<FLoadingTimingTrack> LoadingThreadTrack = MakeShared<FLoadingTimingTrack>(*this, LoadingTimelineIndex, TrackName);
-					LoadingThreadTrack->SetOrder(-100 + LoadingTracks.Num());
+					static_assert(FTimingTrackOrder::GroupRange > 1000, "Order group range too small");
+					LoadingThreadTrack->SetOrder(FTimingTrackOrder::Cpu - 1000 + LoadingTracks.Num() * 10);
 					LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
 					InSession.AddScrollableTrack(LoadingThreadTrack);
 					LoadingTracks.Add(LoadingTimelineIndex, LoadingThreadTrack);
@@ -113,10 +114,10 @@ void FLoadingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessi
 			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks - L"),
 			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Show/hide the Asset Loading tracks"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks_Execute),
+			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks),
 					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks_IsChecked)),
-			"QuickFilterSeparator",
+					  FIsActionChecked::CreateSP(this, &FLoadingSharedState::IsAllLoadingTracksToggleOn)),
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -125,16 +126,9 @@ void FLoadingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FLoadingSharedState::ShowHideAllLoadingTracks_IsChecked() const
+void FLoadingSharedState::SetAllLoadingTracksToggle(bool bOnOff)
 {
-	return bShowHideAllLoadingTracks;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FLoadingSharedState::ShowHideAllLoadingTracks_Execute()
-{
-	bShowHideAllLoadingTracks = !bShowHideAllLoadingTracks;
+	bShowHideAllLoadingTracks = bOnOff;
 
 	for (const auto& KV : LoadingTracks)
 	{
@@ -245,6 +239,7 @@ void FLoadingTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 					const uint64 Type = static_cast<uint64>(Event.EventType);
 					const uint32 Color = 0;
 					Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
+					return Trace::EEventEnumerate::Continue;
 				});
 			}
 			else
@@ -255,6 +250,7 @@ void FLoadingTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 					const uint64 Type = static_cast<uint64>(Event.EventType);
 					const uint32 Color = 0;
 					Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
+					return Trace::EEventEnumerate::Continue;
 				});
 			}
 		});
@@ -346,6 +342,7 @@ bool FLoadingTimingTrack::FindLoadTimeProfilerCpuEvent(const FTimingEventSearchP
 						Timeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 						{
 							InContext.Check(EventStartTime, EventEndTime, EventDepth, Event);
+							return InContext.ShouldContinueSearching() ? Trace::EEventEnumerate::Continue : Trace::EEventEnumerate::Stop;
 						});
 					});
 				}

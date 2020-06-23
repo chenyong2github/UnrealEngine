@@ -10,11 +10,17 @@ ISoundGenerator::~ISoundGenerator()
 {
 }
 
-int32 ISoundGenerator::GetNextBuffer(float* OutAudio, int32 NumSamples)
+int32 ISoundGenerator::GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples)
 {
 	PumpPendingMessages();
 
-	return OnGenerateAudio(OutAudio, NumSamples);
+	int32 NumSamplesToGenerate = NumSamples;
+	if (!bRequireNumberSamples)
+	{
+		NumSamplesToGenerate = FMath::Min(NumSamples, GetDesiredNumSamplesToRenderPerCallback());
+	}
+
+	return OnGenerateAudio(OutAudio, NumSamplesToGenerate);
 }
 
 void ISoundGenerator::SynthCommand(TUniqueFunction<void()> Command)

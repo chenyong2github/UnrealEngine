@@ -220,28 +220,25 @@ static void ApplyTransformationToApexDestructibleAsset( apex::DestructibleAsset&
 #endif // #if USE_TEMPORARY_TRANSFORMATION_FUNCTION
 
 // Storage for destructible mesh settings (including base skeletal mesh)
-struct ExistingDestMeshData
+struct FExistingDestMeshData
 {
-	ExistingDestMeshData() : SkelMeshData(NULL), BodySetup(NULL) {}
+	FExistingDestMeshData() : BodySetup(NULL) {}
 
-	ExistingSkelMeshData*			SkelMeshData;
-	UBodySetup*						BodySetup;
-	TArray<struct FFractureEffect>	FractureEffects;
+	TSharedPtr<FExistingSkelMeshData>	SkelMeshData;
+	UBodySetup*							BodySetup;
+	TArray<struct FFractureEffect>		FractureEffects;
 };
 
-ExistingDestMeshData* SaveExistingDestMeshData(UDestructibleMesh* ExistingDestructibleMesh)
+TSharedPtr<FExistingDestMeshData> SaveExistingDestMeshData(UDestructibleMesh* ExistingDestructibleMesh)
 {
-	ExistingDestMeshData* ExistingDestMeshDataPtr = NULL;
+	TSharedPtr<FExistingDestMeshData> ExistingDestMeshDataPtr;
 
 	if (ExistingDestructibleMesh)
 	{
-		ExistingDestMeshDataPtr = new ExistingDestMeshData();
+		ExistingDestMeshDataPtr = MakeShared<FExistingDestMeshData>();
 
 		// Only save off SkelMeshData if it's been created
-		ExistingDestMeshDataPtr->SkelMeshData = NULL;
-		
-		ExistingDestMeshDataPtr->SkelMeshData = SaveExistingSkelMeshData(ExistingDestructibleMesh, true, INDEX_NONE);
-		
+		ExistingDestMeshDataPtr->SkelMeshData = SkeletalMeshHelper::SaveExistingSkelMeshData(ExistingDestructibleMesh, true, INDEX_NONE);
 		ExistingDestMeshDataPtr->BodySetup = ExistingDestructibleMesh->BodySetup;
 		ExistingDestMeshDataPtr->FractureEffects = ExistingDestructibleMesh->FractureEffects;
 	}
@@ -249,14 +246,14 @@ ExistingDestMeshData* SaveExistingDestMeshData(UDestructibleMesh* ExistingDestru
 	return ExistingDestMeshDataPtr;
 }
 
-static void RestoreExistingDestMeshData(ExistingDestMeshData* MeshData, UDestructibleMesh* DestructibleMesh)
+static void RestoreExistingDestMeshData(const TSharedPtr<FExistingDestMeshData>& MeshData, UDestructibleMesh* DestructibleMesh)
 {
 	if (MeshData && DestructibleMesh)
 	{
 		// Restore old settings, but resize arrays to make sense with the new NxDestructibleAsset
-		if (MeshData->SkelMeshData != NULL)
+		if (MeshData->SkelMeshData)
 		{
-			RestoreExistingSkelMeshData(MeshData->SkelMeshData, DestructibleMesh, INDEX_NONE, false, false, false);
+			SkeletalMeshHelper::RestoreExistingSkelMeshData(MeshData->SkelMeshData, DestructibleMesh, INDEX_NONE, false, false, false);
 		}
 		DestructibleMesh->BodySetup =  MeshData->BodySetup;
 		DestructibleMesh->FractureEffects = MeshData->FractureEffects;
@@ -764,11 +761,12 @@ apex::DestructibleAsset* CreateApexDestructibleAssetFromFile(const FString& File
 
 bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::DestructibleAsset& ApexDestructibleAsset, FSkeletalMeshImportData* OutData, EDestructibleImportOptions::Type Options)
 {
+	using namespace SkeletalMeshHelper;
 	DestructibleMesh.PreEditChange(NULL);
 
 	DestructibleMesh.InvalidateDeriveDataCacheGUID();
 
-	ExistingDestMeshData * ExistDestMeshDataPtr = nullptr;
+	TSharedPtr<FExistingDestMeshData> ExistDestMeshDataPtr;
 	if(Options & EDestructibleImportOptions::PreserveSettings)
 	{
 		ExistDestMeshDataPtr = SaveExistingDestMeshData(&DestructibleMesh);
@@ -835,8 +833,6 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 		if (ExistDestMeshDataPtr)
 		{
 			RestoreExistingDestMeshData(ExistDestMeshDataPtr, &DestructibleMesh);
-			delete ExistDestMeshDataPtr;
-			ExistDestMeshDataPtr = NULL;
 		}
 		return false;
 	}
@@ -866,8 +862,6 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 		if (ExistDestMeshDataPtr)
 		{
 			RestoreExistingDestMeshData(ExistDestMeshDataPtr, &DestructibleMesh);
-			delete ExistDestMeshDataPtr;
-			ExistDestMeshDataPtr = NULL;
 		}
 		return false;
 	}
@@ -922,17 +916,12 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 		{
 			DestructibleMesh.MarkPendingKill();
 
-			delete ExistDestMeshDataPtr;
-			ExistDestMeshDataPtr = NULL;
-
 			return false;
 		}
 
 		if (ExistDestMeshDataPtr)
 		{
 			RestoreExistingDestMeshData(ExistDestMeshDataPtr, &DestructibleMesh);
-			delete ExistDestMeshDataPtr;
-			ExistDestMeshDataPtr = NULL;
 		}
 
 		DestructibleMesh.CalculateInvRefMatrices();

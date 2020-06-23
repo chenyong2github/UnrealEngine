@@ -33,6 +33,9 @@ CORE_API const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
 CORE_API const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
 CORE_API const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
 CORE_API const FRotator FRotator::ZeroRotator(0.f,0.f,0.f);
+CORE_API const FVector FVector::XAxisVector(1.0f, 0.0f, 0.0f);
+CORE_API const FVector FVector::YAxisVector(0.0f, 1.0f, 0.0f);
+CORE_API const FVector FVector::ZAxisVector(0.0f, 0.0f, 1.0f);
 
 CORE_API const VectorRegister VECTOR_INV_255 = DECLARE_VECTOR_REGISTER(1.f/255.f, 1.f/255.f, 1.f/255.f, 1.f/255.f);
 
@@ -1736,9 +1739,12 @@ bool FMath::SegmentPlaneIntersection(const FVector& StartPoint, const FVector& E
 
 bool FMath::SegmentTriangleIntersection(const FVector& StartPoint, const FVector& EndPoint, const FVector& A, const FVector& B, const FVector& C, FVector& OutIntersectPoint, FVector& OutTriangleNormal)
 {
-	const FVector BA = A - B;
-	const FVector CB = B - C;
-	const FVector TriNormal = BA ^ CB;
+	FVector Edge1(B - A);
+	Edge1.Normalize();
+	FVector Edge2(C - A);
+	Edge2.Normalize();
+	FVector TriNormal = Edge2 ^ Edge1;
+	TriNormal.Normalize();
 
 	bool bCollide = FMath::SegmentPlaneIntersection(StartPoint, EndPoint, FPlane(A, TriNormal), OutIntersectPoint);
 	if (!bCollide)

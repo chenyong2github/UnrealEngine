@@ -16,8 +16,6 @@
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
-	#include "pxr/base/tf/token.h"
-	#include "pxr/usd/usd/stageCache.h"
 #include "USDIncludesEnd.h"
 #endif // #if USE_USD_SDK
 
@@ -30,6 +28,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdGeomMesh;
 	class UsdPrim;
 	class UsdStage;
+	class UsdStageCache;
 
 	template< typename T > class TfRefPtr;
 PXR_NAMESPACE_CLOSE_SCOPE
@@ -37,6 +36,12 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 class IUsdPrim;
 class FUsdDiagnosticDelegate;
+
+namespace UE
+{
+	class FUsdAttribute;
+	class FUsdStage;
+}
 
 enum class EUsdInterpolationMethod
 {
@@ -69,7 +74,6 @@ enum class EUsdSubdivisionScheme
 
 enum class EUsdUpAxis
 {
-	XAxis,
 	YAxis,
 	ZAxis,
 };
@@ -153,27 +157,37 @@ struct FUsdQuatData
 	float W;
 };
 
+UENUM()
+enum class EUsdInitialLoadSet
+{
+	LoadAll,
+	LoadNone
+};
+
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
-public:
-	virtual void Initialize(const TArray< FString >& InPluginDirectories ) = 0;
 };
 
 class UnrealUSDWrapper
 {
 public:
 #if USE_USD_SDK
-	UNREALUSDWRAPPER_API static void Initialize( const TArray< FString > & InPluginDirectories );
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
-	UNREALUSDWRAPPER_API static pxr::UsdStageCache& GetUsdStageCache();
 #endif  // #if USE_USD_SDK
+
+	UNREALUSDWRAPPER_API static UE::FUsdStage OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache = true );
+	UNREALUSDWRAPPER_API static UE::FUsdStage NewStage( const TCHAR* FilePath );
+
+	UNREALUSDWRAPPER_API static TArray< UE::FUsdStage > GetAllStagesFromCache();
+
+	// Removes the stage from the stage cache. See UsdStageCache::Erase.
+	UNREALUSDWRAPPER_API static void EraseStageFromCache( const UE::FUsdStage& Stage );
 
 	UNREALUSDWRAPPER_API static void SetupDiagnosticDelegate();
 	UNREALUSDWRAPPER_API static void ClearDiagnosticDelegate();
 private:
-	static bool bInitialized;
 	static TUniquePtr<FUsdDiagnosticDelegate> Delegate;
 };
 
@@ -230,7 +244,7 @@ public:
 	static UNREALUSDWRAPPER_API bool HasTransform(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API std::string GetUnrealPropertyPath(const pxr::UsdPrim& Prim);
 
-	static UNREALUSDWRAPPER_API TUsdStore< std::vector<pxr::UsdAttribute> > GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API TArray< UE::FUsdAttribute > GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
 
 	static UNREALUSDWRAPPER_API std::string GetUnrealAssetPath(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API std::string GetUnrealActorClass(const pxr::UsdPrim& Prim);
@@ -249,3 +263,10 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments;
 #endif // #if USE_USD_SDK
 }
+
+struct UNREALUSDWRAPPER_API FUsdDelegates
+{
+	DECLARE_MULTICAST_DELEGATE_OneParam( FUsdImportDelegate, FString /* FilePath */);
+	static FUsdImportDelegate OnPreUsdImport;
+	static FUsdImportDelegate OnPostUsdImport;
+};

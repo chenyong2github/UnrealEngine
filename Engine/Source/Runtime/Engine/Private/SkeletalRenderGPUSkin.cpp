@@ -219,13 +219,7 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 
 #if RHI_RAYTRACING
 	BeginReleaseResource(&RayTracingGeometry);
-	ENQUEUE_RENDER_COMMAND(ReleaseRayTracingDynamicVertexBuffer)(
-		[RayTracingDynamicVertexBuffer = MoveTemp(RayTracingDynamicVertexBuffer)](FRHICommandListImmediate& RHICmdList) mutable
-	{
-		RayTracingDynamicVertexBuffer.Release();
-	});
-
-	check(!RayTracingDynamicVertexBuffer.Buffer.IsValid());
+	ENQUEUE_RENDER_COMMAND(ReleaseRayTracingDynamicVertexBuffer)([&RayTracingDynamicVertexBuffer = RayTracingDynamicVertexBuffer](FRHICommandListImmediate& RHICmdList) mutable { RayTracingDynamicVertexBuffer.Release(); });
 #endif
 }
 
@@ -417,6 +411,9 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				}
 
 				FRayTracingGeometryInitializer Initializer;
+				static const FName DebugName("FSkeletalMeshObjectGPUSkin");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DebugName, DebugNumber++);
 
 				FRHIResourceCreateInfo CreateInfo;
 

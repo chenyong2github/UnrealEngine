@@ -551,7 +551,7 @@ void FURL::AddOption( const TCHAR* Str )
 
 void FURL::RemoveOption( const TCHAR* Key, const TCHAR* Section, const FString& Filename )
 {
-	if ( !Key )
+	if ( !Key || *Key == '\0')
 		return;
 
 	for ( int32 i = Op.Num() - 1; i >= 0; i-- )

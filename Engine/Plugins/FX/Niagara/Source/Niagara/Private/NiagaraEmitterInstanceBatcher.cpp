@@ -14,7 +14,7 @@
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
-#include "Runtime/Engine/Private/GPUSort.h"
+#include "GPUSort.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -80,10 +80,6 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	: FeatureLevel(InFeatureLevel)
 	, ShaderPlatform(InShaderPlatform)
 	, GPUSortManager(InGPUSortManager)
-	, GlobalCBufferLayout(TEXT("Niagara GPU Global CBuffer"))
-	, SystemCBufferLayout(TEXT("Niagara GPU System CBuffer"))
-	, OwnerCBufferLayout(TEXT("Niagara GPU Owner CBuffer"))
-	, EmitterCBufferLayout(TEXT("Niagara GPU Emitter CBuffer"))
 	// @todo REMOVE THIS HACK
 	, LastFrameThatDrainedData(GFrameNumberRenderThread)
 	, NumAllocatedFreeIDListSizes(0)
@@ -114,22 +110,31 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 		}
 	}
 
-	GlobalCBufferLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
-	GlobalCBufferLayout.ComputeHash();
+	GlobalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Global CBuffer"));
+	GlobalCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
+	GlobalCBufferLayout->UBLayout.ComputeHash();
 
-	SystemCBufferLayout.ConstantBufferSize = sizeof(FNiagaraSystemParameters);
-	SystemCBufferLayout.ComputeHash();
+	SystemCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU System CBuffer"));
+	SystemCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraSystemParameters);
+	SystemCBufferLayout->UBLayout.ComputeHash();
 
-	OwnerCBufferLayout.ConstantBufferSize = sizeof(FNiagaraOwnerParameters);
-	OwnerCBufferLayout.ComputeHash();
+	OwnerCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Owner CBuffer"));
+	OwnerCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraOwnerParameters);
+	OwnerCBufferLayout->UBLayout.ComputeHash();
 
-	EmitterCBufferLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
-	EmitterCBufferLayout.ComputeHash();
+	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"));
+	EmitterCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
+	EmitterCBufferLayout->UBLayout.ComputeHash();
 }
 
 NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 {
 	FinishDispatches();
+
+	GlobalCBufferLayout = nullptr;
+	SystemCBufferLayout = nullptr;
+	OwnerCBufferLayout = nullptr;
+	EmitterCBufferLayout = nullptr;
 }
 
 void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID)
@@ -183,7 +188,7 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 		FNiagaraComputeInstanceData& EmitterData = EmittersData[CountIt];
 
 		const FNiagaraShaderRef& Shader = EmitterData.Context->GPUScript_RT->GetShader();
-		const int32 HasExternalConstants = EmitterData.Context->ExternalCBufferLayout.ConstantBufferSize > 0 ? 1 : 0;
+		const int32 HasExternalConstants = EmitterData.Context->ExternalCBufferLayout->UBLayout.ConstantBufferSize > 0 ? 1 : 0;
 
 		for (int32 InterpIt = 0; InterpIt < (HasInterpolationParameters ? 2 : 1); ++InterpIt)
 		{
@@ -202,9 +207,9 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 
 	const FRHIUniformBufferLayout* SystemLayouts[FNiagaraGPUSystemTick::UBT_NumSystemTypes] =
 	{
-		&GlobalCBufferLayout,
-		&SystemCBufferLayout,
-		&OwnerCBufferLayout
+		&GlobalCBufferLayout->UBLayout,
+		&SystemCBufferLayout->UBLayout,
+		&OwnerCBufferLayout->UBLayout
 	};
 
 	for (int32 InterpIt = 0; InterpIt < InterpScale; ++InterpIt)
@@ -239,8 +244,8 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 					BufferRef = RHICreateUniformBuffer(
 						Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) InstanceTypeIt, &EmitterData, !InterpIt),
 						InstanceTypeIt == FNiagaraGPUSystemTick::UBT_Emitter
-							? EmitterCBufferLayout
-							: EmitterData.Context->ExternalCBufferLayout,
+							? EmitterCBufferLayout->UBLayout
+							: EmitterData.Context->ExternalCBufferLayout->UBLayout,
 						((BoundParameterCounts[InstanceTypeIt][InterpIt] > 1) || HasMultipleStages)
 							? EUniformBufferUsage::UniformBuffer_SingleFrame
 							: EUniformBufferUsage::UniformBuffer_SingleDraw);
@@ -262,13 +267,13 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 		return;
 	}
 
-
 	// @todo REMOVE THIS HACK
+
 	if (GFrameNumberRenderThread > LastFrameThatDrainedData + GNiagaraGpuMaxQueuedRenderFrames)
-	{
-		Tick.Destroy();
-		return;
-	}
+				{
+					Tick.Destroy();
+					return;
+				}
 
 	// Now we consume DataInterface instance data.
 	if (Tick.DIInstanceData)
@@ -405,6 +410,25 @@ void NiagaraEmitterInstanceBatcher::PostStageInterface(const FNiagaraGPUSystemTi
 	}
 }
 
+void NiagaraEmitterInstanceBatcher::PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader) const
+{
+	uint32 InterfaceIndex = 0;
+	for (FNiagaraDataInterfaceProxy* Interface : Instance->DataInterfaceProxies)
+	{
+		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
+		if (DIParam.Parameters.IsValid())
+		{
+			FNiagaraDataInterfaceSetArgs TmpContext;
+			TmpContext.Shader = ComputeShader;
+			TmpContext.DataInterface = Interface;
+			TmpContext.SystemInstance = Tick.SystemInstanceID;
+			TmpContext.Batcher = this;			
+			Interface->PostSimulate(RHICmdList, TmpContext);
+		}
+		InterfaceIndex++;
+	}
+}
+
 void NiagaraEmitterInstanceBatcher::TransitionBuffers(FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader, FNiagaraComputeInstanceData* Instance, uint32 SimulationStageIndex, const FNiagaraDataBuffer*& LastSource, bool& bFreeIDTableTransitioned)
 {
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
@@ -518,6 +542,8 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 				RHICmdList.SubmitCommandsHint();
 			}
 		}
+
+		PostSimulateInterface(Tick, Instance, RHICmdList, ComputeShader);
 	}
 	else
 	{
@@ -890,6 +916,13 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraEmitterInstanceBatcher_ExecuteAll, TEXT("NiagaraEmitterInstanceBatcher_ExecuteAll - TickStage(%d)"), TickStage);
 
+	FUniformBufferStaticBindings GlobalUniformBuffers;
+	if (FRHIUniformBuffer* SceneTexturesUniformBuffer = GNiagaraViewDataManager.GetSceneTextureUniformParameters())
+	{
+		GlobalUniformBuffers.AddUniformBuffer(SceneTexturesUniformBuffer);
+	}
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 	FMemMark Mark(FMemStack::Get());
 	TArray<FOverlappableTicks, TMemStackAllocator<> > SimPasses;
 	{
@@ -1002,9 +1035,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	// Note: We can not encapsulate the whole Niagara pass as some DI's may not be compatable (i.e. use CopyTexture function), we need to fix this with future RDG conversion
 	if (SimPasses.Num() > 0)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.BeginComputePass(TEXT("NiagaraCompute"));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		//RHICmdList.BeginComputePass(TEXT("NiagaraCompute"));
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.BeginUAVOverlap();
 
 		FEmitterInstanceList InstancesWithPersistentIDs;
@@ -1057,9 +1090,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutputGraphicsBuffers.GetData(), OutputGraphicsBuffers.Num());
 
 		RHICmdList.EndUAVOverlap();
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.EndComputePass();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		//RHICmdList.EndComputePass();
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -1363,7 +1396,7 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 					HalfDataBuffer = static_cast<FFloat16*>(Context->GPUDebugDataReadbackHalf->Lock(Context->GPUDebugDataHalfSize));
 				}
 
-				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, HalfDataBuffer, NewExistingDataCount, Context->GPUDebugDataFloatStride, Context->GPUDebugDataIntStride, Context->GPUDebugDataHalfStride);
+				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, HalfDataBuffer, 0, NewExistingDataCount, Context->GPUDebugDataFloatStride, Context->GPUDebugDataIntStride, Context->GPUDebugDataHalfStride);
 
 				Context->DebugInfo->bWritten = true;
 

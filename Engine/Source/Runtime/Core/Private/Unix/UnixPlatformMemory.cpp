@@ -103,7 +103,7 @@ void FUnixPlatformMemory::Init()
 
 class FMalloc* FUnixPlatformMemory::BaseAllocator()
 {
-#if UE4_DO_ROOT_PRIVILEGE_CHECK
+#if UE4_DO_ROOT_PRIVILEGE_CHECK && !IS_PROGRAM
 	// This function gets executed very early, way before main() (because global constructors will allocate memory).
 	// This makes it ideal, if unobvious, place for a root privilege check.
 	if (geteuid() == 0)
@@ -113,7 +113,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 		// unreachable
 		return nullptr;
 	}
-#endif // UE4_DO_ROOT_PRIVILEGE_CHECK
+#endif // UE4_DO_ROOT_PRIVILEGE_CHECK && !IS_PROGRAM
 
 #if UE_USE_MALLOC_REPLAY_PROXY
 	bool bAddReplayProxy = false;

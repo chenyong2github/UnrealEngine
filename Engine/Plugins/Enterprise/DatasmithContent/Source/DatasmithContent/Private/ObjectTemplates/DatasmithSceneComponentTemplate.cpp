@@ -39,6 +39,11 @@ UObject* UDatasmithSceneComponentTemplate::UpdateObject( UObject* Destination, b
 		SceneComponent->SetMobility( TargetMobility );
 	}
 
+	if ( !PreviousTemplate || PreviousTemplate->bVisible == SceneComponent->GetVisibleFlag() )
+	{
+		SceneComponent->SetVisibility( bVisible );
+	}
+
 	const ULevel* SceneComponentLevel = SceneComponent->GetComponentLevel();
 	bool bCanAttach = ( AttachParent && AttachParent->GetComponentLevel() == SceneComponentLevel );
 	bCanAttach |= ( !AttachParent && ( SceneComponentLevel == nullptr || SceneComponentLevel->OwningWorld == Destination->GetWorld() ) );
@@ -117,6 +122,7 @@ void UDatasmithSceneComponentTemplate::Load( const UObject* Source )
 
 	RelativeTransform = SceneComponent->GetRelativeTransform();
 	Mobility = SceneComponent->Mobility;
+	bVisible = SceneComponent->GetVisibleFlag();
 	AttachParent = SceneComponent->GetAttachParent();
 	Tags = TSet<FName>(SceneComponent->ComponentTags);
 
@@ -134,6 +140,7 @@ bool UDatasmithSceneComponentTemplate::Equals( const UDatasmithObjectTemplate* O
 
 	bool bEquals = AreTransformsEqual( RelativeTransform, TypedOther->RelativeTransform );
 	bEquals = bEquals && ( Mobility == TypedOther->Mobility );
+	bEquals = bEquals && ( bVisible == TypedOther->bVisible );
 	bEquals = bEquals && ( AttachParent == TypedOther->AttachParent );
 	bEquals = bEquals && FDatasmithObjectTemplateUtils::SetsEquals(Tags, TypedOther->Tags);
 

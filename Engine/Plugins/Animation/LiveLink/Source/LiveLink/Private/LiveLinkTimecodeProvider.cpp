@@ -17,7 +17,6 @@ ULiveLinkTimecodeProvider::ULiveLinkTimecodeProvider()
 	, LiveLinkClient(nullptr)
 {
 }
-PRAGMA_DISABLE_OPTIMIZATION
 
 FQualifiedFrameTime ULiveLinkTimecodeProvider::GetQualifiedFrameTime() const
 {
@@ -293,5 +292,3 @@ void ULiveLinkTimecodeProvider::OnLiveLinkFrameDataReceived_AnyThread(const FLiv
 		}
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

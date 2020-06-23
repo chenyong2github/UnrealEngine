@@ -10,6 +10,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Misc/Guid.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/LinkerInstancingContext.h"
 
 struct FAsyncPackageDesc
 {
@@ -30,6 +31,16 @@ struct FAsyncPackageDesc
 	/** PIE instance ID this package belongs to, INDEX_NONE otherwise */
 	int32 PIEInstanceID;
 
+#if WITH_EDITORONLY_DATA
+	/** Instancing context, maps original package to their instanced counterpart, used to remap imports. */
+	FLinkerInstancingContext InstancingContext;
+
+	const FLinkerInstancingContext* GetInstancingContext() const { return &InstancingContext; }
+	void SetInstancingContext(FLinkerInstancingContext InInstancingContext) { InstancingContext = MoveTemp(InInstancingContext); }
+#else
+	const FLinkerInstancingContext* GetInstancingContext() const { return nullptr; }
+	void SetInstancingContext(FLinkerInstancingContext) {}
+#endif 
 
 	FAsyncPackageDesc(int32 InRequestID, const FName& InName, FName InPackageToLoadFrom = NAME_None, const FGuid& InGuid = FGuid(), TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPriority = 0)
 		: RequestID(InRequestID)
@@ -56,6 +67,9 @@ struct FAsyncPackageDesc
 		, PackageFlags(OldPackage.PackageFlags)
 		, Priority(OldPackage.Priority)
 		, PIEInstanceID(OldPackage.PIEInstanceID)
+#if WITH_EDITORONLY_DATA
+		, InstancingContext(OldPackage.InstancingContext)
+#endif
 	{
 	}
 

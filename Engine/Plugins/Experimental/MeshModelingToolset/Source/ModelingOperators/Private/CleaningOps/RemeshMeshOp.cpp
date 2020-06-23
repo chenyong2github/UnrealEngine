@@ -75,12 +75,15 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 		{
 		case ERemeshSmoothingType::Uniform:
 			Remesher->SmoothType = FRemesher::ESmoothTypes::Uniform;
+			Remesher->FlipMetric = FRemesher::EFlipMetric::OptimalValence;
 			break;
 		case ERemeshSmoothingType::Cotangent:
 			Remesher->SmoothType = FRemesher::ESmoothTypes::Cotan;
+			Remesher->FlipMetric = FRemesher::EFlipMetric::MinEdgeLength;
 			break;
 		case ERemeshSmoothingType::MeanValue:
 			Remesher->SmoothType = FRemesher::ESmoothTypes::MeanValue;
+			Remesher->FlipMetric = FRemesher::EFlipMetric::MinEdgeLength;
 			break;
 		default:
 			ensure(false);

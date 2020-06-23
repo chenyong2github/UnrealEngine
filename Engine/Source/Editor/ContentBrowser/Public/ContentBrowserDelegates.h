@@ -7,34 +7,26 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/SToolTip.h"
 #include "Developer/AssetTools/Public/IAssetTypeActions.h"
+#include "Containers/ArrayView.h"
+#include "ContentBrowserDataLegacyBridge.h"
 
 struct FARFilter;
 struct FCollectionNameType;
+struct FContentBrowserItem;
+class FContentBrowserItemTemporaryContext;
 class FUICommandList;
 
+/** Called when the user has committed a rename of one or more items */
+DECLARE_DELEGATE_OneParam(FOnContentBrowserItemRenameCommitted, TArrayView<const FContentBrowserItem> /*Items*/);
 
- enum class CONTENTBROWSER_API EMovedContentFolderFlags : uint8
-{
-	None = 0,
-	Favorite = 1 << 0,
-};
+/** Delegate called when item selection is changed */
+DECLARE_DELEGATE_TwoParams(FOnContentBrowserItemSelectionChanged, const FContentBrowserItem& /*SelectedItem*/, ESelectInfo::Type /*SelectInfo*/);
 
-ENUM_CLASS_FLAGS(EMovedContentFolderFlags)
+/** Called when the user double clicks, presses enter, or presses space on a Content Browser item */
+DECLARE_DELEGATE_TwoParams(FOnContentBrowserItemsActivated, TArrayView<const FContentBrowserItem> /*ActivatedItems*/, EAssetTypeActivationMethod::Type /*ActivationMethod*/);
 
-struct CONTENTBROWSER_API FMovedContentFolder
-{
-	FString OldPath;
-	FString NewPath;
-	EMovedContentFolderFlags Flags;
-
-	FMovedContentFolder(const FString& InOldPath, const FString& InNewPath);
-};
-
-/** Called when a "Find in Asset Tree" is requested */
-DECLARE_DELEGATE_OneParam(FOnFindInAssetTreeRequested, const TArray<FAssetData>& /*AssetsToFind*/);
-
-/** Called when the user has committed a rename of one or more assets */
-DECLARE_DELEGATE_OneParam(FOnAssetRenameCommitted, const TArray<FAssetData>& /*Assets*/);
+/** Called to request the menu when right clicking on an selection of items (maybe be a mix of folders and files) */
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SWidget>, FOnGetContentBrowserItemContextMenu, TArrayView<const FContentBrowserItem> /*SelectedItems*/);
 
 /** Called when a collection is selected in the collections view */
 DECLARE_DELEGATE_OneParam( FOnCollectionSelected, const FCollectionNameType& /*SelectedCollection*/);
@@ -69,20 +61,11 @@ DECLARE_DELEGATE_OneParam(FSetARFilterDelegate, const FARFilter& /*NewFilter*/);
 /** A pointer to an existing delegate that, when executed, will set the filter an the asset picker after it is created. */
 DECLARE_DELEGATE_OneParam(FSetPathPickerPathsDelegate, const TArray<FString>& /*NewPaths*/);
 
-/** Called to adjust the selection from the current assetdata, should be +1 to increment or -1 to decrement */
-DECLARE_DELEGATE_OneParam( FAdjustSelectionDelegate, const int32 /*direction*/ );
-
 /** Called when an asset is selected in the asset view */
 DECLARE_DELEGATE_OneParam(FOnAssetSelected, const FAssetData& /*AssetData*/);
 
 /** Called when the user double clicks, presses enter, or presses space on an asset */
 DECLARE_DELEGATE_TwoParams(FOnAssetsActivated, const TArray<FAssetData>& /*ActivatedAssets*/, EAssetTypeActivationMethod::Type /*ActivationMethod*/);
-
-/** Called when an asset has begun being dragged by the user */
-DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnAssetDragged, const TArray<FAssetData>& /*AssetData*/);
-
-/** Called when an asset is clicked on in the asset view */
-DECLARE_DELEGATE_OneParam( FOnAssetClicked, const FAssetData& /*AssetData*/ );
 
 /** Called when an asset is double clicked in the asset view */
 DECLARE_DELEGATE_OneParam(FOnAssetDoubleClicked, const FAssetData& /*AssetData*/);
@@ -91,16 +74,13 @@ DECLARE_DELEGATE_OneParam(FOnAssetDoubleClicked, const FAssetData& /*AssetData*/
 DECLARE_DELEGATE_OneParam(FOnAssetEnterPressed, const TArray<FAssetData>& /*SelectedAssets*/);
 
 /** Called when a new folder is starting to be created */
-DECLARE_DELEGATE_TwoParams(FOnCreateNewFolder, const FString& /*FolderName*/, const FString& /*FolderPath*/);
+DECLARE_DELEGATE_OneParam(FOnCreateNewFolder, const FContentBrowserItemTemporaryContext& /*NewItemContext*/);
 
 /** Called to request the menu when right clicking on an asset */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SWidget>, FOnGetAssetContextMenu, const TArray<FAssetData>& /*SelectedAssets*/);
 
 /** Called when a path is selected in the path picker */
 DECLARE_DELEGATE_OneParam(FOnPathSelected, const FString& /*Path*/);
-
-/** Called when a path is double clicked in the asset view */
-DECLARE_DELEGATE_OneParam(FOnPathDoubleClicked, const FString& /*Path*/);
 
 /** Called when registering a custom command/keybinding for the content browser */
 DECLARE_DELEGATE_TwoParams(FOnContentBrowserGetSelection, TArray<FAssetData>& /*SelectedAssets*/, TArray<FString>& /*SelectedPaths*/);
@@ -124,9 +104,6 @@ DECLARE_DELEGATE_RetVal_OneParam( TSharedRef<SToolTip>, FOnGetCustomAssetToolTip
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FOnGetCustomAssetColumnData, FAssetData& /*AssetData*/, FName /*ColumnName*/);
 DECLARE_DELEGATE_RetVal_TwoParams(FText, FOnGetCustomAssetColumnDisplayText, FAssetData& /*AssetData*/, FName /*ColumnName*/);
 
-/** Called to add extra asset data to the asset view, to display virtual assets. These get treated similar to Class assets */
-DECLARE_DELEGATE_TwoParams(FOnGetCustomSourceAssets, const FARFilter& /*SourceFilter*/, TArray<FAssetData>& /*AddedAssets*/);
-
 /** Called to generate extra state information icons or tooltips on asset items. */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateAssetViewExtraStateIndicators, const FAssetData& /*AssetData*/);
 
@@ -144,9 +121,6 @@ DECLARE_DELEGATE_OneParam(FOnAssetsChosenForOpen, const TArray<FAssetData>& /*Se
 
 /** Called from the Asset Dialog when an asset name is chosen in non-modal Save dialogs */
 DECLARE_DELEGATE_OneParam(FOnObjectPathChosenForSave, const FString& /*ObjectPath*/);
-
-/** Called when a favorite folder is moved or renamed in the content browser */
-DECLARE_DELEGATE_OneParam(FOnFolderPathChanged, const TArray<struct FMovedContentFolder>& /*MovedFolders*/);
 
 /** Contains the delegates used to handle a custom drag-and-drop in the asset view */
 struct FAssetViewDragAndDropExtender

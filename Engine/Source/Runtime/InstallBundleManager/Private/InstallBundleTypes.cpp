@@ -58,7 +58,7 @@ const TCHAR* LexToString(EInstallBundleManagerInitResult Result)
 	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
 }
 
-const TCHAR* LexToString(EInstallBundleContentState State)
+const TCHAR* LexToString(EInstallBundleInstallState State)
 {
 	static const TCHAR* Strings[] =
 	{
@@ -67,7 +67,7 @@ const TCHAR* LexToString(EInstallBundleContentState State)
 		TEXT("UpToDate"),
 	};
 
-	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleContentState::Count) == UE_ARRAY_COUNT(Strings), "");
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleInstallState::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(State)];
 }
 
@@ -153,8 +153,35 @@ bool LexTryParseString(EInstallBundlePriority& OutMode, const TCHAR* InBuffer)
 	return false;
 }
 
+bool FInstallBundleCombinedInstallState::GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles) const
+{
+	for (const TPair<FName, EInstallBundleInstallState>& Pair : IndividualBundleStates)
+	{
+		if (ExcludedBundles.Contains(Pair.Key))
+			continue;
 
-bool FInstallBundleCombinedContentState::GetAllBundlesHaveState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
+		if (Pair.Value != State)
+			return false;
+	}
+
+	return true;
+}
+
+bool FInstallBundleCombinedInstallState::GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles) const
+{
+	for (const TPair<FName, EInstallBundleInstallState>& Pair : IndividualBundleStates)
+	{
+		if (ExcludedBundles.Contains(Pair.Key))
+			continue;
+
+		if (Pair.Value == State)
+			return true;
+	}
+
+	return false;
+}
+
+bool FInstallBundleCombinedContentState::GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
 {
 	for (const TPair<FName, FInstallBundleContentState>& Pair : IndividualBundleStates)
 	{
@@ -168,7 +195,7 @@ bool FInstallBundleCombinedContentState::GetAllBundlesHaveState(EInstallBundleCo
 	return true;
 }
 
-bool FInstallBundleCombinedContentState::GetAnyBundleHasState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
+bool FInstallBundleCombinedContentState::GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
 {
 	for (const TPair<FName, FInstallBundleContentState>& Pair : IndividualBundleStates)
 	{
@@ -181,4 +208,3 @@ bool FInstallBundleCombinedContentState::GetAnyBundleHasState(EInstallBundleCont
 
 	return false;
 }
-

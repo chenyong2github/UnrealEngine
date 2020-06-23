@@ -23,16 +23,14 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/GeometryQueries.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 #if 0
 DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_ChaosCollision);
 #define SCOPE_CYCLE_COUNTER_GJK() SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK)
 #else
 #define SCOPE_CYCLE_COUNTER_GJK()
 #endif
-
-#define CHAOS_COLLIDE_CLUSTERED_UNIONS 1
-
-//PRAGMA_DISABLE_OPTIMIZATION
 
 float CCDEnableThresholdBoundsScale = 0.4f;
 FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
@@ -43,7 +41,6 @@ FAutoConsoleVariableRef CVarCCDAllowedDepthBoundsScale(TEXT("p.Chaos.CCD.Allowed
 // If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
 // We have observed bad normals coming from GJKPenetration when barely in contact.
 #define PHI_RESAMPLE_THRESHOLD 0.001
-
 
 bool bChaos_Collision_UseManifolds_Test = false;
 FAutoConsoleVariableRef CVarChaosCollisionUseManifoldsTest(TEXT("p.Chaos.Collision.UseManifoldsTest"), bChaos_Collision_UseManifolds_Test, TEXT("Enable/Disable use of manifoldes in collision."));
@@ -261,13 +258,13 @@ namespace Chaos
 			FContactPoint Contact;
 			const FRigidTransform3 AToBTM = ATransform.GetRelativeTransform(BTransform);
 
-			FReal Penetration = FLT_MAX;
+			FReal ContactPhi = FLT_MAX;
 			FVec3 Location, Normal;
 			if (const TImplicitObjectScaled<GeometryA>* ScaledConvexImplicit = A.template GetObject<const TImplicitObjectScaled<GeometryA> >())
 			{
-				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, Penetration))
+				if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
-					Contact.Phi = Penetration;
+					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 				}
@@ -276,9 +273,9 @@ namespace Chaos
 			{
 				if (const GeometryA * InstancedInnerObject = static_cast<const GeometryA*>(InstancedConvexImplicit->GetInstancedObject()))
 				{
-					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, Penetration))
+					if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 					{
-						Contact.Phi = Penetration;
+						Contact.Phi = ContactPhi;
 						Contact.Location = BTransform.TransformPosition(Location);
 						Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 					}
@@ -286,9 +283,9 @@ namespace Chaos
 			}
 			else if (const GeometryA* ConvexImplicit = A.template GetObject<const GeometryA>())
 			{
-				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, Penetration))
+				if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
-					Contact.Phi = Penetration;
+					Contact.Phi = ContactPhi;
 					Contact.Location = BTransform.TransformPosition(Location);
 					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 				}
@@ -578,7 +575,7 @@ namespace Chaos
 			const TBox<FReal, 3> * Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::BoxBox);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxBox);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -623,7 +620,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::BoxHeightField);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxHeightField);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -716,7 +713,7 @@ namespace Chaos
 			const TPlane<FReal, 3>* Object1 = Implicit1->template GetObject<const TPlane<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::BoxPlane);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxPlane);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -761,7 +758,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::BoxTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -776,7 +773,7 @@ namespace Chaos
 				}
 				else if(const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::BoxTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -836,7 +833,7 @@ namespace Chaos
 			const TSphere<FReal, 3>* Object1 = Implicit1->template GetObject<const TSphere<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereSphere);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereSphere);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -880,7 +877,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereHeightField);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereHeightField);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -932,7 +929,7 @@ namespace Chaos
 			const TPlane<FReal, 3>* Object1 = Implicit1->template GetObject<const TPlane<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SpherePlane);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SpherePlane);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -989,7 +986,7 @@ namespace Chaos
 			const TBox<FReal, 3> * Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereBox);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereBox);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1051,7 +1048,7 @@ namespace Chaos
 			const TCapsule<FReal>* Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereCapsule);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereCapsule);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1097,7 +1094,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1112,7 +1109,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::SphereTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1183,7 +1180,7 @@ namespace Chaos
 			const TCapsule<FReal> * Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleCapsule);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleCapsule);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1444,7 +1441,7 @@ namespace Chaos
 
 					if (bAllowManifold)
 					{
-						FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleBox);
+						FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox);
 						// @todo(ccaulfield): manifold creation should be deferrable same as non-manifold below (only Context is preventing this - Apply does not know about the context yet)
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
@@ -1454,7 +1451,7 @@ namespace Chaos
 					}
 				}
 
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleBox);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1507,7 +1504,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleHeightField);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1528,7 +1525,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleHeightField);
+				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField);
 				FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateCapsuleHeightFieldConstraintSwept(Particle0, *Object0, WorldTransformX0, *Object1, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1592,7 +1589,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1607,7 +1604,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1634,7 +1631,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleTriMesh);
+					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh);
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *ScaledTriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1642,7 +1639,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::CapsuleTriMesh);
+					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh);
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateCapsuleTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransformX0, *TriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1736,7 +1733,7 @@ namespace Chaos
 				// We need to improve iterative manifolds for this case
 				if (Implicit0Type != TBox<FReal, 3>::StaticType() && Implicit1Type != TBox<FReal, 3>::StaticType())
 				{
-					FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexConvex);
+					FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex);
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexConvexManifold(Constraint, WorldTransform0, WorldTransform1, CullDistance);
@@ -1753,7 +1750,7 @@ namespace Chaos
 				}
 			}
 
-			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexConvex);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex);
 			if (T_TRAITS::bImmediateUpdate)
 			{
 				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1769,7 +1766,7 @@ namespace Chaos
 
 		void ConstructConvexConvexConstraintsSwept(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FVec3& Dir, FReal Length, FCollisionConstraintsArray& NewConstraints)
 		{
-			FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexConvex);
+			FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex);
 			FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 			FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 			UpdateConvexConvexConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *Implicit1, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1812,7 +1809,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Implicit0->IsConvex() && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexHeightField);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1832,7 +1829,7 @@ namespace Chaos
 			const FHeightField * Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Implicit0->IsConvex() && Object1))
 			{
-				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexHeightField);
+				FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField);
 				FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 				UpdateConvexHeightFieldConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *Object1, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1894,7 +1891,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform0, EContactShapesType::ConvexTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform0, EContactShapesType::ConvexTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1909,7 +1906,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexTriMesh);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexTriMesh);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1935,7 +1932,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexTriMesh);
+					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexTriMesh);
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexTriangleMeshConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *ScaledTriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1943,7 +1940,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::ConvexTriMesh);
+					FRigidBodySweptPointContactConstraint Constraint = FRigidBodySweptPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexTriMesh);
 					FRigidTransform3 WorldTransformX0 = LocalTransform0 * FRigidTransform3(Particle0->X(), Particle0->R());
 					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
 					UpdateConvexTriangleMeshConstraintSwept(Particle0, *Implicit0, WorldTransformX0, *TriangleMesh, WorldTransform1, Dir, Length, CullDistance, Constraint);
@@ -1968,7 +1965,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetLevelsetConstraint);
 
 			TGenericParticleHandle<FReal, 3> Particle0 = Constraint.Particle[0];
-			FRigidTransform3 ParticlesTM = FRigidTransform3(Particle0->P(), Particle0->Q());
+			FRigidTransform3 ParticlesTM = Constraint.ImplicitTransform[0] * FRigidTransform3(Particle0->P(), Particle0->Q());
 			if (!(ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().X)) && ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().Y)) && ensure(!FMath::IsNaN(ParticlesTM.GetTranslation().Z))))
 			{
 				return;
@@ -1981,8 +1978,12 @@ namespace Chaos
 				return;
 			}
 
-			const TBVHParticles<FReal, 3>* SampleParticles = nullptr;
-			SampleParticles = Particle0->CollisionParticles().Get();
+			const TBVHParticles<FReal, 3>* SampleParticles = Constraint.Manifold.Simplicial[0];
+			if(!SampleParticles)
+			{
+				ParticlesTM = FRigidTransform3(Particle0->P(), Particle0->Q());
+				SampleParticles = Particle0->CollisionParticles().Get();
+			}
 
 			if (SampleParticles)
 			{
@@ -1999,24 +2000,25 @@ namespace Chaos
 
 
 		template<typename T_TRAITS>
-		void ConstructLevelsetLevelsetConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, FCollisionConstraintsArray& NewConstraints)
+		void ConstructLevelsetLevelsetConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, FCollisionConstraintsArray& NewConstraints)
 		{
-			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, LocalTransform0, Particle1, Implicit1, LocalTransform1, EContactShapesType::LevelSetLevelSet);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, Simplicial0, LocalTransform0, Particle1, Implicit1, Simplicial1, LocalTransform1, EContactShapesType::LevelSetLevelSet);
 
 			bool bIsParticleDynamic0 = Particle0->CastToRigidParticle() && Particle0->ObjectState() == EObjectStateType::Dynamic;
-			if (!Particle1->Geometry() || (bIsParticleDynamic0 && !Particle0->CastToRigidParticle()->CollisionParticlesSize() && Particle0->Geometry() && !Particle0->Geometry()->IsUnderlyingUnion()))
+			int32 P0NumCollisionParticles = Simplicial0 ? Simplicial0->Size() : Particle0->CastToRigidParticle()->CollisionParticlesSize();
+			if (!Particle1->Geometry() || (bIsParticleDynamic0 && !P0NumCollisionParticles && Particle0->Geometry() && !Particle0->Geometry()->IsUnderlyingUnion()))
 			{
 				Constraint.Particle[0] = Particle1;
 				Constraint.Particle[1] = Particle0;
 				Constraint.ImplicitTransform[0] = LocalTransform1;
 				Constraint.ImplicitTransform[1] = LocalTransform0;
-				Constraint.SetManifold(Implicit1, Implicit0);
+				Constraint.SetManifold(Implicit1, Simplicial1, Implicit0, Simplicial0);
 			}
 			else
 			{
 				Constraint.Particle[0] = Particle0;
 				Constraint.Particle[1] = Particle1;
-				Constraint.SetManifold(Implicit0, Implicit1);
+				Constraint.SetManifold(Implicit0, Simplicial0, Implicit1, Simplicial1);
 			}
 
 			if (T_TRAITS::bImmediateUpdate)
@@ -2193,7 +2195,7 @@ namespace Chaos
 		}
 
 		template<typename T_TRAITS>
-		void ConstructConstraintsImpl(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
+		void ConstructConstraintsImpl(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
 			// @todo(chaos): We use GetInnerType here because TriMeshes are left with their "Instanced" wrapper, unlike all other instanced implicits. Should we strip the instance on Tri Mesh too?
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetCollisionType()) : ImplicitObjectType::Unknown;
@@ -2381,7 +2383,7 @@ namespace Chaos
 			}
 			else
 			{
-				ConstructLevelsetLevelsetConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, NewConstraints);
+				ConstructLevelsetLevelsetConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, NewConstraints);
 			}
 		}
 
@@ -2466,13 +2468,18 @@ namespace Chaos
 			return (uint32)ChannelMask;
 		}
 
+		inline bool HasSimEnabled(const FPerShapeData* Shape)
+		{
+			return (!Shape || (Shape->GetSimEnabled() && IsValid(Shape->GetSimData())));
+		}
+
 		inline bool DoCollide(EImplicitObjectType Implicit0Type, const FPerShapeData* Shape0, EImplicitObjectType Implicit1Type, const FPerShapeData* Shape1)
 		{
 			//
 			// Disabled shapes do not collide
 			//
-			if (Shape0 && (!Shape0->GetSimEnabled() || !IsValid(Shape0->GetSimData()) ) ) return false;
-			if (Shape1 && (!Shape1->GetSimEnabled() || !IsValid(Shape1->GetSimData()) ) ) return false;
+			if (!HasSimEnabled(Shape0)) return false;
+			if (!HasSimEnabled(Shape1)) return false;
 
 			//
 			// Triangle Mesh geometry is only used if the shape specifies UseComplexAsSimple
@@ -2538,7 +2545,7 @@ namespace Chaos
 
 
 		template<typename T_TRAITS>
-		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
+		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetType()) : ImplicitObjectType::Unknown;
 			EImplicitObjectType Implicit1Type = Implicit1 ? GetInnerType(Implicit1->GetType()) : ImplicitObjectType::Unknown;
@@ -2546,7 +2553,7 @@ namespace Chaos
 
 			if (!Implicit0 || !Implicit1)
 			{
-				ConstructLevelsetLevelsetConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, NewConstraints);
+				ConstructLevelsetLevelsetConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, NewConstraints);
 				return;
 			}
 
@@ -2560,21 +2567,21 @@ namespace Chaos
 				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit1 = Implicit1->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
 				FRigidTransform3 TransformedTransform0 = TransformedImplicit0->GetTransform() * LocalTransform0;
 				FRigidTransform3 TransformedTransform1 = TransformedImplicit1->GetTransform() * LocalTransform1;
-				ConstructConstraints<T_TRAITS>(Particle0, Particle1, TransformedImplicit0->GetTransformedObject(), TransformedImplicit1->GetTransformedObject(), TransformedTransform0, TransformedTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<T_TRAITS>(Particle0, Particle1, TransformedImplicit0->GetTransformedObject(), Simplicial0, TransformedImplicit1->GetTransformedObject(), Simplicial1, TransformedTransform0, TransformedTransform1, CullDistance, Context, NewConstraints);
 				return;
 			}
 			else if (Implicit0OuterType == TImplicitObjectTransformed<FReal, 3>::StaticType())
 			{
 				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit0 = Implicit0->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
 				FRigidTransform3 TransformedTransform0 = TransformedImplicit0->GetTransform() * LocalTransform0;
-				ConstructConstraints<T_TRAITS>(Particle0, Particle1, TransformedImplicit0->GetTransformedObject(), Implicit1, TransformedTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<T_TRAITS>(Particle0, Particle1, TransformedImplicit0->GetTransformedObject(), Simplicial0, Implicit1, Simplicial1, TransformedTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 				return;
 			}
 			else if (Implicit1OuterType == TImplicitObjectTransformed<FReal, 3>::StaticType())
 			{
 				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit1 = Implicit1->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
 				FRigidTransform3 TransformedTransform1 = TransformedImplicit1->GetTransform() * LocalTransform1;
-				ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, TransformedImplicit1->GetTransformedObject(), LocalTransform0, TransformedTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, TransformedImplicit1->GetTransformedObject(), Simplicial1, LocalTransform0, TransformedTransform1, CullDistance, Context, NewConstraints);
 				return;
 			}
 			// Handle Instanced shapes
@@ -2593,17 +2600,17 @@ namespace Chaos
 				}
 				if (InnerImplicit0 && InnerImplicit1)
 				{
-					ConstructConstraints<T_TRAITS>(Particle0, Particle1, InnerImplicit0, InnerImplicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+					ConstructConstraints<T_TRAITS>(Particle0, Particle1, InnerImplicit0, Simplicial0, InnerImplicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					return;
 				}
 				else if (InnerImplicit0 && !InnerImplicit1)
 				{
-					ConstructConstraints<T_TRAITS>(Particle0, Particle1, InnerImplicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+					ConstructConstraints<T_TRAITS>(Particle0, Particle1, InnerImplicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					return;
 				}
 				else if (!InnerImplicit0 && InnerImplicit1)
 				{
-					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, InnerImplicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, InnerImplicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					return;
 				}
 
@@ -2615,18 +2622,17 @@ namespace Chaos
 				const FImplicitObjectUnion* Union0 = Implicit0->template GetObject<FImplicitObjectUnion>();
 				for (const auto& Child0 : Union0->GetObjects())
 				{
-					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 				}
 				return;
 			}
 
-#if CHAOS_COLLIDE_CLUSTERED_UNIONS
 			if(Implicit0OuterType == FImplicitObjectUnionClustered::StaticType())
 			{
 				const FImplicitObjectUnionClustered* Union0 = Implicit0->template GetObject<FImplicitObjectUnionClustered>();
 				if(Implicit1->HasBoundingBox())
 				{
-					TArray<Pair<const FImplicitObject*, FRigidTransform3>> Children;
+					TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>> Children;
 
 					// Need to get transformed bounds of 1 in the space of 0
 					FRigidTransform3 TM0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -2634,41 +2640,40 @@ namespace Chaos
 					FRigidTransform3 TM1ToTM0 = TM1.GetRelativeTransform(TM0);
 					FAABB3 QueryBounds = Implicit1->BoundingBox().TransformedAABB(TM1ToTM0);
 
-					Union0->FindAllIntersectingObjects(Children, QueryBounds);
+					Union0->FindAllIntersectingClusteredObjects(Children, QueryBounds);
 
-					for(const Pair<const FImplicitObject*, FRigidTransform3>& Child0 : Children)
+					for(const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child0 : Children)
 					{
-						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.First, Implicit1, Child0.Second * LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.First.First, Child0.First.Second, Implicit1, Simplicial1, Child0.Second * LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				else
 				{
 					for(const TUniquePtr<FImplicitObject>& Child0 : Union0->GetObjects())
 					{
-						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union0->FindParticleForImplicitObject(Child0.Get());
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				return;
 			}
-#endif
 
 			if (Implicit1OuterType == FImplicitObjectUnion::StaticType())
 			{
 				const FImplicitObjectUnion* Union1 = Implicit1->template GetObject<FImplicitObjectUnion>();
 				for (const auto& Child1 : Union1->GetObjects())
 				{
-					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Child1.Get(), LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+					ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Child1.Get(), Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 				}
 				return;
 			}
 
-#if CHAOS_COLLIDE_CLUSTERED_UNIONS
 			if(Implicit1OuterType == FImplicitObjectUnionClustered::StaticType())
 			{
 				const FImplicitObjectUnionClustered* Union1 = Implicit1->template GetObject<FImplicitObjectUnionClustered>();
 				if(Implicit0->HasBoundingBox())
 				{
-					TArray<Pair<const FImplicitObject*, FRigidTransform3>> Children;
+					TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>> Children;
 					
 					// Need to get transformed bounds of 0 in the space of 1
 					FRigidTransform3 TM0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -2676,23 +2681,23 @@ namespace Chaos
 					FRigidTransform3 TM0ToTM1 = TM0.GetRelativeTransform(TM1);
 					FAABB3 QueryBounds = Implicit0->BoundingBox().TransformedAABB(TM0ToTM1);
 
-					Union1->FindAllIntersectingObjects(Children, QueryBounds);
+					Union1->FindAllIntersectingClusteredObjects(Children, QueryBounds);
 
-					for(const Pair<const FImplicitObject*, FRigidTransform3>& Child1 : Children)
+					for(const Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>& Child1 : Children)
 					{
-						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Child1.First, LocalTransform0, Child1.Second * LocalTransform1, CullDistance, Context, NewConstraints);
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Child1.First.First, Child1.First.Second, LocalTransform0, Child1.Second * LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				else
 				{
 					for(const TUniquePtr<FImplicitObject>& Child1 : Union1->GetObjects())
 					{
-						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Child1.Get(), LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union1->FindParticleForImplicitObject(Child1.Get());
+						ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Child1.Get(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 					}
 				}
 				return;
 			}
-#endif
 
 			// Check shape pair filtering if enable
 			if (Context.bFilteringEnabled && !DoCollide(Implicit0Type, Particle0->GetImplicitShape(Implicit0), Implicit1Type, Particle1->GetImplicitShape(Implicit1)))
@@ -2702,30 +2707,30 @@ namespace Chaos
 
 			// If we get here, we have a pair of concrete shapes (i.e., no wrappers or containers)
 			// Create a constraint for the shape pair
-			ConstructConstraintsImpl<T_TRAITS>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+			ConstructConstraintsImpl<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 		}
 
-		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
+		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
 			if (Context.bDeferUpdate && !Context.bAllowManifolds)
 			{
 				using TTraits = TConstructCollisionTraits<false, false>;
-				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 			}
 			else if (Context.bDeferUpdate && Context.bAllowManifolds)
 			{
 				using TTraits = TConstructCollisionTraits<false, true>;
-				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 			}
 			else if (!Context.bDeferUpdate && Context.bAllowManifolds)
 			{
 				using TTraits = TConstructCollisionTraits<true, true>;
-				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 			}
 			else if (!Context.bDeferUpdate && !Context.bAllowManifolds)
 			{
 				using TTraits = TConstructCollisionTraits<true, false>;
-				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Implicit1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
+				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, Context, NewConstraints);
 			}
 		}
 

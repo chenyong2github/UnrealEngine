@@ -42,7 +42,7 @@ namespace Audio
 	};
 
 	// Simple class that generates an envelope and lets you retrieve interpolated values at any given fraction
-	class FGrainEnvelope
+	class SIGNALPROCESSING_API FGrainEnvelope
 	{
 	public:
 		FGrainEnvelope();
@@ -83,7 +83,7 @@ namespace Audio
 	class FGranularSynth;
 
 	// Class representing a grain of audio
-	class FGrain
+	class SIGNALPROCESSING_API FGrain
 	{
 	public:
 		FGrain(const int32 InGrainId, FGranularSynth* InParent);

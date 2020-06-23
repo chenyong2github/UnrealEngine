@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Trace/Detail/Channel.h"
-#include "Trace/Trace.h"
+#include "Math/UnrealMathUtility.h"
+#include "Trace/Trace.inl"
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Channel.h"
 
@@ -8,158 +10,226 @@
 
 #if UE_TRACE_ENABLED
 
-// General trace channel. Used by all built in events.
-Trace::FTraceChannel TraceLogChannel;
-
-namespace Trace
-{
-
-///////////////////////////////////////////////////////////////////////////////
-static FChannel* volatile GHeadChannel; // = nullptr;
-static const size_t ChannelNameMaxLength = 64u;
-
-///////////////////////////////////////////////////////////////////////////////
-template <int DestSize>
-static void ChannelToAnsiCheap(ANSICHAR(&Dest)[DestSize], const WIDECHAR* Src)
-{
-	for (ANSICHAR& Out : Dest)
-	{
-		Out = ANSICHAR(*Src++ & 0x7f);
-		if (Out == '\0')
-		{
-			break;
-		}
-	}
-};
+namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
-template <typename ElementType>
-static uint32 ChannelGetHash(const ElementType* Input, int32 Length = -1)
+struct FTraceChannel : public FChannel
 {
-	uint32 Result = 0x811c9dc5;
-	for (; *Input && Length; ++Input, --Length)
+	bool IsEnabled() const { return true; }
+	explicit operator bool() const { return true; }
+};
+
+static FTraceChannel	TraceLogChannelDetail;
+FChannel&				TraceLogChannel			= TraceLogChannelDetail;
+
+///////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+UE_TRACE_EVENT_END()
+
+///////////////////////////////////////////////////////////////////////////////
+static FChannel* volatile	GHeadChannel;			// = nullptr;
+static FChannel* volatile	GNewChannelList;		// = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////
+static uint32 GetChannelHash(const ANSICHAR* Input, int32 Length)
+{
+	// Make channel names tolerant to ending 's' (or 'S').
+	// Example: "Log", "log", "logs", "LOGS" and "LogsChannel" will all match as being the same channel.
+	if (Length > 0 && (Input[Length - 1] | 0x20) == 's')
 	{
-		Result ^= *Input;
+		--Length;
+	}
+
+	uint32 Result = 0x811c9dc5;
+	for (; Length; ++Input, --Length)
+	{
+		Result ^= *Input | 0x20; // a cheap ASCII-only case insensitivity.
 		Result *= 0x01000193;
 	}
 	return Result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-static uint32 GetChannelIdentifier(ANSICHAR(&Buffer) [ChannelNameMaxLength], const ANSICHAR* ChannelName)
+static uint32 GetChannelNameLength(const ANSICHAR* ChannelName)
 {
 	// Strip "Channel" suffix if it exists
-	size_t CharsToCopy = 0;
-	if (const ANSICHAR* ChannelStr = strstr(ChannelName, "Channel"))
+	size_t Len = uint32(strlen(ChannelName));
+	if (Len > 7)
 	{
-		CharsToCopy = ChannelStr - ChannelName;
-	}
-	else
-	{
-		CharsToCopy = strlen(ChannelName);
-	}
-
-	// Turn name to lower case
-	if (CharsToCopy > 0 && strlen(ChannelName) >= CharsToCopy)
-	{
-		const size_t CharsToCopySafe = CharsToCopy < (ChannelNameMaxLength - 1) ? CharsToCopy : ChannelNameMaxLength - 1;
-		for (size_t i = 0; i < CharsToCopySafe; i++)
+		if (strcmp(ChannelName + Len - 7, "Channel") == 0)
 		{
-			Buffer[i] = tolower(*(ChannelName + i));
+			Len -= 7;
 		}
-		Buffer[CharsToCopySafe] = '\0';
 	}
 
-	return strlen(Buffer);
+	return Len;
 }
 
+
+
 ///////////////////////////////////////////////////////////////////////////////
-void FChannel::Register(FChannel& Channel, const ANSICHAR* ChannelName)
+FChannel::Iter::~Iter()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, ChannelAnnounce, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-	UE_TRACE_EVENT_END()
-
-	
-	ANSICHAR ChannelIdentifier[ChannelNameMaxLength];
-	const uint32 ChannelNameLen = GetChannelIdentifier(ChannelIdentifier, ChannelName);
-	const uint32 ChannelNameHash = ChannelGetHash(ChannelIdentifier);
-
-	Channel.ChannelNameHash = ChannelNameHash;
-
-	// Append channel to linked list
-	for (;; Private::PlatformYield())
+	if (Inner[2] == nullptr)
 	{
-		FChannel* HeadChannel = Private::AtomicLoadRelaxed(&GHeadChannel);
-		Channel.Handle = HeadChannel;
-		if (Private::AtomicCompareExchangeRelease(&GHeadChannel, &Channel, HeadChannel))
+		return;
+	}
+
+	using namespace Private;
+	for (auto* Node = (FChannel*)Inner[2];; PlatformYield())
+	{
+		Node->Next = AtomicLoadRelaxed(&GHeadChannel);
+		if (AtomicCompareExchangeRelaxed(&GHeadChannel, (FChannel*)Inner[1], Node->Next))
 		{
 			break;
 		}
 	}
+}
 
-	UE_TRACE_LOG($Trace, ChannelAnnounce, TraceLogChannel, ChannelNameLen+1)
-		<< ChannelAnnounce.Id(ChannelNameHash)
-		<< ChannelAnnounce.Attachment(ChannelIdentifier, ChannelNameLen+1);
+///////////////////////////////////////////////////////////////////////////////
+const FChannel* FChannel::Iter::GetNext()
+{
+	auto* Ret = (const FChannel*)Inner[0];
+	if (Ret != nullptr)
+	{
+		Inner[0] = Ret->Next;
+		if (Inner[0] != nullptr)
+		{
+			Inner[2] = Inner[0];
+		}
+	}
+	return Ret;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+FChannel::Iter FChannel::ReadNew()
+{
+	using namespace Private;
+
+	FChannel* List = AtomicLoadRelaxed(&GNewChannelList);
+	if (List == nullptr)
+	{
+		return {};
+	}
+
+	while (!AtomicCompareExchangeAcquire(&GNewChannelList, (FChannel*)nullptr, List))
+	{
+		PlatformYield();
+		List = AtomicLoadRelaxed(&GNewChannelList);
+	}
+
+	return { { List, List, List } };
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void FChannel::Initialize(const ANSICHAR* InChannelName)
+{
+	using namespace Private;
+
+	Name.Ptr = InChannelName;
+	Name.Len = GetChannelNameLength(Name.Ptr);
+	Name.Hash = GetChannelHash(Name.Ptr, Name.Len);
+
+	// Append channel to the linked list of new channels.
+	for (;; PlatformYield())
+	{
+		FChannel* HeadChannel = AtomicLoadRelaxed(&GNewChannelList);
+		Next = HeadChannel;
+		if (AtomicCompareExchangeRelease(&GNewChannelList, this, Next))
+		{
+			break;
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void FChannel::Announce() const
+{
+	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel)
+		<< ChannelAnnounce.Id(Name.Hash)
+		<< ChannelAnnounce.IsEnabled(IsEnabled())
+		<< ChannelAnnounce.Name(Name.Ptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void FChannel::ToggleAll(bool bEnabled)
 {
-	FChannel* Channel = Private::AtomicLoadAcquire(&GHeadChannel);
-	for (; Channel != nullptr; Channel = (FChannel*)(Channel->Handle))
+	using namespace Private;
+
+	FChannel* ChannelLists[] =
 	{
-		FChannel::Toggle(Channel, bEnabled);
+		AtomicLoadAcquire(&GNewChannelList),
+		AtomicLoadAcquire(&GHeadChannel),
+	};
+	for (FChannel* Channel : ChannelLists)
+	{
+		for (; Channel != nullptr; Channel = (FChannel*)(Channel->Next))
+		{
+			Channel->Toggle(bEnabled);
+		}
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-bool FChannel::Toggle(FChannel* Channel, bool bEnabled)
+FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 {
-	UE_TRACE_EVENT_BEGIN($Trace, ChannelToggle, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
-	UE_TRACE_EVENT_END()
+	using namespace Private;
 
-	const bool bWasEnabled = !Channel->bDisabled;
-	if (bWasEnabled != bEnabled)
+	const uint32 ChannelNameLen = GetChannelNameLength(ChannelName);
+	const uint32 ChannelNameHash = GetChannelHash(ChannelName, ChannelNameLen);
+
+	FChannel* ChannelLists[] =
 	{
-		Channel->bDisabled = !bEnabled;
-		UE_TRACE_LOG($Trace, ChannelToggle, TraceLogChannel)
-			<< ChannelToggle.Id(Channel->ChannelNameHash)
-			<< ChannelToggle.IsEnabled(bEnabled);
+		AtomicLoadAcquire(&GNewChannelList),
+		AtomicLoadAcquire(&GHeadChannel),
+	};
+	for (FChannel* Channel : ChannelLists)
+	{
+		for (; Channel != nullptr; Channel = (FChannel*)(Channel->Next))
+		{
+			if (Channel->Name.Hash == ChannelNameHash)
+			{
+				return Channel;
+			}
+		}
 	}
-	return bWasEnabled;
+
+	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+bool FChannel::Toggle(bool bEnabled)
+{
+	using namespace Private;
+	int64 OldRefCnt = AtomicAddRelaxed(&Enabled, bEnabled ? 1 : -1);
+
+	UE_TRACE_LOG(Trace, ChannelToggle, TraceLogChannel)
+		<< ChannelToggle.Id(Name.Hash)
+		<< ChannelToggle.IsEnabled(IsEnabled());
+
+	return IsEnabled();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 bool FChannel::Toggle(const ANSICHAR* ChannelName, bool bEnabled)
 {
-	ANSICHAR ChannelIdentifier[ChannelNameMaxLength];
-	const uint32 ChannelNameLen = GetChannelIdentifier(ChannelIdentifier, ChannelName);
-	const uint32 ChannelNameHash = ChannelGetHash(ChannelIdentifier);
-
-	FChannel* Channel = Private::AtomicLoadAcquire(&GHeadChannel);
-	for (; Channel != nullptr; Channel = (FChannel*)(Channel->Handle))
+	if (FChannel* Channel = FChannel::FindChannel(ChannelName))
 	{
-		if (Channel->ChannelNameHash == ChannelNameHash)
-		{
-			return FChannel::Toggle(Channel, bEnabled);
-		}
+		return Channel->Toggle(bEnabled);
 	}
-
 	return false;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-bool FChannel::Toggle(const TCHAR* ChannelName, bool bEnabled)
-{
-	ANSICHAR ChannelNameA[ChannelNameMaxLength];
-	ChannelToAnsiCheap(ChannelNameA, ChannelName);
+} // namespace Trace
 
-	return FChannel::Toggle(ChannelNameA, bEnabled);
-}
-
-}
-
-#endif //UE_TRACE_ENABLED
+#endif // UE_TRACE_ENABLED

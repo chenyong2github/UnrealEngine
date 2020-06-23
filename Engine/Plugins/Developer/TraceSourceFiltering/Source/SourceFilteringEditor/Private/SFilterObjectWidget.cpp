@@ -28,7 +28,7 @@ void SFilterObjectRowWidget::Construct(const FArguments& InArgs, const TSharedRe
 
 	STableRow<TSharedPtr<IFilterObject>>::Construct(
 		STableRow<TSharedPtr<IFilterObject>>::FArguments()
-		.Padding(4.0f)
+		.Padding(FMargin(0.f, 2.f, 0.f, 2.f))
 		.Content()
 		[
 			WrapBox

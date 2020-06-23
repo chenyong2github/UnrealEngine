@@ -88,6 +88,7 @@ public:
 		, bHasOpenColorPicker(false)
 		, bDisableCustomDetailLayouts( false )
 		, NumVisibleTopLevelObjectNodes(0)
+		, bPendingCleanupTimerSet(false)
 	{
 	}
 
@@ -356,6 +357,13 @@ protected:
 		return CustomFilterLabel;
 	}
 
+	/** Free memory that is pending delete next editor tick even when widget not visible or ticking */
+	void SetPendingCleanupTimer();
+	/** Free memory that is pending delete during editor tick */
+	void HandlePendingCleanupTimer();
+	/** Free memory that is pending delete */
+	void HandlePendingCleanup();
+
 protected:
 	/** The user defined args for the details view */
 	FDetailsViewArgs DetailsViewArgs;
@@ -374,7 +382,7 @@ protected:
 	/** Detail layouts that need to be destroyed when safe to do so */
 	TArray< TSharedPtr<FDetailLayoutBuilderImpl> > DetailLayoutsPendingDelete;
 	/** Map of nodes that are requesting an automatic expansion/collapse due to being filtered */
-	TMap< TSharedRef<FDetailTreeNode>, bool > FilteredNodesRequestingExpansionState;
+	TMap< TWeakPtr<FDetailTreeNode>, bool > FilteredNodesRequestingExpansionState;
 	/** Current set of expanded detail nodes (by path) that should be saved when the details panel closes */
 	TSet<FString> ExpandedDetailNodes;
 	/** Tree view */
@@ -441,6 +449,9 @@ protected:
 
 	/** When overriding show modified, you can't use the filter state to determine what is overridden anymore. Use this variable instead. */
 	bool bCustomFilterActive;
+
+	/** Timer has already been set to be run next tick */
+	bool bPendingCleanupTimerSet;
 
 	FText CustomFilterLabel;
 

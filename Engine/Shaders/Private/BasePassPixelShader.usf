@@ -1194,7 +1194,7 @@ void FPixelShaderInOut_MainPS(
 
 	float4 Fogging = HeightFogging;
 
-#if NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING
+#if NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING && COMPILE_BASEPASS_PIXEL_VOLUMETRIC_FOGGING
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
@@ -1211,6 +1211,7 @@ void FPixelShaderInOut_MainPS(
 
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
+			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.WorldCameraOrigin.xyz*CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -1463,19 +1464,27 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 #if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
+#if MATERIAL_IS_SKY
+	// Dynamic capture exposure is 1 as of today.
+	const float ViewPreExposure = View.RealTimeReflectionCapture>0.0f ? View.RealTimeReflectionCapturePreExposure : View.PreExposure;
+#else
+	const float ViewPreExposure = View.PreExposure;
+#endif
 	// We need to multiply pre-exposure by all components including A, otherwise the ratio of
 	// diffuse to specular lighting will get messed up in the SSS pass.
 	// RGB: Full color (Diffuse + Specular)
 	// A:   Diffuse Intensity, but only if we are not blending
 	#if MATERIAL_DOMAIN_POSTPROCESS || MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ALPHACOMPOSITE || MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE
-		Out.MRT[0].rgb *= View.PreExposure;
+		Out.MRT[0].rgb  *= ViewPreExposure;
 	#else
-		Out.MRT[0].rgba *= View.PreExposure;
+		Out.MRT[0].rgba *= ViewPreExposure;
 	#endif
 #endif
 #if MATERIAL_IS_SKY
-	// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
-	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx);
+	// Sky materials can result in high luminance values, e.g. the sun disk. 
+	// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
+	// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
+	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx * 0.5f);
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED

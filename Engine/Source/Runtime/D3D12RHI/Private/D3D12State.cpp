@@ -291,6 +291,8 @@ FD3D12SamplerState* FD3D12Device::CreateSampler(const FSamplerStateInitializerRH
 
 		SamplerID++;
 
+		INC_DWORD_STAT(STAT_UniqueSamplers);
+
 		return NewSampler;
 	}
 }

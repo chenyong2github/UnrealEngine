@@ -47,11 +47,6 @@ public:
 		{
 			const FTriMeshCollisionData* CollisionData = Octree->GetCollisionData();
 			
-			// Release the existing resources, if present
-			VertexBuffer.ReleaseResource();
-			VertexFactory.ReleaseResource();
-			IndexBuffer.ReleaseResource();
-
 			// Initialize the buffers
 			VertexBuffer.Initialize(CollisionData->Vertices.GetData(), CollisionData->Vertices.Num());
 			VertexFactory.Initialize(&VertexBuffer);
@@ -77,21 +72,16 @@ private:
 		{
 			FDataType NewData;
 			NewData.PositionComponent = FVertexStreamComponent(InVertexBuffer, 0, 12, VET_Float3);
-			NewData.TangentBasisComponents[0] = FVertexStreamComponent(InVertexBuffer, 0, 12, VET_PackedNormal);
-			NewData.TangentBasisComponents[1] = FVertexStreamComponent(InVertexBuffer, 0, 12, VET_PackedNormal);
-			NewData.ColorComponent = FVertexStreamComponent(InVertexBuffer, 0, 12, VET_Color);
-
-			NewData.PositionComponentSRV = nullptr;
-			NewData.ColorComponentsSRV = nullptr;
-			NewData.TangentsSRV = nullptr;
-			NewData.TextureCoordinatesSRV = nullptr;
+			NewData.ColorComponent = FVertexStreamComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+			NewData.TangentBasisComponents[0] = FVertexStreamComponent(&GNullColorVertexBuffer, 0, 0, VET_PackedNormal, EVertexStreamUsage::ManualFetch);
+			NewData.TangentBasisComponents[1] = FVertexStreamComponent(&GNullColorVertexBuffer, 0, 0, VET_PackedNormal, EVertexStreamUsage::ManualFetch);
 
 			if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 			{
 				NewData.PositionComponentSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R32_FLOAT);
-				NewData.ColorComponentsSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R8G8B8A8);
-				NewData.TangentsSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R8G8B8A8);
-				NewData.TextureCoordinatesSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_G16R16F);
+				NewData.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+				NewData.TangentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+				NewData.TextureCoordinatesSRV = GNullColorVertexBuffer.VertexBufferSRV;
 			}
 
 			Data = NewData;
@@ -255,7 +245,6 @@ public:
 	{
 		FPrimitiveViewRelevance Result;
 
-		Result.bUseCustomViewData = true;
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
@@ -268,7 +257,7 @@ public:
 		return Result;
 	}
 
-	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override
+	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f)
 	{
 		// Don't process for shadow views
 		if (!InIsShadowOnly)
@@ -387,7 +376,7 @@ FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 
 void ULidarPointCloud::InitializeCollisionRendering()
 {
-	// Do not process, if the app in incapable of rendering
+	// Do not process, if the app is incapable of rendering
 	if (!FApp::CanEverRender())
 	{
 		return;

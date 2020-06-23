@@ -24,6 +24,23 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
 	FSoftClassPath PixelStreamerTextEditBeamCursorClassName;
 
+	/**
+	 * Pixel Streaming can have a server-side cursor (where the cursor itself
+	 * is shown as part of the video), or a client-side cursor (where the cursor
+	 * is shown by the browser). In the latter case we need to turn the UE4
+	 * cursor invisible.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
+	FSoftClassPath PixelStreamerInvisibleCursorClassName;
+
+	/**
+	 * Pixel Streaming may be running on a machine which has no physical mouse
+	 * attached, and yet the browser is sending mouse positions. As such, we
+	 * fake the presence of a mouse.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
+	bool bPixelStreamerMouseAlwaysAttached = true;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR

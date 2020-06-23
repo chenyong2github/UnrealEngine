@@ -51,7 +51,7 @@ using namespace ChaosTest;
 	{
 		using Traits = TypeParam;
 		CreationParameters Params; Params.Simulating = false;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TFramework<Traits> UnitTest;
 		UnitTest.AddSimulationObject(Collection);
@@ -76,7 +76,7 @@ using namespace ChaosTest;
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
@@ -96,7 +96,7 @@ using namespace ChaosTest;
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 1000.f };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();					
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -245,8 +245,8 @@ using namespace ChaosTest;
 	public:
 		TEventHarvester(Chaos::TPBDRigidsSolver<Traits>* Solver)
 		{
-			Solver->GetEventManager()->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &TEventHarvester<Traits>::HandleCollisionEvents);
-			Solver->GetEventManager()->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &TEventHarvester<Traits>::HandleBreakingEvents);
+			Solver->GetEventManager()->template RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &TEventHarvester<Traits>::HandleCollisionEvents);
+			Solver->GetEventManager()->template RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &TEventHarvester<Traits>::HandleBreakingEvents);
 		}
 
 		void HandleCollisionEvents(const Chaos::FCollisionEventData& Events)
@@ -282,14 +282,14 @@ using namespace ChaosTest;
 			Params.RootTransform.SetLocation(FVector(i * 10.0f, 0.f, 10.f));
 			Params.Simulating = true;
 			
-			Collection[i] = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+			Collection[i] = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		}
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
 		TFramework<Traits> UnitTest;
 		for (int i=0; i<10; i++)
 		{
-			TManagedArray<float>& Mass = Collection[i]->RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
+			TManagedArray<float>& Mass = Collection[i]->RestCollection->template GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
 			Mass[0] = i + 1;
 			UnitTest.AddSimulationObject(Collection[i]);
 		}
@@ -355,10 +355,10 @@ using namespace ChaosTest;
 		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
 		Params.ClusterGroupIndex = 0;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection);
 		Collection->PhysObject->SetCollisionParticlesPerObjectFraction(1.0);		
 

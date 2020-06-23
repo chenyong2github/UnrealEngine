@@ -778,6 +778,28 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	}
 }
 
+void FStaticMeshLODResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+{
+	const int32 VBSize = VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
+		VertexBuffers.PositionVertexBuffer.GetStride() * VertexBuffers.PositionVertexBuffer.GetNumVertices() +
+		VertexBuffers.ColorVertexBuffer.GetStride() * VertexBuffers.ColorVertexBuffer.GetNumVertices();
+
+	int32 NumIndicies = IndexBuffer.GetNumIndices();
+
+	if (AdditionalIndexBuffers)
+	{
+		NumIndicies += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
+		NumIndicies += AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
+		NumIndicies += AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
+		NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
+	}
+
+	int32 IBSize = NumIndicies * (IndexBuffer.Is32Bit() ? 4 : 2);
+
+	CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
+	CumulativeResourceSize.AddUnknownMemoryBytes(Sections.GetAllocatedSize());
+}
+
 int32 FStaticMeshLODResources::GetNumTriangles() const
 {
 	int32 NumTriangles = 0;
@@ -1232,10 +1254,10 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	if (IsRayTracingEnabled())
 	{
 		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
-			[this](FRHICommandListImmediate& RHICmdList)
+			[this, DebugName = Parent->GetFName()](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				
+				Initializer.DebugName = DebugName;
 				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
 				Initializer.GeometryType = RTGT_Triangles;
@@ -2698,7 +2720,6 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-
 #if	STATS
 	UStaticMesh* This = this;
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
@@ -2737,24 +2758,7 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 	{
 		const FStaticMeshLODResources& LODRenderData = LODResources[LODIndex];
 
-		const int32 VBSize = LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
-			LODRenderData.VertexBuffers.PositionVertexBuffer.GetStride()			* LODRenderData.VertexBuffers.PositionVertexBuffer.GetNumVertices() +
-			LODRenderData.VertexBuffers.ColorVertexBuffer.GetStride()				* LODRenderData.VertexBuffers.ColorVertexBuffer.GetNumVertices();
-		
-		int32 NumIndicies = LODRenderData.IndexBuffer.GetNumIndices();
-
-		if (LODRenderData.AdditionalIndexBuffers)
-		{
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
-			NumIndicies += LODRenderData.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
-			NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
-		}
-
-		int32 IBSize = NumIndicies * (LODRenderData.IndexBuffer.Is32Bit() ? 4 : 2);
-
-		CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
-		CumulativeResourceSize.AddUnknownMemoryBytes(LODRenderData.Sections.GetAllocatedSize());
+		LODResources[LODIndex].GetResourceSizeEx(CumulativeResourceSize);
 
 		if (LODRenderData.DistanceFieldData)
 		{
@@ -3064,6 +3068,16 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		if (BodySetup)
 		{
+			BodySetup->InvalidatePhysicsData();
+			BodySetup->CreatePhysicsMeshes();
+		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, bSupportPhysicalMaterialMasks))
+	{
+		if (BodySetup)
+		{
+			BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 			BodySetup->InvalidatePhysicsData();
 			BodySetup->CreatePhysicsMeshes();
 		}
@@ -3417,7 +3431,7 @@ void UStaticMesh::BeginDestroy()
 	// Remove from the list of tracked assets if necessary
 	TrackRenderAssetEvent(nullptr, this, false, nullptr);
 
-	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject))
+	if (bRenderingResourcesInitialized)
 	{
 		ReleaseResources();
 	}
@@ -4097,44 +4111,6 @@ void UStaticMesh::ClearMeshDescriptions()
 	for (int LODIndex = 0; LODIndex < GetNumSourceModels(); LODIndex++)
 	{
 		ClearMeshDescription(LODIndex);
-	}
-}
-
-void UStaticMesh::FixupMaterialSlotName()
-{
-	TArray<FName> UniqueMaterialSlotName;
-	//Make sure we have non empty imported material slot names
-	for (FStaticMaterial& Material : StaticMaterials)
-	{
-		if (Material.ImportedMaterialSlotName == NAME_None)
-		{
-			if (Material.MaterialSlotName != NAME_None)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialSlotName;
-			}
-			else if (Material.MaterialInterface != nullptr)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialInterface->GetFName();
-			}
-			else
-			{
-				Material.ImportedMaterialSlotName = FName(TEXT("MaterialSlot"));
-			}
-		}
-
-		FString UniqueName = Material.ImportedMaterialSlotName.ToString();
-		int32 UniqueIndex = 1;
-		while (UniqueMaterialSlotName.Contains(FName(*UniqueName)))
-		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
-			UniqueIndex++;
-		}
-		Material.ImportedMaterialSlotName = FName(*UniqueName);
-		UniqueMaterialSlotName.Add(Material.ImportedMaterialSlotName);
-		if (Material.MaterialSlotName == NAME_None)
-		{
-			Material.MaterialSlotName = Material.ImportedMaterialSlotName;
-		}
 	}
 }
 
@@ -4854,7 +4830,8 @@ void UStaticMesh::PostLoad()
 			SetLODGroup(LODGroup);
 		}
 
-		FixupMaterialSlotName();
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		MeshUtilities.FixupMaterialSlotNames(this);
 
 		if (bIsBuiltAtRuntime)
 		{
@@ -4945,6 +4922,7 @@ void UStaticMesh::PostLoad()
 				if (BodySetup)
 				{
 					BodySetup->InvalidatePhysicsData();
+					UE_LOG(LogStaticMesh, Warning, TEXT("Mesh %s is recomputing physics on load. It must be resaved before it will cook deterministically. Please resave %s."), *GetName(), *GetPathName());
 				}
 			}
 			bCleanUpRedundantMaterialPostLoad = false;
@@ -5507,6 +5485,7 @@ int32 UStaticMesh::CalcCumulativeLODSize(int32 NumLODs) const
 	return Accum;
 }
 
+#if USE_BULKDATA_STREAMING_TOKEN
 bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
 	// TODO: this is slow. Should cache the name once per mesh
@@ -5525,16 +5504,35 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
 }
+#endif // USE_BULKDATA_STREAMING_TOKEN
+
+FIoFilenameHash UStaticMesh::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
+#else
+	if (RenderData && RenderData->LODResources.IsValidIndex(MipIndex))
+	{
+		return RenderData->LODResources[MipIndex].StreamingBulkData.GetIoFilenameHash();
+	}
+#endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
+}
 
 bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
 {
-	check(MipIndex < MinLOD.Default);
-
-#if !USE_BULKDATA_STREAMING_TOKEN	
-	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipDataFilename;
+	return GetMipDataFilename(MipIndex, MipDataFilename) && IFileManager::Get().FileExists(*MipDataFilename);
 #else
-	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
-	return false;
+	return RenderData && RenderData->LODResources.IsValidIndex(MipIndex) && RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
 #endif
 }
 
@@ -5809,9 +5807,7 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 
 	TMap<int32, int32> MeshToCollisionVertMap; // map of static mesh verts to collision verts
 
-	// If the mesh enables physical material masks, override the physics setting since UVs are always required 
-	// bool bCopyUVs = GetEnablePhysicalMaterialMask() || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
-	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
+	bool bCopyUVs = bSupportPhysicalMaterialMasks || UPhysicsSettings::Get()->bSupportUVFromHitResults; // See if we should copy UVs
 
 	// If copying UVs, allocate array for storing them
 	if (bCopyUVs)
@@ -5956,6 +5952,7 @@ void UStaticMesh::CreateBodySetup()
 	{
 		BodySetup = NewObject<UBodySetup>(this);
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		BodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 	}
 }
 

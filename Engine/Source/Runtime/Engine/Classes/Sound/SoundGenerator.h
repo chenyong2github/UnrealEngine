@@ -6,12 +6,6 @@
 #include "Containers/Queue.h"
 #include "Templates/Function.h"
 
-enum class EGeneratorState : uint8
-{
-	IsIdle,
-	IsGenerating,
-};
-
 class ENGINE_API ISoundGenerator
 {
 public:
@@ -21,6 +15,9 @@ public:
 	// Called when a new buffer is required. 
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) = 0;
 
+	// Returns the number of samples to render per callback
+	virtual int32 GetDesiredNumSamplesToRenderPerCallback() const { return 1024; }
+
 	// Optional. Called on audio generator thread right when the generator begins generating.
 	virtual void OnBeginGenerate() {}
 
@@ -28,10 +25,7 @@ public:
 	virtual void OnEndGenerate() {}
 
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
-	int32 GetNextBuffer(float* OutAudio, int32 NumSamples);
-
-	// Returns the current state of the sound generator
-	EGeneratorState GetGeneratorState() const { return GeneratorState; }
+	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
 
 protected:
 
@@ -43,13 +37,20 @@ private:
 
 	void PumpPendingMessages();
 
-	// The current state of the generator
-	EGeneratorState GeneratorState;
-
 	// The command queue used to convey commands from game thread to generator thread 
 	TQueue<TUniqueFunction<void()>> CommandQueue;
 
 	friend class USynthComponent;
+};
+
+// Null implementation of ISoundGenerator which no-ops audio generation
+class ENGINE_API FSoundGeneratorNull : public ISoundGenerator
+{
+public:
+	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override
+	{
+		return NumSamples;
+	}
 };
 
 typedef TSharedPtr<ISoundGenerator, ESPMode::ThreadSafe> ISoundGeneratorPtr;

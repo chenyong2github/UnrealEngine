@@ -236,7 +236,7 @@ DXGI_MODE_DESC FD3D11Viewport::SetupDXGI_MODE_DESC() const
 void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
 	// Unbind any dangling references to resources
-	D3DRHI->RHISetRenderTargets(0, nullptr, nullptr);
+	D3DRHI->SetRenderTargets(0, nullptr, nullptr);
 	D3DRHI->ClearState();
 	D3DRHI->GetDeviceContext()->Flush(); // Potential perf hit
 
@@ -350,6 +350,24 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 				Flags |= DXGI_PRESENT_ALLOW_TEARING;
 			}
 			Result = SwapChain->Present(SyncInterval, Flags);
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+			extern int32 GLogDX11RTRebinds;
+			extern FThreadSafeCounter GDX11RTRebind;
+			extern FThreadSafeCounter GDX11CommitGraphicsResourceTables;
+			if (GLogDX11RTRebinds)
+			{
+				static int Counter = 0;
+				Counter++;
+				if (Counter == 60)
+				{
+					Counter = 0;
+					int32 RTRebinds = GDX11RTRebind.Set(0);
+					int32 CommitGraphicsResourceTables = GDX11CommitGraphicsResourceTables.Set(0);
+					FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("RT Rebind %6.2f Commit Graphics Resource Tables %6.2f\n"), RTRebinds / 60.f, CommitGraphicsResourceTables / 60.f);
+				}
+			}
+#endif
 		}
 
 		if (IsValidRef(CustomPresent))
@@ -667,7 +685,7 @@ void FD3D11DynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITe
 		RHITransitionResources(EResourceTransitionAccess::EWritable, &RenderTarget, 1);
 	}
 	FRHIRenderTargetView View(RenderTarget, ERenderTargetLoadAction::ELoad);
-	RHISetRenderTargets(1,&View,nullptr);
+	SetRenderTargets(1,&View,nullptr);
 
 	// Set an initially disabled scissor rect.
 	RHISetScissorRect(false,0,0,0,0);

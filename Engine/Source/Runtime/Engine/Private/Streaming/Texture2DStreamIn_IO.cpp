@@ -12,6 +12,7 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "ContentStreaming.h"
 
 
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
@@ -32,22 +33,6 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 #endif
 }
 
-void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
-{
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-
-	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-
-	if (PendingFirstMip < CurrentFirstMip && GEventDrivenLoaderEnabled)
-	{
-		const FTexture2DMipMap& MipMap = OwnerMips[PendingFirstMip];
-	
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-		verify(Context.Texture->GetMipDataFilename(PendingFirstMip, IOFilename));
-#endif
-	}
-}
-
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 {
 	SetAsyncFileCallback();
@@ -58,20 +43,28 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
 	{
 		const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
-
 		check(MipData[MipIndex]);
 
-		// Increment as we push the requests. If a requests complete immediately, then it will call the callback
-		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
-		TaskSynchronization.Increment();
+		const int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
+		if (BulkDataSize > 0)
+		{
+			// Increment as we push the requests. If a requests complete immediately, then it will call the callback
+			// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
+			TaskSynchronization.Increment();
 
-		IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
-			TEXTURE2DMIPMAP_PARAM(IOFilename) // Only used if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA is enabled
-			0,
-			MipMap.BulkData.GetBulkDataSize(),
-			bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low),
-			&AsyncFileCallBack,
-			(uint8*)MipData[MipIndex]);
+			IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
+				0,
+				BulkDataSize,
+				bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low),
+				&AsyncFileCallBack,
+				(uint8*)MipData[MipIndex]);
+		}
+		else // Bulk data size can only be 0 when not available, in which case, we need to recache the file state.
+		{
+			bFailedOnIOError = true;
+			MarkAsCancelled();
+			break;
+		}
 	}
 }
 
@@ -111,6 +104,22 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 	}
 }
 
+void FTexture2DStreamIn_IO::ReportIOError(const FContext& Context)
+{
+	// Invalidate the cache state of all initial mips (note that when using FIoChunkId each mip has a different value).
+	if (bFailedOnIOError && Context.Texture)
+	{
+		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetTextureStreamingManager();
+		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
+		for (int32 MipIndex = 0; MipIndex < CurrentFirstMip; ++MipIndex)
+		{
+			StreamingManager.MarkMountedStateDirty(Context.Texture->GetMipIoFilenameHash(MipIndex));
+		}
+
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Texture->GetName());
+	}
+}
+
 void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 {
 	AsyncFileCallBack = [this](bool bWasCancelled, IBulkDataIORequest*)
@@ -120,6 +129,12 @@ void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 		
 		if (bWasCancelled)
 		{
+			// If IO requests was cancelled but the streaming request wasn't, this is an IO error.
+			if (!bIsCancelled)
+			{
+				bFailedOnIOError = true;
+			}
+
 			MarkAsCancelled();
 		}
 

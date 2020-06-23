@@ -787,7 +787,7 @@ TArray<FAjaMediaTimecodeReference> FAjaDeviceProvider::GetTimecodeReferences() c
 			continue;
 		}
 
-		if (DeviceInfo.bCanDoLtcInRefPort && DeviceInfo.NumberOfLtcInput > 0)
+		if (DeviceInfo.NumberOfLtcInput > 0)
 		{
 			TCHAR DeviceNameBuffer[AJA::AJADeviceScanner::FormatedTextSize];
 			if (!DeviceScanner.GetDeviceTextId(DeviceIndex, DeviceNameBuffer))

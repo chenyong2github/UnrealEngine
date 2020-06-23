@@ -65,32 +65,16 @@ void FSlateNotificationManager::FRegionalNotificationList::Arrange()
 	}
 }
 
-FSlateNotificationManager::FSlateNotificationManager()
-	: bAllowNotifications( true )
-{
-}
-
 FSlateNotificationManager& FSlateNotificationManager::Get()
 {
-	static FSlateNotificationManager* Instance = NULL;
-	if( Instance == NULL )
-	{
-		static FCriticalSection CriticalSection;
-		FScopeLock Lock(&CriticalSection);
-		if( Instance == NULL )
-		{
-			Instance = new FSlateNotificationManager;
-		}
-	}
-	return *Instance;
+	static FSlateNotificationManager Instance;
+	return Instance;
 }
 
 void FSlateNotificationManager::SetRootWindow( const TSharedRef<SWindow> InRootWindow )
 {
 	RootWindowPtr = InRootWindow;
 }
-
-
 
 TSharedRef<SNotificationList> FSlateNotificationManager::CreateStackForArea(const FSlateRect& InRectangle)
 {

@@ -121,6 +121,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(float, ColorCorrectionHighlightsMin)
 	SHADER_PARAMETER(float, BlueCorrection)
 	SHADER_PARAMETER(float, ExpandGamut)
+	SHADER_PARAMETER(float, ToneCurveAmount)
 	SHADER_PARAMETER(float, FilmSlope)
 	SHADER_PARAMETER(float, FilmToe)
 	SHADER_PARAMETER(float, FilmShoulder)
@@ -198,6 +199,7 @@ void GetCombineLUTParameters(
 
 	Parameters.BlueCorrection = Settings.BlueCorrection;
 	Parameters.ExpandGamut = Settings.ExpandGamut;
+	Parameters.ToneCurveAmount = Settings.ToneCurveAmount;
 
 	Parameters.FilmSlope = Settings.FilmSlope;
 	Parameters.FilmToe = Settings.FilmToe;

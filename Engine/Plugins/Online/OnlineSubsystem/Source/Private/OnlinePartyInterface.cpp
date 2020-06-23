@@ -11,6 +11,8 @@
 
 DEFINE_LOG_CATEGORY(LogOnlineParty);
 
+FName DefaultPartyDataNamespace = NAME_Default;
+
 bool FOnlinePartyData::operator==(const FOnlinePartyData& Other) const
 {
 	// Only compare KeyValAttrs, other fields are optimization details
@@ -138,103 +140,30 @@ FString FPartyInvitationRecipient::ToDebugString() const
 	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
 }
 
-bool IOnlinePartySystem::GetPartyMembers(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<FOnlinePartyMember>>& OutPartyMembersArray) const
+FDelegateHandle IOnlinePartySystem::AddOnPartyDataReceivedDelegate_Handle(const FOnPartyDataReceivedConstDelegate& Delegate)
 {
-	TArray<FOnlinePartyMemberConstRef> ConstMembers;
-	const bool bResult = GetPartyMembers(LocalUserId, PartyId, ConstMembers);
-	OutPartyMembersArray.Empty(ConstMembers.Num());
-	if (bResult)
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FName& Namespace, const FOnlinePartyData& PartyData)
 	{
-		for (const FOnlinePartyMemberConstRef& ConstMember : ConstMembers)
+		// For backwards compatibility, only forward the default namespace
+		if (Namespace == DefaultPartyDataNamespace)
 		{
-			OutPartyMembersArray.Emplace(ConstCastSharedRef<FOnlinePartyMember>(ConstMember));
+			Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyData);
 		}
-	}
-	return bResult;
+	};
+	return OnPartyDataReceivedDelegates.Add(FOnPartyDataReceivedDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
-bool IOnlinePartySystem::GetPendingInvites(const FUniqueNetId& LocalUserId, TArray<TSharedRef<IOnlinePartyJoinInfo>>& OutPendingInvitesArray) const
+FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(const FOnPartyMemberDataReceivedConstDelegate& Delegate)
 {
-	TArray<IOnlinePartyJoinInfoConstRef> ConstJoinInfos;
-	const bool bResult = GetPendingInvites(LocalUserId, ConstJoinInfos);
-	OutPendingInvitesArray.Empty(ConstJoinInfos.Num());
-	if (bResult)
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const FName& Namespace, const FOnlinePartyData& PartyData)
 	{
-		for (const IOnlinePartyJoinInfoConstRef& ConstJoinInfo : ConstJoinInfos)
+		// For backwards compatibility, only forward the default namespace
+		if (Namespace == DefaultPartyDataNamespace)
 		{
-			OutPendingInvitesArray.Emplace(ConstCastSharedRef<IOnlinePartyJoinInfo>(ConstJoinInfo));
+			Delegate.ExecuteIfBound(LocalUserId, PartyId, MemberId, PartyData);
 		}
-	}
-	return bResult;
-}
-
-bool IOnlinePartySystem::GetPendingJoinRequests(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<IOnlinePartyPendingJoinRequestInfo>>& OutPendingJoinRequestArray) const
-{
-	TArray<IOnlinePartyPendingJoinRequestInfoConstRef> ConstJoinRequests;
-	const bool bResult = GetPendingJoinRequests(LocalUserId, PartyId, ConstJoinRequests);
-	OutPendingJoinRequestArray.Empty(ConstJoinRequests.Num());
-	if (bResult)
-	{
-		for (const IOnlinePartyPendingJoinRequestInfoConstRef& ConstJoinRequest : ConstJoinRequests)
-		{
-			OutPendingJoinRequestArray.Emplace(ConstCastSharedRef<IOnlinePartyPendingJoinRequestInfo>(ConstJoinRequest));
-		}
-	}
-	return bResult;
-}
-
-FDelegateHandle IOnlinePartySystem::AddOnPartyConfigChangedDelegate_Handle(const FOnPartyConfigChangedDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FPartyConfiguration& PartyConfig)
-	{
-		TSharedRef<FPartyConfiguration> PartyConfigurationRef((const_cast<FPartyConfiguration&>(PartyConfig)).AsShared());
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyConfigurationRef);
 	};
-	return OnPartyConfigChangedDelegates.Add(FOnPartyConfigChangedConstDelegate::CreateLambda(DeprecationHelperLambda));
-}
-
-FDelegateHandle IOnlinePartySystem::AddOnPartyDataReceivedDelegate_Handle(const FOnPartyDataReceivedDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnlinePartyData& PartyData)
-	{
-		TSharedRef<FOnlinePartyData> PartyDataRef((const_cast<FOnlinePartyData&>(PartyData)).AsShared());
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyDataRef);
-	};
-	return OnPartyDataReceivedDelegates.Add(FOnPartyDataReceivedConstDelegate::CreateLambda(DeprecationHelperLambda));
-}
-
-FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(const FOnPartyMemberDataReceivedDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const FOnlinePartyData& PartyData)
-	{
-		TSharedRef<FOnlinePartyData> PartyDataRef((const_cast<FOnlinePartyData&>(PartyData)).AsShared());
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, MemberId, PartyDataRef);
-	};
-	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedConstDelegate::CreateLambda(DeprecationHelperLambda));
-}
-
-FDelegateHandle IOnlinePartySystem::AddOnPartyJoinRequestReceivedDelegate_Handle(const FOnPartyJoinRequestReceivedDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoiningUsers)
-	{
-		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
-		JoiningUsers.GetUsers(Users);
-		check(Users.Num() > 0);
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, *Users[0]->GetUserId(), Users[0]->GetPlatform(), *Users[0]->GetJoinData());
-	};
-	return OnPartyJoinRequestReceivedDelegates.Add(FOnPartyGroupJoinRequestReceivedDelegate::CreateLambda(DeprecationHelperLambda));
-}
-
-FDelegateHandle IOnlinePartySystem::AddOnQueryPartyJoinabilityReceivedDelegate_Handle(const FOnQueryPartyJoinabilityReceivedDelegate& Delegate)
-{
-	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoiningUsers)
-	{
-		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
-		JoiningUsers.GetUsers(Users);
-		check(Users.Num() > 0);
-		Delegate.ExecuteIfBound(LocalUserId, PartyId, *Users[0]->GetUserId(), Users[0]->GetPlatform(), *Users[0]->GetJoinData());
-	};
-	return OnQueryPartyJoinabilityReceivedDelegates.Add(FOnQueryPartyJoinabilityGroupReceivedDelegate::CreateLambda(DeprecationHelperLambda));
+	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const

@@ -6,6 +6,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
 #include "PrimitiveSceneProxy.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "HairStrandsRendering.h"
 #include "RayTracingInstanceUtils.h"
 #include "HairStrandsInterface.h"
@@ -452,6 +453,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bIsGroomBindingAssetCallbackRegistered = false;
 	SourceSkeletalMesh = nullptr; 
 	NiagaraComponents.Empty();
+	PhysicsAsset = nullptr;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 
@@ -524,8 +526,8 @@ void UGroomComponent::ReleaseHairSimulation()
 
 void UGroomComponent::UpdateHairSimulation()
 {
-	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomRodsSystem.GroomRodsSystem"));
-	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomSpringsSystem.GroomSpringsSystem"));
+	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
 
 	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
 	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
@@ -549,7 +551,7 @@ void UGroomComponent::UpdateHairSimulation()
 			if (!NiagaraComponent)
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
-				if (GetWorld())
+				if (GetOwner() && GetOwner()->GetWorld())
 				{
 					NiagaraComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 					NiagaraComponent->RegisterComponent();
@@ -572,7 +574,7 @@ void UGroomComponent::UpdateHairSimulation()
 			{
 				NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
 			}
-			NiagaraComponent->Activate(true);
+			NiagaraComponent->ReinitializeSystem();
 			if (NiagaraComponent->GetSystemInstance())
 			{
 				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
@@ -581,16 +583,9 @@ void UGroomComponent::UpdateHairSimulation()
 		}
 		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
-			if (GetWorld())
-			{
-				NiagaraComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-				NiagaraComponent->UnregisterComponent();
-			}
-			NiagaraComponent->DestroyComponent();
-			NiagaraComponent = nullptr;
+			NiagaraComponent->Deactivate();
 		}
 	}
-	NiagaraComponents.SetNum(NumGroups);
 	UpdateSimulatedGroups();
 }
 
@@ -932,6 +927,14 @@ void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
 
 }
 
+// TODO clean up: 
+// This functions is defined in HairInterface.h/.cpp. However since this if made for a patch, the public interface can't change. 
+// So we redefine the function/value here.
+inline uint32 GetHairStrandsMaxSectionCount()
+{
+	return 20;
+}
+
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
 	ReleaseResources();
@@ -950,7 +953,21 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	USkeletalMeshComponent* SkeletalMeshComponent = bBindGroomToSkeletalMesh && GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
-	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData();
+	const bool bHasValidSectionCount = SkeletalMeshComponent && SkeletalMeshComponent->GetNumMaterials() < int32(GetHairStrandsMaxSectionCount());
+	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData() && bHasValidSectionCount;
+
+	// Report warning if the skeletal section count is larger than the supported count
+	if (bBindGroomToSkeletalMesh && SkeletalMeshComponent && !bHasValidSectionCount)
+	{
+		FString Name = "";
+		if (GetOwner())
+		{
+			Name += GetOwner()->GetName() + "/";
+		}
+		Name += GetName() + "/" + GroomAsset->GetName();
+
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom is bound to a skeletal mesh which has too many sections (%d), which is higher than the maximum supported for hair binding (%d). The groom binding will be disbled on this component."), *Name, SkeletalMeshComponent->GetNumMaterials(), GetHairStrandsMaxSectionCount());
+	}
 
 	uint32 SkeletalComponentId = ~0;
 	if (bHasValidSketalMesh)

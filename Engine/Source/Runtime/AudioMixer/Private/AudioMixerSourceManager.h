@@ -329,6 +329,10 @@ namespace Audio
 			float DistanceAttenuationSourceStart;
 			float DistanceAttenuationSourceDestination;
 
+			// Filter LFP & HPF frequency set directly (not by modulation) on source
+			float LowPassFreq;
+			float HighPassFreq;
+
 			// One-Pole LPFs and HPFs per source
 			Audio::FInterpolatedLPF LowPassFilter;
 			Audio::FInterpolatedHPF HighPassFilter;
@@ -345,6 +349,11 @@ namespace Audio
 			// A DSP object which tracks the amplitude envelope of a source.
 			Audio::FEnvelopeFollower SourceEnvelopeFollower;
 			float SourceEnvelopeValue;
+
+			// Last volume set by modulation system (cached separately from value
+			// in ModulationControls to interpolate smoothly over buffer). Defaults
+			// to -1.0f until ProcessControls is given ability to be set on first call.
+			float ModulationVolLast;
 
 			// Modulation control state
 			FSoundModulationControls ModulationControls;
@@ -373,6 +382,7 @@ namespace Audio
 			uint8 bIsBypassingLPF:1;
 			uint8 bIsBypassingHPF:1;
 			uint8 bHasPreDistanceAttenuationSend:1;
+			uint8 bModUpdated : 1;
 
 			// Source format info
 			int32 NumInputChannels;

@@ -8,7 +8,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "IMeshPaintComponentAdapter.h"
 #include "InteractiveToolManager.h"
-#include "InteractiveToolsContext.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "Engine/StaticMesh.h"
 #include "MeshPaintHelpers.generated.h"
 
@@ -255,7 +255,7 @@ void UMeshPaintingToolset::ApplyBrushToVertex(const FVector& VertexPosition, con
 };
 
 UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshToolsContext : public UInteractiveToolsContext
+class MESHPAINTINGTOOLSET_API UMeshToolsContext : public UEdModeInteractiveToolsContext
 {
 	GENERATED_BODY()
 

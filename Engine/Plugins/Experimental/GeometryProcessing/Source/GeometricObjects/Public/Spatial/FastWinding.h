@@ -233,6 +233,11 @@ public:
 		}
 	}
 
+	bool IsBuilt() const
+	{
+		return Tree->MeshTimestamp == Tree->Mesh->GetShapeTimestamp() && FastWindingCacheTimestamp == Tree->MeshTimestamp;
+	}
+
 	/**
 	 * Fast approximation of winding number using far-field approximations.
 	 * On a closed mesh the winding number will be 1 or more inside (depending on number of "winds").
@@ -242,6 +247,16 @@ public:
 	double FastWindingNumber(const FVector3d& P)
 	{
 		Build(false);
+		double sum = branch_fast_winding_num(Tree->RootIndex, P);
+		return sum;
+	}
+
+	/**
+	 * Const version does not auto-build on query
+	 */
+	double FastWindingNumber(const FVector3d& P) const
+	{
+		checkSlow(IsBuilt(P));
 		double sum = branch_fast_winding_num(Tree->RootIndex, P);
 		return sum;
 	}

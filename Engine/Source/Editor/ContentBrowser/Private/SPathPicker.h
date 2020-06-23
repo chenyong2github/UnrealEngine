@@ -39,11 +39,24 @@ public:
 
 private:
 
+	/** Handle for when selection changes */
+	void OnItemSelectionChanged(const FContentBrowserItem& SelectedItem, ESelectInfo::Type SelectInfo);
+
 	/** Handler for the context menu for folder items */
+	TSharedPtr<SWidget> GetItemContextMenu(TArrayView<const FContentBrowserItem> SelectedItems);
 	TSharedPtr<SWidget> GetFolderContextMenu(const TArray<FString>& SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder);
 
 private:
 
 	/** The path view in this picker */
 	TSharedPtr<SPathView> PathViewPtr;
+
+	/** Delegate to invoke when selection changes. */
+	FOnPathSelected OnPathSelected;
+
+	/** Delegate to invoke when a context menu for a folder is opening. */
+	FOnGetFolderContextMenu OnGetFolderContextMenu;
+
+	/** The delegate that fires when a path is right clicked and a context menu is requested */
+	FContentBrowserMenuExtender_SelectedPaths OnGetPathContextMenuExtender;
 };

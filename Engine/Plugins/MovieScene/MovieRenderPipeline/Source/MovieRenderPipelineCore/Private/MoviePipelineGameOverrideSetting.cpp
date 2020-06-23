@@ -3,6 +3,7 @@
 #include "MoviePipelineGameOverrideSetting.h"
 #include "Scalability.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineUtils.h"
 
@@ -71,7 +72,10 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 	if (bDisableHLODs)
 	{
 		// It's a command and not an integer cvar (despite taking 1/0), so we can't cache it 
-		GetWorld()->Exec(GetWorld(), TEXT("r.HLOD 0"));
+		if(GEngine)
+		{
+			GEngine->Exec(GetWorld(), TEXT("r.HLOD 0"));
+		}
 	}
 
 	if (bUseHighQualityShadows)
@@ -85,6 +89,17 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 	{
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousViewDistanceScale, TEXT("r.ViewDistanceScale"), ViewDistanceScale, bOverrideValues);
 	}
+
+	if (bDisableGPUTimeout)
+	{
+		// This CVAR only exists if the D3D12RHI module is loaded
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT_IF_EXIST(PreviousGPUTimeout, TEXT("r.D3D12.GPUTimeout"), 0, bOverrideValues);
+	}
+	
+	{
+		// Disable systems that try to preserve performance in runtime games.
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousAnimationUROEnabled, TEXT("a.URO.Enable"), 0, bOverrideValues);
+	}
 }
 
 void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const
@@ -97,12 +112,8 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 	FString CVarCommandLineArgs;
 	FString CVarExecArgs;
 
-	// If they've left the setting enabled but set it to None, we don't do anything.
-	if (GameModeOverride)
-	{
-		InOutUnrealURLParams += FString::Printf(TEXT("?game=%s"), *GameModeOverride->GetPathName());
-	}
-
+	// We don't provide the GameMode on the command line argument as we expect NewProcess to boot into an empty map and then it will
+	// transition into the correct map which will then use the GameModeOverride setting.
 	if (bCinematicQualitySettings)
 	{
 		CVarCommandLineArgs += TEXT("sg.ViewDistanceQuality=4,sg.AntiAliasingQuality=4,sg.ShadowQuality=4,sg.PostProcessQuality=4,sg.TextureQuality=4,sg.EffectsQuality=4,sg.FoliageQuality=4,sg.ShadingQuality=4,");
@@ -140,6 +151,15 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 	if (bOverrideViewDistanceScale)
 	{
 		CVarCommandLineArgs += FString::Printf(TEXT("r.ViewDistanceScale=%d,"), ViewDistanceScale);
+	}
+
+	if (bDisableGPUTimeout)
+	{
+		CVarCommandLineArgs += TEXT("r.D3D12.GPUTimeout=0,");
+	}
+	
+	{
+		CVarCommandLineArgs += FString::Printf(TEXT("a.URO.Enable=%d,"), 0);
 	}
 
 	// Apply the cvar very early on (device profile) time instead of after the map has loaded if possible

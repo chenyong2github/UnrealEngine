@@ -13,6 +13,17 @@ FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothing
 {
 }
 
+double FCotanSmoothingOp::GetSmoothPower(int32 VertexID, bool bIsBoundary)
+{
+	double UsePower = SmoothOptions.SmoothPower;
+	if (SmoothOptions.bUseWeightMap)
+	{
+		double t = FMathd::Clamp(SmoothOptions.WeightMap->GetValue(VertexID), 0.0, 1.0);
+		UsePower = FMathd::Lerp(SmoothOptions.WeightMapMinMultiplier * UsePower, UsePower, t);
+	}
+	return UsePower;
+}
+
 
 void FCotanSmoothingOp::CalculateResult(FProgressCancel* Progress)
 {
@@ -35,24 +46,24 @@ void FCotanSmoothingOp::Smooth()
 	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> Smoother = UE::MeshDeformation::ConstructConstrainedMeshSmoother(
 		UseScheme, *ResultMesh);
 
-	double Power = SmoothOptions.SmoothPower;
-	if (Power < 0.0001)
+	if (SmoothOptions.SmoothPower < 0.0001)
 	{
 		for (int32 vid : ResultMesh->VertexIndicesItr())
 		{
 			PositionBuffer[vid] = ResultMesh->GetVertex(vid);
 		}
 	}
-	else if ( Power > 10000 )
+	else if (SmoothOptions.SmoothPower > 10000 )
 	{
 		Smoother->Deform(PositionBuffer);
 	}
 	else
 	{
-		double Weight = 1.0 / Power;
 		for (int32 vid : ResultMesh->VertexIndicesItr())
 		{
 			FVector3d Position = ResultMesh->GetVertex(vid);
+			double VertPower = GetSmoothPower(vid, false);
+			double Weight = (VertPower < FMathf::ZeroTolerance) ? 999999.0 : (1.0 / VertPower);
 
 			if (SmoothOptions.NormalOffset > 0)
 			{

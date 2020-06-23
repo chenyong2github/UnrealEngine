@@ -8,6 +8,7 @@
 
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+#include "Components/LightComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
 
@@ -16,15 +17,19 @@
 #include "USDIncludesStart.h"
 
 #include "pxr/usd/usd/prim.h"
+#include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usd/timeCode.h"
 #include "pxr/usd/usdGeom/camera.h"
 #include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
+#include "pxr/usd/usdLux/light.h"
 
 #include "USDIncludesEnd.h"
 
-bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, FTransform& OutTransform, pxr::UsdTimeCode EvalTime )
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime )
 {
+	pxr::UsdGeomXformable Xformable( Schema );
 	if ( !Xformable )
 	{
 		return false;
@@ -37,7 +42,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	bool bResetXFormStack = false;
 	Xformable.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, EvalTime );
 
-	UsdToUnreal::FUsdStageInfo StageInfo( Stage );
+	FUsdStageInfo StageInfo( Stage );
 
 	// Extra rotation to match different camera facing direction convention
 	// Note: The camera space is always Y-up, yes, but this is not what this is: This is the camera's transform wrt the stage,
@@ -45,7 +50,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	FRotator AdditionalRotation( ForceInit );
 	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() )
 	{
-		if (StageInfo.UpAxis == pxr::UsdGeomTokens->y)
+		if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 		{
 			AdditionalRotation = FRotator(0.0f, -90.f, 0.0f);
 		}
@@ -54,14 +59,19 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 			AdditionalRotation = FRotator(-90.0f, -90.f, 0.0f);
 		}
 	}
+	else if ( Xformable.GetPrim().IsA< pxr::UsdLuxLight >() )
+	{
+		AdditionalRotation = FRotator( 0.f, -90.f, 0.f ); // UE emits light in +X, USD emits in -Z
+	}
 
 	OutTransform = FTransform( AdditionalRotation ) * UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
 
 	return true;
 }
 
-bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomXformable& Xformable, USceneComponent& SceneComponent, pxr::UsdTimeCode EvalTime )
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime )
 {
+	pxr::UsdGeomXformable Xformable( Schema );
 	if ( !Xformable )
 	{
 		return false;
@@ -86,11 +96,13 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	return true;
 }
 
-bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, pxr::UsdTimeCode EvalTime )
+bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, double EvalTime )
 {
-	CameraComponent.CurrentFocalLength = UsdUtils::GetUsdValue< float >( GeomCamera.GetFocalLengthAttr(), EvalTime );
+	FUsdStageInfo StageInfo( Stage );
 
-	CameraComponent.FocusSettings.ManualFocusDistance = UsdUtils::GetUsdValue< float >( GeomCamera.GetFocusDistanceAttr(), EvalTime );
+	CameraComponent.CurrentFocalLength = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocalLengthAttr(), EvalTime ) );
+
+	CameraComponent.FocusSettings.ManualFocusDistance = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocusDistanceAttr(), EvalTime ) );
 
 	if ( FMath::IsNearlyZero( CameraComponent.FocusSettings.ManualFocusDistance ) )
 	{
@@ -99,8 +111,8 @@ bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr
 
 	CameraComponent.CurrentAperture = UsdUtils::GetUsdValue< float >( GeomCamera.GetFStopAttr(), EvalTime );
 
-	CameraComponent.Filmback.SensorWidth = UsdUtils::GetUsdValue< float >( GeomCamera.GetHorizontalApertureAttr(), EvalTime );
-	CameraComponent.Filmback.SensorHeight = UsdUtils::GetUsdValue< float >( GeomCamera.GetVerticalApertureAttr(), EvalTime );
+	CameraComponent.Filmback.SensorWidth = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetHorizontalApertureAttr(), EvalTime ) );
+	CameraComponent.Filmback.SensorHeight = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetVerticalApertureAttr(), EvalTime ) );
 
 	return true;
 }
@@ -133,9 +145,16 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 			AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
 		}
 	}
+	else if ( const ULightComponent* LightComponent = Cast< ULightComponent >( SceneComponent ) )
+	{
+		const FRotator LightRotation( 0.f, 90.f, 0.f ); // UE emits light in +X, USD emits in -Z
+		AdditionalRotation = FTransform( LightRotation );
+	}
 
 	RelativeTransform = AdditionalRotation * RelativeTransform;
-	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( Stage, RelativeTransform );
+
+	FUsdStageInfo StageInfo( Stage );
+	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, RelativeTransform );
 
 	pxr::GfMatrix4d UsdMatrix;
 	bool bResetXFormStack = false;

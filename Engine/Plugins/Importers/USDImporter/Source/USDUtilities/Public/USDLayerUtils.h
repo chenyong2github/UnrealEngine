@@ -7,14 +7,20 @@
 #include "USDMemory.h"
 
 #include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/sdf/layer.h"
-#include "pxr/usd/usd/stage.h"
-
+	#include "pxr/pxr.h"
 #include "USDIncludesEnd.h"
 
 class SWidget;
+
+PXR_NAMESPACE_OPEN_SCOPE
+	class SdfLayer;
+	class UsdStage;
+
+	template< typename T > class TfRefPtr;
+
+	using SdfLayerRefPtr = TfRefPtr< SdfLayer >;
+	using UsdStageRefPtr = TfRefPtr< UsdStage >;
+PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace UsdUtils
 {
@@ -31,7 +37,7 @@ namespace UsdUtils
 	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
 
 	/** Creates a new layer with a default prim */
-	USDUTILITIES_API TUsdStore< pxr::SdfLayerRefPtr > CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore<pxr::SdfLayerRefPtr>& ParentLayer, const TCHAR* LayerFilePath );
+	USDUTILITIES_API TUsdStore< pxr::SdfLayerRefPtr > CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* LayerFilePath );
 }
 
 #endif // #if USE_USD_SDK

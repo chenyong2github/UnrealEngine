@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
 #include "Common/PagedArray.h"
+#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Containers/Timelines.h"
 
 namespace Trace
 {
@@ -63,14 +64,17 @@ public:
 
 			if (CurrentDepthState.PendingScopeEnterIndex < 0 || StartTime >= CurrentDepthState.EnterTime + DetailLevel.Resolution)
 			{
-				for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+				if (CurrentDepthState.PendingEventIndex >= 0)
 				{
-					FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
-					check(DepthState.PendingScopeEnterIndex >= 0);
-					AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
+					for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+					{
+						FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
+						check(DepthState.PendingScopeEnterIndex >= 0);
+						AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
 
-					DepthState.PendingScopeEnterIndex = -1;
-					DepthState.PendingEventIndex = -1;
+						DepthState.PendingScopeEnterIndex = -1;
+						DepthState.PendingEventIndex = -1;
+					}
 				}
 				DetailLevel.InsertionState.PendingDepth = CurrentDepth;
 
@@ -110,6 +114,22 @@ public:
 			DetailLevel.InsertionState.DepthStates[CurrentDepth].ExitTime = EndTime;
 
 			UpdateDominatingEvent(DetailLevel, CurrentDepth, EndTime);
+
+			FDetailLevelDepthState& CurrentDepthState = DetailLevel.InsertionState.DepthStates[CurrentDepth];
+			check(CurrentDepthState.PendingScopeEnterIndex >= 0);
+			if (EndTime >= CurrentDepthState.EnterTime + DetailLevel.Resolution)
+			{
+				for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+				{
+					FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
+					check(DepthState.PendingScopeEnterIndex >= 0);
+					AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
+
+					DepthState.PendingScopeEnterIndex = -1;
+					DepthState.PendingEventIndex = -1;
+				}
+				DetailLevel.InsertionState.PendingDepth = CurrentDepth - 1;
+			}
 		}
 		++ModCount;
 	}
@@ -217,7 +237,10 @@ public:
 		for (int32 StackIndex = 0; StackIndex < CurrentStackDepth; ++StackIndex)
 		{
 			FEnumerationStackEntry& StackEntry = EventStack[StackIndex];
-			Callback(true, StackEntry.StartTime, StackEntry.Event);
+			if (Callback(true, StackEntry.StartTime, StackEntry.Event) == EEventEnumerate::Stop)
+			{
+				return;
+			}
 		}
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) <= IntervalEnd)
 		{
@@ -226,14 +249,20 @@ public:
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEnumerationStackEntry& StackEntry = EventStack[CurrentStackDepth++];
 				StackEntry.Event = *Event;
-				Callback(true, -ScopeEntry->Time, StackEntry.Event);
+				if (Callback(true, -ScopeEntry->Time, StackEntry.Event) == EEventEnumerate::Stop)
+				{
+					return;
+				}
 				Event = EventsIterator.NextItem();
 			}
 			else
 			{
 				check(CurrentStackDepth > 0);
 				FEnumerationStackEntry& StackEntry = EventStack[--CurrentStackDepth];
-				Callback(false, ScopeEntry->Time, StackEntry.Event);
+				if (Callback(false, ScopeEntry->Time, StackEntry.Event) == EEventEnumerate::Stop)
+				{
+					return;
+				}
 			}
 			ScopeEntry = ScopeEntryIterator.NextItem();
 		}
@@ -249,7 +278,10 @@ public:
 				if (ExitDepth == 0)
 				{
 					FEnumerationStackEntry& StackEntry = EventStack[--CurrentStackDepth];
-					Callback(false, ScopeEntry->Time, StackEntry.Event);
+					if (Callback(false, ScopeEntry->Time, StackEntry.Event) == EEventEnumerate::Stop)
+					{
+						return;
+					}
 				}
 				else
 				{
@@ -261,7 +293,10 @@ public:
 		while (CurrentStackDepth > 0)
 		{
 			FEnumerationStackEntry& StackEntry = EventStack[--CurrentStackDepth];
-			Callback(false, DetailLevel.InsertionState.LastTime, StackEntry.Event);
+			if (Callback(false, DetailLevel.InsertionState.LastTime, StackEntry.Event) == EEventEnumerate::Stop)
+			{
+				return;
+			}
 		}
 	}
 
@@ -307,11 +342,17 @@ public:
 				{
 					for (FOutputEvent& OutputEvent : OutputEvents)
 					{
-						Callback(OutputEvent.StartTime, OutputEvent.EndTime, OutputEvent.Depth, OutputEvent.Event);
+						EEventEnumerate Ret = Callback(OutputEvent.StartTime, OutputEvent.EndTime, OutputEvent.Depth, OutputEvent.Event);
+						if (Ret != EEventEnumerate::Continue)
+						{
+							return Ret;
+						}
 					}
 					OutputEvents.Empty(OutputEvents.Num());
 				}
 			}
+
+			return EEventEnumerate::Continue;
 		});
 	}
 

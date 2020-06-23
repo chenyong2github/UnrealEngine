@@ -355,6 +355,50 @@ enum class EPropertyAccessChangeNotifyMode : uint8
 	Always,
 };
 
+/**
+* Enum denoting message dialog return types.
+* @note Mirrored from GenericPlatformMisc.h
+*/
+UENUM(BlueprintType)
+namespace EAppReturnType
+{
+	enum Type
+	{
+		No,
+		Yes,
+		YesAll,
+		NoAll,
+		Cancel,
+		Ok,
+		Retry,
+		Continue,
+	};
+}
+
+/**
+* Enum denoting message dialog button choices. Used in combination with EAppReturnType.
+* @note Mirrored from GenericPlatformMisc.h
+*/
+UENUM(BlueprintType)
+namespace EAppMsgType
+{
+	/**
+	 * Enumerates supported message dialog button types.
+	 */
+	enum Type
+	{
+		Ok,
+		YesNo,
+		OkCancel,
+		YesNoCancel,
+		CancelRetryContinue,
+		YesNoYesAllNoAll,
+		YesNoYesAllNoAllCancel,
+		YesNoYesAll,
+	};
+}
+
+
 /** A globally unique identifier (mirrored from Guid.h) */
 USTRUCT(immutable, noexport, BlueprintType)
 struct FGuid

@@ -30,6 +30,7 @@ UWorldComposition::FWorldCompositionChangedEvent UWorldComposition::WorldComposi
 UWorldComposition::UWorldComposition(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
+	, bTemporallyDisableOriginTracking(false)
 	, bTemporarilyDisableOriginTracking(false)
 #endif
 	, TilesStreamingTimeThreshold(1.0)

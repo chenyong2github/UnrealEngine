@@ -1,28 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeformMeshPolygonsTool.h"
-#include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
-
-#include "SegmentTypes.h"
-#include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
-#include "ToolSceneQueriesUtil.h"
-#include "Intersection/IntersectionUtil.h"
-#include "FindPolygonsAlgorithm.h"
 
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
-
-#include "Solvers/ConstrainedMeshDeformer.h"
+#include "DynamicMeshAttributeSet.h"
+#include "FindPolygonsAlgorithm.h"
+#include "InteractiveToolManager.h"
+#include "Intersection/IntersectionUtil.h"
+#include "MeshNormals.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
+#include "SegmentTypes.h"
+#include "Solvers/ConstrainedMeshDeformer.h"
+#include "ToolBuilderUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 
 #define LOCTEXT_NAMESPACE "UDeformMeshPolygonsTool"
 
 
 class FDeformTask;
-
 
 
 //Stores per-vertex data needed by the laplacian deformer object
@@ -32,14 +29,14 @@ struct FDeformerVertexConstraintData
 	FDeformerVertexConstraintData& operator=(const FDeformerVertexConstraintData& other)
 	{
 		Position = other.Position;
-		Weight = other.Weight;
+		Weight   = other.Weight;
 		bPostFix = other.bPostFix;
 		return *this;
 	}
 
 	FVector3d Position;
-	double Weight{ 0.0 };
-	bool bPostFix{ false };
+	double Weight{0.0};
+	bool bPostFix{false};
 };
 
 /**
@@ -77,8 +74,8 @@ struct FDeformerVertexConstraintData
 class FConstrainedMeshDeformerTask : public FNonAbandonableTask
 {
 	friend class FAsyncTask<FDeformTask>;
-public:
 
+public:
 	enum
 	{
 		INACTIVE_SUBSET_ID = -1
@@ -89,7 +86,7 @@ public:
 		LaplacianWeightScheme = SelectedWeightScheme;
 	}
 
-	virtual ~FConstrainedMeshDeformerTask() {};
+	virtual ~FConstrainedMeshDeformerTask(){};
 
 	//NO idea what this is meant to do. Performance analysis maybe? Scheduling data?
 	FORCEINLINE TStatId GetStatId() const
@@ -100,10 +97,15 @@ public:
 
 	/** Called by the main thread in the tool, this copies the Constraint buffer right before the task begins on another thread.
 	  * Ensures the FConstrainedMeshDeformer is using correct mesh subset and the selected settings, then updates on change in properties, i.e. weight scheme */
-	void UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& Mesh, const TArray<FDeformerVertexConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve);
+	void UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& Mesh,
+	                    const TArray<FDeformerVertexConstraintData>& ConstraintArray,
+	                    const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve);
 
 	/** Required by the FAsyncTaskExecutor */
-	void SetAbortSource(bool* bAbort) { bAbortSource = bAbort; };
+	void SetAbortSource(bool* bAbort)
+	{
+		bAbortSource = bAbort;
+	};
 
 	/** Called by the FAsyncTask<FDeformTask> object for background computation. */
 	void DoWork();
@@ -113,7 +115,6 @@ public:
 	void ExportResults(FDynamicMesh3& TargetMesh) const;
 
 private:
-
 	/** Creates the mesh (i.e. SubsetMesh) that corresponds to the region of the SrcMesh defined by the partial index buffer SrcIDBufferSubset */
 	void InitializeSubsetMesh(const FDynamicMesh3& SrcMesh, const TArray<int32>& SrcIDBufferSubset);
 
@@ -155,14 +156,11 @@ private:
 
 private:
 	FConstrainedMeshDeformerTask();
-
 };
 
 class FGroupTopologyLaplacianDeformer : public FGroupTopologyDeformer
 {
-
 public:
-
 	FGroupTopologyLaplacianDeformer() = default;
 
 	virtual ~FGroupTopologyLaplacianDeformer();
@@ -174,7 +172,7 @@ public:
 	};
 
 	/** Change tracking */
-	template <typename ValidSetAppendContainerType>
+	template<typename ValidSetAppendContainerType>
 	void RecordModifiedVertices(const ValidSetAppendContainerType& Container)
 	{
 		ModifiedVertices.Empty();
@@ -193,7 +191,6 @@ public:
 	void SetActiveHandleCorners(const TArray<int>& TopologyCornerIDs) override;
 
 
-
 	/** Allocates shared storage for use in task synchronization */
 	void InitBackgroundWorker(const ELaplacianWeightScheme WeightScheme);
 
@@ -205,7 +202,6 @@ public:
 	bool IsTaskInFlight() const;
 
 
-
 	/** Sets the SrcMeshConstraintBuffer to have a size of MaxVertexID, and initializes with the current mesh positions, but weight zero*/
 	void InitializeConstraintBuffer();
 
@@ -213,18 +209,25 @@ public:
 	void UpdateSelection(const FDynamicMesh3* TargetMesh, const TArray<int>& Groups, bool bLocalizeDeformation);
 
 	/** Updates the mesh preview and/or solvers upon user input, provided a deformation strategy */
-	void UpdateSolution(FDynamicMesh3* TargetMesh, const TFunction<FVector3d(FDynamicMesh3* Mesh, int)>& HandleVertexDeformFunc) override;
+	void UpdateSolution(FDynamicMesh3* TargetMesh,
+	                    const TFunction<FVector3d(FDynamicMesh3* Mesh, int)>& HandleVertexDeformFunc) override;
 
 	/** Updates the vertex positions of the mesh with the result from the last deformation solve. */
 	void ExportDeformedPositions(FDynamicMesh3* TargetMesh);
 
 	/** Returns true if the asynchronous task has finished. */
-	inline bool IsDone() { return AsyncMeshDeformTask == nullptr || AsyncMeshDeformTask->IsDone(); };
+	inline bool IsDone()
+	{
+		return AsyncMeshDeformTask == nullptr || AsyncMeshDeformTask->IsDone();
+	};
 
 	/** Triggers abort on task and passes off ownership to deleter object */
 	inline void Shutdown();
 
-	const TArray<FROIFace>& GetROIFaces() const { return ROIFaces; }
+	const TArray<FROIFace>& GetROIFaces() const
+	{
+		return ROIFaces;
+	}
 
 	/** Stores the position of the vertex constraints and corresponding weights for the entire mesh.  This is used as a form of scratch space.*/
 	TArray<FDeformerVertexConstraintData> SrcMeshConstraintBuffer;
@@ -250,26 +253,14 @@ public:
 	/** When true, tells the solver to attempt to postfix the actual position of the handles to the constrained position */
 	bool bPostfixHandles = false;
 
-	//This is set to false only after 
+	//This is set to false only after
 	//	1) the asynchronous deformation task is complete
 	//	2) the main thread has seen it complete, and
 	//	3) the main thread updates the vertex positions of the mesh one last time
 	bool bVertexPositionsNeedSync = false;
 
 	bool bLocalize = true;
-
 };
-
-
-
-
-
-
-
-
-
-
-
 
 
 //////////////////////////////
@@ -302,12 +293,12 @@ UMeshSurfacePointTool* UDeformMeshPolygonsToolBuilder::CreateNewTool(const FTool
 UDeformMeshPolygonsTransformProperties::UDeformMeshPolygonsTransformProperties()
 {
 	DeformationStrategy = EGroupTopologyDeformationStrategy::Laplacian;
-	TransformMode = EQuickTransformerMode::AxisTranslation;
-	bSelectVertices = true;
-	bSelectFaces = true;
-	bSelectEdges = true;
-	bShowWireframe = false;
-	bSnapToWorldGrid = false;
+	TransformMode       = EQuickTransformerMode::AxisTranslation;
+	bSelectVertices     = true;
+	bSelectFaces        = true;
+	bSelectEdges        = true;
+	bShowWireframe      = false;
+	bSnapToWorldGrid    = false;
 }
 
 /*
@@ -315,13 +306,17 @@ UDeformMeshPolygonsTransformProperties::UDeformMeshPolygonsTransformProperties()
  */
 
 
-void FConstrainedMeshDeformerTask::UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme, const FDynamicMesh3& SrcMesh, const TArray<FDeformerVertexConstraintData>& ConstraintArray, const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction, const FRichCurve* Curve)
+void FConstrainedMeshDeformerTask::UpdateDeformer(const ELaplacianWeightScheme SelectedWeightScheme,
+                                                  const FDynamicMesh3& SrcMesh,
+                                                  const TArray<FDeformerVertexConstraintData>& ConstraintArray,
+                                                  const TArray<int32>& SrcIDBufferSubset, bool bNewTransaction,
+                                                  const FRichCurve* Curve)
 {
-	bIsNewTransaction = bNewTransaction;
+	bIsNewTransaction  = bNewTransaction;
 	SrcMeshMaxVertexID = SrcMesh.MaxVertexID();
 
 	LaplacianWeightScheme = SelectedWeightScheme;
-	
+
 	bAttenuateWeights = (Curve != nullptr);
 	if (bAttenuateWeights)
 	{
@@ -343,19 +338,17 @@ void FConstrainedMeshDeformerTask::UpdateDeformer(const ELaplacianWeightScheme S
 
 		for (int32 SubVertexID = 0; SubVertexID < SubsetVertexIDToSrcVertexIDMap.Num(); ++SubVertexID)
 		{
-			int32 SrcVtxID = SubsetVertexIDToSrcVertexIDMap[SubVertexID];
+			int32 SrcVtxID                      = SubsetVertexIDToSrcVertexIDMap[SubVertexID];
 			SubsetConstraintBuffer[SubVertexID] = ConstraintArray[SrcVtxID];
 		}
 	}
 
 	check(bIsNewTransaction || ConstrainedDeformer.IsValid());
-	
 }
 
 
 void FConstrainedMeshDeformerTask::DoWork()
 {
-
 	//TODO: (simple optimization) -
 	//	Instead of SrcVertexIDtoSubsetVertexIDMap, use SubsetVertexIDToSetVertexIDMap - then we can use the VertexIndicesItr()
 	//	on the SubsetMesh to minimize the quantity of vertex indices we need to iterate at every following step.
@@ -367,7 +360,6 @@ void FConstrainedMeshDeformerTask::DoWork()
 
 	if (bIsNewTransaction) //Will only be true once per input transaction (click+drag)
 	{
-		
 		// Create a new deformation solver.
 		ConstrainedDeformer = UE::MeshDeformation::ConstructConstrainedMeshDeformer(LaplacianWeightScheme, SubsetMesh);
 
@@ -384,7 +376,6 @@ void FConstrainedMeshDeformerTask::DoWork()
 		}
 
 		bIsNewTransaction = false;
-
 	}
 	else
 	{
@@ -396,7 +387,6 @@ void FConstrainedMeshDeformerTask::DoWork()
 			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubsetVertexID];
 			ConstrainedDeformer->UpdateConstraintPosition(SubsetVertexID, CData.Position, CData.bPostFix);
 		}
-
 	}
 
 	if (*bAbortSource == true)
@@ -407,8 +397,8 @@ void FConstrainedMeshDeformerTask::DoWork()
 	//Run the deformation process
 
 	const bool bSuccessfulSolve = ConstrainedDeformer->Deform(SubsetPositionBuffer);
-	
-	
+
+
 	if (bSuccessfulSolve)
 	{
 		if (*bAbortSource == true)
@@ -420,10 +410,10 @@ void FConstrainedMeshDeformerTask::DoWork()
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("Laplacian deformation failed"));
 	}
-
 }
 
-inline void FConstrainedMeshDeformerTask::InitializeSubsetMesh(const FDynamicMesh3& SrcMesh, const TArray<int32>& SrcIDBufferSubset)
+inline void FConstrainedMeshDeformerTask::InitializeSubsetMesh(const FDynamicMesh3& SrcMesh,
+                                                               const TArray<int32>& SrcIDBufferSubset)
 {
 	//These can be re-used until the user stops dragging
 	SubsetMesh.Clear();
@@ -437,19 +427,18 @@ inline void FConstrainedMeshDeformerTask::InitializeSubsetMesh(const FDynamicMes
 	//Iterate the triangle array to append vertices, and then triangles to the temporary subset mesh all at once
 	for (int32 i = 0; i < SrcIDBufferSubset.Num(); i += 3)
 	{
-
 		// Build the triangle
 		FIndex3i Triangle;
 		for (int32 v = 0; v < 3; ++v)
 		{
 			//It's the SrcVertexID because every element in the SrcIDBufferSubset is the Vertex ID of a vertex in the original mesh.
 			const int32 SrcVertexID = SrcIDBufferSubset[i + v];
-			int32& SubsetID = SrcVertexIDToSubsetVertexIDMap[SrcVertexID];
-			
+			int32& SubsetID         = SrcVertexIDToSubsetVertexIDMap[SrcVertexID];
+
 			if (SubsetID == INACTIVE_SUBSET_ID) // we haven't already visited this vertex
 			{
 				const FVector3d Vertex = SrcMesh.GetVertex(SrcVertexID);
-				SubsetID = SubsetMesh.AppendVertex(Vertex);
+				SubsetID               = SubsetMesh.AppendVertex(Vertex);
 			}
 
 			Triangle[v] = SubsetID;
@@ -470,18 +459,16 @@ inline void FConstrainedMeshDeformerTask::InitializeSubsetMesh(const FDynamicMes
 			SubsetVertexIDToSrcVertexIDMap[SubsetVertexID] = SrcID;
 		}
 	}
-
 }
 
 void FConstrainedMeshDeformerTask::ExportResults(FDynamicMesh3& TargetMesh) const
 {
-
 	//Update the position buffer result
 	for (int32 SubsetVertexID = 0; SubsetVertexID < SubsetVertexIDToSrcVertexIDMap.Num(); ++SubsetVertexID)
 	{
-		const int32 SrcVertexID = SubsetVertexIDToSrcVertexIDMap[SubsetVertexID];
+		const int32 SrcVertexID  = SubsetVertexIDToSrcVertexIDMap[SubsetVertexID];
 		const FVector3d Position = SubsetPositionBuffer[SubsetVertexID];
-		
+
 		TargetMesh.SetVertex(SrcVertexID, Position);
 	}
 
@@ -493,8 +480,7 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 	size_t Size = SrcMeshMaxVertexID;
 	TSet<int> Handles;
 
-	auto InPlaceMinMaxElements = [](FVector3d& Min, FVector3d& Max, const FVector3d Test)
-	{
+	auto InPlaceMinMaxElements = [](FVector3d& Min, FVector3d& Max, const FVector3d Test) {
 		for (uint8 i = 0; i < 3; ++i)
 		{
 			Min[i] = Test[i] < Min[i] ? Test[i] : Min[i];
@@ -504,29 +490,29 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 
 	//Experimental approach: Just going to try grabbing the bounding box of the entire mesh, then the bounding box of the handles as a point cloud.
 	//						 We need a T value to pass to the Weights curve, so let's try finding the distance of each vertex V from line segment formed by the min/max handles
-	//						 Divide the distance from the handles to vertex V by the length of the mesh's bounding box extent, 
+	//						 Divide the distance from the handles to vertex V by the length of the mesh's bounding box extent,
 	//						 and that will provide a **ROUGH** approximation of the time value for our curve.
 	//
 	//											  Distance( LineSegment(MaxHandle,MinHandle) , V )
 	// where T(V) is time value at V     T(V) = -----------------------------------------------------
-	//   and V is the position								Length(MeshMin - MeshMax)   
+	//   and V is the position								Length(MeshMin - MeshMax)
 	//      of each vertex
 
-	FVector3d Min{ std::numeric_limits<double>::max(),std::numeric_limits<double>::max(),std::numeric_limits<double>::max() };
-	FVector3d Max{ std::numeric_limits<double>::min(),std::numeric_limits<double>::min(),std::numeric_limits<double>::min() };
+	FVector3d Min{std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
+	              std::numeric_limits<double>::max()};
+	FVector3d Max{std::numeric_limits<double>::min(), std::numeric_limits<double>::min(),
+	              std::numeric_limits<double>::min()};
 	FVector3d MinHandles = Min;
 	FVector3d MaxHandles = Max;
-	double LeastWeight = std::numeric_limits<double>::max();
-
+	double LeastWeight   = std::numeric_limits<double>::max();
 
 
 	for (int32 SubVertexID = 0; SubVertexID < SubsetConstraintBuffer.Num(); ++SubVertexID)
 	{
-
 		FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
 		// Update bounding box
 		InPlaceMinMaxElements(Min, Max, CData.Position);
-		
+
 		if (CData.Weight > 0.0)
 		{
 			LeastWeight = CData.Weight < LeastWeight ? CData.Weight : LeastWeight;
@@ -545,10 +531,11 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 		if (!Handles.Contains(SubVertexID))
 		{
 			FDeformerVertexConstraintData& CData = SubsetConstraintBuffer[SubVertexID];
-			double T = CData.Position.Distance(FMath::ClosestPointOnSegment((FVector)CData.Position, (FVector)MinHandles, (FVector)MaxHandles)) / ExtentLength;
+			double T = CData.Position.Distance(FMath::ClosestPointOnSegment((FVector)CData.Position,
+			                                                                (FVector)MinHandles, (FVector)MaxHandles)) /
+			    ExtentLength;
 			CData.Weight = WeightAttenuationCurve.Eval(T) * LeastWeight;
 		}
-
 	}
 }
 
@@ -560,7 +547,6 @@ void FConstrainedMeshDeformerTask::ApplyAttenuation()
 
 void FGroupTopologyLaplacianDeformer::InitBackgroundWorker(const ELaplacianWeightScheme WeightScheme)
 {
-
 	//Initialize asynchronous deformation objects
 	if (AsyncMeshDeformTask == nullptr)
 	{
@@ -574,22 +560,23 @@ void FGroupTopologyLaplacianDeformer::InitializeConstraintBuffer()
 	int MaxVertexID = Mesh->MaxVertexID();
 
 	SrcMeshConstraintBuffer.SetNum(MaxVertexID);
-	
+
 	for (int32 VertexID : Mesh->VertexIndicesItr())
 	{
 		FDeformerVertexConstraintData& CD = SrcMeshConstraintBuffer[VertexID];
-		CD.Position = Mesh->GetVertex(VertexID); 
-		CD.Weight   = 0.0;
-		CD.bPostFix = false;
+		CD.Position                       = Mesh->GetVertex(VertexID);
+		CD.Weight                         = 0.0;
+		CD.bPostFix                       = false;
 	}
 }
 
 bool FGroupTopologyLaplacianDeformer::IsTaskInFlight() const
 {
-	return ( AsyncMeshDeformTask != nullptr && !AsyncMeshDeformTask->IsDone() );
+	return (AsyncMeshDeformTask != nullptr && !AsyncMeshDeformTask->IsDone());
 }
 
-bool FGroupTopologyLaplacianDeformer::UpdateAndLaunchdWorker(const ELaplacianWeightScheme SelectedWeightScheme, const FRichCurve*  Curve)
+bool FGroupTopologyLaplacianDeformer::UpdateAndLaunchdWorker(const ELaplacianWeightScheme SelectedWeightScheme,
+                                                             const FRichCurve* Curve)
 {
 	/* Deformer needs to run if we've modified the constraints since the last time it finished. */
 	if (AsyncMeshDeformTask == nullptr)
@@ -598,14 +585,15 @@ bool FGroupTopologyLaplacianDeformer::UpdateAndLaunchdWorker(const ELaplacianWei
 	}
 
 	if (bDeformerNeedsToRun && AsyncMeshDeformTask->IsDone())
-	{		
+	{
 		bool bRebuildSubsetMesh = bTaskSubmeshIsDirty;
 
 		FConstrainedMeshDeformerTask& Task = AsyncMeshDeformTask->GetTask();
 
 		// Update the deformer's buffers and weight scheme
 		// this creates the subset mesh if needed.
-		Task.UpdateDeformer(SelectedWeightScheme, *Mesh, SrcMeshConstraintBuffer, SubsetIDBuffer, bRebuildSubsetMesh, Curve);
+		Task.UpdateDeformer(SelectedWeightScheme, *Mesh, SrcMeshConstraintBuffer, SubsetIDBuffer, bRebuildSubsetMesh,
+		                    Curve);
 
 		// task now has valid submesh
 
@@ -614,11 +602,10 @@ bool FGroupTopologyLaplacianDeformer::UpdateAndLaunchdWorker(const ELaplacianWei
 		//Launch second thread
 		AsyncMeshDeformTask->StartBackgroundTask();
 
-		bDeformerNeedsToRun = false;	 // This was set to true above in UpdateSolution()
-		bVertexPositionsNeedSync = true; // The task will generate new vertex positions. 
+		bDeformerNeedsToRun      = false; // This was set to true above in UpdateSolution()
+		bVertexPositionsNeedSync = true; // The task will generate new vertex positions.
 
 		return true;
-
 	}
 	return false;
 }
@@ -627,14 +614,13 @@ void FGroupTopologyLaplacianDeformer::SetActiveHandleFaces(const TArray<int>& Fa
 {
 	Reset();
 
-	check(FaceGroupIDs.Num() == 1);   // multi-face not supported yet
+	check(FaceGroupIDs.Num() == 1); // multi-face not supported yet
 	int GroupID = FaceGroupIDs[0];
 
-	// find set of vertices in handle 
+	// find set of vertices in handle
 	Topology->CollectGroupVertices(GroupID, HandleVertices);
 	Topology->CollectGroupBoundaryVertices(GroupID, HandleBoundaryVertices);
 	ModifiedVertices = HandleVertices;
-
 
 
 	// list of adj groups.  may contain duplicates.
@@ -655,12 +641,11 @@ void FGroupTopologyLaplacianDeformer::SetActiveHandleFaces(const TArray<int>& Fa
 	}
 
 	CalculateROI(FaceGroupIDs, NeighborhoodGroups);
-	
+
 	UpdateSelection(Mesh, NeighborhoodGroups, bLocalize);
 
 	// Save the positions of the selected region.
 	SaveInitialPositions();
-
 }
 
 
@@ -677,7 +662,7 @@ void FGroupTopologyLaplacianDeformer::SetActiveHandleEdges(const TArray<int>& To
 		}
 	}
 	HandleBoundaryVertices = HandleVertices;
-	ModifiedVertices = HandleVertices;
+	ModifiedVertices       = HandleVertices;
 
 	TArray<int> HandleGroups;
 	TArray<int> NbrGroups;
@@ -704,7 +689,7 @@ void FGroupTopologyLaplacianDeformer::SetActiveHandleCorners(const TArray<int>& 
 		}
 	}
 	HandleBoundaryVertices = HandleVertices;
-	ModifiedVertices = HandleVertices;
+	ModifiedVertices       = HandleVertices;
 
 	TArray<int> HandleGroups;
 	TArray<int> NbrGroups;
@@ -721,10 +706,9 @@ void FGroupTopologyLaplacianDeformer::SetActiveHandleCorners(const TArray<int>& 
 }
 
 
-
-void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* TargetMesh, const TArray<int>& Groups, bool bLocalizeDeformation)
+void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* TargetMesh, const TArray<int>& Groups,
+                                                      bool bLocalizeDeformation)
 {
-
 	// Build an index buffer (SubsetIdBuffer) and a vertexId buffer (ModifidedVertices) for the region we want to change
 
 	if (bLocalizeDeformation)
@@ -734,7 +718,7 @@ void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* Targe
 		for (const int32& GroupID : Groups)
 		{
 			TriSet.Append(Topology->GetGroupFaces(GroupID));
-		}//Now we have every triangle ID involved in the transaction 
+		} //Now we have every triangle ID involved in the transaction
 
 		//Since we are flattening the Face to a set of 3 indices, we do 3 * number of triangles though it is too many.
 		SubsetIDBuffer.Reset(3 * TriSet.Num());
@@ -745,7 +729,6 @@ void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* Targe
 			SubsetIDBuffer.Add(Triple.A);
 			SubsetIDBuffer.Add(Triple.B);
 			SubsetIDBuffer.Add(Triple.C);
-		
 		}
 	}
 	else
@@ -753,8 +736,8 @@ void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* Targe
 		// the entire mesh.
 		const int32 NumTris = TargetMesh->TriangleCount();
 		SubsetIDBuffer.Reset(3 * NumTris);
-		for (int TriId : TargetMesh->TriangleIndicesItr()) 
-		{ 
+		for (int TriId : TargetMesh->TriangleIndicesItr())
+		{
 			FIndex3i Triple = TargetMesh->GetTriangle(TriId);
 			SubsetIDBuffer.Add(Triple.A);
 			SubsetIDBuffer.Add(Triple.B);
@@ -768,11 +751,11 @@ void FGroupTopologyLaplacianDeformer::UpdateSelection(const FDynamicMesh3* Targe
 	{
 		RecordModifiedVertex(VertexID);
 	}
-
 }
 
 // This actually updates constraints that correspond to the handle vertices.
-void FGroupTopologyLaplacianDeformer::UpdateSolution(FDynamicMesh3 * TargetMesh, const TFunction<FVector3d(FDynamicMesh3* Mesh, int)>& HandleVertexDeformFunc)
+void FGroupTopologyLaplacianDeformer::UpdateSolution(
+    FDynamicMesh3* TargetMesh, const TFunction<FVector3d(FDynamicMesh3* Mesh, int)>& HandleVertexDeformFunc)
 {
 	// copy the current positions.
 	FVertexPositionCache CurrentPositions;
@@ -811,11 +794,10 @@ void FGroupTopologyLaplacianDeformer::UpdateSolution(FDynamicMesh3 * TargetMesh,
 	}
 
 	// Restore Current Positions.  This is done because the target mesh is being used to define the highlight region.
-	// if we don't reset the positions the highlight mesh will appear to reset momentarily until the first laplacian solver result is available 
+	// if we don't reset the positions the highlight mesh will appear to reset momentarily until the first laplacian solver result is available
 	CurrentPositions.SetPositions(TargetMesh);
 
 	bDeformerNeedsToRun = true;
-
 }
 
 void FGroupTopologyLaplacianDeformer::ExportDeformedPositions(FDynamicMesh3* TargetMesh)
@@ -834,7 +816,7 @@ inline FGroupTopologyLaplacianDeformer::~FGroupTopologyLaplacianDeformer()
 }
 
 inline void FGroupTopologyLaplacianDeformer::Shutdown()
-{	
+{
 	if (AsyncMeshDeformTask != nullptr)
 	{
 		if (AsyncMeshDeformTask->IsDone())
@@ -863,7 +845,7 @@ void UDeformMeshPolygonsTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
-	LaplacianDeformer = MakeShared<FGroupTopologyLaplacianDeformer>();
+	LaplacianDeformer = MakePimpl<FGroupTopologyLaplacianDeformer>();
 
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
@@ -882,8 +864,9 @@ void UDeformMeshPolygonsTool::Setup()
 	// dynamic mesh configuration settings
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
-	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
-		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged));
+	OnDynamicMeshComponentChangedHandle =
+	    DynamicMeshComponent->OnMeshChanged.Add(FSimpleMulticastDelegate::FDelegate::CreateUObject(
+	        this, &UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged));
 
 
 	// add properties
@@ -896,11 +879,12 @@ void UDeformMeshPolygonsTool::Setup()
 
 	//initialize topology selector
 	TopoSelector.Initialize(DynamicMeshComponent->GetMesh(), &Topology);
-	TopoSelector.SetSpatialSource([this]() {return &GetSpatial(); });
+	TopoSelector.SetSpatialSource([this]() { return &GetSpatial(); });
 	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
 		FTransform Transform = ComponentTarget->GetWorldTransform();
-		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, 
-			Transform.TransformPosition((FVector)Position1), Transform.TransformPosition((FVector)Position2), VisualAngleSnapThreshold);
+		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Transform.TransformPosition((FVector)Position1),
+		                                            Transform.TransformPosition((FVector)Position2),
+		                                            VisualAngleSnapThreshold);
 	};
 
 	// hide input StaticMeshComponent
@@ -914,16 +898,17 @@ void UDeformMeshPolygonsTool::Setup()
 	QuickAxisRotator.Initialize();
 
 	// set up visualizers
-	PolyEdgesRenderer.LineColor = FLinearColor::Red;
+	PolyEdgesRenderer.LineColor     = FLinearColor::Red;
 	PolyEdgesRenderer.LineThickness = 2.0;
-	HilightRenderer.LineColor = FLinearColor::Green;
-	HilightRenderer.LineThickness = 4.0f;
+	HilightRenderer.LineColor       = FLinearColor::Green;
+	HilightRenderer.LineThickness   = 4.0f;
 
 	// Allocates buffers, sets up the asynchronous task
 	// Copies the source mesh positions.
-	const ELaplacianWeightScheme LaplacianWeightScheme = ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
+	const ELaplacianWeightScheme LaplacianWeightScheme =
+	    ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
 	LaplacianDeformer->InitBackgroundWorker(LaplacianWeightScheme);
-	
+
 
 	/**
 	// How to add a curve for the weights.
@@ -943,15 +928,17 @@ void UDeformMeshPolygonsTool::Setup()
 
 	if (Topology.Groups.Num() < 2)
 	{
-		GetToolManager()->DisplayMessage(LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(
+		    LOCTEXT("NoGroupsWarning",
+		            "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."),
+		    EToolMessageLevel::UserWarning);
 	}
-
 }
 
 void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	//Tell the background thread to cancel the rest of its jobs before we close;
-	LaplacianDeformer->Shutdown();
+	LaplacianDeformer.Reset();
 
 	if (DynamicMeshComponent != nullptr)
 	{
@@ -963,10 +950,10 @@ void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("DeformMeshPolygonsToolTransactionName", "Deform Mesh"));
-			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-			{
+			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams) {
 				FConversionToMeshDescriptionOptions ConversionOptions;
-				ConversionOptions.bSetPolyGroups = false; // don't save polygroups, as we may change these temporarily in this tool just to get a different edit effect
+				ConversionOptions.bSetPolyGroups =
+				    false; // don't save polygroups, as we may change these temporarily in this tool just to get a different edit effect
 				DynamicMeshComponent->Bake(CommitParams.MeshDescription, false, ConversionOptions);
 			});
 			GetToolManager()->EndUndoTransaction();
@@ -977,8 +964,6 @@ void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent = nullptr;
 	}
 }
-
-
 
 
 void UDeformMeshPolygonsTool::NextTransformTypeAction()
@@ -998,18 +983,13 @@ void UDeformMeshPolygonsTool::NextTransformTypeAction()
 }
 
 
-
 void UDeformMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
-		TEXT("DeformNextTransformType"),
-		LOCTEXT("DeformNextTransformType", "Next Transform Type"),
-		LOCTEXT("DeformNextTransformTypeTooltip", "Cycle to next transform type"),
-		EModifierKey::None, EKeys::Q,
-		[this]() { NextTransformTypeAction(); });
+	                         TEXT("DeformNextTransformType"), LOCTEXT("DeformNextTransformType", "Next Transform Type"),
+	                         LOCTEXT("DeformNextTransformTypeTooltip", "Cycle to next transform type"),
+	                         EModifierKey::None, EKeys::Q, [this]() { NextTransformTypeAction(); });
 }
-
-
 
 
 void UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged()
@@ -1020,12 +1000,12 @@ void UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged()
 
 	//Makes sure the constraint buffer and position buffers reflect Undo/Redo changes
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	
-	
+
+
 	//Apply Undo/redo
 	for (int VertexID : Mesh->VertexIndicesItr())
 	{
-		const FVector3d Position = Mesh->GetVertex(VertexID);
+		const FVector3d Position                                      = Mesh->GetVertex(VertexID);
 		LaplacianDeformer->SrcMeshConstraintBuffer[VertexID].Position = Position;
 	}
 
@@ -1053,10 +1033,11 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-		Transform.InverseTransformVector(WorldRay.Direction));
+	                Transform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
-	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges, TransformProps->bSelectVertices);
+	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
+	                               TransformProps->bSelectVertices);
 	FGroupTopologySelection Selection;
 	FVector3d LocalPosition, LocalNormal;
 	if (TopoSelector.FindSelectedElement(LocalRay, Selection, LocalPosition, LocalNormal) == false)
@@ -1066,14 +1047,14 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
-		OutHit.FaceIndex = Selection.SelectedCornerIDs[0];
-		OutHit.Distance = LocalRay.Project(LocalPosition);
+		OutHit.FaceIndex   = Selection.SelectedCornerIDs[0];
+		OutHit.Distance    = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
-		OutHit.FaceIndex = Selection.SelectedEdgeIDs[0];
-		OutHit.Distance = LocalRay.Project(LocalPosition);
+		OutHit.FaceIndex   = Selection.SelectedEdgeIDs[0];
+		OutHit.Distance    = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else
@@ -1086,8 +1067,8 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 			FIntrRay3Triangle3d Query(LocalRay, Triangle);
 			Query.Find();
 			OutHit.FaceIndex = HitTID;
-			OutHit.Distance = Query.RayParameter;
-			OutHit.Normal = (FVector)Transform.TransformVectorNoScale(GetSpatial().GetMesh()->GetTriNormal(HitTID));
+			OutHit.Distance  = Query.RayParameter;
+			OutHit.Normal    = (FVector)Transform.TransformVectorNoScale(GetSpatial().GetMesh()->GetTriNormal(HitTID));
 			OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
 		}
 	}
@@ -1099,12 +1080,13 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 {
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
-		Transform.InverseTransformVector(WorldRay.Direction));
+	                Transform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
 	HilightSelection.Clear();
 
-	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges, TransformProps->bSelectVertices);
+	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
+	                               TransformProps->bSelectVertices);
 	FGroupTopologySelection Selection;
 	FVector3d LocalPosition, LocalNormal;
 	bool bHit = TopoSelector.FindSelectedElement(LocalRay, Selection, LocalPosition, LocalNormal);
@@ -1117,25 +1099,25 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 	HilightSelection = Selection;
 
-	FVector3d WorldHitPos = Transform.TransformPosition(LocalPosition);
+	FVector3d WorldHitPos    = Transform.TransformPosition(LocalPosition);
 	FVector3d WorldHitNormal = Transform.TransformVector(LocalNormal);
 
-	bInDrag = true;
-	StartHitPosWorld = (FVector)WorldHitPos;
-	LastHitPosWorld = StartHitPosWorld;
+	bInDrag             = true;
+	StartHitPosWorld    = (FVector)WorldHitPos;
+	LastHitPosWorld     = StartHitPosWorld;
 	StartHitNormalWorld = (FVector)WorldHitNormal;
 
 	QuickAxisRotator.ClearAxisLock();
 	UpdateActiveSurfaceFrame(HilightSelection);
 	UpdateQuickTransformer();
 
-	LastBrushPosLocal = (FVector)Transform.InverseTransformPosition(LastHitPosWorld);
+	LastBrushPosLocal  = (FVector)Transform.InverseTransformPosition(LastHitPosWorld);
 	StartBrushPosLocal = LastBrushPosLocal;
 
 	// Record the requested deformation strategy - NB: will be forced to linear if there aren't any free points to solve.
 
 	DeformationStrategy = TransformProps->DeformationStrategy;
-	
+
 	// Capture the part of the mesh that will deform
 
 	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian)
@@ -1161,10 +1143,10 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 		// If there are actually no interior points, then we can't actually use the laplacian deformer. Need to fall back to the linear.
 		bool bHasInteriorVerts = false;
-		const auto& ROIFaces = LaplacianDeformer->GetROIFaces();
+		const auto& ROIFaces   = LaplacianDeformer->GetROIFaces();
 		for (const auto& Face : ROIFaces)
 		{
-			bHasInteriorVerts = bHasInteriorVerts || ( Face.InteriorVerts.Num() != 0);
+			bHasInteriorVerts = bHasInteriorVerts || (Face.InteriorVerts.Num() != 0);
 		}
 
 		if (!bHasInteriorVerts)
@@ -1174,16 +1156,14 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 			DeformationStrategy = EGroupTopologyDeformationStrategy::Linear;
 		}
 		else
-		{		
+		{
 			// finalize the laplacian deformer : the task will need a new mesh that corresponds to the selected region.
-		
-			LaplacianDeformer->bTaskSubmeshIsDirty = true;
 
+			LaplacianDeformer->bTaskSubmeshIsDirty = true;
 		}
-		
 	}
-	 
-	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Linear )
+
+	if (DeformationStrategy == EGroupTopologyDeformationStrategy::Linear)
 	{
 		//Determine which of the following (corners, edges or faces) has been selected by counting the associated feature's IDs
 		if (Selection.SelectedCornerIDs.Num() > 0)
@@ -1201,7 +1181,7 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 			LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
 		}
 	}
-	
+
 	BeginChange();
 }
 
@@ -1248,7 +1228,7 @@ FQuickTransformer* UDeformMeshPolygonsTool::GetActiveQuickTransformer()
 void UDeformMeshPolygonsTool::UpdateQuickTransformer()
 {
 	bool bUseLocalAxes =
-		(GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::Local);
+	    (GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::Local);
 	if (bUseLocalAxes)
 	{
 		GetActiveQuickTransformer()->SetActiveWorldFrame(ActiveSurfaceFrame);
@@ -1260,9 +1240,6 @@ void UDeformMeshPolygonsTool::UpdateQuickTransformer()
 }
 
 
-
-
-
 void UDeformMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 {
 	if (ActiveVertexChange == nullptr)
@@ -1272,9 +1249,11 @@ void UDeformMeshPolygonsTool::UpdateChangeFromROI(bool bFinal)
 	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	const TSet<int>& ModifiedVertices = (bIsLaplacian) ? LaplacianDeformer->GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
+	const TSet<int>& ModifiedVertices =
+	    (bIsLaplacian) ? LaplacianDeformer->GetModifiedVertices() : LinearDeformer.GetModifiedVertices();
 	ActiveVertexChange->SaveVertices(Mesh, ModifiedVertices, !bFinal);
-	const TSet<int>& ModifiedNormals = (bIsLaplacian) ? LaplacianDeformer->GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
+	const TSet<int>& ModifiedNormals =
+	    (bIsLaplacian) ? LaplacianDeformer->GetModifiedOverlayNormals() : LinearDeformer.GetModifiedOverlayNormals();
 	ActiveVertexChange->SaveOverlayNormals(Mesh, ModifiedNormals, !bFinal);
 }
 
@@ -1284,19 +1263,19 @@ void UDeformMeshPolygonsTool::OnUpdateDrag(const FRay& Ray)
 	if (bInDrag)
 	{
 		bUpdatePending = true;
-		UpdateRay = Ray;
+		UpdateRay      = Ray;
 	}
 }
 
 void UDeformMeshPolygonsTool::OnEndDrag(const FRay& Ray)
 {
-	bInDrag = false;
+	bInDrag        = false;
 	bUpdatePending = false;
 
 	// update spatial
 	bSpatialDirty = true;
 
-	HilightSelection.Clear(); 
+	HilightSelection.Clear();
 	TopoSelector.Invalidate(true, false);
 	QuickAxisRotator.Reset();
 	QuickAxisTranslater.Reset();
@@ -1310,7 +1289,6 @@ void UDeformMeshPolygonsTool::OnEndDrag(const FRay& Ray)
 }
 
 
-
 bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	//if (!bNeedEmitEndChange)
@@ -1318,17 +1296,18 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	{
 		FTransform3d Transform(ComponentTarget->GetWorldTransform());
 		FRay3d LocalRay(Transform.InverseTransformPosition(DevicePos.WorldRay.Origin),
-		Transform.InverseTransformVector(DevicePos.WorldRay.Direction));
+		                Transform.InverseTransformVector(DevicePos.WorldRay.Direction));
 		LocalRay.Direction.Normalize();
 
 		HilightSelection.Clear();
-		TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges, TransformProps->bSelectVertices);
+		TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
+		                               TransformProps->bSelectVertices);
 		FVector3d LocalPosition, LocalNormal;
 		bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
 
 		if (bHit)
 		{
-			StartHitPosWorld = (FVector)Transform.TransformPosition(LocalPosition);
+			StartHitPosWorld    = (FVector)Transform.TransformPosition(LocalPosition);
 			StartHitNormalWorld = (FVector)Transform.TransformVector(LocalNormal);
 
 			UpdateActiveSurfaceFrame(HilightSelection);
@@ -1339,11 +1318,8 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 }
 
 
-
-
 void UDeformMeshPolygonsTool::ComputeUpdate()
 {
-
 	if (bUpdatePending == true)
 	{
 		// Linear Deformer : Update the solution
@@ -1369,7 +1345,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 			// Sync update if we have new results.
 			if (LaplacianDeformer->bVertexPositionsNeedSync)
 			{
-				
 				//Update the mesh with the provided solutions.
 				LaplacianDeformer->ExportDeformedPositions(DynamicMeshComponent->GetMesh());
 
@@ -1393,7 +1368,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 
 			if (LaplacianDeformer->bDeformerNeedsToRun)
 			{
-			
 				FRichCurve* Curve = NULL;
 
 				/**
@@ -1404,25 +1378,21 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 					Curve = TransformProps->WeightAttenuationCurve.GetRichCurve();
 				}
 				*/
-				const ELaplacianWeightScheme LaplacianWeightScheme = ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
+				const ELaplacianWeightScheme LaplacianWeightScheme =
+				    ConvertToLaplacianWeightScheme(TransformProps->SelectedWeightScheme);
 				LaplacianDeformer->UpdateAndLaunchdWorker(LaplacianWeightScheme, Curve);
-
 			}
 		}
 	}
 }
 
 
-
-
-
-
 void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 {
-	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian); 
+	const bool bIsLaplacian                  = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
-	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FDynamicMesh3* Mesh    = DynamicMeshComponent->GetMesh();
 	FTransform3d Transform = FTransform3d(ComponentTarget->GetWorldTransform());
 	FVector NewHitPosWorld = LastHitPosWorld;
 
@@ -1441,7 +1411,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	if (QuickAxisRotator.HaveActiveSnapRotation() && QuickAxisRotator.GetHaveLockedToAxis() == false)
 	{
 		FVector3d ToSnapPointVec = (SnappedPoint - SphereCenter);
-		FVector3d ToEyeVec = (SnappedPoint - (FVector3d)CameraState.Position);
+		FVector3d ToEyeVec       = (SnappedPoint - (FVector3d)CameraState.Position);
 		if (ToSnapPointVec.Dot(ToEyeVec) > 0)
 		{
 			return;
@@ -1459,7 +1429,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 		//TODO: This is unseemly here, need to potentially defer this so that it's handled the same way as laplacian. Placeholder for now.
 		if (DeformationStrategy == EGroupTopologyDeformationStrategy::Linear)
 		{
-
 			DynamicMeshComponent->FastNotifyPositionsUpdated(true);
 			GetToolManager()->PostInvalidation();
 		}
@@ -1472,7 +1441,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	{
 		QuickAxisRotator.SetAxisLock();
 		RotationStartPointWorld = SnappedPoint;
-		RotationStartFrame = QuickAxisRotator.GetActiveRotationFrame();
+		RotationStartFrame      = QuickAxisRotator.GetActiveRotationFrame();
 	}
 
 	FVector2d RotateStartVec = RotationStartFrame.ToPlaneUV(RotationStartPointWorld, 2);
@@ -1480,14 +1449,12 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	FVector2d RotateToVec = RotationStartFrame.ToPlaneUV(NewHitPosWorld, 2);
 	RotateToVec.Normalize();
 	double AngleRad = RotateStartVec.SignedAngleR(RotateToVec);
-	FQuaterniond Rotation(
-		Transform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
+	FQuaterniond Rotation(Transform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
 	FVector3d LocalOrigin = Transform.InverseTransformPosition(RotationStartFrame.Origin);
 
 	// Linear Deformer: Update Mesh the rotation,
 	// Laplacian Deformer:  Update handles constraints with the rotation and set bDeformerNeedsToRun = true;.
-	SelectedDeformer.UpdateSolution(Mesh, [this, LocalOrigin, Rotation](FDynamicMesh3* TargetMesh, int VertIdx)
-	{
+	SelectedDeformer.UpdateSolution(Mesh, [this, LocalOrigin, Rotation](FDynamicMesh3* TargetMesh, int VertIdx) {
 		FVector3d V = TargetMesh->GetVertex(VertIdx);
 		V -= LocalOrigin;
 		V = Rotation * V;
@@ -1505,25 +1472,22 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 }
 
 
-
-
 void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 {
-	const bool bIsLaplacian = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
+	const bool bIsLaplacian                  = (DeformationStrategy == EGroupTopologyDeformationStrategy::Laplacian);
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
 	TFunction<FVector3d(const FVector3d&)> PointConstraintFunc = nullptr;
-	if (TransformProps->bSnapToWorldGrid 
-		&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	if (TransformProps->bSnapToWorldGrid &&
+	    GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
 	{
-		PointConstraintFunc = [&](const FVector3d& Pos)
-		{
+		PointConstraintFunc = [&](const FVector3d& Pos) {
 			FVector3d GridSnapPos;
 			return ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, Pos, GridSnapPos) ? GridSnapPos : Pos;
 		};
 	}
 
-	FTransform Transform = ComponentTarget->GetWorldTransform();
+	FTransform Transform   = ComponentTarget->GetWorldTransform();
 	FVector NewHitPosWorld = LastHitPosWorld;
 	FVector3d SnappedPoint;
 	if (QuickAxisTranslater.UpdateSnap(FRay3d(UpdateRay), SnappedPoint, PointConstraintFunc))
@@ -1536,7 +1500,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 	}
 
 	FVector NewBrushPosLocal = Transform.InverseTransformPosition(NewHitPosWorld);
-	FVector3d NewMoveDelta = NewBrushPosLocal - StartBrushPosLocal;
+	FVector3d NewMoveDelta   = NewBrushPosLocal - StartBrushPosLocal;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	if (LastMoveDelta.SquaredLength() > 0.)
@@ -1546,8 +1510,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 			// Linear Deformer: Update Mesh with the translation,
 			// Laplacian Deformer:  Update handles constraints and set bDeformerNeedsToRun = true;.
 
-			SelectedDeformer.UpdateSolution(Mesh, [this, NewMoveDelta](FDynamicMesh3* TargetMesh, int VertIdx)
-			{
+			SelectedDeformer.UpdateSolution(Mesh, [this, NewMoveDelta](FDynamicMesh3* TargetMesh, int VertIdx) {
 				return TargetMesh->GetVertex(VertIdx) + NewMoveDelta;
 			});
 		}
@@ -1556,7 +1519,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 			// Reset mesh to initial positions.
 
 			SelectedDeformer.ClearSolution(Mesh);
-
 		}
 		//TODO: This is unseemly here, need to potentially defer this so that it's handled the same way as laplacian. Placeholder for now.
 		if (!bIsLaplacian)
@@ -1566,12 +1528,11 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 		}
 	}
 
-	LastMoveDelta = NewMoveDelta;
+	LastMoveDelta     = NewMoveDelta;
 	LastBrushPosLocal = NewBrushPosLocal;
 
 	bUpdatePending = false;
 }
-
 
 
 void UDeformMeshPolygonsTool::OnTick(float DeltaTime)
@@ -1581,11 +1542,10 @@ void UDeformMeshPolygonsTool::OnTick(float DeltaTime)
 }
 
 
-
 void UDeformMeshPolygonsTool::PrecomputeTopology()
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	Topology = FGroupTopology(Mesh, true);
+	Topology            = FGroupTopology(Mesh, true);
 
 	LinearDeformer.Initialize(Mesh, &Topology);
 	LaplacianDeformer->Initialize(Mesh, &Topology);
@@ -1595,18 +1555,15 @@ void UDeformMeshPolygonsTool::PrecomputeTopology()
 }
 
 
-
-
 void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-
 	ComputeUpdate();
-		
+
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 	GetActiveQuickTransformer()->UpdateCameraState(CameraState);
 
 	DynamicMeshComponent->bExplicitShowWireframe = TransformProps->bShowWireframe;
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
+	FDynamicMesh3* TargetMesh                    = DynamicMeshComponent->GetMesh();
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);
 	PolyEdgesRenderer.SetTransform(ComponentTarget->GetWorldTransform());
@@ -1639,15 +1596,15 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 #endif
 
 #ifdef DEBUG_ROI_HANDLES
-	const FLinearColor FOOF{ 1.f,0.f,1.f,1.f };
+	const FLinearColor FOOF{1.f, 0.f, 1.f, 1.f};
 	for (int VertIdx : HandleVertices)
 	{
 		HilightRenderer.DrawViewFacingCircle(TargetMesh->GetVertex(VertIdx), 0.8f, 8, FOOF, 3, false);
 	}
-#endif 
+#endif
 
 #ifdef DEBUG_ROI_TRIANGLES
-	const FLinearColor Whiteish{ 0.67f,0.67f,0.67f,1.f };
+	const FLinearColor Whiteish{0.67f, 0.67f, 0.67f, 1.f};
 	for (int32 i = 0; i < SubsetIDBuffer.Num(); i += 3)
 	{
 		FVector3d A = TargetMesh->GetVertex(SubsetIDBuffer[i]);
@@ -1666,7 +1623,6 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	if (bInDrag)
 	{
-
 		GetActiveQuickTransformer()->Render(RenderAPI);
 	}
 	else
@@ -1676,11 +1632,7 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-
-void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
-{
-}
-
+void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property) {}
 
 
 //
@@ -1695,7 +1647,8 @@ void UDeformMeshPolygonsTool::BeginChange()
 	{
 		if (ActiveVertexChange == nullptr)
 		{
-			ActiveVertexChange = new FMeshVertexChangeBuilder(EMeshVertexChangeComponents::VertexPositions | EMeshVertexChangeComponents::OverlayNormals);
+			ActiveVertexChange = new FMeshVertexChangeBuilder(EMeshVertexChangeComponents::VertexPositions |
+			                                                  EMeshVertexChangeComponents::OverlayNormals);
 			UpdateChangeFromROI(false);
 		}
 	}
@@ -1704,17 +1657,16 @@ void UDeformMeshPolygonsTool::BeginChange()
 
 void UDeformMeshPolygonsTool::EndChange()
 {
-
 	if (ActiveVertexChange != nullptr)
 	{
 		UpdateChangeFromROI(true);
-		GetToolManager()->EmitObjectChange(DynamicMeshComponent, MoveTemp(ActiveVertexChange->Change), LOCTEXT("PolyMeshDeformationChange", "PolyMesh Edit"));
+		GetToolManager()->EmitObjectChange(DynamicMeshComponent, MoveTemp(ActiveVertexChange->Change),
+		                                   LOCTEXT("PolyMeshDeformationChange", "PolyMesh Edit"));
 	}
 
 	delete ActiveVertexChange;
 	ActiveVertexChange = nullptr;
 }
-
 
 
 #undef LOCTEXT_NAMESPACE

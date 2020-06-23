@@ -10,6 +10,18 @@ class FSlateWindowElementList;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 struct FTimeToPixel;
+class IKeyArea;
+
+struct FKeyAreaElement
+{
+	TArray<TSharedRef<IKeyArea>, TInlineAllocator<1>> KeyAreas;
+	FGeometry KeyAreaGeometry;
+
+	/** Whether this layout element pertains to one or multiple key areas */
+	enum EType { Single, Group };
+
+	EType Type;
+};
 
 /** Class that wraps up common section painting functionality */
 class SEQUENCER_API FSequencerSectionPainter
@@ -48,6 +60,9 @@ public:
 
 	/** The full geometry of the section. This is the width of the track area in the case of infinite sections */
 	FGeometry SectionGeometry;
+
+	/** Key area info with key area geometry for per key area track painting */
+	TArray<FKeyAreaElement> KeyAreaElements;
 	
 	/** The full clipping rectangle for the section */
 	FSlateRect SectionClippingRect;

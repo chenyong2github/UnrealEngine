@@ -1190,18 +1190,20 @@ FORCEINLINE VectorRegister VectorFractional(const VectorRegister& X)
 
 FORCEINLINE VectorRegister VectorCeil(const VectorRegister& X)
 {
-	VectorRegister Trunc = VectorTruncate(X);
-	VectorRegister PosMask = VectorCompareGE(X, GlobalVectorConstants::FloatZero);
-	VectorRegister Add = VectorSelect(PosMask, GlobalVectorConstants::FloatOne, (GlobalVectorConstants::FloatZero));
+	const VectorRegister Trunc = VectorTruncate(X);
+	const VectorRegister Frac = VectorSubtract(X, Trunc);
+	const VectorRegister FracMask = VectorCompareGT(Frac, (GlobalVectorConstants::FloatZero));
+	const VectorRegister Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
 	return VectorAdd(Trunc, Add);
 }
 
 FORCEINLINE VectorRegister VectorFloor(const VectorRegister& X)
 {
-	VectorRegister Trunc = VectorTruncate(X);
-	VectorRegister PosMask = VectorCompareGE(X, (GlobalVectorConstants::FloatZero));
-	VectorRegister Sub = VectorSelect(PosMask, (GlobalVectorConstants::FloatZero), (GlobalVectorConstants::FloatOne));
-	return VectorSubtract(Trunc, Sub);
+	const VectorRegister Trunc = VectorTruncate(X);
+	const VectorRegister Frac = VectorSubtract(X, Trunc);
+	const VectorRegister FracMask = VectorCompareLT(Frac, (GlobalVectorConstants::FloatZero));
+	const VectorRegister Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatMinusOne), (GlobalVectorConstants::FloatZero));
+	return VectorAdd(Trunc, Add);
 }
 
 FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegister& Y)

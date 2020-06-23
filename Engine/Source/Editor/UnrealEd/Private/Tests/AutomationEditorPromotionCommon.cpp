@@ -288,7 +288,7 @@ void FEditorPromotionTestUtilities::TakeScreenshot(const FString& ScreenshotName
 		FIntVector OutImageSize;
 		if (FSlateApplication::Get().TakeScreenshot(WindowRef, OutImageData, OutImageSize))
 		{
-			FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(TEXT("Editor"), ScreenshotName, OutImageSize.X, OutImageSize.Y);
+			FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(TEXT("Editor"), TEXT("PromotionTest"), ScreenshotName, OutImageSize.X, OutImageSize.Y);
 
 			// Copy the relevant data into the metadata for the screenshot.
 			Data.bHasComparisonRules = true;

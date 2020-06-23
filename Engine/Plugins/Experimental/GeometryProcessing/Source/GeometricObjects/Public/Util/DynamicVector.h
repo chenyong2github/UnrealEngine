@@ -81,6 +81,7 @@ public:
 	inline void PopBack();
 
 	inline void InsertAt(const Type& Data, unsigned int Index);
+	inline Type& ElementAt(unsigned int Index, Type InitialValue = Type{});
 
 	inline const Type& Front() const { return Blocks[0][0]; }
 	inline const Type& Back() const { return Blocks[CurBlock][CurBlockUsed - 1]; }
@@ -473,6 +474,22 @@ void TDynamicVector<Type>::PopBack()
 		CurBlockUsed = BlockSize;
 		// remove block ??
 	}
+}
+
+template <class Type>
+Type& TDynamicVector<Type>::ElementAt(unsigned int Index, Type InitialValue)
+{
+	size_t s = GetLength();
+	if (Index == s)
+	{
+		Add(InitialValue);
+	}
+	else if (Index > s)
+	{
+		Resize(Index);
+		Add(InitialValue);
+	}
+	return this->operator[](Index);
 }
 
 template <class Type>

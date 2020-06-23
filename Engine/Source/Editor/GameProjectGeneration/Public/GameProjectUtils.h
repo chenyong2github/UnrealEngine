@@ -278,8 +278,9 @@ public:
 	 *
 	 * @param	InDir directory to add/remove
 	 * @param	bAddOrRemove true if the directory should be added to this project, false if it should not
+	 * @return Whether the plugin directory list was changed
 	 */
-	static void UpdateAdditionalPluginDirectory(const FString& InDir, const bool bAddOrRemove);
+	static bool UpdateAdditionalPluginDirectory(const FString& InDir, const bool bAddOrRemove);
 
 	/** Gets the default build settings version for UBT */
 	static const TCHAR* GetDefaultBuildSettingsVersion();

@@ -651,6 +651,7 @@ static void ExecutePlanarReflectionOcclusionQuery(FRHICommandList& RHICmdList, u
 	RHICmdList.BeginRenderQuery(OcclusionQuery);
 
 	RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, BaseVertexIndex, 0, 8, 0, 12, 1);
+	BaseVertexIndex += 8;
 
 	RHICmdList.EndRenderQuery(OcclusionQuery);
 }

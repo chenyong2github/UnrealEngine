@@ -12,6 +12,7 @@
 class FSocket;
 class ISocketSubsystem;
 class FDMXProtocolSACN;
+class FInternetAddr;
 
 class DMXPROTOCOLSACN_API FDMXProtocolSenderSACN
 	: public IDMXProtocolSender
@@ -64,5 +65,9 @@ private:
 
 	FDMXProtocolSACN* Protocol;
 
+	/** Socket subsystem for internet address */
 	ISocketSubsystem* SocketSubsystem;
+
+	/** Internet address to send requests to*/
+	TSharedPtr<FInternetAddr> InternetAddr;
 };

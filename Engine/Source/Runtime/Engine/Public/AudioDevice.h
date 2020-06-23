@@ -564,6 +564,8 @@ public:
 	 */
 	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
 
+	void OnPreGarbageCollect();
+
 	/**
 	 * Stop any playing sounds that are using a particular SoundWave
 	 *

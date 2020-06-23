@@ -9,6 +9,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/IProjectManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
+
 struct FDeviceNotificationCallbackInformation
 {
 	FString UDID;
@@ -149,9 +151,9 @@ public:
 		return DeviceNotification;
 	}
 
-	void Enable(bool OnOff)
+	void Enable(bool bInCheckDevices)
 	{
-		bCheckDevices = OnOff;
+		bCheckDevices = bInCheckDevices;
 	}
 
 private:
@@ -166,7 +168,7 @@ private:
 			RetryQuery--;
 			if (RetryQuery < 0 || Response < 0)
 			{
-				UE_LOG(LogTemp, Log, TEXT("IOS device listing is disabled (too many failed attempts)!"));
+				UE_LOG(LogIOSDeviceHelper, Verbose, TEXT("IOS device listing is disabled for 1 minute (too many failed attempts)!"));
 				Enable(false);
 			}
 			return;

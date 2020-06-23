@@ -7,6 +7,8 @@
 
 class FDMXGraphPanelPinFactory;
 class FDMXFixturePatchPinFactory;
+struct FDMXFixtureMode;
+class UDMXEntityFixtureType;
 
 /**  The public interface to this module */
 class FDMXBlueprintGraphModule : public IModuleInterface
@@ -42,6 +44,16 @@ private:
 	 */
 	void RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate);
 
+
+	/**
+	 * FDataTypeChangeDelegate delegate call function
+	 *
+	 * @param	InFixtureType	Fixture type UObject
+	 * @param	InMode			Changed mode
+	 *
+	 */
+	void OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode);
+
 private:
 
 	/** FDMXProtocolName and Custom nodes Graph Pin customizations */
@@ -49,5 +61,8 @@ private:
 
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet< FName > RegisteredClassNames;
+
+	/** UDMXEntityFixtureType.GetDataTypeChangeDelegate() delegate handle */
+	FDelegateHandle DataTypeChangeDelegate;
 };
 

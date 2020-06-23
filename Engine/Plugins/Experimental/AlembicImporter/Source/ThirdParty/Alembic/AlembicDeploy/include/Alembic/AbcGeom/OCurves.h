@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcGeom_OCurves_h_
-#define _Alembic_AbcGeom_OCurves_h_
+#ifndef Alembic_AbcGeom_OCurves_h
+#define Alembic_AbcGeom_OCurves_h
 
 #include <Alembic/Util/Export.h>
 #include <Alembic/AbcGeom/Foundation.h>
@@ -139,6 +139,8 @@ public:
         // position weights, if it isn't set, it's 1 for every point
         const Abc::FloatArraySample &getPositionWeights() const
         { return m_positionWeights; }
+        void setPositionWeights(  const Abc::FloatArraySample &iSmp )
+        { m_positionWeights = iSmp; }
 
         // type accessors
         void setType( const CurveType &iType )

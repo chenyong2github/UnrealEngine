@@ -7,6 +7,7 @@
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
+#include "Styling/SlateTypes.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -15,6 +16,7 @@
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
 #include "Insights/ITimingViewSession.h"
+#include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
@@ -28,7 +30,7 @@ class FLoadingSharedState;
 class FMarkersTimingTrack;
 class FMenuBuilder;
 class FThreadTimingSharedState;
-class FTimeRulerTrack; 
+class FTimeRulerTrack;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SOverlay;
@@ -58,8 +60,10 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
+
 	TSharedRef<SWidget> MakeTracksFilterMenu();
-	void CreateTracksMenu(FMenuBuilder& MenuBuilder);
+	void CreateAllTracksMenu(FMenuBuilder& MenuBuilder);
 
 	bool ShowHideGraphTrack_IsChecked() const;
 	void ShowHideGraphTrack_Execute();
@@ -70,11 +74,18 @@ public:
 	bool ToggleTrackVisibility_IsChecked(uint64 InTrackId) const;
 	void ToggleTrackVisibility_Execute(uint64 InTrackId);
 
+	TSharedPtr<FFrameSharedState> GetFrameSharedState() const { return FrameSharedState; }
+	TSharedPtr<FThreadTimingSharedState> GetThreadTimingSharedState() const { return ThreadTimingSharedState; }
+	TSharedPtr<FLoadingSharedState> GetLoadingSharedState() const { return LoadingSharedState; }
+	TSharedPtr<FFileActivitySharedState> GetFileActivitySharedState() const { return FileActivitySharedState; }
+
 	bool IsAssetLoadingModeEnabled() const { return bAssetLoadingMode; }
 	void EnableAssetLoadingMode() { bAssetLoadingMode = true; }
 
+	void HideAllDefaultTracks();
+
 	/** Resets internal widget's data to the default one. */
-	void Reset();
+	void Reset(bool bIsFirstReset = false);
 
 	/**
 	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
@@ -211,16 +222,23 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// ITimingViewSession interface
 
-	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
+	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override { AddTrack(Track, ETimingTrackLocation::TopDocked); }
+	virtual bool RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override { return RemoveTrack(Track); }
 
-	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override { AddTrack(Track, ETimingTrackLocation::BottomDocked); }
+	virtual bool RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override { return RemoveTrack(Track); }
 
-	virtual void PreventThrottling() override;
+	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override { AddTrack(Track, ETimingTrackLocation::Scrollable); }
+	virtual bool RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override { return RemoveTrack(Track); }
 	virtual void InvalidateScrollableTracksOrder() override;
-	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
+
+	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override { AddTrack(Track, ETimingTrackLocation::Foreground); }
+	virtual bool RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override { return RemoveTrack(Track); }
+
+	virtual void AddTrack(TSharedPtr<FBaseTimingTrack> Track, ETimingTrackLocation Location) override;
+	virtual bool RemoveTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+
+	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
 
 	virtual double GetTimeMarker() const override { return TimeMarker; }
 	virtual void SetTimeMarker(double InTimeMarker) override;
@@ -233,11 +251,32 @@ public:
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 
+	virtual void PreventThrottling() override;
 	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	static const TCHAR* GetLocationName(ETimingTrackLocation Location);
+
+	const TArray<TSharedPtr<FBaseTimingTrack>>& GetTrackList(ETimingTrackLocation TrackLocation) const
+	{
+		static const TArray<TSharedPtr<FBaseTimingTrack>> EmptyTrackList;
+		switch (TrackLocation)
+		{
+			case ETimingTrackLocation::Scrollable:   return ScrollableTracks;
+			case ETimingTrackLocation::TopDocked:    return TopDockedTracks;
+			case ETimingTrackLocation::BottomDocked: return BottomDockedTracks;
+			case ETimingTrackLocation::Foreground:   return ForegroundTracks;
+			default:                                 return EmptyTrackList;
+		}
+	}
+
 	void UpdateScrollableTracksOrder();
+	int32 GetFirstScrollableTrackOrder() const;
+	int32 GetLastScrollableTrackOrder() const;
+
+	void HideAllScrollableTracks();
+
 	void OnTrackVisibilityChanged();
 
 	bool IsGpuTrackVisible() const;
@@ -282,6 +321,8 @@ public:
 	const TSharedPtr<ITimingEventFilter> GetEventFilter() const { return TimingEventFilter; }
 	void SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFilter);
 
+	void ToggleEventFilterByEventType(const uint64 EventType);
+
 	const TSharedPtr<FBaseTimingTrack> GetTrackAt(float InPosX, float InPosY) const;
 
 protected:
@@ -290,12 +331,33 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	void UpdateOtherViews();
-
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
+	void CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track);
+
+	void ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation);
+	bool CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const;
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Auto-Scroll
+
+	void AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState AutoScroll_IsChecked() const;
+
+	void AutoScrollFrameAligned_Execute();
+	bool AutoScrollFrameAligned_IsChecked() const;
+
+	void AutoScrollFrameType_Execute(ETraceFrameType FrameType);
+	bool AutoScrollFrameType_CanExecute(ETraceFrameType FrameType) const;
+	bool AutoScrollFrameType_IsChecked(ETraceFrameType FrameType) const;
+
+	void AutoScrollViewportOffset_Execute(double Percent);
+	bool AutoScrollViewportOffset_IsChecked(double Percent) const;
+
+	void AutoScrollDelay_Execute(double Delay);
+	bool AutoScrollDelay_IsChecked(double Delay) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -429,6 +491,31 @@ protected:
 	bool bIsDragging;
 
 	////////////////////////////////////////////////////////////
+	// Auto-Scroll
+
+	/** True if the viewport scrolls automatically. */
+	bool bAutoScroll;
+
+	/** True, if auto-scroll should align center of viewport with start of a frame. */
+	bool bIsAutoScrollFrameAligned;
+
+	/** Type of frame to align with (Game or Rendering), if bIsAutoScrollFrameAligned is enabled. */
+	ETraceFrameType AutoScrollFrameType;
+
+	/**
+	 * Viewport offset while auto-scrolling, as percent of viewport width.
+	 * If positive, it offsets the viewport forward, allowing an empty space at the right side of the viewport (i.e. after end of session).
+	 * If negative, it offsets the viewport backward (i.e. end of session will be outside viewport).
+	 */
+	double AutoScrollViewportOffsetPercent;
+
+	/** Minimum time between two auto-scroll updates, in [seconds]. */
+	double AutoScrollMinDelay;
+
+	/** Timestamp of last auto-scroll update, in [cycle64]. */
+	uint64 LastAutoScrollTime;
+
+	////////////////////////////////////////////////////////////
 	// Panning
 
 	/** True, if the user is currently interactively panning the view (horizontally and/or vertically). */
@@ -491,6 +578,9 @@ protected:
 
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo MainFont;
+
+	bool bDrawTopSeparatorLine;
+	bool bDrawBottomSeparatorLine;
 
 	// Debug stats
 	int32 NumUpdatedEvents;

@@ -596,26 +596,17 @@ const TArray< TWeakPtr<SDockingArea> >& FTabManager::FPrivateApi::GetLiveDockAre
 	return TabManager.DockAreas;
 }
 
-void FTabManager::FPrivateApi::OnTabForegrounded( const TSharedPtr<SDockTab>& NewForegroundTab, const TSharedPtr<SDockTab>& BackgroundedTab )
+void FTabManager::FPrivateApi::OnTabForegrounded(const TSharedPtr<SDockTab>& NewForegroundTab, const TSharedPtr<SDockTab>& BackgroundedTab)
 {
-	TabManager.OnTabForegrounded( NewForegroundTab, BackgroundedTab );
+	TabManager.OnTabForegrounded(NewForegroundTab, BackgroundedTab);
 }
 
-
-
-
-
-
-
-
-
-
-static void SetWindowVisibility( const TArray< TWeakPtr<SDockingArea> >& DockAreas, bool bWindowShouldBeVisible )
+static void SetWindowVisibility(const TArray< TWeakPtr<SDockingArea> >& DockAreas, bool bWindowShouldBeVisible)
 {
-	for (int32 DockAreaIndex=0; DockAreaIndex < DockAreas.Num(); ++DockAreaIndex)
+	for (int32 DockAreaIndex = 0; DockAreaIndex < DockAreas.Num(); ++DockAreaIndex)
 	{
 		TSharedPtr<SWindow> DockAreaWindow = DockAreas[DockAreaIndex].Pin()->GetParentWindow();
-		if ( DockAreaWindow.IsValid() )
+		if (DockAreaWindow.IsValid())
 		{
 			if (bWindowShouldBeVisible)
 			{
@@ -631,13 +622,13 @@ static void SetWindowVisibility( const TArray< TWeakPtr<SDockingArea> >& DockAre
 
 void FTabManager::FPrivateApi::ShowWindows()
 {
-	CleanupPointerArray( TabManager.DockAreas );
+	CleanupPointerArray(TabManager.DockAreas);
 	SetWindowVisibility(TabManager.DockAreas, true);
 }
 
 void FTabManager::FPrivateApi::HideWindows()
 {
-	CleanupPointerArray( TabManager.DockAreas );
+	CleanupPointerArray(TabManager.DockAreas);
 	SetWindowVisibility(TabManager.DockAreas, false);
 }
 
@@ -647,53 +638,79 @@ FTabManager::FPrivateApi& FTabManager::GetPrivateApi()
 }
 
 
+void FTabManager::SetAllowWindowMenuBar(bool bInAllowWindowMenuBar)
+{
+	bAllowPerWindowMenu = bInAllowWindowMenuBar;
+}
 
-
-
-
-
-
-
-
-void FTabManager::SetMenuMultiBox(const TSharedPtr< FMultiBox >& NewMenuMutliBox)
+void FTabManager::SetMenuMultiBox(const TSharedPtr<FMultiBox> NewMenuMutliBox, const TSharedPtr<SWidget> NewMenuWidget)
 {
 	// We only use the platform native global menu bar on Mac
-#if PLATFORM_MAC
 	MenuMultiBox = NewMenuMutliBox;
-	if(MenuMultiBox.IsValid())
+	MenuWidget = NewMenuWidget;
+
+	UpdateMainMenu(OwnerTabPtr.Pin(), false);
+}
+
+void FTabManager::UpdateMainMenu(TSharedPtr<SDockTab> ForTab, const bool bForce)
+{
+	bool bIsMajorTab = true;
+
+	TSharedPtr<SWindow> ParentWindowOfOwningTab;
+	if (ForTab && (ForTab->GetTabRole() == ETabRole::MajorTab || ForTab->GetVisualTabRole() == ETabRole::MajorTab))
 	{
-		UpdateMainMenu(false);
+		ParentWindowOfOwningTab = ForTab->GetParentWindow();
+	}
+	else if (auto OwnerTabPinned = OwnerTabPtr.Pin())
+	{
+		ParentWindowOfOwningTab = OwnerTabPinned->GetParentWindow();
+	}
+	else if (auto MainNonCloseableTabPinned = MainNonCloseableTab.Pin())
+	{
+		ParentWindowOfOwningTab = MainNonCloseableTabPinned->GetParentWindow();
+	}
+
+	// We only use the platform native global menu bar on Mac
+#if PLATFORM_MAC
+	if (MenuMultiBox.IsValid())
+	{
+		bool bUpdate = bForce;
+		// On OS X opening the tab will set the multi-box and take key focus, but not seemingly send a keyboard focus event into Slate.
+		if (ParentWindowOfOwningTab.IsValid())
+		{
+			bUpdate |= ParentWindowOfOwningTab->GetNativeWindow()->IsForegroundWindow();
+		}
+
+		if (bUpdate)
+		{
+			FSlateMacMenu::UpdateWithMultiBox(MenuMultiBox.ToSharedRef());
+		}
 	}
 	else
 	{
 		FSlateMacMenu::UpdateWithMultiBox(nullptr);
 	}
-#endif
-}
+#else
 
-void FTabManager::UpdateMainMenu(bool const bForce)
-{
-	// We only use the platform native global menu bar on Mac
-#if PLATFORM_MAC
-	if(MenuMultiBox.IsValid())
+
+	if (bAllowPerWindowMenu)
 	{
-		bool bUpdate = bForce;
-		// On OS X opening the tab will set the multi-box and take key focus, but not seemingly send a keyboard focus event into Slate.
-		// I'm still looking into this, so for now we just update the menu bar here if the new tab is foreground in the focused window.
-		TSharedPtr<SDockTab> Tab = OwnerTabPtr.Pin();
-		if(Tab.IsValid() && Tab->IsForeground())
-		{
-			TSharedPtr<SWindow> ParentWindow = Tab->GetParentWindow();
-			if(ParentWindow.IsValid())
-			{
-				bUpdate |= ParentWindow->GetNativeWindow()->IsForegroundWindow();
-			}
-		}
-		if(bUpdate)
-		{
-			FSlateMacMenu::UpdateWithMultiBox(MenuMultiBox.ToSharedRef());
+		if (ParentWindowOfOwningTab)
+		{	
+			ParentWindowOfOwningTab->GetTitleBar()->UpdateWindowMenu(MenuWidget);
 		}
 	}
+	else
+	{
+		MenuMultiBox.Reset();
+		MenuWidget.Reset();
+		if (ParentWindowOfOwningTab)
+		{
+			ParentWindowOfOwningTab->GetTitleBar()->UpdateWindowMenu(nullptr);
+		}
+	}
+
+
 #endif
 }
 
@@ -839,7 +856,8 @@ void FTabManager::UnregisterAllTabSpawners()
 	TabSpawner.Empty();
 }
 
-TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
+TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent,
+	const EOutputCanBeNullptr RestoreAreaOutputCanBeNullptr)
 {
 	ActiveLayoutName = Layout->LayoutName;
 
@@ -872,11 +890,20 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 				CollapsedDockAreas.Add(ThisArea);
 			}
 
-			if ( bIsPrimaryArea && ensure(!PrimaryDockArea.IsValid()) )
+			if (bIsPrimaryArea && RestoredDockArea.IsValid() && ensure(!PrimaryDockArea.IsValid()))
 			{
 				PrimaryDockArea	= RestoredDockArea;
 			}
 		}
+	}
+
+	// Sanity check
+	if (RestoreAreaOutputCanBeNullptr == EOutputCanBeNullptr::Never && !PrimaryDockArea.IsValid())
+	{
+		UE_LOG(LogSlate, Warning, TEXT("FTabManager::RestoreFrom(): RestoreAreaOutputCanBeNullptr was set to EOutputCanBeNullptr::Never but"
+			" RestoreFrom() is returning nullptr. I.e., the PrimaryDockArea could not be created. If returning nullptr is possible, set"
+			" RestoreAreaOutputCanBeNullptr to an option that could return nullptr (e.g., IfNoTabValid, IfNoOpenTabValid). This code might"
+			" ensure(false) or even check(false) in the future."));
 	}
 
 	UpdateStats();
@@ -1235,6 +1262,7 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
 		{
 			StackToSpawnIn->OpenTab(NewTab.ToSharedRef());
 			NewTab->PlaySpawnAnim();
+			FGlobalTabmanager::Get()->UpdateMainMenu(NewTab.ToSharedRef(), false);
 		}
 
 		return NewTab;
@@ -1626,11 +1654,6 @@ void FTabManager::RestoreSplitterContent(const TSharedRef<FSplitter>& SplitterNo
 			SplitterWidget->AddChildNode( ThisChildNodeWidgetRef, INDEX_NONE );
 		}
 	}
-}
-
-bool FTabManager::CanSpawnTab(FName TabId) const
-{
-	return HasTabSpawner(TabId);
 }
 
 bool FTabManager::HasTabSpawner(FName TabId) const
@@ -2300,7 +2323,7 @@ void FGlobalTabmanager::UpdateMainMenu(const TSharedRef<SDockTab>& ForTab, bool 
 			Tabmanager = SubTabManagers[TabIndex].TabManager.Pin();
 		}
 	}
-	Tabmanager->UpdateMainMenu(bForce);
+	Tabmanager->UpdateMainMenu(ForTab, bForce);
 }
 
 void FGlobalTabmanager::SaveAllVisualState()

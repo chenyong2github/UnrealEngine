@@ -597,6 +597,11 @@ namespace ArrayViewTests
 	{
 	}
 
+	template<typename T>
+	void TestFunction64(TArrayView64<T>)
+	{
+	}
+
 	bool RunTest()
 	{
 		// C array + derived-to-base conversions
@@ -604,6 +609,7 @@ namespace ArrayViewTests
 		TestFunction<Derived>(test1);
 		//TestFunction<Base>(test1);
 		//TestFunction<const Base>(test1);
+		TestFunction64<Derived>(test1);
 
 		// C array of pointers + derived-to-base conversions
 		Derived* test2[13];
@@ -611,22 +617,27 @@ namespace ArrayViewTests
 		//TestFunction<const Derived*>(test2);
 		TestFunction<Derived* const>(test2);
 		//TestFunction<const Base* const>(test2);
+		TestFunction64<const Derived* const>(test2);
+		TestFunction64<Derived* const>(test2);
 
 		// TArray + derived-to-base conversions
 		TArray<Derived> test3;
 		TestFunction<Derived>(test3);
 		//TestFunction<Base>(test3);
 		//TestFunction<const Base>(test3);
+		TestFunction64<Derived>(test3);
 
 		// const TArray
 		const TArray<Base> test4;
 		TestFunction<const Base>(test4);
 		//TestFunction<Base>(test4);
+		TestFunction64<const Base>(test4);
 
 		// TArray of const
 		TArray<const Base> test5;
 		TestFunction<const Base>(test5);
 		//TestFunction<Base>(test5);
+		TestFunction64<const Base>(test5);
 
 		// temporary C array
 		struct Test6
@@ -635,6 +646,25 @@ namespace ArrayViewTests
 		};
 		TestFunction<const Base>(Test6().test);
 		//TestFunction<Base>(Test6().test); // shouldn't compile but VS allows it :(
+		TestFunction64<const Base>(Test6().test);
+
+		// TArrayView64 from TArrayView
+		TArrayView<Derived> test7 = test1;
+		TestFunction64<Derived>(test7);
+		//TArrayView64<Derived> test7_64 = test1;
+		//TestFunction<Derived>(test7_64);
+
+		// TArray[64] from TArrayView[64]
+		TArrayView<Derived> test8;
+		TArrayView<Derived> test8_64;
+		TArray<Derived> test8_32from32(test8);
+		TArray<Derived> test8_32from64(test8_64);
+		TArray64<Derived> test8_64from32(test8);
+		TArray64<Derived> test8_64from64(test8_64);
+		test8_32from32 = test8;
+		test8_32from64 = test8_64;
+		test8_64from32 = test8;
+		test8_64from64 = test8_64;
 
 		return true;
 	}

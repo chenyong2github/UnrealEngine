@@ -3,7 +3,7 @@
 #include "../src/mtlpp.hpp"
 #include "window.hpp"
 
-ns::Ref<mtlpp::Device>     g_device;
+mtlpp::Device              g_device;
 mtlpp::CommandQueue        g_commandQueue;
 mtlpp::Buffer              g_vertexBuffer;
 mtlpp::Buffer              g_denormBuffer;
@@ -72,14 +72,14 @@ int main()
 		1, 0xFF, 0xFFFF, 0x7FFFFF
 	};
 	
-	ns::Array<ns::Ref<mtlpp::Device>> devices = mtlpp::Device::CopyAllDevices();
+	ns::Array<mtlpp::Device> devices = mtlpp::Device::CopyAllDevices();
 	// g_device = devices[0];
 	
 	g_device = mtlpp::Device::CreateSystemDefaultDevice();
-    g_commandQueue = g_device->NewCommandQueue();
+    g_commandQueue = g_device.NewCommandQueue();
 
 	ns::AutoReleasedError AutoReleasedError;
-    mtlpp::Library library = g_device->NewLibrary(shadersSrc, mtlpp::CompileOptions(), &AutoReleasedError);
+    mtlpp::Library library = g_device.NewLibrary(shadersSrc, mtlpp::CompileOptions(), &AutoReleasedError);
 	
 	if (AutoReleasedError.GetPtr())
 	{
@@ -90,17 +90,18 @@ int main()
     mtlpp::Function vertFunc = library.NewFunction("vertFunc");
     mtlpp::Function fragFunc = library.NewFunction("fragFunc");
 
-    g_vertexBuffer = g_device->NewBuffer(vertexData, sizeof(vertexData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
+    g_vertexBuffer = g_device.NewBuffer(vertexData, sizeof(vertexData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
 	
-	g_denormBuffer = g_device->NewBuffer(denormData, sizeof(denormData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
+	g_denormBuffer = g_device.NewBuffer(denormData, sizeof(denormData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
 	
-	g_denormUintBuffer = g_device->NewBuffer(denormData, sizeof(denormData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
+	g_denormUintBuffer = g_device.NewBuffer(denormData, sizeof(denormData), mtlpp::ResourceOptions::CpuCacheModeDefaultCache);
 
     mtlpp::RenderPipelineDescriptor renderPipelineDesc;
     renderPipelineDesc.SetVertexFunction(vertFunc);
     renderPipelineDesc.SetFragmentFunction(fragFunc);
     renderPipelineDesc.GetColorAttachments()[0].SetPixelFormat(mtlpp::PixelFormat::BGRA8Unorm);
-    g_renderPipelineState = g_device->NewRenderPipelineState(renderPipelineDesc, nullptr);
+    ns::AutoReleasedError error;
+    g_renderPipelineState = g_device.NewRenderPipelineState(renderPipelineDesc, &error);
 
     Window win(g_device, &Render, 320, 240);
 	

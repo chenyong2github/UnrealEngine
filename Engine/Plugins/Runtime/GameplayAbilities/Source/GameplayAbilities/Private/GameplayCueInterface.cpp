@@ -463,6 +463,9 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 				// This is a new tag, we need to invoke the WhileActive gameplaycue event
 				Owner->SetTagMapCount(ReplicatedTag, 1);
 				Owner->InvokeGameplayCueEvent(ReplicatedTag, EGameplayCueEvent::WhileActive, Parameters);
+
+				// The demo recorder needs to believe that this structure is dirty so it will get saved into the demo stream
+				LastSourceArrayReplicationKey++;
 			}
 		}
 
@@ -474,6 +477,9 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 				FGameplayTag& RemovedTag = LocalTags[It.GetIndex()];
 				Owner->SetTagMapCount(RemovedTag, 0);
 				Owner->InvokeGameplayCueEvent(RemovedTag, EGameplayCueEvent::Removed, Parameters);
+
+				// The demo recorder needs to believe that this structure is dirty so it will get saved into the demo stream
+				LastSourceArrayReplicationKey++;
 			}
 		}
 	}

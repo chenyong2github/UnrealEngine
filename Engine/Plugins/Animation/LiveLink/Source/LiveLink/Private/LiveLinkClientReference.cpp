@@ -6,5 +6,5 @@
 
 ILiveLinkClient* FLiveLinkClientReference::GetClient()const
 {
-	return FLiveLinkModule::StaticLiveLinkClient;
+	return FLiveLinkModule::LiveLinkClient_AnyThread;
 }

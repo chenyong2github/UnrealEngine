@@ -124,7 +124,7 @@ float GetPerpendicularScalingFactor(float SurfaceAlbedo)
 	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
 }
 
-float3 GetPerpendicularScalingFactor(float3 SurfaceAlbedo)
+float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
 {
 	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
 }
@@ -136,7 +136,7 @@ float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
 	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
 }
 
-float3 GetDiffuseSurfaceScalingFactor(float3 SurfaceAlbedo)
+float3 GetDiffuseSurfaceScalingFactor3D(float3 SurfaceAlbedo)
 {
 	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
 }
@@ -148,7 +148,7 @@ float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
 	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
 }
 
-float3 GetSearchLightDiffuseScalingFactor(float3 SurfaceAlbedo)
+float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
 	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
 }

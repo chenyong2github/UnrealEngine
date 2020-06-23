@@ -47,5 +47,6 @@ private:
 	double StartTime = 0.0;
 	bool bHasCmdLine = false;
 	bool bDisabled = false;
+	int32 SuspendCount = 0;
 	timer_t TimerId = nullptr;
 };

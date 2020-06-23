@@ -62,6 +62,7 @@ private:
 	void InitializePropertyHandlers();
 
 	bool AreChannelKeyCountEqual() const;
+	bool CacheIsSectionUsable() const;
 	void GetFirstTimeArray(TArrayView<const FFrameNumber>& OutKeyTimes) const;
 
 public:
@@ -76,6 +77,8 @@ public:
 	TArray<FLiveLinkSubSectionData> SubSectionsData;
 
 	bool bMustDoInterpolation;
+
+	bool bIsSectionUsable;
 
 	TArray<TSharedPtr<IMovieSceneLiveLinkPropertyHandler>> PropertyHandlers;
 

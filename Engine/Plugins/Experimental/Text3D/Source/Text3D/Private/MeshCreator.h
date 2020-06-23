@@ -5,6 +5,7 @@
 #include "BevelType.h"
 #include "Util.h"
 #include "Mesh.h"
+#include "ContourNode.h"
 
 
 /** Makes actual bevel. */
@@ -14,14 +15,14 @@ public:
 	FMeshCreator();
 
 	/**
-	 * Create meshes.
-	 * @param ContoursIn - List of contours.
+	 * CreateMeshes
+	 * @param Root - Tree of contours.
 	 * @param Extrude - Orthogonal (to front cap) offset value.
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 * @param Type - Defines shape of beveled part.
-	 * @param BevelSegments - Segments count for Type == EText3DBevelType::HalfCircle.
+	 * @param BevelSegments - Segments count.
 	 */
-	void CreateMeshes(const TSharedPtr<class FContourList> ContoursIn, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
+	void CreateMeshes(const TSharedContourNode Root, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
 	void SetFrontAndBevelTextureCoordinates(const float Bevel);
 	void MirrorGroups(const float Extrude);
 	void BuildMesh(UStaticMesh* StaticMesh, class UMaterial* DefaultMaterial);
@@ -34,13 +35,14 @@ private:
 
 	/**
 	 * Create 'Front' part of glyph.
+	 * @param Root - Tree root.
 	 */
-	void CreateFrontMesh();
+	void CreateFrontMesh(const TSharedContourNode Root);
 	/**
 	 * Create 'Bevel' part of glyph (actually half of it, will be mirrored later).
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 * @param Type - Defines shape of beveled part.
-	 * @param BevelSegments - Segments count for Type == EText3DBevelType::HalfCircle.
+	 * @param BevelSegments - Segments count.
 	 */
 	void CreateBevelMesh(const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
 	/**
@@ -48,10 +50,23 @@ private:
 	 * @param Extrude - Extrude value.
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 */
-	void CreateExtrudeMesh(float Extrude, const float Bevel);
+	void CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type);
 
 	void MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroupType TypeOut, const float Extrude);
 
+
+	/**
+	 * Recursively compute vertex count in tree.
+	 * @param Node - Tree node.
+	 * @param VertexCount - Pointer to counter.
+	 */
+	void AddToVertexCount(const TSharedContourNode Node, int32* const VertexCount);
+	/**
+	 * Triangulate solid region with holes and convert contours to old format.
+	 * @param Node - Tree node.
+	 * @param VertexIndex - Pointer to last used vertex index.
+	 */
+	void TriangulateAndConvert(const TSharedContourNode Node, int32* const VertexIndex);
 
 	/**
 	 * Bevel one segment.
@@ -62,6 +77,10 @@ private:
 	 * @param bSmooth - Is angle between start of this segment and end of previous segment smooth?
 	 */
 	void BevelLinear(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd, const bool bSmooth);
+
+	void BevelLinearWithSegments(const float Extrude, const float Expand, const int32 BevelSegments, const FVector2D Normal);
+	void BevelCurve(const float Angle, const int32 BevelSegments, TFunction<FVector2D(const float CurrentCos, const float CurrentSin, const float NextCos, const float Next)> ComputeOffset);
+	void BevelWithSteps(const float Bevel, const int32 Steps, const int32 BevelSegments);
 
 	/**
 	 * Duplicate contour vertices (used to make sharp angle between bevel steps)

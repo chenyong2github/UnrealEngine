@@ -853,27 +853,10 @@ struct OutputCells
 				}
 
 
-				// Determine the transform for the child geometry -- TODO: actually compute the proper center of mass, set everything up as nicely as possible for physics
-				FVector Centroid(0);
-				float CentroidCount = 0;
-				for (int32 VertexSubIdx = 0; VertexSubIdx < NumVertices; VertexSubIdx++)
-				{
-					int32 CopyVertexIdx = CellVertexMapping[OutputCellIdx][VertexSubIdx];
-					const FGeometryCollection* CopyFromCollection = &Source;
-					if (CopyVertexIdx >= SourceVertexNumWhenCut)
-					{
-						CopyFromCollection = &AddedVertices;
-						CopyVertexIdx -= SourceVertexNumWhenCut;
-					}
-					Centroid += CopyFromCollection->Vertex[CopyVertexIdx];
-					CentroidCount++;
-				}
-				if (CentroidCount > 0)
-				{
-					Centroid /= CentroidCount;
-				}
-				Output.Transform[TransformIdx] = FTransform(FTranslationMatrix(Centroid));
-				ChildInverseTransforms.Emplace(-Centroid);
+				// Set the transform for the child geometry
+				// Note to make it easier to procedurally texture later, it's better to leave it in the same space
+				Output.Transform[TransformIdx] = FTransform::Identity;
+				ChildInverseTransforms.Emplace(FVector::ZeroVector);
 
 				GeometrySubIdx++;
 			}
@@ -1738,7 +1721,7 @@ void CutWithPlanarCellsHelper(
 			if (bNoiseOnPlane)
 			{
 				const FNoiseSettings& Noise = InternalMaterials->NoiseSettings.GetValue();
-				const float MinPointSpacing = .1;
+				const float MinPointSpacing = .1 * float(ScaleF) * AverageGlobalScaleInv;
 				float PointSpacing = FMath::Max(MinPointSpacing, Noise.PointSpacing*float(ScaleF) * AverageGlobalScaleInv);
 
 				// make a new point hash for blue noise point location queries
@@ -2108,7 +2091,7 @@ void TransformPlanes(const FTransform& Transform, const FPlanarCells& Ref, TArra
 	FTransform NormalTransform = Transform;
 	FVector3d ScaleVec(NormalTransform.GetScale3D());
 	double ScaleDetSign = FMathd::SignNonZero(ScaleVec.X) * FMathd::SignNonZero(ScaleVec.Y) * FMathd::SignNonZero(ScaleVec.Z);
-	double ScaleMaxAbs = ScaleVec.MaxAbs();
+	double ScaleMaxAbs = ScaleVec.MaxAbsElement();
 	if (ScaleMaxAbs > DBL_MIN)
 	{
 		ScaleVec /= ScaleMaxAbs;

@@ -29,6 +29,11 @@ bool UDataSourceFilter::IsEnabled() const
 	return bIsEnabled;
 }
 
+const FDataSourceFilterConfiguration& UDataSourceFilter::GetConfiguration() const
+{
+	return Configuration;
+}
+
 void UDataSourceFilter::GetDisplayText_Internal(FText& OutDisplayText) const
 {
 	if (UClass* Class = GetClass())

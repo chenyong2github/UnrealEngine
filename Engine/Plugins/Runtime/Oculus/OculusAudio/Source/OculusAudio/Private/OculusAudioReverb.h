@@ -9,6 +9,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "AudioDeviceManager.h"
 
 #include "OculusAudioReverb.generated.h"
 
@@ -16,9 +17,21 @@
 // Forward Declarations
 class USubmixEffectOculusReverbPluginPreset;
 
+// data used to initialize the Oculus Reverb Submix Effect.
+struct FOculusReverbSubmixInitData
+{
+	// The length of each buffer callback, in frames.
+	int32 BufferLength;
+	// The maximum number of sources we expect to render.
+	int32 MaxNumSources;
+	// The sample rate of the incoming and outgoing audio stream.
+	float SampleRate;
+};
+
 class FSubmixEffectOculusReverbPlugin : public FSoundEffectSubmix
 {
 	virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
+
 	virtual uint32 GetDesiredInputChannelCountOverride() const override
 	{
 		static const int STEREO = 2;
@@ -35,9 +48,16 @@ public:
 
 	void ClearContext();
 
+	// This extra initialization step must be called after Init to ensure we've properly setup the shared context
+	// between the reverb and spatialization plugins. It's only required because this fix is being done in a hotfix
+	// and we don't want to change any public headers- in the future we can simply add this data to FSoundEffectSubmixInitData.
+	void InitializeContext(const FOculusReverbSubmixInitData& InContextInitData);
+
 private:
 	ovrAudioContext Context;
 	FCriticalSection ContextLock;
+
+	Audio::FDeviceId OwningDeviceId;
 };
 
 /************************************************************************/
@@ -48,12 +68,7 @@ private:
 class OculusAudioReverb : public IAudioReverb
 {
 public:
-	OculusAudioReverb()
-		: Context(nullptr)
-		, ReverbPreset(nullptr)
-	{
-		// empty
-	}
+	OculusAudioReverb();
 
 	void ClearContext();
 
@@ -75,10 +90,17 @@ public:
 	{
 		return; // PAS
 	}
+
+	void Initialize(const FAudioPluginInitializationParams InitializationParams) override;
+
 private:
 	ovrAudioContext* Context;
 	TSoundEffectSubmixPtr SubmixEffect;
 	USubmixEffectOculusReverbPluginPreset* ReverbPreset;
+
+	int32 BufferLength;
+	int32 MaxNumSources;
+	float SampleRate;
 };
 
 USTRUCT()

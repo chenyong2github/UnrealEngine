@@ -20,7 +20,7 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_World, "Object", "World");
 }
 
-bool FGameplayAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -65,7 +65,7 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		uint64 Id = EventData.GetValue<uint64>("Id");
 		const TCHAR* Event = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		GameplayProvider.AppendObjectEvent(Id, Context.SessionContext.TimestampFromCycle(Cycle), Event);
+		GameplayProvider.AppendObjectEvent(Id, Context.EventTime.AsSeconds(Cycle), Event);
 		break;
 	}
 	}

@@ -17,7 +17,6 @@
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
@@ -125,20 +124,54 @@ namespace DataprepWidgetUtils
 		TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
 	};
 
-	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing)
+	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing, bool bResizableColumn = true)
 	{
-		return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.f)
-		.VAlign(VAlign_Fill)
-		.HAlign(HAlign_Fill)
-		.Padding(0.0f, 0.0f, 0.0f, Spacing)
-		[
-			SNew(SCustomSplitter)
-			.NameWidget(NameWidget)
-			.ValueWidget(ValueWidget)
-			.ColumnSizeData(ColumnSizeData)
-		];
+		if (bResizableColumn)
+		{
+			return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			.Padding(0.0f, 0.0f, 0.0f, Spacing)
+			[
+				SNew(SCustomSplitter)
+				.NameWidget(NameWidget)
+				.ValueWidget(ValueWidget)
+				.ColumnSizeData(ColumnSizeData)
+			];
+		}
+		else
+		{
+			return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.Padding(0.0f, 0.0f, 0.0f, Spacing)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					NameWidget.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				[
+					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					+ SHorizontalBox::Slot()
+					.Padding(5.0f, 2.5f, 2.0f, 2.5f)
+					[
+						SNew(DataprepWidgetUtils::SConstrainedBox)
+						[
+							ValueWidget.ToSharedRef()
+						]
+					]
+				]
+			];
+		}
 	}
 }
 
@@ -247,7 +280,7 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 
 	// Add the name widget
 	NameColumn->AddSlot()
-	.VAlign(VAlign_Center)
+	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Left)
 	.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
 	[
@@ -258,10 +291,10 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 	{
 		NameColumn->AddSlot()
 		.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
+		.VAlign(VAlign_Center)
 		.Padding(FMargin(5.f, 0.f, 5.f, 0.f))
-			.AutoWidth()
-			[
+		.AutoWidth()
+		[
 			SNew(SDataprepParameterizationLinkIcon, DataprepAssetForParameterization.Get(), DetailedObjectAsParameterizable, ParameterizationContext.PropertyChain)
 		];
 	}
@@ -290,9 +323,9 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		SNew(SDataprepContextMenuOverride)
 		.OnContextMenuOpening(OnContextMenuOpening)
 		[
-			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing )
+			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing, bResizableColumn )
 		]
-		];
+	];
 
 	if(bColumnPadding)
 	{
@@ -560,6 +593,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	DetailedObject = InArgs._Object;
 	Spacing = InArgs._Spacing;
 	bColumnPadding = InArgs._ColumnPadding;
+	bResizableColumn = InArgs._ResizableColumn;
 
 	if (InArgs._ColumnSizeData.IsValid())
 	{

@@ -141,7 +141,7 @@ namespace ChaosTest {
 			elements->Add(TVector<int32, 3>(5, 6, 4));
 			elements->Add(TVector<int32, 3>(0, 2, 1)); // Front
 			elements->Add(TVector<int32, 3>(2, 0, 3));
-			/**/
+			*/
 			//ccw
 			elements->Add(TVector<int32, 3>(1,4,5)); // Front
 			elements->Add(TVector<int32, 3>(4,1,0));
@@ -210,7 +210,7 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(5, 6, 4));
 			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(2, 0, 3));
-			/**/
+			*/
 			//ccw
 			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
 			OutElements->Add(TVector<int32, 3>(4, 1, 0));
@@ -277,7 +277,7 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(5, 6, 4));
 			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(2, 0, 3));
-			/**/
+			*/
 			//ccw
 			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
 			OutElements->Add(TVector<int32, 3>(4, 1, 0));
@@ -350,7 +350,7 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(5, 6, 4));
 			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(2, 0, 3));
-			/**/
+			*/
 			//ccw
 			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
 			OutElements->Add(TVector<int32, 3>(4, 1, 0));
@@ -439,7 +439,7 @@ namespace ChaosTest {
 			OutElements->Add(TVector<int32, 3>(5, 6, 4));
 			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
 			OutElements->Add(TVector<int32, 3>(2, 0, 3));
-			/**/
+			*/
 			//ccw
 			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
 			OutElements->Add(TVector<int32, 3>(4, 1, 0));

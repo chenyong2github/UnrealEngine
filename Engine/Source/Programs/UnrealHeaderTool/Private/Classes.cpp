@@ -44,13 +44,13 @@ namespace
 	}
 }
 
-FClasses::FClasses(UPackage* InPackage)
+FClasses::FClasses(const TArray<UClass*>* Classes)
 	: UObjectClass((FClass*)UObject::StaticClass())
-	, ClassTree   (UObjectClass)
+	, ClassTree(UObjectClass)
 {
-	for (UClass* Class : TObjectRange<UClass>())
+	if (Classes)
 	{
-		if (Class->IsIn(InPackage))
+		for (UClass* Class : *Classes)
 		{
 			ClassTree.AddClass(Class);
 		}

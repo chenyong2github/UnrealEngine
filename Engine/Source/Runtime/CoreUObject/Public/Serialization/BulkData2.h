@@ -13,6 +13,14 @@ class IMappedFileHandle;
 class IMappedFileRegion;
 class FBulkDataBase;
 
+/** A loose hash value that can be created from either a filenames or a FIoChunkId */
+using FIoFilenameHash = uint32;
+const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
+/** Helpers to create the hash from a filename. Returns IOFILENAMEHASH_NONE if and only if the filename is empty. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FString& Filename);
+/** Helpers to create the hash from a chunk id. Returns IOFILENAMEHASH_NONE if and only if the chunk id is invalid. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID);
+
 /**
  * Represents an IO request from the BulkData streaming API.
  *
@@ -25,7 +33,7 @@ public:
 	virtual ~IBulkDataIORequest() {}
 
 	virtual bool PollCompletion() const = 0;
-	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) const = 0;
+	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) = 0;
 
 	virtual uint8* GetReadResults() = 0;
 	virtual int64 GetSize() const = 0;
@@ -35,20 +43,12 @@ public:
 
 struct FBulkDataOrId
 {
-	using FileToken = int32;
+	using FileToken = uint64;
 
 	union
 	{
-		// Inline data or fallback path
-		struct
-		{
-			uint64 BulkDataSize;
-			FileToken Token;
-
-		} Fallback;
-
-		// For IODispatcher
-		FIoChunkId ChunkID;
+		FileToken Token;
+		uint64 PackageID;
 	}; // Note that the union will end up being 16 bytes with padding
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataOrId);
@@ -76,7 +76,8 @@ public:
 	void Free(FBulkDataBase* Owner);
 
 	// Set as a raw buffer
-	void* AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes); //DataBuffer = FMemory::Realloc(DataBuffer, SizeInBytes, DEFAULT_ALIGNMENT);
+	void* AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes); 
+	void* ReallocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes);
 	void SetData(FBulkDataBase* Owner, void* Buffer);
 
 	// Set as memory mapped
@@ -111,19 +112,17 @@ public:
 	static void				SetIoDispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
 	static FIoDispatcher*	GetIoDispatcher() { return IoDispatcher; }
 public:
-	static constexpr FBulkDataOrId::FileToken InvalidToken = INDEX_NONE;
+	static constexpr FBulkDataOrId::FileToken InvalidToken = FBulkDataOrId::FileToken(INDEX_NONE);
 
 	FBulkDataBase()
-	{ 
-		Data.Fallback.BulkDataSize = 0;
-		Data.Fallback.Token = InvalidToken;
+	{
+		Data.Token = InvalidToken;
 	}
-	
+
 	FBulkDataBase(const FBulkDataBase& Other)
 	{
 		// Need some partial initialization of operator= will try to release the token!
-		Data.Fallback.BulkDataSize = 0;
-		Data.Fallback.Token = InvalidToken;
+		Data.Token = InvalidToken;
 
 		*this = Other;
 	}
@@ -209,7 +208,16 @@ public:
 
 	// Added for compatibility with the older BulkData system
 	int64 GetBulkDataOffsetInFile() const;
+
 	FString GetFilename() const;
+
+	/** 
+	 * Returns the io filename hash associated with this bulk data.
+	 *
+	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
+	 **/
+	FIoFilenameHash GetIoFilenameHash() const;
+
 
 public:
 	// The following methods are for compatibility with SoundWave.cpp which assumes memory mapping.
@@ -219,8 +227,13 @@ public:
 private:
 	friend FBulkDataAllocation;
 
+	FIoChunkId CreateChunkId() const;
+
 	void SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet);
 	void ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear);
+
+	/** Returns if the offset needs fixing when serialized */
+	bool NeedsOffsetFixup() const;
 
 	/**
 	 * Poll to see if it is safe to discard the data owned by the Bulkdata object
@@ -229,7 +242,7 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile);
+	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile);
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
@@ -237,6 +250,7 @@ private:
 
 	// Methods for dealing with the allocated data
 	FORCEINLINE void* AllocateData(SIZE_T SizeInBytes) { return DataAllocation.AllocateData(this, SizeInBytes); }
+	FORCEINLINE void* ReallocateData(SIZE_T SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
 	FORCEINLINE void  FreeData() { DataAllocation.Free(this); }
 	FORCEINLINE void* GetDataBufferForWrite() const { return DataAllocation.GetAllocationForWrite(this); }
 	FORCEINLINE const void* GetDataBufferReadOnly() const { return DataAllocation.GetAllocationReadOnly(this); }
@@ -261,6 +275,8 @@ private:
 
 	LAYOUT_FIELD(FBulkDataOrId, Data);
 	LAYOUT_FIELD(FBulkDataAllocation, DataAllocation);
+	LAYOUT_FIELD_INITIALIZED(int64, BulkDataSize, INDEX_NONE);
+	LAYOUT_FIELD_INITIALIZED(int64, BulkDataOffset, INDEX_NONE);
 	LAYOUT_FIELD_INITIALIZED(EBulkDataFlags, BulkDataFlags, EBulkDataFlags::BULKDATA_None);
 	LAYOUT_MUTABLE_FIELD_INITIALIZED(uint8, LockStatus, 0); // Mutable so that the read only lock can be const
 };

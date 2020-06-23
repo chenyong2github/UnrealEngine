@@ -188,7 +188,7 @@ void USoundNode::RemoveSoundWaveOnChildWavePlayers()
 				USoundWave* SoundWave = WavePlayer->GetSoundWave();
 				if (SoundWave && !WavePlayer->IsCurrentlyAsyncLoadingAsset())
 				{
-					WavePlayer->SetSoundWave(nullptr);
+					WavePlayer->ClearAssetReferences();
 				}
 			}
 		}
@@ -276,6 +276,7 @@ float USoundNode::GetDuration()
 	{
 		if (ChildNode)
 		{
+			ChildNode->ConditionalPostLoad();
 			MaxDuration = FMath::Max(ChildNode->GetDuration(), MaxDuration);
 		}
 	}

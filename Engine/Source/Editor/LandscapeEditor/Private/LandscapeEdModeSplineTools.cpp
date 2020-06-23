@@ -83,7 +83,7 @@ public:
 	~FLandscapeToolSplines()
 	{
 		// GEditor is invalid at shutdown as the object system is unloaded before the landscape module.
-		if (UObjectInitialized())
+		if (UObjectInitialized() && !IsEngineExitRequested())
 		{
 			// Remove undo delegate
 			GEditor->UnregisterForUndo(this);

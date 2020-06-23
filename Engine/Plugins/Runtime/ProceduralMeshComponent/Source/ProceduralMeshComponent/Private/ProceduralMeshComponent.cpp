@@ -178,9 +178,10 @@ public:
 				if (IsRayTracingEnabled())
 				{
 					ENQUEUE_RENDER_COMMAND(InitProceduralMeshRayTracingGeometry)(
-						[this, NewSection/*, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections*/](FRHICommandListImmediate& RHICmdList)
+						[this, DebugName = Component->GetFName(), NewSection](FRHICommandListImmediate& RHICmdList)
 					{
 						FRayTracingGeometryInitializer Initializer;
+						Initializer.DebugName = DebugName;
 						Initializer.IndexBuffer = nullptr;
 						Initializer.TotalPrimitiveCount = 0;
 						Initializer.GeometryType = RTGT_Triangles;
@@ -437,8 +438,9 @@ public:
 			return;
 		}
 
-		for (const FProcMeshProxySection* Section : Sections)
+		for (int32 SegmentIndex = 0; SegmentIndex < Sections.Num(); ++SegmentIndex)
 		{
+			const FProcMeshProxySection* Section = Sections[SegmentIndex];
 			if (Section != nullptr && Section->bSectionVisible)
 			{
 				FMaterialRenderProxy* MaterialProxy = Section->Material->GetRenderProxy();
@@ -455,7 +457,7 @@ public:
 					FMeshBatch MeshBatch;
 
 					MeshBatch.VertexFactory = &Section->VertexFactory;
-					MeshBatch.SegmentIndex = 0;
+					MeshBatch.SegmentIndex = SegmentIndex;
 					MeshBatch.MaterialRenderProxy = Section->Material->GetRenderProxy();
 					MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					MeshBatch.Type = PT_TriangleList;

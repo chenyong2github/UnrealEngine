@@ -21,6 +21,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	GLog->Flush();
 
 	FEngineLoop::AppPreExit();
+	FModuleManager::Get().UnloadModulesAtShutdown();
 	FEngineLoop::AppExit();
 
 	return Result;

@@ -35,6 +35,27 @@ namespace ToolBuilderUtil
 	template<typename ComponentType>
 	ComponentType* FindFirstComponentOfType(const FToolBuilderState& InputState);
 
+
+	/** Count number of selected Actors that pass predicate. */
+	INTERACTIVETOOLSFRAMEWORK_API
+	int32 CountActors(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate);
+
+	/** First first available Actor that passes predicate. Searches Actors selection list. */
+	INTERACTIVETOOLSFRAMEWORK_API
+	AActor* FindFirstActor(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate);
+
+	/** First all Actors that pass predicate. Searches Actors selection list. */
+	INTERACTIVETOOLSFRAMEWORK_API
+	TArray<AActor*> FindAllActors(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate);
+
+	/** Count number of selected Actors of given type. */
+	template<typename ActorType>
+	int CountSelectedActorsOfType(const FToolBuilderState& InputState);
+
+	/** Find first first available Actor of given type, or return nullptr if not found */
+	template<typename ActorType>
+	ActorType* FindFirstActorOfType(const FToolBuilderState& InputState);
+
 }
 
 /*
@@ -43,12 +64,24 @@ namespace ToolBuilderUtil
 template<typename ComponentType>
 int ToolBuilderUtil::CountSelectedComponentsOfType(const FToolBuilderState& InputState)
 {
-	return CountComponents(InputState, [](UActorComponent* Actor) { return Cast<ComponentType>(Actor) != nullptr; });
+	return CountComponents(InputState, [](UActorComponent* Component) { return Cast<ComponentType>(Component) != nullptr; });
 }
 
 template<typename ComponentType>
 ComponentType* ToolBuilderUtil::FindFirstComponentOfType(const FToolBuilderState& InputState)
 {
-	return FindFirstComponent(InputState, [](UActorComponent* Actor) { return Cast<ComponentType>(Actor) != nullptr; });
+	return FindFirstComponent(InputState, [](UActorComponent* Component) { return Cast<ComponentType>(Component) != nullptr; });
 }
 
+template<typename ActorType>
+int ToolBuilderUtil::CountSelectedActorsOfType(const FToolBuilderState& InputState)
+{
+	return CountActors(InputState, [](AActor* Actor) { return Cast<ActorType>(Actor) != nullptr; });
+}
+
+template<typename ActorType>
+ActorType* ToolBuilderUtil::FindFirstActorOfType(const FToolBuilderState& InputState)
+{
+	AActor* Found = FindFirstActor(InputState, [](AActor* Actor) { return Cast<ActorType>(Actor) != nullptr; });
+	return (Found != nullptr) ? Cast<ActorType>(Found) : nullptr;
+}

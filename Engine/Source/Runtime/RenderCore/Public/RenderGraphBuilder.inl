@@ -21,7 +21,12 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		return *Texture;
 	}
 
-	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), Flags);
+	// Since we're going to use the resolved texture of the pooled RT, we must ensure that we're not inheriting
+	// the multisample settings from the targetable texture.
+	FPooledRenderTargetDesc Desc = ExternalPooledTexture->GetDesc();
+	Desc.NumSamples = 1;
+
+	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
 	OutTexture->PooledRenderTarget = ExternalPooledTexture;
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);

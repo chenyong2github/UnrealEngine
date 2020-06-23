@@ -106,12 +106,15 @@ namespace Chaos
 			{
 				// We store per cell for materials, so change to cell index
 				int32 CellIndex = HintIndex / 2;
-				if(ensure(GeomData.MaterialIndices.IsValidIndex(CellIndex)))
+				if(GeomData.MaterialIndices.IsValidIndex(CellIndex))
 				{
 					return GeomData.MaterialIndices[CellIndex];
 				}
 			}
-
+			
+			// INDEX_NONE will be out of bounds but it is an expected value. If we reach this section of the code and the index isn't INDEX_NONE, we have an issue
+			ensureMsgf(HintIndex == INDEX_NONE,TEXT("GetMaterialIndex called with an invalid MaterialIndex => %d"),HintIndex);
+			
 			return 0;
 		}
 

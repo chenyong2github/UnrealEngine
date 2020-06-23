@@ -38,6 +38,7 @@ UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& Obje
 	AudioStartTime_DEPRECATED = AudioDeprecatedMagicNumber;
 	AudioDilationFactor_DEPRECATED = AudioDeprecatedMagicNumber;
 	AudioVolume_DEPRECATED = AudioDeprecatedMagicNumber;
+	bLooping = true;
 	bSuppressSubtitles = false;
 	bOverrideAttenuation = false;
 	BlendType = EMovieSceneBlendType::Absolute;

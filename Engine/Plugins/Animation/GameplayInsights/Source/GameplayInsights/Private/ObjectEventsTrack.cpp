@@ -36,6 +36,7 @@ void FObjectEventsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.Name);
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -95,6 +96,7 @@ void FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InP
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -156,6 +158,7 @@ void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [&Header](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 			{
 				Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(InMessage.Name), InStartTime));
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}

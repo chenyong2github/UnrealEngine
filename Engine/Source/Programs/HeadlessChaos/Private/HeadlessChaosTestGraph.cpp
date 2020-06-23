@@ -558,6 +558,54 @@ namespace ChaosTest {
 		}
 	}
 
+	void HelpTickConstraints(TPBDRigidsSOAs<FReal, 3>& SOAs, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& Particles,
+		FPBDConstraintGraph& Graph, const TArray<TVector<int32,2>>& ConstrainedParticles,
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
+		const THandleArray<FChaosPhysicsMaterial>& PhysicalMaterials)
+	{
+		TMockGraphConstraints<0> Constraints;
+		for(const auto& ConstrainedParticleIndices : ConstrainedParticles)
+		{
+			Constraints.AddConstraint(ConstrainedParticleIndices);
+		}
+
+		SOAs.ClearPutToSleepThisFrame();
+		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+
+		Graph.ReserveConstraints(Constraints.NumConstraints());
+		for(int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
+		{
+			const TVector<int32,2> Indices = Constraints.ConstraintParticleIndices(ConstraintIndex);
+			Graph.AddConstraint(0,Constraints.Handles[ConstraintIndex],TVector<TGeometryParticleHandle<FReal,3>*,2>(Particles[Indices[0]],Particles[Indices[1]]));
+		}
+
+		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(),SOAs);
+		for(int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
+		{
+			const bool bSleeped = Graph.SleepInactive(IslandIndex,PhysicsMaterials,PhysicalMaterials);
+
+			if(bSleeped)
+			{
+				for(TGeometryParticleHandle<FReal,3>* Particle : Graph.GetIslandParticles(IslandIndex))
+				{
+					SOAs.DeactivateParticle(Particle);
+				}
+			}
+		}
+
+	}
+
+	bool ContainsHelper(const TParticleView<TPBDRigidParticles<FReal,3>>& View,const TGeometryParticleHandle<FReal,3>* InParticle)
+	{
+		for(auto& Particle : View)
+		{
+			if(Particle.Handle() == InParticle)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * Create some constrained sets of particles, some of which meet the sleep criteria, and 
@@ -566,106 +614,260 @@ namespace ChaosTest {
 	
 	void GraphSleep()
 	{
-		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
-		PhysicalMaterial->Friction = 0;
-		PhysicalMaterial->Restitution = 0;
-		PhysicalMaterial->SleepingLinearThreshold = 10;
-		PhysicalMaterial->SleepingAngularThreshold = 10;
-		PhysicalMaterial->DisabledLinearThreshold = 0;
-		PhysicalMaterial->DisabledAngularThreshold = 0;
-		PhysicalMaterial->SleepCounterThreshold = 5;
-
-		// Create some dynamic particles
-		int32 NumParticles = 6;
-		TPBDRigidsSOAs<FReal, 3> SOAs;
-		TArray<TPBDRigidParticleHandle<FReal, 3>*> DynParticles = SOAs.CreateDynamicParticles(NumParticles);
-		TArray<TGeometryParticleHandle<FReal, 3>*> Particles;
-		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
-		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
- 		SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
-
-		for (int32 Idx = 0; Idx < NumParticles; ++Idx)
+		for(int SleepCounterThreshold = 0; SleepCounterThreshold < 5; ++SleepCounterThreshold)
 		{
-			Particles.Add(DynParticles[Idx]);
-			PhysicsMaterials[Idx] = MakeSerializable(PhysicalMaterial);
-		}
-		// Ensure some particles will not sleep
-		DynParticles[0]->V() = FVec3(100);
-		DynParticles[1]->V() = FVec3(100);
-		DynParticles[2]->V() = FVec3(100);
+			TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
+			PhysicalMaterial->Friction = 0;
+			PhysicalMaterial->Restitution = 0;
+			PhysicalMaterial->SleepingLinearThreshold = 10;
+			PhysicalMaterial->SleepingAngularThreshold = 10;
+			PhysicalMaterial->DisabledLinearThreshold = 0;
+			PhysicalMaterial->DisabledAngularThreshold = 0;
+			PhysicalMaterial->SleepCounterThreshold = SleepCounterThreshold;
 
-		// Ensure others will sleep but only if sleep threshold is actually considered
-		DynParticles[3]->V() = FVec3(1);
-		DynParticles[4]->V() = FVec3(1);
+			// Create some dynamic particles
+			int32 NumParticles = 6;
+			TPBDRigidsSOAs<FReal, 3> SOAs;
+			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
+			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+ 			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
 
-		// Create some constraints between the particles
-		TArray<TVector<int32, 2>> ConstrainedParticles =
-		{
-			//
-			{0, 1},
-			//
-			{3, 4},
-		};
-
-		TMockGraphConstraints<0> Constraints;
-		for (const auto& ConstrainedParticleIndices : ConstrainedParticles)
-		{
-			Constraints.AddConstraint(ConstrainedParticleIndices);
-		}
-		FPBDConstraintGraph Graph;
-		for (int32 LoopIndex = 0; LoopIndex < 5 + PhysicalMaterial->SleepCounterThreshold; ++LoopIndex)
-		{
-			Graph.InitializeGraph(SOAs.GetNonDisabledView());
-
-			Graph.ReserveConstraints(Constraints.NumConstraints());
-			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
+			for (int32 Idx = 0; Idx < NumParticles; ++Idx)
 			{
-				const TVector<int32, 2> Indices = Constraints.ConstraintParticleIndices(ConstraintIndex);
-				Graph.AddConstraint(0, Constraints.Handles[ConstraintIndex], TVector<TGeometryParticleHandle<FReal, 3>*, 2>(Particles[Indices[0]], Particles[Indices[1]]));
+				PhysicsMaterials[Idx] = MakeSerializable(PhysicalMaterial);
 			}
+			// Ensure some particles will not sleep
+			Particles[0]->V() = FVec3(100);
+			Particles[1]->V() = FVec3(100);
+			Particles[2]->V() = FVec3(100);
 
-			Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs);
+			// Ensure others will sleep but only if sleep threshold is actually considered
+			Particles[3]->V() = FVec3(1);
+			Particles[4]->V() = FVec3(1);
 
-			for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
+			// Create some constraints between the particles
+			TArray<TVector<int32, 2>> ConstrainedParticles =
 			{
-				bool bSleeped = Graph.SleepInactive(IslandIndex, PhysicsMaterials, PhysicalMaterials);
-
-				if (bSleeped)
-				{
-					for (TGeometryParticleHandle<FReal, 3>* Particle : Graph.GetIslandParticles(IslandIndex))
-					{
-						SOAs.DeactivateParticle(Particle);
-					}
-				}
-			}
-
-			auto ContainsHelper = [](const TParticleView<TPBDRigidParticles<FReal, 3>>& View, const TGeometryParticleHandle<FReal, 3>* InParticle)
-			{
-				for (auto& Particle : View)
-				{
-					if (Particle.Handle() == InParticle)
-					{
-						return true;
-					}
-				}
-				return false;
+				//
+				{0, 1},
+				//
+				{3, 4},
 			};
+
+			FPBDConstraintGraph Graph;
+			for (int32 LoopIndex = 0; LoopIndex < 5 + PhysicalMaterial->SleepCounterThreshold; ++LoopIndex)
+			{
+				HelpTickConstraints(SOAs,Particles,Graph,ConstrainedParticles,PhysicsMaterials,PhysicalMaterials);
 			
-			// Particles 0-2 are always awake
-			EXPECT_FALSE(Particles[0]->Sleeping());
-			EXPECT_FALSE(Particles[1]->Sleeping());
-			EXPECT_FALSE(Particles[2]->Sleeping());
-			EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[0]));
-			EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[1]));
-			EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[2]));
-			// Particles 3-5 should sleep when we hit the frame count threshold and then stay asleep
-			bool bSomeShouldSleep = (LoopIndex >= PhysicalMaterial->SleepCounterThreshold );
-			EXPECT_EQ(Particles[3]->Sleeping(), bSomeShouldSleep);
-			EXPECT_EQ(Particles[4]->Sleeping(), bSomeShouldSleep);
-			EXPECT_EQ(Particles[5]->Sleeping(), bSomeShouldSleep);
-			EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[3]), bSomeShouldSleep);
-			EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[4]), bSomeShouldSleep);
-			EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[5]), bSomeShouldSleep);
+				// Particles 0-2 are always awake
+				EXPECT_FALSE(Particles[0]->Sleeping());
+				EXPECT_FALSE(Particles[1]->Sleeping());
+				EXPECT_FALSE(Particles[2]->Sleeping());
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[0]));
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[1]));
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[2]));
+				// Particles 3-5 should sleep when we hit the frame count threshold and then stay asleep
+				bool bSomeShouldSleep = (LoopIndex >= PhysicalMaterial->SleepCounterThreshold );
+				EXPECT_EQ(Particles[3]->Sleeping(), bSomeShouldSleep);
+				EXPECT_EQ(Particles[4]->Sleeping(), bSomeShouldSleep);
+				EXPECT_EQ(Particles[5]->Sleeping(), bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[3]), bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[4]), bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[5]), bSomeShouldSleep);
+				const bool bIsDirty = LoopIndex <= PhysicalMaterial->SleepCounterThreshold;	//dirty when active and on first frame when going to sleep
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[3]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),bIsDirty);
+			}
+		}
+	}
+
+	void GraphSleepMergeWakeup()
+	{
+		for(int SleepCounterThreshold = 0; SleepCounterThreshold < 5; ++SleepCounterThreshold)
+		{
+			TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
+			PhysicalMaterial->Friction = 0;
+			PhysicalMaterial->Restitution = 0;
+			PhysicalMaterial->SleepingLinearThreshold = 10;
+			PhysicalMaterial->SleepingAngularThreshold = 10;
+			PhysicalMaterial->DisabledLinearThreshold = 0;
+			PhysicalMaterial->DisabledAngularThreshold = 0;
+			PhysicalMaterial->SleepCounterThreshold = SleepCounterThreshold;
+
+			// Create some dynamic particles
+			int32 NumParticles = 6;
+			TPBDRigidsSOAs<FReal, 3> SOAs;
+			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
+			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+ 			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+
+			for (int32 Idx = 0; Idx < NumParticles; ++Idx)
+			{
+				PhysicsMaterials[Idx] = MakeSerializable(PhysicalMaterial);
+			}
+			// Ensure some particles will not sleep
+			Particles[0]->V() = FVec3(100);
+			Particles[1]->V() = FVec3(100);
+			Particles[2]->V() = FVec3(100);
+
+			// Ensure others will sleep but only if sleep threshold is actually considered
+			Particles[3]->V() = FVec3(1);
+			Particles[4]->V() = FVec3(1);
+
+			TArray<TVector<int32, 2>> ConstrainedParticles =
+			{
+				{0, 1},
+				{3, 4},
+			};
+
+			TArray<TVector<int32,2>> ConstrainedParticlesAfterSleep =
+			{
+				{0,1},
+				{1,3},	//will merge islands and wake up 3,4
+				{3,4}
+			};
+
+			FPBDConstraintGraph Graph;
+			const int32 WakeUpFrame = 5 + PhysicalMaterial->SleepCounterThreshold;
+			for (int32 LoopIndex = 0; LoopIndex < WakeUpFrame + 5; ++LoopIndex)
+			{
+				if(LoopIndex < WakeUpFrame)
+				{
+					HelpTickConstraints(SOAs,Particles,Graph,ConstrainedParticles,PhysicsMaterials,PhysicalMaterials);
+				}
+				else
+				{
+					HelpTickConstraints(SOAs,Particles,Graph,ConstrainedParticlesAfterSleep,PhysicsMaterials,PhysicalMaterials);
+				}
+			
+				// Particles 0-2 are always awake
+				EXPECT_FALSE(Particles[0]->Sleeping());
+				EXPECT_FALSE(Particles[1]->Sleeping());
+				EXPECT_FALSE(Particles[2]->Sleeping());
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[0]));
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[1]));
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[2]));
+				// Particles 3,4 should sleep when we hit the frame count threshold and then stay asleep until WakeUpFrame
+				// Particle 5 should stay asleep
+				bool bSomeShouldSleep = (LoopIndex >= PhysicalMaterial->SleepCounterThreshold && LoopIndex < WakeUpFrame );
+				const bool b5ShouldSleep = LoopIndex >= PhysicalMaterial->SleepCounterThreshold;
+				EXPECT_EQ(Particles[3]->Sleeping(), bSomeShouldSleep);
+				EXPECT_EQ(Particles[4]->Sleeping(), bSomeShouldSleep);
+				EXPECT_EQ(Particles[5]->Sleeping(), b5ShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[3]), bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[4]), bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(), Particles[5]), b5ShouldSleep);
+				const bool bIsDirty = LoopIndex <= PhysicalMaterial->SleepCounterThreshold || LoopIndex >=WakeUpFrame;	//dirty when active and on first frame when going to sleep
+				const bool b5IsDirty = LoopIndex <= PhysicalMaterial->SleepCounterThreshold;
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[3]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),b5IsDirty);
+			}
+		}
+	}
+
+	void GraphSleepMergeSlowStillWakeup()
+	{
+		for(int SleepCounterThreshold = 0; SleepCounterThreshold < 5; ++SleepCounterThreshold)
+		{
+			TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
+			PhysicalMaterial->Friction = 0;
+			PhysicalMaterial->Restitution = 0;
+			PhysicalMaterial->SleepingLinearThreshold = 10;
+			PhysicalMaterial->SleepingAngularThreshold = 10;
+			PhysicalMaterial->DisabledLinearThreshold = 0;
+			PhysicalMaterial->DisabledAngularThreshold = 0;
+			PhysicalMaterial->SleepCounterThreshold = SleepCounterThreshold;
+
+			// Create some dynamic particles
+			int32 NumParticles = 6;
+			TPBDRigidsSOAs<FReal,3> SOAs;
+			TArray<TPBDRigidParticleHandle<FReal,3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
+			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+			SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
+
+			for(int32 Idx = 0; Idx < NumParticles; ++Idx)
+			{
+				PhysicsMaterials[Idx] = MakeSerializable(PhysicalMaterial);
+			}
+			// Ensure some particles will not sleep
+			Particles[0]->V() = FVec3(100);
+			Particles[1]->V() = FVec3(100);
+			Particles[2]->V() = FVec3(100);
+
+			// Ensure others will sleep but only if sleep threshold is actually considered
+			Particles[3]->V() = FVec3(1);
+			Particles[4]->V() = FVec3(1);
+
+			TArray<TVector<int32,2>> ConstrainedParticles =
+			{
+				{0,1},
+			{3,4},
+			};
+
+			TArray<TVector<int32,2>> ConstrainedParticlesAfterSleep =
+			{
+				{0,1},
+			{1,3},	//will merge islands and wake up 3,4
+			{3,4}
+			};
+
+			FPBDConstraintGraph Graph;
+			const int32 MergeFrame = 5 + PhysicalMaterial->SleepCounterThreshold;
+			const int32 SleepAfterMergeFrame = MergeFrame + PhysicalMaterial->SleepCounterThreshold + 1;	//first frame after merge must wake up
+			for(int32 LoopIndex = 0; LoopIndex < SleepAfterMergeFrame + 5; ++LoopIndex)
+			{
+				if(LoopIndex == MergeFrame)
+				{
+					//slow particles down to merge islands but stay asleep
+					Particles[0]->V() = FVec3(1);
+					Particles[1]->V() = FVec3(1);
+				}
+
+				if(LoopIndex < MergeFrame)
+				{
+					HelpTickConstraints(SOAs,Particles,Graph,ConstrainedParticles,PhysicsMaterials,PhysicalMaterials);
+				}
+				else
+				{
+					HelpTickConstraints(SOAs,Particles,Graph,ConstrainedParticlesAfterSleep,PhysicsMaterials,PhysicalMaterials);
+				}
+
+				// Particle 2 is always awake
+				EXPECT_FALSE(Particles[2]->Sleeping());
+				EXPECT_TRUE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[2]));
+			
+
+				// Particles 0,1 are awake until MergeFrame
+				const bool b12ShouldSleep = LoopIndex >= SleepAfterMergeFrame;
+				EXPECT_EQ(Particles[0]->Sleeping(), b12ShouldSleep);
+				EXPECT_EQ(Particles[1]->Sleeping(), b12ShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[0]),b12ShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[1]),b12ShouldSleep);
+				const bool b01IsDirty = LoopIndex <= SleepAfterMergeFrame;	//dirty when active and on first frame when going to sleep;
+				//EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[0]),b01IsDirty);
+				//EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[1]),b01IsDirty);
+
+				// Particles 3,4 should sleep when we hit the frame count threshold and then stay asleep until WakeUpFrame
+					// Particle 5 should stay asleep
+				bool bSomeShouldSleep = (LoopIndex >= PhysicalMaterial->SleepCounterThreshold && LoopIndex < MergeFrame) || LoopIndex >= SleepAfterMergeFrame;
+				const bool b5ShouldSleep = LoopIndex >= PhysicalMaterial->SleepCounterThreshold;
+				EXPECT_EQ(Particles[3]->Sleeping(),bSomeShouldSleep);
+				EXPECT_EQ(Particles[4]->Sleeping(),bSomeShouldSleep);
+				EXPECT_EQ(Particles[5]->Sleeping(),b5ShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[3]),bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[4]),bSomeShouldSleep);
+				EXPECT_NE(ContainsHelper(SOAs.GetActiveParticlesView(),Particles[5]),b5ShouldSleep);
+				const bool bIsDirty = LoopIndex <= PhysicalMaterial->SleepCounterThreshold || (LoopIndex >=MergeFrame && LoopIndex <= SleepAfterMergeFrame);	//dirty when active and on first frame when going to sleep
+				const bool b5IsDirty = LoopIndex <= PhysicalMaterial->SleepCounterThreshold;
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[3]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
+				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),b5IsDirty);
+			}
 		}
 	}
 
@@ -765,7 +967,7 @@ namespace ChaosTest {
 		// Randomize the constraint order
 		if (bRandomize)
 		{
-			FMath::RandInit(3354786483);
+			FMath::RandInit((int32)3354786483);
 			for (int32 RandIndex = 0; RandIndex < 2 * ConstrainedParticles.Num(); ++RandIndex)
 			{
 				int32 Rand0 = FMath::RandRange(0, ConstrainedParticles.Num() - 1);
@@ -853,7 +1055,7 @@ namespace ChaosTest {
 	}
 
 
-	TEST(GraphTests, TestGraphIslands)
+	TEST(GraphTests,TestGraphIslands)
 	{
 		GraphIslands();
 	}
@@ -866,6 +1068,8 @@ namespace ChaosTest {
 	TEST(GraphTests, TestGraphSleep)
 	{
 		GraphSleep();
+		GraphSleepMergeWakeup();
+		GraphSleepMergeSlowStillWakeup();
 	}
 
 	TEST(GraphTests, TestGraphColor)

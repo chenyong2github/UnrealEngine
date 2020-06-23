@@ -38,8 +38,8 @@ void FSlateMaterialShaderVS::SetViewProjection(FRHICommandList& RHICmdList, cons
 void FSlateMaterialShaderVS::SetMaterialShaderParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material)
 {
 	FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
-
-	FMaterialShader::SetParameters<FRHIVertexShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
+	SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+	FMaterialShader::SetParameters<FRHIVertexShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View);
 }
 
 void FSlateMaterialShaderVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier )
@@ -78,6 +78,7 @@ FSlateMaterialShaderPS::FSlateMaterialShaderPS(const FMaterialShaderType::Compil
 	: FMaterialShader(Initializer)
 {
 	ShaderParams.Bind(Initializer.ParameterMap, TEXT("ShaderParams"));
+	ShaderParams2.Bind(Initializer.ParameterMap, TEXT("ShaderParams2"));
 	GammaAndAlphaValues.Bind(Initializer.ParameterMap, TEXT("GammaAndAlphaValues"));
 	DrawFlags.Bind(Initializer.ParameterMap, TEXT("DrawFlags"));
 	AdditionalTextureParameter.Bind(Initializer.ParameterMap, TEXT("ElementTexture"));
@@ -120,14 +121,15 @@ void FSlateMaterialShaderPS::SetBlendState(FGraphicsPipelineStateInitializer& Gr
 	};
 }
 
-void FSlateMaterialShaderPS::SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material, const FVector4& InShaderParams)
+void FSlateMaterialShaderPS::SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material, const FShaderParams& InShaderParams)
 {
 	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-	SetShaderValue( RHICmdList, ShaderRHI, ShaderParams, InShaderParams );
+	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams, InShaderParams.PixelParams);
+	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams2, InShaderParams.PixelParams2);
 
-	const ESceneTextureSetupMode SceneTextures = ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SSAO | ESceneTextureSetupMode::CustomDepth; // TODO - SSAO valid here?
-	FMaterialShader::SetParameters<FRHIPixelShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View, View.ViewUniformBuffer, SceneTextures);
+	SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+	FMaterialShader::SetParameters<FRHIPixelShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View);
 }
 
 void FSlateMaterialShaderPS::SetAdditionalTexture( FRHICommandList& RHICmdList, FRHITexture* InTexture, const FSamplerStateRHIRef SamplerState )

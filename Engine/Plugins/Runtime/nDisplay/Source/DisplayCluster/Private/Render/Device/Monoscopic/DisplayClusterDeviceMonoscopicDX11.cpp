@@ -3,17 +3,15 @@
 #include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX11.h"
 #include "Render/Presentation/DisplayClusterPresentationDX11.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterDeviceMonoscopicDX11::FDisplayClusterDeviceMonoscopicDX11()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceMonoscopicDX11::~FDisplayClusterDeviceMonoscopicDX11()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterPresentationBase* FDisplayClusterDeviceMonoscopicDX11::CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy)

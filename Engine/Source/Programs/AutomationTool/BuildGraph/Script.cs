@@ -610,14 +610,17 @@ namespace AutomationTool
 		{
 			if (EvaluateCondition(Element))
 			{
-				FileReference Script = FileReference.Combine(BaseDir, ReadAttribute(Element, "Script"));
-				if (!FileReference.Exists(Script))
+				foreach (string Script in ReadListAttribute(Element, "Script"))
 				{
-					LogError(Element, "Cannot find included script '{0}'", Script.FullName);
-				}
-				else
-				{
-					TryRead(Script, Arguments);
+					FileReference ScriptFile = FileReference.Combine(BaseDir, Script);
+					if (!FileReference.Exists(ScriptFile))
+					{
+						LogError(Element, "Cannot find included script '{0}'", ScriptFile.FullName);
+					}
+					else
+					{
+						TryRead(ScriptFile, Arguments);
+					}
 				}
 			}
 		}

@@ -120,16 +120,20 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			bExplicitPackages = true;
 		}
 		else if( FParse::Value( *CurrentSwitch, TEXT( "PACKAGEFOLDER="), PackageFolder ) )
-        {
-            TArray<FString> FilesInPackageFolder;
-            FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *PackageFolder);
-            for( int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++ )
-            {
+		{
+			TArray<FString> FilesInPackageFolder;
+			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *PackageFolder);
+			for( int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++ )
+			{
 				FString PackageFile(FilesInPackageFolder[FileIndex]);
 				FPaths::MakeStandardFilename(PackageFile);
 				PackageNames.Add( *PackageFile );
-            }
+			}
 			bExplicitPackages = true;
+		}
+		else if (FParse::Value(*CurrentSwitch, TEXT("GCFREQ="), GarbageCollectionFrequency))
+		{
+			UE_LOG(LogContentCommandlet, Display, TEXT("Setting garbage collection to happen every %d packages."), GarbageCollectionFrequency);
 		}
 		else if (FParse::Value(*CurrentSwitch, TEXT("MAP="), Maps))
 		{
@@ -597,7 +601,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 		
 		if (bSavePackage)
 		{
-			PackagesRequiringResave++;
+			PackagesConsideredForResave++;
 
 			// Only rebuild static meshes on load for the to be saved package.
 			extern ENGINE_API FName GStaticMeshPackageNameToRebuild;
@@ -770,6 +774,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
 					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
 					{
+						PackagesResaved++;
 						if (Verbosity == VERY_VERBOSE)
 						{
 							UE_LOG(LogContentCommandlet, Display, TEXT("Correctly saved:  [%s]."), *Filename );
@@ -1024,7 +1029,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	}
 
 	int32 GCIndex = 0;
-	PackagesRequiringResave = 0;
+	PackagesConsideredForResave = 0;
+	PackagesResaved = 0;
 
 	// allow for an option to restart at a given package name (in case it dies during a run, etc)
 	bool bCanProcessPackage = true;
@@ -1081,7 +1087,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		}
 
 		// Break out if we've resaved enough packages
-		if( MaxPackagesToResave > -1 && PackagesRequiringResave >= MaxPackagesToResave )
+		if( MaxPackagesToResave > -1 && PackagesResaved >= MaxPackagesToResave )
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT( "Attempting to resave more than MaxPackagesToResave; exiting" ) );
 			break;
@@ -1124,30 +1130,16 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	}
 
 	// Submit the results to source control
-	if( bAutoCheckIn )
-	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		SourceControlProvider.Init();
-
-		// Check in all changed files
-		if( FilesToSubmit.Num() > 0 )
-		{
-			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-			CheckInOperation->SetDescription( GetChangelistDescription() );
-			SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(FilesToSubmit));
-		}
-
-		// toss the SCC manager
-		SourceControlProvider.Close();
-	}
+	CheckInFiles(FilesToSubmit, GetChangelistDescription());
 
 	if (bForceUATEnvironmentVariableSet)
 	{
 		FPlatformMisc::SetEnvironmentVar(TEXT("uebp_UATMutexNoWait"), TEXT("0"));		
 	}
 
-	UE_LOG(LogContentCommandlet, Display, TEXT( "[REPORT] %d/%d packages required resaving" ), PackagesRequiringResave, PackageNames.Num() );
-	
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were considered for resaving"), PackagesConsideredForResave, PackageNames.Num());
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were resaved"), PackagesResaved, PackagesConsideredForResave);
+
 
 	return 0;
 }
@@ -1416,6 +1408,24 @@ void UResavePackagesCommandlet::CheckoutAndSavePackage(UPackage* Package, TArray
 	}
 }
 
+void UResavePackagesCommandlet::CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const
+{
+	if (!bAutoCheckIn)
+	{
+		return;
+	}
+
+	// Check in all changed files
+	if (InFilesToSubmit.Num() > 0)
+	{
+		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+		CheckInOperation->SetDescription(InDescription);
+
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(InFilesToSubmit));
+	}
+}
+
 void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World, bool& bSavePackage)
 {
 	check(World);
@@ -1430,6 +1440,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		}
 	}
 	ABrush::OnRebuildDone();
+
+	bool bRevertCheckedOutFilesIfNotSaving = true;
 
 	const bool bShouldBuildTextureStreamingForWorld = bShouldBuildTextureStreaming && !bShouldBuildTextureStreamingForAll;
 	const bool bBuildingNonHLODData = (bShouldBuildLighting || bShouldBuildTextureStreamingForWorld || bShouldBuildReflectionCaptures);
@@ -1649,13 +1661,18 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					Builder.PreviewBuild();
 				}
 
+				bool bSaveHLODActorsToProxyPackage = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
+
 				// Get the list of packages that needs to be saved after cluster rebuilding.
 				TSet<UPackage*> PackagesToSave;
-				for (ULevel* Level : World->GetLevels())
+				if (!bSaveHLODActorsToProxyPackage || bForceClusterGeneration)
 				{
-					if (Level->bIsVisible)
+					for (ULevel* Level : World->GetLevels())
 					{
-						PackagesToSave.Add(Level->GetOutermost());
+						if (Level->bIsVisible)
+						{
+							PackagesToSave.Add(Level->GetOutermost());
+						}
 					}
 				}
 
@@ -1697,6 +1714,14 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					{
 						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 					}
+				}
+
+				// If the only operation performed by this commandlet is to update HLOD proxy packages,
+				// avoid saving the level files.
+				if (bSaveHLODActorsToProxyPackage && !bBuildingNonHLODData && !bShouldBuildNavigationData)
+				{
+					bRevertCheckedOutFilesIfNotSaving  = false;
+					bShouldProceedWithRebuild = false;
 				}
 			}
 
@@ -1745,24 +1770,24 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				FEditorDelegates::OnLightingBuildFailed.Remove(BuildFailedDelegateHandle);
 			}
-			auto SaveMapBuildData = [this, &CheckedOutPackagesFilenames](ULevel* InLevel)
-			{
-				if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures) )
-				{
-					UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
-					if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
-					{
-						CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
-					}
-				}
-			};
-
-			SaveMapBuildData( World->PersistentLevel );
-
 
 			// If everything is a success, resave the levels.
-			if( bShouldProceedWithRebuild )
+			if (bShouldProceedWithRebuild)
 			{
+				auto SaveMapBuildData = [this, &CheckedOutPackagesFilenames](ULevel* InLevel)
+				{
+					if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures))
+					{
+						UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
+						if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
+						{
+							CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
+						}
+					}
+				};
+
+				SaveMapBuildData(World->PersistentLevel);
+
 				for (ULevelStreaming* NextStreamingLevel : World->GetStreamingLevels())
 				{
 					FString StreamingLevelPackageFilename;
@@ -1809,18 +1834,20 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			}
 		}
 
-		if ((bShouldProceedWithRebuild == false)||(bSavePackage == false))
+		if (!bShouldProceedWithRebuild || !bSavePackage)
 		{
 			// don't save our parent package
 			bSavePackage = false;
 			
-			//FString FullPath = FPaths::ConvertRelativePathToFull(StreamingLevelPackageFilename);
-			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-			
-			// revert all our packages
-			for (const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
+			if (bRevertCheckedOutFilesIfNotSaving)
 			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *CheckedOutPackageFilename);
+				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			
+				// revert all our packages
+				for (const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
+				{
+					SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *CheckedOutPackageFilename);
+				}
 			}
 		}
 		else

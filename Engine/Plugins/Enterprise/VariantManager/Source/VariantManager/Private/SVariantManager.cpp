@@ -17,6 +17,7 @@
 #include "FunctionCaller.h"
 #include "LevelVariantSets.h"
 #include "PropertyValue.h"
+#include "PropertyValueOption.h"
 #include "SVariantManagerActorListView.h"
 #include "SVariantManagerNodeTreeView.h"
 #include "SVariantManagerTableRow.h"
@@ -246,11 +247,11 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 							SNew(SCheckBox)
 							.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 							.ToolTipText(LOCTEXT("AutoCaptureTooltip", "Enable or disable auto-capture properties"))
-							.IsChecked_Lambda([&]()
+							.IsChecked_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties]()
 							{
 								return bAutoCaptureProperties? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 							})
-							.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
+							.OnCheckStateChanged_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties](const ECheckBoxState NewState)
 							{
 								bAutoCaptureProperties = NewState == ECheckBoxState::Checked;
 							})
@@ -329,22 +330,26 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 						.ToolTipText(LOCTEXT("AddActorPlusTooltip", "Add a new actor binding to selected variants"))
 						.OnClicked(this, &SVariantManager::OnSummonAddActorMenu)
 						.ContentPadding(FMargin(2.0f, 1.0f))
-						.IsEnabled_Lambda([&]() -> bool
+						.IsEnabled_Lambda([&VariantManagerPtr = VariantManagerPtr]() -> bool
 						{
-							TSharedPtr<FVariantManager> VariantManager = VariantManagerPtr.Pin();
-							if (VariantManager.IsValid())
+							if (TSharedPtr<FVariantManager> VariantManager = VariantManagerPtr.Pin())
 							{
 								TArray<UVariant*> Variants;
 								TArray<UVariantSet*> VariantSets;
 								VariantManager->GetSelection().GetSelectedVariantsAndVariantSets(Variants, VariantSets);
 
-								int32 NumVariants = Variants.Num();
-								for (UVariantSet* VariantSet : VariantSets)
+								if (Variants.Num() > 0)
 								{
-									NumVariants += VariantSet->GetNumVariants();
+									return true;
 								}
 
-								return NumVariants > 0;
+								for (const UVariantSet* Set : VariantSets)
+								{
+									if (Set && Set->GetNumVariants() > 0)
+									{
+										return true;
+									}
+								}
 							}
 							return false;
 						})
@@ -421,13 +426,11 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 								return FReply::Handled();
 							})
 							.ContentPadding(FMargin(2.0f, 1.0f))
-							.IsEnabled_Lambda([&]() -> bool
+							.IsEnabled_Lambda([&VariantManagerPtr = VariantManagerPtr]() -> bool
 							{
-								TSharedPtr<FVariantManager> VariantManager = VariantManagerPtr.Pin();
-								if (VariantManager.IsValid())
+								if (TSharedPtr<FVariantManager> VariantManager = VariantManagerPtr.Pin())
 								{
-									const TSet<TSharedRef<FVariantManagerActorNode>>& SelectedActorNodes = VariantManager->GetSelection().GetSelectedActorNodes();
-									return SelectedActorNodes.Num() > 0;
+									return VariantManager->GetSelection().GetSelectedActorNodes().Num() > 0;
 								}
 								return false;
 							})
@@ -2747,12 +2750,16 @@ bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FSt
 		FilterProperty = ArrayProp->Inner;
 	}
 
+	// Exception for switch actor, as FilterProperty will be nullptr because the "Selected Option" property doesn't really exist
+	bool bIsSelectedOption = Cast<ASwitchActor>(TargetActor) && PropertyPath == TEXT( "Selected Option" );
+
 	// Update property captures
 	for (UVariantObjectBinding* Binding : Bindings)
 	{
 		for (UPropertyValue* PropertyValue : Binding->GetCapturedProperties())
 		{
-			if (FilterProperty && PropertyValue->ContainsProperty(FilterProperty))
+			if ((FilterProperty && PropertyValue->ContainsProperty(FilterProperty)) ||
+				(Cast<UPropertyValueOption>(PropertyValue) && bIsSelectedOption))
 			{
 				PropertyValue->RecordDataFromResolvedObject();
 			}

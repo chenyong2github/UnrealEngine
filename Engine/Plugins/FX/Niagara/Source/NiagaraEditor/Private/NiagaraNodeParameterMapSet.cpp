@@ -100,7 +100,7 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		FName PinNameWithoutNamespace;
 		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
 		{
-			NewPinName = *(PARAM_MAP_OUTPUT_MODULE_STR +  NewPinName.ToString());
+			NewPinName = *(PARAM_MAP_LOCAL_MODULE_STR +  NewPinName.ToString());
 			bCreatedNamespace = true;
 		}
 
@@ -129,7 +129,7 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 			//FNiagaraEditorUtilities::GetParameterMetaDataFromName(NewUniqueName, MetaDataGuess);
 			//AddParameterOptions.NewParameterScopeName = FNiagaraConstants::LocalNamespace;
 			//AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Local;
-			AddParameterOptions.bMakeParameterNameUnique = true;
+			//AddParameterOptions.bMakeParameterNameUnique = true;
 			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
 
 			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, AddParameterOptions);

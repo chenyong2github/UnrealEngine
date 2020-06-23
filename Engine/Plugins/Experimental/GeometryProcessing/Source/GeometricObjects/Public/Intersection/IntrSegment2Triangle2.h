@@ -65,14 +65,14 @@ public:
 	}
 
 
-	TIntrSegment2Triangle2* Compute()
+	TIntrSegment2Triangle2* Compute(Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
-		Find();
+		Find(Tolerance);
 		return this;
 	}
 
 
-	bool Find()
+	bool Find(Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		if (Result != EIntersectionResult::NotComputed)
 		{
@@ -92,7 +92,7 @@ public:
 		FVector3i sign;
 		int positive = 0, negative = 0, zero = 0;
 		TIntrLine2Triangle2<Real>::TriangleLineRelations(Segment.Center, Segment.Direction, Triangle,
-			dist, sign, positive, negative, zero);
+			dist, sign, positive, negative, zero, Tolerance);
 
 		if (positive == 3 || negative == 3)
 		{

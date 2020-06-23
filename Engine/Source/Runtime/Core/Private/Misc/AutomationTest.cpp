@@ -17,7 +17,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
-void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
+void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
 {
 	const int32 STACK_OFFSET = 5;//FMsg::Logf_InternalImpl
 	// TODO would be nice to search for the first stack frame that isn't in outputdevice or other logging files, would be more robust.
@@ -28,15 +28,34 @@ void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const 
 	}
 
 	// Ensure there's a valid unit test associated with the context
-	if ( CurTest )
+	if (CurTest)
 	{
-		bool CaptureLog = !CurTest->SuppressLogs() 
-					&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
+		bool CaptureLog = !CurTest->SuppressLogs()
+			&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
 
 		if (CaptureLog)
 		{
-			bool IsError = (Verbosity == ELogVerbosity::Error && CurTest->TreatLogErrorsAsErrors()) || (Verbosity == ELogVerbosity::Warning && CurTest->TreatLogWarningsAsErrors());
-			bool IsWarning = (Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Error) && !IsError;
+			bool IsError = false; 
+			bool IsWarning = false;
+
+			if (Verbosity == ELogVerbosity::Warning)
+			{
+				// If this is a warning, it gets suppressed if the test says so
+				IsWarning = CurTest->SuppressLogWarnings() == false;
+
+				// If it wasn't suppressed, it might get elevated to an error.
+				if (IsWarning && CurTest->ElevateLogWarningsToErrors())
+				{
+					IsError = true;
+					IsWarning = false;
+				}
+			}
+			// now check errors, and yes a test can both elevate warnings to errors and suppress them which doesn't
+			// make sense yet makes sense at the same time...
+			if (Verbosity == ELogVerbosity::Error)
+			{
+				IsError = CurTest->SuppressLogErrors() == false;;
+			}
 			
 			// Errors
 			if (IsError)
@@ -76,6 +95,22 @@ void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const 
 			//	CurTest->AddInfo(LogString, STACK_OFFSET);
 			//}
 		}
+	}
+}
+
+void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
+{
+	if (DestinationContext)
+	{
+		if ((Verbosity == ELogVerbosity::Warning) || (Verbosity == ELogVerbosity::Error))
+		{
+			if (CurTest->IsExpectedError(FString(V)))
+			{
+				Verbosity = ELogVerbosity::Verbose;
+			}
+		}
+
+		DestinationContext->Serialize(V, Verbosity, Category);
 	}
 }
 
@@ -670,11 +705,10 @@ void FAutomationTestFramework::PrepForAutomationTests()
 	// about them.
 	PreTestingEvent.Broadcast();
 
-	// Cache the contents of GWarn, as unit testing is going to forcibly replace GWarn with a specialized feedback context
-	// designed for unit testing
-	AutomationTestFeedbackContext.TreatWarningsAsErrors = GWarn->TreatWarningsAsErrors;
-	//GWarn = &AutomationTestFeedbackContext;
-	GLog->AddOutputDevice(&AutomationTestFeedbackContext);
+	OriginalGWarn = GWarn;
+	AutomationTestMessageFilter.SetDestinationContext(GWarn);
+	GWarn = &AutomationTestMessageFilter;
+	GLog->AddOutputDevice(&AutomationTestOutputDevice);
 
 	// Mark that unit testing has begun
 	GIsAutomationTesting = true;
@@ -687,8 +721,10 @@ void FAutomationTestFramework::ConcludeAutomationTests()
 	// Mark that unit testing is over
 	GIsAutomationTesting = false;
 
-	//GWarn = CachedContext;
-	GLog->RemoveOutputDevice(&AutomationTestFeedbackContext);
+	GLog->RemoveOutputDevice(&AutomationTestOutputDevice);
+	GWarn = OriginalGWarn;
+	AutomationTestMessageFilter.SetDestinationContext(nullptr);
+	OriginalGWarn = nullptr;
 
 	// Fire off callback signifying that unit testing has concluded.
 	PostTestingEvent.Broadcast();
@@ -747,8 +783,9 @@ void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 		// Clear any execution info from the test in case it has been run before
 		CurrentTest->ClearExecutionInfo();
 
-		// Associate the test that is about to be run with the special unit test feedback context
-		AutomationTestFeedbackContext.SetCurrentAutomationTest( CurrentTest );
+		// Associate the test that is about to be run with the special unit test output device and feedback context
+		AutomationTestOutputDevice.SetCurrentAutomationTest(CurrentTest);
+		AutomationTestMessageFilter.SetCurrentAutomationTest(CurrentTest);
 
 		StartTime = FPlatformTime::Seconds();
 
@@ -779,8 +816,9 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 		UE_LOG(LogAutomationTest, Log, TEXT("%s %s ran in %f"), *CurrentTest->GetBeautifiedTestName(), *Parameters, TimeForTest);
 	}
 
-	// Disassociate the test from the feedback context
-	AutomationTestFeedbackContext.SetCurrentAutomationTest( NULL );
+	// Disassociate the test from the output device and feedback context
+	AutomationTestOutputDevice.SetCurrentAutomationTest(nullptr);
+	AutomationTestMessageFilter.SetCurrentAutomationTest(nullptr);
 
 	// Determine if the test was successful based on three criteria:
 	// 1) Did the test itself report success?
@@ -1214,7 +1252,6 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const
 	return true;
 }
 
-
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
 {
 	if (Actual != Expected)
@@ -1224,6 +1261,18 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const
 	}
 	return true;
 }
+
+#if PLATFORM_64BITS
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const SIZE_T Actual, const SIZE_T Expected)
+{
+	if (Actual != Expected)
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRIuPTR ", but it was %" PRIuPTR "."), What, Expected, Actual), 1);
+		return false;
+	}
+	return true;
+}
+#endif
 
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
 {

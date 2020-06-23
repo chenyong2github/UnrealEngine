@@ -8,7 +8,7 @@
 
 #include "PhysicsEngine/ConstraintInstance.h"
 
-//#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 static_assert((int32)Chaos::EJointMotionType::Free == (int32)EAngularConstraintMotion::ACM_Free, "Chaos::EJointMotionType and EAngularConstraintMotion mismatch");
 static_assert((int32)Chaos::EJointMotionType::Limited == (int32)EAngularConstraintMotion::ACM_Limited, "Chaos::EJointMotionType and EAngularConstraintMotion mismatch");
@@ -35,11 +35,6 @@ namespace ImmediatePhysics_Chaos
 	float ChaosImmediate_SoftAngularStiffnessScale = 100000;
 	float ChaosImmediate_SoftAngularDampingScale = 1000;
 
-	float ChaosImmediate_JointMinLinearProjection = 0.0f;
-	float ChaosImmediate_JointMaxLinearProjection = 1.0f;
-	float ChaosImmediate_JointMinAngularProjection = 0.0f;
-	float ChaosImmediate_JointMaxAngularProjection = 0.0f;
-
 	float ChaosImmediate_LinearBreakScale = 1.0f;
 	float ChaosImmediate_AngularBreakScale = 1.0f;
 
@@ -54,10 +49,6 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarSoftAngularForceMode(TEXT("p.Chaos.ImmPhys.SoftAngularForceMode"), ChaosImmediate_SoftAngularForceMode, TEXT("Soft Angular constraint force mode (0: Acceleration; 1: Force"));
 	FAutoConsoleVariableRef CVarSoftAngularStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftAngularStiffnessScale"), ChaosImmediate_SoftAngularStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
 	FAutoConsoleVariableRef CVarSoftAngularDampingScale(TEXT("p.Chaos.ImmPhys.SoftAngularDampingScale"), ChaosImmediate_SoftAngularDampingScale, TEXT("Conversion factor for soft-joint damping."));
-	FAutoConsoleVariableRef CVarJointMinLinearProjection(TEXT("p.Chaos.ImmPhys.JointMinLinearProjection"), ChaosImmediate_JointMinLinearProjection, TEXT("Joint min projection (for joints with projection disabled)."));
-	FAutoConsoleVariableRef CVarJointMaxLinearProjection(TEXT("p.Chaos.ImmPhys.JointMaxLinearProjection"), ChaosImmediate_JointMaxLinearProjection, TEXT("Joint max projection (for joints with projection enabled)."));
-	FAutoConsoleVariableRef CVarJointMinAngularProjection(TEXT("p.Chaos.ImmPhys.JointMinAngularProjection"), ChaosImmediate_JointMinAngularProjection, TEXT("Joint min projection (for joints with projection disabled)."));
-	FAutoConsoleVariableRef CVarJointMaxAngularProjection(TEXT("p.Chaos.ImmPhys.JointMaxAngularProjection"), ChaosImmediate_JointMaxAngularProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 	FAutoConsoleVariableRef CVarJointLinearBreakScale(TEXT("p.Chaos.ImmPhys.LinearBreakScale"), ChaosImmediate_LinearBreakScale, TEXT("Conversion factory for Linear Break Theshold."));
 	FAutoConsoleVariableRef CVarJointAngularBreakScale(TEXT("p.Chaos.ImmPhys.AngularBreakScale"), ChaosImmediate_AngularBreakScale, TEXT("Conversion factory for Angular Break Theshold."));
 
@@ -84,8 +75,11 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit());
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit());
 
-		ConstraintSettings.LinearProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxLinearProjection : ChaosImmediate_JointMinLinearProjection;
-		ConstraintSettings.AngularProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxAngularProjection : ChaosImmediate_JointMinAngularProjection;
+		ConstraintSettings.bProjectionEnabled = Profile.bEnableProjection;
+		ConstraintSettings.bSoftProjectionEnabled = Profile.bEnableSoftProjection;
+
+		ConstraintSettings.LinearProjection = Profile.ProjectionLinearAlpha;
+		ConstraintSettings.AngularProjection = Profile.ProjectionAngularAlpha;
 		ConstraintSettings.ParentInvMassScale = Profile.bParentDominates ? (FReal)0 : (FReal)1;
 
 		ConstraintSettings.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();
@@ -100,7 +94,12 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0) ? EJointForceMode::Acceleration : EJointForceMode::Force;
 
-		ConstraintSettings.LinearDriveTarget = Profile.LinearDrive.PositionTarget;
+		ConstraintSettings.LinearRestitution = Profile.LinearLimit.Restitution;
+		ConstraintSettings.TwistRestitution = Profile.TwistLimit.Restitution;
+		ConstraintSettings.SwingRestitution = Profile.ConeLimit.Restitution;
+
+		ConstraintSettings.LinearDrivePositionTarget = Profile.LinearDrive.PositionTarget;
+		ConstraintSettings.LinearDriveVelocityTarget = Profile.LinearDrive.VelocityTarget;
 		ConstraintSettings.bLinearPositionDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;
 		ConstraintSettings.bLinearPositionDriveEnabled[1] = Profile.LinearDrive.YDrive.bEnablePositionDrive;
 		ConstraintSettings.bLinearPositionDriveEnabled[2] = Profile.LinearDrive.ZDrive.bEnablePositionDrive;
@@ -112,7 +111,7 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
-		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget;
+		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget * 2.0f * PI; // Rev/s to Rad/s
 
 		if (Profile.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{
@@ -187,10 +186,13 @@ namespace ImmediatePhysics_Chaos
 			ConstraintFrames[0] = Actor2->GetWorldTransform().GetRelativeTransform(Actor1->GetWorldTransform());
 			ConstraintFrames[1] = FRigidTransform3();
 			ConstraintSettings.LinearMotionTypes = { EJointMotionType::Limited, EJointMotionType::Limited, EJointMotionType::Limited };
-			ConstraintSettings.LinearLimit = 0.0f;
-			ConstraintSettings.SoftLinearStiffness = 10.0f;
-			ConstraintSettings.SoftLinearDamping = 1.0f;
+			ConstraintSettings.LinearLimit = 0.1f;
+			ConstraintSettings.SoftLinearStiffness = 500.0f;
+			ConstraintSettings.SoftLinearDamping = 100.0f;
+			ConstraintSettings.bSoftLinearLimitsEnabled = true;
 			ConstraintSettings.LinearSoftForceMode = EJointForceMode::Acceleration;
+			ConstraintSettings.LinearProjection = 0.0f;
+			ConstraintSettings.AngularProjection = 0.0f;
 		}
 
 		ConstraintSettings.Sanitize();

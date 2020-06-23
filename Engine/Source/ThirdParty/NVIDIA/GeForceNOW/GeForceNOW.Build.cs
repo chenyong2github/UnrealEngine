@@ -9,7 +9,10 @@ public class GeForceNOW : ModuleRules
 		Type = ModuleType.External;
 
 
-        if (Target.Type != TargetRules.TargetType.Server && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
+        if (Target.Type != TargetRules.TargetType.Server
+			&& Target.Configuration != UnrealTargetConfiguration.Unknown
+			&& Target.Configuration != UnrealTargetConfiguration.Debug
+            && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
 		{
             String GFNPath = Target.UEThirdPartySourceDirectory + "NVIDIA/GeForceNOW/";
             PublicSystemIncludePaths.Add(GFNPath + "include");

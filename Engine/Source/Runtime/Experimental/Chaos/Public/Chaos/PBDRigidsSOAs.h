@@ -192,6 +192,12 @@ public:
 		
 		return NewClustered;
 	}
+	
+	void ClearPutToSleepThisFrame()
+	{
+		PutToSleepToIndex.Reset();
+		PutToSleepThisFrameArray.Reset();
+	}
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
 	{
@@ -201,6 +207,7 @@ public:
 		if(PBDRigid)
 		{
 			RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
+			RemoveFromMapAndArray(PBDRigid, PutToSleepToIndex, PutToSleepThisFrameArray);
 		}
 
 
@@ -413,6 +420,8 @@ public:
 					PBDRigid->SetSleeping(true);
 					PBDRigid->SetObjectState(EObjectStateType::Sleeping);
 
+					InsertToMapAndArray(PBDRigid,PutToSleepToIndex,PutToSleepThisFrameArray);
+
 					if (auto PBDRigidClustered = Particle->CastToClustered())
 					{
 						if (Particle->GetParticleType() == Chaos::EParticleType::GeometryCollection)
@@ -556,11 +565,17 @@ public:
 	const TParticleView<TPBDRigidParticles<T, d>>& GetActiveParticlesView() const { UpdateIfNeeded(); return ActiveParticlesView; }
 	TParticleView<TPBDRigidParticles<T, d>>& GetActiveParticlesView() { UpdateIfNeeded(); return ActiveParticlesView; }
 
+	const TParticleView<TPBDRigidParticles<T,d>>& GetDirtyParticlesView() const { UpdateIfNeeded(); return DirtyParticlesView; }
+	TParticleView<TPBDRigidParticles<T,d>>& GetDirtyParticlesView() { UpdateIfNeeded(); return DirtyParticlesView; }
+
 	const TParticleView<TGeometryParticles<T, d>>& GetAllParticlesView() const { UpdateIfNeeded(); return AllParticlesView; }
 
 
 	const TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() const { return ActiveKinematicParticlesView; }
 	TParticleView<TKinematicGeometryParticles<T, d>>& GetActiveKinematicParticlesView() { return ActiveKinematicParticlesView; }
+
+	const TParticleView<TGeometryParticles<T, d>>& GetActiveStaticParticlesView() const { return ActiveStaticParticlesView; }
+	TParticleView<TGeometryParticles<T, d>>& GetActiveStaticParticlesView() { return ActiveStaticParticlesView; }
 
 	const TGeometryParticleHandles<T, d>& GetParticleHandles() const { return ParticleHandles; }
 	TGeometryParticleHandles<T, d>& GetParticleHandles() { return ParticleHandles; }
@@ -723,9 +738,7 @@ private:
 			const int32 HandleIdx = Count + HandlesStartIdx;
 
 			TUniquePtr<TParticleHandleType> NewParticleHandle = TParticleHandleType::CreateParticleHandle(MakeSerializable(Particles), ParticleIdx, HandleIdx);
-#if CHAOS_DETERMINISTIC
-			NewParticleHandle->ParticleID() = BiggestParticleID++;
-#endif
+			NewParticleHandle->ParticleID().LocalID = BiggestParticleID++;
 			ReturnHandles[Count] = NewParticleHandle.Get();
 			//If unique indices are null it means there is no GT particle that already registered an ID, so create one
 			if(ExistingIndices)
@@ -850,6 +863,18 @@ private:
 			ActiveParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
+			TArray<TSOAView<TPBDRigidParticles<T,d>>> TmpArray =
+			{
+				{&ActiveParticlesArray},
+				//	{&NonDisabledClusteredArray},  Cluster particles appear in the ActiveParticlesArray
+			{&StaticGeometryCollectionArray},
+			{&KinematicGeometryCollectionArray},
+			{&DynamicGeometryCollectionArray},
+			{&PutToSleepThisFrameArray}
+			};
+			DirtyParticlesView = MakeParticleView(MoveTemp(TmpArray));
+		}
+		{
 			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = 
 			{ 
 				StaticParticles.Get(), 
@@ -872,6 +897,13 @@ private:
 				{&KinematicGeometryCollectionArray}
 			};
 			ActiveKinematicParticlesView = MakeParticleView(MoveTemp(TmpArray));
+		}
+		{
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray =
+			{
+				StaticParticles.Get(),
+			};
+			ActiveStaticParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
 			TArray<TSOAView<TPBDGeometryCollectionParticles<T, d>>> TmpArray = 
@@ -912,6 +944,8 @@ private:
 	TArray<TPBDRigidParticleHandle<T, d>*> ActiveParticlesArray;
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, int32> ActiveClusteredToIndex;
 	TArray<TPBDRigidClusteredParticleHandle<T, d>*> ActiveClusteredArray;
+	TArray<TPBDRigidParticleHandle<T,d>*> PutToSleepThisFrameArray;
+	TMap<TPBDRigidParticleHandle<T,d>*,int32> PutToSleepToIndex;
 
 	//Utility structures for maintaining a NonDisabled particle view
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, int32> NonDisabledClusteredToIndex;
@@ -921,8 +955,10 @@ private:
 	TParticleView<TGeometryParticles<T, d>> NonDisabledView;							//all particles that are not disabled
 	TParticleView<TPBDRigidParticles<T, d>> NonDisabledDynamicView;						//all dynamic particles that are not disabled
 	TParticleView<TPBDRigidParticles<T, d>> ActiveParticlesView;						//all particles that are active
+	TParticleView<TPBDRigidParticles<T, d>> DirtyParticlesView;							//all particles that are active + any that were put to sleep this frame
 	TParticleView<TGeometryParticles<T, d>> AllParticlesView;							//all particles
 	TParticleView<TKinematicGeometryParticles<T, d>> ActiveKinematicParticlesView;		//all kinematic particles that are not disabled
+	TParticleView<TGeometryParticles<T, d>> ActiveStaticParticlesView;					//all static particles that are not disabled
 	TParticleView<TPBDGeometryCollectionParticles<T, d>> ActiveGeometryCollectionParticlesView; // all geom collection particles that are not disabled
 
 	//Auxiliary data synced with particle handles

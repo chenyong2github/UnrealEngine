@@ -86,28 +86,28 @@ namespace
 
 	/** Templatized helper function for copying a rendered tile to the final composited image data. */
 	template<typename T>
-	void TCopyTile(T* TilePixels, int32 TileSize, T* DestPixels, int32 DestStride, int32 DestLayerStride, FIntPoint const& DestPos)
+	void TCopyTile(T* SrcPixels, int32 TileSize, int32 SrcStride, T* DestPixels, int32 DestStride, int32 DestLayerStride, FIntPoint const& DestPos)
 	{
 		for (int32 y = 0; y < TileSize; y++)
 		{
 			memcpy(
 				DestPixels + DestStride * (DestPos[1] + y) + DestPos[0],
-				TilePixels + TileSize * y,
+				SrcPixels + SrcStride * y,
 				TileSize * sizeof(T));
 		}
 	}
 
 	/** Function for copying a rendered tile to the final composited image data. Needs ERuntimeVirtualTextureMaterialType to know what type of data is being copied. */
-	void CopyTile(void* TilePixels, int32 TileSize, void* DestPixels, int32 DestStride, int32 DestLayerStride, FIntPoint const& DestPos, EPixelFormat Format)
+	void CopyTile(void* SrcPixels, int32 TileSize, int32 SrcStride, void* DestPixels, int32 DestStride, int32 DestLayerStride, FIntPoint const& DestPos, EPixelFormat Format)
 	{
 		check(Format == PF_G16 || Format == PF_B8G8R8A8);
 		if (Format == PF_G16)
 		{
-			TCopyTile((uint16*)TilePixels, TileSize, (uint16*)DestPixels, DestStride, DestLayerStride, DestPos);
+			TCopyTile((uint16*)SrcPixels, TileSize, SrcStride, (uint16*)DestPixels, DestStride, DestLayerStride, DestPos);
 		}
 		else if (Format == PF_B8G8R8A8)
 		{
-			TCopyTile((FColor*)TilePixels, TileSize, (FColor*)DestPixels, DestStride, DestLayerStride, DestPos);
+			TCopyTile((FColor*)SrcPixels, TileSize, SrcStride, (FColor*)DestPixels, DestStride, DestLayerStride, DestPos);
 		}
 	}
 }
@@ -145,7 +145,7 @@ namespace RuntimeVirtualTexture
 		URuntimeVirtualTexture* RuntimeVirtualTexture = InComponent->GetVirtualTexture();
 		FSceneInterface* Scene = InComponent->GetScene();
 		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(InComponent);
-		const FTransform Transform = InComponent->GetVirtualTextureTransform();
+		const FTransform Transform = InComponent->GetComponentTransform();
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		FVTProducerDescription VTDesc;
@@ -262,13 +262,13 @@ namespace RuntimeVirtualTexture
 						int32 OutWidth, OutHeight;
 						RHICmdList.MapStagingSurface(RenderTileResources.GetStagingTexture(Layer), TilePixels, OutWidth, OutHeight);
 						check(TilePixels != nullptr);
-						check(OutWidth == TileSize && OutHeight == TileSize);
+						check(OutHeight == TileSize);
 
 						const int32 LayerOffset = RenderTileResources.GetLayerOffset(Layer);
 						const EPixelFormat LayerFormat = RenderTileResources.GetLayerFormat(Layer);
 						const FIntPoint DestPos(TileX * TileSize, TileY * TileSize);
 
-						CopyTile(TilePixels, TileSize, FinalPixels.GetData() + LayerOffset, ImageSizeX, ImageSizeX * ImageSizeY, DestPos, LayerFormat);
+						CopyTile(TilePixels, TileSize, OutWidth, FinalPixels.GetData() + LayerOffset, ImageSizeX, ImageSizeX * ImageSizeY, DestPos, LayerFormat);
 
 						RHICmdList.UnmapStagingSurface(RenderTileResources.GetStagingTexture(Layer));
 					}

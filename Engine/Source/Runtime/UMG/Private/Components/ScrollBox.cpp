@@ -80,7 +80,7 @@ void UScrollBox::OnSlotAdded(UPanelSlot* InSlot)
 void UScrollBox::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MyScrollBox.IsValid() )
+	if ( MyScrollBox.IsValid() && InSlot->Content)
 	{
 		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )

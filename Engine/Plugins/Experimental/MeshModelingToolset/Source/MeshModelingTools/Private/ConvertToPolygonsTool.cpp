@@ -136,6 +136,7 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	if (true)
 	{
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
+		float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
 		FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
 
 		TArray<int>& Edges = Polygons.PolygonEdges;
@@ -144,7 +145,7 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 			FVector3d A, B;
 			Polygons.Mesh->GetEdgeV(eid, A, B);
 			PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-				LineColor, 0, 2.0, 1.0f, true);
+				LineColor, 0, 2.0*PDIScale, 1.0f, true);
 		}
 	}
 }

@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_Abc_OObject_h_
-#define _Alembic_Abc_OObject_h_
+#ifndef Alembic_Abc_OObject_h
+#define Alembic_Abc_OObject_h
 
 #include <Alembic/Util/Export.h>
 #include <Alembic/Abc/Foundation.h>
@@ -218,6 +218,7 @@ public:
     //! underlying AbcCoreAbstract object, in this case the
     //! ObjectWriterPtr.
     AbcA::ObjectWriterPtr getPtr() { return m_object; }
+    const AbcA::ObjectWriterPtr getPtr() const { return m_object; }
 
     //! Reset returns this function set to an empty, default
     //! state.

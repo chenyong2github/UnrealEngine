@@ -56,12 +56,14 @@ protected:
 
 	// Array of instances which are using this preset
 	TArray<TSoundEffectWeakPtr> Instances;
+	FCriticalSection InstancesMutationCriticalSection;
 	bool bInitialized;
 
 	/* Immediately executes command for each active effect instance on the active thread */
 	template <typename T>
 	void IterateEffects(TFunction<void(T&)> InForEachEffect)
 	{
+		FScopeLock ScopeLock(&InstancesMutationCriticalSection);
 		for (TSoundEffectWeakPtr& Instance : Instances)
 		{
 			TSoundEffectPtr EffectStrongPtr = Instance.Pin();
@@ -104,6 +106,7 @@ public:
 
 	static void UnregisterInstance(TSoundEffectPtr InEffectPtr)
 	{
+		ensure(IsInAudioThread());
 		if (InEffectPtr.IsValid())
 		{
 			if (USoundEffectPreset* Preset = InEffectPtr->GetPreset())
@@ -117,6 +120,7 @@ public:
 
 	static void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr)
 	{
+		ensure(IsInAudioThread());
 		if (!InEffectPtr.IsValid())
 		{
 			return;

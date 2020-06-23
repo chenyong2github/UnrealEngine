@@ -55,6 +55,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
+	MeshBoolean.bPutResultInInputSpace = false;
 	MeshBoolean.Progress = Progress;
 	bool bSuccess = MeshBoolean.Compute();
 	ResultTransform = MeshBoolean.ResultTransform;

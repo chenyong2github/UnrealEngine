@@ -135,6 +135,19 @@ namespace Audio
 		return FMath::Exp(RangeLog.X + Scale * (InValueCopy - Domain.X));
 	}
 
+	// Returns the lienar frequency of the input value. Maps log domain and range values to linear output (good for linear slider representation/visualization of log frequency). Reverse of GetLogFrequencyClamped.
+	static FORCEINLINE float GetLinearFrequencyClamped(const float InFrequencyValue, const FVector2D& Domain, const FVector2D& Range)
+	{
+		const float InFrequencyValueCopy = FMath::Clamp<float>(InFrequencyValue, Range.X, Range.Y);
+		const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
+
+		check(Domain.Y != Domain.X);
+		check(RangeLog.Y != RangeLog.X);
+		const float Scale = (RangeLog.Y - RangeLog.X) / (Domain.Y - Domain.X);
+
+		return Domain.X + (FMath::Loge(InFrequencyValue) - RangeLog.X) / Scale;
+	}
+
 	// Using midi tuning standard, compute midi from frequency in hz
 	static FORCEINLINE float GetMidiFromFrequency(const float InFrequency)
 	{

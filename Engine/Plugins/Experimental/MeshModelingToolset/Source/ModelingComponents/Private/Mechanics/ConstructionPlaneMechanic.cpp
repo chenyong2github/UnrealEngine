@@ -7,6 +7,7 @@
 #include "Selection/SelectClickedAction.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "Drawing/MeshDebugDrawing.h"
+#include "ToolSceneQueriesUtil.h"
 
 
 void UConstructionPlaneMechanic::Setup(UInteractiveTool* ParentToolIn)
@@ -101,18 +102,20 @@ void UConstructionPlaneMechanic::Tick(float DeltaTime)
 		PlaneTransformGizmo->bSnapToWorldGrid = bEnableSnapToWorldGrid;
 	}
 }
-
+ 
 void UConstructionPlaneMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (bShowGrid)
 	{
+		FViewCameraState CameraState = RenderAPI->GetCameraState();
+		float PDIScale = CameraState.GetPDIScalingFactor();
+
+		int32 NumGridLines = 10;
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 		FColor GridColor(128, 128, 128, 32);
-		float GridThickness = 0.5f;
-		float GridLineSpacing = 25.0f;   // @todo should be relative to view
-		int NumGridLines = 10;
+		float GridThickness = 0.75f*PDIScale;
 
 		FFrame3f DrawFrame(Plane);
-		MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
+		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(CameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }

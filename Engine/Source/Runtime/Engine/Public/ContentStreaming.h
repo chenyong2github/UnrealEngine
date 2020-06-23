@@ -94,8 +94,10 @@ class ENGINE_API FAudioChunkHandle
 public:
 	FAudioChunkHandle();
 	FAudioChunkHandle(const FAudioChunkHandle& Other);
+	FAudioChunkHandle(FAudioChunkHandle&& Other);
 
 	FAudioChunkHandle& operator=(const FAudioChunkHandle& Other);
+	FAudioChunkHandle& operator=(FAudioChunkHandle&& Other);
 
 	~FAudioChunkHandle();
 
@@ -469,6 +471,9 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	ENGINE_API void RemoveStreamingTexture(UTexture2D* Texture);
 	ENGINE_API void PauseTextureStreaming(bool bInShouldPause);
 	//END: APIs for backward compatibility
+
+	/** Notify the streamer that the mounted state of a file needs to be re-evaluated. */
+	virtual void MarkMountedStateDirty(FIoFilenameHash FilenameHash) = 0;
 };
 
 enum class EAudioChunkLoadResult : uint8

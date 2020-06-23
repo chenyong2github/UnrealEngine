@@ -8,6 +8,12 @@
 #include "Materials/MaterialInstanceDynamic.h"
 
 
+UMaterialInterface* ToolSetupUtil::GetDefaultMaterial()
+{
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+
 UMaterialInterface* ToolSetupUtil::GetDefaultMaterial(UInteractiveToolManager* ToolManager, UMaterialInterface* SourceMaterial)
 {
 	if (SourceMaterial == nullptr && ToolManager != nullptr)
@@ -121,7 +127,7 @@ UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(UInteractiveToolManager*
 }
 
 
-UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager)
+UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float DepthOffset)
 {
 	check(ToolManager != nullptr);		// required for outer
 	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SelectionMaterial"));
@@ -133,6 +139,10 @@ UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseC
 	{
 		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
 		MatInstance->SetVectorParameterValue(TEXT("ConstantColor"), UseColor);
+		if (DepthOffset != 0)
+		{
+			MatInstance->SetScalarParameterValue(TEXT("DepthOffset"), DepthOffset);
+		}
 		return MatInstance;
 	}
 	return Material;

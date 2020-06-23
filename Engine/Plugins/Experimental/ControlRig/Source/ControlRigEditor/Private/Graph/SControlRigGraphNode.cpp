@@ -51,6 +51,10 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	this->SetCursor( EMouseCursor::CardinalCross );
 
  	UControlRigGraphNode* ControlRigGraphNode = InArgs._GraphNodeObj;
+	if (ControlRigGraphNode->GetModelNode() == nullptr)
+	{
+		return;
+	}
 
 	// Re-cache variable info here (unit structure could have changed since last reconstruction, e.g. array add/remove)
 	// and also create missing pins if it hasn't created yet

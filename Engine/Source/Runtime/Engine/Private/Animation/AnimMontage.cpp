@@ -1137,7 +1137,7 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 				FMarkerTickRecord* MarkerTickRecord = Instance.MarkerTickRecord;
 				FMarkerTickContext& MarkerTickContext = Context.MarkerTickContext;
 
-				if (MarkerTickRecord->IsValid())
+				if (MarkerTickRecord->IsValid(Instance.bLooping))
 				{
 					MarkerTickContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionfromMarkerIndicies(MarkerTickRecord->PreviousMarker.MarkerIndex, MarkerTickRecord->NextMarker.MarkerIndex, PreviousTime));
 

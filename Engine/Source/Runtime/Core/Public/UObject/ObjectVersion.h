@@ -635,6 +635,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_ADDED_PACKAGE_OWNER,
 	// Changed the data layout for skin weight profile data
 	VER_UE4_SKINWEIGHT_PROFILE_DATA_LAYOUT_CHANGES,
+	// Added import that can have package different than their outer
+	VER_UE4_NON_OUTER_PACKAGE_IMPORT,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)

@@ -56,7 +56,7 @@ void FDatasmithUIManager::ExtendToolbar()
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 
 	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-	ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, DatasmithActions, FToolBarExtensionDelegate::CreateRaw(this, &FDatasmithUIManager::FillToolbar));
+	ToolbarExtender->AddToolBarExtension("Content", EExtensionHook::After, DatasmithActions, FToolBarExtensionDelegate::CreateRaw(this, &FDatasmithUIManager::FillToolbar));
 
 	LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
 }

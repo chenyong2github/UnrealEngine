@@ -1,0 +1,165 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Components/VolumetricCloudComponent.h"
+
+#include "VolumetricCloudProxy.h"
+#include "Components/ArrowComponent.h"
+#include "Components/BillboardComponent.h"
+#include "Engine/MapBuildDataRegistry.h"
+#include "Internationalization/Text.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
+#include "Misc/MapErrors.h"
+#include "Misc/UObjectToken.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/ConstructorHelpers.h"
+
+#if WITH_EDITOR
+#include "ObjectEditorUtils.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "VolumetricCloudComponent"
+
+
+
+/*=============================================================================
+	UVolumetricCloudComponent implementation.
+=============================================================================*/
+
+UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, LayerBottomAltitude(5.0f)
+	, LayerHeight(10.0f)
+	, PlanetRadius(6360.0f)					// Default to earth-like
+	, GroundAlbedo(FColor(170, 170, 170))	// 170 => 0.4f linear
+	, AtmosphericLightsContributionFactor(FLinearColor::White)
+	, VolumetricCloudSceneProxy(nullptr)
+{
+}
+
+UVolumetricCloudComponent::~UVolumetricCloudComponent()
+{
+}
+
+
+void UVolumetricCloudComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
+{
+	Super::CreateRenderState_Concurrent(Context);
+	// If one day we need to look up lightmass built data, lookup it up here using the guid from the correct MapBuildData.
+
+	bool bHidden = false;
+#if WITH_EDITORONLY_DATA
+	bHidden = GetOwner() ? GetOwner()->bHiddenEdLevel : false;
+#endif // WITH_EDITORONLY_DATA
+	if (!ShouldComponentAddToScene())
+	{
+		bHidden = true;
+	}
+
+	if (GetVisibleFlag() && !bHidden &&
+		ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
+	{
+		// Create the scene proxy.
+		VolumetricCloudSceneProxy = new FVolumetricCloudSceneProxy(this);
+		GetWorld()->Scene->AddVolumetricCloud(VolumetricCloudSceneProxy);
+	}
+
+}
+
+void UVolumetricCloudComponent::DestroyRenderState_Concurrent()
+{
+	Super::DestroyRenderState_Concurrent();
+
+	if (VolumetricCloudSceneProxy)
+	{
+		GetWorld()->Scene->RemoveVolumetricCloud(VolumetricCloudSceneProxy);
+
+		FVolumetricCloudSceneProxy* SceneProxy = VolumetricCloudSceneProxy;
+		ENQUEUE_RENDER_COMMAND(FDestroyVolumetricCloudSceneProxyCommand)(
+			[SceneProxy](FRHICommandList& RHICmdList)
+		{
+			delete SceneProxy;
+		});
+
+		VolumetricCloudSceneProxy = nullptr;
+	}
+}
+
+#if WITH_EDITOR
+
+void UVolumetricCloudComponent::CheckForErrors()
+{
+	// Clouds with SkyAtmosphere?
+}
+
+void UVolumetricCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+#endif // WITH_EDITOR
+
+void UVolumetricCloudComponent::PostInterpChange(FProperty* PropertyThatChanged)
+{
+	// This is called when property is modified by InterpPropertyTracks
+	Super::PostInterpChange(PropertyThatChanged);
+}
+
+void UVolumetricCloudComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+}
+
+/*=============================================================================
+	AVolumetricCloud implementation.
+=============================================================================*/
+
+#if WITH_EDITOR
+#include "ObjectEditorUtils.h"
+#endif
+
+AVolumetricCloud::AVolumetricCloud(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	VolumetricCloudComponent = CreateDefaultSubobject<UVolumetricCloudComponent>(TEXT("VolumetricCloudComponent"));
+	RootComponent = VolumetricCloudComponent;
+
+#if WITH_EDITORONLY_DATA
+
+	if (!IsRunningCommandlet())
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> VolumetricCloudTextureObject;
+			FName ID_VolumetricCloud;
+			FText NAME_VolumetricCloud;
+			FConstructorStatics()
+				: VolumetricCloudTextureObject(TEXT("/Engine/EditorResources/S_SkyAtmosphere"))
+				, ID_VolumetricCloud(TEXT("Fog"))
+				, NAME_VolumetricCloud(NSLOCTEXT("SpriteCategory", "Fog", "Fog"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		if (GetSpriteComponent())
+		{
+			GetSpriteComponent()->Sprite = ConstructorStatics.VolumetricCloudTextureObject.Get();
+			GetSpriteComponent()->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
+			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_VolumetricCloud;
+			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_VolumetricCloud;
+			GetSpriteComponent()->SetupAttachment(VolumetricCloudComponent);
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	PrimaryActorTick.bCanEverTick = true;
+	SetHidden(false);
+}
+
+
+
+#undef LOCTEXT_NAMESPACE
+
+

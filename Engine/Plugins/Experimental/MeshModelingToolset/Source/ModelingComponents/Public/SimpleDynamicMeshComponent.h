@@ -61,10 +61,24 @@ public:
 	TUniquePtr<FDynamicMesh3> ExtractMesh(bool bNotifyUpdate);
 
 	/**
+	 * Copy externally-calculated tangents into the internal tangets buffer.
+	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
+	 */
+	void UpdateTangents(const FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible);
+
+	/**
+	 * Copy externally-calculated tangents into the internal tangets buffer.
+	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
+	 */
+	void UpdateTangents(const FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible);
+
+
+	/**
 	 * @return pointer to internal tangents object. 
 	 * @warning calling this with TangentsType = AutoCalculated will result in possibly-expensive Tangents calculation
+	 * @warning this is only currently safe to call on the Game Thread!!
 	 */
-	FMeshTangentsf* GetTangents();
+	const FMeshTangentsf* GetTangents();
 
 
 

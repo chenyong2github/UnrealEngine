@@ -851,144 +851,145 @@ static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
 
 TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUICommandList> InCommandList)
 {
+	static const FName MenuName("UnrealEd.PlayWorldCommands.PlayMenu");
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
+
+		struct FLocal
+		{
+			static void AddPlayModeMenuEntry(FToolMenuSection& Section, EPlayModeType PlayMode)
+			{
+				TSharedPtr<FUICommandInfo> PlayModeCommand;
+
+				switch (PlayMode)
+				{
+				case PlayMode_InEditorFloating:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInEditorFloating;
+					break;
+
+				case PlayMode_InMobilePreview:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInMobilePreview;
+					break;
+
+				case PlayMode_InVulkanPreview:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInVulkanPreview;
+					break;
+
+				case PlayMode_InNewProcess:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInNewProcess;
+					break;
+
+				case PlayMode_InViewPort:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInViewport;
+					break;
+
+				case PlayMode_InVR:
+					PlayModeCommand = FPlayWorldCommands::Get().PlayInVR;
+					break;
+
+				case PlayMode_Simulate:
+					PlayModeCommand = FPlayWorldCommands::Get().Simulate;
+					break;
+				}
+
+				if (PlayModeCommand.IsValid())
+				{
+					Section.AddMenuEntry(PlayModeCommand);
+				}
+			}
+		};
+
+		// play in view port
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayModes", LOCTEXT("PlayButtonModesSection", "Modes"));
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InViewPort);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InMobilePreview);
+
+			if (GetDefault<UEditorExperimentalSettings>()->bMobilePIEPreviewDeviceLaunch)
+			{
+				Section.AddSubMenu(
+					"TargetedMobilePreview",
+					LOCTEXT("TargetedMobilePreviewSubMenu", "Mobile Preview (PIE)"),
+					LOCTEXT("TargetedMobilePreviewSubMenu_ToolTip", "Play this level using a specified mobile device preview (runs in its own process)"),
+					FNewMenuDelegate::CreateStatic(&MakePreviewDeviceMenu), false,
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview")
+				);
+			}
+
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InVulkanPreview);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InEditorFloating);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InVR);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_InNewProcess);
+			FLocal::AddPlayModeMenuEntry(Section, PlayMode_Simulate);
+		}
+
+		// tip section
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayTip");
+			Section.AddEntry(FToolMenuEntry::InitWidget(
+				"PlayIn",
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text(LOCTEXT("PlayInTip", "Launching a game preview with a different mode will change your default 'Play' mode in the toolbar"))
+				.WrapTextAt(250),
+				FText::GetEmpty()));
+		}
+
+		// player start selection
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayPlayerStart", LOCTEXT("PlayButtonLocationSection", "Spawn player at..."));
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInCameraLocation);
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInDefaultPlayerStart);
+		}
+
+		// Basic network options
+		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlayInWindowNetwork", LOCTEXT("LevelEditorPlayInWindowNetworkSection", "Multiplayer Options"));
+			// Num Clients
+			{
+				TSharedRef<SWidget> NumPlayers = SNew(SSpinBox<int32>)	// Copy limits from PlayNumberOfClients meta data
+					.MinValue(1)
+					.MaxValue(64)
+					.MinSliderValue(1)
+					.MaxSliderValue(4)
+					.Delta(1)
+					.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
+					.Value(FInternalPlayWorldCommandCallbacks::GetNumberOfClients())
+					.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("NumPlayers", NumPlayers, LOCTEXT("NumberOfClientsMenuWidget", "Number of Players")));
+			}
+			// Net Mode
+			{
+				const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
+			
+				TSharedRef<SWidget> NetMode = SNew(SEnumComboBox, PlayNetModeEnum)
+					.CurrentValue(TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetNetPlayMode)))
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+					.ContentPadding(FMargin(2, 0))
+					.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+					.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
+					.ToolTipText(LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."));
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("NetMode", NetMode, LOCTEXT("NetworkModeMenuWidget", "Net Mode")));
+			}
+		}
+
+		// settings
+		{
+			FToolMenuSection& Section = Menu->AddSection("LevelEditorPlaySettings");
+			Section.AddMenuEntry(FPlayWorldCommands::Get().PlayInSettings);
+		}
+	}
+
 	// Get all menu extenders for this context menu from the level editor module
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorToolbarPlayMenuExtenders());
-
-	struct FLocal
-	{
-		static void AddPlayModeMenuEntry(FMenuBuilder& MenuBuilder, EPlayModeType PlayMode)
-		{
-			TSharedPtr<FUICommandInfo> PlayModeCommand;
-
-			switch (PlayMode)
-			{
-			case PlayMode_InEditorFloating:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInEditorFloating;
-				break;
-
-			case PlayMode_InMobilePreview:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInMobilePreview;
-				break;
-
-			case PlayMode_InVulkanPreview:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInVulkanPreview;
-				break;
-
-			case PlayMode_InNewProcess:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInNewProcess;
-				break;
-
-			case PlayMode_InViewPort:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInViewport;
-				break;
-
-			case PlayMode_InVR:
-				PlayModeCommand = FPlayWorldCommands::Get().PlayInVR;
-				break;
-
-			case PlayMode_Simulate:
-				PlayModeCommand = FPlayWorldCommands::Get().Simulate;
-				break;
-			}
-
-			if (PlayModeCommand.IsValid())
-			{
-				MenuBuilder.AddMenuEntry(PlayModeCommand);
-			}
-		}
-	};
-
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, MenuExtender);
-
-	// play in view port
-	MenuBuilder.BeginSection("LevelEditorPlayModes", LOCTEXT("PlayButtonModesSection", "Modes"));
-	{
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InViewPort);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InMobilePreview);
-
-		if (GetDefault<UEditorExperimentalSettings>()->bMobilePIEPreviewDeviceLaunch)
-		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("TargetedMobilePreviewSubMenu", "Mobile Preview (PIE)"),
-				LOCTEXT("TargetedMobilePreviewSubMenu_ToolTip", "Play this level using a specified mobile device preview (runs in its own process)"),
-				FNewMenuDelegate::CreateStatic(&MakePreviewDeviceMenu), false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PlayInMobilePreview")
-			);
-		}
-
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InVulkanPreview);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InEditorFloating);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InVR);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_InNewProcess);
-		FLocal::AddPlayModeMenuEntry(MenuBuilder, PlayMode_Simulate);
-	}
-	MenuBuilder.EndSection();
-
-	// tip section
-	MenuBuilder.BeginSection("LevelEditorPlayTip");
-	{
-		MenuBuilder.AddWidget(
-			SNew(STextBlock)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.Text(LOCTEXT("PlayInTip", "Launching a game preview with a different mode will change your default 'Play' mode in the toolbar"))
-			.WrapTextAt(250),
-			FText::GetEmpty());
-	}
-	MenuBuilder.EndSection();
-
-	// player start selection
-	MenuBuilder.BeginSection("LevelEditorPlayPlayerStart", LOCTEXT("PlayButtonLocationSection", "Spawn player at..."));
-	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInCameraLocation);
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInDefaultPlayerStart);
-	}
-	MenuBuilder.EndSection();
-
-	// Basic network options
-	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-	{
-		MenuBuilder.BeginSection("LevelEditorPlayInWindowNetwork", LOCTEXT("LevelEditorPlayInWindowNetworkSection", "Multiplayer Options"));
-		// Num Clients
-		{
-			TSharedRef<SWidget> NumPlayers = SNew(SSpinBox<int32>)	// Copy limits from PlayNumberOfClients meta data
-				.MinValue(1)
-				.MaxValue(64)
-				.MinSliderValue(1)
-				.MaxSliderValue(4)
-				.Delta(1)
-				.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
-				.Value(FInternalPlayWorldCommandCallbacks::GetNumberOfClients())
-				.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
-
-			MenuBuilder.AddWidget(NumPlayers, LOCTEXT("NumberOfClientsMenuWidget", "Number of Players"));
-		}
-		// Net Mode
-		{
-			const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
-			
-			TSharedRef<SWidget> NetMode = SNew(SEnumComboBox, PlayNetModeEnum)
-				.CurrentValue(TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetNetPlayMode)))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
-				.ContentPadding(FMargin(2, 0))
-				.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-				.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateStatic(&FInternalPlayWorldCommandCallbacks::SetNetPlayMode))
-				.ToolTipText(LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."));
-
-			MenuBuilder.AddWidget(NetMode, LOCTEXT("NetworkModeMenuWidget", "Net Mode"));
-		}
-		MenuBuilder.EndSection();
-	}
-
-	// settings
-	MenuBuilder.BeginSection("LevelEditorPlaySettings");
-	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().PlayInSettings);
-	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
+	FToolMenuContext MenuContext(InCommandList, MenuExtender);
+	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
 /*
@@ -1548,11 +1549,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 
 
 
-TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<FUICommandList> InCommandList)
+void PopulateLaunchMenu(UToolMenu* Menu)
 {
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
-
 	TArray<PlatformInfo::FVanillaPlatformEntry> VanillaPlatforms = PlatformInfo::BuildPlatformHierarchy(PlatformInfo::EPlatformFilter::All);
 
 	VanillaPlatforms.Sort([](const PlatformInfo::FVanillaPlatformEntry& One, const PlatformInfo::FVanillaPlatformEntry& Two) -> bool
@@ -1576,8 +1574,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 	TArray<PlatformInfo::FPlatformInfo> PlatformsToAddInstallLinksFor;
 	EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
 
-	MenuBuilder.BeginSection("LevelEditorLaunchDevices", LOCTEXT("LaunchButtonDevicesSection", "Devices"));
 	{
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchDevices", LOCTEXT("LaunchButtonDevicesSection", "Devices"));
 		for (const PlatformInfo::FVanillaPlatformEntry& VanillaPlatform : VanillaPlatforms)
 		{
 			// for the Editor we are only interested in launching standalone games
@@ -1615,7 +1613,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 							FString AggregateDevicedName(FString::Printf(TEXT("  %s"), *DeviceProxy->GetName())); //align with the other menu entries
 							FSlateIcon AggregateDeviceIcon(FEditorStyle::GetStyleSetName(), VanillaPlatform.PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
 
-							MenuBuilder.AddSubMenu(
+							Section.AddSubMenu(
+								NAME_None,
 								FText::FromString(AggregateDevicedName),
 								FText::FromString(AggregateDevicedName),
 								FNewMenuDelegate::CreateStatic(&MakeAllDevicesSubMenu, VanillaPlatform.PlatformInfo, DeviceProxy),
@@ -1668,13 +1667,13 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 						}
 
 						// ... and add a menu entry
-						MenuBuilder.AddMenuEntry(
-							LaunchDeviceAction,
-							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, true, Label),
+						FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 							NAME_None,
-							Tooltip,
-							EUserInterfaceActionType::Check
-						);
+							LaunchDeviceAction,
+							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, true, Label)
+						));
+						Entry.ToolTip = Tooltip;
+						Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
 					}
 				}
 			}
@@ -1688,13 +1687,12 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 			}
 		}
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("CookerSettings");
-
-	UCookerSettings* CookerSettings = GetMutableDefault<UCookerSettings>();
+	TWeakObjectPtr<UCookerSettings> CookerSettings = GetMutableDefault<UCookerSettings>();
 
 	{
+		FToolMenuSection& Section = Menu->AddSection("CookerSettings");
+
 		FUIAction UIAction;
 		UIAction.ExecuteAction = FExecuteAction::CreateLambda([CookerSettings]
 		{
@@ -1738,22 +1736,20 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 			return CookerSettings->bCookOnTheFlyForLaunchOn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 		});
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"CookOnTheFlyOnLaunch",
 			LOCTEXT("CookOnTheFlyOnLaunch", "Enable cooking on the fly"),
 			LOCTEXT("CookOnTheFlyOnLaunchDescription", "Cook on the fly instead of cooking upfront when launching"),
 			FSlateIcon(),
 			UIAction,
-			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
-	MenuBuilder.EndSection();
-
 	if (PlatformsWithNoDevices.Num() > 0)
 	{
-		MenuBuilder.BeginSection("NoDevices");
 		{
+			FToolMenuSection& Section = Menu->AddSection("NoDevices");
 			for (int32 PlatformIndex = 0; PlatformIndex < PlatformsWithNoDevices.Num(); PlatformIndex++)
 			{
 				const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindVanillaPlatformInfo(PlatformsWithNoDevices[PlatformIndex]);
@@ -1776,35 +1772,34 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 				FText Tooltip = FText::Format(LOCTEXT("LaunchNoDevicesToolTipText", "Found no connected devices for {DisplayName}"), TooltipArguments);
 
 				// ... and add a menu entry
-				MenuBuilder.AddMenuEntry(
-					NoDeviceAction,
-					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*PlatformInfo, true, Label),
+				FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 					NAME_None,
-					Tooltip,
-					EUserInterfaceActionType::Check
-				);
+					NoDeviceAction,
+					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*PlatformInfo, true, Label)
+				));
+				Entry.ToolTip = Tooltip;
+				Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 
 	// tip section
-	MenuBuilder.BeginSection("LevelEditorLaunchHint");
 	{
-		MenuBuilder.AddWidget(
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchHint");
+		Section.AddEntry(FToolMenuEntry::InitWidget(
+			"LevelEditorLaunchHint",
 			SNew(STextBlock)
 			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 			.Text(LOCTEXT("ZoomToFitHorizontal", "Launching a game on a different device will change your default 'Launch' device in the toolbar"))
 			.WrapTextAt(250),
 			FText::GetEmpty()
-		);
+		));
 	}
-	MenuBuilder.EndSection();
 
 	if (PlatformsToAddInstallLinksFor.Num() > 0)
 	{
-		MenuBuilder.BeginSection("SDKUninstalledTutorials");
 		{
+			FToolMenuSection& Section = Menu->AddSection("SDKUninstalledTutorials");
 			for (int32 PlatformIndex = 0; PlatformIndex < PlatformsToAddInstallLinksFor.Num(); PlatformIndex++)
 			{
 				const PlatformInfo::FPlatformInfo& Platform = PlatformsToAddInstallLinksFor[PlatformIndex];
@@ -1815,40 +1810,52 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<F
 				LabelArguments.Add(TEXT("PlatformName"), Platform.DisplayName);
 				FText Label = FText::Format(LOCTEXT("LaunchPlatformLabel", "{PlatformName} Support"), LabelArguments);
 
-				MenuBuilder.AddMenuEntry(
+
+				Section.AddMenuEntry(
+					NAME_None,
 					Label,
 					LOCTEXT("PlatformSDK", "Show information on setting up the platform tools"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BrowseDocumentation"),
 					Action,
-					NAME_None,
 					EUserInterfaceActionType::Button);
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 
 	// options section
-	MenuBuilder.BeginSection("LevelEditorLaunchOptions");
 	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
-			NAME_None,
+		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchOptions");
+		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon")
 		);
 
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
-			NAME_None,
+		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon")
 		);
 
-		ProjectTargetPlatformEditorModule.AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+		Section.AddDynamicEntry("OpenProjectTargetPlatform", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* ToolMenu)
+		{
+			FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
+		}));
 	}
-	MenuBuilder.EndSection();
+}
 
-	return MenuBuilder.MakeWidget();
+TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<FUICommandList> InCommandList)
+{
+	static const FName MenuName("UnrealEd.PlayWorldCommands.LaunchMenu");
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
+		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateStatic(&PopulateLaunchMenu));
+	}
+
+	FToolMenuContext MenuContext(InCommandList);
+	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
 

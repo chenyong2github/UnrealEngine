@@ -79,7 +79,7 @@ void GetLightDirectionData(uint ShapeIndex, bool bDistanceFieldCaster, out float
 	DecodeLightDirectionW(VectorValue.w, LightAngle, MinVisibility);
 }
 
-uint UseStationarySkylightShadowing;
+uint SkyLightMode;
 float CapsuleIndirectConeAngle;
 float CapsuleSkyAngleScale;
 float CapsuleMinSkyAngle;
@@ -99,8 +99,19 @@ void ComputeLightDirectionFromVolumetricLightmapCS(
 		float3 LightDirection;
 		float LightAngle;
 
-		if (UseStationarySkylightShadowing > 0)
+		if (SkyLightMode == 2)
 		{
+			FTwoBandSHVectorRGB SkyIrradianceSH;
+			// See ComputeSkyEnvMapDiffuseIrradianceCS for the coefficient and sign adaptation. N need to rescale the coefficients, direction is preserve.
+			SkyIrradianceSH.R.V = View.SkyIrradianceEnvironmentMap[0].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			SkyIrradianceSH.G.V = View.SkyIrradianceEnvironmentMap[1].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			SkyIrradianceSH.B.V = View.SkyIrradianceEnvironmentMap[2].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			LightDirection = GetMaximumDirection(GetLuminance(SkyIrradianceSH));
+			LightAngle = CapsuleIndirectConeAngle;
+		}
+		else if (SkyLightMode == 1)
+		{
+			// Stationary sky light shadowing
 			float3 SkyBentNormal = GetVolumetricLightmapSkyBentNormal(BrickTextureUVs);
 			float SkyBentNormalLength = length(SkyBentNormal);
 

@@ -44,8 +44,8 @@ public:
 
 public:
 	/** Initialization constructor for a table record node. */
-	FTableTreeNode(uint64 InId, const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex)
-		: FBaseTreeNode(InId, InName, false)
+	FTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex)
+		: FBaseTreeNode(InName, false)
 		, ParentTable(InParentTable)
 		, RowId(InRowIndex)
 	{
@@ -53,7 +53,7 @@ public:
 
 	/** Initialization constructor for a group node. */
 	FTableTreeNode(const FName InGroupName, TWeakPtr<FTable> InParentTable)
-		: FBaseTreeNode(0, InGroupName, true)
+		: FBaseTreeNode(InGroupName, true)
 		, ParentTable(InParentTable)
 		, RowId(FTableRowId::InvalidRowIndex)
 	{

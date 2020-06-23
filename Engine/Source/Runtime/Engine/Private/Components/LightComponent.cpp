@@ -24,6 +24,9 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 void FStaticShadowDepthMap::InitRHI()
 {
@@ -229,6 +232,23 @@ void ULightComponentBase::OnRegister()
 
 		UpdateLightSpriteTexture();
 	}
+
+#if WITH_EDITOR
+	if (bAffectsWorld && HasStaticShadowing())
+	{
+		FStaticLightingSystemInterface::OnLightComponentRegistered.Broadcast(this);
+	}
+#endif
+}
+
+void ULightComponentBase::OnUnregister()
+{
+#if WITH_EDITOR
+	// Unconditional unregistration event in case we miss any changes to mobility in the middle
+	FStaticLightingSystemInterface::OnLightComponentUnregistered.Broadcast(this);
+#endif
+
+	Super::OnUnregister();
 }
 
 bool ULightComponentBase::CanEditChange(const FProperty* InProperty) const
@@ -300,6 +320,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bUseWholeSceneCSMForMovableObjects(false)
 	, bTiledDeferredLightingSupported(false)
 	, AtmosphereSunLightIndex(InLightComponent->GetAtmosphereSunLightIndex())
+	, AtmosphereSunDiskColorScale(InLightComponent->GetAtmosphereSunDiskColorScale())
 	, LightType(InLightComponent->GetLightType())	
 	, LightingChannelMask(GetLightingChannelMaskForStruct(InLightComponent->LightingChannels))
 	, StatId(InLightComponent->GetStatID(true))
@@ -1164,42 +1185,42 @@ void ULightComponent::UpdateColorAndBrightness()
 
 void ULightComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly)
 {
-	InvalidateLightingCacheInner(true);
-
-	UWorld* World = GetWorld();
-	if (GIsEditor
-		&& World != NULL
-		&& HasStaticShadowing()
-		&& !HasStaticLighting())
+	if (HasStaticShadowing()) // == non movable
 	{
-		ReassignStationaryLightChannels(World, false, NULL);
-	}
-}
+#if WITH_EDITOR
+		FStaticLightingSystemInterface::OnLightComponentUnregistered.Broadcast(this);
+#endif
 
-/** Invalidates the light's cached lighting with the option to recreate the light Guids. */
-void ULightComponent::InvalidateLightingCacheInner(bool bRecreateLightGuids)
-{
-	if (HasStaticShadowing())
-	{
 		// Save the light state for transactions.
 		Modify();
 
 		BeginReleaseResource(&StaticShadowDepthMap);
 
-		if (bRecreateLightGuids)
+		// Create new guids for light.
+		UpdateLightGUIDs();
+
+		if (GIsEditor)
 		{
-			// Create new guids for light.
-			UpdateLightGUIDs();
-		}
-		else
-		{
-			ValidateLightGUIDs();
+			UWorld* World = GetWorld();
+			bool bStationary = HasStaticShadowing() && !HasStaticLighting();
+			if (World != NULL && bStationary)
+			{
+				ReassignStationaryLightChannels(World, false, NULL);
+			}
 		}
 
 		MarkRenderStateDirty();
+
+#if WITH_EDITOR
+		if (bAffectsWorld)
+		{
+			FStaticLightingSystemInterface::OnLightComponentRegistered.Broadcast(this);
+		}
+#endif
 	}
 	else
 	{
+		// Movable lights will have a GUID of 0
 		LightGuid.Invalidate();
 	}
 }
@@ -1256,6 +1277,13 @@ const FLightComponentMapBuildData* ULightComponent::GetLightComponentMapBuildDat
 
 		if (OwnerLevel && OwnerLevel->OwningWorld)
 		{
+#if WITH_EDITOR
+			if (FStaticLightingSystemInterface::GetLightComponentMapBuildData(this))
+			{
+				return FStaticLightingSystemInterface::GetLightComponentMapBuildData(this);
+			}
+#endif
+
 			ULevel* ActiveLightingScenario = OwnerLevel->OwningWorld->GetActiveLightingScenario();
 			UMapBuildDataRegistry* MapBuildData = NULL;
 
@@ -1392,6 +1420,13 @@ struct FCompareLightsByArrayCount
 	}
 };
 
+/**
+ * This function is supposed to be called only when
+ * - loading a map (UEditorEngine::Map_Load)
+ * - a light's lighting cache gets invalidated (ULightComponent::InvalidateLightingCacheDetailed)
+ * - finishing a lighting build
+ * If you're adding more call sites to this function, make sure not to break GPULightmass as it is based on the above assumption
+ */
 void ULightComponent::ReassignStationaryLightChannels(UWorld* TargetWorld, bool bAssignForLightingBuild, ULevel* LightingScenario)
 {
 	TMap<FLightAndChannel*, TArray<FLightAndChannel*> > LightToOverlapMap;
@@ -1527,6 +1562,9 @@ void ULightComponent::ReassignStationaryLightChannels(UWorld* TargetWorld, bool 
 		if (CurrentLight->Light->PreviewShadowMapChannel != CurrentLight->Channel)
 		{
 			CurrentLight->Light->PreviewShadowMapChannel = CurrentLight->Channel;
+#if WITH_EDITOR
+			FStaticLightingSystemInterface::OnStationaryLightChannelReassigned.Broadcast(CurrentLight->Light, CurrentLight->Light->PreviewShadowMapChannel);
+#endif
 			CurrentLight->Light->MarkRenderStateDirty();
 		}
 

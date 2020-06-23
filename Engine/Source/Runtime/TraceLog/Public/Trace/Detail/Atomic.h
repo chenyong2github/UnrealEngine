@@ -13,7 +13,8 @@ template <typename Type> void	AtomicStoreRelease(Type volatile* Target, Type Val
 template <typename Type> bool	AtomicCompareExchangeRelaxed(Type volatile* Target, Type New, Type Expected);
 template <typename Type> bool	AtomicCompareExchangeAcquire(Type volatile* Target, Type New, Type Expected);
 template <typename Type> bool	AtomicCompareExchangeRelease(Type volatile* Target, Type New, Type Expected);
-uint32							AtomicIncrementRelaxed(uint32 volatile* Target);
+uint32							AtomicAddRelaxed(uint32 volatile* Target, uint32 Val);
+int32							AtomicAddRelaxed(int32 volatile* Target, int32 Val);
 void							PlatformYield();
 
 } // namespace Private
@@ -23,8 +24,10 @@ void							PlatformYield();
 #if PLATFORM_CPU_X86_FAMILY
 #include <emmintrin.h>
 #endif
+#include <atomic>
 
 ////////////////////////////////////////////////////////////////////////////////
+#define WITH_STD_ATOMIC			1
 #define IS_MSVC					0
 #define IS_GCC_COMPATIBLE		0
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -80,7 +83,10 @@ template <typename Type>
 inline Type AtomicLoadRelaxed(Type volatile* Source)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Source;
+	return T->load(std::memory_order_relaxed);
+#elif IS_MSVC
 #	if defined(_M_ARM)
 		__int32 Value = __iso_volatile_load32((__int32 volatile*)Source);
 		return (Type*)Value;
@@ -100,7 +106,10 @@ template <typename Type>
 inline Type AtomicLoadAcquire(Type volatile* Source)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Source;
+	return T->load(std::memory_order_acquire);
+#elif IS_MSVC
 #	if defined(_M_ARM)
 		__int32 Value = __iso_volatile_load32((__int32 volatile*)Source);
 		__dmb(_ARM_BARRIER_ISH);
@@ -124,7 +133,10 @@ template <typename Type>
 inline void AtomicStoreRelaxed(Type volatile* Target, Type Value)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Target;
+	T->store(Value, std::memory_order_relaxed);
+#elif IS_MSVC
 #	if defined(_M_ARM)
 		__iso_volatile_store32((__int32 volatile*)Target, UPTRINT(Value));
 #	elif defined(_M_ARM64)
@@ -142,7 +154,10 @@ template <typename Type>
 inline void AtomicStoreRelease(Type volatile* Target, Type Value)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Target;
+	T->store(Value, std::memory_order_release);
+#elif IS_MSVC
 #	if defined(_M_ARM)
 		__dmb(_ARM_BARRIER_ISH);
 		__iso_volatile_store32((__int32 volatile*)Target, __int32(Value));
@@ -163,7 +178,10 @@ template <typename Type>
 inline bool AtomicCompareExchangeRelaxed(Type volatile* Target, Type New, Type Expected)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Target;
+	return T->compare_exchange_weak(Expected, New, std::memory_order_relaxed);
+#elif IS_MSVC
 	return INTERLOCKED_API(_InterlockedCompareExchangePointer, _nf, (void* volatile*)Target, (void*)New, (void*)Expected) == (void*)Expected;
 #elif IS_GCC_COMPATIBLE
 	Type InOut = Expected;
@@ -176,7 +194,10 @@ template <typename Type>
 inline bool AtomicCompareExchangeAcquire(Type volatile* Target, Type New, Type Expected)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Target;
+	return T->compare_exchange_weak(Expected, New, std::memory_order_acquire);
+#elif IS_MSVC
 	return INTERLOCKED_API(_InterlockedCompareExchangePointer, _acq, (void* volatile*)Target, (void*)New, (void*)Expected) == (void*)Expected;
 #elif IS_GCC_COMPATIBLE
 	Type InOut = Expected;
@@ -189,7 +210,10 @@ template <typename Type>
 inline bool AtomicCompareExchangeRelease(Type volatile* Target, Type New, Type Expected)
 {
 	static_assert(sizeof(Type) == sizeof(void*), "");
-#if IS_MSVC
+#if WITH_STD_ATOMIC
+	std::atomic<Type>* T = (std::atomic<Type>*) Target;
+	return T->compare_exchange_weak(Expected, New, std::memory_order_release);
+#elif IS_MSVC
 	return INTERLOCKED_API(_InterlockedCompareExchangePointer, _rel, (void* volatile*)Target, (void*)New, (void*)Expected) == (void*)Expected;
 #elif IS_GCC_COMPATIBLE
 	Type InOut = Expected;
@@ -198,14 +222,28 @@ inline bool AtomicCompareExchangeRelease(Type volatile* Target, Type New, Type E
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline uint32 AtomicIncrementRelaxed(uint32 volatile* Target)
+inline uint32 AtomicAddRelaxed(uint32 volatile* Target, uint32 Value)
 {
-	// Here we decrement the return of the MSVC path instead of incrementing the
-	// GCC path as GCC better matches what x64's 'lock add' does.
-#if IS_MSVC
-	return INTERLOCKED_API(_InterlockedIncrement, _nf, (long volatile*)Target) - 1;
+#if WITH_STD_ATOMIC
+	std::atomic<uint32>* T = (std::atomic<uint32>*) Target;
+	return T->fetch_add(Value, std::memory_order_relaxed);
+#elif IS_MSVC
+	return INTERLOCKED_API(_InterlockedExchangeAdd, _nf, (long volatile*) Target, (long) Value);
 #elif IS_GCC_COMPATIBLE
-	return __atomic_fetch_add(Target, 1, __ATOMIC_RELAXED);
+	return __atomic_fetch_add(Target, Value, __ATOMIC_RELAXED);
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline int32 AtomicAddRelaxed(int32 volatile* Target, int32 Value)
+{
+#if WITH_STD_ATOMIC
+	std::atomic<int32>* T = (std::atomic<int32>*) Target;
+	return T->fetch_add(Value, std::memory_order_relaxed);
+#elif IS_MSVC
+	return INTERLOCKED_API(_InterlockedExchangeAdd, _nf, (long volatile*) Target, (long) Value);
+#elif IS_GCC_COMPATIBLE
+	return __atomic_fetch_add(Target, Value, __ATOMIC_RELAXED);
 #endif
 }
 

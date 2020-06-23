@@ -107,6 +107,17 @@ public:
 
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API USmoothWeightMapSetProperties : public UWeightMapSetProperties
+{
+	GENERATED_BODY()
+public:
+
+	/** Fractional Minimum Smoothing Parameter in World Units, for Weight Map values of zero */
+	UPROPERTY(EditAnywhere, Category = WeightMap, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", DisplayPriority = 5))
+	float MinSmoothMultiplier = 0.0f;
+};
+
 
 
 
@@ -126,6 +137,7 @@ public:
 
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
+	virtual bool RequiresInitialVtxNormals() const { return true; }
 	virtual bool HasMeshTopologyChanged() const override;
 
 	virtual FText GetToolMessageString() const override;
@@ -143,6 +155,9 @@ protected:
 
 	UPROPERTY()
 	UImplicitSmoothProperties* ImplicitProperties = nullptr;
+
+	UPROPERTY()
+	USmoothWeightMapSetProperties* WeightMapProperties = nullptr;
 };
 
 

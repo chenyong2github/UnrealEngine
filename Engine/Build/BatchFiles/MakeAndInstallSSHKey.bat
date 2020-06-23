@@ -7,8 +7,8 @@ set SSHPORT=%2
 set RSYNC=%3
 set USER=%4
 set MACHINE=%5
-set DOCUMENTS=%6
-set CYGWIN_DOCUMENTS=%7
+set DOCUMENTS=%~6
+set CYGWIN_DOCUMENTS=%~7
 set ENGINE=%~8
 
 set USER=%USER:"=%

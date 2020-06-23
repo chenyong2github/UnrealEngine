@@ -11,6 +11,7 @@
 
 class FRunnableThread;
 class UClass;
+class ISearchProvider;
 
 class FAssetSearchManager : public FRunnable
 {
@@ -20,10 +21,11 @@ public:
 	
 	void Start();
 	void RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer);
+	void RegisterSearchProvider(FName SearchProviderName, TUniquePtr<ISearchProvider>&& InSearchProvider);
 
 	FSearchStats GetStats() const;
 
-	void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback);
+	void Search(FSearchQueryPtr SearchQuery);
 
 	// Utility
 	void ForceIndexOnAssetsMissingIndex();
@@ -80,6 +82,8 @@ private:
 
 private:
 	TMap<FName, TUniquePtr<IAssetIndexer>> Indexers;
+
+	TMap<FName, TUniquePtr<ISearchProvider>> SearchProviders;
 
 	TArray<TWeakObjectPtr<UObject>> RequestIndexQueue;
 

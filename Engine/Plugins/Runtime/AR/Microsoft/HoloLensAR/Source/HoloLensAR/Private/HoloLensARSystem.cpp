@@ -274,6 +274,7 @@ void FHoloLensARSystem::SetupCameraImageSupport()
 	// Remoting does not support CameraCapture currently.
 	if (WMRInterop->IsRemoting())
 	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("HoloLens remoting does not support the device forward facing camera.  No images will be collected."));
 		return;
 	}
 

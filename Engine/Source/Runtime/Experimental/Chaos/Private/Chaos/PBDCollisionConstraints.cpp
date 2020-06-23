@@ -242,7 +242,7 @@ namespace Chaos
 			FPBDCollisionConstraintHandle* Handle = HandleAllocator.template AllocHandle<FRigidBodyPointContactConstraint>(this, Idx);
 			Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
 
-			Constraints.SinglePointConstraints[Idx].ConstraintHandle = Handle;
+			Constraints.SinglePointConstraints[Idx].SetConstraintHandle(Handle);
 
 			check(Handle != nullptr);
 			Handles.Add(Handle);
@@ -263,7 +263,7 @@ namespace Chaos
 			FPBDCollisionConstraintHandle* Handle = HandleAllocator.template AllocHandle<FRigidBodySweptPointContactConstraint>(this, Idx);
 			Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
 
-			Constraints.SinglePointSweptConstraints[Idx].ConstraintHandle = Handle;
+			Constraints.SinglePointSweptConstraints[Idx].SetConstraintHandle(Handle);
 
 			if(ensure(Handle != nullptr))
 			{			
@@ -287,7 +287,7 @@ namespace Chaos
 			FPBDCollisionConstraintHandle* Handle = HandleAllocator.template AllocHandle<FRigidBodyMultiPointContactConstraint>(this, Idx);
 			Handle->GetContact().Timestamp = LifespanCounter;
 
-			Constraints.MultiPointConstraints[Idx].ConstraintHandle = Handle;
+			Constraints.MultiPointConstraints[Idx].SetConstraintHandle(Handle);
 
 			check(Handle != nullptr);
 			Handles.Add(Handle);
@@ -409,7 +409,7 @@ namespace Chaos
 			Constraints.SinglePointConstraints.RemoveAtSwap(Idx);
 			if (bHandlesEnabled && (Idx < Constraints.SinglePointConstraints.Num()))
 			{
-				Constraints.SinglePointConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
+				Constraints.SinglePointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
 			}
 
 		}
@@ -426,7 +426,7 @@ namespace Chaos
 			Constraints.SinglePointSweptConstraints.RemoveAtSwap(Idx);
 			if (bHandlesEnabled && (Idx < Constraints.SinglePointSweptConstraints.Num()))
 			{
-				Constraints.SinglePointSweptConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
+				Constraints.SinglePointSweptConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
 			}
 		}
 		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
@@ -442,7 +442,7 @@ namespace Chaos
 			Constraints.MultiPointConstraints.RemoveAtSwap(Idx);
 			if (bHandlesEnabled && (Idx < Constraints.MultiPointConstraints.Num()))
 			{
-				Constraints.MultiPointConstraints[Idx].ConstraintHandle->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
+				Constraints.MultiPointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
 			}
 		}
 		else 
@@ -626,6 +626,11 @@ namespace Chaos
 		}
 
 		return bNeedsAnotherIteration;
+	}
+
+	void FPBDCollisionConstraints::SortConstraints()
+	{
+		Constraints.SortConstraints();
 	}
 
 

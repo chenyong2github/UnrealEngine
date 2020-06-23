@@ -38,8 +38,13 @@ class AIMODULE_API UBTAuxiliaryNode : public UBTNode
 	/** wrapper for node instancing: OnCeaseRelevant */
 	void WrappedOnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
-	/** wrapper for node instancing: TickNode */
-	void WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) const;
+	/** wrapper for node instancing: TickNode
+	  * @param OwnerComp	The behavior tree owner of this node
+	  * @param NodeMemory	The instance memory of the current node
+	  * @param DeltaSeconds		DeltaTime since last call
+	  * @param NextNeededDeltaTime		In out parameter, if this node needs a smaller DeltaTime it is his responsibility to change it
+	  * @returns	True if it actually done some processing or false if it was skipped because of not ticking or in between time interval */
+	bool WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const;
 
 	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
 	virtual uint16 GetSpecialMemorySize() const override;
@@ -52,6 +57,12 @@ class AIMODULE_API UBTAuxiliaryNode : public UBTNode
 
 	/** @return index of child in parent's array or MAX_uint8 */
 	uint8 GetChildIndex() const;
+
+	/** Get The next needed deltatime for this node
+	  * @param OwnerComp	The behavior tree owner of this node
+	  * @param NodeMemory	The instance memory of the current node
+	  * @return The next needed DeltaTime */
+	float GetNextNeededDeltaTime(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 protected:
 

@@ -48,9 +48,6 @@
 
 #define SEAMLESS_REBUILDING_ENABLED 1
 
-#define GENERATE_SEGMENT_LINKS 1
-#define GENERATE_CLUSTER_LINKS 1
-
 #define SHOW_NAV_EXPORT_PREVIEW 0
 
 #define TEXT_WEAKOBJ_NAME(obj) (obj.IsValid(false) ? *obj->GetName() : (obj.IsValid(false, true)) ? TEXT("MT-Unreachable") : TEXT("INVALID"))
@@ -3489,15 +3486,7 @@ bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildC
 
 struct FTileGenerationContext
 {
-	FTileGenerationContext(dtTileCacheAlloc* MyAllocator) :
-		Allocator(MyAllocator), Layer(nullptr), DistanceField(nullptr), ContourSet(nullptr), ClusterSet(nullptr), PolyMesh(nullptr), DetailMesh(nullptr)
-	{
-	}
-
-	FTileGenerationContext() :
-		Allocator(nullptr), Layer(nullptr), DistanceField(nullptr), ContourSet(nullptr), ClusterSet(nullptr), PolyMesh(nullptr), DetailMesh(nullptr)
-	{
-	}
+	FTileGenerationContext(dtTileCacheAlloc* MyAllocator) :	Allocator(MyAllocator)	{}
 
 	~FTileGenerationContext()
 	{
@@ -3514,8 +3503,10 @@ struct FTileGenerationContext
 			DistanceField = nullptr;
 			dtFreeTileCacheContourSet(Allocator, ContourSet);
 			ContourSet = nullptr;
+#if WITH_NAVMESH_CLUSTER_LINKS
 			dtFreeTileCacheClusterSet(Allocator, ClusterSet);
 			ClusterSet = nullptr;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 			dtFreeTileCachePolyMesh(Allocator, PolyMesh);
 			PolyMesh = nullptr;
 			dtFreeTileCachePolyMeshDetail(Allocator, DetailMesh);
@@ -3524,13 +3515,15 @@ struct FTileGenerationContext
 		}
 	}
 
-	struct dtTileCacheAlloc* Allocator;
-	struct dtTileCacheLayer* Layer;
-	struct dtTileCacheDistanceField* DistanceField;
-	struct dtTileCacheContourSet* ContourSet;
-	struct dtTileCacheClusterSet* ClusterSet;
-	struct dtTileCachePolyMesh* PolyMesh;
-	struct dtTileCachePolyMeshDetail* DetailMesh;
+	struct dtTileCacheAlloc* Allocator = nullptr;
+	struct dtTileCacheLayer* Layer = nullptr;
+	struct dtTileCacheDistanceField* DistanceField = nullptr;
+	struct dtTileCacheContourSet* ContourSet = nullptr;
+#if WITH_NAVMESH_CLUSTER_LINKS
+	struct dtTileCacheClusterSet* ClusterSet = nullptr;
+#endif //WITH_NAVMESH_CLUSTER_LINKS
+	struct dtTileCachePolyMesh* PolyMesh = nullptr;
+	struct dtTileCachePolyMeshDetail* DetailMesh = nullptr;
 	TArray<FNavMeshTileData> NavigationData;
 };
 
@@ -3616,6 +3609,7 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			return false;
 		}
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 		GenerationContext.ClusterSet = dtAllocTileCacheClusterSet(&GenNavAllocator);
 		if (GenerationContext.ClusterSet == nullptr)
 		{
@@ -3626,6 +3620,12 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		status = dtBuildTileCacheContours(&GenNavAllocator, *GenerationContext.Layer,
 			TileConfig.walkableClimb, TileConfig.maxSimplificationError, TileConfig.cs, TileConfig.ch,
 			*GenerationContext.ContourSet, *GenerationContext.ClusterSet);
+#else
+		status = dtBuildTileCacheContours(&GenNavAllocator, *GenerationContext.Layer,
+			TileConfig.walkableClimb, TileConfig.maxSimplificationError, TileConfig.cs, TileConfig.ch,
+			*GenerationContext.ContourSet);
+#endif //WITH_NAVMESH_CLUSTER_LINKS
+		
 		if (dtStatusFailed(status))
 		{
 			BuildContext.log(RC_LOG_ERROR, "GenerateNavigationDataLayer: Failed to generate contour set (0x%08X).", status);
@@ -3664,12 +3664,14 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			return false;
 		}
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 		status = dtBuildTileCacheClusters(&GenNavAllocator, *GenerationContext.ClusterSet, *GenerationContext.PolyMesh);
 		if (dtStatusFailed(status))
 		{
 			BuildContext.log(RC_LOG_ERROR, "GenerateNavigationData: Failed to update cluster set.");
 			return false;
 		}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 	}
 
 #if RECAST_INTERNAL_DEBUG_DATA
@@ -3737,9 +3739,9 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			for (int32 LinkModifierIndex = 0; LinkModifierIndex < OffmeshLinks.Num(); ++LinkModifierIndex, ++LinkModifier)
 			{
 				OffMeshData.AddLinks(LinkModifier->Links, LinkModifier->LocalToWorld, TileConfig.AgentIndex, DefaultSnapHeight);
-#if GENERATE_SEGMENT_LINKS
+#if WITH_NAVMESH_SEGMENT_LINKS
 				OffMeshData.AddSegmentLinks(LinkModifier->SegmentLinks, LinkModifier->LocalToWorld, TileConfig.AgentIndex, DefaultSnapHeight);
-#endif // GENERATE_SEGMENT_LINKS
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 			}
 		}
 
@@ -3780,10 +3782,11 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		Params.cs = TileConfig.cs;
 		Params.ch = TileConfig.ch;
 		Params.buildBvTree = TileConfig.bGenerateBVTree;
-#if GENERATE_CLUSTER_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 		Params.clusterCount = GenerationContext.ClusterSet->nclusters;
 		Params.polyClusters = GenerationContext.ClusterSet->polyMap;
-#endif
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastCreateNavMeshData);

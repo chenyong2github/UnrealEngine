@@ -4,18 +4,19 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "UObject/GCObject.h"
 
 class UMoviePipelineConfigBase;
 class SMoviePipelineQueueEditor;
 class SWindow;
 class UMoviePipelineExecutorJob;
 class UMovieSceneCinematicShotSection;
+class IDetailsView;
+struct FAssetData;
 
 /**
- * Outermost widget that is used for setting up a new movie render pipeline queue. Operates on a transient object that is internally owned and maintained 
+ * Outermost widget that is used for adding and removing jobs from the Movie Pipeline Queue Subsystem.
  */
-class SMoviePipelineQueuePanel : public SCompoundWidget, public FGCObject
+class SMoviePipelineQueuePanel : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMoviePipelineQueuePanel)
@@ -33,10 +34,6 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	// FGCObject Interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	// ~FGCObject Interface
-
 	FReply OnRenderLocalRequested();
 	bool IsRenderLocalEnabled() const;
 	FReply OnRenderRemoteRequested();
@@ -50,6 +47,16 @@ private:
 	void OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, UMoviePipelineConfigBase* InConfig);
 	void OnConfigWindowClosed();
 
+	void OnSelectionChanged(const TArray<UMoviePipelineExecutorJob*>& InSelectedJobs);
+	int32 GetDetailsViewWidgetIndex() const;
+	bool IsDetailsViewEnabled() const;
+
+	TSharedRef<SWidget> OnGenerateSavedQueuesMenu();
+	bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNameSuggestion, FString& OutPackageName);
+	bool GetSavePresetPackageName(const FString& InExistingName, FString& OutName);
+	void OnSaveAsAsset();
+	void OnImportSavedQueueAssest(const FAssetData& InPresetAsset);
+
 private:
 	/** Allocates a transient preset so that the user can use the pipeline without saving it to an asset first. */
 	//UMoviePipelineConfigBase* AllocateTransientPreset();
@@ -59,7 +66,10 @@ private:
 	/** The main movie pipeline queue editor widget */
 	TSharedPtr<SMoviePipelineQueueEditor> PipelineQueueEditorWidget;
 
+	/** The details panel for the selected job(s) */
+	TSharedPtr<IDetailsView> JobDetailsPanelWidget;
+
 	TWeakPtr<SWindow> WeakEditorWindow;
-	/** The transient preset that we use - kept alive by AddReferencedObjects */
-	// UMoviePipelineConfigBase* TransientPreset;
+	
+	int32 NumSelectedJobs;
 };

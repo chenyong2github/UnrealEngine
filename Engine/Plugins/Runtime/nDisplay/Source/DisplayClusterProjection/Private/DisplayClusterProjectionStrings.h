@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayClusterUtils/DisplayClusterCommonStrings.h"
+#include "Misc/DisplayClusterCommonStrings.h"
 
 
 namespace DisplayClusterStrings

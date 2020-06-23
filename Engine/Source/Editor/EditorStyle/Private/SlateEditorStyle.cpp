@@ -6328,7 +6328,8 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 		Set("ClassIcon.VectorFieldComponent", new IMAGE_BRUSH("Icons/ActorIcons/VectorFieldVolume_16x", Icon16x16));
 		Set("ClassIcon.ArrowComponent", new IMAGE_BRUSH("Icons/ActorIcons/Arrow_16px", Icon16x16));
 		Set("ClassIcon.AtmosphericFogComponent", new IMAGE_BRUSH("Icons/AssetIcons/AtmosphericFog_16x", Icon16x16));
-		Set("ClassIcon.SkyAtmosphereComponent", new IMAGE_BRUSH("Icons/AssetIcons/AtmosphericFog_16x", Icon16x16));
+		Set("ClassIcon.SkyAtmosphereComponent", new IMAGE_BRUSH("Icons/AssetIcons/SkyAtmosphere_16x", Icon16x16));
+		Set("ClassIcon.VolumetricCloudComponent", new IMAGE_BRUSH("Icons/AssetIcons/SkyAtmosphere_16x", Icon16x16));
 		Set("ClassIcon.BoxComponent", new IMAGE_BRUSH("Icons/ActorIcons/Box_16px", Icon16x16));
 		Set("ClassIcon.CapsuleComponent", new IMAGE_BRUSH("Icons/ActorIcons/Capsule_16px", Icon16x16));
 		Set("ClassIcon.InstancedStaticMeshComponent", new IMAGE_BRUSH("Icons/ActorIcons/InstancedStaticMesh_16px", Icon16x16));
@@ -6532,6 +6533,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("SkyLight"),
 			TEXT("SkyLightComponent"),
 			TEXT("SkyAtmosphere"),
+			TEXT("VolumetricCloud"),
 			TEXT("SkeletalMesh"),
 			TEXT("Skeleton"),
 			TEXT("SlateBrushAsset"),

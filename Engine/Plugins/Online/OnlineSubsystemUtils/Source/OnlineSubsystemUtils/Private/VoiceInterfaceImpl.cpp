@@ -813,7 +813,7 @@ void FOnlineVoiceImpl::ProcessRemoteVoicePackets()
 
 				// Convert amplitude from Q15:
 				const float Amplitude = ((float)VoicePacket->MicrophoneAmplitude) / 32767.0f;
-				ensureAlways(Amplitude >= 0.0f && Amplitude < 1.0f);
+				ensureAlways(Amplitude >= 0.0f && Amplitude <= 1.0f);
 				Result = VoiceEngine->SetRemoteVoiceAmplitude(FUniqueNetIdWrapper(VoicePacket->Sender), Amplitude);
 
 				if (Result != ONLINE_SUCCESS)

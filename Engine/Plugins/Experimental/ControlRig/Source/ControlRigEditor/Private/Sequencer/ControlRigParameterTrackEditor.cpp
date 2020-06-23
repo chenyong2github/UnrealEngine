@@ -54,6 +54,7 @@
 #include "Channels/FloatChannelCurveModel.h"
 #include "Sequencer/ControlRigSortedControls.h"
 #include "TransformNoScale.h"
+#include "ISequencerObjectChangeListener.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 static USkeleton* GetSkeletonFromComponent(UActorComponent* InComponent)
@@ -127,8 +128,9 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 {
 	SelectionChangedHandle = InSequencer->GetSelectionChangedTracks().AddRaw(this, &FControlRigParameterTrackEditor::OnSelectionChanged);
 	SequencerChangedHandle = InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnSequencerDataChanged);
-	SelectionChangedHandle = InSequencer->GetCurveDisplayChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnCurveDisplayChanged);
-
+	CurveChangedHandle = InSequencer->GetCurveDisplayChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnCurveDisplayChanged);
+	InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
+	
 	//register all modified/selections for control rigs
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
@@ -145,6 +147,10 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 
 FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 {
+	if (GetSequencer().IsValid())
+	{
+		GetSequencer()->GetObjectChangeListener().GetOnPropagateObjectChanges().RemoveAll(this);
+	}
 }
 
 void FControlRigParameterTrackEditor::ObjectImplicitlyAdded(UObject* InObject) 
@@ -170,6 +176,11 @@ void FControlRigParameterTrackEditor::OnRelease()
 		{
 			GetSequencer()->OnMovieSceneDataChanged().Remove(SequencerChangedHandle);
 		}
+		if (CurveChangedHandle.IsValid())
+		{
+			GetSequencer()->GetCurveDisplayChanged().Remove(CurveChangedHandle);
+		}
+
 		if (GetSequencer()->GetFocusedMovieSceneSequence() && GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene())
 		{
 			UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -790,6 +801,36 @@ void FControlRigParameterTrackEditor::HandleControlSelected(IControlRigManipulat
 
 			//Force refresh now, not later
 			GetSequencer()->RefreshTree();
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::OnPropagateObjectChanges(UObject* InChangedObject)
+{
+	if (AActor* Actor = Cast<AActor>(InChangedObject))
+	{
+		if (UMovieScene* MovieScene = GetFocusedMovieScene())
+		{
+			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+			for (const FMovieSceneBinding& Binding : Bindings)
+			{
+				if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None)))
+				{
+					if (UControlRig* ControlRig = Track->GetControlRig())
+					{
+						if (USceneComponent* SceneComponent = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
+						{
+							if (SceneComponent->GetOwner() == Actor)
+							{
+								if (GetSequencer().IsValid())
+								{
+									GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

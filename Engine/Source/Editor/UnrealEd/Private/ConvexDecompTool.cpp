@@ -61,7 +61,7 @@ public:
 		return FCpuProfilerTrace::OutputEventType(tagName);
 	}
 
-    virtual void EnterTag(unsigned int tagId) override
+	virtual void EnterTag(unsigned int tagId) override
 	{
 		FCpuProfilerTrace::OutputBeginEvent(tagId);
 	}
@@ -179,7 +179,7 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 	}
 
 	IVHACD* InterfaceVHACD = CreateVHACD();
-	
+
 	const float* const Verts = (float*)InVertices.GetData();
 	const unsigned int NumVerts = InVertices.Num();
 	const uint32_t* const Tris = (uint32_t*)InIndices.GetData();
@@ -222,7 +222,7 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 
 		InBodySetup->InvalidatePhysicsData(); // update GUID
 	}
-	
+
 	InterfaceVHACD->Clean();
 	InterfaceVHACD->Release();
 }
@@ -316,7 +316,7 @@ public:
 		}
 
 
-		VHACDJob		*mNext{ nullptr };						// Next job to perform 
+		VHACDJob		*mNext{ nullptr };						// Next job to perform
 private:
 		// Release scratch memory allocated to hold the input request mesh
 		void ReleaseMesh(void)
@@ -363,7 +363,7 @@ private:
 	*	@param		InAccuracy			Value between 0 and 1, controls how accurate hull generation is
 	*	@param		InMaxHullVerts		Number of verts allowed in a hull
 	*/
-	virtual bool DecomposeMeshToHullsAsyncBegin(UBodySetup* _InBodySetup, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, uint32 InHullCount, int32 InMaxHullVerts, uint32 InResolution = DEFAULT_HACD_VOXEL_RESOLUTION) final 
+	virtual bool DecomposeMeshToHullsAsyncBegin(UBodySetup* _InBodySetup, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, uint32 InHullCount, int32 InMaxHullVerts, uint32 InResolution = DEFAULT_HACD_VOXEL_RESOLUTION) final
 	{
 		check(_InBodySetup != NULL);
 

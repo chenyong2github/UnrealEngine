@@ -24,6 +24,25 @@ struct CONCERTSYNCCORE_API FTransactionClassFilter
 	TArray<FSoftClassPath> ObjectClasses;
 };
 
+USTRUCT()
+struct CONCERTSYNCCORE_API FPackageClassFilter
+{
+	GENERATED_BODY()
+
+	/**
+	 *	Optional Class that will filter a specific asset type.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Sync Settings")
+	FSoftClassPath AssetClass;
+
+	/**
+	 *  Paths on which package of a certain asset type will pass the filter, if no asset is specified all asset in those paths pass the filter
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Sync Settings")
+	TArray<FString> ContentPaths;
+};
+
+
 UCLASS(config=ConcertSyncCore)
 class CONCERTSYNCCORE_API UConcertSyncConfig : public UObject
 {
@@ -76,4 +95,11 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Transaction Settings", meta=(AllowedClasses="Property"))
 	TArray<TFieldPath<FProperty>> AllowedTransientProperties;
+
+	/**
+	 * Array of package class filter.
+	 * Packages that matches those filters, will be excluded from propagating to the server when saved.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Package Settings")
+	TArray<FPackageClassFilter> ExcludePackageClassFilters;
 };

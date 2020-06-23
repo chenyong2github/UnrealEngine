@@ -7,7 +7,8 @@
 #include "HAL/Runnable.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "DisplayClusterConstants.h"
+
+#include "Misc/DisplayClusterConstants.h"
 
 
 /**

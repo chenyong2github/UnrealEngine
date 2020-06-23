@@ -414,11 +414,15 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TAr
 		}
 		else if (InPaths.Num() > 0)
 		{
+			// Sort the paths to try and build a consistent hash for this input
+			TArray<FString> SortedPaths = InPaths;
+			SortedPaths.StableSort();
+
 			// todo: handle hash collisions?
-			uint32 CacheHash = GetTypeHash(InPaths[0]);
-			for (int32 PathIndex = 1; PathIndex < InPaths.Num(); ++PathIndex)
+			uint32 CacheHash = GetTypeHash(SortedPaths[0]);
+			for (int32 PathIndex = 1; PathIndex < SortedPaths.Num(); ++PathIndex)
 			{
-				CacheHash = HashCombine(CacheHash, GetTypeHash(InPaths[PathIndex]));
+				CacheHash = HashCombine(CacheHash, GetTypeHash(SortedPaths[PathIndex]));
 			}
 
 			bLoadAndSaveCache = true;

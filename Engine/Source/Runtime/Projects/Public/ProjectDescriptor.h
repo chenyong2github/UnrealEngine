@@ -136,15 +136,17 @@ struct PROJECTS_API FProjectDescriptor
 	/**
 	 * Adds a directory to the additional plugin directories list. 
 	 *
-	 * @param Dir - the new directory to add
+	 * @param Dir - the new directory to add (must be a full path)
+	 * @return whether the plugin directory list was changed
 	 */
-	void AddPluginDirectory(const FString& Dir);
+	bool AddPluginDirectory(const FString& Dir);
 	/**
 	 * Removes the directory from the list to scan
 	 *
-	 * @param Dir the directory to remove
+	 * @param Dir the directory to remove (must be a full path)
+	 * @return whether the plugin directory list was changed
 	 */
-	void RemovePluginDirectory(const FString& Dir);
+	bool RemovePluginDirectory(const FString& Dir);
 
 	/** @return - Access to the additional root directories */
 	const TArray<FString>& GetAdditionalRootDirectories() const
@@ -155,15 +157,17 @@ struct PROJECTS_API FProjectDescriptor
 	/**
 	 * Adds a directory to the additional root directories list. 
 	 *
-	 * @param Dir - the new directory to add
+	 * @param Dir - the new directory to add (must be a full path)
+	 * @return whether the root directory list was changed
 	 */
-	void AddRootDirectory(const FString& Dir);
+	bool AddRootDirectory(const FString& Dir);
 	/**
 	 * Removes the directory from the list to scan
 	 *
-	 * @param Dir the directory to remove
+	 * @param Dir the directory to remove (must be a full path)
+	 * @return whether the root directory list was changed
 	 */
-	void RemoveRootDirectory(const FString& Dir);
+	bool RemoveRootDirectory(const FString& Dir);
 
 
 private:

@@ -11,13 +11,9 @@
 #include "MeshPaintAdapterFactory.h"
 #include "EngineUtils.h"
 #include "Editor.h"
-#if WITH_EDITOR
-#include "HitProxies.h"
-#endif
+
 
 #define LOCTEXT_NAMESPACE "MeshSelection"
-
-
 bool UVertexAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return true;
@@ -61,94 +57,30 @@ void UMeshClickTool::Setup()
 		LOCTEXT("OnStartMeshSelectTool", "Select a mesh. Switch tools to paint vertex colors, blend between textures, or paint directly onto a texture file."),
 		EToolMessageLevel::UserNotification);
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelection", "Select Mesh"));
-
-
-	FSelectedOjectsChangeList NewSelection;
-	// TODO add CTRL handling
-	NewSelection.ModificationType = ESelectedObjectsModificationType::Clear;
-	GetToolManager()->RequestSelectionChange(NewSelection);
-	GetToolManager()->EndUndoTransaction();
+	// Set up selection mechanic to select valid meshes
+	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
+	SelectionMechanic->Setup(this);
 }
 
 void UMeshClickTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
 	if (ModifierID == AdditiveSelectionModifier)
 	{
-		bAddToSelectionSet = bIsOn;
+		SelectionMechanic->SetAddToSelectionSet(bIsOn);
 	}
 }
 
 FInputRayHit UMeshClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
-	{
-		if (!bAddToSelectionSet || !AllowsMultiselect())
-		{
-			CachedClickedComponents.Empty();
-			CachedClickedActors.Empty();
-		}
-		return FindClickedComponentsAndCacheAdapters(ClickPos, MeshToolManager) ? FInputRayHit(0.0f) : FInputRayHit();
-	}
-	return FInputRayHit();
+	return SelectionMechanic->IsHitByClick(ClickPos);
 }
 
 void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
-	{
-		for (UMeshComponent* MeshComponent : CachedClickedComponents)
-		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(MeshComponent);
-			if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid() && IsMeshAdapterSupported(MeshAdapter))
-			{
-				MeshToolManager->AddPaintableMeshComponent(MeshComponent);
-				MeshAdapter->OnAdded();
-			}
-
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelection", "Select Mesh"));
-
-
-			FSelectedOjectsChangeList NewSelection;
-			// TODO add CTRL handling
-			NewSelection.ModificationType = bAddToSelectionSet ? ESelectedObjectsModificationType::Add : ESelectedObjectsModificationType::Replace;
-			NewSelection.Actors.Append(CachedClickedActors);
-			GetToolManager()->RequestSelectionChange(NewSelection);
-			GetToolManager()->EndUndoTransaction();
-		}
-	}
+	SelectionMechanic->OnClicked(ClickPos);
 }
 
 
-
-bool UMeshClickTool::FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager)
-{
-	bool bFoundValidComponents = false;
-#if WITH_EDITOR
-	if (HHitProxy* HitProxy = MeshToolManager->GetContextQueriesAPI()->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
-	{
-		if (HitProxy->IsA(HActor::StaticGetType()))
-		{
-			HActor* ActorProxy = (HActor*)HitProxy;
-			AActor* Actor = ActorProxy->Actor;
-			TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
-			for (UActorComponent* CandidateComponent : CandidateComponents)
-			{
-				UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
-				TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-				if (MeshAdapter.IsValid() && IsMeshAdapterSupported(MeshAdapter))
-				{
-					MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
-					CachedClickedComponents.AddUnique(MeshComponent);
-					CachedClickedActors.AddUnique(Cast<AActor>(MeshComponent->GetOuter()));
-					bFoundValidComponents = true;
-				}
-			}
-		}
-	}
-#endif
-	return bFoundValidComponents;
-}
 
 UVertexAdapterClickTool::UVertexAdapterClickTool()
 	: UMeshClickTool()
@@ -156,7 +88,7 @@ UVertexAdapterClickTool::UVertexAdapterClickTool()
 
 }
 
-bool UVertexAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+bool UVertexAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const
 {
 	return MeshAdapter.IsValid() ? MeshAdapter->SupportsVertexPaint() : false;
 }
@@ -167,7 +99,7 @@ UTextureAdapterClickTool::UTextureAdapterClickTool()
 
 }
 
-bool UTextureAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+bool UTextureAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const
 {
 	return MeshAdapter.IsValid() ? MeshAdapter->SupportsTexturePaint() : false;
 }

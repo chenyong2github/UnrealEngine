@@ -18,6 +18,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
@@ -124,6 +125,15 @@ struct FMaterialVTStackEntry
 	int32 CodeIndex;
 };
 
+struct FMaterialCustomExpressionEntry
+{
+	uint64 ScopeID;
+	const UMaterialExpressionCustom* Expression;
+	FString Implementation;
+	TArray<uint64> InputHash;
+	TArray<int32> OutputCodeIndex;
+};
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 protected:
@@ -192,7 +202,9 @@ protected:
 	int32 NextSymbolIndex;
 
 	/** Any custom expression function implementations */
-	TArray<FString> CustomExpressionImplementations;
+	//TArray<FString> CustomExpressionImplementations;
+	//TMap<UMaterialExpressionCustom*, int32> CachedCustomExpressions;
+	TArray<FMaterialCustomExpressionEntry> CustomExpressions;
 
 	/** Any custom output function implementations */
 	TArray<FString> CustomOutputImplementations;
@@ -398,6 +410,8 @@ protected:
 
 	// AccessUniformExpression - Adds code to access the value of a uniform expression to the Code array and returns its index.
 	int32 AccessUniformExpression(int32 Index);
+
+	int32 AccessMaterialAttribute(int32 CodeIndex, const FGuid& AttributeID);
 
 	// CoerceParameter
 	FString CoerceParameter(int32 Index, EMaterialValueType DestType);
@@ -650,6 +664,9 @@ protected:
 	virtual int32 Logarithm10(int32 X) override;
 	virtual int32 SquareRoot(int32 X) override;
 	virtual int32 Length(int32 X) override;
+	virtual int32 Step(int32 Y, int32 X) override;
+	virtual int32 SmoothStep(int32 X, int32 Y, int32 A) override;
+	virtual int32 InvLerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Lerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Min(int32 A, int32 B) override;
 	virtual int32 Max(int32 A, int32 B) override;
@@ -715,13 +732,18 @@ protected:
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
 
+	virtual int32 GetCloudSampleAltitude() override;
+	virtual int32 GetCloudSampleAltitudeInLayer() override;
+	virtual int32 GetCloudSampleNormAltitudeInLayer() override;
+	virtual int32 GetVolumeSampleConservativeDensity() override;
+
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override;
 
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override;
 
 	virtual int32 MapARPassthroughCameraUV(int32 UV) override;
 
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override;
+	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override;
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) override;
 
 	virtual int32 VirtualTextureOutput(uint8 MaterialAttributeMask) override;

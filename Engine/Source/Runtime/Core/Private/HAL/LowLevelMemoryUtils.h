@@ -88,6 +88,10 @@ public:
 		return Array[Index];
 	}
 
+	const T* GetData() const {
+		return Array;
+	}
+
 	T& GetLast()
 	{
 		LLMCheck(Count > 0);

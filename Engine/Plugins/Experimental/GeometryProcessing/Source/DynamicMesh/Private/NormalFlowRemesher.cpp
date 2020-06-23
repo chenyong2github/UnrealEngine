@@ -144,7 +144,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass()
 			continue;
 		}
 
-		if (IsVertexConstrained(VertexID))
+		if (IsVertexPositionConstrained(VertexID))
 		{
 			continue;
 		}
@@ -221,22 +221,22 @@ bool FNormalFlowRemesher::EdgeFlipWouldReduceNormalError(int EdgeID, double BadE
 		return false;
 	}
 
-	FIndex4i Edge = Mesh->GetEdge(EdgeID);
-	if (Edge.D == FDynamicMesh3::InvalidID)
+	FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EdgeID);
+	if (Edge.Tri[1] == FDynamicMesh3::InvalidID)
 	{
 		return false;
 	}
 
 	double CurrErr = 0.0;
-	CurrErr += ComputeNormalError(Mesh, NormalProjTarget, Mesh->GetTriangle(Edge.C));
-	CurrErr += ComputeNormalError(Mesh, NormalProjTarget, Mesh->GetTriangle(Edge.D));
+	CurrErr += ComputeNormalError(Mesh, NormalProjTarget, Mesh->GetTriangle(Edge.Tri[0]));
+	CurrErr += ComputeNormalError(Mesh, NormalProjTarget, Mesh->GetTriangle(Edge.Tri[1]));
 
 	if (CurrErr > BadEdgeErrorThreshold)	// only consider edges having a certain error already
 	{
-		FIndex3i TriangleC = Mesh->GetTriangle(Edge.C);
-		FIndex3i TriangleD = Mesh->GetTriangle(Edge.D);
-		int VertexInTriangleC = IndexUtil::OrientTriEdgeAndFindOtherVtx(Edge.A, Edge.B, TriangleC);
-		int VertexInTriangleD = IndexUtil::FindTriOtherVtx(Edge.A, Edge.B, TriangleD);
+		FIndex3i TriangleC = Mesh->GetTriangle(Edge.Tri[0]);
+		FIndex3i TriangleD = Mesh->GetTriangle(Edge.Tri[1]);
+		int VertexInTriangleC = IndexUtil::OrientTriEdgeAndFindOtherVtx(Edge.Vert[0], Edge.Vert[1], TriangleC);
+		int VertexInTriangleD = IndexUtil::FindTriOtherVtx(Edge.Vert[0], Edge.Vert[1], TriangleD);
 
 		int OtherEdge = Mesh->FindEdge(VertexInTriangleC, VertexInTriangleD);
 		if (OtherEdge != FDynamicMesh3::InvalidID)
@@ -245,8 +245,8 @@ bool FNormalFlowRemesher::EdgeFlipWouldReduceNormalError(int EdgeID, double BadE
 		}
 
 		double OtherErr = 0.0;
-		OtherErr += ComputeNormalError(Mesh, NormalProjTarget, FIndex3i{ VertexInTriangleC, VertexInTriangleD, Edge.B });
-		OtherErr += ComputeNormalError(Mesh, NormalProjTarget, FIndex3i{ VertexInTriangleD, VertexInTriangleC, Edge.A });
+		OtherErr += ComputeNormalError(Mesh, NormalProjTarget, FIndex3i{ VertexInTriangleC, VertexInTriangleD, Edge.Vert[1] });
+		OtherErr += ComputeNormalError(Mesh, NormalProjTarget, FIndex3i{ VertexInTriangleD, VertexInTriangleC, Edge.Vert[0] });
 
 		return (OtherErr < ImprovementRatioThreshold * CurrErr);	// return true if we improve error by enough
 	}
@@ -264,8 +264,15 @@ void FNormalFlowRemesher::TrackedEdgeFlipPass()
 
 	for (auto EdgeID : Mesh->EdgeIndicesItr())
 	{
-		FIndex2i EdgeVertices = Mesh->GetEdgeV(EdgeID);
-		FIndex2i OpposingEdgeVertices = Mesh->GetEdgeOpposingV(EdgeID);
+		check(Mesh->IsEdge(EdgeID));
+
+		FEdgeConstraint Constraint =
+			(!Constraints) ? FEdgeConstraint::Unconstrained() : Constraints->GetEdgeConstraint(EdgeID);
+
+		if (!Constraint.CanFlip())
+		{
+			continue;
+		}
 
 		if (EdgeFlipWouldReduceNormalError(EdgeID))
 		{
@@ -274,6 +281,9 @@ void FNormalFlowRemesher::TrackedEdgeFlipPass()
 
 			if (Result == EMeshResult::Ok)
 			{
+				FIndex2i EdgeVertices = Mesh->GetEdgeV(EdgeID);
+				FIndex2i OpposingEdgeVertices = Mesh->GetEdgeOpposingV(EdgeID);
+
 				QueueOneRing(EdgeVertices.A);
 				QueueOneRing(EdgeVertices.B);
 				QueueOneRing(OpposingEdgeVertices.A);

@@ -2,7 +2,7 @@
 
 #include "PathTree.h"
 
-bool FPathTree::CachePath(FName Path)
+bool FPathTree::CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded)
 {
 	if (Path.IsNone())
 	{
@@ -62,9 +62,11 @@ bool FPathTree::CachePath(FName Path)
 			check(!CurrentPath.IsNone());	// Path parts cannot be empty
 			check(*(PathCharPtr-1) != '/'); // The previous character cannot be a /, as that would suggest a malformed path such as "/Game//MyAsset"
 
+			bool bAddedPath = false;
 			if (!ParentPathToChildPaths.Contains(CurrentPath))
 			{
 				ParentPathToChildPaths.Add(CurrentPath);
+				bAddedPath = true;
 			}
 
 			if (!LastPath.IsNone())
@@ -75,6 +77,11 @@ bool FPathTree::CachePath(FName Path)
 
 				// Make sure we know how to find our parent again later on
 				ChildPathToParentPath.Add(CurrentPath, LastPath);
+			}
+
+			if (bAddedPath)
+			{
+				OnPathAdded(CurrentPath);
 			}
 
 			LastPath = CurrentPath;
@@ -92,7 +99,7 @@ bool FPathTree::CachePath(FName Path)
 	return true;
 }
 
-bool FPathTree::RemovePath(FName Path)
+bool FPathTree::RemovePath(FName Path, TFunctionRef<void(FName)> OnPathRemoved)
 {
 	if (Path.IsNone())
 	{
@@ -126,11 +133,18 @@ bool FPathTree::RemovePath(FName Path)
 	TSet<FName> SubPathsToRemove;
 	GetSubPaths(Path, SubPathsToRemove, /*bRecurse=*/true);
 
+	// Sort the sub-paths by length, longest -> shortest, so that children are notified before their parents
+	SubPathsToRemove.Sort([](FName SubPathOne, FName SubPathTwo)
+	{
+		return SubPathOne.Compare(SubPathTwo) > 0;
+	});
+
 	// Simply remove sub-paths from both maps
 	for (const FName& SubPathToRemove : SubPathsToRemove)
 	{
 		ParentPathToChildPaths.Remove(SubPathToRemove);
 		ChildPathToParentPath.Remove(SubPathToRemove);
+		OnPathRemoved(SubPathToRemove);
 	}
 
 	// We also need to remove ourself from our parent list before removing ourself from the maps
@@ -145,6 +159,7 @@ bool FPathTree::RemovePath(FName Path)
 
 	ParentPathToChildPaths.Remove(Path);
 	ChildPathToParentPath.Remove(Path);
+	OnPathRemoved(Path);
 
 	return true;
 }

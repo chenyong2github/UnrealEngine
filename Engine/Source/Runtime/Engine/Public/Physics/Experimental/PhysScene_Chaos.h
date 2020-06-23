@@ -38,7 +38,7 @@ struct FSolverStateStorage;
 
 class FSkeletalMeshPhysicsProxy;
 class FStaticMeshPhysicsProxy;
-class FFieldSystemPhysicsProxy;
+class FPerSolverFieldSystem;
 
 class IPhysicsProxyBase;
 
@@ -125,8 +125,7 @@ public:
 	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
-	void AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject);
-
+	
 	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
 	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
@@ -138,7 +137,6 @@ public:
 	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
 	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
-	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
@@ -338,6 +336,8 @@ public:
 #endif
 	);
 
+	ENGINE_API ~FPhysScene_ChaosInterface();
+
 	// Scene
 	void OnWorldBeginPlay();
 	void OnWorldEndPlay();
@@ -360,6 +360,8 @@ public:
 
 	FPhysScene_Chaos& GetScene() { return Scene; }
 	const FPhysScene_Chaos& GetScene() const { return Scene; }
+
+	void ResimNFrames(int32 NumFrames);
 
 	/**
 	 * Flushes all pending global, task and solver command queues and refreshes the spatial acceleration
@@ -394,7 +396,7 @@ public:
 
 	ENGINE_API static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
-	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds = 0.0f, float InMaxPhysicsDeltaTime = 0.0f, float InMaxSubstepDeltaTime = 0.f, int32 InMaxSubsteps = 1);
+	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps, bool bSubstepping);
 	ENGINE_API void StartFrame();
 	ENGINE_API void EndFrame(ULineBatchComponent* InLineBatcher);
 	ENGINE_API void WaitPhysScenes();
@@ -423,6 +425,10 @@ public:
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 
 	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
+
+	ENGINE_API void DeferPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
+	ENGINE_API void ProcessDeferredCreatePhysicsState();
 
 #if XGE_FIXED
 	template<typename PayloadType>
@@ -478,8 +484,8 @@ private:
 		// #todo : Implement
 	}
 
-	FPhysicsConstraintReference_Chaos AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
-	void RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint);
+	FPhysicsConstraintHandle AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
+	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
 
 	void AddForce(const Chaos::TVector<float, 3>& Force, FPhysicsActorHandle& Handle)
 	{
@@ -511,6 +517,7 @@ private:
 
 	FPhysScene_Chaos Scene;
 
+	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
 	float MDeltaTime;
 	//Body Instances
 	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;
@@ -520,6 +527,5 @@ private:
 
 	// Taskgraph control
 	FGraphEventRef CompletionEvent;
-	FGraphEventRef PhysicsTickTask;
 };
 #endif

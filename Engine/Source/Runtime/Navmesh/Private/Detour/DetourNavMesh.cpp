@@ -165,12 +165,18 @@ inline int computeTileHash(int x, int y, const int mask)
 	return (int)(n & mask);
 }
 
+//@UE4 BEGIN
 enum ELinkAllocationType
 {
+	// allocated in linksFreeList from dtMeshTile (detour)
 	CREATE_LINK_PREALLOCATED,
+	// offmesh links will be added in dynamic array (unreal specific)
 	CREATE_LINK_DYNAMIC_OFFMESH,
+#if WITH_NAVMESH_CLUSTER_LINKS
 	CREATE_LINK_DYNAMIC_CLUSTER,
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 };
+//@UE4 END
 
 inline unsigned int allocLink(dtMeshTile* tile, char LinkAllocMode)
 {
@@ -184,6 +190,8 @@ inline unsigned int allocLink(dtMeshTile* tile, char LinkAllocMode)
 			tile->linksFreeList = tile->links[newLink].next;
 		}
 	}
+//@UE4 BEGIN: offmesh links will be added in dynamic array. 
+	// Both Point to Point (stock detour) and Segment to Segment (unreal)
 	else if (LinkAllocMode == CREATE_LINK_DYNAMIC_OFFMESH)
 	{
 		if (tile->dynamicFreeListO == DT_NULL_LINK)
@@ -201,6 +209,7 @@ inline unsigned int allocLink(dtMeshTile* tile, char LinkAllocMode)
 
 		newLink += tile->header->maxLinkCount;
 	}
+#if WITH_NAVMESH_CLUSTER_LINKS
 	else if (LinkAllocMode == CREATE_LINK_DYNAMIC_CLUSTER)
 	{
 		if (tile->dynamicFreeListC == DT_NULL_LINK)
@@ -218,29 +227,41 @@ inline unsigned int allocLink(dtMeshTile* tile, char LinkAllocMode)
 
 		newLink += DT_CLINK_FIRST;
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 	return newLink;
 }
 
 inline void freeLink(dtMeshTile* tile, unsigned int link)
 {
+	//@UE4 BEGIN: offmesh links were added in dynamic array
+#if WITH_NAVMESH_CLUSTER_LINKS
+	const unsigned int firstClusterLinkIdx = DT_CLINK_FIRST;
+#else
+	const unsigned int firstClusterLinkIdx = UINT_MAX;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
 	if (link < (unsigned int)tile->header->maxLinkCount)
 	{
 		tile->links[link].next = tile->linksFreeList;
 		tile->linksFreeList = link;
 	}
-	else if (link < DT_CLINK_FIRST)
+	else if (link < firstClusterLinkIdx)
 	{
 		const unsigned int linkIdx = link - tile->header->maxLinkCount;
 		tile->dynamicLinksO[linkIdx].next = tile->dynamicFreeListO;
 		tile->dynamicFreeListO = linkIdx;
 	}
+#if WITH_NAVMESH_CLUSTER_LINKS
 	else
 	{
 		const unsigned int linkIdx = link - DT_CLINK_FIRST;
 		tile->dynamicLinksC[linkIdx].next = tile->dynamicFreeListC;
 		tile->dynamicFreeListC = linkIdx;
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+	//@UE4 END
 }
 
 dtNavMesh* dtAllocNavMesh()
@@ -261,12 +282,16 @@ void dtFreeNavMesh(dtNavMesh* navmesh)
 	dtFree(navmesh);
 }
 
+//@UE4 BEGIN
 void dtFreeNavMeshTileRuntimeData(dtMeshTile* tile)
 {
 	tile->dynamicLinksO.~dtChunkArray();
+#if WITH_NAVMESH_CLUSTER_LINKS
 	tile->dynamicLinksC.~dtChunkArray();
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 }
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 //////////////////////////////////////////////////////////////////////////////////////////
 // Segment type offmesh links
 
@@ -684,6 +709,8 @@ static void createSegmentLinks(dtNavMesh* nav, dtOffMeshSegmentData* seg, dtMesh
 		polyBase += nparts;
 	}
 }
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+//@UE4 END
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -945,7 +972,11 @@ void dtNavMesh::unconnectExtLinks(dtMeshTile* tile, dtMeshTile* target)
 		}
 	}
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 	unconnectClusterLinks(tile, target);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 }
 
 void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks)
@@ -1016,6 +1047,8 @@ void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side, 
 					}
 				}
 
+				//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 				if (updateCLinks)
 				{
 					unsigned int targetIdx = decodePolyIdPoly(NeiData.ref);
@@ -1027,11 +1060,14 @@ void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side, 
 						connectClusterLink(target, target->polyClusters[targetIdx], tile, tile->polyClusters[i], DT_CLINK_VALID_BCK);
 					}
 				}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+				//@UE4 END
 			}
 		}
 	}
 }
 
+//@UE4 BEGIN
 void dtNavMesh::linkOffMeshHelper(dtMeshTile* tile0, unsigned int polyIdx0, dtMeshTile* tile1, unsigned int polyIdx1, unsigned char side, unsigned char edge)
 {
 	dtPoly* poly0 = &tile0->polys[polyIdx0];
@@ -1046,6 +1082,7 @@ void dtNavMesh::linkOffMeshHelper(dtMeshTile* tile0, unsigned int polyIdx0, dtMe
 	link.next = poly0->firstLink;
 	poly0->firstLink = idx;
 }
+//@UE4 END
 
 void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks)
 {
@@ -1053,7 +1090,7 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 	
 	// Connect off-mesh links.
 	// We are interested on links which land from target tile to this tile.
-//@UE4 BEGIN
+	//@UE4 BEGIN
 	const unsigned char oppositeSide = (side == -1) ? DT_CONNECTION_INTERNAL : (unsigned char)dtOppositeTile(side);
 
 	for (int i = 0; i < target->header->offMeshConCount; ++i)
@@ -1131,6 +1168,7 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 
 		linkOffMeshHelper(tile, landPolyIdx, target, targetCon->poly, linkSide, 0xff);
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 		if (updateCLinks)
 		{
 			unsigned int targetPolyIdx = decodePolyIdPoly(targetLandPoly);
@@ -1150,9 +1188,9 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 				connectClusterLink(tile, thisClusterIdx, target, targetClusterIdx, flagsBck, bUniqueCheck);
 			}
 		}
-//@UE4 END
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 	}
-
+	//@UE4 END
 }
 
 void dtNavMesh::connectIntLinks(dtMeshTile* tile)
@@ -1248,6 +1286,8 @@ void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 	}
 }
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
 void dtNavMesh::connectClusterLink(dtMeshTile* tile0, unsigned int clusterIdx0, dtMeshTile* tile1, unsigned int clusterIdx1, unsigned char flags, bool bCheckExisting)
 {
 	if (tile0 == tile1 && clusterIdx0 == clusterIdx1)
@@ -1329,6 +1369,8 @@ void dtNavMesh::unconnectClusterLinks(dtMeshTile* tile0, dtMeshTile* tile1)
 		}
 	}
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+//@UE4 END
 
 void dtNavMesh::closestPointOnPolyInTile(const dtMeshTile* tile, unsigned int ip,
 										 const float* pos, float* closest) const
@@ -1689,10 +1731,16 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	const int offMeshSegsSize = dtAlign4(sizeof(dtOffMeshSegmentConnection)*header->offMeshSegConCount);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	const int clustersSize = dtAlign4(sizeof(dtCluster)*header->clusterCount);
 	const int clusterPolysSize = dtAlign4(sizeof(unsigned short)*header->offMeshBase);
- 
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
 	unsigned char* d = data + headerSize;
 	tile->verts = (float*)d; d += vertsSize;
 	tile->polys = (dtPoly*)d; d += polysSize;
@@ -1702,13 +1750,18 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	tile->detailTris = (unsigned char*)d; d += detailTrisSize;
 	tile->bvTree = (dtBVNode*)d; d += bvtreeSize;
 	tile->offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
-	tile->offMeshSeg = (dtOffMeshSegmentConnection*)d; d += offMeshSegsSize;
-	tile->clusters = (dtCluster*)d; d += clustersSize;
-	tile->polyClusters = (unsigned short*)d; d += clusterPolysSize;
 
 	// If there are no items in the bvtree, reset the tree pointer.
 	if (!bvtreeSize)
 		tile->bvTree = 0;
+
+#if WITH_NAVMESH_SEGMENT_LINKS
+	tile->offMeshSeg = (dtOffMeshSegmentConnection*)d; d += offMeshSegsSize;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+	tile->clusters = (dtCluster*)d; d += clustersSize;
+	tile->polyClusters = (unsigned short*)d; d += clusterPolysSize;
 
 	const bool bHasClusters = header->clusterCount > 0;
 	if (bHasClusters)
@@ -1723,6 +1776,9 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	{
 		tile->polyClusters = 0;
 	}
+#else
+	const bool bHasClusters = false;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	// Build links freelist
 	tile->linksFreeList = 0;
@@ -1733,8 +1789,11 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	// Initialize dynamic links array
 	tile->dynamicFreeListO = DT_NULL_LINK;
 	tile->dynamicLinksO.resize(0);
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	tile->dynamicFreeListC = DT_NULL_LINK;
 	tile->dynamicLinksC.resize(0);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	// Init tile.
 	tile->header = header;
@@ -1745,7 +1804,9 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	connectIntLinks(tile);
 	baseOffMeshLinks(tile);
 	
+#if WITH_NAVMESH_SEGMENT_LINKS
 	dtOffMeshSegmentData* segList = initSegmentIntersection(tile);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 	// Create connections with neighbour tiles.
 	ReadTilesHelper TileArray;
@@ -1762,7 +1823,9 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 		{
 			connectExtLinks(tile, neis[j], -1, bHasClusters);
 			connectExtLinks(neis[j], tile, -1, bHasClusters);
+#if WITH_NAVMESH_SEGMENT_LINKS
 			appendSegmentIntersection(segList, tile, neis[j]);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 			connectExtOffMeshLinks(tile, neis[j], -1, bHasClusters);
 		}
 		connectExtOffMeshLinks(neis[j], tile, -1, bHasClusters);
@@ -1784,14 +1847,19 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 				connectExtLinks(tile, neis[j], i, bHasClusters);
 				connectExtLinks(neis[j], tile, dtOppositeTile(i), bHasClusters);
 			}
+#if WITH_NAVMESH_SEGMENT_LINKS
 			appendSegmentIntersection(segList, tile, neis[j]);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
 			connectExtOffMeshLinks(tile, neis[j], i, bHasClusters);
 			connectExtOffMeshLinks(neis[j], tile, dtOppositeTile(i), bHasClusters);
 		}
 	}
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 	createSegmentLinks(this, segList, tile);
 	dtFree(segList);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 	
 	if (result)
 		*result = getTileRef(tile);
@@ -2292,6 +2360,8 @@ dtStatus dtNavMesh::getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyR
 		i = link.next;
 	}
 	
+	//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 	if (poly->getType() == DT_POLYTYPE_OFFMESH_SEGMENT)
 	{
 		idx0 = (idx0 == 0) ? 0 : 2;
@@ -2309,6 +2379,8 @@ dtStatus dtNavMesh::getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyR
 		dtVlerp(endPos, &tile->verts[poly->verts[idx2]*3], &tile->verts[poly->verts[idx3]*3], t);
 	}
 	else
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+	//@UE4 END
 	{
 		dtVcopy(startPos, &tile->verts[poly->verts[idx0]*3]);
 		dtVcopy(endPos, &tile->verts[poly->verts[idx1]*3]);
@@ -2342,6 +2414,8 @@ const dtOffMeshConnection* dtNavMesh::getOffMeshConnectionByRef(dtPolyRef ref) c
 	return &tile->offMeshCons[idx];
 }
 
+//@UE4 BEGIN
+#if WITH_NAVMESH_SEGMENT_LINKS
 const dtOffMeshSegmentConnection* dtNavMesh::getOffMeshSegmentConnectionByRef(dtPolyRef ref) const
 {
 	unsigned int salt, it, ip;
@@ -2366,27 +2440,6 @@ const dtOffMeshSegmentConnection* dtNavMesh::getOffMeshSegmentConnectionByRef(dt
 	return &tile->offMeshSeg[idx];
 }
 
-void dtNavMesh::updateOffMeshConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags)
-{
-	for (int it = 0; it < m_maxTiles; it++)
-	{
-		dtMeshTile* tile = &m_tiles[it];
-		if (tile == 0 || tile->header == 0)
-			continue;
-
-		for (int ic = 0; ic < tile->header->offMeshConCount; ic++)
-		{
-			dtOffMeshConnection& con = tile->offMeshCons[ic];
-			if (con.userId == userId)
-			{
-				dtPoly* poly = &tile->polys[con.poly];
-				poly->setArea(newArea);
-				poly->flags = newFlags;
-			}
-		}
-	}
-}
-
 void dtNavMesh::updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags)
 {
 	for (int it = 0; it < m_maxTiles; it++)
@@ -2406,6 +2459,29 @@ void dtNavMesh::updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsi
 					poly->setArea(newArea);
 					poly->flags = newFlags;
 				}
+			}
+		}
+	}
+}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+//@UE4 END
+
+void dtNavMesh::updateOffMeshConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags)
+{
+	for (int it = 0; it < m_maxTiles; it++)
+	{
+		dtMeshTile* tile = &m_tiles[it];
+		if (tile == 0 || tile->header == 0)
+			continue;
+
+		for (int ic = 0; ic < tile->header->offMeshConCount; ic++)
+		{
+			dtOffMeshConnection& con = tile->offMeshCons[ic];
+			if (con.userId == userId)
+			{
+				dtPoly* poly = &tile->polys[con.poly];
+				poly->setArea(newArea);
+				poly->flags = newFlags;
 			}
 		}
 	}
@@ -2511,12 +2587,25 @@ void dtNavMesh::applyWorldOffset(const float* offset)
 				dtVadd(&(tile.offMeshCons[j].pos[0]), &(tile.offMeshCons[j].pos[0]), offset);
 				dtVadd(&(tile.offMeshCons[j].pos[3]), &(tile.offMeshCons[j].pos[3]), offset);
 			}
+
+#if WITH_NAVMESH_SEGMENT_LINKS
+			// Shift off-mesh segment connections
+			for (int j = 0; j < tile.header->offMeshSegConCount; ++j)
+			{
+				dtVadd(&(tile.offMeshSeg[j].startA[0]), &(tile.offMeshSeg[j].startA[0]), offset);
+				dtVadd(&(tile.offMeshSeg[j].endA[0]),	&(tile.offMeshSeg[j].endA[0]), offset);
+				dtVadd(&(tile.offMeshSeg[j].startB[0]), &(tile.offMeshSeg[j].startB[0]), offset);
+				dtVadd(&(tile.offMeshSeg[j].endB[0]),	&(tile.offMeshSeg[j].endB[0]), offset);
+			}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 			
+#if WITH_NAVMESH_CLUSTER_LINKS
 			// Shift clusters
 			for (int j = 0; j < tile.header->clusterCount; ++j)
 			{
 				dtVadd(&(tile.clusters[j].center[0]), &(tile.clusters[j].center[0]), offset);
 			}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 		}
 	}
 }

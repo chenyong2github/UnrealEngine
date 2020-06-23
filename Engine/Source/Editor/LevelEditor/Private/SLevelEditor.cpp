@@ -167,21 +167,36 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	RegisterMenus();
 
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
-	FEditorModeRegistry::Get().OnRegisteredModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+	if (GEditor != nullptr)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+	}
 	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
 
 	// @todo This is a hack to get this working for now. This won't work with multiple worlds
-	GEditor->GetEditorWorldContext(true).AddRef(World);
+	if (GEditor != nullptr)
+	{
+		GEditor->GetEditorWorldContext(true).AddRef(World);
+	}
 
 	// Set the initial preview feature level.
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
 	World->ChangeFeatureLevel(Editor->GetActiveFeatureLevelPreviewType());
 
-	LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
+	if (GEditor != nullptr)
+	{
+		LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
+	}
 
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
 	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
 		{
+			// Do one recapture if atleast one ReflectionComponent is dirty
+			// BuildReflectionCapturesOnly_Execute in LevelEditorActions relies on this happening on toggle between SM5->ES31. If you remove this, update that code!
+			if (World->NumUnbuiltReflectionCaptures >= 1 && NewFeatureLevel == ERHIFeatureLevel::ES3_1 && GEditor != nullptr)
+			{
+				GEditor->BuildReflectionCaptures();
+			}
 			World->ChangeFeatureLevel(NewFeatureLevel);
 		});
 
@@ -276,8 +291,6 @@ SLevelEditor::~SLevelEditor()
 		GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().RemoveAll(this);
 	}
 
-	FEditorModeRegistry::Get().OnRegisteredModesChanged().RemoveAll( this );
-
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 	if (GEngine)
@@ -289,6 +302,8 @@ SLevelEditor::~SLevelEditor()
 	{
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 	}
 }
 
@@ -1231,7 +1246,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	// 9. Move and rename the new file (Engine\Saved\Config\Layouts\Default_Editor_Layout.ini) into Engine\Config\Layouts\DefaultLayout.ini
 	// 10. Push the new "DefaultLayout.ini" together with your new code.
 	// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
-	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
+	const TSharedRef<FTabManager::FLayout> DefaultLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
 		FTabManager::NewLayout( "LevelEditor_Layout_v1.3" )
 		->AddArea
 		(
@@ -1305,9 +1320,9 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 					->SetForegroundTab(LevelEditorTabIds::LevelEditorSelectionDetails)
 				)
 			)
-			
 		));
-	
+	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
+
 	FLayoutExtender LayoutExtender;
 
 	LevelEditorModule.OnRegisterLayoutExtensions().Broadcast(LayoutExtender);
@@ -1315,7 +1330,20 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 
 	const bool bEmbedTitleAreaContent = false;
 	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
-	return LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, OutputCanBeNullptr).ToSharedRef();
+	TSharedPtr<SWidget> ContentAreaWidget = LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
+	// ContentAreaWidget will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
+	if (!ContentAreaWidget.IsValid())
+	{
+		// Try to load default layout to avoid nullptr.ToSharedRef() crash
+		ContentAreaWidget = LevelEditorTabManager->RestoreFrom(DefaultLayout, OwnerWindow, bEmbedTitleAreaContent, EOutputCanBeNullptr::Never);
+		// Warn user/developer
+		const FString WarningMessage = FString::Format(TEXT("Level editor layout could not be loaded from the config file {0}, trying to reset this config file to the"
+			" default one."), { *GEditorLayoutIni });
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *WarningMessage);
+		ensureMsgf(false, TEXT("%s Some additional testing of that layout file should be done."));
+	}
+	check(ContentAreaWidget.IsValid());
+	return ContentAreaWidget.ToSharedRef();
 }
 
 void SLevelEditor::HandleExperimentalSettingChanged(FName PropertyName)
@@ -1338,7 +1366,8 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 		FEdMode* MatineeMode = GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
 		if (MatineeMode && !MatineeMode->IsCompatibleWith(ModeID))
 		{
-			FEditorModeInfo MatineeModeInfo = FEditorModeRegistry::Get().GetModeInfo(ModeID);
+			FEditorModeInfo MatineeModeInfo;
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorModeInfo(ModeID, MatineeModeInfo);
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("ModeName"), MatineeModeInfo.Name);
 			FText Msg = FText::Format(NSLOCTEXT("LevelEditor", "ModeSwitchCloseMatineeQ", "Activating '{ModeName}' editor mode will close UnrealMatinee.  Continue?"), Args);
@@ -1418,7 +1447,7 @@ void SLevelEditor::RefreshEditorModeCommands()
 	const FLevelEditorModesCommands& Commands = FLevelEditorModesCommands::Get();
 
 	int32 CommandIndex = 0;
-	for( const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo() )
+	for( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority() )
 	{
 		// If the mode isn't visible don't create a menu option for it.
 		if( !Mode.bVisible )

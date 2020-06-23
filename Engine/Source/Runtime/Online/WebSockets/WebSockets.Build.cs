@@ -19,6 +19,15 @@ public class WebSockets : ModuleRules
 		}
 	}
 
+	protected virtual bool bPlatformSupportsWinHttpWebSockets
+	{
+		get
+		{
+			// Availability requires Windows 8.1 or greater, as this is the min version of WinHttp that supports WebSockets
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.TargetWindowsVersion >= 0x0603;
+		}
+	}
+
 	protected virtual bool UsePlatformSSL
 	{
 		get
@@ -33,7 +42,7 @@ public class WebSockets : ModuleRules
 		{
 			bool bPlatformSupportsWinRTWebsockets = Target.Platform == UnrealTargetPlatform.HoloLens;
 
-			return PlatformSupportsLibWebsockets || bPlatformSupportsWinRTWebsockets;
+			return PlatformSupportsLibWebsockets || bPlatformSupportsWinRTWebsockets || bPlatformSupportsWinHttpWebSockets;
 		}
 	}
 
@@ -48,6 +57,7 @@ public class WebSockets : ModuleRules
 
 		bool bWithWebSockets = false;
 		bool bWithLibWebSockets = false;
+		bool bWithWinHttpWebSockets = false;
 
 		if (ShouldUseModule)
 		{
@@ -74,10 +84,25 @@ public class WebSockets : ModuleRules
 					PrivateDependencyModuleNames.Add("SSL");
 				}
 			}
+			if (bPlatformSupportsWinHttpWebSockets)
+			{
+				// Enable WinHttp Support
+				bWithWinHttpWebSockets = true;
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
+
+				// We need to access the WinHttp folder in HTTP
+				PrivateIncludePaths.AddRange(
+					new string[] {
+						"Runtime/Online/HTTP/Private",
+					}
+				);
+			}
 		}
 
 		PublicDefinitions.Add("WEBSOCKETS_PACKAGE=1");
 		PublicDefinitions.Add("WITH_WEBSOCKETS=" + (bWithWebSockets ? "1" : "0"));
 		PublicDefinitions.Add("WITH_LIBWEBSOCKETS=" + (bWithLibWebSockets ? "1" : "0"));
+		PublicDefinitions.Add("WITH_WINHTTPWEBSOCKETS=" + (bWithWinHttpWebSockets ? "1" : "0"));
 	}
 }

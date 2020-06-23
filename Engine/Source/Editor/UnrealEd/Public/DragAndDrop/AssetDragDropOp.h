@@ -64,24 +64,33 @@ public:
 
 	FText GetDecoratorText() const;
 
-private:
-	void Init();
+protected:
+	void Init(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* InActorFactory);
+	virtual void InitThumbnail();
 
+	virtual bool HasFiles() const;
+	virtual bool HasFolders() const;
+
+	virtual int32 GetTotalCount() const;
+	virtual FText GetFirstItemText() const;
+
+private:
 	/** Data for the assets this item represents */
 	TArray<FAssetData> AssetData;
 
 	/** Data for the asset paths this item represents */
 	TArray<FString> AssetPaths;
 
+	/** The actor factory to use if converting this asset to an actor */
+	TWeakObjectPtr<UActorFactory> ActorFactory;
+
+protected:
 	/** Pool for maintaining and rendering thumbnails */
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 
 	/** Handle to the thumbnail resource */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 
-	/** The actor factory to use if converting this asset to an actor */
-	TWeakObjectPtr<UActorFactory> ActorFactory;
-
 	/** The size of the thumbnail */
-	int32 ThumbnailSize;
+	int32 ThumbnailSize = 0;
 };

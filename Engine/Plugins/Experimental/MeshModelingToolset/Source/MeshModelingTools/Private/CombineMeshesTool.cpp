@@ -139,7 +139,10 @@ bool UCombineMeshesTool::CanAccept() const
 
 void UCombineMeshesTool::UpdateAssets()
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("CombineMeshesToolTransactionName", "Combine Meshes"));
+	GetToolManager()->BeginUndoTransaction(
+		bDuplicateMode ? 
+		LOCTEXT("DuplicateMeshToolTransactionName", "Duplicate Mesh") :
+		LOCTEXT("CombineMeshesToolTransactionName", "Combine Meshes"));
 
 
 	// note there is a MergeMeshUtilities.h w/ a very feature-filled mesh merging class, but for simplicity (and to fit modeling tool needs)
@@ -189,6 +192,8 @@ void UCombineMeshesTool::UpdateAssets()
 
 	{
 		FScopedSlowTask SlowTask(ComponentTargets.Num()+1, 
+			bDuplicateMode ? 
+			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
 
@@ -242,7 +247,9 @@ void UCombineMeshesTool::UpdateAssets()
 		}
 		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 			AssetAPI, TargetWorld,
-			&AccumulateDMesh, (FTransform3d)AccumToWorld, TEXT("Combined Meshes"), AllMaterials);
+			&AccumulateDMesh, (FTransform3d)AccumToWorld, 
+			bDuplicateMode ? ComponentTargets[0]->GetOwnerActor()->GetName() : TEXT("Combined Meshes"),
+			AllMaterials);
 		if (NewActor != nullptr)
 		{
 			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

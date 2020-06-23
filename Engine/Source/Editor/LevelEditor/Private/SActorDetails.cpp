@@ -32,6 +32,7 @@
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "DetailsViewObjectFilter.h"
 #include "IDetailRootObjectCustomization.h"
+#include "ActorDetailsExtensionContext.h"
 
 IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);
 
@@ -89,10 +90,6 @@ public:
 
 void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifier, TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FTabManager> InTabManager)
 {
-	bSelectionGuard = false;
-	bShowingRootActorNodeSelected = false;
-	bSelectedComponentRecompiled = false;
-
 	USelection::SelectionChangedEvent.AddRaw(this, &SActorDetails::OnEditorSelectionChanged);
 	
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -145,6 +142,10 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		
 	ComponentsBox->SetContent(SCSEditor.ToSharedRef());
 
+	UActorDetailsExtensionContext* ExtensionContext = NewObject<UActorDetailsExtensionContext>();
+	ExtensionContext->GetSelectedObjectsDelegate.BindSP(this, &SActorDetails::GetDetailsViewSelectedObjects);
+	ExtensionContext->AddToRoot();
+
 	TSharedRef<SWidget> ButtonBox = SCSEditor->GetToolButtonsBox().ToSharedRef();
 	DetailsView->SetNameAreaCustomContent( ButtonBox );
 	
@@ -164,6 +165,7 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		[
 			SAssignNew(ExtensionPanel, SExtensionPanel)
 			.ExtensionPanelID("ActorDetailsPanel")
+			.ExtensionContext(ExtensionContext)
 		]
 		+SVerticalBox::Slot()
 		[
@@ -235,6 +237,11 @@ SActorDetails::~SActorDetails()
 	if (LevelEditor != nullptr)
 	{
 		LevelEditor->OnComponentsEdited().RemoveAll(this);
+	}
+
+	if (UObject* ExtensionContext = ExtensionPanel->GetExtensionContext())
+	{
+		ExtensionContext->RemoveFromRoot();
 	}
 }
 
@@ -393,13 +400,9 @@ AActor* SActorDetails::GetActorContext() const
 	}
 }
 
-void SActorDetails::OnSCSEditorRootSelected(AActor* Actor)
+const TArray<TWeakObjectPtr<UObject>>& SActorDetails::GetDetailsViewSelectedObjects() const
 {
-	if(!bSelectionGuard)
-	{
-		GEditor->SelectNone(true, true, false);
-		GEditor->SelectActor(Actor, true, true, true);
-	}
+	return DetailsView->GetSelectedObjects();
 }
 
 void SActorDetails::OnSCSEditorTreeViewSelectionChanged(const TArray<FSCSEditorTreeNodePtrType>& SelectedNodes)

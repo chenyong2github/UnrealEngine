@@ -3,17 +3,15 @@
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX12.h"
 #include "Render/Presentation/DisplayClusterPresentationDX12.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterDeviceTopBottomDX12::FDisplayClusterDeviceTopBottomDX12()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceTopBottomDX12::~FDisplayClusterDeviceTopBottomDX12()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterPresentationBase* FDisplayClusterDeviceTopBottomDX12::CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy)

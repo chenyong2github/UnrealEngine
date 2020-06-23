@@ -26,6 +26,7 @@ class FGeomEdge;
 class FGeomVertex;
 class FGeomBase;
 class FGeomObject;
+class ABrush;
 typedef TSharedPtr<class FGeomObject> FGeomObjectPtr;
 
 

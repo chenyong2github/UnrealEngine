@@ -29,10 +29,6 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 			{
 				return TimecodeProviderPtr->GetFrameRate().ToPrettyText();
 			}
-			else if (GEngine->bGenerateDefaultTimecode)
-			{
-				return GEngine->GenerateDefaultTimecodeFrameRate.ToPrettyText();
-			}
 			return NSLOCTEXT("TimecodeProvider", "Undefined", "<Undefined>");
 		}))
 		.Font(InArgs._TimecodeProviderFont)
@@ -65,10 +61,6 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 					{
 						return FText::FromName(TimecodeProviderPtr->GetFName());
 					}
-					else if (GEngine->bGenerateDefaultTimecode)
-					{
-						return NSLOCTEXT("TimecodeProvider", "EngineDefault", "Engine Default");
-					}
 					return NSLOCTEXT("TimecodeProvider", "Undefined", "<Undefined>");
 				}))
 				.Font(InArgs._TimecodeProviderFont)
@@ -91,12 +83,13 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 				{
 					if (const UTimecodeProvider* OverrideTimecodeProviderPtr = OverrideTimecodeProvider.Get().Get())
 					{
-						return OverrideTimecodeProviderPtr->GetTimecode();
+						return OverrideTimecodeProviderPtr->GetDelayedTimecode();
 					}
 
 					// If we use the Engine's TimecodeProvider, get the timecode for the current frame
 					return FApp::GetTimecode();
 				}))
+			.DisplayLabel(InArgs._DisplayLabel)
 			.TimecodeFont(InArgs._TimecodeFont)
 			.TimecodeColor(InArgs._TimecodeColor)
 		]
@@ -131,10 +124,6 @@ FSlateColor STimecodeProvider::HandleIconColorAndOpacity() const
 			return FLinearColor::Yellow;
 		}
 	}
-	else if (GEngine->bGenerateDefaultTimecode)
-	{
-		return FLinearColor::Green;
-	}
 	return FSlateColor::UseForeground();
 }
 
@@ -149,14 +138,10 @@ FText STimecodeProvider::HandleStateText() const
 		case ETimecodeProviderSynchronizationState::Closed:
 			return FEditorFontGlyphs::Ban;
 		case ETimecodeProviderSynchronizationState::Synchronized:
-			return FEditorFontGlyphs::Clock_O;
+			return FEditorFontGlyphs::Film;
 		case ETimecodeProviderSynchronizationState::Synchronizing:
 			return FEditorFontGlyphs::Hourglass_O;
 		}
-	}
-	else if (GEngine->bGenerateDefaultTimecode)
-	{
-		return FEditorFontGlyphs::Clock_O;
 	}
 
 	return FEditorFontGlyphs::Exclamation;

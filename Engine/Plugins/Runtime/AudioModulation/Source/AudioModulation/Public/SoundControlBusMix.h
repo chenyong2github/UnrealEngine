@@ -39,11 +39,31 @@ class USoundControlBusMix : public UObject
 
 protected:
 #if WITH_EDITOR
+	// Loads the mix from the provided profile index
 	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
 	void LoadMixFromProfile();
 
+	// Saves the mix to the provided profile index
 	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
 	void SaveMixToProfile();
+
+	// Solos this mix, deactivating all others and activating this 
+	// (if its not already active) while testing in-editor in all
+	// active worlds
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void SoloMix();
+
+	// Deactivates this mix while testing in-editor in all active worlds
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void ActivateMix();
+
+	// Deactivates this mix while testing in-editor in all active worlds
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void DeactivateMix();
+
+	// Deactivates all mixes while testing in-editor in all active worlds
+	UFUNCTION(Category = Mix, meta = (CallInEditor = "true"))
+	void DeactivateAllMixes();
 #endif // WITH_EDITOR
 
 public:

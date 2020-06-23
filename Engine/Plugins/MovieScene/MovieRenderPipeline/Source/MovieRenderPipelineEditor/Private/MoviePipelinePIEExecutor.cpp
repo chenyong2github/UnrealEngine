@@ -13,6 +13,8 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelinePIEExecutorSettings.h"
+#include "MoviePipelineEditorBlueprintLibrary.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
@@ -20,6 +22,19 @@
 void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
 	Super::Start(InJob);
+
+	// Check for unsaved maps. It's pretty rare that someone actually wants to execute on an unsaved map,
+	// and it catches the much more common case of adding the job to an unsaved map and then trying to render
+	// from a newly loaded map, PIE startup will fail because the map is no longer valid.
+	const bool bAllMapsValid = UMoviePipelineEditorBlueprintLibrary::IsMapValidForRemoteRender(Queue->GetJobs());
+	if (!bAllMapsValid)
+	{
+		FText FailureReason = LOCTEXT("UnsavedMapFailureDialog", "One or more jobs in the queue have an unsaved map as their target map. Maps must be saved at least once before rendering.");
+		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+
+		OnExecutorFinishedImpl();
+		return;
+	}
 
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
@@ -42,6 +57,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	PlayInEditorSettings->SetPlayNumberOfClients(1);
 	PlayInEditorSettings->bLaunchSeparateServer = false;
 	PlayInEditorSettings->SetRunUnderOneProcess(true);
+	PlayInEditorSettings->LastExecutedPlayModeType = EPlayModeType::PlayMode_InEditorFloating;
 
 	FRequestPlaySessionParams Params;
 	Params.EditorPlaySettings = PlayInEditorSettings;
@@ -98,7 +114,12 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 		}
 	}
 	
-	check(ExecutingWorld);
+	if(!ExecutingWorld)
+	{
+		// This only happens if PIE startup fails and they've usually gotten a pop-up dialog already.
+		OnExecutorFinishedImpl();
+		return;
+	}
 
 	// Only mark us as rendering once we've gotten the OnPIEStartupFinished call. If something were to interrupt PIE
 	// startup (such as non-compiled blueprints) the queue would get stuck thinking it's rendering when it's not.

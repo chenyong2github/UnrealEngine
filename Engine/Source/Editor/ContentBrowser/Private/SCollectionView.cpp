@@ -697,11 +697,11 @@ TArray<FCollectionNameType> SCollectionView::GetSelectedCollections() const
 	return RetArray;
 }
 
-void SCollectionView::SetSelectedAssets(const TArray<FAssetData>& SelectedAssets)
+void SCollectionView::SetSelectedAssetPaths(const TArray<FName>& SelectedAssets)
 {
 	if ( QuickAssetManagement.IsValid() )
 	{
-		QuickAssetManagement->SetCurrentAssets(SelectedAssets);
+		QuickAssetManagement->SetCurrentAssetPaths(SelectedAssets);
 	}
 }
 

@@ -102,12 +102,13 @@ namespace AutomationCommon
 		return FPaths::AutomationDir() + InScreenshotName;
 	}
 	
-	FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, int32 Width, int32 Height)
+	FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& TestName, const FString& ScreenShotName, int32 Width, int32 Height)
 	{
 		FAutomationScreenshotData Data;
 
-		Data.Name = FPaths::MakeValidFileName(TestName, TEXT('_'));
+		Data.ScreenShotName = FPaths::MakeValidFileName(ScreenShotName, TEXT('_'));
 		Data.Context = MapOrContext;
+		Data.TestName = TestName;
 		Data.Id = FGuid::NewGuid();
 		Data.Commit = FEngineVersion::Current().HasChangelist() ? FString::FromInt(FEngineVersion::Current().GetChangelist()) : FString(TEXT(""));
 
@@ -140,7 +141,7 @@ namespace AutomationCommon
 		// TBD - 
 		// Device's native resolution (we want to use a hardware dump of the frontbuffer at the native resolution so we compare what we actually output rather than what we think we rendered)
 
-		const FString MapAndTest = MapOrContext + TEXT("/") + Data.Name;
+		const FString MapAndTest = MapOrContext + TEXT("/") + Data.ScreenShotName;
 		Data.ScreenshotName = GetScreenshotName(MapAndTest);
 
 		return Data;

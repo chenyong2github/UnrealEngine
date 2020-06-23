@@ -29,6 +29,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 
 #define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
 
+UCLASS(config=Game, defaultconfig)
+class NIAGARA_API UNiagaraComponentSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(config)
+	TSet<FName> SupressActivationList;
+};
+
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
 * @see ANiagaraActor
@@ -268,14 +278,15 @@ public:
 	void SetMaxSimTime(float InMaxTime);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Auto Destroy"))
-	void SetAutoDestroy(bool bInAutoDestroy) { bAutoDestroy = bInAutoDestroy; }
+	void SetAutoDestroy(bool bInAutoDestroy);
 
 	FNiagaraSystemInstance* GetSystemInstance() const;
 
-	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Tick Behavior"))
+	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
 
-	/** Returns true if this component forces it's instances to run in "Solo" mode. A sub optimal path required in some situations. */
-	bool ForcesSolo()const;
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
+	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (LinearColor)"))

@@ -280,12 +280,13 @@ public:
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties SpawnScriptProps;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterSpawnScriptProps;
 
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterUpdateScriptProps;
-
+#endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	ENiagaraSimTarget SimTarget;
@@ -330,6 +331,10 @@ public:
 	/** Do particles in this emitter require a persistent ID? */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	uint32 bRequiresPersistentIDs : 1;
+
+	/** Performance option to allow event based spawning to be combined into a single spawn.  This will result in a single exec from 0 to number of particles rather than several, when using ExecIndex() it is recommended not to do this. */
+	UPROPERTY(EditAnywhere, Category = "Emitter")
+	uint32 bCombineEventSpawn : 1;
 
 	/** Limits the delta time per tick to prevent simulation spikes due to frame lags. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))

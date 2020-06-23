@@ -97,7 +97,7 @@ bool isScalarType(QualType type, QualType *scalarType) {
   bool isScalar = false;
   QualType ty = {};
 
-  if (type->isBuiltinType()) {
+  if (type->isBuiltinType() || isEnumType(type)) {
     isScalar = true;
     ty = type;
   } else if (hlsl::IsHLSLVecType(type) && hlsl::GetHLSLVecSize(type) == 1) {
@@ -150,6 +150,21 @@ bool isVectorType(QualType type, QualType *elemType, uint32_t *elemCount) {
       *elemCount = count;
   }
   return isVec;
+}
+
+bool isConstantArrayType(const ASTContext &astContext, QualType type) {
+  return astContext.getAsConstantArrayType(type) != nullptr;
+}
+
+bool isEnumType(QualType type) {
+  if (isa<EnumType>(type.getTypePtr()))
+    return true;
+
+  if (const auto *elaboratedType = type->getAs<ElaboratedType>())
+    if (isa<EnumType>(elaboratedType->desugar().getTypePtr()))
+      return true;
+
+  return false;
 }
 
 bool is1x1Matrix(QualType type, QualType *elemType) {
@@ -384,6 +399,10 @@ uint32_t getElementSpirvBitwidth(const ASTContext &astContext, QualType type,
   if (const auto *ptrType = type->getAs<PointerType>())
     return getElementSpirvBitwidth(astContext, ptrType->getPointeeType(),
                                    is16BitTypeEnabled);
+
+  // Enum types
+  if (isEnumType(type))
+    return 32;
 
   // Scalar types
   QualType ty = {};
@@ -893,6 +912,35 @@ bool isOpaqueType(QualType type) {
   return false;
 }
 
+std::string getHlslResourceTypeName(QualType type) {
+  if (type.isNull())
+    return "";
+
+  // Strip outer arrayness first
+  while (type->isArrayType())
+    type = type->getAsArrayTypeUnsafe()->getElementType();
+
+  if (const RecordType *recordType = type->getAs<RecordType>()) {
+    StringRef name = recordType->getDecl()->getName();
+    if (name == "StructuredBuffer" || name == "RWStructuredBuffer" ||
+        name == "ByteAddressBuffer" || name == "RWByteAddressBuffer" ||
+        name == "AppendStructuredBuffer" || name == "ConsumeStructuredBuffer" ||
+        name == "Texture1D" || name == "Texture2D" || name == "Texture3D" ||
+        name == "TextureCube" || name == "Texture1DArray" ||
+        name == "Texture2DArray" || name == "Texture2DMS" ||
+        name == "Texture2DMSArray" || name == "TextureCubeArray" ||
+        name == "RWTexture1D" || name == "RWTexture2D" ||
+        name == "RWTexture3D" || name == "RWTexture1DArray" ||
+        name == "RWTexture2DArray" || name == "Buffer" || name == "RWBuffer" ||
+        name == "SubpassInput" || name == "SubpassInputMS" ||
+        name == "InputPatch" || name == "OutputPatch") {
+      return name;
+    }
+  }
+
+  return "";
+}
+
 bool isOpaqueStructType(QualType type) {
   if (isOpaqueType(type))
     return false;
@@ -978,6 +1026,9 @@ bool isBoolOrVecOfBoolType(QualType type) {
 /// Returns true if the given type is a signed integer or vector of signed
 /// integer type.
 bool isSintOrVecOfSintType(QualType type) {
+  if (isEnumType(type))
+    return true;
+
   QualType elemType = {};
   return (isScalarType(type, &elemType) || isVectorType(type, &elemType)) &&
          elemType->isSignedIntegerType();
@@ -1046,6 +1097,11 @@ bool isOrContainsNonFpColMajorMatrix(const ASTContext &astContext,
     if (isMxNMatrix(arrayType->getElementType(), &elemType) &&
         !elemType->isFloatingType())
       return isColMajorDecl(decl);
+    if (const auto *structType = arrayType->getElementType()->getAs<RecordType>()) {
+      return isOrContainsNonFpColMajorMatrix(astContext, spirvOptions,
+                                             arrayType->getElementType(),
+                                             structType->getDecl());
+    }
   }
 
   if (const auto *structType = type->getAs<RecordType>()) {

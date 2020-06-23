@@ -229,11 +229,9 @@ void FreeSkeletalMeshBuffersSinkCallback()
 	if(bFreeSkeletalMeshBuffers)
 	{
 		FlushRenderingCommands();
-		(*GFlushStreamingFunc)();
-		FlushRenderingCommands();
 		for (TObjectIterator<USkeletalMesh> It;It;++It)
 		{
-			if (!It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+			if (!It->HasPendingUpdate() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
 			{
 				It->ReleaseCPUResources();
 			}
@@ -977,9 +975,9 @@ int32 USkeletalMesh::CalcCumulativeLODSize(int32 NumLODs) const
 	return Accum;
 }
 
+#if USE_BULKDATA_STREAMING_TOKEN
 bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
 {
-#if !WITH_EDITOR
 	// TODO: this is slow. Should cache the name once per mesh
 	FString PackageName = GetOutermost()->FileName.ToString();
 	// Handle name redirection and localization
@@ -995,20 +993,36 @@ bool USkeletalMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDat
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < CalcNumOptionalMips() ? TEXT(".uptnl") : TEXT(".ubulk"));
 	check(MipIndex < CalcNumOptionalMips() || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
+}
+#endif // USE_BULKDATA_STREAMING_TOKEN
+
+FIoFilenameHash USkeletalMesh::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipFilename;
+	if (GetMipDataFilename(MipIndex, MipFilename))
+	{
+		return MakeIoFilenameHash(MipFilename);
+	}
 #else
-	return false;
+	if (SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex))
+	{
+		return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.GetIoFilenameHash();
+	}
 #endif
+	else
+	{
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 bool USkeletalMesh::DoesMipDataExist(const int32 MipIndex) const
 {
-	check(MipIndex < CalcNumOptionalMips());
-
-#if !USE_BULKDATA_STREAMING_TOKEN	
-	return SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
+#if USE_BULKDATA_STREAMING_TOKEN
+	FString MipDataFilename;
+	return GetMipDataFilename(MipIndex, MipDataFilename) && IFileManager::Get().FileExists(*MipDataFilename);
 #else
-	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
-	return false;
+	return SkeletalMeshRenderData && SkeletalMeshRenderData->LODRenderData.IsValidIndex(MipIndex) && SkeletalMeshRenderData->LODRenderData[MipIndex].StreamingBulkData.DoesExist();
 #endif
 }
 
@@ -1126,12 +1140,13 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		{
 			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
 			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_Async;
+			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
 		}
 		PendingUpdate->Tick(TickThread);
 
 		if (!PendingUpdate->IsCompleted())
 		{
+			TickMipLevelChangeCallbacks();
 			return true;
 		}
 
@@ -1166,6 +1181,8 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 #endif
 	}
 
+	TickMipLevelChangeCallbacks();
+
 	// TODO: LOD fading?
 
 	return false;
@@ -1188,6 +1205,7 @@ void USkeletalMesh::UnlinkStreaming()
 	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 
@@ -1731,8 +1749,9 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 		USkeletalMeshEditorData& DestMeshEditorData = GetMeshEditorData();
 		//We should have a brand new created asset
 		check(MeshEditorDataObject);
-		//Lets duplicate the data
-		ParallelFor(ImportedModels.LODModels.Num(), [&ImportedModels, &SourceMeshEditorData, &DestMeshEditorData](int32 LODIndex)
+		//Lets duplicate the imported data
+		const int32 NumLODModels = ImportedModels.LODModels.Num();
+		for (int32 LODIndex = 0; LODIndex < NumLODModels; ++LODIndex)
 		{
 			if (!SourceMeshEditorData->IsLODImportDataValid(LODIndex) || SourceMeshEditorData->GetLODImportedData(LODIndex).IsEmpty())
 			{
@@ -1751,7 +1770,7 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
 			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
 			ThisLODModel.BuildStringID = RawSkeletalMeshBulkData.GetIdString();
-		});
+		}
 	}
 #endif //WITH_EDITORONLY_DATA
 }
@@ -1764,8 +1783,23 @@ void USkeletalMesh::PostRename(UObject* OldOuter, const FName OldName)
 	if (MeshEditorDataObject)
 	{
 		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
-		//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
-		MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
+		UPackage* SkeletalMeshPackage = GetOutermost();
+
+		//If the data is already existing, no need to rename it. Tentative to fix a live crash that we cannot reproduce, will log the data to help us
+		UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, SkeletalMeshPackage, *MeshEditorDataString, true);
+		if(!ExistingObject)
+		{
+			//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
+			MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
+		}
+		else
+		{
+			if (ExistingObject != MeshEditorDataObject)
+			{
+				//Log that the MeshEditorDataObject is not renamed properly.
+				UE_LOG(LogSkeletalMesh, Warning, TEXT("Renaming of skeletal mesh %s failed to rename the sub UObject MeshEditorDataObject (The imported data), because there is already an object with this name!/nMeshEditorDataObject name before renaming %s./nName of the existing object preventing the renaming %s"), *GetFullName(), *MeshEditorDataObject->GetFullName(), *ExistingObject->GetFullName());
+			}
+		}
 	}
 #endif //WITH_EDITORONLY_DATA
 }
@@ -2141,7 +2175,7 @@ USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 		{
 			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
 			//StandAlone make sure the asset is save when we save the package(i.e. the skeletalmesh)
-			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName, RF_Standalone);
+			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName);
 		}
 	}
 	//Make sure we have a valid pointer
@@ -3631,7 +3665,7 @@ void USkeletalMesh::CopyMirrorTableFrom(USkeletalMesh* SrcMesh)
 }
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const
 {
 	// Do nothing if no mirror table in source mesh
 	if( SkelMirrorTable.Num() == 0 )
@@ -3657,7 +3691,7 @@ void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
 
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo)
 {
 	// Do nothing if no mirror table in source mesh
 	if( MirrorExportInfo.Num() == 0 )
@@ -3710,7 +3744,7 @@ void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
  *	Return true if mirror table is OK, false if there are problems.
  *	@param	ProblemBones	Output string containing information on bones that are currently bad.
  */
-bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones)
+bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones) const
 {
 	TArray<int32>	BadBoneMirror;
 

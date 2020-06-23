@@ -88,19 +88,33 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 		SerializeImp(Ar);
 	}
 
-	/** Do the simplest thing possible to estimate the volume bounded by 
-	 * the zero'th isocontour of the level set. 
+	/** 
+	 * Estimate the volume bounded by the zero'th isocontour of the level set.
+	 * #BGTODO - We can generate a more accurate pre-calculated volume during generation as this method still under
+	 * estimates the actual volume of the surface.
 	 */
 	T ApproximateNegativeMaterial() const
 	{
 		const TVector<T,d>& CellDim = MGrid.Dx();
-		const T QuarterCellVolume = CellDim.Product() * 0.25;
+		const float AvgRadius = (CellDim[0] + CellDim[1] + CellDim[2]) / (T)3;
+		const T CellVolume = CellDim.Product();
 		T Volume = 0.0;
 		for (int32 Idx = 0; Idx < MPhi.Num(); ++Idx)
 		{
-			if (MPhi[Idx] <= 0.0)
+			const T Phi = MPhi[Idx];
+			if (Phi <= 0.0)
 			{
-				Volume += QuarterCellVolume;
+				T CellRadius = AvgRadius - FMath::Abs(Phi);
+
+				if(CellRadius > KINDA_SMALL_NUMBER)
+				{
+					const T Scale = FMath::Min((T)1, CellRadius / AvgRadius);
+					Volume += CellVolume * Scale;
+				}
+				else
+				{
+					Volume += CellVolume;
+				}
 			}
 		}
 		return Volume;

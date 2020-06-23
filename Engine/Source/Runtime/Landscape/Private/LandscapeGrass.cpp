@@ -51,7 +51,7 @@
 #include "UObject/Package.h"
 #include "Engine/StaticMesh.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include "InstancedStaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
 #include "Math/Halton.h"

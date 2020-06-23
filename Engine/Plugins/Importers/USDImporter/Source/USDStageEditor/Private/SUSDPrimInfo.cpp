@@ -6,6 +6,10 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #include "Algo/Find.h"
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
@@ -22,17 +26,6 @@
 #include "Widgets/Views/SListView.h"
 
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/usd/sdf/namespaceEdit.h"
-#include "pxr/usd/usd/modelAPI.h"
-#include "pxr/usd/usd/prim.h"
-#include "pxr/usd/usd/references.h"
-#include "pxr/usd/usd/variantSets.h"
-#include "pxr/usd/usdGeom/xform.h"
-#include "pxr/usd/usdGeom/xformCommonAPI.h"
-
-#include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "SUSDPrimInfo"
 
@@ -41,7 +34,7 @@ namespace UsdPrimInfoWidgetConstants
 	const FMargin CategoryHeaderPadding( 4.0f, 4.0f, 4.0f, 4.0f );
 }
 
-void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > VariantSetsWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
 	TSharedRef< SWidget > ReferencesListWidget = GenerateReferencesListWidget( UsdStage, PrimPath );
@@ -84,7 +77,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::Us
 	SetPrimPath( UsdStage, PrimPath );
 }
 
-void SUsdPrimInfo::SetPrimPath( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
 	if ( PropertiesList )
 	{
@@ -102,18 +95,18 @@ void SUsdPrimInfo::SetPrimPath( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage
 	}
 }
 
-TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > VariantSetsWidget = SNullWidget::NullWidget;
 
-	if ( !UsdStage.Get() )
+	if ( !UsdStage )
 	{
 		return VariantSetsWidget;
 	}
 
-	TUsdStore< pxr::UsdPrim > UsdPrim = UsdStage.Get()->GetPrimAtPath( UnrealToUsd::ConvertPath( PrimPath ).Get() );
+	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) );
 
-	if ( UsdPrim.Get() && UsdPrim.Get().HasVariantSets() )
+	if ( UsdPrim && UsdPrim.HasVariantSets() )
 	{
 		SAssignNew( VariantSetsWidget, SVerticalBox )
 
@@ -133,25 +126,25 @@ TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const TUsdStore< 
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SAssignNew( VariantsList, SVariantsList, PrimPath )
+			SAssignNew( VariantsList, SVariantsList, UsdStage, PrimPath )
 		];
 	}
 
 	return VariantSetsWidget;
 }
 
-TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > ReferencesListWidget = SNullWidget::NullWidget;
 
-	if ( !UsdStage.Get() )
+	if ( !UsdStage )
 	{
 		return ReferencesListWidget;
 	}
 
-	TUsdStore< pxr::UsdPrim > UsdPrim = UsdStage.Get()->GetPrimAtPath( UnrealToUsd::ConvertPath( PrimPath ).Get() );
+	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) );
 
-	if ( UsdPrim.Get() && UsdPrim.Get().HasAuthoredReferences() )
+	if ( UsdPrim && UsdPrim.HasAuthoredReferences() )
 	{
 		SAssignNew( ReferencesListWidget, SVerticalBox )
 

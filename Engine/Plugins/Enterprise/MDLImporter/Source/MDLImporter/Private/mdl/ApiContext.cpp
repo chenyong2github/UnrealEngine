@@ -175,8 +175,11 @@ namespace Mdl
 		}
 		NeurayHandle = 0;
 
-		FPlatformProcess::FreeDllHandle(DsoHandle);
-		DsoHandle = nullptr;
+		if (DsoHandle)
+		{
+			FPlatformProcess::FreeDllHandle(DsoHandle);
+			DsoHandle = nullptr;
+		}
 	}
 
 	void FApiContext::AddSearchPath(const FString& ModulesPath)

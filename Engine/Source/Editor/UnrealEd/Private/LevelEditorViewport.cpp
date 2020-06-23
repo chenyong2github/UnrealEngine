@@ -228,6 +228,17 @@ static UDirectionalLightComponent* GetAtmosphericLight(const uint8 DesiredLightI
 	return SelectedAtmosphericLight;
 }
 
+static void NotifyAtmosphericLightHasMoved(UDirectionalLightComponent& SelectedAtmosphericLight, bool bFinished)
+{
+	AActor* LightOwner = SelectedAtmosphericLight.GetOwner();
+	if (LightOwner)
+	{
+		// Now notify the owner about the transform update, e.g. construction script on instance.
+		LightOwner->PostEditMove(bFinished);
+		// No PostEditChangeProperty because not paired with a PreEditChange
+	}
+}
+
 namespace LevelEditorViewportClientHelper
 {
 	FProperty* GetEditTransformProperty(FWidget::EWidgetMode WidgetMode)
@@ -874,20 +885,20 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 		const int32 DropY = Cursor.GetCursorPos().Y;
 
 		{
-		uint32 SurfaceIndex;
-		ModelHitProxy->ResolveSurface(View, DropX, DropY, SurfaceIndex);
-		if (SurfaceIndex != INDEX_NONE)
-		{
-			if ((Model->Surfs[SurfaceIndex].PolyFlags & PF_Selected) == 0)
+			uint32 SurfaceIndex;
+			ModelHitProxy->ResolveSurface(View, DropX, DropY, SurfaceIndex);
+			if (SurfaceIndex != INDEX_NONE)
 			{
-				// Surface was not selected so only apply to this surface
-				SelectedSurfaces.Add(SurfaceIndex);
+				if ((Model->Surfs[SurfaceIndex].PolyFlags & PF_Selected) == 0)
+				{
+					// Surface was not selected so only apply to this surface
+					SelectedSurfaces.Add(SurfaceIndex);
+				}
+				else
+				{
+					bDropedOntoSelectedSurface = true;
+				}
 			}
-			else
-			{
-				bDropedOntoSelectedSurface = true;
-			}
-		}
 		}
 
 		if( bDropedOntoSelectedSurface )
@@ -909,8 +920,11 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 			// Apply the material to the specified surface
 			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DragDrop_Transaction_ApplyMaterialToSurface", "Apply Material to Surface"));
 
-			// Modify the component so that PostEditUndo can reregister the model after undo
-			ModelHitProxy->GetModelComponent()->Modify();
+			if (ModelHitProxy->GetModelComponent())
+			{
+				// Modify the component so that PostEditUndo can reregister the model after undo
+				ModelHitProxy->GetModelComponent()->Modify();
+			}
 
 			for( int32 SurfListIndex = 0; SurfListIndex < SelectedSurfaces.Num(); ++SurfListIndex )
 			{
@@ -2818,6 +2832,11 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	}
 	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
 	{
+		UDirectionalLightComponent* SelectedSunLight = GetAtmosphericLight(bUserIsControllingAtmosphericLight0 ? 0 : 1, ViewportWorld);
+		if (SelectedSunLight)
+		{
+			NotifyAtmosphericLightHasMoved(*SelectedSunLight, true);
+		}
 		TrackingTransaction.End();					// End undo/redo translation
 		RemoveRealtimeOverride();						// Restore previous real-time state
 	}
@@ -4195,6 +4214,7 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 
 			ComponentTransform.SetRotation(LightRotation);
 			SelectedAtmosphericLight->SetWorldTransform(ComponentTransform);
+			NotifyAtmosphericLightHasMoved(*SelectedAtmosphericLight, false);
 
 			UserControlledAtmosphericLightMatrix = ComponentTransform;
 			UserControlledAtmosphericLightMatrix.NormalizeRotation();
@@ -4596,6 +4616,8 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 	{
 		// Draw translucent polygons on brushes and volumes
 
+		PDI->SetHitProxy(nullptr);
+
 		for (TActorIterator<ABrush> It(GetWorld()); It; ++It)
 		{
 			ABrush* Brush = *It;
@@ -4637,7 +4659,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 				PDI->RegisterDynamicResource(MaterialProxy);
 
 				// Flush the mesh triangles.
-				MeshBuilder.Draw(PDI, Brush->ActorToWorld().ToMatrixWithScale(), MaterialProxy, SDPG_World, 0.f);
+				MeshBuilder.Draw(PDI, Brush->ActorToWorld().ToMatrixWithScale(), MaterialProxy, SDPG_World);
 			}
 		}
 	}
@@ -4691,6 +4713,7 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDeviceRaw())
 		{
 			FVector ViewLocation = GetViewLocation();
+			FRotator ViewRotation = GetViewRotation();
 
 			const bool bStereoRendering = GEngine->XRSystem.IsValid() && GEngine->IsStereoscopic3D( Viewport );
 			if( bStereoRendering && GEngine->XRSystem->IsHeadTrackingAllowed() )
@@ -4702,9 +4725,9 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 				// NOTE: The RoomSpaceHeadLocation has already been adjusted for WorldToMetersScale
 				const FVector WorldSpaceHeadLocation = GetViewLocation() + GetViewRotation().RotateVector( RoomSpaceHeadLocation );
 				ViewLocation = WorldSpaceHeadLocation;
-			}
 
-			const FRotator& ViewRotation = GetViewRotation();
+				ViewRotation = (ViewRotation.Quaternion() * RoomSpaceHeadOrientation).Rotator();
+			}
 
 			FTransform ListenerTransform(ViewRotation);
 			ListenerTransform.SetLocation(ViewLocation);

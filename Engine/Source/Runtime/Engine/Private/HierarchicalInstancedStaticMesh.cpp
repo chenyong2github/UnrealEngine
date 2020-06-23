@@ -26,12 +26,15 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "InstancedStaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "SceneManagement.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/AnyOf.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 static TAutoConsoleVariable<int32> CVarFoliageSplitFactor(
 	TEXT("foliage.SplitFactor"),
@@ -127,6 +130,7 @@ DECLARE_CYCLE_STAT(TEXT("Batch Time"),STAT_FoliageBatchTime,STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Foliage Create Proxy"), STAT_FoliageCreateProxy, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Foliage Post Load"), STAT_FoliagePostLoad, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_AddInstance"), STAT_HISMCAddInstance, STATGROUP_Foliage);
+DECLARE_CYCLE_STAT(TEXT("HISMC_AddInstances"), STAT_HISMCAddInstances, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_RemoveInstance"), STAT_HISMCRemoveInstance, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("HISMC_GetDynamicMeshElement"), STAT_HISMCGetDynamicMeshElement, STATGROUP_Foliage);
 
@@ -937,16 +941,17 @@ public:
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;
-		if (RuntimeVirtualTextures.Num() > 0)
-		{
-			// Virtual texture items have default (static) relevance
-			Result = FInstancedStaticMeshSceneProxy::GetViewRelevance(View);
-		}
-		else if (bIsGrass ? View->Family->EngineShowFlags.InstancedGrass : View->Family->EngineShowFlags.InstancedFoliage)
+		if (bIsGrass ? View->Family->EngineShowFlags.InstancedGrass : View->Family->EngineShowFlags.InstancedFoliage)
 		{
 			Result = FStaticMeshSceneProxy::GetViewRelevance(View);
 			Result.bDynamicRelevance = true;
 			Result.bStaticRelevance = false;
+
+			// Remove relevance for primitives marked for runtime virtual texture only.
+			if (RuntimeVirtualTextures.Num() > 0 && !ShouldRenderInMainPass())
+			{
+				Result.bDynamicRelevance = false;
+			}
 		}
 		return Result;
 	}
@@ -972,8 +977,8 @@ public:
 	{
 		if (RuntimeVirtualTextures.Num() > 0)
 		{
-			// Virtual texture use not hierarchical static rendering for now
-			//todo[vt]: Build acceleration structure better suited for VT rendering. Probably hook up a different class with this to the foliage system.
+			// Create non-hierachichal static mesh batches for use by the runtime virtual texture rendering.
+			//todo[vt]: Build an acceleration structure better suited for VT rendering maybe with batches aligned to VT pages?
 			FInstancedStaticMeshSceneProxy::DrawStaticElements(PDI);
 		}
 	}
@@ -2410,6 +2415,50 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	return InstanceIndex;
 }
 
+TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+{
+	SCOPE_CYCLE_COUNTER(STAT_HISMCAddInstances);
+
+	int32 BaseIndex = PerInstanceSMData.Num();
+
+	TArray<int32> InstanceIndices = UInstancedStaticMeshComponent::AddInstances(InstanceTransforms, true);
+
+	if (InstanceIndices.Num() > 0 && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
+	{
+		bIsOutOfDate = true;
+		bConcurrentChanges |= IsAsyncBuilding();
+
+		const int32 Count = InstanceIndices.Num();
+		
+		InstanceReorderTable.Reserve(InstanceReorderTable.Num() + Count);
+		UnbuiltInstanceBoundsList.Reserve(UnbuiltInstanceBoundsList.Num() + Count);
+
+		int32 TransformIndexOffset = BaseIndex;
+
+		const int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num();
+
+		for (const int32 InstanceIndex : InstanceIndices)
+		{
+			TransformIndexOffset = InstanceIndex - BaseIndex;
+
+			InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex);
+
+			InstanceUpdateCmdBuffer.AddInstance(InstanceTransforms[TransformIndexOffset].ToMatrixWithScale());
+
+			const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(InstanceTransforms[TransformIndexOffset]);
+			UnbuiltInstanceBounds += NewInstanceBounds;
+			UnbuiltInstanceBoundsList.Add(NewInstanceBounds);
+		}
+
+		if (bAutoRebuildTreeOnInstanceChanges)
+		{
+			BuildTreeIfOutdated(PerInstanceSMData.Num() > 1, false);
+		}
+	}
+
+	return bShouldReturnIndices ? InstanceIndices : TArray<int32>();
+}
+
 void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 {
 	bIsOutOfDate = true;
@@ -2884,7 +2933,10 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			FComponentRecreateRenderStateContext Context(this);
 
 			const FMeshMapBuildData* MeshMapBuildData = nullptr;
-			if (LODData.Num() > 0)
+#if WITH_EDITOR
+			MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+			if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 			{
 				MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 			}
@@ -2914,7 +2966,12 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 	int32 NumInstances = PerInstanceData.GetNumInstances();
 	
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
-	if (LODData.Num() > 0)
+
+#if WITH_EDITOR
+	MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+
+	if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 	{
 		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}

@@ -773,6 +773,7 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 		check(ConInst);
 		ConInst->CopyConstraintParamsFrom(&OutConstraintsetup->DefaultInstance);
 		ConInst->ConstraintIndex = ConstraintIdx; // Set the ConstraintIndex property in the ConstraintInstance.
+		ConInst->PhysScene = PhysScene;
 #if WITH_EDITOR
 		UWorld* World = GetWorld();
 		if(World && World->IsGameWorld())

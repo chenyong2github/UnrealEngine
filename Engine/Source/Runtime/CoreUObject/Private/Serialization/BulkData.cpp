@@ -887,6 +887,11 @@ bool FUntypedBulkData::ShouldStreamBulkData()
 		GMinimumBulkDataSizeForAsyncLoading >= 0);
 }
 
+bool FUntypedBulkData::NeedsOffsetFixup() const
+{
+	return (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0;
+}
+
 void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
@@ -947,6 +952,9 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 #if TRACK_BULKDATA_USE
 		FThreadSafeBulkDataToObjectMap::Get().Add( this, Owner );
 #endif
+		// When saving, this block mutates values in order to write them out to the archive, even if just cooking. Store the existing version of them so we can restore them if necessary after writing out the bytes.
+		EBulkDataFlags SavedBulkDataFlags = BulkDataFlags;
+
 		// Offset where the bulkdata flags are stored
 		int64 SavedBulkDataFlagsPos = Ar.Tell();
 		{
@@ -1037,7 +1045,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 			// fix up the file offset, but only if not stored inline
 			int64 OffsetInFileFixup = 0;
-			if (Owner != NULL && Linker && !bPayloadInline)
+			if (Owner != NULL && Linker && !bPayloadInline && NeedsOffsetFixup())
 			{
 				OffsetInFileFixup = Linker->Summary.BulkDataStartOffset;
 			}
@@ -1235,6 +1243,10 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 		// We're saving to the persistent archive.
 		else if( Ar.IsSaving() )
 		{
+			// This block mutates values in order to write them out to the archive, even if just cooking. Store the existing version of them so we can restore them if necessary after writing out the bytes.
+			int64 SavedBulkDataSizeOnDisk = BulkDataSizeOnDisk;
+			int64 SavedBulkDataOffsetInFile = BulkDataOffsetInFile;
+
 			// Remove single element serialization requirement before saving out bulk data flags.
 			ClearBulkDataFlags(BULKDATA_ForceSingleElementSerialization);
 
@@ -1269,7 +1281,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				Ar << BulkDataOffsetInFile;
 			}
 
-				// try to get the linkersave object
+			// try to get the linkersave object
 			FLinkerSave* LinkerSave = Cast<FLinkerSave>(Ar.GetLinker());
 
 			// determine whether we are going to store the payload inline or not.
@@ -1396,6 +1408,14 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// Seek to the end of written data so we don't clobber any data in subsequent write 
 			// operations
 			Ar.Seek(CurrentFileOffset);
+
+			// Restore the mutated values when we are serializing for cooking; saving to a cook target should not mutate the in-memory object
+			if (Ar.IsCooking())
+			{
+				BulkDataFlags = SavedBulkDataFlags;
+				BulkDataOffsetInFile = SavedBulkDataOffsetInFile;
+				BulkDataSizeOnDisk = SavedBulkDataSizeOnDisk;
+			}
 		}
 	}
 }
@@ -1783,7 +1803,7 @@ bool FBulkDataIORequest::PollCompletion() const
 	return ReadRequest->PollCompletion();
 }
 
-bool FBulkDataIORequest::WaitCompletion(float TimeLimitSeconds) const
+bool FBulkDataIORequest::WaitCompletion(float TimeLimitSeconds)
 {
 	return ReadRequest->WaitCompletion(TimeLimitSeconds);
 }

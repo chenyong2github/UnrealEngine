@@ -2,6 +2,7 @@
 
 
 #include "MetalRHIPrivate.h"
+#include "MetalRHIStagingBuffer.h"
 #include "MetalCommandBuffer.h"
 #include "RenderUtils.h"
 #include "ClearReplacementShaders.h"
@@ -12,6 +13,8 @@ FMetalShaderResourceView::FMetalShaderResourceView()
 	: TextureView(nullptr)
 	, Offset(0)
 	, MipLevel(0)
+	, bSRGBForceDisable(0)
+	, Reserved(0)
 	, NumMips(0)
 	, Format(0)
 	, Stride(0)
@@ -282,13 +285,16 @@ FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FRHIText
 			Format = Surface->PixelFormat;
 		}
 		
-		SRV->TextureView = Surface ? new FMetalSurface(*Surface, NSMakeRange(CreateInfo.MipLevel, CreateInfo.NumMipLevels), (EPixelFormat)(CreateInfo.Format == PF_Unknown ? Surface->PixelFormat : CreateInfo.Format)) : nullptr;
+		const bool bSRGBForceDisable = (CreateInfo.SRGBOverride == SRGBO_ForceDisable);
+		
+		SRV->TextureView = Surface ? new FMetalSurface(*Surface, NSMakeRange(CreateInfo.MipLevel, CreateInfo.NumMipLevels), Format, bSRGBForceDisable) : nullptr;
 		
 		SRV->SourceVertexBuffer = nullptr;
 		SRV->SourceIndexBuffer = nullptr;
 		SRV->SourceStructuredBuffer = nullptr;
 		
 		SRV->MipLevel = CreateInfo.MipLevel;
+		SRV->bSRGBForceDisable = bSRGBForceDisable;
 		SRV->NumMips = CreateInfo.NumMipLevels;
 		SRV->Format = CreateInfo.Format;
 		
@@ -673,7 +679,7 @@ void FMetalRHICommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuf
 	@autoreleasepool {
 		check(DestinationStagingBufferRHI);
 
-		FMetalStagingBuffer* MetalStagingBuffer = ResourceCast(DestinationStagingBufferRHI);
+		FMetalRHIStagingBuffer* MetalStagingBuffer = ResourceCast(DestinationStagingBufferRHI);
 		ensureMsgf(!MetalStagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 		FMetalVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 		FMetalBuffer& ReadbackBuffer = MetalStagingBuffer->ShadowBuffer;

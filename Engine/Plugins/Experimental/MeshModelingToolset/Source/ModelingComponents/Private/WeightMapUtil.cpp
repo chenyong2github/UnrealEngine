@@ -17,7 +17,7 @@ void UE::WeightMaps::FindVertexWeightMaps(const FMeshDescription* Mesh, TArray<F
 }
 
 
-bool UE::WeightMaps::GetVertexWeightMap(const FMeshDescription* Mesh, FName AttributeName, FIndexedWeightMap& WeightMap, float DefaultValue)
+bool UE::WeightMaps::GetVertexWeightMap(const FMeshDescription* Mesh, FName AttributeName, FIndexedWeightMap1f& WeightMap, float DefaultValue)
 {
 	WeightMap.DefaultValue = DefaultValue;
 	TArray<float>& Values = WeightMap.Values;

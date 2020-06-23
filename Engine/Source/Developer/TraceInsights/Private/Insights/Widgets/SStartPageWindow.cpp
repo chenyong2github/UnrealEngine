@@ -502,6 +502,7 @@ public:
 				SNew(STextBlock)
 				.Text(this, Value)
 				.WrapTextAt(512.0f)
+				.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 				.ColorAndOpacity(FLinearColor::White)
 			];
 	}

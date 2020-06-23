@@ -192,6 +192,38 @@ uint32 GetShadowQuality()
 	return FMath::Clamp(Ret, 0, 5);
 }
 
+void GetOnePassPointShadowProjectionParameters(const FProjectedShadowInfo* ShadowInfo, FOnePassPointShadowProjection& OutParameters)
+{
+	//@todo DynamicGI: remove duplication with FOnePassPointShadowProjectionShaderParameters
+	FRHITexture* ShadowDepthTextureValue = ShadowInfo
+		? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
+		: GBlackTextureDepthCube->TextureRHI.GetReference();
+	if (!ShadowDepthTextureValue)
+	{
+		ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI.GetReference();
+	}
+
+	OutParameters.ShadowDepthCubeTexture = ShadowDepthTextureValue;
+	OutParameters.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;
+	// Use a comparison sampler to do hardware PCF
+	OutParameters.ShadowDepthCubeTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI();
+
+	if (ShadowInfo)
+	{
+		for (int32 i = 0; i < ShadowInfo->OnePassShadowViewProjectionMatrices.Num(); i++)
+		{
+			OutParameters.ShadowViewProjectionMatrices[i] = ShadowInfo->OnePassShadowViewProjectionMatrices[i];
+		}
+
+		OutParameters.InvShadowmapResolution = 1.0f / ShadowInfo->ResolutionX;
+	}
+	else
+	{
+		FPlatformMemory::Memzero(&OutParameters.ShadowViewProjectionMatrices[0], sizeof(OutParameters.ShadowViewProjectionMatrices));
+		OutParameters.InvShadowmapResolution = 0;
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	FShadowVolumeBoundProjectionVS
 -----------------------------------------------------------------------------*/
@@ -1559,6 +1591,8 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 
 	if (NormalShadows.Num() > 0)
 	{
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 		auto RenderShadowMask = [&](const FHairStrandsVisibilityViews* HairVisibilityViews)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1581,6 +1615,9 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 				LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
 
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 				// Project the shadow depth buffers onto the scene.
 				for (int32 ShadowIndex = 0; ShadowIndex < NormalShadows.Num(); ShadowIndex++)

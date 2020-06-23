@@ -14,16 +14,21 @@ namespace Chaos
 
 	/**
 	 * Run through a list of particle pairs and pass them onto the collision detector if their AABBs overlap.
+	 * In addition, collide all particles in ParticlesA with all particles in ParticlesB.
+	 *
 	 * No spatial acceleration, and the order is assumed to be already optimized for cache efficiency.
 	 */
 	class CHAOS_API FParticlePairBroadPhase
 	{
 	public:
-		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
+		using FParticleHandle = TGeometryParticleHandle<FReal, 3>;
+		using FParticlePair = TVector<FParticleHandle*, 2>;
 		using FAABB = TAABB<FReal, 3>;
 
-		FParticlePairBroadPhase(const TArray<FParticlePair>& InParticlePairs, const FReal InCullDistance)
+		FParticlePairBroadPhase(const TArray<FParticlePair>* InParticlePairs, const TArray<FParticleHandle*>* InParticlesA, const TArray<FParticleHandle*>* InParticlesB, const FReal InCullDistance)
 			: ParticlePairs(InParticlePairs)
+			, ParticlesA(InParticlesA)
+			, ParticlesB(InParticlesB)
 			, CullDistance(InCullDistance)
 		{
 		}
@@ -48,26 +53,60 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
 
-			int32 NumPairs = ParticlePairs.Num();
-			for (int32 PairIndex = 0; PairIndex < NumPairs; ++PairIndex)
+			if (ParticlePairs != nullptr)
 			{
-				const FParticlePair& ParticlePair = ParticlePairs[PairIndex];
-
-				const TAABB<FReal, 3>& Box0 = ParticlePair[0]->WorldSpaceInflatedBounds();
-				const TAABB<FReal, 3>& Box1 = ParticlePair[1]->WorldSpaceInflatedBounds();
-				if (Box0.Intersects(Box1))
+				for (const FParticlePair& ParticlePair : *ParticlePairs)
 				{
-					// Pair array is const, the particles are not
-					TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
-					TGeometryParticleHandle<FReal, 3>* Particle1 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[1]);
+					// Pair array is const and the particles are not, but we need to const_cast
+					FParticleHandle* ParticleA = const_cast<FParticleHandle*>(ParticlePair[0]);
+					FParticleHandle* ParticleB = const_cast<FParticleHandle*>(ParticlePair[1]);
 
-					NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, Particle0, Particle1, CullDistance, StatData);
+					if ((ParticleA != nullptr) && (ParticleB != nullptr))
+					{
+						ProduceOverlaps(Dt, ConstraintsArray, NarrowPhase, ParticleA, ParticleB, StatData);
+					}
+				}
+			}
+
+			if ((ParticlesA != nullptr) && (ParticlesB != nullptr))
+			{
+				for (FParticleHandle* ParticleA : *ParticlesA)
+				{
+					if (ParticleA != nullptr)
+					{
+						for (FParticleHandle* ParticleB : *ParticlesB)
+						{
+							if (ParticleB != nullptr)
+							{
+								ProduceOverlaps(Dt, ConstraintsArray, NarrowPhase, ParticleA, ParticleB, StatData);
+							}
+						}
+					}
 				}
 			}
 		}
 
 	private:
-		const TArray<FParticlePair>& ParticlePairs;
+		inline void ProduceOverlaps(
+			FReal Dt,
+			FCollisionConstraintsArray& ConstraintsArray,
+			FNarrowPhase& NarrowPhase,
+			FParticleHandle* ParticleA,
+			FParticleHandle* ParticleB,
+			CollisionStats::FStatData& StatData)
+		{
+			const TAABB<FReal, 3>& Box0 = ParticleA->WorldSpaceInflatedBounds();
+			const TAABB<FReal, 3>& Box1 = ParticleB->WorldSpaceInflatedBounds();
+			if (Box0.Intersects(Box1))
+			{
+
+				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance, StatData);
+			}
+		}
+
+		const TArray<FParticlePair>* ParticlePairs;
+		const TArray<FParticleHandle*>* ParticlesA;
+		const TArray<FParticleHandle*>* ParticlesB;
 		FReal CullDistance;
 	};
 }

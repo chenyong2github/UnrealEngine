@@ -399,6 +399,11 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 	}
 
+	FRHIShaderResourceView* GetHalfSRVWithFallback(FRWBuffer& Buffer) const
+	{
+		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyHalfBuffer();
+	}
+
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
@@ -521,7 +526,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferFloat()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, GetIntSRVWithFallback(SourceData->GetGPUBufferInt()));
-		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferHalf()));
+		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, GetHalfSRVWithFallback(SourceData->GetGPUBufferHalf()));
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideFloatParam, ParticleStrideFloat);
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideIntParam, ParticleStrideInt);
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideHalfParam, ParticleStrideHalf);
@@ -566,6 +571,24 @@ void UNiagaraDataInterfaceParticleRead::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 }
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceParticleRead::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	FName PropertyName;
+	if (PropertyChangedEvent.Property)
+	{
+		PropertyName = PropertyChangedEvent.Property->GetFName();
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceParticleRead, EmitterName))
+	{
+		UNiagaraSystem::RecomputeExecutionOrderForDataInterface(this);
+	}
+}
+#endif
 
 bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
@@ -665,6 +688,13 @@ void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSign
 		OutFunctions.Add(Sig);
 	}
 
+	GetPersistentIDFunctions(OutFunctions);
+	GetIndexFunctions(OutFunctions);
+
+}
+
+void UNiagaraDataInterfaceParticleRead::GetPersistentIDFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
+{
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetParticleIndexFunctionName;
@@ -839,6 +869,12 @@ void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSign
 		OutFunctions.Add(Sig);
 	}
 
+}
+
+
+void UNiagaraDataInterfaceParticleRead::GetIndexFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
+{
+
 	//
 	// Get attribute by index
 	//
@@ -976,7 +1012,7 @@ void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceParticleRead_GetQuatByIndexDesc", "Returns a Quat value from a particle by index.  Note: When reading from self this will be the previous frames data.");
 #endif
 		OutFunctions.Add(Sig);
-	} 
+	}
 
 	{
 		FNiagaraFunctionSignature Sig;
@@ -2041,6 +2077,7 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 }
 
 #if WITH_EDITOR	
+
 void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info)
 {
 	if (!Asset)
@@ -2066,15 +2103,103 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 			FNiagaraDataInterfaceFix());
 		OutErrors.Add(SourceEmitterNotFoundError);
 	}
+
+	// Filter through all the relevant CPU scripts
+	TArray<UNiagaraScript*> Scripts;
+	Scripts.Add(Asset->GetSystemSpawnScript());
+	Scripts.Add(Asset->GetSystemUpdateScript());
+	for (auto&& EmitterHandle : Asset->GetEmitterHandles())
+	{
+		TArray<UNiagaraScript*> OutScripts;
+		EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
+		Scripts.Append(OutScripts);
+	}
+
+	// Now check if any script uses functions that require persisitent ID access
+	TArray<FNiagaraFunctionSignature> CPUFunctions;
+	GetPersistentIDFunctions(CPUFunctions);
+
+	bool bHasPersistenIDAccessWarning = [this, &Scripts, &CPUFunctions]()
+	{
+		for (const auto Script : Scripts)
+		{
+			for (const auto& DIInfo : Script->GetVMExecutableData().DataInterfaceInfo)
+			{
+				if (DIInfo.GetDefaultDataInterface()->GetClass() == GetClass())
+				{
+					for (const auto& Func : DIInfo.RegisteredFunctions)
+					{
+						auto Filter = [&Func](const FNiagaraFunctionSignature& CPUSig)
+						{
+							return CPUSig.Name == Func.Name;
+						};
+						if (CPUFunctions.FindByPredicate(Filter))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}();
+
+	// If we found persistent ID functions in use and the target emitter isn't set to expose them, trigger a fixable warning.
+	if (bHasPersistenIDAccessWarning && FoundSourceEmitter && FoundSourceEmitter->bRequiresPersistentIDs == false)
+	{
+		FNiagaraDataInterfaceError SourceEmitterNeedsPersistentIDError(LOCTEXT("SourceEmitterNeedsPersistenIDError", "Source Emitter Needs PersistenIDs set."),
+			LOCTEXT("SourceEmitterNeedsPersistenIDErrorSummary", "Source emitter needs persistent id's set."),
+			FNiagaraDataInterfaceFix::CreateLambda([=]()
+				{
+					if (FoundSourceEmitter)
+					{
+						FName PropertyName = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs);
+						FProperty* FoundProp = nullptr;
+						for (TFieldIterator<FProperty> PropertyIt(UNiagaraEmitter::StaticClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+						{
+							FProperty* Property = *PropertyIt;
+							if (Property && Property->GetFName() == PropertyName)
+							{
+								FoundProp = Property;
+								break;
+							}
+						}
+
+						FoundSourceEmitter->Modify();
+						if (FoundProp)
+						{
+							FPropertyChangedEvent EmptyPropertyUpdateStruct(FoundProp);
+
+							// Go through Pre/Post edit change cycle on these because changing them will invoke a recompile on the target emitter.
+							FoundSourceEmitter->PreEditChange(FoundProp);
+							FoundSourceEmitter->bRequiresPersistentIDs = true;
+							FoundSourceEmitter->PostEditChangeProperty(EmptyPropertyUpdateStruct);
+						}
+
+					}
+					return true;
+				}));
+		OutErrors.Add(SourceEmitterNeedsPersistentIDError);
+	}
 }
 #endif
 
-void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const
+void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* Asset, TArray<UNiagaraEmitter*>& Dependencies) const
 {
-	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(PerInstanceData);
-	if (PIData && PIData->EmitterInstance)
+	if (!Asset)
 	{
-		Dependencies.Add(PIData->EmitterInstance);
+		return;
+	}
+
+	UNiagaraEmitter* FoundSourceEmitter = nullptr;
+	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
+	{
+		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
+		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
+		{
+			Dependencies.Add(EmitterInstance);
+			return;
+		}
 	}
 }
 

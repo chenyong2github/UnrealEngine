@@ -14,12 +14,6 @@
 #include "Widgets/Input/STextComboBox.h"
 
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/usd/usd/prim.h"
-#include "pxr/usd/usd/variantSets.h"
-
-#include "USDIncludesEnd.h"
 
 namespace UsdVariantSetsListConstants
 {
@@ -29,13 +23,13 @@ namespace UsdVariantSetsListConstants
 	const TCHAR* NormalFont = TEXT("PropertyWindow.NormalFont");
 }
 
-void SUsdVariantRow::Construct( const FArguments& InArgs, TSharedPtr< FUsdVariantSet > InVariantSet, const TSharedRef< STableViewBase >& OwnerTable )
+void SUsdVariantRow::Construct( const FArguments& InArgs, TSharedPtr< FUsdVariantSetViewModel > InVariantSet, const TSharedRef< STableViewBase >& OwnerTable )
 {
 	OnVariantSelectionChanged = InArgs._OnVariantSelectionChanged;
 
 	VariantSet = InVariantSet;
 
-	SMultiColumnTableRow< TSharedPtr< FUsdVariantSet > >::Construct( SMultiColumnTableRow< TSharedPtr< FUsdVariantSet > >::FArguments(), OwnerTable );
+	SMultiColumnTableRow< TSharedPtr< FUsdVariantSetViewModel > >::Construct( SMultiColumnTableRow< TSharedPtr< FUsdVariantSetViewModel > >::FArguments(), OwnerTable );
 }
 
 TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& ColumnName )
@@ -82,15 +76,14 @@ TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& Colu
 
 void SUsdVariantRow::OnSelectionChanged( TSharedPtr< FString > NewValue, ESelectInfo::Type SelectInfo )
 {
-	VariantSet->VariantSelection = NewValue;
-	OnVariantSelectionChanged.ExecuteIfBound( VariantSet.ToSharedRef() );
+	OnVariantSelectionChanged.ExecuteIfBound( VariantSet.ToSharedRef(), NewValue );
 }
 
-void SVariantsList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath )
+void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
 {
 	PrimPath = InPrimPath;
 
-	UpdateVariantSets( InPrimPath );
+	ViewModel.UpdateVariantSets( UsdStage, InPrimPath );
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 	.Visibility( EVisibility::Collapsed )
@@ -104,118 +97,28 @@ void SVariantsList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath
 	SListView::Construct
 	(
 		SListView::FArguments()
-		.ListItemsSource( &VariantSets )
+		.ListItemsSource( &ViewModel.VariantSets )
 		.OnGenerateRow( this, &SVariantsList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
 }
 
-TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSet > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
+TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSetViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
 {
 	return SNew( SUsdVariantRow, InDisplayNode, OwnerTable )
 			.OnVariantSelectionChanged( this, &SVariantsList::OnVariantSelectionChanged );
 }
 
-void SVariantsList::UpdateVariantSets( const TCHAR* InPrimPath )
-{
-	VariantSets.Reset();
-
-	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-	AUsdStageActor* UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
-
-	if ( !UsdStageActor )
-	{
-		return;
-	}
-
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdStageRefPtr UsdStage = UsdStageActor->GetUsdStage();
-
-	if ( !UsdStage )
-	{
-		return;
-	}
-
-	pxr::UsdPrim UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( InPrimPath ).Get() );
-
-	if ( !UsdPrim )
-	{
-		return;
-	}
-
-	pxr::UsdVariantSets UsdVariantSets = UsdPrim.GetVariantSets();
-
-	std::vector< std::string > UsdVariantSetsNames;
-	UsdVariantSets.GetNames( &UsdVariantSetsNames );
-
-	for ( const std::string& UsdVariantSetName : UsdVariantSetsNames )
-	{
-		FUsdVariantSet VariantSet;
-		VariantSet.SetName = UsdToUnreal::ConvertString( UsdVariantSetName.c_str() );
-
-		pxr::UsdVariantSet UsdVariantSet = UsdPrim.GetVariantSet( UsdVariantSetName.c_str() );
-		VariantSet.VariantSelection = MakeSharedUnreal< FString >( UsdToUnreal::ConvertString( UsdVariantSet.GetVariantSelection().c_str() ) );
-
-		std::vector< std::string > VariantNames = UsdVariantSet.GetVariantNames();
-
-		for ( const std::string& VariantName : VariantNames )
-		{
-			VariantSet.Variants.Add( MakeSharedUnreal< FString >( UsdToUnreal::ConvertString( VariantName ) ) );
-		}
-
-		VariantSets.Add( MakeSharedUnreal< FUsdVariantSet >( MoveTemp( VariantSet ) ) );
-	}
-}
-
-void SVariantsList::SetPrimPath( const TCHAR* InPrimPath )
+void SVariantsList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
 {
 	PrimPath = InPrimPath;
-	UpdateVariantSets( *PrimPath );
+	ViewModel.UpdateVariantSets( UsdStage, *PrimPath );
 	RequestListRefresh();
 }
 
-void SVariantsList::OnVariantSelectionChanged( const TSharedRef< FUsdVariantSet >& VariantSet )
+void SVariantsList::OnVariantSelectionChanged( const TSharedRef< FUsdVariantSetViewModel >& VariantSet, const TSharedPtr< FString >& NewValue )
 {
-	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-	AUsdStageActor* UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
-
-	if ( !UsdStageActor )
-	{
-		return;
-	}
-
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdStageRefPtr UsdStage = UsdStageActor->GetUsdStage();
-
-	if ( !UsdStage )
-	{
-		return;
-	}
-
-	pxr::UsdPrim UsdPrim = UsdStage->GetPrimAtPath( UnrealToUsd::ConvertPath( *PrimPath ).Get() );
-
-	if ( !UsdPrim )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( FText::Format(
-		NSLOCTEXT( "USDVariantSetsList", "SwitchVariantSetTransaction", "Switch USD Variant Set '{0}' to option '{1}'" ),
-		FText::FromString( VariantSet->SetName ),
-		FText::FromString( *VariantSet->VariantSelection )
-	) );
-
-	std::string UsdVariantSelection;
-
-	if ( VariantSet->VariantSelection )
-	{
-		UsdVariantSelection = UnrealToUsd::ConvertString( *(*VariantSet->VariantSelection) ).Get();
-	}
-
-	pxr::UsdVariantSets UsdVariantSets = UsdPrim.GetVariantSets();
-	UsdVariantSets.SetSelection( UnrealToUsd::ConvertString( *VariantSet->SetName ).Get(), UsdVariantSelection );
+	VariantSet->SetVariantSelection( NewValue );
 }
 
 #endif // #if USE_USD_SDK

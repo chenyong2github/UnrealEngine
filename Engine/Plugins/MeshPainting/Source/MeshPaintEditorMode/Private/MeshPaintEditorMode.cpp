@@ -15,9 +15,6 @@
 #include "MeshPaintStaticMeshAdapter.h"
 #include "MeshPaintSkeletalMeshAdapter.h"
 #include "Settings/LevelEditorMiscSettings.h"
- 
-
-#define LOCTEXT_NAMESPACE "MeshPaintMode"
 
 class FMeshPaintEditorModeModule : public IModuleInterface
 {
@@ -35,18 +32,9 @@ public:
 	}
 
 protected:
-
-	/** Stores the FEditorMode ID of the associated editor mode */
-	static inline FEditorModeID GetEditorModeID()
-	{
-		static FEditorModeID MeshPaintModeFeatureName = FName( TEXT( "MeshPaintMode" ) );
-		return MeshPaintModeFeatureName;
-	}
-
 	void Register();
 	void OnPostEngineInit();
 	void Unregister();
-
 
 	void OnMeshPaintModeButtonClicked();
 	bool IsMeshPaintModeButtonEnabled();
@@ -59,15 +47,6 @@ void FMeshPaintEditorModeModule::Register()
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSplineMeshComponentAdapterFactory));
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintStaticMeshComponentAdapterFactory));
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSkeletalMeshComponentAdapterFactory));
-
-
-	FEditorModeRegistry::Get().RegisterScriptableMode<UMeshPaintMode>(
-		GetEditorModeID(),
-		LOCTEXT("ModeName", "Mesh Paint"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
-		true,
-		600
-		);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("MeshColorPaintingToolProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FColorPaintingSettingsCustomization::MakeInstance));
@@ -103,7 +82,6 @@ void FMeshPaintEditorModeModule::ShutdownModule()
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
 	Unregister();
-	
 }
 
 
@@ -111,7 +89,6 @@ void FMeshPaintEditorModeModule::ShutdownModule()
 
 void FMeshPaintEditorModeModule::Unregister()
 {
-	FEditorModeRegistry::Get().UnregisterMode(GetEditorModeID());
 }
 
 
@@ -119,10 +96,10 @@ void FMeshPaintEditorModeModule::OnMeshPaintModeButtonClicked()
 {
 	// *Important* - activate the mode first since FEditorModeTools::DeactivateMode will
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
-	GLevelEditorModeTools().ActivateMode(GetEditorModeID());
+	GLevelEditorModeTools().ActivateMode(GetDefault<UMeshPaintMode>()->GetID());
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
-	GLevelEditorModeTools().DeactivateOtherVisibleModes(GetEditorModeID());
+	GLevelEditorModeTools().DeactivateOtherVisibleModes(GetDefault<UMeshPaintMode>()->GetID());
 
 }
 
@@ -144,5 +121,3 @@ void  FMeshPaintEditorModeModule::UnregisterGeometryAdapterFactory(TSharedRef<IM
 }
 
 IMPLEMENT_MODULE(FMeshPaintEditorModeModule, MeshPaintEditorMode)
-
-#undef LOCTEXT_NAMESPACE

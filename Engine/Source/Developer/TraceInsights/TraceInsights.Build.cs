@@ -17,6 +17,7 @@ public class TraceInsights : ModuleRules
 		(
 			new string[] {
 				"Core",
+				"Cbor",
 				"ApplicationCore",
 				"InputCore",
 				"RHI",
@@ -29,6 +30,7 @@ public class TraceInsights : ModuleRules
 				"TraceServices",
 				"DesktopPlatform",
 				"WorkspaceMenuStructure",
+				"XmlParser"
 			}
 		);
 

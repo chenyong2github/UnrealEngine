@@ -64,10 +64,12 @@ void USpatialCurveDistanceMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 
 void USpatialCurveDistanceMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
+	float PDIScale = RenderCameraState.GetPDIScalingFactor();
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
 	FColor AxisColor(128, 128, 0);
 	PDI->DrawLine(
 		(FVector)CurrentCurvePoint,  (FVector)CurrentSpacePoint,
-		AxisColor, 1, 1.0f, 0.0f, true);
+		AxisColor, 1, 1.0f*PDIScale, 0.0f, true);
 }

@@ -1077,15 +1077,31 @@ bool FConfigFile::ShouldExportQuotedString(const FString& PropertyValue)
 
 FString FConfigFile::GenerateExportedPropertyLine(const FString& PropertyName, const FString& PropertyValue)
 {
-	const bool bShouldQuote = ShouldExportQuotedString(PropertyValue);
-	if (bShouldQuote)
+	FString Out;
+	AppendExportedPropertyLine(Out, PropertyName, PropertyValue);
+	return Out;
+}
+
+void FConfigFile::AppendExportedPropertyLine(FString& Out, const FString& PropertyName, const FString& PropertyValue)
+{
+	// Append has been measured to be twice as fast as Appendf here
+	Out.Append(PropertyName);
+
+	Out.AppendChar(TEXT('='));
+
+	if (FConfigFile::ShouldExportQuotedString(PropertyValue))
 	{
-		return FString::Printf(TEXT("%s=\"%s\"") LINE_TERMINATOR, *PropertyName, *PropertyValue.ReplaceCharWithEscapedChar());
+		Out.AppendChar(TEXT('"'));
+		Out.Append(PropertyValue.ReplaceCharWithEscapedChar());
+		Out.AppendChar(TEXT('"'));
 	}
 	else
 	{
-		return FString::Printf(TEXT("%s=%s") LINE_TERMINATOR, *PropertyName, *PropertyValue);
+		Out.Append(PropertyValue);
 	}
+
+	static const int32 LineTerminatorLen = FCString::Strlen(LINE_TERMINATOR);
+	Out.Append(LINE_TERMINATOR, LineTerminatorLen);
 }
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
@@ -1350,60 +1366,40 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 }
 
 /**
- * Check if the provided config has a property which matches the one we are providing
+ * Check if the provided config section has a property which matches the one we are providing
  *
- * @param InConfigFile		- The config file which we are looking for a match in
- * @param InSectionName		- The name of the section we want to look for a match in.
+ * @param InSection			- The section which we are looking for a match in
  * @param InPropertyName	- The name of the property we are looking to match
  * @param InPropertyValue	- The value of the property which, if found, we are checking a match
  *
- * @return True if a property was found in the InConfigFile which matched the SectionName, Property Name and Value.
+ * @return True if a property was found in the InSection which matched the Property Name and Value.
  */
-bool DoesConfigPropertyValueMatch( FConfigFile* InConfigFile, const FString& InSectionName, const FName& InPropertyName, const FString& InPropertyValue )
+bool DoesConfigPropertyValueMatch(const FConfigSection* InSection, const FName& InPropertyName, const FString& InPropertyValue )
 {
 	bool bFoundAMatch = false;
 
-	// If we have a config file to check against, have a look.
-	if( InConfigFile )
+	if (InSection)
 	{
-		// Check the sections which could match our desired section name
-		const FConfigSection* Section =  InConfigFile->Find( InSectionName );
+		const bool bIsInputStringValidFloat = FDefaultValueHelper::IsStringValidFloat(InPropertyValue);
 
-		if( Section )
+		// Start Array check, if the property is in an array, we need to iterate over all properties.
+		for (FConfigSection::TConstKeyIterator It(*InSection, InPropertyName); It && !bFoundAMatch; ++It)
 		{
-			const bool bIsInputStringValidFloat = FDefaultValueHelper::IsStringValidFloat(InPropertyValue);
-
-			// Start Array check, if the property is in an array, we need to iterate over all properties.
-			for (FConfigSection::TConstKeyIterator It(*Section, InPropertyName); It && !bFoundAMatch; ++It)
-			{
-				const FString& PropertyValue = It.Value().GetSavedValue();
-				bFoundAMatch = 
-					PropertyValue.Len() == InPropertyValue.Len() &&
-					PropertyValue == InPropertyValue;
+			const FString& PropertyValue = It.Value().GetSavedValue();
+			bFoundAMatch = 
+				PropertyValue.Len() == InPropertyValue.Len() &&
+				PropertyValue == InPropertyValue;
 				
-				// if our properties don't match, run further checks
-				if( !bFoundAMatch )
+			// if our properties don't match, run further checks
+			if( !bFoundAMatch )
+			{
+				// Check that the mismatch isn't just a string comparison issue with floats
+				if (bIsInputStringValidFloat && FDefaultValueHelper::IsStringValidFloat( PropertyValue ))
 				{
-					// Check that the mismatch isn't just a string comparison issue with floats
-					if (bIsInputStringValidFloat && FDefaultValueHelper::IsStringValidFloat( PropertyValue ))
-					{
-						bFoundAMatch = FCString::Atof( *PropertyValue ) == FCString::Atof( *InPropertyValue );
-					}
+					bFoundAMatch = FCString::Atof( *PropertyValue ) == FCString::Atof( *InPropertyValue );
 				}
 			}
 		}
-#if !UE_BUILD_SHIPPING
-		else if (FPlatformProperties::RequiresCookedData() == false && InSectionName.StartsWith(TEXT("/Script/")))
-		{
-			// Guard against short names in ini files
-			const FString ShortSectionName = InSectionName.Replace(TEXT("/Script/"), TEXT("")); 
-			Section = InConfigFile->Find(ShortSectionName);
-			if (Section)
-			{
-				UE_LOG(LogConfig, Fatal, TEXT("Short config section found while looking for %s"), *InSectionName);
-			}
-		}
-#endif
 	}
 
 
@@ -1482,20 +1478,66 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	bool bAcquiredIniCombineThreshold = false;	// avoids extra work when writing multiple properties
 	int32 IniCombineThreshold = -1;
 
-	TStringBuilder<128> Text;
-	FStringView BlankLine(LINE_TERMINATOR LINE_TERMINATOR);
+	FString Text;
+	// Estimate max size to reduce re-allocations (does not inspect actual properties for performance)
+	int32 InitialEstimatedFinalTextSize = 0;
+	int32 HighestPropertiesInSection = 0;
+	for (TIterator SectionIterator(*this); SectionIterator; ++SectionIterator)
+	{
+		HighestPropertiesInSection = FMath::Max(HighestPropertiesInSection, SectionIterator.Value().Num());
+		InitialEstimatedFinalTextSize += ((SectionIterator.Value().Num() + 1) * 90);
+	}
+	// Limit size estimate to avoid pre-allocating too much memory
+	InitialEstimatedFinalTextSize = FMath::Min(InitialEstimatedFinalTextSize, 128 * 1024 * 1024);
+	Text.Reserve(InitialEstimatedFinalTextSize);
+
 	TArray<FString> SectionOrder;
 	SectionOrder.Reserve(InSectionOrder.Num() + this->Num());
 	SectionOrder.Append(InSectionOrder);
+	InOutSectionTexts.Reserve(InSectionOrder.Num() + this->Num());
+
+	bool bIsADefaultIniWrite = false;
+	{
+		// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
+		const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
+		const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
+		const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
+		bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
+	}
+
+	TArray<const FConfigValue*> CompletePropertyToWrite;
+	FString PropertyNameString;
+	TSet<FName> PropertiesAddedLookup;
+	PropertiesAddedLookup.Reserve(HighestPropertiesInSection);
+	int32 EstimatedFinalTextSize = 0;
 
 	for( TIterator SectionIterator(*this); SectionIterator; ++SectionIterator )
 	{
 		const FString& SectionName = SectionIterator.Key();
 		const FConfigSection& Section = SectionIterator.Value();
 
-		Text.Reset();
+		// If we have a config file to check against, have a look.
+		FConfigSection* SourceConfigSection = nullptr;
+		if (SourceConfigFile)
+		{
+			// Check the sections which could match our desired section name
+			SourceConfigSection = SourceConfigFile->Find(SectionName);
 
-		TSet< FName > PropertiesAddedLookup;
+#if !UE_BUILD_SHIPPING
+			if (!SourceConfigSection && FPlatformProperties::RequiresCookedData() == false && SectionName.StartsWith(TEXT("/Script/")))
+			{
+				// Guard against short names in ini files
+				const FString ShortSectionName = SectionName.Replace(TEXT("/Script/"), TEXT("")); 
+				if (SourceConfigFile->Find(ShortSectionName) != nullptr)
+				{
+					UE_LOG(LogConfig, Fatal, TEXT("Short config section found while looking for %s"), *SectionName);
+				}
+			}
+#endif
+		}
+
+		Text.Reset();
+		PropertiesAddedLookup.Reset();
 
 		for( FConfigSection::TConstIterator It2(Section); It2; ++It2 )
 		{
@@ -1505,57 +1547,30 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 			// Check if the we've already processed a property of this name. If it was part of an array we may have already written it out.
 			if( !PropertiesAddedLookup.Contains( PropertyName ) )
 			{
-				// Check for an array of differing size. This will trigger a full writeout.
-				// This also catches the case where the property doesn't exist in the source in non-array cases
-				const bool bDifferentNumberOfElements = false;
-				/* // This code is a no-op
-				{
-					if (SourceConfigFile)
-					{
-						if (const FConfigSection* SourceSection = SourceConfigFile->Find(SectionName))
-						{
-							TArray<FConfigValue> SourceMatchingProperties;
-							SourceSection->MultiFind(PropertyName, SourceMatchingProperties);
-
-							TArray<FConfigValue> DestMatchingProperties;
-							Section.MultiFind(PropertyName, DestMatchingProperties);
-
-							bDifferentNumberOfElements = SourceMatchingProperties.Num() != DestMatchingProperties.Num();
-						}
-					}
-				}
-				*/
-
 				// check whether the option we are attempting to write out, came from the commandline as a temporary override.
 				const bool bOptionIsFromCommandline = PropertySetFromCommandlineOption(this, SectionName, PropertyName, PropertyValue);
 
-				// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
-				const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
-				const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
-				const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
-				const bool bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
-				
 				// We ALWAYS want to write CurrentIniVersion.
 				const bool bIsCurrentIniVersion = (SectionName == CurrentIniVersionString);
 
 				// Check if the property matches the source configs. We do not wanna write it out if so.
-				if ((bIsADefaultIniWrite || bDifferentNumberOfElements || bIsCurrentIniVersion || !DoesConfigPropertyValueMatch(SourceConfigFile, SectionName, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
+				if ((bIsADefaultIniWrite || bIsCurrentIniVersion || !DoesConfigPropertyValueMatch(SourceConfigSection, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
 				{
 					// If this is the first property we are writing of this section, then print the section name
 					if( Text.Len() == 0 )
 					{
-						Text.Append(FString::Printf( TEXT("[%s]") LINE_TERMINATOR, *SectionName));
+						Text.Appendf(TEXT("[%s]") LINE_TERMINATOR, *SectionName);
 
 						// and if the section has any array of struct uniqueness keys, add them here
 						for (auto It = Section.ArrayOfStructKeys.CreateConstIterator(); It; ++It)
 						{
-							Text.Append(FString::Printf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value()));
+							Text.Appendf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value());
 						}
 					}
 
 					// Write out our property, if it is an array we need to write out the entire array.
-					TArray<FConfigValue> CompletePropertyToWrite;
-					Section.MultiFind( PropertyName, CompletePropertyToWrite, true );
+					CompletePropertyToWrite.Reset();
+					Section.MultiFindPointer( PropertyName, CompletePropertyToWrite, true );
 
 					if( bIsADefaultIniWrite )
 					{
@@ -1578,9 +1593,11 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 					}
 					else
 					{
-						for (const FConfigValue& ConfigValue : CompletePropertyToWrite)
+						PropertyNameString.Reset(FName::StringBufferSize);
+						PropertyName.AppendString(PropertyNameString);
+						for (const FConfigValue* ConfigValue : CompletePropertyToWrite)
 						{
-							Text.Append(GenerateExportedPropertyLine(PropertyName.ToString(), ConfigValue.GetSavedValue()));
+							AppendExportedPropertyLine(Text, PropertyNameString, ConfigValue->GetSavedValue());
 						}
 					}
 
@@ -1593,10 +1610,12 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 		// to the destination file
 		if (Text.Len() > 0)
 		{
-			InOutSectionTexts.FindOrAdd(SectionName) = FString(Text.ToString(), Text.Len());
+			InOutSectionTexts.FindOrAdd(SectionName) = Text;
 
 			// Add the Section to SectionOrder in case it's not already there
 			SectionOrder.Add(SectionName);
+
+			EstimatedFinalTextSize += Text.Len() + 4;
 		}
 		else
 		{
@@ -1605,7 +1624,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	}
 
 	// Join all of the sections together
-	Text.Reset();
+	Text.Reset(EstimatedFinalTextSize);
 	TSet<FString> SectionNamesLeftToWrite;
 	SectionNamesLeftToWrite.Reserve(InOutSectionTexts.Num());
 	for (TPair<FString,FString>& kvpair : InOutSectionTexts)
@@ -1613,7 +1632,8 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 		SectionNamesLeftToWrite.Add(kvpair.Key);
 	}
 
-	auto AddSectionToText = [&Text, &InOutSectionTexts, &SectionNamesLeftToWrite, &BlankLine](const FString& SectionName)
+	static const FString BlankLine(LINE_TERMINATOR LINE_TERMINATOR);
+	auto AddSectionToText = [&Text, &InOutSectionTexts, &SectionNamesLeftToWrite](const FString& SectionName)
 	{
 		FString* SectionText = InOutSectionTexts.Find(SectionName);
 		if (!SectionText)
@@ -1626,7 +1646,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 			return;
 		}
 		Text.Append(*SectionText);
-		if (!FStringView(Text.ToString()).EndsWith(BlankLine))
+		if (!Text.EndsWith(BlankLine, ESearchCase::CaseSensitive))
 		{
 			Text.Append(LINE_TERMINATOR);
 		}
@@ -1645,6 +1665,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	if (SectionNamesLeftToWrite.Num() > 0)
 	{
 		TArray<FString> RemainingNames;
+		RemainingNames.Reserve(SectionNamesLeftToWrite.Num());
 		for (FString& SectionName : SectionNamesLeftToWrite)
 		{
 			RemainingNames.Add(SectionName);
@@ -1662,15 +1683,13 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 		Text.Append(LINE_TERMINATOR);
 	}
 
-
-	FString TextAsString(Text.ToString(), Text.Len());
 	if (bDoRemoteWrite)
 	{
 		// Write out the remote version (assuming it was loaded)
-		FRemoteConfig::Get()->Write(*Filename, TextAsString);
+		FRemoteConfig::Get()->Write(*Filename, Text);
 	}
 
-	bool bResult = SaveConfigFileWrapper(*Filename, TextAsString);
+	bool bResult = SaveConfigFileWrapper(*Filename, Text);
 
 #if INI_CACHE
 	// if we wrote the config successfully
@@ -1961,14 +1980,7 @@ void FConfigFile::ProcessSourceAndCheckAgainstBackup()
 	}
 }
 
-void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, const TArray< FConfigValue >& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName)
-{
-	TStringBuilder<128> PropertyText;
-	ProcessPropertyAndWriteForDefaults(IniCombineThreshold, InCompletePropertyToProcess, PropertyText, SectionName, PropertyName);
-	OutText.Append(PropertyText.ToString(), PropertyText.Len());
-}
-
-void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, const TArray< FConfigValue >& InCompletePropertyToProcess, FStringBuilderBase& OutText, const FString& SectionName, const FString& PropertyName )
+void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, const TArray<const FConfigValue*>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName)
 {
 	// Only process against a hierarchy if this config file has one.
 	if (SourceIniHierarchy.Num() > 0)
@@ -2016,9 +2028,9 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults( int IniCombineThreshold, c
 	}
 
 	// Write the properties out to a file.
-	for ( const FConfigValue& PropertyIt : InCompletePropertyToProcess)
+	for ( const FConfigValue* PropertyIt : InCompletePropertyToProcess)
 	{
-		OutText.Append(GenerateExportedPropertyLine(PropertyName, PropertyIt.GetSavedValue()));
+		OutText.Append(GenerateExportedPropertyLine(PropertyName, PropertyIt->GetSavedValue()));
 	}
 }
 

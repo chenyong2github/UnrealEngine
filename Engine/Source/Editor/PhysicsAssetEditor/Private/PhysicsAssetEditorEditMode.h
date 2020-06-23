@@ -15,6 +15,7 @@ class FViewport;
 struct FViewportClick;
 class FPhysicsAssetEditorSharedData;
 class FPhysicsAssetEditor;
+class UFont;
 
 class FPhysicsAssetEditorEditMode : public IPersonaEditMode
 {

@@ -131,7 +131,7 @@ namespace MeshCut
 						PtOnMesh.Type = EVertexType::Edge;
 						PtOnMesh.ElemID = Mesh->GetTriEdge(SegToEls.BaseTID, OnEdgeIdx);
 
-						check(PtOnMesh.ElemID != IndexConstants::InvalidID);
+						check(PtOnMesh.ElemID > -1);
 						EdgeVertices.Add(PtOnMesh.ElemID, NewPtIdx);
 
 						continue;
@@ -196,10 +196,12 @@ namespace MeshCut
 						UpdateFromPoke(RelocatePt, PokeInfo.NewVertex, PokeInfo.NewEdges, PokeTriangles);
 						if (RelocatePt.Type == EVertexType::Edge)
 						{
+							checkSlow(RelocatePt.ElemID > -1);
 							EdgeVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
 						}
 						else if (RelocatePt.Type == EVertexType::Face)
 						{
+							checkSlow(RelocatePt.ElemID > -1);
 							FaceVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
 						}
 					}
@@ -258,6 +260,7 @@ namespace MeshCut
 						UpdateFromSplit(RelocatePt, SplitInfo.NewVertex, SplitEdges);
 						if (RelocatePt.Type == EVertexType::Edge)
 						{
+							checkSlow(RelocatePt.ElemID > -1);
 							EdgeVertices.Add(RelocatePt.ElemID, RelocatePtIdx);
 						}
 					}
@@ -342,7 +345,7 @@ namespace MeshCut
 				{
 					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID,
 						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
-						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false);
+						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, FMathf::ZeroTolerance*100, .001);
 					if (!bWalkSuccess)
 					{
 						bSuccess = false;
@@ -391,6 +394,7 @@ namespace MeshCut
 
 			// it was already on the edge, so it must be on the sub-edges after split -- just pick the closest
 			int EdgeIdx = ClosestEdge(SplitEdges, Pt.Pos);
+			checkSlow(EdgeIdx > -1 && EdgeIdx < 2 && SplitEdges[EdgeIdx]>-1);
 			Pt.Type = EVertexType::Edge;
 			Pt.ElemID = SplitEdges[EdgeIdx];
 		}
@@ -407,7 +411,7 @@ namespace MeshCut
 				return;
 			}
 
-			int EdgeIdx = OnEdge(PokeEdges, Pt.Pos);
+			int EdgeIdx = OnEdge(PokeEdges, Pt.Pos, SnapToleranceSq);
 			if (EdgeIdx > -1)
 			{
 				Pt.Type = EVertexType::Edge;
@@ -425,9 +429,10 @@ namespace MeshCut
 				}
 			}
 
-			ensureMsgf(false, TEXT("Vertex on original tri didn't map to any triangle created by poking that triangle; consider switching to (or falling back to) a more robust 'closest triangle' metric?"));
-			// for now, just pick the first triangle
-			Pt.ElemID = PokeTris.A;
+			// failsafe case: pt was outside of triangle -- project to edge
+			EdgeIdx = OnEdge(PokeEdges, Pt.Pos, FMathd::MaxReal);
+			Pt.Type = EVertexType::Edge;
+			Pt.ElemID = PokeEdges[EdgeIdx];
 		}
 
 		int OnVertex(const FTriangle3d& Tri, const FVector3d& V)
@@ -466,7 +471,7 @@ namespace MeshCut
 		int ClosestEdge(FIndex2i EIDs, const FVector3d& Pos)
 		{
 			double BestIdx = -1;
-			double BestDSq = SnapToleranceSq;
+			double BestDSq = FMathd::MaxReal;
 			for (int Idx = 0; Idx < 2; Idx++)
 			{
 				int EID = EIDs[Idx];
@@ -482,10 +487,9 @@ namespace MeshCut
 			return BestIdx;
 		}
 
-		int OnEdge(FIndex3i EIDs, const FVector3d& Pos)
+		int OnEdge(FIndex3i EIDs, const FVector3d& Pos, double BestDSq)
 		{
 			double BestIdx = -1;
-			double BestDSq = SnapToleranceSq;
 			for (int Idx = 0; Idx < 3; Idx++)
 			{
 				int EID = EIDs[Idx];

@@ -42,6 +42,7 @@
 #include "ActorPlacementInfo.h"
 #include "IPlacementModeModule.h"
 #include "Engine/TriggerBase.h"
+#include "LevelEditorMenuContext.h"
 
 class SMenuThumbnail : public SCompoundWidget
 {
@@ -274,7 +275,7 @@ static void GetContentBrowserSelectionFactoryMenuEntries( FAssetData& TargetAsse
 
 
 /**
- * Helper function for FillAddReplaceActorMenu & FillAddReplaceViewportContextMenuSections. Builds a menu for an asset & options.
+ * Helper function for FillAddReplaceActorMenu & FillAddReplaceContextMenuSections. Builds a menu for an asset & options.
  * @param	MenuBuilder			The menu builder used to generate the context menu
  * @param	Asset				Asset data to use
  * @param	AssetMenuOptions	Menu options to use
@@ -312,7 +313,7 @@ static void FillAssetAddReplaceActorMenu(UToolMenu* Menu, const FAssetData Asset
 }
 
 /**
- * Helper function for FillAddReplaceActorMenu & FillAddReplaceViewportContextMenuSections. Builds a single menu option.
+ * Helper function for FillAddReplaceActorMenu & FillAddReplaceContextMenuSections. Builds a single menu option.
  * @param	MenuBuilder			The menu builder used to generate the context menu
  * @param	Asset				Asset data to use
  * @param	AssetMenuOptions	Menu options to use
@@ -352,23 +353,30 @@ static void BuildSingleAssetAddReplaceActorMenu(FToolMenuSection& Section, const
 	}
 }
 
-void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UToolMenu* Menu)
+void LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(UToolMenu* Menu, ULevelEditorContextMenuContext* LevelEditorMenuContext)
 {
 	FAssetData TargetAssetData;
 	TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 	GetContentBrowserSelectionFactoryMenuEntries( /*OUT*/TargetAssetData, /*OUT*/AssetMenuOptions );
 
+	const bool bCanPlaceActor = LevelEditorMenuContext && (LevelEditorMenuContext->ContextType == ELevelEditorMenuContext::Viewport);
+	const bool bCanReplaceActors = CanReplaceActors();
+
 	if ( AssetMenuOptions.Num() == 0 )
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("ActorType");
-			Section.AddSubMenu(
-				"AddActor",
-				NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor") , 
-				NSLOCTEXT("LevelViewportContextMenu", "AddActorMenu_ToolTip", "Templates for adding a new actor to the world"),
-				FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add));
 
-			if ( CanReplaceActors() )
+			if (bCanPlaceActor)
+			{
+				Section.AddSubMenu(
+					"AddActor",
+					NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor") , 
+					NSLOCTEXT("LevelViewportContextMenu", "AddActorMenu_ToolTip", "Templates for adding a new actor to the world"),
+					FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add));
+			}
+
+			if (bCanReplaceActors)
 			{
 				Section.AddSubMenu(
 					"ReplaceActor",
@@ -385,6 +393,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UTool
 			AssetMenuOptions.Pop();
 		}
 
+		if (bCanPlaceActor)
 		{
 			FToolMenuSection& Section = Menu->AddSection("AddActor", NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor"));
 			FUIAction Action( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::AddActor_Clicked, AssetMenuOptions[0].FactoryToUse,  AssetMenuOptions[0].AssetData ) );
@@ -397,7 +406,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UTool
 			));
 		}
 
-		if ( CanReplaceActors() )
+		if (bCanReplaceActors)
 		{
 			{
 				FToolMenuSection& Section = Menu->AddSection("ReplaceActor", NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorHeading", "Replace Selected Actors with"));

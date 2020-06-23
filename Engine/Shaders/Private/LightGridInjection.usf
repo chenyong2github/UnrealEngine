@@ -19,6 +19,10 @@ Buffer<float4> LightViewSpaceDirAndPreprocAngle;
 
 #define REFINE_SPOTLIGHT_BOUNDS 1
 
+#ifndef USE_LOCALSTORE_FOR_ATOMICS
+#define USE_LOCALSTORE_FOR_ATOMICS 0
+#endif
+
 float ComputeCellNearViewDepthFromZSlice(uint ZSlice)
 {
 	float SliceDepth = (exp2(ZSlice / ForwardLightData.LightGridZParams.z) - ForwardLightData.LightGridZParams.y) / ForwardLightData.LightGridZParams.x;
@@ -299,34 +303,76 @@ RWBuffer<uint> RWNextCulledLightData;
 Buffer<uint> StartOffsetGrid;
 Buffer<uint> CulledLightLinks;
 
-void CompactReverseLinkedList(uint GridIndex, uint SceneMax)
+#if USE_LOCALSTORE_FOR_ATOMICS
+groupshared uint LDSNextCulledLightData;
+groupshared uint LDSBaseStart;
+#endif
+
+
+void CompactReverseLinkedList(uint GridIndex, uint SceneMax, bool FirstThread, bool bThreadValid)
 {
 	uint NumCulledLights = 0;
-	uint StartLinkOffset = StartOffsetGrid[GridIndex];
-	uint LinkOffset = StartLinkOffset;
+	uint StartLinkOffset = 0;
+	uint LinkOffset		 = 0;
 
-	// Traverse the linked list to count how many culled indices we have
-	while (LinkOffset != 0xFFFFFFFF && NumCulledLights < SceneMax)
+	if(bThreadValid)
 	{
-		NumCulledLights++;
-		LinkOffset = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 1];
+		StartLinkOffset = StartOffsetGrid[GridIndex];
+		LinkOffset = StartLinkOffset;
+
+		// Traverse the linked list to count how many culled indices we have
+		while (LinkOffset != 0xFFFFFFFF && NumCulledLights < SceneMax)
+		{
+			NumCulledLights++;
+			LinkOffset = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 1];
+		}
 	}
 
-	uint CulledLightDataStart;
-	InterlockedAdd(RWNextCulledLightData[0], NumCulledLights, CulledLightDataStart);
-	RWNumCulledLightsGrid[GridIndex * NUM_CULLED_LIGHTS_GRID_STRIDE + 0] = NumCulledLights;
-	RWNumCulledLightsGrid[GridIndex * NUM_CULLED_LIGHTS_GRID_STRIDE + 1] = CulledLightDataStart;
+	uint CulledLightDataStart=0;
 
-	LinkOffset = StartLinkOffset;
-	uint CulledLightIndex = 0;
-
-	while (LinkOffset != 0xFFFFFFFF && CulledLightIndex < NumCulledLights)
+#if USE_LOCALSTORE_FOR_ATOMICS
+	if(FirstThread)
 	{
-		// Reverse the order as we write them out, which restores the original order before the reverse linked list was built
-		// Reflection captures are order dependent
-		RWCulledLightDataGrid[CulledLightDataStart + NumCulledLights - CulledLightIndex - 1] = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 0];
-		CulledLightIndex++;
-		LinkOffset = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 1];
+		LDSNextCulledLightData =0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Firstly do an interlocked add with LDS
+	InterlockedAdd(LDSNextCulledLightData, NumCulledLights, CulledLightDataStart);
+	GroupMemoryBarrierWithGroupSync();
+
+	// Then the first thread can do an interlocked add with the buffer
+	if(FirstThread)
+	{
+		LDSBaseStart =0;
+		InterlockedAdd(RWNextCulledLightData[0], LDSNextCulledLightData, LDSBaseStart);
+	}
+	GroupMemoryBarrierWithGroupSync();
+	
+	CulledLightDataStart +=LDSBaseStart;
+#else
+
+	InterlockedAdd(RWNextCulledLightData[0], NumCulledLights, CulledLightDataStart);
+
+#endif
+
+	if( bThreadValid)
+	{
+		RWNumCulledLightsGrid[GridIndex * NUM_CULLED_LIGHTS_GRID_STRIDE + 0] = NumCulledLights;
+		RWNumCulledLightsGrid[GridIndex * NUM_CULLED_LIGHTS_GRID_STRIDE + 1] = CulledLightDataStart;
+	
+		LinkOffset = StartLinkOffset;
+		uint CulledLightIndex = 0;
+
+		while (LinkOffset != 0xFFFFFFFF && CulledLightIndex < NumCulledLights)
+		{
+			// Reverse the order as we write them out, which restores the original order before the reverse linked list was built
+			// Reflection captures are order dependent
+			RWCulledLightDataGrid[CulledLightDataStart + NumCulledLights - CulledLightIndex - 1] = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 0];
+			CulledLightIndex++;
+			LinkOffset = CulledLightLinks[LinkOffset * LIGHT_LINK_STRIDE + 1];
+		}
 	}
 }
 
@@ -334,18 +380,19 @@ void CompactReverseLinkedList(uint GridIndex, uint SceneMax)
 void LightGridCompactCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint  GroupIndex : SV_GroupIndex)
 {
 	uint3 GridCoordinate = DispatchThreadId;
 
-	if (all(GridCoordinate < ForwardLightData.CulledGridSize))
-	{
-		uint GridIndex = (GridCoordinate.z * ForwardLightData.CulledGridSize.y + GridCoordinate.y) * ForwardLightData.CulledGridSize.x + GridCoordinate.x;
+	bool bThreadValid = all(GridCoordinate < ForwardLightData.CulledGridSize);
+	bool bFirstThread =  GroupIndex==0;
+	
+	uint GridIndex = (GridCoordinate.z * ForwardLightData.CulledGridSize.y + GridCoordinate.y) * ForwardLightData.CulledGridSize.x + GridCoordinate.x;
 
-		// Compact lights
-		CompactReverseLinkedList(GridIndex, ForwardLightData.NumLocalLights);
+	// Compact lights
+	CompactReverseLinkedList(GridIndex, ForwardLightData.NumLocalLights, bFirstThread, bThreadValid);
 
-		// Compact reflection captures
-		CompactReverseLinkedList(ForwardLightData.NumGridCells + GridIndex, ForwardLightData.NumReflectionCaptures);
-	}
+	// Compact reflection captures
+	CompactReverseLinkedList(ForwardLightData.NumGridCells + GridIndex, ForwardLightData.NumReflectionCaptures, bFirstThread, bThreadValid);
 }

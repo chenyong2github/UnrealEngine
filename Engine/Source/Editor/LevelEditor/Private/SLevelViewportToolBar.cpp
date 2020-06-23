@@ -37,6 +37,7 @@
 #include "SScalabilitySettings.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "SEditorViewportViewMenuContext.h"
+#include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
@@ -178,6 +179,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 			[
 				SNew( SEditorViewportToolbarMenu )
 				.ParentToolBar( SharedThis( this ) )
+				.Visibility(Viewport.Pin().Get(), &SLevelViewport::GetToolbarVisibility)
 				.Image("EditorViewportToolBar.OptionsDropdown")
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.MenuDropdown")))
 				.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateOptionsMenu )
@@ -410,11 +412,10 @@ static void OnGenerateSetBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelView
 	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	// Add a menu entry for each bookmark
-	FEditorModeTools& Tools = GLevelEditorModeTools();
 	TSharedPtr<SLevelViewport> SharedViewport = Viewport.Pin();
 	FLevelEditorViewportClient& ViewportClient = SharedViewport->GetLevelViewportClient();
 
-	const int32 NumberOfBookmarks = static_cast<int32>(Tools.GetMaxNumberOfBookmarks(&ViewportClient));
+	const int32 NumberOfBookmarks = static_cast<int32>(IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks(&ViewportClient));
 	const int32 NumberOfMappedBookmarks = FMath::Min<int32>(AWorldSettings::NumMappedBookmarks, NumberOfBookmarks);
 
 	for( int32 BookmarkIndex = 0; BookmarkIndex < NumberOfMappedBookmarks; ++BookmarkIndex )
@@ -454,12 +455,12 @@ static void OnGenerateClearBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelVi
 	TSharedPtr<SLevelViewport> SharedViewport = Viewport.Pin();
 	FLevelEditorViewportClient& ViewportClient = SharedViewport->GetLevelViewportClient();
 
-	const int32 NumberOfBookmarks = static_cast<int32>(Tools.GetMaxNumberOfBookmarks(&ViewportClient));
+	const int32 NumberOfBookmarks = static_cast<int32>(IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks(&ViewportClient));
 	const int32 NumberOfMappedBookmarks = FMath::Min<int32>(AWorldSettings::NumMappedBookmarks, NumberOfBookmarks);
 
 	for( int32 BookmarkIndex = 0; BookmarkIndex < NumberOfMappedBookmarks; ++BookmarkIndex )
 	{
-		if ( Tools.CheckBookmark( BookmarkIndex , &ViewportClient ) )
+		if ( IBookmarkTypeTools::Get().CheckBookmark( BookmarkIndex , &ViewportClient ) )
 		{
 			Section.AddMenuEntry(
 				NAME_None,
@@ -471,7 +472,7 @@ static void OnGenerateClearBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelVi
 
 	for (int32 BookmarkIndex = NumberOfMappedBookmarks; BookmarkIndex < NumberOfBookmarks; ++BookmarkIndex)
 	{
-		if ( Tools.CheckBookmark(BookmarkIndex, &ViewportClient) )
+		if ( IBookmarkTypeTools::Get().CheckBookmark(BookmarkIndex, &ViewportClient) )
 		{
 			FUIAction Action;
 			Action.ExecuteAction.BindSP(SharedViewport.ToSharedRef(), &SLevelViewport::OnClearBookmark, BookmarkIndex);
@@ -499,14 +500,14 @@ static bool GenerateJumpToBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelVie
 	TSharedPtr<SLevelViewport> SharedViewport = Viewport.Pin();
 	FLevelEditorViewportClient& ViewportClient = SharedViewport->GetLevelViewportClient();
 
-	const int32 NumberOfBookmarks = static_cast<int32>(Tools.GetMaxNumberOfBookmarks(&ViewportClient));
+	const int32 NumberOfBookmarks = static_cast<int32>(IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks(&ViewportClient));
 	const int32 NumberOfMappedBookmarks = FMath::Min<int32>(AWorldSettings::NumMappedBookmarks, NumberOfBookmarks);
 
 	bool bFoundAnyBookmarks = false;
 
 	for( int32 BookmarkIndex = 0; BookmarkIndex < NumberOfMappedBookmarks; ++BookmarkIndex )
 	{
-		if ( Tools.CheckBookmark( BookmarkIndex , &ViewportClient ) )
+		if ( IBookmarkTypeTools::Get().CheckBookmark( BookmarkIndex , &ViewportClient ) )
 		{
 			bFoundAnyBookmarks = true;
 			Section.AddMenuEntry(
@@ -518,7 +519,7 @@ static bool GenerateJumpToBookmarkMenu(UToolMenu* Menu, TWeakPtr<class SLevelVie
 
 	for (int32 BookmarkIndex = NumberOfMappedBookmarks; BookmarkIndex < NumberOfBookmarks; ++BookmarkIndex)
 	{
-		if ( Tools.CheckBookmark(BookmarkIndex, &ViewportClient) )
+		if ( IBookmarkTypeTools::Get().CheckBookmark(BookmarkIndex, &ViewportClient) )
 		{
 			bFoundAnyBookmarks = true;
 

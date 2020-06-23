@@ -10,6 +10,6 @@ class IPDisplayClusterSwapSyncProtocol
 {
 public:
 	// Swap sync barrier
-	virtual void WaitForSwapSync(double* pThreadWaitTime, double* pBarrierWaitTime) = 0;
+	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
 };
 

@@ -17,19 +17,24 @@ class IAsyncPackageLoader;
 class FIoDispatcher;
 class IEDLBootNotificationManager;
 
-using FSourceToLocalizedPackageIdMap = TMap<FPackageId, FPackageId>;
+using FSourceToLocalizedPackageIdMap = TArray<TPair<FPackageId, FPackageId>>;
 using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
 
 class FMappedName
 {
 	static constexpr uint32 InvalidIndex = ~uint32(0);
-	static constexpr uint32 IndexBits = 31u;
+	static constexpr uint32 IndexBits = 30u;
 	static constexpr uint32 IndexMask = (1u << IndexBits) - 1u;
 	static constexpr uint32 TypeMask = ~IndexMask;
 	static constexpr uint32 TypeShift = IndexBits;
 
 public:
-	enum class EType { Container, Global };
+	enum class EType
+	{
+		Package,
+		Container,
+		Global
+	};
 
 	inline FMappedName() = default;
 
@@ -86,6 +91,11 @@ public:
 		return Number;
 	}
 
+	inline bool operator!=(FMappedName Other) const
+	{
+		return Index != Other.Index || Number != Other.Number;
+	}
+
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
 
 private:
@@ -100,46 +110,48 @@ private:
 struct FContainerHeader
 {
 	FIoContainerId ContainerId;
+	uint32 PackageCount = 0;
 	TArray<uint8> Names;
 	TArray<uint8> NameHashes;
 	TArray<FPackageId> PackageIds;
-	TArray<FMappedName> PackageNames;
+	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
+	FCulturePackageMap CulturePackageMap;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
 };
 
 class FPackageObjectIndex
 {
-	static constexpr uint32 IndexBits = 30;
-	static constexpr uint32 IndexMask = (1 << IndexBits) - 1;
-	static constexpr uint32 TypeMask = ~IndexMask;
-	static constexpr uint32 TypeShift = IndexBits;
+	static constexpr uint64 IndexBits = 62ull;
+	static constexpr uint64 IndexMask = (1ull << IndexBits) - 1ull;
+	static constexpr uint64 TypeMask = ~IndexMask;
+	static constexpr uint64 TypeShift = IndexBits;
+	static constexpr uint64 Invalid = ~0ull;
 
-	uint32 TypeAndIndex = Null << TypeShift;
+	uint64 TypeAndId = Invalid;
 
 public:
 	enum Type
 	{
+		Export,
 		ScriptImport,
 		PackageImport,
-		ImportTypeCount,
-		Export = ImportTypeCount,
 		Null,
 		TypeCount = Null,
 	};
-	static_assert((TypeCount - 1) <= (TypeMask >> TypeShift), "FPackageObjectIndex: Too many index types for TypeMask");
+	static_assert((TypeCount - 1) <= (TypeMask >> TypeShift), "FPackageObjectIndex: Too many types for TypeMask");
 
 	FPackageObjectIndex() = default;
-	inline explicit FPackageObjectIndex(Type InType, int32 InIndex) : TypeAndIndex((InType << TypeShift) | InIndex) {}
+	inline explicit FPackageObjectIndex(Type InType, uint64 InId) : TypeAndId((uint64(InType) << TypeShift) | InId) {}
 
 	inline bool IsNull() const
 	{
-		return (TypeAndIndex & TypeMask) == (Null << TypeShift);
+		return TypeAndId == Invalid;
 	}
 
 	inline bool IsExport() const
 	{
-		return (TypeAndIndex & TypeMask) == (Export << TypeShift);
+		return (TypeAndId >> TypeShift) == Export;
 	}
 
 	inline bool IsImport() const
@@ -149,76 +161,50 @@ public:
 
 	inline bool IsScriptImport() const
 	{
-		return (TypeAndIndex & TypeMask) == (ScriptImport << TypeShift);
+		return (TypeAndId >> TypeShift) == ScriptImport;
 	}
 
 	inline bool IsPackageImport() const
 	{
-		return (TypeAndIndex & TypeMask) == (PackageImport << TypeShift);
+		return (TypeAndId >> TypeShift) == PackageImport;
 	}
 
 	inline uint32 ToExport() const
 	{
 		check(IsExport());
-		return TypeAndIndex & IndexMask;
-	}
-
-	inline uint32 ToScriptImport() const
-	{
-		check(IsScriptImport());
-		return TypeAndIndex & IndexMask;
-	}
-
-	inline uint32 ToPackageImport() const
-	{
-		check(IsPackageImport());
-		return TypeAndIndex & IndexMask;
+		return uint32(TypeAndId);
 	}
 
 	inline Type GetType() const
 	{
-		return Type((TypeAndIndex & TypeMask) >> TypeShift);
+		return Type(TypeAndId >> TypeShift);
 	}
 
-	inline int32 GetIndex() const
+	inline uint64 Value() const
 	{
-		return TypeAndIndex & IndexMask;
+		return TypeAndId & IndexMask;
 	}
 
 	inline bool operator==(FPackageObjectIndex Other) const
 	{
-		return TypeAndIndex == Other.TypeAndIndex;
+		return TypeAndId == Other.TypeAndId;
 	}
 
 	inline bool operator!=(FPackageObjectIndex Other) const
 	{
-		return TypeAndIndex != Other.TypeAndIndex;
+		return TypeAndId != Other.TypeAndId;
 	}
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageObjectIndex& Value)
 	{
-		Ar << Value.TypeAndIndex;
+		Ar << Value.TypeAndId;
 		return Ar;
 	}
 
 	inline friend uint32 GetTypeHash(const FPackageObjectIndex& Value)
 	{
-		return Value.TypeAndIndex;
+		return uint32(Value.TypeAndId);
 	}
-};
-
-/**
- * Event node.
- */
-enum EEventLoadNode2 : uint8
-{
-	Package_ExportsSerialized,
-	Package_PostLoad,
-	Package_Delete,
-	Package_NumPhases,
-
-	ExportBundle_Process = 0,
-	ExportBundle_NumPhases,
 };
 
 /**
@@ -236,16 +222,20 @@ enum class EExportFilterFlags : uint8
  */
 struct FPackageSummary
 {
+	FMappedName Name;
+	FMappedName SourceName;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
-	uint16 NameMapIndex;
-	uint16 Pad;
-	int32 NameMapOffset;
+	int32 NameMapNamesOffset;
+	int32 NameMapNamesSize;
+	int32 NameMapHashesOffset;
+	int32 NameMapHashesSize;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundlesOffset;
 	int32 GraphDataOffset;
 	int32 GraphDataSize;
+	int32 Pad = 0;
 };
 
 /**
@@ -262,17 +252,6 @@ struct FExportBundleEntry
 	uint32 CommandType;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry);
-};
-
-/**
- * Export bundle meta entry.
- */
-struct FExportBundleMetaEntry
-{
-	uint32 LoadOrder = ~uint32(0);
-	uint32 PayloadSize = ~uint32(0);
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleMetaEntry& ExportBundleMetaEntry);
 };
 
 template<typename T>
@@ -299,12 +278,12 @@ public:
 
 struct FPackageStoreEntry
 {
-	FMinimalName Name;
-	FPackageId SourcePackageId;
+	uint64 ExportBundlesSize;
 	int32 ExportCount;
+	int32 ExportBundleCount;
+	uint32 LoadOrder;
+	uint32 Pad;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
-	TPackageStoreEntryCArrayView<FPackageObjectIndex> PublicExports;
-	TPackageStoreEntryCArrayView<FExportBundleMetaEntry> ExportBundles;
 };
 
 /**
@@ -321,6 +300,7 @@ struct FExportBundleHeader
 struct FScriptObjectEntry
 {
 	FMinimalName ObjectName;
+	FPackageObjectIndex GlobalIndex;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
 
@@ -332,17 +312,17 @@ struct FScriptObjectEntry
  */
 struct FExportMapEntry
 {
-	uint64 CookedSerialOffset;
-	uint64 CookedSerialSize;
+	uint64 CookedSerialOffset = 0;
+	uint64 CookedSerialSize = 0;
 	FMappedName ObjectName;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex ClassIndex;
 	FPackageObjectIndex SuperIndex;
 	FPackageObjectIndex TemplateIndex;
 	FPackageObjectIndex GlobalImportIndex;
-	EObjectFlags ObjectFlags;
-	EExportFilterFlags FilterFlags;
-	uint8 Pad[7];
+	EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags;
+	EExportFilterFlags FilterFlags = EExportFilterFlags::None;
+	uint8 Pad[3] = {};
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };

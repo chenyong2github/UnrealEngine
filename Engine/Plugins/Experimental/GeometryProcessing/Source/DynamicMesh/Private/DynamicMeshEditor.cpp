@@ -7,6 +7,8 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicSubmesh3.h"
 #include "MeshNormals.h"
+#include "MeshQueries.h"
+#include "Selections/MeshConnectedComponents.h"
 
 
 void FMeshIndexMappings::Initialize(FDynamicMesh3* Mesh)
@@ -48,7 +50,7 @@ void FDynamicMeshEditResult::GetAllTriangles(TArray<int>& TrianglesOut) const
 bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, const TArray<int>& Loop2, FDynamicMeshEditResult& ResultOut)
 {
 	int N = Loop1.Num();
-	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchLoop: loops are not the same length!"));
+	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: loops are not the same length!"));
 	if (N != Loop2.Num())
 	{
 		return false;
@@ -96,11 +98,85 @@ operation_failed:
 		}
 		if (!RemoveTriangles(Triangles, false))
 		{
-			checkf(false, TEXT("FDynamicMeshEditor::StitchLoop: failed to add all triangles, and also failed to back out changes."));
+			checkf(false, TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: failed to add all triangles, and also failed to back out changes."));
 		}
 	}
 	return false;
 }
+
+
+
+
+bool FDynamicMeshEditor::WeldVertexLoops(const TArray<int32>& Loop1, const TArray<int32>& Loop2)
+{
+	int32 N = Loop1.Num();
+	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::WeldVertexLoops: loops are not the same length!"));
+	if (N != Loop2.Num())
+	{
+		return false;
+	}
+
+	int32 FailureCount = 0;
+
+	// collect set of edges
+	TArray<int32> Edges1, Edges2;
+	Edges1.SetNum(N);
+	Edges2.SetNum(N);
+	for (int32 i = 0; i < N; ++i)
+	{
+		int32 a = Loop1[i];
+		int32 b = Loop1[(i + 1) % N];
+		Edges1[i] = Mesh->FindEdge(a, b);
+		if (Edges1[i] == FDynamicMesh3::InvalidID)
+		{
+			return false;
+		}
+
+		int32 c = Loop2[i];
+		int32 d = Loop2[(i + 1) % N];
+		Edges2[i] = Mesh->FindEdge(c, d);
+		if (Edges2[i] == FDynamicMesh3::InvalidID)
+		{
+			return false;
+		}
+	}
+
+	// merge edges. Some merges may merge multiple edges, in which case we want to 
+	// skip those when we encounter them later.
+	TArray<int32> SkipEdges;
+	for (int32 i = 0; i < N; ++i)
+	{
+		int32 Edge1 = Edges1[i];
+		int32 Edge2 = Edges2[i];
+		if (SkipEdges.Contains(Edge2))		// occurs at loop closures
+		{
+			continue;
+		}
+
+		FDynamicMesh3::FMergeEdgesInfo MergeInfo;
+		EMeshResult Result = Mesh->MergeEdges(Edge1, Edge2, MergeInfo);
+		if (Result != EMeshResult::Ok)
+		{
+			FailureCount++;
+		}
+		else
+		{
+			if (MergeInfo.ExtraRemovedEdges.A != FDynamicMesh3::InvalidID)
+			{
+				SkipEdges.Add(MergeInfo.ExtraRemovedEdges.A);
+			}
+			if (MergeInfo.ExtraRemovedEdges.B != FDynamicMesh3::InvalidID)
+			{
+				SkipEdges.Add(MergeInfo.ExtraRemovedEdges.B);
+			}
+		}
+	}
+
+	return (FailureCount > 0);
+}
+
+
+
 
 
 
@@ -261,6 +337,25 @@ bool FDynamicMeshEditor::RemoveTriangles(const TArray<int>& Triangles, bool bRem
 }
 
 
+
+int FDynamicMeshEditor::RemoveSmallComponents(double MinVolume, double MinArea)
+{
+	FMeshConnectedComponents C(Mesh);
+	C.FindConnectedTriangles();
+	if (C.Num() == 1)
+	{
+		return 0;
+	}
+	int Removed = 0;
+	for (FMeshConnectedComponents::FComponent& Comp : C) {
+		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Comp.Indices);
+		if (VolArea.X < MinVolume || VolArea.Y < MinArea) {
+			RemoveTriangles(Comp.Indices, true);
+			Removed++;
+		}
+	}
+	return Removed;
+}
 
 
 
@@ -1159,17 +1254,23 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 		}
 	}
 
+	// Make sure the storage in NewNormalOverlayElements has a slot for each normal layer.
+	if (ResultOut.NewNormalOverlayElements.Num() < Mesh->Attributes()->NumNormalLayers())
+	{
+		ResultOut.NewNormalOverlayElements.AddDefaulted(Mesh->Attributes()->NumNormalLayers() - ResultOut.NewNormalOverlayElements.Num());
+	}
 
 	for (int NormalLayerIndex = 0; NormalLayerIndex < Mesh->Attributes()->NumNormalLayers(); NormalLayerIndex++)
 	{
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+
 		if (NormalOverlay->IsSetTriangle(FromTriangleID))
 		{
 			FIndex3i FromElemTri = NormalOverlay->GetTriangle(FromTriangleID);
 			FIndex3i ToElemTri = NormalOverlay->GetTriangle(ToTriangleID);
 			for (int j = 0; j < 3; ++j)
 			{
-				int NewElemID = FindOrCreateDuplicateNormal(FromElemTri[j], NormalLayerIndex, IndexMaps);
+				int NewElemID = FindOrCreateDuplicateNormal(FromElemTri[j], NormalLayerIndex, IndexMaps, &ResultOut);
 				ToElemTri[j] = NewElemID;
 			}
 			NormalOverlay->SetTriangle(ToTriangleID, ToElemTri);
@@ -1200,7 +1301,7 @@ int FDynamicMeshEditor::FindOrCreateDuplicateUV(int ElementID, int UVLayerIndex,
 
 
 
-int FDynamicMeshEditor::FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps)
+int FDynamicMeshEditor::FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut)
 {
 	int NewElementID = IndexMaps.GetNewNormal(NormalLayerIndex, ElementID);
 	if (NewElementID == IndexMaps.InvalidID())
@@ -1208,6 +1309,11 @@ int FDynamicMeshEditor::FindOrCreateDuplicateNormal(int ElementID, int NormalLay
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
 		NewElementID = NormalOverlay->AppendElement(NormalOverlay->GetElement(ElementID));
 		IndexMaps.SetNormal(NormalLayerIndex, ElementID, NewElementID);
+		if (ResultOut)
+		{
+			check(ResultOut->NewNormalOverlayElements.Num() > NormalLayerIndex);
+			ResultOut->NewNormalOverlayElements[NormalLayerIndex].Add(NewElementID);
+		}
 	}
 	return NewElementID;
 }
@@ -1547,13 +1653,17 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		FIndex3i Tri = SourceMesh->GetTriangle(SourceTriangleID);
 
 		// FindOrCreateDuplicateGroup
-		int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
-		int NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
-		if (NewGroupID == IndexMaps.InvalidID())
+		int NewGroupID = FDynamicMesh3::InvalidID;
+		if (SourceMesh->HasTriangleGroups())
 		{
-			NewGroupID = Mesh->AllocateTriangleGroup();
-			IndexMaps.SetGroup(SourceGroupID, NewGroupID);
-			ResultOut.NewGroups.Add(NewGroupID);
+			int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
+			NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
+			if (NewGroupID == IndexMaps.InvalidID())
+			{
+				NewGroupID = Mesh->AllocateTriangleGroup();
+				IndexMaps.SetGroup(SourceGroupID, NewGroupID);
+				ResultOut.NewGroups.Add(NewGroupID);
+			}
 		}
 
 		// FindOrCreateDuplicateVertex
@@ -1648,8 +1758,9 @@ bool FDynamicMeshEditor::SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDyna
 		FIndex3i Tri = SourceMesh->GetTriangle(SourceTID);
 
 		// FindOrCreateDuplicateGroup
-		int SourceGID = SourceMesh->GetTriangleGroup(SourceTID);
-		int NewGID = IndexMaps.GetNewGroup(SourceGID);
+		// TODO: despite the FindOrCreateDuplicateGroup comment, this code does not create?  check about intent!
+		int NewGID = SourceMesh->HasTriangleGroups() ?
+			IndexMaps.GetNewGroup(SourceMesh->GetTriangleGroup(SourceTID)) : FDynamicMesh3::InvalidID;
 
 		FIndex3i NewTri;
 		for (int j = 0; j < 3; ++j)

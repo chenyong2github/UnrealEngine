@@ -127,6 +127,9 @@ void FUserInterfaceCommand::Run()
 	InitializeSlateApplication();
 	//FCoreStyle::ResetToDefault();
 
+	// Crank up a normal Slate application using the platform's standalone renderer.
+	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+
 	// Load required modules.
 
 	FModuleManager::Get().LoadModuleChecked("TraceInsights");
@@ -197,9 +200,6 @@ void FUserInterfaceCommand::Run()
 void FUserInterfaceCommand::InitializeSlateApplication()
 {
 	//TODO: FSlateApplication::InitHighDPI(true);
-
-	// Crank up a normal Slate application using the platform's standalone renderer.
-	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 

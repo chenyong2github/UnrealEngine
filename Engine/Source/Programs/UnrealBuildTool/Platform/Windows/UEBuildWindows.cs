@@ -257,7 +257,7 @@ namespace UnrealBuildTool
 		public bool bCreateHotPatchableImage
 		{
 			get { return bCreateHotPatchableImagePrivate ?? Target.bWithLiveCoding; }
-			set { bCreateHotPatchableImagePrivate = true; }
+			set { bCreateHotPatchableImagePrivate = value; }
 		}
 		private bool? bCreateHotPatchableImagePrivate;
 

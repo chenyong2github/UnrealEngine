@@ -3,10 +3,14 @@
 #include "SUSDLayersTreeView.h"
 
 #include "USDLayerUtils.h"
+#include "USDLayersViewModel.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
@@ -18,181 +22,19 @@
 
 #if USE_USD_SDK
 
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/pcp/cache.h"
-#include "pxr/usd/pcp/layerStack.h"
-#include "pxr/usd/sdf/layer.h"
-#include "pxr/usd/sdf/layerUtils.h"
-#include "pxr/usd/sdf/layerTree.h"
-#include "pxr/usd/usdUtils/dependencies.h"
-
-#include "USDIncludesEnd.h"
-
 #define LOCTEXT_NAMESPACE "SUSDLayersTreeView"
-
-struct FUsdLayerData : public TSharedFromThis< FUsdLayerData >
-{
-	FText GetDisplayName() const { return DisplayName; }
-
-	FText DisplayName;
-	bool bIsEditTarget = false;
-	bool bIsMuted = false;
-};
-
-class FUsdLayersTreeItem : public IUsdTreeViewItem
-{
-public:
-	FUsdLayersTreeItem( FUsdLayersTreeItem* InParentItem, const TUsdStore< pxr::UsdStageRefPtr >& InUsdStage, const TUsdStore< std::string >& InLayerIdentifier )
-		: LayerData( MakeShared< FUsdLayerData >() )
-		, ParentItem( InParentItem )
-		, UsdStage( InUsdStage )
-		, LayerIdentifier( InLayerIdentifier )
-	{
-		RefreshData();
-	}
-
-	bool IsValid() const
-	{
-		return (bool)UsdStage.Get() && ( !ParentItem || ParentItem->LayerIdentifier.Get() != LayerIdentifier.Get() );
-	}
-
-	TArray< FUsdLayersTreeItemRef > GetChildren()
-	{
-		if ( !IsValid() )
-		{
-			return {};
-		}
-
-		bool bNeedsRefresh = false;
-
-		{
-			FScopedUsdAllocs UsdAllocs;
-
-			pxr::SdfLayerRefPtr UsdLayer = GetLayerHandle().Get();
-
-			if ( UsdLayer )
-			{
-				int32 SubLayerIndex = 0;
-				for ( const std::string& SubLayerPath : UsdLayer->GetSubLayerPaths() )
-				{
-					std::string SubLayerIdentifier = pxr::SdfComputeAssetPathRelativeToLayer( UsdLayer, SubLayerPath );
-
-					if ( !Children.IsValidIndex( SubLayerIndex ) || Children[ SubLayerIndex ]->LayerIdentifier.Get() != SubLayerIdentifier )
-					{
-						Children.Reset();
-						bNeedsRefresh = true;
-						break;
-					}
-
-					++SubLayerIndex;
-				}
-
-				if ( !bNeedsRefresh && SubLayerIndex < Children.Num() )
-				{
-					Children.Reset();
-					bNeedsRefresh = true;
-				}
-			}
-		}
-
-		if ( bNeedsRefresh )
-		{
-			FillChildren();
-		}
-
-		return Children;
-	}
-
-	void FillChildren()
-	{
-		Children.Reset();
-
-		if ( !IsValid() )
-		{
-			return;
-		}
-
-		{
-			FScopedUsdAllocs UsdAllocs;
-
-			pxr::SdfLayerRefPtr UsdLayer = GetLayerHandle().Get();
-
-			if ( UsdLayer )
-			{
-				TSet< FString > AllLayerIdentifiers;
-
-				FUsdLayersTreeItem* CurrentItem = this;
-				while ( CurrentItem )
-				{
-					AllLayerIdentifiers.Add( UsdToUnreal::ConvertString( CurrentItem->LayerIdentifier.Get() ) );
-					CurrentItem = CurrentItem->ParentItem;
-				}
-
-				for ( std::string SubLayerPath : UsdLayer->GetSubLayerPaths() )
-				{
-					std::string AssetPathRelativeToLayer = pxr::SdfComputeAssetPathRelativeToLayer( UsdLayer, SubLayerPath );
-
-					// Prevent infinite recursions if a sublayer refers to a parent of the same hierarchy
-					if ( !AllLayerIdentifiers.Contains( UsdToUnreal::ConvertString( AssetPathRelativeToLayer ) ) )
-					{
-						Children.Add( MakeShared< FUsdLayersTreeItem >( this, UsdStage, MakeUsdStore< std::string >( AssetPathRelativeToLayer ) ) );
-					}
-				}
-			}
-		}
-	}
-
-	void RefreshData()
-	{
-		if ( !IsValid() )
-		{
-			return;
-		}
-
-		Children = GetChildren();
-
-		FScopedUsdAllocs UsdAllocs;
-
-		LayerData->DisplayName = FText::FromString( UsdToUnreal::ConvertString( pxr::SdfLayer::GetDisplayNameFromIdentifier( LayerIdentifier.Get() ) ) );
-		LayerData->bIsMuted = UsdStage.Get()->IsLayerMuted( LayerIdentifier.Get() );
-
-		const pxr::SdfLayerHandle& EditTargetLayer = UsdStage.Get()->GetEditTarget().GetLayer();
-		LayerData->bIsEditTarget = ( EditTargetLayer ? EditTargetLayer->GetIdentifier() == LayerIdentifier.Get() : false );
-
-		for ( FUsdLayersTreeItemRef Child : Children )
-		{
-			Child->RefreshData();
-		}
-	}
-
-	TUsdStore< pxr::SdfLayerRefPtr > GetLayerHandle() const
-	{
-		return MakeUsdStore< pxr::SdfLayerRefPtr >( pxr::SdfLayer::FindOrOpen( LayerIdentifier.Get() ) );
-	}
-
-public:
-	TSharedRef< FUsdLayerData > LayerData; // Data model
-	FUsdLayersTreeItem* ParentItem;
-
-	TUsdStore< pxr::UsdStageRefPtr > UsdStage;
-	TUsdStore< std::string > LayerIdentifier;
-
-	TArray< FUsdLayersTreeItemRef > Children;
-};
 
 class FUsdLayerNameColumn : public FUsdTreeViewColumn
 {
 public:
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
 	{
-		FUsdLayersTreeItemPtr TreeItem = StaticCastSharedRef< FUsdLayersTreeItem >( InTreeItem.ToSharedRef() );
+		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
 		TSharedRef< STextBlock > Item =
 			SNew(STextBlock)
 				.TextStyle( FEditorStyle::Get(), "LargeText" )
-				.Text( TreeItem->LayerData, &FUsdLayerData::GetDisplayName )
+				.Text( TreeItem->LayerModel, &FUsdLayerModel::GetDisplayName )
 				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) );
 
 		return Item;
@@ -202,20 +44,20 @@ public:
 class FUsdLayerMutedColumn : public FUsdTreeViewColumn, public TSharedFromThis< FUsdLayerMutedColumn >
 {
 public:
-	FReply OnClicked( const FUsdLayersTreeItemRef TreeItem )
+	FReply OnClicked( const FUsdLayerViewModelRef TreeItem )
 	{
 		ToggleMuteLayer( TreeItem );
 
 		return FReply::Handled();
 	}
 
-	const FSlateBrush* GetBrush( const FUsdLayersTreeItemRef TreeItem ) const
+	const FSlateBrush* GetBrush( const FUsdLayerViewModelRef TreeItem ) const
 	{
 		if ( !CanMuteLayer( TreeItem ) )
 		{
 			return nullptr;
 		}
-		else if ( TreeItem->LayerData->bIsMuted )
+		else if ( TreeItem->LayerModel->bIsMuted )
 		{
 			return FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
 		}
@@ -232,7 +74,7 @@ public:
 			return SNullWidget::NullWidget;
 		}
 
-		FUsdLayersTreeItemRef TreeItem = StaticCastSharedRef< FUsdLayersTreeItem >( InTreeItem.ToSharedRef() );
+		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
 		TSharedRef< SWidget > Item =
 			SNew( SButton )
@@ -251,54 +93,40 @@ public:
 	}
 
 protected:
-	bool CanMuteLayer( FUsdLayersTreeItemRef LayerItem ) const
+	bool CanMuteLayer( FUsdLayerViewModelRef LayerItem ) const
 	{
 		if ( !LayerItem->IsValid() )
 		{
 			return false;
 		}
 
-		FScopedUsdAllocs UsdAllocs;
-		return ( ( LayerItem->UsdStage.Get()->GetRootLayer()->GetIdentifier() != LayerItem->LayerIdentifier.Get() ) && !LayerItem->LayerData->bIsEditTarget );
+		return LayerItem->CanMuteLayer();
 	}
 
-	void ToggleMuteLayer( FUsdLayersTreeItemRef LayerItem )
+	void ToggleMuteLayer( FUsdLayerViewModelRef LayerItem )
 	{
 		if ( !LayerItem->IsValid() || !CanMuteLayer( LayerItem ) )
 		{
 			return;
 		}
 
-		FScopedUsdAllocs UsdAllocs;
-
-		const std::string LayerIdentifier = LayerItem->LayerIdentifier.Get();
-
-		if ( LayerItem->UsdStage.Get()->IsLayerMuted( LayerIdentifier ) )
-		{
-			LayerItem->UsdStage.Get()->UnmuteLayer( LayerIdentifier );
-		}
-		else
-		{
-			LayerItem->UsdStage.Get()->MuteLayer( LayerIdentifier );
-		}
-
-		LayerItem->RefreshData();
+		LayerItem->ToggleMuteLayer();
 	}
 };
 
 class FUsdLayerEditColumn : public FUsdTreeViewColumn, public TSharedFromThis< FUsdLayerEditColumn >
 {
 public:
-	const FSlateBrush* GetCheckedImage( const FUsdLayersTreeItemRef InTreeItem ) const
+	const FSlateBrush* GetCheckedImage( const FUsdLayerViewModelRef InTreeItem ) const
 	{
-		return InTreeItem->LayerData->bIsEditTarget ?
+		return InTreeItem->LayerModel->bIsEditTarget ?
 			&FEditorStyle::Get().GetWidgetStyle< FCheckBoxStyle >( "Checkbox" ).CheckedImage :
 			nullptr;
 	}
 
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
 	{
-		const FUsdLayersTreeItemRef TreeItem = StaticCastSharedRef< FUsdLayersTreeItem >( InTreeItem.ToSharedRef() );
+		const FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
 		TSharedRef< SWidget > Item =
 			SNew(SImage)
@@ -326,7 +154,7 @@ void SUsdLayersTreeView::Refresh( AUsdStageActor* UsdStageActor, bool bResync )
 	}
 	else
 	{
-		for ( FUsdLayersTreeItemRef TreeItem :  RootItems )
+		for ( FUsdLayerViewModelRef TreeItem :  RootItems )
 		{
 			TreeItem->RefreshData();
 		}
@@ -335,14 +163,14 @@ void SUsdLayersTreeView::Refresh( AUsdStageActor* UsdStageActor, bool bResync )
 	RequestTreeRefresh();
 }
 
-TSharedRef< ITableRow > SUsdLayersTreeView::OnGenerateRow( FUsdLayersTreeItemRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
+TSharedRef< ITableRow > SUsdLayersTreeView::OnGenerateRow( FUsdLayerViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
 {
-	return SNew( SUsdTreeRow< FUsdLayersTreeItemRef >, InDisplayNode, OwnerTable, SharedData );
+	return SNew( SUsdTreeRow< FUsdLayerViewModelRef >, InDisplayNode, OwnerTable, SharedData );
 }
 
-void SUsdLayersTreeView::OnGetChildren( FUsdLayersTreeItemRef InParent, TArray< FUsdLayersTreeItemRef >& OutChildren ) const
+void SUsdLayersTreeView::OnGetChildren( FUsdLayerViewModelRef InParent, TArray< FUsdLayerViewModelRef >& OutChildren ) const
 {
-	for ( const FUsdLayersTreeItemRef& Child : InParent->GetChildren() )
+	for ( const FUsdLayerViewModelRef& Child : InParent->GetChildren() )
 	{
 		OutChildren.Add( Child );
 	}
@@ -357,14 +185,12 @@ void SUsdLayersTreeView::BuildUsdLayersEntries( AUsdStageActor* UsdStageActor )
 		return;
 	}
 
-	const pxr::UsdStageRefPtr& UsdStage = UsdStageActor->GetUsdStage();
+	const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage();
 
 	if ( UsdStage )
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		RootItems.Add( MakeSharedUnreal< FUsdLayersTreeItem >( nullptr, UsdStage, UsdStage->GetRootLayer()->GetIdentifier() ) );
-		RootItems.Add( MakeSharedUnreal< FUsdLayersTreeItem >( nullptr, UsdStage, UsdStage->GetSessionLayer()->GetIdentifier() ) );
+		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetRootLayer().GetIdentifier() ) );
+		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetSessionLayer().GetIdentifier() ) );
 	}
 }
 
@@ -453,20 +279,15 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 	return MenuWidget;
 }
 
-bool SUsdLayersTreeView::CanEditLayer( FUsdLayersTreeItemRef LayerItem ) const
-{
-	return !LayerItem->LayerData->bIsMuted;
-}
-
 bool SUsdLayersTreeView::CanEditSelectedLayer() const
 {
 	bool bHasEditableLayer = false;
 
-	TArray< FUsdLayersTreeItemRef > MySelectedItems = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
 
-	for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
 	{
-		if ( CanEditLayer( SelectedItem ) )
+		if ( SelectedItem->CanEditLayer() )
 		{
 			bHasEditableLayer = true;
 			break;
@@ -478,19 +299,14 @@ bool SUsdLayersTreeView::CanEditSelectedLayer() const
 
 void SUsdLayersTreeView::OnEditSelectedLayer()
 {
-	TArray< FUsdLayersTreeItemRef > MySelectedItems = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
 
-	for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
 	{
-		TUsdStore< pxr::SdfLayerRefPtr > LayerHandle = SelectedItem->GetLayerHandle();
-		if ( !LayerHandle.Get() || !CanEditLayer( SelectedItem ) )
+		if ( SelectedItem->EditLayer() )
 		{
-			continue;
+			break;
 		}
-
-		SelectedItem->UsdStage.Get()->SetEditTarget( LayerHandle.Get() );
-		SelectedItem->RefreshData();
-		break;
 	}
 }
 
@@ -508,12 +324,11 @@ void SUsdLayersTreeView::OnAddSubLayer()
 		return;
 	}
 
-	TArray< FUsdLayersTreeItemRef > MySelectedItems = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
 
-	for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
 	{
-		UsdUtils::InsertSubLayer( SelectedItem->GetLayerHandle(), *SubLayerFile.GetValue() );
-
+		SelectedItem->AddSubLayer( *SubLayerFile.GetValue() );
 		break;
 	}
 
@@ -529,14 +344,13 @@ void SUsdLayersTreeView::OnNewSubLayer()
 		return;
 	}
 
-	TArray< FUsdLayersTreeItemRef > MySelectedItems = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
 
 	{
 		FScopedUsdAllocs UsdAllocs;
-		for ( FUsdLayersTreeItemRef SelectedItem : MySelectedItems )
+		for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
 		{
-			UsdUtils::CreateNewLayer( SelectedItem->UsdStage, SelectedItem->GetLayerHandle(), *SubLayerFile.GetValue() );
-
+			SelectedItem->NewSubLayer( *SubLayerFile.GetValue() );
 			break;
 		}
 	}
@@ -544,7 +358,7 @@ void SUsdLayersTreeView::OnNewSubLayer()
 	RequestTreeRefresh();
 }
 
-bool SUsdLayersTreeView::CanRemoveLayer( FUsdLayersTreeItemRef LayerItem ) const
+bool SUsdLayersTreeView::CanRemoveLayer( FUsdLayerViewModelRef LayerItem ) const
 {
 	// We can't remove root layers
 	return ( LayerItem->IsValid() && LayerItem->ParentItem && LayerItem->ParentItem->IsValid() );
@@ -554,9 +368,9 @@ bool SUsdLayersTreeView::CanRemoveSelectedLayers() const
 {
 	bool bHasRemovableLayer = false;
 
-	TArray< FUsdLayersTreeItemRef > SelectedLayers = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > SelectedLayers = GetSelectedItems();
 
-	for ( FUsdLayersTreeItemRef SelectedLayer : SelectedLayers )
+	for ( FUsdLayerViewModelRef SelectedLayer : SelectedLayers )
 	{
 		// We can't remove root layers
 		if ( CanRemoveLayer( SelectedLayer ) )
@@ -573,9 +387,9 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 {
 	bool bLayerRemoved = false;
 
-	TArray< FUsdLayersTreeItemRef > SelectedLayers = GetSelectedItems();
+	TArray< FUsdLayerViewModelRef > SelectedLayers = GetSelectedItems();
 
-	for ( FUsdLayersTreeItemRef SelectedLayer : SelectedLayers )
+	for ( FUsdLayerViewModelRef SelectedLayer : SelectedLayers )
 	{
 		if ( !CanRemoveLayer( SelectedLayer ) )
 		{
@@ -586,17 +400,13 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 			FScopedUsdAllocs UsdAllocs;
 
 			int32 SubLayerIndex = 0;
-			for ( FUsdLayersTreeItemRef Child : SelectedLayer->ParentItem->Children )
+			for ( FUsdLayerViewModelRef Child : SelectedLayer->ParentItem->Children )
 			{
-				if ( Child->LayerIdentifier.Get() == SelectedLayer->LayerIdentifier.Get() )
+				if ( Child->LayerIdentifier == SelectedLayer->LayerIdentifier )
 				{
-					pxr::SdfLayerHandle ParentLayerHandle = SelectedLayer->ParentItem->GetLayerHandle().Get();
-
-					if ( ParentLayerHandle )
+					if ( SelectedLayer->ParentItem )
 					{
-						ParentLayerHandle->RemoveSubLayerPath( SubLayerIndex );
-						//SelectedLayer->ParentItem->Children.Remove( Child );
-						bLayerRemoved = true;
+						bLayerRemoved = SelectedLayer->ParentItem->RemoveSubLayer( SubLayerIndex );
 					}
 					break;
 				}

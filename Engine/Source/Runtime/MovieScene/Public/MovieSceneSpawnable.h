@@ -32,6 +32,7 @@ struct FMovieSceneSpawnable
 
 	FMovieSceneSpawnable()
 		: bContinuouslyRespawn(true)
+		, bEvaluateTracksWhenNotSpawned(false)
 		, ObjectTemplate(nullptr)
 		, Ownership(ESpawnOwnership::InnerSequence)
 #if WITH_EDITORONLY_DATA
@@ -43,6 +44,7 @@ struct FMovieSceneSpawnable
 	/** FMovieSceneSpawnable initialization constructor */
 	FMovieSceneSpawnable(const FString& InitName, UObject& InObjectTemplate)
 		: bContinuouslyRespawn(true)
+		, bEvaluateTracksWhenNotSpawned(false)
 		, Guid(FGuid::NewGuid())
 		, Name(InitName)
 		, ObjectTemplate(&InObjectTemplate)
@@ -226,6 +228,10 @@ public:
 	/** When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally. */
 	UPROPERTY(EditAnywhere, Category=Actor)
 	bool bContinuouslyRespawn;
+
+	/** When enabled, any tracks on this object binding or its children will still be evaluated even when the object is not spawned. */
+	UPROPERTY(EditAnywhere, Category=Actor)
+	bool bEvaluateTracksWhenNotSpawned;
 
 private:
 

@@ -24,6 +24,8 @@ static FAutoConsoleCommand HandleDumpUpdateListCommand(
 );
 #endif
 
+TArray<FSlateInvalidationRoot*> FSlateInvalidationRoot::ClearUpdateList;
+
 #if SLATE_CSV_TRACKER
 	static int32 CascadeInvalidationEventAmount = 5;
 	FAutoConsoleVariableRef CVarCascadeInvalidationEventAmount(
@@ -41,8 +43,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 {
-	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::OnInvalidateAllWidgets);
-
+	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::HandleInvalidateAllWidgets);
 }
 
 FSlateInvalidationRoot::~FSlateInvalidationRoot()
@@ -244,7 +245,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 #endif
 	}
 
-	FinalUpdateList.Empty();
+	FinalUpdateList.Reset();
 
 	Result.MaxLayerIdPainted = CachedMaxLayerId;
 	return Result;
@@ -263,6 +264,27 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 	}
 		
 	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
+}
+
+void FSlateInvalidationRoot::ClearAllWidgetUpdatesPending()
+{
+	// Once a frame we free the FinalUpdateList, any widget still in that list are
+	// Volatile widgets or widgets that need constant Update. So we put them back in the WidgetsNeedingUpdate list
+	for (FSlateInvalidationRoot* Root : ClearUpdateList)
+	{
+		if (int32 NumUpdatePending = Root->FinalUpdateList.Num())
+		{
+			for (int32 index : Root->FinalUpdateList)
+			{
+				FWidgetProxy& Proxy = Root->FastWidgetPathList[index];
+				if (EnumHasAnyFlags(Proxy.UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
+				{
+					Root->WidgetsNeedingUpdate.Push(Proxy);
+				}
+			}
+		}
+		Root->FinalUpdateList.Empty();
+	}
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
@@ -477,6 +499,19 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 			ensureAlways(Copy[i].Widget == TempList[i].Widget);
 		}
 #endif
+
+		// When it's the first time the FastWidgetPathList has item, we know we will need to clear the UpdateList on the next frame.
+		if (FastWidgetPathList.Num() == 0 && TempList.Num() != 0)
+		{
+			ensure(ClearUpdateList.Find(this) == INDEX_NONE);
+			ClearUpdateList.Push(this);
+		}
+		// When FastWidgetPathList is empty for the first time, we know we don't need to clear the list until we have items readded
+		else if (FastWidgetPathList.Num() != 0 && TempList.Num() == 0)
+		{
+			ClearUpdateList.RemoveSingleSwap(this, false);
+		}
+
 		FastWidgetPathList = MoveTemp(TempList);
 	}
 }
@@ -485,8 +520,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 {
 	SCOPED_NAMED_EVENT(Slate_InvalidationProcessing, FColor::Blue);
 	CSV_SCOPED_TIMING_STAT(Slate, InvalidationProcessing);
-
-	FinalUpdateList.Empty();
 
 	bool bWidgetsNeedRepaint = false;
 
@@ -511,7 +544,16 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 
 			// We need to store off all widgets needing update as the child order change may invalidate them all
 			TArray<FWidgetNeedingUpdate, TMemStackAllocator<>> WidgetsNeedingUpdateCache;
-			WidgetsNeedingUpdateCache.Reserve(WidgetsNeedingUpdate.Num());
+			WidgetsNeedingUpdateCache.Reserve(FinalUpdateList.Num() + WidgetsNeedingUpdate.Num());
+
+			for (int32 WidgetIndex : FinalUpdateList)
+			{
+				FWidgetProxy& WidgetProxy = FastWidgetPathList[WidgetIndex];
+				if (WidgetProxy.Widget && WidgetProxy.Widget->FastPathProxyHandle.GetInvalidationRoot() == this) // If the Widget is no longer in the same Invalidation Root, don't bother adding it.
+				{
+					WidgetsNeedingUpdateCache.Emplace(WidgetProxy.Widget, WidgetProxy.CurrentInvalidateReason, WidgetProxy.UpdateFlags);
+				}
+			}
 
 			for(int32 WidgetIndex : WidgetsNeedingUpdate.GetRawData())
 			{
@@ -539,6 +581,16 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 
 			bChildOrderInvalidated = false;
 		}
+		else if(FinalUpdateList.Num() != 0)
+		{
+			// Put Widget waiting for update back in WidgetsNeedingUpdate to ensure index order and just in case, Prepass need to be reexecuted.
+			for (int32 WidgetIndex : FinalUpdateList)
+			{
+				FWidgetProxy& WidgetProxy = FastWidgetPathList[WidgetIndex];
+				WidgetsNeedingUpdate.Push(WidgetProxy);
+			}
+		}
+		FinalUpdateList.Reset(WidgetsNeedingUpdate.Num());
 
 #if SLATE_CSV_TRACKER
 		FCsvProfiler::RecordCustomStat("Invalidate/InitialWidgets", CSV_CATEGORY_INDEX(Slate), WidgetsNeedingUpdate.Num(), ECsvCustomStatOp::Set);
@@ -571,7 +623,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 				{
 					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
 				}
-				
+
 #if SLATE_CSV_TRACKER
 				const int32 PreviousWidgetsNeedingUpdating = WidgetsNeedingUpdate.Num();
 #endif
@@ -628,7 +680,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 #endif
 			}
 		}
-
+		
 		WidgetsNeedingUpdate.Reset();
 
 #if SLATE_CSV_TRACKER
@@ -661,13 +713,24 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 		}
 	}
 
+
+	if (FastWidgetPathList.Num() != 0)
+	{
+		ClearUpdateList.RemoveSingleSwap(this, false);
+	}
 	FastWidgetPathList.Empty();
 	WidgetsNeedingUpdate.Empty();
 	CachedElementData->Empty();
 	FinalUpdateList.Empty();
 }
 
-void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediately)
+void FSlateInvalidationRoot::HandleInvalidateAllWidgets(bool bClearResourcesImmediately)
+{
+	Advanced_ResetInvalidation(bClearResourcesImmediately);
+	OnRootInvalidated();
+}
+
+void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImmediately)
 {
 	InvalidateChildOrder();
 
@@ -677,5 +740,6 @@ void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediat
 	{
 		ClearAllFastPathData(true);
 	}
+
 	bNeedsSlowPath = true;
 }

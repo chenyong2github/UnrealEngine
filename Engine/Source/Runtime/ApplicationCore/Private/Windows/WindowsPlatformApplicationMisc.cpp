@@ -144,8 +144,8 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 		}
 		else if( HasFocus && !HadFocus )
 		{
-			// Boost our priority back to normal.
-			SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_NORMAL );
+			// Boost our priority back to above normal as initially set in WindowsRunnableThread::CreateInternal.
+			SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL );
 		}
 		if( !HasFocus )
 		{

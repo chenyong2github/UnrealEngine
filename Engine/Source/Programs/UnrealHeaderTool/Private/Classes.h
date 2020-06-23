@@ -15,7 +15,7 @@ class FClass;
 class FClasses
 {
 public:
-	explicit FClasses(UPackage* InPackage);
+	explicit FClasses(const TArray<UClass*>* Classes);
 
 	/**
 	 * Returns the root class (i.e. UObject)

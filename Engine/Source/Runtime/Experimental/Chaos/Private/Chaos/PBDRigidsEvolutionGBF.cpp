@@ -14,6 +14,7 @@
 #include "Chaos/PerParticlePBDGroundConstraint.h"
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
+#include "Chaos/EvolutionResimCache.h"
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/DebugDrawQueue.h"
@@ -260,11 +261,15 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStep(const FReal Dt,const FRe
 	UnprepareTick();
 }
 
+int32 DrawAwake = 0;
+FAutoConsoleVariableRef CVarDrawAwake(TEXT("p.chaos.DebugDrawAwake"),DrawAwake,TEXT("Draw particles that are awake"));
+
 template <typename Traits>
 void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const FReal StepFraction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
+	Particles.ClearPutToSleepThisFrame();
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
 	{
@@ -307,14 +312,9 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 		CollisionStats::FStatData StatData(bPendingHierarchyDump);
 
-		CollisionDetector.DetectCollisionsWithStats(Dt, StatData);
+		CollisionDetector.DetectCollisionsWithStats(Dt, StatData, GetCurrentStepResimCache());
 
 		CHAOS_COLLISION_STAT(StatData.Print());
-	}
-
-	if (CollisionModifierCallback)
-	{
-		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
 	}
 
 	if (PostDetectCollisionsCallback != nullptr)
@@ -325,6 +325,11 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_PrepareConstraints);
 		PrepareIteration(Dt);
+	}
+
+	if (CollisionModifierCallback)
+	{
+		CollisionConstraints.ApplyCollisionModifier(CollisionModifierCallback);
 	}
 
 	{
@@ -350,6 +355,15 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
+			
+			if(auto* ResimCache = GetCurrentStepResimCache())
+			{
+				if(ResimCache->IsResimming() && GetConstraintGraph().IslandNeedsResim(Island) == false)
+				{
+					return;
+				}
+			}
+			
 			const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
@@ -439,10 +453,46 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	if(CaptureRewindData)
 	{
-		CaptureRewindData(Particles.GetActiveParticlesView());
+		CaptureRewindData(Particles.GetDirtyParticlesView());
 	}
 
-	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
+	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
+
+#if !UE_BUILD_SHIPPING
+	if(SerializeEvolution)
+	{
+		SerializeToDisk(*this);
+	}
+
+#if CHAOS_DEBUG_DRAW
+	if(FDebugDrawQueue::IsDebugDrawingEnabled())
+	{
+		if(!!DrawAwake)
+		{
+			static const FColor IslandColors[] = {FColor::Green,FColor::Red,FColor::Yellow,
+				FColor::Blue,FColor::Orange,FColor::Black,FColor::Cyan,
+				FColor::Magenta,FColor::Purple,FColor::Turquoise};
+
+			static const int32 NumColors = sizeof(IslandColors) / sizeof(IslandColors[0]);
+			
+			for(const auto& Active : Particles.GetActiveParticlesView())
+			{
+				if(const auto* Geom = Active.Geometry().Get())
+				{
+					if(Geom->HasBoundingBox())
+					{
+						const int32 Island = Active.Island();
+						ensure(Island >= 0);
+						const int32 ColorIdx = Island % NumColors;
+						const TAABB<FReal,3> LocalBounds = Geom->BoundingBox();
+						FDebugDrawQueue::GetInstance().DrawDebugBox(Active.X(),LocalBounds.Extents()*0.5f,Active.R(),IslandColors[ColorIdx],false,-1.f,0,0.f);
+					}
+				}
+			}
+		}
+	}
+#endif
+#endif
 }
 
 template <typename Traits>
@@ -458,6 +508,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 	, PreApplyCallback(nullptr)
 	, PostApplyCallback(nullptr)
 	, PostApplyPushOutCallback(nullptr)
+	, CurrentStepResimCacheImp(nullptr)
 {
 	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TArray<TGeometryParticleHandle<FReal, 3>*>& ParticlesInput, const FReal Dt) {
 		ParticlesParallelFor(ParticlesInput, [&](auto& Particle, int32 Index) {
@@ -494,6 +545,20 @@ template <typename Traits>
 void TPBDRigidsEvolutionGBF<Traits>::Serialize(FChaosArchive& Ar)
 {
 	Base::Serialize(Ar);
+}
+
+template <typename Traits>
+TUniquePtr<IResimCacheBase> TPBDRigidsEvolutionGBF<Traits>::CreateExternalResimCache() const
+{
+	check(Traits::IsRewindable());
+	return TUniquePtr<IResimCacheBase>(new FEvolutionResimCache());
+}
+
+template <typename Traits>
+void TPBDRigidsEvolutionGBF<Traits>::SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache)
+{
+	check(Traits::IsRewindable());
+	CurrentStepResimCacheImp = static_cast<FEvolutionResimCache*>(InCurrentStepResimCache);
 }
 
 #define EVOLUTION_TRAIT(Trait) template class TPBDRigidsEvolutionGBF<Trait>;

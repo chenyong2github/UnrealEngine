@@ -372,9 +372,14 @@ void UCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	check(Result.Mesh.Get() != nullptr);
 
 	FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-	MeshTransforms::Translate(*Result.Mesh, -Center);
+	double Rescale = Result.Transform.GetScale().X;
+	FTransform3d LocalTransform(-Center * Rescale);
+	LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
+	MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
 	FTransform3d CenteredTransform = Result.Transform;
-	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + Result.Transform.TransformVector(Center));
+	CenteredTransform.SetScale(FVector3d::One());
+	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + CenteredTransform.TransformVector(Center * Rescale));
+	
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
 		Result.Mesh.Get(), CenteredTransform, TEXT("CSGMesh"), Preview->StandardMaterials);

@@ -28,6 +28,26 @@ FText FFilterObject::GetDisplayText() const
 	if (GetFilter())
 	{
 		WeakInterface->Execute_GetDisplayText(WeakInterface.GetObject(), Text);
+
+		const FDataSourceFilterConfiguration& Configuration = WeakInterface->GetConfiguration();
+		FText PrefixText;
+		FText PostFixText;
+		
+		if (Configuration.bOnlyApplyDuringActorSpawn)
+		{
+			PrefixText = LOCTEXT("OnSpawnLabel", "OnSpawn: ");
+		}
+		else if (Configuration.bCanRunAsynchronously)
+		{
+			PrefixText = LOCTEXT("AsyncLabel", "Asynchronously: ");
+		}
+
+		if (Configuration.FilterApplyingTickInterval != 1)
+		{
+			PostFixText = FText::Format(LOCTEXT("PostFixConfigurationTextFormat", " [Applied every {0} frames]"), { FText::FromString(FString::FromInt(Configuration.FilterApplyingTickInterval)) });
+		}
+
+		Text = FText::Format(LOCTEXT("DisplayTextFormat", "{0}{1}{2}"), { PrefixText, Text, PostFixText } );
 	}
 	return Text;
 }
@@ -66,10 +86,11 @@ TSharedRef<SWidget> FFilterObject::MakeWidget(TSharedRef<SWrapBox> ParentWrapBox
 		SAssignNew(WidgetBox, SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(2, 0, 0, 0)
+		.Padding(0, 0, 2, 0)
 		[
 			SNew(SBorder)
 			.BorderImage(FSourceFilterStyle::GetBrush("SourceFilter.FilterBrush"))
+			.BorderBackgroundColor(FLinearColor(0.25f, 0.25f, 0.25f, 0.9f))
 			.ForegroundColor(FLinearColor::White)
 			.Padding(FMargin(4.f))
 			[

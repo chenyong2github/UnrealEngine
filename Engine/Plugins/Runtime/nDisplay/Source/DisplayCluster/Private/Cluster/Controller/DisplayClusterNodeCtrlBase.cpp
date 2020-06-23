@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/Controller/DisplayClusterNodeCtrlBase.h"
-#include "DisplayClusterLog.h"
 
 #include "Network/DisplayClusterServer.h"
 #include "Network/DisplayClusterClient.h"
 
+#include "Misc/DisplayClusterLog.h"
 
-FDisplayClusterNodeCtrlBase::FDisplayClusterNodeCtrlBase(const FString& ctrlName, const FString& nodeName)
-	: NodeName(nodeName)
-	, ControllerName(ctrlName)
+
+FDisplayClusterNodeCtrlBase::FDisplayClusterNodeCtrlBase(const FString& CtrlName, const FString& NodeName)
+	: NodeName(NodeName)
+	, ControllerName(CtrlName)
 {
 }
 

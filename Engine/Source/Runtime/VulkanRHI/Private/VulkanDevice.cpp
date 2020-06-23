@@ -592,6 +592,9 @@ void FVulkanDevice::SetupFormats()
 	MapFormatSupport(PF_R32_FLOAT, VK_FORMAT_R32_SFLOAT);
 	SetComponentMapping(PF_R32_FLOAT, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ONE);
 
+	MapFormatSupport(PF_R8, VK_FORMAT_R8_UNORM);
+	SetComponentMapping(PF_R8, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ONE);
+
 	if (FVulkanPlatform::SupportsBCTextureFormats())
 	{
 		MapFormatSupport(PF_DXT1, VK_FORMAT_BC1_RGB_UNORM_BLOCK);	// Also what OpenGL expects (RGBA instead RGB, but not SRGB)
@@ -775,6 +778,11 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
 #endif
 
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	VkImageViewASTCDecodeModeEXT GpuImageViewASTCDecodeModeProps;
+	ZeroVulkanStruct(GpuImageViewASTCDecodeModeProps, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+#endif
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
@@ -783,10 +791,21 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		GpuProps2.pNext = &GpuIdProps;
 		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
+		void** NextPropsAddr = nullptr;
+		NextPropsAddr = &GpuIdProps.pNext;
+
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 		if (GetOptionalExtensions().HasDriverProperties)
 		{
-			GpuIdProps.pNext = &PhysicalDeviceProperties;
+			*NextPropsAddr = &PhysicalDeviceProperties;
+			NextPropsAddr = &PhysicalDeviceProperties.pNext;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+		if (GetOptionalExtensions().HasEXTASTCDecodeMode)
+		{
+			*NextPropsAddr = &GpuImageViewASTCDecodeModeProps;
 		}
 #endif
 

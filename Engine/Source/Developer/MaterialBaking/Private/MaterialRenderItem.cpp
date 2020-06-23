@@ -219,69 +219,65 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	// add vertices
 	int32 VertIndex = 0;
 	int32 FaceIndex = 0;
-	for(const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
+	for(const FTriangleID TriangleID : RawMesh->Triangles().GetElementIDs())
 	{
-		const FPolygonGroupID PolygonGroupID = RawMesh->GetPolygonPolygonGroup(PolygonID);
-		TArrayView<const FTriangleID> TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
+		const FPolygonGroupID PolygonGroupID = RawMesh->GetTrianglePolygonGroup(TriangleID);
+		if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))
 		{
-			if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))
+			const int32 NUM_VERTICES = 3;
+			for (int32 Corner = 0; Corner < NUM_VERTICES; Corner++)
 			{
-				const int32 NUM_VERTICES = 3;
-				for (int32 Corner = 0; Corner < NUM_VERTICES; Corner++)
+				// Swap vertices order if mesh is mirrored
+				const int32 CornerIdx = !MeshSettings->bMirrored ? Corner : NUM_VERTICES - Corner - 1;
+
+				const int32 SrcVertIndex = FaceIndex * NUM_VERTICES + CornerIdx;
+				const FVertexInstanceID SrcVertexInstanceID = RawMesh->GetTriangleVertexInstance(TriangleID, Corner);
+				const FVertexID SrcVertexID = RawMesh->GetVertexInstanceVertex(SrcVertexInstanceID);
+
+				// add vertex
+				FDynamicMeshVertex* Vert = new(Vertices)FDynamicMeshVertex();
+				if (!bUseNewUVs)
 				{
-					// Swap vertices order if mesh is mirrored
-					const int32 CornerIdx = !MeshSettings->bMirrored ? Corner : NUM_VERTICES - Corner - 1;
-
-					const int32 SrcVertIndex = FaceIndex * NUM_VERTICES + CornerIdx;
-					const FVertexInstanceID SrcVertexInstanceID = RawMesh->GetTriangleVertexInstance(TriangleID, Corner);
-					const FVertexID SrcVertexID = RawMesh->GetVertexInstanceVertex(SrcVertexInstanceID);
-
-					// add vertex
-					FDynamicMeshVertex* Vert = new(Vertices)FDynamicMeshVertex();
-					if (!bUseNewUVs)
-					{
-						// compute vertex position from original UV
-						const FVector2D& UV = VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex);
-						Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
-					}
-					else
-					{
-						const FVector2D& UV = MeshSettings->CustomTextureCoordinates[SrcVertIndex];
-						Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
-					}
-					FVector TangentX = VertexInstanceTangents[SrcVertexInstanceID];
-					FVector TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
-					FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
-					Vert->SetTangents(TangentX, TangentY, TangentZ);
-					for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)
-					{
-						Vert->TextureCoordinate[TexcoordIndex] = VertexInstanceUVs.Get(SrcVertexInstanceID, TexcoordIndex);
-					}
-				
-					if (NumTexcoords < VertexPositionStoredUVChannel)
-					{
-						for (int32 TexcoordIndex = NumTexcoords; TexcoordIndex < VertexPositionStoredUVChannel; TexcoordIndex++)
-						{
-							Vert->TextureCoordinate[TexcoordIndex] = Vert->TextureCoordinate[FMath::Max(NumTexcoords - 1, 0)];
-						}
-					}
-					// Store original vertex positions in texture coordinate data
-					Vert->TextureCoordinate[6].X = VertexPositions[SrcVertexID].X;
-					Vert->TextureCoordinate[6].Y = VertexPositions[SrcVertexID].Y;
-					Vert->TextureCoordinate[7].X = VertexPositions[SrcVertexID].Z;
-
-					Vert->Color = FLinearColor(VertexInstanceColors[SrcVertexInstanceID]).ToFColor(true);
-					// add index
-					Indices.Add(VertIndex);
-					VertIndex++;
+					// compute vertex position from original UV
+					const FVector2D& UV = VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex);
+					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
 				}
-				// add the same triangle with opposite vertex order
-				Indices.Add(VertIndex - 3);
-				Indices.Add(VertIndex - 1);
-				Indices.Add(VertIndex - 2);
+				else
+				{
+					const FVector2D& UV = MeshSettings->CustomTextureCoordinates[SrcVertIndex];
+					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
+				}
+				FVector TangentX = VertexInstanceTangents[SrcVertexInstanceID];
+				FVector TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
+				FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
+				Vert->SetTangents(TangentX, TangentY, TangentZ);
+				for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)
+				{
+					Vert->TextureCoordinate[TexcoordIndex] = VertexInstanceUVs.Get(SrcVertexInstanceID, TexcoordIndex);
+				}
+				
+				if (NumTexcoords < VertexPositionStoredUVChannel)
+				{
+					for (int32 TexcoordIndex = NumTexcoords; TexcoordIndex < VertexPositionStoredUVChannel; TexcoordIndex++)
+					{
+						Vert->TextureCoordinate[TexcoordIndex] = Vert->TextureCoordinate[FMath::Max(NumTexcoords - 1, 0)];
+					}
+				}
+				// Store original vertex positions in texture coordinate data
+				Vert->TextureCoordinate[6].X = VertexPositions[SrcVertexID].X;
+				Vert->TextureCoordinate[6].Y = VertexPositions[SrcVertexID].Y;
+				Vert->TextureCoordinate[7].X = VertexPositions[SrcVertexID].Z;
+
+				Vert->Color = FLinearColor(VertexInstanceColors[SrcVertexInstanceID]).ToFColor(true);
+				// add index
+				Indices.Add(VertIndex);
+				VertIndex++;
 			}
-			FaceIndex++;
+			// add the same triangle with opposite vertex order
+			Indices.Add(VertIndex - 3);
+			Indices.Add(VertIndex - 1);
+			Indices.Add(VertIndex - 2);
 		}
+		FaceIndex++;
 	}
 }

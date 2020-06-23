@@ -4,6 +4,7 @@
 #include "Utility/IndexerUtilities.h"
 #include "Engine/DataAsset.h"
 #include "Sound/DialogueWave.h"
+#include "SearchSerializer.h"
 
 enum class EDialogueWaveIndexerVersion
 {
@@ -22,8 +23,7 @@ int32 FDialogueWaveIndexer::GetVersion() const
 
 void FDialogueWaveIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UDialogueWave* DialogueWave = Cast<UDialogueWave>(InAssetObject);
-	check(DialogueWave);
+	const UDialogueWave* DialogueWave = CastChecked<UDialogueWave>(InAssetObject);
 
 	Serializer.BeginIndexingObject(DialogueWave, TEXT("$self"));
 

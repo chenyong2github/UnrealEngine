@@ -71,8 +71,8 @@ void layerTest()
 
     {
         std::vector< std::string > files;
-        files.push_back( fileName );
         files.push_back( fileName2 );
+        files.push_back( fileName );
 
         Alembic::AbcCoreFactory::IFactory factory;
         IArchive archive = factory.getArchive( files );
@@ -136,8 +136,8 @@ void pruneTest()
 
     {
         std::vector< std::string > files;
-        files.push_back( fileName );
         files.push_back( fileName2 );
+        files.push_back( fileName );
 
         Alembic::AbcCoreFactory::IFactory factory;
         IArchive archive = factory.getArchive( files );
@@ -199,8 +199,8 @@ void replaceTest()
 
     {
         std::vector< std::string > files;
-        files.push_back( fileName );
         files.push_back( fileName2 );
+        files.push_back( fileName );
 
         Alembic::AbcCoreFactory::IFactory factory;
         IArchive archive = factory.getArchive( files );
@@ -240,10 +240,107 @@ void replaceTest()
 }
 
 //-*****************************************************************************
+void hashTest()
+{
+    std::string fileName = "hashTest.abc";
+    {
+        OArchive archive( Alembic::AbcCoreOgawa::WriteArchive(), fileName );
+        OObject child( archive.getTop(), "child" );
+        OObject childCool( child, "cool" );
+        OObject childGuy( child, "guy" );
+
+        OCompoundProperty wowProp( child.getProperties(), "wow" );
+        OCompoundProperty amazingProp( wowProp, "amazing" );
+    }
+
+    {
+        std::vector< std::string > files;
+        files.push_back( fileName );
+
+        Alembic::AbcCoreFactory::IFactory factory;
+        IArchive archiveLayer = factory.getArchive( files );
+        IArchive archive = factory.getArchive( fileName );
+
+        Alembic::Util::Digest childHash;
+        IObject child( archive.getTop(), "child" );
+        child.getPropertiesHash( childHash );
+
+        Alembic::Util::Digest childLayerHash;
+        IObject childLayer( archiveLayer.getTop(), "child" );
+        childLayer.getPropertiesHash( childLayerHash );
+
+        TESTING_ASSERT( childHash == childLayerHash );
+
+        child.getChildrenHash( childHash );
+        childLayer.getChildrenHash( childLayerHash );
+
+        TESTING_ASSERT( childHash == childLayerHash );
+    }
+}
+
+//-*****************************************************************************
+void pruneAndAddTest()
+{
+    std::string fileName = "objectPruneAndAdd1.abc";
+    std::string fileName2 = "objectPruneAndAdd2.abc";
+
+    {
+        // add xform1 with polymesh and curve children
+        OArchive archive( Alembic::AbcCoreOgawa::WriteArchive(), fileName );
+        OObject xform1( archive.getTop(), "xform1" );
+        OObject xform1Poly( xform1, "polymesh" );
+        OObject xform1Curve( xform1, "curve" );
+    }
+
+    {
+        MetaData md;
+        Alembic::AbcCoreLayer::SetPrune( md, true );
+
+        OArchive archive( Alembic::AbcCoreOgawa::WriteArchive(), fileName2 );
+
+        // create placeholder xform1, and then curve which will be pruned
+        OObject xform1( archive.getTop(), "xform1" );
+        OObject xform1Curve( xform1, "curve", md);
+
+        // add xform2 with polymesh and curve children
+        OObject xform2( archive.getTop(), "xform2" );
+        OObject xform2Poly( xform2, "polymesh" );
+        OObject xform2Curve( xform2, "curve" );
+    }
+
+    {
+        std::vector< std::string > files;
+        files.push_back( fileName2 );
+        files.push_back( fileName );
+
+        Alembic::AbcCoreFactory::IFactory factory;
+        IArchive archive = factory.getArchive( files );
+
+        IObject root = archive.getTop();
+
+        // xform1 and xform2
+        TESTING_ASSERT( root.getNumChildren() == 2 );
+
+        // xform1 just has polymesh (curve has been pruned)
+        IObject xform1( root, "xform1" );
+        TESTING_ASSERT( xform1.getNumChildren() == 1 );
+        TESTING_ASSERT( IObject( xform1, "polymesh" ).valid() );
+
+        // xform2 has polymesh and curve
+        IObject xform2( root, "xform2" );
+        TESTING_ASSERT( xform2.getNumChildren() == 2 );
+        TESTING_ASSERT( IObject( xform2, "polymesh" ).valid() );
+        TESTING_ASSERT( IObject( xform2, "curve" ).valid() );
+    }
+}
+
+//-*****************************************************************************
 int main( int argc, char *argv[] )
 {
     layerTest();
     pruneTest();
     replaceTest();
+    hashTest();
+    pruneAndAddTest();
     return 0;
 }

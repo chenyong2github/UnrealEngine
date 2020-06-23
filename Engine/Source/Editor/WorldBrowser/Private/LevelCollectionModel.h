@@ -638,6 +638,7 @@ struct FTiledLandscapeImportSettings
 		, TilesCoordinatesOffset(0,0)
 		, SizeX(1009)
 		, bFlipYAxis(true)
+		, bEditLayersEnabled(false)
 	{}
 	
 	FVector				Scale3D;
@@ -650,6 +651,7 @@ struct FTiledLandscapeImportSettings
 	FIntPoint			TilesCoordinatesOffset;
 	int32				SizeX;
 	bool				bFlipYAxis;
+	bool				bEditLayersEnabled;
 
 
 	TWeakObjectPtr<UMaterialInterface>	LandscapeMaterial;

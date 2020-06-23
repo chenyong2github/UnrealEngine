@@ -176,8 +176,24 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		TArray<UEdGraphPin*> OutputPins;
 		GetOutputPins(OutputPins);
 
-		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-		FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(NewPin);
+		FName NewPinName = NewPin->PinName;
+		FName PinNameWithoutNamespace;
+		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
+		{
+			NewPinName = *(FNiagaraConstants::ModuleNamespace.ToString() + TEXT(".") + NewPinName.ToString());
+		}
+
+		TSet<FName> Names;
+		for (const UEdGraphPin* Pin : OutputPins)
+		{
+			if (Pin != NewPin)
+			{
+				Names.Add(Pin->GetFName());
+			}
+		}
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
+
+		NewPin->PinName = NewUniqueName;
 
 		UEdGraphPin* MatchingDefault = GetDefaultPin(NewPin);
 		if (MatchingDefault == nullptr)

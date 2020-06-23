@@ -28,8 +28,10 @@ class TransformationCopyObject : public Transformation {
   explicit TransformationCopyObject(
       const protobufs::TransformationCopyObject& message);
 
-  TransformationCopyObject(uint32_t object, uint32_t base_instruction_id,
-                           uint32_t offset, uint32_t fresh_id);
+  TransformationCopyObject(
+      uint32_t object,
+      const protobufs::InstructionDescriptor& instruction_to_insert_before,
+      uint32_t fresh_id);
 
   // - |message_.fresh_id| must not be used by the module.
   // - |message_.object| must be a result id that is a legitimate operand for
@@ -45,6 +47,8 @@ class TransformationCopyObject : public Transformation {
   // - It must be legal to insert an OpCopyObject instruction directly
   //   before 'inst'.
   // - |message_.object| must be available directly before 'inst'.
+  // - |message_.object| must not be a null pointer or undefined pointer (so as
+  //   to make it legal to load from copied pointers).
   bool IsApplicable(opt::IRContext* context,
                     const FactManager& fact_manager) const override;
 
@@ -53,7 +57,10 @@ class TransformationCopyObject : public Transformation {
   //   is added directly before the instruction at |message_.insert_after_id| +
   //   |message_|.offset, where %ty is the type of |message_.object|.
   // - The fact that |message_.fresh_id| and |message_.object| are synonyms
-  //   is added to the fact manager.
+  //   is added to |fact_manager|.
+  // - If |message_.object| is a pointer whose pointee value is known to be
+  //   irrelevant, the analogous fact is added to |fact_manager| about
+  //   |message_.fresh_id|.
   void Apply(opt::IRContext* context, FactManager* fact_manager) const override;
 
   protobufs::Transformation ToMessage() const override;

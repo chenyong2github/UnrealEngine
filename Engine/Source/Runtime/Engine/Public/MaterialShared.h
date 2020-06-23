@@ -29,6 +29,7 @@
 #include "VirtualTexturing.h"
 
 struct FExpressionInput;
+struct FExtraShaderCompilerSettings;
 class FMaterial;
 class FMaterialCompiler;
 class FMaterialRenderProxy;
@@ -271,15 +272,19 @@ public:
 		return Ar << Ref.Data;
 	}
 
-	inline int32 Num() const { return Data.Num(); }
+	const int32 Num() const { return Data.Num(); }
 
 	void WriteData(const void* Value, uint32 Size);
+	void WriteName(const FHashedName& Name);
 
 	template<typename T>
-	FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
+	inline FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
 
-	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
+	inline FMaterialPreshaderData& Write(const FHashedName& Value) { WriteName(Value); return *this; }
+	inline FMaterialPreshaderData& Write(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
+	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write((uint8)Op); }
 
+	LAYOUT_FIELD(TMemoryImageArray<FHashedName>, Names);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
 
@@ -1058,6 +1063,8 @@ public:
 	FMaterialShaderMap();
 	virtual ~FMaterialShaderMap();
 
+	virtual void OnReleased() override;
+
 	// ShaderMap interface
 	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
 	{
@@ -1137,10 +1144,6 @@ public:
 	/** Registers a material shader map in the global map so it can be used by materials. */
 	void Register(EShaderPlatform InShaderPlatform);
 
-	// Reference counting.
-	ENGINE_API void AddRef();
-	ENGINE_API void Release();
-
 	/**
 	 * Removes all entries in the cache with exceptions based on a shader type
 	 * @param ShaderType - The shader type to flush
@@ -1166,7 +1169,7 @@ public:
 	static const FMaterialShaderMap* GetShaderMapBeingCompiled(const FMaterial* Material);
 
 	/** Serializes the shader map. */
-	bool Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false);
+	bool Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false, bool bInlineShaderCode=false);
 
 #if WITH_EDITOR
 	/** Saves this shader map to the derived data cache. */
@@ -1236,9 +1239,6 @@ public:
 
 	const FUniformExpressionSet& GetUniformExpressionSet() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet; }
 
-	int32 GetNumRefs() const { return NumRefs; }
-	int32 GetRefCount() const { return NumRefs; }
-
 	void CountNumShaders(int32& NumShaders, int32& NumPipelines) const
 	{
 		NumShaders = GetContent()->GetNumShaders();
@@ -1287,8 +1287,6 @@ private:
 
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
-
-	mutable int32 NumRefs;
 
 	/** Used to catch errors where the shader map is deleted directly. */
 	bool bDeletedThroughDeferredCleanup;
@@ -1741,10 +1739,11 @@ public:
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InMaterialShaderMap;
 
+		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
 		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
-			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
 	}
 
@@ -1755,17 +1754,18 @@ public:
 		bContainsInlineShaders = true;
 		bLoadedCookedShaderMapId = true;
 
+		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
 		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
-			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
 	}
 
 	ENGINE_API class FMaterialShaderMap* GetRenderingThreadShaderMap() const;
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
-	ENGINE_API void SetRenderingThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+	ENGINE_API void SetRenderingThreadShaderMap(const TRefCountPtr<FMaterialShaderMap>& InMaterialShaderMap);
 
 #if WITH_EDITOR
 	void RemoveOutstandingCompileId(const int32 OldOutstandingCompileShaderMapId )
@@ -1842,6 +1842,9 @@ public:
 	static void RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
 	/** Allows to associate the shader resources with the asset for load order. */
 	virtual FString GetAssetPath() const { return TEXT(""); };
+
+	/** Some materials may be loaded early - before the shader library - and need their code inlined */
+	virtual bool ShouldInlineShaderCode() const { return false; }
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -1936,7 +1939,7 @@ private:
 	 * Shader map for this material resource which is accessible by the rendering thread. 
 	 * This must be updated along with GameThreadShaderMap, but on the rendering thread.
 	 */
-	FMaterialShaderMap* RenderingThreadShaderMap;
+	TRefCountPtr<FMaterialShaderMap> RenderingThreadShaderMap;
 
 #if WITH_EDITOR
 	/** 
@@ -2435,6 +2438,7 @@ public:
 	ENGINE_API virtual void NotifyCompilationFinished() override;
 	/** Allows to associate the shader resources with the asset for load order. */
 	ENGINE_API virtual FString GetAssetPath() const override;
+	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
 #endif // WITH_EDITOR
 
 	ENGINE_API void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);

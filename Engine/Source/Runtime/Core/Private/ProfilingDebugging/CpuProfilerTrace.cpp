@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
@@ -20,11 +20,9 @@ UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Important)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch, NoSync)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EndCapture, Important)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EndThread, NoSync)
@@ -35,8 +33,8 @@ struct FCpuProfilerTraceInternal
 {
 	enum
 	{
-		MaxBufferSize = 255,
-		MaxEncodedEventSize = 14, // 9 + 5
+		MaxBufferSize = 256,
+		MaxEncodedEventSize = 15, // 10 + 5
 		FullBufferThreshold = MaxBufferSize - MaxEncodedEventSize,
 	};
 
@@ -111,7 +109,6 @@ FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThrea
 void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 {
 	UE_TRACE_LOG(CpuProfiler, EventBatch, CpuChannel, InThreadBuffer->BufferSize)
-		<< EventBatch.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< EventBatch.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
 }
@@ -119,7 +116,6 @@ void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 {
 	UE_TRACE_LOG(CpuProfiler, EndCapture, CpuChannel, InThreadBuffer->BufferSize)
-		<< EndCapture.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< EndCapture.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
 }
@@ -226,7 +222,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name)
 	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(sizeof(TCHAR))
+		<< EventSpec.CharSize(uint8(sizeof(TCHAR)))
 		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
@@ -237,23 +233,17 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 	uint16 NameSize = (uint16)(strlen(Name) + 1);
 	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(1)
+		<< EventSpec.CharSize(uint8(1))
 		<< EventSpec.Attachment(Name, NameSize);
 	return SpecId;
 }
 
 void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
 {
-	if (FParse::Param(CmdLine, TEXT("cpuprofilertrace")))
-	{
-		Trace::ToggleChannel(CpuChannel, true);
-	}
 }
 
 void FCpuProfilerTrace::Shutdown()
 {
-	//todo: Was here for a specific reason?
-	//Trace::ToggleEvent(TEXT("CpuProfiler.EventBatch"), false); 
 	if (FCpuProfilerTraceInternal::ThreadBuffer)
 	{
 		delete FCpuProfilerTraceInternal::ThreadBuffer;

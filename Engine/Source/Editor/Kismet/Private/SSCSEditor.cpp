@@ -469,7 +469,43 @@ bool FSCSEditorTreeNode::IsAttachedTo(FSCSEditorTreeNodePtrType InNodePtr) const
 	return false; 
 }
 
-void FSCSEditorTreeNode::UpdateCachedFilterState(bool bMatchesFilter, bool bUpdateParent)
+bool FSCSEditorTreeNode::MatchesFilterType(const UClass* InFilterType) const
+{
+	// All nodes will pass the type filter by default.
+	return true;
+}
+
+void FSCSEditorTreeNode::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+{
+	if (bRecursive)
+	{
+		for (FSCSEditorTreeNodePtrType Child : GetChildren())
+		{
+			Child->RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
+		}
+	}
+
+	bool bIsFilteredOut = InFilterType && !MatchesFilterType(InFilterType);
+
+	if (!bIsFilteredOut)
+	{
+		FString DisplayStr = GetDisplayString();
+		for (const FString& FilterTerm : InFilterTerms)
+		{
+			if (!DisplayStr.Contains(FilterTerm))
+			{
+				bIsFilteredOut = true;
+			}
+		}
+	}
+
+	// if we're not recursing, then assume this is for a new node and we need to update the parent
+	// otherwise, assume the parent was hit as part of the recursion
+	const bool bUpdateParent = !bRecursive;
+	SetCachedFilterState(!bIsFilteredOut, bUpdateParent);
+}
+
+void FSCSEditorTreeNode::SetCachedFilterState(bool bMatchesFilter, bool bUpdateParent)
 {
 	bool bFlagsChanged = false;
 	if ((FilterFlags & EFilteredState::Unknown) == EFilteredState::Unknown)
@@ -593,6 +629,19 @@ FSCSEditorTreeNodePtrType FSCSEditorTreeNode::FindClosestParent(TArray<FSCSEdito
 	return ClosestParentNodePtr;
 }
 
+void FSCSEditorTreeNode::SetActorRootNode(FSCSEditorActorNodePtrType InActorNodePtr)
+{
+	ActorRootNodePtr = InActorNodePtr;
+
+	for (FSCSEditorTreeNodePtrType& ChildPtr : Children)
+	{
+		if (ChildPtr.IsValid())
+		{
+			ChildPtr->SetActorRootNode(InActorNodePtr);
+		}
+	}
+}
+
 void FSCSEditorTreeNode::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 {
 	// Ensure the node is not already parented elsewhere
@@ -608,7 +657,7 @@ void FSCSEditorTreeNode::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 	}
 
 	// Link the child node to the actor root node for this subtree
-	InChildNodePtr->ActorRootNodePtr = ActorRootNodePtr;
+	InChildNodePtr->SetActorRootNode(ActorRootNodePtr);
 
 	// Add the given node as a child and link its parent
 	Children.AddUnique(InChildNodePtr);
@@ -884,6 +933,9 @@ void FSCSEditorTreeNode::RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 	InChildNodePtr->ParentNodePtr.Reset();
 	InChildNodePtr->RemoveMeAsChild();
 
+	// Reset its actor root link
+	InChildNodePtr->ActorRootNodePtr.Reset();
+
 	if (InChildNodePtr->IsFlaggedForFiltration())
 	{
 		RefreshCachedChildFilterState(/*bUpdateParent =*/true);
@@ -983,7 +1035,6 @@ FString FSCSEditorTreeNodeComponentBase::GetDisplayString() const
 
 bool FSCSEditorTreeNodeComponentBase::CanReparent() const
 {
-	FSCSEditorActorNodePtrType ActorTreeRootNode = GetActorRootNode();
 	if (FChildActorComponentEditorUtils::IsChildActorSubtreeNode(AsShared()))
 	{
 		// Cannot reparent nodes within a child actor node subtree.
@@ -1020,11 +1071,32 @@ FSCSEditorChildActorNodePtrType FSCSEditorTreeNodeComponentBase::GetChildActorNo
 		if (const UChildActorComponent* ChildActorComponent = GetObject<UChildActorComponent>())
 		{
 			AActor* ChildActor = IsInstanced() ? ChildActorComponent->GetChildActor() : ChildActorComponent->GetChildActorTemplate();
-			ChildActorNodePtr = MakeShareable(new FSCSEditorTreeNodeChildActor(this->AsShared(), ChildActor));
+			ChildActorNodePtr = MakeShareable(new FSCSEditorTreeNodeChildActor(ChildActor));
+
+			check(ChildActorNodePtr.IsValid());
+			ChildActorNodePtr->SetOwnerNode(this->AsShared());
 		}
 	}
 
 	return ChildActorNodePtr;
+}
+
+bool FSCSEditorTreeNodeComponentBase::MatchesFilterType(const UClass* InFilterType) const
+{
+	check(InFilterType);
+
+	if (const UActorComponent* ComponentObject = GetObject<UActorComponent>())
+	{
+		const UClass* ComponentClass = ComponentObject->GetClass();
+		check(ComponentClass);
+
+		if (ComponentClass->IsChildOf(InFilterType))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1355,6 +1427,12 @@ void FSCSEditorTreeNodeComponent::OnCompleteRename(const FText& InNewName)
 
 void FSCSEditorTreeNodeComponent::RemoveMeAsChild()
 {
+	// Bypass removal logic if we're part of a child actor subtree
+	if (FChildActorComponentEditorUtils::IsChildActorSubtreeNode(AsShared()))
+	{
+		return;
+	}
+
 	// Remove the SCS node from the SCS tree, if present
 	if (USCS_Node* SCS_ChildNode = GetSCSNode())
 	{
@@ -1395,6 +1473,16 @@ UActorComponent* FSCSEditorTreeNodeComponent::INTERNAL_GetOverridenComponentTemp
 
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeActorBase
+
+FSCSEditorTreeNodePtrType FSCSEditorTreeNodeActorBase::GetOwnerNode() const
+{
+	return OwnerNodePtr;
+}
+
+void FSCSEditorTreeNodeActorBase::SetOwnerNode(FSCSEditorTreeNodePtrType NewOwnerNode)
+{
+	OwnerNodePtr = NewOwnerNode;
+}
 
 FSCSEditorTreeNodePtrType FSCSEditorTreeNodeActorBase::GetSceneRootNode() const
 {
@@ -1500,18 +1588,28 @@ void FSCSEditorTreeNodeRootActor::AddChild(FSCSEditorTreeNodePtrType InChildNode
 {
 	if (InChildNodePtr.IsValid() && InChildNodePtr->IsComponentNode())
 	{
+		TSharedPtr<FSCSEditorTreeNodeSeparator> NewSeparatorNodePtr;
 		const bool bIsSceneComponentNode = InChildNodePtr->IsSceneComponent();
 
 		// Make sure separators are shown
 		if (bIsSceneComponentNode && !SceneComponentSeparatorNodePtr.IsValid())
 		{
-			SceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			FSCSEditorTreeNodeActorBase::AddChild(SceneComponentSeparatorNodePtr);
+			NewSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+
+			SceneComponentSeparatorNodePtr = NewSeparatorNodePtr;
 		}
 		else if (!bIsSceneComponentNode && !NonSceneComponentSeparatorNodePtr.IsValid())
 		{
-			NonSceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			FSCSEditorTreeNodeActorBase::AddChild(NonSceneComponentSeparatorNodePtr);
+			NewSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+			NewSeparatorNodePtr->AddFilteredComponentType(USceneComponent::StaticClass());
+
+			NonSceneComponentSeparatorNodePtr = NewSeparatorNodePtr;
+		}
+
+		if (NewSeparatorNodePtr.IsValid())
+		{
+			FSCSEditorTreeNodeActorBase::AddChild(NewSeparatorNodePtr);
+			NewSeparatorNodePtr->RefreshFilteredState(CachedFilterType, CachedFilterTerms, false);
 		}
 	}
 
@@ -1546,6 +1644,14 @@ void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildN
 	FSCSEditorTreeNodeActorBase::RemoveChild(InChildNodePtr);
 }
 
+void FSCSEditorTreeNodeRootActor::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+{
+	CachedFilterType = InFilterType;
+	CachedFilterTerms = InFilterTerms;
+
+	FSCSEditorTreeNodeActorBase::RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeChildActor
 
@@ -1560,6 +1666,7 @@ bool FSCSEditorTreeNodeChildActor::IsFlaggedForFiltration() const
 		}
 	}
 
+	FSCSEditorTreeNodePtrType OwnerNode = GetOwnerNode();
 	if (OwnerNode.IsValid())
 	{
 		// Mirror the owning node's filtered state
@@ -1569,25 +1676,42 @@ bool FSCSEditorTreeNodeChildActor::IsFlaggedForFiltration() const
 	return false;
 }
 
-bool FSCSEditorTreeNodeChildActor::ShouldShowInTreeView() const
-{
-	if (UChildActorComponent* ChildActorComponent = GetChildActorComponent())
-	{
-		const bool bHasValidActorContext = GetObject<AActor>() != nullptr;
-		return bHasValidActorContext && FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(ChildActorComponent);
-	}
-
-	return false;
-}
-
 UChildActorComponent* FSCSEditorTreeNodeChildActor::GetChildActorComponent() const
 {
+	FSCSEditorTreeNodePtrType OwnerNode = GetOwnerNode();
 	if (OwnerNode.IsValid())
 	{
 		return Cast<UChildActorComponent>(OwnerNode->GetComponentTemplate());
 	}
 
 	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FSCSEditorTreeNodeSeparator
+
+bool FSCSEditorTreeNodeSeparator::MatchesFilterType(const UClass* InFilterType) const
+{
+	check(InFilterType);
+
+	for (const UClass* FilteredType : FilteredTypes)
+	{
+		// If types match here, it means we should filter out the separator, so return false.
+		if (InFilterType->IsChildOf(FilteredType))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FSCSEditorTreeNodeSeparator::AddFilteredComponentType(const TSubclassOf<UActorComponent>& InFilterType)
+{
+	if (const UClass* FilterType = InFilterType.Get())
+	{
+		FilteredTypes.Add(FilterType);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3777,7 +3901,8 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 
 	const bool  bInlineSearchBarWithButtons = (EditorMode == EComponentEditorMode::BlueprintSCS);
 
-	bool bHideComponentClassCombo = InArgs._HideComponentClassCombo.Get();
+	HideComponentClassCombo = InArgs._HideComponentClassCombo;
+	ComponentTypeFilter = InArgs._ComponentTypeFilter;
 
 	ButtonBox = SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
@@ -3785,7 +3910,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	[
 		SNew(SComponentClassCombo)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
-		.Visibility(bHideComponentClassCombo ? EVisibility::Hidden : EVisibility::Visible)
+		.Visibility(HideComponentClassCombo.Get() ? EVisibility::Hidden : EVisibility::Visible)
 		.OnComponentClassSelected(this, &SSCSEditor::PerformComboAddClass)
 		.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
 		.IsEnabled(AllowEditing)
@@ -4111,14 +4236,20 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 						}
 					}
 
+					// Common menu options added for all component types
 					FComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedComponents);
 
-					// For a single selected child actor component, we may choose to include additional context menu options
-					if (SelectedComponents.Num() == 1)
+					// For a selection outside of a child actor subtree, we may choose to include additional options
+					if (SelectedComponents.Num() == 1 && !bIsChildActorSubtreeNodeSelected)
 					{
+						// Extra options for a child actor component
 						if (UChildActorComponent* SelectedChildActorComponent = Cast<UChildActorComponent>(SelectedComponents[0]))
 						{
-							FChildActorComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedChildActorComponent);
+							// These options will get added only in SCS mode
+							if (EditorMode == EComponentEditorMode::BlueprintSCS)
+							{
+								FChildActorComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedChildActorComponent);
+							}
 						}
 					}
 				}
@@ -4400,7 +4531,7 @@ void SSCSEditor::OnGetChildrenForTree( FSCSEditorTreeNodePtrType InNodePtr, TArr
 		const TArray<FSCSEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
 		OutChildren.Reserve(Children.Num());
 
-		if (!GetFilterText().IsEmpty())
+		if (ComponentTypeFilter.IsSet() || !GetFilterText().IsEmpty())
 		{
 			for (FSCSEditorTreeNodePtrType Child : Children)
 			{
@@ -6300,15 +6431,52 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromChildActor(FSCSEditorTreeNo
 		return nullptr;
 	}
 
-	FSCSEditorChildActorNodePtrType ChildActorNodePtr = InNodePtr->GetChildActorNode();
-	if (ChildActorNodePtr.IsValid() && ChildActorNodePtr->ShouldShowInTreeView() && ChildActorNodePtr->GetParent() != InNodePtr)
+	// Skip any expansion logic if the option is disabled
+	if (!FChildActorComponentEditorUtils::IsChildActorTreeViewExpansionEnabled())
 	{
-		InNodePtr->AddChild(ChildActorNodePtr);
-		RefreshFilteredState(ChildActorNodePtr, false);
-		BuildSubTreeForActorNode(ChildActorNodePtr);
+		return nullptr;
+	}
 
-		// Expand the given parent to reveal the child actor node
-		SCSTreeWidget->SetItemExpansion(InNodePtr, true);
+	FSCSEditorChildActorNodePtrType ChildActorNodePtr = InNodePtr->GetChildActorNode();
+	if (ChildActorNodePtr.IsValid())
+	{
+		// Get the child actor component that's associated with the child actor node
+		UChildActorComponent* ChildActorComponent = ChildActorNodePtr->GetChildActorComponent();
+		check(ChildActorComponent != nullptr);
+
+		// Check to see if we should expand the child actor node within the tree view
+		const bool bExpandChildActorInTreeView = FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(ChildActorComponent);
+		if (bExpandChildActorInTreeView)
+		{
+			// Do the expansion as a normal actor subtree
+			BuildSubTreeForActorNode(ChildActorNodePtr);
+
+			// Check to see if we should include the child actor node within the tree view
+			const bool bShowChildActorNodeInTreeView = FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(ChildActorComponent);
+			if (bShowChildActorNodeInTreeView)
+			{
+				// Add the child actor node into the tree view
+				InNodePtr->AddChild(ChildActorNodePtr);
+				RefreshFilteredState(ChildActorNodePtr, false);
+			}
+			else
+			{
+				// Add the child actor's subtree into the tree view
+				TArray<FSCSEditorTreeNodePtrType> Children = ChildActorNodePtr->GetChildren();
+				for (const FSCSEditorTreeNodePtrType& ChildNode : Children)
+				{
+					// Remove the child actor node as the visible root in the tree view, and replace it with the given node
+					ChildActorNodePtr->RemoveChild(ChildNode);
+					InNodePtr->AddChild(ChildNode);
+
+					// Restore the subtree's actor root to indicate that it's still a child actor expansion in the tree view
+					ChildNode->SetActorRootNode(ChildActorNodePtr);
+				}
+			}
+
+			// Expand the given parent to reveal the child actor node and/or its subtree
+			SCSTreeWidget->SetItemExpansion(InNodePtr, true);
+		}
 	}
 
 	return ChildActorNodePtr;
@@ -6555,6 +6723,11 @@ EVisibility SSCSEditor::GetEditBlueprintButtonVisibility() const
 	}
 
 	return ButtonVisibility;
+}
+
+EVisibility SSCSEditor::GetComponentClassComboButtonVisibility() const
+{
+	return HideComponentClassCombo.Get() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 FText SSCSEditor::OnGetApplyChangesToBlueprintTooltip() const
@@ -6963,41 +7136,13 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 
 bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool bRecursive)
 {
+	const UClass* FilterType = ComponentTypeFilter.Get();
+
 	FString FilterText = FText::TrimPrecedingAndTrailing( GetFilterText() ).ToString();
 	TArray<FString> FilterTerms;
 	FilterText.ParseIntoArray(FilterTerms, TEXT(" "), /*CullEmpty =*/true);
 
-	struct RefreshFilteredState_Inner
-	{
-		static void RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNodeIn, const TArray<FString>& FilterTermsIn, bool bRecursiveIn)
-		{
-			if (bRecursiveIn)
-			{
-				for (FSCSEditorTreeNodePtrType Child : TreeNodeIn->GetChildren())
-				{
-					RefreshFilteredState(Child, FilterTermsIn, bRecursiveIn);
-				}
-			}
-			
-			FString DisplayStr = TreeNodeIn->GetDisplayString();
-
-			bool bIsFilteredOut = false;
-			for (const FString& FilterTerm : FilterTermsIn)
-			{
-				if (!DisplayStr.Contains(FilterTerm))
-				{
-					bIsFilteredOut = true;
-				}
-			}
-
-			// if we're not recursing, then assume this is for a new node and we need to update the parent
-			// otherwise, assume the parent was hit as part of the recursion
-			bool bUpdateParent = !bRecursiveIn;
-			TreeNodeIn->UpdateCachedFilterState(!bIsFilteredOut, bUpdateParent);
-		}
-	};
-
-	RefreshFilteredState_Inner::RefreshFilteredState(TreeNode, FilterTerms, bRecursive);
+	TreeNode->RefreshFilteredState(FilterType, FilterTerms, bRecursive);
 	return TreeNode->IsFlaggedForFiltration();
 }
 

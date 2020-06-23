@@ -127,11 +127,12 @@ private:
 	//uint32 TraceId;
 	//FText Name;
 
-	//FText Platform;
-	//FText AppName;
-	//FText CommandLine;
-	//EBuildConfiguration ConfigurationType;
-	//EBuildTargetType TargetType;
+	FText PlatformText;
+	FText AppNameText;
+	FText CommandLineText;
+	FText BuildConfigurationTypeText;
+	FText BuildTargetTypeText;
+	bool bIsSessionInfoSet = false;
 
 	//FText Uri;
 	//FDateTime Timestamp;

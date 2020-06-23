@@ -265,6 +265,7 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 		case VMI_MaterialTextureScaleAccuracy:
 		case VMI_RequiredTextureResolution:
 		case VMI_LODColoration:
+		case VMI_HLODColoration:
 			bPostProcessing = false;
 			break;
 		case VMI_StationaryLightOverlap:
@@ -285,9 +286,6 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 		case VMI_CollisionPawn:
 		case VMI_CollisionVisibility:
 			bPostProcessing = false;
-			break;
-		case VMI_HLODColoration:
-			bPostProcessing = true;
 			break;
 		case VMI_RayTracingDebug:
 			bPostProcessing = true;
@@ -439,6 +437,7 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			ViewModeIndex == VMI_MaterialTextureScaleAccuracy ||
 			ViewModeIndex == VMI_RequiredTextureResolution ||
 			ViewModeIndex == VMI_LODColoration ||
+			ViewModeIndex == VMI_HLODColoration ||
 			ViewModeIndex == VMI_LightmapDensity)
 		{
 			EngineShowFlags.SetLighting(false);
@@ -467,14 +466,6 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.Atmosphere = 0;
 		}
 
-		if (ViewModeIndex == VMI_HLODColoration)
-		{
-			EngineShowFlags.SetLighting(true);	// Best currently otherwise the image becomes hard to read.
-			EngineShowFlags.Fog = 0;			// Removed fog to improve color readability.
-			EngineShowFlags.Atmosphere = 0;
-			EngineShowFlags.Translucency = 0;	// Translucent are off because there are no color override shader currently for translucency.
-		}
-
 		if (ViewModeIndex == VMI_PrimitiveDistanceAccuracy ||
 			ViewModeIndex == VMI_MeshUVDensityAccuracy ||
 			ViewModeIndex == VMI_MaterialTextureScaleAccuracy || 
@@ -484,7 +475,8 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.Particles = 0; // FX are fully streamed.
 			EngineShowFlags.Fog = 0;
 		}
-		if (ViewModeIndex == VMI_LODColoration)
+
+		if (ViewModeIndex == VMI_LODColoration || ViewModeIndex == VMI_HLODColoration)
 		{
 			EngineShowFlags.Decals = 0; // Decals require the use of FDebugPSInLean.
 		}

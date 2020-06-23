@@ -910,7 +910,7 @@ protected:
 	 *
 	 * @return	EAccessSpecifier this is, or zero if it is none
 	 */
-	EAccessSpecifier ParseAccessProtectionSpecifier(FToken& Token);
+	EAccessSpecifier ParseAccessProtectionSpecifier(const FToken& Token);
 
 	const TCHAR* NestTypeName( ENestType NestType );
 
@@ -980,7 +980,7 @@ protected:
 	 */
 	EFindName GetFindFlagForPropertyName(const TCHAR* PropertyName);
 
-	static void ValidatePropertyIsDeprecatedIfNecessary(FPropertyBase& VarProperty, const FToken* OuterPropertyType);
+	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const FToken* OuterPropertyType);
 
 private:
 	// Source file currently parsed by UHT.
@@ -1035,10 +1035,10 @@ private:
 	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
 
 	// Validates the documentation for a given struct
-	void CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData);
+	void CheckDocumentationPolicyForStruct(UStruct* Struct);
 
 	// Validates the documentation for a given method
-	void CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func, const TMap<FName, FString>& MetaData);
+	void CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func);
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);

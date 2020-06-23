@@ -62,13 +62,14 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/LevelStreaming.h"
+#include "GameFramework/WorldSettings.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
 #include "Misc/BlacklistNames.h"
 #include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
-
+#include "HierarchicalLOD.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -4126,6 +4127,24 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 						}
 
 						OutDirtyPackages.Add(BuiltDataPackage);
+					}
+				}
+			}
+
+			// Make sure we also save the dirty HLOD packages associated with this map.
+			if (WorldIt->HierarchicalLODBuilder)
+			{
+				const AWorldSettings* WorldSettings = WorldIt->GetWorldSettings();
+				if (WorldSettings && WorldSettings->bEnableHierarchicalLODSystem)
+				{
+					TSet<UPackage*> HLODPackages;
+					WorldIt->HierarchicalLODBuilder->GetMeshesPackagesToSave(WorldIt->PersistentLevel, HLODPackages);
+					for (UPackage* HLODPackage : HLODPackages)
+					{
+						if (HLODPackage->IsDirty())
+						{
+							OutDirtyPackages.Add(HLODPackage);
+						}
 					}
 				}
 			}

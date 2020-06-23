@@ -5,9 +5,12 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "SimpleDynamicMeshComponent.h"
+#include "Async/Async.h"
 
 #include "MeshNormals.h"
+#include "MeshBoundaryLoops.h"
 #include "MeshTransforms.h"
+#include "WeightMapUtil.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
@@ -117,6 +120,28 @@ void UBaseMeshProcessingTool::Setup()
 		bIsScaleNormalizationApplied = false;
 	}
 
+	// pending startup computations
+	TArray<TFuture<void>> PendingComputes;
+
+	// calculate base mesh vertex normals if necessary normals
+	if (RequiresInitialVtxNormals())
+	{
+		TFuture<void> NormalsCompute = Async(EAsyncExecution::ThreadPool, [&]() {
+			InitialVtxNormals = MakeShared<FMeshNormals>(&InitialMesh);
+			InitialVtxNormals->ComputeVertexNormals();
+		});
+		PendingComputes.Add(MoveTemp(NormalsCompute));
+	}
+
+	// calculate base mesh boundary loops if necessary
+	if (RequiresInitialBoundaryLoops())
+	{
+		TFuture<void> LoopsCompute = Async(EAsyncExecution::ThreadPool, [&]() {
+			InitialBoundaryLoops = MakeShared<FMeshBoundaryLoops>(&InitialMesh);
+		});
+		PendingComputes.Add(MoveTemp(LoopsCompute));
+	}
+
 	// Construct the preview object and set the material on it.
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this); // Adds the actual functional tool in the Preview object
@@ -131,19 +156,16 @@ void UBaseMeshProcessingTool::Setup()
 	Preview->PreviewMesh->SetTransform(OverrideTransform);
 	Preview->PreviewMesh->UpdatePreview(&InitialMesh);
 
-	// calculate base mesh vertex normals if necessary normals
-	if (RequiresBaseNormals())
-	{
-		BaseNormals = MakeShared<FMeshNormals>(&InitialMesh);
-		BaseNormals->ComputeVertexNormals();
-	}
-
 	// show the preview mesh
 	Preview->SetVisibility(true);
 
-
 	InitializeProperties();
 	UpdateOptionalPropertyVisibility();
+
+	for (TFuture<void>& Future : PendingComputes)
+	{
+		Future.Wait();
+	}
 
 	// start the compute
 	InvalidateResult();
@@ -174,6 +196,12 @@ void UBaseMeshProcessingTool::SavePropertySets()
 			PropStruct.PropertySet->SaveProperties(this);
 		}
 	}
+
+	if (WeightMapPropertySet.IsValid())
+	{
+		WeightMapPropertySet->SaveProperties(this);
+	}
+
 }
 
 
@@ -307,17 +335,79 @@ void UBaseMeshProcessingTool::UpdateOptionalPropertyVisibility()
 			SetToolPropertySourceEnabled(PropStruct.PropertySet.Get(), bVisible);
 		}
 	}
+
+	if (WeightMapPropertySet.IsValid())
+	{
+		bool bVisible = WeightMapPropertySetVisibleFunc();
+		SetToolPropertySourceEnabled(WeightMapPropertySet.Get(), bVisible);
+		
+	}
 }
 
 
 
 
-TSharedPtr<FMeshNormals>& UBaseMeshProcessingTool::GetBaseNormals()
+TSharedPtr<FMeshNormals>& UBaseMeshProcessingTool::GetInitialVtxNormals()
 {
-	checkf(BaseNormals.IsValid(), TEXT("Base Normals have not been computed - must return true from RequiresBaseNormals()") );
-	return BaseNormals;
+	checkf(InitialVtxNormals.IsValid(), TEXT("Initial Vertex Normals have not been computed - must return true from RequiresInitialVtxNormals()") );
+	return InitialVtxNormals;
 }
 
+TSharedPtr<FMeshBoundaryLoops>& UBaseMeshProcessingTool::GetInitialBoundaryLoops()
+{
+	checkf(InitialBoundaryLoops.IsValid(), TEXT("Initial Boundary Loops have not been computed - must return true from RequiresInitialBoundaryLoops()"));
+	return InitialBoundaryLoops;
+}
+
+
+
+void UBaseMeshProcessingTool::SetupWeightMapPropertySet(UWeightMapSetProperties* Properties)
+{
+	AddToolPropertySource(Properties);
+	Properties->RestoreProperties(this);
+	WeightMapPropertySet = Properties;
+
+	// initialize property list
+	Properties->InitializeFromMesh(ComponentTarget->GetMesh());
+
+	Properties->WatchProperty(Properties->WeightMap,
+		[&](FName) { OnSelectedWeightMapChanged(true); });
+	Properties->WatchProperty(Properties->bInvertWeightMap,
+		[&](bool) { OnSelectedWeightMapChanged(true); });
+
+	OnSelectedWeightMapChanged(false);
+}
+
+
+void UBaseMeshProcessingTool::OnSelectedWeightMapChanged(bool bInvalidate)
+{
+	TSharedPtr<FIndexedWeightMap1f> NewWeightMap = MakeShared<FIndexedWeightMap1f>();
+
+	// this will return all-ones weight map if None is selected
+	bool bFound = UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), WeightMapPropertySet->WeightMap, *NewWeightMap, 1.0f);
+	if (bFound && WeightMapPropertySet->bInvertWeightMap)
+	{
+		NewWeightMap->InvertWeightMap();
+	}
+	ActiveWeightMap = NewWeightMap;
+
+	if (bInvalidate)
+	{
+		InvalidateResult();
+	}
+}
+
+
+bool UBaseMeshProcessingTool::HasActiveWeightMap() const
+{
+	return WeightMapPropertySet.IsValid() && WeightMapPropertySet->HasSelectedWeightMap();
+}
+
+TSharedPtr<FIndexedWeightMap1f>& UBaseMeshProcessingTool::GetActiveWeightMap()
+{
+	checkf(ActiveWeightMap.IsValid(), TEXT("Weight Map has not been initialized - must call SetupWeightMapPropertySet() in property set"));
+	return ActiveWeightMap;
+}
 
 
 

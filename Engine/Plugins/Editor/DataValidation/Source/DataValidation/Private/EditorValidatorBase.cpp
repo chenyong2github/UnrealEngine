@@ -32,15 +32,10 @@ EDataValidationResult UEditorValidatorBase::ValidateLoadedAsset_Implementation(U
 void UEditorValidatorBase::AssetFails(UObject* InAsset, const FText& InMessage, TArray<FText>& ValidationErrors)
 {
 	FFormatNamedArguments Arguments;
-	if (InAsset)
-	{
-		FString PackageName = InAsset->GetOutermost()->GetName();
-		Arguments.Add(TEXT("AssetName"), FText::FromString(FPackageName::GetLongPackageAssetName(PackageName)));
-	}
 	Arguments.Add(TEXT("CustomMessage"), InMessage);
 	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));
 
-	FText FailureMessage = FText::Format(LOCTEXT("AssetCheck_Message_Error", "{AssetName} failed: {CustomMessage}. ({ValidatorName})"), Arguments);
+	FText FailureMessage = FText::Format(LOCTEXT("AssetCheck_Message_Error", "{CustomMessage}. ({ValidatorName})"), Arguments);
 
 	if(LogContentValidation.GetVerbosity() >= ELogVerbosity::Verbose)
 	{
@@ -55,15 +50,10 @@ void UEditorValidatorBase::AssetFails(UObject* InAsset, const FText& InMessage, 
 void UEditorValidatorBase::AssetWarning(UObject* InAsset, const FText& InMessage)
 {
 	FFormatNamedArguments Arguments;
-	if (InAsset)
-	{
-		FString PackageName = InAsset->GetOutermost()->GetName();
-		Arguments.Add(TEXT("AssetName"), FText::FromString(FPackageName::GetLongPackageAssetName(PackageName)));
-	}
 	Arguments.Add(TEXT("CustomMessage"), InMessage);
 	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));
 
-	FText WarningMessage = FText::Format(LOCTEXT("AssetCheck_Message_Warning", "{AssetName} warning: {CustomMessage}. ({ValidatorName})"), Arguments);
+	FText WarningMessage = FText::Format(LOCTEXT("AssetCheck_Message_Warning", "{CustomMessage}. ({ValidatorName})"), Arguments);
 	AllWarnings.Add(WarningMessage);
 }
 

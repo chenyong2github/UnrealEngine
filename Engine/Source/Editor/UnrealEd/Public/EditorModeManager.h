@@ -104,11 +104,11 @@ public:
 	 */
 	bool ShouldShowModeToolbox() const;
 protected:
-	
-	/** Deactivates the editor mode at the specified index */
-	void DeactivateModeAtIndex( int32 InIndex );
 	/** Deactivates the editor mode at the specified index */
 	void DeactivateScriptableModeAtIndex(int32 InIndex);
+
+	/** Removes the mode ID from the tools manager when a mode is unregistered */
+	void OnModeUnregistered(FEditorModeID ModeID);
 		
 private:
 	void RebuildModeToolBar();
@@ -119,12 +119,6 @@ public:
 	 * Deactivates all modes, note some modes can never be deactivated.
 	 */
 	void DeactivateAllModes();
-
-	/** 
-	 * Returns the editor mode specified by the passed in ID
-	 */
-	UE_DEPRECATED(4.24, "Use GetActiveMode instead.")
-	FEdMode* FindMode( FEditorModeID InID );
 
 	UEdMode* GetActiveScriptableMode(FEditorModeID InID) const;
 
@@ -171,12 +165,6 @@ public:
 	 * If the passed in editor mode is not active or the mode has no active tool, NULL is returned
 	 */
 	const FModeTool* GetActiveTool( FEditorModeID InID ) const;
-
-	/** 
-	 * Returns an array of all active modes
-	 */
-	UE_DEPRECATED(4.24, "All access to modes now needs to go through the mode manager")
-	void GetActiveModes( TArray<FEdMode*>& OutActiveModes );
 
 	void SetShowWidget( bool InShowWidget )	{ bShowWidget = InShowWidget; }
 	bool GetShowWidget() const;
@@ -336,74 +324,81 @@ public:
 
 	/**
 	 * Gets the current state of script editor usage of show friendly names
-	 * @ return - If true, replace variable names with sanatized ones
+	 * @deprecated Use GetDefault<UEditorStyleSettings>()->bShowFriendlyNames instead
+	 *
+	 * @ return - If true, replace variable names with sanitized ones
 	 */
-	bool GetShowFriendlyVariableNames() const;
+	UE_DEPRECATED(4.26, "Use GetDefault<UEditorStyleSettings>()->bShowFriendlyNames")
+	static bool GetShowFriendlyVariableNames();
 
 	/**
 	 * Gets the maximum number of bookmarks.
+	 * @deprecated Use IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks instead
 	 *
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmarks.
 	 */
-	const uint32 GetMaxNumberOfBookmarks(FEditorViewportClient* InViewportClient) const;
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks")
+	static const uint32 GetMaxNumberOfBookmarks(FEditorViewportClient* InViewportClient);
 
 	/**
 	 * Compacts the available bookmarks into mapped spaces.
 	 * Does nothing if all valid bookmarks are already mapped.
+	 * @deprecated Use IBookmarkTypeTools::Get().CompactBookmarks instead
 	 *
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmarks.
 	 */
-	void CompactBookmarks(FEditorViewportClient* InViewportClient) const;
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().CompactBookmarks")
+	static void CompactBookmarks(FEditorViewportClient* InViewportClient);
 
 	/**
 	 * Sets a bookmark in the levelinfo file, allocating it if necessary.
+	 * @deprecated Use IBookmarkTypeTools::Get().CreateOrSetBookmark instead
 	 * 
 	 * @param InIndex			Index of the bookmark to set.
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmark.
 	 */
-	void SetBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().CreateOrSetBookmark")
+	static void SetBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
 
 	/**
 	 * Checks to see if a bookmark exists at a given index
+	 * @deprecated Use IBookmarkTypeTools::Get().CheckBookmark instead
 	 * 
 	 * @param InIndex			Index of the bookmark to set.
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmark.
 	 */
-	bool CheckBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().CheckBookmark")
+	static bool CheckBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
 
 	/**
 	 * Activates a bookmark from the list.
-	 * 
-	 * @param InIndex			Index of the bookmark to set.
-	 * @param					Set to true to restore the visibility of any streaming levels.
-	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmark.
-	 */
-	UE_DEPRECATED(4.21, "Please use the version of JumpToBookmark that accepts a Shared Pointer to FBookmarkBaseJumpToSettings.")
-	void JumpToBookmark( uint32 InIndex, bool bShouldRestoreLevelVisibility, FEditorViewportClient* InViewportClient );
-
-	/**
-	 * Activates a bookmark from the list.
+	 * @deprecated Use IBookmarkTypeTools::Get().JumpToBookmark instead
 	 * 
 	 * @param InIndex			Index of the bookmark to set.
 	 * @param InSettings		Settings to used when jumpting to the bookmark.
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmark.
 	 */
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().JumpToBookmark")
 	void JumpToBookmark( uint32 InIndex, TSharedPtr<struct FBookmarkBaseJumpToSettings> InSettings, FEditorViewportClient* InViewportClient );
 
 	/**
 	 * Clears a bookmark from the list.
+	 * @deprecated Use IBookmarkTypeTools::Get().ClearBookmark instead
 	 * 
 	 * @param InIndex			Index of the bookmark to clear.
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmark.
 	 */
-	void ClearBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().ClearBookmark")
+	static void ClearBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient );
 
 	/**
 	 * Clears all book marks
+	 * @deprecated Use IBookmarkTypeTools::Get().ClearAllBookmarks instead
 	 * 
 	 * @param InViewportClient	Level editor viewport client used to reference the world which owns the bookmarks.
 	 */
-	void ClearAllBookmarks( FEditorViewportClient* InViewportClient );
+	UE_DEPRECATED(4.26, "Use IBookmarkTypeTools::Get().ClearAllBookmarks")
+	static void ClearAllBookmarks( FEditorViewportClient* InViewportClient );
 
 	// FGCObject interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -433,12 +428,6 @@ public:
 	 * First parameter:  The editor mode that was changed
 	 * Second parameter:  True if entering the mode, or false if exiting the mode
 	 */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DECLARE_EVENT_TwoParams( FEditorModeTools, FEditorModeChangedEvent, FEdMode*, bool );
-UE_DEPRECATED(4.24, "Use OnEditorModeIDChanged() instead.")
-	FEditorModeChangedEvent& OnEditorModeChanged() { return EditorModeChangedEvent; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	DECLARE_EVENT_TwoParams(FEditorModeTools, FEditorModeIDChangedEvent, const FEditorModeID&, bool);
 	FEditorModeIDChangedEvent& OnEditorModeIDChanged() { return EditorModeIDChangedEvent; }
 
@@ -448,10 +437,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**	Broadcasts the WidgetModeChanged event */
 	void BroadcastWidgetModeChanged(FWidget::EWidgetMode InWidgetMode) { WidgetModeChangedEvent.Broadcast(InWidgetMode); }
-
-	/**	Broadcasts the EditorModeChanged event */
-	UE_DEPRECATED(4.24, "Use BroadcastEditorModeIDChanged() instead.")
-	void BroadcastEditorModeChanged(FEdMode* Mode, bool IsEnteringMode) { EditorModeChangedEvent.Broadcast(Mode, IsEnteringMode); }
 
 	/**	Broadcasts the EditorModeIDChanged event */
 	void BroadcastEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEnteringMode) { EditorModeIDChangedEvent.Broadcast(ModeID, IsEnteringMode); }
@@ -530,6 +515,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual UWorld* GetWorld() const;
 
 	/**
+	 * Returns the currently hovered viewport client
+	 */
+	FEditorViewportClient* GetHoveredViewportClient() const;
+
+	/**
+	 * Returns the currently focused viewport client
+	 */
+	FEditorViewportClient* GetFocusedViewportClient() const;
+
+	/**
 	 * Whether or not the current selection has a scene component selected
  	 */
 	bool SelectionHasSceneComponent() const;
@@ -578,16 +573,10 @@ protected:
 	TArray<FEditorModeID> DefaultModeIDs;
 
 	/** A list of active editor modes. */
-	TArray< TSharedPtr<FEdMode> > ActiveModes;
-
-	/** A list of active editor modes. */
 	TArray< UEdMode* > ActiveScriptableModes;
 
 	/** The host of the toolkits created by these modes */
 	TWeakPtr<IToolkitHost> ToolkitHost;
-
-	/** A list of previously active editor modes that we will potentially recycle */
-	TMap< FEditorModeID, TSharedPtr<FEdMode> > RecycledModes;
 
 	/** A list of previously active editor modes that we will potentially recycle */
 	TMap< FEditorModeID, UEdMode* > RecycledScriptableModes;
@@ -628,9 +617,6 @@ private:
 	ECoordSystem CoordSystem;
 
 	/** Multicast delegate that is broadcast when a mode is entered or exited */
-	FEditorModeChangedEvent EditorModeChangedEvent;
-
-	/** Multicast delegate that is broadcast when a mode is entered or exited */
 	FEditorModeIDChangedEvent EditorModeIDChangedEvent;
 
 	/** Multicast delegate that is broadcast when a widget mode is changed */
@@ -650,4 +636,7 @@ private:
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
+
+	FEditorViewportClient* HoveredViewportClient = nullptr;
+	FEditorViewportClient* FocusedViewportClient = nullptr;
 };

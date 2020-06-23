@@ -214,212 +214,6 @@ private:
 /*-----------------------------------------------------------------------------
 	FTexture2DMipMap
 -----------------------------------------------------------------------------*/
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData()
-{
-	Reset();
-}
-
-void FTexture2DMipMap::FCompactByteBulkData::Reset()
-{
-	OffsetInFile = 0xffffffff;
-	BulkDataSize = 0;
-	BulkDataFlags = 0;
-	TexelData = nullptr;
-}
-
-FTexture2DMipMap::FCompactByteBulkData::~FCompactByteBulkData()
-{
-	FMemory::Free(TexelData);
-	Reset();
-}
-
-FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData(const FCompactByteBulkData& Other)
-{
-	*this = Other;
-}
-
-FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData(FCompactByteBulkData&& Other)
-{
-	*this = MoveTemp(Other);
-}
-
-typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteBulkData::operator=(const FCompactByteBulkData& Other)
-{
-	if (TexelData != Other.TexelData)
-	{
-		OffsetInFile = Other.OffsetInFile;
-		BulkDataFlags = Other.BulkDataFlags;
-		Realloc(Other.BulkDataSize);
-		FMemory::Memcpy(TexelData, Other.TexelData, BulkDataSize);
-	}
-	return *this;
-}
-
-typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteBulkData::operator=(FCompactByteBulkData&& Other)
-{
-	if (TexelData != Other.TexelData)
-	{
-		FMemory::Free(TexelData);
-		OffsetInFile = Other.OffsetInFile;
-		BulkDataSize = Other.BulkDataSize;
-		BulkDataFlags = Other.BulkDataFlags;
-		TexelData = Other.TexelData;
-		Other.Reset();
-	}
-	return *this;
-}
-
-void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx, bool /*bAttemptFileMapping*/)
-{
-	check(Ar.IsLoading());
-	FMemory::Free(TexelData);
-	TexelData = nullptr;
-
-	FByteBulkData TmpBulkData;
-	TmpBulkData.Serialize(Ar, Owner, MipIdx, false);
-
-	const int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
-	check(Tmp >= 0 && Tmp <= 0xffffffffll);
-	OffsetInFile = static_cast<uint32>(Tmp);
-	BulkDataSize = static_cast<uint32>(TmpBulkData.GetBulkDataSize());
-	BulkDataFlags = TmpBulkData.GetBulkDataFlags();
-
-	if (IsInlined())
-	{
-		TmpBulkData.GetCopy((void**)&TexelData, true);
-	}
-
-	if (!MipIdx && !IsInlined())
-	{
-		UTexture2D* OwningTexture2D = Cast<UTexture2D>(Owner);
-		if (OwningTexture2D)
-		{
-			FTexturePlatformData** PlatformDataPtr = OwningTexture2D->GetRunningPlatformData();
-			check(PlatformDataPtr && *PlatformDataPtr);
-			FTexturePlatformData* PlatformData = *PlatformDataPtr;
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-			PlatformData->CachedPackageFileName = TmpBulkData.GetFilename();
-#endif
-		}
-	}
-}
-
-const void* FTexture2DMipMap::FCompactByteBulkData::LockReadOnly() const
-{
-	return const_cast<FCompactByteBulkData*>(this)->Lock(LOCK_READ_ONLY);
-}
-
-void* FTexture2DMipMap::FCompactByteBulkData::Lock(uint32 LockFlags)
-{
-	ensureMsgf(LockFlags != LOCK_READ_ONLY || TexelData,
-		TEXT("Locking bulk data for read only but no data is available. ")
-		TEXT("A possible cause is that GetCopy has been called with bDiscardInternal copy set. ")
-		TEXT("Note that UTexture's loaded via normal asset loading (e.g. FLinkerLoad) is GPU only ")
-		TEXT("and their CPU copies of texel data are discarded after resource creation. If you ")
-		TEXT("want to manipulate their data, you need to use render commands. For example, to ")
-		TEXT("copy a texture into another, use FRHICommandList::CopyTexture"));
-	return TexelData;
-}
-
-void FTexture2DMipMap::FCompactByteBulkData::Unlock() const
-{
-	if (!!(BulkDataFlags & BULKDATA_SingleUse))
-	{
-		FMemory::Free(TexelData);
-		const_cast<FCompactByteBulkData*>(this)->TexelData = nullptr;
-	}
-}
-
-void* FTexture2DMipMap::FCompactByteBulkData::Realloc(int32 NumBytes)
-{
-	FMemory::Free(TexelData);
-	if (NumBytes > 0)
-	{
-		TexelData = (uint8*)FMemory::Malloc(NumBytes);
-		BulkDataSize = NumBytes;
-	}
-	else
-	{
-		TexelData = nullptr;
-		BulkDataSize = 0;
-	}
-	return TexelData;
-}
-
-void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardInternalCopy)
-{
-	if (!IsInlined())
-	{
-		UE_LOG(LogTexture, Fatal, TEXT("FCompactByteBulkData doesn't support GetCopy if data isn't inlined"));
-	}
-
-	if (!BulkDataSize)
-	{
-		check(!TexelData);
-		return;
-	}
-
-	if (!*Dest)
-	{
-		if (bDiscardInternalCopy)
-		{
-			*Dest = TexelData;
-			TexelData = nullptr;
-			return;
-		}
-		*Dest = FMemory::Malloc(BulkDataSize);
-	}
-
-	FMemory::Memcpy(*Dest, TexelData, BulkDataSize);
-	if (bDiscardInternalCopy)
-	{
-		FMemory::Free(TexelData);
-		TexelData = nullptr;
-	}
-}
-
-IBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(FString Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
-{
-	check(Filename.IsEmpty() == false);
-
-	// Fix up the Filename/Offset to work with streaming if we are loading from a .uexp file
-	if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")))
-	{
-		OffsetInBulkData -= IFileManager::Get().FileSize(*Filename);
-
-		Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
-		UE_LOG(LogTexture, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *Filename);
-	}
-
-	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
-	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
-
-	IAsyncReadFileHandle* IORequestHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Filename);
-	check(IORequestHandle); // this generally cannot fail because it is async
-
-	if (IORequestHandle == nullptr)
-	{
-		return nullptr;
-	}
-
-	const int64 FinalOffsetInFile = GetBulkDataOffsetInFile() + OffsetInBulkData;
-
-	FBulkDataIORequest* Request = new FBulkDataIORequest(IORequestHandle);
-	if (Request->MakeReadRequest(FinalOffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
-	{
-		return Request;
-	}
-	else
-	{
-		delete IORequestHandle;
-		delete Request;
-
-		return nullptr;
-	}
-}
-
-#endif // #if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 
 void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
@@ -701,7 +495,7 @@ void UTexture2D::Serialize(FArchive& Ar)
 		SerializeCookedPlatformData(Ar);
 	}
 
-#if WITH_EDITOR
+#if WITH_EDITOR	
 	if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
 	{
 		// The composite texture may not have been loaded yet. We have to defer caching platform
@@ -764,39 +558,27 @@ int32 UTexture2D::CalcNumOptionalMips() const
 	return 0;
 }
 
-bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
+FIoFilenameHash UTexture2D::GetMipIoFilenameHash(const int32 MipIndex) const
 {
 #if WITH_EDITOR
 	if (IsDefaultTexture())
 	{
-		return false;
+		return INVALID_IO_FILENAME_HASH;
 	}
 #endif
 
-	if (GetPlatformData())
+	if (GetPlatformData() && GetPlatformData()->Mips.IsValidIndex(MipIndex))
 	{
-		if (MipIndex < GetPlatformData()->Mips.Num() && MipIndex >= 0)
-		{
-#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-			OutBulkDataFilename = GetPlatformData()->Mips[MipIndex].BulkData.GetFilename();
-#else
-			OutBulkDataFilename = GetPlatformData()->CachedPackageFileName;
-
-			if (PlatformData->Mips[MipIndex].BulkData.IsInSeparateFile())
-			{	
-				const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
-				OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
-			}
-#endif
-			return true;
-		}
+		return GetPlatformData()->Mips[MipIndex].BulkData.GetIoFilenameHash();
 	}
-	return false;
+	else
+	{	
+		return INVALID_IO_FILENAME_HASH;
+	}
 }
 
 bool UTexture2D::DoesMipDataExist(const int32 MipIndex) const
 {
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA == 0
 	if (GetPlatformData())
 	{
 		if (MipIndex < GetPlatformData()->Mips.Num() && MipIndex >= 0)
@@ -804,10 +586,6 @@ bool UTexture2D::DoesMipDataExist(const int32 MipIndex) const
 			return GetPlatformData()->Mips[MipIndex].BulkData.DoesExist();
 		}
 	}
-#else
-	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA should be disabled!"));
-#endif
-
 	return false;
 }
 
@@ -1033,8 +811,8 @@ void UTexture2D::PostLoad()
 		}
 		else
 		{
-			FinishCachePlatformData();
-		}
+		FinishCachePlatformData();
+	}
 	}
 #endif // #if WITH_EDITOR
 
@@ -1835,7 +1613,7 @@ void UTexture2D::RefreshSamplerStates()
 	ENQUEUE_RENDER_COMMAND(RefreshSamplerStatesCommand)(
 		[TextureResource](FRHICommandList& RHICmdList)
 		{
-			TextureResource->RefreshSamplerStates();
+		TextureResource->RefreshSamplerStates();
 		});
 }
 
@@ -1867,7 +1645,7 @@ bool UTexture2D::IsCurrentlyVirtualTextured() const
  * @param InFilename		Filename to read data from
  */
 FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCount )
-:	Owner(InOwner)
+:	Owner( InOwner )
 ,	ResourceMem( InOwner->ResourceMem )
 ,	bReadyForStreaming(false)
 ,	bUseVirtualUpdatePath(false)
@@ -2863,10 +2641,9 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner)
 	STAT(LODGroupStatName = TextureGroupStatFNames[InOwner->LODGroup]);
 
 	TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-	uint32 Slices = InOwner->GetNumSlices();
 
 	// Create empty data storage.
-	for (uint32 Slice = 0; Slice < Slices; ++Slice)
+	for (uint32 Slice = 0; Slice < NumSlices; ++Slice)
 	{
 		CachedInitialData.Add(FTextureArrayDataEntry());
 
@@ -2886,11 +2663,11 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner)
 		FTexture2DMipMap& Mip = Mips[MipIndex];
 		if (Mip.BulkData.GetBulkDataSize() > 0)
 		{
-			uint32 MipSize = Mip.BulkData.GetBulkDataSize() / Slices;
+			uint32 MipSize = Mip.BulkData.GetBulkDataSize() / NumSlices;
 
 			uint8* In = (uint8*)Mip.BulkData.Lock(LOCK_READ_ONLY);
 
-			for (uint32 Slice = 0; Slice < Slices; ++Slice)
+			for (uint32 Slice = 0; Slice < NumSlices; ++Slice)
 			{
 				FMipMapDataEntry& NewEntry = CachedInitialData[Slice].MipData[MipIndex];
 				NewEntry.SizeX = Mip.SizeX;

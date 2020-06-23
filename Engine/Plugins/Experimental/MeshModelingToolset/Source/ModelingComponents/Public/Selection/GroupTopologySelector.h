@@ -77,6 +77,16 @@ public:
 	void UpdateEnableFlags(bool bFaceHits, bool bEdgeHits, bool bCornerHits);
 
 	/**
+	 * Configure the selection mode.
+	 *
+	 * @param bPreferProjectedElement Prefer an edge projected to a point rather than the point, and a face projected to an edge
+	 *   rather than the edge.
+	 * @param bSelectDownRay If the first element is valid, select all elements behind it that are aligned with it.
+	 * @param bIgnoreOcclusion Do not check whether the closest element is occluded.
+	 */
+	void UpdateSelectionModeFlags(bool bPreferProjectedElement, bool bSelectDownRay, bool bIgnoreOcclusion);
+
+	/**
 	 * Find which element was selected for a given ray
 	 * @param Ray hit-test ray
 	 * @param ResultOut resulting selection. At most one of the Groups/Corners/Edges members will contain one element.
@@ -85,7 +95,6 @@ public:
 	 */
 	bool FindSelectedElement(const FRay3d& Ray, FGroupTopologySelection& ResultOut, 
 		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut);
-
 
 	/**
 	 * Render the given selection with the default settings of the FToolDataVisualizer.
@@ -110,8 +119,16 @@ protected:
 	bool bGeometryUpToDate = false;
 	FGeometrySet3 GeometrySet;
 
-
 	bool bEnableFaceHits = true;
 	bool bEnableEdgeHits = true;
 	bool bEnableCornerHits = true;
+
+	bool bPreferAlignedElement = false;
+	bool bSelectDownRay = false;
+	bool bIgnoreOcclusion = false;
+
+	bool DoCornerBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial, 
+		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const;
+	bool DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
+		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const;
 };

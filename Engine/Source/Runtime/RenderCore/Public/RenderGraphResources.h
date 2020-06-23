@@ -722,20 +722,14 @@ struct FPooledRDGBuffer
 		return ++RefCount;
 	}
 
-	RENDERCORE_API uint32 Release()
+	inline uint32 Release()
 	{
-		RefCount--;
-
-		if (RefCount == 0)
+		const uint32 LocalRefCount = --RefCount;
+		if (LocalRefCount == 0)
 		{
-			VertexBuffer.SafeRelease();
-			IndexBuffer.SafeRelease();
-			StructuredBuffer.SafeRelease();
-			UAVs.Empty();
-			SRVs.Empty();
+			delete this;
 		}
-
-		return RefCount;
+		return LocalRefCount;
 	}
 
 	inline uint32 GetRefCount()

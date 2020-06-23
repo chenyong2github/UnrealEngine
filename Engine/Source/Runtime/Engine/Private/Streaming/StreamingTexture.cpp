@@ -45,12 +45,6 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 
 void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings& Settings)
 {
-#if STORE_OPTIONAL_DATA_FILENAME
-	OptionalBulkDataFilename = TEXT("");
-#else
-	OptionalMipIndex = INDEX_NONE;
-#endif
-
 	if (RenderAsset)
 	{
 		LODGroup = RenderAsset->GetLODGroupForStreaming();
@@ -117,16 +111,18 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		}
 
 		const int32 OptionalMipCount = MipCount - NumNonOptionalMips;
-		const int32 FirstOptionalMipIndex = OptionalMipCount - 1; // just here so it's clear why this -1 is here
-
-#if STORE_OPTIONAL_DATA_FILENAME
-		if (!RenderAsset->GetMipDataFilename(FirstOptionalMipIndex, OptionalBulkDataFilename))
+		if (OptionalMipCount > 0)
 		{
-			OptionalBulkDataFilename.Empty();
-		}		
-#else
-		OptionalMipIndex = FirstOptionalMipIndex;
-#endif
+			OptionalMipsState = EOptionalMipsState::OMS_NotCached;
+			FirstOptionalMipIndex = OptionalMipCount - 1;
+			OptionalFileHash = RenderAsset->GetMipIoFilenameHash(FirstOptionalMipIndex);
+		}
+		else
+		{
+			OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
+			FirstOptionalMipIndex = INDEX_NONE;
+			OptionalFileHash = INVALID_IO_FILENAME_HASH;
+		}
 	}
 	else
 	{
@@ -138,6 +134,8 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		BoostFactor = 1.f;
 		NumNonOptionalMips = MipCount;
 		OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
+		FirstOptionalMipIndex = INDEX_NONE;
+		OptionalFileHash = INVALID_IO_FILENAME_HASH;
 
 		bIsCharacterTexture = false;
 		bIsTerrainTexture = false;
@@ -146,34 +144,23 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		{
 			CumulativeLODSizes[MipIndex] = 0;
 		}
+
 	}
 }
 
 void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
-#if STORE_OPTIONAL_DATA_FILENAME
-	// Here we do a lazy update where we check if the highres mip file exists only if it could be useful to do so.
-	// This requires texture to be at max resolution before the optional mips .
-	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && !OptionalBulkDataFilename.IsEmpty())
+	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
 	{
-		OptionalMipsState = IFileManager::Get().FileExists(*OptionalBulkDataFilename) ? EOptionalMipsState::OMS_HasOptionalMips : EOptionalMipsState::OMS_NoOptionalMips;
-	}
-#else
-	if (RenderAsset)
-	{
-		if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && OptionalMipIndex != INDEX_NONE)
+		if (RenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
 		{
-			if (RenderAsset->DoesMipDataExist(OptionalMipIndex))
-			{
-				OptionalMipsState = EOptionalMipsState::OMS_HasOptionalMips;
-			}
-			else
-			{
-				OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
-			}
-		}	
-	}
-#endif
+			OptionalMipsState = EOptionalMipsState::OMS_HasOptionalMips;
+		}
+		else
+		{
+			OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
+		}
+	}	
 }
 
 void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading)

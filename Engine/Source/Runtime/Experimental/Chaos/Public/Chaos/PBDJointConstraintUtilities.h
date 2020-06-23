@@ -202,11 +202,13 @@ namespace Chaos
 
 		static FReal GetLinearDriveStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const int32 AxisIndex);
 
 		static FReal GetLinearDriveDamping(
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const int32 AxisIndex);
 
 		static FReal GetAngularTwistDriveStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
@@ -249,10 +251,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings);
 
 		static bool GetDriveAccelerationMode(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		static FReal GetAngularPositionCorrection(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 

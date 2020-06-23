@@ -38,7 +38,7 @@ inline TInlineMemoryWriter<BufferSize>::TInlineMemoryWriter()
 template <int BufferSize>
 inline void TInlineMemoryWriter<BufferSize>::Serialize(void* Data, int64 Num)
 {
-	Buffer.Append((const uint8*)Data, Num);;
+	Buffer.Append((const uint8*)Data, Num);
 }
 
 
@@ -77,7 +77,7 @@ public:
 
 private:
 	TInlineMemoryWriter<Size>	MemoryWriter;
-	FCborWriter					CborWriter = &MemoryWriter;
+	FCborWriter					CborWriter = { &MemoryWriter, ECborEndianness::StandardCompliant };
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +102,7 @@ template <int Size>
 template <int N>
 inline void TPayloadBuilder<Size>::AddInteger(const char (&Name)[N], int64 Value)
 {
-	CborWriter.WriteValue(Name, N);
+	CborWriter.WriteValue(Name, N - 1);
 	CborWriter.WriteValue(Value);
 }
 
@@ -115,8 +115,8 @@ inline void TPayloadBuilder<Size>::AddString(
 	int Length)
 {
 	Length = (Length < 0) ? int32(strlen(Value)) : Length;
-	CborWriter.WriteValue(Name, N);
-	CborWriter.WriteValue(Value, Length + 1);
+	CborWriter.WriteValue(Name, N - 1);
+	CborWriter.WriteValue(Value, Length);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -178,7 +178,7 @@ template <typename Type, typename LambdaType>
 inline Type FResponse::GetValue(const char* Key, Type Default, LambdaType&& Lambda) const
 {
 	FMemoryReader MemoryReader(Buffer);
-	FCborReader CborReader(&MemoryReader);
+	FCborReader CborReader(&MemoryReader, ECborEndianness::StandardCompliant);
 	FCborContext Context;
 
 	if (!CborReader.ReadNext(Context) || Context.MajorType() != ECborCode::Map)
@@ -194,8 +194,10 @@ inline Type FResponse::GetValue(const char* Key, Type Default, LambdaType&& Lamb
 			return Default;
 		}
 
-		const char* String = Context.AsCString();
-		bool bIsTarget = (FCStringAnsi::Strcmp(Key, String) == 0);
+		uint32 Length = Context.AsLength();
+		uint32 Offset = uint32(MemoryReader.Tell());
+		auto* String = (const char*)(Buffer.GetData() + Offset - Length);
+		bool bIsTarget = (FCStringAnsi::Strncmp(Key, String, Length) == 0);
 
 		// Read value
 		if (!CborReader.ReadNext(Context))
@@ -227,7 +229,7 @@ inline int64 FResponse::GetInteger(const char* Key, int64 Default) const
 template <int N>
 inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Default)[N]) const
 {
-	FAnsiStringView DefaultView(Default, N);
+	FAnsiStringView DefaultView(Default, N - 1);
 	return GetValue(
 		Key,
 		DefaultView,
@@ -237,7 +239,7 @@ inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Defaul
 			{
 				int32 Length = Context.AsLength();
 				const char* Data = (const char*)(Buffer.GetData() + Offset - Length);
-				return FAnsiStringView(Data, Length - 1);
+				return FAnsiStringView(Data, Length);
 			}
 
 			return DefaultView;

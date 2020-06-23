@@ -329,7 +329,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	ProcessQueryGLInt();
 	FOpenGLBase::ProcessExtensions(ExtensionsString);
 
-	bSupportsMapBuffer = ExtensionsString.Contains(TEXT("GL_OES_mapbuffer"));
+	bSupportsMapBuffer = true;
 	bSupportsDepthTexture = ExtensionsString.Contains(TEXT("GL_OES_depth_texture"));
 	bSupportsOcclusionQueries = ExtensionsString.Contains(TEXT("GL_ARB_occlusion_query2")) || ExtensionsString.Contains(TEXT("GL_EXT_occlusion_query_boolean"));
 	bSupportsDisjointTimeQueries = ExtensionsString.Contains(TEXT("GL_EXT_disjoint_timer_query")) || ExtensionsString.Contains(TEXT("GL_NV_timer_query"));

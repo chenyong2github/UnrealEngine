@@ -70,8 +70,8 @@ namespace UnrealBuildTool
 							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)));
 						}
 
-						// load the DataDrivenPlatformInfo from the path
-						ConfigFile Config = new ConfigFile(FileRef);
+						// load the DataDrivenPlatformInfo from the path (with Add support in a file that doesn't use +'s in the arrays for C++ usage)
+						ConfigFile Config = new ConfigFile(FileRef, ConfigLineAction.Add);
 						ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
 
 

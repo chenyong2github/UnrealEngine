@@ -152,6 +152,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	UToolMenuEntryScript* ScriptObject;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
+	FName StyleNameOverride;
+
 	FToolMenuEntrySubMenuData SubMenuData;
 
 	FToolMenuEntryToolBarData ToolBarData;
@@ -161,15 +164,15 @@ public:
 	/** Optional delegate that returns a widget to use as this menu entry */
 	FNewToolMenuWidget MakeWidget;
 
+	TAttribute<FText> Label;
+	TAttribute<FText> ToolTip;
+	TAttribute<FSlateIcon> Icon;
+
 private:
 
 	friend class UToolMenus;
 	friend class UToolMenuEntryExtensions;
 	friend class FPopulateMenuBuilderWithToolMenuEntry;
-
-	TAttribute<FText> Label;
-	TAttribute<FText> ToolTip;
-	TAttribute<FSlateIcon> Icon;
 
 	FToolUIActionChoice Action;
 

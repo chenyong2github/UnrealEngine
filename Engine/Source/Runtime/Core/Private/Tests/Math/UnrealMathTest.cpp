@@ -1086,6 +1086,50 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V3 = VectorStep(V0);
 	LogTest(TEXT("VectorStep"), TestVectorsEqual(V2, V3));
 
+	// VectorTruncate
+	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
+	V2 = MakeVectorRegister(-1.0f, -1.0f, 0.0f, 0.0f);
+	V3 = VectorTruncate(V0);
+	LogTest(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
+	V2 = MakeVectorRegister(0.0f, 0.0f, 1.0f, 1.0f);
+	V3 = VectorTruncate(V0);
+	LogTest(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	// VectorFractional
+	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
+	V2 = MakeVectorRegister(-0.8f, 0.0f, -0.8f, 0.0f);
+	V3 = VectorFractional(V0);
+	LogTest(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
+	V2 = MakeVectorRegister(0.0f, 0.8f, 0.0f, 0.8f);
+	V3 = VectorFractional(V0);
+	LogTest(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	// VectorCeil
+	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
+	V2 = MakeVectorRegister(-1.0f, -1.0f, -0.0f, 0.0f);
+	V3 = VectorCeil(V0);
+	LogTest(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
+	V2 = MakeVectorRegister(0.0f, 1.0f, 1.0f, 2.0f);
+	V3 = VectorCeil(V0);
+	LogTest(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	// VectorFloor
+	V0 = MakeVectorRegister(-1.8f, -1.0f, -0.8f, 0.0f);
+	V2 = MakeVectorRegister(-2.0f, -1.0f, -1.0f, 0.0f);
+	V3 = VectorFloor(V0);
+	LogTest(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0f, 0.8f, 1.0f, 1.8f);
+	V2 = MakeVectorRegister(0.0f, 0.0f, 1.0f, 1.0f);
+	V3 = VectorFloor(V0);
+	LogTest(TEXT("VectorFloor"), TestVectorsEqual(V2, V3));
+
 	FMatrix	M0, M1, M2, M3;
 	FVector Eye, LookAt, Up;	
 	// Create Look at Matrix

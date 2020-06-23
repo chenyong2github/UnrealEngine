@@ -527,27 +527,73 @@ void FMaterialPreshaderData::WriteData(const void* Value, uint32 Size)
 	Data.Append((uint8*)Value, Size);
 }
 
-struct FPreshaderDataPtr
+void FMaterialPreshaderData::WriteName(const FHashedName& Name)
 {
-	FPreshaderDataPtr(const uint8* InPtr = nullptr) : Ptr(InPtr) {}
-	const uint8* RESTRICT Ptr;
-};
+	int32 Index = Names.Find(Name);
+	if (Index == INDEX_NONE)
+	{
+		Index = Names.Add(Name);
+	}
+	check(Index >= 0 && Index <= 0xffff);
+	Write((uint16)Index);
+}
 
 namespace
 {
+	struct FPreshaderDataContext
+	{
+		explicit FPreshaderDataContext(const FMaterialPreshaderData& InData)
+			: Ptr(InData.Data.GetData())
+			, EndPtr(Ptr + InData.Data.Num())
+			, Names(InData.Names.GetData())
+			, NumNames(InData.Names.Num())
+		{}
+
+		explicit FPreshaderDataContext(const FPreshaderDataContext& InContext, const FMaterialUniformPreshaderHeader& InHeader)
+			: Ptr(InContext.Ptr + InHeader.OpcodeOffset)
+			, EndPtr(Ptr + InHeader.OpcodeSize)
+			, Names(InContext.Names)
+			, NumNames(InContext.NumNames)
+		{}
+
+		const uint8* RESTRICT Ptr;
+		const uint8* RESTRICT EndPtr;
+		const FHashedName* RESTRICT Names;
+		int32 NumNames;
+	};
+
 	template<typename T>
-	inline T ReadPreshaderValue(FPreshaderDataPtr& RESTRICT Data)
+	inline T ReadPreshaderValue(FPreshaderDataContext& RESTRICT Data)
 	{
 		T Result;
 		FMemory::Memcpy(&Result, Data.Ptr, sizeof(T));
 		Data.Ptr += sizeof(T);
+		checkSlow(Data.Ptr <= Data.EndPtr);
 		return Result;
 	}
 
 	template<>
-	inline uint8 ReadPreshaderValue<uint8>(FPreshaderDataPtr& RESTRICT Data)
+	inline uint8 ReadPreshaderValue<uint8>(FPreshaderDataContext& RESTRICT Data)
 	{
+		checkSlow(Data.Ptr < Data.EndPtr);
 		return *Data.Ptr++;
+	}
+
+	template<>
+	FHashedName ReadPreshaderValue<FHashedName>(FPreshaderDataContext& RESTRICT Data)
+	{
+		const int32 Index = ReadPreshaderValue<uint16>(Data);
+		check(Index >= 0 && Index < Data.NumNames);
+		return Data.Names[Index];
+	}
+
+	template<>
+	FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(FPreshaderDataContext& RESTRICT Data)
+	{
+		const FHashedName Name = ReadPreshaderValue<FHashedName>(Data);
+		const int32 Index = ReadPreshaderValue<int32>(Data);
+		const TEnumAsByte<EMaterialParameterAssociation> Association = ReadPreshaderValue<TEnumAsByte<EMaterialParameterAssociation>>(Data);
+		return FHashedMaterialParameterInfo(Name, Association, Index);
 	}
 }
 
@@ -650,7 +696,7 @@ static inline void EvaluateTernaryOp(FPreshaderStack& Stack, const Operation& Op
 	Stack.Add(FLinearColor(Op(Value0.R, Value1.R, Value2.R), Op(Value0.G, Value1.G, Value2.G), Op(Value0.B, Value1.B, Value2.B), Op(Value0.A, Value1.A, Value2.A)));
 }
 
-static void EvaluateDot(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateDot(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 ValueType = ReadPreshaderValue<uint8>(Data);
 	const FLinearColor Value1 = Stack.Pop(false);
@@ -662,7 +708,7 @@ static void EvaluateDot(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data
 	Stack.Add(FLinearColor(Result, Result, Result, Result));
 }
 
-static void EvaluateCross(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateCross(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 ValueType = ReadPreshaderValue<uint8>(Data);
 	FLinearColor ValueB = Stack.Pop(false);
@@ -689,7 +735,7 @@ static void EvaluateCross(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Da
 	Stack.Add(FLinearColor(Cross.X, Cross.Y, Cross.Z, 0.0f));
 }
 
-static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 NumElements = ReadPreshaderValue<uint8>(Data);
 	const uint8 IndexR = ReadPreshaderValue<uint8>(Data);
@@ -722,7 +768,7 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataPtr& 
 	Stack.Add(Result);
 }
 
-static void EvaluateAppenedVector(FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateAppenedVector(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 NumComponentsA = ReadPreshaderValue<uint8>(Data);
 
@@ -737,7 +783,7 @@ static void EvaluateAppenedVector(FPreshaderStack& Stack, FPreshaderDataPtr& RES
 	Stack.Add(Result);
 }
 
-static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataPtr& RESTRICT Data)
+static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
 	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
@@ -747,7 +793,7 @@ static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context
 	return Texture;
 }
 
-static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
 	if (Texture)
@@ -759,7 +805,7 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshade
 	}
 }
 
-static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
 	if (Texture)
@@ -771,7 +817,7 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderS
 	}
 }
 
-static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPreshaderDataPtr& RESTRICT Data)
+static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
 	const FHashedName ParameterName = ReadPreshaderValue<FHashedName>(Data);
 	const FGuid ExternalTextureGuid = ReadPreshaderValue<FGuid>(Data);
@@ -779,7 +825,7 @@ static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPres
 	return GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName, TextureIndex);
 }
 
-static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FGuid GuidToLookup = GetExternalTextureGuid(Context, Data);
 	FLinearColor Result(1.f, 0.f, 0.f, 1.f);
@@ -790,7 +836,7 @@ static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRender
 	Stack.Add(Result);
 }
 
-static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FGuid GuidToLookup = GetExternalTextureGuid(Context, Data);
 	FLinearColor Result(0.f, 0.f, 0.f, 0.f);
@@ -801,7 +847,7 @@ static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext
 	Stack.Add(Result);
 }
 
-static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataPtr& RESTRICT Data)
+static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
@@ -852,11 +898,10 @@ FORCENOINLINE static float DivideComponent(float A, float B)
 	return A / GetSafeDivisor(B);
 }
 
-static void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, const uint8* BaseData, uint32 Size, FLinearColor& OutValue)
+static void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data, FLinearColor& OutValue)
 {
 	static const float LogToLog10 = 1.0f / FMath::Loge(10.f);
-	FPreshaderDataPtr Data(BaseData);
-	uint8 const* const DataEnd = BaseData + Size;
+	uint8 const* const DataEnd = Data.EndPtr;
 
 	Stack.Reset();
 	while (Data.Ptr < DataEnd)
@@ -934,7 +979,8 @@ void FMaterialUniformExpression::GetNumberValue(const struct FMaterialRenderCont
 	WriteNumberOpcodes(PreshaderData);
 
 	FPreshaderStack Stack;
-	EvaluatePreshader(nullptr, Context, Stack, PreshaderData.Data.GetData(), PreshaderData.Num(), OutValue);
+	FPreshaderDataContext PreshaderContext(PreshaderData);
+	EvaluatePreshader(nullptr, Context, Stack, PreshaderContext, OutValue);
 }
 
 const FMaterialVectorParameterInfo* FUniformExpressionSet::FindVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo) const
@@ -1025,7 +1071,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			FUintVector4* VTPackedPageTableUniform = (FUintVector4*)BufferCursor;
 			if (AllocatedVT)
 			{
-				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform, true);
+				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform);
 			}
 			else
 			{
@@ -1080,13 +1126,14 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 
 		// Dump vector expression into the buffer.
 		FPreshaderStack PreshaderStack;
-		const uint8* PreshaderData = UniformPreshaderData.Data.GetData();
+		FPreshaderDataContext PreshaderBaseContext(UniformPreshaderData);
 		for(int32 VectorIndex = 0;VectorIndex < UniformVectorPreshaders.Num();++VectorIndex)
 		{
 			FLinearColor VectorValue(0, 0, 0, 0);
 
 			const FMaterialUniformPreshaderHeader& Preshader = UniformVectorPreshaders[VectorIndex];
-			EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderData + Preshader.OpcodeOffset, Preshader.OpcodeSize, VectorValue);
+			FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader);
+			EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, VectorValue);
 	
 			FLinearColor* DestAddress = (FLinearColor*)BufferCursor;
 			*DestAddress = VectorValue;
@@ -1100,7 +1147,8 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			FLinearColor VectorValue(0,0,0,0);
 
 			const FMaterialUniformPreshaderHeader& Preshader = UniformScalarPreshaders[ScalarIndex];
-			EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderData + Preshader.OpcodeOffset, Preshader.OpcodeSize, VectorValue);
+			FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader);
+			EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, VectorValue);
 
 			float* DestAddress = (float*)BufferCursor;
 			*DestAddress = VectorValue.R;
@@ -1740,7 +1788,7 @@ bool FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::IsIdentic
 void FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
 	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(HashedParameterName).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(HashedParameterName).Write(ExternalTextureGuid).Write((int32)SourceTextureIndex);
 }
 
 bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
@@ -1757,7 +1805,7 @@ bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(cons
 void FMaterialUniformExpressionExternalTextureCoordinateOffset::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
 	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(HashedParameterName).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(HashedParameterName).Write(ExternalTextureGuid).Write((int32)SourceTextureIndex);
 }
 
 FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform()
@@ -1796,7 +1844,7 @@ bool FMaterialUniformExpressionRuntimeVirtualTextureUniform::IsIdentical(const F
 void FMaterialUniformExpressionRuntimeVirtualTextureUniform::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
 	const FHashedMaterialParameterInfo WriteParameterInfo = bParameter ? ParameterInfo : FHashedMaterialParameterInfo();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::RuntimeVirtualTextureUniform).Write(WriteParameterInfo).Write<int32>(TextureIndex).Write<int32>(VectorIndex);
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::RuntimeVirtualTextureUniform).Write(WriteParameterInfo).Write((int32)TextureIndex).Write((int32)VectorIndex);
 }
 
 /**

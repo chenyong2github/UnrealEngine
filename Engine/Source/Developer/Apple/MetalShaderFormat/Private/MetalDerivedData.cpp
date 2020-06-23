@@ -664,11 +664,27 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
         {
 			// Rewrite HLSL to eliminate unused global variables ahead of compilation
             ShaderConductor::Compiler::ResultDesc Results = ShaderConductor::Compiler::Rewrite(SourceDesc, Options);
-			RewriteBlob = Results.target;
 			
-			SourceData.clear();
-            SourceData.resize(RewriteBlob->Size());
-			FCStringAnsi::Strncpy(&SourceData[0], reinterpret_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
+			if (Results.hasError)
+			{
+				// Append compile error to output reports
+				if (ShaderConductor::Blob* ErrorBlob = Results.errorWarningMsg)
+				{
+					FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
+					const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
+					Output.Errors.Add(*ErrorString);
+
+					ShaderConductor::DestroyBlob(Results.errorWarningMsg);
+					Results.errorWarningMsg = nullptr;
+				}
+			}
+			else
+			{
+				RewriteBlob = Results.target;
+				SourceData.clear();
+				SourceData.resize(RewriteBlob->Size());
+				FCStringAnsi::Strncpy(&SourceData[0], reinterpret_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
+			}
         }
 		
 		// Replace special case texture "gl_LastFragData" by native subpass fetch operation
@@ -2502,12 +2518,13 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	{
 		TArray<FString> ErrorLines;
 		MetalErrors.ParseIntoArray(ErrorLines, TEXT("\n"), true);
-		bool const bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
+		const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
+		const bool bUseAbsolutePathsForErrors = bDirectCompile;
 		for (int32 LineIndex = 0; LineIndex < ErrorLines.Num(); ++LineIndex)
 		{
 			const FString& Line = ErrorLines[LineIndex];
 			Output.Errors.Add(FShaderCompilerError(*Line));
-			CrossCompiler::ParseHlslccError(Output.Errors, Line, false);
+			CrossCompiler::ParseHlslccError(Output.Errors, Line, bUseAbsolutePathsForErrors);
 			if (bDirectCompile)
 			{
 				UE_LOG(LogShaders, Error, TEXT("%s"), *Line);

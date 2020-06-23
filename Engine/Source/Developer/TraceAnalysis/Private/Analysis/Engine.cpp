@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine.h"
+#include "Algo/BinarySearch.h"
+#include "Algo/Sort.h"
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
 #include "StreamReader.h"
+#include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
@@ -14,6 +17,9 @@
 
 namespace Trace
 {
+
+////////////////////////////////////////////////////////////////////////////////
+void SerializeToCborImpl(TArray<uint8>&, const IAnalyzer::FEventData&, uint32);
 
 ////////////////////////////////////////////////////////////////////////////////
 class FFnv1aHash
@@ -45,9 +51,151 @@ struct FAuxData
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FAuxDataCollector
-	: public TArray<FAuxData>
+: public TArray<FAuxData>
 {
 };
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+FThreads::FThreads()
+{
+	Infos.Reserve(64);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FThreads::FInfo* FThreads::GetInfo()
+{
+	if (LastGetInfoId >= uint32(Infos.Num()))
+	{
+		return nullptr;
+	}
+
+	return Infos.GetData() + LastGetInfoId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FThreads::FInfo& FThreads::GetInfo(uint32 ThreadId)
+{
+	LastGetInfoId = ThreadId;
+
+	if (ThreadId >= uint32(Infos.Num()))
+	{
+		Infos.SetNum(ThreadId + 1);
+	}
+
+	FInfo& Info = Infos[ThreadId];
+	if (Info.ThreadId == ~0u)
+	{
+		Info.ThreadId = ThreadId;
+	}
+	return Info;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FThreads::SetGroupName(const ANSICHAR* InGroupName, uint32 Length)
+{
+	if (InGroupName == nullptr || *InGroupName == '\0')
+	{
+		GroupName.SetNum(0);
+		return;
+	}
+
+	GroupName.SetNumUninitialized(Length + 1);
+	GroupName[Length] = '\0';
+	FMemory::Memcpy(GroupName.GetData(), InGroupName, Length);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const TArray<uint8>* FThreads::GetGroupName() const
+{
+	return (GroupName.Num() > 0) ? &GroupName : nullptr;
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FThreadInfo::GetId() const
+{
+	const auto* Info = (const FThreads::FInfo*)this;
+	return Info->ThreadId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FThreadInfo::GetSystemId() const
+{
+	const auto* Info = (const FThreads::FInfo*)this;
+	return Info->SystemId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 IAnalyzer::FThreadInfo::GetSortHint() const
+{
+	const auto* Info = (const FThreads::FInfo*)this;
+	return Info->SortHint;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FThreadInfo::GetName() const
+{
+	const auto* Info = (const FThreads::FInfo*)this;
+	if (Info->Name.Num() <= 0)
+	{
+		return "UnnamedThread";
+	}
+
+	return (const ANSICHAR*)(Info->Name.GetData());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FThreadInfo::GetGroupName() const
+{
+	const auto* Info = (const FThreads::FInfo*)this;
+	if (Info->GroupName.Num() <= 0)
+	{
+		return "";
+	}
+
+	return (const ANSICHAR*)(Info->GroupName.GetData());
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint64 IAnalyzer::FEventTime::GetTimestamp() const
+{
+	const auto* Timing = (const FTiming*)this;
+	return Timing->EventTimestamp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+double IAnalyzer::FEventTime::AsSeconds() const
+{
+	const auto* Timing = (const FTiming*)this;
+	return double(Timing->EventTimestamp) * Timing->InvTimestampHz;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint64 IAnalyzer::FEventTime::AsCycle64() const
+{
+	const auto* Timing = (const FTiming*)this;
+	return Timing->BaseTimestamp + Timing->EventTimestamp;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+double IAnalyzer::FEventTime::AsSeconds(uint64 Cycles64) const
+{
+	const auto* Timing = (const FTiming*)this;
+	return double(int64(Cycles64) - int64(Timing->BaseTimestamp)) * Timing->InvTimestampHz;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+double IAnalyzer::FEventTime::AsSecondsAbsolute(int64 DurationCycles64) const
+{
+	const auto* Timing = (const FTiming*)this;
+	return double(DurationCycles64) * Timing->InvTimestampHz;
+}
 
 
 
@@ -67,11 +215,12 @@ struct FAnalysisEngine::FDispatch
 		uint16		Offset;
 		uint16		Size;
 		uint16		NameOffset;			// From FField ptr
-		int16		SizeAndType;		// value == byte_size, sign == float < 0 < int
-		bool		bIsArray;
+		int8		SizeAndType;		// value == byte_size, sign == float < 0 < int
+		uint8		Class : 7;
+		uint8		bArray : 1;
 	};
 
-	uint32			GetFieldIndex(const ANSICHAR* Name) const;
+	int32			GetFieldIndex(const ANSICHAR* Name) const;
 	uint32			Hash				= 0;
 	uint16			Uid					= 0;
 	uint16			FirstRoute			= ~uint16(0);
@@ -84,12 +233,12 @@ struct FAnalysisEngine::FDispatch
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 FAnalysisEngine::FDispatch::GetFieldIndex(const ANSICHAR* Name) const
+int32 FAnalysisEngine::FDispatch::GetFieldIndex(const ANSICHAR* Name) const
 {
 	FFnv1aHash NameHash;
 	NameHash.Add(Name);
 
-	for (int i = 0, n = FieldCount; i < n; ++i)
+	for (int32 i = 0, n = FieldCount; i < n; ++i)
 	{
 		if (Fields[i].Hash == NameHash.Get())
 		{
@@ -97,7 +246,7 @@ uint32 FAnalysisEngine::FDispatch::GetFieldIndex(const ANSICHAR* Name) const
 		}
 	}
 
-	return FieldCount;
+	return -1;
 }
 
 
@@ -247,13 +396,6 @@ uint32 IAnalyzer::FEventTypeInfo::GetId() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 IAnalyzer::FEventTypeInfo::GetSize() const
-{
-	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;
-	return Inner->EventSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 const ANSICHAR* IAnalyzer::FEventTypeInfo::GetName() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;
@@ -296,23 +438,15 @@ const ANSICHAR* IAnalyzer::FEventFieldInfo::GetName() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 IAnalyzer::FEventFieldInfo::GetOffset() const
-{
-	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
-	return Inner->Offset;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 IAnalyzer::FEventFieldInfo::GetSize() const
-{
-	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
-	return (Inner->SizeAndType < 0) ? -(Inner->SizeAndType) : Inner->SizeAndType;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+
+	if (Inner->Class == Protocol0::Field_String)
+	{
+		return (Inner->SizeAndType == 1) ? EType::AnsiString : EType::WideString;
+	}
+
 	if (Inner->SizeAndType > 0)
 	{
 		return EType::Integer;
@@ -330,7 +464,7 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 bool IAnalyzer::FEventFieldInfo::IsArray() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
-	return Inner->bIsArray;
+	return Inner->bArray;
 }
 
 
@@ -364,11 +498,33 @@ const void* IAnalyzer::FArrayReader::GetImpl(uint32 Index, int16& SizeAndType) c
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FEventDataInfo
 {
+	const FAuxData*		GetAuxData(uint32 FieldIndex) const;
 	const FDispatch&	Dispatch;
 	FAuxDataCollector*	AuxCollector;
 	const uint8*		Ptr;
 	uint16				Size;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+const FAuxData* FAnalysisEngine::FEventDataInfo::GetAuxData(uint32 FieldIndex) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	if (Info->AuxCollector == nullptr)
+	{
+		return nullptr;
+	}
+
+	for (FAuxData& Data : *(Info->AuxCollector))
+	{
+		if (Data.FieldIndex == FieldIndex)
+		{
+			Data.FieldSizeAndType = Info->Dispatch.Fields[FieldIndex].SizeAndType;
+			return &Data;
+		}
+	}
+
+	return nullptr;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
@@ -380,29 +536,19 @@ const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
 ////////////////////////////////////////////////////////////////////////////////
 const IAnalyzer::FArrayReader* IAnalyzer::FEventData::GetArrayImpl(const ANSICHAR* FieldName) const
 {
-	static const FAuxData EmptyAuxData = {};
-
 	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
-	if (Info->AuxCollector == nullptr)
-	{
-		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
-	}
 
-	uint32 Index = Info->Dispatch.GetFieldIndex(FieldName);
-	if (Index >= Info->Dispatch.FieldCount)
+	int32 Index = Info->Dispatch.GetFieldIndex(FieldName);
+	if (Index >= 0)
 	{
-		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
-	}
-	for (FAuxData& Data : *(Info->AuxCollector))
-	{
-		if (Data.FieldIndex == Index)
+		if (const FAuxData* Data = Info->GetAuxData(Index))
 		{
-			Data.FieldSizeAndType = Info->Dispatch.Fields[Index].SizeAndType;
-			return (IAnalyzer::FArrayReader*)&Data;
+			return (IAnalyzer::FArrayReader*)Data;
 		}
 	}
 
-	return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+	static const FAuxData EmptyAuxData = {};
+	return (const IAnalyzer::FArrayReader*)&EmptyAuxData;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -411,8 +557,8 @@ const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16
 	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
 	const auto& Dispatch = Info->Dispatch;
 
-	uint32 Index = Dispatch.GetFieldIndex(FieldName);
-	if (Index >= Dispatch.FieldCount)
+	int32 Index = Dispatch.GetFieldIndex(FieldName);
+	if (Index < 0)
 	{
 		return nullptr;
 	}
@@ -420,6 +566,109 @@ const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16
 	const auto& Field = Dispatch.Fields[Index];
 	SizeAndType = Field.SizeAndType;
 	return (Info->Ptr + Field.Offset);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FAnsiStringView& Out) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	const auto& Dispatch = Info->Dispatch;
+
+	int32 Index = Dispatch.GetFieldIndex(FieldName);
+	if (Index < 0)
+	{
+		return false;
+	}
+
+	const auto& Field = Dispatch.Fields[Index];
+	if (Field.Class != Protocol0::Field_String || Field.SizeAndType != sizeof(ANSICHAR))
+	{
+		return false;
+	}
+
+	if (const FAuxData* Data = Info->GetAuxData(Index))
+	{
+		Out = FAnsiStringView((const ANSICHAR*)(Data->Data), Data->DataSize);
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Out) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	const auto& Dispatch = Info->Dispatch;
+
+	int32 Index = Dispatch.GetFieldIndex(FieldName);
+	if (Index < 0)
+	{
+		return false;
+	}
+
+	const auto& Field = Dispatch.Fields[Index];
+	if (Field.Class != Protocol0::Field_String || Field.SizeAndType != sizeof(TCHAR))
+	{
+		return false;
+	}
+
+	if (const FAuxData* Data = Info->GetAuxData(Index))
+	{
+		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize); // Data combo!
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FString& Out) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	const auto& Dispatch = Info->Dispatch;
+
+	int32 Index = Dispatch.GetFieldIndex(FieldName);
+	if (Index < 0)
+	{
+		return false;
+	}
+
+	const FAuxData* Data = Info->GetAuxData(Index);
+	if (Data == nullptr)
+	{
+		return false;
+	}
+
+	const auto& Field = Dispatch.Fields[Index];
+	if (Field.Class == Protocol0::Field_String)
+	{
+		if (Field.SizeAndType == sizeof(ANSICHAR))
+		{
+			Out = FString(Data->DataSize, (const ANSICHAR*)(Data->Data));
+			return true;
+		}
+
+		if (Field.SizeAndType == sizeof(TCHAR))
+		{
+			Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize / sizeof(TCHAR));
+			return true;
+		}
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void IAnalyzer::FEventData::SerializeToCbor(TArray<uint8>& Out) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	uint32 Size = Info->Size;
+	for (FAuxData& Data : *(Info->AuxCollector))
+	{
+		Size += Data.DataSize;
+	}
+	SerializeToCborImpl(Out, *this, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -436,13 +685,6 @@ uint32 IAnalyzer::FEventData::GetAttachmentSize() const
 	return Info->Size - Info->Dispatch.EventSize;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-const uint8* IAnalyzer::FEventData::GetRawPointer() const
-{
-	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
-	return Info->Ptr;
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -451,17 +693,13 @@ enum ERouteId : uint16
 	RouteId_NewEvent,
 	RouteId_NewTrace,
 	RouteId_Timing,
-	RouteId_ChannelAnnounce,
-	RouteId_ChannelToggle,
+	RouteId_ThreadTiming,
+	RouteId_ThreadInfo,
+	RouteId_ThreadGroupBegin,
+	RouteId_ThreadGroupEnd,
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// This is used to influence the order of routes (routes are sorted by hash).
-enum EKnownRouteHashes : uint32
-{
-	RouteHash_NewEvent = 0, // must be 0 to match traces.
-	RouteHash_AllEvents,	
-};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
@@ -469,18 +707,120 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 {
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
-
-	// Manually add event routing for known events.
-	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
-	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
-	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
-	AddRoute(SelfIndex, RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
-	AddRoute(SelfIndex, RouteId_ChannelToggle, "$Trace", "ChannelToggle");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::~FAnalysisEngine()
 {
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::Begin()
+{
+	// Call out to all registered analyzers to have them register event interest
+	struct : IAnalyzer::FInterfaceBuilder
+	{
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event, bScoped);
+		}
+
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger, bool bScoped) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, "", bScoped);
+		}
+
+		virtual void RouteAllEvents(uint16 RouteId, bool bScoped) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, "", "", bScoped);
+		}
+
+		FAnalysisEngine* Self;
+		uint16 AnalyzerIndex;
+	} Builder;
+	Builder.Self = this;
+
+	FOnAnalysisContext OnAnalysisContext = { Builder };
+	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	{
+		uint32 RouteCount = Routes.Num();
+
+		Builder.AnalyzerIndex = i;
+		IAnalyzer* Analyzer = Analyzers[i];
+		Analyzer->OnAnalysisBegin(OnAnalysisContext);
+
+		// If the analyzer didn't add any routes we'll retire it immediately
+		if (RouteCount == Routes.Num() && Analyzer != this)
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	}
+
+	auto RouteProjection = [] (const FRoute& Route) { return Route.Hash; };
+
+	Algo::SortBy(Routes, RouteProjection);
+
+	auto FindRoute = [this, &RouteProjection] (uint32 Hash)
+	{
+		int32 Index = Algo::LowerBoundBy(Routes, Hash, RouteProjection);
+		return (Index < Routes.Num() && Routes[Index].Hash == Hash) ? Index : -1;
+	};
+
+	int32 AllEventsIndex = FindRoute(FFnv1aHash().Get());
+	auto FixupRoute = [this, &FindRoute, AllEventsIndex] (FRoute* Route) 
+	{
+		if (Route->ParentHash)
+		{
+			int32 ParentIndex = FindRoute(Route->ParentHash);
+			Route->Parent = int16((ParentIndex < 0) ? AllEventsIndex : ParentIndex);
+		}
+		else
+		{
+			Route->Parent = -1;
+		}
+		Route->Count = 1;
+		return Route;
+	};
+
+	FRoute* Cursor = FixupRoute(Routes.GetData());
+	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
+	{
+		FRoute* Route = Routes.GetData() + i;
+		if (Route->Hash == Cursor->Hash)
+		{
+			Cursor->Count++;
+		}
+		else
+		{
+			Cursor = FixupRoute(Route);
+		}
+	}
+
+	switch (ProtocolVersion)
+	{
+	case Protocol0::EProtocol::Id:
+	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
+
+	case Protocol3::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
+			Dispatch.SetNoSync();
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -523,39 +863,62 @@ void FAnalysisEngine::AddRoute(
 	uint16 AnalyzerIndex,
 	uint16 Id,
 	const ANSICHAR* Logger,
-	const ANSICHAR* Event)
-{
-	FFnv1aHash Hash;
-	Hash.Add(Logger);
-	Hash.Add(Event);
-	AddRoute(AnalyzerIndex, Id, Hash.Get());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::AddRoute(
-	uint16 AnalyzerIndex,
-	uint16 Id,
-	uint32 Hash)
+	const ANSICHAR* Event,
+	bool bScoped)
 {
 	check(AnalyzerIndex < Analyzers.Num());
 
+	uint32 ParentHash = 0;
+	if (Logger[0] && Event[0])
+	{
+		FFnv1aHash Hash;
+		Hash.Add(Logger);
+		ParentHash = Hash.Get();
+	}
+
+	FFnv1aHash Hash;
+	Hash.Add(Logger);
+	Hash.Add(Event);
+
 	FRoute& Route = Routes.Emplace_GetRef();
 	Route.Id = Id;
-	Route.Hash = Hash;
-	Route.Count = 1;
+	Route.Hash = Hash.Get();
+	Route.ParentHash = ParentHash;
 	Route.AnalyzerIndex = AnalyzerIndex;
+	Route.bScoped = (bScoped == true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
+	auto& Builder = Context.InterfaceBuilder;
+	Builder.RouteEvent(RouteId_NewTrace,		"$Trace", "NewTrace");
+	Builder.RouteEvent(RouteId_NewEvent,		"$Trace", "NewEvent");
+	Builder.RouteEvent(RouteId_Timing,			"$Trace", "Timing");
+	Builder.RouteEvent(RouteId_ThreadTiming,	"$Trace", "ThreadTiming");
+	Builder.RouteEvent(RouteId_ThreadInfo,		"$Trace", "ThreadInfo");
+	Builder.RouteEvent(RouteId_ThreadGroupBegin,"$Trace", "ThreadGroupBegin");
+	Builder.RouteEvent(RouteId_ThreadGroupEnd,	"$Trace", "ThreadGroupEnd");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAnalysisEngine::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
+{
+	if (RouteId == RouteId_NewEvent)
+	{
+		const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
+		OnNewEventInternal(EventData.Ptr);
+		return true;
+	}
+
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:			OnNewEventInternal(Context);		break;
-	case RouteId_NewTrace:			OnNewTrace(Context);				break;
-	case RouteId_Timing:			OnTiming(Context);					break;
-	case RouteId_ChannelAnnounce:	OnChannelAnnounceInternal(Context);	break;
-	case RouteId_ChannelToggle:		OnChannelToggleInternal(Context);	break;
+	case RouteId_NewTrace:			OnNewTrace(Context);			break;
+	case RouteId_Timing:			OnTiming(Context);				break;
+	case RouteId_ThreadTiming:		OnThreadTiming(Context);		break;
+	case RouteId_ThreadInfo:		OnThreadInfoInternal(Context);	break;
+	case RouteId_ThreadGroupBegin:	OnThreadGroupBegin(Context);	break;
+	case RouteId_ThreadGroupEnd:	OnThreadGroupEnd();				break;
 	}
 
 	return true;
@@ -565,120 +928,152 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
 	const FEventData& EventData = Context.EventData;
-	SessionContext.Version = EventData.GetValue<uint16>("Version");
 
-	struct : IAnalyzer::FInterfaceBuilder
-	{
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
-		}
+	// "Serial" will tell us approximately where we've started in the log serial
+	// range. We'll bias is by half so we won't accept any serialised events and
+	// mark the MSB to indicate that the current serial should be corrected.
+	uint32 Hint = EventData.GetValue<uint32>("Serial");
+	Hint -= (Serial.Mask + 1) >> 1;
+	Hint &= Serial.Mask;
+	Serial.Value = Hint|0x80000000;
 
-		virtual void RouteAllEvents(uint16 RouteId) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
-		}
-
-		FAnalysisEngine* Self;
-		uint16 AnalyzerIndex;
-	} Builder;
-	Builder.Self = this;
-
-	// Some internal routes have been established already. In case there's some
-	// dispatches that are already connected to these routes we won't sort them
-	uint32 FixedRouteCount = Routes.Num();
-
-	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
-	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
-	{
-		uint32 RouteCount = Routes.Num();
-
-		Builder.AnalyzerIndex = i;
-		IAnalyzer* Analyzer = Analyzers[i];
-		Analyzer->OnAnalysisBegin(OnAnalysisContext);
-
-		// If the analyzer didn't add any routes we'll retire it immediately
-		if (RouteCount == Routes.Num() && Analyzer != this)
-		{
-			RetireAnalyzer(Analyzer);
-		}
-	}
-
-	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
-	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
-	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
-
-	FRoute* Cursor = Routes.GetData();
-	Cursor->Count = 1;
-
-	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
-	{
-		if (Routes[i].Hash == Cursor->Hash)
-		{
-			Cursor->Count++;
-		}
-		else
-		{
-			Cursor = Routes.GetData() + i;
-			Cursor->Count = 1;
-		}
-	}
+	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(Protocol3::EKnownEventUids::User));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 {
-	SessionContext.StartCycle = Context.EventData.GetValue<uint64>("StartCycle");
-	SessionContext.CycleFrequency = Context.EventData.GetValue<uint64>("CycleFrequency");
+	uint64 StartCycle = Context.EventData.GetValue<uint64>("StartCycle");
+	uint64 CycleFrequency = Context.EventData.GetValue<uint64>("CycleFrequency");
+
+	Timing.BaseTimestamp = StartCycle;
+	Timing.TimestampHz = CycleFrequency;
+	Timing.InvTimestampHz = 1.0 / double(CycleFrequency);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadTiming(const FOnEventContext& Context)
+{
+	uint64 BaseTimestamp = Context.EventData.GetValue<uint64>("BaseTimestamp");
+	if (FThreads::FInfo* Info = Threads.GetInfo())
+	{
+		Info->PrevTimestamp = BaseTimestamp;
+
+		// We can springboard of this event as a way to know a thread has just
+		// started (or at least is about to send its first event). Notify analyzers
+		// so they're aware of threads that never get explicitly registered.
+		const auto* OuterInfo = (FThreadInfo*)Info;
+		for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+		{
+			if (IAnalyzer* Analyzer = Analyzers[i])
+			{
+				Analyzer->OnThreadInfo(*OuterInfo);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadInfoInternal(const FOnEventContext& Context)
+{
+	const FEventData& EventData = Context.EventData;
+
+	FThreads::FInfo* ThreadInfo = Threads.GetInfo();
+	if (ThreadInfo == nullptr)
+	{
+		return;
+	}
+	ThreadInfo->SystemId = EventData.GetValue<uint32>("SystemId");
+	ThreadInfo->SortHint = EventData.GetValue<int32>("SortHint");
+	
+	FAnsiStringView Name;
+	EventData.GetString("Name", Name);
+	ThreadInfo->Name.SetNumUninitialized(Name.Len() + 1);
+	ThreadInfo->Name[Name.Len()] = '\0';
+	FMemory::Memcpy(ThreadInfo->Name.GetData(), Name.GetData(), Name.Len());
+
+	if (ThreadInfo->GroupName.Num() <= 0)
+	{
+		if (const TArray<uint8>* GroupName = Threads.GetGroupName())
+		{
+			ThreadInfo->GroupName = *GroupName;
+		}
+	}
+
+	const auto* OuterInfo = (FThreadInfo*)ThreadInfo;
+	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	{
+		if (IAnalyzer* Analyzer = Analyzers[i])
+		{
+			Analyzer->OnThreadInfo(*OuterInfo);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadGroupBegin(const FOnEventContext& Context)
+{
+	const FEventData& EventData = Context.EventData;
+
+	FAnsiStringView Name;
+	EventData.GetString("Name", Name);
+	Threads.SetGroupName(Name.GetData(), Name.Len());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadGroupEnd()
+{
+	Threads.SetGroupName("", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ImplType>
-void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
+void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, bool bScoped, ImplType&& Impl)
 {
 	uint32 RouteCount = Routes.Num();
-	if (Dispatch->FirstRoute < RouteCount)
+	if (RouteIndex >= RouteCount)
 	{
-		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-		for (uint32 n = Route->Count; n--; ++Route)
-		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			if (Analyzer != nullptr)
-			{
-				Impl(Analyzer, Route->Id);
-			}
-		}
+		return;
 	}
 
-	const FRoute* Route = Routes.GetData() + 1;
-	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	const FRoute* FirstRoute = Routes.GetData();
+	const FRoute* Route = FirstRoute + RouteIndex;
+	do
 	{
+		const FRoute* NextRoute = FirstRoute + Route->Parent;
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
+			if (Route->bScoped != (bScoped == true))
+			{
+				continue;
+			}
+
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
 			if (Analyzer != nullptr)
 			{
 				Impl(Analyzer, Route->Id);
 			}
 		}
+		Route = NextRoute;
 	}
+	while (Route >= FirstRoute);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
+void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 {
-	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
-
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
 	case Protocol0::EProtocol::Id:
-		OnNewEventProtocol0(Builder, EventData.Ptr);
+		OnNewEventProtocol0(Builder, EventData);
 		break;
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
-		OnNewEventProtocol1(Builder, EventData.Ptr);
+	case Protocol3::EProtocol::Id:
+	case Protocol4::EProtocol::Id:
+		OnNewEventProtocol1(Builder, EventData);
 		break;
 	}
 
@@ -691,7 +1086,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	}
 
 	// Inform routes that a new event has been declared.
-	ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 	{
 		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
 		{
@@ -703,15 +1098,15 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 {
-	// Add the dispatch to the dispatch table, failing gently if the table slot
-	// is already occupied.
+	// Add the dispatch to the dispatch table. Usually duplicates are an error
+	// but due to backwards compatibility we'll override existing dispatches.
 	uint16 Uid = Dispatch->Uid;
 	if (Uid < Dispatches.Num())
  	{
 		if (Dispatches[Uid] != nullptr)
  		{
-			FMemory::Free(Dispatch);
-			return false;
+			FMemory::Free(Dispatches[Uid]);
+			Dispatches[Uid] = nullptr;
  		}
  	}
 	else
@@ -720,14 +1115,23 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
  	}
 
 	// Find routes that have subscribed to this event.
-	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
+	auto FindRoute = [this] (uint32 Hash)
 	{
-		if (Routes[i].Hash == Dispatch->Hash)
+		int32 Index = Algo::LowerBoundBy(Routes, Hash, [] (const FRoute& Route) { return Route.Hash; });
+		return (Index < Routes.Num() && Routes[Index].Hash == Hash) ? Index : -1;
+	};
+
+	int32 FirstRoute = FindRoute(Dispatch->Hash);
+	if (FirstRoute < 0)
+	{
+		FFnv1aHash LoggerHash;
+		LoggerHash.Add((const ANSICHAR*)Dispatch + Dispatch->LoggerNameOffset);
+		if ((FirstRoute = FindRoute(LoggerHash.Get())) < 0)
 		{
-			Dispatch->FirstRoute = i;
-			break;
+			FirstRoute = FindRoute(FFnv1aHash().Get());
 		}
 	}
+	Dispatch->FirstRoute = FirstRoute;
 
 	Dispatches[Uid] = Dispatch;
 	return true;
@@ -761,7 +1165,9 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 		auto& OutField = Builder.AddField(NameCursor, Field.NameSize, Field.Size);
 		OutField.Offset = Field.Offset;
 		OutField.SizeAndType = TypeSize;
-		OutField.bIsArray = (Field.TypeInfo & Protocol0::Field_Array) != 0;
+
+		OutField.Class = Field.TypeInfo & Protocol0::Field_SpecialMask;
+		OutField.bArray = !!(Field.TypeInfo & Protocol0::Field_Array);
 
 		NameCursor += Field.NameSize;
 	}
@@ -837,21 +1243,18 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	{
 	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			AddDispatch(Builder.Finalize());
-		}
 		break;
 
 	case Protocol1::EProtocol::Id:
-	case Protocol2::EProtocol::Id:
+		Serial.Mask = 0x0000ffff;
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			AddDispatch(Builder.Finalize());
-		}
+		break;
+
+	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
+	case Protocol4::EProtocol::Id:
+		Serial.Mask = 0x00ffffff;
+		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
 		break;
 
 	default:
@@ -877,6 +1280,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 		{
 			return false;
 		}
+
+		Begin();
 	}
 
 	Transport->SetReader(Reader);
@@ -898,6 +1303,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnDataProtocol0()
 {
+	FThreads::FInfo ThreadInfo;
+
 	while (true)
 	{
 		const auto* Header = Transport->GetPointer<Protocol0::FEventHeader>();
@@ -931,11 +1338,16 @@ bool FAnalysisEngine::OnDataProtocol0()
 			Header->EventData,
 			Header->Size
 		};
-		const FEventData& EventData = (FEventData&)EventDataInfo;
 
-		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		FOnEventContext Context = {
+			(const FThreadInfo&)ThreadInfo,
+			(const FEventTime&)Timing,
+			(const FEventData&)EventDataInfo,
+		};
+
+		ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ~0u }))
+			if (!Analyzer->OnEvent(RouteId, EStyle::Normal, Context))
 			{
 				RetireAnalyzer(Analyzer);
 			}
@@ -953,33 +1365,134 @@ bool FAnalysisEngine::OnDataProtocol2()
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
 
-	int32 EventCount;
-	do
+	struct FRotaItem
 	{
-		EventCount = 0;
-		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
-		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
+		uint32				Serial;
+		uint32				ThreadId;
+		FStreamReader*		Reader;
+		bool				operator < (const FRotaItem& Rhs) { return Serial < Rhs.Serial; }
+	};
+	TArray<FRotaItem> Rota;
+
+	for (uint32 i = 0, n = InnerTransport->GetThreadCount(); i < n; ++i)
+	{
+		FStreamReader* Reader = InnerTransport->GetThreadStream(i);
+		uint32 ThreadId = InnerTransport->GetThreadId(i);
+		Rota.Add({~0u, ThreadId, Reader});
+	}
+
+	uint32 ActiveCount = uint32(Rota.Num());
+	while (true)
+	{
+		for (uint32 i = 0; i < ActiveCount;)
 		{
-			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
-			int32 ThreadEventCount = OnDataProtocol2(ThreadId, *Reader);
-			if (ThreadEventCount < 0)
+			FRotaItem& RotaItem = Rota[i];
+
+			if (int32(RotaItem.Serial) > int32(Serial.Value & Serial.Mask))
 			{
-				return false;
+				++i;
+				continue;
 			}
 
-			EventCount += ThreadEventCount;
+			FThreads::FInfo& ThreadInfo = Threads.GetInfo(RotaItem.ThreadId);
+
+			uint32 AvailableSerial;
+			if (ProtocolVersion == Protocol4::EProtocol::Id)
+			{
+				AvailableSerial = OnDataProtocol4(*(RotaItem.Reader), ThreadInfo);
+			}
+			else
+			{
+				AvailableSerial = OnDataProtocol2(*(RotaItem.Reader), ThreadInfo);
+			}
+
+			if (int32(AvailableSerial) >= 0)
+			{
+				RotaItem.Serial = AvailableSerial;
+				if (Rota[0].Serial > AvailableSerial)
+				{
+					Swap(Rota[0], RotaItem);
+				}
+				++i;
+			}
+			else
+			{
+				FRotaItem TempItem = RotaItem;
+				TempItem.Serial = ~0u;
+
+				for (uint32 j = i, m = ActiveCount - 1; j < m; ++j)
+				{
+					Rota[j] = Rota[j + 1];
+				}
+
+				Rota[ActiveCount - 1] = TempItem;
+				--ActiveCount;
+			}
+
+			if (((Rota[0].Serial - Serial.Value) & Serial.Mask) == 0)
+			{
+				i = 0;
+			}
+		}
+
+		if (ActiveCount < 1)
+		{
+			break;
+		}
+
+		int32 MinLogSerial = Rota[0].Serial;
+		if (ActiveCount > 1)
+		{
+			TArrayView<FRotaItem> ActiveRota(Rota.GetData(), ActiveCount);
+			Algo::Sort(ActiveRota);
+
+			int32 MaxLogSerial = Rota[ActiveCount - 1].Serial;
+
+			if ((uint32(MinLogSerial - Serial.Value) & Serial.Mask) == 0)
+			{
+				continue;
+			}
+
+			// If min/max are more than half the serial range apart consider them
+			// as having wrapped.
+			int32 HalfRange = int32(Serial.Mask >> 1);
+			if ((MaxLogSerial - MinLogSerial) >= HalfRange)
+			{
+				for (uint32 i = 0; i < ActiveCount; ++i)
+				{
+					FRotaItem& RotaItem = Rota[i];
+					if (int32(RotaItem.Serial) >= HalfRange)
+					{
+						MinLogSerial = RotaItem.Serial;
+						break;
+					}
+				}
+			}
+		}
+
+		// If the current serial has its MSB set we're currently in a mode trying
+		// to derive the best starting serial.
+		if (int32(Serial.Value) < 0)
+		{
+			Serial.Value = (MinLogSerial & Serial.Mask);
+			continue;
+		}
+
+		// If we didn't stumble across the next serialised event we have done all
+		// we can for now.
+		if ((uint32(MinLogSerial - Serial.Value) & Serial.Mask) != 0)
+		{
+			break;
 		}
 	}
-	while (EventCount);
 
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
+int32 FAnalysisEngine::OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& ThreadInfo)
 {
-	int32 EventCount = 0;
-	while (!Reader.IsEmpty())
+	while (true)
 	{
 		auto Mark = Reader.SaveMark();
 
@@ -999,7 +1512,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		const FDispatch* Dispatch = Dispatches[Uid];
 		if (Dispatch == nullptr)
 		{
-			return -1;
+			// Event-types may not to be discovered in Uid order.
+			break;
 		}
 
 		uint32 BlockSize = Header->Size;
@@ -1012,21 +1526,22 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 			case Protocol1::EProtocol::Id:
 				{
 					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
-					if (HeaderV1->Serial != uint16(NextLogSerial))
+					if (HeaderV1->Serial != (Serial.Value & Serial.Mask))
 					{
-						return EventCount;
+						return HeaderV1->Serial;
 					}
 					BlockSize += sizeof(*HeaderV1);
 				}
 				break;
 
 			case Protocol2::EProtocol::Id:
+			case Protocol3::EProtocol::Id:
 				{
 					const auto* HeaderSync = (Protocol2::FEventHeaderSync*)Header;
 					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
-					if (EventSerial != (NextLogSerial & 0x00ffffff))
+					if (EventSerial != (Serial.Value & Serial.Mask))
 					{
-						return EventCount;
+						return EventSerial;
 					}
 					BlockSize += sizeof(*HeaderSync);
 				}
@@ -1058,7 +1573,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 
 		if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
 		{
-			++NextLogSerial;
+			Serial.Value += 1;
+			Serial.Value &= 0x7fffffff; // don't set msb. that has other uses
 		}
 
 		FEventDataInfo EventDataInfo = {
@@ -1067,20 +1583,22 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 			(const uint8*)Header + BlockSize - Header->Size,
 			Header->Size,
 		};
-		const FEventData& EventData = (FEventData&)EventDataInfo;
 
-		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		FOnEventContext Context = {
+			(const FThreadInfo&)ThreadInfo,
+			(const FEventTime&)Timing,
+			(const FEventData&)EventDataInfo,
+		};
+		ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ThreadId }))
+			if (!Analyzer->OnEvent(RouteId, EStyle::Normal, Context))
 			{
 				RetireAnalyzer(Analyzer);
 			}
 		});
-
-		++EventCount;
 	}
 
-	return EventCount;
+	return -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1128,27 +1646,245 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
+int32 FAnalysisEngine::OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& ThreadInfo)
 {
-	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-
-	for (IAnalyzer* Analyzer : Analyzers)
+	while (true)
 	{
-		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+		if (int32 TriResult = OnDataProtocol4Impl(Reader, ThreadInfo))
+		{
+			return (TriResult < 0) ? ~TriResult : -1;
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
+int32 FAnalysisEngine::OnDataProtocol4Known(
+	uint32 Uid,
+	FStreamReader& Reader,
+	FThreads::FInfo& ThreadInfo)
 {
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+	using namespace Protocol4;
 
-	for (IAnalyzer* Analyzer : Analyzers)
+	switch (Uid)
 	{
-		Analyzer->OnChannelToggle(ChannelId, bEnabled);
+	case EKnownEventUids::NewEvent:
+		if (const auto* Size = Reader.GetPointer<uint16>())
+		{
+			Reader.Advance(sizeof(*Size));
+			uint32 EventSize = *Size;
+			if (const void* EventData = Reader.GetPointer(EventSize))
+			{
+				Reader.Advance(EventSize);
+				OnNewEventInternal(EventData);
+				return 1;
+			}
+		}
+		break;
+
+	case EKnownEventUids::EnterScope:
+	case EKnownEventUids::EnterScope_T:
+		if (Uid > EKnownEventUids::EnterScope)
+		{
+			const uint8* Stamp = Reader.GetPointer(sizeof(uint64) - 1);
+			if (Stamp == nullptr)
+			{
+				break;
+			}
+			uint64 Timestamp = ThreadInfo.PrevTimestamp += *(uint64*)(Stamp - 1) >> 8;
+			ThreadInfo.ScopeRoutes.Push(~Timestamp);
+			Reader.Advance(sizeof(uint64) - 1);
+		}
+		else
+		{
+			ThreadInfo.ScopeRoutes.Push(~0);
+		}
+
+		return 1;
+
+	case EKnownEventUids::LeaveScope:
+	case EKnownEventUids::LeaveScope_T:
+		Timing.EventTimestamp = 0;
+		if (Uid > EKnownEventUids::LeaveScope)
+		{
+			const uint8* Stamp = Reader.GetPointer(sizeof(uint64) - 1);
+			if (Stamp == nullptr)
+			{
+				break;
+			}
+			Timing.EventTimestamp = ThreadInfo.PrevTimestamp += *(uint64*)(Stamp - 1) >> 8;
+			Reader.Advance(sizeof(uint64) - 1);
+		}
+
+		if (ThreadInfo.ScopeRoutes.Num() > 0)
+		{
+			uint32 RouteIndex = ThreadInfo.ScopeRoutes.Pop(false);
+
+			FDispatch EmptyDispatch = {};
+			FEventDataInfo EmptyEventInfo = { EmptyDispatch };
+
+			FOnEventContext Context = {
+				(const FThreadInfo&)ThreadInfo,
+				(const FEventTime&)Timing,
+				(const FEventData&)EmptyEventInfo,
+			};
+			ForEachRoute(RouteIndex, true, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+			{
+				if (!Analyzer->OnEvent(RouteId, EStyle::LeaveScope, Context))
+				{
+					RetireAnalyzer(Analyzer);
+				}
+			});
+		}
+
+		Timing.EventTimestamp = 0;
+		return 1;
+	};
+
+	return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol4Impl(
+	FStreamReader& Reader,
+	FThreads::FInfo& ThreadInfo)
+{
+	/* Returns 0 if an event was successfully processed, 1 if there's not enough
+	 * data available, or ~AvailableLogSerial if the pending event is in the future */
+	using namespace Protocol4;
+
+	auto Mark = Reader.SaveMark();
+
+	const auto* UidCursor = Reader.GetPointer<uint8>();
+	if (UidCursor == nullptr)
+	{
+		return 1;
 	}
+
+	uint32 UidBytes = 1 + !!(*UidCursor & EKnownEventUids::Flag_TwoByteUid);
+	if (UidBytes > 1 && Reader.GetPointer(UidBytes) == nullptr)
+	{
+		return 1;
+	}
+
+	uint32 Uid = ~0u;
+	switch (UidBytes)
+	{
+		case 1:	Uid = *UidCursor;			break;
+		case 2:	Uid = *(uint16*)UidCursor;	break;
+	}
+	Uid >>= EKnownEventUids::_UidShift;
+
+	if (Uid < UserUidBias)
+	{
+		Reader.Advance(UidBytes);
+		if (!OnDataProtocol4Known(Uid, Reader, ThreadInfo))
+		{
+			Reader.RestoreMark(Mark);
+			return 1;
+		}
+		return 0;
+	}
+
+	// Do we know about this event type yet?
+	if (Uid >= uint32(Dispatches.Num()))
+	{
+		return 1;
+	}
+
+	const FDispatch* Dispatch = Dispatches[Uid];
+	if (Dispatch == nullptr)
+	{
+		return 1;
+	}
+
+	// Parse the header
+	const auto* Header = Reader.GetPointer<FEventHeader>();
+	if (Header == nullptr)
+	{
+		return 1;
+	}
+
+	uint32 BlockSize = Header->Size;
+
+	// Make sure we consume events in the correct order
+	if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+	{
+		const auto* HeaderSync = (Protocol4::FEventHeaderSync*)Header;
+		uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
+		if (EventSerial != (Serial.Value & Serial.Mask))
+		{
+			return ~EventSerial;
+		}
+		BlockSize += sizeof(*HeaderSync);
+	}
+	else
+	{
+		BlockSize += sizeof(*Header);
+	}
+
+	// Is all the event's data available?
+	if (Reader.GetPointer(BlockSize) == nullptr)
+	{
+		return 1;
+	}
+
+	Reader.Advance(BlockSize);
+
+	// Collect auxiliary data
+	FAuxDataCollector AuxCollector;
+	if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
+	{
+		int AuxStatus = OnDataProtocol2Aux(Reader, AuxCollector);
+		if (AuxStatus == 0)
+		{
+			Reader.RestoreMark(Mark);
+			return 1;
+		}
+	}
+
+	// Maintain sync
+	if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+	{
+		Serial.Value += 1;
+		Serial.Value &= 0x7fffffff; // don't set msb. that has other uses
+	}
+
+	// Sent the event to subscribed analyzers
+	FEventDataInfo EventDataInfo = {
+		*Dispatch,
+		&AuxCollector,
+		(const uint8*)Header + BlockSize - Header->Size,
+		Header->Size,
+	};
+
+	EStyle Style = EStyle::Normal;
+	if (ThreadInfo.ScopeRoutes.Num() > 0 && int64(ThreadInfo.ScopeRoutes.Last()) < 0)
+	{
+		Style = EStyle::EnterScope;
+		Timing.EventTimestamp = ~(ThreadInfo.ScopeRoutes.Last());
+		ThreadInfo.ScopeRoutes.Last() = Dispatch->FirstRoute;
+	}
+	else
+	{
+		Timing.EventTimestamp = 0;
+	}
+
+	FOnEventContext Context = {
+		(const FThreadInfo&)ThreadInfo,
+		(const FEventTime&)Timing,
+		(const FEventData&)EventDataInfo,
+	};
+
+	bool bScoped = (Style != EStyle::Normal);
+	ForEachRoute(Dispatch->FirstRoute, bScoped, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	{
+		if (!Analyzer->OnEvent(RouteId, Style, Context))
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	});
+
+	return 0;
 }
 
 } // namespace Trace

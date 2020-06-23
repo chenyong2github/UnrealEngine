@@ -16,7 +16,6 @@
 #include "Templates/UnrealTemplate.h"
 #include "Math/NumericLimits.h"
 #include "Containers/Array.h"
-#include "Containers/StringFwd.h"
 #include "Misc/CString.h"
 #include "Misc/Crc.h"
 #include "Math/UnrealMathUtility.h"
@@ -33,16 +32,6 @@ template<typename KeyType,typename ValueType,typename SetAllocator ,typename Key
 typedef TMap<FString, FStringFormatArg> FStringFormatNamedArguments;
 typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
 
-template <>
-struct TIsContiguousContainer<FString>
-{
-	enum { Value = true };
-};
-
-TCHAR* GetData(FString& String);
-const TCHAR* GetData(const FString& String);
-int32 GetNum(const FString& String);
-
 /**
  * A dynamically sizeable string.
  * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/StringHandling/FString/
@@ -55,6 +44,20 @@ private:
 	/** Array holding the character data */
 	typedef TArray<TCHAR> DataType;
 	DataType Data;
+
+	/** Trait testing whether a type is a contiguous range of characters, and not CharType[]. */
+	template <typename CharRangeType>
+	using TIsCharRangeNotCArray = TAnd<
+		TIsContiguousContainer<CharRangeType>,
+		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
+		TIsCharType<typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+
+	/** Trait testing whether a type is a contiguous range of TCHAR, and not TCHAR[]. */
+	template <typename CharRangeType>
+	using TIsTCharRangeNotCArray = TAnd<
+		TIsContiguousContainer<CharRangeType>,
+		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
+		TIsSame<TCHAR, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
 
 public:
 	using ElementType = TCHAR;
@@ -163,20 +166,41 @@ public:
 	}
 
 	/**
-	 * Create an FString from a FStringView
+	 * Create an FString from a contiguous range of characters
 	 *
-	 * @param Other The string view to create a new copy from
+	 * @param Other The contiguous character range to copy from
 	 */
-	explicit FString(const FStringView& Other);
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
+	explicit FString(CharRangeType&& Other)
+	{
+		if (const auto OtherNum = GetNum(Other))
+		{
+			const int32 OtherLen = int32(OtherNum);
+			checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to add to this string type: %" UINT64_FMT), uint64(OtherNum));
+			Reserve(OtherLen);
+			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
+		}
+	}
 
 	/**
-	 * Create an FString from a FStringView with extra space for characters at the end of the string
+	 * Create an FString from a contiguous range of characters, with extra slack at the end of the string
 	 *
-	 * @param Other The string view to create a new copy from
-	 * @param ExtraSlack number of extra characters to add to the end of the other string in this string
+	 * @param Other The contiguous character range to copy from
+	 * @param ExtraSlack The number of extra characters to reserve space for in the new string
 	 */
-	explicit FString(const FStringView& Other, int32 ExtraSlack);
-	
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
+	explicit FString(CharRangeType&& Other, int32 ExtraSlack)
+	{
+		const auto OtherNum = GetNum(Other);
+		const int32 OtherLen = int32(OtherNum);
+		checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to add to this string type: %" UINT64_FMT), uint64(OtherNum));
+
+		Reserve(OtherLen + ExtraSlack);
+		if (OtherLen)
+		{
+			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
+		}
+	}
 
 #ifdef __OBJC__
 	/** Convert Objective-C NSString* to FString */
@@ -228,14 +252,43 @@ public:
 	}
 
 	/**
-	 * Copy assignment from a string view
+	 * Copy assignment from a contiguous range of characters
 	 */
-	FString& operator=(const FStringView& Other);
+	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
+	FString& operator=(CharRangeType&& Other)
+	{
+		const auto OtherNum = GetNum(Other);
+		const int32 OtherLen = int32(OtherNum);
+		checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to assign to this string type: %" UINT64_FMT), uint64(OtherNum));
 
-	/**
-	 * Implicit conversion to a string view
-	 */
-	operator FStringView() const;
+		if (OtherLen == 0)
+		{
+			Empty();
+		}
+		else
+		{
+			const TCHAR* const OtherData = GetData(Other);
+			const int32 ThisLen = Len();
+			if (OtherLen <= ThisLen)
+			{
+				// Unless the input is longer, this might be assigned from a view of itself.
+				TCHAR* DataPtr = Data.GetData();
+				FMemory::Memmove(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
+				DataPtr[OtherLen] = TEXT('\0');
+				Data.RemoveAt(OtherLen + 1, ThisLen - OtherLen);
+			}
+			else
+			{
+				Data.Empty(OtherLen + 1);
+				Data.AddUninitialized(OtherLen + 1);
+				TCHAR* DataPtr = Data.GetData();
+				FMemory::Memcpy(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
+				DataPtr[OtherLen] = TEXT('\0');
+			}
+		}
+
+		return *this;
+	}
 
 	/**
 	 * Return specific character from this string
@@ -431,12 +484,11 @@ public:
 		AppendChars(Str, TCString<typename TRemoveConst<CharType>::Type>::Strlen(Str));
 		return *this;
 	}
-	
+
 	/** Append a string and return a reference to this */
-	template <typename StrType, typename = decltype(GetData(DeclVal<StrType>()))>
-	FORCEINLINE FString& Append(StrType&& Str)
+	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
+	FORCEINLINE FString& Append(CharRangeType&& Str)
 	{
-		static_assert(!TIsArray<StrType>::Value, "Char arrays shouldn't use this overload");
 		AppendChars(GetData(Str), GetNum(Str));
 		return *this;
 	}
@@ -2148,7 +2200,8 @@ template<typename T>
 typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
 LexToString(const T& Value)
 {
-	return FString::Printf( TFormatSpecifier<T>::GetFormatSpecifier(), Value );
+	// TRemoveCV to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
+	return FString::Printf( TFormatSpecifier<typename TRemoveCV<T>::Type>::GetFormatSpecifier(), Value );
 }
 
 template<typename CharType>
@@ -2313,6 +2366,12 @@ public:
 	}
 };
 
+template <>
+struct TIsContiguousContainer<FStringOutputDevice>
+{
+	enum { Value = true };
+};
+
 //
 // String output device.
 //
@@ -2361,7 +2420,7 @@ public:
 	}
 
 	/**
-	 * Appends other FString (as well as it's specializations like FStringOutputDevice)
+	 * Appends other FString (as well as its specializations like FStringOutputDevice)
 	 * object to this.
 	 */
 	virtual FString& operator+=(const FString& Other) override
@@ -2397,6 +2456,12 @@ public:
 		}
 		return *this;
 	}
+};
+
+template <>
+struct TIsContiguousContainer<FStringOutputDeviceCountLines>
+{
+	enum { Value = true };
 };
 
 /**

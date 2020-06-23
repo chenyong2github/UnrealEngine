@@ -1282,7 +1282,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 		TArray<FEditorModeInfo, TInlineAllocator<10>> NonDefaultModes;
 
-		for (const FEditorModeInfo& Mode : FEditorModeRegistry::Get().GetSortedModeInfo())
+		for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
 		{
 			// If the mode isn't visible don't create a menu option for it.
 			if (!Mode.bVisible)

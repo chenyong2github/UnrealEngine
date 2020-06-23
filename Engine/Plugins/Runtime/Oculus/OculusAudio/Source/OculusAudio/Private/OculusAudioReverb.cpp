@@ -23,12 +23,15 @@ void FSubmixEffectOculusReverbPlugin::ClearContext()
 
 void FSubmixEffectOculusReverbPlugin::Init(const FSoundEffectSubmixInitData& InInitData)
 {
-	FAudioDevice* AudioDevice = GEngine ? GEngine->GetAudioDeviceManager()->GetAudioDeviceRaw(InInitData.DeviceID) : nullptr;
+	OwningDeviceId = InInitData.DeviceID;
+}
 
-	Context = FOculusAudioContextManager::GetContextForAudioDevice(AudioDevice);
+void FSubmixEffectOculusReverbPlugin::InitializeContext(const FOculusReverbSubmixInitData& InContextInitData)
+{
+	Context = FOculusAudioContextManager::GetContextForAudioDevice(OwningDeviceId);
 	if (!Context)
 	{
-		Context = FOculusAudioContextManager::CreateContextForAudioDevice(AudioDevice);
+		Context = FOculusAudioContextManager::CreateContextForAudioDevice(OwningDeviceId, InContextInitData.BufferLength, InContextInitData.MaxNumSources, InContextInitData.SampleRate);
 	}
 
 	check(Context);
@@ -41,18 +44,28 @@ FSubmixEffectOculusReverbPlugin::FSubmixEffectOculusReverbPlugin()
 
 void FSubmixEffectOculusReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InputData, FSoundEffectSubmixOutputData& OutputData)
 {
-	check(Context);
-
-	int Enabled = 0;
-	ovrResult Result = OVRA_CALL(ovrAudio_IsEnabled)(Context, ovrAudioEnable_LateReverberation, &Enabled);
-	OVR_AUDIO_CHECK(Result, "Failed to check if reverb is Enabled");
-
-	if (Enabled != 0)
+	if (ensure(Context))
 	{
-		uint32_t Status = 0;
-		Result = OVRA_CALL(ovrAudio_MixInSharedReverbInterleaved)(Context, &Status, OutputData.AudioBuffer->GetData());
-		OVR_AUDIO_CHECK(Result, "Failed to process reverb");
+		int Enabled = 0;
+		ovrResult Result = OVRA_CALL(ovrAudio_IsEnabled)(Context, ovrAudioEnable_LateReverberation, &Enabled);
+		OVR_AUDIO_CHECK(Result, "Failed to check if reverb is Enabled");
+
+		if (Enabled != 0)
+		{
+			uint32_t Status = 0;
+			Result = OVRA_CALL(ovrAudio_MixInSharedReverbInterleaved)(Context, &Status, OutputData.AudioBuffer->GetData());
+			OVR_AUDIO_CHECK(Result, "Failed to process reverb");
+		}
 	}
+}
+
+OculusAudioReverb::OculusAudioReverb()
+	: Context(nullptr)
+	, ReverbPreset(nullptr)
+	, BufferLength(0)
+	, MaxNumSources(0)
+	, SampleRate(0.0f)
+{
 }
 
 void OculusAudioReverb::ClearContext()
@@ -75,7 +88,13 @@ FSoundEffectSubmixPtr OculusAudioReverb::GetEffectSubmix()
 		}
 
 		SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(FSoundEffectSubmixInitData(), *ReverbPreset);
-		SubmixEffect->SetEnabled(true);
+		
+		if (ensure(SubmixEffect.IsValid()))
+		{
+			FOculusReverbSubmixInitData InitContextData = { BufferLength, MaxNumSources, SampleRate };
+			static_cast<FSubmixEffectOculusReverbPlugin*>(SubmixEffect.Get())->InitializeContext(InitContextData);
+			SubmixEffect->SetEnabled(true);
+		}
 	}
 
 	return SubmixEffect;
@@ -98,4 +117,11 @@ USoundSubmix* OculusAudioReverb::GetSubmix()
 	}
 
 	return ReverbSubmix;
+}
+
+void OculusAudioReverb::Initialize(const FAudioPluginInitializationParams InitializationParams)
+{
+	BufferLength = InitializationParams.BufferLength;
+	MaxNumSources = InitializationParams.NumSources;
+	SampleRate = InitializationParams.SampleRate;
 }

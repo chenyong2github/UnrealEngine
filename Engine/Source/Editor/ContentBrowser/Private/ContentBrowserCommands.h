@@ -25,7 +25,6 @@ public:
 public:
 
 	TSharedPtr<FUICommandInfo> CreateNewFolder;
-	TSharedPtr<FUICommandInfo> DirectoryUp;
 	TSharedPtr<FUICommandInfo> OpenAssetsOrFolders;
 	TSharedPtr<FUICommandInfo> PreviewAssets;
 	TSharedPtr<FUICommandInfo> SaveSelectedAsset;

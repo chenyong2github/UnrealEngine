@@ -125,7 +125,7 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 	else if (UnderlyingArchive.IsLoading())
 	{
 		TOptional<FStructuredArchiveSlot> GuidSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Guid")), false);
-		if (GuidSlot.IsSet())
+		if (GuidSlot.IsSet() && !UnderlyingArchive.IsError())
 		{
 			FUniqueObjectGuid Guid;
 			GuidSlot.GetValue() << Guid;

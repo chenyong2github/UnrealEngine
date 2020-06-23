@@ -162,69 +162,6 @@ void FPhysicsCommandsTask::DoTask(ENamedThreads::Type CurrentThread, const FGrap
 
 //////////////////////////////////////////////////////////////////////////
 
-FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolverBase* InSolver, float InDt)
-	: Solver(InSolver)
-	, Dt(InDt)
-{
-
-}
-
-TStatId FPhysicsSolverAdvanceTask::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverAdvanceTask, STATGROUP_TaskGraphTasks);
-}
-
-ENamedThreads::Type FPhysicsSolverAdvanceTask::GetDesiredThread()
-{
-	return CPrio_FPhysicsTickTask.Get();
-}
-
-ESubsequentsMode::Type FPhysicsSolverAdvanceTask::GetSubsequentsMode()
-{
-	// The completion task relies on the collection of tick tasks in flight
-	return ESubsequentsMode::TrackSubsequents;
-}
-
-void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-{
-	LLM_SCOPE(ELLMTag::Chaos);
-	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
-
-	Solver->CastHelper([this](auto& Concrete){StepSolver(&Concrete,Dt);});
-}
-
-template <typename TSolver>
-void FPhysicsSolverAdvanceTask::StepSolver(TSolver* InSolver, float InDt)
-{
-	using namespace Chaos;
-
-	check(InSolver);
-
-	// Handle our solver commands
-	{
-		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
-
-		TQueue<TFunction<void()>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
-		TFunction<void()> Command;
-		while(Queue.Dequeue(Command))
-		{
-			Command();
-		}
-	}
-
-	if(InSolver->bEnabled)
-	{
-		// Only process if we have something to actually simulate
-		if(InSolver->HasActiveParticles())
-		{
-			InSolver->AdvanceSolverBy(InDt);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-
 FPhysicsTickCompleteTask::FPhysicsTickCompleteTask(FGraphEventRef& InCompletionEvent)
 	: CompletionEvent(InCompletionEvent)
 {

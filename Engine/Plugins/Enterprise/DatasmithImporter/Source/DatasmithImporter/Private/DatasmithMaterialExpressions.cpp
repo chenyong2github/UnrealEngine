@@ -3178,7 +3178,8 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 	UnrealMaterial->bUseMaterialAttributes = MaterialElement->GetUseMaterialAttributes();
 	UnrealMaterial->TwoSided = MaterialElement->GetTwoSided();
 	UnrealMaterial->BlendMode = GetUEPbrImportBlendMode(MaterialElement, AssetsContext);
-	
+	UnrealMaterial->OpacityMaskClipValue = MaterialElement->GetOpacityMaskClipValue();
+
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterial);
 
 	if ( MaterialElement->GetOpacity().GetExpression() )

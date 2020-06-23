@@ -117,7 +117,7 @@ namespace Algo
 	 * @param  Range  The range to sort.
 	 */
 	template <typename RangeType>
-	FORCEINLINE void LegacySort(RangeType& Range)
+	FORCEINLINE void LegacySort(RangeType&& Range)
 	{
 		AlgoImpl::LegacySortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), TLess<>());
 	}
@@ -130,7 +130,7 @@ namespace Algo
 	 * @param  Predicate  A binary predicate object used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename PredicateType>
-	FORCEINLINE void LegacySort(RangeType& Range, PredicateType Pred)
+	FORCEINLINE void LegacySort(RangeType&& Range, PredicateType Pred)
 	{
 		AlgoImpl::LegacySortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), MoveTemp(Pred));
 	}
@@ -143,7 +143,7 @@ namespace Algo
 	 * @param  Proj   The projection to sort by when applied to the element.
 	 */
 	template <typename RangeType, typename ProjectionType>
-	FORCEINLINE void LegacySortBy(RangeType& Range, ProjectionType Proj)
+	FORCEINLINE void LegacySortBy(RangeType&& Range, ProjectionType Proj)
 	{
 		AlgoImpl::LegacySortInternal(GetData(Range), GetNum(Range), MoveTemp(Proj), TLess<>());
 	}
@@ -157,7 +157,7 @@ namespace Algo
 	 * @param  Predicate  A binary predicate object, applied to the projection, used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename ProjectionType, typename PredicateType>
-	FORCEINLINE void LegacySortBy(RangeType& Range, ProjectionType Proj, PredicateType Pred)
+	FORCEINLINE void LegacySortBy(RangeType&& Range, ProjectionType Proj, PredicateType Pred)
 	{
 		AlgoImpl::LegacySortInternal(GetData(Range), GetNum(Range), MoveTemp(Proj), MoveTemp(Pred));
 	}

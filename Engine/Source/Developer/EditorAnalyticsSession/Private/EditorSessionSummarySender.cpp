@@ -8,6 +8,8 @@
 #include "EditorAnalyticsSession.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/EngineVersion.h"
+#include "Internationalization/Regex.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
@@ -173,11 +175,12 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("ShutdownType"), ShutdownTypeString);
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
-	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), FMath::FloorToInt(static_cast<float>((Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds())));
+	AnalyticsAttributes.Emplace(TEXT("SessionDurationWall"), FMath::FloorToInt(static_cast<float>((Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds()))); // Session duration from system date/time.
+	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.TotalUserInactivitySeconds); // Session duration using FTimePlatform::Seconds(). Less accurate (+/- few seconds per day) but doesn't depend on system date time.	
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Session.Idle5Min);
 	AnalyticsAttributes.Emplace(TEXT("30MinIdle"), Session.Idle30Min);
-	AnalyticsAttributes.Emplace(TEXT("TotalUserInactivitySecs"), Session.TotalUserInactivitySeconds);
+	//AnalyticsAttributes.Emplace(TEXT("TotalUserInactivitySecs"), Session.TotalUserInactivitySeconds); // To avoid breaking public API, Session.TotalUserInactivitySeconds was repurposed to contain the session duration in 4.25.1. Should be removed in 4.26
 	AnalyticsAttributes.Emplace(TEXT("TotalEditorInactivitySecs"), Session.TotalEditorInactivitySeconds);
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
@@ -207,31 +210,52 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsInVRMode"), Session.bIsInVRMode);
 	AnalyticsAttributes.Emplace(TEXT("IsLowDriveSpace"), Session.bIsLowDriveSpace);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
+	AnalyticsAttributes.Emplace(TEXT("MonitorPid"), Session.MonitorProcessID); // For out-of-process monitoring, if this is 0, this will mean CRC failed to launch or crashed very early.
 
-	bool bErrorDetected = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
+	bool bShouldAttachMonitorLog = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
 
 	// Add the exit code to the report if it was set by out-of-process monitor (CrashReportClientEditor).
 	if (Session.ExitCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), Session.ExitCode.GetValue());
-		bErrorDetected |= Session.ExitCode.GetValue() != 0;
+		bShouldAttachMonitorLog |= Session.ExitCode.GetValue() != 0;
+	}
+	else
+	{
+		bShouldAttachMonitorLog = true; // Try to figure out why exit code could not be set.
 	}
 
 	// Add the monitor exception code in case the out-of-process monitor (CrashReportClientEditor) crashed itself, caught the exception and was able to store it in the session before dying.
-	if (Session.MonitorExceptCode.IsSet())
-	{
-		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Session.MonitorExceptCode.GetValue());
-		bErrorDetected = true;
-	}
+	TOptional<int32> MonitorExceptCode = Session.MonitorExceptCode;
+	bShouldAttachMonitorLog |= MonitorExceptCode.IsSet();
 
 	// If the session did not end normally, try to attache the mini-log created for that session to help diagnose abnormal terminations.
-	if (bErrorDetected && !Session.bWasEverDebugger)
+	if (bShouldAttachMonitorLog && !Session.bWasEverDebugger)
 	{
 		// Check if a monitor log is available. (Set by CrashReportClientEditor before sending the summary events).
 		if (const FString* MonitorLog = MonitorMiniLogs.Find(Session.MonitorProcessID))
 		{
 			AnalyticsAttributes.Emplace(TEXT("MonitorLog"), *MonitorLog);
+
+			// If no monitor exception code is set, check in the log if one exists. The exception may have occurred before the session was created or
+			// the out of process might not have been able to acquire the session lock.
+			if (!MonitorExceptCode.IsSet() || MonitorExceptCode.GetValue() == ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
+			{
+				// Find the first entry in the log that match an exception reported like: "CRC/Crash:-1073741819"
+				FRegexPattern Pattern(TEXT(R"(CRC.Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
+				FRegexMatcher Matcher(Pattern, *MonitorLog);
+				if (Matcher.FindNext())
+				{
+					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Matcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
+					MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+				}
+			}
 		}
+	}
+
+	if (MonitorExceptCode.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), MonitorExceptCode.GetValue());
 	}
 
 	// Was this summary produced by another process than itself or the out-of-process monitor for that run?
@@ -240,7 +264,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	// Sending the summary event of the current process analytic session?
 	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
 	{
-		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
 	}
 	else // The summary was created by another process/instance in a different session. (Ex: Editor sending a summary a prevoulsy crashed instance or CrashReportClientEditor sending it on behalf of the Editor)
 	{
@@ -257,7 +281,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		TempSummaryProvider->SetUserID(CopyTemp(Session.UserId));
 
 		// Send the summary.
-		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
+		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
 
 		// The temporary provider is about to be deleted (going out of scope), ensure it sents its report.
 		TempSummaryProvider->BlockUntilFlushed(2.0f);

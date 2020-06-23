@@ -113,8 +113,8 @@ public:
 		int32 Chunk = GetChunkForKey(KeyIndex);
 		int32 ChunkElement = GetChunkElementForKey(KeyIndex);
 
-		check(KeyChannelIndex < PerChannelIndices.Num());
-		if (PerChannelIndices[KeyChannelIndex].Chunks.Num() == 0)
+		// If the key hasn't yet had a chunk created for it, assume that nothing has yet referenced it, and return an empty array.
+		if (Chunk >= PerChannelIndices[KeyChannelIndex].Chunks.Num())
 		{
 			return TArrayView<const ElementIDType>();
 		}

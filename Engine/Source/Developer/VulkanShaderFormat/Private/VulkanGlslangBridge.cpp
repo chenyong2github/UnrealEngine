@@ -3,6 +3,7 @@
 
 #include "VulkanShaderFormat.h"
 #include "ShaderCore.h"
+#include "ShaderCompilerCore.h"
 
 #if defined(_MSC_VER) && _MSC_VER == 1800
 	#pragma warning(push)

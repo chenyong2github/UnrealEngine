@@ -166,35 +166,39 @@ bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, 
 {
 	// use the DataSetVariable to figure out the information about the data that we'll be sending to the renderer
 	const auto& DataSetVariables = DataSet.GetVariables();
-	int32 VariableMatch = FNiagaraVariable::SearchArrayForPartialNameMatch(DataSetVariables, Var.GetName());
-	if (VariableMatch == INDEX_NONE)
+	const int32 VariableIndex = DataSetVariables.IndexOfByPredicate(
+		[&Var](const FNiagaraVariable& InVar)
+		{
+			return InVar.GetName() == Var.GetName();
+		}
+	);
+	if (VariableIndex == INDEX_NONE)
 	{
 		VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(INDEX_NONE, INDEX_NONE, 0, false, false);
 		return false;
 	}
-	const auto& DataSetVariable = DataSetVariables[VariableMatch];
+
+	const FNiagaraVariable& DataSetVariable = DataSetVariables[VariableIndex];
 	const FNiagaraTypeDefinition& VarType = DataSetVariable.GetType();
 
-	const bool HalfVariable = VarType == FNiagaraTypeDefinition::GetHalfDef()
+	const bool bHalfVariable = VarType == FNiagaraTypeDefinition::GetHalfDef()
 		|| VarType == FNiagaraTypeDefinition::GetHalfVec2Def()
 		|| VarType == FNiagaraTypeDefinition::GetHalfVec3Def()
 		|| VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
 
+	const auto& DataSetVariableLayouts = DataSet.GetVariableLayouts();
+	const FNiagaraVariableLayoutInfo& DataSetVariableLayout = DataSetVariableLayouts[VariableIndex];
 
-	int32 FloatOffset;
-	int32 HalfOffset;
-	int32 IntOffset;//TODO: No VF uses ints atm but it should be trivial to copy the float path if some vf should need to.
-	DataSet.GetVariableComponentOffsets(DataSetVariable, FloatOffset, IntOffset, HalfOffset);
-	int32 VarSize = HalfVariable ? sizeof(FFloat16) : sizeof(float);
-	int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
-	int32 Offset = HalfVariable ? HalfOffset : FloatOffset;
-	int32& TotalVFComponents = HalfVariable ? TotalVFHalfComponents : TotalVFFloatComponents;
+	const int32 VarSize = bHalfVariable ? sizeof(FFloat16) : sizeof(float);
+	const int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
+	const int32 Offset = bHalfVariable ? DataSetVariableLayout.HalfComponentStart : DataSetVariableLayout.FloatComponentStart;
+	int32& TotalVFComponents = bHalfVariable ? TotalVFHalfComponents : TotalVFFloatComponents;
 
 	int32 GPULocation = INDEX_NONE;
 	bool bUpload = true;
 	if (Offset != INDEX_NONE)
 	{
-		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == Offset && VarInfo.bHalfType == HalfVariable; }))
+		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == Offset && VarInfo.bHalfType == bHalfVariable; }))
 		{
 			//Don't need to upload this var again if it's already been uploaded for another var info. Just point to that.
 			//E.g. when custom sorting uses age.
@@ -209,7 +213,7 @@ bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, 
 		}
 	}
 
-	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(Offset, GPULocation, NumComponents, bUpload, HalfVariable);
+	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(Offset, GPULocation, NumComponents, bUpload, bHalfVariable);
 
 	return Offset != INDEX_NONE;
 }

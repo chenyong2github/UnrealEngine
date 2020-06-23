@@ -102,7 +102,8 @@ protected:
 	bool ShouldBeRenderingOffscreen() const;
 	bool IsAnythingVisibleToRender() const;
 	void OnRetainerModeChanged();
-	void OnGlobalInvalidate(bool bClearResourcesImmediately);
+	void OnRootInvalidated();
+
 private:
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 #if !UE_BUILD_SHIPPING

@@ -5,18 +5,19 @@
 #pragma once
 
 #include "BoxTypes.h"
-#include "InfoTypes.h"
 #include "FrameTypes.h"
 #include "GeometryTypes.h"
 #include "HAL/Platform.h"
+#include "IndexTypes.h"
+#include "InfoTypes.h"
 #include "MathUtil.h"
 #include "Quaternion.h"
+#include "Util/CompactMaps.h"
 #include "Util/DynamicVector.h"
 #include "Util/IndexUtil.h"
 #include "Util/IteratorUtil.h"
 #include "Util/RefCountVector.h"
 #include "Util/SmallListSet.h"
-#include "Util/CompactMaps.h"
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
@@ -25,12 +26,12 @@ class FMeshShapeGenerator;
 
 enum class EMeshComponents : uint8
 {
-	None = 0,
+	None          = 0,
 	VertexNormals = 1,
-	VertexColors = 2,
-	VertexUVs = 4,
-	FaceGroups = 8,
-	All = 15
+	VertexColors  = 2,
+	VertexUVs     = 4,
+	FaceGroups    = 8,
+	All           = 15
 };
 
 /**
@@ -85,53 +86,60 @@ enum class EMeshComponents : uint8
 class DYNAMICMESH_API FDynamicMesh3
 {
 public:
-using FEdgeFlipInfo = DynamicMeshInfo::FEdgeFlipInfo;
-using FEdgeSplitInfo = DynamicMeshInfo::FEdgeSplitInfo;
-using FEdgeCollapseInfo = DynamicMeshInfo::FEdgeCollapseInfo;
-using FMergeEdgesInfo = DynamicMeshInfo::FMergeEdgesInfo;
-using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
-using FVertexSplitInfo = DynamicMeshInfo::FVertexSplitInfo;
+	using FEdgeFlipInfo     = DynamicMeshInfo::FEdgeFlipInfo;
+	using FEdgeSplitInfo    = DynamicMeshInfo::FEdgeSplitInfo;
+	using FEdgeCollapseInfo = DynamicMeshInfo::FEdgeCollapseInfo;
+	using FMergeEdgesInfo   = DynamicMeshInfo::FMergeEdgesInfo;
+	using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
+	using FVertexSplitInfo  = DynamicMeshInfo::FVertexSplitInfo;
 
+	struct FEdge
+	{
+		FIndex2i Vert;
+		FIndex2i Tri;
+		friend bool operator!=(const FEdge& e0, const FEdge& e1)
+		{
+			return (e0.Vert != e1.Vert) || (e0.Tri != e1.Tri);
+		}
+	};
 	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 	/** NonManifoldID is returned by AppendTriangle() to indicate that the added triangle would result in nonmanifold geometry and hence was ignored */
 	constexpr static int NonManifoldID = -2;
 	/** DuplicateTriangleID is returned by AppendTriangle() to indicate that the added triangle already exists in the mesh, and was ignored because we do not support duplicate triangles */
 	constexpr static int DuplicateTriangleID = -3;
-	/** InvalidGroupID indicates that a group ID is invalid */
-	constexpr static int InvalidGroupID = IndexConstants::InvalidID;
 
-	constexpr static FVector3d InvalidVertex{ TNumericLimits<double>::Max(), 0.0, 0.0 };
-	constexpr static FIndex3i  InvalidTriangle{ InvalidID, InvalidID, InvalidID };
-	constexpr static FIndex2i  InvalidEdge{ InvalidID, InvalidID };
+	constexpr static FVector3d InvalidVertex{TNumericLimits<double>::Max(), 0.0, 0.0};
+	constexpr static FIndex3i InvalidTriangle{InvalidID, InvalidID, InvalidID};
+	constexpr static FIndex2i InvalidEdge{InvalidID, InvalidID};
 
 protected:
 	/** List of vertex positions */
-	TDynamicVector<double> Vertices{};
+	TDynamicVector<FVector3d> Vertices{};
 	/** Reference counts of vertex indices. For vertices that exist, the count is 1 + num_triangle_using_vertex. Iterate over this to find out which vertex indices are valid. */
 	FRefCountVector VertexRefCounts{};
 	/** (optional) List of per-vertex normals */
-	TOptional<TDynamicVector<float>> VertexNormals{};
+	TOptional<TDynamicVector<FVector3f>> VertexNormals{};
 	/** (optional) List of per-vertex colors */
-	TOptional<TDynamicVector<float>> VertexColors{};
+	TOptional<TDynamicVector<FVector3f>> VertexColors{};
 	/** (optional) List of per-vertex uv's */
-	TOptional<TDynamicVector<float>> VertexUVs{};
+	TOptional<TDynamicVector<FVector2f>> VertexUVs{};
 	/** List of per-vertex edge one-rings */
 	FSmallListSet VertexEdgeLists;
 
 	/** List of triangle vertex-index triplets [Vert0 Vert1 Vert2]*/
-	TDynamicVector<int> Triangles;
+	TDynamicVector<FIndex3i> Triangles;
 	/** Reference counts of triangle indices. Ref count is always 1 if the triangle exists. Iterate over this to find out which triangle indices are valid. */
 	FRefCountVector TriangleRefCounts;
 	/** List of triangle edge triplets [Edge0 Edge1 Edge2] */
-	TDynamicVector<int> TriangleEdges;
+	TDynamicVector<FIndex3i> TriangleEdges;
 	/** (optional) List of per-triangle group identifiers */
 	TOptional<TDynamicVector<int>> TriangleGroups{};
 	/** Upper bound on the triangle group IDs used in the mesh (may be larger than the actual maximum if triangles have been deleted) */
 	int GroupIDCounter = 0;
 
 	/** List of edge elements. An edge is four elements [VertA, VertB, Tri0, Tri1], where VertA < VertB, and Tri1 may be InvalidID (if the edge is a boundary edge) */
-	TDynamicVector<int> Edges;
+	TDynamicVector<FEdge> Edges;
 	/** Reference counts of edge indices. Ref count is always 1 if the edge exists. Iterate over this to find out which edge indices are valid. */
 	FRefCountVector EdgeRefCounts;
 
@@ -156,13 +164,10 @@ protected:
 
 public:
 	/** Default constructor */
-	FDynamicMesh3() 
-		: FDynamicMesh3(true, false, false, false)
-	{
-	}
+	FDynamicMesh3() : FDynamicMesh3(true, false, false, false) {}
 
 	/** Copy/Move construction */
-	FDynamicMesh3(const FDynamicMesh3& CopyMesh );
+	FDynamicMesh3(const FDynamicMesh3& CopyMesh);
 	FDynamicMesh3(FDynamicMesh3&& MoveMesh);
 
 	/** Copy and move assignment */
@@ -176,29 +181,31 @@ public:
 	/** Construct an empty mesh with specified attributes */
 	explicit FDynamicMesh3(bool bWantNormals, bool bWantColors, bool bWantUVs, bool bWantTriGroups);
 	explicit FDynamicMesh3(EMeshComponents flags)
-		: FDynamicMesh3(((int)flags & (int)EMeshComponents::VertexNormals) != 0, ((int)flags & (int)EMeshComponents::VertexColors) != 0,
-						((int)flags & (int)EMeshComponents::VertexUVs) != 0, ((int)flags & (int)EMeshComponents::FaceGroups) != 0)
-	{
-	}
+	    : FDynamicMesh3(((int)flags & (int)EMeshComponents::VertexNormals) != 0,
+	                    ((int)flags & (int)EMeshComponents::VertexColors) != 0,
+	                    ((int)flags & (int)EMeshComponents::VertexUVs) != 0,
+	                    ((int)flags & (int)EMeshComponents::FaceGroups) != 0)
+	{}
 
 	/** Construction from Mesh Generator */
 	FDynamicMesh3(const FMeshShapeGenerator* Generator);
 
 	/** Set internal data structures to be a copy of input mesh using the specified attributes*/
-	void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true, bool bAttributes = true);
+	void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
+	          bool bAttributes = true);
 
 	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
 	void Copy(const FMeshShapeGenerator* Generator);
 
 	/** Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges */
-	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true, bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
+	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
+	                 bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
 
 	/** Discard all data */
 	void Clear();
 
-	
-public:
 
+public:
 	/** @return number of vertices in the mesh */
 	int VertexCount() const
 	{
@@ -275,7 +282,8 @@ public:
 	/** @return true if VertexID is a valid vertex in this mesh AND is used by at least one triangle */
 	inline bool IsReferencedVertex(int VertexID) const
 	{
-		return VertexID >= 0 && VertexID < (int)VertexRefCounts.GetMaxIndex() && VertexRefCounts.GetRawRefCount(VertexID) > 1;
+		return VertexID >= 0 && VertexID < (int)VertexRefCounts.GetMaxIndex() &&
+		    VertexRefCounts.GetRawRefCount(VertexID) > 1;
 	}
 	/** @return true if TriangleID is a valid triangle in this mesh */
 	inline bool IsTriangle(int TriangleID) const
@@ -299,8 +307,8 @@ public:
 	typedef typename FRefCountVector::IndexEnumerable vertex_iterator;
 	typedef typename FRefCountVector::IndexEnumerable triangle_iterator;
 	typedef typename FRefCountVector::IndexEnumerable edge_iterator;
-	template <typename T>
-	using value_iteration = FRefCountVector::MappedEnumerable<T>;
+	template<typename T>
+	using value_iteration          = FRefCountVector::MappedEnumerable<T>;
 	using vtx_triangles_enumerable = TPairExpandEnumerable<FSmallListSet::ValueIterator>;
 
 	/** @return enumerable object for valid vertex indices suitable for use with range-based for, ie for ( int i : VertexIndicesItr() ) */
@@ -326,35 +334,26 @@ public:
 	/** @return enumerable object for boundary edge indices suitable for use with range-based for, ie for ( int i : BoundaryEdgeIndicesItr() ) */
 	FRefCountVector::FilteredEnumerable BoundaryEdgeIndicesItr() const
 	{
-		return EdgeRefCounts.FilteredIndices([this](int EdgeID) {\
-			return Edges[4*EdgeID + 3] == InvalidID;
-		});
+		return EdgeRefCounts.FilteredIndices([this](int EdgeID) { return Edges[EdgeID].Tri[1] == InvalidID; });
 	}
 
 	/** Enumerate positions of all vertices in mesh */
 	value_iteration<FVector3d> VerticesItr() const
 	{
-		return VertexRefCounts.MappedIndices<FVector3d>([this](int VertexID) {
-			int i = 3 * VertexID;
-			return FVector3d(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
-		});
+		return VertexRefCounts.MappedIndices<FVector3d>([this](int VertexID) { return Vertices[VertexID]; });
 	}
 
 	/** Enumerate all triangles in the mesh */
 	value_iteration<FIndex3i> TrianglesItr() const
 	{
-		return TriangleRefCounts.MappedIndices<FIndex3i>([this](int TriangleID) {
-			int i = 3 * TriangleID;
-			return FIndex3i(Triangles[i], Triangles[i + 1], Triangles[i + 2]);
-		});
+		return TriangleRefCounts.MappedIndices<FIndex3i>([this](int TriangleID) { return Triangles[TriangleID]; });
 	}
 
 	/** Enumerate edges. Each returned element is [v0,v1,t0,t1], where t1 will be InvalidID if this is a boundary edge */
-	value_iteration<FIndex4i> EdgesItr() const
+	value_iteration<FEdge> EdgesItr() const
 	{
-		return EdgeRefCounts.MappedIndices<FIndex4i>([this](int EdgeID) {
-			int i = 4 * EdgeID;
-			return FIndex4i(Edges[i], Edges[i + 1], Edges[i + 2], Edges[i + 3]);
+		return EdgeRefCounts.MappedIndices<FEdge>([this](int EdgeID) {
+			return Edges[EdgeID];
 		});
 	}
 
@@ -362,7 +361,8 @@ public:
 	FSmallListSet::ValueEnumerable VtxVerticesItr(int VertexID) const
 	{
 		check(VertexRefCounts.IsValid(VertexID));
-		return VertexEdgeLists.Values(VertexID, [VertexID, this](int eid) { return GetOtherEdgeVertex(eid, VertexID); });
+		return VertexEdgeLists.Values(VertexID,
+		                              [VertexID, this](int eid) { return GetOtherEdgeVertex(eid, VertexID); });
 	}
 
 	/** @return enumerable object for one-ring edges of a vertex, suitable for use with range-based for, ie for ( int i : VtxEdgesItr(VertexID) ) */
@@ -457,13 +457,11 @@ public:
 	// Vertex/Tri/Edge accessors
 	//
 public:
-
 	/** @return the vertex position */
 	inline FVector3d GetVertex(int VertexID) const
 	{
 		check(IsVertex(VertexID));
-		int i = 3 * VertexID;
-		return FVector3d(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
+		return Vertices[VertexID];
 	}
 
 	/** Set vertex position */
@@ -473,10 +471,7 @@ public:
 		check(IsVertex(VertexID));
 		if (VectorUtil::IsFinite(vNewPos))
 		{
-			int i = 3 * VertexID;
-			Vertices[i] = vNewPos.X;
-			Vertices[i + 1] = vNewPos.Y;
-			Vertices[i + 2] = vNewPos.Z;
+			Vertices[VertexID] = vNewPos;
 			UpdateTimeStamp(true, false);
 		}
 	}
@@ -493,10 +488,7 @@ public:
 
 		if (VectorUtil::IsFinite(vNewPos))
 		{
-			int i = 3 * VertexID;
-			Vertices[i] = vNewPos.X;
-			Vertices[i + 1] = vNewPos.Y;
-			Vertices[i + 2] = vNewPos.Z;
+			Vertices[VertexID] = vNewPos;
 		}
 	}
 
@@ -540,23 +532,21 @@ public:
 	inline FIndex3i GetTriangle(int TriangleID) const
 	{
 		check(IsTriangle(TriangleID));
-		int i = 3 * TriangleID;
-		return FIndex3i(Triangles[i], Triangles[i + 1], Triangles[i + 2]);
+		return Triangles[TriangleID];
 	}
 
 	/** Get triangle edges */
 	inline FIndex3i GetTriEdges(int TriangleID) const
 	{
 		check(IsTriangle(TriangleID));
-		int i = 3 * TriangleID;
-		return FIndex3i(TriangleEdges[i], TriangleEdges[i + 1], TriangleEdges[i + 2]);
+		return TriangleEdges[TriangleID];
 	}
 
 	/** Get one of the edges of a triangle */
 	inline int GetTriEdge(int TriangleID, int j) const
 	{
 		check(IsTriangle(TriangleID));
-		return TriangleEdges[3 * TriangleID + j];
+		return TriangleEdges[TriangleID][j];
 	}
 
 	/** Find the neighbour triangles of a triangle (any of them might be InvalidID) */
@@ -565,50 +555,42 @@ public:
 	/** Get the three vertex positions of a triangle */
 	inline void GetTriVertices(int TriangleID, FVector3d& v0, FVector3d& v1, FVector3d& v2) const
 	{
-		int i = 3 * TriangleID;
-		int ai = 3 * Triangles[i];
-		v0.X = Vertices[ai];		v0.Y = Vertices[ai + 1];		v0.Z = Vertices[ai + 2];
-		int bi = 3 * Triangles[i + 1];
-		v1.X = Vertices[bi];		v1.Y = Vertices[bi + 1];		v1.Z = Vertices[bi + 2];
-		int ci = 3 * Triangles[i + 2];
-		v2.X = Vertices[ci];		v2.Y = Vertices[ci + 1];		v2.Z = Vertices[ci + 2];
+		const FIndex3i& Triangle = Triangles[TriangleID];
+		v0                       = Vertices[Triangle[0]];
+		v1                       = Vertices[Triangle[1]];
+		v2                       = Vertices[Triangle[2]];
 	}
 
 	/** Get the position of one of the vertices of a triangle */
 	inline FVector3d GetTriVertex(int TriangleID, int j) const
 	{
-		int vi = 3 * Triangles[3 * TriangleID + j];
-		return FVector3d(Vertices[vi], Vertices[vi + 1], Vertices[vi + 2]);
+		return Vertices[Triangles[TriangleID][j]];
 	}
 
 	/** Get the vertices and triangles of an edge, returned as [v0,v1,t0,t1], where t1 may be InvalidID */
-	inline FIndex4i GetEdge(int EdgeID) const
+	inline FEdge GetEdge(int EdgeID) const
 	{
 		check(IsEdge(EdgeID));
-		int i = 4 * EdgeID;
-		return FIndex4i(Edges[i], Edges[i + 1], Edges[i + 2], Edges[i + 3]);
+		return Edges[EdgeID];
 	}
 
 	/** Get the vertex pair for an edge */
 	inline FIndex2i GetEdgeV(int EdgeID) const
 	{
 		check(IsEdge(EdgeID));
-		int i = 4 * EdgeID;
-		return FIndex2i(Edges[i], Edges[i + 1]);
+		return Edges[EdgeID].Vert;
 	}
 
 	/** Get the vertex positions of an edge */
 	inline bool GetEdgeV(int EdgeID, FVector3d& a, FVector3d& b) const
 	{
 		check(IsEdge(EdgeID));
-		int iv0 = 3 * Edges[4 * EdgeID];
-		a.X = Vertices[iv0];
-		a.Y = Vertices[iv0 + 1];
-		a.Z = Vertices[iv0 + 2];
-		int iv1 = 3 * Edges[4 * EdgeID + 1];
-		b.X = Vertices[iv1];
-		b.Y = Vertices[iv1 + 1];
-		b.Z = Vertices[iv1 + 2];
+
+		const FIndex2i Verts = Edges[EdgeID].Vert;
+
+		a = Vertices[Verts[0]];
+		b = Vertices[Verts[1]];
+
 		return true;
 	}
 
@@ -616,8 +598,7 @@ public:
 	inline FIndex2i GetEdgeT(int EdgeID) const
 	{
 		check(IsEdge(EdgeID));
-		int i = 4 * EdgeID;
-		return FIndex2i(Edges[i + 2], Edges[i + 3]);
+		return Edges[EdgeID].Tri;
 	}
 
 	/** Return edge vertex indices, but oriented based on attached triangle (rather than min-sorted) */
@@ -637,9 +618,8 @@ public:
 			return FVector3f::UnitY();
 		}
 		check(IsVertex(vID));
-		int i = 3 * vID;
-		const TDynamicVector<float>& Normals = VertexNormals.GetValue();
-		return FVector3f( Normals[i], Normals[i + 1], Normals[i + 2] );
+		const TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
+		return Normals[vID];
 	}
 
 	void SetVertexNormal(int vID, const FVector3f& vNewNormal)
@@ -647,11 +627,8 @@ public:
 		if (HasVertexNormals())
 		{
 			check(IsVertex(vID));
-			int i = 3 * vID;
-			TDynamicVector<float>& Normals = VertexNormals.GetValue();
-			Normals[i]     = vNewNormal.X;
-			Normals[i + 1] = vNewNormal.Y;
-			Normals[i + 2] = vNewNormal.Z;
+			TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
+			Normals[vID]                       = vNewNormal;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -667,10 +644,9 @@ public:
 			return FVector3f::One();
 		}
 		check(IsVertex(vID));
-		int i = 3 * vID;
 
-		const TDynamicVector<float>& Colors = VertexColors.GetValue();
-		return FVector3f(Colors[i], Colors[i + 1], Colors[i + 2]);
+		const TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
+		return Colors[vID];
 	}
 
 	void SetVertexColor(int vID, const FVector3f& vNewColor)
@@ -678,11 +654,8 @@ public:
 		if (HasVertexColors())
 		{
 			check(IsVertex(vID));
-			int i = 3 * vID;
-			TDynamicVector<float>& Colors = VertexColors.GetValue();
-			Colors[i] = vNewColor.X;
-			Colors[i + 1] = vNewColor.Y;
-			Colors[i + 2] = vNewColor.Z;
+			TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
+			Colors[vID]                       = vNewColor;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -697,9 +670,8 @@ public:
 			return FVector2f::Zero();
 		}
 		check(IsVertex(vID));
-		int i = 2 * vID;
-		const TDynamicVector<float>& UVs = VertexUVs.GetValue();
-		return FVector2f(UVs[i], UVs[i + 1]);
+		const TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
+		return UVs[vID];
 	}
 
 	void SetVertexUV(int vID, const FVector2f& vNewUV)
@@ -707,10 +679,8 @@ public:
 		if (HasVertexUVs())
 		{
 			check(IsVertex(vID));
-			int i = 2 * vID;
-			TDynamicVector<float>& UVs = VertexUVs.GetValue();
-			UVs[i] = vNewUV.X;
-			UVs[i + 1] = vNewUV.Y;
+			TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
+			UVs[vID]                       = vNewUV;
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -718,12 +688,15 @@ public:
 	void EnableTriangleGroups(int InitialGroupID = 0);
 	void DiscardTriangleGroups();
 
-	int AllocateTriangleGroup()	{ return ++GroupIDCounter; }
+	int AllocateTriangleGroup()
+	{
+		return ++GroupIDCounter;
+	}
 
 	int GetTriangleGroup(int tID) const
 	{
-		return (HasTriangleGroups() == false) ? -1
-			: (TriangleRefCounts.IsValid(tID) ? TriangleGroups.GetValue()[tID] : 0);
+		return (HasTriangleGroups() == false) ? -1 :
+		                                        (TriangleRefCounts.IsValid(tID) ? TriangleGroups.GetValue()[tID] : 0);
 	}
 
 	void SetTriangleGroup(int tid, int group_id)
@@ -732,7 +705,7 @@ public:
 		{
 			check(IsTriangle(tid));
 			TriangleGroups.GetValue()[tid] = group_id;
-			GroupIDCounter = FMath::Max(GroupIDCounter, group_id + 1);
+			GroupIDCounter                 = FMath::Max(GroupIDCounter, group_id + 1);
 			UpdateTimeStamp(false, false);
 		}
 	}
@@ -758,7 +731,7 @@ public:
 	inline bool IsBoundaryEdge(int EdgeID) const
 	{
 		check(IsEdge(EdgeID));
-		return Edges[4 * EdgeID + 3] == InvalidID;
+		return Edges[EdgeID].Tri[1] == InvalidID;
 	}
 
 	/** Returns true if the vertex is part of any boundary edges */
@@ -788,7 +761,8 @@ public:
 	/**
 	 * Given an edge and vertex on that edge, returns other vertex of edge, the two opposing verts, and the two connected triangles (OppVert2Out and Tri2Out are be InvalidID for boundary edge)
 	 */
-	void GetVtxNbrhood(int EdgeID, int VertexID, int& OtherVertOut, int& OppVert1Out, int& OppVert2Out, int& Tri1Out, int& Tri2Out) const;
+	void GetVtxNbrhood(int EdgeID, int VertexID, int& OtherVertOut, int& OppVert1Out, int& OppVert2Out, int& Tri1Out,
+	                   int& Tri2Out) const;
 
 	/**
 	 * Returns count of boundary edges at vertex, and the first two boundary
@@ -829,7 +803,8 @@ public:
 	* @param ContiguousGroupLengths Lengths of contiguous groups packed into TrianglesOut (if not a bowtie, this will just be a length-one array w/ {TrianglesOut.Num()})
 	* @param GroupIsLoop Indicates whether each contiguous group is a loop (first triangle connected to last) or not
 	*/
-	EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths, TArray<bool>& GroupIsLoop) const;
+	EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths,
+	                                      TArray<bool>& GroupIsLoop) const;
 
 	/** Returns true if the two triangles connected to edge have different group IDs */
 	bool IsGroupBoundaryEdge(int EdgeID) const;
@@ -870,7 +845,8 @@ public:
 	/** returns measure of compactness in range [0,1], where 1 is fully compacted */
 	double CompactMetric() const
 	{
-		return ((double)VertexCount() / (double)MaxVertexID() + (double)TriangleCount() / (double)MaxTriangleID()) * 0.5;
+		return ((double)VertexCount() / (double)MaxVertexID() + (double)TriangleCount() / (double)MaxTriangleID()) *
+		    0.5;
 	}
 
 	/** @return true if mesh has no boundary edges */
@@ -981,7 +957,7 @@ public:
 	// direct buffer access
 	//
 public:
-	const TDynamicVector<double>& GetVerticesBuffer()
+	const TDynamicVector<FVector3d>& GetVerticesBuffer()
 	{
 		return Vertices;
 	}
@@ -989,19 +965,19 @@ public:
 	{
 		return VertexRefCounts;
 	}
-	const TDynamicVector<float>* GetNormalsBuffer()
+	const TDynamicVector<FVector3f>* GetNormalsBuffer()
 	{
 		return HasVertexNormals() ? &VertexNormals.GetValue() : nullptr;
 	}
-	const TDynamicVector<float>* GetColorsBuffer()
+	const TDynamicVector<FVector3f>* GetColorsBuffer()
 	{
 		return HasVertexColors() ? &VertexColors.GetValue() : nullptr;
 	}
-	const TDynamicVector<float>* GetUVBuffer()
+	const TDynamicVector<FVector2f>* GetUVBuffer()
 	{
 		return HasVertexUVs() ? &VertexUVs.GetValue() : nullptr;
 	}
-	const TDynamicVector<int>& GetTrianglesBuffer()
+	const TDynamicVector<FIndex3i>& GetTrianglesBuffer()
 	{
 		return Triangles;
 	}
@@ -1013,7 +989,7 @@ public:
 	{
 		return HasTriangleGroups() ? &TriangleGroups.GetValue() : nullptr;
 	}
-	const TDynamicVector<int>& GetEdgesBuffer()
+	const TDynamicVector<FEdge>& GetEdgesBuffer()
 	{
 		return Edges;
 	}
@@ -1119,7 +1095,8 @@ public:
 	 * @param SplitInfo returned info about the new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate, FVertexSplitInfo& SplitInfo);
+	virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate,
+	                                FVertexSplitInfo& SplitInfo);
 
 	/**
 	 * Tests whether splitting the given vertex with the given triangles would leave no triangles attached to the original vertex (creating an isolated vertex)
@@ -1130,7 +1107,6 @@ public:
 	virtual bool SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate);
 
 
-
 	/**
 	 * Collapse the edge between the two vertices, if topologically possible.
 	 * @param KeepVertID index of the vertex that should be kept
@@ -1139,12 +1115,12 @@ public:
 	 * @param CollapseInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, double EdgeParameterT, FEdgeCollapseInfo& CollapseInfo);
+	virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, double EdgeParameterT,
+	                                 FEdgeCollapseInfo& CollapseInfo);
 	virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, FEdgeCollapseInfo& CollapseInfo)
 	{
 		return CollapseEdge(KeepVertID, RemoveVertID, 0, CollapseInfo);
 	}
-
 
 
 	/**
@@ -1161,7 +1137,6 @@ public:
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
 	virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo);
-
 
 
 	/**
@@ -1193,23 +1168,23 @@ public:
 	 * vertices and triangles, turn on other parameters w/ flags
 	 */
 	virtual bool IsSameMesh(const FDynamicMesh3& OtherMesh, bool bCheckConnectivity, bool bCheckEdgeIDs = false,
-							bool bCheckNormals = false, bool bCheckColors = false, bool bCheckUVs = false,
-							bool bCheckGroups = false,
-							float Epsilon = TMathUtil<float>::Epsilon);
+	                        bool bCheckNormals = false, bool bCheckColors = false, bool bCheckUVs = false,
+	                        bool bCheckGroups = false, float Epsilon = TMathUtil<float>::Epsilon);
 
 	/**
 	 * Options for what the validity check will permit
 	 */
 	struct FValidityOptions
 	{
-		bool bAllowNonManifoldVertices = false;
+		bool bAllowNonManifoldVertices             = false;
 		bool bAllowAdjacentFacesReverseOrientation = false;
 
 		/**
 		 * Construct validity checking options
 		 */
 		FValidityOptions(bool bAllowNonManifoldVertices = false, bool bAllowAdjacentFacesReverseOrientation = false)
-			: bAllowNonManifoldVertices(bAllowNonManifoldVertices), bAllowAdjacentFacesReverseOrientation(bAllowAdjacentFacesReverseOrientation)
+		    : bAllowNonManifoldVertices(bAllowNonManifoldVertices)
+		    , bAllowAdjacentFacesReverseOrientation(bAllowAdjacentFacesReverseOrientation)
 		{}
 
 		/**
@@ -1219,7 +1194,7 @@ public:
 		{
 			FValidityOptions ToRet;
 			ToRet.bAllowAdjacentFacesReverseOrientation = true;
-			ToRet.bAllowNonManifoldVertices = true;
+			ToRet.bAllowNonManifoldVertices             = true;
 			return ToRet;
 		}
 	};
@@ -1227,26 +1202,20 @@ public:
 	/**
 	 * Checks that the mesh is well-formed, ie all internal data structures are consistent
 	 */
-	virtual bool CheckValidity(FValidityOptions ValidityOptions = FValidityOptions(), EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
+	virtual bool CheckValidity(FValidityOptions ValidityOptions = FValidityOptions(),
+	                           EValidityCheckFailMode FailMode  = EValidityCheckFailMode::Check) const;
 
 	//
 	// Internal functions
 	//
 protected:
-
 	inline void SetTriangleInternal(int TriangleID, int v0, int v1, int v2)
 	{
-		int i = 3 * TriangleID;
-		Triangles[i] = v0;
-		Triangles[i + 1] = v1;
-		Triangles[i + 2] = v2;
+		Triangles[TriangleID] = FIndex3i(v0, v1, v2);
 	}
 	inline void SetTriangleEdgesInternal(int TriangleID, int e0, int e1, int e2)
 	{
-		int i = 3 * TriangleID;
-		TriangleEdges[i] = e0;
-		TriangleEdges[i + 1] = e1;
-		TriangleEdges[i + 2] = e2;
+		TriangleEdges[TriangleID] = FIndex3i(e0, e1, e2);
 	}
 
 	int AddEdgeInternal(int vA, int vB, int tA, int tB = InvalidID);
@@ -1254,21 +1223,14 @@ protected:
 
 	inline int ReplaceTriangleVertex(int TriangleID, int vOld, int vNew)
 	{
-		int i = 3 * TriangleID;
-		if (Triangles[i] == vOld)
+		FIndex3i& Triangle = Triangles[TriangleID];
+		for (int i : {0, 1, 2})
 		{
-			Triangles[i] = vNew;
-			return 0;
-		}
-		if (Triangles[i + 1] == vOld)
-		{
-			Triangles[i + 1] = vNew;
-			return 1;
-		}
-		if (Triangles[i + 2] == vOld)
-		{
-			Triangles[i + 2] = vNew;
-			return 2;
+			if (Triangle[i] == vOld)
+			{
+				Triangle[i] = vNew;
+				return 0;
+			}
 		}
 		return -1;
 	}
@@ -1292,24 +1254,18 @@ protected:
 
 	inline void SetEdgeVerticesInternal(int EdgeID, int a, int b)
 	{
-		int i = 4 * EdgeID;
-		if (a < b)
+		if (a > b)
 		{
-			Edges[i] = a;
-			Edges[i + 1] = b;
+			Swap(a,b);
 		}
-		else
-		{
-			Edges[i] = b;
-			Edges[i + 1] = a;
-		}
+		Edges[EdgeID].Vert[0] = a;
+		Edges[EdgeID].Vert[1] = b;
 	}
 
 	inline void SetEdgeTrianglesInternal(int EdgeID, int t0, int t1)
 	{
-		int i = 4 * EdgeID;
-		Edges[i + 2] = t0;
-		Edges[i + 3] = t1;
+		Edges[EdgeID].Tri[0] = t0;
+		Edges[EdgeID].Tri[1] = t1;
 	}
 
 	int ReplaceEdgeVertex(int EdgeID, int vOld, int vNew);
@@ -1318,20 +1274,20 @@ protected:
 
 	inline bool TriangleHasVertex(int TriangleID, int VertexID) const
 	{
-		int i = 3 * TriangleID;
-		return Triangles[i] == VertexID || Triangles[i + 1] == VertexID || Triangles[i + 2] == VertexID;
+		return Triangles[TriangleID][0] == VertexID || Triangles[TriangleID][1] == VertexID ||
+		    Triangles[TriangleID][2] == VertexID;
 	}
 
 	inline bool TriHasNeighbourTri(int CheckTriID, int NbrTriID) const
 	{
-		int i = 3 * CheckTriID;
-		return EdgeHasTriangle(TriangleEdges[i], NbrTriID) || EdgeHasTriangle(TriangleEdges[i + 1], NbrTriID) || EdgeHasTriangle(TriangleEdges[i + 2], NbrTriID);
+		return EdgeHasTriangle(TriangleEdges[CheckTriID][0], NbrTriID) ||
+		    EdgeHasTriangle(TriangleEdges[CheckTriID][1], NbrTriID) ||
+		    EdgeHasTriangle(TriangleEdges[CheckTriID][2], NbrTriID);
 	}
 
 	inline bool TriHasSequentialVertices(int TriangleID, int vA, int vB) const
 	{
-		int i = 3 * TriangleID;
-		int v0 = Triangles[i], v1 = Triangles[i + 1], v2 = Triangles[i + 2];
+		int v0 = Triangles[TriangleID][0], v1 = Triangles[TriangleID][1], v2 = Triangles[TriangleID][2];
 		return ((v0 == vA && v1 == vB) || (v1 == vA && v2 == vB) || (v2 == vA && v0 == vB));
 	}
 
@@ -1341,54 +1297,53 @@ protected:
 
 	inline bool EdgeHasVertex(int EdgeID, int VertexID) const
 	{
-		int i = 4 * EdgeID;
-		return (Edges[i] == VertexID) || (Edges[i + 1] == VertexID);
+		const FIndex2i Verts = Edges[EdgeID].Vert;
+		return (Verts[0] == VertexID) || (Verts[1] == VertexID);
 	}
 	inline bool EdgeHasTriangle(int EdgeID, int TriangleID) const
 	{
-		int i = 4 * EdgeID;
-		return (Edges[i + 2] == TriangleID) || (Edges[i + 3] == TriangleID);
+		const FIndex2i Tris = Edges[EdgeID].Tri;
+		return (Tris[0] == TriangleID) || (Tris[1] == TriangleID);
 	}
 
 	inline int GetOtherEdgeVertex(int EdgeID, int VertexID) const
 	{
-		int i = 4 * EdgeID;
-		int ev0 = Edges[i], ev1 = Edges[i + 1];
-		return (ev0 == VertexID) ? ev1 : ((ev1 == VertexID) ? ev0 : InvalidID);
+		const FIndex2i Verts = Edges[EdgeID].Vert;
+		return (Verts[0] == VertexID) ? Verts[1] : ((Verts[1] == VertexID) ? Verts[0] : InvalidID);
 	}
 	inline int GetOtherEdgeTriangle(int EdgeID, int TriangleID) const
 	{
-		int i = 4 * EdgeID;
-		int et0 = Edges[i + 2], et1 = Edges[i + 3];
-		return (et0 == TriangleID) ? et1 : ((et1 == TriangleID) ? et0 : InvalidID);
+		const FIndex2i Tris = Edges[EdgeID].Tri;
+		return (Tris[0] == TriangleID) ? Tris[1] : ((Tris[1] == TriangleID) ? Tris[0] : InvalidID);
 	}
 
 	inline void AddTriangleEdge(int TriangleID, int v0, int v1, int j, int EdgeID)
 	{
+		FIndex3i& TriEdges = TriangleEdges.ElementAt(TriangleID, FIndex3i(InvalidID, InvalidID, InvalidID));
 		if (EdgeID != InvalidID)
 		{
-			Edges[4 * EdgeID + 3] = TriangleID;
-			TriangleEdges.InsertAt(EdgeID, 3 * TriangleID + j);
+			Edges[EdgeID].Tri[1] = TriangleID;
+			TriEdges[j] = EdgeID;
 		}
 		else
 		{
-			TriangleEdges.InsertAt(AddEdgeInternal(v0, v1, TriangleID), 3 * TriangleID + j);
+			TriEdges[j] = AddEdgeInternal(v0, v1, TriangleID);
 		}
 	}
 
 	// utility function that returns one or two triangles of edge, used to enumerate vertex one-ring triangles
-	// The logic is a bit tricky to follow without drawing it out on paper, but this will only return 
+	// The logic is a bit tricky to follow without drawing it out on paper, but this will only return
 	// each triangle once, for the 'outgoing' edge from the vertex, and each triangle only has one such edge
 	// at any vertex (including boundary triangles)
 	inline FIndex2i GetOrderedOneRingEdgeTris(int VertexID, int EdgeID) const
 	{
+		const FIndex2i Tris = Edges[EdgeID].Tri;
+
 		int vOther = GetOtherEdgeVertex(EdgeID, VertexID);
-		int i = 4 * EdgeID;
-		int et1 = Edges[i + 3];
-		et1 = (et1 != InvalidID && TriHasSequentialVertices(et1, VertexID, vOther)) ? et1 : InvalidID;
-		int et0 = Edges[i + 2];
-		return TriHasSequentialVertices(et0, VertexID, vOther) ? 
-			FIndex2i(et0, et1) : FIndex2i(et1, InvalidID);
+		int et1    = Tris[1];
+		et1        = (et1 != InvalidID && TriHasSequentialVertices(et1, VertexID, vOther)) ? et1 : InvalidID;
+		int et0    = Tris[0];
+		return TriHasSequentialVertices(et0, VertexID, vOther) ? FIndex2i(et0, et1) : FIndex2i(et1, InvalidID);
 	}
 
 
@@ -1403,13 +1358,8 @@ protected:
 		}
 		if (bTopologyChange)
 		{
-			check(bShapeChange);   // we consider topology change to be a shape change!
+			check(bShapeChange); // we consider topology change to be a shape change!
 			TopologyTimestamp++;
 		}
 	}
-
-
-
 };
-
-

@@ -55,6 +55,8 @@ public:
 		};
 	}
 
+	virtual ~FSubRegionRemesher() {}
+
 	/**
 	 * Set of vertices in ROI. You add vertices here initially, then 
 	 * we will update the list during each Remesh pass
@@ -106,6 +108,25 @@ public:
 		}
 	}
 
+	void InitializeFromTriangleROI(const TSet<int>& InTriangleROI)
+	{
+		EdgeROI.Reset();
+		VertexROI.Reset();
+		TriangleROI = InTriangleROI;
+
+		for (int TriangleIndex : TriangleROI)
+		{
+			FIndex3i Vertices = Mesh->GetTriangle(TriangleIndex);
+			VertexROI.Add(Vertices[0]);
+			VertexROI.Add(Vertices[1]);
+			VertexROI.Add(Vertices[2]);
+
+			FIndex3i TriEdges = Mesh->GetTriEdges(TriangleIndex);
+			EdgeROI.Add(TriEdges[0]);
+			EdgeROI.Add(TriEdges[1]);
+			EdgeROI.Add(TriEdges[2]);
+		}
+	}
 
 	/**
 	 * Update the internal data structures in preparation for a call to FRemesher::BasicRemeshPass.
@@ -207,6 +228,12 @@ protected:
 	virtual int GetNextEdge(int CurEdgeID, bool& bDone) override
 	{
 		CurEdge++;
+
+		while ((CurEdge < Edges.Num()) && (!EdgeROI.Contains(Edges[CurEdge])))		// EdgeROI may have lost some edges due to earlier operations
+		{
+			++CurEdge;
+		}
+
 		if (CurEdge >= Edges.Num())
 		{
 			bDone = true;
@@ -278,10 +305,7 @@ protected:
 			EdgeROI.Remove(CollapseInfo.RemovedEdges.B);
 		}
 
-		// one-ring tris of remaining vtx should already be in TriangleROI!!
-		//AddVertexToTriangleROI(CollapseInfo.KeptVertex);
-		//for (int tid : GetMesh()->VtxTrianglesItr(CollapseInfo.KeptVertex))
-		//	check(TriangleROI.Contains(tid));
+		// Note: we're not removing CollapsedEdge or RemovedEdges from the Edges array
 	}
 
 
@@ -356,7 +380,115 @@ protected:
 			Mesh->SetVertex(Pair.Key, Pair.Value);
 		}
 	}
+};
 
 
+/**
+ * FRestrictedSubRegionRemesher is similar to FSubRegionRemesher but does not allow the ROI to grow outside of the 
+ * original ROI boundary.
+ *
+ * It is initialized from a set of Triangles and the initial ROI boundary is inferred from those triangles.
+ */
+class FRestrictedSubRegionRemesher : public FSubRegionRemesher
+{
+
+public:		
+
+	FRestrictedSubRegionRemesher(FDynamicMesh3* Mesh, const TSet<int>& InTriangleROI) :
+		FSubRegionRemesher(Mesh)
+	{
+		InitializeFromTriangleROI(InTriangleROI);
+	}
+
+
+	void OnEdgeSplit(int EdgeID, int VertexA, int VertexB, const FDynamicMesh3::FEdgeSplitInfo& SplitInfo) override
+	{
+		check(EdgeROI.Contains(EdgeID));
+
+		VertexROI.Add(SplitInfo.NewVertex);
+		EdgeROI.Add(SplitInfo.NewEdges.A);
+
+		bool bSplitEdgeIsROIBoundary = EdgeIsROIBoundary(EdgeID);
+
+		// Don't grow the ROI here, by filtering out edges whose two vertices are not both in the ROI.
+
+		if (EdgeVerticesAreInVertexROI(SplitInfo.NewEdges.B))
+		{
+			EdgeROI.Add(SplitInfo.NewEdges.B);
+		}
+
+		if (SplitInfo.NewEdges.C != FDynamicMesh3::InvalidID)
+		{
+			if (EdgeVerticesAreInVertexROI(SplitInfo.NewEdges.C))
+			{
+				EdgeROI.Add(SplitInfo.NewEdges.C);
+			}
+		}
+
+		// Add Triangles to TriangleROI if all their edges are in EdgeROI
+		for (int NewTID : { SplitInfo.NewTriangles.A, SplitInfo.NewTriangles.B })
+		{
+			if (Mesh->IsTriangle(NewTID) && TriangleEdgesAreInEdgeROI(NewTID))
+			{
+				TriangleROI.Add(NewTID);
+			}
+		}
+	}
+
+
+	void OnEdgeFlip(int EdgeID, const FDynamicMesh3::FEdgeFlipInfo& FlipInfo) override
+	{
+		// flipping an edge should not introduce new verts to the Vertex ROI!
+		check(VertexROI.Contains(GetMesh()->GetEdgeV(EdgeID).A));
+		check(VertexROI.Contains(GetMesh()->GetEdgeV(EdgeID).B));
+
+		check(Mesh->IsEdge(FlipInfo.EdgeID));
+		EdgeROI.Add(FlipInfo.EdgeID);
+
+		check(Mesh->IsTriangle(FlipInfo.Triangles[0]));
+		check(Mesh->IsTriangle(FlipInfo.Triangles[1]));
+		TriangleROI.Add(FlipInfo.Triangles[0]);
+		TriangleROI.Add(FlipInfo.Triangles[1]);
+	}
+
+private:
+
+	bool EdgeVerticesAreInVertexROI(int EdgeID) const
+	{
+		FIndex2i EdgeVertices = Mesh->GetEdgeV(EdgeID);
+		return VertexROI.Contains(EdgeVertices[0]) && VertexROI.Contains(EdgeVertices[1]);
+	}
+
+	bool TriangleEdgesAreInEdgeROI(int TriangleID) const
+	{
+		FIndex3i TriEdges = Mesh->GetTriEdges(TriangleID);
+		return EdgeROI.Contains(TriEdges[0]) && EdgeROI.Contains(TriEdges[1]) && EdgeROI.Contains(TriEdges[2]);
+	}
+
+	bool EdgeIsROIBoundary(int EdgeID) const
+	{
+		FIndex2i EdgeTriangles = Mesh->GetEdgeT(EdgeID);
+		return (TriangleROI.Contains(EdgeTriangles[0]) != TriangleROI.Contains(EdgeTriangles[1]));
+	}
+
+	void InitializeFromTriangleROI(const TSet<int>& InTriangleROI)
+	{
+		EdgeROI.Reset();
+		VertexROI.Reset();
+		TriangleROI = InTriangleROI;
+
+		for (int TriangleIndex : TriangleROI)
+		{
+			FIndex3i Vertices = Mesh->GetTriangle(TriangleIndex);
+			VertexROI.Add(Vertices[0]);
+			VertexROI.Add(Vertices[1]);
+			VertexROI.Add(Vertices[2]);
+
+			FIndex3i TriEdges = Mesh->GetTriEdges(TriangleIndex);
+			EdgeROI.Add(TriEdges[0]);
+			EdgeROI.Add(TriEdges[1]);
+			EdgeROI.Add(TriEdges[2]);
+		}
+	}
 
 };

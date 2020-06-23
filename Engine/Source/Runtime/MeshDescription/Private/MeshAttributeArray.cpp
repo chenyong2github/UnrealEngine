@@ -118,8 +118,11 @@ void FAttributesSetBase::Remap( const TSparseArray<int32>& IndexRemap )
 
 	for( auto& MapEntry : Map )
 	{
-		MapEntry.Value->Remap( IndexRemap );
-		check( MapEntry.Value->GetNumElements() == NumElements );
+		if (MapEntry.Value->GetNumChannels() > 0)
+		{
+			MapEntry.Value->Remap( IndexRemap );
+			check( MapEntry.Value->GetNumElements() == NumElements );
+		}
 	}
 }
 

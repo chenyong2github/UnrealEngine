@@ -4,6 +4,7 @@
 
 #include "Library/DMXEntity.h"
 #include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
 
 #include "DMXEntityFixtureType.generated.h"
 
@@ -31,6 +32,16 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 {
 	GENERATED_BODY()
 
+	/**
+	 * The Attribute name to map this Function to.
+	 * This is used to easily find the Function in Blueprints, using an Attribute
+	 * list instead of typing the Function name directly.
+	 * The list of Attributes can be edited on
+	 * Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "DMX")
+	FDMXAttributeName Attribute;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "DMX")
 	FString FunctionName;
 
@@ -46,7 +57,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	int64 DefaultValue;
 
 	/** This function's starting channel */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", ClampMin = "1", ClampMax = "512", DisplayPriority = "1"), Category = "DMX")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", ClampMin = "1", ClampMax = "512", DisplayPriority = "2"), Category = "DMX")
 	int32 Channel;
 
 	/**
@@ -78,13 +89,15 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	bool bUseLSBMode;
 
 	FDMXFixtureFunction()
-		: FunctionName()
+		: Attribute(FDMXNameListItem::None)
+		, FunctionName()
 		, Description()
 		, SubFunctions()
 		, DefaultValue(0)
 		, Channel(1)
 		, ChannelOffset(0)
 		, DataType(EDMXFixtureSignalFormat::E8Bit)
+		, bUseLSBMode(false)
 	{}
 };
 
@@ -117,11 +130,17 @@ struct DMXRUNTIME_API FDMXFixtureMode
 	{}
 };
 
+#if WITH_EDITOR
+	/** Notification when data type changed */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataTypeChangeDelegate, const UDMXEntityFixtureType*, const FDMXFixtureMode&);
+#endif
+
 UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "DMX Fixture Type"))
 class DMXRUNTIME_API UDMXEntityFixtureType
 	: public UDMXEntity
 {
 	GENERATED_BODY()
+
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
@@ -139,6 +158,8 @@ public:
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
 
 	static void SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size);
+
+	static FDataTypeChangeDelegate& GetDataTypeChangeDelegate() { return DataTypeChangeDelegate; }
 #endif // WITH_EDITOR
 
 	/** Gets the last channel occupied by the Function */
@@ -175,6 +196,12 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 
-	static void UpdateModeChannelProperties(FDMXFixtureMode& Mode);
+	void UpdateModeChannelProperties(FDMXFixtureMode& Mode);
 #endif // WITH_EDITOR
+
+private:
+#if WITH_EDITOR
+	/** Editor only data type change delagate */
+	static FDataTypeChangeDelegate DataTypeChangeDelegate;
+#endif
 };

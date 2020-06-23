@@ -80,12 +80,58 @@ void USoundCue::CacheAggregateValues()
 	{
 		FirstNode->ConditionalPostLoad();
 
-		Duration = FirstNode->GetDuration();
+		if (GIsEditor)
+		{
+			const float NewDuration = FirstNode->GetDuration();
+			const float NewMaxDistance = FindMaxDistanceInternal();
+			const bool bNewHasDelayNode = FirstNode->HasDelayNode();
+			const bool bNewHasConcatenatorNode = FirstNode->HasConcatenatorNode();
+			const bool bNewHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 
-		MaxDistance = FindMaxDistanceInternal();
-		bHasDelayNode = FirstNode->HasDelayNode();
-		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
-		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
+			bool bValuesHaveChanged = false;
+
+			if (!FMath::IsNearlyEqual(NewDuration, Duration))
+			{
+				Duration = NewDuration;
+				bValuesHaveChanged = true;
+			}
+
+			if (!FMath::IsNearlyEqual(NewMaxDistance, MaxDistance))
+			{
+				MaxDistance = NewMaxDistance;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasDelayNode != bHasDelayNode)
+			{
+				bHasDelayNode = bNewHasDelayNode;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasConcatenatorNode != bHasConcatenatorNode)
+			{
+				bHasConcatenatorNode = bNewHasConcatenatorNode;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasPlayWhenSilent != bHasPlayWhenSilent)
+			{
+				bHasPlayWhenSilent = bNewHasPlayWhenSilent;
+				bValuesHaveChanged = true;
+			}
+
+			if (bValuesHaveChanged)
+			{
+				MarkPackageDirty();
+			}
+		}
+		else
+		{
+			MaxDistance = FindMaxDistanceInternal();
+			bHasDelayNode = FirstNode->HasDelayNode();
+			bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
+			bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
+		}
 	}
 }
 
@@ -243,15 +289,8 @@ void USoundCue::OnPostEngineInit()
 
 void USoundCue::EvaluateNodes(bool bAddToRoot)
 {
-	if (CachedQualityLevel == -1)
-	{
-		// Use per-platform quality index override if one exists, otherwise use the quality level from the game settings.
-		CachedQualityLevel = FPlatformCompressionUtilities::GetQualityIndexOverrideForCurrentPlatform();
-		if (CachedQualityLevel < 0)
-		{
-			CachedQualityLevel = GEngine->GetGameUserSettings()->GetAudioQualityLevel();
-		}
-	}
+	CacheQualityLevel();
+
 
 	TFunction<void(USoundNode*)> EvaluateNodes_Internal = [&](USoundNode* SoundNode)
 	{
@@ -280,6 +319,19 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 	};
 
 	EvaluateNodes_Internal(FirstNode);
+}
+
+void USoundCue::CacheQualityLevel()
+{
+	if (CachedQualityLevel == -1)
+	{
+		// Use per-platform quality index override if one exists, otherwise use the quality level from the game settings.
+		CachedQualityLevel = FPlatformCompressionUtilities::GetQualityIndexOverrideForCurrentPlatform();
+		if (CachedQualityLevel < 0)
+		{
+			CachedQualityLevel = GEngine->GetGameUserSettings()->GetAudioQualityLevel();
+		}
+	}
 }
 
 float USoundCue::FindMaxDistanceInternal() const
@@ -510,10 +562,7 @@ float USoundCue::GetDuration()
 	// Always recalc the duration when in the editor as it could change
 	if (GIsEditor || (Duration < SMALL_NUMBER) || HasDelayNode())
 	{
-		if (FirstNode)
-		{
-			Duration = FirstNode->GetDuration();
-		}
+		CacheAggregateValues();
 	}
 
 	return Duration;

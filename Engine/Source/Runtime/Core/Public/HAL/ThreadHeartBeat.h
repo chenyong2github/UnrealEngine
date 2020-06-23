@@ -3,6 +3,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/DelegateCombinations.h" // for DECLARE_DELEGATE_OneParam
 #include "HAL/CriticalSection.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/Runnable.h"
@@ -11,6 +13,9 @@
 #if PLATFORM_UNIX
 #include "Unix/UnixSignalHeartBeat.h"
 #endif
+
+DECLARE_DELEGATE_OneParam(FOnThreadStuck, uint32);
+DECLARE_DELEGATE_OneParam(FOnThreadUnstuck, uint32);
 
 /**
  * Our own local clock.
@@ -50,6 +55,8 @@ class CORE_API FThreadHeartBeat : public FRunnable
 			, LastHangTime(0.0)
 			, SuspendedCount(0)
 			, HangDuration(0)
+			, LastStuckTime(0.0)
+			, StuckDuration(0.0)
 		{}
 
 		/** Time we last received a heartbeat for the current thread */
@@ -60,6 +67,11 @@ class CORE_API FThreadHeartBeat : public FRunnable
 		int32 SuspendedCount;
 		/** The timeout for this thread */
 		double HangDuration;
+
+		/** Time we last detected thread stuck due to lack of heartbeats for the current thread */
+		double LastStuckTime;
+		/** How long it's benn stuck thread */
+		double StuckDuration;
 
 		/** Suspends this thread's heartbeat */
 		void Suspend()
@@ -99,12 +111,17 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	double CurrentHangDuration;
 	double ConfigPresentDuration;
 	double CurrentPresentDuration;
+	double ConfigStuckDuration;
+	double CurrentStuckDuration;
+
 	double HangDurationMultiplier;
-	
+
 	/** CRC of the last hang's callstack */
 	uint32 LastHangCallstackCRC;
 	/** Id of the last thread that hung */
 	uint32 LastHungThreadId;
+
+	uint32 LastStuckThreadId;
 
 	bool bHangsAreFatal;
 
@@ -112,6 +129,9 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	FThreadSafeCounter GlobalSuspendCount;
 
 	FThreadHeartBeatClock Clock;
+
+	FOnThreadStuck OnStuck;
+	FOnThreadUnstuck OnUnstuck;
 
 	FThreadHeartBeat();
 	virtual ~FThreadHeartBeat();
@@ -183,6 +203,18 @@ public:
 	* Returns InvalidThreadId if hang detector has not been triggered.
 	*/
 	uint32 GetLastHungThreadId() const { return LastHungThreadId; }
+
+	/*
+	* Get the Id of the last thread to pass the stuck thread time.
+	* Returns InvalidThreadId if hang detector has not been triggered.
+	*/
+	uint32 GetLastStuckThreadId() const { return LastStuckThreadId; }
+
+	/*
+	* Get delegate for callback on stuck or unstuck thread.
+	*/
+	FOnThreadStuck& GetOnThreadStuck() { return OnStuck; }
+	FOnThreadUnstuck& GetOnThreadUnstuck() { return OnUnstuck; }
 
 	//~ Begin FRunnable Interface.
 	virtual bool Init();

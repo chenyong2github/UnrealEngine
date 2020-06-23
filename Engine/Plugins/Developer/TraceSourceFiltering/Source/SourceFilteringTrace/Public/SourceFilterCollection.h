@@ -6,6 +6,7 @@
 #include "DataSourceFilterSet.h"
 #include "UObject/ObjectKey.h"
 #include "Engine/DataAsset.h"
+#include "Delegates/DelegateCombinations.h"
 
 #include "SourceFilterCollection.generated.h"
 
@@ -19,6 +20,9 @@ public:
 	/** Begin UDataAsset overrides */
 	virtual void Serialize(FArchive& Ar) override;
 	/** End UDataAsset overrides */
+
+	/** Delegate which is broadcasted any of this collection's state changes */
+	FSimpleMulticastDelegate& GetSourceFiltersUpdated();
 
 	/** Add Filter instance to the collection, will be added at the root level */
 	void AddFilter(UDataSourceFilter* NewFilter);
@@ -38,11 +42,16 @@ public:
 	
 	/** Move a Filter instance to a specific Filter Set (moved to root-level if Destination = nullptr) */
 	void MoveFilter(UDataSourceFilter* Filter, UDataSourceFilterSet* Destination);
+
+	/** Sets whether or not a filter is enabled */
+	void SetFilterState(UDataSourceFilter* Filter, bool bEnabledState);
 	
 	/** Convert a Filter Instance to a Filter Set (with provided mode), this creates set containing the replace filter */
 	UDataSourceFilterSet* ConvertFilterToSet(UDataSourceFilter* ReplacedFilter, EFilterSetMode Mode);
 	/** Create a Filter set (with provided mode) containing both Filter Instances */
 	UDataSourceFilterSet* MakeFilterSet(UDataSourceFilter* FilterOne, UDataSourceFilter* FilterTwo, EFilterSetMode Mode);
+	/** Set the filtering mode for the provided filter set*/
+	void SetFilterSetMode(UDataSourceFilterSet* FilterSet, EFilterSetMode Mode);
 
 	/** Creates an empty Filter Set (with provided mode) */
 	UDataSourceFilterSet* MakeEmptyFilterSet(EFilterSetMode Mode);
@@ -58,6 +67,17 @@ public:
 
 	/** Copies Filter data from other provided Filter Collection*/
 	void CopyData(USourceFilterCollection* OtherCollection);
+
+	/** Add a class filter, used to filter AActors on a high-level */
+	void AddClassFilter(TSubclassOf<AActor> InClass);	
+	void RemoveClassFilter(TSubclassOf<AActor> InClass);
+	/** Returns all class filters  */
+	const TArray<FActorClassFilter>& GetClassFilters() const { return ClassFilters; }
+	/** Updating whether or not classes derived from the filter class should be included when applying filtering */
+	void UpdateClassFilter(TSubclassOf<AActor> InClass, bool bIncludeDerivedClasses);
+
+	/** Callback for patching up contained UDataSourceFilter blueprint instances which just got re-instanced */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 protected:
 	/** Recursively removes filter and any contained child filters  */
 	void RemoveFilterRecursive(UDataSourceFilter* ToRemoveFilter);
@@ -65,6 +85,7 @@ protected:
 	/** Adds unique filter class name */
 	void AddClassName(UDataSourceFilter* Filter);
 	void RecursiveRetrieveFilterClassNames(UDataSourceFilter* Filter);
+	void RecursiveGenerateFilterClassNames(UDataSourceFilter* Filter);
 	UDataSourceFilter* RecursiveCopyFilter(UDataSourceFilter* Filter, int32& FilterOffset);
 	
 	template<typename T> T* CreateNewFilter(UClass* Class = T::StaticClass());
@@ -73,6 +94,10 @@ protected:
 	/** Root-level filter instances */
 	UPROPERTY(VisibleAnywhere, Category=Filtering)
 	TArray<UDataSourceFilter*> Filters;
+
+	/** Class filters, used for high-level filtering of AActor instances inside of a UWorld */
+	UPROPERTY(VisibleAnywhere, Category = Filtering)
+	TArray<FActorClassFilter> ClassFilters;
 
 	/** Mapping from Filter Instance FObjectKeys to their class names */
 	TMap<FObjectKey, FString> FilterClassMap;
@@ -84,4 +109,6 @@ protected:
 	/** Child / Parent mapping for Filter (sets) */
 	UPROPERTY()
 	TMap<UDataSourceFilter*, UDataSourceFilterSet*> ChildToParent;
+	
+	FSimpleMulticastDelegate SourceFiltersUpdatedDelegate;
 };

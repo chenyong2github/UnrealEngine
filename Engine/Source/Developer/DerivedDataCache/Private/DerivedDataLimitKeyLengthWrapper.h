@@ -114,20 +114,6 @@ public:
 		{
 			// no shortening needed
 			bOk = InnerBackend->GetCachedData(CacheKey, OutData);
-			// look for old bug
-			if (FString(CacheKey).StartsWith(TEXT("TEXTURE2D_0002")))
-			{
-				int32 KeyLen = FCString::Strlen(CacheKey) + 1;
-				if (OutData.Num() > KeyLen && OutData.Last() == 0)
-				{
-					int32 Compare = FCStringAnsi::Strcmp(TCHAR_TO_ANSI(CacheKey), (char*)&OutData[OutData.Num() - KeyLen]);
-					if (Compare == 0)
-					{
-						UE_LOG(LogDerivedDataCache, Warning, TEXT("FDerivedDataLimitKeyLengthWrapper: Fixed old bug %s."), CacheKey);
-						OutData.RemoveAt(OutData.Num() - KeyLen, KeyLen);
-					}
-				}
-			}
 		}
 		else
 		{

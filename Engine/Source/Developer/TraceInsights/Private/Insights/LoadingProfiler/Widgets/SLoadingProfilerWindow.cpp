@@ -243,6 +243,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_TimingView(const FSpawnTab
 		];
 
 	TimingView->EnableAssetLoadingMode();
+	TimingView->Reset(true);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnTimingViewTabClosed));
 
@@ -465,6 +466,7 @@ void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRe
 		FName(TEXT("MENU"))
 	);
 
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
 	ChildSlot
 		[
 			SNew(SOverlay)
@@ -491,7 +493,7 @@ void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRe
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							MenuBarBuilder.MakeWidget()
+							MenuWidget
 						]
 
 					+ SVerticalBox::Slot()
@@ -518,7 +520,7 @@ void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRe
 		];
 
 	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

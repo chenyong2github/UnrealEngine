@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"USDUtilities",
 					"UnrealEd",
 				}

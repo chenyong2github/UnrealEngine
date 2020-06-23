@@ -1622,7 +1622,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 }
 
 
-void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariable& Var, FString Format, int32& IntCounter, int32 &FloatCounter, int32& HalfCounter, int32 DataSetIndex, FString InstanceIdxSymbol, FString &HlslOutputString)
+void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariable& Var, FString Format, int32& IntCounter, int32 &FloatCounter, int32& HalfCounter, int32 DataSetIndex, FString InstanceIdxSymbol, FString &HlslOutputString, bool bWriteHLSL)
 {
 	TArray<FString> Components;
 	UScriptStruct* Struct = Var.GetType().GetScriptStruct();
@@ -1681,7 +1681,10 @@ void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariab
 			FormatArgs[RegIdx] = IntCounter++;
 		}
 		FormatArgs[0] = Components[CompIdx];
-		HlslOutputString += FString::Format(*Format, FormatArgs);
+		if (bWriteHLSL)
+		{
+			HlslOutputString += FString::Format(*Format, FormatArgs);
+		}
 	}
 }
 
@@ -1848,8 +1851,6 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 					}
 				}
 			}
-			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Engine.DeltaTime = 0.0f;\n");
-			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Engine.InverseDeltaTime = 0.0f;\n");
 			HlslOutputString += TEXT("\tContext.") + CurMap + TEXT(".Engine.DeltaTime = InterpSpawn_UpdateTime;\n");
 			HlslOutputString += TEXT("\tContext.") + CurMap + TEXT(".Engine.InverseDeltaTime = InterpSpawn_InvUpdateTime;\n");
 		}
@@ -2214,6 +2215,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				ContextName = FString::Printf(TEXT("\t\tContext.%s."), *TranslationStages[i].PassNamespace);
 			}
 
+			TArray<FNiagaraVariable> GatheredPreviousVariables;
+
 			for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0, HalfCounter = 0; DataSetIndex < DataSetReads.Num(); ++DataSetIndex)
 			{
 				const FNiagaraDataSetID DataSetID = ReadDataSetIDs[DataSetIndex];
@@ -2222,12 +2225,18 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				{
 					const FString VarName = ContextName + GetSanitizedSymbolName(Var.GetName().ToString());
 					FString VarFmt;
+					bool bWrite = true;
 
 					// If the NiagaraClearEachFrame value is set on the data set, we don't bother reading it in each frame as we know that it is is invalid. However,
 					// this is only used for the base data set. Other reads are potentially from events and are therefore perfectly valid.
 					if (DataSetIndex == 0 && Var.GetType().GetScriptStruct() != nullptr && Var.GetType().GetScriptStruct()->GetMetaData(TEXT("NiagaraClearEachFrame")).Equals(TEXT("true"), ESearchCase::IgnoreCase))
 					{
 						VarFmt = VarName + TEXT("{0} = {4};\n");
+					}
+					else if (DataSetIndex == 0 && FNiagaraParameterMapHistory::IsPreviousValue(Var) && TranslationStages[i].ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript)
+					{
+						GatheredPreviousVariables.AddUnique(Var);
+						bWrite = false; // We need to bump the read indices forwards, but not actually add the read.
 					}
 					else
 					{
@@ -2259,9 +2268,19 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 							}
 						}
 					}
-					GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, HalfCounter, DataSetIndex, TEXT(""), HlslOutput);
+					GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, HalfCounter, DataSetIndex, TEXT(""), HlslOutput, bWrite);
 				}
 			}
+
+			// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on load.
+			for (FNiagaraVariable VarPrevious : GatheredPreviousVariables)
+			{
+				FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(VarPrevious);
+				const FString VarName = ContextName + GetSanitizedSymbolName(SrcVar.GetName().ToString());
+				const FString VarPrevName = ContextName + GetSanitizedSymbolName(VarPrevious.GetName().ToString());
+				HlslOutput += VarPrevName + TEXT(" = ") + VarName + TEXT(";\n");
+			}
+
 			if (bUsesAlive)
 			{
 				HlslOutput += ContextName + TEXT("DataInstance.Alive=true;\n");
@@ -2543,11 +2562,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		InitConstants(Context); \n"
 			"		LoadUpdateVariables(Context, InstanceID); \n"
 			"		ReadDataSets(Context); \n"
-		) + SimDoWorkString
-		+ TEXT(
-			"		//SimulateDoWork(Context); \n"
-			"		//SimulateMapUpdate(Context);\n"
-			"		WriteDataSets(Context); \n"
 			"	}\n"
 			"	else if (bRunSpawnLogic)\n"
 			"	{\n"
@@ -2575,8 +2589,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		\n"
 			"		TransferAttributes(Context); \n"
 			"		\n"
-			"		//SimulateDoWork(Context); \n"
-			"		//SimulateMapUpdate(Context);\n"
+			"	}\n"
+			"\n"
+			"	if (bRunUpdateLogic || bRunSpawnLogic)\n"
+			"	{\n"
 		) + SimDoWorkString
 		+ TEXT(
 			"		WriteDataSets(Context); \n"
@@ -2882,14 +2898,22 @@ void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, 
 
 		FString VarReads;
 
+		TArray <FNiagaraVariable> GatheredPreviousVariables;
+
 		for (const FNiagaraVariable &Var : ReadVars)
 		{
+			bool bWrite = true;
 			const FString VariableName = ContextName + GetSanitizedSymbolName(Var.GetName().ToString());
 			// If the NiagaraClearEachFrame value is set on the data set, we don't bother reading it in each frame as we know that it is is invalid. However,
 			// this is only used for the base data set. Other reads are potentially from events and are therefore perfectly valid.
 			if (DataSetIndex == 0 && Var.GetType().GetScriptStruct() != nullptr && Var.GetType().GetScriptStruct()->GetMetaData(TEXT("NiagaraClearEachFrame")).Equals(TEXT("true"), ESearchCase::IgnoreCase))
 			{
 				Fmt = VariableName + TEXT("{0} = {4};\n");
+			}
+			else if (DataSetIndex == 0 && FNiagaraParameterMapHistory::IsPreviousValue(Var) && bIsUpdateScript)
+			{
+				GatheredPreviousVariables.AddUnique(Var);
+				bWrite = false; // We need to bump the read indices forwards, but not actually add the read.
 			}
 			else
 			{
@@ -2906,10 +2930,20 @@ void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, 
 					}
 				}
 			}
-			GatherVariableForDataSetAccess(Var, Fmt, ReadOffsetInt, ReadOffsetFloat, ReadOffsetHalf, DataSetIndex, TEXT(""), VarReads);
+			GatherVariableForDataSetAccess(Var, Fmt, ReadOffsetInt, ReadOffsetFloat, ReadOffsetHalf, DataSetIndex, TEXT(""), VarReads, bWrite);
+		}
+		OutHlslOutput += VarReads;
+
+
+		// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on load.
+		for (FNiagaraVariable VarPrevious : GatheredPreviousVariables)
+		{
+			FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(VarPrevious);
+			const FString VarName = ContextName + GetSanitizedSymbolName(SrcVar.GetName().ToString());
+			const FString VarPrevName = ContextName + GetSanitizedSymbolName(VarPrevious.GetName().ToString());
+			HlslOutput += VarPrevName + TEXT(" = ") + VarName + TEXT(";\n");
 		}
 
-		OutHlslOutput += VarReads;
 	}
 }
 
@@ -4272,17 +4306,6 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 	Output = INDEX_NONE;
 	if (InVariable.IsValid())
 	{
-		// We don't really want system delta time or inverse system delta time in a spawn script. It leads to trouble.
-		if (TranslationStages.Num() > 0 && UNiagaraScript::IsParticleSpawnScript(TranslationStages[ActiveStageIdx].ScriptUsage))
-		{
-			if (InVariable == SYS_PARAM_ENGINE_DELTA_TIME || InVariable == SYS_PARAM_ENGINE_INV_DELTA_TIME)
-			{
-				Warning(FText::Format(LOCTEXT("GetParameterInvalidParam", "Cannot call system variable {0} in a spawn script! It is invalid."), FText::FromName(InVariable.GetName())), nullptr, nullptr);
-				Output = GetConstantDirect(0.0f);
-				return true;
-			}
-		}
-
 		bool bMissingParameter = false;
 		UNiagaraParameterCollection* Collection = nullptr;
 		if (InParamMapHistoryIdx >= 0)
@@ -6275,6 +6298,11 @@ void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsag
 	for (int32 i = 0; i < FunctionSignature.Inputs.Num(); ++i)
 	{
 		FNiagaraTypeDefinition Type = FunctionSignature.Inputs[i].GetType();
+		if (Type.UnderlyingType != 0 && Type.ClassStructOrEnum == nullptr)
+		{
+			Error(FText::Format(LOCTEXT("InvalidTypeDefError", "Invalid data in niagara type definition, might be due to broken serialization or missing DI implementation! Variable: {0}"), FText::FromName(FunctionSignature.Inputs[i].GetName())), nullptr, nullptr);
+			continue;
+		}
 		//We don't write class types as real params in the hlsl
 		if (!Type.GetClass())
 		{

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
 
 class FHttpManager;
 class IHttpRequest;
@@ -56,7 +57,7 @@ public:
 	 * @param UnencodedString The unencoded string to convert to percent-encoding
 	 * @return The percent-encoded string
 	 */
-	static FString UrlEncode(const FString& UnencodedString);
+	static FString UrlEncode(const FStringView UnencodedString);
 
 	/**
 	 * Returns a decoded version of the percent-encoded passed in string
@@ -64,7 +65,7 @@ public:
 	 * @param EncodedString The percent encoded string to convert to string
 	 * @return The decoded string
 	 */
-	static FString UrlDecode(const FString& EncodedString);
+	static FString UrlDecode(const FStringView EncodedString);
 
 	/**
 	 * Returns the &lt; &gt...etc encoding for strings between HTML elements.
@@ -72,14 +73,14 @@ public:
 	 * @param UnencodedString The unencoded string to convert to html encoding.
 	 * @return The html encoded string
 	 */
-	static FString HtmlEncode(const FString& UnencodedString);
+	static FString HtmlEncode(const FStringView UnencodedString);
 
 	/** 
 	 * Returns the domain portion of the URL, e.g., "a.b.c" of "http://a.b.c/d"
 	 * @param Url the URL to return the domain of
 	 * @return the domain of the specified URL
 	 */
-	static FString GetUrlDomain(const FString& Url);
+	static FString GetUrlDomain(const FStringView Url);
 
 	/**
 	 * Get the mime type for the file
@@ -116,4 +117,39 @@ public:
 	 * Helper function for checking if a byte array is in URL encoded format.
 	 */
 	static bool IsURLEncoded(const TArray<uint8>& Payload);
+
+	/**
+	 * Extract the URL-Decoded value of the specified ParameterName from Url. An unset return means the parameter was not present in Url, while an empty value means it was present, but had no value.
+	 * 
+	 * @param Url The URL to parse for ParameterName
+	 * @param ParameterName The parameter name to look for
+	 * @return If ParameterName was found, the string value of its value (in URL Decoded format), otherwise the return value is unset
+	 */
+	static TOptional<FString> GetUrlParameter(const FStringView Url, const FStringView ParameterName);
+
+	/**
+	 * Extract the Port part of a URL, or an unset object if there was non specified. Example: "http://example.org:23/" would return 23, while "https://example.org/" would return an unset object
+	 * 
+	 * @param Url The URL to parse for a Port
+	 */
+	static TOptional<uint16> GetUrlPort(const FStringView Url);
+
+	/**
+	 * Extract the Path portion of a URL, optionally including the Query String, and optionally including the Fragment (when also including the query string.)
+	 * The return value will always contain a leading forward slash, even if no path is found.
+	 * If bIncludeFragment is set true, bIncludeQueryString must also be true
+	 *
+	 * @param Url The URL to parse for a Path
+	 * @param bIncludeQueryString include the URL's query string in the return value (if one is found)
+	 * @param bIncludeFragment include the URL's fragement in the return value (if one is found)
+	 */
+	static FString GetUrlPath(const FStringView Url, const bool bIncludeQueryString = false, const bool bIncludeFragment = false);
+
+	/**
+	 * Check the protocol of the provided URL to determine if this is for a secure connection (HTTPS, WSS, etc)
+	 *
+	 * @param The URL to check for a scheme
+	 * @return True if secure, false if insecure, unset if unknown
+	 */
+	static TOptional<bool> IsSecureProtocol(const FStringView Url);
 };

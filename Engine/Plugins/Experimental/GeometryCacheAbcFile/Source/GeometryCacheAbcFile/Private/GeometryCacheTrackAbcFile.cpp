@@ -21,6 +21,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
 
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 : EndFrameIndex(0)
+, LastSampledIndex(-1)
 {
 }
 
@@ -70,6 +71,7 @@ void UGeometryCacheTrackAbcFile::Reset()
 	AbcFile.Reset();
 
 	EndFrameIndex = 0;
+	LastSampledIndex = -1;
 	Duration = 0.f;
 
 	MatrixSamples.Reset();
@@ -118,14 +120,11 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			return false;
 		}
 
-		// Set the end frame from the Abc if none is specified in the settings
-		EndFrameIndex = FMath::Max(AbcFile->GetMaxFrameIndex() - 1, 1);
-		if (AbcSettings->SamplingSettings.FrameEnd == 0)
-		{
-			AbcSettings->SamplingSettings.FrameEnd = EndFrameIndex;
-		}
 
 		Result = AbcFile->Import(AbcSettings);
+
+		// Set the end frame after import since it might have been modified due to validation at import
+		EndFrameIndex = AbcSettings->SamplingSettings.FrameEnd;
 
 		if (Result != EAbcImportError::AbcImportError_NoError)
 		{
@@ -159,6 +158,7 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 		Duration = AbcFile->GetImportLength();
 
 		// Fill out the MeshData with the sample from time 0
+		LastSampledIndex = -1; // to allow reloading and sampling the same file
 		GetMeshData(0, MeshData);
 
 		if (MeshData.Positions.Num() == 0)
@@ -197,8 +197,13 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(f
 		SampleTime = GeometyCacheHelpers::WrapAnimationTime(Time, Duration);
 	}
 
-	// #ueent_todo: Return the correct SampleInfo without double querying the Alembic. 
-	// Currently returns the info for MeshData queried in UpdateMeshData
+	// Update the mesh data as required
+	int32 ThisSampleIndex = FindSampleIndexFromTime(SampleTime, bLooping);
+	if (ThisSampleIndex != LastSampledIndex)
+	{
+		GetMeshData(ThisSampleIndex, MeshData);
+	}
+
 	SampleInfo = FGeometryCacheTrackSampleInfo(
 		SampleTime,
 		MeshData.BoundingBox,
@@ -214,7 +219,17 @@ bool UGeometryCacheTrackAbcFile::GetMeshData(int32 SampleIndex, FGeometryCacheMe
 	if (AbcFile)
 	{
 		// #ueent_todo: Implement optimized Alembic querying
-		FAbcUtilities::GetFrameMeshData(*AbcFile, SampleIndex, OutMeshData);
+		if (SampleIndex == LastSampledIndex)
+		{
+			OutMeshData = MeshData;
+		}
+		else
+		{
+			FScopeLock Lock(&CriticalSection);
+
+			FAbcUtilities::GetFrameMeshData(*AbcFile, SampleIndex, OutMeshData);
+			LastSampledIndex = SampleIndex;
+		}
 		return true;
 	}
 	return false;

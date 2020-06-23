@@ -53,48 +53,49 @@ struct FNiagaraParameterStoreToDataSetBinding
 	{
 		//For now, until I get time to refactor all the layout info into something more coherent we'll init like this and just have to assume the correct layout sets and stores are used later.
 		//Can check it but it'd be v slow.
-
-		for (const FNiagaraVariable& Var : DataSet.GetVariables())
+		const auto& DataSetVariables = DataSet.GetVariables();
+		const auto& DataSetVariableLayouts = DataSet.GetVariableLayouts();
+		for (int i=0; i < DataSetVariables.Num(); ++i)
 		{
-			const FNiagaraVariableLayoutInfo* Layout = DataSet.GetVariableLayout(Var);
+			const FNiagaraVariable& Var = DataSetVariables[i];
 			const int32* ParameterOffsetPtr = ParameterStore.FindParameterOffset(Var, true);
-			int32 NumFloats = 0;
-			int32 NumInts = 0;
-			int32 NumHalfs = 0;
-			if (ParameterOffsetPtr && Layout)
+			if (ParameterOffsetPtr == nullptr)
 			{
-				int32 ParameterOffset = *ParameterOffsetPtr;
-				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumFloatComponents(); ++CompIdx)
-				{
-					int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.FloatComponentByteOffsets[CompIdx];
-					int32 DataSetOffset = Layout->FloatComponentStart + NumFloats++;
-					FloatOffsets.Emplace(ParamOffset, DataSetOffset);
-				}
-				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumInt32Components(); ++CompIdx)
-				{
-					int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.Int32ComponentByteOffsets[CompIdx];
-					int32 DataSetOffset = Layout->Int32ComponentStart + NumInts++;
-					Int32Offsets.Emplace(ParamOffset, DataSetOffset);
-				}
-				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumHalfComponents(); ++CompIdx)
-				{
-					constexpr bool ParameterSetsSupportHalf = false;
+				continue;
+			}
 
-					if (ParameterSetsSupportHalf)
-					{
-						int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.HalfComponentByteOffsets[CompIdx];
-						int32 DataSetOffset = Layout->HalfComponentStart + NumHalfs++;
-						HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
-					}
-					else
-					{
-						// if parameter sets don't support half, then we need to write in floats into the parameter set, and
-						// for that we need to adjust the offset based on the difference in stride between float & half
-						// In reality 
-						int32 ParamOffset = ParameterOffset + sizeof(float) * Layout->LayoutInfo.HalfComponentByteOffsets[CompIdx] / sizeof(FFloat16);
-						int32 DataSetOffset = Layout->HalfComponentStart + NumHalfs++;
-						HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
-					}
+			const FNiagaraVariableLayoutInfo& Layout = DataSetVariableLayouts[i];
+			const int32 ParameterOffset = *ParameterOffsetPtr;
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
+			{
+				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx];
+				const int32 DataSetOffset = Layout.FloatComponentStart + CompIdx;
+				FloatOffsets.Emplace(ParamOffset, DataSetOffset);
+			}
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
+			{
+				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx];
+				const int32 DataSetOffset = Layout.Int32ComponentStart + CompIdx;
+				Int32Offsets.Emplace(ParamOffset, DataSetOffset);
+			}
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumHalfComponents(); ++CompIdx)
+			{
+				constexpr bool ParameterSetsSupportHalf = false;
+
+				if (ParameterSetsSupportHalf)
+				{
+					const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx];
+					const int32 DataSetOffset = Layout.HalfComponentStart + CompIdx;
+					HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
+				}
+				else
+				{
+					// if parameter sets don't support half, then we need to write in floats into the parameter set, and
+					// for that we need to adjust the offset based on the difference in stride between float & half
+					// In reality 
+					const int32 ParamOffset = ParameterOffset + sizeof(float) * Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx] / sizeof(FFloat16);
+					const int32 DataSetOffset = Layout.HalfComponentStart + CompIdx;
+					HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
 				}
 			}
 		}
@@ -206,7 +207,16 @@ protected:
 
 struct FNiagaraSystemSimulationTickContext
 {
-	FNiagaraSystemSimulationTickContext(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, int EffectsQuality, const FGraphEventRef& MyCompletionGraphEvent);
+private:
+	FNiagaraSystemSimulationTickContext(TArray<FNiagaraSystemInstance*>& InInstances, FNiagaraDataSet& InDataSet)
+		: Instances(InInstances)
+		, DataSet(InDataSet)
+	{
+	}
+
+public:
+	static FNiagaraSystemSimulationTickContext MakeContextForTicking(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, const FGraphEventRef& MyCompletionGraphEvent);
+	static FNiagaraSystemSimulationTickContext MakeContextForSpawning(class FNiagaraSystemSimulation* Owner, TArray<FNiagaraSystemInstance*>& Instances, FNiagaraDataSet& DataSet, float DeltaSeconds, int32 SpawnNum, bool bAllowAsync);
 
 	class FNiagaraSystemSimulation*		Owner;
 	UNiagaraSystem*						System;
@@ -252,7 +262,9 @@ public:
 	/** Update TickGroups for pending instances and execute tick group promotions. */
 	void UpdateTickGroups_GameThread();
 	/** Spawn any pending instances, assumes that you have update tick groups ahead of time. */
-	void Spawn_GameThread(float DeltaSeconds);
+	void Spawn_GameThread(float DeltaSeconds, bool bPostActorTick);
+	/** Spawn any pending instances */
+	void Spawn_Concurrent(FNiagaraSystemSimulationTickContext& Context);
 
 	/** Promote instances that have ticked during */
 
@@ -287,8 +299,12 @@ public:
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
 
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
+	int32 AddPendingSystemInstance(FNiagaraSystemInstance* Instance);
 
 	const FString& GetCrashReporterTag()const;
+
+	ETickingGroup GetTickGroup() const { return SystemTickGroup; }
+
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);

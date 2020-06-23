@@ -16,8 +16,11 @@
 #include "Engine/World.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/StringBuilder.h"
+#include "Algo/LevenshteinDistance.h"
 
 DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
+
+FString ConvertToFullTextSearchQuery(const FString& QueryText);
 
 enum class EAssetSearchDatabaseVersion
 {
@@ -321,17 +324,18 @@ public:
 		SQLITE_PREPARED_STATEMENT_BINDINGS(FString)
 	);
 	FSearchAssets Statement_SearchAssets;
-	bool SearchAssets(const FSearchQuery& Query, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
+	bool SearchAssets(const FString& QueryText, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
 	{
-		const FString Q = TEXT("%") + Query.Query + TEXT("%");
+		const FString Q = TEXT("%") + QueryText + TEXT("%");
 
-		return Statement_SearchAssets.BindAndExecute(Q, [&InCallback](const FSearchAssets& InStatement)
+		return Statement_SearchAssets.BindAndExecute(Q, [QueryText, &InCallback](const FSearchAssets& InStatement)
 		{
 			FSearchRecord Result;
 			if (InStatement.GetColumnValues(Result.AssetName, Result.AssetClass, Result.AssetPath))
 			{
-				Result.Score = -30;
-
+				const float WorstCase = Result.AssetName.Len() + QueryText.Len();
+				Result.Score = -50.0f * (1.0f - (Algo::LevenshteinDistance(Result.AssetName.ToLower(), QueryText.ToLower()) / WorstCase));
+				
 				return InCallback(MoveTemp(Result));
 			}
 			return ESQLitePreparedStatementExecuteRowResult::Error;
@@ -359,9 +363,9 @@ public:
 		SQLITE_PREPARED_STATEMENT_BINDINGS(FString)
 	);
 	FSearchAssetPropertiesFTS Statement_SearchAssetPropertiesFTS;
-	bool SearchAssetProperties(const FSearchQuery& Query, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
+	bool SearchAssetProperties(const FString& QueryText, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
 	{
-		const FString Q = Query.ConvertToDatabaseQuery();
+		const FString Q = ConvertToFullTextSearchQuery(QueryText);
 
 		return Statement_SearchAssetPropertiesFTS.BindAndExecute(Q, [&InCallback](const FSearchAssetPropertiesFTS& InStatement)
 		{
@@ -729,18 +733,18 @@ void FAssetSearchDatabase::AddOrUpdateAsset(const FAssetData& InAssetData, const
 	}
 }
 
-bool FAssetSearchDatabase::EnumerateSearchResults(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback)
+bool FAssetSearchDatabase::EnumerateSearchResults(const FString& QueryText, TFunctionRef<bool(FSearchRecord&&)> InCallback)
 {
 	bool bSuccess = false;
 
-	bSuccess |= Statements->SearchAssets(Query, [&InCallback](FSearchRecord&& InResult)
+	bSuccess |= Statements->SearchAssets(QueryText, [&InCallback](FSearchRecord&& InResult)
 	{
 		return InCallback(MoveTemp(InResult))
 			? ESQLitePreparedStatementExecuteRowResult::Continue
 			: ESQLitePreparedStatementExecuteRowResult::Stop;
 	});
 
-	bSuccess |= Statements->SearchAssetProperties(Query, [&InCallback](FSearchRecord&& InResult)
+	bSuccess |= Statements->SearchAssetProperties(QueryText, [&InCallback](FSearchRecord&& InResult)
 	{
 		return InCallback(MoveTemp(InResult))
 			? ESQLitePreparedStatementExecuteRowResult::Continue
@@ -801,13 +805,13 @@ void FAssetSearchDatabase::RemoveAssetsNotInThisSet(const TArray<FAssetData>& In
 	}
 }
 
-FString FSearchQuery::ConvertToDatabaseQuery() const
+FString ConvertToFullTextSearchQuery(const FString& QueryText)
 {
 	TStringBuilder<512> Q;
 
 	FTextFilterExpressionEvaluator Eval(ETextFilterExpressionEvaluatorMode::BasicString);
 	const TArray<FExpressionToken>& Tokens = Eval.GetFilterExpressionTokens();
-	if (Eval.SetFilterText(FText::FromString(Query)))
+	if (Eval.SetFilterText(FText::FromString(QueryText)))
 	{
 		TArray<FString> TokenStreak;
 		bool bBreakSteak = false;
@@ -885,7 +889,7 @@ FString FSearchQuery::ConvertToDatabaseQuery() const
 	else
 	{
 		TArray<FString> Phrases;
-		Query.ParseIntoArray(Phrases, TEXT(" "), 1);
+		QueryText.ParseIntoArray(Phrases, TEXT(" "), 1);
 
 		for (FString Phrase : Phrases)
 		{
@@ -896,7 +900,7 @@ FString FSearchQuery::ConvertToDatabaseQuery() const
 
 		Q.Append(TEXT(" OR "));
 		Q.Append(TEXT("\""));
-		Q.Append(Query.Replace(TEXT(" "), TEXT("")));
+		Q.Append(QueryText.Replace(TEXT(" "), TEXT("")));
 		Q.Append(TEXT("\""));
 	}
 

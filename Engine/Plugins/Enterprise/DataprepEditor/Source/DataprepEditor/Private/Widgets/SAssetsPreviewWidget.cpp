@@ -2,6 +2,8 @@
 
 #include "SAssetsPreviewWidget.h"
 
+#include "DataprepContentConsumer.h"
+
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
 #include "EditorStyleSet.h"
@@ -357,10 +359,26 @@ namespace AssetPreviewWidget
 	FString SAssetsPreviewWidget::GetItemPath(const TWeakObjectPtr<UObject>& Asset) const
 	{
 		FString AssetSubPath = Asset->GetPathName();
+
+		// Check if asset has not been marked to be saved in another folder
+		if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( Asset.Get() ) )
+		{
+			if (UDataprepConsumerUserData* DataprepContentUserData = AssetUserDataInterface->GetAssetUserData< UDataprepConsumerUserData >())
+			{
+				FString RelativeOutput = DataprepContentUserData->GetMarker(UDataprepContentConsumer::RelativeOutput);
+				if (!RelativeOutput.IsEmpty() && !SubstitutePath.IsEmpty())
+				{
+					AssetSubPath = FPaths::GetCleanFilename(AssetSubPath);
+					return SubstitutePath / RelativeOutput / AssetSubPath;
+				}
+			}
+		}
+
 		if ( AssetSubPath.RemoveFromStart( PathPrefixToRemove ) && !SubstitutePath.IsEmpty() )
 		{
 			AssetSubPath = SubstitutePath / AssetSubPath;
 		}
+
 		return AssetSubPath;
 	}
 

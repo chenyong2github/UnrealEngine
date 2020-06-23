@@ -2992,6 +2992,56 @@ private:
 	UStaticMesh* StaticMesh;
 };
 
+template<class MaterialSlotType>
+void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlots)
+{
+	TArray<FName> UniqueMImportedaterialSlotName;
+
+	//Make sure we have non empty imported material slot names
+	for (MaterialSlotType& MaterialSlot : MaterialSlots)
+	{
+		if (MaterialSlot.ImportedMaterialSlotName == NAME_None)
+		{
+			if (MaterialSlot.MaterialSlotName != NAME_None)
+			{
+				MaterialSlot.ImportedMaterialSlotName = MaterialSlot.MaterialSlotName;
+			}
+			else if (MaterialSlot.MaterialInterface != nullptr)
+			{
+				MaterialSlot.ImportedMaterialSlotName = MaterialSlot.MaterialInterface->GetFName();
+			}
+			else
+			{
+				MaterialSlot.ImportedMaterialSlotName = FName(TEXT("MaterialSlot"));
+			}
+		}
+
+		FString UniqueName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		int32 UniqueIndex = 1;
+		while (UniqueMImportedaterialSlotName.Contains(FName(*UniqueName)))
+		{
+			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
+			UniqueIndex++;
+		}
+		MaterialSlot.ImportedMaterialSlotName = FName(*UniqueName);
+		UniqueMImportedaterialSlotName.Add(MaterialSlot.ImportedMaterialSlotName);
+		if (MaterialSlot.MaterialSlotName == NAME_None)
+		{
+			MaterialSlot.MaterialSlotName = MaterialSlot.ImportedMaterialSlotName;
+		}
+	}
+}
+
+void FMeshUtilities::FixupMaterialSlotNames(UStaticMesh* StaticMesh) const
+{
+	FixupMaterialSlotNames_Implementation(StaticMesh->StaticMaterials);
+}
+
+void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
+{
+	FixupMaterialSlotNames_Implementation(SkeletalMesh->Materials);
+}
+
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
 	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();

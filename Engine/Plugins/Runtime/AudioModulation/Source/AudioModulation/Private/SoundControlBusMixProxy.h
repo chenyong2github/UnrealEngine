@@ -16,11 +16,30 @@ namespace AudioModulation
 	using FBusMixId = uint32;
 	extern const FBusMixId InvalidBusMixId;
 
-	class FModulatorBusMixChannelProxy : public TModulatorProxyBase<FBusId>
+	class FModulatorBusMixChannelSettings : public TModulatorBase<FBusId>
+	{
+	public:
+		FModulatorBusMixChannelSettings(const FSoundControlBusMixChannel& InChannel);
+
+		FString Address;
+		uint32 ClassId;
+		FSoundModulationValue Value;
+		FControlBusSettings BusSettings;
+	};
+
+	class FModulatorBusMixSettings : public TModulatorBase<FBusMixId>
+	{
+	public:
+		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix);
+
+		TArray<FModulatorBusMixChannelSettings> Channels;
+	};
+
+	class FModulatorBusMixChannelProxy : public TModulatorBase<FBusId>
 	{
 	public:
 
-		FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel, FAudioModulationSystem& ModSystem);
+		FModulatorBusMixChannelProxy(const FModulatorBusMixChannelSettings& InSettings, FAudioModulationSystem& OutModSystem);
 
 		FString Address;
 		uint32 ClassId;
@@ -28,7 +47,7 @@ namespace AudioModulation
 		FBusHandle BusHandle;
 	};
 
-	class FModulatorBusMixProxy : public TModulatorProxyRefType<FBusMixId, FModulatorBusMixProxy, USoundControlBusMix>
+	class FModulatorBusMixProxy : public TModulatorProxyRefType<FBusMixId, FModulatorBusMixProxy, FModulatorBusMixSettings>
 	{
 	public:
 		enum class EStatus : uint8
@@ -38,21 +57,21 @@ namespace AudioModulation
 			Stopped
 		};
 
-		FModulatorBusMixProxy(const USoundControlBusMix& InMix, FAudioModulationSystem& InModSystem);
+		FModulatorBusMixProxy(const FModulatorBusMixSettings& InMix, FAudioModulationSystem& InModSystem);
 
-		FModulatorBusMixProxy& operator =(const USoundControlBusMix& InBusMix);
+		FModulatorBusMixProxy& operator =(const FModulatorBusMixSettings& InSettings);
 
 		EStatus GetStatus() const;
 
 		// Resets channel map
 		void Reset();
 
-		void SetEnabled(const USoundControlBusMix& InBusMix);
-		void SetMix(const TArray<FSoundControlBusMixChannel>& InChannels);
+		void SetEnabled(const FModulatorBusMixSettings& InSettings);
+		void SetMix(const TArray<FModulatorBusMixChannelSettings>& InChannels);
 		void SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue);
 		void SetStopping();
 
-		void Update(const float Elapsed, FBusProxyMap& ProxyMap);
+		void Update(const double Elapsed, FBusProxyMap& ProxyMap);
 
 		using FChannelMap = TMap<FBusId, FModulatorBusMixChannelProxy>;
 		FChannelMap Channels;
@@ -62,5 +81,5 @@ namespace AudioModulation
 	};
 
 	using FBusMixProxyMap = TMap<FBusMixId, FModulatorBusMixProxy>;
-	using FBusMixHandle = TProxyHandle<FBusMixId, FModulatorBusMixProxy, USoundControlBusMix>;
+	using FBusMixHandle = TProxyHandle<FBusMixId, FModulatorBusMixProxy, FModulatorBusMixSettings>;
 } // namespace AudioModulation

@@ -152,19 +152,24 @@ uint32 FRecastDebugGeometry::GetAllocatedSize() const
 		+ PolyEdges.GetAllocatedSize()
 		+ NavMeshEdges.GetAllocatedSize()
 		+ OffMeshLinks.GetAllocatedSize()
+#if WITH_NAVMESH_SEGMENT_LINKS
 		+ OffMeshSegments.GetAllocatedSize()
-		+ Clusters.GetAllocatedSize()
-		+ ClusterLinks.GetAllocatedSize();
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+		;
 
 	for (int i = 0; i < RECAST_MAX_AREAS; ++i)
 	{
 		Size += AreaIndices[i].GetAllocatedSize();
 	}
 
+#if WITH_NAVMESH_CLUSTER_LINKS
+	Size += Clusters.GetAllocatedSize()	+ ClusterLinks.GetAllocatedSize();
+
 	for (int i = 0; i < Clusters.Num(); ++i)
 	{
 		Size += Clusters[i].MeshIndices.GetAllocatedSize();
 	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	return Size;
 }
@@ -729,6 +734,24 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 	}
 }
 
+#if WITH_EDITOR
+bool ARecastNavMesh::CanEditChange(const FProperty* InProperty) const
+{
+#if !WITH_NAVMESH_CLUSTER_LINKS
+	if (InProperty)
+	{
+		const FName PropertyName = InProperty->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, bDrawClusters))
+		{
+			return false;
+		}
+	}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+	return Super::CanEditChange(InProperty);
+}
+#endif // WITH_EDITOR
+
 void ARecastNavMesh::SetConfig(const FNavDataConfig& Src) 
 { 
 	NavDataConfig = Src; 
@@ -1091,6 +1114,7 @@ bool ARecastNavMesh::GetRandomPointInNavigableRadius(const FVector& Origin, floa
 	return OutResult.HasNodeRef() == true;
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 bool ARecastNavMesh::GetRandomPointInCluster(NavNodeRef ClusterRef, FNavLocation& OutLocation) const
 {
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetRandomPointInCluster(ClusterRef, OutLocation);
@@ -1106,6 +1130,7 @@ NavNodeRef ARecastNavMesh::GetClusterRef(NavNodeRef PolyRef) const
 
 	return ClusterRef;
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 bool ARecastNavMesh::FindMoveAlongSurface(const FNavLocation& StartLocation, const FVector& TargetPosition, FNavLocation& OutLocation, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
@@ -1440,7 +1465,9 @@ void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 		const uint16 PolyFlags = DefArea->GetAreaFlags() | ARecastNavMesh::GetNavLinkFlag();
 
 		RecastNavMeshImpl->UpdateNavigationLinkArea(UserId, AreaId, PolyFlags);
+#if WITH_NAVMESH_SEGMENT_LINKS
 		RecastNavMeshImpl->UpdateSegmentLinkArea(UserId, AreaId, PolyFlags);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 #if !UE_BUILD_SHIPPING
 		RequestDrawingUpdate(false);
@@ -1460,6 +1487,7 @@ void ARecastNavMesh::UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea
 	}
 }
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 void ARecastNavMesh::UpdateSegmentLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const
 {
 	int32 AreaId = GetAreaID(AreaClass);
@@ -1471,6 +1499,7 @@ void ARecastNavMesh::UpdateSegmentLinkArea(int32 UserId, TSubclassOf<UNavArea> A
 		RecastNavMeshImpl->UpdateSegmentLinkArea(UserId, AreaId, PolyFlags);
 	}
 }
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 bool ARecastNavMesh::GetPolyCenter(NavNodeRef PolyID, FVector& OutCenter) const
 {
@@ -1678,10 +1707,12 @@ bool ARecastNavMesh::IsCustomLink(NavNodeRef LinkPolyID) const
 	return RecastNavMeshImpl && RecastNavMeshImpl->IsCustomLink(LinkPolyID);
 }
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 bool ARecastNavMesh::GetClusterBounds(NavNodeRef ClusterRef, FBox& OutBounds) const
 {
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetClusterBounds(ClusterRef, OutBounds);
 }
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 bool ARecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance, TArray<NavNodeRef>& FoundPolys,
 	FSharedConstNavQueryFilter Filter, const UObject* QueryOwner, FRecastDebugPathfindingData* DebugData) const
@@ -1883,7 +1914,8 @@ void ARecastNavMesh::OnNavMeshGenerationFinished()
 							Level->NavDataChunks.Add(NavDataChunk);
 						}
 
-						NavDataChunk->GatherTiles(RecastNavMeshImpl, LevelTiles);
+						const EGatherTilesCopyMode CopyMode = RecastNavMeshImpl->NavMeshOwner->SupportsRuntimeGeneration() ? EGatherTilesCopyMode::CopyDataAndCacheData  : EGatherTilesCopyMode::CopyData;
+						NavDataChunk->GetTiles(RecastNavMeshImpl, LevelTiles, CopyMode);
 						NavDataChunk->MarkPackageDirty();
 						continue;
 					}
@@ -1938,9 +1970,20 @@ uint32 ARecastNavMesh::LogMemUsed() const
 				const int32 detailTrisSize = dtAlign4(sizeof(unsigned char) * 4 * H->detailTriCount);
 				const int32 bvTreeSize = dtAlign4(sizeof(dtBVNode) * H->bvNodeCount);
 				const int32 offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection) * H->offMeshConCount);
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 				const int32 offMeshSegsSize = dtAlign4(sizeof(dtOffMeshSegmentConnection) * H->offMeshSegConCount);
+#else
+				const int32 offMeshSegsSize = 0;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 				const int32 clusterSize = dtAlign4(sizeof(dtCluster) * H->clusterCount);
 				const int32 polyClustersSize = dtAlign4(sizeof(unsigned short) * H->detailMeshCount);
+#else
+				const int32 clusterSize = 0;
+				const int32 polyClustersSize = 0;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
 				const int32 TileDataSize = headerSize + vertsSize + polysSize + linksSize +
 					detailMeshesSize + detailVertsSize + detailTrisSize +
@@ -2195,7 +2238,12 @@ bool ARecastNavMesh::TestHierarchicalPath(const FNavAgentProperties& AgentProper
 			bool bUseFallbackSearch = false;
 			if (bCanUseHierachicalPath)
 			{
+#if WITH_NAVMESH_CLUSTER_LINKS
 				ENavigationQueryResult::Type Result = RecastNavMesh->RecastNavMeshImpl->TestClusterPath(Query.StartLocation, AdjustedEndLocation, NumVisitedNodes);
+#else
+				UE_LOG(LogNavigation, Error, TEXT("Navmesh requires generation of clusters for hierarchical path. Set WITH_NAVMESH_CLUSTER_LINKS to 1 to generate them."));
+				ENavigationQueryResult::Type Result = ENavigationQueryResult::Invalid;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 				bPathExists = (Result == ENavigationQueryResult::Success);
 
 				if (Result == ENavigationQueryResult::Error)

@@ -22,6 +22,7 @@ struct FToolMenuContext;
 struct FToolMenuSection;
 class SBorder;
 class SStandaloneAssetEditorToolkitHost;
+class FWorkspaceItem;
 
 DECLARE_DELEGATE_RetVal( bool, FRequestAssetEditorClose );
 
@@ -377,6 +378,9 @@ protected:
 
 	/** Array of layout extenders */
 	TArray<TSharedPtr<FLayoutExtender>> LayoutExtenders;
+
+	/** The base category that tabs are registered to, allows for child classes to register to the same point. */
+	TSharedPtr<FWorkspaceItem> AssetEditorTabsCategory;
 
 private:
 	/** The toolkit standalone host; may be nullptr */

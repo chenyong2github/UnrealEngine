@@ -47,6 +47,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bBoundaryEdges = true;
 
+	/** Toggle visibility of bowtie vertices */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bBowtieVertices = true;
+
 	/** Toggle visibility of polygon borders */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bPolygonBorders = false;
@@ -54,6 +58,10 @@ public:
 	/** Toggle visibility of UV seam edges */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bUVSeams = false;
+
+	/** Toggle visibility of UV bowtie vertices */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bUVBowties = false;
 
 	/** Toggle visibility of Normal seam edges */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -126,8 +134,13 @@ protected:
 	UPROPERTY()
 	UMaterialInterface* DefaultMaterial = nullptr;
 
+	// copy of input mesh description with tangents/etc populated
+	TSharedPtr<FMeshDescription> InputMeshDescription;
+
 	TArray<int> BoundaryEdges;
+	TArray<int> BoundaryBowties;
 	TArray<int> UVSeamEdges;
+	TArray<int> UVBowties;
 	TArray<int> NormalSeamEdges;
 	TArray<int> GroupBoundaryEdges;
 

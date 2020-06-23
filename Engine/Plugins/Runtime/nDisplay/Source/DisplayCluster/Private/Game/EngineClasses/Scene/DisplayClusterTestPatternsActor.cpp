@@ -17,11 +17,10 @@
 
 #include "Render/IPDisplayClusterRenderManager.h"
 
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
-
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 // Calibration patterns control

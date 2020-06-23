@@ -18,7 +18,6 @@ void FTexture2DStreamIn_IO_Virtual::LockMips(const FContext& Context)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FTexture2DStreamIn_IO_Virtual::LockMips"), STAT_Texture2DStreamInIOVirtual_LockMips, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Render);
 
-	SetIOFilename(Context);
 	DoConvertToVirtualWithNewMips(Context);
 	DoLockNewMips(Context);
 
@@ -84,4 +83,5 @@ void FTexture2DStreamIn_IO_Virtual::Cancel(const FContext& Context)
 		RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, Context.Resource->GetCurrentFirstMip());
 	}
 	DoFinishUpdate(Context);
+	ReportIOError(Context);
 }

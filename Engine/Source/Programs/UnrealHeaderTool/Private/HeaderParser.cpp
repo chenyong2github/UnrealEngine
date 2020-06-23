@@ -22,6 +22,7 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "Containers/EnumAsByte.h"
 #include "Algo/AllOf.h"
+#include "Algo/Find.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
 #include "Misc/ScopeExit.h"
 
@@ -664,10 +665,9 @@ namespace
 			if (!bDefaultToInstanced && !Search->HasAnyClassFlags(CLASS_Intrinsic | CLASS_Parsed))
 			{
 				// The class might not have been parsed yet, look for declaration data.
-				TSharedRef<FClassDeclarationMetaData>* ClassDeclarationDataPtr = GClassDeclarations.Find(Search->GetFName());
-				if (ClassDeclarationDataPtr)
+				if (FClassDeclarationMetaData* ClassDeclarationDataPtr = GClassDeclarations.Find(Search->GetFName()))
 				{
-					bDefaultToInstanced = !!((*ClassDeclarationDataPtr)->ClassFlags & CLASS_DefaultToInstanced);
+					bDefaultToInstanced = !!(ClassDeclarationDataPtr->ClassFlags & CLASS_DefaultToInstanced);
 				}
 			}
 			Search = Search->GetSuperClass();
@@ -706,7 +706,7 @@ namespace
 
 			FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
 			FNumericProperty* UnderlyingProp = CastFieldChecked<FNumericProperty>(CreateVariableProperty(UnderlyingProperty, Result, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, UnrealSourceFile));
-			Result->UnderlyingProp = UnderlyingProp;
+			Result->UnderlyingProp = MoveTemp(UnderlyingProp);
 			Result->Enum = VarProperty.Enum;
 
 			return Result;
@@ -1163,15 +1163,12 @@ namespace
 	}
 
 	// Validates the metadata, then adds it to the class data
-	void AddMetaDataToClassData(FFieldVariant Field, const TMap<FName, FString>& InMetaData)
+	void AddMetaDataToClassData(FFieldVariant Field, TMap<FName, FString>&& InMetaData)
 	{
 		// Evaluate any key redirects on the passed in pairs
-		TMap<FName, FString> RemappedPairs;
-		RemappedPairs.Empty(InMetaData.Num());
-
-		for (const auto& Pair : InMetaData)
+		for (TPair<FName, FString>& Pair : InMetaData)
 		{
-			FName CurrentKey = Pair.Key;
+			FName& CurrentKey = Pair.Key;
 			FName NewKey = UMetaData::GetRemappedKeyName(CurrentKey);
 
 			if (NewKey != NAME_None)
@@ -1179,19 +1176,17 @@ namespace
 				UE_LOG_WARNING_UHT(TEXT("Remapping old metadata key '%s' to new key '%s', please update the declaration."), *CurrentKey.ToString(), *NewKey.ToString());
 				CurrentKey = NewKey;
 			}
-
-			RemappedPairs.Add(CurrentKey, Pair.Value);
 		}
 
 		// Finish validating and associate the metadata with the field
-		ValidateMetaDataFormat(Field, RemappedPairs);
+		ValidateMetaDataFormat(Field, InMetaData);
 		if (Field.IsUObject())
 		{
-			FClassMetaData::AddMetaData(CastChecked<UField>(Field.ToUObject()), RemappedPairs);
+			FClassMetaData::AddMetaData(CastChecked<UField>(Field.ToUObject()), MoveTemp(InMetaData));
 		}
 		else
 		{
-			FClassMetaData::AddMetaData(Field.ToField(), RemappedPairs);
+			FClassMetaData::AddMetaData(Field.ToField(), MoveTemp(InMetaData));
 		}
 	}
 
@@ -1870,15 +1865,6 @@ UEnum* FHeaderParser::CompileEnum()
 		}
 	}
 
-	// Add the metadata gathered for the enum to the package
-	if (EnumValueMetaData.Num() > 0)
-	{
-		UMetaData* PackageMetaData = Enum->GetOutermost()->GetMetaData();
-		checkSlow(PackageMetaData);
-
-		PackageMetaData->SetObjectValues(Enum, EnumValueMetaData);
-	}
-
 	// Trailing brace and semicolon for the enum
 	RequireSymbol( TEXT('}'), TEXT("'Enum'") );
 	MatchSemi();
@@ -1903,6 +1889,15 @@ UEnum* FHeaderParser::CompileEnum()
 	}
 
 	CheckDocumentationPolicyForEnum(Enum, EnumValueMetaData, EntryMetaData);
+
+	// Add the metadata gathered for the enum to the package
+	if (EnumValueMetaData.Num() > 0)
+	{
+		UMetaData* PackageMetaData = Enum->GetOutermost()->GetMetaData();
+		checkSlow(PackageMetaData);
+
+		PackageMetaData->SetObjectValues(Enum, MoveTemp(EnumValueMetaData));
+	}
 
 	if (!Enum->IsValidEnumValue(0) && EnumToken.MetaData.Contains(NAME_BlueprintType))
 	{
@@ -2304,7 +2299,7 @@ static const TCHAR* GetAccessSpecifierName(EAccessSpecifier AccessSpecifier)
 }
 
 // Tries to parse the token as an access protection specifier (public:, protected:, or private:)
-EAccessSpecifier FHeaderParser::ParseAccessProtectionSpecifier(FToken& Token)
+EAccessSpecifier FHeaderParser::ParseAccessProtectionSpecifier(const FToken& Token)
 {
 	EAccessSpecifier ResultAccessSpecifier = ACCESS_NotAnAccessSpecifier;
 
@@ -2594,7 +2589,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
 	// Register the metadata
-	AddMetaDataToClassData(Struct, MetaData);
+	AddMetaDataToClassData(Struct, MoveTemp(MetaData));
 
 	// Get opening brace.
 	RequireSymbol( TEXT('{'), TEXT("'struct'") );
@@ -2756,10 +2751,13 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 		{
 			if (!Token.Matches( TEXT('}')))
 			{
-				FToken DeclarationFirstToken = Token;
+				// Skip declaration will destroy data in Token, so cache off the identifier in case we need to provfide an error
+				TCHAR FirstTokenIdentifier[NAME_SIZE];
+				FCString::Strncpy(FirstTokenIdentifier, Token.Identifier, NAME_SIZE);
+
 				if (!SkipDeclaration(Token))
 				{
-					FError::Throwf(TEXT("'struct': Unexpected '%s'"), DeclarationFirstToken.Identifier );
+					FError::Throwf(TEXT("'struct': Unexpected '%s'"), FirstTokenIdentifier);
 				}	
 			}
 			else
@@ -3147,9 +3145,7 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 		}
 	}
 
-	TMap<FName, FString> MetaData;
-	MetaData.Add(NAME_ToolTip, Struct->GetMetaData(NAME_ToolTip));
-	CheckDocumentationPolicyForStruct(Struct, MetaData);
+	CheckDocumentationPolicyForStruct(Struct);
 
 	ParseRigVMMethodParameters(Struct);
 }
@@ -3469,10 +3465,10 @@ void FHeaderParser::CompileDirective(FClasses& AllClasses)
 	}
 	else if (Directive.Matches(TEXT("include"), ESearchCase::CaseSensitive))
 	{
-		FString ExpectedHeaderName = CurrentSrcFile->GetGeneratedHeaderFilename();
 		FToken IncludeName;
 		if (GetToken(IncludeName) && (IncludeName.TokenType == TOKEN_Const) && (IncludeName.Type == CPT_String))
 		{
+			const FString& ExpectedHeaderName = CurrentSrcFile->GetGeneratedHeaderFilename();
 			if (FCString::Stricmp(IncludeName.String, *ExpectedHeaderName) == 0)
 			{
 				bSpottedAutogeneratedHeaderInclude = true;
@@ -4410,7 +4406,7 @@ void FHeaderParser::GetVarType(
 
 		EPropertyFlags InnerFlags = (MapKeyType.PropertyFlags | VarProperty.PropertyFlags) & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the map value, we will fix them later
 		VarType.PropertyFlags = InnerFlags;
-		VarProperty.MapKeyProp = MakeShared<FToken>(MapKeyType);
+		VarProperty.MapKeyProp = MakeShared<FToken>(MoveTemp(MapKeyType));
 		VarProperty.MapKeyProp->PropertyFlags = InnerFlags | (VarProperty.MapKeyProp->PropertyFlags & CPF_UObjectWrapper); // Make sure the 'UObjectWrapper' flag is maintained so that 'TMap<TSubclassOf<...>, ...>' works
 
 		FToken CloseTemplateToken;
@@ -5423,9 +5419,7 @@ FProperty* FHeaderParser::GetVarNameAndDim
 
 			if (Inner->PropertyFlags & CPF_PersistentInstance)
 			{
-				TMap<FName, FString> MetaData;
-				AddEditInlineMetaData(MetaData);
-				AddMetaDataToClassData(Inner, InMetaData);
+				AddMetaDataToClassData(Inner, TMap<FName,FString>(InMetaData));
 			}
 		}
 	};
@@ -5519,10 +5513,10 @@ FProperty* FHeaderParser::GetVarNameAndDim
 	VarProperty.StartPos = InputPos;
 	FClassMetaData* ScopeData = GScriptHelper.FindClassData(Scope);
 	check(ScopeData);
-	ScopeData->AddProperty(VarProperty, CurrentSrcFile);
+	ScopeData->AddProperty(FToken(VarProperty), CurrentSrcFile);
 
 	// if we had any metadata, add it to the class
-	AddMetaDataToClassData(VarProperty.TokenProperty, VarProperty.MetaData);
+	AddMetaDataToClassData(VarProperty.TokenProperty, TMap<FName,FString>(VarProperty.MetaData));
 
 	return Result;
 }
@@ -6296,7 +6290,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	
 	FClass* Class = ParseClassNameDeclaration(AllClasses, /*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
 	check(Class);
-	TSharedRef<FClassDeclarationMetaData> ClassDeclarationData = GClassDeclarations.FindChecked(Class->GetFName());
+	FClassDeclarationMetaData* ClassDeclarationData = &GClassDeclarations.FindChecked(Class->GetFName());
 
 	ClassDefinitionRanges.Add(Class, ClassDefinitionRange(&Input[InputPos], nullptr));
 
@@ -6351,7 +6345,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	AddModuleRelativePathToMetadata(Class, MetaData);
 
 	// Register the metadata
-	AddMetaDataToClassData(Class, MetaData);
+	AddMetaDataToClassData(Class, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the class
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -6571,7 +6565,7 @@ void FHeaderParser::CompileInterfaceDeclaration(FClasses& AllClasses)
 
 	// Register the metadata
 	AddModuleRelativePathToMetadata(InterfaceClass, MetaData);
-	AddMetaDataToClassData(InterfaceClass, MetaData);
+	AddMetaDataToClassData(InterfaceClass, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the interface
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -7115,7 +7109,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		}
 
 		USparseDelegateFunction* SDF = CastChecked<USparseDelegateFunction>(DelegateSignatureFunction);
-		SDF->OwningClassName = *GetClassNameWithoutPrefix(OwningClass.Identifier);
+		SDF->OwningClassName = *GetClassNameWithoutPrefix(FString(OwningClass.Identifier));
 		SDF->DelegateName = DelegateName.Identifier;
 	}
 
@@ -7139,8 +7133,12 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		RequireSymbol(TEXT(')'), TEXT("Delegate Declaration"));
 	}
 
+	// Save off function identifier in case we need it to error later, since we are moving the FuncInfo
+	TCHAR FuncInfoFunctionIdentifier[NAME_SIZE];
+	FCString::Strncpy(FuncInfoFunctionIdentifier, FuncInfo.Function.Identifier, NAME_SIZE);
+
 	FuncInfo.MacroLine = InputLine;
-	FFunctionData::Add(FuncInfo);
+	FFunctionData::Add(MoveTemp(FuncInfo));
 
 	// Create the return value property
 	if (bHasReturnValue)
@@ -7156,7 +7154,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
-	AddMetaDataToClassData(DelegateSignatureFunction, MetaData);
+	AddMetaDataToClassData(DelegateSignatureFunction, MoveTemp(MetaData));
 
 	// Optionally consume a semicolon, it's not required for the delegate macro since it contains one internally
 	MatchSemi();
@@ -7174,7 +7172,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		UFunction* TestFunc = *FunctionIterator;
 		if ((TestFunc->GetFName() == DelegateSignatureFunction->GetFName()) && (TestFunc != DelegateSignatureFunction))
 		{
-			FError::Throwf(TEXT("Can't override delegate signature function '%s'"), FuncInfo.Function.Identifier);
+			FError::Throwf(TEXT("Can't override delegate signature function '%s'"), FuncInfoFunctionIdentifier);
 		}
 	}
 
@@ -7581,7 +7579,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 
 	GetCurrentScope()->AddType(TopFunction);
 
-	FFunctionData* StoredFuncData = FFunctionData::Add(FuncInfo);
+	FFunctionData* StoredFuncData = FFunctionData::Add(FFuncInfo(FuncInfo));
 	if (FuncInfo.FunctionReference->HasAnyFunctionFlags(FUNC_Delegate))
 	{
 		GetCurrentClassData()->MarkContainsDelegate();
@@ -7668,7 +7666,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
-	AddMetaDataToClassData(TopFunction, MetaData);
+	AddMetaDataToClassData(TopFunction, MoveTemp(MetaData));
 
 	// 'final' and 'override' can appear in any order before an optional '= 0' pure virtual specifier
 	bool bFoundFinal    = MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
@@ -7779,7 +7777,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 	}
 
 	// perform documentation policy tests
-	CheckDocumentationPolicyForFunc(GetCurrentClass(), FuncInfo.FunctionReference, MetaData);
+	CheckDocumentationPolicyForFunc(GetCurrentClass(), FuncInfo.FunctionReference);
 }
 
 /** Parses optional metadata text. */
@@ -7891,7 +7889,7 @@ bool FHeaderParser::IsBitfieldProperty(ELayoutMacroType LayoutMacroType)
 	return bIsBitfield;
 }
 
-void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(FPropertyBase& VarProperty, const FToken* OuterPropertyType)
+void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const FToken* OuterPropertyType)
 {
 	// check to see if we have a FClassProperty using a deprecated class
 	if ( VarProperty.MetaClass != NULL && VarProperty.MetaClass->HasAnyClassFlags(CLASS_Deprecated) && !(VarProperty.PropertyFlags & CPF_Deprecated) &&
@@ -8474,7 +8472,7 @@ ECompilationResult::Type FHeaderParser::ParseHeader(FClasses& AllClasses, FUnrea
 
 		if (!bSpottedAutogeneratedHeaderInclude && !bEmptyFile && !bNoExportClassesOnly)
 		{
-			const FString ExpectedHeaderName = CurrentSrcFile->GetGeneratedHeaderFilename();
+			const FString& ExpectedHeaderName = CurrentSrcFile->GetGeneratedHeaderFilename();
 			FError::Throwf(TEXT("Expected an include at the top of the header: '#include \"%s\"'"), *ExpectedHeaderName);
 		}
 
@@ -9510,9 +9508,9 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 					OutParsedClassArray.Add(FSimplifiedParsingClassInfo(MoveTemp(ClassName), MoveTemp(BaseClassName), CurrentLine, true));
 					if (!bFoundExportedClasses)
 					{
-						if (const TSharedRef<FClassDeclarationMetaData>* Found = GClassDeclarations.Find(StrippedInterfaceName))
+						if (FClassDeclarationMetaData* Found = GClassDeclarations.Find(StrippedInterfaceName))
 						{
-							bFoundExportedClasses = !((*Found)->ClassFlags & CLASS_NoExport);
+							bFoundExportedClasses = !(Found->ClassFlags & CLASS_NoExport);
 						}
 					}
 				}
@@ -9532,9 +9530,9 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 					OutParsedClassArray.Add(FSimplifiedParsingClassInfo(MoveTemp(ClassName), MoveTemp(BaseClassName), CurrentLine, false));
 					if (!bFoundExportedClasses)
 					{
-						if (const TSharedRef<FClassDeclarationMetaData>* Found = GClassDeclarations.Find(StrippedClassName))
+						if (FClassDeclarationMetaData* Found = GClassDeclarations.Find(StrippedClassName))
 						{
-							bFoundExportedClasses = !((*Found)->ClassFlags & CLASS_NoExport);
+							bFoundExportedClasses = !(Found->ClassFlags & CLASS_NoExport);
 						}
 					}
 				}
@@ -9582,14 +9580,18 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 
 	FString ClassNameWithoutPrefixStr = GetClassNameWithPrefixRemoved(out_ClassName);
 	out_StrippedClassName = *ClassNameWithoutPrefixStr;
-	TSharedRef<FClassDeclarationMetaData>* DeclarationDataPtr = GClassDeclarations.Find(out_StrippedClassName);
-	if (!DeclarationDataPtr)
+
 	{
-		// Add class declaration meta data so that we can access class flags before the class is fully parsed
-		TSharedRef<FClassDeclarationMetaData> DeclarationData = MakeShareable(new FClassDeclarationMetaData());
-		DeclarationData->MetaData = MoveTemp(MetaData);
-		DeclarationData->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
-		GClassDeclarations.Add(out_StrippedClassName, DeclarationData);
+		auto ConstructDeclarationData = [MetaData = MoveTemp(MetaData), SpecifiersFound = MoveTemp(SpecifiersFound), &RequiredAPIMacroIfPresent]() mutable
+		{
+			// Add class declaration meta data so that we can access class flags before the class is fully parsed
+			TSharedRef<FClassDeclarationMetaData> DeclarationData = MakeShareable(new FClassDeclarationMetaData());
+			DeclarationData->MetaData = MoveTemp(MetaData);
+			DeclarationData->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
+			return DeclarationData;
+		};
+
+		GClassDeclarations.AddIfMissing(out_StrippedClassName, MoveTemp(ConstructDeclarationData));
 	}
 
 	// Skip optional final keyword
@@ -9611,16 +9613,15 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 		out_BaseClassName = BaseClassNameToken.Identifier;
 
 		int32 InputLineLocal = InputLine;
-		auto AddDependencyIfNeeded = [Filename, InputLineLocal, &ParsedClassArray, &out_RequiredIncludes, &out_ClassName, &ClassNameWithoutPrefixStr](const FString& DependencyClassName)
+		auto AddDependencyIfNeeded = [Filename, InputLineLocal, &ParsedClassArray, &out_RequiredIncludes, &ClassNameWithoutPrefixStr](const FString& DependencyClassName)
 		{
-			if (!ParsedClassArray.ContainsByPredicate([&DependencyClassName](const FSimplifiedParsingClassInfo& Info)
-				{
-					return Info.GetClassName() == DependencyClassName;
-				}))
+			if (!Algo::FindBy(ParsedClassArray, DependencyClassName, &FSimplifiedParsingClassInfo::GetClassName))
 			{
-				if (out_ClassName == DependencyClassName)
+				FString DependencyClassNameWithoutPrefixStr = GetClassNameWithPrefixRemoved(DependencyClassName);
+
+				if (ClassNameWithoutPrefixStr == DependencyClassNameWithoutPrefixStr)
 				{
-					FFileLineException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself"));
+					FFileLineException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
 				}
 
 				FString StrippedDependencyName = DependencyClassName.Mid(1);
@@ -10408,7 +10409,7 @@ void FHeaderParser::CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FNam
 	}
 }
 
-void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData)
+void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct)
 {
 	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
 
@@ -10417,9 +10418,8 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(Struct);
 	if (DocumentationPolicy.bClassOrStructCommentRequired)
 	{
-		const FString* ClassTooltipPtr = MetaData.Find(NAME_ToolTip);
 		FString ClassTooltip;
-		if (ClassTooltipPtr != nullptr)
+		if (const FString* ClassTooltipPtr = Struct->FindMetaData(NAME_ToolTip))
 		{
 			ClassTooltip = *ClassTooltipPtr;
 		}
@@ -10499,7 +10499,7 @@ bool FHeaderParser::DoesCPPTypeRequireDocumentation(const FString& CPPType)
 }
 
 // Validates the documentation for a given method
-void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func, const TMap<FName, FString>& MetaData)
+void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func)
 {
 	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
 
@@ -10509,7 +10509,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(Class);
 	if (DocumentationPolicy.bFunctionToolTipsRequired)
 	{
-		const FString* FunctionTooltip = MetaData.Find(NAME_ToolTip);
+		const FString* FunctionTooltip = Func->FindMetaData(NAME_ToolTip);
 		if (FunctionTooltip == nullptr)
 		{
 			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
@@ -10518,7 +10518,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 
 	if (DocumentationPolicy.bParameterToolTipsRequired)
 	{
-		const FString* FunctionComment = MetaData.Find(NAME_Comment);
+		const FString* FunctionComment = Func->FindMetaData(NAME_Comment);
 		if (FunctionComment == nullptr)
 		{
 			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());

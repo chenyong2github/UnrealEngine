@@ -23,9 +23,14 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"InputCore",
-					"Projects"
+					"Projects",
 				}
 			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.Add("AudioSynesthesiaCore");
+			}
 		}
 	}
 }

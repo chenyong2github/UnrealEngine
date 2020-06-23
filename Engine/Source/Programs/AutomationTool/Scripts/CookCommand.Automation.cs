@@ -211,6 +211,15 @@ public partial class Project : CommandUtils
                 {
                     CommandletParams += " -basedonreleaseversion=" + Params.BasedOnReleaseVersion;
                 }
+                if (!String.IsNullOrEmpty(Params.CreateReleaseVersionBasePath))
+                {
+                    CommandletParams += " -createreleaseversionroot=" + Params.CreateReleaseVersionBasePath;
+                }
+                if (!String.IsNullOrEmpty(Params.BasedOnReleaseVersionBasePath))
+                {
+                    CommandletParams += " -basedonreleaseversionroot=" + Params.BasedOnReleaseVersionBasePath;
+                }
+
                 // if we are not going to pak but we specified compressed then compress in the cooker ;)
                 // otherwise compress the pak files
                 if (!Params.Pak && !Params.SkipPak && Params.Compressed)

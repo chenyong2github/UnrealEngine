@@ -730,6 +730,7 @@ bool GRHISupportsBaseVertexIndex = true;
 bool GRHISupportsFirstInstance = false;
 bool GRHISupportsDynamicResolution = false;
 bool GRHISupportsRayTracing = false;
+bool GRHISupportsRayTracingPSOAdditions = false;
 bool GRHISupportsRayTracingMissShaderBindings = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsWaveOperations = false;
@@ -1468,7 +1469,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsTemporalHistoryUpscale = GetSectionBool(Section, "bSupportsTemporalHistoryUpscale");
 	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
 	Info.bSupportsWaveOperations = GetSectionBool(Section, "bSupportsWaveOperations");
-	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 	Info.bRequiresExplicit128bitRT = GetSectionBool(Section, "bRequiresExplicit128bitRT");
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");

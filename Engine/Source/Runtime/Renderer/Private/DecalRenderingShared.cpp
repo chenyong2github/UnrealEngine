@@ -21,25 +21,6 @@ static TAutoConsoleVariable<float> CVarDecalFadeScreenSizeMultiplier(
 	TEXT("  Smaller means decals fade less aggressively.")
 	);
 
-static bool IsBlendModeSupported(EShaderPlatform Platform, EDecalBlendMode DecalBlendMode)
-{
-	if (IsMobilePlatform(Platform))
-	{
-		switch (DecalBlendMode)
-		{
-			case DBM_Stain:			 // Modulate
-			case DBM_Emissive:		 // Additive
-			case DBM_Translucent:	 // Translucent
-			case DBM_AlphaComposite: // Premultiplied Alpha
-				break;
-			default:
-				return false;
-		}
-	}
-
-	return true;
-}
-
 FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy* InDecalProxy, float InConservativeRadius)
 	: DecalProxy(InDecalProxy)
 	, FadeAlpha(1.0f)
@@ -125,7 +106,8 @@ public:
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		FTransform ComponentTrans = DecalProxy.ComponentTrans;
 
@@ -268,7 +250,7 @@ bool FDecalRendering::BuildVisibleDecalList(const FScene& Scene, const FViewInfo
 			FTransientDecalRenderData Data(Scene, DecalProxy, ConservativeRadius);
 			
 			// filter out decals with blend modes that are not supported on current platform
-			if (IsBlendModeSupported(ShaderPlatform, Data.FinalDecalBlendMode))
+			if (FDecalRenderingCommon::IsBlendModeSupported(ShaderPlatform, Data.FinalDecalBlendMode))
 			{
 				if (bIsPerspectiveProjection && Data.DecalProxy->FadeScreenSize != 0.0f)
 				{
@@ -291,6 +273,7 @@ bool FDecalRendering::BuildVisibleDecalList(const FScene& Scene, const FViewInfo
 
 				const bool bShouldRender = Data.FadeAlpha > 0.0f &&
 					FDecalRenderingCommon::IsCompatibleWithRenderStage(
+						ShaderPlatform,
 						DecalRenderStage,
 						LocalDecalRenderStage,
 						Data.FinalDecalBlendMode,
@@ -485,4 +468,228 @@ void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(const FMater
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERA"), 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERB"), 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), 0);
+}
+
+static FRHIBlendState* GetDecalBlendStateMobile(EDecalBlendMode DecalBlendMode)
+{
+	switch(DecalBlendMode)
+	{
+	case DBM_Translucent:
+	case DBM_DBuffer_Color:
+	case DBM_DBuffer_ColorNormal:
+	case DBM_DBuffer_ColorRoughness:
+	case DBM_DBuffer_ColorNormalRoughness:
+		return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
+		break;
+	case DBM_Stain:
+		// Modulate
+		return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha>::GetRHI();
+		break;
+	case DBM_Emissive:
+	case DBM_DBuffer_Emissive:
+		// Additive
+		return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_One>::GetRHI();
+		break;
+	case DBM_AlphaComposite:
+	case DBM_DBuffer_AlphaComposite:
+		// Premultiplied alpha
+		return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
+		break;
+	case DBM_DBuffer_EmissiveAlphaComposite:
+		return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
+		break;
+	default:
+		ensure(0);
+	};
+
+	return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
+}
+
+// @param RenderState 0:before BasePass, 1:before lighting, (later we could add "after lighting" and multiply)
+FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal)
+{
+	if (SMFeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		return GetDecalBlendStateMobile(DecalBlendMode);
+	}
+	
+	if (InDecalRenderStage == DRS_BeforeBasePass)
+	{
+		// before base pass (for DBuffer decals)
+		{
+			// As we set the opacity in the shader we don't need to set different frame buffer blend modes but we like to hint to the driver that we
+			// don't need to output there. We also could replace this with many SetRenderTarget calls but it might be slower (needs to be tested).
+
+			switch (DecalBlendMode)
+			{
+			case DBM_DBuffer_AlphaComposite:
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_One,  BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_One,  BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_ColorNormalRoughness:
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_Color:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_ColorNormal:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_ColorRoughness:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_Normal:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_NormalRoughness:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			case DBM_DBuffer_Roughness:
+				// we can optimize using less MRT later
+				return TStaticBlendState<
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
+					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
+				>::GetRHI();
+
+			default:
+				// the decal type should not be rendered in this pass - internal error
+				check(0);
+				return nullptr;
+			}
+		}
+	}
+	else if (InDecalRenderStage == DRS_AfterBasePass)
+	{
+		ensure(DecalBlendMode == DBM_Volumetric_DistanceFunction);
+
+		return TStaticBlendState<>::GetRHI();
+	}
+	else if (InDecalRenderStage == DRS_AmbientOcclusion)
+	{
+		ensure(DecalBlendMode == DBM_AmbientOcclusion);
+
+		return TStaticBlendState<CW_RED, BO_Add, BF_DestColor, BF_Zero>::GetRHI();
+	}
+	else
+	{
+		// before lighting (for non DBuffer decals)
+
+		switch (DecalBlendMode)
+		{
+		case DBM_Translucent:
+			// @todo: Feature Level 10 does not support separate blends modes for each render target. This could result in the
+			// translucent and stain blend modes looking incorrect when running in this mode.
+			if (GSupportsSeparateRenderTargetBlendState)
+			{
+				if (bHasNormal)
+				{
+					return TStaticBlendState<
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
+					>::GetRHI();
+				}
+				else
+				{
+					return TStaticBlendState<
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
+						CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,	// Normal
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
+					>::GetRHI();
+				}
+			}
+
+		case DBM_Stain:
+			if (GSupportsSeparateRenderTargetBlendState)
+			{
+				if (bHasNormal)
+				{
+					return TStaticBlendState<
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
+						CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
+					>::GetRHI();
+				}
+				else
+				{
+					return TStaticBlendState<
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
+						CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,	// Normal
+						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
+						CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
+					>::GetRHI();
+				}
+			}
+
+		case DBM_Normal:
+			return TStaticBlendState< CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha >::GetRHI();
+
+
+		case DBM_Emissive:
+		case DBM_DBuffer_Emissive:
+			return TStaticBlendState< CW_RGB, BO_Add, BF_SourceAlpha, BF_One >::GetRHI();
+
+		case DBM_DBuffer_EmissiveAlphaComposite:
+			return TStaticBlendState< CW_RGB, BO_Add, BF_One, BF_One >::GetRHI();
+
+		case DBM_AlphaComposite:
+			if (GSupportsSeparateRenderTargetBlendState)
+			{
+				return TStaticBlendState<
+					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Emissive
+					CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,				// Normal
+					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
+					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	// BaseColor
+				>::GetRHI();
+			}
+		default:
+			// the decal type should not be rendered in this pass - internal error
+			check(0);
+			return nullptr;
+		}
+	}
 }

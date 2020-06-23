@@ -922,7 +922,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 
 void GameProjectUtils::CheckForOutOfDateGameProjectFile()
 {
-	if ( FPaths::IsProjectFilePathSet() )
+	if (FPaths::IsProjectFilePathSet() && !IProjectManager::Get().IsSuppressingProjectFileWrite())
 	{
 		if (IProjectManager::Get().IsCurrentProjectDirty())
 		{
@@ -2949,7 +2949,7 @@ void GameProjectUtils::ClearSupportedTargetPlatforms()
 	}
 }
 
-void GameProjectUtils::UpdateAdditionalPluginDirectory(const FString& InDir, const bool bAddOrRemove)
+bool GameProjectUtils::UpdateAdditionalPluginDirectory(const FString& InDir, const bool bAddOrRemove)
 {
 	const FString& ProjectFilename = FPaths::GetProjectFilePath();
 	if (!ProjectFilename.IsEmpty())
@@ -2967,8 +2967,10 @@ void GameProjectUtils::UpdateAdditionalPluginDirectory(const FString& InDir, con
 			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*ProjectFilename, false);
 		}
 
-		IProjectManager::Get().UpdateAdditionalPluginDirectory(InDir, bAddOrRemove);
+		return IProjectManager::Get().UpdateAdditionalPluginDirectory(InDir, bAddOrRemove);
 	}
+
+	return false;
 }
 
 const TCHAR* GameProjectUtils::GetDefaultBuildSettingsVersion()
@@ -3627,6 +3629,11 @@ void GameProjectUtils::OnUpdateProjectCancel()
 
 void GameProjectUtils::TryMakeProjectFileWriteable(const FString& ProjectFile)
 {
+	if (IProjectManager::Get().IsSuppressingProjectFileWrite())
+	{
+		return;
+	}
+
 	// First attempt to check out the file if SCC is enabled
 	if ( ISourceControlModule::Get().IsEnabled() )
 	{

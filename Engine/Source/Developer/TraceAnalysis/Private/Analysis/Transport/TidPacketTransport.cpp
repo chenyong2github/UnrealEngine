@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TidPacketTransport.h"
+#include "Algo/BinarySearch.h"
 #include "HAL/UnrealMemory.h"
 
 namespace Trace
@@ -47,7 +48,8 @@ bool FTidPacketTransport::ReadPacket()
 		uint16* DecodedSize = (uint16*)(PacketBase + 1);
 		uint8* Dest = Thread.Buffer.Append(*DecodedSize);
 		DataSize -= sizeof(*DecodedSize);
-		Private::Decode(DecodedSize + 1, DataSize, Dest, *DecodedSize);
+		int32 ResultSize = Private::Decode(DecodedSize + 1, DataSize, Dest, *DecodedSize);
+		check(int32(*DecodedSize) == ResultSize);
 	}
 	else
 	{
@@ -60,18 +62,19 @@ bool FTidPacketTransport::ReadPacket()
 ////////////////////////////////////////////////////////////////////////////////
 FTidPacketTransport::FThreadStream& FTidPacketTransport::FindOrAddThread(uint32 ThreadId)
 {
-	for (auto& Thread : Threads)
+	uint32 Index = Algo::LowerBoundBy(Threads, ThreadId, [] (const FThreadStream& Rhs) { return Rhs.ThreadId; });
+	if (Index < uint32(Threads.Num()))
 	{
-		if (Thread.ThreadId == ThreadId)
+		if (Threads[Index].ThreadId == ThreadId)
 		{
-			return Thread;
+			return Threads[Index];
 		}
 	}
 
 	FThreadStream Thread;
 	Thread.ThreadId = ThreadId;
-	Threads.Add(Thread);
-	return Threads.Last();
+	Threads.Insert(Thread, Index);
+	return Threads[Index];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,42 +82,27 @@ void FTidPacketTransport::Update()
 {
 	while (ReadPacket());
 
-	Threads.RemoveAllSwap([] (const FThreadStream& Thread)
+	Threads.RemoveAll([] (const FThreadStream& Thread)
 	{
 		return Thread.Buffer.IsEmpty();
 	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FTidPacketTransport::ThreadIter FTidPacketTransport::ReadThreads()
+uint32 FTidPacketTransport::GetThreadCount() const
 {
-	return ThreadIter(0);
+	return uint32(Threads.Num());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FStreamReader* FTidPacketTransport::GetNextThread(ThreadIter& Iter)
+FStreamReader* FTidPacketTransport::GetThreadStream(uint32 Index)
 {
-	while (Iter < Threads.Num())
-	{
-		FThreadStream& Thread = Threads[Iter++];
-		if (!Thread.Buffer.IsEmpty())
-		{
-			return &(Thread.Buffer);
-		}
-	}
-
-	return nullptr;
+	return &(Threads[Index].Buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FTidPacketTransport::GetThreadId(ThreadIter Iter) const
+int32 FTidPacketTransport::GetThreadId(uint32 Index) const
 {
-	uint32 Index = Iter - 1;
-	if (Index >= uint32(Threads.Num()))
-	{
-		return -1;
-	}
-
 	return Threads[Index].ThreadId;
 }
 

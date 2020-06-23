@@ -36,7 +36,6 @@ public:
 	static ENGINE_API void RecordEvent(const FString& EventName);
 	static ENGINE_API void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
 	static ENGINE_API void RecordEvent(const FString& EventName, TArray<FAnalyticsEventAttribute>&& Attributes);
-	static ENGINE_API void RecordEventJson(const FString& EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson);
 
 	/** An event for reporting load time that blocks the editor. */
 	static ENGINE_API void FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& Attributes = TArray<FAnalyticsEventAttribute>());

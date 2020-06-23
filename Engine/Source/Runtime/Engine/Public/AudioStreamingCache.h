@@ -18,6 +18,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "AudioStreaming.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundWaveLoadingBehavior.h"
+#include "UObject/ObjectKey.h"
 
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
@@ -31,21 +32,13 @@ public:
 		USoundWave* SoundWave = nullptr;
 		FName SoundWaveName = FName();
 		uint32 ChunkIndex = INDEX_NONE;
+		FObjectKey ObjectKey = FObjectKey();
 
 #if WITH_EDITOR
 		// This is used in the editor to invalidate stale compressed chunks.
 		uint32 ChunkRevision = INDEX_NONE;
 #endif
-
-		inline bool operator==(const FChunkKey& Other) const
-		{
-#if WITH_EDITOR
-			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
-#else
-			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
-#endif
-		}
-
+		inline bool operator==(const FChunkKey& Other) const;
 		
 	};
 
@@ -73,6 +66,10 @@ public:
 	// returns the amount of bytes we were actually able to free.
 	// It's important to note that this will block any chunk requests.
 	uint64 TrimMemory(uint64 BytesToFree);
+
+	// Returns an array of the USoundwaves retaining the least recently used retained chunks in the cache.
+	// This can potentially return soundwaves for chunks that are retained by a currently playing sound, if the cache is thrashed enough.
+	TArray<FObjectKey> GetLeastRecentlyUsedRetainedSoundWaves(int32 NumSoundWavesToRetrieve);
 
 	// This function will continue to lock until any async file loads are finished.
 	void BlockForAllPendingLoads() const;
@@ -222,13 +219,10 @@ private:
 			}
 #endif
 
-			IBulkDataIORequest* LocalReadRequest = nullptr;
-			if (ReadRequest)
-			{
-				LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&ReadRequest, nullptr);
-			}
+			// Take ownership and close the storage
+			IBulkDataIORequest* LocalReadRequest = (IBulkDataIORequest*)FPlatformAtomics::InterlockedExchangePtr((void* volatile*)&ReadRequest, (void*)0x1);
 
-			if (LocalReadRequest)
+			if (LocalReadRequest && (void*)LocalReadRequest != (void*)0x1)
 			{
 				if (bCancel)
 				{
@@ -320,7 +314,8 @@ private:
 	bool ShouldAddNewChunk() const;
 
 	// Returns the least recent chunk and fixes up the linked list accordingly.
-	FCacheElement* EvictLeastRecentChunk();
+	FCacheElement* EvictLeastRecentChunk(bool bBlockForPendingLoads = false);
+
 
 	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
 	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey, bool bNeededForPlayback);

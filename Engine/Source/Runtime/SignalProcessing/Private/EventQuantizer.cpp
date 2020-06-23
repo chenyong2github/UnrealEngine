@@ -113,31 +113,31 @@ namespace Audio
 				break;
 
 			case EEventQuantization::QuarterNote:
-				EventState.EventFrameDuration /= 4;
+				EventState.EventFrameDuration = NumFramesPerBeat;
 				break;
 
 			case EEventQuantization::QuarterNoteTriplet:
-				EventState.EventFrameDuration /= 6;
+				EventState.EventFrameDuration = NumFramesPerBeat * 2.0f / 3.0f;
 				break;
 
 			case EEventQuantization::EighthNote:
-				EventState.EventFrameDuration /= 8;
+				EventState.EventFrameDuration = NumFramesPerBeat / 2.0f;
 				break;
 
 			case EEventQuantization::EighthNoteTriplet:
-				EventState.EventFrameDuration /= 12;
+				EventState.EventFrameDuration = NumFramesPerBeat / 3.0f;
 				break;
 
 			case EEventQuantization::SixteenthNote:
-				EventState.EventFrameDuration /= 16;
+				EventState.EventFrameDuration = NumFramesPerBeat / 4.0f;
 				break;
 
 			case EEventQuantization::SixteenthNoteTriplet:
-				EventState.EventFrameDuration /= 24;
+				EventState.EventFrameDuration = NumFramesPerBeat / 6.0f;
 				break;
 
 			case EEventQuantization::ThirtySecondNote:
-				EventState.EventFrameDuration /= 32;
+				EventState.EventFrameDuration = NumFramesPerBeat / 8.0f;
 				break;
 
 			default:

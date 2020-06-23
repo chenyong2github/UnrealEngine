@@ -200,6 +200,11 @@ float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Defaul
 
 }
 
+struct FMaterialAttributes
+{
+%s
+};
+
 /** 
  * Parameters calculated from the pixel material inputs.
  */
@@ -336,6 +341,13 @@ struct FMaterialPixelParameters
 
 #if WATER_MESH_FACTORY
 	uint WaterWaveParamIndex;
+#endif
+
+#if CLOUD_LAYER_PIXEL_SHADER
+	float CloudSampleAltitude;
+	float CloudSampleAltitudeInLayer;
+	float CloudSampleNormAltitudeInLayer;
+	float VolumeSampleConservativeDensity;
 #endif
 };
 
@@ -1183,7 +1195,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	const float3 ViewDir = -Parameters.CameraVector;
 
 	// The referencial used to build the Sky View lut
-	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward, ResolvedView.ViewRight);
+	float3x3 LocalReferencial = GetSkyViewLutReferential(ResolvedView.SkyViewLutReferential);
 	// Compute inputs in this referential
 	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
 	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
@@ -1218,8 +1230,8 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 	// distorted uvs and bad visuals with artefact. Only the distance computation can actually be benefit from the surface position specified here.
 	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 
-	float4 FogToApplyOver = 1.0f;
 	float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
+		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDCPosition, WorldPos, CameraPos,
 		View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -1257,6 +1269,42 @@ float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float Fallback
 	return OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 #else
 	return FallbackDepth;
+#endif
+}
+
+float MaterialExpressionCloudSampleAltitude(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleAltitude;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionCloudSampleAltitudeInLayer(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleAltitudeInLayer;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionCloudSampleNormAltitudeInLayer(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleNormAltitudeInLayer;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionVolumeSampleConservativeDensity(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.VolumeSampleConservativeDensity;
+#else
+	return 0.0f;
 #endif
 }
 
@@ -1675,12 +1723,12 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 
 	if (SceneTextureId == PPI_SceneDepth)
 	{
-		MaterialFloat Depth = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, UV).a;
+		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, UV).a);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureId == PPI_CustomDepth)
 	{
-		MaterialFloat Depth = Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r;
+		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureId == PPI_PostProcessInput0)
@@ -2406,8 +2454,14 @@ uint DiscardMaterialWithPixelCoverage(FMaterialPixelParameters MaterialParameter
 	#define FIsFrontFace bool
 	half GetFloatFacingSign(FIsFrontFace bIsFrontFace)
 	{
+#if COMPILER_DXC && COMPILER_VULKAN
+		// We need to flip SV_IsFrontFace for Vulkan when compiling with DXC due to different coordinate systems.
+		// HLSLcc did that by flipping SV_IsFrontFace in the high-level GLSL output.
+		return bIsFrontFace ? -1 : +1;
+#else
 		return bIsFrontFace ? +1 : -1;
-	}
+#endif
+}
 
 #if MATERIAL_TWOSIDED_SEPARATE_PASS
 	#define OPTIONAL_IsFrontFace

@@ -359,7 +359,9 @@ public:
 			StartServer();
 		}
 
+#if WITH_EDITOR
 		EventDispatchers.AddDefaulted((int32)ERemoteControlEvent::EventCount);
+#endif
 	}
 
 	virtual void ShutdownModule() override
@@ -526,6 +528,8 @@ public:
 				OnComplete(MoveTemp(Response));
 				return true;
 			});
+
+#if WITH_EDITOR
 			auto EventRouteLambda = [this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 			{
 				TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
@@ -563,6 +567,7 @@ public:
 			{
 				RemoteEventRouteHandle = HttpRouter->BindRoute(FHttpPath(TEXT("/remote/object/event")), EHttpServerRequestVerbs::VERB_PUT, EventRouteLambda);
 			}
+#endif
 			
 			FHttpServerModule::Get().StartAllListeners();
 		}
@@ -642,6 +647,7 @@ private:
 		FHttpResultCallback CompleteCallback;
 	};
 
+#if WITH_EDITOR
 	struct FRemoteEventDispatcher
 	{
 		FRemoteEventDispatcher()
@@ -770,6 +776,7 @@ private:
 
 	/** Remote event mechanism delegate handles */
 	TArray<FRemoteEventDispatcher> EventDispatchers;
+#endif
 
 	/** Console commands handle. */
 	TUniquePtr<FAutoConsoleCommand> StartServerCommand;

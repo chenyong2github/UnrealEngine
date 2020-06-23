@@ -424,7 +424,7 @@ public:
 	void SetTickableWhenPaused(bool bTickableWhenPaused);
 
 	/** Create any physics engine information for this component */
-	void CreatePhysicsState();
+	void CreatePhysicsState(bool bAllowDeferral = false);
 
 	/** Shut down any physics engine structure for this component */
 	void DestroyPhysicsState();
@@ -687,6 +687,13 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category="Utilities")
 	void SetComponentTickInterval(float TickInterval);
+
+	/**
+	* Sets the tick interval for this component's primary tick function. Does not enable the tick interval. Takes effect imediately.
+	* @param TickInterval	The duration between ticks for this component's primary tick function
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities")
+	void SetComponentTickIntervalAndCooldown(float TickInterval);
 
 	/** Returns the tick interval for this component's primary tick function, which is the frequency in seconds at which it will be executed */
 	UFUNCTION(BlueprintCallable, Category="Utilities")

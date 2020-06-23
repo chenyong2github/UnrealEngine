@@ -172,6 +172,10 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
 	virtual int32 AddInstance(const FTransform& InstanceTransform);
 
+	/** Add multiple instances to this component. Transform is given in local space of this component. */
+	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
+	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices);
+
 	/** Add an instance to this component. Transform is given in world space. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	int32 AddInstanceWorldSpace(const FTransform& WorldTransform);
@@ -270,7 +274,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	virtual bool ShouldCreatePhysicsState() const override;
 
 	virtual void PostLoad() override;
-	virtual void OnComponentCreated() override;
+	virtual void OnRegister() override;
 
 public:
 	/** Render data will be initialized on PostLoad or on demand. Released on the rendering thread. */
@@ -358,6 +362,9 @@ public:
 	virtual void PropagateLightingScenarioChange() override;
 
 	void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
+
+	void FlushInstanceUpdateCommands();
+
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */
@@ -376,8 +383,14 @@ protected:
 	/** Request to navigation system to update only part of navmesh occupied by specified instance. */
 	virtual void PartialNavigationUpdate(int32 InstanceIdx);
 
+	/** Does this component support partial navigation updates */
+	virtual bool SupportsPartialNavigationUpdate() const { return false; }
+
 	/** Internal version of AddInstance */
 	int32 AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform);
+
+	/** Internal implementation of AddInstances */
+	TArray<int32> AddInstancesInternal(int32 Count, const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices);
 
 	/** Internal version of RemoveInstance */	
 	bool RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved);

@@ -30,14 +30,11 @@ public:
 	/** Returns the default visualization mode for child actors in a component tree view */
 	static EChildActorComponentTreeViewVisualizationMode GetProjectDefaultTreeViewVisualizationMode();
 
-	/** Modify editor state to toggle visibility of the given component in a tree view */
-	static void ToggleComponentNodeVisibility(UChildActorComponent* ChildActorComponent, TWeakPtr<SSCSEditor> WeakEditorPtr);
+	/** Returns the component-specific visualization mode for the given child actor component */
+	static EChildActorComponentTreeViewVisualizationMode GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent);
 
-	/** Modify editor state to toggle Child Actor node visibility for the given component */
-	static void ToggleChildActorNodeVisibility(UChildActorComponent* ChildActorComponent, TWeakPtr<SSCSEditor> WeakEditorPtr);
-
-	/** Whether the given component should be visible as a unique node in a component tree view */
-	static bool ShouldShowComponentNodeInTreeView(UChildActorComponent* ChildActorComponent);
+	/** Whether to expand the given child actor component in a component tree view */
+	static bool ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent);
 
 	/** Whether the Child Actor should be shown in a component tree view for the given component */
 	static bool ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent);

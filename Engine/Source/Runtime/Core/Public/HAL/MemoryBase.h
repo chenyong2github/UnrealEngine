@@ -8,6 +8,10 @@
 #include "Misc/Exec.h"
 #include "Templates/Atomic.h"
 
+#ifndef UPDATE_MALLOC_STATS
+	#define UPDATE_MALLOC_STATS 1
+#endif
+
 enum
 {
 	// Default allocator alignment. If the default is specified, the allocator applies to engine rules.

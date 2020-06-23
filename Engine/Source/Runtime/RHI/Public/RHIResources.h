@@ -2131,8 +2131,6 @@ public:
 	};
 };
 
-#if RHI_RAYTRACING
-
 class FRayTracingPipelineStateInitializer
 {
 public:
@@ -2163,6 +2161,16 @@ public:
 	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 
 	bool bAllowHitGroupIndexing = true;
+
+	// Partial ray tracing pipelines can be used for run-time asynchronous shader compilation, but not for rendering.
+	// Any number of shaders for any stage may be provided when creating partial pipelines, but 
+	// at least one shader must be present in total (completely empty pipelines are not allowed).
+	bool bPartial = false;
+
+	// Ray tracing pipeline may be created by deriving from the existing base.
+	// Base pipeline will be extended by adding new shaders into it, potentially saving substantial amount of CPU time.
+	// Depends on GRHISupportsRayTracingPSOAdditions support at runtime (base pipeline is simply ignored if it is unsupported).
+	FRayTracingPipelineStateRHIRef BasePipeline;
 
 	const TArrayView<FRHIRayTracingShader*>& GetRayGenTable()   const { return RayGenTable; }
 	const TArrayView<FRHIRayTracingShader*>& GetMissTable()     const { return MissTable; }
@@ -2233,7 +2241,6 @@ private:
 	uint64 HitGroupHash = 0;
 	uint64 CallableHash = 0;
 };
-#endif // RHI_RAYTRACING
 
 // This PSO is used as a fallback for RHIs that dont support PSOs. It is used to set the graphics state using the legacy state setting APIs
 class FRHIGraphicsPipelineStateFallBack : public FRHIGraphicsPipelineState
@@ -2288,9 +2295,9 @@ public:
 	virtual int32 GetShaderIndex(int32 ShaderMapIndex, int32 i) const = 0;
 	virtual int32 FindShaderMapIndex(const FSHAHash& Hash) = 0;
 	virtual int32 FindShaderIndex(const FSHAHash& Hash) = 0;
-	virtual FGraphEventRef PreloadShader(int32 ShaderIndex) { return FGraphEventRef(); }
-	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) { return FGraphEventRef(); }
-	virtual void ReleasePreloadedShaderMap(int32 ShaderMapIndex) {}
+	virtual bool PreloadShader(int32 ShaderIndex, FGraphEventArray& OutCompletionEvents) { return false; }
+	virtual bool PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray& OutCompletionEvents) { return false; }
+	virtual void ReleasePreloadedShader(int32 ShaderIndex) {}
 
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 ShaderIndex) { return nullptr; }
 	virtual void Teardown() {};

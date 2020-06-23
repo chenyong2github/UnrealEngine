@@ -359,6 +359,17 @@ EConvertFromTypeResult FMulticastDelegateProperty::ConvertFromType(const FProper
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
+void FMulticastDelegateProperty::AddReferencedObjects(FReferenceCollector& Collector)
+{
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	if (SignatureFunction && !SignatureFunction->IsA<ULinkerPlaceholderFunction>())
+#endif//USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	{
+		Collector.AddReferencedObject(SignatureFunction);
+	}
+	Super::AddReferencedObjects(Collector);
+}
+
 
 IMPLEMENT_FIELD(FMulticastDelegateProperty)
 

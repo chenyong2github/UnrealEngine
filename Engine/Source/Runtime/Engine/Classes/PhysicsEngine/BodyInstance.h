@@ -283,6 +283,11 @@ private:
 	*/
 	TOptional<TArray<TEnumAsByte<ECollisionEnabled::Type>>> ShapeCollisionEnabled;
 
+	/** When per-shape collision responses are changed at runtime, state is stored in an optional array of per-shape
+	*	collision response settings. If this is not set, the base body instance's CollisionResponses member is used for all shapes.
+	*/
+	TOptional<TArray<TPair<int32, FCollisionResponse>>> ShapeCollisionResponses;
+
 public:
 	// Current state of the physics body for tracking deferred addition and removal.
 	BodyInstanceSceneState CurrentSceneState;
@@ -555,16 +560,7 @@ public:
 	UPROPERTY()
 	float PhysicsBlendWeight;
 
-	/** True if we want to use deferred body instance creation */
-	static bool UseDeferredPhysicsBodyCreation();
-
-private:
-	TArray<FInitBodiesHelperWithData<true>> InitBodiesDeferredListStatic;
-	TArray<FInitBodiesHelperWithData<false>> InitBodiesDeferredListDynamic;
-
 public:
-
-	void InitAllBodies(FPhysScene* PhysScene);
 
 	FPhysicsActorHandle& GetPhysicsActorHandle();
 	const FPhysicsActorHandle& GetPhysicsActorHandle() const;
@@ -638,7 +634,7 @@ public:
 	void InitDynamicProperties_AssumesLocked();
 
 	/** Build the sim and query filter data (for simple and complex shapes) based on the settings of this BodyInstance (and its associated BodySetup)  */
-	void BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData) const;
+	void BuildBodyFilterData(FBodyCollisionFilterData& OutFilterData, const int32 ShapeIndex = INDEX_NONE) const;
 
 	/** Build the flags to control which types of collision (sim and query) shapes owned by this BodyInstance should have. */
 	static void BuildBodyCollisionFlags(FBodyCollisionFlags& OutFlags, ECollisionEnabled::Type UseCollisionEnabled, bool bUseComplexAsSimple);
@@ -920,10 +916,17 @@ public:
 	bool ReplaceResponseToChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
 
 	/** Set the response of this body to the supplied settings */
-	bool SetResponseToChannels(const FCollisionResponseContainer& NewReponses);
+	bool SetResponseToChannels(const FCollisionResponseContainer& NewResponses);
+
+	/** Set the response of a specific shape on this body to the supplied settings */
+	bool SetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& NewResponses);
 
 	/** Get Collision ResponseToChannels container for this component **/
 	FORCEINLINE_DEBUGGABLE const FCollisionResponseContainer& GetResponseToChannels() const { return CollisionResponses.GetResponseContainer(); }
+
+	/** Get Collision ResponseToChannels container for a specific shape in this component **/
+	const FCollisionResponseContainer& GetShapeResponseToChannels(const int32 ShapeIndex) const;
+	const FCollisionResponseContainer& GetShapeResponseToChannels(const int32 ShapeIndex, const FCollisionResponseContainer& DefaultResponseContainer) const;
 
 	/** Set the movement channel of this body to the one supplied */
 	void SetObjectType(ECollisionChannel Channel);

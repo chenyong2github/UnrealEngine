@@ -10,6 +10,15 @@
 static int32 GHairProjectionMaxTrianglePerProjectionIteration = 8;
 static FAutoConsoleVariableRef CVarHairProjectionMaxTrianglePerProjectionIteration(TEXT("r.HairStrands.Projection.MaxTrianglePerIteration"), GHairProjectionMaxTrianglePerProjectionIteration, TEXT("Change the number of triangles which are iterated over during one projection iteration step. In kilo triangle (e.g., 8 == 8000 triangles). Default is 8."));
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define MAX_HAIRSTRANDS_SECTION_COUNT 20
+#define MAX_HAIRSTRANDS_SECTION_BITOFFSET 26
+
+uint32 GetHairStrandsMaxSectionCount()
+{
+	return MAX_HAIRSTRANDS_SECTION_COUNT;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FMarkMeshSectionIdCS : public FGlobalShader
@@ -259,14 +268,14 @@ static void AddHairStrandMeshProjectionPass(
 		return;
 	}
 
-	// The current shader code HairStrandsMeshProjection.usf encode the section ID onto the highest 4bits of a 32bits uint. 
-	// This limits the number of section to 16. See EncodeTriangleIndex & DecodeTriangleIndex functions in 
+	// The current shader code HairStrandsMeshProjection.usf encode the section ID onto the highest 8bits of a 32bits uint. 
+	// This limits the number of section to 64. See EncodeTriangleIndex & DecodeTriangleIndex functions in 
 	// HairStarndsMeshProjectionCommon.ush for mode details.
 	// This means that the mesh needs to have less than 67M triangles (since triangle ID is stored onto 26bits).
 	//
 	// This could be increase if necessary.
-	check(MeshSectionData.SectionIndex < 64);
-	check(MeshSectionData.NumPrimitives < ((1<<26)-1))
+	check(MeshSectionData.SectionIndex < MAX_HAIRSTRANDS_SECTION_COUNT);
+	check(MeshSectionData.NumPrimitives < ((1<<MAX_HAIRSTRANDS_SECTION_BITOFFSET)-1))
 
 	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
 	// To avoid TDR, we split projection into multiple passes when the mesh is too large.
@@ -373,11 +382,11 @@ void TransferMesh(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#define SECTION_ARRAY_COUNT 16
+
 class FHairUpdateMeshTriangleCS : public FGlobalShader
 {
 public:
-	const static uint32 SectionArrayCount = 16;
+	const static uint32 SectionArrayCount = MAX_HAIRSTRANDS_SECTION_COUNT;
 private:
 	DECLARE_GLOBAL_SHADER(FHairUpdateMeshTriangleCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdateMeshTriangleCS, FGlobalShader);

@@ -15,6 +15,12 @@ class UInteractiveToolManager;
 namespace ToolSetupUtil
 {
 	/**
+	 * Get the default material for surfaces
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultMaterial();
+
+
+	/**
 	 * Get the default material to use for objects in an InteractiveTool. Optionally use SourceMaterial if it is valid.
 	 * @param SourceMaterial optional material to use if available
 	 * @return default material to use for objects in a tool.
@@ -69,9 +75,9 @@ namespace ToolSetupUtil
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(UInteractiveToolManager* ToolManager);
 
 	/**
-	 * @return Selection Material 1 with custom color
+	 * @return Selection Material 1 with custom color and optional depth offset (depth offset moves vertices towards the camera)
 	 */
-	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float DepthOffset = 0.0f);
 
 	/**
 	 * @return Simple material with configurable color and opacity.

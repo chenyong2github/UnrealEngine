@@ -15,6 +15,8 @@ public:
 	// inputs
 	TSharedPtr<const FDynamicMesh3> CombinedMesh;
 	bool bAttemptFixHoles;
+	double WindingNumberThreshold = .5;
+	bool bTrimFlaps;
 
 	void SetTransform(const FTransform& Transform);
 

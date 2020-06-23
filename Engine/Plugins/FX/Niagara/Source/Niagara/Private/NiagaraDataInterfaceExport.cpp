@@ -138,6 +138,7 @@ void UNiagaraDataInterfaceExport::GetFunctions(TArray<FNiagaraFunctionSignature>
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
+	Sig.bSupportsGPU = false;
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Export interface")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Store Data")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));

@@ -6,16 +6,13 @@
 
 class FInstallBundleCache;
 
-DECLARE_DELEGATE_TwoParams(FInstallBundleCacheEvictDelegate, TSharedRef<FInstallBundleCache> /*Cache*/, FName /*BundleName*/);
-
 struct FInstallBundleCacheInitInfo
 {
 	FName CacheName;
 	uint64 Size = 0;
-	FInstallBundleCacheEvictDelegate DeleteBundleFiles;
 };
 
-struct FInstallBundleCacheAddBundleInfo
+struct FInstallBundleCacheBundleInfo
 {
 	FName BundleName;
 	uint64 FullInstallSize = 0; // Total disk footprint when this bundle is fully installed
@@ -24,15 +21,16 @@ struct FInstallBundleCacheAddBundleInfo
 
 enum class EInstallBundleCacheReserveResult : int8
 {
-	Failure,
-	Success,
-	NeedsEvict,
+	Fail_CacheFull, // Cache is full and it's not possible to evict anything else from the cache
+	Fail_NeedsEvict, // Cache is full but it' possible to evict released bundles to make room for this one
+	Fail_PendingEvict, // This bundle can't be reserved because it's currently being evicted
+	Success, // Bundle was reserved successfully
 };
 
 struct FInstallBundleCacheReserveResult
 {
 	TArray<FName> BundlesToEvict;
-	EInstallBundleCacheReserveResult Result = EInstallBundleCacheReserveResult::Failure;
+	EInstallBundleCacheReserveResult Result = EInstallBundleCacheReserveResult::Success;
 };
 
 class INSTALLBUNDLEMANAGER_API FInstallBundleCache : public TSharedFromThis<FInstallBundleCache>
@@ -43,11 +41,11 @@ public:
 	void Init(FInstallBundleCacheInitInfo InitInfo);
 
 	// Add a bundle to the cache.  
-	void AddOrUpdateBundle(const FInstallBundleCacheAddBundleInfo& AddInfo);
+	void AddOrUpdateBundle(const FInstallBundleCacheBundleInfo& AddInfo);
 
 	void RemoveBundle(FName BundleName);
 
-	bool HasBundle(FName BundleName);
+	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(FName BundleName);
 
 	// Return the total size of the cache
 	uint64 GetSize() const;
@@ -89,8 +87,7 @@ private:
 				return CurrentInstallSize;
 
 			// Just consider any pending evictions to be 0 size.
-			// We will flush any required evictions before installing
-			// bundles that use this cache.
+			// We will still wait on them if necessary when reserving.
 			if (State == ECacheState::PendingEvict)
 				return 0;
 
@@ -102,7 +99,6 @@ private:
 	};
 
 private:
-	FInstallBundleCacheEvictDelegate DeleteBundleFiles;
 
 	TMap<FName, FBundleCacheInfo> CacheInfo;
 

@@ -2,24 +2,20 @@
 
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomBase.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterDeviceTopBottomBase::FDisplayClusterDeviceTopBottomBase()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceTopBottomBase::~FDisplayClusterDeviceTopBottomBase()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 
 void FDisplayClusterDeviceTopBottomBase::AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const int ViewportIndex = DecodeViewportIndex(StereoPassType);
 	const EStereoscopicPass Pass = DecodeStereoscopicPass(StereoPassType);
 	const uint32 ViewIndex = DecodeViewIndex(StereoPassType);

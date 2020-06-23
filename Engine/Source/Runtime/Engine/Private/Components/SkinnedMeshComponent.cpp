@@ -622,6 +622,13 @@ void USkinnedMeshComponent::DestroyRenderState_Concurrent()
 	}
 }
 
+bool USkinnedMeshComponent::RequiresGameThreadEndOfFrameRecreate() const
+{
+	// When we are a master/slave, we cannot recreate render state in parallel as this could 
+	// happen concurrently with our dependent component(s)
+	return MasterPoseComponent.Get() != nullptr || SlavePoseComponents.Num() > 0;
+}
+
 FString USkinnedMeshComponent::GetDetailedInfoInternal() const
 {
 	FString Result;  
@@ -3174,8 +3181,21 @@ void USkinnedMeshComponent::ReleaseResources()
 	DetachFence.BeginFence();
 }
 
+void USkinnedMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn)
+{
+	if (SkeletalMesh)
+	{
+		SkeletalMesh->RegisterMipLevelChangeCallback(this, LODIdx, TimeoutSecs, bOnStreamIn, MoveTemp(Callback));
+	}
+}
+
 void USkinnedMeshComponent::BeginDestroy()
 {
+	if (SkeletalMesh)
+	{
+		SkeletalMesh->RemoveMipLevelChangeCallback(this);
+	}
+
 	Super::BeginDestroy();
 	ReleaseResources();
 

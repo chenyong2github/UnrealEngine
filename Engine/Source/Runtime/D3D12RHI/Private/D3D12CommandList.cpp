@@ -3,6 +3,12 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
 
+static int64 GCommandListIDCounter = 0;
+static uint64 GenerateCommandListID()
+{
+	return FPlatformAtomics::InterlockedIncrement(&GCommandListIDCounter);
+}
+
 void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 {
 	check(CommandListData);
@@ -53,9 +59,11 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, LastCompleteGeneration(0)
 	, IsClosed(false)
 	, bShouldTrackStartEndTime(false)
+	, FrameSubmitted(0)
 	, PendingResourceBarriers()
 	, ResidencySet(nullptr)
-#if WITH_PROFILEGPU
+	, CommandListID(GenerateCommandListID())
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	, StartTimeQueryIdx(INDEX_NONE)
 #endif
 {
@@ -74,7 +82,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 
 #if D3D12_RHI_RAYTRACING
 	// Obtain ID3D12CommandListRaytracingPrototype if parent device supports ray tracing and this is a compatible command list type (compute or graphics).
-	if (ParentDevice->GetRayTracingDevice() && (InCommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || InCommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE))
+	if (ParentDevice->GetDevice5() && (InCommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || InCommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE))
 	{
 		VERIFYD3D12RESULT(CommandList->QueryInterface(IID_PPV_ARGS(RayTracingCommandList.GetInitReference())));
 	}
@@ -95,7 +103,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_CreateContextHandle(CommandList, &AftermathHandle);
 
 		check(Result == GFSDK_Aftermath_Result_Success);
-		ParentDevice->GetParentAdapter()->GetGPUProfiler().RegisterCommandList(AftermathHandle);
+		ParentDevice->GetGPUProfiler().RegisterCommandList(AftermathHandle);
 	}
 #endif
 
@@ -112,7 +120,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::~FD3D12CommandListData()
 #if NV_AFTERMATH
 	if (AftermathHandle)
 	{
-		GetParentDevice()->GetParentAdapter()->GetGPUProfiler().UnregisterCommandList(AftermathHandle);
+		GetParentDevice()->GetGPUProfiler().UnregisterCommandList(AftermathHandle);
 
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_ReleaseContextHandle(AftermathHandle);
 
@@ -175,6 +183,8 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocato
 	{
 		StartTrackingCommandListTime();
 	}
+
+	CommandListID = GenerateCommandListID();
 }
 
 int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQuery()
@@ -186,7 +196,7 @@ int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQu
 
 void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTime()
 {
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	check(!IsClosed && !bShouldTrackStartEndTime && StartTimeQueryIdx == INDEX_NONE);
 	bShouldTrackStartEndTime = true;
 	StartTimeQueryIdx = CreateAndInsertTimestampQuery();
@@ -195,7 +205,7 @@ void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTim
 
 void FD3D12CommandListHandle::FD3D12CommandListData::FinishTrackingCommandListTime()
 {
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	check(!IsClosed && bShouldTrackStartEndTime && StartTimeQueryIdx != INDEX_NONE);
 	bShouldTrackStartEndTime = false;
 	const int32 EndTimeQueryIdx = CreateAndInsertTimestampQuery();

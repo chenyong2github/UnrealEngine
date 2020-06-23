@@ -6,8 +6,9 @@
 
 #if UE_TRACE_ENABLED
 
-namespace Trace
-{
+#include "CoreTypes.h"
+
+namespace Trace {
 
 /*
 	A named channel which can be used to filter trace events. Channels can be 
@@ -22,22 +23,38 @@ namespace Trace
 	this phase are always emitted. In this method we disable all channels except
 	those specified on the command line using -tracechannels argument.
 */
-struct FChannel 
+class FChannel 
 {
-	TRACELOG_API static void Register(FChannel& Channel, const ANSICHAR* ChannelName);
-	TRACELOG_API static bool Toggle(FChannel* Channel, bool bEnabled);
-	TRACELOG_API static bool Toggle(const ANSICHAR* ChannelName, bool bEnabled);
-	TRACELOG_API static bool Toggle(const TCHAR* ChannelName, bool bEnabled);
-	TRACELOG_API static void ToggleAll(bool bEnabled);
-	bool IsEnabled() const;
-	explicit operator bool() const;
-	bool operator|(const FChannel& Rhs) const;
+public:
+	struct Iter
+	{
+						~Iter();
+		const FChannel*	GetNext();
+		void*			Inner[3];
+	};
 
-	void*			Handle;
-	uint32			ChannelNameHash;
-	bool			bDisabled;
+	TRACELOG_API void	Initialize(const ANSICHAR* InChannelName);
+	static Iter			ReadNew();
+	void				Announce() const;
+	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
+	static void			ToggleAll(bool bEnabled);
+	static FChannel*	FindChannel(const ANSICHAR* ChannelName);
+	bool				Toggle(bool bEnabled);
+	bool				IsEnabled() const;
+	explicit			operator bool () const;
+	bool				operator | (const FChannel& Rhs) const;
+
+private:
+	FChannel*			Next;
+	struct
+	{
+		const ANSICHAR*	Ptr;
+		uint32			Len;
+		uint32			Hash;
+	}					Name;
+	volatile int32		Enabled;
 };
 
-}
+} // namespace Trace
 
-#endif //UE_TRACE_ENABLED
+#endif // UE_TRACE_ENABLED

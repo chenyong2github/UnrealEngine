@@ -11,6 +11,7 @@
 #include "Library/DMXEntity.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
 #include "Widgets/SDynamicNameListGraphPin.h"
 #include "Widgets/SDMXEntityReferenceGraphPin.h"
 #include "Widgets/SNullGraphPin.h"
@@ -23,14 +24,15 @@ TSharedPtr<class SGraphPin> FDMXGraphPanelPinFactory::CreatePin(class UEdGraphPi
 		{
 			if (PinStructType->IsChildOf(FDMXProtocolName::StaticStruct()))
 			{
-				return SNew(SDynamicNameListGraphPin<FDMXProtocolName>, InPin)
-					.OptionsSource(MakeAttributeLambda(&FDMXProtocolName::GetPossibleValues));
+				return SNew(SDynamicNameListGraphPin<FDMXProtocolName>, InPin);
 			}
 			else if (PinStructType->IsChildOf(FDMXFixtureCategory::StaticStruct()))
 			{
-				return SNew(SDynamicNameListGraphPin<FDMXFixtureCategory>, InPin)
-					.OptionsSource(MakeAttributeLambda(&FDMXFixtureCategory::GetPossibleValues))
-					.UpdateOptionsDelegate(&FDMXFixtureCategory::OnPossibleValuesUpdated);
+				return SNew(SDynamicNameListGraphPin<FDMXFixtureCategory>, InPin);
+			}
+			else if (PinStructType->IsChildOf(FDMXAttributeName::StaticStruct()))
+			{
+				return SNew(SDynamicNameListGraphPin<FDMXAttributeName>, InPin);
 			}
 			else if (PinStructType->IsChildOf(FDMXEntityReference::StaticStruct()))
 			{

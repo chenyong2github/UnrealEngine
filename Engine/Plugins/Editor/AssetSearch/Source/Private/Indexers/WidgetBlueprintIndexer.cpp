@@ -5,6 +5,7 @@
 #include "WidgetBlueprint.h"
 #include "Components/Widget.h"
 #include "Utility/IndexerUtilities.h"
+#include "SearchSerializer.h"
 
 #define LOCTEXT_NAMESPACE "FWidgetBlueprintIndexer"
 
@@ -26,8 +27,7 @@ int32 FWidgetBlueprintIndexer::GetVersion() const
 
 void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const UWidgetBlueprint* BP = Cast<UWidgetBlueprint>(InAssetObject);
-	check(BP);
+	const UWidgetBlueprint* BP = CastChecked<UWidgetBlueprint>(InAssetObject);
 
 	TArray<const UWidget*> AllWidgets = BP->GetAllSourceWidgets();
 
@@ -41,6 +41,7 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 
 		Serializer.BeginIndexingObject(Widget, Label);
 		Serializer.IndexProperty(TEXT("Name"), Label);
+		Serializer.IndexProperty(Widget->GetName() + TEXT("_Class"), Widget->GetClass()->GetName());
 
 		FIndexerUtilities::IterateIndexableProperties(Widget, [&Serializer](const FProperty* Property, const FString& Value) {
 			Serializer.IndexProperty(Property, Value);
@@ -48,6 +49,8 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 
 		Serializer.EndIndexingObject();
 	}
+
+	// TODO Animations
 }
 
 #undef LOCTEXT_NAMESPACE

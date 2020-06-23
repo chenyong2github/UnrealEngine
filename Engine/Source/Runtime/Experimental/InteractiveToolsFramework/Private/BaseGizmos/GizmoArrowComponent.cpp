@@ -30,52 +30,11 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// find view to use for gizmo sizing/etc
-		const FSceneView* GizmoControlView = GizmoRenderingUtil::FindActiveSceneView(Views, ViewFamily, VisibilityMap);
-		if (GizmoControlView == nullptr)
-		{
-			return;
-		}
+		// try to find focused scene view. May return nullptr.
+		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-
-		// direction to origin of gizmo
-		FVector ViewDirection = Origin - GizmoControlView->ViewLocation;
-		ViewDirection.Normalize();
-
-		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-		FVector ArrowDirection = (bWorldAxis) ? Direction : FVector{ LocalToWorldMatrix.TransformVector(Direction) };
-		bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
-		ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
-		if (bFlippedExternal != nullptr)
-		{
-			*bFlippedExternal = bFlipped;
-		}
-
-		if (bExternalRenderVisibility != nullptr)
-		{
-			//*bExternalRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.985f;   // ~10 degrees
-			*bExternalRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.965f;   // ~15 degrees
-			if (*bExternalRenderVisibility == false)
-			{
-				return;
-			}
-		}
-
-		float LengthScale = 1.0f;
-		if (ExternalDynamicPixelToWorldScale != nullptr)
-		{
-			float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoControlView, Origin);
-			*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-			LengthScale = PixelToWorldScale;
-		}
-
-		float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
-			(HoverThicknessMultiplier*Thickness) : (Thickness);
-
-		double StartDist = LengthScale * Gap;
-		double EndDist = LengthScale * (Gap+Length);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -83,6 +42,51 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
+				bool bIsOrtho = !View->IsPerspectiveProjection();
+
+				// direction to origin of gizmo
+				FVector ViewDirection = 
+					(bIsOrtho) ?  (View->GetViewDirection()) : (Origin - View->ViewLocation);
+				ViewDirection.Normalize();
+
+				bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
+				FVector ArrowDirection = (bWorldAxis) ? Direction : FVector{ LocalToWorldMatrix.TransformVector(Direction) };
+				bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
+				ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
+				if (bIsFocusedView && bFlippedExternal != nullptr)
+				{
+					*bFlippedExternal = bFlipped;
+				}
+
+				//bRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.985f;   // ~10 degrees
+				bool bRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.965f;   // ~15 degrees
+
+				if (bIsFocusedView && bExternalRenderVisibility != nullptr)
+				{
+					*bExternalRenderVisibility = bRenderVisibility;
+				}
+				if (bRenderVisibility == false)
+				{
+					continue;
+				}
+
+				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
+				float LengthScale = PixelToWorldScale;
+				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				{
+					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+				}
+
+				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
+					(HoverThicknessMultiplier * Thickness) : (Thickness);
+				if (!bIsOrtho)
+				{
+					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+				}
+
+				double StartDist = LengthScale * Gap;
+				double EndDist = LengthScale * (Gap + Length);
 
 				FVector StartPoint = Origin + StartDist*ArrowDirection;
 				FVector EndPoint = Origin + EndDist*ArrowDirection;
@@ -145,11 +149,14 @@ private:
 	float Thickness;
 	float HoverThicknessMultiplier;
 
+	// set on Component for use in ::GetDynamicMeshElements()
+	bool* bExternalHoverState = nullptr;
+	bool* bExternalWorldLocalState = nullptr;
+
+	// set in ::GetDynamicMeshElements() for use by Component hit testing
 	bool* bFlippedExternal = nullptr;
 	float* ExternalDynamicPixelToWorldScale = nullptr;
 	bool* bExternalRenderVisibility = nullptr;
-	bool* bExternalHoverState = nullptr;
-	bool* bExternalWorldLocalState = nullptr;
 };
 
 

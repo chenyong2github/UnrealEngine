@@ -393,22 +393,23 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 {
 	check(ChildActorInstanceData);
 
-	bool bCreatedChildActor = false;
-	if (!ChildActor ||
-		ChildActor->GetClass() != ChildActorClass)
-	{
-		bCreatedChildActor = true;
-		CreateChildActor();
-	}
-	else if (ChildActorClass == ChildActorInstanceData->ChildActorClass)
+	if (ChildActorClass == ChildActorInstanceData->ChildActorClass)
 	{
 		ChildActorName = ChildActorInstanceData->ChildActorName;
 	}
 
+	if (!ChildActor ||
+		ChildActor->GetClass() != ChildActorClass)
+	{
+		CreateChildActor(); 
+	}
+
 	if (ChildActor)
 	{
-		// Only rename if it is safe to
-		if(!bCreatedChildActor && ChildActorName != NAME_None)
+		// Only rename if it is safe to, and it is needed
+		if(ChildActorName != NAME_None &&
+		   ChildActor != nullptr &&
+		   ChildActor->GetFName() != ChildActorName)
 		{
 			const FString ChildActorNameString = ChildActorName.ToString();
 			if (ChildActor->Rename(*ChildActorNameString, nullptr, REN_Test))

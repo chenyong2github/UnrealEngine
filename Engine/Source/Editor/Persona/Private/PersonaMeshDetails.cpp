@@ -3274,6 +3274,24 @@ FReply FPersonaMeshDetails::OnApplyChanges()
 	return FReply::Handled();
 }
 
+void FPersonaMeshDetails::RestoreNonReducedLOD(int32 LODIndex)
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	FSkeletalMeshLODInfo* CurrentLODInfo = SkelMesh->GetLODInfo(LODIndex);
+	const bool bIsReductionActive = SkelMesh->IsReductionActive(LODIndex);
+	const bool bIsLODModelbuildDataAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
+
+	if (CurrentLODInfo->bHasBeenSimplified
+		&& !bIsReductionActive
+		&& (bIsLODModelbuildDataAvailable
+			|| FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex)))
+	{
+		CurrentLODInfo->bHasBeenSimplified = false;
+	}
+}
+
 FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
@@ -3329,12 +3347,8 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 					}
 				}
 			}
-			if (LODIndex == LODInfo->ReductionSettings.BaseLOD
-				&& LODInfo->bHasBeenSimplified
-				&& !SkelMesh->IsReductionActive(LODIndex))
-			{
-				FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex);
-			}
+
+			RestoreNonReducedLOD(LODIndex);
 		}
 		SkelMesh->MarkPackageDirty();
 	}
@@ -3554,9 +3568,7 @@ void FPersonaMeshDetails::ApplyChanges()
 			{
 				FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(LODIdx));
 				bool bIsReductionActive = SkelMesh->IsReductionActive(LODIdx);
-				bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIdx) && SkelMesh->IsLODImportedDataBuildAvailable(LODIdx);
-				bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIdx) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIdx]->IsEmpty());
-
+				
 				if (CurrentLODInfo.bHasBeenSimplified == false && bIsReductionActive)
 				{
 					if (LODIdx > 0)
@@ -3568,17 +3580,9 @@ void FPersonaMeshDetails::ApplyChanges()
 						bGenerateBaseLOD = true;
 					}
 				}
-				else if (LODIdx == CurrentLODInfo.ReductionSettings.BaseLOD
-					&& CurrentLODInfo.bHasBeenSimplified
-					&& !bIsReductionActive
-					&& (bIsLODModelbuildDataAvailable || bIsReductionDataPresent))
+				else
 				{
-					//Restore the base LOD data
-					CurrentLODInfo.bHasBeenSimplified = false;
-					if (!bIsLODModelbuildDataAvailable)
-					{
-						FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIdx);
-					}
+					RestoreNonReducedLOD(LODIdx);
 				}
 
 				//Make sure the editable skeleton is refresh

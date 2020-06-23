@@ -10,6 +10,7 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformOutputDevices.h"
+#include "HAL/PlatformTLS.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
@@ -19,6 +20,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/OutputDeviceFile.h"
+#include "Serialization/Archive.h"
 #include "Windows/WindowsPlatformStackWalk.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -26,6 +28,7 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/ThreadManager.h"
 #include "BuildSettings.h"
+#include "CoreGlobals.h"
 #include <strsafe.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>
@@ -49,7 +52,7 @@
 #pragma comment( lib, "version.lib" )
 #pragma comment( lib, "Shlwapi.lib" )
 
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS *ExceptionInfo);
+LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo);
 LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo);
 
 /** Platform specific constants. */
@@ -415,7 +418,7 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 /**
  * Launches crash reporter client and creates the pipes for communication.
  */
-FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* CrashReportClientProcessId)
+FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* OutCrashReportClientProcessId)
 {
 	TCHAR CrashReporterClientPath[CR_CLIENT_MAX_PATH_LEN] = { 0 };
 	TCHAR CrashReporterClientArgs[CR_CLIENT_MAX_ARGS_LEN] = { 0 };
@@ -468,7 +471,6 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		}
 	}
 
-
 #if WITH_EDITOR // Disaster recovery is only enabled for the Editor. Start the server even if in -game, -server, commandlet, the client-side will not connect (its too soon here to query this executable config).
 	{
 		// Disaster recovery service command line.
@@ -479,20 +481,54 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 	}
 #endif
 
+	FProcHandle Handle;
+
 	// Launch the crash reporter if the client exists
 	if (CreateCrashReportClientPath(CrashReporterClientPath, CR_CLIENT_MAX_PATH_LEN))
 	{
-		return FPlatformProcess::CreateProc(
+		Handle = FPlatformProcess::CreateProc(
 			CrashReporterClientPath,
 			CrashReporterClientArgs,
 			true, false, false,
-			CrashReportClientProcessId, 0,
+			OutCrashReportClientProcessId, 0,
 			nullptr,
-			nullptr,
-			nullptr
-		);
+			PipeChildInRead, //Pass this to allow inherit handles in child proc
+			nullptr);
+
+#if WITH_EDITOR
+		// The CRC instance launched above will respanwn itself to sever the link with the Editor process group. This way, if the user kills the Editor
+		// process group in TaskManager, CRC will not die at the same moment and will be able to capture the Editor exit code and send the session summary.
+		if (Handle.IsValid())
+		{
+			// Wait for the intermediate CRC to respawn itself and exit. 
+		    // WARNING: If the Editor sits here waiting forever, ensure to recompile CrashReportClientEditor project in 'Shipping' or 'Development Editor'
+			//          depending which target you previously compiled (if both exist, the system always uses the Shipping executable over the development one)
+			::WaitForSingleObject(Handle.Get(), INFINITE);
+			
+			// The respanwned CRC process writes its own PID to a file named by this process PID (by parsing the -MONITOR={PID} arguments)
+			uint32 RepawnedCrcPid = 0;
+			FString PidFilePathname = FString::Printf(TEXT("%sue4-crc-pid-%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
+			if (TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*PidFilePathname)))
+			{
+				*Ar << RepawnedCrcPid;
+			}
+
+			// The file is not required anymore.
+			IFileManager::Get().Delete(*PidFilePathname, /*RequireExist*/false, /*EvenReadOnly*/true);
+
+			// Acquire a handle on the final CRC instance responsible to handle the crash/reports.
+			Handle = RepawnedCrcPid != 0 ? FPlatformProcess::OpenProcess(RepawnedCrcPid) : FProcHandle();
+
+			// Update the PID returned to the client.
+			if (OutCrashReportClientProcessId != nullptr)
+			{
+				*OutCrashReportClientProcessId = Handle.IsValid() ? RepawnedCrcPid : 0;
+			}
+		}
+#endif
 	}
-	return FProcHandle();
+
+	return Handle;
 }
 
 /**
@@ -961,6 +997,8 @@ private:
 	HANDLE CrashingThreadHandle;
 	/** Handle used to remove vectored exception handler. */
 	HANDLE VectoredExceptionHandle;
+	/** Handle exceptions from non-engine threads (threads that are likely not guarded by a __try/__except). */
+	HANDLE VectoredExceptionHandleNonEngineThread;
 
 	/** Process handle to crash reporter client */
 	FProcHandle CrashClientHandle;
@@ -1038,6 +1076,7 @@ public:
 		, CrashingThreadId(0)
 		, CrashingThreadHandle(nullptr)
 		, VectoredExceptionHandle(INVALID_HANDLE_VALUE)
+		, VectoredExceptionHandleNonEngineThread(INVALID_HANDLE_VALUE)
 		, CrashMonitorWritePipe(nullptr)
 		, CrashMonitorReadPipe(nullptr)
 		, CrashMonitorPid(0)
@@ -1051,7 +1090,8 @@ public:
 #if _WIN32_WINNT >= 0x0500
 		if (!FPlatformMisc::IsDebuggerPresent())
 		{
-			VectoredExceptionHandle = AddVectoredExceptionHandler(1, UnhandledStaticInitException);
+			constexpr ULONG CallFirst = 1;
+			VectoredExceptionHandle = AddVectoredExceptionHandler(CallFirst, UnhandledStaticInitException);
 		}
 #endif
 
@@ -1074,6 +1114,12 @@ public:
 		{
 			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
 		}
+
+#if WITH_EDITOR // Just for the Editor in 4.25.1 to avoid changing other apps behavior.
+		// Register a vectored excption handler for exceptions that aren't caught by structured exception handling (__try/__except). There is a small uncovered
+		// gap before this handler is installed, but should mostly be covered by UnhandledStaticInitException.
+		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::AddUnhandledExceptionHandler);
+#endif
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()
@@ -1090,12 +1136,25 @@ public:
 			Thread = nullptr;
 		}
 
+		FCoreDelegates::GetPreMainInitDelegate().RemoveAll(this);
+
 		CloseHandle(CrashEvent);
 		CrashEvent = nullptr;
 
 		CloseHandle(CrashHandledEvent);
 		CrashHandledEvent = nullptr;
+	}
 
+	void AddUnhandledExceptionHandler()
+	{
+		// Capture crashes from non-engine threads (The threads not wrapped in a FRunnableThread like std::thread or native thread).
+		constexpr ULONG CallLast  = 0;
+		VectoredExceptionHandleNonEngineThread = AddVectoredExceptionHandler(CallLast, UnhandledException);
+	}
+
+	DWORD GetReporterThreadId() const
+	{
+		return ThreadId;
 	}
 
 	/** Ensures are passed trough this. */
@@ -1356,25 +1415,52 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
 /**
  * Fallback for catching exceptions which aren't caught elsewhere. This allows catching exceptions on threads created outside the engine.
  * Note that Windows does not call this handler if a debugger is attached, separately to our internal logic around crash handling.
+ * NOTE: This vectored exception handler is called before any structured exception handler (__try/__except). Unless a debugger is attached
+ *       or UnhandledStaticInitException() is registered, it has the first chance of handling the exception. It should ignore exceptions that
+ *       are locally handled with __try/__except.
  */
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS* ExceptionInfo)
+LONG WINAPI UnhandledException(LPEXCEPTION_POINTERS ExceptionInfo)
 {
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__try
-#endif
+#if !NOINITCRASHREPORTER
+	// Top bit in exception code is fatal exceptions. Report those but not other types.
+	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
 	{
-		ReportCrash(ExceptionInfo);
-		GIsCriticalError = true;
-		FPlatformMisc::RequestExit(true);
-		return EXCEPTION_CONTINUE_SEARCH;
-	}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-		// The crash handler crashed itself, exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
-		::exit(ECrashExitCodes::CrashHandlerCrashed);
+		// This exception was encountered on a machine when disconnecting/reconnecting to RDP while the Editor was opened. Ignoring it didn't
+		// crash the Editor, so it wasn't really fatal in that case. Worst case, the exception propagates and the app crashes without a crash report.
+		if (ExceptionInfo->ExceptionRecord->ExceptionCode == 0xE06D7363)
+		{
+			return EXCEPTION_CONTINUE_SEARCH;
+		}
+
+		uint32 CurrThreadId = FPlatformTLS::GetCurrentThreadId();
+
+		// The game thread and the crash reporting thread are not FRunnableThread but has local structured exception handling in-place.
+		if (!GCrashReportingThread.IsSet() || IsInGameThread() || GCrashReportingThread->GetReporterThreadId() == CurrThreadId)
+		{
+			return EXCEPTION_CONTINUE_SEARCH; // Skip, the exception is expected to be handled elsewhere.
+		}
+
+		// Check if the crashing thread is an engine thread.
+		bool bIsEngineThread = false;
+		FThreadManager::Get().ForEachThread([&CurrThreadId, &bIsEngineThread](uint32 ThreadId, FRunnableThread*)
+		{
+			if (ThreadId == CurrThreadId)
+			{
+				bIsEngineThread = true;
+			}
+		});
+
+		// Not a registered engine thread?
+		if (!bIsEngineThread)
+		{
+			ReportCrash(ExceptionInfo);
+			GIsCriticalError = true;
+			FPlatformMisc::RequestExit(true);
+		}
+		// else -> engine threads on Windows are expected to handle exceptions locally with __try and __except.
 	}
 #endif
+	return EXCEPTION_CONTINUE_SEARCH;
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler

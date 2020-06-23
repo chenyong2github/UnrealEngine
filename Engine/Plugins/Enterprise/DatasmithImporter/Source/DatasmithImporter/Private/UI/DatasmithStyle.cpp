@@ -46,19 +46,13 @@ const FVector2D Icon40x40(40.0f, 40.0f);
 TUniquePtr< FSlateStyleSet > FDatasmithStyle::Create()
 {
 	TUniquePtr< FSlateStyleSet > Style = MakeUnique<FSlateStyleSet>(GetStyleSetName());
-	// #ueent_wip Temp fallback on enterprise folder during the migration
-// 	Style->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Editor"));
+	Style->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Enterprise"));
 	return Style;
 }
 
-void FDatasmithStyle::SetIcon(const FString& StyleName, const FString& InResourcePath)
+void FDatasmithStyle::SetIcon(const FString& StyleName, const FString& ResourcePath)
 {
 	FSlateStyleSet* Style = DatasmithStyleInstance.Get();
-
-	// #ueent_wip Temp fallback on enterprise folder during the migration
-	FString ResourceFullPath1 = FPaths::EnginePluginsDir() / TEXT("Enterprise") / InResourcePath;
-	FString ResourceFullPath2 = FPaths::EnterprisePluginsDir() / TEXT("Editor") / InResourcePath;
-	FString ResourcePath = FPaths::DirectoryExists(FPaths::GetPath(ResourceFullPath2)) ? ResourceFullPath2 : ResourceFullPath1;
 
 	FString Name(GetContextName().ToString());
 	Name = Name + "." + StyleName;

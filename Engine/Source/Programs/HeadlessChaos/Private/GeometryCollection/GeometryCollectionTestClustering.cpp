@@ -26,9 +26,6 @@
 #include "HAL/IConsoleManager.h"
 #include "HeadlessChaosTestUtility.h"
 
-bool bSkipGeomFailing = true;
-
-
 DEFINE_LOG_CATEGORY_STATIC(GCTCL_Log, Verbose, All);
 
 // #TODO Lots of duplication in here, anyone making solver or object changes
@@ -38,34 +35,37 @@ DEFINE_LOG_CATEGORY_STATIC(GCTCL_Log, Verbose, All);
 namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
+
 	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ClusterMap, TPBDRigidParticleHandle<float, 3>* Key, TArray<TPBDRigidParticleHandle<float, 3>*> Elements)
 	{
 		if (ClusterMap.Num())
-			if (ClusterMap.Contains(Key))
+		{
+			if(ClusterMap.Contains(Key))
 			{
-				if (ClusterMap[Key].Num() == Elements.Num())
+				if(ClusterMap[Key].Num() == Elements.Num())
 				{
-					for (TPBDRigidParticleHandle<float, 3>* Element : Elements)
-						if (!ClusterMap[Key].Contains(Element))
+					for(TPBDRigidParticleHandle<float, 3> * Element : Elements)
+					{
+						if(!ClusterMap[Key].Contains(Element))
+						{
 							return false;
+						}
+					}
+
 					return true;
 				}
 			}
+		}
 		return false;
 	}
 
 
 	TYPED_TEST(AllTraits,GeometryCollection_RigidBodies_ClusterTest_SingleLevelNonBreaking)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
-
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)),FVector(1.0));
@@ -85,7 +85,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 1000.f };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -131,11 +131,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_DeactivateClusterParticle)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
-
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
@@ -170,7 +165,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;	
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();		
@@ -190,7 +185,6 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6], ParticleHandles[1] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[8], { ParticleHandles[7], ParticleHandles[0] }));
 
-
 		TArray<bool> Conditions = { false,false };
 		TArray<bool> DisabledFlags;
 
@@ -208,13 +202,6 @@ namespace GeometryCollectionTest
 			{
 				DisabledFlags.Add(Handle->Disabled());
 			}
-
-			//UE_LOG(GCTCL_Log, Verbose, TEXT("FRAME : %d"), Frame);
-			//for (int32 rdx = 0; rdx < (int32)Particles.Size(); rdx++)
-			//{
-			//  UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...Disabled[%d] : %d"), rdx, Particles.Disabled(rdx));
-			//  UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...    InvM[%d] : %f"), rdx, Particles.InvM(rdx));
-			//}
 
 			if (Frame == 1)
 			{
@@ -266,11 +253,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_BreakClusterParticle)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
-
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
@@ -305,7 +287,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -335,7 +317,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				TMap<TGeometryParticleHandle<float, 3>*, float> ExternalStrains = { {ParticleHandles[0], -1.0f} };
+				TMap<TGeometryParticleHandle<float, 3>*, float> ExternalStrains = { {ParticleHandles[0], 50.0f} };
 				Clustering.BreakingModel(&ExternalStrains);
 			}
 
@@ -402,10 +384,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_SingleLevelBreaking)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		//
 		// Test overview:
 		// Create two 1cm cubes in a cluster arranged vertically and 20cm apart.
@@ -417,7 +395,7 @@ namespace GeometryCollectionTest
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
-		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>());
+		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>());
 
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector::ZeroVector);
@@ -431,7 +409,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 
 		UnitTest.AddSimulationObject(Collection);
@@ -535,14 +513,10 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
@@ -567,7 +541,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -643,10 +617,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_NonIdentityMassToLocal)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Advance and release each cluster, everything is kinematic, so the output transforms should never change.
 		// This tests the transforms in BufferPhysicsResults, validating that MassToLocal, ChildToParent, and X,P
 		// will properly map back into the GeometryCollections animation transform hierarchy. 
@@ -664,7 +634,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 0;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[0] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
@@ -722,14 +692,10 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_MultiStrain)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 		
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -763,7 +729,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -890,15 +856,8 @@ namespace GeometryCollectionTest
 
 	}
 
-
-
-	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_KinematicAnchor)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        rigid body should be dynamic, while the clusters that contain the kinematic body should remain 
 		//        kinematic.
@@ -933,55 +892,73 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		Collection->DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+		Collection->DynamicCollection->template GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
+		float CurrentRigidDistance = 0.f;
 
-		TArray<bool> Conditions = { false,false,false,false };
+		// Staged conditions
+		// Initial state should set up the heirachy correctly, leaving correct disabled flags on frame 1
+		bool bValidInitialState = false;
+		// After releasing particle 8, the states should be updated on frame 2
+		bool bParticle8SucessfulRelease = false;
+		// After releasing particle 8, the states should be updated on frame 4
+		bool bParticle7SucessfulRelease = false;
+		// After simulating post-release the states should match frame 4
+		bool bValidFinalActiveState = false;
 
+		// Tick once to fush commands
 		UnitTest.Advance();
 
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const auto& ClusterMap = Clustering.GetChildrenMap();
+		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
+		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 
+		// Verify that the parent-child relationship is reflected in the clustering hierarchy
+		// Tree should be:
+		//
+		//          8
+		//         / \
+		//        7   0
+		//       / \
+		//      6   1
+		//     / \
+		//    5   2
+		//   / \
+		//  4   3
+		//
+		// Entire cluster is kinematic due to particle 1
+		//
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6],ParticleHandles[1] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[8], { ParticleHandles[7],ParticleHandles[0] }));
 
-		
 		for (int Frame = 1; Frame < 10; Frame++)
 		{
 			UnitTest.Advance();
-
-			/*
+			
+			// On frames 2 and 4, deactivate particles 8 and 7, releasing their children (7,0 then 6,1)
 			if (Frame == 2)
 			{
-				Solver->GetRigidClustering().DeactivateClusterParticle(9);
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().DeactivateClusterParticle(ParticleHandles[8]);
 			}
 			if (Frame == 4)
 			{
-				Solver->GetRigidClustering().DeactivateClusterParticle(8);
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().DeactivateClusterParticle(ParticleHandles[7]);
 			}
-			*/
 
-			//UE_LOG(GCTCL_Log, Verbose, TEXT("FRAME : %d"), Frame);
-			//for (int32 rdx = 0; rdx < (int32)Particles.Size(); rdx++)
-			//{
-			//	UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...Disabled[%d] : %d"), rdx, Particles.Disabled(rdx));
-			//	UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...    InvM[%d] : %f"), rdx, Particles.InvM(rdx));
-			//}
-
-			
+			// Verify that the kinematic particle remains kinematic (InvMass == 0.0)
+			// and the the dynamic particles have a non-zero inv mass
 			EXPECT_NE(ParticleHandles[0]->InvM(), 0.f); // dynamic rigid
 			EXPECT_EQ(ParticleHandles[1]->InvM(), 0.f); // kinematic rigid
 			EXPECT_NE(ParticleHandles[2]->InvM(), 0.f); // dynamic rigid
@@ -990,8 +967,12 @@ namespace GeometryCollectionTest
 			EXPECT_NE(ParticleHandles[5]->InvM(), 0.f); // dynamic rigid
 			EXPECT_NE(ParticleHandles[6]->InvM(), 0.f); // dynamic cluster
 
-			FVector Ref1, Ref2, Ref7; // RigidBody0(Dynamic), RigidBody1(Kinematic), RigidBody6(Kinematic then Dynamic)
-			if (Conditions[0] == false && Frame == 1)
+			// Storage for positions for particles 0, 1, 6 for testing assumptions
+			FVector Ref0;
+			FVector Ref1; 
+			FVector Ref6;
+
+			if (!bValidInitialState && Frame == 1)
 			{
 				if (ParticleHandles[0]->Disabled() == true &&
 					ParticleHandles[1]->Disabled() == true &&
@@ -1003,17 +984,19 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == true &&
 					ParticleHandles[8]->Disabled() == false)
 				{
-					Conditions[0] = true;
-					Ref1 = ParticleHandles[0]->X();
-					Ref2 = ParticleHandles[1]->X();
-					Ref7 = ParticleHandles[6]->X();
+					bValidInitialState = true;
+					Ref0 = ParticleHandles[0]->X();
+					Ref1 = ParticleHandles[1]->X();
+					Ref6 = ParticleHandles[6]->X();
+
+					// Test kinematic particles have valid (0.0) inverse mass and have the kinematic object state set
 					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 				}
 			}
-			else if (Conditions[0] == true && Conditions[1] == false && Frame == 2)
+			else if (bValidInitialState && !bParticle8SucessfulRelease && Frame == 2)
 			{
 				if (ParticleHandles[0]->Disabled() == false &&
 					ParticleHandles[1]->Disabled() == true &&
@@ -1025,27 +1008,41 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == false &&
 					ParticleHandles[8]->Disabled() == true)
 				{
-					Conditions[1] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();
+					bParticle8SucessfulRelease = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
 
-					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body1 moved");
-					EXPECT_NEAR(FMath::Abs(X2.Size() - Ref2.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body2 moved");
-					EXPECT_NEAR(FMath::Abs(X7.Size() - Ref7.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body7 moved");
+					EXPECT_NEAR(FMath::Abs(X0.Size() - Ref0.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body1 moved");
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body2 moved");
+					EXPECT_NEAR(FMath::Abs(X6.Size() - Ref6.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body7 moved");
 
+					// Test kinematic particles have valid (0.0) inverse mass and have the kinematic object state set
 					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 
+					// Test that after declustering the new cluster hierarchy is what we expect
+					// Tree should be:
+					//
+					//        7      Removed:   8 (Disabled)
+					//       / \                 \
+					//      6   1                 0 (Now unclustered)
+					//     / \
+					//    5   2
+					//   / \
+					//  4   3
+					//
+					// 8 has been removed, zero is dynamic and the remaining tree is kinematic due to particle 1
+					//
 					EXPECT_EQ(ClusterMap.Num(), 3);
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6],ParticleHandles[1] }));
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));					
 				}
 			}
-			else if (Conditions[1] == true && Conditions[2] == false && Frame == 4)
+			else if (bParticle8SucessfulRelease && !bParticle7SucessfulRelease && Frame == 4)
 			{
 				if (ParticleHandles[0]->Disabled() == false &&
 					ParticleHandles[1]->Disabled() == false &&
@@ -1057,24 +1054,42 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == true &&
 					ParticleHandles[8]->Disabled() == true)
 				{
-					Conditions[2] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();					
+					bParticle7SucessfulRelease = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
 
-					EXPECT_GT(FMath::Abs(X1.Size() - Ref1.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body failed to move");
-					EXPECT_NEAR(FMath::Abs(X2.Size() - Ref2.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body moved");
-					EXPECT_NEAR(FMath::Abs(X7.Size() - Ref7.Size()), 0, KINDA_SMALL_NUMBER);// << FString("Kinematic body moved");
+					// 0 is a dynamic unclustered body (was owned by cluster 8), check that it's moved since declustering
+					EXPECT_GT(FMath::Abs(X0.Size() - Ref0.Size()), KINDA_SMALL_NUMBER);
+					// 1 is a kinematic unclustered body (was owned by cluster 7), check that it's stayed in place
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);
+					// 6 is a dynamic cluster (was owned by cluster 7). Now that 1 is not a part of the cluster
+					// however it's just been declustered so make sure it's still near the starting location
+					EXPECT_NEAR(FMath::Abs(X6.Size() - Ref6.Size()), 0, KINDA_SMALL_NUMBER);
+
+					// Check the newly disabled 7 is still kinematic
 					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 
+					// Test that after declustering the new cluster hierarchy is what we expect
+					// Tree should be:
+					//
+					//      6    Removed:  7 (disabled)
+					//     / \              \
+					//    5   2              1 (declustered, but kinematic)
+					//   / \
+					//  4   3
+					//
+					// 7 has been removed, 1 is kinematic and the rest of the tree is dynamic as the kinematic element is
+					// no longer in the cluster
+					//
 					EXPECT_EQ(ClusterMap.Num(), 2);
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
 				}
 			}
-			else if (Conditions[2] == true && Conditions[3] == false && Frame == 6)
-			{				
+			else if (bParticle7SucessfulRelease && !bValidFinalActiveState && Frame == 6)
+			{
 				if (ParticleHandles[0]->Disabled() == false &&
 					ParticleHandles[1]->Disabled() == false &&
 					ParticleHandles[2]->Disabled() == true &&
@@ -1085,37 +1100,54 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == true &&
 					ParticleHandles[8]->Disabled() == true)
 				{
-					Conditions[3] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();
+					bValidFinalActiveState = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
 
-					EXPECT_GT(FMath::Abs(X1.Size() - Ref1.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body 1 failed to move.");
-					EXPECT_NEAR(FMath::Abs(X2.Size() - Ref2.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body moved");
-					EXPECT_GT(FMath::Abs(X7.Size() - Ref7.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body 7 failed to move");
+					// 0 is a dynamic unclustered body (was owned by cluster 8), check that it's moved since declustering
+					EXPECT_GT(FMath::Abs(X0.Size() - Ref0.Size()), KINDA_SMALL_NUMBER);
+					// 1 is a kinematic unclustered body (was owned by cluster 7), check that it's stayed in place
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);
+					// 6 is a dynamic cluster (was owned by cluster 7). Now that 1 is not a part of the cluster
+					// it is dynamic, check that it has moved since declustering
+					EXPECT_GT(FMath::Abs(X6.Size() - Ref6.Size()), KINDA_SMALL_NUMBER);
+
+					// Check the previously declustered 7 is still kinematic
 					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
 					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
 
-
+					// Test that the tree is still the same after the final decluster operation.
+					// Tree should be:
+					//
+					//      6
+					//     / \
+					//    5   2
+					//   / \
+					//  4   3
+					//
 					EXPECT_EQ(ClusterMap.Num(), 2);
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
 					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
 				}
 			}
 		}
-		for (int i = 0; i < Conditions.Num(); i++)
-		{
-			EXPECT_TRUE(Conditions[i]);
-		}		
+
+		// Test our staged conditions
+
+		// Initial state should set up the heirachy correctly, leaving correct disabled flags on frame 1
+		EXPECT_TRUE(bValidInitialState);
+		// After releasing particle 8, the states should be updated on frame 2
+		EXPECT_TRUE(bParticle8SucessfulRelease);
+		// After releasing particle 8, the states should be updated on frame 4
+		EXPECT_TRUE(bParticle7SucessfulRelease);
+		// After simulating post-release the states should match frame 4
+		EXPECT_TRUE(bValidFinalActiveState);
 	}
 
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_StaticAnchor)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Test : Set one element static. When the cluster breaks the elements that do not contain the static
 		//        rigid body should be dynamic, while the clusters that contain the static body should remain 
 		//        static. 
@@ -1150,61 +1182,89 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		Collection->DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+		Collection->DynamicCollection->template GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Static;
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
+		float CurrentRigidDistance = 0.f;
 
-		TArray<bool> Conditions = { false,false,false,false };
+		// Staged conditions
+		// Initial state should set up the hierachy correctly, leaving correct disabled flags on frame 1
+		bool bValidInitialState = false;
+		// After releasing particle 8, the states should be updated on frame 2
+		bool bParticle8SucessfulRelease = false;
+		// After releasing particle 8, the states should be updated on frame 4
+		bool bParticle7SucessfulRelease = false;
+		// After simulating post-release the states should match frame 4
+		bool bValidFinalActiveState = false;
 
+		// Tick once to fush commands
 		UnitTest.Advance();
 
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const auto& ClusterMap = Clustering.GetChildrenMap();
-		
-		for (int Frame = 1; Frame < 10; Frame++)
+		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
+		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
+
+		// Verify that the parent-child relationship is reflected in the clustering hierarchy
+		// Tree should be:
+		//
+		//          8
+		//         / \
+		//        7   0
+		//       / \
+		//      6   1
+		//     / \
+		//    5   2
+		//   / \
+		//  4   3
+		//
+		// Entire cluster is kinematic due to particle 1
+		//
+		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
+		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
+		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6],ParticleHandles[1] }));
+		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[8], { ParticleHandles[7],ParticleHandles[0] }));
+
+		// Storage for positions for particles 0, 1, 6 for testing assumptions
+		FVector Ref0;
+		FVector Ref1;
+		FVector Ref6;
+
+		for(int Frame = 1; Frame < 10; Frame++)
 		{
 			UnitTest.Advance();
-			/*
-			if (Frame == 2)
-			{
-				Solver->GetRigidClustering().DeactivateClusterParticle(9);
-			}
-			if (Frame == 4)
-			{
-				Solver->GetRigidClustering().DeactivateClusterParticle(8);
-			}
-			*/
-			//UE_LOG(GCTCL_Log, Verbose, TEXT("FRAME : %d"), Frame);
-			//for (int32 rdx = 0; rdx < (int32)Particles.Size(); rdx++)
-			//{
-			//	UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...Disabled[%d] : %d"), rdx, Particles.Disabled(rdx));
-			//	UE_LOG(GCTCL_Log, Verbose, TEXT("... ... ...    InvM[%d] : %f"), rdx, Particles.InvM(rdx));
-			//}
 
+			// On frames 2 and 4, deactivate particles 8 and 7, releasing their children (7,0 then 6,1)
+			if(Frame == 2)
+			{
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().DeactivateClusterParticle(ParticleHandles[8]);
+			}
+			if(Frame == 4)
+			{
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().DeactivateClusterParticle(ParticleHandles[7]);
+			}
+
+			// Verify that the kinematic particle remains kinematic (InvMass == 0.0)
+			// and the the dynamic particles have a non-zero inv mass
 			EXPECT_NE(ParticleHandles[0]->InvM(), 0.f); // dynamic rigid
-			EXPECT_EQ(ParticleHandles[1]->InvM(), 0.f); // static rigid
+			EXPECT_EQ(ParticleHandles[1]->InvM(), 0.f); // kinematic rigid
 			EXPECT_NE(ParticleHandles[2]->InvM(), 0.f); // dynamic rigid
 			EXPECT_NE(ParticleHandles[3]->InvM(), 0.f); // dynamic rigid
 			EXPECT_NE(ParticleHandles[4]->InvM(), 0.f); // dynamic rigid
 			EXPECT_NE(ParticleHandles[5]->InvM(), 0.f); // dynamic rigid
 			EXPECT_NE(ParticleHandles[6]->InvM(), 0.f); // dynamic cluster
 
-		
-
-
-			FVector Ref1, Ref2, Ref7; // RigidBody0(Dynamic), RigidBody1(static), RigidBody6(static then Dynamic)						
-			if (Conditions[0] == false && Frame == 1)
+			if(!bValidInitialState && Frame == 1)
 			{
-				if (ParticleHandles[0]->Disabled() == true &&
+				if(ParticleHandles[0]->Disabled() == true &&
 					ParticleHandles[1]->Disabled() == true &&
 					ParticleHandles[2]->Disabled() == true &&
 					ParticleHandles[3]->Disabled() == true &&
@@ -1214,19 +1274,21 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == true &&
 					ParticleHandles[8]->Disabled() == false)
 				{
-					Conditions[0] = true;
-					Ref1 = ParticleHandles[0]->X();
-					Ref2 = ParticleHandles[1]->X();
-					Ref7 = ParticleHandles[6]->X();
-					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // static cluster
-					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // static cluster
-					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // static cluster
-					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Static); // static cluster
+					bValidInitialState = true;
+					Ref0 = ParticleHandles[0]->X();
+					Ref1 = ParticleHandles[1]->X();
+					Ref6 = ParticleHandles[6]->X();
+
+					// Test static particles have valid (0.0) inverse mass and have the static object state set
+					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
+					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
+					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // kinematic cluster
+					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
 				}
-			}		
-			else if (Conditions[0] == true && Conditions[1] == false && Frame == 2)
+			}
+			else if(bValidInitialState && !bParticle8SucessfulRelease && Frame == 2)
 			{
-				if (ParticleHandles[0]->Disabled() == false &&
+				if(ParticleHandles[0]->Disabled() == false &&
 					ParticleHandles[1]->Disabled() == true &&
 					ParticleHandles[2]->Disabled() == true &&
 					ParticleHandles[3]->Disabled() == true &&
@@ -1236,48 +1298,43 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == false &&
 					ParticleHandles[8]->Disabled() == true)
 				{
-					Conditions[1] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();
+					bParticle8SucessfulRelease = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
 
-					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Static body1 moved");
-					EXPECT_NEAR(FMath::Abs(X2.Size() - Ref2.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Static body2 moved");
-					EXPECT_NEAR(FMath::Abs(X7.Size() - Ref7.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Static body7 moved");
+					EXPECT_NEAR(FMath::Abs(X0.Size() - Ref0.Size()), 0, KINDA_SMALL_NUMBER);
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);
+					EXPECT_NEAR(FMath::Abs(X6.Size() - Ref6.Size()), 0, KINDA_SMALL_NUMBER);
 
-					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // static cluster
-					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // static cluster
-					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // static cluster
-					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Static); // static cluster
-				}
-			}
-			else if (Conditions[1] == true && Conditions[2] == false && Frame == 4)
-			{
-				if (ParticleHandles[0]->Disabled() == false &&
-					ParticleHandles[1]->Disabled() == false &&
-					ParticleHandles[2]->Disabled() == true &&
-					ParticleHandles[3]->Disabled() == true &&
-					ParticleHandles[4]->Disabled() == true &&
-					ParticleHandles[5]->Disabled() == true &&
-					ParticleHandles[6]->Disabled() == false &&
-					ParticleHandles[7]->Disabled() == true &&
-					ParticleHandles[8]->Disabled() == true)
-				{
-					Conditions[2] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();
-
-					EXPECT_GT(FMath::Abs(X1.Size() - Ref1.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body failed to move");
-					EXPECT_NEAR(X2.Size() - Ref2.Size(), 0, KINDA_SMALL_NUMBER);// << *FString("static body moved");
-					EXPECT_NEAR(X7.Size() - Ref7.Size(), 0, KINDA_SMALL_NUMBER);// << *FString("static body moved");
+					// Test static particles have valid (0.0) inverse mass and have the static object state set
 					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // kinematic cluster
-					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // kinematic cluster
+					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
+					EXPECT_EQ(ParticleHandles[8]->InvM(), 0.f); // kinematic cluster
+					EXPECT_EQ(ParticleHandles[8]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
+
+					// Test that after declustering the new cluster hierarchy is what we expect
+					// Tree should be:
+					//
+					//        7      Removed:   8 (Disabled)
+					//       / \                 \
+					//      6   1                 0 (Now unclustered)
+					//     / \
+					//    5   2
+					//   / \
+					//  4   3
+					//
+					// 8 has been removed, zero is dynamic and the remaining tree is static due to particle 1
+					//
+					EXPECT_EQ(ClusterMap.Num(), 3);
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6],ParticleHandles[1] }));
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
 				}
 			}
-			else if (Conditions[2] == true && Conditions[3] == false && Frame == 6)
+			else if(bParticle8SucessfulRelease && !bParticle7SucessfulRelease && Frame == 4)
 			{
-				if (ParticleHandles[0]->Disabled() == false &&
+				if(ParticleHandles[0]->Disabled() == false &&
 					ParticleHandles[1]->Disabled() == false &&
 					ParticleHandles[2]->Disabled() == true &&
 					ParticleHandles[3]->Disabled() == true &&
@@ -1287,35 +1344,102 @@ namespace GeometryCollectionTest
 					ParticleHandles[7]->Disabled() == true &&
 					ParticleHandles[8]->Disabled() == true)
 				{
-					Conditions[3] = true;
-					FVector X1 = ParticleHandles[0]->X();
-					FVector X2 = ParticleHandles[1]->X();
-					FVector X7 = ParticleHandles[6]->X();
+					bParticle7SucessfulRelease = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
 
-					EXPECT_GT(FMath::Abs(X1.Size() - Ref1.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body 1 failed to move.");
-					EXPECT_NEAR(X2.Size() - Ref2.Size(), 0, KINDA_SMALL_NUMBER);// << *FString("static body moved");
-					EXPECT_GT(FMath::Abs(X7.Size() - Ref7.Size()), KINDA_SMALL_NUMBER);// << *FString("Dynamic body 7 failed to move");
-					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // static cluster
-					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Kinematic); // static cluster
+					// 0 is a dynamic unclustered body (was owned by cluster 8), check that it's moved since declustering
+					EXPECT_GT(FMath::Abs(X0.Size() - Ref0.Size()), KINDA_SMALL_NUMBER);
+					// 1 is a static unclustered body (was owned by cluster 7), check that it's stayed in place
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);
+					// 6 is a dynamic cluster (was owned by cluster 7) but it has just been declustered
+					// Test that it's still near the starting position
+					EXPECT_NEAR(FMath::Abs(X6.Size() - Ref6.Size()), 0, KINDA_SMALL_NUMBER);
+
+					// Check the newly disabled 7 is still static
+					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // Static cluster
+					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
+
+
+					// Test that after declustering the new cluster hierarchy is what we expect
+					// Tree should be:
+					//
+					//      6    Removed:  7 (disabled)
+					//     / \              \
+					//    5   2              1 (declustered, but Static)
+					//   / \
+					//  4   3
+					//
+					// 7 has been removed, 1 is static and the rest of the tree is dynamic as the static element is
+					// no longer in the cluster
+					//
+					EXPECT_EQ(ClusterMap.Num(), 2);
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
 				}
 			}
-					
-		}
-		for (int i = 0; i < Conditions.Num(); i++)
-		{
-			EXPECT_TRUE(Conditions[i]);
+			else if(bParticle7SucessfulRelease && !bValidFinalActiveState && Frame == 6)
+			{
+				if(ParticleHandles[0]->Disabled() == false &&
+					ParticleHandles[1]->Disabled() == false &&
+					ParticleHandles[2]->Disabled() == true &&
+					ParticleHandles[3]->Disabled() == true &&
+					ParticleHandles[4]->Disabled() == true &&
+					ParticleHandles[5]->Disabled() == true &&
+					ParticleHandles[6]->Disabled() == false &&
+					ParticleHandles[7]->Disabled() == true &&
+					ParticleHandles[8]->Disabled() == true)
+				{
+					bValidFinalActiveState = true;
+					FVector X0 = ParticleHandles[0]->X();
+					FVector X1 = ParticleHandles[1]->X();
+					FVector X6 = ParticleHandles[6]->X();
+
+					// 0 is a dynamic unclustered body (was owned by cluster 8), check that it's moved since declustering
+					EXPECT_GT(FMath::Abs(X0.Size() - Ref0.Size()), KINDA_SMALL_NUMBER);
+					// 1 is a static unclustered body (was owned by cluster 7), check that it's stayed in place
+					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);
+					// 6 is a dynamic cluster (was owned by cluster 7). Now that 1 is not a part of the cluster
+					// it is dynamic, check that it has moved since declustering
+					EXPECT_GT(FMath::Abs(X6.Size() - Ref6.Size()), KINDA_SMALL_NUMBER);
+
+					// Check the previously declustered 7 is still static
+					EXPECT_EQ(ParticleHandles[7]->InvM(), 0.f); // Static cluster
+					EXPECT_EQ(ParticleHandles[7]->ObjectState(), Chaos::EObjectStateType::Static); // Static cluster
+
+					// Test that the tree is still the same after the final decluster operation.
+					// Tree should be:
+					//
+					//      6
+					//     / \
+					//    5   2
+					//   / \
+					//  4   3
+					//
+					EXPECT_EQ(ClusterMap.Num(), 2);
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[6], { ParticleHandles[5],ParticleHandles[2] }));
+					EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[5], { ParticleHandles[4],ParticleHandles[3] }));
+				}
+			}
 		}
 
+		// Test our staged conditions
+
+		// Initial state should set up the heirachy correctly, leaving correct disabled flags on frame 1
+		EXPECT_TRUE(bValidInitialState);
+		// After releasing particle 8, the states should be updated on frame 2
+		EXPECT_TRUE(bParticle8SucessfulRelease);
+		// After releasing particle 8, the states should be updated on frame 4
+		EXPECT_TRUE(bParticle7SucessfulRelease);
+		// After simulating post-release the states should match frame 4
+		EXPECT_TRUE(bValidFinalActiveState);
 	}
 
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusters)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
-		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver. 		
+		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver.
 
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
@@ -1330,7 +1454,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
@@ -1343,7 +1467,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->As<TGeometryCollectionWrapper<Traits>>();		
+		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 		
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
@@ -1420,10 +1544,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClustersFalling)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver. 		
 		
 		using Traits = TypeParam;
@@ -1439,7 +1559,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
@@ -1452,7 +1572,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
@@ -1526,10 +1646,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusterCollisions)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver. 		
 
 		using Traits = TypeParam;
@@ -1545,8 +1661,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
-
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
 		CreationParameters Params2;
@@ -1558,26 +1673,29 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
-		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->As<RigidBodyWrapper>());
-
+		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>());
+		//make newsimobject set a full block filter on all shapes!
 		UnitTest.Initialize();
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection2 = Collection2->DynamicCollection;
 
-
 		TArray<float> Distances;
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		TManagedArray<FTransform>& Transform2 = DynamicCollection2->Transform;
 
-
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		const auto& ParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
+
+		//FCollisionFilterData FilterData;
+		//FilterData.Word1 = 0xFFFF;
+		//FilterData.Word3 = 0xFFFF;
+		//ParticleHandles.Handle(6)->ShapesArray()[0]->SetQueryData(FilterData);
 
 		EXPECT_EQ(ClusterMap.Num(), 2);
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(2)->CastToRigidParticle(), { ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle() }));
@@ -1615,10 +1733,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Test : Build to geometry collections, cluster them together, release the sub bodies of the first collection. 
 		//        ... should create a internal cluster with property transform mappings. 
 
@@ -1636,7 +1750,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
 		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection1);
 
 
@@ -1651,7 +1765,7 @@ namespace GeometryCollectionTest
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
 		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection2);
 		UnitTest.Initialize();
@@ -1710,13 +1824,9 @@ namespace GeometryCollectionTest
 
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode)
-	{		
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
+	{
 		// Test : Build to geometry collections, cluster them together, release the sub bodies of the first collection. 
-//        ... should create a internal cluster with property transform mappings. 
+		// this should create a internal cluster with property transform mappings. 
 
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
@@ -1732,7 +1842,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
 		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection1);
 
 
@@ -1747,7 +1857,7 @@ namespace GeometryCollectionTest
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
 		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection2);
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
@@ -1758,8 +1868,6 @@ namespace GeometryCollectionTest
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
-
-
 
 		TArray<FTransform> Collection1_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_InitialTM);
 		TArray<FTransform> Collection2_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, Collection2_InitialTM);
@@ -1781,7 +1889,8 @@ namespace GeometryCollectionTest
 
 		TArray<FTransform> Collection1_PreReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_PreReleaseTM);
 		TArray<FTransform> Collection2_PreReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, Collection2_PreReleaseTM);
-		for (int Idx = 0; Idx < Collection1_PreReleaseTM.Num() - 1; Idx++) {
+		for (int Idx = 0; Idx < Collection1_PreReleaseTM.Num() - 1; Idx++) 
+		{
 			EXPECT_EQ(Collection1_PreReleaseTM[Idx].GetTranslation().Z, Collection1_InitialTM[Idx].GetTranslation().Z);
 			EXPECT_EQ(Collection2_PreReleaseTM[Idx].GetTranslation().Z, Collection2_InitialTM[Idx].GetTranslation().Z);
 		}
@@ -1802,11 +1911,17 @@ namespace GeometryCollectionTest
 
 		TArray<FTransform> Collection1_PostReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_PostReleaseTM);
 		TArray<FTransform> Collection2_PostReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, Collection2_PostReleaseTM);
-		for (int Idx = 0; Idx < Collection1_PostReleaseTM.Num() - 1; Idx++) {
-			if( Idx==1)
+		for (int Idx = 0; Idx < Collection1_PostReleaseTM.Num() - 1; Idx++) 
+		{
+			if(Idx == 1)
+			{
 				EXPECT_EQ(Collection1_PostReleaseTM[Idx].GetTranslation().Z, Collection1_PreReleaseTM[Idx].GetTranslation().Z); // the original kinematic should be frozen
+			}
 			else
+			{
 				EXPECT_LT(Collection1_PostReleaseTM[Idx].GetTranslation().Z, Collection1_PreReleaseTM[Idx].GetTranslation().Z);
+			}
+
 			EXPECT_LT(Collection2_PostReleaseTM[Idx].GetTranslation().Z, Collection2_PreReleaseTM[Idx].GetTranslation().Z);
 		}
 	}
@@ -1814,10 +1929,6 @@ namespace GeometryCollectionTest
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		// Release the leaf nodes of a cluster. This test exercises the clusters ability to deactivate from the bottom up. 
 
 		using Traits = TypeParam;
@@ -1834,7 +1945,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 0;		
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
@@ -1861,39 +1972,30 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[3], { Collection1Handles[2] }));
 
 		TArray<FTransform> Collection1_PreReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_PreReleaseTM);
-		for (int Idx = 0; Idx < Collection1_PreReleaseTM.Num() - 1; Idx++) {
+		for (int Idx = 0; Idx < Collection1_PreReleaseTM.Num() - 1; Idx++)
+		{
 			EXPECT_EQ(Collection1_PreReleaseTM[Idx].GetTranslation().Z, Collection1_InitialTM[Idx].GetTranslation().Z);
 		}
 
 		UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles({ Collection1Handles[0],Collection1Handles[1] });
 
-		/*
-		EXPECT_EQ(SovlerParticleHandles.Size(), 8);
-		EXPECT_EQ(ClusterMap.Num(), 0);
+		EXPECT_EQ(SovlerParticleHandles.Size(), 4);
+		EXPECT_EQ(ClusterMap.Num(), 1);
 
 		UnitTest.Advance();
 
-		EXPECT_EQ(SovlerParticleHandles.Size(), 8);
-		EXPECT_EQ(ClusterMap.Num(), 0);
+		EXPECT_EQ(SovlerParticleHandles.Size(), 4);
+		EXPECT_EQ(ClusterMap.Num(), 1);
 
 		// validate that DynamicCollection1 BODY 2 became dynamic and fell from the cluster. 
 		TArray<FTransform> Collection1_PostReleaseTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_PostReleaseTM);
-		for (int Idx = 0; Idx < Collection1_PostReleaseTM.Num() - 1; Idx++) {
-			if (Idx == 1)
-				EXPECT_EQ(Collection1_PostReleaseTM[Idx].GetTranslation().Z, Collection1_PreReleaseTM[Idx].GetTranslation().Z); // the original kinematic should be frozen
-			else
-				EXPECT_LT(Collection1_PostReleaseTM[Idx].GetTranslation().Z, Collection1_PreReleaseTM[Idx].GetTranslation().Z);
-		}
-		*/
+		EXPECT_NEAR(Collection1_PostReleaseTM[1].GetTranslation().Z, Collection1_PreReleaseTM[1].GetTranslation().Z, KINDA_SMALL_NUMBER); // the original kinematic should be frozen
+		EXPECT_LT(Collection1_PostReleaseTM[0].GetTranslation().Z, Collection1_PreReleaseTM[0].GetTranslation().Z);
 	}
 
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
@@ -1908,52 +2010,74 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
-
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
 		UnitTest.AddSimulationObject(Collection);
+		UnitTest.Initialize();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		// The tests below require a list of all the current particles which are abstracted away a little
+		// inside the solver particles handler. This helper just lets us auto cast to rigids as we know
+		// that's all that exists in the solver.
+		struct FRigidParticleWrapper
+		{
+			FRigidParticleWrapper(TGeometryParticleHandles<float, 3>& InParticlesRef)
+				: Particles(InParticlesRef)
+			{}
+
+			TGeometryParticleHandles<float, 3>& Particles;
+
+			TPBDRigidParticleHandle<float, 3>* operator[](int32 InIndex)
+			{
+				return Particles.Handle(InIndex)->CastToRigidParticle();
+			}
+		};
+		FRigidParticleWrapper ParticleHandles(UnitTest.Solver->GetParticles().GetParticleHandles());
 
 		UnitTest.Advance();
 
-		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const auto& ClusterMap = Clustering.GetChildrenMap();
+		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
+		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = Clustering.GetClusterIdsArray();
 
 		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[2], { ParticleHandles[0],ParticleHandles[1] }));
+		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[2], { ParticleHandles[0], ParticleHandles[1] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[4], { ParticleHandles[2] }));
 
-
+		// Test releasing a specific unioned cluster
+		// We end up with the following cluster tree
+		//     4
+		//     |
+		//     2
+		//    / \
+		//   1   0
+		// On frame 5 we tell particle 4 as a cluster parent to release its children (only 2) and verify the result
 		for (int Frame = 1; Frame < 10; Frame++)
 		{
 			UnitTest.Advance();
 
-			/*
 			if (Frame == 5)
 			{
-				Solver->GetRigidClustering().ReleaseClusterParticles({ 2 });
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles(ParticleHandles[4]->CastToClustered(), nullptr, true);
 			}
-			*/
-
+			
 			if (Frame < 5)
 			{
 
 				EXPECT_TRUE(ParticleHandles[2]->Disabled());
-				EXPECT_NE(ClusterIdsArray[2].Id, nullptr);
-				EXPECT_EQ(ClusterIdsArray[3].Id, nullptr);
-				EXPECT_EQ(ClusterIdsArray[4].Id, nullptr);
+				EXPECT_NE(ClusterIdsArray[0].Id, nullptr);
+				EXPECT_EQ(ClusterIdsArray[1].Id, nullptr);
+				EXPECT_EQ(ClusterIdsArray[2].Id, nullptr);
 			}
 			else
 			{
 				EXPECT_TRUE(!ParticleHandles[2]->Disabled());
+				EXPECT_EQ(ClusterIdsArray[0].Id, nullptr);
+				EXPECT_EQ(ClusterIdsArray[1].Id, nullptr);
 				EXPECT_EQ(ClusterIdsArray[2].Id, nullptr);
-				EXPECT_EQ(ClusterIdsArray[3].Id, nullptr);
-				EXPECT_EQ(ClusterIdsArray[4].Id, nullptr);
 
 				EXPECT_EQ(ClusterMap.Num(), 1);
 				EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[2], { ParticleHandles[0], ParticleHandles[1] }));
@@ -1962,12 +2086,10 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_RemoveOnFracture)
+	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_RigidBodies_ClusterTest_RemoveOnFracture)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
+		// Disabled as remove on fracture currently unimplemented for geometry collections. Potentially this should be deleted entirely.
+
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
@@ -1991,7 +2113,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };		
 		Params.RemoveOnFractureEnabled = true;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		FRadialFalloff * FalloffField = new FRadialFalloff();
 		FalloffField->Magnitude = 10.5;
@@ -1999,22 +2121,17 @@ namespace GeometryCollectionTest
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
-
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
 		UnitTest.AddSimulationObject(Collection);
-
-		UnitTest.Solver->RegisterObject(FieldObject);
+		UnitTest.Initialize();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
 		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
-						
-		
 		
 		// #todo: is this even used?
 		/*
@@ -2025,7 +2142,7 @@ namespace GeometryCollectionTest
 		FFieldSystemCommand Command(TargetName, FalloffField->NewCopy());
 		FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 		Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
-		FieldObject->BufferCommand(UnitTest.Solver, Command);
+		UnitTest.Solver->GetPerSolverField().BufferCommand(Command);
 
 		FVector Scale = Transform[1].GetScale3D();
 
@@ -2035,7 +2152,7 @@ namespace GeometryCollectionTest
 		
 		UnitTest.Advance();		
 
-		FieldObject->BufferCommand(UnitTest.Solver, { TargetName, FalloffField->NewCopy() });
+		UnitTest.Solver->GetPerSolverField().BufferCommand({ TargetName, FalloffField->NewCopy() });
 
 		UnitTest.Advance();		
 
@@ -2046,17 +2163,12 @@ namespace GeometryCollectionTest
 		EXPECT_NEAR(Scale2.Z, 0.0f, SMALL_NUMBER);
 		
 		delete FalloffField;
-		delete FieldObject;
 	
 	}
 
 	
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry)
 	{
-		if(bSkipGeomFailing)
-		{
-			return;
-		}
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
@@ -2072,7 +2184,7 @@ namespace GeometryCollectionTest
 		Params.CollisionGroup = -1;
 		Params.MinLevelSetResolution = 15;
 		Params.MaxLevelSetResolution = 20;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->As<TGeometryCollectionWrapper<Traits>>();
+		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
 		

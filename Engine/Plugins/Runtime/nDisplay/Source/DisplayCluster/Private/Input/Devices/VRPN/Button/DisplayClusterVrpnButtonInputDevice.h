@@ -18,7 +18,7 @@ class FDisplayClusterVrpnButtonInputDevice
 	: public FDisplayClusterVrpnButtonInputDataHolder
 {
 public:
-	FDisplayClusterVrpnButtonInputDevice(const FDisplayClusterConfigInput& config);
+	FDisplayClusterVrpnButtonInputDevice(const FDisplayClusterConfigInput& Config);
 	virtual ~FDisplayClusterVrpnButtonInputDevice();
 
 public:
@@ -31,7 +31,7 @@ public:
 
 private:
 	// Data update handler
-	static void VRPN_CALLBACK HandleButtonDevice(void *userData, vrpn_BUTTONCB const b);
+	static void VRPN_CALLBACK HandleButtonDevice(void *UserData, vrpn_BUTTONCB const ButtonData);
 
 private:
 	// The device (PIMPL)

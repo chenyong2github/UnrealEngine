@@ -11,6 +11,7 @@
 #include <winrt/Windows.Media.Devices.Core.h>
 #include <winrt/Windows.Perception.Spatial.h>
 #include <winrt/Windows.Perception.Spatial.Surfaces.h>
+
 #include <string>
 #include <sstream>
 #include <mutex>
@@ -18,9 +19,8 @@
 #include <DXGI1_4.h>
 #include <Windows.Perception.Spatial.h>
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
-#include <d3d11.h>
+#include <Windows.Graphics.DirectX.Direct3D11.interop.h>
 
-using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Foundation::Collections;
 using namespace winrt::Windows::Foundation::Numerics;
 using namespace winrt::Windows::Perception::Spatial;
@@ -28,10 +28,6 @@ using namespace winrt::Windows::Perception::Spatial::Surfaces;
 
 using namespace winrt::Windows::Media::Capture;
 using namespace winrt::Windows::Media::Capture::Frames;
-using namespace winrt;
-
-//using namespace ABI::Windows::Graphics::DirectX;
-//using namespace ABI::Windows::Graphics::DirectX::Direct3D11;
 
 /** Controls access to our references */
 std::mutex RefsLock;
@@ -110,7 +106,7 @@ DirectX::XMFLOAT2 CameraImageCapture::UnprojectPVCamPointAtUnitDepth(DirectX::XM
 		return DirectX::XMFLOAT2(pixelCoordinate.x, pixelCoordinate.y);
 	}
 
-	Point point;
+	winrt::Windows::Foundation::Point point;
 	point.X = pixelCoordinate.x;
 	point.Y = pixelCoordinate.y;
 	float2 unprojected = CameraIntrinsics.UnprojectAtUnitDepth(point);
@@ -160,7 +156,7 @@ void OnFrameRecevied(MediaFrameReader SendingFrameReader, MediaFrameArrivedEvent
 		if (CameraCoordinateSystem != nullptr)
 		{
 			// Get CX coordinate system from ABI tracking coordinate system.
-			com_ptr<ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem> TrackingCoordinateSystemABI;
+			winrt::com_ptr<ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem> TrackingCoordinateSystemABI;
 			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem TrackingCoordinateSystemWinRT = nullptr;
 
 			WindowsMixedReality::HMDTrackingOrigin origin;
@@ -185,8 +181,18 @@ void OnFrameRecevied(MediaFrameReader SendingFrameReader, MediaFrameArrivedEvent
 			}
 		}
 
-		com_ptr<IDXGIResource1> srcResource = nullptr;
-		srcResource = ManagedSurface.try_as<IDXGIResource1>();
+		winrt::com_ptr<IDXGIResource1> srcResource = nullptr;
+		winrt::com_ptr<Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess> DxgiInterfaceAccess =
+			ManagedSurface.as<Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
+		if (DxgiInterfaceAccess)
+		{
+			DxgiInterfaceAccess->GetInterface(IID_PPV_ARGS(srcResource.put()));
+		}
+		else
+		{
+			CaptureInstance.Log(L"OnFrameRecevied() : Failed to get DxgiInterfaceAccess from ManagedSurface.  Cannot process image.");
+			return;
+		}
 
 		if (srcResource != nullptr)
 		{
@@ -338,7 +344,7 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, Direct
 		}
 
 		// Create our capture object with our settings
-		agile_ref<MediaCapture> Capture{ MediaCapture() };
+		winrt::agile_ref < winrt::Windows::Media::Capture::MediaCapture > Capture{ MediaCapture() };
 		Capture.get().InitializeAsync(CaptureSettings).Completed([=](auto&& asyncInfo, auto&& asyncStatus)
 		{
 			// Get the frame source from the source info we got earlier

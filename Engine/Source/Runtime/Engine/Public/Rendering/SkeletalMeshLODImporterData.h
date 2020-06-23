@@ -502,6 +502,8 @@ public:
 
 	ENGINE_API FByteBulkData& GetBulkData();
 	
+	ENGINE_API const FByteBulkData& GetBulkData() const;
+	
 	/** Empty the bulk data. */
 	ENGINE_API void EmptyBulkData()
 	{

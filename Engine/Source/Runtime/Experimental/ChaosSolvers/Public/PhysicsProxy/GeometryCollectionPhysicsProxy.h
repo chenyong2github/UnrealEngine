@@ -25,8 +25,6 @@ namespace Chaos
 	template <typename T> struct FClusterCreationParameters;
 }
 
-
-
 class FStubGeometryCollectionData : public Chaos::FParticleData 
 {
 public:
@@ -291,5 +289,5 @@ private:
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
-CHAOSSOLVERS_API Chaos::TTriangleMesh<float>* CreateTriangleMesh(const int32 FaceStart,const int32 FaceCount,const TManagedArray<bool>& Visible,const TManagedArray<FIntVector>& Indices);
+CHAOSSOLVERS_API Chaos::TTriangleMesh<float>* CreateTriangleMesh(const int32 FaceStart,const int32 FaceCount,const TManagedArray<bool>& Visible,const TManagedArray<FIntVector>& Indices, bool bRotateWinding = true);
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);

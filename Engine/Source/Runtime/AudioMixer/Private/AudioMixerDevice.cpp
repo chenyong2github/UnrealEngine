@@ -371,9 +371,12 @@ namespace Audio
 	{
 		ensure(IsInGameThread());
 
-		for (TObjectIterator<USoundSubmix> It; It; ++It)
+		if (IsInitialized())
 		{
-			UnregisterSoundSubmix(*It);
+			for (TObjectIterator<USoundSubmix> It; It; ++It)
+			{
+				UnregisterSoundSubmix(*It);
+			}
 		}
 		
 		// reset all the sound effect presets loaded
@@ -446,43 +449,47 @@ namespace Audio
 			AudioMixerPlatform->ResumePlaybackOnNewDevice();
 		}
 
-		// Loop through any envelope-following submixes and perform any broadcasting of envelope data if needed
-		TArray<float> SubmixEnvelopeData;
-		for (USoundSubmix* SoundSubmix : DelegateBoundSubmixes)
+		// Device must be initialized prior to call as submix graph may not be ready yet otherwise.
+		if (IsInitialized())
 		{
-			if (SoundSubmix)
+			// Loop through any envelope-following submixes and perform any broadcasting of envelope data if needed
+			TArray<float> SubmixEnvelopeData;
+			for (USoundSubmix* SoundSubmix : DelegateBoundSubmixes)
 			{
-				// Retrieve the submix instance and the envelope data and broadcast on the audio thread.
-				Audio::FMixerSubmixWeakPtr SubmixPtr = GetSubmixInstance(SoundSubmix);
-				if (SubmixPtr.IsValid())
+				if (SoundSubmix)
 				{
-					FAudioThread::RunCommandOnGameThread([this, SubmixPtr]()
-						{
-							Audio::FMixerSubmixPtr ThisSubmixPtr = SubmixPtr.Pin();
-							if (ThisSubmixPtr.IsValid())
+					// Retrieve the submix instance and the envelope data and broadcast on the audio thread.
+					Audio::FMixerSubmixWeakPtr SubmixPtr = GetSubmixInstance(SoundSubmix);
+					if (SubmixPtr.IsValid())
+					{
+						FAudioThread::RunCommandOnGameThread([this, SubmixPtr]()
 							{
-								ThisSubmixPtr->BroadcastDelegates();
-							}
-						});
+								Audio::FMixerSubmixPtr ThisSubmixPtr = SubmixPtr.Pin();
+								if (ThisSubmixPtr.IsValid())
+								{
+									ThisSubmixPtr->BroadcastDelegates();
+								}
+							});
+					}
 				}
 			}
-		}
 
-		// Check if the background mute changed state and update the submixes which are enabled to do background muting
-		const float CurrentMasterVolume = GetMasterVolume();
-		if (!FMath::IsNearlyEqual(PreviousMasterVolume, CurrentMasterVolume))
-		{
-			PreviousMasterVolume = CurrentMasterVolume;
-			bool IsMuted = FMath::IsNearlyZero(CurrentMasterVolume);
-
-			for (TObjectIterator<USoundSubmix> It; It; ++It)
+			// Check if the background mute changed state and update the submixes which are enabled to do background muting.
+			const float CurrentMasterVolume = GetMasterVolume();
+			if (!FMath::IsNearlyEqual(PreviousMasterVolume, CurrentMasterVolume))
 			{
-				if (*It && It->bMuteWhenBackgrounded)
+				PreviousMasterVolume = CurrentMasterVolume;
+				bool IsMuted = FMath::IsNearlyZero(CurrentMasterVolume);
+
+				for (TObjectIterator<USoundSubmix> It; It; ++It)
 				{
-					FMixerSubmixPtr SubmixInstance = GetSubmixInstance(*It).Pin();
-					if (SubmixInstance.IsValid())
+					if (*It && It->bMuteWhenBackgrounded)
 					{
-						SubmixInstance->SetBackgroundMuted(IsMuted);
+						FMixerSubmixPtr SubmixInstance = GetSubmixInstance(*It).Pin();
+						if (SubmixInstance.IsValid())
+						{
+							SubmixInstance->SetBackgroundMuted(IsMuted);
+						}
 					}
 				}
 			}

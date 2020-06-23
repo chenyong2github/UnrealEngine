@@ -4,24 +4,13 @@
 	<!-- List of patterns that should always be excluded when making an installed build. Filter the default list of exclusions to include confidential platforms if they're enabled. -->
 	<Property Name="ConfidentialExceptions" Value=""/>
 	<ForEach Name="RestrictedFolderName" Values="$(RestrictedFolderNames)">
-		<Switch>
-			<Case If="'$(RestrictedFolderName)' == 'PS4' And '$(WithPS4)' == true">
-				<!-- Allow this folder -->
-			</Case>
-			<Case If="'$(RestrictedFolderName)' == 'Sony' And '$(WithPS4)' == true">
-				<!-- Allow this folder -->
-			</Case>
-			<Case If="'$(RestrictedFolderName)' == 'XboxOne' And '$(WithXboxOne)' == true">
-				<!-- Allow this folder -->
-			</Case>
-			<Case If="'$(RestrictedFolderName)' == 'Switch' And '$(WithSwitch)' == true">
-				<!-- Allow this folder -->
-			</Case>
-			<Default>
+		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+			<Expand Name="FilterRestrictedFolders$(Platform)"/>
+		</ForEach>
+		<Do If="'$(RestrictedFolderName)' != ''">
 				<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions);" If="'$(ConfidentialExceptions)' != ''"/>
 				<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions).../$(RestrictedFolderName)/..."/>
-			</Default>
-		</Switch>
+		</Do>
 	</ForEach>
 
 	<!-- List of file types to be stripped and signed for different platforms -->
@@ -257,6 +246,17 @@
 		Templates/*/manifest.json
 		Templates/*/contents.txt
 	</Property>
+
+	<!-- Filters for installed DDC -->
+	<Property Name="InstalledDDCEngineContent" Value="Content\..."/>
+	<Property Name="InstalledDDCEngineContentExcept" Value="....psd;....pdn;....fbx;....po"/>
+	<Property Name="InstalledDDCEngineConfig" Value="Config\..."/>
+	<Property Name="InstalledDDCEngineConfigExcept" Value="....vdf"/>
+	<Property Name="InstalledDDCEnginePlugins" Value="Plugins\....uplugin;Plugins\...\Config\...;Plugins\...\Content\...;Plugins\...\Resources\...;Plugins\...\Shaders\...;Plugins\...\Templates\..."/>
+	<Property Name="InstalledDDCEnginePluginsExcept" Value="Plugins\Runtime\TwitchLiveStreaming\..."/>
+	<Property Name="InstalledDDCEngineShaders" Value="Shaders\..."/>
+	<Property Name="InstalledDDCEngineShadersExcept" Value=""/>
+
 
 	<!-- Projects to be compiled for UAT -->
 	<Property Name="AutomationToolPaths" Value="Engine/Source/Programs/AutomationTool/..."/>
@@ -497,46 +497,10 @@
 
 	<!-- Win64 specific -->
 
-	<!-- PS4 -->
-	<Do If="$(WithPS4)">
-		<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
-			<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Platforms/Sony/$(Filter);Engine/Platforms/PS4/$(Filter)"/>
+	<!-- Platform extensions filter overrides -->
+	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+		<Expand Name="$(Platform)FilterOverrides"/>
 		</ForEach>
-		<Property Name="AutomationToolPaths" Value="$(AutomationToolPaths);Engine/Platforms/Sony/Source/Programs/AutomationTool/...;Engine/Platforms/PS4/Source/Programs/AutomationTool/..."/>
-	</Do>
-	<Property Name="CopyPS4Filter">
-		<!-- Build Files -->
-		Engine/Build/PS4/...
-	</Property>
-
-	<Property Name="CopyPS4Exceptions">
-	</Property>
-
-	<!-- XboxOne -->
-	<Property Name="CopyXboxOneFilter">
-		<!-- Build Files -->
-		Engine/Build/XboxOne/...
-
-		<!-- Additional Binaries -->
-		Engine/Platforms/XboxOne/Binaries/Win64/XboxOnePackageNameUtil.exe
-		Engine/Platforms/XboxOne/Binaries/Win64/XboxOnePDBFileUtil.exe
-	</Property>
-
-	<Property Name="CopyXboxOneExceptions">
-	</Property>
-
-	<!-- Switch -->
-	<Property Name="CopySwitchFilter">
-		<!-- Build Files -->
-		Engine/Build/Switch/...
-		Engine/Build/BatchFiles/Switch/AuthoringToolHelper.bat
-	</Property>
-	
-	<Property Name="CopySwitchExceptions">
-	</Property>
-
-	<!-- Additional Binaries(.nspd directories) -->
-	<Property Name="CopySwitchFilter" Value="$(CopySwitchFilter);Engine/Binaries/Switch/*.nspd/..."/>
 	
 	<!-- Lumin -->
 	<Property Name="CopyLuminFilter">

@@ -28,7 +28,7 @@ enum class EText3DHorizontalTextAlignment : uint8
 };
 
 
-UCLASS(ClassGroup = (Text3D))
+UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
 class TEXT3D_API UText3DComponent final : public USceneComponent
 {
 	GENERATED_BODY()
@@ -54,11 +54,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevel, Category = "Text3D", Meta = (ClampMin = 0))
 	float Bevel;
 
-	/** Bevel Type (Linear / Half Circle) */
+	/** Bevel Type */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelType, Category = "Text3D")
 	EText3DBevelType BevelType;
 
-	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
+	/** Bevel Segments (Defines the amount of tesselation for the bevel part) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (ClampMin = 1, ClampMax = 15))
 	int32 BevelSegments;
 
@@ -145,11 +145,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevel(const float Value);
 
-	/** Set the 3d bevel type (Linear / Half Circle) */
+	/** Set the 3d bevel type */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevelType(const EText3DBevelType Value);
 
-	/** Set the amount of segments that will be used to tesselate the Half Circle Bevel */
+	/** Set the amount of segments that will be used to tesselate the Bevel */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevelSegments(const int32 Value);
 

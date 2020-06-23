@@ -120,7 +120,18 @@ FMeshSurfacePoint RelocateTrianglePointAfterRefinement(const FDynamicMesh3* Mesh
 	return SurfacePt;
 }
 
-bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn, bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq, TArray<TPair<FMeshSurfacePoint, int>>& WalkedPath)
+struct FIndexDistance
+{
+	int Index;
+	double Distance;
+	bool operator<(const FIndexDistance& Other) const
+	{
+		return Distance < Other.Distance;
+	}
+};
+
+bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn,
+	bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq, TArray<TPair<FMeshSurfacePoint, int>>& WalkedPath, double BackwardsTolerance)
 {
 	auto SetTriVertPositions = [&VertexToPosnFn, &Mesh](FIndex3i TriVertIDs, FTriangle3d& Tri)
 	{
@@ -158,9 +169,8 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 	// TODO: vertex/edge snapping?
 	TArray<TPair<FMeshSurfacePoint, FWalkIndices>> ComputedPointsAndSources;
 	// TODO: switch this to a priority queue where distance to end is stored alongside, and we always pick the closest to goal ...
-	TArray<int> UnexploredEnds;
+	TArray<FIndexDistance> UnexploredEnds;
 	int BestKnownEnd = -1;
-	double BestKnownEndDistSq = FMathd::MaxReal;
 	TSet<int> ExploredTriangles, CrossedVertices;
 
 	bool bHasArrived = false;
@@ -174,7 +184,7 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 	// TODO: replace barycoords result with edge or vertex surface point data if within distance threshold of vertex or edge!
 	ComputedPointsAndSources.Emplace(FMeshSurfacePoint(StartTri, CurrentTriDist.TriangleBaryCoords), FWalkIndices(StartPt, -1, StartTri));
 
-	double InitialDistSq = EndPt.DistanceSquared(StartPt);
+	FVector3d ForwardsDirection = EndPt - StartPt;
 
 	int CurrentEnd = 0;
 	int IterCountSafety = 0;
@@ -185,8 +195,8 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 		{
 			return false;
 		}
-		const FMeshSurfacePoint& FromPt = ComputedPointsAndSources[CurrentEnd].Key;
-		const FWalkIndices& CurrentWalk = ComputedPointsAndSources[CurrentEnd].Value;
+		FMeshSurfacePoint FromPt = ComputedPointsAndSources[CurrentEnd].Key;
+		FWalkIndices CurrentWalk = ComputedPointsAndSources[CurrentEnd].Value;
 		int TriID = CurrentWalk.WalkingOnTri;
 		check(Mesh->IsTriangle(TriID));
 		FIndex3i TriVertIDs = Mesh->GetTriangle(TriID);
@@ -241,8 +251,9 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 			// TODO: this code is a copy of the code at the end of the while(true) block!  consolidate?!
 			if (UnexploredEnds.Num())
 			{
-				// TODO: consider storing scores for all pts and using heappop to get the closest unexplored
-				CurrentEnd = UnexploredEnds.Pop();
+				FIndexDistance TopEndWithDistance;
+				UnexploredEnds.HeapPop(TopEndWithDistance);
+				CurrentEnd = TopEndWithDistance.Index;
 				continue;
 			}
 			else
@@ -269,10 +280,10 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 				{
 					FMeshSurfacePoint SurfPt(CandidateVertID);
 					FWalkIndices WalkInds(CurrentTri.V[TriSubIdx], CurrentEnd, -1);
-					double DSq = EndPt.DistanceSquared(CurrentTri.V[TriSubIdx]);
-
+					//double DSq = EndPt.DistanceSquared(CurrentTri.V[TriSubIdx]);
+					bool bIsForward = ForwardsDirection.Dot(CurrentTri.V[TriSubIdx] - StartPt) >= -BackwardsTolerance;
 					// not allowed to go in a direction that gets us further from the destination than our initial point if backwards search not allowed
-					if ((bAllowBackwardsSearch || DSq <= InitialDistSq + 10 * FMathd::ZeroTolerance) && !CrossedVertices.Contains(CandidateVertID))
+					if ((bAllowBackwardsSearch || bIsForward) && !CrossedVertices.Contains(CandidateVertID))
 					{
 						// consider going over this vertex
 						CrossedVertices.Add(CandidateVertID);
@@ -325,15 +336,15 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 				{
 					double CrossingT = SignDist[TriSubIdx] / (SignDist[TriSubIdx] - SignDist[NextSubIdx]);
 					FVector3d CrossingP = (1 - CrossingT) * CurrentTri.V[TriSubIdx] + CrossingT * CurrentTri.V[NextSubIdx];
-					FIndex4i EdgeInfo = Mesh->GetEdge(CandidateEdgeID);
-					if (EdgeInfo.A != TriVertIDs[TriSubIdx]) // edge verts are stored backwards from the order in the local triangle, reverse the crossing accordingly
+					const FDynamicMesh3::FEdge Edge = Mesh->GetEdge(CandidateEdgeID);
+					if (Edge.Vert[0] != TriVertIDs[TriSubIdx]) // edge verts are stored backwards from the order in the local triangle, reverse the crossing accordingly
 					{
 						CrossingT = 1 - CrossingT;
 					}
-					int CrossToTriID = EdgeInfo.C;
+					int CrossToTriID = Edge.Tri[0];
 					if (CrossToTriID == TriID)
 					{
-						CrossToTriID = EdgeInfo.D;
+						CrossToTriID = Edge.Tri[1];
 					}
 					if (CrossToTriID == -1)
 					{
@@ -341,8 +352,8 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 						// TODO: check if this is close enough to the EndPt, and if so just stop the walk here
 						continue;
 					}
-					double DSq = EndPt.DistanceSquared(CrossingP);
-					if (!bAllowBackwardsSearch && DSq > InitialDistSq + 10 * FMathd::ZeroTolerance)
+					bool bIsForward = ForwardsDirection.Dot(CrossingP - StartPt) >= -BackwardsTolerance;
+					if (!bAllowBackwardsSearch && !bIsForward)
 					{
 						// not allowed to go in a direction that gets us further from the destination than our initial point if backwards search not allowed
 						continue;
@@ -352,40 +363,26 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 			}
 		}
 
-		int BestCandidate = -1;
-		double BestCandidateDistSq = FMathd::MaxReal;
 		for (int32 NewComputedPtIdx = InitialComputedPointsNum; NewComputedPtIdx < ComputedPointsAndSources.Num(); NewComputedPtIdx++)
 		{
 			double DistSq = EndPt.DistanceSquared(ComputedPointsAndSources[NewComputedPtIdx].Value.Position);
 			// TODO: reject cases that move us backwards if !bAllowBackwardsSearch
-			ensure(bAllowBackwardsSearch || DistSq <= InitialDistSq + 10 * FMathd::ZeroTolerance);
-			if (BestCandidate == -1 || DistSq < BestCandidateDistSq)
-			{
-				BestCandidateDistSq = DistSq;
-				BestCandidate = NewComputedPtIdx;
-			}
+			bool bIsForward = ForwardsDirection.Dot(ComputedPointsAndSources[NewComputedPtIdx].Value.Position - StartPt) >= -BackwardsTolerance;
+			ensure(bAllowBackwardsSearch || bIsForward);
+			UnexploredEnds.HeapPush({ NewComputedPtIdx, DistSq });
 		}
-		if (BestCandidate == -1)
+		
+		// TODO: this code is a copy of the code that handles terminating the search if we hit a triangle we've already seen, above; consolidate!?
+		if (UnexploredEnds.Num())
 		{
-			// TODO: this code is a copy of the code that handles terminating the search if we hit a triangle we've already seen, above; consolidate!?
-			if (UnexploredEnds.Num())
-			{
-				// TODO: consider storing scores for all pts and using heappop to get the closest unexplored
-				CurrentEnd = UnexploredEnds.Pop();
-				continue;
-			}
-			else
-			{
-				return false; // failed to find
-			}
+			FIndexDistance TopEndWithDistance;
+			UnexploredEnds.HeapPop(TopEndWithDistance);
+			CurrentEnd = TopEndWithDistance.Index;
+			continue;
 		}
-		CurrentEnd = BestCandidate;
-		for (int32 NewComputedPtIdx = InitialComputedPointsNum; NewComputedPtIdx < ComputedPointsAndSources.Num(); NewComputedPtIdx++)
+		else
 		{
-			if (NewComputedPtIdx != BestCandidate)
-			{
-				UnexploredEnds.Add(NewComputedPtIdx);
-			}
+			return false; // failed to find
 		}
 	}
 
@@ -566,7 +563,10 @@ bool FMeshSurfacePath::IsConnected() const
 }
 
 
-bool FMeshSurfacePath::AddViaPlanarWalk(int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn, bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq)
+bool FMeshSurfacePath::AddViaPlanarWalk(
+	int StartTri, FVector3d StartPt, int EndTri, int EndVertID, 
+	FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn,
+	bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq, double BackwardsTolerance)
 {
 	if (!VertexToPosnFn)
 	{
@@ -575,7 +575,8 @@ bool FMeshSurfacePath::AddViaPlanarWalk(int StartTri, FVector3d StartPt, int End
 			return MeshArg->GetVertex(VertexID);
 		};
 	}
-	return WalkMeshPlanar(Mesh, StartTri, StartPt, EndTri, EndVertID, EndPt, WalkPlaneNormal, VertexToPosnFn, bAllowBackwardsSearch, AcceptEndPtOutsideDist, PtOnPlaneThresholdSq, Path);
+	return WalkMeshPlanar(Mesh, StartTri, StartPt, EndTri, EndVertID, EndPt, WalkPlaneNormal, VertexToPosnFn,
+		bAllowBackwardsSearch, AcceptEndPtOutsideDist, PtOnPlaneThresholdSq, Path, BackwardsTolerance);
 }
 
 // TODO: general path embedding becomes an arbitrary 2D remeshing problem per triangle; requires support from e.g. GeometryAlgorithms CDT. Not implemented yet; this is a vague sketch of what might go there.

@@ -13,6 +13,7 @@
 class FSocket;
 class ISocketSubsystem;
 class FDMXProtocolArtNet;
+class FInternetAddr;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolSenderArtNet
 	: public IDMXProtocolSender
@@ -50,8 +51,6 @@ private:
 	/** Holds the last sent message number. */
 	int32 LastSentPackage;
 
-	mutable FCriticalSection CriticalSection;
-
 	FThreadSafeCounter StopTaskCounter;
 
 	/** Holds the thread object. */
@@ -66,6 +65,12 @@ private:
 	FSocket* BroadcastSocket;
 
 	FDMXProtocolArtNet* Protocol;
+
+	/** Socket subsystem for internet address */
+	ISocketSubsystem* SocketSubsystem;
+
+	/** Internet address to send requests to*/
+	TSharedPtr<FInternetAddr> InternetAddr;
 };
 
 

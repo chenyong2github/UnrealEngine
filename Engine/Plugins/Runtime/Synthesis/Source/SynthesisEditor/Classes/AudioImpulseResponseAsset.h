@@ -17,7 +17,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AudioImpulseResponse", "Audio Impulse Response"); }
 	virtual FColor GetTypeColor() const override { return FColor(0, 255, 0); }
 	virtual UClass* GetSupportedClass() const override;
-	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 };
 

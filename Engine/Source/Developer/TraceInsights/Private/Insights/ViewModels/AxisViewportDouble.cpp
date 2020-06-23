@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AxisViewportDouble.h"
+#include "Insights/ViewModels/AxisViewportDouble.h"
 
 #include "Widgets/Layout/SScrollBar.h"
 
@@ -76,51 +76,58 @@ bool FAxisViewportDouble::RelativeZoomWithFixedOffset(const float Delta, const f
 bool FAxisViewportDouble::UpdatePosWithinLimits()
 {
 	float MinPos, MaxPos;
+	GetScrollLimits(MinPos, MaxPos);
+	return EnforceScrollLimits(MinPos, MaxPos, 0.5);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAxisViewportDouble::GetScrollLimits(float& OutMinPos, float& OutMaxPos)
+{
 	if (MaxPosition - MinPosition < Size)
 	{
-		MinPos = MaxPosition - Size;
-		MaxPos = MinPosition;
+		OutMinPos = MaxPosition - Size;
+		OutMaxPos = MinPosition;
 	}
 	else
 	{
 		constexpr float ExtraSizeFactor = 0.15f; // allow extra 15% on sides
-		MinPos = MinPosition - ExtraSizeFactor * Size;
-		MaxPos = MaxPosition - (1.0f - ExtraSizeFactor) * Size;
+		OutMinPos = MinPosition - ExtraSizeFactor * Size;
+		OutMaxPos = MaxPosition - (1.0f - ExtraSizeFactor) * Size;
 	}
+}
 
-	constexpr float U = 0.5f; // interpolation factor --> animation speed
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FAxisViewportDouble::EnforceScrollLimits(const float InMinPos, const float InMaxPos, const float InterpolationFactor)
+{
 	float Pos = Position;
-	if (Pos < MinPos)
+
+	if (Pos < InMinPos)
 	{
-		Pos = Pos * U + (1.0f - U) * MinPos;
-		if (FMath::IsNearlyEqual(Pos, MinPos, 0.5f))
+		Pos = InterpolationFactor * Pos + (1.0f - InterpolationFactor) * InMinPos;
+
+		if (FMath::IsNearlyEqual(Pos, InMinPos, 0.5f))
 		{
-			Pos = MinPos;
+			Pos = InMinPos;
 		}
 	}
-	else if (Pos > MaxPos)
+	else if (Pos > InMaxPos)
 	{
-		Pos = Pos * U + (1.0f - U) * MaxPos;
-		if (FMath::IsNearlyEqual(Pos, MaxPos, 0.5f))
+		Pos = InterpolationFactor * Pos + (1.0f - InterpolationFactor) * InMaxPos;
+
+		if (FMath::IsNearlyEqual(Pos, InMaxPos, 0.5f))
 		{
-			Pos = MaxPos;
+			Pos = InMaxPos;
 		}
 
-		if (Pos < MinPos)
+		if (Pos < InMinPos)
 		{
-			Pos = MinPos;
+			Pos = InMinPos;
 		}
 	}
 
-	if (Position != Pos)
-	{
-		ScrollAtPos(Pos);
-		//ScrollAtValue(GetValueAtPos(Pos)); // snap to value
-		return true;
-	}
-
-	return false;
+	return ScrollAtPos(Pos);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

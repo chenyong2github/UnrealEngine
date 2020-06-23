@@ -144,15 +144,12 @@ bool FCustomizedToolMenuHierarchy::IsSectionHidden(const FName InSectionName) co
 
 FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 {
-	FCustomizedToolMenu Result;
-	for (const FCustomizedToolMenu* Current : Hierarchy)
+	static auto HandleCustomizedToolMenu = [](FCustomizedToolMenu& Result, const FCustomizedToolMenu* Current)
 	{
 		if (!Current)
 		{
-			continue;
+			return;
 		}
-
-		Result.Name = Current->Name;
 
 		if (Current->SectionOrder.Num() > 0)
 		{
@@ -195,7 +192,21 @@ FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 		}
 
 		Result.BlacklistFilter.Append(Current->BlacklistFilter);
+	};
+
+	// Process parents first then children
+	// Each customization has chance to override what has already been customized before it
+	FCustomizedToolMenu Destination;
+
+	for (const FCustomizedToolMenu* Current : Hierarchy)
+	{
+		HandleCustomizedToolMenu(Destination, Current);
 	}
 
-	return Result;
+	for (const FCustomizedToolMenu* Current : RuntimeHierarchy)
+	{
+		HandleCustomizedToolMenu(Destination, Current);
+	}
+
+	return Destination;
 }

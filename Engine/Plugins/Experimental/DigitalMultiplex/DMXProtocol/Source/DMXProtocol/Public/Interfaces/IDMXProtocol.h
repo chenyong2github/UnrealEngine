@@ -117,6 +117,13 @@ public:
 	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) = 0;
 
 	/**
+	* Update the universe by id in universe manager
+	* @param InUniverseId id of the universe we are going to update
+	* @param InSettings FJsonObject of universe settings, such as UniverseId, Unicast IP, etc
+	**/
+	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) = 0;
+
+	/**
 	 * Remove Universe from the Protocol Universe Manager.
 	 * @param  InUniverseId unique number of universe
 	 * @return Return true if it was successfully removed
@@ -177,11 +184,25 @@ public:
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const = 0;
 
 	/**
+	 * Modify the FJsonObject passed in with the correct fields for Universe InUniverseID
+	 * @param InUniverseID Universe ID 
+	 * @param OutSettings is the FJsonObject to set the fields in
+	 */
+	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const = 0;
+
+	/**
 	 * Called on input universe.
 	 * Parameters represent: Protocol Name, UniverseID and Buffer
 	 */
 	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseInputUpdateEvent, FName, uint16, const TArray<uint8>&);
 	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() = 0;
+
+	/**
+	 * Called on output universe
+	 * Parameters represent: Protocol Name, UniverseID and Buffer
+	 */
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseOutputSentEvent, FName, uint16, const TArray<uint8>&);
+	virtual FOnUniverseOutputSentEvent& GetOnOutputSentEvent() = 0;
 
 public:
 	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;

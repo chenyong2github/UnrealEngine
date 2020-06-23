@@ -145,6 +145,9 @@ public:
 	/** Loop over all the data interfaces and call the poststage methods */
 	void PostStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderRef& ComputeShader, const uint32 SimulationStageIndex) const;
 
+	/** Loop over all data interfaces and call the postsimulate methods */
+	void PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader) const;
+
 	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const { return GetEmptyUAVFromPool(RHICmdList, Format, false); }
 	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const { return GetEmptyUAVFromPool(RHICmdList, Format, true); }
 
@@ -219,10 +222,10 @@ private:
 	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
 
 	// persistent layouts used to create the constant buffers for the compute sim shader
-	FRHIUniformBufferLayout GlobalCBufferLayout;
-	FRHIUniformBufferLayout SystemCBufferLayout;
-	FRHIUniformBufferLayout OwnerCBufferLayout;
-	FRHIUniformBufferLayout EmitterCBufferLayout;
+	TRefCountPtr<FNiagaraRHIUniformBufferLayout> GlobalCBufferLayout;
+	TRefCountPtr<FNiagaraRHIUniformBufferLayout> SystemCBufferLayout;
+	TRefCountPtr<FNiagaraRHIUniformBufferLayout> OwnerCBufferLayout;
+	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
 	// @todo REMOVE THIS HACK
 	uint32 LastFrameThatDrainedData;

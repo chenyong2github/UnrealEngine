@@ -23,8 +23,7 @@
 
 bool UMeshColorPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	return true;
 }
 
 UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -35,8 +34,7 @@ UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderSta
 
 bool UMeshWeightPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	return true;
 }
 
 UInteractiveTool* UMeshWeightPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -85,6 +83,10 @@ UMeshVertexPaintingTool::UMeshVertexPaintingTool()
 	PropertyClass = UMeshVertexPaintingToolProperties::StaticClass();
 }
 
+bool UMeshVertexPaintingTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const
+{
+	return MeshAdapter.IsValid() ? MeshAdapter->SupportsVertexPaint() : false;
+}
 
 void UMeshVertexPaintingTool::Setup()
 {
@@ -93,6 +95,11 @@ void UMeshVertexPaintingTool::Setup()
 	bResultValid = false;
 	bStampPending = false;
 	BrushProperties->RestoreProperties(this);
+	BrushStampIndicator->LineColor = FLinearColor::Green;
+	// Set up selection mechanic to find and select edges
+	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
+	SelectionMechanic->Setup(this);
+	
 }
 
 
@@ -133,7 +140,7 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
-			if (MeshAdapter->IsValid() /*&& bRenderVertices*/ && MeshAdapter->SupportsVertexPaint())
+			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
 			{
 				const FMatrix ComponentToWorldMatrix = MeshAdapter->GetComponentToWorldMatrix();
 				FViewCameraState CameraState;
@@ -222,9 +229,12 @@ double UMeshVertexPaintingTool::EstimateMaximumTargetDimension()
 			}
 
 			bFirstItem = false;
+			bFoundComponentToUse = true;
 		}
-
-		return Extents.BoxExtent.GetAbsMax();
+		if (bFoundComponentToUse)
+		{
+			return Extents.BoxExtent.GetAbsMax();
+		}
 	}
 
 	return Super::EstimateMaximumTargetDimension();
@@ -455,6 +465,30 @@ bool UMeshVertexPaintingTool::CanAccept() const
 	return false;
 }
 
+FInputRayHit UMeshVertexPaintingTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	FHitResult OutHit;
+	bCachedClickRay = false;
+	if (!HitTest(PressPos.WorldRay, OutHit))
+	{
+		if (SelectionMechanic->IsHitByClick(PressPos).bHit)
+		{
+			bCachedClickRay = true;
+			PendingClickRay = PressPos.WorldRay;
+			PendingClickScreenPosition = PressPos.ScreenPosition;
+			return FInputRayHit(0.0);
+		}
+	}
+	return Super::CanBeginClickDragSequence(PressPos);
+}
+
+void UMeshVertexPaintingTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	Super::OnUpdateModifierState(ModifierID, bIsOn);
+	SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+}
+
+
 void UMeshVertexPaintingTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
@@ -466,6 +500,14 @@ void UMeshVertexPaintingTool::OnBeginDrag(const FRay& Ray)
 		// apply initial stamp
 		PendingStampRay = Ray;
 		bStampPending = true;
+	}
+	else if (bCachedClickRay)
+	{
+		FInputDeviceRay InputDeviceRay = FInputDeviceRay(PendingClickRay, PendingClickScreenPosition);
+		SelectionMechanic->SetAddToSelectionSet(bShiftToggle);
+		SelectionMechanic->OnClicked(InputDeviceRay);
+		bCachedClickRay = false;
+		RecalculateBrushRadius();
 	}
 }
 

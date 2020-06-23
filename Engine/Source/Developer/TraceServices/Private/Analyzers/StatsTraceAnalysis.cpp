@@ -19,7 +19,7 @@ void FStatsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventBatch, "Stats", "EventBatch");
 }
 
-bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -50,7 +50,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	}
 	case RouteId_EventBatch:
 	{
-		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 BufferSize = EventData.GetAttachmentSize();
 		const uint8* BufferPtr = EventData.GetAttachment();
@@ -78,7 +78,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			uint8 Op = DecodedIdAndOp & 0x7;
 			uint64 CycleDiff = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint64 Cycle = ThreadState->LastCycle + CycleDiff;
-			double Time = Context.SessionContext.TimestampFromCycle(Cycle);
+			double Time = Context.EventTime.AsSeconds(Cycle);
 			ThreadState->LastCycle = Cycle;
 			switch (Op)
 			{

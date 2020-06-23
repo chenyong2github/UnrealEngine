@@ -2,25 +2,18 @@
 
 #include "StaticMeshExporterUSD.h"
 
+#include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #include "Engine/StaticMesh.h"
 
-#if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/sdf/path.h"
-#include "pxr/usd/usd/stage.h"
-#include "pxr/usd/usdGeom/mesh.h"
-#include "pxr/usd/usdGeom/tokens.h"
-
-#include "USDIncludesEnd.h"
-
-#endif // #if USE_USD_SDK
 
 bool UStaticMeshExporterUsd::IsUsdAvailable()
 {
@@ -47,22 +40,16 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 	UStaticMesh* StaticMesh = CastChecked< UStaticMesh >( Object );
 
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		TUsdStore< pxr::UsdStageRefPtr > UsdStageStore = pxr::UsdStage::CreateNew( UnrealToUsd::ConvertString( *UExporter::CurrentFilename ).Get() );
-		pxr::UsdStageRefPtr UsdStage = UsdStageStore.Get();
+		UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename );
 
 		if ( !UsdStage )
 		{
 			return false;
 		}
 
-		// Set up axis
-		UsdUtils::SetUsdStageAxis( UsdStage, pxr::UsdGeomTokens->z );
-
 		FString RootPrimPath = ( TEXT("/") + StaticMesh->GetName() );
 
-		pxr::UsdPrim RootPrim = UsdStage->DefinePrim( UnrealToUsd::ConvertPath( *RootPrimPath ).Get() );
+		UE::FUsdPrim RootPrim = UsdStage.DefinePrim( UE::FSdfPath( *RootPrimPath ) );
 
 		if ( !RootPrim )
 		{
@@ -71,17 +58,16 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 
 		FString MeshPrimPath = FPaths::Combine( RootPrimPath, StaticMesh->GetName() );
 
-		pxr::UsdGeomMesh UsdGeomMesh = pxr::UsdGeomMesh::Define( UsdStage, UnrealToUsd::ConvertPath( *MeshPrimPath ).Get() );
+		UE::FUsdPrim UsdGeomMesh = UsdStage.DefinePrim( UE::FSdfPath( *MeshPrimPath ), TEXT("Mesh") );
 
 		if ( UsdGeomMesh )
 		{
-			// Set default prim
-			UsdStage->SetDefaultPrim( RootPrim );
+			UsdStage.SetDefaultPrim( RootPrim );
 
 			UnrealToUsd::ConvertStaticMesh( StaticMesh, UsdGeomMesh );
 		}
 
-		UsdStage->GetRootLayer()->Save();
+		UsdStage.GetRootLayer().Save();
 	}
 
 	return true;

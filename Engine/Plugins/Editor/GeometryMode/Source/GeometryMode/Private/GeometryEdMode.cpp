@@ -32,6 +32,7 @@
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "NavigationSystem.h"
 #include "GeometryModeModule.h"
+#include "Engine/Brush.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryMode, Log, All);
 

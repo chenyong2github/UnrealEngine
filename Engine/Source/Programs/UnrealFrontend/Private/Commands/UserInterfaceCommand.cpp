@@ -155,8 +155,12 @@ void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni
 				)
 		);
 
+	// Load layout from ini file.
 	UserInterfaceCommand::ApplicationLayout = FLayoutSaveRestore::LoadFromConfig(LayoutIni, NewLayout);
-	FGlobalTabmanager::Get()->RestoreFrom(UserInterfaceCommand::ApplicationLayout.ToSharedRef(), TSharedPtr<SWindow>());
+	// Restore application layout.
+	const bool bEmbedTitleAreaContent = false;
+	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
+	FGlobalTabmanager::Get()->RestoreFrom(UserInterfaceCommand::ApplicationLayout.ToSharedRef(), TSharedPtr<SWindow>(), bEmbedTitleAreaContent, OutputCanBeNullptr);
 }
 
 void FUserInterfaceCommand::ShutdownSlateApplication( const FString& LayoutIni )

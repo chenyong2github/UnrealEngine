@@ -262,13 +262,30 @@ void UMovieSceneSubSection::PostEditChangeProperty(FPropertyChangedEvent& Proper
 {
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMovieSceneSubSection, SubSequence))
 	{
-		UMovieSceneSubTrack* TrackOuter = Cast<UMovieSceneSubTrack>(GetOuter());
-		if (SubSequence && TrackOuter && TrackOuter->ContainsSequence(*SubSequence, true, this))
-		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid level sequence %s. There could be a circular dependency."), *SubSequence->GetDisplayName().ToString());
+		// Check whether the subsequence that was just set has master tracks that contain the sequence that this subsection is in.
+		UMovieScene* SubSequenceMovieScene = SubSequence ? SubSequence->GetMovieScene() : nullptr;
 
-			// Restore to the previous sub sequence because there was a circular dependency
-			SubSequence = PreviousSubSequence;
+		UMovieSceneSubTrack* TrackOuter = Cast<UMovieSceneSubTrack>(GetOuter());
+
+		if (SubSequenceMovieScene && TrackOuter)
+		{
+			if (UMovieSceneSequence* CurrentSequence = TrackOuter->GetTypedOuter<UMovieSceneSequence>())
+			{
+				for (UMovieSceneTrack* MasterTrack : SubSequenceMovieScene->GetMasterTracks())
+				{
+					if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MasterTrack))
+					{
+						if ( SubTrack->ContainsSequence(*CurrentSequence, true))
+						{
+							UE_LOG(LogMovieScene, Error, TEXT("Invalid level sequence %s. It is already contained by: %s."), *SubSequence->GetDisplayName().ToString(), *CurrentSequence->GetDisplayName().ToString());
+
+							// Restore to the previous sub sequence because there was a circular dependency
+							SubSequence = PreviousSubSequence;
+							break;
+						}
+					}
+				}
+			}
 		}
 
 		PreviousSubSequence = nullptr;

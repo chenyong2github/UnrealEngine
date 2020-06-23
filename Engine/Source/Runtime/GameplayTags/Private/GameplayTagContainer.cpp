@@ -19,6 +19,9 @@ DEFINE_STAT(STAT_FGameplayTagContainer_HasTag);
 DEFINE_STAT(STAT_FGameplayTagContainer_DoesTagContainerMatch);
 DEFINE_STAT(STAT_UGameplayTagsManager_GameplayTagsMatch);
 
+static bool GEnableGameplayTagDetailedStats = false;
+static FAutoConsoleVariableRef CVarGameplayTagDetailedStats(TEXT("GameplayTags.EnableDetailedStats"), GEnableGameplayTagDetailedStats, TEXT("Runtime toggle for verbose CPU profiling stats"), ECVF_Default);
+
 /**
  *	Replicates a tag in a packed format:
  *	-A segment of NetIndexFirstBitSegment bits are always replicated.
@@ -724,7 +727,7 @@ DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendTags"), STAT_FGameplayTagC
 
 void FGameplayTagContainer::AppendTags(FGameplayTagContainer const& Other)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendTags);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendTags, GEnableGameplayTagDetailedStats);
 
 	GameplayTags.Reserve(GameplayTags.Num() + Other.GameplayTags.Num());
 	ParentTags.Reserve(ParentTags.Num() + Other.ParentTags.Num());
@@ -746,7 +749,7 @@ DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::AppendMatchingTags"), STAT_FGame
 
 void FGameplayTagContainer::AppendMatchingTags(FGameplayTagContainer const& OtherA, FGameplayTagContainer const& OtherB)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendMatchingTags);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AppendMatchingTags, GEnableGameplayTagDetailedStats);
 
 	for(const FGameplayTag& OtherATag : OtherA.GameplayTags)
 	{
@@ -764,7 +767,7 @@ static UGameplayTagsManager* CachedTagManager = nullptr;
 
 void FGameplayTagContainer::AddTag(const FGameplayTag& TagToAdd)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AddTag);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_AddTag, GEnableGameplayTagDetailedStats);
 
 	if (TagToAdd.IsValid())
 	{
@@ -1128,7 +1131,7 @@ DECLARE_CYCLE_STAT(TEXT("FGameplayTag::MatchesAny"), STAT_FGameplayTag_MatchesAn
 
 bool FGameplayTag::MatchesAny(const FGameplayTagContainer& ContainerToCheck) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_MatchesAny);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_FGameplayTag_MatchesAny, GEnableGameplayTagDetailedStats);
 
 	const FGameplayTagContainer* TagContainer = UGameplayTagsManager::Get().GetSingleTagContainer(*this);
 

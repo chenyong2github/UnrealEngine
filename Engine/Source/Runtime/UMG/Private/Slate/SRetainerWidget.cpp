@@ -155,8 +155,6 @@ void SRetainerWidget::UpdateWidgetRenderer()
 
 void SRetainerWidget::Construct(const FArguments& InArgs)
 {
-	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddSP(this, &SRetainerWidget::OnGlobalInvalidate);
-
 	STAT(MyStatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Slate>(InArgs._StatId);)
 
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
@@ -226,22 +224,23 @@ void SRetainerWidget::OnRetainerModeChanged()
 		InvalidateChildRemovedFromTree(*MyWidget.Get());
 	}
 
-	RefreshRenderingMode();
+	// Invalidate myself
+	Advanced_ResetInvalidation(true);
 
-	// Invalidate myself 
-	InvalidateRoot();
-
-	// Nested invalidation: Invalidate whatever invalidation root I am in.
-	Invalidate(EInvalidateWidget::ChildOrder);
-}
-
-void SRetainerWidget::OnGlobalInvalidate(bool bClearResourcesImmediately)
-{
-	if (bClearResourcesImmediately)
+	// Invalidate my invalidation root, since all my children were once it's children
+	// it needs to force a generation bump just like me.
+	if (FSlateInvalidationRoot* MyInvalidationRoot = GetProxyHandle().GetInvalidationRoot())
 	{
-		ClearAllFastPathData(false);
+		MyInvalidationRoot->Advanced_ResetInvalidation(true);
 	}
 
+	RefreshRenderingMode();
+
+	bRenderRequested = true;
+}
+
+void SRetainerWidget::OnRootInvalidated()
+{
 	RequestRender();
 }
 
@@ -530,7 +529,8 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		}
 
 		// add our widgets to the root hit test grid
-		Context.PaintArgs->RootGrid.AppendGrid(HittestGrid);
+		TSharedPtr<SWidget> Owner = MutableThis->AsShared();
+		Context.PaintArgs->RootGrid.AppendGrid(HittestGrid, Owner);
 
 		return Context.IncomingLayerId;
 	}

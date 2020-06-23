@@ -45,7 +45,7 @@ DEFINE_LOG_CATEGORY(LogDatasmithVREDImport);
 // these actors in reverse order (3,2,1). We're using logic which prevents this by iterating children in reverse order.
 #define REVERSE_ATTACH_ORDER 1
 
-#define MATCHING_EXPORTER_VERSION TEXT("3")
+#define MATCHING_EXPORTER_VERSION TEXT("4")
 
 struct FImportedAnim
 {
@@ -918,7 +918,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 	ActorElement->SetTranslation(Transform.GetTranslation());
 	ActorElement->SetScale(Transform.GetScale3D());
 	ActorElement->SetRotation(Transform.GetRotation());
-	ActorElement->SetVisibility( FMath::IsNearlyZero( Node->Visibility ) );
+	ActorElement->SetVisibility( Node->Visibility >= 0.5f );
 
 #if !REVERSE_ATTACH_ORDER
 	for (int32 Index = 0; Index < Node->Children.Num(); Index++)
@@ -1116,6 +1116,18 @@ namespace VREDImporterImpl
 		}
 
 		return FString();
+	}
+
+	/* Recursively propagate the visibility so that hidden parents hide their children, like in VRED */
+	void PropagateVisibility( TSharedPtr<FDatasmithFBXSceneNode>& Node, bool bRollingVisibility = true )
+	{
+		bool bNewVisibility = ( Node->Visibility >= 0.5f ) && bRollingVisibility;
+		Node->Visibility = bNewVisibility ? 1.0f : 0.0f;
+
+		for ( TSharedPtr<FDatasmithFBXSceneNode>& Child : Node->Children )
+		{
+			PropagateVisibility( Child, bNewVisibility );
+		}
 	}
 }
 
@@ -1925,6 +1937,8 @@ bool FDatasmithVREDImporter::SendSceneToDatasmith()
 	// Ensure nodes, meshes and materials have unique names
 	FNameDuplicateFinder NameDupContext;
 	NameDupContext.ResolveDuplicatedObjectNamesRecursive(IntermediateScene->RootNode);
+
+	VREDImporterImpl::PropagateVisibility(IntermediateScene->RootNode);
 
 	// Perform conversion
 	TSharedPtr<IDatasmithActorElement> NodeActor = ConvertNode(IntermediateScene->RootNode);

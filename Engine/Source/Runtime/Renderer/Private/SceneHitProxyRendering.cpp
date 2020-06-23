@@ -560,12 +560,11 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 	if (HitProxyRT)
 	{
 		// Find the visible primitives.
-		FGraphEventArray UpdateViewCustomDataEvents;
 		FILCUpdatePrimTaskData ILCTaskData;
-		bool bDoInitViewAftersPrepass = InitViews(RHICmdList, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, UpdateViewCustomDataEvents);
+		bool bDoInitViewAftersPrepass = InitViews(RHICmdList, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData);
 		if (bDoInitViewAftersPrepass)
 		{
-			InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData, UpdateViewCustomDataEvents);
+			InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
 		}
 
 		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -587,12 +586,6 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		{
 			UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 		}	
-
-		if (UpdateViewCustomDataEvents.Num())
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AsyncUpdateViewCustomData_Wait);
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(UpdateViewCustomDataEvents, ENamedThreads::GetRenderThread());
-		}
 
 		GEngine->GetPreRenderDelegate().Broadcast();
 
@@ -672,6 +665,14 @@ void FHitProxyMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 			if (const HHitProxy* HitProxy = GetHitProxyById(HitProxyId))
 			{
 				bAddTranslucentPrimitive = HitProxy->AlwaysAllowsTranslucentPrimitives();
+			}
+		}
+		else
+		{
+			// If the batch hit proxy is invalid, we won't try to add this if it is a translucent primitive (prefer to preserve the current hit proxy contents)
+			if (MeshBatch.BatchHitProxyId == FHitProxyId())
+			{
+				bAddTranslucentPrimitive = false;
 			}
 		}
 

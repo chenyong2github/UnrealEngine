@@ -10,8 +10,8 @@
 #include "Dom/JsonObject.h"
 #include "JsonObjectConverter.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterClusterEventsService::FDisplayClusterClusterEventsService(const FString& InAddr, const int32 InPort) :

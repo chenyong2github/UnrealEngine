@@ -7,6 +7,7 @@
 #include "PrimaryAssetIdCustomization.h"
 #include "SAssetAuditBrowser.h"
 #include "Engine/PrimaryAssetLabel.h"
+#include <Templates/UniquePtr.h>
 
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -370,8 +371,8 @@ private:
 	FAssetManagerEditorRegistrySource* CurrentRegistrySource;
 
 	IAssetRegistry* AssetRegistry;
-	FSandboxPlatformFile* CookedSandbox;
-	FSandboxPlatformFile* EditorCookedSandbox;
+	TUniquePtr<FSandboxPlatformFile> CookedSandbox;
+	TUniquePtr<FSandboxPlatformFile> EditorCookedSandbox;
 	TSharedPtr<FAssetManagerGraphPanelNodeFactory> AssetManagerGraphPanelNodeFactory;
 	TSharedPtr<FAssetManagerGraphPanelPinFactory> AssetManagerGraphPanelPinFactory;
 
@@ -524,17 +525,8 @@ void FAssetManagerEditorModule::StartupModule()
 
 void FAssetManagerEditorModule::ShutdownModule()
 {
-	if (CookedSandbox)
-	{
-		delete CookedSandbox;
-		CookedSandbox = nullptr;
-	}
-
-	if (EditorCookedSandbox)
-	{
-		delete EditorCookedSandbox;
-		EditorCookedSandbox = nullptr;
-	}
+	CookedSandbox.Release();
+	EditorCookedSandbox.Release();
 
 	for (IConsoleObject* AuditCmd : AuditCmds)
 	{
@@ -900,7 +892,7 @@ void FAssetManagerEditorModule::ExtendContentBrowserAssetSelectionMenu()
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-		if (Context && Context->bCanBeModified)
+		if (Context && Context->bCanBeModified && Context->SelectedObjects.Num() > 0)
 		{
 			FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
 		}
@@ -1383,7 +1375,7 @@ FString FAssetManagerEditorModule::GetSavedAssetRegistryPath(ITargetPlatform* Ta
 	// Initialize sandbox wrapper
 	if (!CookedSandbox)
 	{
-		CookedSandbox = new FSandboxPlatformFile(false);
+		CookedSandbox = FSandboxPlatformFile::Create(false);
 
 		FString OutputDirectory = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Saved"), TEXT("Cooked"), TEXT("[Platform]"));
 		FPaths::NormalizeDirectoryName(OutputDirectory);
@@ -1393,7 +1385,7 @@ FString FAssetManagerEditorModule::GetSavedAssetRegistryPath(ITargetPlatform* Ta
 
 	if (!EditorCookedSandbox)
 	{
-		EditorCookedSandbox = new FSandboxPlatformFile(false);
+		EditorCookedSandbox = FSandboxPlatformFile::Create(false);
 
 		FString OutputDirectory = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Saved"), TEXT("EditorCooked"), TEXT("[Platform]"));
 		FPaths::NormalizeDirectoryName(OutputDirectory);

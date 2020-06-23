@@ -284,6 +284,7 @@ struct FFoliageInfo
 	FOLIAGE_API void AddInstance(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const FFoliageInstance& InNewInstance);
 	FOLIAGE_API void AddInstance(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const FFoliageInstance& InNewInstance, UActorComponent* InBaseComponent);
 	FOLIAGE_API void AddInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances);
+	FOLIAGE_API void ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum);
 
 	FOLIAGE_API void RemoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree);
 

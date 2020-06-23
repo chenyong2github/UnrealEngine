@@ -29,6 +29,7 @@
 #include "DirectoryWatcherModule.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/IConsoleManager.h"
 #endif // WITH_EDITOR
 
 // Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
@@ -180,6 +181,17 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UAssetRegistryImpl::OnAssetLoaded);
 	}
 #endif // WITH_EDITOR
+
+	// Content roots always exist
+	{
+		TArray<FString> RootContentPaths;
+		FPackageName::QueryRootContentPaths(RootContentPaths);
+
+		for (const FString& AssetPath : RootContentPaths)
+		{
+			AddPath(AssetPath);
+		}
+	}
 
 	// Listen for new content paths being added or removed at runtime.  These are usually plugin-specific asset paths that
 	// will be loaded a bit later on.
@@ -681,9 +693,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Object Path
+				const FString ObjectPathStr = Obj->GetPathName();
 				if (InFilter.ObjectPaths.Num() > 0)
 				{
-					const FName ObjectPath = FName(*Obj->GetPathName(), FNAME_Find);
+					const FName ObjectPath = FName(*ObjectPathStr, FNAME_Find);
 					if (!InFilter.ObjectPaths.Contains(ObjectPath))
 					{
 						return;
@@ -691,7 +704,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Package path
-				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(InMemoryPackage->GetName()));
+				const FString PackageNameStr = InMemoryPackage->GetName();
+				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(PackageNameStr));
 				if (InFilter.PackagePaths.Num() > 0 && !InFilter.PackagePaths.Contains(PackagePath))
 				{
 					return;
@@ -746,7 +760,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				ObjectTags.Reset();
 
 				// This asset is in memory and passes all filters
-				OutContinue = Callback(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
+				OutContinue = Callback(FAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
 			}
 		};
 
@@ -2147,13 +2161,10 @@ bool UAssetRegistryImpl::RemoveEmptyPackage(FName PackageName)
 
 bool UAssetRegistryImpl::AddAssetPath(FName PathToAdd)
 {
-	if (CachedPathTree.CachePath(PathToAdd))
+	return CachedPathTree.CachePath(PathToAdd, [this](FName AddedPath)
 	{
-		PathAddedEvent.Broadcast(PathToAdd.ToString());
-		return true;
-	}
-
-	return false;
+		PathAddedEvent.Broadcast(AddedPath.ToString());
+	});
 }
 
 bool UAssetRegistryImpl::RemoveAssetPath(FName PathToRemove, bool bEvenIfAssetsStillExist)
@@ -2170,16 +2181,10 @@ bool UAssetRegistryImpl::RemoveAssetPath(FName PathToRemove, bool bEvenIfAssetsS
 		}
 	}
 
-	if (CachedPathTree.RemovePath(PathToRemove))
+	return CachedPathTree.RemovePath(PathToRemove, [this](FName RemovedPath)
 	{
-		PathRemovedEvent.Broadcast(PathToRemove.ToString());
-		return true;
-	}
-	else
-	{
-		// The folder did not exist in the tree, fail the remove
-		return false;
-	}
+		PathRemovedEvent.Broadcast(RemovedPath.ToString());
+	});
 }
 
 FString UAssetRegistryImpl::ExportTextPathToObjectName(const FString& InExportTextPath) const
@@ -2588,6 +2593,9 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 		AssetPath = AssetPath + TEXT("/");
 	}
 
+	// Content roots always exist
+	AddPath(AssetPath);
+
 	// Add this to our list of root paths to process
 	AddPathToSearch(AssetPath);
 
@@ -2799,6 +2807,39 @@ void UAssetRegistryImpl::GetSubClasses_Recursive(FName InClassName, TSet<FName>&
 	}
 }
 
+#if WITH_EDITOR
+static FString GAssetRegistryManagementPathsPackageDebugName;
+static FAutoConsoleVariableRef CVarAssetRegistryManagementPathsPackageDebugName(
+	TEXT("AssetRegistry.ManagementPathsPackageDebugName"),
+	GAssetRegistryManagementPathsPackageDebugName,
+	TEXT("If set, when manage references are set, the chain of references that caused this package to become managed will be printed to the log"));
+
+void PrintAssetRegistryManagementPathsPackageDebugInfo(FDependsNode* Node, const TMap<FDependsNode*, FDependsNode*>& EditorOnlyManagementPaths)
+{
+	if (Node)
+	{
+		UE_LOG(LogAssetRegistry, Display, TEXT("SetManageReferences is printing out the reference chain that caused '%s' to be managed"), *GAssetRegistryManagementPathsPackageDebugName);
+		TSet<FDependsNode*> AllVisitedNodes;
+		while (FDependsNode* ReferencingNode = EditorOnlyManagementPaths.FindRef(Node))
+		{
+			UE_LOG(LogAssetRegistry, Display, TEXT("  %s"), *ReferencingNode->GetPackageName().ToString());
+			if (AllVisitedNodes.Contains(ReferencingNode))
+			{
+				UE_LOG(LogAssetRegistry, Display, TEXT("  ... (Circular reference back to %s)"), *ReferencingNode->GetPackageName().ToString());
+				break;
+			}
+
+			AllVisitedNodes.Add(ReferencingNode);
+			Node = ReferencingNode;
+		}
+	}
+	else
+	{
+		UE_LOG(LogAssetRegistry, Warning, TEXT("Node with AssetRegistryManagementPathsPackageDebugName '%s' was not found"), *GAssetRegistryManagementPathsPackageDebugName);
+	}
+}
+#endif // WITH_EDITOR
+
 void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, EAssetRegistryDependencyType::Type RecurseType, ShouldSetManagerPredicate ShouldSetManager)
 {
 	TSet<FDependsNode*> ExistingManagedNodes;
@@ -2855,6 +2896,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 	TArray<FDependsNode*> NodesToHardReference;
 	TArray<FDependsNode*> NodesToRecurse;
 
+#if WITH_EDITOR
+	// Map of every depends node to the node whose reference caused it to become managed by an asset. Used to look up why an asset was chosen to be the manager.
+	TMap<FDependsNode*, FDependsNode*> EditorOnlyManagementPaths;
+#endif
+
 	// For each explicitly set asset
 	for (const TPair<FDependsNode*, TArray<FDependsNode *>>& ExplicitPair : ExplicitMap)
 	{
@@ -2869,7 +2915,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 			FDependsNode* SourceNode = ManagerNode;
 
-			auto IterateFunction = [&ManagerNode, &SourceNode, &ShouldSetManager, &NodesToManage, &NodesToHardReference, &NodesToRecurse, &Visited, &ExplicitMap, &ExistingManagedNodes](FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+			auto IterateFunction = [&ManagerNode, &SourceNode, &ShouldSetManager, &NodesToManage, &NodesToHardReference, &NodesToRecurse, &Visited, &ExplicitMap, &ExistingManagedNodes
+#if WITH_EDITOR
+										, &EditorOnlyManagementPaths
+#endif
+										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
 			{
 				// Only recurse if we haven't already visited, and this node passes recursion test
 				if (!Visited.Contains(TargetNode))
@@ -2888,6 +2938,13 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 					EAssetRegistryDependencyType::Type ManageType = (Flags & EAssetSetManagerFlags::IsDirectSet) ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::SoftManage;
 					NodesToManage.Add(TargetNode, ManageType);
 
+#if WITH_EDITOR
+					if (!GAssetRegistryManagementPathsPackageDebugName.IsEmpty())
+					{
+						EditorOnlyManagementPaths.Add(TargetNode, ReferencingNode);
+					}
+#endif
+
 					if (Result == EAssetSetManagerResult::SetAndRecurse)
 					{
 						NodesToRecurse.Push(TargetNode);
@@ -2896,7 +2953,7 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 			};
 
 			// Check initial node
-			IterateFunction(BaseManagedNode, EAssetRegistryDependencyType::Manage);
+			IterateFunction(nullptr, BaseManagedNode, EAssetRegistryDependencyType::Manage);
 
 			// Do all recursion first, but only if we have a recurse type
 			if (RecurseType)
@@ -2908,7 +2965,10 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					Visited.Add(SourceNode);
 
-					SourceNode->IterateOverDependencies(IterateFunction, RecurseType);
+					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EAssetRegistryDependencyType::Type DependencyType)
+						{
+							IterateFunction(SourceNode, TargetNode, DependencyType);
+						}, RecurseType);
 				}
 			}
 
@@ -2919,6 +2979,14 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	if (!GAssetRegistryManagementPathsPackageDebugName.IsEmpty())
+	{
+		FDependsNode* PackageDebugInfoNode = State.FindDependsNode(FName(*GAssetRegistryManagementPathsPackageDebugName));
+		PrintAssetRegistryManagementPathsPackageDebugInfo(PackageDebugInfoNode, EditorOnlyManagementPaths);
+	}
+#endif
 }
 
 bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId)

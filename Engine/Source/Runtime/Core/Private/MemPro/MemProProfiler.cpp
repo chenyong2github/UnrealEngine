@@ -9,16 +9,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMemPro, Log, All);
 
-/* NB. you can enable MemPro tracking after engine init by adding something like this to the command line:
- *    -execcmds="MemPro.LLMTag RHIMisc, MemPro.Enabled 1"
+/* NB. you can enable MemPro tracking on startup by adding something like this to the command line:
+ *    -MemPro -MemProLLMTags="RHIMisc,EngineMisc"
  */
-
-
 
 /* 
  * Main runtime switch for MemPro support
  */
-int32 GMemProEnabled = 0; //edit this and set to 1 to track from startup. You probably want to edit GMemProTrackTag too
+int32 GMemProEnabled = 0;
 static FAutoConsoleVariableRef CVarMemProEnable(
 	TEXT("MemPro.Enabled"),
 	GMemProEnabled,
@@ -31,9 +29,7 @@ static FAutoConsoleVariableRef CVarMemProEnable(
  * the LLM tag to track in MemPro, or ELLMTag::GenericTagCount to track all
  */
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-
-	ELLMTag GMemProTrackTag = ELLMTag::EngineMisc;
-
+TStaticArray<bool,LLM_TAG_COUNT> MemProLLMTagsEnabled;
 #endif //ENABLE_LOW_LEVEL_MEM_TRACKER
 
 
@@ -44,7 +40,15 @@ static FAutoConsoleVariableRef CVarMemProEnable(
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 void FMemProProfiler::TrackTag( ELLMTag Tag )
 {
-	GMemProTrackTag = Tag;
+	MemProLLMTagsEnabled[(int32)Tag] = true;
+}
+
+void ResetLLMTagArray(bool bValue)
+{
+	for (int i = 0; i < MemProLLMTagsEnabled.Num(); i++)
+	{
+		MemProLLMTagsEnabled[i] = bValue;
+	}
 }
 #endif //ENABLE_LOW_LEVEL_MEM_TRACKER
 
@@ -53,33 +57,59 @@ void FMemProProfiler::TrackTag( ELLMTag Tag )
  * helper function to track a tag given its name
  */
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-void FMemProProfiler::TrackTagByName( const TCHAR* TagName )
+void FMemProProfiler::TrackTagsByName( const TCHAR* TagNamesStr )
 {
 	//sanity check
-	if( TagName == nullptr || FCString::Strlen(TagName) == 0 )
+	if(TagNamesStr == nullptr || FCString::Strlen(TagNamesStr) == 0 )
 	{
 		UE_LOG( LogMemPro, Display, TEXT("please specify an LLM tag or * to track all") );
 		return;
 	}
 
-	//check whether they want to track all tags
-	if( FCString::Strcmp(TagName, TEXT("*") ) == 0 )
+
+	if ( FCString::Stricmp(TagNamesStr, TEXT("none")) == 0 )
 	{
-		TrackTag( ELLMTag::GenericTagCount );
+		// Disable/reset tags
+		ResetLLMTagArray(false);
+	}
+	else if ( FCString::Strcmp(TagNamesStr, TEXT("*") ) == 0 )
+	{
+		// Track all tags
+		ResetLLMTagArray(true);
 		UE_LOG( LogMemPro, Display, TEXT("tracking all LLM tags" ) );
 	}
 	else
 	{
-		//find the specific tag to track
-		uint64 TagIndex = (uint64)ELLMTag::Paused;
-		if ( FLowLevelMemTracker::Get().FindTagByName(TagName, TagIndex) && TagIndex < LLM_TAG_COUNT )
+		FString TagNamesString = TagNamesStr;
+		// Strip leading/trailing quotes
+		int32 Len = TagNamesString.Len();
+		if (Len>1 && TagNamesString[Len-1] == '\"')
 		{
-			TrackTag( (ELLMTag)TagIndex );
-			UE_LOG( LogMemPro, Display, TEXT("tracking LLM tag \'%s\'" ), TagName );
+			TagNamesString = TagNamesString.Mid(0,Len-1);
 		}
-		else
+		if (TagNamesString[0] == '\"')
 		{
-			UE_LOG( LogMemPro, Display, TEXT("Unknown LLM tag \'%s\'" ), TagName );
+			TagNamesString = TagNamesString.Mid(1);
+		}
+		ResetLLMTagArray(false);
+		TArray<FString> TagNames;
+		const TCHAR* Delimiters[] = { TEXT(","), TEXT(" ") };
+		if (TagNamesString.ParseIntoArray(TagNames, Delimiters, UE_ARRAY_COUNT(Delimiters), true) > 0)
+		{
+			for (const FString& TagName : TagNames)
+			{
+				// Find a specific tag to track
+				uint64 TagIndex = (uint64)ELLMTag::Paused;
+				if (FLowLevelMemTracker::Get().FindTagByName(*TagName, TagIndex) && TagIndex < LLM_TAG_COUNT)
+				{
+					TrackTag((ELLMTag)TagIndex);
+					UE_LOG(LogMemPro, Display, TEXT("tracking LLM tag \'%s\'"), *TagName);
+				}
+				else
+				{
+					UE_LOG(LogMemPro, Display, TEXT("Unknown LLM tag \'%s\'"), *TagName);
+				}
+			}
 		}
 	}
 }
@@ -95,7 +125,7 @@ static FAutoConsoleCommand MemProTrackLLMTag(
 	TEXT("Capture a specific LLM tag with MemPro"),
 	FConsoleCommandWithArgsDelegate::CreateLambda( [](const TArray<FString>& Args )
 	{
-		FMemProProfiler::TrackTagByName( (Args.Num() == 0) ? nullptr : *Args[0] );
+		FMemProProfiler::TrackTagsByName( (Args.Num() == 0) ? nullptr : *Args[0] );
 	})
 );
 #endif //ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -117,9 +147,21 @@ bool FMemProProfiler::IsUsingPort( uint32 Port )
 /*
  * initialisation for MemPro.
  */
-
-void FMemProProfiler::PostInit()
+void FMemProProfiler::Init(const TCHAR* CmdLine)
 {
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	FString LLMTagsStr;
+	if (FParse::Value(CmdLine, TEXT("MemProTags="), LLMTagsStr))
+	{
+		FMemProProfiler::TrackTagsByName(*LLMTagsStr);
+	}
+#endif
+	if (FParse::Param(CmdLine, TEXT("MemPro")))
+	{
+		UE_LOG(LogMemPro, Display, TEXT("MemPro enabled"));
+		GMemProEnabled = 1;
+	}
+
 	//shutdown MemPro when the engine is shutting down so that the send thread terminates cleanly
 	FCoreDelegates::OnPreExit.AddLambda( []()
 	{

@@ -251,11 +251,34 @@ protected:
 	TArray<UBlackboardKeyType*> KeyInstances;
 
 protected:
+	struct FOnBlackboardChangeNotificationInfo
+	{
+		FOnBlackboardChangeNotificationInfo(const FOnBlackboardChangeNotification& InDelegateHandle)
+			: DelegateHandle(InDelegateHandle)
+		{
+		}
+
+		FDelegateHandle GetHandle() const
+		{
+			return DelegateHandle.GetHandle();
+		}
+
+		FOnBlackboardChangeNotification DelegateHandle;
+		bool bToBeRemoved = false;
+	};
+
+
+	/** Count of re-entrant observer notifications */
+	mutable int32 NotifyObserversRecursionCount = 0;
+
+	/** Count of observers to remove */
+	mutable int32 ObserversToRemoveCount = 0;
+
 	/** observers registered for blackboard keys */
-	mutable TMultiMap<uint8, FOnBlackboardChangeNotification> Observers;
+	mutable TMultiMap<uint8, FOnBlackboardChangeNotificationInfo> Observers;
 	
 	/** observers registered from owner objects */
-	TMultiMap<UObject*, FDelegateHandle> ObserverHandles;
+	mutable TMultiMap<UObject*, FDelegateHandle> ObserverHandles;
 
 	/** queued key change notification, will be processed on ResumeUpdates call */
 	mutable TArray<uint8> QueuedUpdates;

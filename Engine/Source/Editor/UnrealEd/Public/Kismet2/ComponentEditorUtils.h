@@ -233,7 +233,14 @@ public:
 			if (bReregisterComponent && InSceneComponent->IsRegistered())
 			{
 				// Re-register the component with the scene so that transforms are updated for display
-				InSceneComponent->ReregisterComponent();
+				if (InSceneComponent->AllowReregistration())
+				{
+					InSceneComponent->ReregisterComponent();
+				}
+				else
+				{
+					InSceneComponent->UpdateComponentToWorld();
+				}
 			}
 			
 			return true;

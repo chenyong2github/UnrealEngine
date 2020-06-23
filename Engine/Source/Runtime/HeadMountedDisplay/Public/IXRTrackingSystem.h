@@ -147,6 +147,20 @@ public:
 	virtual bool GetTrackingSensorProperties(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition, FXRSensorProperties& OutSensorProperties) = 0;
 
 	/**
+	 * If the device id represents a tracking sensor, reports the device type.
+	 * @param DeviceId the device to request information for.
+	 * @return the device type enum.
+	 */
+	virtual EXRTrackedDeviceType GetTrackedDeviceType(int32 DeviceId) const = 0;
+
+	/**
+	 * If the device id represents a tracking sensor, reports the serial number as a string if the device supports it.
+	 * @param DeviceId the device to request information for.
+	 * @return the serial number of the device if it's available.
+	 */
+	virtual FString GetTrackedDevicePropertySerialNumber(int32 DeviceId) = 0;
+
+	/**
 	 * Sets tracking origin (either 'eye'-level or 'floor'-level).
 	 */
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) = 0;

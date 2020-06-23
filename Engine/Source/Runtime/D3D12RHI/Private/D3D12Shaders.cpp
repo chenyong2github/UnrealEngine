@@ -7,9 +7,9 @@
 #include "D3D12RHIPrivate.h"
 
 template <typename TShaderType>
-static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShaderType& OutShader)
+static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShaderType& OutShader, bool& bOutFoundCodeFeatures, FShaderCodeFeatures& OutCodeFeatures)
 {
-	auto PackedResourceCounts = InShaderCode.FindOptionalData<FShaderCodePackedResourceCounts>();
+	const FShaderCodePackedResourceCounts* PackedResourceCounts = InShaderCode.FindOptionalData<FShaderCodePackedResourceCounts>();
 	if (!PackedResourceCounts)
 	{
 		return false;
@@ -19,7 +19,7 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	OutShader.ShaderName = InShaderCode.FindOptionalData('n');
 
 	int32 UniformBufferTableSize = 0;
-	auto* UniformBufferData = InShaderCode.FindOptionalDataAndSize('u', UniformBufferTableSize);
+	const auto* UniformBufferData = InShaderCode.FindOptionalDataAndSize('u', UniformBufferTableSize);
 #if 0
 	//#todo-rco
 	if (UniformBufferData && UniformBufferTableSize > 0)
@@ -42,7 +42,27 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 		FBufferReader Ar((void*)VendorExtensionData, VendorExtensionTableSize, false);
 		Ar << OutShader.VendorExtensions;
 	}
+
+	const FShaderCodeFeatures* CodeFeatures = InShaderCode.FindOptionalData<FShaderCodeFeatures>();
+	if (CodeFeatures)
+	{
+		bOutFoundCodeFeatures = true;
+		OutCodeFeatures = *CodeFeatures;
+	}
+	else
+	{
+		bOutFoundCodeFeatures = false;
+	}
+
 	return true;
+}
+
+template <typename TShaderType>
+static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShaderType& OutShader)
+{
+	bool bHasCodeFeatures = false;
+	FShaderCodeFeatures Features;
+	return ReadShaderOptionalData(InShaderCode, OutShader, bHasCodeFeatures, Features);
 }
 
 template <typename TShaderType>
@@ -75,8 +95,13 @@ FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(TArrayView<const uin
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -104,8 +129,13 @@ FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(TArrayView<const uint8
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -132,8 +162,13 @@ FHullShaderRHIRef FD3D12DynamicRHI::RHICreateHullShader(TArrayView<const uint8> 
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -160,8 +195,13 @@ FDomainShaderRHIRef FD3D12DynamicRHI::RHICreateDomainShader(TArrayView<const uin
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -188,8 +228,13 @@ FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(TArrayView<const
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -216,8 +261,13 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	if (!ReadShaderOptionalData(ShaderCode, *Shader))
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
 	{
 		return nullptr;
 	}
@@ -248,6 +298,8 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 
 FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
 {
+	checkf(GRHISupportsRayTracing, TEXT("Tried to create RayTracing shader but RHI doesn't support it!"));
+
 	FShaderCodeReader ShaderCode(Code);
 	FD3D12RayTracingShader* Shader = new FD3D12RayTracingShader(ShaderFrequency);
 
@@ -260,9 +312,12 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
-
-	ReadShaderOptionalData(ShaderCode, *Shader);
-
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
 	Shader->Code = Code;
 
 	D3D12_SHADER_BYTECODE ShaderBytecode;

@@ -3,6 +3,7 @@
 #include "DataAssetIndexer.h"
 #include "Utility/IndexerUtilities.h"
 #include "Engine/DataAsset.h"
+#include "SearchSerializer.h"
 
 enum class EDataAssetIndexerVersion
 {

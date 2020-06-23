@@ -11,7 +11,7 @@ ShaderComplexityRendering.cpp: Contains definitions for rendering the shader com
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 int32 GCacheShaderComplexityShaders = 0;
-static FAutoConsoleVariableRef CVarNiagaraAllowTickBeforeRender(
+static FAutoConsoleVariableRef CVarCacheShaderComplexityShaders(
 	TEXT("r.ShaderComplexity.CacheShaders"),
 	GCacheShaderComplexityShaders,
 	TEXT("If non zero, store the shader complexity shaders in the material shader map, to prevent compile on-the-fly lag. (default=0)"),
@@ -91,7 +91,7 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 	if (DebugViewMode == DVSM_QuadComplexity)
 	{
 		ShaderBindings.Add(Shader.NormalizedComplexity, FVector4(NormalizedQuadComplexityValue));
-		ShaderBindings.Add(Shader.ShowQuadOverdraw, 0);
+		ShaderBindings.Add(Shader.ShowQuadOverdraw, 1);
 	}
 	else
 	{
@@ -104,7 +104,10 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 TShaderRef<FDebugViewModePS> FComplexityAccumulateInterface::GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const
 {
 	FComplexityAccumulatePS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FComplexityAccumulatePS::FQuadOverdraw>(bShowQuadComplexity ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable);
+	FStaticFeatureLevel FeatureLevel = InMaterial->GetFeatureLevel();
+	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+	FComplexityAccumulatePS::EQuadOverdraw QuadOverdraw = AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, FeatureLevel) ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable;
+	PermutationVector.Set<FComplexityAccumulatePS::FQuadOverdraw>(QuadOverdraw);
 	return InMaterial->GetShader<FComplexityAccumulatePS>(VertexFactoryType, PermutationVector);
 }
 

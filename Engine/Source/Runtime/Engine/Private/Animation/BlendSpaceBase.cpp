@@ -303,13 +303,13 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 					const FBlendSample& Sample = SampleData[SampleDataItem.SampleDataIndex];
 
 					bool bResetMarkerDataOnFollowers = false;
-					if (!Instance.MarkerTickRecord->IsValid())
+					if (!Instance.MarkerTickRecord->IsValid(Instance.bLooping))
 					{
 						SampleDataItem.MarkerTickRecord.Reset();
 						bResetMarkerDataOnFollowers = true;
 						SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->SequenceLength;
 					}
-					else if (!SampleDataItem.MarkerTickRecord.IsValid() && Context.MarkerTickContext.GetMarkerSyncStartPosition().IsValid())
+					else if (!SampleDataItem.MarkerTickRecord.IsValid(Instance.bLooping) && Context.MarkerTickContext.GetMarkerSyncStartPosition().IsValid())
 					{
 						Sample.Animation->GetMarkerIndicesForPosition(Context.MarkerTickContext.GetMarkerSyncStartPosition(), true, SampleDataItem.MarkerTickRecord.PreviousMarker, SampleDataItem.MarkerTickRecord.NextMarker, SampleDataItem.Time);
 					}
@@ -318,8 +318,8 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 					if (!FMath::IsNearlyZero(NewDeltaTime))
 					{
 						Context.SetLeaderDelta(NewDeltaTime);
-						Sample.Animation->TickByMarkerAsLeader(SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, SampleDataItem.PreviousTime, NewDeltaTime, true);
-						check(Context.MarkerTickContext.IsMarkerSyncStartValid());
+						Sample.Animation->TickByMarkerAsLeader(SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, SampleDataItem.PreviousTime, NewDeltaTime, Instance.bLooping);
+						check(!Instance.bLooping || Context.MarkerTickContext.IsMarkerSyncStartValid());
 						TickFollowerSamples(SampleDataList, HighestMarkerSyncWeightIndex, Context, bResetMarkerDataOnFollowers);
 					}
 					NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->SequenceLength;
@@ -351,7 +351,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 
 					if (Context.GetDeltaTime() != 0.f)
 					{
-						if(!Instance.MarkerTickRecord->IsValid())
+						if(!Instance.MarkerTickRecord->IsValid(Instance.bLooping))
 						{
 							SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->SequenceLength;
 						}

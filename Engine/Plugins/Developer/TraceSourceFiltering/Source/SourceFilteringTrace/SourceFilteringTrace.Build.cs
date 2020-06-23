@@ -15,7 +15,6 @@ public class SourceFilteringTrace : ModuleRules
                     "SourceFilteringCore",
 					"PropertyPath",
 					"AssetRegistry",
-					"MessagingCommon"
                 }
             );
 

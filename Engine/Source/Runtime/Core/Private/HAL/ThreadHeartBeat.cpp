@@ -17,6 +17,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/App.h"
+#include "Misc/Fork.h"
 
 #if PLATFORM_SWITCH
 #include "SwitchPlatformCrashContext.h"
@@ -32,6 +33,21 @@
 #ifndef WALK_STACK_ON_HITCH_DETECTED
 	#define WALK_STACK_ON_HITCH_DETECTED 0
 #endif
+
+#ifndef NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+#define NEEDS_DEBUG_INFO_ON_PRESENT_HANG 0
+#endif
+
+// Enabling AttempStuckThreadResuscitation will add a check for early hung thread detection and pass the ThreadId through the OnStuck
+// delegate, allowing the platform to boost it's priority or other action to get the thread scheduled again.
+// Core.System StuckDuration can be changed to alter the time that the OnStuck delegate is triggered. Currently defaults to 1.0 second
+static bool AttemptStuckThreadResuscitation = false;
+
+static FAutoConsoleVariableRef CVarAttemptStuckThreadResuscitation(
+	TEXT("AttemptStuckThreadResuscitation"),
+	AttemptStuckThreadResuscitation,
+	TEXT("Attempt to resusicate stuck thread by boosting priority. Enabled by default\n"),
+	ECVF_Default);
 
 // The maximum clock time steps for the hang and hitch detectors.
 // These are the amounts the clocks are allowed to advance by before another tick is required.
@@ -70,9 +86,12 @@ FThreadHeartBeat::FThreadHeartBeat()
 	, CurrentHangDuration(0)
 	, ConfigPresentDuration(0)
 	, CurrentPresentDuration(0)
+	, ConfigStuckDuration(0)
+	, CurrentStuckDuration(0)
 	, HangDurationMultiplier(1.0)
 	, LastHangCallstackCRC(0)
 	, LastHungThreadId(InvalidThreadId)
+	, LastStuckThreadId(InvalidThreadId)
 	, bHangsAreFatal(false)
 	, Clock(HangDetectorClock_MaxTimeStep_MS / 1000)
 {
@@ -157,6 +176,22 @@ void FORCENOINLINE FThreadHeartBeat::OnPresentHang(double HangDuration)
 	LastHungThreadId = FThreadHeartBeat::PresentThreadId;
 #if PLATFORM_SWITCH
 	FPlatformCrashContext::UpdateDynamicData();
+#endif
+#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
+	extern void GetRenderThreadSublistDispatchTaskDebugInfo(bool&, bool&, bool&, bool&, int32&);
+
+	bool bTmpIsNull;
+	bool bTmpIsComplete;
+	bool bTmpClearedOnGT;
+	bool bTmpClearedOnRT;
+	int32 TmpNumIncompletePrereqs;
+	GetRenderThreadSublistDispatchTaskDebugInfo(bTmpIsNull, bTmpIsComplete, bTmpClearedOnGT, bTmpClearedOnRT, TmpNumIncompletePrereqs);
+
+	volatile bool bIsNull = bTmpIsNull;
+	volatile bool bIsComplete = bTmpIsComplete;
+	volatile bool bClearedOnGT = bTmpClearedOnGT;
+	volatile bool bClearedOnRT = bTmpClearedOnRT;
+	volatile int32 NumIncompletePrereqs = TmpNumIncompletePrereqs;
 #endif
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
@@ -328,16 +363,32 @@ void FThreadHeartBeat::Start()
 
 void FThreadHeartBeat::InitSettings()
 {
+	double NewStuckDuration = 1.0;
+
 	// Default to 25 seconds if not overridden in config.
 	double NewHangDuration = 25.0;
+
+#if	PLATFORM_PRESENT_HANG_DETECTION_ON_BY_DEFAULT
+	double NewPresentDuration = 25.0;
+#else
 	double NewPresentDuration = 0.0;
+#endif //PLATFORM_PRESENT_HANG_DETECTION_ON_BY_DEFAULT
+
 	bool bNewHangsAreFatal = !!(UE_ASSERT_ON_HANG);
 
 	if (GConfig)
 	{
+		GConfig->GetDouble(TEXT("Core.System"), TEXT("StuckDuration"), NewStuckDuration, GEngineIni);
 		GConfig->GetDouble(TEXT("Core.System"), TEXT("HangDuration"), NewHangDuration, GEngineIni);
 		GConfig->GetDouble(TEXT("Core.System"), TEXT("PresentHangDuration"), NewPresentDuration, GEngineIni);
 		GConfig->GetBool(TEXT("Core.System"), TEXT("HangsAreFatal"), bNewHangsAreFatal, GEngineIni);
+
+		const double MinStuckDuration = 1.0;
+		if (NewStuckDuration > 0.0 && NewStuckDuration < MinStuckDuration)
+		{
+			UE_LOG(LogCore, Warning, TEXT("HangDuration is set to %.4fs which is a very short time for hang detection. Changing to %.2fs."), NewStuckDuration, MinStuckDuration);
+			NewStuckDuration = MinStuckDuration;
+		}
 
 		const double MinHangDuration = 5.0;
 		if (NewHangDuration > 0.0 && NewHangDuration < MinHangDuration)
@@ -353,6 +404,9 @@ void FThreadHeartBeat::InitSettings()
 			NewPresentDuration = MinPresentDuration;
 		}
 	}
+
+	ConfigStuckDuration = NewStuckDuration;
+	CurrentStuckDuration = ConfigStuckDuration;
 
 	ConfigHangDuration = NewHangDuration;
 	ConfigPresentDuration = NewPresentDuration;
@@ -381,6 +435,7 @@ void FThreadHeartBeat::HeartBeat(bool bReadConfig)
 	FHeartBeatInfo& HeartBeatInfo = ThreadHeartBeat.FindOrAdd(ThreadId);
 	HeartBeatInfo.LastHeartBeatTime = Clock.Seconds();
 	HeartBeatInfo.HangDuration = CurrentHangDuration;
+	HeartBeatInfo.StuckDuration = CurrentStuckDuration;
 #endif
 }
 
@@ -476,19 +531,67 @@ uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
 
 		if (ConfigHangDuration > 0.0)
 		{
+			uint32 LongestStuckThreadId = InvalidThreadId;
+			double LongestStuckThreadStuckTime = 0.0;
+
 			// Check heartbeat for all threads and return thread ID of the thread that hung.
 			// Note: We only return a thread id for a thread that has updated since the last hang, i.e. is still alive
 			// This avoids the case where a user may be in a deep and minorly varying callstack and flood us with reports
 			for (TPair<uint32, FHeartBeatInfo>& LastHeartBeat : ThreadHeartBeat)
 			{
 				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
-				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+				if (HeartBeatInfo.SuspendedCount == 0)
 				{
-					HeartBeatInfo.LastHangTime = CurrentTime;
-					OutHangDuration = HeartBeatInfo.HangDuration;
-					return LastHeartBeat.Key;
+					double TimeSinceLastHeartbeat = (CurrentTime - HeartBeatInfo.LastHeartBeatTime);
+
+					if (TimeSinceLastHeartbeat > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+					{
+						HeartBeatInfo.LastHangTime = CurrentTime;
+						OutHangDuration = HeartBeatInfo.HangDuration;
+						return LastHeartBeat.Key;
+					}
+					else if (HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastStuckTime)
+					{
+						// Are we considered stuck?
+						if (TimeSinceLastHeartbeat > HeartBeatInfo.StuckDuration)
+						{
+							// Are we stuck longer than another thread (maybe boosting them stuck us).
+							if ((LastStuckThreadId == InvalidThreadId) || (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > LongestStuckThreadStuckTime)
+							{
+								LongestStuckThreadId = LastHeartBeat.Key;
+								LongestStuckThreadStuckTime = CurrentTime - HeartBeatInfo.LastHeartBeatTime;
+							}
+						}
+						else if (LastHeartBeat.Key == LastStuckThreadId)
+						{
+							// We we're stuck but now we're not.
+							OnUnstuck.ExecuteIfBound(LastStuckThreadId);
+							LastStuckThreadId = InvalidThreadId;
+						}
+					}
+				}
+				else if (LastHeartBeat.Key == LastStuckThreadId)
+				{
+					// We're not checking so clean up any existing stuck thread action.
+					OnUnstuck.ExecuteIfBound(LastStuckThreadId);
+					LastStuckThreadId = InvalidThreadId;
 				}
 			}
+
+			if (AttemptStuckThreadResuscitation && (LongestStuckThreadId != InvalidThreadId))
+			{
+				// Is there a currently stuck thread. Replace it.
+				if (LastStuckThreadId != LongestStuckThreadId)
+				{
+					OnUnstuck.ExecuteIfBound(LastStuckThreadId);
+				}
+
+				// Notify and note stuck thread.
+				LastStuckThreadId = LongestStuckThreadId;
+				ThreadHeartBeat[LastStuckThreadId].LastStuckTime = CurrentTime;
+				OnStuck.ExecuteIfBound(LastStuckThreadId);
+			}
+
 		}
 
 		if (ConfigPresentDuration > 0.0)
@@ -785,9 +888,9 @@ void FGameThreadHitchHeartBeatThreaded::InitSettings()
 	}
 	
 	// Start the heart beat thread if it hasn't already been started.
-	if (Thread == nullptr && FPlatformProcess::SupportsMultithreading() && HangDuration > 0)
+	if (Thread == nullptr && (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork()) && HangDuration > 0)
 	{
-		Thread = FRunnableThread::Create(this, TEXT("FGameThreadHitchHeartBeatThreaded"), 0, TPri_AboveNormal);
+		Thread = FForkProcessHelper::CreateForkableThread(this, TEXT("FGameThreadHitchHeartBeatThreaded"), 0, TPri_AboveNormal);
 	}
 #endif
 }

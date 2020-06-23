@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSubmix.h"
+
+#include "Async/Async.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "Sound/SoundEffectPreset.h"
@@ -8,6 +10,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -524,14 +527,23 @@ namespace Audio
 	{
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 
+		TArray<TSoundEffectSubmixPtr> SubmixEffectsToReset;
 		for (FSubmixEffectInfo& Info : EffectSubmixChain)
 		{
 			if (Info.EffectInstance.IsValid())
 			{
-				USoundEffectPreset::UnregisterInstance(Info.EffectInstance);
-				Info.EffectInstance.Reset();
+				SubmixEffectsToReset.Add(Info.EffectInstance);
 			}
 		}
+
+		// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
+		AsyncTask(ENamedThreads::AudioThread, [SubmixEffects = MoveTemp(SubmixEffectsToReset)]() mutable
+		{
+			for (TSoundEffectSubmixPtr& SubmixPtr : SubmixEffects)
+			{
+				USoundEffectPreset::UnregisterInstance(SubmixPtr);
+			}
+		});
 
 		NumSubmixEffects = 0;
 		EffectSubmixChain.Reset();
@@ -907,8 +919,8 @@ namespace Audio
 		// Device format may change channels if device is hot swapped
 		NumChannels = MixerDevice->GetNumDeviceChannels();
 
-		// If we hit this, it means that platform info gave us a garbage NumChannel count.
-		if (!ensure(NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
+		// If we hit this, it means that platform info gave us an invalid NumChannel count.
+		if (!ensure(NumChannels != 0 && NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
 		{
 			return;
 		}
@@ -1044,9 +1056,9 @@ namespace Audio
 					{
 						Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
 					}
-				}
 
-				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
+					FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)* NumSamples);
+				}
 			}
 		}
 

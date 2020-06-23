@@ -2011,7 +2011,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 		if (!bReducingSourceModel && Old)
 		{
-			bool bIsOldRawSkelMeshEmpty = SkeletalMesh.IsLODImportedDataEmpty(LODIndex);
+			bool bIsOldRawSkelMeshEmpty = Old->bIsRawSkeletalMeshBulkDataEmpty;
 			//We need to backup the original RawSkeletalMeshBulkData in case it was an imported LOD
 			if (!bLODModelAdded && !bIsOldRawSkelMeshEmpty)
 			{

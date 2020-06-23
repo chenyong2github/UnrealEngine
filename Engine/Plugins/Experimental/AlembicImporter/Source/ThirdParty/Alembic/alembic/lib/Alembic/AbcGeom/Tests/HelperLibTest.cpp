@@ -302,7 +302,7 @@ void readSimpleProperties(const std::string &archiveName)
                         // Short/UShort
                         case kUint16POD:
                         {
-                            IFInt16Property prop( props,  propNames[jj] );
+                            IUInt16Property prop( props,  propNames[jj] );
                             TESTING_ASSERT( !IUInt16GeomParam::matches(
                                                 prop.getHeader() ) );
                             printSampleValue( prop, iss );
@@ -338,7 +338,7 @@ void readSimpleProperties(const std::string &archiveName)
                         // Long/ULong
                         case kUint64POD:
                         {
-                            IFInt64Property prop( props,  propNames[jj] );
+                            IUInt64Property prop( props,  propNames[jj] );
                             TESTING_ASSERT( !IUInt64GeomParam::matches(
                                                 prop.getHeader() ) );
                             printSampleValue( prop, iss );

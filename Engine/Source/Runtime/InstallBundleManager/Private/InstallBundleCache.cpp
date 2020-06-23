@@ -13,12 +13,9 @@ void FInstallBundleCache::Init(FInstallBundleCacheInitInfo InitInfo)
 {
 	CacheName = InitInfo.CacheName;
 	TotalSize = InitInfo.Size;
-	DeleteBundleFiles = MoveTemp(InitInfo.DeleteBundleFiles);
-
-	check(DeleteBundleFiles.IsBound());
 }
 
-void FInstallBundleCache::AddOrUpdateBundle(const FInstallBundleCacheAddBundleInfo& AddInfo)
+void FInstallBundleCache::AddOrUpdateBundle(const FInstallBundleCacheBundleInfo& AddInfo)
 {
 	FBundleCacheInfo& BundleCacheInfo = CacheInfo.FindOrAdd(AddInfo.BundleName);
 	BundleCacheInfo.FullInstallSize = AddInfo.FullInstallSize;
@@ -32,9 +29,20 @@ void FInstallBundleCache::RemoveBundle(FName BundleName)
 	CacheInfo.Remove(BundleName);
 }
 
-bool FInstallBundleCache::HasBundle(FName BundleName)
+TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(FName BundleName)
 {
-	return CacheInfo.Contains(BundleName);
+	FBundleCacheInfo* BundleCacheInfo = CacheInfo.Find(BundleName);
+
+	TOptional<FInstallBundleCacheBundleInfo> Ret;
+	if (BundleCacheInfo)
+	{
+		FInstallBundleCacheBundleInfo& OutInfo = Ret.Emplace();
+		OutInfo.BundleName = BundleName;
+		OutInfo.FullInstallSize = BundleCacheInfo->FullInstallSize;
+		OutInfo.CurrentInstallSize = BundleCacheInfo->CurrentInstallSize;
+	}
+
+	return Ret;
 }
 
 uint64 FInstallBundleCache::GetSize() const
@@ -69,7 +77,7 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 
 	if (BundleInfo->State == ECacheState::PendingEvict)
 	{
-		Result.Result = EInstallBundleCacheReserveResult::Failure;
+		Result.Result = EInstallBundleCacheReserveResult::Fail_PendingEvict;
 		return Result;
 	}
 
@@ -86,8 +94,8 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 		return Result;
 	}
 
-	uint64 SizeNeeded = BundleInfo->FullInstallSize - BundleInfo->CurrentInstallSize;
-	uint64 FreeSpace = GetFreeSpace();
+	const uint64 SizeNeeded = BundleInfo->FullInstallSize - BundleInfo->CurrentInstallSize;
+	const uint64 FreeSpace = GetFreeSpace();
 	if (FreeSpace >= SizeNeeded)
 	{
 		BundleInfo->State = ECacheState::Reserved;
@@ -95,7 +103,7 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 		return Result;
 	}
 
-	Result.Result = EInstallBundleCacheReserveResult::NeedsEvict;
+	Result.Result = EInstallBundleCacheReserveResult::Fail_NeedsEvict;
 
 	// TODO: Should search in LRU order
 	// TODO: LRU sort should consider bHintReqeusted
@@ -112,17 +120,24 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 		uint64 BundleSize = Pair.Value.GetSize();
 		if (BundleSize > 0)
 		{
-			CanFreeSpace += Pair.Value.GetSize();
+			if (CanFreeSpace < SizeNeeded)
+			{
+				CanFreeSpace += BundleSize;
+				Result.BundlesToEvict.Add(Pair.Key);
+			}
+		}
+		else if (Pair.Value.State == ECacheState::PendingEvict)
+		{
+			// Bundle manager must wait for all previous pending evictions to complete
+			// to ensure that there is actually enough free space in the cache
+			// before installing a bundle
 			Result.BundlesToEvict.Add(Pair.Key);
 		}
-
-		if(CanFreeSpace >= SizeNeeded)
-			break;
 	}
 
 	if (CanFreeSpace < SizeNeeded)
 	{
-		Result.Result = EInstallBundleCacheReserveResult::Failure;
+		Result.Result = EInstallBundleCacheReserveResult::Fail_CacheFull;
 	}
 	else
 	{

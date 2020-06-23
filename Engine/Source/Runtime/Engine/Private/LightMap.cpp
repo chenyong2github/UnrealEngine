@@ -12,7 +12,7 @@
 #include "StaticLighting.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/LightComponent.h"
-#include "InstancedStaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/FeedbackContext.h"
@@ -3076,7 +3076,8 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	}
 	else
 	{
-		bool bValidVirtualTexture = VirtualTexture && VirtualTexture->Resource;
+		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
+		bool bValidVirtualTexture = VirtualTexture && (VirtualTexture->Resource != nullptr || VirtualTexture->bPreviewLightmap);
 		if (bValidVirtualTexture)
 		{
 			return FLightMapInteraction::InitVirtualTexture(VirtualTexture, ScaleVectors, AddVectors, CoordinateScale, CoordinateBias, bHighQuality);
@@ -3091,7 +3092,8 @@ FShadowMapInteraction FLightMap2D::GetShadowInteraction(ERHIFeatureLevel::Type I
 	const bool bUseVirtualTextures = (CVarVirtualTexturedLightMaps.GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel);
 	if (bUseVirtualTextures)
 	{
-		const bool bValidVirtualTexture = VirtualTexture && VirtualTexture->Resource;
+		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
+		const bool bValidVirtualTexture = VirtualTexture && (VirtualTexture->Resource != nullptr || VirtualTexture->bPreviewLightmap);
 		if (bValidVirtualTexture)
 		{
 			return FShadowMapInteraction::InitVirtualTexture(VirtualTexture, CoordinateScale, CoordinateBias, bShadowChannelValid, InvUniformPenumbraSize);

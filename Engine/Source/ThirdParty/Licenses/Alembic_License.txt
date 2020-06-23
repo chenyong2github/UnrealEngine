@@ -1,10 +1,10 @@
-ï»¿TM & Â© 2009-2013 Lucasfilm Entertainment Company Ltd. or Lucasfilm Ltd.
+TM & © 2009-2015 Lucasfilm Entertainment Company Ltd. or Lucasfilm Ltd.
 All rights reserved.
 
 Industrial Light & Magic, ILM and the Bulb and Gear design logo are all
 registered trademarks or service marks of Lucasfilm Ltd.
 
-Â© 2009-2013 Sony Pictures Imageworks Inc.  All rights reserved.
+© 2009-2015 Sony Pictures Imageworks Inc.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 
-ALEMBIC ATTACHMENT A â€” 
+ALEMBIC ATTACHMENT A — 
 REQUIRED NOTICES FOR DISTRIBUTION
 
 The Alembic Software is distributed along with certain third party 
@@ -65,7 +65,7 @@ SOURCE COMPONENTS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Boost C++ Libraries 
 ------------------------------------------------------------------------ 
 
-Boost Software License â€“ Version 1.0 August 17th, 2003 Permission is 
+Boost Software License – Version 1.0 August 17th, 2003 Permission is 
 hereby granted, free of charge, to any person or organization obtaining 
 a copy of the software and accompanying documentation covered by this 
 license (the "Software") to use, reproduce, display, distribute, 

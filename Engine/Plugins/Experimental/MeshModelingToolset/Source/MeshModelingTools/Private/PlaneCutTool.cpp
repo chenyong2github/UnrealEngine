@@ -371,14 +371,14 @@ TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 
 void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	FColor GridColor(128, 128, 128, 32);
-	float GridThickness = 0.5f;
-	float GridLineSpacing = 25.0f;   // @todo should be relative to view
+	float GridThickness = 0.5f*RenderCameraState.GetPDIScalingFactor();
 	int NumGridLines = 10;
 	
 	FFrame3f DrawFrame(CutPlaneOrigin, CutPlaneOrientation);
-	MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
+	MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 }
 
 void UPlaneCutTool::OnTick(float DeltaTime)

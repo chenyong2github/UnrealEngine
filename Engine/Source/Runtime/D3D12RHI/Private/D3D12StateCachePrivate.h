@@ -21,6 +21,10 @@
 #define D3D12_STATE_CACHE_DEBUG 0
 #endif
 
+#ifndef USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+	#define USE_D3D12RHI_PRE_PSO_SET_WORKAROUND 0
+#endif // #ifndef USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+
 // Uncomment only for debugging of the descriptor heap management; this is very noisy
 //#define VERBOSE_DESCRIPTOR_HEAP_DEBUG 1
 
@@ -486,6 +490,10 @@ protected:
 		*Shader = StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
 	}
 
+#if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+	friend extern void D3D12RHIPrePSOSetWorkaround(ED3D12PipelineType, FD3D12StateCacheBase&);
+#endif // #if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+
 	template <ED3D12PipelineType PipelineType>
 	D3D12_STATE_CACHE_INLINE void InternalSetPipelineState()
 	{
@@ -510,6 +518,10 @@ protected:
 		// Set the PSO on the command list if necessary.
 		if (bNeedSetPSO)
 		{
+#if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+			D3D12RHIPrePSOSetWorkaround(PipelineType, *this);
+#endif // #if USE_D3D12RHI_PRE_PSO_SET_WORKAROUND
+
 			check(CurrentPSO);
 			this->CmdContext->CommandListHandle->SetPipelineState(CurrentPSO);
 			PipelineState.Common.bNeedSetPSO = false;
@@ -905,7 +917,7 @@ public:
 
 	FD3D12StateCacheBase(FRHIGPUMask Node);
 
-	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, const FD3D12StateCacheBase* AncestralState, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc);
+	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, const FD3D12StateCacheBase* AncestralState);
 
 	virtual ~FD3D12StateCacheBase()
 	{

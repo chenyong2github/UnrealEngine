@@ -1738,6 +1738,10 @@ void USkeleton::HandleVirtualBoneChanges()
 			FComponentReregisterContext Context(MeshComponent);
 		}
 	}
+
+#if WITH_EDITOR
+	OnSkeletonHierarchyChanged.Broadcast();
+#endif
 }
 
 #if WITH_EDITOR

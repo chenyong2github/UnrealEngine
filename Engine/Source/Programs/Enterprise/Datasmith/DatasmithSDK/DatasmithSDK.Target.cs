@@ -47,7 +47,7 @@ public class DatasmithSDKTarget : TargetRules
 		PostBuildSteps.Add(string.Format("xcopy {0} {1} /R /Y /S", SrcPath, DestPath));
 
 		// Copy the header files
-		SrcPath = @"$(EngineDir)\Source\Developer\Datasmith\DatasmithCore\Public\*.h";
+		SrcPath = @"$(EngineDir)\Source\Runtime\Datasmith\DatasmithCore\Public\*.h";
 		DestPath = @"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\";
 
 		PostBuildSteps.Add(string.Format("echo Copying {0} to {1}", SrcPath, DestPath));

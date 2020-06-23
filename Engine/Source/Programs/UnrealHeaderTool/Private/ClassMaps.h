@@ -51,6 +51,19 @@ private:
 	TMap<FName, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByName;
 };
 
+// Wrapper class around ClassDeclarations map so we can control access in a threadsafe manner
+struct FClassDeclarations
+{
+	void AddIfMissing(FName Name, TUniqueFunction<TSharedRef<FClassDeclarationMetaData>()>&& DeclConstructFunc);
+	FClassDeclarationMetaData* Find(FName Name);
+	FClassDeclarationMetaData& FindChecked(FName Name);
+
+private:
+	TMap<FName, TSharedRef<FClassDeclarationMetaData>> ClassDeclarations;
+
+	FRWLock ClassDeclLock;
+};
+
 // Wrapper class around SourceFiles map so we can quickly get a list of source files for a given package
 struct FUnrealSourceFiles
 {
@@ -100,7 +113,7 @@ extern TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
 extern TMap<void*, uint32> GGeneratedCodeHashes;
 extern FRWLock GGeneratedCodeHashesLock;
 extern TMap<UEnum*, EUnderlyingEnumType> GEnumUnderlyingTypes;
-extern TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
+extern FClassDeclarations GClassDeclarations;
 extern TSet<FProperty*> GUnsizedProperties;
 extern TSet<UField*> GEditorOnlyDataTypes;
 extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;

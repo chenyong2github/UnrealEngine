@@ -315,7 +315,7 @@ public:
 
 	FORCEINLINE ID3D12PipelineState* GetPipelineState()
 	{
-		if (bInitialized)
+		if (InitState == PSOInitState::Initialized)
 		{
 			return PipelineState.GetReference();
 		}
@@ -334,7 +334,14 @@ protected:
 	TRefCountPtr<ID3D12PipelineState> PipelineState;
 	FAsyncTask<FD3D12PipelineStateWorker>* Worker;
 	FRWLock GetPipelineStateMutex;
-	volatile bool bInitialized;
+
+	enum class PSOInitState
+	{
+		Initialized,
+		Uninitialized,
+		CreationFailed,
+	};
+	volatile PSOInitState InitState;
 };
 
 struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState

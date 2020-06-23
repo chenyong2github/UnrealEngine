@@ -4,45 +4,46 @@
 #include "RHI.h"
 
 
-const FSceneView* GizmoRenderingUtil::FindActiveSceneView(
+// yuck global value set by Editor
+static const FSceneView* GlobalCurrentSceneView = nullptr;
+
+static FCriticalSection GlobalCurrentSceneViewLock;
+
+INTERACTIVETOOLSFRAMEWORK_API void GizmoRenderingUtil::SetGlobalFocusedEditorSceneView(const FSceneView* View)
+{
+	GlobalCurrentSceneViewLock.Lock();
+	GlobalCurrentSceneView = View;
+	GlobalCurrentSceneViewLock.Unlock();
+}
+
+
+
+
+const FSceneView* GizmoRenderingUtil::FindFocusedEditorSceneView(
 	const TArray<const FSceneView*>& Views,
 	const FSceneViewFamily& ViewFamily,
 	uint32 VisibilityMap)
 {
-	// can we tell focus here?
+	const FSceneView* GlobalEditorView = nullptr;
+	GlobalCurrentSceneViewLock.Lock();
+	GlobalEditorView = GlobalCurrentSceneView;
+	GlobalCurrentSceneViewLock.Unlock();
 
-	const FSceneView* FirstValidView = nullptr;
-	const FSceneView* GizmoControlView = nullptr;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
-			const FSceneView* View = Views[ViewIndex];
-			if (View != nullptr)
+			if (Views[ViewIndex] == GlobalEditorView)
 			{
-				if (FirstValidView == nullptr)
-				{
-					FirstValidView = View;
-				}
-				if (View->IsPerspectiveProjection())
-				{
-					GizmoControlView = View;
-				}
+				return Views[ViewIndex];
 			}
 		}
 	}
 
-	if (FirstValidView == nullptr)
-	{
-		return nullptr;
-	}
-	if (GizmoControlView == nullptr)
-	{
-		GizmoControlView = FirstValidView;
-	}
-
-	return GizmoControlView;
+	return nullptr;
 }
+
+
 
 
 static double VectorDifferenceSqr(const FVector2D& A, const FVector2D& B)

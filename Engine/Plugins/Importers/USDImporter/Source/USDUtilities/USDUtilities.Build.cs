@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"RHI",
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"MessageLog",
 					"JsonUtilities",
 				}

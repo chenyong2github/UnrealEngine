@@ -339,7 +339,8 @@ public class DeploymentContext //: ProjectParams
 		bool InProgram,
 		bool IsClientInsteadOfNoEditor,
         bool InForceChunkManifests,
-		bool InSeparateDebugStageDirectory
+		bool InSeparateDebugStageDirectory,
+		bool bIsDLC
 		)
 	{
 		bStageCrashReporter = InStageCrashReporter;
@@ -501,6 +502,10 @@ public class DeploymentContext //: ProjectParams
 		if (InForceChunkManifests)
 		{
 			PlatformUsesChunkManifests = true;
+		}
+		else if (bIsDLC)
+		{
+			PlatformUsesChunkManifests = false;
 		}
 		else
 		{

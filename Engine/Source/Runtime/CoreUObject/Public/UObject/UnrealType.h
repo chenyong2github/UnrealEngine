@@ -85,6 +85,8 @@ enum class EConvertFromTypeResult
 	Converted
 };
 
+namespace UE4Property_Private { class FProperty_DoNotUse; }
+
 //
 // An UnrealScript variable.
 //
@@ -185,6 +187,7 @@ private:
 
 protected:
 	friend class FMapProperty;
+	friend class UE4Property_Private::FProperty_DoNotUse;
 
 	/** Set the alignment offset for this property - added for FMapProperty */
 	void SetOffset_Internal(int32 NewOffset);
@@ -231,6 +234,7 @@ public:
 		LinkInternal(Ar);
 		return SetupOffset();
 	}
+
 protected:
 	virtual void LinkInternal(FArchive& Ar);
 public:
@@ -869,6 +873,26 @@ public:
 	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
 };
 
+namespace UE4Property_Private
+{
+	/** FProperty methods FOR INTERNAL USE ONLY -- only authorized users should be making use of this. -- DO NOT USE! */
+	class FProperty_DoNotUse
+	{
+	public:
+		/** 
+		 * To facilitate runtime binding with native C++ data-members, we need 
+		 * a way of updating a property's generated offset.
+		 * This is needed for pre-generated properties, which are then loaded 
+		 * later, and fixed up to point at explicitly mapped C++ data-members.
+		 * 
+		 * Explicitly exposed for this singular case -- DO NOT USE otherwise.
+		 */
+		static COREUOBJECT_API void Unsafe_AlterOffset(FProperty& Property, const int32 OffsetOverride)
+		{
+			Property.SetOffset_Internal(OffsetOverride);
+		}
+	};
+}
 
 /** reference to a property and optional array index used in property text import to detect duplicate references */
 struct COREUOBJECT_API FDefinedProperty
@@ -3698,7 +3722,7 @@ public:
 	 */
 	int32 FindMapIndexWithKey(const void* PairWithKeyToFind, int32 IndexHint = 0) const
 	{
-		return WithScriptMap([this, PairWithKeyToFind, IndexHint](auto* Map) -> int32
+		return WithScriptMap([this, PairWithKeyToFind, &IndexHint](auto* Map) -> int32
 		{
 			int32 MapMax = Map->GetMaxIndex();
 			if (MapMax == 0)
@@ -3706,7 +3730,12 @@ public:
 				return INDEX_NONE;
 			}
 
-			check(IndexHint >= 0 && IndexHint < MapMax);
+			if (IndexHint >= MapMax)
+			{
+				IndexHint = 0;
+			}
+
+			check(IndexHint >= 0);
 
 			FProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
 
@@ -4388,7 +4417,12 @@ public:
 			return INDEX_NONE;
 		}
 
-		check(IndexHint >= 0 && IndexHint < SetMax);
+		if (IndexHint >= SetMax)
+		{
+			IndexHint = 0;
+		}
+
+		check(IndexHint >= 0);
 
 		FProperty* LocalKeyProp = this->ElementProp; // prevent aliasing in loop below
 
@@ -4865,6 +4899,7 @@ public:
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End of UObject interface
 
 	// Field interface

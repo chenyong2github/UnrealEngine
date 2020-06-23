@@ -79,6 +79,7 @@ namespace AJA
 		class InputChannel;
 		class OutputChannel;
 		class SyncChannel;
+		class TimecodeChannel;
 		class VideoFormatsScanner;
 	}
 
@@ -113,6 +114,7 @@ namespace AJA
 			bool bSupportPixelFormat10bitYCBCR;
 
 			uint32_t NumberOfLtcInput;
+			uint32_t NumberOfLtcOutput;
 
 			int32_t NumSdiInput;
 			int32_t NumSdiOutput;
@@ -181,11 +183,11 @@ namespace AJA
 	{
 		AJADeviceOptions(uint32_t InChannelIndex)
 			: DeviceIndex(InChannelIndex)
-			, bWantMutliFormatMode(false)
+			, bWantMultiFormatMode(false)
 		{}
 
 		uint32_t DeviceIndex;
-		bool bWantMutliFormatMode;
+		bool bWantMultiFormatMode;
 	};
 
 	/* AJASyncChannel definition
@@ -210,11 +212,6 @@ namespace AJA
 		ETimecodeFormat TimecodeFormat;
 		bool bOutput; // port is output
 		bool bWaitForFrameToBeReady; // port is input and we want to wait for the image to be sent to UE4 before ticking
-
-		bool bReadTimecodeFromReferenceIn;
-		uint32_t LTCSourceIndex; //[1...x]
-		uint32_t LTCFrameRateNumerator;
-		uint32_t LTCFrameRateDenominator;
 	};
 
 	class AJA_API AJASyncChannel
@@ -227,8 +224,6 @@ namespace AJA
 		~AJASyncChannel();
 
 	public:
-		//@param PortIndex [1...x]
-		//@param bOutput port is output
 		bool Initialize(const AJADeviceOptions& InDevice, const AJASyncChannelOptions& InOption);
 		void Uninitialize();
 
@@ -241,8 +236,58 @@ namespace AJA
 		Private::SyncChannel* Channel;
 	};
 
+	/* AJATimecodeChannel definition
+	*****************************************************************************/
+	struct AJA_API IAJATimecodeChannelCallbackInterface
+	{
+		IAJATimecodeChannelCallbackInterface();
+		virtual ~IAJATimecodeChannelCallbackInterface();
 
-	/* IAJAInputOutputChannelCallbackInterface definition
+		virtual void OnInitializationCompleted(bool bSucceed) = 0;
+	};
+
+	struct AJA_API AJATimecodeChannelOptions
+	{
+		AJATimecodeChannelOptions(const TCHAR* DebugName);
+
+		IAJATimecodeChannelCallbackInterface* CallbackInterface;
+
+		bool bUseDedicatedPin;
+
+		//Timecode read from dedicated pin
+		bool bReadTimecodeFromReferenceIn;
+		uint32_t LTCSourceIndex; //[1...x]
+		uint32_t LTCFrameRateNumerator;
+		uint32_t LTCFrameRateDenominator;
+
+		//Timecode read from input channels
+		ETransportType TransportType;
+		uint32_t ChannelIndex; // [1...x]
+		FAJAVideoFormat VideoFormatIndex;
+		ETimecodeFormat TimecodeFormat;
+	};
+
+	class AJA_API AJATimecodeChannel
+	{
+	public:
+		AJATimecodeChannel(AJATimecodeChannel&) = delete;
+		AJATimecodeChannel& operator=(AJATimecodeChannel&) = delete;
+
+		AJATimecodeChannel();
+		~AJATimecodeChannel();
+
+	public:
+		bool Initialize(const AJADeviceOptions& InDevice, const AJATimecodeChannelOptions& InOption);
+		void Uninitialize();
+
+		// Only available if the initialization succeeded
+		bool GetTimecode(FTimecode& OutTimecode) const;
+
+	private:
+		Private::TimecodeChannel* Channel;
+	};
+
+	/* AJAInputFrameData definition
 	*****************************************************************************/
 	struct AJA_API AJAInputFrameData
 	{

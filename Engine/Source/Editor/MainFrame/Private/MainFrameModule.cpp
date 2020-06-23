@@ -28,11 +28,17 @@
 #include "EngineAnalytics.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFileManager.h"
 #include "Toolkits/FConsoleCommandExecutor.h"
 
 DEFINE_LOG_CATEGORY(LogMainFrame);
 #define LOCTEXT_NAMESPACE "FMainFrameModule"
 
+static FAutoConsoleCommand ResizeMainFrameCommand(
+	TEXT("Editor.ResizeMainFrame"),
+	TEXT(""),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&FMainFrameModule::HandleResizeMainFrameCommand)
+);
 
 const FText StaticGetApplicationTitle( const bool bIncludeGameName )
 {
@@ -121,6 +127,8 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 		FSlateApplication::Get().AddWindow( RootWindow, bShowRootWindowImmediately );
 
 		FGlobalTabmanager::Get()->SetRootWindow(RootWindow);
+		FGlobalTabmanager::Get()->SetAllowWindowMenuBar(true);
+
 		FSlateNotificationManager::Get().SetRootWindow(RootWindow);
 
 		TSharedPtr<SWidget> MainFrameContent;
@@ -158,7 +166,7 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 			// 9. Move and rename the new file (Engine\Saved\Config\Layouts\Default_Editor_Layout.ini) into Engine\Config\Layouts\DefaultLayout.ini
 			// 10. Push the new "DefaultLayout.ini" together with your new code.
 			// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
-			TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
+			TSharedRef<FTabManager::FLayout> DefaultLayout =
 				// We persist the positioning of the level editor and the content browser.
 				// The asset editors currently do not get saved.
 				FTabManager::NewLayout( "UnrealEd_Layout_v1.4" )
@@ -196,12 +204,6 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 						->SetSizeCoefficient(1.0f)
 						->AddTab("StandaloneToolkit", ETabState::ClosedTab)
 					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.35f)
-						->AddTab("MergeTool", ETabState::ClosedTab)
-					)
 				)
 				->AddArea
 				(
@@ -215,14 +217,34 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 						->AddTab("ProjectSettings", ETabState::ClosedTab)
 						->AddTab("PluginsEditor", ETabState::ClosedTab)
 					)
-				)
-			);
+				);
+			TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
 
 			const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoOpenTabValid;
 			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
+			// MainFrameContent will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
+			if (!MainFrameContent.IsValid())
+			{
+				// Clean FSlateApplication & FGlobalTabmanager
+				FSlateApplication::Get().CloseAllWindowsImmediately();
+				FGlobalTabmanager::Get()->CloseAllAreas();
+				// Remove and reload file
+				GConfig->UnloadFile(GEditorLayoutIni); // We must re-read it to avoid the Editor to use a previously cached name and description
+				FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*GEditorLayoutIni);
+				GConfig->LoadFile(GEditorLayoutIni);
+				// Warn user/developer
+				const FString WarningMessage = FString::Format(TEXT("UnrealEd layout could not be loaded from the config file {0}, reseting this config file to the"
+					" default one."), { *GEditorLayoutIni });
+				UE_LOG(LogMainFrame, Warning, TEXT("%s"), *WarningMessage);
+				ensureMsgf(false, TEXT("%s Some additional testing of that layout file should be done."));
+				// Reload default main frame
+				CreateDefaultMainFrame(bStartImmersive, bStartPIE);
+				return;
+			}
 			bLevelEditorIsMainTab = true;
 		}
 
+		check(MainFrameContent.IsValid());
 		RootWindow->SetContent(MainFrameContent.ToSharedRef());
 
 		TSharedPtr<SDockTab> MainTab;
@@ -280,11 +302,12 @@ TSharedRef<SWidget> FMainFrameModule::MakeMainMenu(const TSharedPtr<FTabManager>
 	return FMainMenu::MakeMainMenu(TabManager, MenuName, ToolMenuContext);
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
 {
 	return FMainMenu::MakeMainTabMenu(TabManager, MenuName, ToolMenuContext);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -569,6 +592,22 @@ void FMainFrameModule::ShutdownModule( )
 	}
 }
 
+
+void FMainFrameModule::HandleResizeMainFrameCommand(const TArray<FString>& Args)
+{
+	if (Args.Num() == 2)
+	{
+		FVector2D Size;
+		Size.X = FPlatformString::Atof(*Args[0]);
+		Size.Y = FPlatformString::Atof(*Args[1]);
+
+		if (Size.X > 0 && Size.Y > 0)
+		{
+			FGlobalTabmanager::Get()->GetRootWindow()->ReshapeWindow(FGlobalTabmanager::Get()->GetRootWindow()->GetPositionInScreen(), Size);
+		}
+	}
+	
+}
 
 /* FMainFrameModule implementation
  *****************************************************************************/

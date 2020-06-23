@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/PimplPtr.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "SimpleDynamicMeshComponent.h"
@@ -188,7 +189,7 @@ protected:
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property);
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 	
 	// camera state at last render
 	FViewCameraState CameraState;
@@ -244,7 +245,7 @@ protected:
 
 	// The two deformer type options.
 	FGroupTopologyDeformer LinearDeformer;
-	TSharedPtr<FGroupTopologyLaplacianDeformer> LaplacianDeformer;
+	TPimplPtr<FGroupTopologyLaplacianDeformer> LaplacianDeformer;
 
 
 

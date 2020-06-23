@@ -451,8 +451,18 @@ static void GetTextureBuildSettings(
 	{
 		const UTexture2D *Texture2D = Cast<UTexture2D>(&Texture);
 		checkf(Texture2D, TEXT("Virtual texturing is only supported on 2D textures"));
-		OutBuildSettings.VirtualAddressingModeX = Texture2D->AddressX;
-		OutBuildSettings.VirtualAddressingModeY = Texture2D->AddressY;
+		if (Texture.Source.GetNumBlocks() > 1)
+		{
+			// Multi-block textures (UDIM) interpret UVs outside [0,1) range as different blocks, so wrapping within a given block doesn't make sense
+			// We want to make sure address mode is set to clamp here, otherwise border pixels along block edges will have artifacts
+			OutBuildSettings.VirtualAddressingModeX = TA_Clamp;
+			OutBuildSettings.VirtualAddressingModeY = TA_Clamp;
+		}
+		else
+		{
+			OutBuildSettings.VirtualAddressingModeX = Texture2D->AddressX;
+			OutBuildSettings.VirtualAddressingModeY = Texture2D->AddressY;
+		}
 
 		FVirtualTextureBuildSettings VirtualTextureBuildSettings;
 		Texture.GetVirtualTextureBuildSettings(VirtualTextureBuildSettings);
@@ -568,9 +578,10 @@ static void GetBuildSettingsPerFormat(const UTexture& Texture, const FTextureBui
  * After this returns, all bulk data from streaming (non-inline) mips will be sent separately to the DDC and the BulkData for those mips removed.
  * @param DerivedData - The data to store in the DDC.
  * @param DerivedDataKeySuffix - The key suffix at which to store derived data.
+ * @param bForceAllMipsToBeInlined - Whether to store all mips in the main DDC. Relates to how the texture resources get initialized (not supporting streaming).
  * @return number of bytes put to the DDC (total, including all mips)
  */
-uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName)
+uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined)
 {
 	TArray<uint8> RawDerivedData;
 	FString DerivedDataKey;
@@ -592,8 +603,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
-	const bool bIsCubemap = DerivedData->IsCubemap();
-	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->GetNumMipsInTail()));
+	const int32 FirstInlineMip = bForceAllMipsToBeInlined ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->GetNumMipsInTail()));
 	const int32 WritableMipCount = MipCount - ((DerivedData->GetNumMipsInTail() > 0) ? (DerivedData->GetNumMipsInTail() - 1) : 0);
 	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
 	{
@@ -614,6 +624,8 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 				);
 		}
 
+		// Note that calling StoreInDerivedDataCache() also calls RemoveBulkData().
+		// This means that the resource needs to load differently inlined mips and non inlined mips.
 		if (!bInline)
 		{
 			// store in the DDC, also drop the bulk data storage.
@@ -1134,36 +1146,6 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 		{
 			if (OutMipData != nullptr)
 			{
-#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
-				if (Mip.BulkData.IsInlined())
-				{
-					Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
-				}
-				else
-				{
-					check(Texture);
-					FString FileName;
-					verify(Texture->GetMipDataFilename(MipIndex, FileName));
-
-					check(FileName.EndsWith(TEXT(".ubulk")) || FileName.EndsWith(TEXT(".uptnl")));
-					check(!Mip.BulkData.IsStoredCompressedOnDisk() && Mip.BulkData.GetBulkDataSize() > 0);
-
-					FArchive* Ar = IFileManager::Get().CreateFileReader(*FileName, FILEREAD_Silent);
-					if (!Ar)
-					{
-						continue;
-					}
-
-					void*& Dest = OutMipData[MipIndex - FirstMipToLoad];
-					if (!Dest)
-					{
-						Dest = FMemory::Malloc(Mip.BulkData.GetBulkDataSize());
-					}
-					Ar->Seek(Mip.BulkData.GetBulkDataOffsetInFile());
-					Ar->Serialize(Dest, Mip.BulkData.GetBulkDataSize());
-					delete Ar;
-				}
-#else
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 				// We want to make sure that any non-streamed mips are coming from the texture asset file, and not from an external bulk file.
 				// But because "r.TextureStreaming" is driven by the project setting as well as the command line option "-NoTextureStreaming", 
@@ -1174,7 +1156,6 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 				}
 #endif
 				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
-#endif
 			}
 			NumMipsCached++;
 		}

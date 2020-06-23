@@ -31,71 +31,11 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// find view to use for gizmo sizing/etc
-		const FSceneView* GizmoControlView = GizmoRenderingUtil::FindActiveSceneView(Views, ViewFamily, VisibilityMap);
-		if (GizmoControlView == nullptr)
-		{
-			return;
-		}
+		// try to find focused scene view. May return nullptr.
+		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-
-		float LengthScale = 1.0f;
-		if (ExternalDynamicPixelToWorldScale != nullptr)
-		{
-			float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoControlView, WorldOrigin);
-			*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-			LengthScale = PixelToWorldScale;
-		}
-
-		// direction to origin of gizmo
-		FVector ViewDirection = WorldOrigin - GizmoControlView->ViewLocation;
-		ViewDirection.Normalize();
-
-		bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-
-		FVector UseDirectionX = (bWorldAxis) ? DirectionX : FVector{ LocalToWorldMatrix.TransformVector(DirectionX) };
-		bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
-		UseDirectionX = (bEnableFlipping && bFlippedX) ? -UseDirectionX : UseDirectionX;
-		if (bFlippedXExternal)
-		{
-			*bFlippedXExternal = bFlippedX;
-		}
-
-		FVector UseDirectionY = (bWorldAxis) ? DirectionY : FVector{ LocalToWorldMatrix.TransformVector(DirectionY) };
-		bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
-		UseDirectionY = (bEnableFlipping && bFlippedY) ? -UseDirectionY : UseDirectionY;
-		if (bFlippedYExternal)
-		{
-			*bFlippedYExternal = bFlippedY;
-		}
-
-		FVector UseDirectionZ = (bWorldAxis) ? DirectionZ : FVector{ LocalToWorldMatrix.TransformVector(DirectionZ) };
-		bool bFlippedZ = (FVector::DotProduct(ViewDirection, UseDirectionZ) > 0);
-		UseDirectionZ = (bEnableFlipping && bFlippedZ) ? -UseDirectionZ : UseDirectionZ;
-		if (bFlippedZExternal)
-		{
-			*bFlippedZExternal = bFlippedZ;
-		}
-
-		FVector UseCenter(
-			(bFlippedX) ? -LocalCenter.X : LocalCenter.X,
-			(bFlippedY) ? -LocalCenter.Y : LocalCenter.Y,
-			(bFlippedZ) ? -LocalCenter.Z : LocalCenter.Z
-		);
-		FVector WorldCenter = WorldOrigin
-			+ LengthScale * LocalCenter.X * UseDirectionX
-			+ LengthScale * LocalCenter.Y * UseDirectionY
-			+ LengthScale * LocalCenter.Z * UseDirectionZ;
-			//= LocalToWorldMatrix.TransformPosition(LengthScale*UseCenter);
-
-		float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
-			(HoverThicknessMultiplier*Thickness) : (Thickness);
-
-		double DimensionX = LengthScale * Dimensions.X * 0.5f;
-		double DimensionY = LengthScale * Dimensions.Y * 0.5f;
-		double DimensionZ = LengthScale * Dimensions.Z * 0.5f;
 
 		FVector Points[8];   // box corners, order is 000, 100, 110, 010,  001, 101, 111, 011
 		static const int Lines[12][2] = {
@@ -110,6 +50,68 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
+				bool bIsOrtho = !View->IsPerspectiveProjection();
+
+				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldOrigin);
+				float LengthScale = PixelToWorldScale;
+				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				{
+					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+				}
+
+				// direction to origin of gizmo
+				FVector ViewDirection = 
+					(bIsOrtho) ? (View->GetViewDirection()) : (WorldOrigin - View->ViewLocation);
+				ViewDirection.Normalize();
+
+				bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
+
+				FVector UseDirectionX = (bWorldAxis) ? DirectionX : FVector{ LocalToWorldMatrix.TransformVector(DirectionX) };
+				bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
+				UseDirectionX = (bEnableFlipping && bFlippedX) ? -UseDirectionX : UseDirectionX;
+				if (bIsFocusedView && bFlippedXExternal != nullptr)
+				{
+					*bFlippedXExternal = bFlippedX;
+				}
+
+				FVector UseDirectionY = (bWorldAxis) ? DirectionY : FVector{ LocalToWorldMatrix.TransformVector(DirectionY) };
+				bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
+				UseDirectionY = (bEnableFlipping && bFlippedY) ? -UseDirectionY : UseDirectionY;
+				if (bIsFocusedView && bFlippedYExternal != nullptr)
+				{
+					*bFlippedYExternal = bFlippedY;
+				}
+
+				FVector UseDirectionZ = (bWorldAxis) ? DirectionZ : FVector{ LocalToWorldMatrix.TransformVector(DirectionZ) };
+				bool bFlippedZ = (FVector::DotProduct(ViewDirection, UseDirectionZ) > 0);
+				UseDirectionZ = (bEnableFlipping && bFlippedZ) ? -UseDirectionZ : UseDirectionZ;
+				if (bIsFocusedView && bFlippedZExternal != nullptr)
+				{
+					*bFlippedZExternal = bFlippedZ;
+				}
+
+				FVector UseCenter(
+					(bFlippedX) ? -LocalCenter.X : LocalCenter.X,
+					(bFlippedY) ? -LocalCenter.Y : LocalCenter.Y,
+					(bFlippedZ) ? -LocalCenter.Z : LocalCenter.Z
+				);
+				FVector WorldCenter = WorldOrigin
+					+ LengthScale * LocalCenter.X * UseDirectionX
+					+ LengthScale * LocalCenter.Y * UseDirectionY
+					+ LengthScale * LocalCenter.Z * UseDirectionZ;
+				//= LocalToWorldMatrix.TransformPosition(LengthScale*UseCenter);
+
+				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
+					(HoverThicknessMultiplier * Thickness) : (Thickness);
+				if (!bIsOrtho)
+				{
+					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+				}
+
+				double DimensionX = LengthScale * Dimensions.X * 0.5f;
+				double DimensionY = LengthScale * Dimensions.Y * 0.5f;
+				double DimensionZ = LengthScale * Dimensions.Z * 0.5f;
 
 				Points[0] = - DimensionX*UseDirectionX - DimensionY*UseDirectionY - DimensionZ*UseDirectionZ;
 				Points[1] = + DimensionX*UseDirectionX - DimensionY*UseDirectionY - DimensionZ*UseDirectionZ;
@@ -212,12 +214,15 @@ private:
 	bool bEnableFlipping = false;
 	bool bRemoveHiddenLines = true;
 
+	// set on Component for use in ::GetDynamicMeshElements()
+	bool* bExternalHoverState = nullptr;
+	bool* bExternalWorldLocalState = nullptr;
+
+	// set in ::GetDynamicMeshElements() for use by Component hit testing
 	bool* bFlippedXExternal = nullptr;
 	bool* bFlippedYExternal = nullptr;
 	bool* bFlippedZExternal = nullptr;
 	float* ExternalDynamicPixelToWorldScale = nullptr;
-	bool* bExternalHoverState = nullptr;
-	bool* bExternalWorldLocalState = nullptr;
 };
 
 

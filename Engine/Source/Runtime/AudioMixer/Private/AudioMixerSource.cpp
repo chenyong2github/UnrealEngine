@@ -46,6 +46,7 @@ namespace Audio
 		, bIsVorbis(false)
 		, bIsStoppingVoicesEnabled(InAudioDevice->IsStoppingVoicesEnabled())
 		, bSendingAudioToBuses(false)
+		, bPrevAllowedSpatializationSetting(false)
 	{
 	}
 
@@ -417,8 +418,6 @@ namespace Audio
 		}
 
 		++TickCount;
-
-		UpdateModulation();
 
 		UpdatePitch();
 
@@ -810,7 +809,6 @@ namespace Audio
 		bIsDone = true;
 	}
 
-
 	void FMixerSource::OnEffectTailsDone()
 	{
 		bIsEffectTailsDone = true;
@@ -859,19 +857,6 @@ namespace Audio
 		ChannelMap.Reset();
 
 		InitializationState = EMixerSourceInitializationState::NotInitialized;
-	}
-
-	void FMixerSource::UpdateModulation()
-	{
-		check(AudioDevice);
-		check(MixerSourceVoice);
-		check(WaveInstance);
-
-		if (AudioDevice->IsModulationPluginEnabled())
-		{
-			const int32 SourceId = MixerSourceVoice->GetSourceId();
-			AudioDevice->ModulationInterface->ProcessControls(SourceId, WaveInstance->SoundModulationControls);
-		}
 	}
 
 	void FMixerSource::UpdatePitch()
@@ -1122,6 +1107,8 @@ namespace Audio
 		{
 			MixerSourceVoice->SetChannelMap(NumChannels, ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
 		}
+
+		bPrevAllowedSpatializationSetting = IsSpatializationCVarEnabled();
 	}
 
 	bool FMixerSource::ComputeMonoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap)
@@ -1145,7 +1132,7 @@ namespace Audio
 			MixerDevice->Get3DChannelMap(MixerDevice->GetNumDeviceChannels(), WaveInstance, WaveInstance->AbsoluteAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
 			return true;
 		}
-		else if (!OutChannelMap.Num())
+		else if (!OutChannelMap.Num() || (IsSpatializationCVarEnabled() != bPrevAllowedSpatializationSetting))
 		{
 			// Only need to compute the 2D channel map once
 			MixerDevice->Get2DChannelMap(bIsVorbis, 1, WaveInstance->bCenterChannelOnly, OutChannelMap);
@@ -1207,7 +1194,7 @@ namespace Audio
 			}
 		}
 
-		if (!OutChannelMap.Num())
+		if (!OutChannelMap.Num() || (IsSpatializationCVarEnabled() != bPrevAllowedSpatializationSetting))
 		{
 			MixerDevice->Get2DChannelMap(bIsVorbis, 2, WaveInstance->bCenterChannelOnly, OutChannelMap);
 			return true;

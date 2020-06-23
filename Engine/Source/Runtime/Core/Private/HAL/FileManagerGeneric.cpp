@@ -659,8 +659,9 @@ FArchiveFileReaderGeneric::FArchiveFileReaderGeneric( IFileHandle* InHandle, con
 	, Pos( 0 )
 	, BufferBase( 0 )
 	, Handle( InHandle )
+	, bFirstReadAfterSeek(false)
 {
-	BufferSize = FMath::RoundUpToPowerOfTwo64((int64)InBufferSize);
+	BufferSize = FMath::Min(FMath::RoundUpToPowerOfTwo64((int64)InBufferSize), (uint64)Size);
 	BufferArray.Reserve(BufferSize);
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -672,7 +673,20 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	checkf(InPos >= 0, TEXT("Attempted to seek to a negative location (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 	checkf(InPos <= Size, TEXT("Attempted to seek past the end of file (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 
-	if (!SeekLowLevel(InPos))
+	int64 SeekPos;
+	const bool bIsPosOutsideBufferWindow = (InPos < BufferBase) || (InPos >= (BufferBase + BufferArray.Num()));
+	if (bIsPosOutsideBufferWindow)
+	{
+		SeekPos = InPos;
+		bFirstReadAfterSeek = true;
+	}
+	else
+	{
+		SeekPos = BufferBase + BufferArray.Num();
+		bFirstReadAfterSeek = false; // If we seek away, don't read anything, and then seek back to our buffer, treat the precaching heuristic as if we did not seek at all.
+	}
+
+	if (!SeekLowLevel(SeekPos))
 	{
 		TCHAR ErrorBuffer[1024];
 		SetError();
@@ -680,8 +694,6 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	}
 
 	Pos = InPos;
-	BufferBase = Pos;
-	BufferArray.Reset();
 }
 
 FArchiveFileReaderGeneric::~FArchiveFileReaderGeneric()
@@ -717,38 +729,96 @@ bool FArchiveFileReaderGeneric::Close()
 	return !IsError();
 }
 
+bool FArchiveFileReaderGeneric::Precache(int64 PrecacheOffset, int64 PrecacheSize)
+{
+	// Archives not based on async I/O should always return true, so we return true whether or not the precache was successful.
+	// Returning false would imply that the caller should continue calling until it returns true.
+	if (PrecacheSize < 0)
+	{
+		return true;
+	}
+	InternalPrecache(PrecacheOffset, PrecacheSize);
+	bFirstReadAfterSeek = false; // If the caller is telling us to precache, then we should update the first read after seek heuristic to expect multiple reads
+	return true;
+}
+
 bool FArchiveFileReaderGeneric::InternalPrecache( int64 PrecacheOffset, int64 PrecacheSize )
 {
 	// Only precache at current position and avoid work if precaching same offset twice.
-	if( Pos == PrecacheOffset &&( !BufferBase || !BufferArray.Num() || BufferBase != Pos ) )
+	if (Pos != PrecacheOffset)
 	{
-		BufferBase = Pos;
-		int64 BufferCount = FMath::Min( FMath::Min( PrecacheSize,( int64 )(BufferSize -( Pos&(BufferSize -1 ) ) ) ), Size-Pos );
-		BufferCount = FMath::Max(BufferCount, 0LL ); // clamp to 0
-		
-		const bool AllowShrink = false;
-		BufferArray.SetNumUninitialized(BufferCount, AllowShrink);
+		// We are refusing to precache, but return true if at least one byte after the requested PrecacheOffset is in our existing buffer.
+		return BufferBase <= PrecacheOffset && PrecacheOffset < BufferBase + BufferArray.Num();
+	}
 
-		int64 Count = 0;
+	int64 BufferCount = FMath::Min(BufferSize, Size - Pos); // When we need to read more to satisfy the precache request, ignore the requested precachesize and set BufferCount to our buffersize.
+	if (BufferCount <= 0)
+	{
+		return false;
+	}
+	bool bPosWithinBuffer = BufferBase <= Pos && Pos < BufferBase + BufferArray.Num();
 
+	int64 ReadCount = BufferCount;
+	int64 WriteOffset = 0;
+	if (bPosWithinBuffer)
+	{
+		if (bPrecacheAsSoonAsPossible)
 		{
-			if (BufferCount > BufferSize || BufferCount <= 0)
+			// If we already have some bytes after pos buffered, check whether it is sufficient to satisfy this precache request.
+			int64 RemainingBufferCount = BufferArray.Num() - (Pos - BufferBase);
+			int64 RequestedBufferCount = FMath::Min(PrecacheSize, BufferCount);
+			if (RemainingBufferCount >= RequestedBufferCount)
 			{
-				UE_LOG( LogFileManager, Error, TEXT("Invalid BufferCount=%lld while reading %s. File is most likely corrupted. Please verify your installation. Pos=%lld, Size=%lld, PrecacheSize=%lld, PrecacheOffset=%lld"),
-					BufferCount, *Filename, Pos, Size, PrecacheSize, PrecacheOffset );
-
-				return false;
+				// The requested precache range is already in our buffer.
+				return true;
 			}
 
-			ReadLowLevel( BufferArray.GetData(), BufferArray.Num(), Count );
-		}
+			// We need to read more to satisfy the precache request.
+			// Since Pos is within the buffer, the low-level read position is at the end of the buffer. 
+			// Copy the existing bytes after Pos out of the old buffer into the new buffer, and then read only the remaining bytes from the low-level handle into the rest of the new buffer.
+			if (BufferCount <= BufferArray.Max())
+			{
+				// We don't need to reallocate the buffer, so we can just move the RemainingBufferCount bytes from the end of the buffer to the beginning.
+				FMemory::Memmove(BufferArray.GetData(), BufferArray.GetData() + Pos - BufferBase, RemainingBufferCount);
+				BufferArray.SetNumUninitialized(BufferCount, false /* AllowShrink */);
+			}
+			else
+			{
+				TArray64<uint8> OldArray(MoveTemp(BufferArray));
+				BufferArray.SetNumUninitialized(BufferCount, false /* AllowShrink */);
+				FMemory::Memcpy(BufferArray.GetData(), OldArray.GetData() + Pos - BufferBase, RemainingBufferCount);
+			}
 
-		if( Count!=BufferCount )
-		{
-			TCHAR ErrorBuffer[1024];
-			SetError();
-			UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed: Count=%lld BufferCount=%lld Error=%s" ), Count, BufferCount, FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, 1024, 0 ) );
+			ReadCount = BufferCount - RemainingBufferCount;
+			WriteOffset = RemainingBufferCount;
 		}
+		else
+		{
+			// At least one byte after the requested PrecacheOffset is in our existing buffer (since bPosWithinBuffer is true), so do nothing and return true
+			return true;
+		}
+	}
+	else
+	{
+		// If we do not have an existing buffer, or Pos is outside it, the low-level read position is equal to Pos.
+		// Read the next BufferCount bytes out of the low-level handle.
+		BufferArray.SetNumUninitialized(BufferCount, false /* AllowShrink */);
+	}
+	BufferBase = Pos;
+
+	check(ReadCount > 0); // If we don't need to read anything we should have early exited above
+	int64 Count = 0;
+	ReadLowLevel( BufferArray.GetData() + WriteOffset, ReadCount, Count );
+
+	if (Count!=ReadCount)
+	{
+		TCHAR ErrorBuffer[1024];
+		UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed: Count=%lld ReadCount=%lld Error=%s" ), Count, ReadCount, FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, 1024, 0 ) );
+		BufferCount = WriteOffset + Count;
+		BufferArray.SetNumUninitialized(BufferCount);
+		// The read failed, but we do not SetError or return false just because a precache read fails.
+		// Return true if at least one byte after the requested PrecacheOffset was read or is in our existing buffer.
+		return BufferCount > 0;
 	}
 	return true;
 }
@@ -762,12 +832,26 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 		return;
 	}
 
+	const bool bIsOutsideBufferWindow = (Pos < BufferBase) || (Pos >= (BufferBase + BufferArray.Num()));
+	bool bReadUncached = false;
+	if (bIsOutsideBufferWindow)
+	{
+		// This is likely due to a seek that has happened in the meantime.
+		BufferBase = Pos;
+		BufferArray.Reset();
+		// We use a heuristic to decide when we should skip preloading the buffer. It is common in Unreal packages to seek to a spot, do a single small read, and then seek away to the next spot.
+		// We should therefore not waste time populating the buffer for the seek point after a seek.
+		// If we continue reading from that point, then the heuristic no longer applies and we should populate the buffer as normal.
+		bReadUncached = bFirstReadAfterSeek;
+	}
+	bFirstReadAfterSeek = false;
+
 	while( Length>0 )
 	{
 		int64 Copy = FMath::Min( Length, BufferBase+BufferArray.Num()-Pos );
 		if( Copy<=0 )
 		{
-			if( Length >= BufferSize )
+			if( Length >= BufferSize || bReadUncached )
 			{
 				int64 Count=0;
 				{

@@ -124,4 +124,6 @@ struct TOOLMENUS_API FNewSectionConstructChoice
 	FNewToolMenuDelegate NewToolMenuDelegate;
 	FNewToolMenuDelegateLegacy NewToolMenuDelegateLegacy;
 	FNewToolBarDelegateLegacy NewToolBarDelegateLegacy;
+
+	bool IsBound() const { return NewToolMenuDelegate.IsBound() || NewToolMenuDelegateLegacy.IsBound() || NewToolBarDelegateLegacy.IsBound(); }
 };

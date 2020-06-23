@@ -173,14 +173,17 @@ void UMeshSculptToolBase::OnTick(float DeltaTime)
 void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshSurfacePointTool::Render(RenderAPI);
+	// Cache here for usage during interaction, should probably happen in ::Tick() or elsewhere
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+
+	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
 	BrushIndicator->Update((float)GetCurrentBrushRadius(),
 		(FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(),
 		1.0f - (float)GetCurrentBrushFalloff());
 	if (BrushIndicatorMaterial)
 	{
-		double FixedDimScale = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, HoverStamp.WorldFrame.Origin, 1.5f);
+		double FixedDimScale = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(RenderCameraState, HoverStamp.WorldFrame.Origin, 1.5f);
 		BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffWidth"), FixedDimScale);
 	}
 
@@ -188,11 +191,10 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 		FColor GridColor(128, 128, 128, 32);
-		float GridThickness = 0.5f;
-		float GridLineSpacing = 25.0f;   // @todo should be relative to view
+		float GridThickness = 0.5f*RenderCameraState.GetPDIScalingFactor();
 		int NumGridLines = 10;
 		FFrame3f DrawFrame(GizmoProperties->Position, GizmoProperties->Rotation);
-		MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
+		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }
 

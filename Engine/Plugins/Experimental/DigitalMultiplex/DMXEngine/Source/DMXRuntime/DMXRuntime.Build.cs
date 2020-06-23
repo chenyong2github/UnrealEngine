@@ -23,7 +23,9 @@ public class DMXRuntime : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Json"
+				"Json",
+				"MovieScene",
+				"MovieSceneTracks"
 			}
 		);
 	}

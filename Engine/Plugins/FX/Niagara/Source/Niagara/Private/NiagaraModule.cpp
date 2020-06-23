@@ -576,6 +576,12 @@ bool FNiagaraTypeDefinition::IsValidNumericInput(const FNiagaraTypeDefinition& T
 bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA
+	if (UnderlyingType != UT_None && ClassStructOrEnum == nullptr)
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Invalid data in niagara type definition, might be due to broken serialization or missing DI implementation"));
+		return false;
+	}
+
 	UStruct* TDStruct = GetStruct();
 	UClass* TDClass = GetClass();
 	UEnum* TDEnum = GetEnum();
@@ -637,6 +643,18 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+bool FNiagaraTypeDefinition::IsInternalType() const
+{
+	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
+	{
+		return ScriptStruct->GetBoolMetaData(TEXT("NiagaraInternalType"));
+	}
+
+	return false;
+}
+#endif
+
 #if WITH_EDITOR
 void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 {
@@ -663,10 +681,6 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), true, true, false);
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), true, true, false);
-
-	UScriptStruct* TestStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraTestStruct"));
-	FNiagaraTypeDefinition TestDefinition(TestStruct);
-	FNiagaraTypeRegistry::Register(TestDefinition, true, false, false);
 
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);

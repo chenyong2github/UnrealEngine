@@ -95,6 +95,12 @@ void SAssetEditorViewport::BindCommands()
 }
 
 
+void SAssetEditorViewport::Construct(const FArguments& InArgs)
+{
+	EditorViewportClient = InArgs._EditorViewportClient;
+	SEditorViewport::Construct(SEditorViewport::FArguments());
+}
+
 void SAssetEditorViewport::OnSetViewportConfiguration(FName ConfigurationName)
 {
 	TSharedPtr<FAssetEditorViewportLayout> LayoutPinned = ParentLayout.Pin();

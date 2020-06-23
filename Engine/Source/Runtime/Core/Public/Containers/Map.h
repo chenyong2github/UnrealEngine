@@ -289,7 +289,7 @@ public:
 				VisitedKeys.Add(It->Key);
 			}
 		}
-		return OutKeys.Num();
+		return VisitedKeys.Num();
 	}
 
 	/** 

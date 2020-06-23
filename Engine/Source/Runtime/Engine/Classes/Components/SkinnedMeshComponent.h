@@ -817,10 +817,7 @@ protected:
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
-	virtual bool RequiresGameThreadEndOfFrameRecreate() const override
-	{
-		return false;
-	}
+	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual UObject const* AdditionalStatObject() const override;
 	//~ End UActorComponent Interface
@@ -846,6 +843,10 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
+
+	//~ Begin UMeshComponent Interface
+	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn) override;
+	//~ End UMeshComponent Interface
 
 	/** Get the pre-skinning local space bounds for this component. */
 	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;

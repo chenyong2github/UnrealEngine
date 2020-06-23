@@ -195,9 +195,8 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 	if (bHitBounds || bInsideBounds)
 	{
 		const FTransform& ComponentTransform = StaticMeshComponent->GetComponentTransform();
-		const FTransform InverseComponentTransform = ComponentTransform.Inverse();
-		const FVector LocalStart = InverseComponentTransform.TransformPosition(Start);
-		const FVector LocalEnd = InverseComponentTransform.TransformPosition(End);
+		const FVector LocalStart = ComponentTransform.InverseTransformPosition(Start);
+		const FVector LocalEnd = ComponentTransform.InverseTransformPosition(End);
 		float MinDistance = FLT_MAX;
 		FVector Intersect;
 		FVector Normal;
@@ -239,7 +238,7 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 		if (MinDistance != FLT_MAX)
 		{
 			OutHit.Component = StaticMeshComponent;
-			OutHit.Normal = Normal.GetSafeNormal();
+			OutHit.Normal = ComponentTransform.TransformVector(Normal).GetSafeNormal();
 			OutHit.ImpactNormal = OutHit.Normal;
 			OutHit.ImpactPoint = ComponentTransform.TransformPosition(Intersect);
 			OutHit.Location = OutHit.ImpactPoint;

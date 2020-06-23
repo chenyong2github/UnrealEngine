@@ -226,6 +226,12 @@ void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedPar
 		return;
 	}
 
+	// Only animate a texture if it's on the image plate component
+	if (!ChangedProperty->GetTypedOwner(UImagePlateComponent::StaticClass()))
+	{
+		return;
+	}
+
 	FText DisplayText = ChangedProperty->GetDisplayNameText();
 	FName UniqueName(*PropertyChangedParams.PropertyPath.ToString(TEXT(".")));
 

@@ -21,7 +21,7 @@ enum class EMultiTransformerMode
 
 
 /**
-
+ * UMultiTransformer abstracts both a default TRS Gizmo, and the "Quick" translate/rotate Gizmos.
  */
 UCLASS()
 class MODELINGCOMPONENTS_API UMultiTransformer : public UObject

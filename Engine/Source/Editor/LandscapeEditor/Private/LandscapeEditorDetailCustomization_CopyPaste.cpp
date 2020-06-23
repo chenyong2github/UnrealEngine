@@ -22,6 +22,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.CopyPaste"
 

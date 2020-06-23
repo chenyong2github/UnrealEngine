@@ -73,6 +73,8 @@
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
+#include "Bookmarks/IBookmarkTypeTools.h"
+#include "ToolMenus.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -529,6 +531,8 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 
 	bShowFullToolbar = ViewportInstanceSettings.bShowFullToolbar;
 
+	// Always set to true initially
+	bShowToolbarAndControls = true; 
 
 	// Disable realtime viewports by default for remote sessions
 	if (FPlatformMisc::IsRemoteSession())
@@ -1743,7 +1747,7 @@ EVisibility SLevelViewport::GetMaximizeToggleVisibility() const
 EVisibility SLevelViewport::GetCloseImmersiveButtonVisibility() const
 {
 	// Do not show the Immersive toggle button when not in immersive mode
-	return IsImmersive() ? EVisibility::Visible : EVisibility::Collapsed;
+	return (IsImmersive() && bShowToolbarAndControls) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SLevelViewport::GetTransformToolbarVisibility() const
@@ -1846,6 +1850,15 @@ void SLevelViewport::OnToggleImmersive()
 		if (!ViewportName.IsNone())
 		{
 			ParentLayout.Pin()->RequestMaximizeViewport( ViewportName, bWantMaximize, bWantImmersive, bAllowAnimation );
+		}
+
+		if (bWantImmersive && LevelViewportClient->IsVisualizeCalibrationMaterialEnabled()) 
+		{
+			bShowToolbarAndControls = false;
+		}
+		else
+		{
+			bShowToolbarAndControls = true;
 		}
 	}
 }
@@ -2314,40 +2327,28 @@ FLevelEditorViewportInstanceSettings SLevelViewport::LoadLegacyConfigFromIni(con
 
 void SLevelViewport::OnSetBookmark( int32 BookmarkIndex )
 {
-	GLevelEditorModeTools().SetBookmark( BookmarkIndex, LevelViewportClient.Get() );
+	IBookmarkTypeTools::Get().CreateOrSetBookmark( BookmarkIndex, LevelViewportClient.Get() );
 }
 
 void SLevelViewport::OnJumpToBookmark( int32 BookmarkIndex )
 {
-	GLevelEditorModeTools().JumpToBookmark( BookmarkIndex, TSharedPtr<struct FBookmarkBaseJumpToSettings>(), LevelViewportClient.Get() );
+	IBookmarkTypeTools::Get().JumpToBookmark( BookmarkIndex, TSharedPtr<struct FBookmarkBaseJumpToSettings>(), LevelViewportClient.Get() );
 }
 
 void SLevelViewport::OnClearBookmark(int32 BookmarkIndex)
 {
-	GLevelEditorModeTools().ClearBookmark(BookmarkIndex, LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().ClearBookmark(BookmarkIndex, LevelViewportClient.Get());
 }
 
 void SLevelViewport::OnClearAllBookmarks()
 {
-	GLevelEditorModeTools().ClearAllBookmarks(LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().ClearAllBookmarks(LevelViewportClient.Get());
 }
 
 void SLevelViewport::OnCompactBookmarks()
 {
-	GLevelEditorModeTools().CompactBookmarks(LevelViewportClient.Get());
+	IBookmarkTypeTools::Get().CompactBookmarks(LevelViewportClient.Get());
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void SLevelViewport::OnClearBookMark( int32 BookmarkIndex )
-{
-	OnClearBookmark(BookmarkIndex);
-}
-
-void SLevelViewport::OnClearAllBookMarks()
-{
-	OnClearAllBookmarks();
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SLevelViewport::OnToggleAllowCinematicPreview()
 {
@@ -3923,7 +3924,7 @@ EVisibility SLevelViewport::GetViewportControlsVisibility() const
 {
 	// Do not show the controls if this viewport has a play in editor session
 	// or is not the current viewport
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient && !IsPlayInEditorViewportActive()) ? OnGetViewportContentVisibility() : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient && !IsPlayInEditorViewportActive() && bShowToolbarAndControls) ? OnGetViewportContentVisibility() : EVisibility::Collapsed;
 }
 
 void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
@@ -3938,6 +3939,7 @@ void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
 			GCurrentLevelEditingViewportClient = nullptr;
 			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
 			FSlateApplication::Get().DismissAllMenus();
+			UToolMenus::Get()->CleanupStaleWidgetsNextTick(true);
 		}
 	}
 }
@@ -4529,6 +4531,12 @@ void SLevelViewport::OnFloatingButtonClicked()
 {
 	// if one of the viewports floating buttons has been clicked, update the global viewport ptr
 	LevelViewportClient->SetLastKeyViewport();
+}
+
+/** Get the visibility for viewport toolbar */
+EVisibility  SLevelViewport::GetToolbarVisibility() const
+{ 
+	return bShowToolbarAndControls ? EVisibility::Visible : EVisibility::Collapsed; 
 }
 
 void SLevelViewport::RemoveAllPreviews(const bool bRemoveFromDesktopViewport /**= true*/)

@@ -603,8 +603,6 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	bAllowFrameStripping = true;
 	CompressionErrorThresholdScale = 1.f;
 #endif
-
-	InitCurveCompressionScheme();
 }
 
 void UAnimSequence::PostInitProperties()
@@ -706,25 +704,6 @@ static void LoadOldCompressedTrack(FArchive& Ar, FCompressedTrack& Dst, int32 By
 	// Serialize mins and ranges.
 	Ar << Dst.Mins[0] << Dst.Mins[1] << Dst.Mins[2];
 	Ar << Dst.Ranges[0] << Dst.Ranges[1] << Dst.Ranges[2];
-}
-
-void UAnimSequence::InitCurveCompressionScheme()
-{
-	// Do this is serialize as if the default animation curve compression asset isn't loaded it will
-// fire a warning if we try and load it in post load
-
-	bool bCurveCompressionSettingsValid = CurveCompressionSettings != nullptr;
-#if WITH_EDITOR
-	bCurveCompressionSettingsValid = bCurveCompressionSettingsValid && CurveCompressionSettings->AreSettingsValid();
-#endif
-	if (!bCurveCompressionSettingsValid
-#if WITH_HOT_RELOAD
-		&& (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !HasAnyFlags(RF_ClassDefaultObject) || !GIsHotReload) // Don't do this to native CDOs during Hot-Reload
-#endif
-		)
-	{
-		CurveCompressionSettings = FAnimationUtils::GetDefaultAnimationCurveCompressionSettings();
-	}
 }
 
 void UAnimSequence::Serialize(FArchive& Ar)
@@ -837,8 +816,6 @@ void UAnimSequence::Serialize(FArchive& Ar)
 		SourceFilePath_DEPRECATED = TEXT("");
 		SourceFileTimestamp_DEPRECATED = TEXT("");
 	}
-
-	InitCurveCompressionScheme();
 
 #endif // WITH_EDITORONLY_DATA
 }
@@ -4862,7 +4839,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset += SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
-				NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
+				if (NextMarker.MarkerIndex != -1)
+				{
+					NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
+				}
 			}
 			else
 			{
@@ -4928,7 +4908,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset -= SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
-				PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
+				if (PrevMarker.MarkerIndex != -1)
+				{
+					PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
+				}
 			}
 			else
 			{

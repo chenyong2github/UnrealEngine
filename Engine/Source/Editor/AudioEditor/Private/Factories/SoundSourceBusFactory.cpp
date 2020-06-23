@@ -24,5 +24,5 @@ UObject* USoundSourceBusFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 
 bool USoundSourceBusFactory::CanCreateNew() const
 {
-	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+	return true;
 }

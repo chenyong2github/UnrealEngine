@@ -10,10 +10,13 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/FilterCollection.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
+#include "PlatformInfo.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "ScreenShotComparisonSettings.h"
+
 
 DEFINE_LOG_CATEGORY(LogScreenShotManager);
 
@@ -32,97 +35,237 @@ FScreenShotManager::FScreenShotManager()
 {
 	FModuleManager::Get().LoadModuleChecked(FName("ImageWrapper"));
 
-	ScreenshotUnapprovedFolder = FPaths::ProjectSavedDir() / TEXT("Automation/Incoming/");
-	ScreenshotDeltaFolder = FPaths::ProjectSavedDir() / TEXT("Automation/Delta/");
-	ScreenshotResultsFolder = FPaths::ProjectSavedDir() / TEXT("Automation/");
-	ScreenshotApprovedFolder = FPaths::ProjectDir() / TEXT("Test/Screenshots/");
+	ScreenshotResultsFolder = FPaths::AutomationReportsDir();
+	ScreenshotTempDeltaFolder = FPaths::Combine(FPaths::AutomationTransientDir(), TEXT("Delta/"));
 
-	ComparisonResultsFolder = FPaths::ProjectSavedDir() / TEXT("Automation/Comparisons");
+	const UScreenShotComparisonSettings* ScreenshotSettings = GetDefault<UScreenShotComparisonSettings>();
+	bUseConfidentialPlatformPaths = ScreenshotSettings->bUseConfidentialPlatformPathsForSavedResults;
 
-	// Clear the incoming directory when we initialize, we don't care about previous runs.
-	//IFileManager::Get().DeleteDirectory(*ScreenshotUnapprovedFolder, false, true);
+	// the automation controller owns the screenshot manager so we don't have to worry about outliving it
+	//AutomationController->OnTestsAvailable().AddRaw(this, &FScreenShotManager::OnTestAvailableCallback);
+	// #agrant todo - we don't want this dependency and higher level code should clear the folders before running new tests
 
-	// Clear previous comparison results from the local comparison folder.
-	//IFileManager::Get().DeleteDirectory(*ComparisonResultsRoot, false, true);
-
-	BuildFallbackPlatformsListFromConfig();
+	BuildFallbackPlatformsListFromConfig(ScreenshotSettings);
 }
 
-FString FScreenShotManager::GetLocalUnapprovedFolder() const
+FScreenShotManager::~FScreenShotManager()
 {
-	return FPaths::ConvertRelativePathToFull(ScreenshotUnapprovedFolder);
 }
 
-FString FScreenShotManager::GetLocalApprovedFolder() const
+
+
+FString FScreenShotManager::GetPathComponentForRHI(const FAutomationScreenshotMetadata& MetaData) const
 {
-	return FPaths::ConvertRelativePathToFull(ScreenshotApprovedFolder);
+	FString RHIInfo = MetaData.Rhi;
+	
+	if (!RHIInfo.IsEmpty())
+	{
+		RHIInfo += TEXT("_");
+	}
+
+	RHIInfo += MetaData.FeatureLevel;
+
+	return RHIInfo;
 }
 
-FString FScreenShotManager::GetLocalComparisonFolder() const
+
+FString FScreenShotManager::GetPathComponentForPlatformAndRHI(const FAutomationScreenshotMetadata& MetaData) const
 {
-	return FPaths::ConvertRelativePathToFull(ScreenshotDeltaFolder);
+	return FPaths::Combine(MetaData.Platform, GetPathComponentForRHI(MetaData));
+}
+
+/**
+ * Images are now preferred to be under MapOrContext/TestName/ImageName/Plat/RHI etc
+ */
+FString FScreenShotManager::GetPathComponentForTestImages(const FAutomationScreenshotMetadata& MetaData) const
+{
+	//if (bUseLegacyFormat)
+	{
+		return FPaths::Combine(MetaData.Context, *MetaData.ScreenShotName);
+	}
+
+	//return FPaths::Combine(MetaData.Context, MetaData.TestName, MetaData.ScreenShotName);
+}
+
+FString FScreenShotManager::GetApprovedFolderForImageWithOptions(const FAutomationScreenshotMetadata& MetaData, EApprovedFolderOptions InOptions) const
+{
+	// plaform will be something like PS4
+	// RHI = SM5
+	const FDataDrivenPlatformInfoRegistry::FPlatformInfo& PlatInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(MetaData.Platform);
+
+	bool bUsePlatformPath = PlatInfo.bIsConfidential && (InOptions & EApprovedFolderOptions::UsePlatformFolders) == 0;
+
+	// Test folder will be either Map/Map_ImageName/ for legacy or Map/Test/ImageName/
+	FString TestFolder = GetPathComponentForTestImages(MetaData);
+
+	FString OutPath = FPaths::ProjectDir();
+
+	if (bUsePlatformPath)
+	{
+		OutPath = FPaths::Combine(OutPath, TEXT("Platforms"), MetaData.Platform, TEXT("Test/Screenshots/"), TestFolder, GetPathComponentForRHI(MetaData));
+	}
+	else
+	{
+		OutPath = FPaths::Combine(OutPath, TEXT("Test/Screenshots/"), TestFolder, MetaData.Platform, GetPathComponentForRHI(MetaData));
+	}
+
+	if (!OutPath.EndsWith(TEXT("/")))
+	{
+		OutPath += TEXT("/");
+	}
+
+	return OutPath;
+}
+
+FString FScreenShotManager::GetIdealApprovedFolderForImage(const FAutomationScreenshotMetadata& MetaData) const
+{
+	EApprovedFolderOptions DefaultOptions = bUseConfidentialPlatformPaths ? EApprovedFolderOptions::None : EApprovedFolderOptions::UsePlatformFolders;
+	return GetApprovedFolderForImageWithOptions(MetaData, DefaultOptions);
+}
+
+TArray<FString> FScreenShotManager::FindApprovedImages(const FAutomationScreenshotMetadata& IncomingMetaData)
+{
+	TArray<FString> ApprovedImages;
+
+	EApprovedFolderOptions Options = bUseConfidentialPlatformPaths ? EApprovedFolderOptions::None : EApprovedFolderOptions::UsePlatformFolders;
+
+	// check out standard path using whether confidential platforms are in a separate tree
+	FString ApprovedPath = GetApprovedFolderForImageWithOptions(IncomingMetaData, Options);
+	IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+
+	// check again, but try legacy paths
+	if (!ApprovedImages.Num())
+	{
+		ApprovedPath = GetApprovedFolderForImageWithOptions(IncomingMetaData, Options | EApprovedFolderOptions::UseLegacyPaths);
+		IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+	}
+
+	// if we're a blank and bUseConfidentialPlatformPaths, try without that
+	if (ApprovedImages.Num() == 0 && bUseConfidentialPlatformPaths)
+	{
+		// check legacy paths.
+		ApprovedPath = FPaths::GetPath(GetApprovedFolderForImageWithOptions(IncomingMetaData, EApprovedFolderOptions::None));
+		IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+
+		// check again, but try legacy paths
+		if (!ApprovedImages.Num())
+		{
+			ApprovedPath = GetApprovedFolderForImageWithOptions(IncomingMetaData, EApprovedFolderOptions::UseLegacyPaths);
+			IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+		}
+	}
+
+	// @todo(agrant): find fallback images if they don't exist at this point
+	if (ApprovedImages.Num() == 0)
+	{
+		FString CurrentPlatformRHI = GetPathComponentForPlatformAndRHI(IncomingMetaData);
+
+		UE_LOG(LogScreenShotManager, Log, TEXT("No ideal-image found at {0}. Checking fallback images"), *ApprovedPath);
+
+		while (ApprovedImages.Num() == 0)
+		{
+			FString* FallbackPlatformRHI = FallbackPlatforms.Find(CurrentPlatformRHI);
+			if (!FallbackPlatformRHI)
+			{
+				break;
+			}
+
+			CurrentPlatformRHI = *FallbackPlatformRHI;
+
+			TArray<FString> Components;
+			CurrentPlatformRHI.ParseIntoArray(Components, TEXT("/"));			
+
+			if (Components.Num() == 2)
+			{
+				TArray<FString> FeatureLevels;
+				Components[1].ParseIntoArray(FeatureLevels, TEXT("_"));
+
+				FAutomationScreenshotMetadata CopiedMetaData = IncomingMetaData;
+				CopiedMetaData.Platform = Components[0];
+				CopiedMetaData.Rhi = FeatureLevels[0];
+				CopiedMetaData.FeatureLevel = FeatureLevels[1];
+
+				ApprovedPath = FPaths::GetPath(GetIdealApprovedFolderForImage(CopiedMetaData));
+				IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+
+				// check again, but try legacy paths
+				if (!ApprovedImages.Num())
+				{
+					ApprovedPath = GetApprovedFolderForImageWithOptions(CopiedMetaData, EApprovedFolderOptions::UseLegacyPaths);
+					IFileManager::Get().FindFilesRecursive(ApprovedImages, *ApprovedPath, TEXT("*.png"), true, false);
+				}
+
+				if (ApprovedImages.Num())
+				{
+					UE_LOG(LogScreenShotManager, Log, TEXT("Using fallback images from %s"), *ApprovedPath);
+				}
+			}
+			else
+			{
+				UE_LOG(LogScreenShotManager, Error, TEXT("Invalid fallback Platform/RHI string %s"), *CurrentPlatformRHI);
+			}	
+		}
+	}
+
+	return ApprovedImages;
 }
 
 /* IScreenShotManager event handlers
  *****************************************************************************/
 
-TFuture<FImageComparisonResult> FScreenShotManager::CompareScreenshotAsync(FString RelativeImagePath)
+TFuture<FImageComparisonResult> FScreenShotManager::CompareScreenshotAsync(const FString& IncomingPath, const FAutomationScreenshotMetadata& MetaData, const EScreenShotCompareOptions Options)
 {
-	return Async(EAsyncExecution::Thread, [=] () { return CompareScreenshot(RelativeImagePath); });
+	return Async(EAsyncExecution::Thread, [=] () { return CompareScreenshot(IncomingPath, MetaData, Options); });
 }
 
-FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingImage)
-{
-	FString Existing = FPaths::GetPath(ExistingImage);
-	FString TestRoot = FPaths::GetPath(FPaths::GetPath(Existing));
-	FString CurrentPlatformRHI = Existing.RightChop(TestRoot.Len());
 
-	FImageComparer Comparer;
-	Comparer.ImageRootA = ScreenshotApprovedFolder;
-	Comparer.ImageRootB = ScreenshotUnapprovedFolder;
-	Comparer.DeltaDirectory = ScreenshotDeltaFolder;
+/**
+ * Takes an incoming file and returns a comparison based on comparing it to a reference image that exists in the project.
+ * The comparison results (incoming image, approved image, comparison image, report metadata) will be placed in the provided
+ * output folder.
+ *
+ * The incoming path must contain a recognized platform name as a path component, with the feature-level info of that platform
+ * as the next component.
+ * 
+ * E.g. <path> must contain <early-path>/Windows/D3D12_SM5/<later-path>, or <early-path>/PS4/SM5/<later-path> etc and must exist
+ * under the path returned by IScreenshotManager::GetIncomingFolder
+ *
+ * Comparison images are loaded from <project>/Test/<path> unless ScreenShotComparisonSettings.bUseConfidentialPlatformPathsForSavedResults 
+ * is set in which case they will come from <project>/Platforms/<platform>/Test
+ * 
+ * @param InUnapprovedIncomingFilePath Path
+ * @param ResultsSubFolder 
+ *
+ * @return FImageComparisonResult
+ */
+FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUnapprovedIncomingFilePath, const FAutomationScreenshotMetadata& IncomingMetaData, const EScreenShotCompareOptions Options)
+{
+	// #agrant todo: Handle bad paths
+
+	// get the ideal path for our approved image. This is the path that a file would be at if it matches our platform and RHI
+	FString IdealApprovedFolderPath = GetIdealApprovedFolderForImage(IncomingMetaData);
+
+	FString ResultsSubFolder = GetPathComponentForTestImages(IncomingMetaData);
 
 	// If the metadata for the screenshot does not provide tolerance rules, use these instead.
 	FImageTolerance DefaultTolerance = FImageTolerance::DefaultIgnoreLess;
 	DefaultTolerance.IgnoreAntiAliasing = true;
 
-	FString TestApprovedFolder = FPaths::Combine(ScreenshotApprovedFolder, Existing);
-	FString TestUnapprovedFolder =  FPaths::Combine(ScreenshotUnapprovedFolder, Existing);
+	// find all the approved images we can use. This will find fallback images from other platforms if necessary
+	TArray<FString> ApprovedDeviceShots = FindApprovedImages(IncomingMetaData);
 
-	TArray<FString> ApprovedDeviceShots;
-	IFileManager::Get().FindFilesRecursive(ApprovedDeviceShots, *TestApprovedFolder, TEXT("*.png"), true, false);
+	TOptional<FAutomationScreenshotMetadata> NearestExistingApprovedImageMetadata;
 
-	// If failed to find any approved shots, walk fallback hierarchy
-	//	Note: This will stop at the first valid folder, should potentially compare against each
-	//	hierarchy level then recurse to the next looking for valid shots
-	while (ApprovedDeviceShots.Num() == 0)
-	{
-		FString* FallbackPlatformRHI = FallbackPlatforms.Find(CurrentPlatformRHI);
-		if (!FallbackPlatformRHI)
-		{
-			break;
-		}
-
-		CurrentPlatformRHI = *FallbackPlatformRHI;
-		TestApprovedFolder = ScreenshotApprovedFolder + TestRoot + CurrentPlatformRHI;
-				
-		IFileManager::Get().FindFilesRecursive(ApprovedDeviceShots, *TestApprovedFolder, TEXT("*.png"), true, false);
-	}
-
+	// This is copied over later, so don't set any properties...
 	FImageComparisonResult ComparisonResult;
 
 	// Use found shots as ground truth
 	if (ApprovedDeviceShots.Num() > 0)
-	{
-		// Load the metadata for the incoming unapproved image.
-		FString UnapprovedFileName = FPaths::GetCleanFilename(ExistingImage);
-		FString UnapprovedFullPath = FPaths::Combine(TestUnapprovedFolder, UnapprovedFileName);
-
+	{	
 		TOptional<FAutomationScreenshotMetadata> ExistingMetadata;
-
 		{
 			// Always read the metadata file from the unapproved location, as we may have introduced new comparison rules.
-			FString MetadataFile = FPaths::ChangeExtension(UnapprovedFullPath, ".json");
+			FString MetadataFile = FPaths::ChangeExtension(InUnapprovedIncomingFilePath, ".json");
 
 			FString Json;
 			if ( FFileHelper::LoadFileToString(Json, *MetadataFile) )
@@ -136,18 +279,15 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 		}
 
 		FString NearestExistingApprovedImage;
-		TOptional<FAutomationScreenshotMetadata> NearestExistingApprovedImageMetadata;
+		
 
 		if ( ExistingMetadata.IsSet() )
 		{
 			int32 MatchScore = -1;
 
 			for ( FString ApprovedShot : ApprovedDeviceShots )
-			{
-				FString ApprovedShotFile = FPaths::GetCleanFilename(ApprovedShot);
-				FString ApprovedShotFileFull = FPaths::Combine(TestApprovedFolder, ApprovedShotFile);
-
-				FString ApprovedMetadataFile = FPaths::ChangeExtension(ApprovedShotFileFull, ".json");
+			{	
+				FString ApprovedMetadataFile = FPaths::ChangeExtension(ApprovedShot, ".json");
 
 				FString Json;
 				if ( FFileHelper::LoadFileToString(Json, *ApprovedMetadataFile) )
@@ -159,7 +299,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 						if ( Comparison > MatchScore )
 						{
 							MatchScore = Comparison;
-							NearestExistingApprovedImage = ApprovedShotFile;
+							NearestExistingApprovedImage = ApprovedShot;
 							NearestExistingApprovedImageMetadata = Metadata;
 						}
 					}
@@ -169,10 +309,8 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 		else
 		{
 			// TODO no metadata how do I pick a good shot?
-			NearestExistingApprovedImage = FPaths::GetCleanFilename(ApprovedDeviceShots[0]);
+			NearestExistingApprovedImage = ApprovedDeviceShots[0];
 		}
-
-		FString ApprovedFullPath = FPaths::Combine(TestApprovedFolder, NearestExistingApprovedImage);
 
 		FImageTolerance Tolerance = DefaultTolerance;
 
@@ -194,62 +332,153 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 		//double SSIM = Comparer.CompareStructuralSimilarity(ApprovedFullPath, UnapprovedFullPath, FImageComparer::EStructuralSimilarityComponent::Luminance);
 		//printf("%f\n", SSIM);
 
-		ComparisonResult = Comparer.Compare(ApprovedFullPath, UnapprovedFullPath, Tolerance);
+		FImageComparer Comparer;
+
+		ComparisonResult = Comparer.Compare(NearestExistingApprovedImage, InUnapprovedIncomingFilePath, Tolerance, ScreenshotTempDeltaFolder);
 	}
 	else
 	{
 		// We can't find a ground truth, so it's a new comparison.
-		ComparisonResult.IncomingFile = ExistingImage;
+		ComparisonResult.IncomingFilePath = InUnapprovedIncomingFilePath;
+
+		UE_LOG(LogScreenShotManager, Log, TEXT("No ideal-image found. Assuming %s is a new test image"), *InUnapprovedIncomingFilePath);
 	}
 
-	// Generate and save a report of the comparison if it's new or the results are not similar
-	if ( ComparisonResult.IsNew() || !ComparisonResult.AreSimilar() )
+	ComparisonResult.SourcePlatform = IncomingMetaData.Platform;
+	ComparisonResult.SourceRHI = IncomingMetaData.Rhi;
+	ComparisonResult.IdealApprovedFolderPath = IdealApprovedFolderPath;
+
+	// Result paths should be relative to the project. Note this may be empty, and if it is MakePathRelative returns
+	// a non empty relative path... but we want it to stay empty as that's how we signal that no approved file exists
+	if (!ComparisonResult.ApprovedFilePath.IsEmpty())
 	{
-		FString ReportFolder = ComparisonResultsFolder / Existing;
+		FPaths::MakePathRelativeTo(ComparisonResult.ApprovedFilePath, *FPaths::ProjectDir());
+	}
 
-		FString ApprovedFile = ( ScreenshotApprovedFolder / ComparisonResult.ApprovedFile );
-		FString ApprovedMetadataFile = FPaths::ChangeExtension(ApprovedFile, ".json");
+	if (!ComparisonResult.ComparisonFilePath.IsEmpty())
+	{
+		FPaths::MakePathRelativeTo(ComparisonResult.ComparisonFilePath, *FPaths::ProjectDir());
+	}
 
-		FString IncomingFile = ( ScreenshotUnapprovedFolder / ComparisonResult.IncomingFile );
-		FString IncomingMetadataFile = FPaths::ChangeExtension(IncomingFile, ".json");
+	// these two must exist...
+	FPaths::MakePathRelativeTo(ComparisonResult.IncomingFilePath, *FPaths::ProjectDir());
+	FPaths::MakePathRelativeTo(ComparisonResult.IdealApprovedFolderPath, *FPaths::ProjectDir());
 
-		FString IncomingTraceFile = FPaths::ChangeExtension(IncomingFile, TEXT(".rdc"));
+	// Report path is something like Test/Context/ that can be freely moved around and relocated with the relative paths
+	// to the data remaining intact
+	FString ReportPathOnDisk = FPaths::Combine(ScreenshotResultsFolder, ResultsSubFolder, IncomingMetaData.Platform, GetPathComponentForRHI(IncomingMetaData), TEXT("/"));
 
-		if ( IFileManager::Get().Copy(*( ReportFolder / TEXT("Approved.png")), *ApprovedFile, true, true) == COPY_OK )
+	FString ProjectDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+
+	/*
+		Now create copies of all three images for the report. We use copies (a move in the case of the delta image) so that the report folders
+		can be moved around without any external references. This is vital for CIS where we want the results to be served up via HTTP or just 
+		by browsing without needing the matching project directory from the time or any other saved data.
+	*/
+	
+	// files we write/copy to for reports
+	ComparisonResult.ReportApprovedFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Approved.png"));
+	ComparisonResult.ReportIncomingFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Incoming.png"));
+	ComparisonResult.ReportComparisonFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Delta.png"));
+
+	// If not ideal the make the approved name contain the source for clarity, since it will be under a Plat/RHI/Feature level folder for the platform being tested
+	if (!ComparisonResult.IsIdeal() && !ComparisonResult.IsNew())
+	{
+		check(NearestExistingApprovedImageMetadata.IsSet());
+		FString ApprovedName = FString::Printf(TEXT("Approved_%s.png"), *GetPathComponentForPlatformAndRHI(*NearestExistingApprovedImageMetadata).Replace(TEXT("/"), TEXT("_")));
+		ComparisonResult.ReportApprovedFilePath = FPaths::Combine(ReportPathOnDisk, ApprovedName);
+	}
+
+	/*
+		First we need the incoming file in the report. If the calling code wants to keep the image then do a copy, 
+		otherwise move it
+	*/
+	// #agrant todo - code in AutomationControllerManager requires these paths and at the moment does not have enough info to use the report versions. Need to also change
+	// the delta image below back to a move as well
+//	bool CanMoveImage = false; // Options != EScreenShotCompareOptions::KeepImage
+//	if (CanMoveImage == false)
+	{
+		// copy the incoming file to the report path 
+		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
+
+		if (IFileManager::Get().Copy(*ComparisonResult.ReportIncomingFilePath, *IncomingFileFullPath, true, true) == COPY_OK)
 		{
-			IFileManager::Get().Copy(*( ReportFolder / TEXT("Approved.json")), *ApprovedMetadataFile, true, true);
-			ComparisonResult.ReportApprovedFile = TEXT("Approved.png");
-		}
-
-		if ( IFileManager::Get().Copy(*( ReportFolder / TEXT("Incoming.png")), *IncomingFile, true, true) == COPY_OK )
-		{
-			IFileManager::Get().Copy(*( ReportFolder / TEXT("Incoming.json")), *IncomingMetadataFile, true, true);
-			ComparisonResult.ReportIncomingFile = TEXT("Incoming.png");
-		}
-
-		if (ComparisonResult.AreSimilar())
-		{
-			IFileManager::Get().Delete(*IncomingTraceFile, false, true);
+			IFileManager::Get().Copy(*FPaths::ChangeExtension(ComparisonResult.ReportIncomingFilePath, ".json"), *FPaths::ChangeExtension(IncomingFileFullPath, ".json"), true, true);
 		}
 		else
 		{
-			if (IFileManager::Get().FileExists(*IncomingTraceFile))
-			{
-				IFileManager::Get().Copy(*(ReportFolder / TEXT("Incoming.rdc")), *IncomingTraceFile, true, true);
-			}
+			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to copy incoming image to %s"), *ComparisonResult.ReportApprovedFilePath);
 		}
+	}
+/*	else
+	{
+		// we can discard the incoming image, so just move it...
+		FString IncomingFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.IncomingFilePath);
 
-		if ( IFileManager::Get().Copy(*( ReportFolder / TEXT("Delta.png")), *( ScreenshotDeltaFolder / ComparisonResult.ComparisonFile ), true, true) == COPY_OK )
+		if (IFileManager::Get().Move(*ComparisonResult.ReportIncomingFilePath, *IncomingFileFullPath, true, true))
 		{
-			ComparisonResult.ReportComparisonFile = TEXT("Delta.png");
+			IFileManager::Get().Move(*FPaths::ChangeExtension(ComparisonResult.ReportIncomingFilePath, ".json"), *FPaths::ChangeExtension(IncomingFileFullPath, ".json"), true, true);
 		}
+		else
+		{
+			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to copy incoming image to %s"), *ComparisonResult.ReportApprovedFilePath);
+		}
+	}*/
 
-		FString Json;
-		if ( FJsonObjectConverter::UStructToJsonObjectString(ComparisonResult, Json) )
+	// move any incoming renderdoc file if one existed
+	FString IncomingTraceFile = FPaths::ChangeExtension(InUnapprovedIncomingFilePath, TEXT(".rdc"));
+	if (IFileManager::Get().FileExists(*IncomingTraceFile))
+	{
+		IFileManager::Get().Move(*(FPaths::Combine(ReportPathOnDisk, TEXT("Incoming.rdc"))), *IncomingTraceFile, true, true);
+	}
+
+	// copy the comparison image if we generated one
+	if (ComparisonResult.ComparisonFilePath.Len())
+	{
+		FString ComparisonFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.ComparisonFilePath);
+
+		if (IFileManager::Get().Copy(*ComparisonResult.ReportComparisonFilePath, *ComparisonFileFullPath, true, true) == COPY_OK)
 		{
-			FString ComparisonReportFile = ReportFolder / TEXT("Report.json");
-			FFileHelper::SaveStringToFile(Json, *ComparisonReportFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+			// nothing else to move for this case
 		}
+		else
+		{
+			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to move delta image to %s"), *ComparisonResult.ReportComparisonFilePath);
+		}
+	}
+
+	/*
+		Make a copy of the approved file if it exists
+	*/
+	if (ComparisonResult.ApprovedFilePath.Len())
+	{
+		// Make a copy of the approved png called 'approved.png'
+		FString ApprovedFileFullPath = *FPaths::Combine(ProjectDir, ComparisonResult.ApprovedFilePath);
+
+		if (IFileManager::Get().Copy(*ComparisonResult.ReportApprovedFilePath, *ApprovedFileFullPath, true, true) == COPY_OK)
+		{
+			IFileManager::Get().Copy(*FPaths::ChangeExtension(ComparisonResult.ReportApprovedFilePath, ".json"), *FPaths::ChangeExtension(ApprovedFileFullPath, ".json"), true, true);
+		}
+		else
+		{
+			UE_LOG(LogScreenShotManager, Error, TEXT("Failed to copy approved image to %s"), *ComparisonResult.ReportApprovedFilePath);
+		}
+	}
+		
+	// make all these paths relative to the report path so the report can be relocated outside of the project directory
+	// and the files still found.
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportApprovedFilePath, *ReportPathOnDisk);
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportIncomingFilePath, *ReportPathOnDisk);
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportComparisonFilePath, *ReportPathOnDisk);
+
+	// save the result at to a report
+	FString Json;
+	if ( FJsonObjectConverter::UStructToJsonObjectString(ComparisonResult, Json) )
+	{
+		FString ComparisonReportFile = FPaths::Combine(ReportPathOnDisk, TEXT("Report.json"));
+		FFileHelper::SaveStringToFile(Json, *ComparisonReportFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+
+		UE_LOG(LogScreenShotManager, Log, TEXT("Saved report to %s"), *ComparisonReportFile);
 	}
 
 	return ComparisonResult;
@@ -278,10 +507,7 @@ FScreenshotExportResults FScreenShotManager::ExportComparisonResults(FString Roo
 		return Results;
 	}
 
-	// Wait for file operations to complete.
-	FPlatformProcess::Sleep(1.0f);
-
-	CopyDirectory(Results.ExportPath, ComparisonResultsFolder);
+	CopyDirectory(Results.ExportPath, ScreenshotResultsFolder);
 
 	Results.Success = true;
 	return Results;
@@ -311,12 +537,19 @@ bool FScreenShotManager::OpenComparisonReports(FString ImportPath, TArray<FCompa
 			}
 
 			FImageComparisonResult ComparisonResult;
+			ComparisonResult.SetInvalid();
 			if ( FJsonObjectConverter::JsonObjectToUStruct(JsonComparisonReport.ToSharedRef(), &ComparisonResult, 0, 0) )
 			{
-				FComparisonReport Report(ImportPath, ReportPath);
-				Report.Comparison = ComparisonResult;
-
-				OutReports.Add(Report);
+				if (ComparisonResult.IsValid())
+				{
+					FComparisonReport Report(ImportPath, ReportPath);
+					Report.SetComparisonResult(ComparisonResult);
+					OutReports.Add(Report);
+				}
+				else
+				{
+					UE_LOG(LogScreenShotManager, Error, TEXT("Report %s has invalid version '%d' (Current Version=%d)"), *ReportPath, ComparisonResult.Version, int32(ComparisonResult.CurrentVersion));
+				}
 			}
 		}
 	}
@@ -326,26 +559,56 @@ bool FScreenShotManager::OpenComparisonReports(FString ImportPath, TArray<FCompa
 
 FString FScreenShotManager::GetDefaultExportDirectory() const
 {
-	return FPaths::ProjectSavedDir() / TEXT("Exported");
+	return FPaths::Combine(FPaths::ProjectSavedDir(),TEXT("Exported/"));
 }
 
 void FScreenShotManager::CopyDirectory(const FString& DestDir, const FString& SrcDir)
 {
 	TArray<FString> FilesToCopy;
 
-	IFileManager::Get().FindFilesRecursive(FilesToCopy, *SrcDir, TEXT("*"), /*Files=*/true, /*Directories=*/true);
+	FString NormalizedSrc = SrcDir;
+	FPaths::NormalizeDirectoryName(NormalizedSrc);
+
+	IFileManager::Get().FindFilesRecursive(FilesToCopy, *SrcDir, TEXT("*"), /*Files=*/true, /*Directories=*/false);
 	for ( const FString& File : FilesToCopy )
 	{
 		const FString& SourceFilePath = File;
-		FString DestFilePath = DestDir / SourceFilePath.RightChop(SrcDir.Len());
+		FString DestFilePath = FPaths::Combine(DestDir, SourceFilePath.RightChop(SrcDir.Len()));
 
 		IFileManager::Get().Copy(*DestFilePath, *File, true, true);
 	}
 }
 
-void FScreenShotManager::BuildFallbackPlatformsListFromConfig()
+void FScreenShotManager::BuildFallbackPlatformsListFromConfig(const UScreenShotComparisonSettings* InSettings)
 {
 	FallbackPlatforms.Empty();
+
+	if (InSettings->ScreenshotFallbackPlatforms.Num() > 0)
+	{
+		for (const FScreenshotFallbackEntry& Entry : InSettings->ScreenshotFallbackPlatforms)
+		{
+			FString Parent = Entry.Parent;
+			FString Child = Entry.Child;
+
+			if (Parent.StartsWith(TEXT("/")))
+			{
+				UE_LOG(LogScreenShotManager, Warning, TEXT("Fallback parent is malformed and has a leading '/'. This will be stripped but please correct. '%s'"), *Parent);
+				Parent = Parent.RightChop(1);
+			}
+
+			// These are used as folders so ensure they match the expected layout
+			if (Child.StartsWith(TEXT("/")))
+			{
+				UE_LOG(LogScreenShotManager, Warning, TEXT("Fallback child is malformed and has a leading '/'. This will be stripped but please correct. '%s'"), *Child);
+				Child = Child.RightChop(1);
+			}
+
+			FString& ParentValue = FallbackPlatforms.FindOrAdd(Child);
+			ParentValue = Parent;
+		}
+	}
+
+	// legacy path
 	if (GConfig)
 	{
 		for (const TPair<FString,FConfigFile>& Config : *GConfig)
@@ -353,6 +616,8 @@ void FScreenShotManager::BuildFallbackPlatformsListFromConfig()
 			FConfigSection* FallbackSection = GConfig->GetSectionPrivate(TEXT("AutomationTestFallbackHierarchy"), false, true, Config.Key);
 			if (FallbackSection)
 			{
+				UE_LOG(LogScreenShotManager, Warning, TEXT("Please move FallbackPlatform entries in [AutomationTestFallbackHierarchy] to +ScreenshotFallbackPlatforms= under[/Script/ScreenShotComparisonTools.ScreenShotComparisonSettings] in DefaultEngine.ini"));
+
 				// Parse all fallback definitions of the format "FallbackPlatform=(Child=/Platform/RHI, Parent=/Platform/RHI)"
 				for (FConfigSection::TIterator Section(*FallbackSection); Section; ++Section)
 				{
@@ -364,14 +629,23 @@ void FScreenShotManager::BuildFallbackPlatformsListFromConfig()
 
 						if (FParse::Value(*FallbackValue, TEXT("Child="), Child, true) && FParse::Value(*FallbackValue, TEXT("Parent="), Parent, true))
 						{
-							// These are used as folders so ensure they match the expected layout
-							if (Child.StartsWith(TEXT("/")) && Parent.StartsWith(TEXT("/")))
+							if (Parent.StartsWith(TEXT("/")))
 							{
-								// Append or override, could error here instead
-								FString& Fallback = FallbackPlatforms.FindOrAdd(Child);
-								Fallback = Parent;
-								bSuccess = true;
+								UE_LOG(LogScreenShotManager, Warning, TEXT("Fallback parent is malformed and has a leading '/'. This will be stripped but please correct. '%s'"), *Parent);
+								Parent = Parent.RightChop(1);
 							}
+
+							// These are used as folders so ensure they match the expected layout
+							if (Child.StartsWith(TEXT("/")))
+							{
+								UE_LOG(LogScreenShotManager, Warning, TEXT("Fallback child is malformed and has a leading '/'. This will be stripped but please correct. '%s'"), *Child);
+								Child = Child.RightChop(1);
+							}				
+				
+							// Append or override, could error here instead
+							FString& Fallback = FallbackPlatforms.FindOrAdd(Child);
+							Fallback = Parent;
+							bSuccess = true;
 						}
 						
 						if (!bSuccess)

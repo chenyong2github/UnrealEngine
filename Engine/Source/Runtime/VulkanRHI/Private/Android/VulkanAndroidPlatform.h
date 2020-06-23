@@ -18,7 +18,8 @@
 #define VULKAN_FREEPAGE_FOR_TYPE					1
 #define VULKAN_PURGE_SHADER_MODULES					0
 #define VULKAN_SUPPORTS_DEDICATED_ALLOCATION		0
-#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	0
+#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	1
+#define VULKAN_SUPPORTS_ASTC_DECODE_MODE			(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)
 
 
 // Android's hashes currently work fine as the problematic cases are:
@@ -34,12 +35,11 @@
 
 #define ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(EnumMacro) \
 	EnumMacro(PFN_vkGetRefreshCycleDurationGOOGLE, vkGetRefreshCycleDurationGOOGLE) \
-	EnumMacro(PFN_vkGetPastPresentationTimingGOOGLE, vkGetPastPresentationTimingGOOGLE)
+	EnumMacro(PFN_vkGetPastPresentationTimingGOOGLE, vkGetPastPresentationTimingGOOGLE) \
+	EnumMacro(PFN_vkGetPhysicalDeviceProperties2KHR, vkGetPhysicalDeviceProperties2KHR)
 
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
-
-
 
 class FVulkanAndroidPlatform : public FVulkanGenericPlatform
 {

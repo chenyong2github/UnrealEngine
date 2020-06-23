@@ -545,11 +545,13 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		}
 
 		// offset all navigation-link positions
-		const bool bGatherClusters = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::Clusters);
 		const bool bGatherNavLinks = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::NavLinks);
 		const bool bGatherFailedNavLinks = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::FailedNavLinks);
 
+#if WITH_NAVMESH_CLUSTER_LINKS
+		const bool bGatherClusters = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::Clusters);
 		if (bGatherClusters == false)
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 		{
 			for (int32 OffMeshLineIndex = 0; OffMeshLineIndex < NavMeshGeometry.OffMeshLinks.Num(); ++OffMeshLineIndex)
 			{
@@ -705,6 +707,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherFilledPolys = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::FilledPolys);
 		if (bGatherFilledPolys)
 		{
+#if WITH_NAVMESH_CLUSTER_LINKS
 			if (bGatherClusters)
 			{
 				for (int32 Idx = 0; Idx < NavMeshGeometry.Clusters.Num(); ++Idx)
@@ -730,6 +733,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 				}
 			}
 			else
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 			{
 				for (int32 AreaType = 0; AreaType < RECAST_MAX_AREAS; ++AreaType)
 				{
@@ -821,6 +825,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 			MeshBuilders.Add(DebugMeshData);
 		}
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 		if (bGatherClusters)
 		{
 			for (int32 Idx = 0; Idx < NavMeshGeometry.ClusterLinks.Num(); Idx++)
@@ -834,7 +839,9 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 				FNavMeshRenderingHelpers::CacheArrowHead(ClusterLinkLines, V1, V0 + VOffset, 30.f, FColor::Black, ClusterLinkLines_LineThickness);
 			}
 		}
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 		// cache segment links
 		if (bGatherNavLinks)
 		{
@@ -895,6 +902,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 				}
 			}
 		}
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 	}
 }
 

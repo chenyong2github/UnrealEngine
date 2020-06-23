@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
-#include "Editor/ContentBrowser/Private/NewAssetOrClassContextMenu.h"
+#include "ContentBrowserItem.h"
 
 class FExtender;
 class FMenuBuilder;
@@ -12,23 +12,16 @@ class SWidget;
 class SWindow;
 class UToolMenu;
 
+enum class EContentBrowserViewContext : uint8;
+
 class FPathContextMenu : public TSharedFromThis<FPathContextMenu>
 {
 public:
 	/** Constructor */
 	FPathContextMenu(const TWeakPtr<SWidget>& InParentContent);
 
-	/** Sets the handler for when new assets are requested */
-	void SetOnNewAssetRequested(const FNewAssetOrClassContextMenu::FOnNewAssetRequested& InOnNewAssetRequested);
-
-	/** Sets the handler for when new classes are requested */
-	void SetOnNewClassRequested(const FNewAssetOrClassContextMenu::FOnNewClassRequested& InOnNewClassRequested);
-
-	/** Sets the handler for when importing an asset is requested */
-	void SetOnImportAssetRequested( const FNewAssetOrClassContextMenu::FOnImportAssetRequested& InOnImportAssetRequested );
-
 	/** Delegate for when the context menu requests a rename of a folder */
-	DECLARE_DELEGATE_OneParam(FOnRenameFolderRequested, const FString& /*FolderToRename*/);
+	DECLARE_DELEGATE_TwoParams(FOnRenameFolderRequested, const FContentBrowserItem& /*FolderToRename*/, EContentBrowserViewContext /*ViewContext*/);
 	void SetOnRenameFolderRequested(const FOnRenameFolderRequested& InOnRenameFolderRequested);
 
 	/** Delegate for when the context menu has successfully deleted a folder */
@@ -39,11 +32,11 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnFolderFavoriteToggled, const TArray<FString>& /*FoldersToToggle*/)
 	void SetOnFolderFavoriteToggled(const FOnFolderFavoriteToggled& InOnFolderFavoriteToggled);
 
-	/** Gets the currently selected paths */
-	const TArray<FString>& GetSelectedPaths() const;
+	/** Gets the currently selected folders */
+	const TArray<FContentBrowserItem>& GetSelectedFolders() const;
 
-	/** Sets the currently selected paths */
-	void SetSelectedPaths(const TArray<FString>& InSelectedPaths);
+	/** Sets the currently selected folders */
+	void SetSelectedFolders(const TArray<FContentBrowserItem>& InSelectedFolders);
 
 	/** Makes the asset tree context menu extender */
 	TSharedRef<FExtender> MakePathViewContextMenuExtender(const TArray<FString>& InSelectedPaths);
@@ -51,23 +44,11 @@ public:
 	/** Makes the asset tree context menu widget */
 	void MakePathViewContextMenu(UToolMenu* Menu);
 
-	/** Handler to check to see if creating a new asset is allowed */
-	bool CanCreateAsset() const;
-
 	/** Makes the new asset submenu */
 	void MakeNewAssetSubMenu(UToolMenu* Menu);
 
-	/** Handler for when "New Class" is selected */
-	void ExecuteCreateClass();
-
-	/** Handler to check to see if creating a new class is allowed */
-	bool CanCreateClass() const;
-
 	/** Makes the set color submenu */
 	void MakeSetColorSubMenu(UToolMenu* Menu);
-
-	/** Handler for when "Migrate Folder" is selected */
-	void ExecuteMigrateFolder();
 
 	/** Handler for when "Explore" is selected */
 	void ExecuteExplore();
@@ -76,7 +57,7 @@ public:
 	bool CanExecuteRename() const;
 
 	/** Handler for Rename */
-	void ExecuteRename();
+	void ExecuteRename(EContentBrowserViewContext ViewContext);
 
 	/** Handler to check to see if a delete command is allowed */
 	bool CanExecuteDelete() const;
@@ -99,51 +80,11 @@ public:
 	/** Handler for when "Resave" is selected */
 	void ExecuteResaveFolder();
 
-	/** Handler for when "Fix up Redirectors in Folder" is selected */
-	void ExecuteFixUpRedirectorsInFolder();
-
 	/** Handler for when "Delete" is selected and the delete was confirmed */
 	FReply ExecuteDeleteFolderConfirmed();
 
-	/** Handler for when "Checkout from source control" is selected */
-	void ExecuteSCCCheckOut();
-
-	/** Handler for when "Open for Add to source control" is selected */
-	void ExecuteSCCOpenForAdd();
-
-	/** Handler for when "Checkin to source control" is selected */
-	void ExecuteSCCCheckIn();
-
-	/** Handler for when "Sync from source control" is selected */
-	void ExecuteSCCSync() const;
-
-	/** Handler for when "Connect to source control" is selected */
-	void ExecuteSCCConnect() const;
-
-	/** Handler to check to see if "Checkout from source control" can be executed */
-	bool CanExecuteSCCCheckOut() const;
-
-	/** Handler to check to see if "Open for Add to source control" can be executed */
-	bool CanExecuteSCCOpenForAdd() const;
-
-	/** Handler to check to see if "Checkin to source control" can be executed */
-	bool CanExecuteSCCCheckIn() const;
-
-	/** Handler to check to see if "Sync" can be executed */
-	bool CanExecuteSCCSync() const;
-
-	/** Handler to check to see if "Connect to source control" can be executed */
-	bool CanExecuteSCCConnect() const;	
-
 private:
-	/** Initializes some variable used to in "CanExecute" checks that won't change at runtime or are too expensive to check every frame. */
-	void CacheCanExecuteVars();
-
-	/** Returns a list of names of packages in all selected paths in the sources view */
-	void GetPackageNamesInSelectedPaths(TArray<FString>& OutPackageNames) const;
-
-	/** Gets the first selected path, if it exists */
-	FString GetFirstSelectedPath() const;
+	void SaveFilesWithinSelectedFolders(EContentBrowserItemSaveFlags InSaveFlags);
 
 	/** Checks to see if any of the selected paths use custom colors */
 	bool SelectedHasCustomColors() const;
@@ -158,17 +99,9 @@ private:
 	void ResetColors();
 
 private:
-	TArray<FString> SelectedPaths;
+	TArray<FContentBrowserItem> SelectedFolders;
 	TWeakPtr<SWidget> ParentContent;
-	FNewAssetOrClassContextMenu::FOnNewAssetRequested OnNewAssetRequested;
-	FNewAssetOrClassContextMenu::FOnNewClassRequested OnNewClassRequested;
-	FNewAssetOrClassContextMenu::FOnImportAssetRequested OnImportAssetRequested;
 	FOnRenameFolderRequested OnRenameFolderRequested;
 	FOnFolderDeleted OnFolderDeleted;
 	FOnFolderFavoriteToggled OnFolderFavoriteToggled;
-
-	/** Cached SCC CanExecute vars */
-	bool bCanExecuteSCCCheckOut;
-	bool bCanExecuteSCCOpenForAdd;
-	bool bCanExecuteSCCCheckIn;
 };

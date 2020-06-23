@@ -57,6 +57,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "AnimNotify")
 	FVector Scale;
 
+	// Whether or not we are in absolute scale mode
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "AnimNotify")
+	bool bAbsoluteScale;
+
 	// Return FXSystemComponent created from SpawnEffect
 	UFUNCTION(BlueprintCallable, Category = "AnimNotify")
 	UFXSystemComponent* GetSpawnedEffect();
@@ -79,7 +83,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")
 	uint32 Attached : 1; 	//~ Does not follow coding standard due to redirection from BP
 
-		// SocketName to attach to
+	// SocketName to attach to
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify", meta = (AnimNotifyBoneName = "true"))
 	FName SocketName;
 };

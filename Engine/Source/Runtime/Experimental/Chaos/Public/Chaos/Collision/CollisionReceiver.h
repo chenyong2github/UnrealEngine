@@ -4,6 +4,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/EvolutionResimCache.h"
 
 namespace Chaos
 {
@@ -14,8 +15,9 @@ namespace Chaos
 	class FAsyncCollisionReceiver
 	{
 	public:
-		FAsyncCollisionReceiver(FPBDCollisionConstraints& InCollisionConstraints)
+		FAsyncCollisionReceiver(FPBDCollisionConstraints& InCollisionConstraints, FEvolutionResimCache* InResimCache)
 			: CollisionConstraints(InCollisionConstraints)
+			, ResimCache(InResimCache)
 		{
 		}
 
@@ -74,6 +76,14 @@ namespace Chaos
 					CollisionConstraints.AddConstraint(MultiPointConstraint);
 				}
 			}
+
+			//TODO: worth adding an option to avoid when determinism unimportant?
+			CollisionConstraints.SortConstraints();
+
+			if(ResimCache)
+			{
+				ResimCache->SaveConstraints(CollisionConstraints.GetConstraintsArray());
+			}
 		}
 
 	private:
@@ -82,6 +92,7 @@ namespace Chaos
 		TQueue<FRigidBodySweptPointContactConstraint, EQueueMode::Mpsc> SingleSweptPointQueue;
 		TQueue<FRigidBodyMultiPointContactConstraint, EQueueMode::Mpsc> MultiPointQueue;
 		FPBDCollisionConstraints& CollisionConstraints;
+		FEvolutionResimCache* ResimCache;
 	};
 
 

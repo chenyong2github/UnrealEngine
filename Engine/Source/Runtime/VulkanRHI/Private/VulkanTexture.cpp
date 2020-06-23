@@ -325,6 +325,8 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		if ((UEFlags & TexCreate_Memoryless) == TexCreate_Memoryless)
 		{
 			ImageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+			// Remove the transfer and sampled bits, as they are incompatible with the transient bit.
+			ImageCreateInfo.usage &= ~(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 		}
 	}
 	else if (UEFlags & (TexCreate_DepthStencilResolveTarget))
@@ -1580,6 +1582,17 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ViewInfo.image = InImage;
 	ViewInfo.viewType = ViewType;
 	ViewInfo.format = Format;
+
+#if VULKAN_SUPPORTS_ASTC_DECODE_MODE
+	VkImageViewASTCDecodeModeEXT decodeMode;
+	if (Device.GetOptionalExtensions().HasEXTASTCDecodeMode && Format == VK_FORMAT_R8G8B8A8_UNORM)
+	{
+		ZeroVulkanStruct(decodeMode, VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+		decodeMode.decodeMode = VK_FORMAT_R8G8B8A8_UNORM;
+		ViewInfo.pNext = &decodeMode;
+	}
+#endif
+
 	if (bUseIdentitySwizzle)
 	{
 		// VK_COMPONENT_SWIZZLE_IDENTITY == 0 and this was memzero'd already
@@ -1998,8 +2011,8 @@ FVulkanTexture2DArray::FVulkanTexture2DArray(FVulkanDevice& Device, EPixelFormat
 }
 
 FVulkanTexture2DArray::FVulkanTexture2DArray(FTextureRHIRef& SrcTextureRHI, const FVulkanTexture2DArray* SrcTexture)
-	: FRHITexture2DArray(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetSizeZ(), SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
-	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D_ARRAY, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetSizeZ())
+	: FRHITexture2DArray(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->Surface.NumArrayLevels, SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
+	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D_ARRAY, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), 1)
 {
 }
 

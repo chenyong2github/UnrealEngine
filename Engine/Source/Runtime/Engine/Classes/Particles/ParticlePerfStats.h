@@ -10,6 +10,8 @@
 
 #if WITH_PARTICLE_PERF_STATS
 
+#include "Containers/Array.h"
+
 struct ENGINE_API FParticlePerfStats
 {
 	struct FGroupedStats

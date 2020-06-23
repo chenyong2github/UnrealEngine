@@ -4,10 +4,11 @@
 #include "Components/InputComponent.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
-#include "DisplayClusterHelpers.h"
+
+#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "Engine/World.h"
 

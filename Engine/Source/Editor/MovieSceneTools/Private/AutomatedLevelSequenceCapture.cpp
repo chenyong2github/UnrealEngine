@@ -601,7 +601,7 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				// Override the movie scene's playback range
 				Actor->SequencePlayer->SetFrameRate(Settings.GetFrameRate());
 				Actor->SequencePlayer->SetFrameRange(PlaybackStartFrame.Value, (PlaybackEndFrame - PlaybackStartFrame).Value);
-				Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(PlaybackStartFrame.Value, EUpdatePositionMethod::Jump));
+				Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(FFrameTime(PlaybackStartFrame), EUpdatePositionMethod::Jump));
 
 				Actor->SequencePlayer->SetSnapshotOffsetFrames(WarmUpFrameCount);
 			}
@@ -741,7 +741,7 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 			FFrameNumber EndTimePlayRateSpace   = ConvertFrameTime(EndTime,   MovieScene->GetTickResolution(), Settings.GetFrameRate()).CeilToFrame();
 
 			Actor->SequencePlayer->SetFrameRange(StartTimePlayRateSpace.Value, (EndTimePlayRateSpace - StartTimePlayRateSpace).Value);
-			Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(StartTimePlayRateSpace.Value, EUpdatePositionMethod::Jump));
+			Actor->SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(FFrameTime(StartTimePlayRateSpace), EUpdatePositionMethod::Jump));
 			Actor->SequencePlayer->Play();
 
 			// We need to re-register to the binding when we start each shot. When a shot reaches the last frame it unregisters the binding so that

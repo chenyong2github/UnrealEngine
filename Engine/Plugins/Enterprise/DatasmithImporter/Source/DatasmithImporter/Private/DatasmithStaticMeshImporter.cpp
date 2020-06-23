@@ -376,7 +376,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.FeedbackContext);
 		ProgressPtr->MakeDialog(true);
 	}
@@ -613,7 +613,7 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 			//Also, it's okay to set both the source and the destination to be the same index as they are for different containers.
 			SourceIndex = FirstOpenUVChannel;
 		}
-		
+
 		if (bGenerateLightmapUVs)
 		{
 			if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
@@ -632,7 +632,7 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 				AssetsContext.ParentContext.LogWarning(FText::Format(LOCTEXT("LightmapUVsWontBeGenerated", "Lightmap UVs for mesh {0} won't be generated."), FText::FromName(StaticMesh->GetFName())));
 			}
 		}
-		
+
 		FDatasmithMeshBuildSettingsTemplate BuildSettingsTemplate;
 		BuildSettingsTemplate.Load(StaticMesh->GetSourceModel(LodIndex).BuildSettings);
 

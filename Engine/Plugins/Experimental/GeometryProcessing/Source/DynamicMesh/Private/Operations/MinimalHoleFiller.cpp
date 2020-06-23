@@ -3,7 +3,7 @@
 #include "Operations/MinimalHoleFiller.h"
 #include "MeshQueries.h"
 
-namespace 
+namespace
 {
 
 	TSet<int> GetBoundaryEdgeVertices(const FDynamicMesh3& Mesh)
@@ -11,9 +11,9 @@ namespace
 		TSet<int> BoundaryVertices;
 		for (int EdgeID : Mesh.BoundaryEdgeIndicesItr())
 		{
-			FIndex4i Edge = Mesh.GetEdge(EdgeID);
-			BoundaryVertices.Add(Edge[0]);
-			BoundaryVertices.Add(Edge[1]);
+			const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeID);
+			BoundaryVertices.Add(Edge.Vert[0]);
+			BoundaryVertices.Add(Edge.Vert[1]);
 		}
 		return BoundaryVertices;
 	}
@@ -21,14 +21,14 @@ namespace
 	/// Check if collapsing edge EdgeID to point NewVertexPosition will flip normal of any attached face
 	bool CheckIfCollapseCreatesFlip(const FDynamicMesh3& Mesh, int EdgeID, const FVector3d& NewVertexPosition, double EdgeFlipTolerance = 0.0)
 	{
-		FIndex4i EdgeInfo = Mesh.GetEdge(EdgeID);
-		int TriangleC = EdgeInfo.C;
-		int TriangleD = EdgeInfo.D;
+		const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeID);
+		int TriangleC = Edge.Tri[0];
+		int TriangleD = Edge.Tri[1];
 
 		for (int j = 0; j < 2; ++j)
 		{
-			int VertexID = EdgeInfo[j];
-			int OtherVertexID = EdgeInfo[(j + 1) % 2];
+			int VertexID = Edge.Vert[j];
+			int OtherVertexID = Edge.Vert[(j + 1) % 2];
 
 			for (int TriangleID : Mesh.VtxTrianglesItr(VertexID))
 			{
@@ -89,14 +89,14 @@ namespace
 		FIndex3i& IncidentTriangle0, FIndex3i& IncidentTriangle1,
 		FIndex3i& NewTriangle0, FIndex3i& NewTriangle1)
 	{
-		FIndex4i EdgeInfo = Mesh.GetEdge(EdgeID);
+		const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeID);
 		FIndex2i OpposingVertices = Mesh.GetEdgeOpposingV(EdgeID);
-		int a = EdgeInfo.A;
-		int b = EdgeInfo.B;
+		int a = Edge.Vert[0];
+		int b = Edge.Vert[1];
 		int c = OpposingVertices.A;
 		int d = OpposingVertices.B;
 
-		FIndex3i IncidentTriangle = Mesh.GetTriangle(EdgeInfo.C);
+		FIndex3i IncidentTriangle = Mesh.GetTriangle(Edge.Tri[0]);
 		int oa = a;
 		int ob = b;
 		IndexUtil::OrientTriEdge(oa, ob, IncidentTriangle);
@@ -113,12 +113,12 @@ namespace
 		FVector3d& IncidentTriangleNormal0, FVector3d& IncidentTriangleNormal1,
 		FVector3d& NewTriangleNormal0, FVector3d& NewTriangleNormal1)
 	{
-		FIndex4i EdgeInfo = Mesh.GetEdge(EdgeID);
+		const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeID);
 		FIndex2i OpposingVertices = Mesh.GetEdgeOpposingV(EdgeID);
 		FVector3d vC = Mesh.GetVertex(OpposingVertices.A), vD = Mesh.GetVertex(OpposingVertices.B);
-		int IncidentTriangleIndex = EdgeInfo.C;
+		int IncidentTriangleIndex = Edge.Tri[0];
 		FIndex3i IncidentTriangle = Mesh.GetTriangle(IncidentTriangleIndex);
-		int OrientedA = EdgeInfo.A, OrientedB = EdgeInfo.B;
+		int OrientedA = Edge.Vert[0], OrientedB = Edge.Vert[1];
 		IndexUtil::OrientTriEdge(OrientedA, OrientedB, IncidentTriangle);
 
 		FVector3d OrientedAPosition = Mesh.GetVertex(OrientedA), OrientedBPosition = Mesh.GetVertex(OrientedB);
@@ -136,12 +136,12 @@ namespace
 	bool CheckIfEdgeFlipCreatesFlip(const FDynamicMesh3 Mesh, int EdgeID, double FlipDotTol = 0.0)
 	{
 		check(Mesh.IsBoundaryEdge(EdgeID) == false);
-		FIndex4i EdgeInfo = Mesh.GetEdge(EdgeID);
+		const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeID);
 		FIndex2i OpposingVertex = Mesh.GetEdgeOpposingV(EdgeID);
 
-		FIndex3i TriangleVertices = Mesh.GetTriangle(EdgeInfo.C);
-		int OrientedA = EdgeInfo.A;
-		int OrientedB = EdgeInfo.B;
+		FIndex3i TriangleVertices = Mesh.GetTriangle(Edge.Tri[0]);
+		int OrientedA = Edge.Vert[0];
+		int OrientedB = Edge.Vert[1];
 		IndexUtil::OrientTriEdge(OrientedA, OrientedB, TriangleVertices);
 		FVector3d OrientedAPosition = Mesh.GetVertex(OrientedA), OrientedBPosition = Mesh.GetVertex(OrientedB);
 		FVector3d CPosition = Mesh.GetVertex(OpposingVertex.A), DPosition = Mesh.GetVertex(OpposingVertex.B);
@@ -603,7 +603,6 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 	if (FillLoop.Vertices.Num() <= 3) 
 	{
 		NewTriangles = Simplefill.NewTriangles;
-		NewVertices.Empty();
 		return true;
 	}
 
@@ -733,13 +732,6 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 
 	RegionOp->BackPropropagate(true);
 	NewTriangles = RegionOp->CurrentBaseTriangles();
-	NewVertices = RegionOp->CurrentBaseInteriorVertices().Array();
-
-	if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
-	{
-		FDynamicMeshEditor Editor(Mesh);
-		Editor.SetTriangleNormals(NewTriangles);
-	}
 
 	return true;
 }

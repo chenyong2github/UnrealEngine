@@ -68,15 +68,6 @@ struct dtTileCacheContourSet
 	dtTileCacheContour* conts;
 };
 
-struct dtTileCacheClusterSet
-{
-	int nclusters;				///< The number of clusters
-	int nregs;					///< The number of regions
-	int npolys;					///< The number of polys
-	unsigned short* regMap;		///< Cluster Id for each region [size: #nregs]
-	unsigned short* polyMap;	///< Cluster Id for each poly [size: #npolys]
-};
-
 struct dtTileCachePolyMesh
 {
 	int nvp;
@@ -90,6 +81,17 @@ struct dtTileCachePolyMesh
 };
 
 //@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
+struct dtTileCacheClusterSet
+{
+	int nclusters;				///< The number of clusters
+	int nregs;					///< The number of regions
+	int npolys;					///< The number of polys
+	unsigned short* regMap;		///< Cluster Id for each region [size: #nregs]
+	unsigned short* polyMap;	///< Cluster Id for each poly [size: #npolys]
+};
+#endif //WITH_NAVMESH_CLUSTER_LINKS
+
 struct dtTileCachePolyMeshDetail
 {
 	int nmeshes;			///< The number of sub-meshes defined by #meshes.
@@ -199,13 +201,15 @@ NAVMESH_API dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileC
 NAVMESH_API dtTileCacheContourSet* dtAllocTileCacheContourSet(dtTileCacheAlloc* alloc);
 NAVMESH_API void dtFreeTileCacheContourSet(dtTileCacheAlloc* alloc, dtTileCacheContourSet* cset);
 
-NAVMESH_API dtTileCacheClusterSet* dtAllocTileCacheClusterSet(dtTileCacheAlloc* alloc);
-NAVMESH_API void dtFreeTileCacheClusterSet(dtTileCacheAlloc* alloc, dtTileCacheClusterSet* clusters);
-
 NAVMESH_API dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc);
 NAVMESH_API void dtFreeTileCachePolyMesh(dtTileCacheAlloc* alloc, dtTileCachePolyMesh* lmesh);
 
 //@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
+NAVMESH_API dtTileCacheClusterSet* dtAllocTileCacheClusterSet(dtTileCacheAlloc* alloc);
+NAVMESH_API void dtFreeTileCacheClusterSet(dtTileCacheAlloc* alloc, dtTileCacheClusterSet* clusters);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
 NAVMESH_API dtTileCachePolyMeshDetail* dtAllocTileCachePolyMeshDetail(dtTileCacheAlloc* alloc);
 NAVMESH_API void dtFreeTileCachePolyMeshDetail(dtTileCacheAlloc* alloc, dtTileCachePolyMeshDetail* dmesh);
 
@@ -259,8 +263,13 @@ NAVMESH_API dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc,
 								dtTileCacheLayer& layer,
 								const int walkableClimb, const float maxError,
 								const float cs, const float ch,
-								dtTileCacheContourSet& lcset,
-								dtTileCacheClusterSet& lclusters);
+								dtTileCacheContourSet& lcset
+								//@UE4 BEGIN
+#if WITH_NAVMESH_CLUSTER_LINKS
+								, dtTileCacheClusterSet& lclusters
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+								//@UE4 END
+								);
 
 NAVMESH_API dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 								dtTileCacheLogContext* ctx,
@@ -275,9 +284,11 @@ NAVMESH_API dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
 								dtTileCachePolyMesh& lmesh,
 								dtTileCachePolyMeshDetail& dmesh);
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 NAVMESH_API dtStatus dtBuildTileCacheClusters(dtTileCacheAlloc* alloc,
 								dtTileCacheClusterSet& lclusters,
 								dtTileCachePolyMesh& lmesh);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 //@UE4 END
 
 /// Swaps the endianess of the compressed tile data's header (#dtTileCacheLayerHeader).

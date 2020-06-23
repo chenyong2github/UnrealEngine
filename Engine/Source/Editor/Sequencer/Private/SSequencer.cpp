@@ -26,6 +26,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -86,6 +87,7 @@
 #include "MovieSceneCopyableBinding.h"
 #include "SObjectBindingTagManager.h"
 #include "SSequencerGroupManager.h"
+#include "SSequencerHierarchyBrowser.h"
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
@@ -132,7 +134,7 @@ public:
 
 	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel)
 	{
-		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), EOrientation::Orient_Horizontal, true);
+		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), true);
 		ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 		ToolBarBuilder.BeginSection("Asset");
 
@@ -603,15 +605,84 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 										SNew(SSpacer)
 									]
 
+									// History Back Button
 									+ SHorizontalBox::Slot()
 									.HAlign(HAlign_Right)
 									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SNew(SVerticalBox)
+
+										+ SVerticalBox::Slot()
+										.FillHeight(1.0f)
+										[
+											SNew(SButton)
+											.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+											.VAlign(EVerticalAlignment::VAlign_Center)
+											.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+											.ForegroundColor(FLinearColor::White)
+											.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateBackwardTooltip(); })
+											.ContentPadding(FMargin(1, 0))
+											.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateBackward(); })
+											.IsEnabled_Lambda([this] { return SequencerPtr.Pin()->CanNavigateBackward(); })
+											[
+												SNew(STextBlock)
+												.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+												.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+												.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
+											]
+										]
+									]
+
+									// History Forward Button
+									+ SHorizontalBox::Slot()
+									.HAlign(HAlign_Right)
+									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SNew(SVerticalBox)
+
+										+ SVerticalBox::Slot()
+										.FillHeight(1.0f)
+										[
+											SNew(SButton)
+											.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+											.VAlign(EVerticalAlignment::VAlign_Center)
+											.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+											.ForegroundColor(FLinearColor::White)
+											.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateForwardTooltip(); })
+											.ContentPadding(FMargin(1, 0))
+											.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateForward(); })
+											.IsEnabled_Lambda([this] { return SequencerPtr.Pin()->CanNavigateForward(); })
+											[
+												SNew(STextBlock)
+												.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+												.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+												.Text(FText::FromString(FString(TEXT("\xf061"))) /*fa-arrow-right*/)
+											]
+										]
+									]
+
+									// Separator
+									+ SHorizontalBox::Slot()
+									.AutoWidth()
+									.Padding(3, 0)
+									[
+										SNew(SSeparator)
+										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+										.Orientation(Orient_Vertical)
+									]
+							
+									+ SHorizontalBox::Slot()
+									.HAlign(HAlign_Right)
+									.VAlign(VAlign_Center)
+									.AutoWidth()
 									[
 										SAssignNew(BreadcrumbPickerButton, SComboButton)
 										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
 										.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 										.ForegroundColor(FLinearColor::White)
-										.OnGetMenuContent(this, &SSequencer::GetBreadcrumbPickerContent)
+										.OnGetMenuContent_Lambda([this] { return SNew(SSequencerHierarchyBrowser, SequencerPtr); })
 										.HasDownArrow(false)
 										.ContentPadding(FMargin(3, 3))
 										.ButtonContent()
@@ -1317,7 +1388,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 	TSharedPtr<FExtender> Extender = FExtender::Combine(AllExtenders);
 
-	FToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, Orient_Horizontal, true);
+	FToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, true);
 	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 
 	ToolBarBuilder.BeginSection("Base Commands");
@@ -3088,38 +3159,6 @@ void SSequencer::OnCrumbClicked(const FSequencerBreadcrumb& Item)
 	}
 }
 
-void SSequencer::OnBreadcrumbPickerContentClicked(const FSequencerBreadcrumb& Breadcrumb)
-{
-	while (BreadcrumbTrail->NumCrumbs() > 1 && BreadcrumbTrail->PeekCrumb().SequenceID != Breadcrumb.SequenceID)
-	{
-		BreadcrumbTrail->PopCrumb();
-	}
-	OnCrumbClicked(Breadcrumb);
-}
-
-TSharedRef<SWidget> SSequencer::GetBreadcrumbPickerContent()
-{
-	TArray<FSequencerBreadcrumb> CrumbData;
-	BreadcrumbTrail->GetAllCrumbData(CrumbData);
-
-	FMenuBuilder MenuBuilder(true, nullptr);
-
-	MenuBuilder.BeginSection("SequencerBreadcrumbPicker");
-
-	for(FSequencerBreadcrumb& Breadcrumb : CrumbData)
-	{
-		MenuBuilder.AddMenuEntry(
-			Breadcrumb.BreadcrumbName,
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda(([this, Breadcrumb]() { return this->OnBreadcrumbPickerContentClicked(Breadcrumb); } )))
-		);
-	}
-	
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
-}
 
 FText SSequencer::GetRootAnimationName() const
 {

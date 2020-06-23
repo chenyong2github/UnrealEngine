@@ -76,7 +76,15 @@ static TArray<FString> ChangeMessages;
 static bool bWriteContents = false;
 static bool bVerifyContents = false;
 
-static TSharedRef<FUnrealSourceFile> PerformInitialParseOnHeader(UPackage* InParent, const TCHAR* FileName, EObjectFlags Flags, const TCHAR* Buffer);
+struct FPerHeaderData
+{
+	TSharedPtr<FUnrealSourceFile> UnrealSourceFile;
+	TArray<FHeaderProvider> DependsOn;
+	TArray<FSimplifiedParsingClassInfo> ParsedClassArray;
+};
+
+static void PerformSimplifiedClassParse(UPackage* InParent, const TCHAR* FileName, const TCHAR* Buffer, FPerHeaderData& PerHeaderData);
+static void ProcessInitialClassParse(FPerHeaderData& PerHeaderData);
 
 FCompilerMetadataManager GScriptHelper;
 
@@ -1776,10 +1784,8 @@ TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDe
 		FMacroBlockEmitter WithEditorOnlyMacroEmitter(Out, TEXT("WITH_EDITORONLY_DATA"));
 		FMacroBlockEmitter WithEditorOnlyMacroEmitterDecl(DeclOut, TEXT("WITH_EDITORONLY_DATA"));
 
-		for (int32 Index = Properties.Num() - 1; Index >= 0; Index--)
+		for (FProperty* Prop : Properties)
 		{
-			FProperty* Prop = Properties[Index];
-
 			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(Prop);
 			if (!bRequiresHasEditorOnlyMacro)
 			{
@@ -1856,16 +1862,49 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	// Helper to handle the creation of the underlying properties if they're enum properties
 	auto HandleUnderlyingEnumProperty = [this, &PropertyNamesAndPointers, &DeclOut, &Out, &OutReferenceGatherers, DeclSpaces, Spaces](FProperty* LocalProp, FString&& InOuterName)
 	{
-		const FString& OuterName = PropertyNamesAndPointers.Emplace_GetRef(MoveTemp(InOuterName), LocalProp).Name;
-
 		if (FEnumProperty* EnumProp = CastField<FEnumProperty>(LocalProp))
 		{
-			FString PropVarName = OuterName + TEXT("_Underlying");
+			FString PropVarName = InOuterName + TEXT("_Underlying");
 
 			PropertyNew(DeclOut, Out, OutReferenceGatherers, EnumProp->UnderlyingProp, TEXT("0"), *PropVarName, DeclSpaces, Spaces);
 			PropertyNamesAndPointers.Emplace(MoveTemp(PropVarName), EnumProp->UnderlyingProp);
 		}
+
+		PropertyNamesAndPointers.Emplace(MoveTemp(InOuterName), LocalProp);
 	};
+
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
+	{
+		FString InnerVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *ArrayProperty->Inner->GetName());
+
+		HandleUnderlyingEnumProperty(ArrayProperty->Inner, CopyTemp(InnerVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, ArrayProperty->Inner, TEXT("0"), *InnerVariableName, DeclSpaces, Spaces);
+	}
+
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Prop))
+	{
+		FProperty* Key   = MapProperty->KeyProp;
+		FProperty* Value = MapProperty->ValueProp;
+
+		FString KeyVariableName   = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *Key->GetName());
+		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *Value->GetName());
+
+		HandleUnderlyingEnumProperty(Value, CopyTemp(ValueVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Value, TEXT("1"), *ValueVariableName, DeclSpaces, Spaces);
+
+		HandleUnderlyingEnumProperty(Key, CopyTemp(KeyVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Key, TEXT("0"), *KeyVariableName, DeclSpaces, Spaces);
+	}
+
+	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Prop))
+	{
+		FProperty* Inner = SetProperty->ElementProp;
+
+		FString ElementVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *Inner->GetName());
+
+		HandleUnderlyingEnumProperty(Inner, CopyTemp(ElementVariableName));
+		PropertyNew(DeclOut, Out, OutReferenceGatherers, Inner, TEXT("0"), *ElementVariableName, DeclSpaces, Spaces);
+	}
 
 	{
 		FString SourceStruct;
@@ -1876,9 +1915,9 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 				Function = Function->GetSuperFunction();
 			}
 			FString FunctionName = Function->GetName();
-			if( Function->HasAnyFunctionFlags( FUNC_Delegate ) )
+			if (Function->HasAnyFunctionFlags(FUNC_Delegate))
 			{
-				FunctionName.LeftChopInline(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH, false );
+				FunctionName.LeftChopInline(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH, false);
 			}
 
 			SourceStruct = GetEventStructParamsName(Function->GetOuter(), *FunctionName);
@@ -1893,46 +1932,13 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 		if (Prop->HasAllPropertyFlags(CPF_Deprecated))
 		{
-			 PropName += TEXT("_DEPRECATED");
+			PropName += TEXT("_DEPRECATED");
 		}
 
 		FString PropMacroOuterClass = FString::Printf(TEXT("STRUCT_OFFSET(%s, %s)"), *SourceStruct, *PropName);
 
+		HandleUnderlyingEnumProperty(Prop, CopyTemp(PropVariableName));
 		PropertyNew(DeclOut, Out, OutReferenceGatherers, Prop, *PropMacroOuterClass, *PropVariableName, DeclSpaces, Spaces, *SourceStruct);
-		HandleUnderlyingEnumProperty(Prop, MoveTemp(PropVariableName));
-	}
-
-	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
-	{
-		FString InnerVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *ArrayProperty->Inner->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, ArrayProperty->Inner, TEXT("0"), *InnerVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(ArrayProperty->Inner, MoveTemp(InnerVariableName));
-	}
-
-	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Prop))
-	{
-		FProperty* Key   = MapProperty->KeyProp;
-		FProperty* Value = MapProperty->ValueProp;
-
-		FString KeyVariableName   = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *Key->GetName());
-		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *Value->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Key, TEXT("0"), *KeyVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Key, MoveTemp(KeyVariableName));
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Value, TEXT("1"), *ValueVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Value, MoveTemp(ValueVariableName));
-	}
-
-	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Prop))
-	{
-		FProperty* Inner = SetProperty->ElementProp;
-
-		FString ElementVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *Inner->GetName());
-
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, Inner, TEXT("0"), *ElementVariableName, DeclSpaces, Spaces);
-		HandleUnderlyingEnumProperty(Inner, MoveTemp(ElementVariableName));
 	}
 }
 
@@ -3476,7 +3482,7 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *EnhMacroName);
 }
 
-bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers) const
+bool FNativeClassHeaderGenerator::WriteHeader(const FPreloadHeaderFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers, FGraphEventRef& OutSaveTempTask) const
 {
 	FUHTStringBuilder GeneratedHeaderTextWithCopyright;
 	GeneratedHeaderTextWithCopyright.Logf(TEXT("%s"), HeaderCopyright);
@@ -3502,7 +3508,8 @@ bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& 
 	GeneratedHeaderTextWithCopyright.Log(InBodyText);
 	GeneratedHeaderTextWithCopyright.Log(EnableDeprecationWarnings);
 
-	bool bHasChanged = SaveHeaderIfChanged(InOutReferenceGatherers, Path, *GeneratedHeaderTextWithCopyright);
+
+	const bool bHasChanged = SaveHeaderIfChanged(InOutReferenceGatherers, FileInfo, MoveTemp(GeneratedHeaderTextWithCopyright), OutSaveTempTask);
 	return bHasChanged;
 }
 
@@ -5419,6 +5426,8 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 )
 {
 	FUHTStringBuilder RPCWrappers;
+
+	FMacroBlockEmitter OutCppEditorOnly(OutCpp, TEXT("WITH_EDITOR"));
 	for (UFunction* Function : CallbackFunctions)
 	{
 		// Never expecting to export delegate functions this way
@@ -5427,14 +5436,18 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 		FFunctionData*   CompilerInfo = FFunctionData::FindForFunction(Function);
 		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
 		FString          FunctionName = Function->GetName();
-		UClass*          Class        = CastChecked<UClass>(Function->GetOuter());
-		const FString    ClassName    = FNameLookupCPP::GetNameCPP(Class);
+		UClass*          Class = CastChecked<UClass>(Function->GetOuter());
+		const FString    ClassName = FNameLookupCPP::GetNameCPP(Class);
 
 		if (FunctionData.FunctionFlags & FUNC_NetResponse)
 		{
 			// Net response functions don't go into the VM
 			continue;
 		}
+
+		const bool bIsEditorOnly = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
+
+		OutCppEditorOnly(bIsEditorOnly);
 
 		const bool bWillBeProgrammerTyped = FunctionName == FunctionData.MarshallAndCallName;
 
@@ -5634,6 +5647,83 @@ static void RecordPackageSingletons(
 	}
 }
 
+struct FPreloadHeaderFileInfo
+{
+	FPreloadHeaderFileInfo()
+		: bFinishedLoading(true)
+	{
+	}
+
+	~FPreloadHeaderFileInfo()
+	{
+		EnsureLoadComplete();
+	}
+
+	void Load(FString&& InHeaderPath)
+	{
+		if (!bFinishedLoading || HeaderFileContents.Len() > 0)
+		{
+			if (ensureMsgf(InHeaderPath == HeaderPath, TEXT("FPreloadHeaderFileInfo::Load called twice with different paths.")))
+			{
+				// If we've done an async load but now a sync load has been requested we need to wait on it
+				EnsureLoadComplete();
+			}
+		}
+		else
+		{
+			HeaderPath = MoveTemp(InHeaderPath);
+
+			SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+			FFileHelper::LoadFileToString(HeaderFileContents, *HeaderPath);
+		}
+	}
+
+	void StartLoad(FString&& InHeaderPath)
+	{
+		if (!bFinishedLoading || HeaderFileContents.Len() > 0)
+		{
+			ensureMsgf(InHeaderPath == HeaderPath, TEXT("FPreloadHeaderFileInfo::Load called twice with different paths."));
+			return;
+		}
+		auto LoadFileContentsTask = [this]()
+		{
+			SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+			FFileHelper::LoadFileToString(HeaderFileContents, *HeaderPath);
+
+			bFinishedLoading = true;
+		};
+
+		HeaderPath = MoveTemp(InHeaderPath);
+		bFinishedLoading = false;
+
+		LoadTaskRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LoadFileContentsTask), TStatId());
+	}
+
+	const FString& GetFileContents() const
+	{
+		EnsureLoadComplete();
+		return HeaderFileContents;
+	}
+
+	FString& GetHeaderPath() { return HeaderPath; }
+	const FString& GetHeaderPath() const { return HeaderPath; }
+
+private:
+
+	void EnsureLoadComplete() const
+	{
+		if (!bFinishedLoading)
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(LoadTaskRef);
+		}
+	}
+
+	FString HeaderPath;
+	FString HeaderFileContents;
+	FGraphEventRef LoadTaskRef;
+	bool bFinishedLoading;
+};
+
 // Constructor.
 FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	const UPackage* InPackage,
@@ -5735,113 +5825,161 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	const FManifestModule* ConstPackageManifest = GetPackageManifest(PackageName);
 	const FNativeClassHeaderGenerator* ConstThis = this;
 
-	ParallelFor(Exported.Num(), [&Exported, Package=Package, ConstPackageManifest, &GeneratedCPPs, ConstThis](int32 Index)
+	TempSaveTasks.SetNum(Exported.Num());
+
+	TArray<FPreloadHeaderFileInfo> PreloadedFiles;
+	PreloadedFiles.SetNum(Exported.Num());
+
+	ParallelFor(Exported.Num(), [&Exported, &PreloadedFiles, Package=Package, ConstPackageManifest](int32 Index)
 	{
 		FUnrealSourceFile* SourceFile = Exported[Index];
-
-		/** Forward declarations that we need for this sourcefile. */
-		TSet<FString> ForwardDeclarations;
 
 		FString ModuleRelativeFilename = SourceFile->GetFilename();
 		ConvertToBuildIncludePath(Package, ModuleRelativeFilename);
 
-		FString StrippedName       = FPaths::GetBaseFilename(ModuleRelativeFilename);
-		FString BaseSourceFilename = ConstPackageManifest->GeneratedIncludeDirectory / StrippedName;
+		FString StrippedName = FPaths::GetBaseFilename(MoveTemp(ModuleRelativeFilename));
+		FString HeaderPath = (ConstPackageManifest->GeneratedIncludeDirectory / StrippedName) + TEXT(".generated.h");
 
-		FUHTStringBuilder GeneratedHeaderText;
-		FGeneratedCPP& GeneratedCPP = GeneratedCPPs.FindChecked(SourceFile);
-		FUHTStringBuilder& GeneratedFunctionDeclarations = GeneratedCPP.GeneratedFunctionDeclarations;
-
-		FReferenceGatherers ReferenceGatherers(&GeneratedCPP.CrossModuleReferences, GeneratedCPP.PackageHeaderPaths, GeneratedCPP.TempHeaderPaths);
-
-		FUHTStringBuilderLineCounter& OutText = GeneratedCPP.GeneratedText;
-
-		TArray<UEnum*> Enums;
-		TArray<UScriptStruct*> Structs;
-		TArray<UDelegateFunction*> DelegateFunctions;
-		SourceFile->GetScope()->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
-
-		RecordPackageSingletons(*SourceFile->GetPackage(), Structs, DelegateFunctions);
-
-		// Reverse the containers as they come out in the reverse order of declaration
-		Algo::Reverse(Enums);
-		Algo::Reverse(Structs);
-		Algo::Reverse(DelegateFunctions);
-
-		GeneratedHeaderText.Logf(
-			TEXT("#ifdef %s")																	LINE_TERMINATOR
-			TEXT("#error \"%s.generated.h already included, missing '#pragma once' in %s.h\"")	LINE_TERMINATOR
-			TEXT("#endif")																		LINE_TERMINATOR
-			TEXT("#define %s")																	LINE_TERMINATOR
-			LINE_TERMINATOR,
-			*SourceFile->GetFileDefineName(), *SourceFile->GetStrippedFilename(), *SourceFile->GetStrippedFilename(), *SourceFile->GetFileDefineName());
-
-		// export delegate definitions
-		for (UDelegateFunction* Func : DelegateFunctions)
-		{
-			GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Func).GetExternDecl());
-			ConstThis->ExportDelegateDeclaration(OutText, ReferenceGatherers, *SourceFile, Func);
-		}
-
-		// Export enums declared in non-UClass headers.
-		for (UEnum* Enum : Enums)
-		{
-			// Is this ever not the case?
-			if (Enum->GetOuter()->IsA(UPackage::StaticClass()))
-			{
-				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Enum).GetExternDecl());
-				ConstThis->ExportGeneratedEnumInitCode(OutText, ReferenceGatherers, *SourceFile, Enum);
-			}
-		}
-
-		// export boilerplate macros for structs
-		// reverse the order.
-		for (UScriptStruct* Struct : Structs)
-		{
-			GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Struct).GetExternDecl());
-			ConstThis->ExportGeneratedStructBodyMacros(GeneratedHeaderText, OutText, ReferenceGatherers, *SourceFile, Struct);
-		}
-
-		// export delegate wrapper function implementations
-		for (UDelegateFunction* Func : DelegateFunctions)
-		{
-			ConstThis->ExportDelegateDefinition(GeneratedHeaderText, ReferenceGatherers, *SourceFile, Func);
-		}
-
-		EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
-		TSet<FString> AdditionalHeaders;
-		for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
-		{
-			UClass* Class = ClassDataPair.Key;
-			if (!(Class->ClassFlags & CLASS_Intrinsic))
-			{
-				ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile, ExportFlags);
-			}
-		}
-
-		if (EnumHasAnyFlags(ExportFlags, EExportClassOutFlags::NeedsPushModelHeaders))
-		{
-			AdditionalHeaders.Add(FString(TEXT("Net/Core/PushModel/PushModelMacros.h")));
-		}
-
-		GeneratedHeaderText.Log(TEXT("#undef CURRENT_FILE_ID\r\n"));
-		GeneratedHeaderText.Logf(TEXT("#define CURRENT_FILE_ID %s\r\n\r\n\r\n"), *SourceFile->GetFileId());
-
-		for (UEnum* Enum : Enums)
-		{
-			ConstThis->ExportEnum(GeneratedHeaderText, Enum);
-		}
-
-		FString HeaderPath = BaseSourceFilename + TEXT(".generated.h");
-		bool bHasChanged = ConstThis->WriteHeader(*HeaderPath, GeneratedHeaderText, AdditionalHeaders, ReferenceGatherers);
-
-		SourceFile->SetGeneratedFilename(MoveTemp(HeaderPath));
-		SourceFile->SetHasChanged(bHasChanged);
+		PreloadedFiles[Index].Load(MoveTemp(HeaderPath));
 	});
+
+	FString ExceptionMessage;
+
+	ParallelFor(Exported.Num(), [&Exported, &PreloadedFiles, &GeneratedCPPs, &TempSaveTasks=TempSaveTasks, &ExceptionMessage, ConstThis](int32 Index)
+	{
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		try
+		{
+#endif		
+			FUnrealSourceFile* SourceFile = Exported[Index];
+
+			/** Forward declarations that we need for this sourcefile. */
+			TSet<FString> ForwardDeclarations;
+
+			FUHTStringBuilder GeneratedHeaderText;
+			FGeneratedCPP& GeneratedCPP = GeneratedCPPs.FindChecked(SourceFile);
+			FUHTStringBuilder& GeneratedFunctionDeclarations = GeneratedCPP.GeneratedFunctionDeclarations;
+
+			FReferenceGatherers ReferenceGatherers(&GeneratedCPP.CrossModuleReferences, GeneratedCPP.PackageHeaderPaths, GeneratedCPP.TempHeaderPaths);
+
+			FUHTStringBuilderLineCounter& OutText = GeneratedCPP.GeneratedText;
+
+			TArray<UEnum*> Enums;
+			TArray<UScriptStruct*> Structs;
+			TArray<UDelegateFunction*> DelegateFunctions;
+			SourceFile->GetScope()->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
+
+			RecordPackageSingletons(*SourceFile->GetPackage(), Structs, DelegateFunctions);
+
+			// Reverse the containers as they come out in the reverse order of declaration
+			Algo::Reverse(Enums);
+			Algo::Reverse(Structs);
+			Algo::Reverse(DelegateFunctions);
+
+			const FString FileDefineName = SourceFile->GetFileDefineName();
+			const FString& StrippedFilename = SourceFile->GetStrippedFilename();
+
+			GeneratedHeaderText.Logf(
+				TEXT("#ifdef %s")																	LINE_TERMINATOR
+				TEXT("#error \"%s.generated.h already included, missing '#pragma once' in %s.h\"")	LINE_TERMINATOR
+				TEXT("#endif")																		LINE_TERMINATOR
+				TEXT("#define %s")																	LINE_TERMINATOR
+				LINE_TERMINATOR,
+				*FileDefineName, *StrippedFilename, *StrippedFilename, *FileDefineName);
+
+			// export delegate definitions
+			for (UDelegateFunction* Func : DelegateFunctions)
+			{
+				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Func).GetExternDecl());
+				ConstThis->ExportDelegateDeclaration(OutText, ReferenceGatherers, *SourceFile, Func);
+			}
+
+			// Export enums declared in non-UClass headers.
+			for (UEnum* Enum : Enums)
+			{
+				// Is this ever not the case?
+				if (Enum->GetOuter()->IsA(UPackage::StaticClass()))
+				{
+					GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Enum).GetExternDecl());
+					ConstThis->ExportGeneratedEnumInitCode(OutText, ReferenceGatherers, *SourceFile, Enum);
+				}
+			}
+
+			// export boilerplate macros for structs
+			// reverse the order.
+			for (UScriptStruct* Struct : Structs)
+			{
+				GeneratedFunctionDeclarations.Log(FTypeSingletonCache::Get(Struct).GetExternDecl());
+				ConstThis->ExportGeneratedStructBodyMacros(GeneratedHeaderText, OutText, ReferenceGatherers, *SourceFile, Struct);
+			}
+
+			// export delegate wrapper function implementations
+			for (UDelegateFunction* Func : DelegateFunctions)
+			{
+				ConstThis->ExportDelegateDefinition(GeneratedHeaderText, ReferenceGatherers, *SourceFile, Func);
+			}
+
+			EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
+			TSet<FString> AdditionalHeaders;
+			for (const TPair<UClass*, FSimplifiedParsingClassInfo>& ClassDataPair : SourceFile->GetDefinedClassesWithParsingInfo())
+			{
+				UClass* Class = ClassDataPair.Key;
+				if (!(Class->ClassFlags & CLASS_Intrinsic))
+				{
+					ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile, ExportFlags);
+				}
+			}
+
+			if (EnumHasAnyFlags(ExportFlags, EExportClassOutFlags::NeedsPushModelHeaders))
+			{
+				AdditionalHeaders.Add(FString(TEXT("Net/Core/PushModel/PushModelMacros.h")));
+			}
+
+			GeneratedHeaderText.Log(TEXT("#undef CURRENT_FILE_ID\r\n"));
+			GeneratedHeaderText.Logf(TEXT("#define CURRENT_FILE_ID %s\r\n\r\n\r\n"), *SourceFile->GetFileId());
+
+			for (UEnum* Enum : Enums)
+			{
+				ConstThis->ExportEnum(GeneratedHeaderText, Enum);
+			}
+
+			FPreloadHeaderFileInfo& FileInfo = PreloadedFiles[Index];
+			bool bHasChanged = ConstThis->WriteHeader(FileInfo, GeneratedHeaderText, AdditionalHeaders, ReferenceGatherers, TempSaveTasks[Index]);
+
+			SourceFile->SetGeneratedFilename(MoveTemp(FileInfo.GetHeaderPath()));
+			SourceFile->SetHasChanged(bHasChanged);
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		}
+		catch (const TCHAR* Ex)
+		{
+			// Capture the first exception message from the loop and issue it out on the gamethread after the loop completes
+
+			static FCriticalSection ExceptionCS;
+			FScopeLock Lock(&ExceptionCS);
+			
+			if (ExceptionMessage.Len() == 0)
+			{
+				ExceptionMessage = FString(Ex);
+			}
+		}
+#endif
+	});
+
+	if (ExceptionMessage.Len() > 0)
+	{
+		FError::Throwf(*ExceptionMessage);
+	}
+
+	FPreloadHeaderFileInfo FileInfo;
+	if (bWriteClassesH)
+	{
+		// Start loading the original header file for comparison
+		FString ClassesHeaderPath = PackageManifest->GeneratedIncludeDirectory / (PackageName + TEXT("Classes.h"));
+		FileInfo.StartLoad(MoveTemp(ClassesHeaderPath));
+	}
 
 	// Export an include line for each header
 	TSet<FUnrealSourceFile*> PublicHeaderGroupIncludes;
-	TArray<UClass*>	DefinedClasses;
 	FUHTStringBuilder GeneratedFunctionDeclarations;
 
 	for (FUnrealSourceFile* SourceFile : Exported)
@@ -5925,8 +6063,8 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		FReferenceGatherers ReferenceGatherers(nullptr, PackageHeaderPaths, TempHeaderPaths);
 
 		// Save the classes header if it has changed.
-		const FString ClassesHeaderPath = PackageManifest->GeneratedIncludeDirectory / (PackageName + TEXT("Classes.h"));
-		SaveHeaderIfChanged(ReferenceGatherers, *ClassesHeaderPath, *ClassesHText);
+		FGraphEventRef& SaveTaskRef = TempSaveTasks.AddDefaulted_GetRef();
+		SaveHeaderIfChanged(ReferenceGatherers, FileInfo, MoveTemp(ClassesHText), SaveTaskRef);
 	}
 
 	// now export the names for the functions in this package
@@ -5957,17 +6095,38 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 
 	const FManifestModule* ModuleInfo = GPackageToManifestModuleMap.FindChecked(Package);
 
-	TArray<FGeneratedCPP*> GeneratedCPPArray;
-	GeneratedCPPArray.Reserve(GeneratedCPPs.Num());
+	struct FGeneratedCPPInfo
+	{
+		FGeneratedCPP* GeneratedCPP;
+		FPreloadHeaderFileInfo FileInfo;
+	};
+
+	TArray<FGeneratedCPPInfo> GeneratedCPPArray;
+	GeneratedCPPArray.SetNum(GeneratedCPPs.Num());
+
+	int32 Index = 0;
 	for (TPair<FUnrealSourceFile*, FGeneratedCPP>& Pair : GeneratedCPPs)
 	{
-		GeneratedCPPArray.Add(&Pair.Value);
+		GeneratedCPPArray[Index++].GeneratedCPP = &Pair.Value;
 	}
 
-	// Generate CPP files
-	ParallelFor(GeneratedCPPArray.Num(), [ConstThis, &GeneratedCPPArray](int32 Index)
+	if (bAllowSaveExportedHeaders)
 	{
-		FGeneratedCPP* GeneratedCPP = GeneratedCPPArray[Index];
+		ParallelFor(GeneratedCPPArray.Num(), [&](int32 Index)
+		{
+			FGeneratedCPPInfo& CPPInfo = GeneratedCPPArray[Index];
+			CPPInfo.FileInfo.Load(FString(CPPInfo.GeneratedCPP->GeneratedCppFullFilename));
+		});
+	}
+
+	const int32 SaveTaskStartIndex = TempSaveTasks.Num();
+	TempSaveTasks.AddDefaulted(GeneratedCPPArray.Num());
+
+	// Generate CPP files
+	ParallelFor(GeneratedCPPArray.Num(), [ConstThis, &GeneratedCPPArray, &TempSaveTasks=TempSaveTasks, SaveTaskStartIndex](int32 Index)
+	{
+		FGeneratedCPPInfo& CPPInfo = GeneratedCPPArray[Index];
+		FGeneratedCPP* GeneratedCPP = CPPInfo.GeneratedCPP;
 		FReferenceGatherers ReferenceGatherers(nullptr, GeneratedCPP->PackageHeaderPaths, GeneratedCPP->TempHeaderPaths);
 
 		FUHTStringBuilder FileText;
@@ -5991,7 +6150,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			*GeneratedIncludes
 		);
 
-		ConstThis->SaveHeaderIfChanged(ReferenceGatherers, *GeneratedCPP->GeneratedCppFullFilename, *FileText);
+		ConstThis->SaveHeaderIfChanged(ReferenceGatherers, CPPInfo.FileInfo, MoveTemp(FileText), TempSaveTasks[SaveTaskStartIndex+Index]);
 	});
 
 	if (bAllowSaveExportedHeaders)
@@ -6026,7 +6185,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 	}
 
 	// Export all changed headers from their temp files to the .h files
-	ExportUpdatedHeaders(MoveTemp(PackageName), MoveTemp(TempHeaderPaths));
+	ExportUpdatedHeaders(MoveTemp(PackageName), MoveTemp(TempHeaderPaths), TempSaveTasks);
 
 	// Delete stale *.generated.h files
 	DeleteUnusedGeneratedHeaders(MoveTemp(PackageHeaderPaths));
@@ -6083,7 +6242,7 @@ void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(TSet<FString>&& P
  */
 ECompilationResult::Type GCompilationResult = ECompilationResult::OtherCompilationError;
 
-bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const TCHAR* HeaderPath, const TCHAR* InNewHeaderContents) const
+bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const FPreloadHeaderFileInfo& FileInfo, FString&& InNewHeaderContents, FGraphEventRef& OutSaveTaskRef) const
 {
 	if ( !bAllowSaveExportedHeaders )
 	{
@@ -6091,7 +6250,6 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 		return false;
 	}
 
-	const TCHAR* NewHeaderContents = InNewHeaderContents;
 	static bool bTestedCmdLine = false;
 	if (!bTestedCmdLine)
 	{
@@ -6125,7 +6283,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 	if (bWriteContents || bVerifyContents)
 	{
 		const FString& ProjectSavedDir = FPaths::ProjectSavedDir();
-		const FString CleanFilename = FPaths::GetCleanFilename(HeaderPath);
+		const FString CleanFilename = FPaths::GetCleanFilename(FileInfo.GetHeaderPath());
 		const FString Ref = ProjectSavedDir / TEXT("ReferenceGeneratedCode") / CleanFilename;
 
 		if (bWriteContents)
@@ -6133,7 +6291,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 			int32 i;
 			for (i = 0 ;i < 10; i++)
 			{
-				if (FFileHelper::SaveStringToFile(NewHeaderContents, *Ref))
+				if (FFileHelper::SaveStringToFile(InNewHeaderContents, *Ref))
 				{
 					break;
 				}
@@ -6148,7 +6306,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 			int32 i;
 			for (i = 0 ;i < 10; i++)
 			{
-				if (FFileHelper::SaveStringToFile(NewHeaderContents, *Verify))
+				if (FFileHelper::SaveStringToFile(InNewHeaderContents, *Verify))
 				{
 					break;
 				}
@@ -6165,7 +6323,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 				}
 				else
 				{
-					if (FCString::Strcmp(NewHeaderContents, *RefHeader) != 0)
+					if (FCString::Strcmp(*InNewHeaderContents, *RefHeader) != 0)
 					{
 						Message = FString::Printf(TEXT("********************************* %s has changed."), *CleanFilename);
 					}
@@ -6179,36 +6337,36 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 		}
 	}
 
-	FString HeaderPathStr(HeaderPath);
+	FString HeaderPathStr = FileInfo.GetHeaderPath();
+	const FString& OriginalHeaderLocal = FileInfo.GetFileContents();
 
-	FString OriginalHeaderLocal;
-	{
-		SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
-		FFileHelper::LoadFileToString(OriginalHeaderLocal, HeaderPath);
-	}
-
-	const bool bHasChanged = OriginalHeaderLocal.Len() == 0 || FCString::Strcmp(*OriginalHeaderLocal, NewHeaderContents);
+	const bool bHasChanged = OriginalHeaderLocal.Len() == 0 || FCString::Strcmp(*OriginalHeaderLocal, *InNewHeaderContents);
 	if (bHasChanged)
 	{
 		static const bool bFailIfGeneratedCodeChanges = FParse::Param(FCommandLine::Get(), TEXT("FailIfGeneratedCodeChanges"));
 		if (bFailIfGeneratedCodeChanges)
 		{
 			FString ConflictPath = HeaderPathStr + TEXT(".conflict");
-			FFileHelper::SaveStringToFile(NewHeaderContents, *ConflictPath);
+			FFileHelper::SaveStringToFile(InNewHeaderContents, *ConflictPath);
 
 			GCompilationResult = ECompilationResult::FailedDueToHeaderChange;
-			FError::Throwf(TEXT("ERROR: '%s': Changes to generated code are not allowed - conflicts written to '%s'"), HeaderPath, *ConflictPath);
+			FError::Throwf(TEXT("ERROR: '%s': Changes to generated code are not allowed - conflicts written to '%s'"), *HeaderPathStr, *ConflictPath);
 		}
 
 		// save the updated version to a tmp file so that the user can see what will be changing
-		FString TmpHeaderFilename = GenerateTempHeaderName(HeaderPathStr, false );
+		FString TmpHeaderFilename = GenerateTempHeaderName(HeaderPathStr, false);
 
-		// delete any existing temp file
-		IFileManager::Get().Delete( *TmpHeaderFilename, false, true );
-		if ( !FFileHelper::SaveStringToFile(NewHeaderContents, *TmpHeaderFilename) )
+		auto SaveTempTask = [TmpHeaderFilename, InNewHeaderContents = MoveTemp(InNewHeaderContents)]()
 		{
-			UE_LOG_WARNING_UHT(TEXT("Failed to save header export preview: '%s'"), *TmpHeaderFilename);
-		}
+			// delete any existing temp file
+			IFileManager::Get().Delete(*TmpHeaderFilename, false, true);
+			if (!FFileHelper::SaveStringToFile(InNewHeaderContents, *TmpHeaderFilename))
+			{
+				UE_LOG_WARNING_UHT(TEXT("Failed to save header export preview: '%s'"), *TmpHeaderFilename);
+			}
+		};
+
+		OutSaveTaskRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(SaveTempTask), TStatId());
 
 		OutReferenceGatherers.TempHeaderPaths.Add(MoveTemp(TmpHeaderFilename));
 	}
@@ -6228,7 +6386,7 @@ FString FNativeClassHeaderGenerator::GenerateTempHeaderName( const FString& Curr
 		: CurrentFilename + TEXT(".tmp");
 }
 
-void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths)
+void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths, FGraphEventArray& InTempSaveTasks)
 {	
 	// Asynchronously move the headers to the correct locations
 	if (TempHeaderPaths.Num() > 0)
@@ -6250,6 +6408,7 @@ void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TA
 			});
 		};
 
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(InTempSaveTasks);
 		GAsyncFileTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(MoveHeadersTask), TStatId()));
 	}
 }
@@ -6395,6 +6554,40 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 	};
 
 	ECompilationResult::Type Result = ECompilationResult::Succeeded;
+
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	FGraphEventArray ExceptionTasks;
+
+	auto LogException = [&Result, &NumFailures, &ExceptionTasks](FString&& Filename, int32 Line, const FString& Message)
+	{
+		auto LogExceptionTask = [&Result, &NumFailures, Filename = MoveTemp(Filename), Line, Message]()
+		{
+			TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+
+			FString FormattedErrorMessage = FString::Printf(TEXT("%s(%d): Error: %s\r\n"), *Filename, Line, *Message);
+			Result = ECompilationResult::OtherCompilationError;
+
+			UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
+			GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
+
+			++NumFailures;
+		};
+
+		if (IsInGameThread())
+		{
+			LogExceptionTask();
+		}
+		else
+		{
+			FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogExceptionTask), TStatId(), nullptr, ENamedThreads::GameThread);
+
+			static FCriticalSection ExceptionCS;
+			FScopeLock Lock(&ExceptionCS);
+			ExceptionTasks.Add(EventRef);
+		}
+	};
+#endif
+
 	for (FManifestModule& Module : GManifest.Modules)
 	{
 		if (Result != ECompilationResult::Succeeded)
@@ -6459,8 +6652,85 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 			NumHeadersPreparsed += UObjectHeaders.Num();
 
-			for (const FString& RawFilename : UObjectHeaders)
+			TArray<FString> HeaderFiles;
+			HeaderFiles.SetNum(UObjectHeaders.Num());
+
 			{
+				SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+				ParallelFor(UObjectHeaders.Num(), [&](int32 Index)
+				{
+					const FString& RawFilename = UObjectHeaders[Index];
+
+#if !PLATFORM_EXCEPTIONS_DISABLED
+					try
+#endif
+					{
+						const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
+
+						if (!FFileHelper::LoadFileToString(HeaderFiles[Index], *FullFilename))
+						{
+							FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+						}
+					}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+					catch (TCHAR* ErrorMsg)
+					{
+						FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
+						LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
+					}				
+#endif
+				});
+			}
+
+#if !PLATFORM_EXCEPTIONS_DISABLED
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(ExceptionTasks);
+#endif
+
+			if (Result != ECompilationResult::Succeeded)
+			{
+				continue;
+			}
+
+			TArray<FPerHeaderData> PerHeaderData;
+			PerHeaderData.SetNum(UObjectHeaders.Num());
+
+			ParallelFor(UObjectHeaders.Num(), [&](int32 Index)
+			{
+				const FString& RawFilename = UObjectHeaders[Index];
+
+#if !PLATFORM_EXCEPTIONS_DISABLED
+				try
+#endif
+				{
+					PerformSimplifiedClassParse(Package, *RawFilename, *HeaderFiles[Index], PerHeaderData[Index]);
+				}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+				catch (const FFileLineException& Ex)
+				{
+					FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Ex.Filename);
+					LogException(MoveTemp(AbsFilename), Ex.Line, Ex.Message);
+				}
+				catch (TCHAR* ErrorMsg)
+				{
+					FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
+					LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
+				}
+#endif
+			});
+
+#if !PLATFORM_EXCEPTIONS_DISABLED
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(ExceptionTasks);
+#endif
+
+			if (Result != ECompilationResult::Succeeded)
+			{
+				continue;
+			}
+
+			for (int32 Index = 0; Index < UObjectHeaders.Num(); ++Index)
+			{
+				const FString& RawFilename = UObjectHeaders[Index];
+
 #if !PLATFORM_EXCEPTIONS_DISABLED
 				try
 #endif
@@ -6468,16 +6738,8 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					// Import class.
 					const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
 
-					FString HeaderFile;
-					{
-						SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
-						if (!FFileHelper::LoadFileToString(HeaderFile, *FullFilename))
-						{
-							FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
-						}
-					}
-
-					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerformInitialParseOnHeader(Package, *RawFilename, RF_Public | RF_Standalone, *HeaderFile);
+					ProcessInitialClassParse(PerHeaderData[Index]);
+					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData[Index].UnrealSourceFile.ToSharedRef();
 					FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
 					GUnrealSourceFilesMap.Add(FPaths::GetCleanFilename(RawFilename), UnrealSourceFile);
 
@@ -6530,31 +6792,13 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 #if !PLATFORM_EXCEPTIONS_DISABLED
 				catch (const FFileLineException& Ex)
 				{
-					TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-
-					FString AbsFilename           = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Ex.Filename);
-					FString Prefix                = FString::Printf(TEXT("%s(%d): "), *AbsFilename, Ex.Line);
-					FString FormattedErrorMessage = FString::Printf(TEXT("%sError: %s\r\n"), *Prefix, *Ex.Message);
-					Result = GCompilationResult;
-
-					UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
-					GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
-
-					++NumFailures;
+					FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Ex.Filename);
+					LogException(MoveTemp(AbsFilename), Ex.Line, Ex.Message);
 				}
 				catch (TCHAR* ErrorMsg)
 				{
-					TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-
-					FString AbsFilename           = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
-					FString Prefix                = FString::Printf(TEXT("%s(1): "), *AbsFilename);
-					FString FormattedErrorMessage = FString::Printf(TEXT("%sError: %s\r\n"), *Prefix, ErrorMsg);
-					Result = GCompilationResult;
-
-					UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
-					GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
-
-					++NumFailures;
+					FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
+					LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
 				}
 #endif
 			}
@@ -6637,9 +6881,14 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	{
 		FScopedDurationTimer ParseAndCodeGenTimer(TotalParseAndCodegenTime);
 
+		TMap<UPackage*, TArray<UClass*>> ClassesByPackageMap;
+		ClassesByPackageMap.Reserve(GManifest.Modules.Num());
+
 		// Verify that all script declared superclasses exist.
-		for (const UClass* ScriptClass : TObjectRange<UClass>())
+		for (UClass* ScriptClass : TObjectRange<UClass>())
 		{
+			ClassesByPackageMap.FindOrAdd(ScriptClass->GetOutermost()).Add(ScriptClass);
+
 			const UClass* ScriptSuperClass = ScriptClass->GetSuperClass();
 
 			if (ScriptSuperClass && !ScriptSuperClass->HasAnyClassFlags(CLASS_Intrinsic) && GTypeDefinitionInfoMap.Contains(ScriptClass) && !GTypeDefinitionInfoMap.Contains(ScriptSuperClass))
@@ -6687,8 +6936,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 			{
 				if (UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(*Module.LongPackageName), false, false)))
 				{
-					// Object which represents all parsed classes
-					FClasses AllClasses(Package);
+					FClasses AllClasses(ClassesByPackageMap.Find(Package));
 					AllClasses.Validate();
 
 					Result = FHeaderParser::ParseAllHeadersInside(AllClasses, GWarn, Package, Module, ScriptPlugins);
@@ -6866,38 +7114,34 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, TArray<FHeaderProvider>& De
 	return ResultClass;
 }
 
-
-TSharedRef<FUnrealSourceFile> PerformInitialParseOnHeader(UPackage* InParent, const TCHAR* FileName, EObjectFlags Flags, const TCHAR* Buffer)
+void PerformSimplifiedClassParse(UPackage* InParent, const TCHAR* FileName, const TCHAR* Buffer, FPerHeaderData& PerHeaderData)
 {
-	const TCHAR* InBuffer = Buffer;
-
-	// is the parsed class name an interface?
-	bool bClassIsAnInterface = false;
-
-	TArray<FHeaderProvider> DependsOn;
-
 	// Parse the header to extract the information needed
 	FUHTStringBuilder ClassHeaderTextStrippedOfCppText;
-	TArray<FSimplifiedParsingClassInfo> ParsedClassArray;
-	FHeaderParser::SimplifiedClassParse(FileName, Buffer, /*out*/ ParsedClassArray, /*out*/ DependsOn, ClassHeaderTextStrippedOfCppText);
+
+	FHeaderParser::SimplifiedClassParse(FileName, Buffer, /*out*/ PerHeaderData.ParsedClassArray, /*out*/ PerHeaderData.DependsOn, ClassHeaderTextStrippedOfCppText);
 
 	FUnrealSourceFile* UnrealSourceFilePtr = new FUnrealSourceFile(InParent, FileName, MoveTemp(ClassHeaderTextStrippedOfCppText));
-	TSharedRef<FUnrealSourceFile> UnrealSourceFile = MakeShareable(UnrealSourceFilePtr);
-	for (FSimplifiedParsingClassInfo& ParsedClassInfo : ParsedClassArray)
+	PerHeaderData.UnrealSourceFile = MakeShareable(UnrealSourceFilePtr);
+}
+
+void ProcessInitialClassParse(FPerHeaderData& PerHeaderData)
+{
+	TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData.UnrealSourceFile.ToSharedRef();
+	UPackage* InParent = UnrealSourceFile->GetPackage();
+	for (FSimplifiedParsingClassInfo& ParsedClassInfo : PerHeaderData.ParsedClassArray)
 	{
-		UClass* ResultClass = ProcessParsedClass(ParsedClassInfo.IsInterface(), DependsOn, ParsedClassInfo.GetClassName(), ParsedClassInfo.GetBaseClassName(), InParent, Flags);
+		UClass* ResultClass = ProcessParsedClass(ParsedClassInfo.IsInterface(), PerHeaderData.DependsOn, ParsedClassInfo.GetClassName(), ParsedClassInfo.GetBaseClassName(), InParent, RF_Public | RF_Standalone);
 		GStructToSourceLine.Add(ResultClass, MakeTuple(UnrealSourceFile, ParsedClassInfo.GetClassDefLine()));
 
 		FScope::AddTypeScope(ResultClass, &UnrealSourceFile->GetScope().Get());
 
-		GTypeDefinitionInfoMap.Add(ResultClass, MakeShared<FUnrealTypeDefinitionInfo>(*UnrealSourceFilePtr, ParsedClassInfo.GetClassDefLine()));
+		GTypeDefinitionInfoMap.Add(ResultClass, MakeShared<FUnrealTypeDefinitionInfo>(UnrealSourceFile.Get(), ParsedClassInfo.GetClassDefLine()));
 		UnrealSourceFile->AddDefinedClass(ResultClass, MoveTemp(ParsedClassInfo));
 	}
 
-	for (FHeaderProvider& DependsOnElement : DependsOn)
+	for (FHeaderProvider& DependsOnElement : PerHeaderData.DependsOn)
 	{
 		UnrealSourceFile->GetIncludes().AddUnique(DependsOnElement);
 	}
-
-	return UnrealSourceFile;
 }

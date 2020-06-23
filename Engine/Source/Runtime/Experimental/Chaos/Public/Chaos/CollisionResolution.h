@@ -47,7 +47,7 @@ namespace Chaos
 		void CHAOS_API UpdateConstraintFromGeometry(FRigidBodyPointContactConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal CullDistance);
 
 		// Create constraints for the particle pair. This could create multiple constraints: one for each potentially colliding shape pair in multi-shape particles.
-		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints);
+		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints);
 
 
 		// @todo(chaos): this is only called in tests - should it really be exposed?

@@ -29,8 +29,6 @@
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
 
-IMPLEMENT_TYPE_LAYOUT(FSceneTextureShaderParameters);
-
 static TAutoConsoleVariable<int32> CVarRSMResolution(
 	TEXT("r.LPV.RSMResolution"),
 	360,
@@ -256,7 +254,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, LightingChannels(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightingChannels))
-	, SceneAlphaCopy(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneAlphaCopy))
 	, SmallDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SmallDepthZ))
 	, GBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferA))
 	, GBufferB(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferB))
@@ -649,12 +646,13 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	int GBufferFormat = CVarGBufferFormat.GetValueOnRenderThread();
 
 	// Set default clear values
-	if (CurrentShadingPath == EShadingPath::Mobile &&
-		CVarMobileClearSceneColorWithMaxAlpha.GetValueOnRenderThread())
+	if (CurrentShadingPath == EShadingPath::Mobile)
 	{
 		// On mobile the scene depth is calculated from the alpha component of the scene color
-		// Use BlackMaxAlpha to ensure un-rendered pixels have max depth...
-		SetDefaultColorClear(FClearValueBinding::BlackMaxAlpha);
+		// Use FarPlane for alpha to ensure un-rendered pixels have max depth...
+		float DepthFar = (float)ERHIZBuffer::FarPlane;
+		FClearValueBinding ClearColorMaxDepth = FClearValueBinding(FLinearColor(0.f, 0.f, 0.f, DepthFar));
+		SetDefaultColorClear(ClearColorMaxDepth);
 	}
 	else
 	{
@@ -929,15 +927,17 @@ void FSceneRenderTargets::SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool b
 }
 FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV()
 {
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-	bool bBindQuadOverdrawBuffers = true;
-	if (bBindQuadOverdrawBuffers && AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, CurrentFeatureLevel))
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
 	{
-		if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
+		// ShaderPlatform should only be tested if QuadOverdrawBuffer is allocated, to ensure CurrentFeatureLevel is valid.
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+		if (AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, CurrentFeatureLevel))
 		{
 			return QuadOverdrawBuffer->GetRenderTargetItem().UAV;
 		}
 	}
+#endif
 	return GBlackTextureWithUAV->UnorderedAccessViewRHI;
 }
 
@@ -1524,10 +1524,18 @@ bool FSceneRenderTargets::BeginRenderingCustomDepth(FRHICommandListImmediate& RH
 			NumColorTargets = 2;
 		}
 
-		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
-		if (bWritesCustomStencilValues)
+		// discard depth/stencil if we output values to a color targets
+		if (bRequiresStencilColorTarget)
 		{
-			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Clear_Store);
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_DontStore, ERenderTargetActions::Clear_DontStore);
+		}
+		else
+		{
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
+			if (bWritesCustomStencilValues)
+			{
+				RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Clear_Store);
+			}
 		}
 
 		RPInfo.DepthStencilRenderTarget.DepthStencilTarget = CustomDepthRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
@@ -1612,27 +1620,6 @@ void FSceneRenderTargets::FinishRenderingPrePass(FRHICommandListImmediate& RHICm
 
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneDepthZ);
 }
-
-void FSceneRenderTargets::BeginRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList)
-{
-	check(!RHICmdList.IsInsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingSceneAlphaCopy);
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneAlphaCopy);
-
-	FRHIRenderPassInfo RPInfo(GetSceneAlphaCopySurface(), ERenderTargetActions::Load_Store, SceneAlphaCopy->GetRenderTargetItem().ShaderResourceTexture);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingSceneAlphaCopy"));
-}
-
-void FSceneRenderTargets::FinishRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList)
-{
-	check(RHICmdList.IsInsideRenderPass());
-
-	SCOPED_DRAW_EVENT(RHICmdList, FinishRenderingSceneAlphaCopy);
-	RHICmdList.EndRenderPass();
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneAlphaCopy);
-}
-
 
 void FSceneRenderTargets::BeginRenderingLightAttenuation(FRHICommandList& RHICmdList, bool bClearToWhite)
 {
@@ -1802,6 +1789,16 @@ void FSceneRenderTargets::FinishRenderingTranslucency(FRHICommandList& RHICmdLis
 	// This is a nop on purpose for consistency's sake
 }
 
+FIntRect FSceneRenderTargets::GetSeparateTranslucencyViewRect(const FViewInfo& View) const
+{
+	FIntRect ViewRect;
+	ViewRect.Min.X = View.ViewRect.Min.X * SeparateTranslucencyScale;
+	ViewRect.Min.Y = View.ViewRect.Min.Y * SeparateTranslucencyScale;
+	ViewRect.Max.X = View.ViewRect.Max.X * SeparateTranslucencyScale;
+	ViewRect.Max.Y = View.ViewRect.Max.Y * SeparateTranslucencyScale;
+	return ViewRect;
+}
+
 void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -1871,7 +1868,8 @@ void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RH
 	}
 	else
 	{
-		RHICmdList.SetViewport(View.ViewRect.Min.X * SeparateTranslucencyScale, View.ViewRect.Min.Y * SeparateTranslucencyScale, 0.0f, View.ViewRect.Max.X * SeparateTranslucencyScale, View.ViewRect.Max.Y * SeparateTranslucencyScale, 1.0f);
+		FIntRect ViewRect = GetSeparateTranslucencyViewRect(View);
+		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 	}
 }
 
@@ -1903,8 +1901,14 @@ void FSceneRenderTargets::ResolveSeparateTranslucency(FRHICommandList& RHICmdLis
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucency)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
 
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
+
+	GVisualizeTexture.SetCheckPoint(RHICmdList, *SeparateTranslucency);
+	GVisualizeTexture.SetCheckPoint(RHICmdList, *SeparateTranslucencyDepth);
 	bSeparateTranslucencyPass = false;
 }
 
@@ -2018,7 +2022,11 @@ void FSceneRenderTargets::ResolveSeparateTranslucencyModulate(FRHICommandList& R
 		);
 
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyModulate)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyModulate)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
-	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
+
+	FResolveParams DepthResolveParams;
+	DepthResolveParams.DestRect = SeparateResolveRect;
+	DepthResolveParams.Rect = SeparateResolveRect;
+	ResolveDepthTexture(RHICmdList, (*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture->GetTexture2D(), (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), DepthResolveParams);
 
 	bSeparateTranslucencyPass = false;
 }
@@ -2039,6 +2047,15 @@ FResolveRect FSceneRenderTargets::GetDefaultRect(const FResolveRect& Rect, uint3
 void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const FTexture2DRHIRef& SourceTexture, const FTexture2DRHIRef& DestTexture, const FResolveParams& ResolveParams)
 {
 	check(!RHICmdList.IsInsideRenderPass());
+
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
+	const uint32 CurrentNumSamples = SourceTexture->GetNumSamples();
+	if (CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform) || !GAllowCustomMSAAResolves)
+	{
+		RHICmdList.CopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
+		return;
+	}
 
 	FResolveRect ResolveRect = ResolveParams.Rect;
 
@@ -2127,6 +2144,7 @@ void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const
 	// Transition the destination depth texture to readable. Ignore stencil.
 	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilNop, DestTexture);
 }
+
 void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -2140,18 +2158,7 @@ void FSceneRenderTargets::ResolveSceneDepthTexture(FRHICommandList& RHICmdList, 
 		ResolveParams.Rect = ResolveRect;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	uint32 CurrentNumSamples = SceneDepthZ->GetDesc().NumSamples;
-
-	const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[SceneContext.GetCurrentFeatureLevel()];
-	if ((CurrentNumSamples <= 1 || !RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform)) || !GAllowCustomMSAAResolves)
-	{
-		RHICmdList.CopyToResolveTarget(GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
-	else
-	{
-		ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
-	}
+	ResolveDepthTexture(RHICmdList, GetSceneDepthSurface(), GetSceneDepthTexture(), ResolveParams);
 }
 
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
@@ -2300,10 +2307,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 
 	AllocateDebugViewModeTargets(RHICmdList);
-
-	EPixelFormat Format = GetSceneColor()->GetDesc().Format;
-
-	SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
 }
 
 // This is a helper class. It generates and provides N names with
@@ -2936,7 +2939,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 
 	ReleaseSceneColor();
 
-	SceneAlphaCopy.SafeRelease();
 	SceneDepthZ.SafeRelease();
 	SceneStencilSRV.SafeRelease();
 	LightingChannels.SafeRelease();
@@ -3108,8 +3110,10 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 			if (bMobilePath)
 			{
 				uint32 CustomDepthStencilTargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-
-				FPooledRenderTargetDesc MobileCustomDepthDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, FClearValueBinding(FLinearColor(65500.0f, 65500.0f, 65500.0f)), TexCreate_None, CustomDepthStencilTargetableFlags, false));
+				float DepthFar = (float)ERHIZBuffer::FarPlane;
+				FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar,DepthFar,DepthFar,DepthFar));
+				
+				FPooledRenderTargetDesc MobileCustomDepthDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, DepthFarColor, TexCreate_None, CustomDepthStencilTargetableFlags, false));
 				GRenderTargetPool.FindFreeElement(RHICmdList, MobileCustomDepthDesc, MobileCustomDepth, TEXT("MobileCustomDepth"));
 
 				if (!bCustomDepthPassWritingStencil)
@@ -3259,10 +3263,11 @@ bool FSceneRenderTargets::IsAllocateRenderTargetsRequired() const
 }
 
 /*-----------------------------------------------------------------------------
-FSceneTextureShaderParameters
+FSceneTexturesUniformParameters
 -----------------------------------------------------------------------------*/
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, "SceneTexturesStruct");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(SceneTextures);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FSceneTexturesUniformParameters, "SceneTexturesStruct", SceneTextures);
 
 void SetupSceneTextureUniformParameters(
 	FSceneRenderTargets& SceneContext,
@@ -3401,6 +3406,73 @@ TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBuff
 	return CreateUniformBufferImmediate(SceneTextures, Usage);
 }
 
+TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+	FSceneRenderTargets& SceneContext,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage)
+{
+	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
+	{
+		FSceneTexturesUniformParameters SceneTextures;
+		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, SetupMode, SceneTextures);
+		return CreateUniformBufferImmediate(SceneTextures, Usage);
+	}
+	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
+	{
+		FMobileSceneTextureUniformParameters SceneTextures;
+		SetupMobileSceneTextureUniformParameters(SceneContext, FeatureLevel, true, true, SceneTextures);
+		return CreateUniformBufferImmediate(SceneTextures, Usage);
+	}
+	checkNoEntry();
+	return nullptr;
+}
+
+template <typename TRHICmdList>
+TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+	TRHICmdList& RHICmdList,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	return CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, SetupMode, Usage);
+}
+
+#define IMPLEMENT_CreateSceneTextureUniformBufferDependentOnShadingPath(TRHICmdList) \
+	template RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath<TRHICmdList>(\
+		TRHICmdList& RHICmdList,						\
+		ERHIFeatureLevel::Type FeatureLevel,			\
+		ESceneTextureSetupMode SetupMode,				\
+		EUniformBufferUsage Usage						\
+	)
+
+IMPLEMENT_CreateSceneTextureUniformBufferDependentOnShadingPath(FRHICommandList);
+IMPLEMENT_CreateSceneTextureUniformBufferDependentOnShadingPath(FRHICommandListImmediate);
+IMPLEMENT_CreateSceneTextureUniformBufferDependentOnShadingPath(FRHIAsyncComputeCommandListImmediate);
+
+FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
+	FSceneRenderTargets& SceneContext,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage)
+{
+	FSceneTextureShaderParameters Parameters;
+	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
+	{
+		FSceneTexturesUniformParameters SceneTextures;
+		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, SetupMode, SceneTextures);
+		Parameters.SceneTextures = CreateUniformBufferImmediate(SceneTextures, Usage);
+	}
+	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
+	{
+		FMobileSceneTextureUniformParameters SceneTextures;
+		SetupMobileSceneTextureUniformParameters(SceneContext, FeatureLevel, true, true, SceneTextures);
+		Parameters.MobileSceneTextures = CreateUniformBufferImmediate(SceneTextures, Usage);
+	}
+	return Parameters;
+}
+
 template< typename TRHICmdList >
 TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDraw(TRHICmdList& RHICmdList, ESceneTextureSetupMode SceneTextureSetupMode, ERHIFeatureLevel::Type FeatureLevel) 
 {
@@ -3421,7 +3493,7 @@ IMPLEMENT_CreateSceneTextureUniformBuffer( FRHICommandList );
 IMPLEMENT_CreateSceneTextureUniformBuffer( FRHICommandListImmediate );
 IMPLEMENT_CreateSceneTextureUniformBuffer( FRHIAsyncComputeCommandListImmediate );
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, "MobileSceneTextures");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileSceneTextureUniformParameters, "MobileSceneTextures", SceneTextures);
 
 void SetupMobileSceneTextureUniformParameters(
 	FSceneRenderTargets& SceneContext,
@@ -3431,20 +3503,21 @@ void SetupMobileSceneTextureUniformParameters(
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
 	FRHITexture* BlackDefault2D = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-	FRHITexture* MaxFP16Depth2D = GSystemTextures.MaxFP16Depth->GetRenderTargetItem().ShaderResourceTexture;
 	FRHITexture* DepthDefault = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
 
 	SceneTextureParameters.SceneColorTexture = bSceneTexturesValid ? SceneContext.GetSceneColorTexture().GetReference() : BlackDefault2D;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const FTexture2DRHIRef& SceneDepthTexture = SceneContext.GetSceneDepthTexture();
-	SceneTextureParameters.SceneDepthTexture = bSceneTexturesValid && SceneDepthTexture ? SceneDepthTexture.GetReference() : DepthDefault;
+	FRHITexture* SceneDepth = DepthDefault;
+	const FTexture2DRHIRef& SceneDepthTextureRef = SceneContext.GetSceneDepthTexture();
+	if (bSceneTexturesValid && SceneDepthTextureRef && (SceneDepthTextureRef->GetFlags() & TexCreate_Memoryless) == 0)
+	{
+		SceneDepth = SceneDepthTextureRef.GetReference();
+	}
+	SceneTextureParameters.SceneDepthTexture = SceneDepth;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	SceneTextureParameters.SceneAlphaCopyTexture = bSceneTexturesValid && SceneContext.HasSceneAlphaCopyTexture() ? SceneContext.GetSceneAlphaCopyTexture() : BlackDefault2D;
-	SceneTextureParameters.SceneAlphaCopyTextureSampler = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
-
-	FRHITexture* CustomDepth = MaxFP16Depth2D;
+	FRHITexture* CustomDepth = DepthDefault;
 
 	// if there is no custom depth it's better to have the far distance there
 	// we should update all pass uniform buffers at the start of frame on mobile, SceneContext.bCustomDepthIsValid is invalid at InitView, so pass the parameter from View.bUsesCustomDepthStencil

@@ -630,15 +630,14 @@ void FLevelEditorActionCallbacks::ConfigureLightingBuildOptions( const FLighting
 bool FLevelEditorActionCallbacks::CanBuildLighting()
 {
 	// Building lighting modifies the BuildData package, which the PIE session will also be referencing without getting notified
-	return !(GEditor->PlayWorld || GUnrealEd->bIsSimulatingInEditor);
+	return !(GEditor->PlayWorld || GUnrealEd->bIsSimulatingInEditor)
+		&& GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM5;
 }
 
 bool FLevelEditorActionCallbacks::CanBuildReflectionCaptures()
 {
 	// Building reflection captures modifies the BuildData package, which the PIE session will also be referencing without getting notified
-	return !(GEditor->PlayWorld || GUnrealEd->bIsSimulatingInEditor)
-		// Build reflection captures requires SM5.  Don't allow building when previewing other feature levels.
-		&& GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM5;
+	return !(GEditor->PlayWorld || GUnrealEd->bIsSimulatingInEditor);
 }
 
 
@@ -683,7 +682,20 @@ bool FLevelEditorActionCallbacks::BuildLighting_CanExecute()
 
 void FLevelEditorActionCallbacks::BuildReflectionCapturesOnly_Execute()
 {
-	GEditor->BuildReflectionCaptures();
+	if (GWorld != nullptr && GWorld->FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		// When we feature change from SM5 to ES31 we call BuildReflectionCapture if we have Unbuilt Reflection Components, so no reason to call it again here
+		// This is to make sure that we have valid data for Mobile Preview.
+		
+		// ES31->SM5 to be able to capture
+		ToggleFeatureLevelPreview();
+		// SM5->ES31 BuildReflectionCaptures are triggered here on callback
+		ToggleFeatureLevelPreview();
+	}
+	else
+	{
+		GEditor->BuildReflectionCaptures();
+	}
 }
 
 bool FLevelEditorActionCallbacks::BuildReflectionCapturesOnly_CanExecute()
@@ -3043,7 +3055,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( Build, "Build All Levels", "Builds all levels (precomputes lighting data and visibility data, generates navigation networks and updates brush models.)\nThis action is not available while Play in Editor is active, static lighting is disabled in the project settings, or when previewing less than Shader Model 5", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( BuildAndSubmitToSourceControl, "Build and Submit...", "Displays a window that allows you to build all levels and submit them to source control", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( BuildLightingOnly, "Build Lighting", "Only precomputes lighting (all levels.)\nThis action is not available while Play in Editor is active, static lighting is disabled in the project settings, or when previewing less than Shader Model 5", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::Semicolon) );
-	UI_COMMAND( BuildReflectionCapturesOnly, "Build Reflection Captures", "Updates Reflection Captures and stores their data in the BuildData package.\nThis action is not available while Play in Editor is active, static lighting is disabled in the project settings, or when previewing less than Shader Model 5", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( BuildReflectionCapturesOnly, "Build Reflection Captures", "Updates Reflection Captures and stores their data in the BuildData package.\nThis action is not available while Play in Editor is active, static lighting is disabled in the project settings", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( BuildLightingOnly_VisibilityOnly, "Precompute Static Visibility", "Only precomputes static visibility data (all levels.)", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( LightingBuildOptions_UseErrorColoring, "Use Error Coloring", "When enabled, errors during lighting precomputation will be baked as colors into light map data", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( LightingBuildOptions_ShowLightingStats, "Show Lighting Stats", "When enabled, a window containing metrics about lighting performance and memory will be displayed after a successful build.", EUserInterfaceActionType::ToggleButton, FInputChord() );

@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
 				    "UnrealEd",
 					"InteractiveToolsFramework",
+					"EditorInteractiveToolsFramework",
 					"MeshPaintingToolset",
 					"PropertyEditor",
 					"MainFrame",

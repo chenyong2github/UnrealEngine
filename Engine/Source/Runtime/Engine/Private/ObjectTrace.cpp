@@ -5,7 +5,7 @@
 #if OBJECT_TRACE_ENABLED
 
 #include "CoreMinimal.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectAnnotation.h"

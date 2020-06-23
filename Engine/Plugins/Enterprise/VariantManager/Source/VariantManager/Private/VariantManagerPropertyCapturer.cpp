@@ -86,11 +86,25 @@ FPropertyCaptureHelper::FPropertyCaptureHelper(const TArray<UObject*>& InObjects
 
 void FPropertyCaptureHelper::CaptureActorExceptionProperties(const AActor* Actor, FPropertyPath& PropertyPath, FString& PrettyPathString, TArray<FString>& ComponentNames)
 {
-	if (const ASwitchActor* SwitchActor = Cast<const ASwitchActor>(Actor))
+	if ( CapturedPaths.Contains( PrettyPathString ) )
 	{
-		FString DisplayString = PrettyPathString + TEXT("Selected Option");
+		return;
+	}
 
-		CaptureProp(PropertyPath, DisplayString, ComponentNames, FName(), EPropertyValueCategory::Option);
+	if ( TargetPropertyPath == TEXT( "Selected Option" ) && EnumHasAnyFlags( CategoriesToCapture, EPropertyValueCategory::Option ) )
+	{
+		if ( const ASwitchActor* SwitchActor = Cast<const ASwitchActor>( Actor ) )
+		{
+			FString DisplayString = PrettyPathString + TEXT( "Selected Option" );
+
+			// Initialize the dialog row item to unchecked, like in CaptureProp
+			const bool bChecked = false;
+
+			// Capture directly here as we don't need to check the property path for this exception property (by calling CaptureProp), as we already know this exists for the switch actor
+			TSharedPtr<FCapturableProperty> NewCapture = MakeShared<FCapturableProperty>( DisplayString, PropertyPath, ComponentNames, bChecked, FName(), EPropertyValueCategory::Option );
+			CapturedPropertyPaths.Add( NewCapture );
+			CapturedPaths.Add( PrettyPathString );
+		}
 	}
 }
 
@@ -348,7 +362,7 @@ void FPropertyCaptureHelper::CaptureProp(FPropertyPath& PropertyPath, FString& P
 	// just pass along the base path (e.g. 'Tags') and bCaptureAllArrayIndices=true, and FPropertyCaptureHelper is
 	// in charge of capturing 'Tags[0]', 'Tags[1]', etc
 	bool bFitsTarget = false;
-	if (!TargetPropertyPath.IsEmpty())
+	if (!TargetPropertyPath.IsEmpty() && PropertyPath.GetNumProperties() > 0)
 	{
 		FString StringToCompare;
 

@@ -26,6 +26,8 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	FMeshSelfUnion Union(ResultMesh.Get());
+	Union.WindingThreshold = WindingNumberThreshold;
+	Union.bTrimFlaps = bTrimFlaps;
 	bool bSuccess = Union.Compute();
 
 	if (Progress->Cancelled())

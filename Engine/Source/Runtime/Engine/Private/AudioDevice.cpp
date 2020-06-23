@@ -14,6 +14,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/WorldSettings.h"
 #include "GeneralProjectSettings.h"
+#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "IAudioExtensionPlugin.h"
@@ -160,6 +161,13 @@ FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
 	TEXT("au.DisableBinauralSpatialization"),
 	DisableBinauralSpatializationCVar,
 	TEXT("Disables binaural spatialization.\n"),
+	ECVF_Default);
+
+static int32 FlushAudioRenderThreadOnGCCVar = 0;
+FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
+	TEXT("au.FlushAudioRenderThreadOnGC"),
+	FlushAudioRenderThreadOnGCCVar,
+	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
 	ECVF_Default);
 
 namespace
@@ -531,7 +539,18 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	bIsInitialized = true;
 
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
+	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddRaw(this, &FAudioDevice::OnPreGarbageCollect);
+
 	return true;
+}
+
+void FAudioDevice::OnPreGarbageCollect()
+{
+	if (FlushAudioRenderThreadOnGCCVar)
+	{
+		FlushAudioRenderingCommands();
+	}
 }
 
 float FAudioDevice::GetLowPassFilterResonance() const
@@ -724,6 +743,9 @@ void FAudioDevice::Teardown()
 #if ENABLE_AUDIO_DEBUG
 	Audio::FAudioDebugger::RemoveDevice(*this);
 #endif // ENABLE_AUDIO_DEBUG
+
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.RemoveAll(this);
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -1507,16 +1529,36 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 		FResourceSizeEx ResourceSize;
 		FString SoundGroupName;
 		float Duration;
-		bool bDecompressed;
 
-		FSoundWaveInfo(USoundWave* InSoundWave, FResourceSizeEx InResourceSize, const FString& InSoundGroupName, float InDuration, bool bInDecompressed)
+		enum class ELoadingType : uint8
+		{
+			CompressedInMemory,
+			DecompressedInMemory,
+			Streaming
+		};
+
+		// Whether this audio is decompressed in memory, decompressed in realtime, or streamed.
+		ELoadingType LoadingType;
+
+		// This is the maximum amount of the cache this asset could take up at any given time,
+		// that could potentially not be removed if the sound is retained or currently playing.
+		uint32 MaxUnevictableSizeInCache;
+
+		// This is the total amount of compressed audio data that could be loaded in the cache.
+		uint32 PotentialTotalSizeInCache;
+
+		FSoundWaveInfo(USoundWave* InSoundWave, FResourceSizeEx InResourceSize, const FString& InSoundGroupName, float InDuration, ELoadingType InLoadingType, uint32 InMaxUnevictableSizeInCache, uint32 InPotentialTotalSizeInCache)
 			: SoundWave(InSoundWave)
 			, ResourceSize(InResourceSize)
 			, SoundGroupName(InSoundGroupName)
 			, Duration(InDuration)
-			, bDecompressed(bInDecompressed)
+			, LoadingType(InLoadingType)
+			, MaxUnevictableSizeInCache(InMaxUnevictableSizeInCache)
+			, PotentialTotalSizeInCache(InPotentialTotalSizeInCache)
 		{}
 	};
+
+	using ELoadingType = FSoundWaveInfo::ELoadingType;
 
 	struct FSoundWaveGroupInfo
 	{
@@ -1605,7 +1647,18 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			const FSoundGroup& SoundGroup = GetDefault<USoundGroups>()->GetSoundGroup(SoundWave->SoundGroup);
 
 			float CompressionDurationThreshold = GetCompressionDurationThreshold(SoundGroup);
-			bool bDecompressed = ShouldUseRealtimeDecompression(false, SoundGroup, SoundWave, CompressionDurationThreshold);
+
+			// Determine whether this asset is streaming compressed data from disk, decompressed in realtime, or fully decompressed on load.
+			ELoadingType LoadType;
+
+			if (SoundWave->IsStreaming())
+			{
+				LoadType = ELoadingType::Streaming;
+			}
+			else
+			{
+				LoadType = ShouldUseRealtimeDecompression(false, SoundGroup, SoundWave, CompressionDurationThreshold) ? ELoadingType::CompressedInMemory : ELoadingType::DecompressedInMemory;
+			}
 
 			FString SoundGroupName;
 			switch (SoundWave->SoundGroup)
@@ -1635,18 +1688,30 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 					break;
 			}
 
+			uint32 MaxUnevictableSize = 0;
+			uint32 MaxSizeInCache = 0;
+
+			if (SoundWave->RunningPlatformData)
+			{
+				for (auto& Chunk : SoundWave->RunningPlatformData->Chunks)
+				{
+					MaxUnevictableSize = FMath::Max<uint32>(MaxUnevictableSize, Chunk.AudioDataSize);
+					MaxSizeInCache += Chunk.AudioDataSize;
+				}
+			}
+
 			// Add the info to the SoundWaveObjects array
-			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, SoundWave->Duration, bDecompressed));
+			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, SoundWave->Duration, LoadType, MaxUnevictableSize, MaxSizeInCache));
 
 			// Track total resource usage
 			TotalResourceSize += TrueResourceSize;
 
-			if (bDecompressed)
+			if (LoadType == ELoadingType::DecompressedInMemory)
 			{
 				DecompressedResourceSize += TrueResourceSize;
 				++CompressedResourceCount;
 			}
-			else
+			else if (LoadType == ELoadingType::CompressedInMemory)
 			{
 				CompressedResourceSize += TrueResourceSize;
 			}
@@ -1668,7 +1733,7 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 						if (SubDirSize)
 						{
 							SubDirSize->ResourceSize += TrueResourceSize;
-							if (bDecompressed)
+							if (LoadType == ELoadingType::CompressedInMemory)
 							{
 								SubDirSize->CompressedResourceSize += TrueResourceSize;
 							}
@@ -1723,11 +1788,28 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			ReportAr->Log(TEXT("All Sound Wave Objects Sorted Alphebetically:"));
 			ReportAr->Log(TEXT(""));
 
-			ReportAr->Logf(TEXT("%s,%s,%s,%s,%s,%s"), TEXT("SoundWave"), TEXT("KB"), TEXT("MB"), TEXT("SoundGroup"), TEXT("Duration"), TEXT("CompressionState"));
+			ReportAr->Logf(TEXT("%s,%s,%s,%s,%s,%s,%s,%s"), TEXT("SoundWave"), TEXT("KB"), TEXT("MB"), TEXT("SoundGroup"), TEXT("Duration"), TEXT("CompressionState"), TEXT("Max Size in Cache (Unevictable, KB)"), TEXT("Max Size In Cache (Total, KB)"));
 			for (const FSoundWaveInfo& Info : SoundWaveObjects)
 			{
 				float Kbytes = Info.ResourceSize.GetTotalMemoryBytes() / 1024.0f;
-				ReportAr->Logf(TEXT("%s,%10.2f,%10.2f,%s,%10.2f,%s"), *Info.SoundWave->GetPathName(), Kbytes, Kbytes / 1024.0f, *Info.SoundGroupName, Info.Duration, Info.bDecompressed ? TEXT("Decompressed") : TEXT("Compressed"));
+
+				FString LoadingTypeString;
+
+				switch (Info.LoadingType)
+				{
+				case ELoadingType::CompressedInMemory:
+					LoadingTypeString = TEXT("Compressed");
+					break;
+				case ELoadingType::DecompressedInMemory:
+					LoadingTypeString = TEXT("Decompressed");
+					break;
+				case ELoadingType::Streaming:
+					LoadingTypeString = TEXT("Streaming");
+				default:
+					break;
+				}
+
+				ReportAr->Logf(TEXT("%s,%10.2f,%10.2f,%s,%10.2f, %s, %10.2f, %10.2f"), *Info.SoundWave->GetPathName(), Kbytes, Kbytes / 1024.0f, *Info.SoundGroupName, Info.Duration, *LoadingTypeString, Info.MaxUnevictableSizeInCache / 1024.0f, Info.PotentialTotalSizeInCache / 1024.0f);
 			}
 		}
 
@@ -4144,23 +4226,6 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
-
-#if ENABLE_AUDIO_DEBUG
-		if (GEngine)
-		{
-			if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-			{
-				TArray<UWorld*> Worlds = DeviceManager->GetWorldsUsingAudioDevice(DeviceID);
-				for (UWorld* World : Worlds)
-				{
-					if (World)
-					{
-						Audio::FAudioDebugger::DrawDebugStats(*World);
-					}
-				}
-			}
-		}
-#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	if (!IsInAudioThread())
@@ -4241,12 +4306,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 		// Handle pause/unpause for the game and editor.
 		HandlePause(bGameTicking);
-	}
-
-	if (bModulationInterfaceEnabled)
-	{
-		SCOPED_NAMED_EVENT(FAudioDevice_ProcessModulators, FColor::Blue);
-		ModulationInterface->ProcessModulators(GetDeviceDeltaTime());
 	}
 
 	bool bHasVolumeSettings = false;
@@ -4529,17 +4588,19 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
 	// Check for debug sound name
 #if !UE_BUILD_SHIPPING
-	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-	FString DebugSound;
-	if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 	{
-		// Reject the new sound if it doesn't have the debug sound name substring
-		FString SoundName;
-		NewActiveSound.Sound->GetName(SoundName);
-		if (!SoundName.Contains(DebugSound))
+		FString DebugSound;
+		if (AudioDeviceManager->GetDebugger().GetAudioDebugSound(DebugSound))
 		{
-			ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
-			return;
+			// Reject the new sound if it doesn't have the debug sound name substring
+			FString SoundName;
+			NewActiveSound.Sound->GetName(SoundName);
+			if (!SoundName.Contains(DebugSound))
+			{
+				ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
+				return;
+			}
 		}
 	}
 #endif // !UE_BUILD_SHIPPING
@@ -5781,7 +5842,7 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 	}
 
 	// Make sure we update any hardware changes that need to happen after flushing
-	if (IsAudioMixerEnabled() && (WorldToFlush == nullptr || WorldToFlush->bIsTearingDown))
+	if (IsAudioMixerEnabled())
 	{
 		UpdateHardware();
 

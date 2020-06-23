@@ -38,11 +38,33 @@ FShaderMapBase::FShaderMapBase(const FTypeLayoutDesc& InContentTypeLayout)
 
 FShaderMapBase::~FShaderMapBase()
 {
+	check(GetNumRefs() == 0u);
 	DestroyContent();
 	if (PointerTable)
 	{
 		delete PointerTable;
 	}
+}
+
+uint32 FShaderMapBase::AddRef()
+{
+	return uint32(NumRefs.Increment());
+}
+
+uint32 FShaderMapBase::Release()
+{
+	const int32 Num = NumRefs.Decrement();
+	check(Num >= 0);
+	if (Num == 0)
+	{
+		OnReleased();
+	}
+	return uint32(Num);
+}
+
+void FShaderMapBase::OnReleased()
+{
+	delete this;
 }
 
 FShaderMapResourceCode* FShaderMapBase::GetResourceCode()
@@ -119,7 +141,7 @@ void FShaderMapBase::UnfreezeContent()
 
 #define CHECK_SHADERMAP_DEPENDENCIES (WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
-bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode)
 {
 	LLM_SCOPE(ELLMTag::Shaders);
 	bool bContentValid = true;
@@ -165,7 +187,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 
 		bool bShareCode = false;
 #if WITH_EDITOR
-		bShareCode = FShaderCodeLibrary::IsEnabled() && Ar.IsCooking();
+		bShareCode = !bInlineShaderCode && FShaderCodeLibrary::IsEnabled() && Ar.IsCooking();
 #endif // WITH_EDITOR
 		Ar << bShareCode;
 #if WITH_EDITOR

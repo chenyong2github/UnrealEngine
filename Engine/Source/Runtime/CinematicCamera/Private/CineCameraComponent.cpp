@@ -342,6 +342,12 @@ float UCineCameraComponent::GetWorldToMetersScale() const
 }
 
 // static
+TArray<FNamedFilmbackPreset> UCineCameraComponent::GetFilmbackPresetsCopy()
+{
+	return GetDefault<UCineCameraComponent>()->FilmbackPresets;
+}
+
+// static
 TArray<FNamedLensPreset> UCineCameraComponent::GetLensPresetsCopy()
 {
 	return GetDefault<UCineCameraComponent>()->LensPresets;

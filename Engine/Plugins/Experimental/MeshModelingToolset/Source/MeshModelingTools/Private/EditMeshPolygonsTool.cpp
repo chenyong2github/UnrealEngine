@@ -229,6 +229,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	SetUVProperties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
+	SelectionMechanic->Shutdown();
 	if (EditPreview != nullptr)
 	{
 		EditPreview->Disconnect();
@@ -1099,7 +1100,7 @@ void UEditMeshPolygonsTool::BeginCutFaces()
 	double SnapTol = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
 	SurfacePathMechanic->SpatialSnapPointsFunc = [this, SnapTol](FVector3d Position1, FVector3d Position2)
 	{
-		return CutProperties->bSnapToVertices && ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2) < SnapTol;
+		return CutProperties->bSnapToVertices && ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
 	};
 
 	CurrentToolMode = ECurrentToolMode::CutSelection;
@@ -1191,7 +1192,7 @@ void UEditMeshPolygonsTool::BeginSetUVs()
 	double SnapTol = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
 	SurfacePathMechanic->SpatialSnapPointsFunc = [this, SnapTol](FVector3d Position1, FVector3d Position2)
 	{
-		return ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2) < SnapTol;
+		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
 	};
 
 	CurrentToolMode = ECurrentToolMode::SetUVs;

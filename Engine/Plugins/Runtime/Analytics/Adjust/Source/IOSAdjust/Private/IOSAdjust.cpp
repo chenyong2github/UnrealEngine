@@ -168,8 +168,8 @@ bool FAnalyticsProviderAdjust::StartSession(const TArray<FAnalyticsEventAttribut
 
 	for (auto Attr : Attributes)
 	{
-		NSString* IOSKey = [NSString stringWithFString : Attr.AttrName];
-		NSString* IOSValue = [NSString stringWithFString : Attr.ToString()];
+		NSString* IOSKey = [NSString stringWithFString : Attr.GetName()];
+		NSString* IOSValue = [NSString stringWithFString : Attr.GetValue()];
 		[Adjust addSessionPartnerParameter:IOSKey value:IOSValue];
 	}
 	RecordEvent(TEXT("SessionAttributes"), Attributes);
@@ -275,8 +275,8 @@ void FAnalyticsProviderAdjust::RecordEvent(const FString& EventName, const TArra
 			// add event attributes
 			for (auto Attr : Attributes)
 			{
-				NSString* IOSKey = [NSString stringWithFString : Attr.AttrName];
-				NSString* IOSValue = [NSString stringWithFString : Attr.ToString()];
+				NSString* IOSKey = [NSString stringWithFString : Attr.GetName()];
+				NSString* IOSValue = [NSString stringWithFString : Attr.GetValue()];
 				[event addCallbackParameter:IOSKey value:IOSValue];
 			}
 		}
@@ -381,8 +381,8 @@ void FAnalyticsProviderAdjust::RecordError(const FString& Error, const TArray<FA
 			// add event attributes
 			for (auto Attr : EventAttrs)
 			{
-				NSString* IOSKey = [NSString stringWithFString : Attr.AttrName];
-				NSString* IOSValue = [NSString stringWithFString : Attr.ToString()];
+				NSString* IOSKey = [NSString stringWithFString : Attr.GetName()];
+				NSString* IOSValue = [NSString stringWithFString : Attr.GetValue()];
 				[event addCallbackParameter:IOSKey value:IOSValue];
 			}
 		}
@@ -416,8 +416,8 @@ void FAnalyticsProviderAdjust::RecordProgress(const FString& ProgressType, const
 			// add event attributes
 			for (auto Attr : EventAttrs)
 			{
-				NSString* IOSKey = [NSString stringWithFString : Attr.AttrName];
-				NSString* IOSValue = [NSString stringWithFString : Attr.ToString()];
+				NSString* IOSKey = [NSString stringWithFString : Attr.GetName()];
+				NSString* IOSValue = [NSString stringWithFString : Attr.GetValue()];
 				[event addCallbackParameter:IOSKey value:IOSValue];
 			}
 		}

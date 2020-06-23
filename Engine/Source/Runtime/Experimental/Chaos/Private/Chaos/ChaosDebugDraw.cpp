@@ -5,6 +5,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Evolution/SimulationSpace.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
@@ -60,6 +61,11 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 
 		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color);
+
+		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
+		{
+			DrawShapesImpl(ShapeTransform, Shape, Color);
+		}
 
 		template <bool bInstanced>
 		void DrawShapesScaledImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color)
@@ -374,7 +380,9 @@ namespace Chaos
 			// Draw the particle (mass frame) coordinates
 			{
 				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[0], INDEX_NONE, 1.0f);
-				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);				
+				//DrawParticleTransformImpl(FRigidTransform3::Identity, Contact.Particle[1], INDEX_NONE, 1.0f);
+				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[0], FColor::Green);
+				//DebugDraw::DrawParticleShapes(FRigidTransform3(), Contact.Particle[1], FColor::Green);
 			}
 		}
 		
@@ -501,6 +509,21 @@ namespace Chaos
 				ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb);
 				DrawJointConstraintImpl(SpaceTransform, Pa, Ca, Xa, Ra, Pb, Cb, Xb, Rb, ConstraintHandle->GetConstraintIsland(), ConstraintHandle->GetConstraintLevel(), ConstraintHandle->GetConstraintColor(), ConstraintHandle->GetConstraintBatch(), ConstraintHandle->GetConstraintIndex(), ColorScale, FeatureMask);
 			}
+		}
+
+		void DrawSimulationSpaceImpl(const FSimulationSpace& SimSpace)
+		{
+			const FVec3 Pos = SimSpace.Transform.GetLocation();
+			const FRotation3& Rot = SimSpace.Transform.GetRotation();
+			const FMatrix33 Rotm = Rot.ToMatrix();
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(0), DrawScale * ArrowSize, FColor::Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(1), DrawScale * ArrowSize, FColor::Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Pos, Pos + DrawScale * BodyAxisLen * Rotm.GetAxis(2), DrawScale * ArrowSize, FColor::Blue, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + VelScale * SimSpace.LinearVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + AngVelScale * SimSpace.AngularVelocity, FColor::Cyan, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * VelScale * SimSpace.LinearAcceleration, FColor::Yellow, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 		}
 
 #endif
@@ -715,5 +738,14 @@ namespace Chaos
 #endif
 		}
 
+		void DrawSimulationSpace(const FSimulationSpace& SimSpace)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawSimulationSpaceImpl(SimSpace);
+			}
+#endif
+		}
 	}
 }

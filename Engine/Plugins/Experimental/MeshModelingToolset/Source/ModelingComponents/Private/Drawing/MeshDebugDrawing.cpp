@@ -3,6 +3,7 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "DynamicMesh3.h"
 #include "FrameTypes.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 
@@ -105,5 +106,17 @@ void MeshDebugDraw::DrawSimpleGrid(
 		B = Origin + Extent * X + dx * Y;
 		PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriority, LineWidth, 0, true);
 	}
+}
 
+
+void MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(
+	const FViewCameraState& CameraState,
+	const FFrame3f& LocalFrame, int32 NumGridLines, float VisualAngleSpan,
+	float LineWidth, FColor Color, bool bDepthTested,
+	FPrimitiveDrawInterface* PDI, const FTransform& Transform)
+{
+	FVector WorldOrigin = Transform.TransformPosition((FVector)LocalFrame.Origin);
+	float GridWidth = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, (FVector3d)WorldOrigin, VisualAngleSpan);
+	float GridLineSpacing = GridWidth / (float)NumGridLines;
+	DrawSimpleGrid(LocalFrame, NumGridLines, GridLineSpacing, LineWidth, Color, bDepthTested, PDI, Transform);
 }

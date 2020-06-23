@@ -42,15 +42,21 @@ public:
 	};
 	EBooleanOp Operation;
 	
-	/** Whether to do additional processing to try to remove degenerate edges */
-	bool bCollapseDegenerateEdgesOnCut = true;
-	double DegenerateEdgeTol = FMathd::ZeroTolerance * 10;
+	
 
 	/** Tolerance distance for considering a point to be on a vertex or edge, especially during mesh-mesh cutting */
-	double SnapTolerance = FMathf::ZeroTolerance * 10.0;
+	double SnapTolerance = FMathf::ZeroTolerance * 1.0;
+
+	/** Whether to do additional processing to try to remove degenerate edges */
+	bool bCollapseDegenerateEdgesOnCut = true;
+	/** Tolerance factor (multiplied by SnapTolerance) for removing short edges created by the cutting process; should be no more than 2 */
+	double DegenerateEdgeTolFactor = 1.5;
 
 	/** Threshold to determine whether triangle in one mesh is inside or outside of the other */
 	double WindingThreshold = .5;
+
+	/** Put the Result mesh in the same space as the input.  If true, ResultTransform will be the identity transform. */
+	bool bPutResultInInputSpace = true;
 
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
@@ -87,6 +93,12 @@ public:
 	FMeshBoolean(const FDynamicMesh3* MeshA, const FTransform3d& TransformA, const FDynamicMesh3* MeshB, const FTransform3d& TransformB,
 				 FDynamicMesh3* OutputMesh, EBooleanOp Operation)
 		: Meshes{ MeshA, MeshB }, Transforms{ TransformA, TransformB }, Operation(Operation), Result(OutputMesh)
+	{
+		check(MeshA != nullptr && MeshB != nullptr && OutputMesh != nullptr);
+	}
+
+	FMeshBoolean(const FDynamicMesh3* MeshA, const FDynamicMesh3* MeshB, FDynamicMesh3* OutputMesh, EBooleanOp Operation)
+		: Meshes{ MeshA, MeshB }, Transforms{ FTransform3d::Identity(), FTransform3d::Identity() }, Operation(Operation), Result(OutputMesh)
 	{
 		check(MeshA != nullptr && MeshB != nullptr && OutputMesh != nullptr);
 	}

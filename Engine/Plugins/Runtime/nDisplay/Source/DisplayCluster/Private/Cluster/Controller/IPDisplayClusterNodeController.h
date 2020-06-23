@@ -32,4 +32,3 @@ public:
 	virtual FString GetNodeId() const = 0;
 	virtual FString GetControllerName() const = 0;
 };
-

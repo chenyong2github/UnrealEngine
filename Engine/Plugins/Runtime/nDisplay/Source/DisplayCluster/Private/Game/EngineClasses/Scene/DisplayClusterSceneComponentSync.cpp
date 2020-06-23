@@ -7,14 +7,15 @@
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
-UDisplayClusterSceneComponentSync::UDisplayClusterSceneComponentSync(const FObjectInitializer& ObjectInitializer) :
-	USceneComponent(ObjectInitializer)
+UDisplayClusterSceneComponentSync::UDisplayClusterSceneComponentSync(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
+	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
@@ -67,8 +68,6 @@ void UDisplayClusterSceneComponentSync::EndPlay(const EEndPlayReason::Type EndPl
 void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
 {
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-
-	// ...
 }
 
 

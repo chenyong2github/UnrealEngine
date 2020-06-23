@@ -102,6 +102,9 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 	/** New triangle groups created by an edit */
 	TArray<int> NewGroups;
 
+	/** New normal overlay elements */
+	TArray<TArray<int32>> NewNormalOverlayElements;
+
 	/** clear this data structure */
 	void Reset()
 	{
@@ -110,6 +113,7 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 		NewQuads.Reset();
 		NewPolygons.Reset();
 		NewGroups.Reset();
+		NewNormalOverlayElements.Reset();
 	}
 
 	/** Flatten the triangle/quad/polygon lists into a single list of all triangles */
@@ -143,13 +147,13 @@ public:
 	/**
 	 * Stitch together two loops of vertices with a quad-strip of triangles.
 	 * Loops must be oriented (ordered) correctly for your use case.
+	 * If loop edges are [a,b] and [c,d], then tris added are [b,a,d] and [a,c,d]
 	 * @param Loop1 first loop of sequential vertices
 	 * @param Loop2 second loop of sequential vertices
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
 	bool StitchVertexLoopsMinimal(const TArray<int>& VertexLoop1, const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
-
 
 
 	/**
@@ -162,6 +166,15 @@ public:
 	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
 	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut);
+
+
+	/**
+	 * Weld together two loops of vertices. Loops must be oriented (ordered) correctly for your use case.
+	 * @param Loop1 first loop of sequential vertices
+	 * @param Loop2 second loop of sequential vertices. These vertices and their edges will not exist after the operation.
+	 * @return true if operation succeeded, false if any errors ocurred
+	 */
+	bool WeldVertexLoops(const TArray<int32>& VertexLoop1, const TArray<int32>& VertexLoop2);
 
 
 	/**
@@ -275,6 +288,16 @@ public:
 	 * @return true if all removes succeeded
 	 */
 	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
+
+
+	/**
+	 * Remove any connected components with volume or  area below the given thresholds
+	 * @param MinVolume Remove components with less volume than this
+	 * @param MinArea Remove components with less area than this
+	 * @return number of components removed
+	 */
+	int RemoveSmallComponents(double MinVolume, double MinArea = 0.0);
+
 
 	/**
 	 * Remove a list of triangles from the mesh, and optionally any vertices that are now orphaned
@@ -424,9 +447,11 @@ public:
 	 * @param ElementID the source normal we want a duplicate of
 	 * @param NormalLayerIndex which normal layer to consider
 	 * @param IndexMaps source/destination mapping of already-duplicated normals
+	 * @param ResultOut any newly created element indices are stored in NewNormalOverlayElements here. Note that
+	 *   NewNormalOverlayElements must have size > NormalLayerIndex.
 	 * @return index of duplicate normal in given normal layer
 	 */
-	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps);
+	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut = nullptr);
 
 
 	/**
@@ -434,7 +459,7 @@ public:
 	 * @param FromTriangleID source triangle
 	 * @param ToTriangleID destination triangle
 	 * @param IndexMaps mappings passed to FindOrCreateDuplicateX functions to track already-created attributes
-	 * @param ResultOut information about new attributes is stored here (@todo populate this, at time of writing there are no attribute fields)
+	 * @param ResultOut information about new attributes is stored here (@todo finish populating this, at time of writing only normal overlay elements get tracked)
 	 */
 	void CopyAttributes(int FromTriangleID, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 

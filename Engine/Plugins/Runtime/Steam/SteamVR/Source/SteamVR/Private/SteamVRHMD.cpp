@@ -673,6 +673,11 @@ bool FSteamVRHMD::GetTrackingSensorProperties(int32 SensorId, FQuat& OutOrientat
 	return true;
 }
 
+FString FSteamVRHMD::GetTrackedDevicePropertySerialNumber(int32 DeviceId)
+{
+	return GetFStringTrackedDeviceProperty(VRSystem, DeviceId, vr::Prop_SerialNumber_String);
+}
+
 void FSteamVRHMD::SetInterpupillaryDistance(float NewInterpupillaryDistance)
 {
 }

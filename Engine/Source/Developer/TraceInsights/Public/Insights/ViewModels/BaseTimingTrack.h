@@ -25,6 +25,66 @@ struct FDrawContext;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum class TRACEINSIGHTS_API ETimingTrackLocation : uint32
+{
+	None         = 0,
+	Scrollable   = (1 << 0),
+	TopDocked    = (1 << 1),
+	BottomDocked = (1 << 2),
+	Foreground   = (1 << 3),
+	All          = Scrollable | TopDocked | BottomDocked | Foreground
+};
+ENUM_CLASS_FLAGS(ETimingTrackLocation);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct TRACEINSIGHTS_API FTimingTrackOrder
+{
+	static constexpr int32 GroupRange = 100000;
+	static constexpr int32 TimeRuler  = -2 * GroupRange;
+	static constexpr int32 Markers    = -1 * GroupRange;
+	static constexpr int32 First      = 0;
+	static constexpr int32 Memory     = 1 * GroupRange;
+	static constexpr int32 Gpu        = 2 * GroupRange;
+	static constexpr int32 Cpu        = 3 * GroupRange;
+	static constexpr int32 Last       = 4 * GroupRange;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class TRACEINSIGHTS_API ETimingTrackFlags : uint32
+{
+	None            = 0,
+	IsVisible       = (1 << 0),
+	IsDirty         = (1 << 1),
+	IsSelected      = (1 << 2),
+	IsHovered       = (1 << 3),
+	IsHeaderHovered = (1 << 4),
+};
+ENUM_CLASS_FLAGS(ETimingTrackFlags);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class TRACEINSIGHTS_API EDrawEventMode : uint32
+{
+	None = 0,
+
+	/** Draw the content of the event. This flag can be omitted in order to draw only the hovered/selected highlights. */
+	Content = (1 << 0),
+
+	/** Draw the highlights for a hovered event. */
+	Hovered = (1 << 1),
+
+	/** Draw the highlights for a selected event. */
+	Selected = (1 << 2),
+
+	/** Draw the highlights for an event that is both selected and hovered. */
+	SelectedAndHovered = Hovered | Selected,
+};
+ENUM_CLASS_FLAGS(EDrawEventMode);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class TRACEINSIGHTS_API ITimingTrackUpdateContext
 {
 public:
@@ -53,39 +113,6 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum class ETimingTrackFlags : uint32
-{
-	None = 0,
-	IsVisible = (1 << 0),
-	IsDirty = (1 << 1),
-	IsSelected = (1 << 2),
-	IsHovered = (1 << 3),
-	IsHeaderHovered = (1 << 4),
-};
-ENUM_CLASS_FLAGS(ETimingTrackFlags);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class EDrawEventMode : uint32
-{
-	None = 0,
-
-	/** Draw the content of the event. This flag can be omitted in order to draw only the hovered/selected highlights. */
-	Content = (1 << 0),
-
-	/** Draw the highlights for a hovered event. */
-	Hovered = (1 << 1),
-
-	/** Draw the highlights for a selected event. */
-	Selected = (1 << 2),
-
-	/** Draw the highlights for an event that is both selected and hovered. */
-	SelectedAndHovered = Hovered | Selected,
-};
-ENUM_CLASS_FLAGS(EDrawEventMode);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class TRACEINSIGHTS_API FBaseTimingTrack : public TSharedFromThis<FBaseTimingTrack>
 {
 	friend class FTimingViewDrawHelper;
@@ -96,6 +123,8 @@ protected:
 	explicit FBaseTimingTrack(const FString& InName = FString())
 		: Id(GenerateId())
 		, Name(InName)
+		, ValidLocations(ETimingTrackLocation::Scrollable)
+		, Location(ETimingTrackLocation::None)
 		, Order(0)
 		, PosY(0.0f)
 		, Height(0.0f)
@@ -108,8 +137,6 @@ protected:
 public:
 	virtual void Reset()
 	{
-		//Name = FString();
-		//Order = 0;
 		PosY = 0.0f;
 		Height = 0.0f;
 		Flags = ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty;
@@ -119,6 +146,11 @@ public:
 
 	const FString& GetName() const { return Name; }
 	void SetName(const FString& InName) { Name = InName; }
+
+	ETimingTrackLocation GetValidLocations() const { return ValidLocations; }
+	ETimingTrackLocation GetLocation() const { return Location; }
+	void SetLocation(ETimingTrackLocation InLocation) { Location = InLocation; OnLocationChanged(); }
+	virtual void OnLocationChanged() { SetDirtyFlag(); }
 
 	int32 GetOrder() const { return Order; }
 	void SetOrder(int32 InOrder) { Order = InOrder; }
@@ -227,11 +259,14 @@ public:
 	//TODO: virtual void BuildDebugString(FString& OutStr) const {}
 
 protected:
+	void SetValidLocations(ETimingTrackLocation InValidLocations) { ValidLocations = InValidLocations; }
 	static uint64 GenerateId() { return IdGenerator++; }
 
 private:
 	const uint64 Id;
 	FString Name;
+	ETimingTrackLocation ValidLocations;
+	ETimingTrackLocation Location;
 	int32 Order;
 	float PosY; // y position, in Slate units
 	float Height; // height, in Slate units

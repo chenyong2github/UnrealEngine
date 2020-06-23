@@ -23,6 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("Emitter Simulate [CNC]"), STAT_NiagaraSimulate, STATGRO
 DECLARE_CYCLE_STAT(TEXT("Emitter Spawn [CNC]"), STAT_NiagaraSpawn, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Post Tick [CNC]"), STAT_NiagaraEmitterPostTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Event Handling [CNC]"), STAT_NiagaraEventHandle, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Emitter Event CopyBuffer [CNC]"), STAT_NiagaraEvent_CopyBuffer, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Emitter Error Check [CNC]"), STAT_NiagaraEmitterErrorCheck, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters [GT]"), STAT_NiagaraEmitterInit, STATGROUP_Niagara);
 
@@ -32,6 +33,13 @@ DECLARE_CYCLE_STAT(TEXT("Init Emitters (DirectBindings) [GT]"), STAT_NiagaraEmit
 DECLARE_CYCLE_STAT(TEXT("Init Emitters (Events) [GT]"), STAT_NiagaraEmitterInit_Events, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters (DIDefaultsAndBoundCalcs) [GT]"), STAT_NiagaraEmitterInit_DIDefaultsAndBoundsCalcs, STATGROUP_Niagara);
 
+static int32 GbNiagaraAllowEventSpawnCombine = 1;
+static FAutoConsoleVariableRef CVarNiagaraAllowEventSpawnCombine(
+	TEXT("fx.Niagara.AllowEventSpawnCombine"),
+	GbNiagaraAllowEventSpawnCombine,
+	TEXT("Allows events spawning to be combined, 0=Disabled, 1=Allowed Based On Emitter, 2=Force On."),
+	ECVF_Default
+);
 
 static int32 GbDumpParticleData = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpParticleData(
@@ -520,6 +528,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
+
+	bCombineEventSpawn = GbNiagaraAllowEventSpawnCombine && (CachedEmitter->bCombineEventSpawn || (GbNiagaraAllowEventSpawnCombine == 2));
 }
 
 void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
@@ -1129,6 +1139,7 @@ FORCENOINLINE void NiagaraTestCrash()
 void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraTick);
+	FScopeCycleCounterUObject AdditionalScope(CachedEmitter, GET_STATID(STAT_NiagaraTick));
 	FNiagaraEditorOnlyCycleTimer<false> TickTime(CPUTimeCycles);
 
 #if STATS
@@ -1366,8 +1377,8 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		// Because each context is only ran once each frame, the CBuffer layout stays constant for the lifetime duration of the CBuffer (one frame).
 
 		// @todo-threadsafety do this once during init. Should not change during runtime...
-		GPUExecContext->ExternalCBufferLayout.ConstantBufferSize = ParmSize / (GPUExecContext->HasInterpolationParameters ? 2 : 1);
-		GPUExecContext->ExternalCBufferLayout.ComputeHash();
+		GPUExecContext->ExternalCBufferLayout->UBLayout.ConstantBufferSize = ParmSize / (GPUExecContext->HasInterpolationParameters ? 2 : 1);
+		GPUExecContext->ExternalCBufferLayout->UBLayout.ComputeHash();
 
 		// Need to call post-tick, which calls the copy to previous for interpolated spawning
 		SpawnExecContext.PostTick();
@@ -1585,32 +1596,60 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		}
 
 		EventSpawnStart = Data.GetDestinationDataChecked().GetNumInstances();
-
 		if (EventInstanceData.IsValid())
 		{
-			for (int32 EventScriptIdx = 0; EventScriptIdx < CachedEmitter->GetEventHandlers().Num(); EventScriptIdx++)
+			if (bCombineEventSpawn)
 			{
-				FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
-				//Spawn particles coming from events.
-				for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
+				int32 EventParticlesToSpawn = 0;
+
+				for (int32 EventScriptIdx = 0; EventScriptIdx < CachedEmitter->GetEventHandlers().Num(); EventScriptIdx++)
 				{
-					const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
-					if (EventNumToSpawn > 0)
+					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
+					for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
 					{
-						const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
+						const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
+						EventParticlesToSpawn += EventNumToSpawn;
+						SpawnCountRemaining -= EventNumToSpawn;
+						TotalActualEventSpawns += EventNumToSpawn;
+						Info.SpawnCounts[i] = EventNumToSpawn;
+					}
+				}
 
-						//Event spawns are instantaneous at the middle of the frame?
-						auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
-						SpawnIntervalBinding.SetValue(0.0f);
-						InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
-						SpawnGroupBinding.SetValue(0);
-						SpawnParticles(EventNumToSpawn, TEXT("Event Spawn"));
+				if (EventParticlesToSpawn > 0)
+				{
+					const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
 
-						//Update EventSpawnCounts to the number actually spawned.
-						const int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
-						TotalActualEventSpawns += NumActuallySpawned;
-						Info.SpawnCounts[i] = NumActuallySpawned;
-						SpawnCountRemaining -= NumActuallySpawned;
+					SpawnIntervalBinding.SetValue(0.0f);
+					InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
+					SpawnGroupBinding.SetValue(0);
+					SpawnParticles(EventParticlesToSpawn, TEXT("Event Spawn"));
+				}
+			}
+			else
+			{
+				for (int32 EventScriptIdx = 0; EventScriptIdx < CachedEmitter->GetEventHandlers().Num(); EventScriptIdx++)
+				{
+					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
+
+					for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
+					{
+						const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
+						if (EventNumToSpawn > 0)
+						{
+							const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
+
+							//Event spawns are instantaneous at the middle of the frame?
+							SpawnIntervalBinding.SetValue(0.0f);
+							InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
+							SpawnGroupBinding.SetValue(0);
+							SpawnParticles(EventNumToSpawn, TEXT("Event Spawn"));
+
+							//Update EventSpawnCounts to the number actually spawned.
+							const int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
+							TotalActualEventSpawns += NumActuallySpawned;
+							Info.SpawnCounts[i] = NumActuallySpawned;
+							SpawnCountRemaining -= NumActuallySpawned;
+						}
 					}
 				}
 			}
@@ -1676,6 +1715,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		if (TotalActualEventSpawns > 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraEvent_CopyBuffer);
 			if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 			{
 				Data.Dump(0, INDEX_NONE, TEXT("Existing Data - Pre Event Alloc"));

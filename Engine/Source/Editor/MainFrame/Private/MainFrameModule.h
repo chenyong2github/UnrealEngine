@@ -25,7 +25,11 @@ public:
 	virtual void CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE ) override;
 	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) override;
 	virtual TSharedRef<SWidget> MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedRef<SWidget> MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	virtual TSharedRef<SWidget> MakeDeveloperTools( const TArray<FMainFrameDeveloperTool>& AdditionalTools ) const override;
 
 	virtual bool IsWindowInitialized( ) const override
@@ -74,7 +78,7 @@ public:
 		return LoadedLevelName; 
 	}
 
-	virtual const TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) override
+	virtual TSharedRef<FUICommandList>& GetMainFrameCommandBindings( ) override
 	{
 		return FMainFrameCommands::ActionList;
 	}
@@ -140,6 +144,7 @@ public:
 		return true; // @todo: Eventually, this should probably not be allowed.
 	}
 
+	static void HandleResizeMainFrameCommand(const TArray<FString>& Args);
 protected:
 
 	/**

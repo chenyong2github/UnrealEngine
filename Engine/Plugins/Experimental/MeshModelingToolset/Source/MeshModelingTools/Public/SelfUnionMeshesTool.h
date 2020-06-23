@@ -49,6 +49,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;
 
+	/** If true, remove open, visible geometry */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bTrimFlaps = false;
+
+	/** Winding number threshold to determine what is consider inside the mesh */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	double WindingNumberThreshold = .5;
+
 	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
 	UPROPERTY(EditAnywhere, Category = Materials)
 	bool bOnlyUseFirstMeshMaterials = false;

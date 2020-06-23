@@ -219,7 +219,7 @@ void FSceneComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuild
 	// Details panel for BP component will have the base class be the Actor due to how the SKismetInspector works, but in that case we
 	// have a class default object selected, so use that to infer that this is the component directly selected and since BPs do not do
 	// property flattening it all kind of works
-	if (DetailBuilder.GetBaseClass()->IsChildOf<AActor>() && !DetailBuilder.GetDetailsView()->HasClassDefaultObject())
+	if (DetailBuilder.GetBaseClass()->IsChildOf<AActor>() && DetailBuilder.GetDetailsView() && !DetailBuilder.GetDetailsView()->HasClassDefaultObject())
 	{
 		TSharedPtr<IPropertyHandle> ComponentHiddenInGameProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USceneComponent, bHiddenInGame));
 		ComponentHiddenInGameProperty->MarkHiddenByCustomization();
@@ -228,9 +228,15 @@ void FSceneComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuild
 
 void FSceneComponentDetails::MakeTransformDetails( IDetailLayoutBuilder& DetailBuilder )
 {
-	const TArray<TWeakObjectPtr<AActor> >& SelectedActors = DetailBuilder.GetDetailsView()->GetSelectedActors();
-	const FSelectedActorInfo& SelectedActorInfo = DetailBuilder.GetDetailsView()->GetSelectedActorInfo();
+	int SelectedActorsNum = 0;
+	const FSelectedActorInfo* SelectedActorInfoPtr = nullptr;
 
+	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
+	if (DetailsView)
+	{
+		SelectedActorsNum = DetailsView->GetSelectedActors().Num();
+		SelectedActorInfoPtr = &DetailsView->GetSelectedActorInfo();
+	}
 
 	// Hide the transform properties so they don't show up
 	DetailBuilder.HideProperty(DetailBuilder.GetProperty(USceneComponent::GetAbsoluteLocationPropertyName()));
@@ -257,13 +263,17 @@ void FSceneComponentDetails::MakeTransformDetails( IDetailLayoutBuilder& DetailB
 	}
 
 	// If there are any actors selected and we're not editing Class Defaults, the transform section is shown as part of the actor customization
-	if( SelectedActors.Num() == 0 || bIsEditingBlueprintDefaults)
+	if(SelectedActorsNum == 0 || bIsEditingBlueprintDefaults)
 	{
 		TArray< TWeakObjectPtr<UObject> > SceneComponentObjects;
 		DetailBuilder.GetObjectsBeingCustomized( SceneComponentObjects );
 
 		// Default to showing the transform for all components unless we are viewing a non-Blueprint class default object (the transform is not used in that case)
-		bool bShouldShowTransform = !DetailBuilder.GetDetailsView()->HasClassDefaultObject() || bIsEditingBlueprintDefaults;
+		bool bShouldShowTransform = true;
+		if (DetailsView)
+		{
+			bShouldShowTransform  = !DetailsView->HasClassDefaultObject() || bIsEditingBlueprintDefaults;
+		}
 
 		for (int32 ComponentIndex = 0; bShouldShowTransform && ComponentIndex < SceneComponentObjects.Num(); ++ComponentIndex)
 		{
@@ -307,6 +317,7 @@ void FSceneComponentDetails::MakeTransformDetails( IDetailLayoutBuilder& DetailB
 			}
 		}
 
+		const FSelectedActorInfo& SelectedActorInfo = SelectedActorInfoPtr ? *SelectedActorInfoPtr : FSelectedActorInfo();
 		TSharedRef<FComponentTransformDetails> TransformDetails = MakeShareable( new FComponentTransformDetails( bIsEditingBlueprintDefaults ? SceneComponentObjects : DetailBuilder.GetSelectedObjects(), SelectedActorInfo, DetailBuilder ) );
 
 		if(!bShouldShowTransform)

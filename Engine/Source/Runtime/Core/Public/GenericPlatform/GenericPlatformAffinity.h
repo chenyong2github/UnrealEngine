@@ -27,7 +27,8 @@ enum EThreadPriority
 	TPri_Highest,
 	TPri_Lowest,
 	TPri_SlightlyBelowNormal,
-	TPri_TimeCritical
+	TPri_TimeCritical,
+	TPri_Num,
 };
 
 enum class EThreadCreateFlags : int8

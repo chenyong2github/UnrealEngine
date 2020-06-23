@@ -5,6 +5,7 @@
 
 #include "HttpModule.h"
 #include "Analytics.h"
+#include "AnalyticsPerfTracker.h"
 
 IMPLEMENT_MODULE( FAnalyticsET, AnalyticsET );
 
@@ -16,6 +17,9 @@ void FAnalyticsET::StartupModule()
 
 void FAnalyticsET::ShutdownModule()
 {
+#if ANALYTICS_PERF_TRACKING_ENABLED
+	TearDownAnalyticsPerfTracker();
+#endif
 }
 
 TSharedPtr<IAnalyticsProvider> FAnalyticsET::CreateAnalyticsProvider(const FAnalyticsProviderConfigurationDelegate& GetConfigValue) const

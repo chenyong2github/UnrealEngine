@@ -2,14 +2,14 @@
 
 #include "Input/Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDevice.h"
 
-#include "DisplayClusterBuildConfig.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterBuildConfig.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
-FDisplayClusterVrpnTrackerInputDevice::FDisplayClusterVrpnTrackerInputDevice(const FDisplayClusterConfigInput& config) :
-	FDisplayClusterVrpnTrackerInputDataHolder(config)
+FDisplayClusterVrpnTrackerInputDevice::FDisplayClusterVrpnTrackerInputDevice(const FDisplayClusterConfigInput& Config) :
+	FDisplayClusterVrpnTrackerInputDataHolder(Config)
 {
 }
 
@@ -49,15 +49,15 @@ void FDisplayClusterVrpnTrackerInputDevice::PostUpdate()
 
 bool FDisplayClusterVrpnTrackerInputDevice::Initialize()
 {
-	FString addr;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Address, addr))
+	FString Addr;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Address, Addr))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - device address not found"), *ToString());
 		return false;
 	}
 
 	// Instantiate device implementation
-	DevImpl.Reset(new vrpn_Tracker_Remote(TCHAR_TO_UTF8(*addr)));
+	DevImpl.Reset(new vrpn_Tracker_Remote(TCHAR_TO_UTF8(*Addr)));
 
 	// Register update handler
 	if (DevImpl->register_change_handler(this, &FDisplayClusterVrpnTrackerInputDevice::HandleTrackerDevice) != 0)
@@ -74,44 +74,44 @@ bool FDisplayClusterVrpnTrackerInputDevice::Initialize()
 	}
 
 	// Extract tracker rotation
-	FRotator rot;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::Rot, rot, false))
+	FRotator Rot;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::Rot, Rot, false))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - tracker origin rotation not found"), *ToString());
 		return false;
 	}
 
 	// Convert to quaternion
-	OriginQuat = rot.Quaternion();
+	OriginQuat = Rot.Quaternion();
 
 	// Parse 'right' axis mapping
-	FString right;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Right, right))
+	FString Right;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Right, Right))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - 'right' axis mapping not found"), *ToString());
 		return false;
 	}
 
 	// Parse 'forward' axis mapping
-	FString front;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Front, front))
+	FString Front;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Front, Front))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - 'front' axis mapping not found"), *ToString());
 		return false;
 	}
 
 	// Parse 'up' axis mapping
-	FString up;
-	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Up, up))
+	FString Up;
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, DisplayClusterStrings::cfg::data::input::Up, Up))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - 'up' axis mapping not found"), *ToString());
 		return false;
 	}
 	
 	// Store mapping rules
-	AxisFront = String2Map(front, AxisMapType::X);
-	AxisRight = String2Map(right, AxisMapType::Y);
-	AxisUp = String2Map(up, AxisMapType::Z);
+	AxisFront = String2Map(Front, AxisMapType::X);
+	AxisRight = String2Map(Right, AxisMapType::Y);
+	AxisUp = String2Map(Up, AxisMapType::Z);
 	AxisW = ComputeAxisW(AxisFront, AxisRight, AxisUp);
 
 	// Base initialization
@@ -125,110 +125,110 @@ bool FDisplayClusterVrpnTrackerInputDevice::Initialize()
 namespace
 {
 	// Location
-	float LocGetX(const FVector& loc)  { return  loc.X; }
-	float LocGetNX(const FVector& loc) { return -loc.X; }
+	float LocGetX(const FVector& Loc)  { return  Loc.X; }
+	float LocGetNX(const FVector& Loc) { return -Loc.X; }
 
-	float LocGetY(const FVector& loc)  { return  loc.Y; }
-	float LocGetNY(const FVector& loc) { return -loc.Y; }
+	float LocGetY(const FVector& Loc)  { return  Loc.Y; }
+	float LocGetNY(const FVector& Loc) { return -Loc.Y; }
 
-	float LocGetZ(const FVector& loc)  { return  loc.Z; }
-	float LocGetNZ(const FVector& loc) { return -loc.Z; }
+	float LocGetZ(const FVector& Loc)  { return  Loc.Z; }
+	float LocGetNZ(const FVector& Loc) { return -Loc.Z; }
 
 	// Rotation
-	float RotGetX(const FQuat& quat)  { return  quat.X; }
-	float RotGetNX(const FQuat& quat) { return -quat.X; }
+	float RotGetX(const FQuat& Quat)  { return  Quat.X; }
+	float RotGetNX(const FQuat& Quat) { return -Quat.X; }
 
-	float RotGetY(const FQuat& quat)  { return  quat.Y; }
-	float RotGetNY(const FQuat& quat) { return -quat.Y; }
+	float RotGetY(const FQuat& Quat)  { return  Quat.Y; }
+	float RotGetNY(const FQuat& Quat) { return -Quat.Y; }
 
-	float RotGetZ(const FQuat& quat)  { return  quat.Z; }
-	float RotGetNZ(const FQuat& quat) { return -quat.Z; }
+	float RotGetZ(const FQuat& Quat)  { return  Quat.Z; }
+	float RotGetNZ(const FQuat& Quat) { return -Quat.Z; }
 
-	float RotGetW(const FQuat& quat)  { return  quat.W; }
-	float RotGetNW(const FQuat& quat) { return -quat.W; }
+	float RotGetW(const FQuat& Quat)  { return  Quat.W; }
+	float RotGetNW(const FQuat& Quat) { return -Quat.W; }
 
-	typedef float(*TLocGetter)(const FVector& loc);
-	typedef float(*TRotGetter)(const FQuat&   rot);
+	typedef float(*TLocGetter)(const FVector& Loc);
+	typedef float(*TRotGetter)(const FQuat&   Rot);
 }
 
-FDisplayClusterVrpnTrackerInputDevice::AxisMapType FDisplayClusterVrpnTrackerInputDevice::String2Map(const FString& str, const AxisMapType defaultMap) const
+FDisplayClusterVrpnTrackerInputDevice::AxisMapType FDisplayClusterVrpnTrackerInputDevice::String2Map(const FString& Str, const AxisMapType DefaultMap) const
 {
-	const FString mapVal = str.ToLower();
+	const FString MapVal = Str.ToLower();
 
-	if (mapVal == DisplayClusterStrings::cfg::data::input::MapX)
+	if (MapVal == DisplayClusterStrings::cfg::data::input::MapX)
 		return AxisMapType::X;
-	else if (mapVal == DisplayClusterStrings::cfg::data::input::MapNX)
+	else if (MapVal == DisplayClusterStrings::cfg::data::input::MapNX)
 		return AxisMapType::NX;
-	else if (mapVal == DisplayClusterStrings::cfg::data::input::MapY)
+	else if (MapVal == DisplayClusterStrings::cfg::data::input::MapY)
 		return AxisMapType::Y;
-	else if (mapVal == DisplayClusterStrings::cfg::data::input::MapNY)
+	else if (MapVal == DisplayClusterStrings::cfg::data::input::MapNY)
 		return AxisMapType::NY;
-	else if (mapVal == DisplayClusterStrings::cfg::data::input::MapZ)
+	else if (MapVal == DisplayClusterStrings::cfg::data::input::MapZ)
 		return AxisMapType::Z;
-	else if (mapVal == DisplayClusterStrings::cfg::data::input::MapNZ)
+	else if (MapVal == DisplayClusterStrings::cfg::data::input::MapNZ)
 		return AxisMapType::NZ;
 	else
 	{
-		UE_LOG(LogDisplayClusterInputVRPN, Warning, TEXT("Unknown mapping type: %s"), *str);
+		UE_LOG(LogDisplayClusterInputVRPN, Warning, TEXT("Unknown mapping type: %s"), *Str);
 	}
 
-	return defaultMap;
+	return DefaultMap;
 }
 
-FDisplayClusterVrpnTrackerInputDevice::AxisMapType FDisplayClusterVrpnTrackerInputDevice::ComputeAxisW(const AxisMapType front, const AxisMapType right, const AxisMapType up) const
+FDisplayClusterVrpnTrackerInputDevice::AxisMapType FDisplayClusterVrpnTrackerInputDevice::ComputeAxisW(const AxisMapType Front, const AxisMapType Right, const AxisMapType Up) const
 {
-	int det = 1;
+	int Det = 1;
 
-	if (front == AxisMapType::NX || front == AxisMapType::NY || front == AxisMapType::NZ)
-		det *= -1;
+	if (Front == AxisMapType::NX || Front == AxisMapType::NY || Front == AxisMapType::NZ)
+		Det *= -1;
 
-	if (right == AxisMapType::NX || right == AxisMapType::NY || right == AxisMapType::NZ)
-		det *= -1;
+	if (Right == AxisMapType::NX || Right == AxisMapType::NY || Right == AxisMapType::NZ)
+		Det *= -1;
 
-	if (up == AxisMapType::NX || up == AxisMapType::NY || up == AxisMapType::NZ)
-		det *= -1;
+	if (Up == AxisMapType::NX || Up == AxisMapType::NY || Up == AxisMapType::NZ)
+		Det *= -1;
 
-	return (det < 0) ? AxisMapType::NW : AxisMapType::W;
+	return (Det < 0) ? AxisMapType::NW : AxisMapType::W;
 }
 
-FVector FDisplayClusterVrpnTrackerInputDevice::GetMappedLocation(const FVector& loc, const AxisMapType front, const AxisMapType right, const AxisMapType up) const
+FVector FDisplayClusterVrpnTrackerInputDevice::GetMappedLocation(const FVector& Loc, const AxisMapType Front, const AxisMapType Right, const AxisMapType Up) const
 {
 	static TLocGetter funcs[] = { &LocGetX, &LocGetNX, &LocGetY, &LocGetNY, &LocGetZ, &LocGetNZ };
-	return FVector(funcs[front](loc), funcs[right](loc), funcs[up](loc));
+	return FVector(funcs[Front](Loc), funcs[Right](Loc), funcs[Up](Loc));
 }
 
-FQuat FDisplayClusterVrpnTrackerInputDevice::GetMappedQuat(const FQuat& quat, const AxisMapType front, const AxisMapType right, const AxisMapType up, const AxisMapType axisW) const
+FQuat FDisplayClusterVrpnTrackerInputDevice::GetMappedQuat(const FQuat& Quat, const AxisMapType Front, const AxisMapType Right, const AxisMapType Up, const AxisMapType InAxisW) const
 {
 	static TRotGetter funcs[] = { &RotGetX, &RotGetNX, &RotGetY, &RotGetNY, &RotGetZ, &RotGetNZ, &RotGetW, &RotGetNW };
-	return FQuat(funcs[front](quat), funcs[right](quat), funcs[up](quat), -quat.W);// funcs[axisW](quat));
+	return FQuat(funcs[Front](Quat), funcs[Right](Quat), funcs[Up](Quat), -Quat.W);// funcs[axisW](quat));
 }
 
-void FDisplayClusterVrpnTrackerInputDevice::TransformCoordinates(FDisplayClusterVrpnTrackerChannelData &data) const
+void FDisplayClusterVrpnTrackerInputDevice::TransformCoordinates(FDisplayClusterVrpnTrackerChannelData &Data) const
 {
-	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("TransformCoordinates old: <loc:%s> <quat:%s>"), *data.trLoc.ToString(), *data.trQuat.ToString());
+	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("TransformCoordinates old: <loc:%s> <quat:%s>"), *Data.TrackerLoc.ToString(), *Data.TrackerQuat.ToString());
 
 	// Transform location
-	data.trLoc = OriginLoc + GetMappedLocation(data.trLoc, AxisFront, AxisRight, AxisUp);
-	data.trLoc *= 100.f;
+	Data.TrackerLoc = OriginLoc + GetMappedLocation(Data.TrackerLoc, AxisFront, AxisRight, AxisUp);
+	Data.TrackerLoc *= 100.f;
 
 	// Transform rotation
-	data.trQuat = OriginQuat * data.trQuat;
-	data.trQuat = GetMappedQuat(data.trQuat, AxisFront, AxisRight, AxisUp, AxisW);
+	Data.TrackerQuat = OriginQuat * Data.TrackerQuat;
+	Data.TrackerQuat = GetMappedQuat(Data.TrackerQuat, AxisFront, AxisRight, AxisUp, AxisW);
 
-	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("TransformCoordinates new: <loc:%s> <quat:%s>"), *data.trLoc.ToString(), *data.trQuat.ToString());
+	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("TransformCoordinates new: <loc:%s> <quat:%s>"), *Data.TrackerLoc.ToString(), *Data.TrackerQuat.ToString());
 }
 
-void VRPN_CALLBACK FDisplayClusterVrpnTrackerInputDevice::HandleTrackerDevice(void *userData, vrpn_TRACKERCB const tr)
+void VRPN_CALLBACK FDisplayClusterVrpnTrackerInputDevice::HandleTrackerDevice(void *UserData, vrpn_TRACKERCB const TrackerData)
 {
-	auto pDev = reinterpret_cast<FDisplayClusterVrpnTrackerInputDevice*>(userData);
+	auto Dev = reinterpret_cast<FDisplayClusterVrpnTrackerInputDevice*>(UserData);
 	
-	const FVector loc(tr.pos[0], tr.pos[1], tr.pos[2]);
-	const FQuat   quat(tr.quat[0], tr.quat[1], tr.quat[2], tr.quat[3]);
+	const FVector Loc (TrackerData.pos[0], TrackerData.pos[1], TrackerData.pos[2]);
+	const FQuat   Quat(TrackerData.quat[0], TrackerData.quat[1], TrackerData.quat[2], TrackerData.quat[3]);
 
-	const FDisplayClusterVrpnTrackerChannelData data{ loc, quat };
-	auto pItem = &pDev->DeviceData.Add(tr.sensor, data);
+	const FDisplayClusterVrpnTrackerChannelData data{ Loc, Quat };
+	auto Item = &Dev->DeviceData.Add(TrackerData.sensor, data);
 
-	pDev->DirtyMap.Add(static_cast<int32>(tr.sensor), true);
+	Dev->DirtyMap.Add(static_cast<int32>(TrackerData.sensor), true);
 
-	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("Tracker %s:%d {loc %s} {rot %s}"), *pDev->GetId(), tr.sensor, *pItem->trLoc.ToString(), *pItem->trQuat.ToString());
+	UE_LOG(LogDisplayClusterInputVRPN, VeryVerbose, TEXT("Tracker %s:%d {loc %s} {rot %s}"), *Dev->GetId(), TrackerData.sensor, *Item->TrackerLoc.ToString(), *Item->TrackerQuat.ToString());
 }

@@ -85,7 +85,7 @@ struct FWindowsPlatformProperties
 
 	static FORCEINLINE bool SupportsMeshLODStreaming()
 	{
-		return !IsServerOnly();
+		return !IsServerOnly() && !HasEditorOnlyData();
 	}
 
 	static FORCEINLINE bool SupportsGrayscaleSRGB()

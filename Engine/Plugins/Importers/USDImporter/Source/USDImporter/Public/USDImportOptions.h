@@ -39,8 +39,8 @@ enum class EUsdMeshImportType : uint8
 	StaticMesh,
 };
 
-UCLASS(config = EditorPerProjectUserSettings)
-class USDIMPORTER_API UUSDImportOptions : public UObject
+UCLASS(config = EditorPerProjectUserSettings, Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUSDImportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -68,8 +68,8 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 };
 
-UCLASS(config = EditorPerProjectUserSettings)
-class USDIMPORTER_API UUSDSceneImportOptions : public UUSDImportOptions
+UCLASS(config = EditorPerProjectUserSettings, Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUSDSceneImportOptions : public UDEPRECATED_UUSDImportOptions
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -114,8 +114,8 @@ public:
 	bool bGenerateUniqueMeshes;
 };
 
-UCLASS()
-class USDIMPORTER_API UUSDBatchImportOptionsSubTask : public UObject
+UCLASS(Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUSDBatchImportOptionsSubTask : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -132,8 +132,8 @@ public:
 	FString ErrorMessage;
 };
 
-UCLASS(config = EditorPerProjectUserSettings)
-class USDIMPORTER_API UUSDBatchImportOptions : public UUSDImportOptions
+UCLASS(config = EditorPerProjectUserSettings, Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUSDBatchImportOptions : public UDEPRECATED_UUSDImportOptions
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -162,6 +162,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category=Mesh, meta=(EditCondition=bImportMeshes))
 	bool bGenerateUniqueMeshes;
 
-	UPROPERTY(BlueprintReadWrite, Category = Mesh)
-	TArray<UUSDBatchImportOptionsSubTask*> SubTasks;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	TArray<UDEPRECATED_UUSDBatchImportOptionsSubTask*> SubTasks_DEPRECATED;
 };

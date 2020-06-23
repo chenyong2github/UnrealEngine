@@ -1867,6 +1867,11 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 			{
 				CollisionHeightData.Serialize(Ar, this);
 				DominantLayerData.Serialize(Ar, this);
+
+				if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LandscapePhysicalMaterialRenderData)
+				{
+					PhysicalMaterialRenderData.Serialize(Ar, this);
+				}
 			}
 #endif//WITH_EDITORONLY_DATA
 		}
@@ -2650,17 +2655,19 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
 {
 	TOptional<float> Height;
-	ULandscapeInfo* Info = GetLandscapeInfo();
-	const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
-	const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
-	ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
-	if (Component)
+	if (ULandscapeInfo* Info = GetLandscapeInfo())
 	{
-		const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
-		const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
-		if (LocalHeight.IsSet())
+		const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
+		const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
+		ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
+		if (Component)
 		{
-			Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+			const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
+			const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
+			if (LocalHeight.IsSet())
+			{
+				Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+			}
 		}
 	}
 	return Height;
@@ -2672,6 +2679,7 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 	SizeY = 0;
 	ArrayValues.SetNum(0);
 	
+#if WITH_CHAOS
 	// Exit if we have no landscape data
 	if (LandscapeComponents.Num() == 0 || CollisionComponents.Num() == 0)
 	{
@@ -2755,4 +2763,5 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 			}
 		}
 	}
+#endif
 }

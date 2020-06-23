@@ -371,9 +371,9 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		// Build the menu for grouping actors
 		BuildGroupMenu(InMenu, SelectionInfo);
 
-		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
+		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport || LevelEditorContext->ContextType == ELevelEditorMenuContext::SceneOutliner)
 		{
-			LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(InMenu);
+			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(InMenu, LevelEditorContext);
 
 			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor");
 			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMergeActor,

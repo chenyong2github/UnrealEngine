@@ -285,8 +285,6 @@ void FUnrealEdMisc::OnInit()
 	OnTabForegroundedDelegateHandle = FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(FOnActiveTabChanged::FDelegate::CreateRaw(this, &FUnrealEdMisc::OnTabForegrounded));
 	FUserActivityTracking::SetActivity(FUserActivity(TEXT("EditorInit"), EUserActivityContext::Editor));
 
-	FEditorModeRegistry::Initialize();
-
 	// Are we in immersive mode?
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
 	const bool bIsImmersive = FParse::Param( ParsedCmdLine, TEXT( "immersive" ) );

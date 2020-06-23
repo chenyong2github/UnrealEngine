@@ -41,6 +41,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/UObjectToken.h"
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompiler.h"
+#include "Editor.h"
 #endif
 #include "Logging/MessageLog.h"
 
@@ -3171,10 +3172,6 @@ bool ALandscape::ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResour
 	ENQUEUE_RENDER_COMMAND(FLandscapeLayersReadSurfaceCommand)(
 		[InCPUReadBackTexture, &OutMipsData](FRHICommandListImmediate& RHICmdList) mutable
 	{
- 		// D3D12RHI requires heavyweight BlockUntilGPUIdle() call to ensure commands have finished.
- 		// Note that this needs improving but for now is enshrined in the RHIUnitTest::VerifyBufferContents unit test
-		RHICmdList.BlockUntilGPUIdle();
-
 		OutMipsData.AddDefaulted(InCPUReadBackTexture->TextureRHI->GetNumMips());
 
 		int32 MipSizeU = InCPUReadBackTexture->GetSizeX();
@@ -3711,12 +3708,12 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0)
+	if (WeightmapUpdateModes == 0 && !bForceRender)
 	{
 		return 0;
 	}
 
-	if (InLandscapeComponentsToResolve.Num() == 0)
+	if (InLandscapeComponentsToResolve.Num() == 0 || Info == nullptr || Info->Layers.Num() == 0)
 	{
 		return WeightmapUpdateModes;
 	}
@@ -3775,10 +3772,13 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				{
 					const FLandscapeInfoLayerSettings& InfoLayerSettings = Info->Layers[LayerInfoSettingsIndex];
 
+					// ensure() to help identify root cause of UE-94083
+					ensure(InfoLayerSettings.LayerInfoObj != nullptr);
+
 					for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 					{
 						FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-						if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+						if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && InfoLayerSettings.LayerInfoObj && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 						{
 							LayerInfoObjects.Add(InfoLayerSettings.LayerInfoObj, LayerInfoSettingsIndex + 1); // due to visibility layer that is at 0
 							bHasWeightmapData = true;
@@ -5077,7 +5077,7 @@ void ALandscape::TickLayers(float DeltaTime)
 	check(GIsEditor);
 
 	UWorld* World = GetWorld();
-	if (World && !World->IsPlayInEditor() && GetLandscapeInfo())
+	if (World && !World->IsPlayInEditor() && GetLandscapeInfo() && GEditor->PlayWorld == nullptr)
 	{
 		if (CVarLandscapeSimulatePhysics.GetValueOnAnyThread() == 1)
 		{
@@ -6471,5 +6471,4 @@ bool FLandscapeLayerBrush::Initialize(const FIntRect& InLandscapeExtent, UTextur
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
-
 

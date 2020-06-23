@@ -1230,8 +1230,21 @@ FGlslCodeBackend* FOpenGLFrontend::CreateBackend(GLSLVersion Version, uint32 CCF
 	return new FGlslCodeBackend(CCFlags, HlslCompilerTarget);
 }
 
+class FGlsl430LanguageSpec : public FGlslLanguageSpec
+{
+public:
+	FGlsl430LanguageSpec(bool bInDefaultPrecisionIsHalf)
+		: FGlslLanguageSpec(bInDefaultPrecisionIsHalf)
+	{}
+	virtual bool EmulateStructuredWithTypedBuffers() const override { return false; }
+};
+
 FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version, bool bDefaultPrecisionIsHalf)
 {
+	if (Version == GLSL_430)
+	{
+		return new FGlsl430LanguageSpec(bDefaultPrecisionIsHalf);
+	}
 	return new FGlslLanguageSpec(bDefaultPrecisionIsHalf);
 }
 
@@ -1252,24 +1265,24 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 	std::string FileName(TCHAR_TO_UTF8(*Input.VirtualSourceFilePath));
 	std::string EntryPointName(TCHAR_TO_UTF8(*Input.EntryPointName));
 
-	SourceData = "float4 gl_FragColor;\nfloat4 gl_LastFragColorARM;\nfloat gl_LastFragDepthARM;\nbool ARM_shader_framebuffer_fetch;\nbool ARM_shader_framebuffer_fetch_depth_stencil;\nfloat4 FramebufferFetchES2() { if(!ARM_shader_framebuffer_fetch) { return gl_FragColor; } else { return gl_LastFragColorARM; } }\nfloat DepthbufferFetchES2(float OptionalDepth, float C1, float C2) { return (!ARM_shader_framebuffer_fetch_depth_stencil ? OptionalDepth : (clamp(1.0/(gl_LastFragDepthARM*C1-C2), 0.0, 65000.0))); }\n" + SourceData;
+	SourceData = "float4 gl_FragColor;\nfloat4 gl_LastFragColorARM;\nfloat gl_LastFragDepthARM;\nbool ARM_shader_framebuffer_fetch;\nbool ARM_shader_framebuffer_fetch_depth_stencil;\nfloat4 FramebufferFetchES2() { if(!ARM_shader_framebuffer_fetch) { return gl_FragColor; } else { return gl_LastFragColorARM; } }\nfloat DepthbufferFetchES2() { return (!ARM_shader_framebuffer_fetch_depth_stencil ? 0.0 : gl_LastFragDepthARM); }\n" + SourceData;
 
 
 	std::string FrameBufferDefines = "#ifdef UE_EXT_shader_framebuffer_fetch\n"
 	"#define _Globals_ARM_shader_framebuffer_fetch 0\n"
 	"#define FRAME_BUFFERFETCH_STORAGE_QUALIFIER inout\n"
 	"#define _Globals_gl_FragColor out_var_SV_Target0\n"
-	"#define _Globals_gl_LastFragColorARM vec4(65000.0, 65000.0, 65000.0, 65000.0)\n"
+	"#define _Globals_gl_LastFragColorARM vec4(0.0, 0.0, 0.0, 0.0)\n"
 	"#elif defined( GL_ARM_shader_framebuffer_fetch)\n"
 	"#define _Globals_ARM_shader_framebuffer_fetch 1\n"
 	"#define FRAME_BUFFERFETCH_STORAGE_QUALIFIER out\n"
-	"#define _Globals_gl_FragColor vec4(65000.0, 65000.0, 65000.0, 65000.0)\n"
+	"#define _Globals_gl_FragColor vec4(0.0, 0.0, 0.0, 0.0)\n"
 	"#define _Globals_gl_LastFragColorARM gl_LastFragDepthARM\n"
 	"#else\n"
 	"#define FRAME_BUFFERFETCH_STORAGE_QUALIFIER out\n"
 	"#define _Globals_ARM_shader_framebuffer_fetch 0\n"
-	"#define _Globals_gl_FragColor vec4(65000.0, 65000.0, 65000.0, 65000.0)\n"
-	"#define _Globals_gl_LastFragColorARM vec4(65000.0, 65000.0, 65000.0, 65000.0)\n"
+	"#define _Globals_gl_FragColor vec4(0.0, 0.0, 0.0, 0.0)\n"
+	"#define _Globals_gl_LastFragColorARM vec4(0.0, 0.0, 0.0, 0.0)\n"
 	"#endif\n"
 	"#ifdef GL_ARM_shader_framebuffer_fetch_depth_stencil\n"
 	"	#define _Globals_ARM_shader_framebuffer_fetch_depth_stencil 1\n"

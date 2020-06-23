@@ -3031,7 +3031,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 			// nativized case. We used to ignore any non-default transform value set on the root component at cook (nativization) time, but that 
 			// doesn't work because existing placements of the Blueprint component in a scene may rely on the value that's stored in the CDO,
 			// and as a result the instance-specific override value doesn't get serialized out to the instance as a result of delta serialization.
-			SceneRootComponent->SetWorldTransform(UserSpawnTransform);
+			SceneRootComponent->SetWorldTransform(UserSpawnTransform, false, nullptr, ETeleportType::ResetPhysics);
 		}
 		else
 		{
@@ -3039,7 +3039,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 			// that's owned by the native CDO, so the final transform might not always necessarily equate to the passed-in UserSpawnTransform.
 			const FTransform RootTransform(SceneRootComponent->GetRelativeRotation(), SceneRootComponent->GetRelativeLocation(), SceneRootComponent->GetRelativeScale3D());
 			const FTransform FinalRootComponentTransform = RootTransform * UserSpawnTransform;
-			SceneRootComponent->SetWorldTransform(FinalRootComponentTransform);
+			SceneRootComponent->SetWorldTransform(FinalRootComponentTransform, false, nullptr, ETeleportType::ResetPhysics);
 		}
 	}
 
@@ -3956,9 +3956,24 @@ bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 	/** Only components owned by this actor can be used as a its root component. */
 	if (ensure(NewRootComponent == nullptr || NewRootComponent->GetOwner() == this))
 	{
-		Modify();
+		if (RootComponent != NewRootComponent)
+		{
+			Modify();
 
-		RootComponent = NewRootComponent;
+			USceneComponent* OldRootComponent = RootComponent;
+			RootComponent = NewRootComponent;
+
+			// Notify new root first, as it probably has no delegate on it.
+			if (NewRootComponent)
+			{
+				NewRootComponent->NotifyIsRootComponentChanged(true);
+			}
+
+			if (OldRootComponent)
+			{
+				OldRootComponent->NotifyIsRootComponentChanged(false);
+			}
+		}
 		return true;
 	}
 

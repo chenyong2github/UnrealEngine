@@ -41,6 +41,7 @@
 #include "HAL/MemoryMisc.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "AssetRegistryModule.h"
+#include "Cooker/CookProfiling.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 
@@ -187,9 +188,12 @@ namespace DetailedCookStats
 		TSet<FDDCResourceUsageStat, FDDCResourceUsageStatKeyFuncs> DDCResourceUsageStats;
 		TArray<FCookStatsManager::StringKeyValue> DDCSummaryStats;
 		TArray<FCookProfileData> CookProfileData;
+		TArray<FString> StatCategories;
+		TMap<FString, TArray<FCookStatsManager::StringKeyValue>> StatsInCategories;
 
 		/** this functor will take a collected cooker stat and log it out using some custom formatting based on known stats that are collected.. */
-		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &CookProfileData](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
+		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &CookProfileData, &StatCategories, &StatsInCategories]
+							(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 		{
 			// Some stats will use custom formatting to make a visibly pleasing summary.
 			bool bStatUsedCustomFormatting = false;
@@ -253,7 +257,7 @@ namespace DetailedCookStats
 			}
 			else if (StatName == TEXT("DDC.Summary"))
 			{
-				DDCSummaryStats = StatAttributes;
+				DDCSummaryStats.Append(StatAttributes);
 				bStatUsedCustomFormatting = true;
 			}
 			else if (StatName == TEXT("Cook.Profile"))
@@ -268,18 +272,30 @@ namespace DetailedCookStats
 			// if a stat doesn't use custom formatting, just spit out the raw info.
 			if (!bStatUsedCustomFormatting)
 			{
-				UE_LOG(LogCookCommandlet, Display, TEXT("%s"), *StatName);
-				// log each key/value pair, with the equal signs lined up.
-				for (const auto& Attr : StatAttributes)
+				TArray<FCookStatsManager::StringKeyValue>& StatsInCategory = StatsInCategories.FindOrAdd(StatName);
+				if (StatsInCategory.Num() == 0)
 				{
-					UE_LOG(LogCookCommandlet, Display, TEXT("    %s=%s"), *Attr.Key, *Attr.Value);
+					StatCategories.Add(StatName);
 				}
+				StatsInCategory.Append(StatAttributes);
 			}
 		};
 
+		FCookStatsManager::LogCookStats(LogStatsFunc);
+
 		UE_LOG(LogCookCommandlet, Display, TEXT("Misc Cook Stats"));
 		UE_LOG(LogCookCommandlet, Display, TEXT("==============="));
-		FCookStatsManager::LogCookStats(LogStatsFunc);
+		for (FString& StatCategory : StatCategories)
+		{
+			UE_LOG(LogCookCommandlet, Display, TEXT("%s"), *StatCategory);
+			TArray<FCookStatsManager::StringKeyValue>& StatsInCategory = StatsInCategories.FindOrAdd(StatCategory);
+
+			// log each key/value pair, with the equal signs lined up.
+			for (const FCookStatsManager::StringKeyValue& StatKeyValue : StatsInCategory)
+			{
+				UE_LOG(LogCookCommandlet, Display, TEXT("    %s=%s"), *StatKeyValue.Key, *StatKeyValue.Value);
+			}
+		}
 
 		// DDC Usage stats are custom formatted, and the above code just accumulated them into a TSet. Now log it with our special formatting for readability.
 		if (CookProfileData.Num() > 0)
@@ -490,7 +506,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		CookOnTheFlyServer->TickRecompileShaderRequests();
 		GShaderCompilingManager->ProcessAsyncResults(true, false);
 
-		while ( (CookOnTheFlyServer->HasCookRequests() == false) && !IsEngineExitRequested())
+		while ( (CookOnTheFlyServer->HasRemainingWork() == false) && !IsEngineExitRequested())
 		{
 			CookOnTheFlyServer->TickRecompileShaderRequests();
 
@@ -625,8 +641,6 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CookByTheBook);
-
 	COOK_STAT(FScopedDurationTimer CookByTheBookTimer(DetailedCookStats::CookByTheBookTimeSec));
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
 
@@ -802,13 +816,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 			MapIniSections.Add(SectionStr);
 		}
 	}
-	
-	// If we still don't have any mapsList check if the allmaps ini section is filled out
-	// this is for backwards compatibility
-	if (MapList.Num() == 0 && MapIniSections.Num() == 0)
-	{
-		MapIniSections.Add(FString(TEXT("AllMaps")));
-	}
 
 	if (!bCookSinglePackage)
 	{
@@ -843,6 +850,9 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 	CookOptions |= Switches.Contains(TEXT("FullLoadAndSave")) ? ECookByTheBookOptions::FullLoadAndSave : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("PackageStore")) ? ECookByTheBookOptions::PackageStore : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoGameAlwaysCook")) ? ECookByTheBookOptions::NoGameAlwaysCookPackages : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("DisableUnsolicitedPackages")) ? ECookByTheBookOptions::DisableUnsolicitedPackages : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("NoDefaultMaps")) ? ECookByTheBookOptions::NoDefaultMaps : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("SkipSoftReferences")) ? ECookByTheBookOptions::SkipSoftReferences : ECookByTheBookOptions::None;
 
 	const ECookByTheBookOptions SinglePackageFlags = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::DisableUnsolicitedPackages | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 	CookOptions |= bCookSinglePackage ? SinglePackageFlags : ECookByTheBookOptions::None;
@@ -933,13 +943,16 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 				TickResults = CookOnTheFlyServer->TickCookOnTheSide( CookOnTheSideTimeSlice, NonMapPackageCountSinceLastGC, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay );
 
 				{
-					COOK_STAT(FScopedDurationTimer ShaderProcessAsyncTimer(DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec));
+					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ShaderProcessAsync, DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec);
 					GShaderCompilingManager->ProcessAsyncResults(true, false);
 				}
 
 				
 				// Flush the asset registry before GC
-				FAssetRegistryModule::TickAssetRegistry(-1.0f);
+				{
+					UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
+					FAssetRegistryModule::TickAssetRegistry(-1.0f);
+				}
 
 				auto DumpMemStats = []()
 				{
@@ -970,6 +983,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 					int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
 
+					UE_SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
 					UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
 					while ( true )
 					{
@@ -1003,83 +1017,43 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 				if (bShouldGC )
 				{
-					bool bDidGC = true;
+					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_GC, DetailedCookStats::TickLoopGCTimeSec);
+					bShouldGC = false;
 
-					if ( bPartialGC )
-					{
-						// markup packages 
-						if ( PackagesPerGC < PackagesPerPartialGC )
-						{
-							bDidGC = false;
-						}
-						else
-						{
-							COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
-							UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection... partial gc"));
-
-							CookOnTheFlyServer->MarkGCPackagesToKeepForCooker();
+					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+					int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC? TEXT(" partial gc") : TEXT("")), *GCReason);
+					GCReason = FString();
 
 
-							DumpMemStats();
+					DumpMemStats();
 
-							int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-							int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayNum();
-							CollectGarbage(RF_KeepForCooker, true);
+					CollectGarbage(RF_NoFlags);
 
-							int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-							int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayNum();
-							UE_LOG(LogCookCommandlet, Display, TEXT("Partial GC before %d available %d after %d available %d"), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
+					int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+					int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+					UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"), (bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
 
-							DumpMemStats();
-						}
-				
-					}
-					else
-					{
-					
-						bShouldGC = false;
+					DumpMemStats();
 
-						int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-						int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-
-						UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection... (%s)"), *GCReason);
-						GCReason = FString();
-
-
-						DumpMemStats();
-
-						COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
-						CollectGarbage(RF_NoFlags);
-
-						int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-						int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-						UE_LOG(LogCookCommandlet, Display, TEXT("Full GC before %d available %d after %d available %d"), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
-
-						DumpMemStats();
-					}
-
-					if ( bDidGC )
-					{
-						NonMapPackageCountSinceLastGC = 0;
-					}
+					NonMapPackageCountSinceLastGC = 0;
 				}
-				
-				
+
 				{
-					COOK_STAT(FScopedDurationTimer RecompileTimer(DetailedCookStats::TickLoopRecompileShaderRequestsTimeSec));
+					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_RecompileShaderRequests, DetailedCookStats::TickLoopRecompileShaderRequestsTimeSec);
 					CookOnTheFlyServer->TickRecompileShaderRequests();
 
 					FPlatformProcess::Sleep( 0.0f );
 				}
 
 				{
-					COOK_STAT(FScopedDurationTimer ProcessDeferredCommandsTimer(DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec));
+					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ProcessDeferredCommands, DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec);
 					ProcessDeferredCommands();
 				}
 			}
 
 			{
-				COOK_STAT(FScopedDurationTimer TickCommandletStatsTimer(DetailedCookStats::TickLoopTickCommandletStatsTimeSec));
+				UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_TickCommandletStats, DetailedCookStats::TickLoopTickCommandletStatsTimeSec);
 				FStats::TickCommandletStats();
 			}
 		}

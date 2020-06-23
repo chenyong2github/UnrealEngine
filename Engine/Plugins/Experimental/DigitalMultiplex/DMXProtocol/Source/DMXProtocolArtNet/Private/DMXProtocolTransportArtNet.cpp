@@ -2,6 +2,8 @@
 
 #include "DMXProtocolTransportArtNet.h"
 #include "DMXProtocolArtNet.h"
+#include "Managers/DMXProtocolUniverseManager.h"
+#include "DMXProtocolUniverseArtNet.h"
 
 #include "Common/UdpSocketSender.h"
 #include "HAL/Event.h"
@@ -30,6 +32,12 @@ FDMXProtocolSenderArtNet::FDMXProtocolSenderArtNet(FSocket& InSocket, FDMXProtoc
 	});
 
 	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderArtNet"), 128 * 1024, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
+
+	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	if (SocketSubsystem != nullptr)
+	{
+		InternetAddr = SocketSubsystem->CreateInternetAddr();
+	}
 }
 
 FDMXProtocolSenderArtNet::~FDMXProtocolSenderArtNet()
@@ -99,22 +107,42 @@ bool FDMXProtocolSenderArtNet::EnqueueOutboundPackage(FDMXPacketPtr Packet)
 
 	WorkEvent->Trigger();
 
+	auto& OutputEvent = Protocol->GetOnOutputSentEvent();
+	if (OutputEvent.IsBound())
+	{
+		OutputEvent.Broadcast(DMX_PROTOCOLNAME_ARTNET, Packet->UniverseID, Packet->Data);
+	}
+
 	return true;
 }
 
 void FDMXProtocolSenderArtNet::ConsumeOutboundPackages()
 {
-	FScopeLock ScopeLock(&CriticalSection);
-
 	FDMXPacketPtr Packet;
 	while (OutboundPackages.Dequeue(Packet))
 	{
-		++LastSentPackage;
-		int32 BytesSent = 0;
-		bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *Protocol->GetBroadcastAddr());
-		if (!bIsSent)
+		if (Packet.IsValid())
 		{
-			UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"), bIsSent);
+			++LastSentPackage;
+			int32 BytesSent = 0;
+			if (Protocol != nullptr && Protocol->GetUniverseManager() != nullptr)
+			{
+				if (TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseManager()->GetUniverseById(Packet->UniverseID))
+				{
+					if (InternetAddr.IsValid())
+					{
+						InternetAddr->SetPort(Universe->GetPort());
+						InternetAddr->SetIp(Universe->GetIpAddress());
+						bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *InternetAddr);
+
+						if (!bIsSent)
+						{
+							ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+							UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"), (uint8)RecvFromError);
+						}
+					}
+				}
+			}
 		}
 	}
 }

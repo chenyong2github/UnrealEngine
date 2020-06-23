@@ -58,19 +58,40 @@ FAutomationControllerManager::FAutomationControllerManager()
 	
 	CheckpointFile = nullptr;
 
-	if ( !FParse::Value(FCommandLine::Get(), TEXT("ReportOutputPath="), ReportOutputPath, false) )
+
+	FString DeveloperPath;
+	FParse::Value(FCommandLine::Get(), TEXT("ReportOutputPath="), ReportExportPath, false);
+	FParse::Value(FCommandLine::Get(), TEXT("DisplayReportOutputPath="), ReportURLPath, false);
+	FParse::Value(FCommandLine::Get(), TEXT("DeveloperReportOutputPath="), DeveloperPath, false);
+
+	if (ReportExportPath.Len())
 	{
-		if ( FParse::Value(FCommandLine::Get(), TEXT("DeveloperReportOutputPath="), ReportOutputPath, false) )
-		{
-			ReportOutputPath = ReportOutputPath / TEXT("dev") / FString(FPlatformProcess::UserName()).ToLower();
-		}
+		UE_LOG(LogAutomationController, Warning, TEXT("Argument -ReportOutputPath= is now -ReportExportPath=. Please update your command line!"));
 	}
 
-	FParse::Value(FCommandLine::Get(), TEXT("DisplayReportOutputPath="), DisplayReportOutputPath, false);
-
-	if ( FParse::Value(FCommandLine::Get(), TEXT("DeveloperReportUrl="), DeveloperReportUrl, false) )
+	if (ReportURLPath.Len())
 	{
-		DeveloperReportUrl = DeveloperReportUrl / TEXT("dev") / FString(FPlatformProcess::UserName()).ToLower() / TEXT("index.html");
+		UE_LOG(LogAutomationController, Warning, TEXT("Argument -DisplayReportOutputPath= is now -ReportURL=. Please update your command line!"));
+	}
+
+	if (DeveloperPath.Len())
+	{
+		UE_LOG(LogAutomationController, Warning, TEXT("Argument -DeveloperReportOutputPath= is now -DeveloperReport (no value). Please update your command line!"));
+	}
+
+	// read values with new names
+	FParse::Value(FCommandLine::Get(), TEXT("ReportExportPath="), ReportExportPath, false);
+	FParse::Value(FCommandLine::Get(), TEXT("ReportURL="), ReportURLPath, false);
+	bool bUseDeveloperPath = DeveloperPath.Len() > 0 || FParse::Param(FCommandLine::Get(), TEXT("DeveloperReport"));
+
+	if (ReportExportPath.Len() && bUseDeveloperPath)
+	{
+		ReportExportPath = ReportExportPath / TEXT("dev") / FString(FPlatformProcess::UserName()).ToLower();
+	}
+		
+	if (ReportURLPath.Len() && bUseDeveloperPath)
+	{
+		DeveloperReportUrl = ReportURLPath / TEXT("dev") / FString(FPlatformProcess::UserName()).ToLower() / TEXT("index.html");
 	}
 }
 
@@ -167,6 +188,13 @@ void FAutomationControllerManager::RunTests(const bool bInIsLocalSession)
 			MessageEndpoint->Send(new FAutomationWorkerResetTests(), MessageAddress);
 		}
 	}
+	
+	// remove existing results.
+	// #agrant todo - make this optional via the UI. Maybe rename these too?
+	UE_LOG(LogAutomationController, Display, TEXT("Clearing past reports and temp files from %s"), *FPaths::AutomationDir());
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationReportsDir(), false, true);
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationLogDir(), false, true);
+	IFileManager::Get().DeleteDirectory(*FPaths::AutomationTransientDir(), false, true);
 
 	// Inform the UI we are running tests
 	if ( ClusterDistributionMask != 0 )
@@ -268,20 +296,20 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 			if (Report.IsValid())
 			{
 				// Record the artifacts for the test.
-				const FString ApprovedFolder = ScreenshotManager->GetLocalApprovedFolder();
-				const FString UnapprovedFolder = ScreenshotManager->GetLocalUnapprovedFolder();
-				const FString ComparisonFolder = ScreenshotManager->GetLocalComparisonFolder();
-
 				TMap<FString, FString> LocalFiles;
-				LocalFiles.Add(TEXT("approved"), ApprovedFolder / Result.ApprovedFile);
-				LocalFiles.Add(TEXT("unapproved"), UnapprovedFolder / Result.IncomingFile);
-				LocalFiles.Add(TEXT("difference"), ComparisonFolder / Result.ComparisonFile);
 
-				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->Name, EAutomationArtifactType::Comparison, LocalFiles));
+				FString ProjectDir = FPaths::ProjectDir();
+	
+				// Paths in the result are relative to the project directory. Note we want to use the report paths
+				LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
+				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.IncomingFilePath));
+				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
+
+				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->TestName, EAutomationArtifactType::Comparison, LocalFiles));
 			}
 			else
 			{
-				UE_LOG(LogAutomationController, Error, TEXT("Cannot generate screenshot report for screenshot %s as report is missing"), *Result.IncomingFile);
+				UE_LOG(LogAutomationController, Error, TEXT("Cannot generate screenshot report for screenshot %s as report is missing"), *Result.IncomingFilePath);
 			}
 		}
 	}
@@ -381,7 +409,7 @@ bool FAutomationControllerManager::GenerateJsonTestPassSummary(const FAutomatedT
 	FString Json;
 	if (FJsonObjectConverter::UStructToJsonObjectString(SerializedPassResults, Json))
 	{
-		FString ReportFileName = FString::Printf(TEXT("%s/index.json"), *ReportOutputPath);
+		FString ReportFileName = FString::Printf(TEXT("%s/index.json"), *ReportExportPath);
 		const int32 WriteAttempts = 3;
 		const float SleepBetweenAttempts = 0.05f;
 
@@ -413,7 +441,7 @@ bool FAutomationControllerManager::GenerateHtmlTestPassSummary(const FAutomatedT
 	FString ReportTemplate;
 	if (FFileHelper::LoadFileToString(ReportTemplate, *(FPaths::EngineContentDir() / TEXT("Automation/Report-Template.html"))))
 	{		
-		FString ReportFileName = FString::Printf(TEXT("%s/index.html"), *ReportOutputPath);
+		FString ReportFileName = FString::Printf(TEXT("%s/index.html"), *ReportExportPath);
 		const int32 WriteAttempts = 3;
 		const float SleepBetweenAttempts = 0.05f;
 
@@ -459,14 +487,21 @@ FString FAutomationControllerManager::CopyArtifact(const FString& DestFolder, co
 {
 	FString ArtifactFile = FString(TEXT("artifacts")) / FGuid::NewGuid().ToString(EGuidFormats::Digits) + FPaths::GetExtension(SourceFile, true);
 	FString ArtifactDestination = DestFolder / ArtifactFile;
-	IFileManager::Get().Copy(*ArtifactDestination, *SourceFile, true, true);
+	
+	if (IFileManager::Get().Copy(*ArtifactDestination, *SourceFile, true, true) != 0)
+	{
+		uint32 ErrorCode = FPlatformMisc::GetLastError();
+		TCHAR ErrorBuffer[1024];
+		FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to copy %s to %s. Error: %u (%s)"), *SourceFile, *ArtifactDestination, ErrorCode, ErrorBuffer);
+	}
 
 	return ArtifactFile;
 }
 
 FString FAutomationControllerManager::GetReportOutputPath() const
 {
-	return ReportOutputPath;
+	return ReportExportPath;
 }
 
 void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool& bAllTestsCompleted )
@@ -675,26 +710,26 @@ void FAutomationControllerManager::ProcessResults()
 		}
 	}
 
-	if ( !ReportOutputPath.IsEmpty() )
+	if ( !ReportExportPath.IsEmpty() )
 	{
 		FDateTime StartTime = FDateTime::Now();
 
-		UE_LOG(LogAutomationController, Display, TEXT("Generating Automation Report @ %s."), *ReportOutputPath);
+		UE_LOG(LogAutomationController, Display, TEXT("Exporting Automation Report to %s."), *ReportExportPath);
 
-		if ( IFileManager::Get().DirectoryExists(*ReportOutputPath) )
+		if (IFileManager::Get().DirectoryExists(*ReportExportPath))
 		{
 			FDateTime StepTime = FDateTime::Now();
 
-			UE_LOG(LogAutomationController, Display, TEXT("Existing report directory found, deleting %s."), *ReportOutputPath);
+			UE_LOG(LogAutomationController, Display, TEXT("Existing report directory found, deleting %s."), *ReportExportPath);
 
-			// Clear the old report folder.  Why move it first?  Because RemoveDirectory
-			// is actually an async call that is not immediately carried out by the Windows OS; Moving a directory on the other hand, is sync.
-			// So we move, to a temporary location, then delete it.
-			FString TempDirectory = FPaths::GetPath(ReportOutputPath) + TEXT("\\") + FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
-			IFileManager::Get().Move(*TempDirectory, *ReportOutputPath);
-			IFileManager::Get().DeleteDirectory(*TempDirectory, false, true);
-
-			UE_LOG(LogAutomationController, Display, TEXT("Deleted directory in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
+			if (!IFileManager::Get().DeleteDirectory(*ReportExportPath, false, true))
+			{
+				UE_LOG(LogAutomationController, Warning, TEXT("Failed to delete %s."));
+			}
+			else
+			{
+				UE_LOG(LogAutomationController, Display, TEXT("Deleted directory in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
+			}
 		}
 
 		FAutomatedTestPassResults SerializedPassResults;
@@ -702,22 +737,22 @@ void FAutomationControllerManager::ProcessResults()
 		{
 			FDateTime StepTime = FDateTime::Now();
 
-			UE_LOG(LogAutomationController, Display, TEXT("Exporting comparison results to %s..."), *ReportOutputPath);
+			UE_LOG(LogAutomationController, Display, TEXT("Exporting comparison results to %s..."), *ReportExportPath);
 
-			FScreenshotExportResults ExportResults = ScreenshotManager->ExportComparisonResultsAsync(ReportOutputPath).Get();
+			FScreenshotExportResults ExportResults = ScreenshotManager->ExportComparisonResultsAsync(ReportExportPath).Get();
 
 			SerializedPassResults = OurPassResults;
 
 			SerializedPassResults.ComparisonExported = ExportResults.Success;
 			SerializedPassResults.ComparisonExportDirectory = ExportResults.ExportPath;
 			SerializedPassResults.ReportCreatedOn = StartTime;
-			if (DisplayReportOutputPath.IsEmpty())
+			if (ReportURLPath.IsEmpty())
 			{
 				SerializedPassResults.ComparisonExportDirectory = ExportResults.ExportPath;
 			}
 			else
 			{
-				SerializedPassResults.ComparisonExportDirectory = DisplayReportOutputPath / FString::FromInt(FEngineVersion::Current().GetChangelist());
+				SerializedPassResults.ComparisonExportDirectory = ReportURLPath / FString::FromInt(FEngineVersion::Current().GetChangelist());
 			}
 
 			UE_LOG(LogAutomationController, Display, TEXT("Exported results in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
@@ -727,7 +762,7 @@ void FAutomationControllerManager::ProcessResults()
 		{
 			FDateTime StepTime = FDateTime::Now();
 
-			UE_LOG(LogAutomationController, Display, TEXT("Copying artifacts to %s..."), *ReportOutputPath);
+			UE_LOG(LogAutomationController, Display, TEXT("Copying artifacts to %s..."), *ReportExportPath);
 
 			SerializedPassResults.Tests.StableSort([](const FAutomatedTestResult& A, const FAutomatedTestResult& B) {
 				if (A.GetErrorTotal() > 0)
@@ -786,7 +821,7 @@ void FAutomationControllerManager::ProcessResults()
 					{
 						const FString& Key = Keys[Index];
 
-						FString Path = CopyArtifact(ReportOutputPath, Artifact.LocalFiles[Key]);
+						FString Path = CopyArtifact(ReportExportPath, Artifact.LocalFiles[Key]);
 						{
 							FScopeLock Lock(&CS);
 							Artifact.Files.Add(Key, MoveTemp(Path));
@@ -812,7 +847,7 @@ void FAutomationControllerManager::ProcessResults()
 
 		{
 			FDateTime StepTime = FDateTime::Now();
-			UE_LOG(LogAutomationController, Display, TEXT("Writing reports to %s..."), *ReportOutputPath);
+			UE_LOG(LogAutomationController, Display, TEXT("Writing reports to %s..."), *ReportExportPath);
 
 			// Generate Json
 			GenerateJsonTestPassSummary(SerializedPassResults, StartTime);
@@ -1032,13 +1067,16 @@ void FAutomationControllerManager::HandlePongMessage( const FAutomationWorkerPon
 
 void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWorkerScreenImage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	FString ScreenshotIncomingFolder = FPaths::ProjectSavedDir() / TEXT("Automation/Incoming/");
-
 	bool bTree = true;
-	FString FileName = ScreenshotIncomingFolder / Message.ScreenShotName;
-	FString TraceFileName = FPaths::ChangeExtension(ScreenshotIncomingFolder / Message.ScreenShotName, TEXT(".rdc"));
 
-	FString DirectoryPath = FPaths::GetPath(FileName);
+
+	FString OutputSubFolder = FPaths::Combine(Message.Metadata.Context, Message.Metadata.ScreenShotName);
+	FString OutputFolder = FPaths::Combine(FPaths::AutomationTransientDir(), FPaths::GetPath(Message.ScreenShotName));
+
+	FString IncomingFileName = FPaths::Combine(OutputFolder,FPaths::GetCleanFilename(Message.ScreenShotName));
+	FString TraceFileName = FPaths::ChangeExtension(IncomingFileName, TEXT(".rdc"));
+
+	FString DirectoryPath = FPaths::GetPath(IncomingFileName);
 
 	if (!IFileManager::Get().MakeDirectory(*DirectoryPath, bTree))
 	{
@@ -1046,12 +1084,12 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 		return;
 	}
 	
-	if (!FFileHelper::SaveArrayToFile(Message.ScreenImage, *FileName))
+	if (!FFileHelper::SaveArrayToFile(Message.ScreenImage, *IncomingFileName))
 	{
 		uint32 WriteErrorCode = FPlatformMisc::GetLastError();
 		TCHAR WriteErrorBuffer[2048];
 		FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 2048, WriteErrorCode);
-		UE_LOG(LogAutomationController, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *FileName, WriteErrorCode, WriteErrorBuffer);
+		UE_LOG(LogAutomationController, Warning, TEXT("Fail to save screenshot to %s. WriteError: %u (%s)"), *IncomingFileName, WriteErrorCode, WriteErrorBuffer);
 		return;
 	}
 
@@ -1072,14 +1110,15 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 	FString Json;
 	if ( FJsonObjectConverter::UStructToJsonObjectString(Message.Metadata, Json) )
 	{
-		FString MetadataPath = FPaths::ChangeExtension(FileName, TEXT("json"));
+		FString MetadataPath = FPaths::ChangeExtension(IncomingFileName, TEXT("json"));
 		FFileHelper::SaveStringToFile(Json, *MetadataPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}
 
+	// compare the incoming image and throw it away afterwards (note - there will be a copy in the report)
 	TSharedRef<FComparisonEntry> Comparison = MakeShareable(new FComparisonEntry());
 	Comparison->Sender = Context->GetSender();
-	Comparison->Name = Message.Metadata.Name;
-	Comparison->PendingComparison = ScreenshotManager->CompareScreenshotAsync(Message.ScreenShotName);
+	Comparison->TestName = Message.Metadata.TestName;
+	Comparison->PendingComparison = ScreenshotManager->CompareScreenshotAsync(IncomingFileName, Message.Metadata, EScreenShotCompareOptions::DiscardImage);
 
 	ComparisonQueue.Enqueue(Comparison);
 }
@@ -1111,7 +1150,9 @@ void FAutomationControllerManager::HandleTestDataRequest(const FAutomationWorker
 
 	if ( bIsNew )
 	{
-		FString IncomingTestData = FPaths::ProjectSavedDir() / TEXT("Automation/IncomingData/") / DataFile;
+
+		FString IncomingTestData = FPaths::Combine(FPaths::AutomationTransientDir(), TEXT("Data/"), DataFile);
+
 		if ( FFileHelper::SaveStringToFile(Message.JsonData, *IncomingTestData) )
 		{
 			//TODO Anything extra to do here?

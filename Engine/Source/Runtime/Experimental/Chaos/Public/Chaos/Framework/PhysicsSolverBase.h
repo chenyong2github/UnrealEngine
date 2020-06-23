@@ -12,13 +12,46 @@
 #include "Chaos/EvolutionTraits.h"
 
 class FChaosSolversModule;
-class FPhysicsSolverAdvanceTask;
 
 namespace Chaos
 {
+
+	class FPhysicsSolverBase;
+
+	/**
+	 * Task responsible for processing the command buffer of a single solver and advancing it by
+	 * a specified delta before completing.
+	 */
+	class CHAOS_API FPhysicsSolverAdvanceTask
+	{
+	public:
+
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase* InSolver, FReal InDt);
+
+		TStatId GetStatId() const;
+		static ENamedThreads::Type GetDesiredThread();
+		static ESubsequentsMode::Type GetSubsequentsMode();
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+
+	private:
+
+		FPhysicsSolverBase* Solver;
+		TArray<TFunction<void()>> Queue;
+		FReal Dt;
+	};
+
+
 	class FPersistentPhysicsTask;
 
 	enum class ELockType: uint8;
+
+	//todo: once refactor is done use just one enum
+	enum class EThreadingModeTemp: uint8
+	{
+		DedicatedThread,
+		TaskGraph,
+		SingleThread
+	};
 
 	struct FDirtyProxy
 	{
@@ -205,9 +238,7 @@ namespace Chaos
 
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
-		TQueue<TFunction<void()>,EQueueMode::Mpsc>& GetCommandQueue() { return CommandQueue; }
-		bool HasPendingCommands() const { return !CommandQueue.IsEmpty(); }
-
+		bool HasPendingCommands() const { return CommandQueue.Num() > 0; }
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
 			DirtyProxiesDataBuffer.AccessProducerBuffer()->Add(ProxyBaseIn);
@@ -234,6 +265,31 @@ namespace Chaos
 			DirtyProxiesDataBuffer.AccessProducerBuffer()->SetNumDirtyShapes(Proxy,NumShapes);
 		}
 
+		template <typename Lambda>
+		void EnqueueCommandImmediate(const Lambda& Func)
+		{
+			//TODO: remove this check. Need to rename with _External
+			//The important part is that we don't enqueue from sim code
+			check(IsInGameThread());
+			if(ThreadingMode == EThreadingModeTemp::SingleThread)
+			{
+				Func();
+			}
+			else
+			{
+				CommandQueue.Add(Func);
+			}
+		}
+
+		//Ensures that any running tasks finish.
+		void WaitOnPendingTasks_External()
+		{
+			if(PendingTasks && !PendingTasks->IsComplete())
+			{
+				FTaskGraphInterface::Get().WaitUntilTaskCompletes(PendingTasks);
+			}
+		}
+
 		const UObject* GetOwner() const
 		{ 
 			return Owner; 
@@ -244,6 +300,30 @@ namespace Chaos
 			Owner = InOwner;
 		}
 
+		void SetThreadingMode_External(EThreadingModeTemp InThreadingMode)
+		{
+			if(InThreadingMode != ThreadingMode)
+			{
+				if(InThreadingMode == EThreadingModeTemp::SingleThread)
+				{
+					WaitOnPendingTasks_External();
+				}
+				ThreadingMode = InThreadingMode;
+			}
+		}
+
+		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
+		{
+			//todo: handle dt etc..
+			FGraphEventArray Prereqs;
+			if(PendingTasks && !PendingTasks->IsComplete())
+			{
+				Prereqs.Add(PendingTasks);
+			}
+
+			PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(this,InDt);
+			return PendingTasks;
+		}
 
 #if CHAOS_CHECKED
 		void SetDebugName(const FName& Name)
@@ -260,20 +340,43 @@ namespace Chaos
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
+		
+		EThreadingModeTemp ThreadingMode;
 
 		/** Protected construction so callers still have to go through the module to create new instances */
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, UObject* InOwner, ETraits InTraitIdx)
+		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, const EThreadingModeTemp InThreadingMode, UObject* InOwner, ETraits InTraitIdx)
 			: BufferMode(BufferingModeIn)
+			, ThreadingMode(InThreadingMode)
 			, Owner(InOwner)
 			, TraitIdx(InTraitIdx)
 		{}
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
+		virtual ~FPhysicsSolverBase() = default;
+
+		static void DestroySolver(FPhysicsSolverBase& InSolver)
+		{
+			//block on any pending tasks
+			InSolver.WaitOnPendingTasks_External();
+
+			//make sure any pending commands are executed
+			//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
+			//but in this case we just need to ensure all resources are freed
+			for(const auto& Command : InSolver.CommandQueue)
+			{
+				Command();
+			}
+
+			delete &InSolver;
+		}
+
 		FPhysicsSolverBase() = delete;
 		FPhysicsSolverBase(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase(FPhysicsSolverBase&& InSteal) = delete;
 		FPhysicsSolverBase& operator =(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
+
+		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 
 
 		//NOTE: if you want to make this virtual, you need to make sure AddProxy is still inlinable since it gets called every time we do a write
@@ -287,8 +390,9 @@ namespace Chaos
 	//
 	// Commands
 	//
-	TQueue<TFunction<void()>,EQueueMode::Mpsc> CommandQueue;
+	TArray<TFunction<void()>> CommandQueue;
 
+	FGraphEventRef PendingTasks;
 
 	private:
 

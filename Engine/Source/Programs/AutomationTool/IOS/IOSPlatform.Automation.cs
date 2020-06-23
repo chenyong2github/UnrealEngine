@@ -524,6 +524,79 @@ public class IOSPlatform : Platform
 		return bIsBuiltAsFramework;
 	}
 
+	private void StageCustomLaunchScreenStoryboard(ProjectParams Params, DeploymentContext SC)
+	{
+		string InterfaceSBDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Interface/";
+		if (Directory.Exists(InterfaceSBDirectory + "LaunchScreen.storyboardc"))
+		{
+			string[] StoryboardFilesToStage = Directory.GetFiles(InterfaceSBDirectory + "LaunchScreen.storyboardc", "*", SearchOption.TopDirectoryOnly);
+
+			if (!DirectoryExists(SC.StageDirectory + "/LaunchScreen.storyboardc"))
+			{
+				DirectoryInfo createddir = Directory.CreateDirectory(SC.StageDirectory + "/LaunchScreen.storyboardc");
+			}
+
+			foreach (string Filename in StoryboardFilesToStage)
+			{
+				string workingFileName = Filename;
+				while (workingFileName.Contains("/"))
+				{
+					workingFileName = workingFileName.Substring(workingFileName.IndexOf('/') + 1);
+				}
+				workingFileName = workingFileName.Substring(workingFileName.IndexOf('/') + 1);
+
+				InternalUtils.SafeCopyFile(Filename, SC.StageDirectory + "/" + workingFileName);
+			}
+
+			string[] StoryboardAssetsToStage = Directory.GetFiles(InterfaceSBDirectory + "Assets/", "*", SearchOption.TopDirectoryOnly);
+
+			foreach (string Filename in StoryboardAssetsToStage)
+			{
+				string workingFileName = Filename;
+				while (workingFileName.Contains("/"))
+				{
+					workingFileName = workingFileName.Substring(workingFileName.IndexOf('/') + 1);
+				}
+				workingFileName = workingFileName.Substring(workingFileName.IndexOf('/') + 1);
+
+				InternalUtils.SafeCopyFile(Filename, SC.StageDirectory + "/" + workingFileName);
+			}
+		}
+		else
+		{
+			LogWarning("Use Custom Launch Screen Storyboard is checked but not compiled storyboard could be found. Have you compiled on Mac first ? Falling back to Standard Storyboard");
+			StageStandardLaunchScreenStoryboard(Params, SC);
+		}
+	}
+
+	private void StageStandardLaunchScreenStoryboard(ProjectParams Params, DeploymentContext SC)
+	{
+		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Graphics/";
+		if (File.Exists(BuildGraphicsDirectory + "LaunchScreenIOS.png"))
+		{
+			InternalUtils.SafeCopyFile(BuildGraphicsDirectory + "LaunchScreenIOS.png", SC.StageDirectory + "/LaunchScreenIOS.png");
+		}
+	}
+
+	private void StageLaunchScreenStoryboard(ProjectParams Params, DeploymentContext SC)
+	{
+		bool bCustomLaunchscreenStoryboard = false;
+		ConfigHierarchy PlatformGameConfig;
+		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
+		{
+			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bCustomLaunchscreenStoryboard", out bCustomLaunchscreenStoryboard);
+		}
+
+		if (bCustomLaunchscreenStoryboard)
+		{
+			StageCustomLaunchScreenStoryboard(Params, SC);
+		}
+		else
+		{
+			StageStandardLaunchScreenStoryboard(Params, SC);
+		}
+	}
+
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
 		LogInformation("Package {0}", Params.RawProjectPath);
@@ -611,12 +684,7 @@ public class IOSPlatform : Platform
 			}
 		}
 
-		// Stage the user defined LaunchScreen if any.
-		string BuildGraphicsDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Graphics/";
-		if (File.Exists(BuildGraphicsDirectory + "LaunchScreenIOS.png"))
-		{
-			InternalUtils.SafeCopyFile(BuildGraphicsDirectory + "LaunchScreenIOS.png", SC.StageDirectory + "/LaunchScreenIOS.png");
-		}
+		StageLaunchScreenStoryboard(Params, SC);
 
 		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), Platform);
 
@@ -1124,13 +1192,13 @@ public class IOSPlatform : Platform
 					// copy the plist to the stage dir
 					SC.StageFile(StagedFileType.SystemNonUFS, TargetPListFile, new StagedFileReference("Info.plist"));
 
-					// copy the icons/launch screens from the engine
+					// copy the icons from the engine
 					{
 						DirectoryReference GraphicsDataPath = DirectoryReference.Combine(SC.EngineRoot, "Build", "IOS", "Resources", "Graphics");
 						StageImageAndIconFiles(Params, GraphicsDataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
 					}
 
-					// copy the icons/launch screens from the game (may stomp the engine copies)
+					// copy the icons from the game (may stomp the engine copies)
 					{
 						DirectoryReference GraphicsDataPath = DirectoryReference.Combine(SC.ProjectRoot, "Build", "IOS", "Resources", "Graphics");
 						StageImageAndIconFiles(Params, GraphicsDataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
@@ -1195,14 +1263,6 @@ public class IOSPlatform : Platform
 
 	private void StageImageAndIconFiles(ProjectParams Params, DirectoryReference GraphicsDataPath, bool bSupportsPortrait, bool bSupportsLandscape, DeploymentContext SC, bool bSkipIcons)
 	{
-
-		bool bCustomLaunchscreenStoryboard = false;
-		ConfigHierarchy PlatformGameConfig;
-		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
-		{
-			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bCustomLaunchscreenStoryboard", out bCustomLaunchscreenStoryboard);
-		}
-
 		if (DirectoryReference.Exists(GraphicsDataPath))
 		{
 			if (!bSkipIcons)

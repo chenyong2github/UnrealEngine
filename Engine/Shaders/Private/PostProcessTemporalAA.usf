@@ -70,7 +70,6 @@
 		#define AA_HISTORY_PAYLOAD (HISTORY_PAYLOAD_RGB)
 	#endif
 	#define AA_BICUBIC 1
-	#define AA_BORDER 1
 	#define AA_CROSS 2
 	#define AA_DYNAMIC 1
 	#define AA_FILTERED 1
@@ -93,7 +92,6 @@
 	#define AA_LERP 8
 	#define AA_MANUALLY_CLAMP_HISTORY_UV 1
 	#define AA_YCOCG 1
-	#define AA_BORDER 1
 
 #elif TAA_PASS_CONFIG == 4 // Used for LightShaft
 	#define AA_HISTORY_PAYLOAD (HISTORY_PAYLOAD_RGB_OPACITY)
@@ -102,7 +100,6 @@
 	#define AA_MANUALLY_CLAMP_HISTORY_UV 1
 	#define AA_YCOCG 1
 	#define AA_LOWER_RESOLUTION 1
-	#define AA_BORDER 1
 
 #elif TAA_PASS_CONFIG == 1 || TAA_PASS_CONFIG == 2 // MainUpsampling & MainSuperSampling
 	#if POST_PROCESS_ALPHA
@@ -111,7 +108,6 @@
 		#define AA_HISTORY_PAYLOAD (HISTORY_PAYLOAD_RGB)
 	#endif
 	#define AA_BICUBIC 1
-	#define AA_BORDER 2
 	#define AA_CROSS 1
 	#define AA_DYNAMIC 1
 	#define AA_FILTERED TAA_UPSAMPLE_FILTERED
@@ -171,11 +167,9 @@
 	#define AA_LOWER_RESOLUTION 1
 
 	#if TAA_PASS_CONFIG == 6
-		#define AA_BORDER 2
 		#define AA_UPSAMPLE 1
 		#define AA_UPSAMPLE_ADAPTIVE_FILTERING 1
 	#else
-		#define AA_BORDER 1
 		#define AA_UPSAMPLE 0
 	#endif
 	
@@ -240,11 +234,6 @@
 // 0 = Use lower quality but faster box clamp.
 #ifndef AA_ROUND
 	#define AA_ROUND 0
-#endif
-
-// Fix for lack of borders during current frame filter.
-#ifndef AA_BORDER
-	#define AA_BORDER 0
 #endif
 
 // Force clamp on alpha.
@@ -454,6 +443,8 @@ float2 ScreenPosAbsMax;
 float4 ScreenPosToHistoryBufferUV;
 
 float4 InputSceneColorSize;
+int2 InputMinPixelCoord;
+int2 InputMaxPixelCoord;
 Texture2D InputSceneColor;
 SamplerState InputSceneColorSampler;
 Texture2D InputSceneMetadata;
@@ -836,12 +827,13 @@ float GetSceneColorHdrWeight(
 		UNROLL
 		for (uint i = 0; i < kNeighborsCount; i++)
 		{
-			InputParams.CachedNeighbors0[i] = TransformCurrentFrameSceneColor(InputSceneColor.SampleLevel(
-				InputSceneColorSampler, InputParams.NearestBufferUV, 0, kOffsets3x3[i]));
+			int2 Coord = int2(InputParams.NearestBufferUV * InputSceneColorSize.xy) + kOffsets3x3[i];
+			Coord = clamp(Coord, InputMinPixelCoord, InputMaxPixelCoord);
+
+			InputParams.CachedNeighbors0[i] = TransformCurrentFrameSceneColor(InputSceneColor[Coord]);
 	
 			#if HISTORY_RENDER_TARGETS == 2
-				InputParams.CachedNeighbors1[i] = InputSceneMetadata.SampleLevel(
-					InputSceneMetadataSampler, InputParams.NearestBufferUV, 0, kOffsets3x3[i]).r;
+				InputParams.CachedNeighbors1[i] = InputSceneMetadata[Coord].r;
 			#endif
 		}
 	}
@@ -1185,15 +1177,14 @@ void PrecacheInputSceneColorToLDS(in FTAAInputParameters InputParams)
 			(LDS_COLOR_ARRAY_SIZE % THREADGROUP_TOTAL) == 0)
 		{
 			#if LDS_FLOAT_UV
-				float2 BufferUV = TexelLocation * InputSceneColorSize.zw;
+				int2 Coord = TexelLocation;
+				Coord = clamp(Coord, InputMinPixelCoord, InputMaxPixelCoord);
 
-				#if AA_BORDER == 2
-					BufferUV = clamp(BufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
-				#endif
-
-				float4 RawColor = InputSceneColor.SampleLevel(InputSceneColorSampler, BufferUV, 0);
+				float4 RawColor = InputSceneColor[Coord];
 			#else
-				float4 RawColor = InputSceneColor.Load(uint3(TexelLocation, 0));
+				int2 Coord = int2(TexelLocation);
+				Coord = clamp(Coord, InputMinPixelCoord, InputMaxPixelCoord);
+				float4 RawColor = InputSceneColor.Load(uint3(Coord, 0));
 			#endif
 
 			float4 Color = TransformCurrentFrameSceneColor(RawColor);
@@ -1331,16 +1322,19 @@ FTAASceneColorSample SampleCachedSceneColorTexture(
 	int2 PixelOffset)
 {
 	FTAASceneColorSample Sample;
-	Sample.Color = TransformCurrentFrameSceneColor(InputSceneColor.SampleLevel(
-		InputSceneColorSampler, InputParams.NearestBufferUV, 0, PixelOffset));
+
+
+	int2 Coord = int2(InputParams.NearestBufferUV * InputSceneColorSize.xy) + PixelOffset;
+	Coord = clamp(Coord, InputMinPixelCoord, InputMaxPixelCoord);
+
+	Sample.Color = TransformCurrentFrameSceneColor(InputSceneColor[Coord]);
 
 	Sample.CocRadius = 0;
 
 	#if AA_HISTORY_PAYLOAD == HISTORY_PAYLOAD_RGB_COC
 		Sample.CocRadius = Sample.Color.a;
 	#elif AA_HISTORY_PAYLOAD == HISTORY_PAYLOAD_RGB_OPACITY_COC
-		Sample.CocRadius = InputSceneMetadata.SampleLevel(
-			InputSceneMetadataSampler, InputParams.NearestBufferUV, 0, PixelOffset).r;
+		Sample.CocRadius = InputSceneMetadata[Coord].r;
 	#endif
 
 	Sample.HdrWeight = GetSceneColorHdrWeight(InputParams, Sample.Color);
@@ -1584,23 +1578,6 @@ void FilterCurrentFrameInputSamples(
 			IntermediaryResult.FilteredTemporalWeight = ComputePixelWeigth(IntermediaryResult, dKO);
 		#endif
 	}
-	
-	#if AA_BORDER == 1
-	{
-		#if AA_UPSAMPLE
-			#error AA_BORDER == 1 does not work for TAA upsample because also needs to be done in color clamping box.
-		#else
-			// Use unfiltered for 1 pixel border.
-			float2 TestPos = abs(InputParams.ScreenPos) + OutputViewportSize.zw * 2.0;
-			
-			if(max(TestPos.x, TestPos.y) >= 1.0) 
-			{
-				Filtered.Color = SampleCachedSceneColorTexture(InputParams, int2(0, 0)).Color;
-				Filtered.CocRadius = SampleCachedSceneColorTexture(InputParams, int2(0, 0)).CocRadius;
-			}
-		#endif
-	}
-	#endif
 
 	IntermediaryResult.Filtered = Filtered;
 }
@@ -2279,7 +2256,8 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		OutComputeTex0[PixelPos] = OutColor0;
+		// Clamping by MaxHalfFloat is a workaround for UE-84306.
+		OutComputeTex0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
 
 		#if HISTORY_RENDER_TARGETS == 2
 			OutComputeTex1[PixelPos] = OutColor1;

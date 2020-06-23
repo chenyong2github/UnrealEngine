@@ -88,7 +88,7 @@ FD3D12StateCacheBase::FD3D12StateCacheBase(FRHIGPUMask Node)
 	, DescriptorCache(Node)
 {}
 
-void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, const FD3D12StateCacheBase* AncestralState, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc)
+void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, const FD3D12StateCacheBase* AncestralState)
 {
 	Parent = InParent;
 	CmdContext = InCmdContext;
@@ -104,7 +104,7 @@ void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* In
 	check(GGlobalViewHeapSize <= (int32)MaxDescriptorsForTier);
 
 	const uint32 NumSamplerDescriptors = NUM_SAMPLER_DESCRIPTORS;
-	DescriptorCache.Init(InParent, InCmdContext, GLocalViewHeapSize, NumSamplerDescriptors, SubHeapDesc);
+	DescriptorCache.Init(InParent, InCmdContext, GLocalViewHeapSize, NumSamplerDescriptors);
 
 	if (AncestralState)
 	{

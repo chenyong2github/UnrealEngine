@@ -68,6 +68,9 @@ public:
 
 	uint64 GetType() const { return Type; }
 
+	static uint32 ComputeEventColor(uint32 Id);
+	static uint32 ComputeEventColor(const TCHAR* Str);
+
 private:
 	// The track this timing event is contained within
 	TSharedRef<const FBaseTimingTrack> Track;

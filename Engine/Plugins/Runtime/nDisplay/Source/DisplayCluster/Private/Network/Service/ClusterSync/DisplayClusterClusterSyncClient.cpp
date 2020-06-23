@@ -7,7 +7,7 @@
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncClient::FDisplayClusterClusterSyncClient() :

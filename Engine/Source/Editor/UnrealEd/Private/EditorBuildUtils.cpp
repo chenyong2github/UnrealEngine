@@ -44,6 +44,7 @@
 #include "VirtualTexturingEditorModule.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "LandscapeSubsystem.h"
+#include "ShaderCompilerCore.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorBuildUtils, Log, All);
 
@@ -1126,6 +1127,7 @@ EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedV
 	case VMI_RayTracingDebug:
 		return DVSM_RayTracingDebug;
 	case VMI_LODColoration:
+	case VMI_HLODColoration:
 		return DVSM_LODColoration;
 	case VMI_Unknown:
 	default :

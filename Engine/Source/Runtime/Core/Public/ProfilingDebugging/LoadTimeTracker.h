@@ -10,10 +10,12 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "Trace/Trace.inl"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "Trace/Config.h"
 #include "Serialization/LoadTimeTrace.h"
 #include "Stats/Stats.h"
+#include "Misc/Optional.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0
@@ -215,12 +217,30 @@ struct CORE_API FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
 #endif
 
 #if ENABLE_LOADTIME_RAW_TIMINGS
+#define SCOPED_LOADTIMER_TEXT(TimerName)
 #define SCOPED_LOADTIMER(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName);
 #define SCOPED_LOADTIMER_CNT(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName); FLoadTimeTracker::Get().TimerName##Cnt++;
+#define ADD_CUSTOM_LOADTIMER_META(key, value)
 #else
 
+#if CPUPROFILERTRACE_ENABLED
+#define SCOPED_LOADTIMER_TEXT(TimerName) \
+	TOptional<FCpuProfilerTrace::FDynamicEventScope> PREPROCESSOR_JOIN(__LoadTimerEventScope, __LINE__); \
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(LoadTimeChannel|CpuChannel)) \
+	{ \
+		PREPROCESSOR_JOIN(__LoadTimerEventScope, __LINE__).Emplace(TimerName, LoadTimeChannel); \
+	}
+#else
+#define SCOPED_LOADTIMER_TEXT(TimerName)
+#endif
+
+#define CUSTOM_LOADTIMER_LOG Cpu
+
 #define SCOPED_LOADTIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, LoadTimeChannel)
+#define SCOPED_CUSTOM_LOADTIMER(TimerName) UE_TRACE_LOG_SCOPED_T(CUSTOM_LOADTIMER_LOG, TimerName, LoadTimeChannel)
 #define SCOPED_LOADTIMER_CNT(TimerName)
+
+#define ADD_CUSTOM_LOADTIMER_META(TimerName, Key, Value) << TimerName.Key(Value)
 #endif
 
 #if ENABLE_LOADTIME_TRACKING_WITH_STATS && STATS

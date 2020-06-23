@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterVrpnKeyboardInputDataHolder.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterVrpnKeyboardInputDataHolder::FDisplayClusterVrpnKeyboardInputDataHolder(const FDisplayClusterConfigInput& config) :
-	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnKeyboard>(config)
+FDisplayClusterVrpnKeyboardInputDataHolder::FDisplayClusterVrpnKeyboardInputDataHolder(const FDisplayClusterConfigInput& Config) :
+	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnKeyboard>(Config)
 {
 }
 
@@ -28,34 +28,34 @@ bool FDisplayClusterVrpnKeyboardInputDataHolder::Initialize()
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterVrpnKeyboardInputDataHolder::SerializeToString() const
 {
-	FString result;
-	result.Reserve(64);
+	FString Result;
+	Result.Reserve(64);
 
 	for (auto it = DeviceData.CreateConstIterator(); it; ++it)
 	{
-		result += FString::Printf(TEXT("%d%s%d%s%d%s"), it->Key, SerializationDelimiter, it->Value.btnStateOld, SerializationDelimiter, it->Value.btnStateNew, SerializationDelimiter);
+		Result += FString::Printf(TEXT("%d%s%d%s%d%s"), it->Key, SerializationDelimiter, it->Value.BtnStateOld, SerializationDelimiter, it->Value.BtnStateNew, SerializationDelimiter);
 	}
 
-	return result;
+	return Result;
 }
 
-bool FDisplayClusterVrpnKeyboardInputDataHolder::DeserializeFromString(const FString& data)
+bool FDisplayClusterVrpnKeyboardInputDataHolder::DeserializeFromString(const FString& Data)
 {
-	TArray<FString> parsed;
-	data.ParseIntoArray(parsed, SerializationDelimiter);
+	TArray<FString> Parsed;
+	Data.ParseIntoArray(Parsed, SerializationDelimiter);
 
-	if (parsed.Num() % SerializationItems)
+	if (Parsed.Num() % SerializationItems)
 	{
-		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("Wrong items amount after deserialization [%s]"), *data);
+		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("Wrong items amount after deserialization [%s]"), *Data);
 		return false;
 	}
 
-	for (int i = 0; i < parsed.Num(); i += SerializationItems)
+	for (int i = 0; i < Parsed.Num(); i += SerializationItems)
 	{
-		const int  ch = FCString::Atoi(*parsed[i]);
-		const bool GetStateOld = (FCString::Atoi(*parsed[i + 1]) != 0);
-		const bool GetStateNew = (FCString::Atoi(*parsed[i + 2]) != 0);
-		DeviceData.Add(ch, FDisplayClusterVrpnKeyboardChannelData{ GetStateOld, GetStateNew });
+		const int  Ch = FCString::Atoi(*Parsed[i]);
+		const bool GetStateOld = (FCString::Atoi(*Parsed[i + 1]) != 0);
+		const bool GetStateNew = (FCString::Atoi(*Parsed[i + 2]) != 0);
+		DeviceData.Add(Ch, FDisplayClusterVrpnKeyboardChannelData{ GetStateOld, GetStateNew });
 	}
 
 	return true;

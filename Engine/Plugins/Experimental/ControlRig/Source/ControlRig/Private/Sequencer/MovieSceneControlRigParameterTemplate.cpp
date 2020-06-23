@@ -441,27 +441,42 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						FControlRigBindingHelper::UnBindFromSequencerInstance(ControlRig);
 						for (TNameAndValue<float>& Value : ScalarValues)
 						{
-							ControlRig->SetControlValue<float>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							if (ControlRig->FindControl(Value.Name))
+							{
+								ControlRig->SetControlValue<float>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							}
 						}
 
 						for (TNameAndValue<bool>& Value : BoolValues)
 						{
-							ControlRig->SetControlValue<bool>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							if (ControlRig->FindControl(Value.Name))
+							{
+								ControlRig->SetControlValue<bool>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							}
 						}
 
 						for (TNameAndValue<FVector2D>& Value : Vector2DValues)
 						{
-							ControlRig->SetControlValue<FVector2D>(Value.Name, Value.Value,true, EControlRigSetKey::Never);
+							if (ControlRig->FindControl(Value.Name))
+							{
+								ControlRig->SetControlValue<FVector2D>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							}
 						}
 
 						for (TNameAndValue<FVector>& Value : VectorValues)
 						{
-							ControlRig->SetControlValue<FVector>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							if (ControlRig->FindControl(Value.Name))
+							{
+								ControlRig->SetControlValue<FVector>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							}
 						}
 
 						for (TNameAndValue<FTransform>& Value : TransformValues)
 						{
-							ControlRig->SetControlValue<FTransform>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							if (ControlRig->FindControl(Value.Name))
+							{
+								ControlRig->SetControlValue<FTransform>(Value.Name, Value.Value, true, EControlRigSetKey::Never);
+							}
 						}
 						ControlRig->GetObjectBinding()->UnbindFromObject();
 					}

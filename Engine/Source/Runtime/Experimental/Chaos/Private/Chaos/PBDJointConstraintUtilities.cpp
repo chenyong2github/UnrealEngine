@@ -478,16 +478,26 @@ namespace Chaos
 
 	FReal FPBDJointUtilities::GetLinearDriveStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const int32 AxisIndex)
 	{
-		return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
+		if (JointSettings.bLinearPositionDriveEnabled[AxisIndex])
+		{
+			return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
+		}
+		return 0.0f;
 	}
 
 	FReal FPBDJointUtilities::GetLinearDriveDamping(
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const int32 AxisIndex)
 	{
-		return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
+		if (JointSettings.bLinearVelocityDriveEnabled[AxisIndex])
+		{
+			return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
+		}
+		return 0.0f;
 	}
 
 	FReal FPBDJointUtilities::GetAngularTwistDriveStiffness(
@@ -589,20 +599,6 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		return JointSettings.AngularDriveForceMode == EJointForceMode::Acceleration;
-	}
-
-	FReal FPBDJointUtilities::GetAngularPositionCorrection(
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
-	{
-		// Disable the angular limit hardness improvement if linear limits are set up
-		// @todo(ccaulfield): fix angular constraint position correction in ApplyRotationCorrection and ApplyRotationCorrectionSoft
-		bool bPositionCorrectionEnabled = ((JointSettings.LinearMotionTypes[0] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[1] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[2] == EJointMotionType::Locked));
-		if (bPositionCorrectionEnabled)
-		{
-			return SolverSettings.AngularConstraintPositionCorrection;
-		}
-		return 0.0f;
 	}
 
 

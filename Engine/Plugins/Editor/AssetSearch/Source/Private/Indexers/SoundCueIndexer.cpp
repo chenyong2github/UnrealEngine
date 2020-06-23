@@ -5,6 +5,7 @@
 #include "Sound/SoundCue.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Sound/SoundNode.h"
+#include "SearchSerializer.h"
 
 enum class ESoundCueIndexerVersion
 {
@@ -23,8 +24,7 @@ int32 FSoundCueIndexer::GetVersion() const
 
 void FSoundCueIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
-	const USoundCue* SoundCue = Cast<USoundCue>(InAssetObject);
-	check(SoundCue);
+	const USoundCue* SoundCue = CastChecked<USoundCue>(InAssetObject);
 
 	for (USoundNode* SoundNode : SoundCue->AllNodes)
 	{

@@ -37,6 +37,7 @@
 #include "Engine/AssetManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UObject/FieldPathProperty.h"
+#include "Commandlets/Commandlet.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UKismetSystemLibrary
@@ -2693,6 +2694,11 @@ void UKismetSystemLibrary::SetUserActivity(const FUserActivity& UserActivity)
 FString UKismetSystemLibrary::GetCommandLine()
 {
 	return FString(FCommandLine::Get());
+}
+
+void UKismetSystemLibrary::ParseCommandLine(const FString& InCmdLine, TArray<FString>& OutTokens, TArray<FString>& OutSwitches, TMap<FString, FString>& OutParams)
+{
+	UCommandlet::ParseCommandLine(*InCmdLine, OutTokens, OutSwitches, OutParams);
 }
 
 bool UKismetSystemLibrary::IsUnattended()

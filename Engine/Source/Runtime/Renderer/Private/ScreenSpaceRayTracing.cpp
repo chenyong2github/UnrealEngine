@@ -643,7 +643,7 @@ void RenderScreenSpaceReflections(
 	CommonParameters.SceneTextures = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	// Pipe down a mid grey texture when not using TAA's history to avoid wrongly reprojecting current scene color as if previous frame's TAA history.
-	if (InputColor == CurrentSceneColor)
+	if (InputColor == CurrentSceneColor || !CommonParameters.SceneTextures.SceneVelocityBuffer)
 	{
 		// Technically should be 32767.0f / 65535.0f to perfectly null out DecodeVelocityFromTexture(), but 0.5f is good enough.
 		CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.MidGreyDummy);
@@ -722,6 +722,8 @@ void RenderScreenSpaceReflections(
 				ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 				ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
 				BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
+				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
+				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
 			}
 
 			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
@@ -826,6 +828,7 @@ void RenderScreenSpaceReflections(
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+
 			RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
 		});
 	}

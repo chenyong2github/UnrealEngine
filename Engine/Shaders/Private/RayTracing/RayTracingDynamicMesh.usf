@@ -50,6 +50,7 @@ uint NumVertices;
 uint MinVertexIndex;
 uint PrimitiveId;
 RWBuffer<float> RWVertexPositions;
+int bApplyWorldPositionOffset;
 
 [numthreads(64, 1, 1)]
 void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -73,7 +74,10 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
 
 		WorldPosition.xyz -= ResolvedView.PreViewTranslation;
-		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+		if (bApplyWorldPositionOffset)
+		{
+			WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+		}
 
 		RWVertexPositions[VertexIndex * 3 + 0] = WorldPosition.x;
 		RWVertexPositions[VertexIndex * 3 + 1] = WorldPosition.y;

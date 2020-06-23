@@ -30,9 +30,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = TransformFromBounds, AdvancedDisplay, meta = (EditCondition = "bKeepOwnBoundsScale && BoundsSourceActor != nullptr"))
 	bool bUseCollidingComponentsForOwnBounds = false;
 
-	/** If true, the actor's scale will be changed so that after adjustment, its own bounds match the source bounds.*/
-	UPROPERTY(EditAnywhere, Category = TransformFromBounds, AdvancedDisplay, meta = (EditCondition = "BoundsSourceActor != nullptr"))
-	FVector BoundsScaleFactor = FVector::OneVector;
+	/** Transform to apply to final result.*/
+	UPROPERTY()
+	FTransform PostTransform = FTransform::Identity;
 
 	UPROPERTY()
 	bool bCopyXBounds = true;

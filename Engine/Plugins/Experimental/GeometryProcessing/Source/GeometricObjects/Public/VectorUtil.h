@@ -22,6 +22,7 @@ enum class EIntersectionType
 	Line,
 	Polygon,
 	Plane,
+	MultiSegment,
 	Unknown
 };
 
@@ -396,29 +397,47 @@ namespace VectorUtil
 
 
 	/**
-	 * @return sign of Binormal/Bitangent relative to Normal and Tangent
+	 * @return sign of Bitangent relative to Normal and Tangent
 	 */
 	template<typename RealType>
-	inline RealType BinormalSign(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, const FVector3<RealType>& BinormalIn)
+	inline RealType BitangentSign(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, const FVector3<RealType>& BitangentIn)
 	{
 		// following math from RenderUtils.h::GetBasisDeterminantSign()
-		RealType Cross00 = BinormalIn.Y*NormalIn.Z - BinormalIn.Z*NormalIn.Y;
-		RealType Cross10 = BinormalIn.Z*NormalIn.X - BinormalIn.X*NormalIn.Z;
-		RealType Cross20 = BinormalIn.X*NormalIn.Y - BinormalIn.Y*NormalIn.X;
+		RealType Cross00 = BitangentIn.Y*NormalIn.Z - BitangentIn.Z*NormalIn.Y;
+		RealType Cross10 = BitangentIn.Z*NormalIn.X - BitangentIn.X*NormalIn.Z;
+		RealType Cross20 = BitangentIn.X*NormalIn.Y - BitangentIn.Y*NormalIn.X;
 		RealType Determinant = TangentIn.X*Cross00 + TangentIn.Y*Cross10 + TangentIn.Z*Cross20;
 		return (Determinant < 0) ? (RealType)-1 : (RealType)1;
 	}
 
 	/**
-	 * @return Binormal vector based on given Normal, Tangent, and Sign value (+1/-1)
+	 * @return Bitangent vector based on given Normal, Tangent, and Sign value (+1/-1)
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> Binormal(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, RealType BinormalSign)
+	inline FVector3<RealType> Bitangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, RealType BitangentSign)
 	{
-		return BinormalSign * FVector3<RealType>(
+		return BitangentSign * FVector3<RealType>(
 			NormalIn.Y*TangentIn.Z - NormalIn.Z*TangentIn.Y,
 			NormalIn.Z*TangentIn.X - NormalIn.X*TangentIn.Z,
 			NormalIn.X*TangentIn.Y - NormalIn.Y*TangentIn.X);
+	}
+
+	/**
+	 * @return Tangent-Space vector based on given Normal and Bitangent
+	 */
+	template<typename RealType>
+	inline FVector3<RealType> TangentFromBitangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& BitangentIn)
+	{
+		return BitangentIn.Cross(NormalIn);
+	}
+
+	/**
+	 * @return Bitangent vector based on given Normal and Tangent
+	 */
+	template<typename RealType>
+	inline FVector3<RealType> BitangentFromTangent(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn)
+	{
+		return NormalIn.Cross(TangentIn);
 	}
 
 	/// @return Aspect ratio of triangle 

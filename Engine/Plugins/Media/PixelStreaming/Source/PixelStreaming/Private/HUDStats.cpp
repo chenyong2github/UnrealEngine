@@ -45,6 +45,10 @@ void FHUDStats::Tick()
 	GEngine->AddOnScreenDebugMessage(3, 0, FColor::Green, *FString::Printf(TEXT("bitrate %.3f Mbps"), EncoderBitrateMbps.Get()), false /* newer on top */);
 
 	GEngine->AddOnScreenDebugMessage(4, 0, FColor::Green, *FString::Printf(TEXT("QP: %.0f"), EncoderQP.Get()), false /* newer on top */);
+
+	GEngine->AddOnScreenDebugMessage(5, 0, FColor::Green, *FString::Printf(TEXT("FPS: encoder %.0f, max %.0f"), EncoderFPS.Get(), GEngine->GetMaxFPS()), false /* newer on top */);
+
+	GEngine->AddOnScreenDebugMessage(6, 0, FColor::Green, *FString::Printf(TEXT("B/W: %0.3f Mbps"), BandwidthMbps), false);
 }
 
 void FHUDStats::Reset()

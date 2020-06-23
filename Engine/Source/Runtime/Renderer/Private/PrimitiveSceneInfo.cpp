@@ -132,10 +132,6 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	LastRenderTime(-FLT_MAX),
 	Scene(InScene),
 	NumMobileMovablePointLights(0),
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bIsUsingCustomLODRules(Proxy->IsUsingCustomLODRules()),
-	bIsUsingCustomWholeSceneShadowLODRules(Proxy->IsUsingCustomWholeSceneShadowLODRules()),
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if RHI_RAYTRACING
 	bDrawInGame(Proxy->IsDrawnInGame()),
 	bShouldRenderInMainPass(InComponent->SceneProxy->ShouldRenderInMainPass()),
@@ -290,7 +286,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 						check(!MeshRelevance.CommandInfosMask.Get(PassType));
 
-						check(!Mesh.bRequiresPerElementVisibility);
 						uint64 BatchElementMask = ~0ull;
 						PassMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
@@ -393,13 +388,12 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	}
 
-	FGraphicsMinimalPipelineStateId::InitializePersistentIds();
-					
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{
 		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
-		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr);
+		FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.OpaqueBasePassUniformBuffer);
+		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState);
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
@@ -419,7 +413,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 				{
 					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
 
-					check(!Mesh.bRequiresPerElementVisibility);
 					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
 
 					if (CommandContext.CommandIndex >= 0)
@@ -535,13 +528,6 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 				Scene->StaticMeshes[SceneArrayAllocation.Index] = &Mesh;
 				Mesh.Id = SceneArrayAllocation.Index;
 				MeshRelevance.Id = SceneArrayAllocation.Index;
-
-				if (Mesh.bRequiresPerElementVisibility)
-				{
-					// Use a separate index into StaticMeshBatchVisibility, since most meshes don't use it
-					Mesh.BatchVisibilityId = Scene->StaticMeshBatchVisibility.AddUninitialized().Index;
-					Scene->StaticMeshBatchVisibility[Mesh.BatchVisibilityId] = true;
-				}
 			}
 		}
 	}

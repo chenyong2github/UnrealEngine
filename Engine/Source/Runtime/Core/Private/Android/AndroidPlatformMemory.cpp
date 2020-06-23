@@ -6,6 +6,7 @@
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocBinned3.h"
 #include "HAL/MallocAnsi.h"
+#include "Misc/ScopeLock.h"
 #include "unistd.h"
 #include <jni.h>
 #include <sys/sysinfo.h>
@@ -195,7 +196,8 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 
 	// get this value from Java instead (DO NOT INTEGRATE at this time) - skip this if JavaVM not set up yet!
 #if USE_ANDROID_JNI
-	if (GJavaVM)
+	// note: Android 10 places impractical limits on the frequency of calls to getProcessMemoryInfo, revert to VmRSS for OS10+
+	if (GJavaVM && FAndroidMisc::GetAndroidBuildVersion() < 29) 
 	{
 		MemoryStats.UsedPhysical = static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("ue4.getUsedMemory"))) * 1024ULL;
 	}
@@ -208,7 +210,8 @@ uint64 FAndroidPlatformMemory::GetMemoryUsedFast()
 {
 	// get this value from Java instead (DO NOT INTEGRATE at this time) - skip this if JavaVM not set up yet!
 #if USE_ANDROID_JNI
-	if (GJavaVM)
+	// note: Android 10 places impractical limits on the frequency of calls to getProcessMemoryInfo, revert to VmRSS for OS10+
+	if (GJavaVM && FAndroidMisc::GetAndroidBuildVersion() < 29) 
 	{
 		return static_cast<uint64>(AndroidThunkCpp_GetMetaDataInt(TEXT("ue4.getUsedMemory"))) * 1024ULL;
 	}

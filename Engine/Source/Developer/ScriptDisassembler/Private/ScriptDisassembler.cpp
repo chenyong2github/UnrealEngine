@@ -413,7 +413,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 
 			FProperty* Prop = ReadPointer<FProperty>(ScriptIndex);
 
-			Ar.Logf(TEXT("%s Expression within struct %s, offset %d"), *Indents, *(Prop->GetName()), 
+			Ar.Logf(TEXT("%s Member named %s @ offset %d"), *Indents, *(Prop->GetName()), 
 				Prop->GetOffset_ForDebug()); // although that isn't a UFunction, we are not going to indirect the props of a struct, so this should be fine
 
 			Ar.Logf(TEXT("%s Expression to struct:"), *Indents);

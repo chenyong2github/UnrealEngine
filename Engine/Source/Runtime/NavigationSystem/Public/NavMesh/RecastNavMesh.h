@@ -144,6 +144,7 @@ struct FRecastDebugGeometry
 		FColor	Color;
 	};
 
+#if WITH_NAVMESH_CLUSTER_LINKS
 	struct FCluster
 	{
 		TArray<int32> MeshIndices;
@@ -154,7 +155,9 @@ struct FRecastDebugGeometry
 		FVector FromCluster;
 		FVector ToCluster;
 	};
+#endif // WITH_NAVMESH_CLUSTER_LINKS
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 	struct FOffMeshSegment
 	{
 		FVector LeftStart, LeftEnd;
@@ -163,6 +166,7 @@ struct FRecastDebugGeometry
 		uint8	Direction;
 		uint8	ValidEnds;
 	};
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 	TArray<FVector> MeshVerts;
 	TArray<int32> AreaIndices[RECAST_MAX_AREAS];
@@ -172,10 +176,16 @@ struct FRecastDebugGeometry
 	TArray<FVector> NavMeshEdges;
 	TArray<FOffMeshLink> OffMeshLinks;
 	TArray<FOffMeshLink> ForbiddenLinks;
+
+#if WITH_NAVMESH_CLUSTER_LINKS
 	TArray<FCluster> Clusters;
 	TArray<FClusterLink> ClusterLinks;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+#if WITH_NAVMESH_SEGMENT_LINKS
 	TArray<FOffMeshSegment> OffMeshSegments;
 	TArray<int32> OffMeshSegmentAreas[RECAST_MAX_AREAS];
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 #if RECAST_INTERNAL_DEBUG_DATA
 	TArray<FIntPoint> TilesToDisplayInternalData;
@@ -394,6 +404,10 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 
 	virtual void Serialize( FArchive& Ar ) override;
 
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+#endif
+
 	/** should we draw edges of every navmesh's triangle */
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawTriangleEdges:1;
@@ -436,6 +450,7 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawFailedNavLinks:1;
 	
+	/** should we draw navmesh's clusters and cluster links. (Requires WITH_NAVMESH_CLUSTER_LINKS=1) */
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawClusters:1;
 
@@ -872,8 +887,10 @@ public:
 	/** update area class and poly flags for all offmesh links with given UserId */
 	void UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const;
 
+#if WITH_NAVMESH_SEGMENT_LINKS
 	/** update area class and poly flags for all offmesh segment links with given UserId */
 	void UpdateSegmentLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
 
 	//----------------------------------------------------------------------//
 	// Batch processing (important with async rebuilding)

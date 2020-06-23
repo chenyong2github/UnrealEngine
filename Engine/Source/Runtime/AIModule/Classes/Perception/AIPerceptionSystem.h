@@ -39,12 +39,6 @@ public:
 	virtual TStatId GetStatId() const override;
 	// FTickableGameObject end
 
-	// UObject begin
-	virtual bool IsDestructionThreadSafe() const
-	{
-		return false;
-	}
-	// UObject end
 protected:	
 	AIPerception::FListenerMap ListenerContainer;
 

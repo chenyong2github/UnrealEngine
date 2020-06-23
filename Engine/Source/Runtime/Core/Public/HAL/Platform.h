@@ -500,6 +500,10 @@
 	#define PLATFORM_USE_MINIMAL_HANG_DETECTION					0
 #endif
 
+#ifndef PLATFORM_PRESENT_HANG_DETECTION_ON_BY_DEFAULT
+	#define PLATFORM_PRESENT_HANG_DETECTION_ON_BY_DEFAULT		0
+#endif
+
 #ifndef PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 	#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			1
 #endif
@@ -634,18 +638,42 @@
 
 /* Wrap a function signature in these to warn that callers should not ignore the return value */
 #ifndef FUNCTION_CHECK_RETURN_START
-	#define FUNCTION_CHECK_RETURN_START
+	#define FUNCTION_CHECK_RETURN_START \
+		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_START has been deprecated - please use UE_NODISCARD")
 #endif
 #ifndef FUNCTION_CHECK_RETURN_END
-	#define FUNCTION_CHECK_RETURN_END
+	#define FUNCTION_CHECK_RETURN_END \
+		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_END has been deprecated - please use UE_NODISCARD")
 #endif
 
 /* Wrap a function signature in these to indicate that the function never returns */
 #ifndef FUNCTION_NO_RETURN_START
-	#define FUNCTION_NO_RETURN_START
+	#define FUNCTION_NO_RETURN_START \
+		DEPRECATED_MACRO(4.26, "FUNCTION_NO_RETURN_START has been deprecated - please use UE_NORETURN")
 #endif
 #ifndef FUNCTION_NO_RETURN_END
-	#define FUNCTION_NO_RETURN_END
+	#define FUNCTION_NO_RETURN_END \
+		DEPRECATED_MACRO(4.26, "FUNCTION_NO_RETURN_END has been deprecated - please use UE_NORETURN")
+#endif
+
+/* Use before a function declaration to warn that callers should not ignore the return value */
+#if !defined(UE_NODISCARD) && defined(__has_cpp_attribute)
+	#if __has_cpp_attribute(nodiscard)
+		#define UE_NODISCARD [[nodiscard]]
+	#endif
+#endif
+#ifndef UE_NODISCARD
+	#define UE_NODISCARD
+#endif
+
+/* Use before a function declaration to indicate that the function never returns */
+#if !defined(UE_NORETURN) && defined(__has_cpp_attribute)
+	#if __has_cpp_attribute(noreturn)
+		#define UE_NORETURN [[noreturn]]
+	#endif
+#endif
+#ifndef UE_NORETURN
+	#define UE_NORETURN
 #endif
 
 /* Wrap a function signature in these to indicate that the function never returns nullptr */

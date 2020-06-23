@@ -243,10 +243,13 @@ void FRichCurveEditorModel::GetKeys(const FCurveEditor& CurveEditor, double MinT
 			const FRichCurve& RichCurve = GetReadOnlyRichCurve();
 			for (auto It = RichCurve.GetKeyHandleIterator(); It; ++It)
 			{
-				const FRichCurveKey& Key = RichCurve.GetKeyRef(*It);
-				if (Key.Time >= MinTime && Key.Time <= MaxTime && Key.Value >= MinValue && Key.Value <= MaxValue)
+				if(RichCurve.IsKeyHandleValid(*It))
 				{
-					OutKeyHandles.Add(*It);
+					const FRichCurveKey& Key = RichCurve.GetKeyRef(*It);
+					if (Key.Time >= MinTime && Key.Time <= MaxTime && Key.Value >= MinValue && Key.Value <= MaxValue)
+					{
+						OutKeyHandles.Add(*It);
+					}
 				}
 			}
 		}
@@ -612,7 +615,10 @@ TUniquePtr<IBufferedCurveModel> FRichCurveEditorModel::CreateBufferedCurveCopy()
 			TArray<FKeyHandle> TargetKeyHandles;
 			for (auto It = RichCurve.GetKeyHandleIterator(); It; ++It)
 			{
-				TargetKeyHandles.Add(*It);
+				if(RichCurve.IsKeyHandleValid(*It))
+				{
+					TargetKeyHandles.Add(*It);
+				}
 			}
 
 			TArray<FKeyPosition> KeyPositions;
