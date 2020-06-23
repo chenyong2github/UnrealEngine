@@ -8,15 +8,23 @@
 #include "Particles/ParticleSystem.h"
 #include "IPythonScriptPlugin.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "NiagaraMessageManager.h"
 
 IMPLEMENT_MODULE(ICascadeToNiagaraConverterModule, CascadeToNiagaraConverter);
 
 #define LOCTEXT_NAMESPACE "CascadeToNiagaraConverterModule"
 
+const FName FNiagaraConverterMessageTopics::VerboseConversionEventTopicName = "VerboseConversionEvent";
+const FName FNiagaraConverterMessageTopics::ConversionEventTopicName = "ConversionEvent";
+
 void ICascadeToNiagaraConverterModule::StartupModule()
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 	ContentBrowserModule.GetAllAssetViewContextMenuExtenders().Add(FContentBrowserMenuExtender_SelectedAssets::CreateStatic(&ICascadeToNiagaraConverterModule::OnExtendContentBrowserAssetSelectionMenu));
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	MessageManager->RegisterMessageTopic(FNiagaraConverterMessageTopics::VerboseConversionEventTopicName);
+	MessageManager->RegisterMessageTopic(FNiagaraConverterMessageTopics::ConversionEventTopicName);
+	MessageManager->RegisterAdditionalMessageLogTopic(FNiagaraConverterMessageTopics::ConversionEventTopicName);
 }
 
 void ICascadeToNiagaraConverterModule::ShutdownModule()
