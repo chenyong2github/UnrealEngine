@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Templates/Function.h"
+#include "Misc/EnumClassFlags.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_CPU_X86_FAMILY
@@ -731,5 +732,4 @@ struct CORE_API FGenericPlatformProcess
 	}
 };
 
-#include "Misc/EnumClassFlags.h"
 ENUM_CLASS_FLAGS(FGenericPlatformProcess::ECreateProcHelperFlags);
