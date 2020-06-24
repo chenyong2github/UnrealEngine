@@ -361,7 +361,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	[
 		SNew(SEditableTextBox)
 		.Text( this, &FBlueprintVarActionDetails::OnGetTooltipText )
-		.ToolTip(ToolTipTooltip)
+		.ToolTipText( this, &FBlueprintVarActionDetails::OnGetTooltipText )
 		.OnTextCommitted( this, &FBlueprintVarActionDetails::OnTooltipTextCommitted, CachedVariableName )
 		.IsEnabled(IsVariableInBlueprint())
 		.Font( DetailFontInfo )
