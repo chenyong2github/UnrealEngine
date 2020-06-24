@@ -238,27 +238,26 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	// Before copying the emitter prepare the rapid iteration parameters so that the post compile prepare doesn't
 	// cause the change ids to become out of sync.
-	FString EmitterName = Emitter->GetUniqueEmitterName();
 	TArray<UNiagaraScript*> Scripts;
 	TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
-	TMap<UNiagaraScript*, FString> ScriptToEmitterNameMap;
+	TMap<UNiagaraScript*, const UNiagaraEmitter*> ScriptToEmitterMap;
 
 	Scripts.Add(Emitter->EmitterSpawnScriptProps.Script);
-	ScriptToEmitterNameMap.Add(Emitter->EmitterSpawnScriptProps.Script, EmitterName);
+	ScriptToEmitterMap.Add(Emitter->EmitterSpawnScriptProps.Script, Emitter);
 
 	Scripts.Add(Emitter->EmitterUpdateScriptProps.Script);
-	ScriptToEmitterNameMap.Add(Emitter->EmitterUpdateScriptProps.Script, EmitterName);
+	ScriptToEmitterMap.Add(Emitter->EmitterUpdateScriptProps.Script, Emitter);
 
 	Scripts.Add(Emitter->SpawnScriptProps.Script);
-	ScriptToEmitterNameMap.Add(Emitter->SpawnScriptProps.Script, EmitterName);
+	ScriptToEmitterMap.Add(Emitter->SpawnScriptProps.Script, Emitter);
 
 	Scripts.Add(Emitter->UpdateScriptProps.Script);
-	ScriptToEmitterNameMap.Add(Emitter->UpdateScriptProps.Script, EmitterName);
+	ScriptToEmitterMap.Add(Emitter->UpdateScriptProps.Script, Emitter);
 
 	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		Scripts.Add(Emitter->GetGPUComputeScript());
-		ScriptToEmitterNameMap.Add(Emitter->GetGPUComputeScript(), EmitterName);
+		ScriptToEmitterMap.Add(Emitter->GetGPUComputeScript(), Emitter);
 		ScriptDependencyMap.Add(Emitter->SpawnScriptProps.Script, Emitter->GetGPUComputeScript());
 		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->GetGPUComputeScript());
 	}
@@ -267,7 +266,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->SpawnScriptProps.Script);
 	}
 
-	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterNameMap);
+	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
 
 	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
 	GetTransientPackage()->LinkerCustomVersion.Empty();

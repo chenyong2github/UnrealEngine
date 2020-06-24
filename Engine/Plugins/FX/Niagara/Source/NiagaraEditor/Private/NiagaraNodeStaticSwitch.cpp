@@ -70,7 +70,7 @@ void UNiagaraNodeStaticSwitch::SetSwitchValue(const FCompileConstantResolver& Co
 	{
 		return;
 	}
-	IsValueSet = false;
+	ClearSwitchValue();
 
 	const FNiagaraVariable* Found = FNiagaraConstants::FindStaticSwitchConstant(SwitchTypeData.SwitchConstant);
 	FNiagaraVariable Constant = Found ? *Found : FNiagaraVariable();
@@ -252,7 +252,7 @@ void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslato
 	{
 		return;
 	}
-	IsValueSet = false;
+	ClearSwitchValue();
 
 	const FNiagaraVariable* Found = FNiagaraConstants::FindStaticSwitchConstant(SwitchTypeData.SwitchConstant);
 	FNiagaraVariable Constant = Found ? *Found : FNiagaraVariable();
