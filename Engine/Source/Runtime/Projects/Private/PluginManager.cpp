@@ -642,7 +642,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					FTargetReceipt Receipt;
 					if (Receipt.Read(TargetFile))
 					{
-						if (Receipt.TargetType == FApp::GetBuildTargetType())
+						if (Receipt.TargetType == FApp::GetBuildTargetType() && Receipt.Configuration == FApp::GetBuildConfiguration())
 						{
 							bool bIsDefaultTarget = Receipt.TargetType != EBuildTargetType::Editor || (DefaultEditorTarget.Len() == 0) || (DefaultEditorTarget == Receipt.TargetName);
 
