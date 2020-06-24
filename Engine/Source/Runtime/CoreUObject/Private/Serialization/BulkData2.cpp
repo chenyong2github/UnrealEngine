@@ -811,6 +811,14 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			// Inline data is already in the archive so serialize it immediately
 			void* DataBuffer = AllocateData(BulkDataSize);
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
+
+			// Inline data must be set to be allowed to always discard it's data if we are using the IoDispatcher
+			// since we will not be able to reload it and existing code might well rely on ::GetCopy being able to discard it.
+			// TODO: We need to make the old loader and new loader consistent on how inline data is treated!
+			if (FIoDispatcher::IsInitialized())
+			{
+				SetBulkDataFlags(BULKDATA_AlwaysAllowDiscard);
+			}
 		}
 		else
 		{
@@ -1027,6 +1035,7 @@ void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 { 
 	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
+
 void FBulkDataBase::SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
 	checkf(	BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || 
@@ -1374,20 +1383,27 @@ FString FBulkDataBase::GetFilename() const
 }
 
 bool FBulkDataBase::CanDiscardInternalData() const
-{
-	// We can discard the data if:
-	// -	We can reload the Bulkdata from disk
-	// -	If the Bulkdata object has been marked as single use which shows 
-	//		that there is no intent to access the data again)
-	// -	If the IoDispatcher and the data is currently inlined (note that it doesn't
-	//		matter if BulkData is in the IoStore or pakfiles we do not allow the reloading
-	//		of inline data if the IoDispatcher is enabled at all)
-	//		since we will not be able to reload inline data when the IoStore is
-	//		active.
+{	
+	// Data marked as single use should always be discarded
+	if (IsSingleUse())
+	{
+		return true;
+	}
 
-	// TODO: This is currently called from ::GetCopy but not ::Unlock, we should investigate unifying the
-	// rules for discarding data
-	return CanLoadFromDisk() || IsSingleUse() || (IsInlined() && FIoDispatcher::IsInitialized());
+	// If we can load from disk then we can discard it as it can be reloaded later
+	if (CanLoadFromDisk())
+	{
+		return true;
+	}
+
+	// IF BULKDATA_AlwaysAllowDiscard has been set then we should always allow the data to 
+	// be discarded even if it cannot be reloaded again.
+	if ((BulkDataFlags & BULKDATA_AlwaysAllowDiscard) != 0)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
@@ -1395,7 +1411,9 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
 	if (!CanLoadFromDisk())
 	{
-		UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
+		// Only warn if the bulkdata have a valid size
+		UE_CLOG(GetBulkDataSize() > 0, LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
+
 		return; // Early out if there is nothing to load anyway
 	}
 
