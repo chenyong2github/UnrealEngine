@@ -149,6 +149,11 @@ public:
 		Target(Target)
 	{}
 
+	bool IsUnconstrained() const 
+	{
+		return ( (bCanMove == true) && (bCannotDelete == false) );
+	}
+
 	/** @return an unconstrained vertex constraint (ie not constrained at all) */
 	static FVertexConstraint Unconstrained() { return FVertexConstraint(false, true); }
 
