@@ -212,13 +212,18 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 	return false;
 }
 
-void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* Schema, UNiagaraNode* Node, const FString& UniqueEmitterName, ENiagaraScriptUsage ScriptUsage, FNiagaraParameterStore& RapidIterationParameters, TSet<FName>& ValidRapidIterationParameterNames)
+void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* Schema, UNiagaraNode* Node, const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage, FNiagaraParameterStore& RapidIterationParameters, TSet<FName>& ValidRapidIterationParameterNames)
 {
 	UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node);
 	if (FunctionCallNode != nullptr)
 	{
+		TSet<const UEdGraphPin*> HiddenPins;
+		FCompileConstantResolver Resolver(Emitter);
 		TArray<const UEdGraphPin*> FunctionInputPins;
-		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
+
+		const FString UniqueEmitterName = Emitter ? Emitter->GetUniqueEmitterName() : FString();
+
+		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, HiddenPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
 		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
 		{
 			FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(FunctionInputPin);
@@ -258,7 +263,7 @@ void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* 
 	}
 }
 
-void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(FString UniqueEmitterName, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FNiagaraParameterStore& RapidIterationParameters) const
+void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FNiagaraParameterStore& RapidIterationParameters) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_InitializeNewRapidIterationParameters);
 	TArray<UNiagaraNodeOutput*> OutputNodes;
@@ -291,7 +296,7 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(FS
 
 			for(UNiagaraNode* Node : Nodes)
 			{	
-				InitializeNewRapidIterationParametersForNode(Schema, Node, UniqueEmitterName, OutputNode->GetUsage(), RapidIterationParameters, ValidRapidIterationParameterNames);
+				InitializeNewRapidIterationParametersForNode(Schema, Node, Emitter, OutputNode->GetUsage(), RapidIterationParameters, ValidRapidIterationParameterNames);
 			}
 		}
 	}

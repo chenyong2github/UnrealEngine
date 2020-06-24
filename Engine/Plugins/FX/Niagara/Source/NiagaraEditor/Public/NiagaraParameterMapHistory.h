@@ -17,13 +17,13 @@ class FCompileConstantResolver
 {
 public:
 	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr) {}
-	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
-	FCompileConstantResolver(FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
+	FCompileConstantResolver(const UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
+	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 private:
-	UNiagaraEmitter* Emitter;
-	FHlslNiagaraTranslator* Translator;
+	const UNiagaraEmitter* Emitter;
+	const FHlslNiagaraTranslator* Translator;
 };
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
