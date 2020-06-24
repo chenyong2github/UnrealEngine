@@ -13,6 +13,7 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/ToolBarStyle.h"
+#include "Styling/SegmentedControlStyle.h"
 #include "Styling/StyleColors.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but Style->RootToContentDir is how the core style is set up
@@ -1305,10 +1306,11 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
 		.SetPadding(DefaultMargins);
 
-	Style->Set("SegmentedBoxLeft", SegmentedBoxLeft);
-	Style->Set("SegmentedBoxCenter", SegmentedBoxCenter);
-	Style->Set("SegmentedBoxRight", SegmentedBoxRight);
-
+	Style->Set("SegmentedControl", FSegmentedControlStyle()
+		.SetControlStyle(SegmentedBoxCenter)
+		.SetFirstControlStyle(SegmentedBoxLeft)
+		.SetLastControlStyle(SegmentedBoxRight)
+	);
 
 
 	/* Style for a toggleable button that mimics the coloring and look of a Table Row */

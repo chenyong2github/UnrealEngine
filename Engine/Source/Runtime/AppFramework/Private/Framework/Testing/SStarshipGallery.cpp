@@ -57,6 +57,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 
 #include "Brushes/SlateImageBrush.h"
@@ -952,114 +953,44 @@ public:
 
         ];
 
-        // Segmented Control
+
+        // Segmented Control - Simple version lets you specify text and brush
         NextSlot(WidgetGrid, LOCTEXT("SegmentedControl", "SegmentedControl")) 
         [
-            SNew(SHorizontalBox)
+        	SNew(SSegmentedControl<int32>)
+            .Value(0) // InitialValue
+            // .OnValueChanged_Lambda( [this] (int32 InValue) { SegmentedBoxChoice = InValue; } ) 
+            // .Value_Lambda( [this] { return SegmentedBoxChoice; } )  // Bound 
 
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxLeft"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 0; } )
-                [
-                    LeftRightLabel("Icons.box-perspective")
-                ]
-            ]
+        	+SSegmentedControl<int32>::Slot(0)
+            .Icon(FAppStyle::Get().GetBrush("Icons.box-perspective"))
+            .Text(LOCTEXT("Box", "BOX"))
 
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 1; } )
-                [
-                    LeftRightLabel("Icons.cylinder")
-                ]
-            ]
+            +SSegmentedControl<int32>::Slot(1)
+            .Icon(FAppStyle::Get().GetBrush("Icons.cylinder"))
+            .Text(LOCTEXT("Cylinder", "CYLINDER"))
 
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 2 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 2; } )
-                [
-                    LeftRightLabel("Icons.pyramid")
-                ]
-            ]
+            +SSegmentedControl<int32>::Slot(2)
+            .Icon(FAppStyle::Get().GetBrush("Icons.pyramid"))
+            .Text(LOCTEXT("Pyramid", "PYRAMID"))
 
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxRight"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 3 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 3; } )
-                [
-                    LeftRightLabel("Icons.sphere")
-                ]
-            ]
+        	+SSegmentedControl<int32>::Slot(3)
+            .Icon(FAppStyle::Get().GetBrush("Icons.sphere"))
+            .Text(LOCTEXT("Sphere", "SPHERE"))
+
         ];
-
-        // Segmented Control
-        NextSlot(WidgetGrid, LOCTEXT("SegmentedControl", "SegmentedControl")) 
+   
+        // Segmented Control - Explicitly Specify Contents
+        NextSlot(WidgetGrid, LOCTEXT("SegmentedControlWithChildren", "SegmentedControl Alt")) 
         [
-            SNew(SHorizontalBox)
+            SNew(SSegmentedControl<int32>)
+            .Value(2)
 
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxLeft"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 0; } )
-                [
-                    LeftRightLabel("Icons.box-perspective", LOCTEXT("Box", "BOX"))
-                ]
-            ]
-
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 1; } )
-                [
-                    LeftRightLabel("Icons.cylinder", LOCTEXT("Cylinder", "CYLINDER"))
-                ]
-            ]
-
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxCenter"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 2 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 2; } )
-                [
-                    LeftRightLabel("Icons.pyramid", LOCTEXT("Pyramid", "PYRAMID"))
-                ]
-            ]
-
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            [
-                SNew(SCheckBox)
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedBoxRight"))
-                .IsChecked_Lambda( [this] () -> ECheckBoxState { return SegmentedBoxChoice == 3 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-                .OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { if (InState == ECheckBoxState::Checked ) SegmentedBoxChoice = 3; } )
-                [
-                    LeftRightLabel("Icons.sphere", LOCTEXT("Sphere", "SPHERE"))
-                ]
-            ]
+            +SSegmentedControl<int32>::Slot(0) [ LeftRightLabel("Icons.box-perspective") ]
+            +SSegmentedControl<int32>::Slot(1) [ LeftRightLabel("Icons.cylinder") ]
+            +SSegmentedControl<int32>::Slot(2) [ LeftRightLabel("Icons.pyramid") ]
+            +SSegmentedControl<int32>::Slot(3) [ LeftRightLabel("Icons.sphere") ]
         ];
-
 
         // SCheckBox
         NextSlot(WidgetGrid, LOCTEXT("SCheckBoxLabel", "Check Box"))
