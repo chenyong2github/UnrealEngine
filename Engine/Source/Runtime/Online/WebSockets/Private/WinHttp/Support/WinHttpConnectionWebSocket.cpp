@@ -8,6 +8,7 @@
 #include "WinHttp/Support/WinHttpWebSocketErrorHelper.h"
 #include "WinHttp/Support/WinHttpTypes.h"
 #include "Misc/ScopeLock.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <errhandlingapi.h>
@@ -36,41 +37,50 @@ void CALLBACK UE_WinHttpWebSocketStatusCallback(HINTERNET hInternet, DWORD_PTR d
 
 /*static*/
 TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> FWinHttpConnectionWebSocket::CreateWebSocketConnection(
-		FWinHttpSession& Session,
-		const bool bIsSecure,
-		const FString& Domain,
-		const TOptional<uint16> Port,
-		const FString& PathAndQuery,
-		const TArray<FString>& Protocols,
-		const TMap<FString, FString>& UpgradeHeaders)
+	FWinHttpSession& InSession,
+	const FString& InUrl,
+	const TArray<FString>& InProtocols,
+	const TMap<FString, FString>& InUpgradeHeaders)
 {
-	if (!Session.IsValid())
+	if (!InSession.IsValid())
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp WebSocket without an active session"));
 		return nullptr;
 	}
+	if (InUrl.IsEmpty())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp WebSocket with an empty url"));
+		return nullptr;
+	}
+
+	const bool bIsSecure = FGenericPlatformHttp::IsSecureProtocol(InUrl).Get(false);
+	if (!bIsSecure && InSession.AreOnlySecureConnectionsAllowed())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create an insecure WinHttp WebSocket which is disabled on this platform"));
+		return nullptr;
+	}
+
+	const FString Domain = FGenericPlatformHttp::GetUrlDomain(InUrl);
 	if (Domain.IsEmpty())
 	{
-		
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp WebSocket with an unset domain"));
 		return nullptr;
 	}
+	const FString PathAndQuery = FGenericPlatformHttp::GetUrlPath(InUrl, true, false);
 	if (PathAndQuery.IsEmpty())
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp WebSocket with an unset path"));
 		return nullptr;
 	}
-	if (Protocols.Num() == 0)
+
+	if (InProtocols.Num() == 0)
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp WebSocket with an empty protocols list"));
 		return nullptr;
 	}
-	if (!bIsSecure && Session.AreOnlySecureConnectionsAllowed())
-	{
-		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create an insecure WinHttp WebSocket which is disabled on this platform"));
-		return nullptr;
-	}
-	TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> WebSocket = MakeShareable(new FWinHttpConnectionWebSocket(Session, bIsSecure, Domain, Port, PathAndQuery, Protocols, UpgradeHeaders));
+
+	TOptional<uint16> Port = FGenericPlatformHttp::GetUrlPort(InUrl);
+	TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> WebSocket = MakeShareable(new FWinHttpConnectionWebSocket(InSession, InUrl, bIsSecure, Domain, Port, PathAndQuery, InProtocols, InUpgradeHeaders));
 	if (!WebSocket->IsValid())
 	{
 		return nullptr;
@@ -286,14 +296,15 @@ bool FWinHttpConnectionWebSocket::CloseConnection(const uint16 Code, const FStri
 }
 
 FWinHttpConnectionWebSocket::FWinHttpConnectionWebSocket(
-	FWinHttpSession& Session,
-	const bool bIsSecure,
-	const FString& Domain,
-	const TOptional<uint16> Port,
-	const FString& PathAndQuery,
-	const TArray<FString>& Protocols,
-	const TMap<FString, FString>& UpgradeHeaders)
-	: FWinHttpConnectionHttp(Session, FString(TEXT("GET")), bIsSecure, Domain, Port, PathAndQuery, UpgradeHeaders, nullptr)
+	FWinHttpSession& InSession,
+	const FString& InRequestUrl,
+	const bool bInIsSecure,
+	const FString& InDomain,
+	const TOptional<uint16> InPort,
+	const FString& InPathAndQuery,
+	const TArray<FString>& InProtocols,
+	const TMap<FString, FString>& InUpgradeHeaders)
+	: FWinHttpConnectionHttp(InSession, FString(TEXT("GET")), InRequestUrl, bInIsSecure, InDomain, InPort, InPathAndQuery, InUpgradeHeaders, nullptr)
 {
 	if (!FWinHttpConnectionHttp::IsValid())
 	{
@@ -313,6 +324,8 @@ FWinHttpConnectionWebSocket::FWinHttpConnectionWebSocket(
 		ConnectionHandle.Reset();
 		return;
 	}
+
+	SetHeader(TEXT("Sec-WebSocket-Protocol"), FString::Join(InProtocols, TEXT(", ")));
 }
 
 bool FWinHttpConnectionWebSocket::IsReadInProgress() const
