@@ -2350,7 +2350,18 @@ bool FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass()
 void FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass()
 {
 	const ECreateBlueprintFromActorMode ValidCreateModes = FCreateBlueprintFromActorDialog::GetValidCreationMethods();
-	const ECreateBlueprintFromActorMode DefaultCreateMode = ((GEditor->GetSelectedActorCount() == 1 && !!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass)) ? ECreateBlueprintFromActorMode::Subclass : ECreateBlueprintFromActorMode::ChildActor);
+	ECreateBlueprintFromActorMode DefaultCreateMode = ECreateBlueprintFromActorMode::Harvest;
+	if (!!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass) && (GEditor->GetSelectedActorCount() == 1))
+	{
+		// If a single actor is selected and it can be subclassed, use that as default
+		DefaultCreateMode = ECreateBlueprintFromActorMode::Subclass;
+	}
+	else if (!!(ValidCreateModes & ECreateBlueprintFromActorMode::ChildActor))
+	{
+		// Otherwise if there is an actor that can be spawned as a child actor, use that as default
+		DefaultCreateMode = ECreateBlueprintFromActorMode::ChildActor;
+	}
+
 	FCreateBlueprintFromActorDialog::OpenDialog(DefaultCreateMode);
 }
 

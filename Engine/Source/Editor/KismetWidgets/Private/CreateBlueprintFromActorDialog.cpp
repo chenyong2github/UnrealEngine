@@ -214,6 +214,9 @@ FText SSCreateBlueprintPicker::GetCreateMethodTooltip(ECreateBlueprintFromActorM
 			}
 		}
 
+		case ECreateBlueprintFromActorMode::ChildActor:
+			return LOCTEXT("ChildActorDisabled", "No selected actor can be spawned as a child actor.");
+
 		case ECreateBlueprintFromActorMode::Harvest:
 			return LOCTEXT("HavestDisabled", "No harvestable components in selected actors.");
 
