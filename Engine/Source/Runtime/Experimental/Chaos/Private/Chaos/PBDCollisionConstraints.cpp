@@ -670,8 +670,24 @@ namespace Chaos
 	void FPBDCollisionConstraints::SortConstraints()
 	{
 		Constraints.SortConstraints();
-	}
 
+		if (bHandlesEnabled)
+		{
+			// After sorting, need to fix up handle indexes
+			for (int32 Idx = 0; Idx < Constraints.SinglePointConstraints.Num(); ++Idx)
+			{
+				Constraints.SinglePointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
+			}
+			for (int32 Idx = 0; Idx < Constraints.SinglePointSweptConstraints.Num(); ++Idx)
+			{
+				Constraints.SinglePointSweptConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
+			}
+			for (int32 Idx = 0; Idx < Constraints.MultiPointConstraints.Num(); ++Idx)
+			{
+				Constraints.MultiPointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
+			}
+		}
+	}
 
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
