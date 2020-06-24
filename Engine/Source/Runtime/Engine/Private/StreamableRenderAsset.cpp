@@ -49,8 +49,6 @@ void UStreamableRenderAsset::RemoveMipLevelChangeCallback(UPrimitiveComponent* C
 
 void UStreamableRenderAsset::RemoveAllMipLevelChangeCallbacks()
 {
-	check(IsInGameThread());
-
 	for (int32 Idx = 0; Idx < MipChangeCallbacks.Num(); ++Idx)
 	{
 		const FLODStreamingCallbackPayload& Payload = MipChangeCallbacks[Idx];
