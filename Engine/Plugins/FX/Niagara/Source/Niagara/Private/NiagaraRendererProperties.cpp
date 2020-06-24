@@ -29,7 +29,7 @@ const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 }
 #endif
 
-uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSet& DataSet) const
+uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const
 {
 	enum BaseType
 	{
@@ -55,21 +55,24 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 	{
 		const FNiagaraVariable& Var = Binding->DataSetVariable;
 
-		if (const FNiagaraVariableLayoutInfo* DataSetVarLayout = DataSet.GetVariableLayout(Var))
+		const int32 VariableIndex = CompiledDataSetData->Variables.IndexOfByKey(Var);
+		if ( VariableIndex != INDEX_NONE )
 		{
-			if (const uint32 FloatCount = DataSetVarLayout->GetNumFloatComponents())
+			const FNiagaraVariableLayoutInfo& DataSetVarLayout = CompiledDataSetData->VariableLayouts[VariableIndex];
+
+			if (const uint32 FloatCount = DataSetVarLayout.GetNumFloatComponents())
 			{
-				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout->FloatComponentStart);
+				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout.FloatComponentStart);
 			}
 
-			if (const uint32 IntCount = DataSetVarLayout->GetNumInt32Components())
+			if (const uint32 IntCount = DataSetVarLayout.GetNumInt32Components())
 			{
-				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout->Int32ComponentStart);
+				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout.Int32ComponentStart);
 			}
 
-			if (const uint32 HalfCount = DataSetVarLayout->GetNumHalfComponents())
+			if (const uint32 HalfCount = DataSetVarLayout.GetNumHalfComponents())
 			{
-				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout->HalfComponentStart);
+				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout.HalfComponentStart);
 			}
 		}
 	}

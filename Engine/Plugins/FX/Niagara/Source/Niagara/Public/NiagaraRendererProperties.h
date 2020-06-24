@@ -25,7 +25,7 @@ class UMaterialInterface;
 class FNiagaraEmitterInstance;
 class SWidget;
 class FAssetThumbnailPool;
-class FNiagaraDataSet;
+struct FNiagaraDataSetCompiledData;
 
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
@@ -47,7 +47,7 @@ public:
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const { return false; };
 
 	const TArray<const FNiagaraVariableAttributeBinding*>& GetAttributeBindings() const { return AttributeBindings; }
-	uint32 ComputeMaxUsedComponents(const FNiagaraDataSet& DataSet) const;
+	uint32 ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const;
 
 #if WITH_EDITORONLY_DATA
 
