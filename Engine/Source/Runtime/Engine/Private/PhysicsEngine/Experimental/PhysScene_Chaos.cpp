@@ -376,9 +376,12 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, const FName& DebugName
 #endif
 )
-	: PhysicsReplication(nullptr)
-	, ChaosModule(nullptr)
-	, SceneSolver(nullptr)
+	: Super(InSolverActor ? InSolverActor->GetWorld() : nullptr
+#if CHAOS_CHECKED
+		DebugName
+#endif
+	)
+	, PhysicsReplication(nullptr)
 	, SolverActor(InSolverActor)
 #if WITH_EDITOR
 	, SingleStepCounter(0)
@@ -388,22 +391,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 #endif
 {
 	LLM_SCOPE(ELLMTag::Chaos);
-
-	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	check(ChaosModule);
-
-	UWorld* WorldPtr = SolverActor.Get() ? SolverActor->GetWorld() : nullptr;
-
-	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
-
-	Chaos::EThreadingMode ThreadingMode = bForceSingleThread ? Chaos::EThreadingMode::SingleThread : Chaos::EThreadingMode::TaskGraph;
-
-	SceneSolver = ChaosModule->CreateSolver<Chaos::FDefaultTraits>(WorldPtr, ThreadingMode
-#if CHAOS_CHECKED
-	, DebugName
-#endif
-);
-	check(SceneSolver);
 
 	PhysicsProxyToComponentMap.Reset();
 	ComponentToPhysicsProxyMap.Reset();
@@ -431,16 +418,6 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 		delete PhysicsReplication;
 	}
 #endif
-
-	if (SceneSolver)
-	{
-		Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
-		EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
-	}
-
-	Shutdown();
-	
-	FCoreDelegates::OnPreExit.RemoveAll(this);
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	if (SyncCaller)
@@ -472,11 +449,6 @@ bool FPhysScene_ChaosInterface::IsOwningWorldEditor() const
 	return false;
 }
 #endif
-
-Chaos::FPhysicsSolver* FPhysScene_Chaos::GetSolver() const
-{
-	return SceneSolver;
-}
 
 AActor* FPhysScene_Chaos::GetSolverActor() const
 {
@@ -523,89 +495,6 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
-}
-
-
-void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
-{
-#if WITH_CHAOS
-	if (GetSpacialAcceleration() && Actor->UniqueIdx().IsValid())
-	{
-		ExternalDataLock.WriteLock();
-		Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
-		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Actor->SpatialIdx());
-		ExternalDataLock.WriteUnlock();
-	}
-#endif
-}
-
-void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor)
-{
-#if WITH_CHAOS
-	using namespace Chaos;
-
-	if (GetSpacialAcceleration())
-	{
-		ExternalDataLock.WriteLock();
-
-		auto SpatialAcceleration = GetSpacialAcceleration();
-
-		if (SpatialAcceleration)
-		{
-
-			TAABB<FReal, 3> WorldBounds;
-			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
-			if (bHasBounds)
-			{
-				WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
-			}
-
-
-			Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
-			SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Actor->SpatialIdx());
-		}
-
-		ExternalDataLock.WriteUnlock();
-	}
-#endif
-}
-
-void FPhysScene_Chaos::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors)
-{
-#if WITH_CHAOS
-	using namespace Chaos;
-
-	if (GetSpacialAcceleration())
-	{
-		ExternalDataLock.WriteLock();
-
-		auto SpatialAcceleration = GetSpacialAcceleration();
-
-		if (SpatialAcceleration)
-		{
-			int32 NumActors = Actors.Num();
-			for (int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
-			{
-				const FPhysicsActorHandle& Actor = Actors[ActorIndex];
-				if (Actor != nullptr)
-				{
-					// @todo(chaos): dedupe code in UpdateActorInAccelerationStructure
-					TAABB<FReal, 3> WorldBounds;
-					const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
-					if (bHasBounds)
-					{
-						WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
-					}
-
-					Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
-					SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Actor->SpatialIdx());
-				}
-			}
-		}
-
-		ExternalDataLock.WriteUnlock();
-	}
-#endif
 }
 
 template<typename ObjectType>
@@ -732,25 +621,6 @@ void FPhysScene_Chaos::UnregisterEventHandler(const Chaos::EEventType& EventID, 
 }
 #endif // XGE_FIXED
 
-void FPhysScene_Chaos::Shutdown()
-{
-	if(ChaosModule)
-	{
-		// Destroy our solver
-		ChaosModule->DestroySolver(GetSolver());
-	}
-
-#if WITH_EDITOR
-	PhysScene_ChaosPauseHandler.Reset();
-#endif
-
-	ChaosModule = nullptr;
-	SceneSolver = nullptr;
-
-	PhysicsProxyToComponentMap.Reset();
-	ComponentToPhysicsProxyMap.Reset();
-}
-
 FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
 {
 	return PhysicsReplication;
@@ -763,58 +633,14 @@ void FPhysScene_Chaos::SetPhysicsReplication(FPhysicsReplication* InPhysicsRepli
 
 void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	Super::AddReferencedObjects(Collector);
 #if WITH_EDITOR
-	for(UObject* Obj : PieModifiedObjects)
-	{
-		Collector.AddReferencedObject(Obj);
-	}
 
 	for (TPair<IPhysicsProxyBase*, UPrimitiveComponent*>& Pair : PhysicsProxyToComponentMap)
 	{
 		Collector.AddReferencedObject(Pair.Get<1>());
 	}
 #endif
-}
-
-const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* FPhysScene_Chaos::GetSpacialAcceleration() const
-{
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if (GetSolver() && GetSolver()->GetEvolution())
-		{
-			return GetSolver()->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
-	return SolverAccelerationStructure.Get();
-}
-
-Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* FPhysScene_Chaos::GetSpacialAcceleration()
-{
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if (SceneSolver->GetEvolution())
-		{
-			return SceneSolver->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
-	return SolverAccelerationStructure.Get();
-}
-
-void FPhysScene_Chaos::CopySolverAccelerationStructure()
-{
-	if (SceneSolver && SceneSolver->GetThreadingMode() != Chaos::EThreadingModeTemp::SingleThread)
-	{
-		ExternalDataLock.WriteLock();
-		SceneSolver->FlushCommands_External();	//make sure any pending commands are flushed so that scene query structure is up to date
-		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
-		ExternalDataLock.WriteUnlock();
-	}
 }
 
 static void SetCollisionInfoFromComp(FRigidBodyCollisionInfo& Info, UPrimitiveComponent* Comp)
@@ -1004,16 +830,6 @@ void FPhysScene_Chaos::OnWorldEndPlay()
 	PhysicsProxyToComponentMap.Reset();
 	ComponentToPhysicsProxyMap.Reset();
 }
-
-#if WITH_EDITOR
-void FPhysScene_Chaos::AddPieModifiedObject(UObject* InObj)
-{
-	if(GIsPlayInEditorWorld)
-	{
-		PieModifiedObjects.AddUnique(InObj);
-	}
-}
-#endif
 
 void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject)
 {
