@@ -1561,6 +1561,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const descLines = commandOverride ? commandOverride.split('|') :
 							change.desc ? change.desc.split('\n') : []
 		let propagatingNullMerge = false
+		let hasOkForGithubTag = false
 
 		// flag to check whether default targets have been overridden
 		let useDefaultFlow = true
@@ -1606,6 +1607,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 					if (value !== '') {
 						descFinal.push(value)
 					}
+				}
+				else if (command === 'OKFORGITHUB') {
+					hasOkForGithubTag = true
 				}
 				else {
 
@@ -1699,7 +1703,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			source_cl: source_cl,
 			isManual: !!change.isManual,
 			author, source, description, propagatingNullMerge, forceCreateAShelf, sendNoShelfEmail, 
-			forceStompChanges, additionalDescriptionText,
+			forceStompChanges, additionalDescriptionText, hasOkForGithubTag,
 			numFiles: -1, // calculate later if there are any targets
 			overriddenCommand: commandOverride
 		}
