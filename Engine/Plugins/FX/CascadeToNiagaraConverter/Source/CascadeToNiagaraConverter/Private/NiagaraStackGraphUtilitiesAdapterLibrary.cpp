@@ -690,8 +690,7 @@ void UNiagaraEmitterConversionContext::Finalize()
 		UNiagaraMessageDataText* NewMessageDataText = NewObject<UNiagaraMessageDataText>(Emitter);
 		const FName TopicName = Message.bIsVerbose ? FNiagaraConverterMessageTopics::VerboseConversionEventTopicName : FNiagaraConverterMessageTopics::ConversionEventTopicName;
 		NewMessageDataText->Init(FText::FromString(Message.Message), Message.MessageSeverity, TopicName);
-		//OwningSystemViewModel->AddMessage(NewMessageDataText, false);
-		(NewMessageDataText, false);
+		//OwningSystemViewModel->AddMessage(NewMessageDataText, false); //@todo(ng) push system messages
 	}
 	OwningSystemViewModel->OnMessagesChanged();
 }
