@@ -394,6 +394,7 @@ struct FMaterialVertexParameters
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
 	uint InstanceId;
+	uint InstanceOffset;
 
 #elif IS_MESHPARTICLE_FACTORY 
 	/** Per-particle properties. */
@@ -808,7 +809,7 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 #if USE_INSTANCING && USES_PER_INSTANCE_CUSTOM_DATA
 	if(InstanceVF.NumCustomDataFloats > 0)
 	{
-		int BufferStartIndex = Parameters.InstanceId * InstanceVF.NumCustomDataFloats; 
+		int BufferStartIndex = (Parameters.InstanceId + Parameters.InstanceOffset) * InstanceVF.NumCustomDataFloats; 
 		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
 		return InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex];
 	}
