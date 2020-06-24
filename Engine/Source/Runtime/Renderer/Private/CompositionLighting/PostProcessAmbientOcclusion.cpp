@@ -119,11 +119,11 @@ static TAutoConsoleVariable<int32> CVarGTAOFilterWidth(
 
 static TAutoConsoleVariable<float> CVarGTAOThicknessBlend(
 	TEXT("r.GTAO.ThicknessBlend"),
-	0.03f,
+	0.5f,
 	TEXT("A heuristic to bias occlusion for thin or thick objects. \n ")
 	TEXT("0  : Off \n ")
 	TEXT(">0 : On - Bigger values lead to reduced occlusion \n ")
-	TEXT("0.1: On (default)\n "),
+	TEXT("0.5: On (default)\n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarGTAOFalloffEnd(
@@ -1303,6 +1303,7 @@ public:
 
 		// Frame X = number , Y = Thickness param, 
 		float ThicknessBlend = CVarGTAOThicknessBlend.GetValueOnRenderThread();
+		ThicknessBlend = FMath::Clamp( 1.0f - (ThicknessBlend*ThicknessBlend), 0.0f, 0.99f);
 		GTAOParam[1] = FVector4(Frame, ThicknessBlend, 0.0f, 0.0f);
 
 		// Destination buffer Size and InvSize
@@ -1837,6 +1838,8 @@ TShaderRef<FShader> FRCPassPostProcessAmbientOcclusion_GTAOHorizonSearchIntegrat
 void FRCPassPostProcessAmbientOcclusion_GTAOHorizonSearchIntegrate::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_HorizonSearchIntegrate);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_HorizonSearchIntegrate, TEXT("GTAO_HorizonSearchIntegrate"));
+
 	const FViewInfo& View = Context.View;
 
 	// Get Size of destination
@@ -2005,6 +2008,8 @@ FRCPassPostProcessAmbientOcclusion_GTAOInnerIntegrate::FRCPassPostProcessAmbient
 void FRCPassPostProcessAmbientOcclusion_GTAOInnerIntegrate::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_InnerIntegrate);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_InnerIntegrate, TEXT("GTAO_HorizonSearchIntegrate"));
+
 	const FViewInfo& View = Context.View;
 
 
@@ -2150,6 +2155,8 @@ TShaderRef<FShader> FRCPassPostProcessAmbientOcclusion_HorizonSearch::SetShaderP
 void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_HorizonSearch);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_HorizonSearch, TEXT("GTAO_HorizonSearch"));
+
 	const FViewInfo& View = Context.View;
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
@@ -2532,6 +2539,8 @@ FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::FRCPassPostProcessAmbien
 void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_TemporalFilter);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_TemporalFilter, TEXT("GTAO_TemporalFilter"));
+
 	const FViewInfo& View = Context.View;
 
 	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
@@ -2760,6 +2769,8 @@ FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::FRCPassPostProcessAmbient
 void FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_SpatialFilter);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_SpatialFilter, TEXT("GTAO_SpatialFilter"));
+
 	const FViewInfo& View = Context.View;
 
 	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
@@ -2936,6 +2947,8 @@ FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::FRCPassPostProcessAmbientOcclu
 void FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::Process(FRenderingCompositePassContext& Context)
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, GTAO_Upsample);
+	SCOPED_DRAW_EVENTF(Context.RHICmdList, GTAO_Upsample, TEXT("GTAO_Upsample"));
+
 	const FViewInfo& View = Context.View;
 
 	const FPooledRenderTargetDesc* InputDesc0 = GetInputDesc(ePId_Input0);
