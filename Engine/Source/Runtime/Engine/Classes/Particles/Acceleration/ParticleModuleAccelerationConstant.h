@@ -13,7 +13,7 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=(Object, Acceleration), meta=(DisplayName = "Const Acceleration"))
+UCLASS(MinimalAPI, editinlinenew, hidecategories=(Object, Acceleration), meta=(DisplayName = "Const Acceleration"))
 class UParticleModuleAccelerationConstant : public UParticleModuleAccelerationBase
 {
 	GENERATED_UCLASS_BODY()
