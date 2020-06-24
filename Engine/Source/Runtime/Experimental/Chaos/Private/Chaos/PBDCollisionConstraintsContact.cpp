@@ -217,13 +217,7 @@ namespace Chaos
 				// non zero PenetrationBuffer avoids a small amount of jitter added by the ApplypushOut function.
 				const FReal PenetrationBuffer = 0;
 				if (NewAccImpNormalSize > 0 && (Contact.Phi <= PenetrationBuffer + ParticleParameters.ShapePadding))
-				{
-					if (Friction <= 0)
-					{
-						ClippedAccumulatedImpulse = NewAccImpNormalSize * Contact.Normal;
-					}
-					else
-					{
+				{					
 						const FVec3 ImpulseTangential = NewUnclippedAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
 						const FReal ImpulseTangentialSize = ImpulseTangential.Size();
 						const FReal MaximumImpulseTangential = Friction * NewAccImpNormalSize;
@@ -254,8 +248,28 @@ namespace Chaos
 						}
 						else
 						{
-							ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
+						// Projecting the impulse, like in the following commented out line, is a simplification that fails with fast sliding contacts:
+						// Because: The Factor matrix will change the direction of the vectors
+						// ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
+
+						//outside friction cone, solve for normal relative velocity and keep tangent at cone edge
+						FVec3 Tangent = ImpulseTangential.GetSafeNormal();
+						FVec3 DirectionalFactor = Factor * (Contact.Normal + Friction * Tangent);
+						FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, DirectionalFactor);
+						if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nDirectionalFactor:%s, ImpulseDenominator:%f"),
+							*Contact.ToString(),
+							*Particle0->ToString(),
+							*Particle1->ToString(),
+							*DirectionalFactor.ToString(), ImpulseDenominator))
+						{
+							ImpulseDenominator = (FReal)1;
 						}
+						FReal RelativeNormalVelocity = FVec3::DotProduct(VelocityChange, Contact.Normal);
+						const FReal ImpulseMag = (1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						ClippedAccumulatedImpulse = ImpulseMag * (Contact.Normal + Friction * Tangent) + AccImp;
+						// Clip to zero
+						if (FVec3::DotProduct(ClippedAccumulatedImpulse, Contact.Normal) <= (FReal)0)
+							ClippedAccumulatedImpulse = FVec3(0);
 					}
 				}
 				else
