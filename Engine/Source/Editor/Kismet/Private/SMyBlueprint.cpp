@@ -2481,12 +2481,7 @@ void SMyBlueprint::OnFindAndReplaceReference()
 
 bool SMyBlueprint::CanFindAndReplaceReference() const
 {
-	if (SelectionAsVar() && GetDefault<UEditorExperimentalSettings>()->bEnableFindAndReplaceReferences)
-	{
-		return true;
-	}
-
-	return false;
+	return SelectionAsVar() != nullptr;
 }
 
 void SMyBlueprint::OnDeleteGraph(UEdGraph* InGraph, EEdGraphSchemaAction_K2Graph::Type InGraphType)

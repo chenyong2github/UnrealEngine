@@ -50,6 +50,12 @@ public:
 	/** Returns the Icon Color of this reference */
 	virtual FSlateColor GetIconColor() const { return FLinearColor::White; }
 
+	/** Returns the Secondary Icon representing this reference */
+	virtual const struct FSlateBrush* GetSecondaryIcon() const { return nullptr; }
+
+	/** Returns the Secondary Icon Color of this reference */
+	virtual FSlateColor GetSecondaryIconColor() const { return FLinearColor::White; }
+
 public:
 	/** Children members to sub-list in the tree */
 	TArray< TSharedPtr<FTargetReplaceReferences> > Children;
@@ -132,6 +138,12 @@ protected:
 
 	/** Returns the icon color for the target reference */
 	FSlateColor GetTargetIconColor() const;
+	
+	/** Returns the icon for the target reference */
+	const struct FSlateBrush* GetSecondaryTargetIcon() const;
+
+	/** Returns the icon color for the target reference */
+	FSlateColor GetSecondaryTargetIconColor() const;
 
 	/** Returns the display text for the source reference */
 	FText GetSourceDisplayText() const;
@@ -141,6 +153,43 @@ protected:
 
 	/** Returns the icon color for the source reference */
 	FSlateColor GetSourceReferenceIconColor() const;
+	
+	/** Returns the secondary icon for the source reference */
+	const FSlateBrush* GetSecondarySourceReferenceIcon() const;
+
+	/** Returns the secondary icon color for the source reference */
+	FSlateColor GetSecondarySourceReferenceIconColor() const;
+
+	/** Returns whether the source property is a valid property to search for and replace */
+	bool HasValidSource() const;
+
+	/** Returns tool tip text for the "Find All" and "Find And Replace All" buttons */
+	FText GetFindAndReplaceToolTipText(bool bFindAndReplace) const;
+
+	/** Returns whether or not a search can be initiated right now */
+	bool CanBeginSearch(bool bFindAndReplace) const;
+
+	/** Callback for when the "Only Local Results" CheckBox is changed */
+	void OnLocalCheckBoxChanged(ECheckBoxState Checked);
+
+	/** Returns the current state of the "Only Local Results" CheckBox */
+	ECheckBoxState GetLocalCheckBoxState() const;
+
+	/** Returns the label text for the "OnlyLocalResults" CheckBox */
+	FText GetLocalCheckBoxLabelText() const;
+
+	/** Returns the text to display in the bottom right corner of the window */
+	FText GetStatusText() const;
+
+	/** Determines whether a search is actively in progress */
+	bool IsSearchInProgress() const;
+
+	/**
+	 * Builds a title for the transaction of Replacing references 
+	 * 
+	 * @param TargetReference  The Target variable that will be replacing the source
+	 */
+	FText GetTransactionTitle(const FMemberReference& TargetReference) const;
 
 protected:
 	/** Combo box for selecting the target reference */
@@ -169,4 +218,7 @@ protected:
 
 	/** Currently selected target reference */
 	FTreeViewItem SelectedTargetReferenceItem;
+
+	/** Whether to search only within the currently open blueprint */
+	bool bFindWithinBlueprint;
 };

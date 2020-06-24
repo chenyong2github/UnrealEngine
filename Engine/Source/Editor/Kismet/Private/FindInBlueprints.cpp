@@ -629,7 +629,7 @@ void SFindInBlueprints::Construct( const FArguments& InArgs, TSharedPtr<FBluepri
 			[
 				SNew(SButton)
 				.OnClicked(this, &SFindInBlueprints::OnOpenGlobalFindResults)
-				.Visibility(BlueprintEditorPtr.IsValid() && bHostFindInBlueprintsInGlobalTab ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(!InArgs._bHideFindGlobalButton && BlueprintEditorPtr.IsValid() && bHostFindInBlueprintsInGlobalTab ? EVisibility::Visible : EVisibility::Collapsed)
 				.ToolTipText(LOCTEXT("OpenInGlobalFindResultsButtonTooltip", "Find in all Blueprints"))
 				[
 					SNew(STextBlock)
@@ -1093,6 +1093,14 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 				if (SearchResult.IsValid())
 				{
 					ItemsFound = SearchResult->Children;
+				}
+
+				// call SearchCompleted callback if bound (the only steps left are to update the TreeView, the search operation is complete)
+				if (InOnSearchComplete.IsBound())
+				{
+					TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
+					SearchInstance->CreateFilteredResultsListFromTree(InSearchOptions.ImaginaryDataFilter, FilteredImaginaryResults);
+					InOnSearchComplete.Execute(FilteredImaginaryResults);
 				}
 			}
 
@@ -1682,6 +1690,11 @@ void SFindInBlueprints::CloseHostTab()
 	{
 		HostTabPtr->RequestCloseTab();
 	}
+}
+
+bool SFindInBlueprints::IsSearchInProgress() const
+{
+	return StreamSearch.IsValid() && !StreamSearch->IsComplete();
 }
 
 FReply SFindInBlueprints::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
