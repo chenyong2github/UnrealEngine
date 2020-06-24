@@ -168,6 +168,8 @@ void UNiagaraSystem::PostInitProperties()
 	}
 
 	ResolveScalabilitySettings();
+	UpdateDITickFlags();
+	UpdateHasGPUEmitters();
 }
 
 bool UNiagaraSystem::IsLooping() const
@@ -350,6 +352,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	}
 
 	ResolveScalabilitySettings();
+	UpdateDITickFlags();
+	UpdateHasGPUEmitters();
 
 	UpdateContext.CommitUpdate();
 	
@@ -587,6 +591,10 @@ void UNiagaraSystem::PostLoad()
 	ResolveScalabilitySettings();
 
 	ComputeEmittersExecutionOrder();
+
+	//TODO: Move to serialized properties?
+	UpdateDITickFlags();
+	UpdateHasGPUEmitters();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -983,6 +991,57 @@ void UNiagaraSystem::UpdatePostCompileDIInfo()
 	CheckDICompileInfo(SystemUpdateScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
 }
 
+void UNiagaraSystem::UpdateDITickFlags()
+{
+	bHasDIsWithPostSimulateTick = false;
+	auto CheckPostSimTick = [&](UNiagaraScript* Script)
+	{
+		if (Script)
+		{
+			for (FNiagaraScriptDataInterfaceCompileInfo& Info : Script->GetVMExecutableData().DataInterfaceInfo)
+			{
+				if (Info.GetDefaultDataInterface()->HasPostSimulateTick())
+				{
+					bHasDIsWithPostSimulateTick |= true;
+				}
+			}
+		}
+	};
+
+	CheckPostSimTick(SystemSpawnScript);
+	CheckPostSimTick(SystemUpdateScript);
+	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (Handle.GetIsEnabled())
+		{
+			if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+			{
+				TArray<UNiagaraScript*> Scripts;
+				Emitter->GetScripts(Scripts);
+				for (UNiagaraScript* Script : Scripts)
+				{
+					CheckPostSimTick(Script);
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraSystem::UpdateHasGPUEmitters()
+{
+	bHasAnyGPUEmitters = 0;
+	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (Handle.GetIsEnabled())
+		{
+			if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+			{
+				bHasAnyGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+			}
+		}
+	}
+}
+
 bool UNiagaraSystem::IsValid()const
 {
 	if (!SystemSpawnScript || !SystemUpdateScript)
@@ -1363,6 +1422,9 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		UpdatePostCompileDIInfo();
 
 		ComputeEmittersExecutionOrder();
+
+		UpdateHasGPUEmitters();
+		UpdateDITickFlags();
 
 		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (overall compilation time), %f sec (combined shader worker time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
 			CombinedCompileTime);

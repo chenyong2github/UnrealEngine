@@ -14,6 +14,15 @@ class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 
+enum class ENiagaraGPUTickHandlingMode
+{
+	None, /** No GPU Ticks needed. */
+	GameThread,/** Each system has to submit it's GPU tick individually on the game thread. */
+	Concurrent,/** Each system has to submit it's GPU tick individually during it's concurrent tick. */
+	GameThreadBatched,/** Systems can submit their GPU ticks in batches but it must be done on the game thread. */
+	ConcurrentBatched,/** Systems can submit their GPU ticks in batches during concurrent tick. */
+};
+
 //TODO: It would be good to have the batch size be variable per system to try to keep a good work/overhead ratio.
 //Can possibly adjust in future based on average batch execution time.
 #define NiagaraSystemTickBatchSize 4
@@ -295,6 +304,10 @@ public:
 
 	ETickingGroup GetTickGroup() const { return SystemTickGroup; }
 
+	FORCEINLINE NiagaraEmitterInstanceBatcher* GetBatcher()const { return Batcher; }
+
+	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode()const;
+
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -413,4 +426,6 @@ protected:
 	FGraphEventRef SystemTickGraphEvent;
 
 	mutable FString CrashReporterTag;
+
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

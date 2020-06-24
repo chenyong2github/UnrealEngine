@@ -66,6 +66,8 @@ public:
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
 	
+	virtual bool HasPreSimulateTick() const override{ return true; }
+	virtual bool HasPostSimulateTick() const override { return true; }
 private:
 
 	static FCriticalSection CriticalSection;

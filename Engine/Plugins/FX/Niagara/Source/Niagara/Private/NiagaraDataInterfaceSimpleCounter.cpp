@@ -120,16 +120,4 @@ void UNiagaraDataInterfaceSimpleCounter::GetNextValue(FVectorVMContext& Context)
 	}
 }
 
-
-bool UNiagaraDataInterfaceSimpleCounter::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
-{
-	return false;
-}
-
-bool UNiagaraDataInterfaceSimpleCounter::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
-{
-	CounterInstanceData *PIData = static_cast<CounterInstanceData*>(PerInstanceData);
-	return false;
-}
-
 #undef LOCTEXT_NAMESPACE
