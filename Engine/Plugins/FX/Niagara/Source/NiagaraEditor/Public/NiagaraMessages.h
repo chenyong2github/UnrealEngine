@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "coreminimal.h"
+#include "CoreMinimal.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/Guid.h"
 #include "UObject/ObjectKey.h"
