@@ -221,11 +221,7 @@ void FWinHttpWebSocket::HandleSessionCreated(FWinHttpSession* SessionPtr)
 	}
 
 	// Create connection object
-	const bool bIsSecure = FGenericPlatformHttp::IsSecureProtocol(Url).Get(false);
-	const FString Domain = FGenericPlatformHttp::GetUrlDomain(Url);
-	TOptional<uint16> Port = FGenericPlatformHttp::GetUrlPort(Url);
-	const FString PathAndQuery = FGenericPlatformHttp::GetUrlPath(Url, true, false);
-	TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> LocalWebsocket = FWinHttpConnectionWebSocket::CreateWebSocketConnection(*SessionPtr, bIsSecure, Domain, Port, PathAndQuery, Protocols, UpgradeHeaders);
+	TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> LocalWebsocket = FWinHttpConnectionWebSocket::CreateWebSocketConnection(*SessionPtr, Url, Protocols, UpgradeHeaders);
 	if (!LocalWebsocket.IsValid())
 	{
 		UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: Failed to create connection"), this);

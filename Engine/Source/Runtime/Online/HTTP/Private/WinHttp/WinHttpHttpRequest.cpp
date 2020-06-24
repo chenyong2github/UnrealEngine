@@ -228,8 +228,8 @@ bool FWinHttpHttpRequest::ProcessRequest()
 
 	State = EHttpRequestStatus::Processing;
 
-	TWeakPtr<FWinHttpHttpRequest> LocalWeakThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared());
-	HttpManager->QuerySessionForUrl(RequestData.Url, FWinHttpQuerySessionComplete::CreateLambda([LocalWeakThis](FWinHttpSession* SessionPtr)
+	TSharedRef<FWinHttpHttpRequest> LocalStrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared());
+	HttpManager->QuerySessionForUrl(RequestData.Url, FWinHttpQuerySessionComplete::CreateLambda([LocalWeakThis = TWeakPtr<FWinHttpHttpRequest>(LocalStrongThis)](FWinHttpSession* SessionPtr)
 	{
 		// Validate state
 		TSharedPtr<FWinHttpHttpRequest> StrongThis = LocalWeakThis.Pin();
@@ -255,11 +255,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		FWinHttpHttpRequestData& RequestData = StrongThis->RequestData;
 
 		// Create connection object
-		const bool bIsSecure = FGenericPlatformHttp::IsSecureProtocol(RequestData.Url).Get(false);
-		const FString Domain = FGenericPlatformHttp::GetUrlDomain(RequestData.Url);
-		TOptional<uint16> Port = FGenericPlatformHttp::GetUrlPort(RequestData.Url);
-		const FString PathAndQuery = FGenericPlatformHttp::GetUrlPath(RequestData.Url, true, false);
-		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, bIsSecure, Domain, Port, PathAndQuery, RequestData.Headers, RequestData.Payload);
+		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, RequestData.Url, RequestData.Headers, RequestData.Payload);
 		if (!Connection.IsValid())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
@@ -284,8 +280,10 @@ bool FWinHttpHttpRequest::ProcessRequest()
 
 		// Save object
 		StrongThis->Connection = MoveTemp(Connection);
-		FHttpModule::Get().GetHttpManager().AddRequest(StrongThisRef);
 	}));
+
+	// Store our request so it doesn't die if the requester doesn't store it (common use case)
+	FHttpModule::Get().GetHttpManager().AddRequest(LocalStrongThis);
 	return true;
 }
 
