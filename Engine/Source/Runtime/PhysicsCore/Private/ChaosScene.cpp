@@ -31,8 +31,6 @@
 #include "ChaosSolvers/Public/EventManager.h"
 #include "ChaosSolvers/Public/RewindData.h"
 
-TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"),1,TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
-
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"),STAT_UpdateKinematicsOnDeferredSkelMeshesChaos,STATGROUP_Physics);
 
 FChaosScene::FChaosScene(
