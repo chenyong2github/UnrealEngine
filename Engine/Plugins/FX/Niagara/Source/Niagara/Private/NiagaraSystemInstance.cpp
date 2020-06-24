@@ -34,6 +34,8 @@ DECLARE_CYCLE_STAT(TEXT("System Instance Tick [CNC]"), STAT_NiagaraSystemInst_Ti
 DECLARE_CYCLE_STAT(TEXT("System Instance Finalize [GT]"), STAT_NiagaraSystemInst_FinalizeGT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Instance WaitForAsyncTick [GT]"), STAT_NiagaraSystemWaitForAsyncTick, STATGROUP_Niagara);
 
+DECLARE_CYCLE_STAT(TEXT("InitGPUSystemTick"), STAT_NiagaraInitGPUSystemTick, STATGROUP_Niagara);
+
 static float GWaitForAsyncStallWarnThresholdMS = 0.2f;
 static FAutoConsoleVariableRef CVarWaitForAsyncStallWarnThresholdMS(
 	TEXT("fx.WaitForAsyncStallWarnThresholdMS"),
@@ -1205,11 +1207,14 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 			if (int32 Size = Interface->PerInstanceDataSize())
 			{
-				int32* ExistingInstanceDataOffset = DataInterfaceInstanceDataOffsets.Find(Interface);
+				auto* ExistingInstanceDataOffset = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair){ return Pair.Key.Get() == Interface; });
 				if (!ExistingInstanceDataOffset)//Don't add instance data for interfaces we've seen before.
 				{
 					//UE_LOG(LogNiagara, Log, TEXT("Adding DI %p %s %s"), Interface, *Interface->GetClass()->GetName(), *Interface->GetPathName());
-					DataInterfaceInstanceDataOffsets.Add(Interface) = InstanceDataSize;
+					auto& NewPair = DataInterfaceInstanceDataOffsets.AddDefaulted_GetRef();
+					NewPair.Key = Interface;
+					NewPair.Value = InstanceDataSize;
+
 					// Assume that some of our data is going to be 16 byte aligned, so enforce that 
 					// all per-instance data is aligned that way.
 					InstanceDataSize += Align(Size, 16);
@@ -1263,11 +1268,24 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	DataInterfaceInstanceData.SetNumUninitialized(InstanceDataSize);
 
 	bDataInterfacesInitialized = true;
-	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+	PreTickDataInterfaces.Empty();
+	PostTickDataInterfaces.Empty();
+	for (int32 i=0; i < DataInterfaceInstanceDataOffsets.Num(); ++i)
 	{
+		TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair = DataInterfaceInstanceDataOffsets[i];
 		if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 		{
 			check(IsAligned(&DataInterfaceInstanceData[Pair.Value], 16));
+
+			if (Interface->HasPreSimulateTick())
+			{
+				PreTickDataInterfaces.Add(i);
+			}
+
+			if (Interface->HasPostSimulateTick())
+			{
+				PostTickDataInterfaces.Add(i);
+			}
 
 			GPUDataInterfaceInstanceDataSize += Pair.Key->PerInstanceDataPassedToRenderThreadSize();
 
@@ -1296,14 +1314,6 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	}
 }
 
-bool FNiagaraSystemInstance::GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets)
-{
-	OutData = DataInterfaceInstanceData.GetData();
-	OutDataSize = DataInterfaceInstanceData.Num();
-	OutOffsets = &DataInterfaceInstanceDataOffsets;
-	return DataInterfaceInstanceDataOffsets.Num() != 0;
-}
-
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
 {
 	if (!GetSystem() || !Component || IsDisabled())
@@ -1314,8 +1324,9 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 	bool bReInitDataInterfaces = false;
 	if (bPostSimulate)
 	{
-		for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+		for (int32 DIPairIndex : PostTickDataInterfaces)
 		{
+			TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair = DataInterfaceInstanceDataOffsets[DIPairIndex];
 			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 			{
 				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
@@ -1325,8 +1336,9 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 	}
 	else
 	{
-		for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
+		for (int32 DIPairIndex : PreTickDataInterfaces)
 		{
+			TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair = DataInterfaceInstanceDataOffsets[DIPairIndex];
 			if (UNiagaraDataInterface* Interface = Pair.Key.Get())
 			{
 				//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
@@ -1857,7 +1869,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	}
 }
 
-void FNiagaraSystemInstance::Tick_Concurrent()
+void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_TickCNC);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT_CNC);
@@ -1981,10 +1993,20 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 		}
 	}
 
+	//Enqueue a GPU tick for this sim if we're allowed to do so from a concurrent thread.
+	//If we're batching our tick passing we may still need to enqueue here if not called from the regular async task. The caller will tell us with bEnqueueGPUTickIfNeeded.
+	FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
+	check(Sim);
+	ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
+	if (Mode == ENiagaraGPUTickHandlingMode::Concurrent || (Mode == ENiagaraGPUTickHandlingMode::ConcurrentBatched && bEnqueueGPUTickIfNeeded))
+	{
+		GenerateAndSubmitGPUTick();
+	}
+
 	bAsyncWorkInProgress = false;
 }
 
-void FNiagaraSystemInstance::FinalizeTick_GameThread()
+bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
 {
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
@@ -2014,40 +2036,63 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 				}
 				Component->MarkRenderDynamicDataDirty();
 
-				// Push any GPU ticks for this system instance.
-				if (ActiveGPUEmitterCount > 0 && Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) && Component->IsRegistered())
+
+				//Enqueue a GPU tick for this sim if we have to do this from the GameThread.
+				//If we're batching our tick passing we may still need to enqueue here if not called from the regular finalize task. The caller will tell us with bEnqueueGPUTickIfNeeded.
+				FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
+				check(Sim);
+				ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
+				if (Mode == ENiagaraGPUTickHandlingMode::GameThread || (Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched && bEnqueueGPUTickIfNeeded))
 				{
-					ensure(!IsComplete());
-					FNiagaraGPUSystemTick GPUTick;
-					GPUTick.Init(this);
-
-					//if (GPUTick.DIInstanceData)
-					//{
-					//	uint8* BasePointer = (uint8*)GPUTick.DIInstanceData->PerInstanceDataForRT;
-
-					//	//UE_LOG(LogNiagara, Log, TEXT("GT Testing (dipacket) %p (baseptr) %p"), GPUTick.DIInstanceData, BasePointer);
-					//	for (auto& Pair : GPUTick.DIInstanceData->InterfaceProxiesToOffsets)
-					//	{
-					//		FNiagaraDataInterfaceProxy* Proxy = Pair.Key;
-					//		UE_LOG(LogNiagara, Log, TEXT("\tGT (proxy) %p (size) %u"), Proxy, Proxy->PerInstanceDataPassedToRenderThreadSize());
-					//	}
-					//}
-
-					// We will give the data over to the render thread. It is responsible for freeing it.
-					// We no longer own it and cannot modify it after this point.
-					// @todo We are taking a copy of the object here. This object is small so this overhead should
-					// not be very high. And we avoid making a bunch of small allocations here.
-					NiagaraEmitterInstanceBatcher* TheBatcher = GetBatcher();
-					ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
-						[TheBatcher, GPUTick](FRHICommandListImmediate& RHICmdList) mutable
-						{
-							TheBatcher->GiveSystemTick_RenderThread(GPUTick);
-						}
-					);
+					GenerateAndSubmitGPUTick();
 				}
 			}
 		}
+		return true;
 	}
+
+	//Tell the caller we didn't actually finalize the system.
+	return false;
+}
+
+void FNiagaraSystemInstance::GenerateAndSubmitGPUTick()
+{
+	if (NeedsGPUTick())
+	{
+		ensure(!IsComplete());
+		FNiagaraGPUSystemTick GPUTick;
+		InitGPUTick(GPUTick);
+
+		// We will give the data over to the render thread. It is responsible for freeing it.
+		// We no longer own it and cannot modify it after this point.
+		// @todo We are taking a copy of the object here. This object is small so this overhead should
+		// not be very high. And we avoid making a bunch of small allocations here.
+		NiagaraEmitterInstanceBatcher* TheBatcher = GetBatcher();
+		ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
+			[TheBatcher, GPUTick](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+			}
+		);
+	}
+}
+
+void FNiagaraSystemInstance::InitGPUTick(FNiagaraGPUSystemTick& OutTick)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraInitGPUSystemTick);
+	OutTick.Init(this);
+
+	//if (GPUTick.DIInstanceData)
+	//{
+	//	uint8* BasePointer = (uint8*)GPUTick.DIInstanceData->PerInstanceDataForRT;
+
+	//	//UE_LOG(LogNiagara, Log, TEXT("GT Testing (dipacket) %p (baseptr) %p"), GPUTick.DIInstanceData, BasePointer);
+	//	for (auto& Pair : GPUTick.DIInstanceData->InterfaceProxiesToOffsets)
+	//	{
+	//		FNiagaraDataInterfaceProxy* Proxy = Pair.Key;
+	//		UE_LOG(LogNiagara, Log, TEXT("\tGT (proxy) %p (size) %u"), Proxy, Proxy->PerInstanceDataPassedToRenderThreadSize());
+	//	}
+	//}
 }
 
 #if WITH_EDITOR
@@ -2103,6 +2148,8 @@ void FNiagaraSystemInstance::DestroyDataInterfaceInstanceData()
 	}
 	DataInterfaceInstanceDataOffsets.Empty();
 	DataInterfaceInstanceData.Empty();
+	PreTickDataInterfaces.Empty();
+	PostTickDataInterfaces.Empty();
 }
 
 TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> FNiagaraSystemInstance::GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle)

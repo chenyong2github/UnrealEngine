@@ -319,6 +319,9 @@ public:
 
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const { return false; }
 
+	virtual bool HasPreSimulateTick() const { return false; }
+	virtual bool HasPostSimulateTick() const { return false; }
+
 	virtual bool RequiresDistanceFieldData() const { return false; }
 	virtual bool RequiresDepthBuffer() const { return false; }
 	virtual bool RequiresEarlyViewData() const { return false; }

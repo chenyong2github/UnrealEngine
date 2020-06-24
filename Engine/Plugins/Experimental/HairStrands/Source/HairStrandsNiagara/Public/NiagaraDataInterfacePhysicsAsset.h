@@ -144,6 +144,7 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDIPhysicsAssetData); }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	virtual bool HasPreSimulateTick() const override { return true; }
 
 	/** GPU simulation  functionality */
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;

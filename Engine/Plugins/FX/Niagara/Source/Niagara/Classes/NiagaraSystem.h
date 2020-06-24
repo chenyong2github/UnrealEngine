@@ -393,6 +393,8 @@ public:
 	bool bRequireCurrentFrameData = true;
 
 	bool HasSystemScriptDIsWithPerInstanceData() const;
+	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
+	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
@@ -457,6 +459,8 @@ private:
 
 	void ResolveScalabilitySettings();
 	void UpdatePostCompileDIInfo();
+	void UpdateDITickFlags();
+	void UpdateHasGPUEmitters();
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "System")
@@ -564,6 +568,9 @@ protected:
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
 
 	mutable FString CrashReporterTag;
+
+	uint32 bHasDIsWithPostSimulateTick : 1;
+	uint32 bHasAnyGPUEmitters : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
