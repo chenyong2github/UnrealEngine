@@ -116,7 +116,7 @@ public:
 	virtual void GetValueRange(float& MinValue, float& MaxValue) const PURE_VIRTUAL(FRealCurve::GetValueRange, );
 
 	/** Clear all keys. */
-	virtual void Reset(uint32 Slack = 0) PURE_VIRTUAL(FRealCurve::Reset, );
+	virtual void Reset() PURE_VIRTUAL(FRealCurve::Reset, );
 
 	/** Remap InTime based on pre and post infinity extrapolation values */
 	virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const PURE_VIRTUAL(FRealCurve::RemapTimeValue, );
