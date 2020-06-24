@@ -1420,7 +1420,7 @@ void UWorld::RefreshStreamingLevels( const TArray<class ULevelStreaming*>& InLev
 		FlushLevelStreaming();
 
 		bIsRefreshingStreamingLevels = true;
-
+		bool bLevelRefreshed = false;
 		// Remove all currently visible levels.
 		for (ULevelStreaming* StreamingLevel : InLevelsToRefresh)
 		{
@@ -1431,11 +1431,15 @@ void UWorld::RefreshStreamingLevels( const TArray<class ULevelStreaming*>& InLev
 				RemoveFromWorld( LoadedLevel );
 				FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevel); // Sketchy way to get the CurrentState correctly set to LoadedNotVisible
 				StreamingLevelsToConsider.Add(StreamingLevel); // Need to ensure this level is reconsidered during the flush to get it made visible again
+				bLevelRefreshed = true;
 			}
 		}
 
-		// Load and associate levels if necessary.
-		FlushLevelStreaming();
+		if (bLevelRefreshed)
+		{
+			// Load and associate levels if necessary.
+			FlushLevelStreaming();
+		}
 
 		// Update the level browser so it always contains valid data
 		FEditorSupportDelegates::WorldChange.Broadcast();
