@@ -48,13 +48,6 @@ int   GlossyReflections;
 // Outputs
 RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
 
-// #todo: refactor ApplyCameraRelativeDepthBias() in RayTracingCommon.ush so that it could be used in this compute shader.
-float ComputeBiasForPosition(float3 V)
-{
-	V = abs(V);
-	return max(max(V.x, V.y), V.z) * 0.01;
-}
-
 uint RayDirectionToBin(float3 Direction, uint2 NumBins)
 {
 	float2 OctDirection = UnitVectorToOctahedron(Direction);
