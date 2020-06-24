@@ -24,6 +24,9 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Settings/ControlRigSettings.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
 #endif//WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
@@ -231,7 +234,14 @@ void UControlRigBlueprint::RequestAutoVMRecompilation()
 	bVMRecompilationRequired = true;
 	if (bAutoRecompileVM && VMRecompilationBracket == 0)
 	{
-		VMCompileSettings.ASTSettings = FRigVMParserASTSettings::Fast();
+		if (IsRunningCommandlet())
+		{
+			UE_LOG(LogControlRigDeveloper, Display, TEXT("%s: VM compilation settings cannot be changed during a commandlet."), *GetPathName());
+		}
+		else
+		{
+			VMCompileSettings.ASTSettings = FRigVMParserASTSettings::Fast();
+		}
 		RecompileVMIfRequired();
 	}
 }
@@ -249,7 +259,14 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 		{
 			if (bVMRecompilationRequired)
 			{
-				VMCompileSettings.ASTSettings = FRigVMParserASTSettings::Fast();
+				if (IsRunningCommandlet())
+				{
+					UE_LOG(LogControlRigDeveloper, Display, TEXT("%s: VM compilation settings cannot be changed during a commandlet."), *GetPathName());
+				}
+				else
+				{
+					VMCompileSettings.ASTSettings = FRigVMParserASTSettings::Fast();
+				}
 			}
 			RecompileVMIfRequired();
 		}
