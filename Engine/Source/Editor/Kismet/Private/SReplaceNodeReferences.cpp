@@ -6,6 +6,7 @@
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Engine/MemberReference.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_Variable.h"
