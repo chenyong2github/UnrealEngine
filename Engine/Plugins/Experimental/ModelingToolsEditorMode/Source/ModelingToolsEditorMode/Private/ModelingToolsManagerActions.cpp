@@ -55,7 +55,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 	UI_COMMAND(BeginRemeshSculptMeshTool, "DynaSculpt", "Start the Liquid Sculpt Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginRemeshMeshTool, "Remesh", "Start the Remesh Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginProjectToTargetTool, "ProjectToTarget", "Start the Project To Target Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginProjectToTargetTool, "Remesh To Target", "Start the Remesh To Target Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginSimplifyMeshTool, "Simplify", "Start the Simplify Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginEditNormalsTool, "Normals", "Start the Edit Normals Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginEditTangentsTool, "Tangents", "Start the Edit Tangents Tool", EUserInterfaceActionType::Button, FInputChord());
