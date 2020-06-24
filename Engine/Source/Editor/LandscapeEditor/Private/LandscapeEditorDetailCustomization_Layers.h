@@ -23,6 +23,7 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class SDragAndDropVerticalBox;
+class SInlineEditableTextBlock;
 class ALandscapeBlueprintBrushBase;
 class ULandscapeLayerInfoObject;
 class FMenuBuilder;
