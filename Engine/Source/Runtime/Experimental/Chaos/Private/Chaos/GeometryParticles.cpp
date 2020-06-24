@@ -36,14 +36,6 @@ namespace Chaos
 				ShapesArray.SetNum(1);
 				ShapesArray[0] = FPerShapeData::CreatePerShapeData(0);
 				ShapesArray[0]->SetGeometry(Geometry);
-
-				if(Proxy)
-				{
-					if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
-					{
-						PhysicsSolverBase->SetNumDirtyShapes(Proxy, 1);
-					}
-				}
 			}
 
 			if (Geometry->HasBoundingBox())
@@ -57,12 +49,13 @@ namespace Chaos
 		else
 		{
 			ShapesArray.Reset();
-			if(Proxy)
+		}
+
+		if(Proxy)
+		{
+			if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
 			{
-				if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
-				{
-					PhysicsSolverBase->SetNumDirtyShapes(Proxy,0);
-				}
+				PhysicsSolverBase->SetNumDirtyShapes(Proxy, ShapesArray.Num());
 			}
 		}
 	}
