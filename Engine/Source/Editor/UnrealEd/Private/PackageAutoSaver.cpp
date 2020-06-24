@@ -28,6 +28,7 @@
 #include "EditorLevelUtils.h"
 #include "IVREditorModule.h"
 #include "LevelEditorViewport.h"
+#include "Animation/AnimCompressionDerivedDataPublic.h"
 
 namespace PackageAutoSaverJson
 {
@@ -439,6 +440,7 @@ bool FPackageAutoSaver::CanAutoSave() const
 	const bool bHasGameOrProjectLoaded = FApp::HasProjectName();
 	const bool bAreShadersCompiling = GShaderCompilingManager->IsCompiling();
 	const bool bIsVREditorActive = IVREditorModule::Get().IsVREditorEnabled();	// @todo vreditor: Eventually we should support this while in VR (modal VR progress, with sufficient early warning)
+	const bool bAreAnimationsCompressing = GAsyncCompressedAnimationsTracker ? GAsyncCompressedAnimationsTracker->GetNumRemainingJobs() > 0 : false;
 
 	bool bIsSequencerPlaying = false;
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
@@ -453,7 +455,7 @@ bool FPackageAutoSaver::CanAutoSave() const
 	// query any active editor modes and allow them to prevent autosave
 	const bool bActiveModesAllowAutoSave = GLevelEditorModeTools().CanAutoSave();
 
-	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bIsVREditorActive && !bIsSequencerPlaying && bActiveModesAllowAutoSave);
+	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bAreAnimationsCompressing && !bIsVREditorActive && !bIsSequencerPlaying && bActiveModesAllowAutoSave);
 }
 
 bool FPackageAutoSaver::DoPackagesNeedAutoSave() const
