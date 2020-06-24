@@ -585,12 +585,15 @@ void UNiagaraSystem::PostLoad()
 
 	if ( FPlatformProperties::RequiresCookedData() )
 	{
+		bIsValidCached = IsValidInternal();
 		bIsReadyToRunCached = IsReadyToRunInternal();
 	}
 
 	ResolveScalabilitySettings();
 
 	ComputeEmittersExecutionOrder();
+
+	CacheFromCompiledData();
 
 	//TODO: Move to serialized properties?
 	UpdateDITickFlags();
@@ -735,18 +738,6 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 	}
 
 	return true;
-}
-
-bool UNiagaraSystem::IsReadyToRun() const
-{
-	if (FPlatformProperties::RequiresCookedData())
-	{
-		return bIsReadyToRunCached;
-	}
-	else
-	{
-		return IsReadyToRunInternal();
-	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -950,6 +941,57 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 	}));
 }
 
+void UNiagaraSystem::CacheFromCompiledData()
+{
+	const FNiagaraDataSetCompiledData& SystemDataSet = SystemCompiledData.DataSetCompiledData;
+
+	// Cache system data accessors
+	static const FName NAME_System_ExecutionState = "System.ExecutionState";
+	SystemExecutionStateAccessor.Init(SystemDataSet, NAME_System_ExecutionState);
+
+	// Cache emitter data set accessors
+	EmitterSpawnInfoAccessors.Reset();
+	EmitterExecutionStateAccessors.Reset();
+	EmitterSpawnInfoAccessors.SetNum(GetNumEmitters());
+
+	TStringBuilder<128> ExecutionStateNameBuilder;
+	for (int32 i=0; i < EmitterHandles.Num(); ++i)
+	{
+		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandles[i].GetInstance())
+		{
+			// Cache system instance accessors
+			ExecutionStateNameBuilder.Reset();
+			ExecutionStateNameBuilder << NiagaraEmitter->GetUniqueEmitterName();
+			ExecutionStateNameBuilder << TEXT(".ExecutionState");
+			const FName ExecutionStateName(ExecutionStateNameBuilder.ToString());
+
+			EmitterExecutionStateAccessors.AddDefaulted_GetRef().Init(SystemDataSet, ExecutionStateName);
+
+			// Cache emitter data set accessors, for things like bounds, etc
+			const FNiagaraDataSetCompiledData* DataSetCompiledData = nullptr;
+			if (EmitterCompiledData.IsValidIndex(i))
+			{
+				for (const FName& SpawnName : EmitterCompiledData[i]->SpawnAttributes)
+				{
+					EmitterSpawnInfoAccessors[i].Emplace(SystemDataSet, SpawnName);
+				}
+
+				DataSetCompiledData = &EmitterCompiledData[i]->DataSetCompiledData;
+
+				if (NiagaraEmitter->bLimitDeltaTime)
+				{
+					MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), NiagaraEmitter->MaxDeltaTimePerTick) : NiagaraEmitter->MaxDeltaTimePerTick;
+				}
+			}
+			NiagaraEmitter->CacheFromCompiledData(DataSetCompiledData);
+		}
+		else
+		{
+			EmitterExecutionStateAccessors.AddDefaulted();
+		}
+	}
+}
+
 bool UNiagaraSystem::HasSystemScriptDIsWithPerInstanceData() const
 {
 	return bHasSystemScriptDIsWithPerInstanceData;
@@ -1042,7 +1084,7 @@ void UNiagaraSystem::UpdateHasGPUEmitters()
 	}
 }
 
-bool UNiagaraSystem::IsValid()const
+bool UNiagaraSystem::IsValidInternal() const
 {
 	if (!SystemSpawnScript || !SystemUpdateScript)
 	{
@@ -1070,6 +1112,7 @@ bool UNiagaraSystem::IsValid()const
 
 	return true;
 }
+
 #if WITH_EDITORONLY_DATA
 
 FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& InEmitter, FName EmitterName)
@@ -1423,6 +1466,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		ComputeEmittersExecutionOrder();
 
+		CacheFromCompiledData();
+		
 		UpdateHasGPUEmitters();
 		UpdateDITickFlags();
 

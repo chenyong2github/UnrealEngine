@@ -14,7 +14,6 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionContext.h"
-#include "NiagaraBoundsCalculator.h"
 
 class FNiagaraSystemInstance;
 struct FNiagaraEmitterHandle;
@@ -161,9 +160,6 @@ private:
 
 	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
-
-	/** Optional list of bounds calculators. */
-	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
 
 	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
 

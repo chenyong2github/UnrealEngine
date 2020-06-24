@@ -494,12 +494,13 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 	}
 
 	bCanExecute = System->GetSystemSpawnScript()->GetVMExecutableData().IsValid() && System->GetSystemUpdateScript()->GetVMExecutableData().IsValid();
-	UEnum* EnumPtr = FNiagaraTypeDefinition::GetExecutionStateEnum();
+
+	MaxDeltaTime = System->GetMaxDeltaTime();
 
 	if (bCanExecute)
 	{
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DataSets);
+			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DataSets);
 
 			const FNiagaraSystemCompiledData& SystemCompiledData = System->GetSystemCompiledData();
 			//Initialize the main simulation dataset.
@@ -520,18 +521,14 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 		UNiagaraScript* UpdateScript = System->GetSystemUpdateScript();
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_ExecContexts);
-
-
+			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_ExecContexts);
 
 			SpawnExecContext.Init(SpawnScript, ENiagaraSimTarget::CPUSim);
 			UpdateExecContext.Init(UpdateScript, ENiagaraSimTarget::CPUSim);
 		}
 
-
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_BindParams);
-
+			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_BindParams);
 
 			//Bind parameter collections.
 			for (UNiagaraParameterCollection* Collection : SpawnScript->GetCachedParameterCollectionReferences())
@@ -564,61 +561,8 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 			}
 		}
 
-
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DatasetAccessors);
-
-			static const FName NAME_System_ExecutionState = "System.ExecutionState";
-
-			SystemExecutionStateAccessor.Create(&MainDataSet, FNiagaraVariableBase(EnumPtr, NAME_System_ExecutionState));
-			EmitterSpawnInfoAccessors.Reset();
-			EmitterExecutionStateAccessors.Reset();
-			EmitterSpawnInfoAccessors.SetNum(System->GetNumEmitters());
-
-			TStringBuilder<128> ExecutionStateNameBuilder;
-			for (int32 EmitterIdx = 0; EmitterIdx < System->GetNumEmitters(); ++EmitterIdx)
-			{
-				FNiagaraEmitterHandle& EmitterHandle = System->GetEmitterHandle(EmitterIdx);
-				UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
-				bool bAddedAccessor = false;
-				if (Emitter)
-				{
-					ExecutionStateNameBuilder.Reset();
-					ExecutionStateNameBuilder << Emitter->GetUniqueEmitterName();
-					ExecutionStateNameBuilder << TEXT(".ExecutionState");
-
-					const FName ExecutionStateName(ExecutionStateNameBuilder.ToString());
-
-					if (MainDataSet.HasVariable(ExecutionStateName))
-					{
-						FNiagaraVariableBase ExecutionStateVar(EnumPtr, ExecutionStateName);
-						EmitterExecutionStateAccessors.Emplace(MainDataSet, ExecutionStateVar);
-						bAddedAccessor = true;
-						const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& EmitterCompiledData = System->GetEmitterCompiledData();
-
-						check(EmitterCompiledData.Num() == System->GetNumEmitters());
-						for (FName AttrName : EmitterCompiledData[EmitterIdx]->SpawnAttributes)
-						{
-							EmitterSpawnInfoAccessors[EmitterIdx].Emplace(MainDataSet, FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()), AttrName));
-						}
-
-						if (Emitter->bLimitDeltaTime)
-						{
-							MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), Emitter->MaxDeltaTimePerTick) : Emitter->MaxDeltaTimePerTick;
-						}
-					}
-				}
-				
-				if (!bAddedAccessor)
-				{
-					EmitterExecutionStateAccessors.Emplace();
-				}
-			}
-		}
-
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DirectBindings);
+			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DirectBindings);
 
 			SpawnNumSystemInstancesParam.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES);
 			UpdateNumSystemInstancesParam.Init(UpdateExecContext.Parameters, SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES);
@@ -1453,10 +1397,9 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 	SpawnInstanceParameterDataSet.Allocate(NumInstances);
 	UpdateInstanceParameterDataSet.Allocate(NumInstances);
 
-	for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
-	{
-		EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
-	}
+	UNiagaraSystem* System = GetSystem();
+	check(System != nullptr);
+	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors = System->GetEmitterExecutionStateAccessors();
 
 	//Tick instance parameters and transfer any needed into the system simulation dataset.
 	auto TransferInstanceParameters = [&](int32 SystemIndex)
@@ -1480,9 +1423,9 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 		for (int32 EmitterIdx = 0; EmitterIdx < Emitters.Num(); ++EmitterIdx)
 		{
 			FNiagaraEmitterInstance& EmitterInst = Emitters[EmitterIdx].Get();
-			if (EmitterExecutionStateAccessors.Num() > EmitterIdx&& EmitterExecutionStateAccessors[EmitterIdx].IsValidForWrite())
+			if ( (EmitterExecutionStateAccessors.Num() > EmitterIdx) )
 			{
-				EmitterExecutionStateAccessors[EmitterIdx].Set(SystemIndex, (int32)EmitterInst.GetExecutionState());
+				EmitterExecutionStateAccessors[EmitterIdx].GetWriter(Context.DataSet).SetSafe(SystemIndex, EmitterInst.GetExecutionState());
 			}
 		}
 	};
@@ -1661,25 +1604,19 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 		return;
 	}
 
-	SystemExecutionStateAccessor.SetDataSet(Context.DataSet);
-	SystemExecutionStateAccessor.InitForAccess();
-	for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
-	{
-		EmitterExecutionStateAccessors[EmitterIdx].SetDataSet(Context.DataSet);
-		EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
-		for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
-		{
-			EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].SetDataSet(Context.DataSet);
-			EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].InitForAccess();
-		}
-	}
+
+	UNiagaraSystem* System = GetSystem();
+	check(System != nullptr);
+
+	FNiagaraDataSetReaderInt32<ENiagaraExecutionState> SystemExecutionStateAccessor = System->GetSystemExecutionStateAccessor().GetReader(Context.DataSet);
+	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors = System->GetEmitterExecutionStateAccessors();
 
 	for (int32 SystemIndex = 0; SystemIndex < Context.Instances.Num(); ++SystemIndex)
 	{
 		FNiagaraSystemInstance* SystemInst = Context.Instances[SystemIndex];
 
 		//Apply the systems requested execution state to it's actual execution state.
-		ENiagaraExecutionState ExecutionState = (ENiagaraExecutionState)SystemExecutionStateAccessor.GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
+		ENiagaraExecutionState ExecutionState = SystemExecutionStateAccessor.GetSafe(SystemIndex, ENiagaraExecutionState::Disabled);
 		SystemInst->SetActualExecutionState(ExecutionState);
 
 		if (!SystemInst->IsDisabled())
@@ -1698,15 +1635,16 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 
 				check(Emitters.Num() > EmitterIdx);
 
-				ENiagaraExecutionState State = (ENiagaraExecutionState)EmitterExecutionStateAccessors[EmitterIdx].GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
+				ENiagaraExecutionState State = EmitterExecutionStateAccessors[EmitterIdx].GetReader(Context.DataSet).GetSafe(SystemIndex, ENiagaraExecutionState::Disabled);
 				EmitterInst.SetExecutionState(State);
 
+				TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> EmitterSpawnInfoAccessors = System->GetEmitterSpawnInfoAccessors(EmitterIdx);
 				TArray<FNiagaraSpawnInfo>& EmitterInstSpawnInfos = EmitterInst.GetSpawnInfo();
-				for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
+				for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors.Num(); ++SpawnInfoIdx)
 				{
 					if (SpawnInfoIdx < EmitterInstSpawnInfos.Num())
 					{
-						EmitterInstSpawnInfos[SpawnInfoIdx] = EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].Get(SystemIndex);
+						EmitterInstSpawnInfos[SpawnInfoIdx] = EmitterSpawnInfoAccessors[SpawnInfoIdx].GetReader(Context.DataSet).Get(SystemIndex);
 					}
 					else
 					{

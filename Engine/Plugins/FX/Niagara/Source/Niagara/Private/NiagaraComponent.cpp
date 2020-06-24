@@ -23,6 +23,7 @@
 #include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneInfo.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraDataSetAccessor.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -1778,24 +1779,16 @@ TArray<FVector> UNiagaraComponent::GetNiagaraParticleValueVec3_DebugOnly(const F
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Positions.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<FVector> PosData(Sim->GetData(), FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), *InValueName));
 
-				if (PosData.IsValidForRead())
-				{
-					for (int32 i = 0; i < NumParticles; ++i)
-					{
-						FVector Position;
-						PosData.Get(i, Position);
-						Positions[i] = Position;
-					}
-				}
-				else
+				const auto PosData = FNiagaraDataSetAccessor<FVector>::CreateReader(Sim->GetData(), *InValueName);
+				if (!PosData.IsValid())
 				{
 					UE_LOG(LogNiagara, Warning, TEXT("Unable to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
-					for (int32 i = 0; i < NumParticles; ++i)
-					{
-						Positions[i] = FVector::ZeroVector;
-					}
+				}
+
+				for (int32 i = 0; i < NumParticles; ++i)
+				{
+					Positions[i] = PosData.GetSafe(i, FVector::ZeroVector);
 				}
 			}
 		}
@@ -1817,12 +1810,11 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Values.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> ValueData(Sim->GetData(), *InValueName);
-				for (int32 i = 0; i < NumParticles; ++i)
+
+				const auto ValueData = FNiagaraDataSetAccessor<float>::CreateReader(Sim->GetData(), *InValueName);
+				for (int32 i=0; i < NumParticles; ++i)
 				{
-					float Value;
-					ValueData.Get(i, Value);
-					Values[i] = Value;
+					Values[i] = ValueData.GetSafe(i, 0.0f);
 				}
 			}
 		}

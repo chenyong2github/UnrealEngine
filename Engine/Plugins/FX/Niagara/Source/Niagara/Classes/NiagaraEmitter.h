@@ -10,6 +10,8 @@
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraEffectType.h"
+#include "NiagaraDataSetAccessor.h"
+#include "NiagaraBoundsCalculator.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -371,6 +373,8 @@ public:
 	NIAGARA_API UNiagaraScript* GetGPUComputeScript() { return GPUComputeScript; }
 	NIAGARA_API const UNiagaraScript* GetGPUComputeScript() const { return GPUComputeScript; }
 
+	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData);
+
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */
 	UPROPERTY()
@@ -458,6 +462,10 @@ public:
 	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
 	bool UsesCollection(const class UNiagaraParameterCollection* Collection)const;
 
+#if !UE_BUILD_SHIPPING
+	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+#endif
+
 	FString NIAGARA_API GetUniqueEmitterName()const;
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
@@ -518,6 +526,10 @@ public:
 	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 #endif
 
+	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
+
+	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -557,6 +569,10 @@ private:
 	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
 
 	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript);
+#endif
+
+#if !UE_BUILD_SHIPPING
+	FString DebugSimName;
 #endif
 
 	UPROPERTY()
@@ -599,6 +615,12 @@ private:
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
 #endif
+
+	/** Maximum number of instances we can create for this emitter. */
+	uint32 MaxInstanceCount = 0;
+
+	/** Optional list of bounds calculators. */
+	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
 
 	MemoryRuntimeEstimation RuntimeEstimation;
 	FCriticalSection EstimationCriticalSection;
