@@ -103,6 +103,14 @@ public:
 	USoundWave* SoundWaveSource;
 #endif // #if WITH_EDITORONLY_DATA
 
+	// Whether or not to convert this moto synth source to 8 bit on load to use less memory
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Memory")
+	bool bConvertTo8Bit = false;
+
+	// Amount to scale down the sample rate of the source
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Memory")
+	float DownSampleFactor = 1.0f;
+
 	// A curve to define the RPM contour from the min and max estimated RPM 
 	// Curve values are non-normalized and accurate to time
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grain Table | Analysis")
@@ -198,7 +206,13 @@ public:
  	// Retrieves the data ID of the source in the moto synth data manager
  	uint32 GetDataID() const { return SourceDataID; }
 
+	// Retrieves the memory usage of this in MB that will be used at runtime (i.e. from data manager)
+	float GetRuntimeMemoryUsageMB() const;
+
 protected:
+
+	uint32 GetNextSourceID() const;
+	void RegisterSourceData();
 
 #if WITH_EDITOR
 	float GetCurrentRPMForSampleIndex(int32 CurrentSampleIndex);

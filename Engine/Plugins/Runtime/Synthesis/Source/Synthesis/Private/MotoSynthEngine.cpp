@@ -250,10 +250,21 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const MotoSynthDataPtr& 
 				int32 EndingRPM = SynthData->GrainTable[NextGrainTableIndexClamped].RPM;
 
 				int32 StartIndex = FMath::Max(0, Entry->SampleIndex - NewGrainCrossfadeSamples);
-				int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData->AudioSource.Num());
 
-				TArrayView<const int16> GrainArrayView = MakeArrayView(&SynthData->AudioSource[StartIndex], EndIndex - StartIndex);
-				NewGrain.Init(GrainArrayView, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
+				if (SynthData->AudioSourceBitCrushed.Num() > 0)
+				{
+					int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData->AudioSourceBitCrushed.Num());
+
+					TArrayView<const uint8> GrainArrayView = MakeArrayView(&SynthData->AudioSourceBitCrushed[StartIndex], EndIndex - StartIndex);
+					NewGrain.Init(GrainArrayView, 1, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
+				}
+				else
+				{
+					int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData->AudioSource.Num());
+					uint8* AudioSourceData = (uint8*)&SynthData->AudioSource[StartIndex];
+					TArrayView<const uint8> GrainArrayView = MakeArrayView(AudioSourceData, 2 * (EndIndex - StartIndex));
+					NewGrain.Init(GrainArrayView, 2, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
+				}
 				NewGrain.SetRPM(CurrentRPM);
 
 				break;
@@ -435,13 +446,15 @@ int32 FMotoSynthEngine::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	return NumSamples;
 }
 
-void FMotoSynthGrainRuntime::Init(const TArrayView<const int16>& InGrainArrayView, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM)
+void FMotoSynthGrainRuntime::Init(const TArrayView<const uint8>& InGrainArrayView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM)
 {
 	GrainArrayView = InGrainArrayView;
+	NumBytesPerSample = InNumBytesPerSample;
+	NumSamples = InGrainArrayView.Num() / NumBytesPerSample;
 
 	CurrentSampleIndex = 0.0f;
 	FadeSamples = (float)InNumSamplesCrossfade;
-	FadeOutStartIndex = (float)InGrainArrayView.Num() - (float)FadeSamples;
+	FadeOutStartIndex = (float)NumSamples - (float)FadeSamples;
 	GrainPitchScale = 1.0f;
 	GrainRPMStart = InGrainStartRPM;
 	GrainRPMDelta = InGrainEndRPM - InGrainStartRPM;
@@ -450,21 +463,34 @@ void FMotoSynthGrainRuntime::Init(const TArrayView<const int16>& InGrainArrayVie
 
 float FMotoSynthGrainRuntime::GenerateSample()
 {
-	if (CurrentSampleIndex >= (float)GrainArrayView.Num())
+	if (CurrentSampleIndex >= NumSamples)
 	{
 		return 0.0f;
 	}
 
 	// compute the location of the grain playback in float-sample indices
-	int32 PreviousIndex = (int32)CurrentSampleIndex;
-	int32 NextIndex = PreviousIndex + 1;
+	int32 PreviousSampleIndex = (int32)CurrentSampleIndex;
+	int32 NextSampleIndex = PreviousSampleIndex + 1;
 
-	if (NextIndex < GrainArrayView.Num())
+	if (NextSampleIndex < NumSamples)
 	{
-		float PreviousSampleValue = (float)GrainArrayView[PreviousIndex] / 32767.0f;
-		float NextSampleValue = (float)GrainArrayView[NextIndex] / 32767.0f;
-		float SampleAlpha = CurrentSampleIndex - (float)PreviousIndex;
-		float SampleValueInterpolated = FMath::Lerp(PreviousSampleValue, NextSampleValue, SampleAlpha);
+		float SampleValueInterpolated = 0.0f;
+		if (NumBytesPerSample == 2)
+		{
+			int16* GrainDataPtr = (int16*)GrainArrayView.GetData();
+			float PreviousSampleValue = (float)GrainDataPtr[PreviousSampleIndex] / 32767.0f;
+			float NextSampleValue = (float)GrainDataPtr[NextSampleIndex] / 32767.0f;
+			float SampleAlpha = CurrentSampleIndex - (float)PreviousSampleIndex;
+			SampleValueInterpolated = FMath::Lerp(PreviousSampleValue, NextSampleValue, SampleAlpha);
+		}
+		else
+		{
+			// 8-bit data is polar 0.0 to 1.0, so scale to 0.0 to 2.0 and shift -1.0 to get back to bipolar (-1.0 to 1.0) float
+			float PreviousSampleValue = (2.0f * (float)GrainArrayView[PreviousSampleIndex] / 255.0f) - 1.0f;
+			float NextSampleValue = (2.0f * (float)GrainArrayView[NextSampleIndex] / 255.0f) - 1.0f;
+			float SampleAlpha = CurrentSampleIndex - (float)PreviousSampleIndex;
+			SampleValueInterpolated = FMath::Lerp(PreviousSampleValue, NextSampleValue, SampleAlpha);
+		}
 
 		// apply fade in or fade outs
 		if (FadeSamples > 0)
@@ -480,9 +506,8 @@ float FMotoSynthGrainRuntime::GenerateSample()
 			}
 		}
 
-
 		// Update the pitch scale based on the progress through the grain and the starting and ending grain RPMs and the current runtime RPM
-		float GrainFraction = CurrentSampleIndex / GrainArrayView.Num();
+		float GrainFraction = CurrentSampleIndex / NumSamples;
 		// Expected RPM given our playback progress, linearly interpolating the start and end RPMs
 		float ExpectedRPM = GrainRPMStart + GrainFraction * GrainRPMDelta;
 		GrainPitchScale = CurrentRuntimeRPM / ExpectedRPM;
@@ -492,19 +517,19 @@ float FMotoSynthGrainRuntime::GenerateSample()
 	}
 	else
 	{
-		CurrentSampleIndex = (float)GrainArrayView.Num() + 1.0f;
+		CurrentSampleIndex = (float)NumSamples + 1.0f;
 	}
 
 	return 0.0f;
 }
 bool FMotoSynthGrainRuntime::IsNearingEnd() const
 {
-	return (int32)CurrentSampleIndex >= (GrainArrayView.Num() - FadeSamples);
+	return (int32)CurrentSampleIndex >= (NumSamples - FadeSamples);
 }
 
 bool FMotoSynthGrainRuntime::IsDone() const
 {
-	return (int32)CurrentSampleIndex >= GrainArrayView.Num();
+	return (int32)CurrentSampleIndex >= NumSamples;
 }
 
 void FMotoSynthGrainRuntime::SetRPM(int32 InRPM)

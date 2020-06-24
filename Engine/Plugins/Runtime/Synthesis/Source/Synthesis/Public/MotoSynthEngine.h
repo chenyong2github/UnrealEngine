@@ -37,7 +37,7 @@ public:
 class FMotoSynthGrainRuntime
 {
 public:
-	void Init(const TArrayView<const int16>& InGrainView, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM);
+	void Init(const TArrayView<const uint8>& InGrainView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM);
 
 	// Generates a sample from the grain. Returns true if fading out
 	float GenerateSample();
@@ -52,7 +52,7 @@ public:
 	void SetRPM(int32 InRPM);
 
 private:
-	TArrayView<const int16> GrainArrayView;
+	TArrayView<const uint8> GrainArrayView;
 	float CurrentSampleIndex = 0.0f;
 	float FadeSamples = 0;
 	float FadeOutStartIndex = 0.0f;
@@ -61,6 +61,8 @@ private:
 	float GrainRPMStart = 0.0f;
 	float GrainRPMDelta = 0.0f;
 	float StartingRPM = 0.0f;
+	uint8 NumBytesPerSample = 2;
+	int32 NumSamples = 0;
 };
 
 class SYNTHESIS_API IMotoSynthEngine

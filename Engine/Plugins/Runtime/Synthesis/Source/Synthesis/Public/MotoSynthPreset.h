@@ -178,6 +178,10 @@ public:
 	UFUNCTION(Category = "Engine Preview", meta = (CallInEditor = "true"))
 	void StopEnginePreview();
 
+	// Dumps memory usage of the preset (i.e. of the source assets)
+	UFUNCTION(Category = "Memory", meta = (CallInEditor = "true"))
+	void DumpRuntimeMemoryUsage();
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
