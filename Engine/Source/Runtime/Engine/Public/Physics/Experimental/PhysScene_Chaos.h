@@ -5,20 +5,11 @@
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Physics/PhysScene.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/GCObject.h"
 #include "GameFramework/Actor.h"
 #include "PhysicsPublic.h"
 #include "PhysInterface_Chaos.h"
 #include "Physics/PhysicsInterfaceUtils.h"
-
-//Chaos includes. Todo: move to chaos core so we can include for all of engine
-#include "Chaos/Declares.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-#include "Framework/Threading.h"
-#include "Chaos/Core.h"
-#include "Chaos/CollisionResolutionTypes.h"
-#include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/ChaosScene.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -70,9 +61,11 @@ namespace Chaos
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
 */
-class ENGINE_API FPhysScene_Chaos : public FGCObject
+class ENGINE_API FPhysScene_Chaos : public FChaosScene
 {
 public:
+
+	using Super = FChaosScene;
 
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	FPhysScene_Chaos(AActor* InSolverActor
@@ -89,11 +82,6 @@ public:
 #endif
 
 	virtual ~FPhysScene_Chaos();
-
-	/**
-	 * Get the internal Chaos solver object
-	 */
-	Chaos::FPhysicsSolver* GetSolver() const;
 
 	/** Returns the actor that owns this solver. */
 	AActor* GetSolverActor() const;
@@ -122,10 +110,6 @@ public:
 	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 
-	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
-	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
-	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
-
 #if XGE_FIXED
 	template<typename PayloadType>
 	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda);
@@ -135,24 +119,10 @@ public:
 	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func);
 	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler);
 #endif // XGE_FIXED
-
-	void Shutdown();
-
 	FPhysicsReplication* GetPhysicsReplication();
 	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);
 
-#if WITH_EDITOR
-	void AddPieModifiedObject(UObject* InObj);
-#endif
-
-	// FGCObject Interface ///////////////////////////////////////////////////
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const
-	{
-		return "FPhysScene_Chaos";
-	}
-	//////////////////////////////////////////////////////////////////////////
-	
 	/** Given a solver object, returns its associated component. */
 	template<class OwnerType>
 	OwnerType* GetOwningComponent(IPhysicsProxyBase* PhysicsProxy) const
@@ -167,15 +137,6 @@ public:
 		IPhysicsProxyBase* const* PhysicsProxyPtr = ComponentToPhysicsProxyMap.Find(Comp);
 		return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
 	}
-
-	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration() const;
-	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration();
-	
-	/**
-	 * Copies the acceleration structure out of the solver, does no thread safety checking so ensure calls
-	 * to this are made at appropriate sync points if required
-	 */
-	void CopySolverAccelerationStructure();
 
 	/**
 	 * Callback when a world ends, to mark updated packages dirty. This can't be done in final
@@ -217,8 +178,6 @@ private:
 
 	void DispatchPendingCollisionNotifies();
 
-	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
-
 	/** Replication manager that updates physics bodies towards replicated physics state */
 	FPhysicsReplication* PhysicsReplication;
 
@@ -226,17 +185,6 @@ private:
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */
 	void OnUpdateWorldPause();
 #endif
-
-#if WITH_EDITOR
-	// List of objects that we modified during a PIE run for physics simulation caching.
-	TArray<UObject*> PieModifiedObjects;
-#endif
-
-	// Control module for Chaos - cached to avoid constantly hitting the module manager
-	FChaosSolversModule* ChaosModule;
-
-	// Solver representing this scene
-	Chaos::FPhysicsSolver* SceneSolver;
 
 	// Maps PhysicsProxy to Component that created the PhysicsProxy
 	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;
@@ -251,14 +199,10 @@ private:
 	// Counter used to check a match with the single step status.
 	int32 SingleStepCounter;
 #endif
-
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	// Cache the state of the game pause in order to avoid sending extraneous commands to the solver.
 	bool bIsWorldPaused;
 #endif
-
-	/** Scene lock object for external threads (non-physics) */
-	Chaos::FPhysicsSceneGuard ExternalDataLock;
 
 	// Allow other code to obtain read-locks when needed
 	friend struct FScopedSceneReadLock;
