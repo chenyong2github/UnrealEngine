@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
@@ -244,16 +244,10 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 
 void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
 {
-	if (FParse::Param(CmdLine, TEXT("cpuprofilertrace")))
-	{
-		Trace::ToggleChannel(CpuChannel, true);
-	}
 }
 
 void FCpuProfilerTrace::Shutdown()
 {
-	//todo: Was here for a specific reason?
-	//Trace::ToggleEvent(TEXT("CpuProfiler.EventBatch"), false); 
 	if (FCpuProfilerTraceInternal::ThreadBuffer)
 	{
 		delete FCpuProfilerTraceInternal::ThreadBuffer;

@@ -5,7 +5,7 @@
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
 #if STATSTRACE_ENABLED

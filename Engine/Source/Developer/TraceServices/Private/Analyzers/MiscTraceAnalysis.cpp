@@ -43,6 +43,8 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EndGameFrame, "Misc", "EndGameFrame");
 	Builder.RouteEvent(RouteId_BeginRenderFrame, "Misc", "BeginRenderFrame");
 	Builder.RouteEvent(RouteId_EndRenderFrame, "Misc", "EndRenderFrame");
+	Builder.RouteEvent(RouteId_ChannelAnnounce, "Trace", "ChannelAnnounce");
+	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 }
 
 bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -163,20 +165,31 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		}
 		break;
 	}
-	
 
+	case RouteId_ChannelAnnounce: OnChannelAnnounce(Context);
+		break;
+
+	case RouteId_ChannelToggle: OnChannelToggle(Context);
+		break;
 	}
 
 	return true;
 }
 
-void FMiscTraceAnalyzer::OnChannelAnnounce(const ANSICHAR* ChannelName, uint32 ChannelId)
+void FMiscTraceAnalyzer::OnChannelAnnounce(const FOnEventContext& Context)
 {
+	ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
+	uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+	bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+
 	ChannelProvider.AnnounceChannel(ChannelName, ChannelId);
+	ChannelProvider.UpdateChannel(ChannelId, bEnabled);
 }
 
-void FMiscTraceAnalyzer::OnChannelToggle(uint32 ChannelId, bool bEnabled)
+void FMiscTraceAnalyzer::OnChannelToggle(const FOnEventContext& Context)
 {
+	uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+	bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
 	ChannelProvider.UpdateChannel(ChannelId, bEnabled);
 }
 

@@ -17,7 +17,7 @@
 
 #if LOADTIMEPROFILERTRACE_ENABLED
 
-CORE_API UE_TRACE_CHANNEL_EXTERN(LoadTimeChannel);
+UE_TRACE_CHANNEL_EXTERN(LoadTimeChannel, CORE_API);
 
 struct FLoadTimeProfilerTrace
 {

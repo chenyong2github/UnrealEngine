@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine.h"
+#include "Algo/Find.h"
+#include "Algo/Sort.h"
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
 #include "StreamReader.h"
+#include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
@@ -451,17 +454,9 @@ enum ERouteId : uint16
 	RouteId_NewEvent,
 	RouteId_NewTrace,
 	RouteId_Timing,
-	RouteId_ChannelAnnounce,
-	RouteId_ChannelToggle,
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// This is used to influence the order of routes (routes are sorted by hash).
-enum EKnownRouteHashes : uint32
-{
-	RouteHash_NewEvent = 0, // must be 0 to match traces.
-	RouteHash_AllEvents,	
-};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
@@ -470,17 +465,121 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
 
-	// Manually add event routing for known events.
-	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
-	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
-	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
-	AddRoute(SelfIndex, RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
-	AddRoute(SelfIndex, RouteId_ChannelToggle, "$Trace", "ChannelToggle");
+	SessionContext = {};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::~FAnalysisEngine()
 {
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::Begin()
+{
+	// Call out to all registered analyzers to have them register event interest
+	struct : IAnalyzer::FInterfaceBuilder
+	{
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
+		}
+
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, "");
+		}
+
+		virtual void RouteAllEvents(uint16 RouteId) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, "", "");
+		}
+
+		FAnalysisEngine* Self;
+		uint16 AnalyzerIndex;
+	} Builder;
+	Builder.Self = this;
+
+	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
+	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	{
+		uint32 RouteCount = Routes.Num();
+
+		Builder.AnalyzerIndex = i;
+		IAnalyzer* Analyzer = Analyzers[i];
+		Analyzer->OnAnalysisBegin(OnAnalysisContext);
+
+		// If the analyzer didn't add any routes we'll retire it immediately
+		if (RouteCount == Routes.Num() && Analyzer != this)
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	}
+
+	auto RouteProjection = [] (const FRoute& Route) { return Route.Hash; };
+
+	Algo::SortBy(Routes, RouteProjection);
+
+	auto FindRoute = [this, &RouteProjection] (uint32 Hash)
+	{
+		const FRoute* Route = Algo::FindBy(Routes, Hash, RouteProjection);
+		return (Route != nullptr) ? int32(PTRINT(Route - Routes.GetData())) : -1;
+	};
+
+	int32 AllEventsIndex = FindRoute(FFnv1aHash().Get());
+	auto FixupRoute = [this, &FindRoute, AllEventsIndex] (FRoute* Route) 
+	{
+		if (Route->ParentHash)
+		{
+			int32 ParentIndex = FindRoute(Route->ParentHash);
+			Route->Parent = int16((ParentIndex < 0) ? AllEventsIndex : ParentIndex);
+		}
+		else
+		{
+			Route->Parent = -1;
+		}
+		Route->Count = 1;
+		return Route;
+	};
+
+	FRoute* Cursor = FixupRoute(Routes.GetData());
+	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
+	{
+		FRoute* Route = Routes.GetData() + i;
+		if (Route->Hash == Cursor->Hash)
+		{
+			Cursor->Count++;
+		}
+		else
+		{
+			Cursor = FixupRoute(Route);
+		}
+	}
+
+	switch (ProtocolVersion)
+	{
+	case Protocol0::EProtocol::Id:
+	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
+
+	case Protocol3::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
+			Dispatch.SetNoSync();
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -525,25 +624,34 @@ void FAnalysisEngine::AddRoute(
 	const ANSICHAR* Logger,
 	const ANSICHAR* Event)
 {
+	check(AnalyzerIndex < Analyzers.Num());
+
+	uint32 ParentHash = 0;
+	if (Logger[0] && Event[0])
+	{
+		FFnv1aHash Hash;
+		Hash.Add(Logger);
+		ParentHash = Hash.Get();
+	}
+
 	FFnv1aHash Hash;
 	Hash.Add(Logger);
 	Hash.Add(Event);
-	AddRoute(AnalyzerIndex, Id, Hash.Get());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::AddRoute(
-	uint16 AnalyzerIndex,
-	uint16 Id,
-	uint32 Hash)
-{
-	check(AnalyzerIndex < Analyzers.Num());
 
 	FRoute& Route = Routes.Emplace_GetRef();
 	Route.Id = Id;
-	Route.Hash = Hash;
-	Route.Count = 1;
+	Route.Hash = Hash.Get();
+	Route.ParentHash = ParentHash;
 	Route.AnalyzerIndex = AnalyzerIndex;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
+{
+	auto& Builder = Context.InterfaceBuilder;
+	Builder.RouteEvent(RouteId_NewTrace, "$Trace", "NewTrace");
+	Builder.RouteEvent(RouteId_NewEvent, "$Trace", "NewEvent");
+	Builder.RouteEvent(RouteId_Timing,   "$Trace", "Timing");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -554,8 +662,6 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_NewEvent:			OnNewEventInternal(Context);		break;
 	case RouteId_NewTrace:			OnNewTrace(Context);				break;
 	case RouteId_Timing:			OnTiming(Context);					break;
-	case RouteId_ChannelAnnounce:	OnChannelAnnounceInternal(Context);	break;
-	case RouteId_ChannelToggle:		OnChannelToggleInternal(Context);	break;
 	}
 
 	return true;
@@ -564,65 +670,13 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
-	const FEventData& EventData = Context.EventData;
-	SessionContext.Version = EventData.GetValue<uint16>("Version");
-
-	struct : IAnalyzer::FInterfaceBuilder
-	{
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
-		}
-
-		virtual void RouteAllEvents(uint16 RouteId) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
-		}
-
-		FAnalysisEngine* Self;
-		uint16 AnalyzerIndex;
-	} Builder;
-	Builder.Self = this;
-
-	// Some internal routes have been established already. In case there's some
-	// dispatches that are already connected to these routes we won't sort them
-	uint32 FixedRouteCount = Routes.Num();
-
-	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
-	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
-	{
-		uint32 RouteCount = Routes.Num();
-
-		Builder.AnalyzerIndex = i;
-		IAnalyzer* Analyzer = Analyzers[i];
-		Analyzer->OnAnalysisBegin(OnAnalysisContext);
-
-		// If the analyzer didn't add any routes we'll retire it immediately
-		if (RouteCount == Routes.Num() && Analyzer != this)
-		{
-			RetireAnalyzer(Analyzer);
-		}
-	}
-
-	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
-	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
-	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
-
-	FRoute* Cursor = Routes.GetData();
-	Cursor->Count = 1;
-
-	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
-	{
-		if (Routes[i].Hash == Cursor->Hash)
-		{
-			Cursor->Count++;
-		}
-		else
-		{
-			Cursor = Routes.GetData() + i;
-			Cursor->Count = 1;
-		}
-	}
+	// "Serial" will tell us approximately where we've started in the log serial
+	// range. We'll bias is by half so we won't accept any serialised events and
+	// mark the MSB to indicate that NextLogSerial should be corrected.
+	NextLogSerial = Context.EventData.GetValue<uint32>("Serial");
+	NextLogSerial -= (0x00ffffff + 1) >> 2;
+	NextLogSerial &= 0x00ffffff;
+	NextLogSerial |= 0x80000000;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -637,22 +691,16 @@ template <typename ImplType>
 void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 {
 	uint32 RouteCount = Routes.Num();
-	if (Dispatch->FirstRoute < RouteCount)
+	if (Dispatch->FirstRoute >= RouteCount)
 	{
-		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-		for (uint32 n = Route->Count; n--; ++Route)
-		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			if (Analyzer != nullptr)
-			{
-				Impl(Analyzer, Route->Id);
-			}
-		}
+		return;
 	}
 
-	const FRoute* Route = Routes.GetData() + 1;
-	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	const FRoute* FirstRoute = Routes.GetData();
+	const FRoute* Route = FirstRoute + Dispatch->FirstRoute;
+	do
 	{
+		const FRoute* NextRoute = FirstRoute + Route->Parent;
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
@@ -661,7 +709,9 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 				Impl(Analyzer, Route->Id);
 			}
 		}
+		Route = NextRoute;
 	}
+	while (Route >= FirstRoute);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -678,6 +728,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
 		OnNewEventProtocol1(Builder, EventData.Ptr);
 		break;
 	}
@@ -703,15 +754,15 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 {
-	// Add the dispatch to the dispatch table, failing gently if the table slot
-	// is already occupied.
+	// Add the dispatch to the dispatch table. Usually duplicates are an error
+	// but due to backwards compatibility we'll override existing dispatches.
 	uint16 Uid = Dispatch->Uid;
 	if (Uid < Dispatches.Num())
  	{
 		if (Dispatches[Uid] != nullptr)
  		{
-			FMemory::Free(Dispatch);
-			return false;
+			FMemory::Free(Dispatches[Uid]);
+			Dispatches[Uid] = nullptr;
  		}
  	}
 	else
@@ -720,14 +771,23 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
  	}
 
 	// Find routes that have subscribed to this event.
-	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
+	auto FindRoute = [this] (uint32 Hash)
 	{
-		if (Routes[i].Hash == Dispatch->Hash)
+		const FRoute* Route = Algo::FindBy(Routes, Hash, [] (const FRoute& Route) { return Route.Hash; });
+		return (Route != nullptr) ? int32(PTRINT(Route - Routes.GetData())) : -1;
+	};
+
+	int32 FirstRoute = FindRoute(Dispatch->Hash);
+	if (FirstRoute < 0)
+	{
+		FFnv1aHash LoggerHash;
+		LoggerHash.Add((const ANSICHAR*)Dispatch + Dispatch->LoggerNameOffset);
+		if ((FirstRoute = FindRoute(LoggerHash.Get())) < 0)
 		{
-			Dispatch->FirstRoute = i;
-			break;
+			FirstRoute = FindRoute(FFnv1aHash().Get());
 		}
 	}
+	Dispatch->FirstRoute = FirstRoute;
 
 	Dispatches[Uid] = Dispatch;
 	return true;
@@ -837,21 +897,12 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	{
 	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			AddDispatch(Builder.Finalize());
-		}
 		break;
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			AddDispatch(Builder.Finalize());
-		}
 		break;
 
 	default:
@@ -877,6 +928,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 		{
 			return false;
 		}
+
+		Begin();
 	}
 
 	Transport->SetReader(Reader);
@@ -953,24 +1006,43 @@ bool FAnalysisEngine::OnDataProtocol2()
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
 
-	int32 EventCount;
 	do
 	{
-		EventCount = 0;
+		int32 MinLogSerial = INT_MAX;
+		int32 MaxLogSerial = INT_MIN;
+
 		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
 			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
-			int32 ThreadEventCount = OnDataProtocol2(ThreadId, *Reader);
-			if (ThreadEventCount < 0)
+			int32 ReqLogSerial = OnDataProtocol2(ThreadId, *Reader);
+			if (ReqLogSerial >= 0)
 			{
-				return false;
+				MinLogSerial = FMath::Min(MinLogSerial, ReqLogSerial);
+				MaxLogSerial = FMath::Max(MaxLogSerial, ReqLogSerial);
+			}
+		}
+
+		// If min/max are more than half the serial range apart consider them
+		// as having wrapped.
+		if ((MaxLogSerial - MinLogSerial) > ((0x00ffffff + 1) >> 2))
+		{
+			Swap(MaxLogSerial, MinLogSerial);
+			MinLogSerial -= (0x00ffffff + 1);
+		}
+
+		if (uint32(MinLogSerial) != (NextLogSerial & 0x00ffffff))
+		{
+			if (NextLogSerial & 0x80000000)
+			{
+				NextLogSerial = (MinLogSerial & 0x00ffffff);
+				continue;
 			}
 
-			EventCount += ThreadEventCount;
+			break;
 		}
 	}
-	while (EventCount);
+	while (true);
 
 	return true;
 }
@@ -978,8 +1050,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 ////////////////////////////////////////////////////////////////////////////////
 int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 {
-	int32 EventCount = 0;
-	while (!Reader.IsEmpty())
+	while (true)
 	{
 		auto Mark = Reader.SaveMark();
 
@@ -999,7 +1070,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		const FDispatch* Dispatch = Dispatches[Uid];
 		if (Dispatch == nullptr)
 		{
-			return -1;
+			// Event-types may not to be discovered in Uid order.
+			break;
 		}
 
 		uint32 BlockSize = Header->Size;
@@ -1014,19 +1086,20 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
 					if (HeaderV1->Serial != uint16(NextLogSerial))
 					{
-						return EventCount;
+						return HeaderV1->Serial;
 					}
 					BlockSize += sizeof(*HeaderV1);
 				}
 				break;
 
 			case Protocol2::EProtocol::Id:
+			case Protocol3::EProtocol::Id:
 				{
 					const auto* HeaderSync = (Protocol2::FEventHeaderSync*)Header;
 					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
 					if (EventSerial != (NextLogSerial & 0x00ffffff))
 					{
-						return EventCount;
+						return EventSerial;
 					}
 					BlockSize += sizeof(*HeaderSync);
 				}
@@ -1076,11 +1149,9 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 				RetireAnalyzer(Analyzer);
 			}
 		});
-
-		++EventCount;
 	}
 
-	return EventCount;
+	return -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1124,36 +1195,6 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 		Collector.Push(AuxData);
 
 		Reader.Advance(BlockSize);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
-{
-	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-
-	for (IAnalyzer* Analyzer : Analyzers)
-	{
-		if (Analyzer != nullptr)
-		{
-			Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
-{
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
-
-	for (IAnalyzer* Analyzer : Analyzers)
-	{
-		if (Analyzer != nullptr)
-		{
-			Analyzer->OnChannelToggle(ChannelId, bEnabled);
-		}
 	}
 }
 

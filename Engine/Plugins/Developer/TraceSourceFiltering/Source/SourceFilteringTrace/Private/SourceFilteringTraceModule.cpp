@@ -3,7 +3,7 @@
 #include "SourceFilteringTraceModule.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Class.h"
@@ -14,7 +14,6 @@
 #include "PropertyPathHelpers.h"
 #include "AssetRegistryModule.h"
 #include "Engine/EngineTypes.h"
-#include "Trace/Detail/Channel.h"
 
 #include "DataSourceFilter.h"
 #include "SourceFilterManager.h"
@@ -76,7 +75,7 @@ void FSourceFilteringTraceModule::StartupModule()
 	FTraceSourceFiltering::Initialize();
 
 	// Forcefully enable the source trace channel
-	Trace::FChannel::Toggle(&TraceSourceFiltersChannel, true);
+	Trace::ToggleChannel(TEXT("TraceSourceFiltersChannel"), true);
 
 #if WITH_EDITOR
 	// Add callback to trace out Filter Classes once the Asset Registry has finished loading 

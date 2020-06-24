@@ -15,12 +15,13 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -308,7 +309,12 @@ static FAutoConsoleCommand TraceAuxiliaryStopCmd(
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
 #if UE_TRACE_ENABLED
-	Trace::Initialize();
+	// Initialize Trace
+	Trace::FInitializeDesc Desc;
+	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
+	Trace::Initialize(Desc);
+
+	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
 
 	GTraceAuxiliary.ParseCommandLine(CommandLine);
 

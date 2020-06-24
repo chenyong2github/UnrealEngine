@@ -17,7 +17,8 @@ namespace Private
 struct FWriteBuffer
 {
 	uint32						Overflow;
-	uint32						ThreadId;
+	uint16						Size;
+	uint16						ThreadId;
 	FWriteBuffer* __restrict	NextThread;
 	FWriteBuffer* __restrict	NextBuffer;
 	uint8* __restrict			Cursor;

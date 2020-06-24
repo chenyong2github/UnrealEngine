@@ -21,7 +21,7 @@ void FChannelProvider::AnnounceChannel(const ANSICHAR* InChannelName, uint32 Id)
 	Channels.Add(FChannelEntry{
 		Id,
 		ChannelName,
-		true
+		false,
 	});
 
 	TimeStamp = FDateTime::Now();

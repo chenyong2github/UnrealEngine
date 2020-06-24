@@ -4,6 +4,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Trace/Detail/Channel.h"
 #include "Trace/Detail/EventDef.h"
 
 namespace Trace
@@ -13,6 +14,8 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
+void	Writer_Initialize(const FInitializeDesc&);
+void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
 
@@ -36,10 +39,16 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Initialize()
+void Initialize(const FInitializeDesc& Desc)
 {
+	Private::Writer_Initialize(Desc);
 	FChannel::ToggleAll(false);
-	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Update()
+{
+	Private::Writer_Update();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,14 +72,7 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 {
 	ANSICHAR ChannelNameA[64];
 	ToAnsiCheap(ChannelNameA, ChannelName);
-
 	return FChannel::Toggle(ChannelNameA, bEnabled);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool ToggleChannel(struct FChannel& Channel, bool bEnabled)
-{
-	return FChannel::Toggle(&Channel, bEnabled);
 }
 
 } // namespace Trace

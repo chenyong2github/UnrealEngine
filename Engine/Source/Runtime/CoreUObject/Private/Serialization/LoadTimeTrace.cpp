@@ -5,7 +5,7 @@
 #if LOADTIMEPROFILERTRACE_ENABLED
 
 #include "LoadTimeTracePrivate.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
@@ -115,10 +115,6 @@ UE_TRACE_EVENT_END()
 
 void FLoadTimeProfilerTracePrivate::Init()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("loadtimetrace")))
-	{
-		Trace::ToggleChannel(LoadTimeChannel, true);
-	}
 }
 
 void FLoadTimeProfilerTracePrivate::OutputStartAsyncLoading()

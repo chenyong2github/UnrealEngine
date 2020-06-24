@@ -89,7 +89,7 @@
 
 #endif // UE_NP_TRACE_ENABLED
 
-NETWORKPREDICTION_API UE_TRACE_CHANNEL_EXTERN(NetworkPredictionChannel);
+UE_TRACE_CHANNEL_EXTERN(NetworkPredictionChannel, NETWORKPREDICTION_API);
 
 class AActor;
 

@@ -28,7 +28,6 @@ public:
 	{
 		uint64 StartCycle;
 		uint64 CycleFrequency;
-		uint16 Version;
 
 		double TimestampFromCycle(uint64 Cycle) const
 		{
@@ -48,6 +47,11 @@ public:
 		 * @param Logger Name of the logger that emits the event.
 		 * @param Event Name of the event to subscribe to. */
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) = 0;
+
+		/** Subscribe to all events from a particular logger.
+		 * @param RouteId User-provided identifier for this event subscription.
+		 * @param Logger Name of the logger that emits the event. */
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) = 0;
 
 		/** Subscribe to all events in the trace stream being analyzed.
 		 * @param RouteId User-provided identifier for this event subscription. */
@@ -202,20 +206,6 @@ public:
 	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		return true;
-	}
-
-	/** A new channel has been announced.
-	 * @param ChannelName Clear text name of the channel
-	 * @param ChannelId Unique identifier for the channel */
-	virtual void OnChannelAnnounce(const ANSICHAR* ChannelName, uint32 ChannelId)
-	{
-	}
-
-	/** A channel enabled state has changed.
-	 * @param ChannelId Unique identifier for the channel, see OnChannelAnnounce.
-	 * @param bEnabled True if the channel has been enabled, false otherwise */
-	virtual void OnChannelToggle(uint32 ChannelId, bool bEnabled)
-	{
 	}
 
 private:

@@ -7,7 +7,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "Misc/Parse.h"
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 UE_TRACE_CHANNEL(FileChannel)
 
@@ -139,10 +139,6 @@ void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 
 void FPlatformFileTrace::Init(const TCHAR* CmdLine)
 {
-	if (FParse::Param(CmdLine, TEXT("filetrace")))
-	{
-		Trace::ToggleChannel(FileChannel, true);
-	}
 }
 
 #endif

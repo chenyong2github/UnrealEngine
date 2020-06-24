@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "EventDef.h"
+#include "EventNode.h"
 
 namespace Trace
 {
@@ -12,8 +13,8 @@ namespace Trace
 ////////////////////////////////////////////////////////////////////////////////
 inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint32 EventFlags)
 {
-	const bool bMaybeHasAux = EventFlags & FEventDef::Flag_MaybeHasAux;
-	Instance = (EventFlags & FEventDef::Flag_NoSync)
+	const bool bMaybeHasAux = EventFlags & Private::FEventInfo::Flag_MaybeHasAux;
+	Instance = (EventFlags & Private::FEventInfo::Flag_NoSync)
 		? Writer_BeginLogNoSync(EventUid, Size, bMaybeHasAux)
 		: Writer_BeginLog(EventUid, Size, bMaybeHasAux);
 }

@@ -3,7 +3,7 @@
 
 #if MISCTRACE_ENABLED
 
-#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Misc/CString.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/PlatformTime.h"
