@@ -1135,7 +1135,10 @@ void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
 
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
-		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+		if (Analyzer != nullptr)
+		{
+			Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+		}
 	}
 }
 
@@ -1147,7 +1150,10 @@ void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
 
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
-		Analyzer->OnChannelToggle(ChannelId, bEnabled);
+		if (Analyzer != nullptr)
+		{
+			Analyzer->OnChannelToggle(ChannelId, bEnabled);
+		}
 	}
 }
 
