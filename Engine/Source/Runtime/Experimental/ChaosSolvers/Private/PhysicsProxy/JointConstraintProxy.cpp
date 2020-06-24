@@ -109,6 +109,12 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::AngularBreakTorque);
 			}
 
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::UserData))
+			{
+				JointSettingsBuffer.UserData = Constraint->GetUserData();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::UserData);
+			}
+
 			Constraint->ClearDirtyFlags();
 		}
 	}
@@ -190,6 +196,11 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
 		{
 			ConstraintSettings.AngularBreakTorque = JointSettingsBuffer.AngularBreakTorque;
+		}
+
+		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::UserData))
+		{
+			ConstraintSettings.UserData = JointSettingsBuffer.UserData;
 		}
 
 		DirtyFlagsBuffer.Clear();

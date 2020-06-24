@@ -162,6 +162,7 @@ namespace Chaos
 		, AngularDriveDamping(0)
 		, LinearBreakForce(FLT_MAX)
 		, AngularBreakTorque(FLT_MAX)
+		, UserData(nullptr)
 	{
 		if (bChaos_Joint_ISPC_Enabled)
 		{
