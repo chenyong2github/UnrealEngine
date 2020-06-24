@@ -1353,6 +1353,7 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 {
 	const FButtonStyle& Button = Style->GetWidgetStyle<FButtonStyle>("Button");
+	const FButtonStyle& NoBorder = Style->GetWidgetStyle<FButtonStyle>("NoBorder");
 	const FTextBlockStyle& NormalText = Style->GetWidgetStyle<FTextBlockStyle>("NormalText");
 	const FSlateColor SelectionColor = Style->GetSlateColor("SelectionColor");
 
@@ -1381,8 +1382,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	FLinearColor DockColor_Hovered(FColor(54, 54, 54));
 	FLinearColor DockColor_Active(FColor(62, 62, 62));
 
-	// Panel Tab
-	Style->Set("Docking.Tab", FDockTabStyle()
+	FDockTabStyle MinorTabStyle =
+		FDockTabStyle()
 		.SetCloseButtonStyle(CloseButton)
 		.SetNormalBrush(FSlateNoResource())
 		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Background))
@@ -1401,8 +1402,10 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		.SetActiveForegroundColor(FStyleColors::ForegroundHover)
 		.SetForegroundForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-		.SetTabTextStyle(NormalText)
-	);
+		.SetTabTextStyle(NormalText);
+
+	// Panel Tab
+	Style->Set("Docking.Tab", MinorTabStyle);
 
 	// App Tab
 	Style->Set("Docking.MajorTab", FDockTabStyle()
@@ -1433,6 +1436,32 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 	Style->Set("Docking.Tab.ActiveTabIndicatorColor", FStyleColors::Primary);
 
+
+	FButtonStyle SidebarTabButtonOpened =
+		FButtonStyle(NoBorder)
+		.SetNormal(MinorTabStyle.ForegroundBrush)
+		.SetHovered(MinorTabStyle.ForegroundBrush)
+		.SetNormalForeground(MinorTabStyle.NormalForegroundColor)
+		.SetPressedForeground(MinorTabStyle.NormalForegroundColor)
+		.SetHoveredForeground(MinorTabStyle.HoveredForegroundColor);
+
+
+	FButtonStyle SidebarTabButtonClosed =
+		FButtonStyle(NoBorder)
+		.SetNormal(MinorTabStyle.NormalBrush)
+		.SetHovered(MinorTabStyle.HoveredBrush)
+		.SetNormalForeground(MinorTabStyle.NormalForegroundColor)
+		.SetPressedForeground(MinorTabStyle.NormalForegroundColor)
+		.SetHoveredForeground(MinorTabStyle.HoveredForegroundColor);
+			
+	Style->Set("Docking.SidebarButton.Closed", SidebarTabButtonClosed);
+
+	Style->Set("Docking.SidebarButton.Opened", SidebarTabButtonOpened);
+
+	Style->Set("Docking.Sidebar.DrawerShadow", new BOX_BRUSH("/Starship/Docking/drawer-shadow", FMargin(8/64.f), FLinearColor(0, 0, 0, 1)));
+	Style->Set("Docking.Sidebar.DrawerBackground", new FSlateColorBrush(FStyleColors::Background));
+	Style->Set("Docking.Sidebar.Background", new FSlateColorBrush(FStyleColors::Input));
+	Style->Set("Docking.Sidebar.Border", new FSlateRoundedBoxBrush(FSlateColor(FLinearColor::Transparent), 5.0f, FStyleColors::Hover, 1.0f) );
 
 	// Dock Cross
 	Style->Set("Docking.Cross.DockLeft", new IMAGE_BRUSH("/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f)));

@@ -1312,6 +1312,10 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP( this, &SLevelViewport::IsImmersive ) );
 
+	OutCommandList.MapAction(
+		ViewportActions.ToggleSidebarAllTabs,
+		FExecuteAction::CreateSP(this, &SLevelViewport::OnToggleSidebarTabs)
+	);
 
 	OutCommandList.MapAction(
 		ViewportActions.ToggleCinematicPreview,
@@ -1861,6 +1865,11 @@ void SLevelViewport::OnToggleImmersive()
 			bShowToolbarAndControls = true;
 		}
 	}
+}
+
+void SLevelViewport::OnToggleSidebarTabs()
+{
+	ParentLevelEditor.Pin()->GetTabManager()->ToggleSidebarOpenTabs();
 }
 
 bool SLevelViewport::IsImmersive() const

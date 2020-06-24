@@ -582,7 +582,7 @@ void SWindow::ConstructWindowInternals()
 		WindowBorder =
 			FSlateApplicationBase::Get().MakeImage(
 				&Style->BorderBrush,
-				FLinearColor::White,
+				Style->BorderColor,
 				WindowContentVisibility
 			);
 
@@ -595,7 +595,6 @@ void SWindow::ConstructWindowInternals()
 		this->ChildSlot
 		[
 			SAssignNew(WindowOverlay, SOverlay)
-			.Visibility(EVisibility::SelfHitTestInvisible)
 			// window background
 			+ SOverlay::Slot()
 			[
@@ -1285,12 +1284,14 @@ SOverlay::FOverlaySlot& SWindow::AddOverlaySlot( const int32 ZOrder )
 	return WindowOverlay->AddSlot(ZOrder);
 }
 
-void SWindow::RemoveOverlaySlot( const TSharedRef<SWidget>& InContent )
+bool SWindow::RemoveOverlaySlot(const TSharedRef<SWidget>& InContent)
 {
 	if(WindowOverlay.IsValid())
 	{
-		WindowOverlay->RemoveSlot( InContent );
+		return WindowOverlay->RemoveSlot(InContent);
 	}
+
+	return false;
 }
 
 TSharedPtr<FPopupLayer> SWindow::OnVisualizePopup(const TSharedRef<SWidget>& PopupContent)
@@ -1718,7 +1719,7 @@ void SWindow::Minimize()
 
 int32 SWindow::GetCornerRadius()
 {
-	return IsRegularWindow() ? SWindowDefs::CornerRadius : 0;
+	return IsRegularWindow() ? Style->WindowCornerRadius : 0;
 }
 
 bool SWindow::SupportsKeyboardFocus() const

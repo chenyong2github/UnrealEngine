@@ -61,8 +61,6 @@ void SDockingTabStack::Construct( const FArguments& InArgs, const TSharedRef<FTa
 	InlineContentAreaRight = nullptr;
 	TitleBarSlot = nullptr;
 
-	this->TabStackGeometry = FGeometry();
-
 	// Animation that toggles the tabs
 	{
 		ShowHideTabWell = FCurveSequence(0,0.15);
@@ -232,7 +230,6 @@ void SDockingTabStack::Construct( const FArguments& InArgs, const TSharedRef<FTa
 	}
 }
 
-
 void SDockingTabStack::OnLastTabRemoved()
 {
 	if (!bIsDocumentArea)
@@ -247,7 +244,7 @@ void SDockingTabStack::OnLastTabRemoved()
 	}
 }
 
-void SDockingTabStack::OnTabClosed( const TSharedRef<SDockTab>& ClosedTab )
+void SDockingTabStack::OnTabClosed(const TSharedRef<SDockTab>& ClosedTab, SDockingNode::ELayoutModification RemovalMethod)
 {
 	const FTabId& TabIdBeingClosed = ClosedTab->GetLayoutIdentifier();
 	
@@ -255,22 +252,22 @@ void SDockingTabStack::OnTabClosed( const TSharedRef<SDockTab>& ClosedTab )
 	const bool bIsTabPersistable = TabIdBeingClosed.IsTabPersistable();
 	if (bIsTabPersistable)
 	{
-		ClosePersistentTab(TabIdBeingClosed);
+		// Sidebar tabs should still exist in the stacks layout so we can restore it
+		if (RemovalMethod != SDockingNode::ELayoutModification::TabRemoval_Sidebar)
+		{
+			ClosePersistentTab(TabIdBeingClosed);
+		}
 	}
 	else
 	{
-		RemovePersistentTab( TabIdBeingClosed );
+		RemovePersistentTab(TabIdBeingClosed);
 	}	
 }
+
 
 void SDockingTabStack::OnTabRemoved( const FTabId& TabId )
 {
 	RemovePersistentTab( TabId );
-}
-
-void SDockingTabStack::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
-{
-	TabStackGeometry = AllottedGeometry;
 }
 
 void SDockingTabStack::OpenTab( const TSharedRef<SDockTab>& InTab, int32 InsertLocationAmongActiveTabs )
@@ -302,6 +299,31 @@ void SDockingTabStack::AddTabWidget( const TSharedRef<SDockTab>& InTab, int32 At
 
 }
 
+void SDockingTabStack::AddSidebarTab(const TSharedRef<SDockTab>& InTab)
+{
+	InTab->SetParent(TabWell);
+}
+
+float SDockingTabStack::GetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab)
+{
+	FTabManager::FTab* Tab = Tabs.FindByPredicate(FTabMatcher(InTab->GetLayoutIdentifier()));
+	if (Tab)
+	{
+		return Tab->SidebarSizeCoefficient;
+	}
+
+	return 0;
+}
+
+void SDockingTabStack::SetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab, float InSizeCoefficient)
+{
+	FTabManager::FTab* Tab = Tabs.FindByPredicate(FTabMatcher(InTab->GetLayoutIdentifier()));
+	if (Tab)
+	{
+		Tab->SidebarSizeCoefficient = InSizeCoefficient;
+	}
+}
+
 const TSlotlessChildren<SDockTab>& SDockingTabStack::GetTabs() const
 {
 	return TabWell->GetTabs();
@@ -319,7 +341,7 @@ bool SDockingTabStack::HasTab(const struct FTabMatcher& TabMatcher) const
 
 FGeometry SDockingTabStack::GetTabStackGeometry() const
 {
-	return TabStackGeometry;
+	return GetTickSpaceGeometry();
 }
 
 void SDockingTabStack::RemoveClosedTabsWithName( FName InName )
@@ -576,14 +598,28 @@ TSharedRef<SWidget> SDockingTabStack::MakeContextMenu()
 		MenuBuilder.BeginSection("DockingTabStackOptions", LOCTEXT("TabOptionsHeading", "Options") );
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("HideTabWell", "Hide Tab"),
-				LOCTEXT("HideTabWellTooltip", "Hide the tabs to save room."),
+				LOCTEXT("CollapseTabWell", "Collapse Tab Well"),
+				LOCTEXT("CollapseTabWellTooltip", "Collapses the tabs headers to save room."),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP( this, &SDockingTabStack::ToggleTabWellVisibility ),
 					FCanExecuteAction::CreateSP( this, &SDockingTabStack::CanHideTabWell )
 				) 
 			);
+
+			if(IsTabAllowedInSidebar(TabWell->GetForegroundTab()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("MoveToSidebar", "Move To Sidebar"),
+					LOCTEXT("MoveToSidebarTooltip", "Moves this tab to a sidebar drawer on the side of the window closest to the tab.\nThe tab can be opened from the drawer and will automatically close again when clicking off it."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SDockingTabStack::MoveForegroundTabToSidebar),
+						FCanExecuteAction::CreateSP(this, &SDockingTabStack::CanMoveForegroundTabToSidebar)
+					)
+				);
+			}
+
 		}
 		MenuBuilder.EndSection();
 
@@ -753,7 +789,7 @@ TSharedPtr<FTabManager::FLayoutNode> SDockingTabStack::GatherPersistentLayout() 
 			const bool bIsTabPersistable = Tabs[TabIndex].TabId.IsTabPersistable();
 			if ( bIsTabPersistable )
 			{
-				PersistentStack->AddTab(Tabs[TabIndex].TabId, Tabs[TabIndex].TabState);
+				PersistentStack->AddTab(Tabs[TabIndex]);
 			}			
 		}
 		return PersistentStack;
@@ -887,6 +923,31 @@ void SDockingTabStack::ToggleTabWellVisibility()
 	ShowHideTabWell.Reverse();
 }
 
+void SDockingTabStack::MoveForegroundTabToSidebar()
+{
+	if (TSharedPtr<SDockTab> ForegroundTabPtr = TabWell->GetForegroundTab())
+	{
+		MoveTabToSidebar(ForegroundTabPtr.ToSharedRef());
+	}
+}
+
+void SDockingTabStack::MoveTabToSidebar(TSharedRef<SDockTab> Tab)
+{
+	const int32 TabIndex = Tabs.IndexOfByPredicate(FTabMatcher(Tab->GetLayoutIdentifier(), ETabState::OpenedTab));
+	if(TabIndex != INDEX_NONE)
+	{
+		ESidebarLocation SidebarLoc = GetDockArea()->AddTabToSidebar(Tab);
+
+		if (SidebarLoc != ESidebarLocation::None)
+		{
+			Tabs[TabIndex].TabState = ETabState::SidebarTab;
+			Tabs[TabIndex].SidebarLocation = SidebarLoc;
+
+			TabWell->RemoveAndDestroyTab(Tab, ELayoutModification::TabRemoval_Sidebar);
+		}
+	}
+}
+
 FReply SDockingTabStack::UnhideTabWell()
 {
 	SetTabWellHidden(false);
@@ -946,6 +1007,29 @@ bool SDockingTabStack::CanCloseAllButForegroundTab() const
 		}
 	}
 	return false;
+}
+
+bool SDockingTabStack::CanMoveForegroundTabToSidebar() const
+{
+	if(TSharedPtr<SDockTab> ForegroundTabPtr = TabWell->GetForegroundTab())
+	{
+		return CanMoveTabToSideBar(ForegroundTabPtr.ToSharedRef());
+	}
+
+	return false;
+}
+
+bool SDockingTabStack::CanMoveTabToSideBar(TSharedRef<SDockTab> Tab) const
+{
+	const FTabId TabIdBeingClosed = Tab->GetLayoutIdentifier();
+	// Only persistable non-major tabs can be put into a sidebar. There must also be more than one tab or else adding to a sidebar doesnt make si
+	return TabIdBeingClosed.IsTabPersistable() && Tab->GetVisualTabRole() != ETabRole::MajorTab && GetDockArea()->GetNumTabs() > 1;
+}
+
+bool SDockingTabStack::IsTabAllowedInSidebar(TSharedPtr<SDockTab> Tab) const
+{
+	// Major tabs are not allowed to be sidebared
+	return Tab.IsValid() && Tab->GetTabRole() != ETabRole::MajorTab && Tab->GetTabManager()->IsTabAllowedInSidebar(Tab->GetLayoutIdentifier());
 }
 
 SSplitter::ESizeRule SDockingTabStack::GetSizeRule() const
@@ -1009,7 +1093,7 @@ const FSlateBrush* SDockingTabStack::GetTabStackBorderImage() const
 
 int32 SDockingTabStack::OpenPersistentTab( const FTabId& TabId, int32 OpenLocationAmongActiveTabs )
 {
-	const int32 ExistingClosedTabIndex = Tabs.IndexOfByPredicate(FTabMatcher(TabId, ETabState::ClosedTab));
+	const int32 ExistingClosedTabIndex = Tabs.IndexOfByPredicate(FTabMatcher(TabId, static_cast<ETabState::Type>(ETabState::ClosedTab|ETabState::SidebarTab)));
 
 	if (OpenLocationAmongActiveTabs == INDEX_NONE)
 	{						
@@ -1082,7 +1166,7 @@ int32 SDockingTabStack::OpenPersistentTab( const FTabId& TabId, int32 OpenLocati
 
 int32 SDockingTabStack::ClosePersistentTab( const FTabId& TabId )
 {
-	const int32 TabIndex = Tabs.IndexOfByPredicate(FTabMatcher(TabId, ETabState::OpenedTab));
+	const int32 TabIndex = Tabs.IndexOfByPredicate(FTabMatcher(TabId, static_cast<ETabState::Type>(ETabState::OpenedTab|ETabState::SidebarTab)));
 	if (TabIndex != INDEX_NONE)
 	{
 		Tabs[TabIndex].TabState = ETabState::ClosedTab;

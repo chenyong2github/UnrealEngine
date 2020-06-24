@@ -7,6 +7,7 @@
 #include "Framework/Docking/SDockingTarget.h"
 #include "Framework/Docking/FDockingDragOperation.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "STabSidebar.h"
 
 
 void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FArea>& PersistentNode )
@@ -29,8 +30,24 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 		.Visibility( EVisibility::SelfHitTestInvisible )
 		+SOverlay::Slot()
 		[
-			SAssignNew(Splitter, SSplitter)
-			. Orientation( PersistentNode->GetOrientation() )
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SAssignNew(LeftSidebar, STabSidebar)
+				.Location(ESidebarLocation::Left)
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SAssignNew(Splitter, SSplitter)
+				.Orientation(PersistentNode->GetOrientation())
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SAssignNew(RightSidebar, STabSidebar)
+				.Location(ESidebarLocation::Right)
+			]
 		]
 		
 		+ SOverlay::Slot()
@@ -222,10 +239,6 @@ void SDockingArea::CleanUp( ELayoutModification RemovalMethod )
 				ParentWindow->HideWindow();
 				MyTabManager.Pin()->GetPrivateApi().OnDockAreaClosing( SharedThis(this) );
 			}
-			else
-			{
-				ensure( RemovalMethod == TabRemoval_None );
-			}
 		}
 	}
 	else
@@ -236,7 +249,7 @@ void SDockingArea::CleanUp( ELayoutModification RemovalMethod )
 	// In some cases a dock area will control the window,
 	// and we need to move some of the tabs out of the way
 	// to make room for window chrome.
-	MakeRoomForWindowChrome();
+	UpdateWindowChromeAndSidebar();
 }
 
 void SDockingArea::SetParentWindow( const TSharedRef<SWindow>& NewParentWindow )
@@ -246,7 +259,7 @@ void SDockingArea::SetParentWindow( const TSharedRef<SWindow>& NewParentWindow )
 		NewParentWindow->SetRequestDestroyWindowOverride( FRequestDestroyWindowOverride::CreateSP( this, &SDockingArea::OnOwningWindowBeingDestroyed ) );
 	}
 
-	// Even thought we don't manage the parent window's lifetime, we are still responsible for making its window chrome.
+	// Even though we don't manage the parent window's lifetime, we are still responsible for making its window chrome.
 	{
 		TSharedPtr<IWindowTitleBar> TitleBar;
 
@@ -255,8 +268,11 @@ void SDockingArea::SetParentWindow( const TSharedRef<SWindow>& NewParentWindow )
 		Args.CenterContentAlignment = HAlign_Fill;
 
 		TSharedRef<SWidget> TitleBarWidget = FSlateApplication::Get().MakeWindowTitleBar(Args, TitleBar);
+		(*WindowControlsArea)
+		[
+			TitleBarWidget
+		];
 
-		(*WindowControlsArea)[TitleBarWidget];
 		NewParentWindow->SetTitleBar(TitleBar);
 	}
 
@@ -322,6 +338,93 @@ TSharedPtr<FTabManager::FLayoutNode> SDockingArea::GatherPersistentLayout() cons
 TSharedRef<FTabManager> SDockingArea::GetTabManager() const
 {
 	return MyTabManager.Pin().ToSharedRef();
+}
+
+ESidebarLocation SDockingArea::AddTabToSidebar(TSharedRef<SDockTab> TabToAdd)
+{
+	ESidebarLocation Location = ESidebarLocation::None;
+
+	if(ensure(bCanHaveSidebar))
+	{
+		// Determine which sidebar to add the tab to. Testing is done in absolute desktop space because we need the tab and the area to be in the same space
+		FSlateRect AreaRect = GetPaintSpaceGeometry().GetLayoutBoundingRect();
+		FSlateRect LeftRect = FSlateRect(AreaRect.Left, AreaRect.Top, AreaRect.Right / 2, AreaRect.Bottom);
+		FSlateRect RightRect = FSlateRect(AreaRect.Right / 2, AreaRect.Top, AreaRect.Right, AreaRect.Bottom);
+
+		FSlateRect TabRect = TabToAdd->GetPaintSpaceGeometry().GetLayoutBoundingRect();
+
+		bool bOverlapsLeft = false;
+		FSlateRect LeftOverlap = LeftRect.IntersectionWith(TabRect, bOverlapsLeft);
+
+		bool bOverlapsRight = false;
+		FSlateRect RightOverlap = RightRect.IntersectionWith(TabRect, bOverlapsRight);
+
+		if (bOverlapsLeft && bOverlapsRight)
+		{
+			if (LeftOverlap.GetArea() > RightOverlap.GetArea())
+			{
+				// Left side
+				Location = ESidebarLocation::Left;
+			}
+			else
+			{
+				// Right side
+				Location = ESidebarLocation::Right;
+			}
+		}
+		else if (bOverlapsLeft)
+		{
+			// left side
+			Location = ESidebarLocation::Left;
+		}
+		else
+		{
+			ensure(bOverlapsRight);
+			// right side
+			Location = ESidebarLocation::Right;
+		}
+
+		if (Location == ESidebarLocation::Left)
+		{
+			LeftSidebar->AddTab(TabToAdd);
+		}
+		else
+		{
+			RightSidebar->AddTab(TabToAdd);
+		}
+	}
+	
+
+	return Location;
+
+}
+
+bool SDockingArea::RestoreTabFromSidebar(TSharedRef<SDockTab> TabToRemove)
+{
+	return LeftSidebar->RestoreTab(TabToRemove) || RightSidebar->RestoreTab(TabToRemove);
+}
+
+bool SDockingArea::IsTabInSidebar(TSharedRef<SDockTab> Tab) const
+{
+	return LeftSidebar->ContainsTab(Tab) || RightSidebar->ContainsTab(Tab);
+}
+
+bool SDockingArea::TryOpenSidebarDrawer(TSharedRef<SDockTab> TabToOpen) const
+{
+	return LeftSidebar->TryOpenSidebarDrawer(TabToOpen) || RightSidebar->TryOpenSidebarDrawer(TabToOpen);
+}
+
+void SDockingArea::AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& SidebarTabs)
+{
+	for (const TSharedRef<SDockTab>& Tab : SidebarTabs.LeftSidebarTabs)
+	{
+		LeftSidebar->AddTab(Tab);
+	}
+
+	for (const TSharedRef<SDockTab>& Tab : SidebarTabs.RightSidebarTabs)
+	{
+		RightSidebar->AddTab(Tab);
+	}
 }
 
 SDockingNode::ECleanupRetVal SDockingArea::CleanUpNodes()
@@ -459,7 +562,7 @@ void SDockingArea::OnLiveTabAdded()
 	CleanUp(SDockingNode::TabRemoval_None);
 }
 
-void SDockingArea::MakeRoomForWindowChrome()
+void SDockingArea::UpdateWindowChromeAndSidebar()
 {
 	TArray< TSharedRef<SDockingNode> > AllNodes = this->GetChildNodesRecursively();
 	if (AllNodes.Num() > 0)
@@ -474,15 +577,67 @@ void SDockingArea::MakeRoomForWindowChrome()
 			}
 		}
 
-		if (this->ParentWindowPtr.IsValid())
+		bCanHaveSidebar = true;
+
+		if (TSharedPtr<SWindow> ParentWindow = GetParentWindow())
 		{
+			bool bAccountForMenuBarPadding = false;
+			bool bContainsMajorTabs = false;
+			bool bContainsNomadTabs = false;
+			if (MyTabManager.Pin()->AllowsWindowMenuBar())
+			{
+				TArray<TSharedRef<SDockTab>> AllTabs = GetAllChildTabs();
+				for (auto& Tab : AllTabs)
+				{
+					if (Tab->GetParentWindow() == ParentWindow && Tab->GetTabRole() == ETabRole::MajorTab)
+					{
+						bAccountForMenuBarPadding = true;
+						bContainsMajorTabs = true;
+						break;
+					}
+					else if (Tab->GetTabRole() == ETabRole::NomadTab)
+					{
+						bContainsNomadTabs = true;
+					}
+				}
+			}
+
+			bCanHaveSidebar = !bContainsMajorTabs;
+
+			if (!bCanHaveSidebar)
+			{
+				LeftSidebar->SetVisibility(EVisibility::Collapsed);
+				RightSidebar->SetVisibility(EVisibility::Collapsed);
+			}
+			else
+			{
+				if (bAccountForMenuBarPadding)
+				{
+					// Menu bar padding has already applied an offset so no need to do it again
+					LeftSidebar->SetOffset(0);
+					RightSidebar->SetOffset(0);
+				}
+				else
+				{
+					LeftSidebar->SetOffset(35.f);
+					RightSidebar->SetOffset(35.f);
+				}
+			}
+
+			const bool bNoMajorOrNomadTabs = !(bContainsMajorTabs || bContainsNomadTabs);
+
 			// Reserve some space for the minimize, restore, and close controls
 			TSharedRef<SDockingTabStack> WindowControlHousing = this->FindTabStackToHouseWindowControls();
-			WindowControlHousing->ReserveSpaceForWindowChrome(SDockingTabStack::EChromeElement::Controls);
+			WindowControlHousing->ReserveSpaceForWindowChrome(SDockingTabStack::EChromeElement::Controls, bAccountForMenuBarPadding, bNoMajorOrNomadTabs);
 
 			// Reserve some space for the app icons
 			TSharedRef<SDockingTabStack> IconHousing = this->FindTabStackToHouseWindowIcon();
-			IconHousing->ReserveSpaceForWindowChrome(SDockingTabStack::EChromeElement::Icon);
+			IconHousing->ReserveSpaceForWindowChrome(SDockingTabStack::EChromeElement::Icon, bAccountForMenuBarPadding, bNoMajorOrNomadTabs);
+
+			if (ParentWindow->GetTitleBar())
+			{
+				ParentWindow->GetTitleBar()->SetUseLargeIcon(bAccountForMenuBarPadding);
+			}
 		}
 	}
 

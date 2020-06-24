@@ -18,6 +18,7 @@ class SDockingArea;
 class SDockingTabStack;
 class FLayoutExtender;
 struct FTabMatcher;
+struct FSidebarTabLists;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnActiveTabChanged,
@@ -27,18 +28,29 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(
 	TSharedPtr<SDockTab> );
 	
 
+enum class ESidebarLocation : uint8
+{
+	/** Tab is in a sidebar on the left side of its parent area */
+	Left,
+	/** Tab is in a sidebar on the right side of its parent area */
+	Right,
+
+	/** Tab is not in a sidebar */
+	None,
+};
+
 struct FTabId
 {
-	FTabId( )
+	FTabId()
 		: InstanceId(INDEX_NONE)
 	{ }
 
-	FTabId( const FName& InTabType, const int32 InInstanceId )
+	FTabId(const FName InTabType, const int32 InInstanceId)
 		: TabType(InTabType)
 		, InstanceId(InInstanceId)
 	{ }
 
-	FTabId( const FName& InTabType )
+	FTabId(const FName InTabType)
 		: TabType(InTabType)
 		, InstanceId(INDEX_NONE)
 	{ }
@@ -49,7 +61,7 @@ struct FTabId
 		return InstanceId == INDEX_NONE;
 	}
 
-	bool operator==( const FTabId& Other ) const
+	bool operator==(const FTabId& Other) const
 	{
 		return TabType == Other.TabType && (InstanceId == INDEX_NONE || Other.InstanceId == INDEX_NONE || InstanceId == Other.InstanceId) ;
 	}
@@ -146,6 +158,7 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 		, OnFindTabToReuse()
 		, MenuType(ETabSpawnerMenuType::Enabled)
 		, bAutoGenerateMenuEntry(true)
+		, bCanSidebarTab(true)
 		, SpawnedTabPtr()
 	{
 	}
@@ -192,6 +205,17 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 		return *this;
 	}
 
+	FTabSpawnerEntry& SetCanSidebarTab(bool bInCanSidebarTab)
+	{
+		bCanSidebarTab = bInCanSidebarTab;
+		return *this;
+	}
+
+	bool CanSidebarTab() const
+	{
+		return bCanSidebarTab;
+	}
+
 	virtual TSharedPtr<FTabSpawnerEntry> AsSpawnerEntry() override
 	{
 		return SharedThis(this);
@@ -207,6 +231,8 @@ private:
 	TAttribute<ETabSpawnerMenuType::Type> MenuType;
 	/** Whether to automatically generate a menu entry for this tab spawner */
 	bool bAutoGenerateMenuEntry;
+	/** Whether or not this tab can ever be in a sidebar */
+	bool bCanSidebarTab;
 
 	TWeakPtr<SDockTab> SpawnedTabPtr;
 
@@ -226,10 +252,12 @@ namespace ETabState
 	{
 		OpenedTab = 0x1 << 0,
 		ClosedTab = 0x1 << 1,
+		SidebarTab = 0x1 << 2,
+
 		/**
 		 * InvalidTab refers to tabs that were not recognized by the Editor (e.g., LiveLink when its plugin its disabled).
 		 */
-		InvalidTab = 0x1 << 2
+		InvalidTab = 0x1 << 3
 	};
 }
 
@@ -296,19 +324,33 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		struct FTab
 		{
-			FTab( const FTabId& InTabId, ETabState::Type InTabState )
-			: TabId(InTabId)
-			, TabState(InTabState)
+			FTab(const FTabId& InTabId, ETabState::Type InTabState)
+				: TabId(InTabId)
+				, TabState(InTabState)
+				, SidebarLocation(ESidebarLocation::None)
+				, SidebarSizeCoefficient(0.0f)
 			{
+				check(InTabState != ETabState::SidebarTab);
+			}
+
+			FTab(const FTabId& InTabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float InSidebarSizeCoefficient)
+				: TabId(InTabId)
+				, TabState(InTabState)
+				, SidebarLocation(InSidebarLocation)
+				, SidebarSizeCoefficient(InSidebarSizeCoefficient)
+			{
+				check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
 			}
 
 			bool operator==( const FTab& Other ) const
 			{
-				return this->TabId == Other.TabId && this->TabState == Other.TabState;
+				return this->TabId == Other.TabId && this->TabState == Other.TabState && this->SidebarLocation == Other.SidebarLocation;
 			}
 
 			FTabId TabId;
 			ETabState::Type TabState;
+			ESidebarLocation SidebarLocation;
+			float SidebarSizeCoefficient;
 		};
 
 		class SLATE_API FStack : public FLayoutNode
@@ -318,16 +360,35 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				friend class SDockingTabStack;
 
 			public:				
-
-				TSharedRef<FStack> AddTab( const FName& TabType, ETabState::Type TabState )
+				TSharedRef<FStack> AddTab(const FName TabType, ETabState::Type InTabState)
 				{
-					Tabs.Add( FTab( FTabId(TabType), TabState ) );
+					check(InTabState != ETabState::SidebarTab);
+					Tabs.Add(FTab( FTabId(TabType), InTabState));
 					return SharedThis(this);
 				}
 
-				TSharedRef<FStack> AddTab( const FTabId& TabId, ETabState::Type TabState )
+				TSharedRef<FStack> AddTab(const FTabId TabId, ETabState::Type InTabState)
 				{
-					Tabs.Add( FTab(TabId, TabState) );
+					check(InTabState != ETabState::SidebarTab);
+
+					Tabs.Add(FTab(TabId, InTabState));
+
+					return SharedThis(this);
+				}
+
+				TSharedRef<FStack> AddTab(const FName TabType, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient)
+				{
+					check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
+					Tabs.Add(FTab(FTabId(TabType), InTabState, InSidebarLocation, SidebarSizeCoefficient));
+					return SharedThis(this);
+				}
+
+				TSharedRef<FStack> AddTab(const FTabId TabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient)
+				{
+					check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
+
+					Tabs.Add(FTab(TabId, InTabState, InSidebarLocation, SidebarSizeCoefficient));
+
 					return SharedThis(this);
 				}
 
@@ -797,6 +858,14 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** @return if the provided tab can be closed. */
 		bool IsTabCloseable(const TSharedRef<const SDockTab>& InTab) const;
 
+		/** @return true if a tab is ever allowed in a sidebar */
+		bool IsTabAllowedInSidebar(const FTabId TabId) const;
+
+		/**
+		 * Temporarily moves all open tabs in this tab manager to a sidebar or restores them from a temporary state
+		 */
+		void ToggleSidebarOpenTabs();
+
 		/** @return The local workspace menu root */
 		const TSharedRef<FWorkspaceItem> GetLocalWorkspaceMenuRoot() const;
 
@@ -850,8 +919,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TSharedPtr<SDockingArea> RestoreArea(
 			const TSharedRef<FArea>& AreaToRestore, const TSharedPtr<SWindow>& InParentWindow, const bool bEmbedTitleAreaContent = false, const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::Never);
 
-		TSharedPtr<class SDockingNode> RestoreArea_Helper(
-			const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::Never);
+		TSharedPtr<class SDockingNode> RestoreArea_Helper(const TSharedRef<FLayoutNode>& LayoutNode, const TSharedPtr<SWindow>& ParentWindow, const bool bEmbedTitleAreaContent, FSidebarTabLists& OutSidebarTabs, const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::Never);
 
 		/**
 		 * Use CanRestoreSplitterContent + RestoreSplitterContent when the output of its internal RestoreArea_Helper can be a nullptr.
@@ -865,17 +933,18 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 *			RestoreSplitterContent(DockingNodes, SplitterWidget);
 		 *		}
 		 */
-		bool CanRestoreSplitterContent(TArray<TSharedRef<class SDockingNode>>& DockingNodes, const TSharedRef<FSplitter>& SplitterNode, const TSharedPtr<SWindow>& ParentWindow, const EOutputCanBeNullptr OutputCanBeNullptr);
+		bool CanRestoreSplitterContent(TArray<TSharedRef<class SDockingNode>>& DockingNodes, const TSharedRef<FSplitter>& SplitterNode, const TSharedPtr<SWindow>& ParentWindow, FSidebarTabLists& OutSidebarTabs, const EOutputCanBeNullptr OutputCanBeNullptr);
 		void RestoreSplitterContent(const TArray<TSharedRef<class SDockingNode>>& DockingNodes, const TSharedRef<class SDockingSplitter>& SplitterWidget);
 
 		/**
 		 * Use this standalone RestoreSplitterContent when the output of its internal RestoreArea_Helper cannot be a nullptr.
 		 */
-		void RestoreSplitterContent(const TSharedRef<FSplitter>& SplitterNode, const TSharedRef<class SDockingSplitter>& SplitterWidget, const TSharedPtr<SWindow>& ParentWindow);
+		void RestoreSplitterContent(const TSharedRef<FSplitter>& SplitterNode, const TSharedRef<class SDockingSplitter>& SplitterWidget, const TSharedPtr<SWindow>& ParentWindow, FSidebarTabLists& OutSidebarTabs);
 		
 		bool IsValidTabForSpawning( const FTab& SomeTab ) const;
 		bool IsAllowedTab(const FTabId& TabId) const;
 		bool IsAllowedTabType(const FName TabType) const;
+
 		TSharedPtr<SDockTab> SpawnTab(const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow, const bool bCanOutputBeNullptr = false);
 
 		TSharedPtr<class SDockingTabStack> FindTabInLiveAreas( const FTabMatcher& TabMatcher ) const;
@@ -884,6 +953,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		template<typename MatchFunctorType> static bool HasAnyMatchingTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode, const MatchFunctorType& Matcher );
 		bool HasOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
 		bool HasValidTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
+
 		/**
 		 * It sets the desired (or all) tabs in the FTabManager::FLayoutNode to the desired value.
 		 * @param SomeNode The area whose tabs will be modified.
@@ -922,6 +992,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		FTabSpawner TabSpawner;
 		TSharedRef<FTabSpawner> NomadTabSpawner;
 		TSharedPtr<FTabSpawnerEntry> FindTabSpawnerFor(FName TabId);
+		const TSharedPtr<const FTabSpawnerEntry> FindTabSpawnerFor(FName TabId) const;
+
 		bool HasTabSpawnerFor(FName TabId) const;
 
 		TArray< TWeakPtr<SDockingArea> > DockAreas;
@@ -992,6 +1064,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		/** Allow systems to dynamically hide tabs */
 		TSharedRef<FBlacklistNames> TabBlacklist;
+
+		/** Tabs which have been temporarily put in the a sidebar */
+		TArray<TWeakPtr<SDockTab>> TemporarilySidebaredTabs;
 };
 
 

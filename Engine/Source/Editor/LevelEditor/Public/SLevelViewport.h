@@ -444,6 +444,9 @@ private:
 	 */
 	void OnToggleImmersive();
 
+	/** Called when moving tabs in and out of a sidebar is activated by the user */
+	void OnToggleSidebarTabs();
+
 	/**
 	* Called to determine whether the maximize mode of current viewport can be toggled
 	*/

@@ -12,6 +12,15 @@
 #include "SDockingNode.h"
 #include "SDockingSplitter.h"
 
+class STabSidebar;
+
+/** List of tabs that should be in each sidebar */
+struct FSidebarTabLists
+{
+	TArray<TSharedRef<SDockTab>> LeftSidebarTabs;
+	TArray<TSharedRef<SDockTab>> RightSidebarTabs;
+};
+
 /**
  * Represents the root node in a hierarchy of DockNodes.
  */
@@ -83,6 +92,39 @@ public:
 
 	TSharedRef<FTabManager> GetTabManager() const;
 
+	/**
+	 * Adds a tab to a drawer in the sidebar. 
+	 *
+	 * @param TabToAdd	The tab to add to the sidebar
+	 * @return The location of the sidebar that the tab was added to
+	 */
+	ESidebarLocation AddTabToSidebar(TSharedRef<SDockTab> TabToAdd);
+
+	/**
+	 * Restores a tab from the sidebar to its parent tab stack and removes the tab from the sidebar.  
+	 *
+	 * @return true if the tab was found in this area and restore
+	 */
+	bool RestoreTabFromSidebar(TSharedRef<SDockTab> TabToRemove);
+
+	/**
+	 * @return true if the specified tab is in the sidebar
+	 */
+	bool IsTabInSidebar(TSharedRef<SDockTab> Tab) const;
+
+	/**
+	 * Attempts to open a sidebar drawer that may the tab to open
+	 *
+	 * @true if the drawer was opened, false if the tab is not in a drawer
+	 */
+	bool TryOpenSidebarDrawer(TSharedRef<SDockTab> TabToOpen) const;
+
+	/**
+	 * Adds all tabs back to a sidebar that were saved in a sidebar from a previous session
+	 */
+	void AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& SidebarTabs);
+
+	bool CanHaveSidebar() const { return bCanHaveSidebar; }
 protected:
 	virtual SDockingNode::ECleanupRetVal CleanUpNodes() override;
 
@@ -104,11 +146,15 @@ private:
 	 * If this dock area controls a window, then we need
 	 * to reserve some room in the upper left and upper right tab wells
 	 * so that there is no overlap with the window chrome.
+	 *
+	 * We also update the sidebar to account for major tabs.  Docking areas for major tabs do not have a sidebar.
 	 */
-	void MakeRoomForWindowChrome();
-
+	void UpdateWindowChromeAndSidebar();
 private:	
-	
+	/** Left and right sidebar widgets */
+	TSharedPtr<STabSidebar> LeftSidebar;
+	TSharedPtr<STabSidebar> RightSidebar;
+
 	/** The window this dock area is embedded within.  If bIsManagingParentWindow is true, the dock area will also
 	    destroy the window when the last tab goes away. */
 	TWeakPtr<SWindow> ParentWindowPtr;
@@ -133,4 +179,7 @@ private:
 
 	/** True when the last tab has been pulled from this area, meaning that this DockArea will not be necessary once that tab finds a new home. */
 	bool bCleanUpUponTabRelocation;
+
+	/** True if this area can ever show sidebars (minor tab areas only) */
+	bool bCanHaveSidebar;
 };

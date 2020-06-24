@@ -156,13 +156,16 @@ public:
 	FMargin GetContentPadding() const;
 
 	/** Gets this tab's layout identifier */
-	const FTabId& GetLayoutIdentifier() const;
+	const FTabId GetLayoutIdentifier() const;
 
 	/** Sets the tab's tab well parent, or resets it if nothing is passed in */
 	void SetParent(TSharedPtr<SDockingTabWell> Parent = TSharedPtr<SDockingTabWell>());
 
 	/** Gets the tab's tab well parent, or nothing, if it has none */
 	TSharedPtr<SDockingTabWell> GetParent() const;
+
+	/** Gets the dock tab stack this dockable tab resides within, if any */
+	TSharedPtr<SDockingTabStack> GetParentDockTabStack() const;
 
 	/** Gets the dock area that this resides in */
 	TSharedPtr<class SDockingArea> GetDockArea() const;
@@ -278,10 +281,8 @@ public:
 	{
 		return LastActivationTime;
 	}
+
 protected:
-	
-	/** Gets the dock tab stack this dockable tab resides within, if any */
-	TSharedPtr<SDockingTabStack> GetParentDockTabStack() const;
 
 	/** @return the style currently applied to the dock tab */
 	const FDockTabStyle& GetCurrentStyle() const;

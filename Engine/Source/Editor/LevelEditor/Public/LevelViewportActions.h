@@ -89,6 +89,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Toggles immersive mode in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleImmersive;
+	 
+	/** Toggles moving all tabs except the viewport to a sidebar or removing them from a sidebar */
+	TSharedPtr< FUICommandInfo > ToggleSidebarAllTabs;
 
 	/** Toggles maximize mode in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleMaximize;

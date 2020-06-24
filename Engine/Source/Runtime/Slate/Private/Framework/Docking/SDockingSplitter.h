@@ -76,6 +76,9 @@ public:
 	/** Recursively searches through all children looking for child tabs */
 	virtual TArray< TSharedRef<SDockTab> > GetAllChildTabs() const override;
 
+	/** Gets the number of tabs in all children recursively */
+	virtual int32 GetNumTabs() const override;
+
 	/** Should this node auto-size or be a percentage of its parent size */
 	virtual SSplitter::ESizeRule GetSizeRule() const override;
 

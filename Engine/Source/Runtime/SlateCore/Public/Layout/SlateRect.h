@@ -72,13 +72,21 @@ public:
 	}
 
 	/**
-	 * Returns the size of the rectangle.
+	 * Returns the size of the rectangle in each dimension.
 	 *
 	 * @return The size as a vector.
 	 */
 	FORCEINLINE FVector2D GetSize() const
 	{
 		return FVector2D( Right - Left, Bottom - Top );
+	}
+
+	/**
+	 * @return the area of the rectangle
+	 */
+	FORCEINLINE float GetArea() const
+	{
+		return (Right - Left) * (Bottom - Top);
 	}
 
 	/**

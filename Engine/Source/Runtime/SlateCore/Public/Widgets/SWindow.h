@@ -95,9 +95,6 @@ namespace SWindowDefs
 {
 	/** Height of a Slate window title bar, in pixels */
 	static const float DefaultTitleBarSize = 24.0f;
-
-	/** Size of the corner rounding radius.  Used for regular, non-maximized windows only (not tool-tips or decorators.) */
-	static const int32 CornerRadius = 6;
 }
 
 /** Proxy structure to handle deprecated construction from bool */
@@ -159,7 +156,7 @@ public:
 		, _ShouldPreserveAspectRatio( false )
 		, _CreateTitleBar( true )
 		, _SaneWindowPlacement( true )
-		, _LayoutBorder(FMargin(5, 5, 5, 5))
+		, _LayoutBorder( _Style->BorderPadding )
 		, _UserResizeBorder(FMargin(5, 5, 5, 5))
 		, _bManualManageDPI( false )
 
@@ -531,8 +528,9 @@ public:
 	 * Removes a widget that is being drawn over the entire window
 	 *
 	 * @param	InContent	The widget to remove
+	 * @return	true if successful
 	 */
-	void RemoveOverlaySlot( const TSharedRef<SWidget>& InContent );
+	bool RemoveOverlaySlot(const TSharedRef<SWidget>& InContent);
 
 	/**
 	 * Visualize a new pop-up if possible.  If it's not possible for this widget to host the pop-up
@@ -774,6 +772,11 @@ public:
 	void SetTitleBar( const TSharedPtr<IWindowTitleBar> InTitleBar )
 	{
 		TitleBar = InTitleBar;
+	}
+
+	TSharedPtr<IWindowTitleBar> GetTitleBar() const
+	{
+		return TitleBar;
 	}
 
 	// Events

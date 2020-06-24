@@ -75,8 +75,12 @@ public:
 	/** A tab can be removed from a stack when a uset drags it away or when the user closes it */
 	enum ELayoutModification
 	{
+		/** Tab was dragged out of the node */
 		TabRemoval_DraggedOut,
+		/** Tab is being closed */
 		TabRemoval_Closed,
+		/** Tab is being put in a sidebar */
+		TabRemoval_Sidebar,
 		TabRemoval_None
 	};
 	
@@ -87,6 +91,9 @@ public:
 	
 	/** Recursively searches through all children looking for child tabs */
 	virtual TArray< TSharedRef<SDockTab> > GetAllChildTabs() const {return TArray< TSharedRef<SDockTab> >();}
+
+	/** Gets the number of tabs in all children recursively */
+	virtual int32 GetNumTabs() const { return 0; }
 
 	/**
 	 * Attempt to dock the TabWidget from the DragDropEvent next to this node.

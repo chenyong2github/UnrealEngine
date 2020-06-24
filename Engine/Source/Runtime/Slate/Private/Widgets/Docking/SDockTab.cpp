@@ -328,7 +328,7 @@ void SDockTab::SetLayoutIdentifier( const FTabId& TabId )
 	LayoutIdentifier = TabId;
 }
 
-const FTabId& SDockTab::GetLayoutIdentifier() const
+const FTabId SDockTab::GetLayoutIdentifier() const
 {
 	return LayoutIdentifier;
 }
@@ -494,7 +494,7 @@ void SDockTab::SetDraggedOverDockArea( const TSharedPtr<SDockingArea>& Area )
 bool SDockTab::HasSiblingTab(const FTabId& SiblingTabId, const bool TreatIndexNoneAsWildcard) const
 {
 	TSharedPtr<SDockingTabStack> ParentTabStack = GetParentDockTabStack();
-	return (ParentTabStack.IsValid()) ? ParentTabStack->HasTab(FTabMatcher(SiblingTabId, static_cast<ETabState::Type>(ETabState::ClosedTab | ETabState::OpenedTab), TreatIndexNoneAsWildcard)) : false;
+	return (ParentTabStack.IsValid()) ? ParentTabStack->HasTab(FTabMatcher(SiblingTabId, static_cast<ETabState::Type>(ETabState::ClosedTab | ETabState::OpenedTab | ETabState::SidebarTab), TreatIndexNoneAsWildcard)) : false;
 }
 
 void SDockTab::Construct( const FArguments& InArgs )

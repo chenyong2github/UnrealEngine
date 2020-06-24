@@ -6,7 +6,7 @@
 #include "Framework/Docking/FDockingDragOperation.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-const FVector2D FDockingConstants::MaxMinorTabSize(160.f, 50.0f);
+const FVector2D FDockingConstants::MaxMinorTabSize(160.f, 25.0f);
 const FVector2D FDockingConstants::MaxMajorTabSize(210.f, 50.f);
 
 const FVector2D FDockingConstants::GetMaxTabSizeFor( ETabRole TabRole )
@@ -614,13 +614,18 @@ void SDockingTabWell::RemoveAndDestroyTab(const TSharedRef<SDockTab>& TabToRemov
 			{
 				BringTabToFront(OldTabIndex);
 			}
+
+			if (RemovalMethod == SDockingNode::ELayoutModification::TabRemoval_Sidebar && ForegroundTabIndex == INDEX_NONE)
+			{
+				FGlobalTabmanager::Get()->SetActiveTab(nullptr);
+			}
 		}
 		
 		if ( ensure(ParentTabStack.IsValid()) )
 		{
 			TSharedPtr<SDockingArea> DockAreaPtr = ParentTabStack->GetDockArea();
 
-			ParentTabStack->OnTabClosed( TabToRemove );
+			ParentTabStack->OnTabClosed( TabToRemove, RemovalMethod );
 			
 			// We might be closing down an entire dock area, if this is a major tab.
 			// Use this opportunity to save its layout

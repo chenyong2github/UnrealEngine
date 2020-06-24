@@ -272,9 +272,9 @@ TArray< TSharedRef<SDockingNode> > SDockingSplitter::GetChildNodesRecursively() 
 	return ChildNodes;
 }
 
-TArray< TSharedRef<SDockTab> > SDockingSplitter::GetAllChildTabs() const
+TArray<TSharedRef<SDockTab>> SDockingSplitter::GetAllChildTabs() const
 {
-	TArray< TSharedRef<SDockTab> > ChildTabs;
+	TArray<TSharedRef<SDockTab>> ChildTabs;
 	for (int32 i = 0; i < Children.Num(); ++i)
 	{
 		const TSharedRef<SDockingNode>& Child = Children[i];
@@ -283,6 +283,18 @@ TArray< TSharedRef<SDockTab> > SDockingSplitter::GetAllChildTabs() const
 	return ChildTabs;
 }
 
+
+int32 SDockingSplitter::GetNumTabs() const
+{
+	int32 NumTabs = 0;
+	for (int32 i = 0; i < Children.Num(); ++i)
+	{
+		const TSharedRef<SDockingNode>& Child = Children[i];
+		NumTabs += Child->GetNumTabs();
+	}
+
+	return NumTabs;
+}
 
 EOrientation SDockingSplitter::GetOrientation() const
 {

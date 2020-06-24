@@ -11,12 +11,8 @@
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
 #include "Animation/CurveSequence.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
 #include "Framework/Docking/TabManager.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "SDockingNode.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define DEBUG_TAB_MANAGEMENT 0
 
@@ -24,8 +20,28 @@ class FUICommandList;
 class FWeakWidgetPath;
 class FWidgetPath;
 class SDockingTabWell;
+class SBorder;
 
 template<typename ChildType> class TSlotlessChildren;
+
+struct FDockingStackOptionalContent
+{
+	FDockingStackOptionalContent()
+		: ContentLeft(SNullWidget::NullWidget)
+		, ContentRight(SNullWidget::NullWidget)
+		, TitleBarContentRight(SNullWidget::NullWidget)
+	{}
+
+	// Content that appears on the left side of tabs in this docking stack
+	TSharedRef<SWidget> ContentLeft;
+
+	// Content that appears on the right side of tabs in this docking stack
+	TSharedRef<SWidget> ContentRight;
+
+	// Content that appears on the right side of the title bar in the window this stack is in
+	TSharedRef<SWidget> TitleBarContentRight;
+};
+
 
 /**
  * A node in the Docking/Tabbing hierarchy.
@@ -47,7 +63,8 @@ public:
 
 	void OnLastTabRemoved();
 
-	void OnTabClosed( const TSharedRef<SDockTab>& ClosedTab );
+	void OnTabClosed(const TSharedRef<SDockTab>& ClosedTab, SDockingNode::ELayoutModification RemovalMethod);
+
 	void OnTabRemoved( const FTabId& TabId );
 
 	void Construct( const FArguments& InArgs, const TSharedRef<FTabManager::FStack>& PersistentNode );
@@ -58,11 +75,19 @@ public:
 
 	void AddTabWidget( const TSharedRef<SDockTab>& InTab, int32 AtLocation = INDEX_NONE);
 
+	void AddSidebarTab(const TSharedRef<SDockTab>& InTab);
+
+	float GetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab);
+	void SetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab, float InSizeCoefficient);
+
+	/** @return true if the specified tab can be moved to a sidebar */
+	bool CanMoveTabToSideBar(TSharedRef<SDockTab> Tab) const;
+
+	/** Moves a specific tab from this stack into a sidebar */
+	void MoveTabToSidebar(TSharedRef<SDockTab> Tab);
+
 	/** @return All child tabs in this node */
 	const TSlotlessChildren<SDockTab>& GetTabs() const;
-	
-	/** @return How many tabs are in this node */
-	int32 GetNumTabs() const;
 
 	bool HasTab( const struct FTabMatcher& TabMatcher ) const;
 
@@ -76,12 +101,15 @@ public:
 	void BringToFront( const TSharedRef<SDockTab>& TabToBringToFront );
 
 	/** Set the content that the DockNode is presenting. */
-	void SetNodeContent( const TSharedRef<SWidget>& InContent, const TSharedRef<SWidget>& InContentLeft, const TSharedRef<SWidget>& InContentRight, const TSharedRef<SWidget>& InContentBackground );
+	void SetNodeContent( const TSharedRef<SWidget>& InContent, const FDockingStackOptionalContent& OptionalContent);
 
 	virtual FReply OnUserAttemptingDock( SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent ) override;
 	
 	/** Recursively searches through all children looking for child tabs */
 	virtual TArray< TSharedRef<SDockTab> > GetAllChildTabs() const override;
+
+	/** Gets the number of tabs in all children recursively */
+	virtual int32 GetNumTabs() const override;
 
 	virtual SSplitter::ESizeRule GetSizeRule() const override;
 
@@ -106,24 +134,16 @@ public:
 	 * Add some extra padding so that the corresponding window chrome element
 	 * does not overlap our tabs.
 	 */
-	void ReserveSpaceForWindowChrome(EChromeElement);
+	void ReserveSpaceForWindowChrome(EChromeElement Element, bool bIncludePaddingForMenuBar, bool bOnlyMinorTabs);
 
 public:
-
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
+	/** SWidget interface */
 	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-
 	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
-	
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-
 	virtual void OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent ) override;
-
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
 protected:
@@ -198,6 +218,10 @@ private:
 	/** Show/Hide the tab well; do it smoothly with an animation */
 	void ToggleTabWellVisibility();
 
+	/** Moves the foreground tab to a sidebar */
+	void MoveForegroundTabToSidebar();
+
+	/** Unhides the tab well, revealing all tab headers */
 	FReply UnhideTabWell();
 
 	/** Only allow hiding the tab well when there is a single tab in it. */
@@ -212,8 +236,11 @@ private:
 	/** Only allow closing all other tabs when there are more then one tab open and the tab is of type Document or Major. */
 	bool CanCloseAllButForegroundTab() const;
 
-	/** Keep around our geometry from the last frame so that we can resize the preview windows correctly */
-	FGeometry TabStackGeometry;
+	/** @return true if the foreground tab can be moved to a sidebar */
+	bool CanMoveForegroundTabToSidebar() const;
+
+	/** @return true if the specified tab can be moved to a sidebar */
+	bool IsTabAllowedInSidebar(TSharedPtr<SDockTab> Tab) const;
 
 	/** The tab well widget shows all tabs, keeps track of the selected tab, allows tab rearranging, etc. */
 	TSharedPtr<class SDockingTabWell> TabWell;
@@ -221,7 +248,7 @@ private:
 	/** The borders that hold any potential inline content areas. */
 	SHorizontalBox::FSlot* InlineContentAreaLeft;
 	SHorizontalBox::FSlot* InlineContentAreaRight;
-	SOverlay::FOverlaySlot* BackgroundContentArea;
+
 	SVerticalBox::FSlot* TitleBarSlot;
 	TSharedPtr<SWidget> TitleBarContent;
 
@@ -251,8 +278,8 @@ private:
 	/** Get the opacity for the button that unhides the tab well */
 	FSlateColor GetUnhideTabWellButtonOpacity() const;
 
-	/** @return Gets the visibility state for spacers that pad out the tab well to make room for title bar widgets */
-	EVisibility GetTitleAreaSpacerVisibility();
+	/** Gets the background behind the tab stack */
+	const FSlateBrush* GetTabStackBorderImage() const;
 
 	/** Visibility of TitleBar spacer based on maximize/restore status of the window.
 	 ** This gives us a little more space to grab the title bar when the window is not maximized
@@ -280,12 +307,15 @@ private:
 
 	/** Tab command list */
 	TSharedPtr<FUICommandList> ActionList;
+
+	/** Whether or not this tab stack is part of the title bar area */
+	bool bShowingTitleBarArea;
 };
 
 
 struct FTabMatcher
 {
-	FTabMatcher( const FTabId& InTabId, ETabState::Type InTabState = static_cast<ETabState::Type>(ETabState::ClosedTab | ETabState::OpenedTab), const bool InTreatIndexNoneAsWildcard = true )
+	FTabMatcher( const FTabId& InTabId, ETabState::Type InTabState = static_cast<ETabState::Type>(ETabState::ClosedTab | ETabState::OpenedTab | ETabState::SidebarTab), const bool InTreatIndexNoneAsWildcard = true )
 		: TabIdToMatch( InTabId )
 		, RequiredTabState( InTabState )
 		, TreatIndexNoneAsWildcard( InTreatIndexNoneAsWildcard )
