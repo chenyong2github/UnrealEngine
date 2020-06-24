@@ -572,7 +572,7 @@ bool UEditorLevelUtils::PrivateRemoveInvalidLevelFromWorld(ULevelStreaming* InLe
 		if (UWorld* OwningWorld = InLevelStreaming->GetWorld())
 		{
 			OwningWorld->RemoveStreamingLevel(InLevelStreaming);
-			OwningWorld->RefreshStreamingLevels();
+			OwningWorld->RefreshStreamingLevels({});
 			bRemovedLevelStreaming = true;
 		}
 	}
@@ -781,7 +781,7 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		ULevelStreaming* StreamingLevel = InLevel->OwningWorld->GetStreamingLevels()[StreamingLevelIndex];
 		StreamingLevel->MarkPendingKill();
 		InLevel->OwningWorld->RemoveStreamingLevel(StreamingLevel);
-		InLevel->OwningWorld->RefreshStreamingLevels();
+		InLevel->OwningWorld->RefreshStreamingLevels({});
 	}
 	else if (InLevel->bIsVisible)
 	{
