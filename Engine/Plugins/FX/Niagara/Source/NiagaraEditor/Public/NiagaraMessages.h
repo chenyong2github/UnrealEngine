@@ -12,7 +12,7 @@
 #include "NiagaraMessageDataBase.h"
 #include "NiagaraMessages.generated.h"
 
-static struct NIAGARAEDITOR_API FNiagaraMessageTopics
+struct NIAGARAEDITOR_API FNiagaraMessageTopics
 {
 	static const FName CompilerTopicName;
 	static const FName ObjectTopicName;
