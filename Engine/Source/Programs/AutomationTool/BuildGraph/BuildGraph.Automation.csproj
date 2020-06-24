@@ -69,6 +69,7 @@
     <Compile Include="BuildGraph.cs" />
     <Compile Include="Aggregate.cs" />
     <Compile Include="Graph.cs" />
+    <Compile Include="Label.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Report.cs" />
     <Compile Include="Task.cs" />
