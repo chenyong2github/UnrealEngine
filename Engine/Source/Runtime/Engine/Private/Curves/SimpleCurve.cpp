@@ -119,7 +119,8 @@ FKeyHandle FSimpleCurve::AddKey( const float InTime, const float InValue, const 
 
 void FSimpleCurve::SetKeys(const TArray<FSimpleCurveKey>& InKeys)
 {
-	Reset();
+	Reset(InKeys.Num());
+	Keys.SetNum(InKeys.Num());
 
 	for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 	{
@@ -284,10 +285,10 @@ void FSimpleCurve::GetValueRange(float& MinValue, float& MaxValue) const
 	}
 }
 
-void FSimpleCurve::Reset()
+void FSimpleCurve::Reset(uint32 Slack)
 {
-	Keys.Empty();
-	KeyHandlesToIndices.Empty();
+	Keys.Empty(Slack);
+	KeyHandlesToIndices.Empty(Slack);
 }
 
 void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime)
@@ -760,4 +761,9 @@ bool FSimpleCurve::operator==(const FSimpleCurve& Curve) const
 	}
 
 	return true;
+}
+
+bool FSimpleCurve::operator!=(const FSimpleCurve& Curve) const
+{
+	return !(*this == Curve);
 }

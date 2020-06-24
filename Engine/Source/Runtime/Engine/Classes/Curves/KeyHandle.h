@@ -72,7 +72,7 @@ public:
 
 	/** TMap functionality */
 	void Add( const FKeyHandle& InHandle, int32 InIndex );
-	void Empty();
+	void Empty(uint32 Slack = 0);
 	void Remove( const FKeyHandle& InHandle );
 	const int32* Find(const FKeyHandle& InHandle) const { return KeyHandlesToIndices.Find(InHandle); }
 	const FKeyHandle* FindKey( int32 KeyIndex ) const;
