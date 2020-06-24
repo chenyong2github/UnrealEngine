@@ -228,9 +228,9 @@ FKeyHandle FRichCurve::AddKey( const float InTime, const float InValue, const bo
 
 void FRichCurve::SetKeys(const TArray<FRichCurveKey>& InKeys)
 {
-	Reset(InKeys.Num());
-	Keys.SetNum(InKeys.Num());
+	Reset();
 
+	Keys.SetNum(InKeys.Num());
 	KeyHandlesToIndices.SetKeyHandles(InKeys.Num());
 
 	for (int32 Index = 0; Index < InKeys.Num(); ++Index)
@@ -546,10 +546,10 @@ void FRichCurve::GetValueRange(float& MinValue, float& MaxValue) const
 }
 
 
-void FRichCurve::Reset(uint32 Slack)
+void FRichCurve::Reset()
 {
-	Keys.Empty(Slack);
-	KeyHandlesToIndices.Empty(Slack);
+	Keys.Empty();
+	KeyHandlesToIndices.Empty();
 }
 
 
@@ -1125,11 +1125,6 @@ bool FRichCurve::operator==(const FRichCurve& Curve) const
 	}
 
 	return true;
-}
-
-bool FRichCurve::operator!=(const FRichCurve& Curve) const
-{
-	return !(*this == Curve);
 }
 
 static ERichCurveCompressionFormat FindRichCurveCompressionFormat(const FRichCurve& Curve)
