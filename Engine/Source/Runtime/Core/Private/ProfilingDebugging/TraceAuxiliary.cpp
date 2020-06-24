@@ -321,6 +321,7 @@ UE_TRACE_EVENT_END()
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
 #if UE_TRACE_ENABLED
+	// Initialize Trace
 	Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
 
