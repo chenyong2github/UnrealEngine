@@ -25,6 +25,7 @@
 #include "EditorStyleSet.h"
 #include "SourceCodeNavigation.h"
 #include "DesktopPlatformModule.h"
+#include "BlueprintNativeCodeGenModule.h"
 #include "IBlueprintCompilerCppBackendModule.h"
 #include "BlueprintNativeCodeGenUtils.h"
 //#include "Editor/KismetCompiler/Public/BlueprintCompilerCppBackendInterface.h"
@@ -145,6 +146,8 @@ struct FGeneratedCodeData
 		FScopedSlowTask SlowTask(WorkParts, LOCTEXT("GeneratingCppFiles", "Generating C++ files.."));
 		SlowTask.MakeDialog();
 
+		const bool bWasNativeCodeGenModuleLoaded = IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded();
+		IBlueprintNativeCodeGenModule& CodeGenModule = IBlueprintNativeCodeGenModule::Get();
 		IBlueprintCompilerCppBackendModule& CodeGenBackend = (IBlueprintCompilerCppBackendModule&)IBlueprintCompilerCppBackendModule::Get();
 
 		TArray<FString> CreatedFiles;
@@ -186,6 +189,12 @@ struct FGeneratedCodeData
 					CreatedFiles.Add(NewCppFilename);
 				}
 			}
+		}
+
+		if (!bWasNativeCodeGenModuleLoaded && IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded())
+		{
+			// Unload the module so that it can be reinitialized to prepare for another run.
+			FModuleManager::Get().UnloadModule(CodeGenModule.GetModuleName());
 		}
 
 		SlowTask.EnterProgressFrame();

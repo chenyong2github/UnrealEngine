@@ -178,9 +178,13 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 
 				// Some field types may be replaced after conversion (e.g. converted user-defined enum types).
 				const UClass* FieldClass = Field->GetClass();
-				if (const UClass* ReplacedClass = IBlueprintNativeCodeGenCore::Get()->FindReplacedClassForObject(Field, NativizationOptions))
+				const IBlueprintNativeCodeGenCore* NativeCodeGenCore = IBlueprintNativeCodeGenCore::Get();
+				if (ensureMsgf(NativeCodeGenCore, TEXT("The Blueprint native C++ code generation module has not been properly loaded and/or initialized.")))
 				{
-					FieldClass = ReplacedClass;
+					if (const UClass* ReplacedClass = NativeCodeGenCore->FindReplacedClassForObject(Field, NativizationOptions))
+					{
+						FieldClass = ReplacedClass;
+					}
 				}
 
 				return FString::Printf(TEXT("FindFieldChecked<%s>(%s, TEXT(\"%s\"))")
