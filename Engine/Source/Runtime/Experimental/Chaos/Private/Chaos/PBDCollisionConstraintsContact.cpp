@@ -122,6 +122,17 @@ namespace Chaos
 			}
 		}
 
+		// The Relaxation factor has an effect of reducing overshoot in solutions, but it will decrease the rate of convergence
+		// Example: Without relaxation a cube falling directly on its face at high velocity will create an overly large impulse on the first few contacts
+		// causing it to roll off in a random direction.
+		// Todo: Relaxation may be removed when tracking individual contact point's accumulated impulses (e.g. manifolds), since the over-reaction will be corrected
+		FReal CalculateRelaxationFactor(const FContactIterationParameters& IterationParameters)
+		{
+			const FReal RelaxationNumerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
+			FReal RelaxationFactor = RelaxationNumerator / (FReal)IterationParameters.NumIterations;
+			return RelaxationFactor;
+		}
+
 		// Calculate velocity corrections due to the given contact
 		// This function uses AccumulatedImpulse Clipping, so 
 		// AccumulatedImpulse is both an input and an output
@@ -180,14 +191,7 @@ namespace Chaos
 
 			if (bInApplyRelaxation)
 			{
-				// The Relaxation factor has an effect of reducing overshoot in solutions, but it will decrease the rate of convergence
-				// Example: Without relaxation a cube falling directly on its face at high velocity will create an overly large impulse on the first few contacts
-				// causing it to roll off in a random direction.
-				// Todo: Relaxation may be removed when tracking individual contact point's accumulated impulses (e.g. manifolds), since the over-reaction will be corrected
-
-				const FReal RelaxationNumerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
-				FReal RelaxationFactor = RelaxationNumerator / (FReal)IterationParameters.NumIterations;
-				Impulse = RelaxationFactor * Impulse;
+				Impulse *= CalculateRelaxationFactor(IterationParameters);
 			}
 
 			FReal RelativeScale;// Use this as a scale to avoid absolute distances
