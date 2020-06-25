@@ -66,7 +66,7 @@ namespace ConcertSyncClientUtil
 
 	int32 GetObjectPathDepth(UObject* InObjToTest);
 
-	FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNewName, const FName InNewOuterPath, const bool bAllowCreate);
+	FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNewName, const FName InNewOuterPath, const FName InNewPackageName, const bool bAllowCreate);
 	
 	bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData);
 

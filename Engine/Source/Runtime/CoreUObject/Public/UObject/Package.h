@@ -163,11 +163,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Persistent GUID of package if it was loaded from disk. Persistent across saves. */
 	FGuid PersistentGuid;
-
-	/** Persistent GUID of owning package, to allow private references when saving */
-	FGuid OwnerPersistentGuid;
 #endif
-
 	/** Chunk IDs for the streaming install chunks this package will be placed in.  Empty for no chunk */
 	TArray<int32> ChunkIDs;
 
@@ -279,7 +275,15 @@ public:
 #endif
 
 	/**
-	* Marks/Unmarks the package's bDirty flag
+	 * Clear the package dirty flag without any transaction tracking
+	 */
+	void ClearDirtyFlag()
+	{
+		bDirty = false;
+	}
+
+	/**
+	* Marks/Unmarks the package's bDirty flag, save the package to the transaction buffer if a transaction is ongoing
 	*/
 	void SetDirtyFlag( bool bIsDirty );
 
@@ -459,9 +463,10 @@ public:
 		return Guid;
 	}
 	/** makes our a new fresh Guid */
-	FORCEINLINE void MakeNewGuid()
+	FORCEINLINE FGuid MakeNewGuid()
 	{
 		Guid = FGuid::NewGuid();
+		return Guid;
 	}
 	/** sets a specific Guid */
 	FORCEINLINE void SetGuid(FGuid NewGuid)
@@ -480,21 +485,6 @@ public:
 	{
 		PersistentGuid = NewPersistentGuid;
 	}
-
-	/** returns our owner persistent Guid */
-	FORCEINLINE FGuid GetOwnerPersistentGuid() const
-	{
-		return OwnerPersistentGuid;
-	}
-	/** sets a specific owner persistent Guid */
-	FORCEINLINE void SetOwnerPersistentGuid(FGuid NewOwnerPersistentGuid)
-	{
-		OwnerPersistentGuid = NewOwnerPersistentGuid;
-	}
-
-	bool IsOwned() const;
-	bool IsOwnedBy(const UPackage* Package) const;
-	bool HasSameOwner(const UPackage* Package) const;
 #endif
 
 	/** returns our FileSize */
@@ -525,6 +515,12 @@ public:
 	{
 		PackageId = InPackageId;
 	}
+
+	/**
+	 * Return the list of packages found assigned to object outer-ed to the top level objects of this package
+	 * @return the array of external packages
+	 */
+	TArray<UPackage*> GetExternalPackages() const;
 
 	////////////////////////////////////////////////////////
 	// MetaData 

@@ -6,6 +6,7 @@
 #include "UObject/ObjectResource.h"
 #include "Internationalization/GatherableTextData.h"
 #include "UObject/PackageFileSummary.h"
+#include "UObject/LinkerInstancingContext.h"
 #include "Templates/RefCounting.h"
 
 class FReferenceCollector;
@@ -456,6 +457,50 @@ public:
 	}
 
 	/**
+	 * Return the outermost resource package index of the resource pointed by LinkerIndex
+	 * @param LinkerIndex the resource to find the outermost of
+	 * @return the package index of the outermost
+	 */
+	FPackageIndex ResourceGetOutermost(FPackageIndex LinkerIndex) const;
+
+	/**
+	 * Return if a resource has the specified other resource in its outer chain
+	 * @param LinkerIndex the package index of the resource to verify
+	 * @param OuterIndex the package index of the possible outer for the resource
+	 * @return true if the resource pointed by LinkerIndex is in the resource pointed by OuterIndex
+	 */
+	bool ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const;
+
+	/**
+	 * Return if two resources share the same outermost
+	 * @param LinkerIndexLHS the package index of the first resource
+	 * @param LinkerIndexRHS the package index of the second resource
+	 * @return true if they share an outer
+	 */
+	bool DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const;
+
+	/**
+	 * Return if the import is in any export
+	 * @param ImportIndex the import to verify
+	 * @return true if an export is in the import outer chain
+	 */
+	bool ImportIsInAnyExport(int32 ImportIndex) const;
+
+	/**
+	 * Return if any export is in the import
+	 * @param ImportIndex the import to verify
+	 * @return true if the import is in any export outer chain
+	 */
+	bool AnyExportIsInImport(int32 ImportIndex) const;
+
+	/**
+	 * Return if any export share an outer with the import
+	 * @param ImportIndex the import to verify
+	 * @reutrn true if any export share the same outer has the import
+	 */
+	bool AnyExportShareOuterWithImport(int32 ImportIndex) const;
+	
+	/**
 	 * Tell this linker to start SHA calculations
 	 */
 	void StartScriptSHAGeneration();
@@ -566,31 +611,33 @@ COREUOBJECT_API void DeleteLoaders();
 COREUOBJECT_API void DeleteLoader(FLinkerLoad* Loader);
 
 /** 
-  * Loads a linker for a package and returns it without loading any objects.
-  * @param InOuter Package if known, can be null
-	* @param InLongPackageName Name of the package to load
-	* @param LoadFlags Flags to pass to the new linker
-	* @param Sandbox Additional sandbox for loading
-	* @param CompatibleGuid Net GUID
-	* @param InReaderOverride Optional archive to use for reading package data
-	* @param LinkerLoadedCallback Callback when the linker is loaded (or not found)
-	* @return Pointer to the loaded linker or null if the file didn't exist
-	*/
+ * Loads a linker for a package and returns it without loading any objects.
+ * @param InOuter Package if known, can be null
+ * @param InLongPackageName Name of the package to load
+ * @param LoadFlags Flags to pass to the new linker
+ * @param Sandbox Additional sandbox for loading
+ * @param CompatibleGuid Net GUID
+ * @param InReaderOverride Optional archive to use for reading package data
+ * @param LinkerLoadedCallback Callback when the linker is loaded (or not found)
+ * @return Pointer to the loaded linker or null if the file didn't exist
+ */
 COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback);
 COREUOBJECT_API FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, FGuid* CompatibleGuid = nullptr, FArchive* InReaderOverride = nullptr);
 
 /** 
-  * Gets a linker for a package and returns it without loading any objects. This call must be preceeded by BeginLoad and followed by EndLoad calls
-  * @param InOuter Package if known, can be null
-  * @param InLongPackageName Name of the package to load
-  * @param LoadFlags Flags to pass to the new linker
-  * @param Sandbox Additional sandbox for loading
-  * @param CompatibleGuid Net GUID
-  * @param InReaderOverride Optional archive to use for reading package data
-	* @param InOutLoadContext Optional load context. If the package linker is already associated with a context that's currently loading objects that context will be returned in this param
-  * @return Pointer to the loaded linker or null if the file didn't exist
-  */
-COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride = nullptr, FUObjectSerializeContext** InOutLoadContext = nullptr);
+ * Gets a linker for a package and returns it without loading any objects. This call must be preceeded by BeginLoad and followed by EndLoad calls
+ * @param InOuter Package if known, can be null
+ * @param InLongPackageName Name of the package to load
+ * @param LoadFlags Flags to pass to the new linker
+ * @param Sandbox Additional sandbox for loading
+ * @param CompatibleGuid Net GUID
+ * @param InReaderOverride Optional archive to use for reading package data
+ * @param InOutLoadContext Optional load context. If the package linker is already associated with a context that's currently loading objects that context will be returned in this param
+ * @param ImportLinker Optional import linker that triggered the linker creation. it will pass in its instancing context if a linker is created, take precedence over the optional InstancingContext
+ * @param InstancingContext Optional instancing context to pass in if a linker is created
+ * @return Pointer to the loaded linker or null if the file didn't exist
+ */
+COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride = nullptr, FUObjectSerializeContext** InOutLoadContext = nullptr, FLinkerLoad* ImportLinker = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 
 

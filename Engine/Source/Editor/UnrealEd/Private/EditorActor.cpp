@@ -1068,7 +1068,9 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		if ( LevelsAlreadyModified.Find( Level ) == INDEX_NONE )
 		{
 			LevelsAlreadyModified.Add( Level );
-			Level->Modify();
+			// Don't mark the level dirty when deleting external actors and the level is in `use external actors` mode.
+			bool bShouldDirty = !(Actor->IsPackageExternal() && Level->bUseExternalActors);
+			Level->Modify(bShouldDirty);
 		}
 
 		UE_LOG(LogEditorActor, Log,  TEXT("Deleted Actor: %s"), *Actor->GetClass()->GetName() );

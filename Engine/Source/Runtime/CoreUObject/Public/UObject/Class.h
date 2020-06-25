@@ -3039,6 +3039,12 @@ public:
 	void EmitFixedArrayEnd();
 
 	/**
+	 * Realtime garbage collection helper function used to emit token containing information about an
+	 * external package reference.
+	 */
+	void EmitExternalPackageReference();
+
+	/**
 	 * Assembles the token stream for realtime garbage collection by combining the per class only
 	 * token stream for each class in the class hierarchy. This is only done once and duplicate
 	 * work is avoided by using an object flag.

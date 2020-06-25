@@ -180,32 +180,39 @@ bool FPackageReader::ReadAssetRegistryData (TArray<FAssetData*>& AssetDataList)
 			}
 		}
 
-		if (ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
-		{
-			// This should never happen, it means that package A has an export with an outer of package B
-			UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
-			continue;
-		}
-
-		if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPath))
-		{
-			continue;
-		}
-
-		FString AssetName = ObjectPath;
-
 		// Before worlds were RF_Public, other non-public assets were added to the asset data table in map packages.
 		// Here we simply skip over them
-		if ( bIsMapPackage && PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS )
+		if (bIsMapPackage && PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS)
 		{
-			if ( AssetName != FPackageName::GetLongPackageAssetName(PackageName) )
+			if (ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
 			{
 				continue;
 			}
 		}
 
+		// if we have an object path that starts with the package then this asset is outer-ed to another package
+		const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
+
+		// if we do not have a full object path already, build it
+		if (!bFullObjectPath)
+		{
+			// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
+			if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive), TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
+			{
+				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Cannot make FAssetData for sub object %s!"), *ObjectPath);
+				continue;
+			}
+			ObjectPath = PackageName + TEXT(".") + ObjectPath;			
+		}
+		// Previously export couldn't have its outer as an import
+		else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
+		{
+			UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
+			continue;
+		}
+
 		// Create a new FAssetData for this asset and update it with the gathered data
-		AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*AssetName), FName(*ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
+		AssetDataList.Add(new FAssetData(PackageName, ObjectPath, FName(*ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.PackageFlags));
 	}
 
 	return true;

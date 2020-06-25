@@ -692,6 +692,13 @@ private:
 	TWeakObjectPtr<UChildActorComponent> ParentComponent;	
 
 #if WITH_EDITORONLY_DATA
+protected:
+	/**
+	 * The GUID for this actor.
+	 */
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
+	FGuid ActorGuid;
+
 public:
 	/** The editor-only group this actor is a part of. */
 	UPROPERTY(Transient)
@@ -704,7 +711,31 @@ public:
 	/** Bitflag to represent which views this actor is hidden in, via per-view layer visibility. */
 	UPROPERTY(Transient)
 	uint64 HiddenEditorViews;
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
+	/**
+	 * Set the actor packaging mode.
+	 * @param bExternal will set the actor packaging mode to external if true, to internal otherwise
+	 * @param bShouldDirty should dirty or not the level package
+	 */
+	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
+
+	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
+	inline const FGuid& GetActorGuid() const { return ActorGuid; }
+#endif // WITH_EDITOR
+
+public:
+	/**
+	 * Get the actor packaging mode.
+	 * @return true if the actor is packaged in an external package different than its level package
+	 */
+	bool IsPackageExternal() const
+	{
+		return HasAnyFlags(RF_HasExternalPackage);
+	}
+
+#if WITH_EDITORONLY_DATA
 private:
 	/**
 	 * The friendly name for this actor, displayed in the editor.  You should always use AActor::GetActorLabel() to access the actual label to display,
@@ -753,7 +784,7 @@ protected:
 	/** Whether this actor should be listed in the scene outliner. */
 	UPROPERTY()
 	uint8 bListedInSceneOutliner:1;
-	
+
 	/** Whether to cook additional data to speed up spawn events at runtime for any Blueprint classes based on this Actor. This option may slightly increase memory usage in a cooked build. */
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category=Cooking, meta=(DisplayName="Generate Optimized Blueprint Component Data"))
 	uint8 bOptimizeBPComponentData:1;
@@ -1658,6 +1689,11 @@ public:
 	virtual bool CanBeInCluster() const override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual bool IsEditorOnly() const override;
+	virtual bool IsAsset() const override;
+
+	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
+	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
@@ -1671,6 +1707,9 @@ public:
 
 	/** When selected can this actor be deleted? */
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const { return true; }
+
+	/** Does this actor supports external packaging? */
+	virtual bool SupportsExternalPackaging() const { return true; }
 
 	/** Internal struct used to store information about an actor's components during reconstruction */
 	struct FActorRootComponentReconstructionData
@@ -3239,6 +3278,7 @@ private:
 	friend struct FSetActorWantsDestroyDuringBeginPlay;
 #if WITH_EDITOR
 	friend struct FSetActorHiddenInSceneOutliner;
+	friend struct FSetActorGuid;
 #endif
 
 	// Static helpers for accessing functions on SceneComponent.
@@ -3478,6 +3518,17 @@ private:
 
 	friend UWorld;
 	friend class FFoliageHelper;
+};
+
+struct FSetActorGuid
+{
+private:
+	FSetActorGuid(AActor* InActor, const FGuid& InActorGuid)
+	{
+		InActor->ActorGuid = InActorGuid;
+	}
+	friend class ULevelStreamingFoundationInstance;
+	friend UWorld;
 };
 #endif
 

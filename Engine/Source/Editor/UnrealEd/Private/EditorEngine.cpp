@@ -595,6 +595,13 @@ void UEditorEngine::SetSelectionStateOfLevel(const FSelectionStateOfLevel& InSel
 	NoteSelectionChange();
 }
 
+void UEditorEngine::ResetAllSelectionSets()
+{
+	GetSelectedObjects()->DeselectAll();
+	GetSelectedActors()->DeselectAll();
+	GetSelectedComponents()->DeselectAll();
+}
+
 static bool GetSmallToolBarIcons()
 {
 	return GetDefault<UEditorStyleSettings>()->bUseSmallToolBarIcons;
@@ -2248,7 +2255,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 			}
 
 			TArray<UObject*> PackageObjects;
-			GetObjectsWithOuter(RedirectorPackage, PackageObjects);
+			GetObjectsWithPackage(RedirectorPackage, PackageObjects);
 
 			if (!PackageObjects.ContainsByPredicate(
 					[](UObject* Object)
@@ -2271,7 +2278,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 		for (UPackage* PackageToUnload : PackagesToUnload)
 		{
 			TArray<UObject*> PackageObjects;
-			GetObjectsWithOuter(PackageToUnload, PackageObjects);
+			GetObjectsWithPackage(PackageToUnload, PackageObjects);
 			for (UObject* Object : PackageObjects)
 			{
 				Object->ClearFlags(FlagsToClear);
@@ -4427,9 +4434,29 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
 	UObject* Base = InBase;
-	if ( !Base && InOuter && InOuter->HasAnyPackageFlags(PKG_ContainsMap) )
+	if (!Base && InOuter)
 	{
-		Base = UWorld::FindWorldInPackage(InOuter);
+		// Check if the package contains a map and set the world object as base
+		if (InOuter->HasAnyPackageFlags(PKG_ContainsMap) )
+		{
+			Base = UWorld::FindWorldInPackage(InOuter);
+		}
+		else
+		{
+			// Look at top level object for the base root candidate,
+			// this should find the world if the package contains a map, however worlds are sometimes not properly flagged as asset when saved
+			// This will also allow other asset types that need to have Pre/PostSaveRoot called on them to be done so properly
+			TArray<UObject*> PotentialAssets;
+			GetObjectsWithPackage(InOuter, PotentialAssets, false);
+			for (UObject* Object : PotentialAssets)
+			{
+				if (Object->IsAsset())
+				{
+					Base = Object;
+					break;
+				}
+			}
+		}
 	}
 
 	// Record the package flags before OnPreSaveWorld. They will be used in OnPostSaveWorld.
@@ -6372,6 +6399,7 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.OverrideLevel = DesiredLevel;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnInfo.bCreateActorPackage = true;
 		SpawnInfo.ObjectFlags = InObjectFlags;
 		const auto Location = Transform.GetLocation();
 		const auto Rotation = Transform.GetRotation().Rotator();

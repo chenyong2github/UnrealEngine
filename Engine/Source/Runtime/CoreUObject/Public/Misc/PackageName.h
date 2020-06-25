@@ -199,9 +199,10 @@ public:
 	 * Get the mount point for a given package path
 	 * 
 	 * @param InPackagePath The package path to get the mount point for
+	 * @param InWithoutSlashes Optional parameters that keeps the slashes around the mount point if false
 	 * @return FName corresponding to the mount point, or Empty if invalid
 	 */
-	static FName GetPackageMountPoint(const FString& InPackagePath);
+	static FName GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes = true);
 
 	/**
 	 * Checks if the package exists on disk.

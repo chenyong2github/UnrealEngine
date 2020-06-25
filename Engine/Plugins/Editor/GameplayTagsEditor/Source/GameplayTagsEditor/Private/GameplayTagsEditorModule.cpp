@@ -148,7 +148,7 @@ public:
 
 			TArray<UObject*> Objects;
 			const bool bIncludeNestedObjects = false;
-			GetObjectsWithOuter(PackageObj, Objects, bIncludeNestedObjects);
+			GetObjectsWithPackage(Cast<UPackage>(PackageObj), Objects, bIncludeNestedObjects);
 			for (UObject* Entry : Objects)
 			{
 				if (UDataTable* DataTable = Cast<UDataTable>(Entry))

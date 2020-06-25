@@ -2573,7 +2573,7 @@ UCookOnTheFlyServer::FReentryData& UCookOnTheFlyServer::GetReentryData(const UPa
 	{
 		CurrentReentryData.bIsValid = true;
 		CurrentReentryData.FileName = Package->GetFName();
-		GetObjectsWithOuter(Package, CurrentReentryData.CachedObjectsInOuter);
+		GetObjectsWithPackage(Package, CurrentReentryData.CachedObjectsInOuter);
 	}
 	return CurrentReentryData;
 }
@@ -3486,7 +3486,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			{
 				SCOPE_TIMER(ClearAllCachedCookedPlatformData);
 				TArray<UObject*> ObjectsInPackage;
-				GetObjectsWithOuter(Package, ObjectsInPackage);
+				GetObjectsWithPackage(Package, ObjectsInPackage);
 				for (UObject* Object : ObjectsInPackage)
 				{
 					Object->ClearAllCachedCookedPlatformData();

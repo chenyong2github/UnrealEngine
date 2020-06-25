@@ -711,7 +711,7 @@ const FString* GetIniFilenameFromObjectsReference(const FString& Name)
 //
 // Resolve a package and name.
 //
-bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Throw, uint32 LoadFlags /*= LOAD_None*/, FUObjectSerializeContext* InLoadContext /*= nullptr*/)
+bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Throw, uint32 LoadFlags /*= LOAD_None*/, const FLinkerInstancingContext* InstancingContext)
 {
 	// Strip off the object class.
 	ConstructorHelpers::StripObjectClass( InOutName );
@@ -782,7 +782,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			InPackage = StaticFindObjectFast(UPackage::StaticClass(), InPackage, *PartialName);
 			if (!ScriptPackageName && !InPackage)
 			{
-				InPackage = LoadPackage(dynamic_cast<UPackage*>(InPackage), *PartialName, LoadFlags, nullptr, InLoadContext);
+				InPackage = LoadPackage(Cast<UPackage>(InPackage), *PartialName, LoadFlags, nullptr, InstancingContext);
 			}
 			if (!InPackage)
 			{
@@ -831,7 +831,7 @@ bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObjec
 	}
 }
 
-UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FUObjectSerializeContext* InSerializeContext)
+UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, const FLinkerInstancingContext* InstancingContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LoadObject);
 	check(ObjectClass);
@@ -843,7 +843,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 	const bool bContainsObjectName = !!FCString::Strstr(InName, TEXT("."));
 
 	// break up the name into packages, returning the innermost name and its outer
-	ResolveName(InOuter, StrName, true, true, LoadFlags & (LOAD_EditorOnly | LOAD_Quiet | LOAD_NoWarn | LOAD_DeferDependencyLoads), InSerializeContext);
+	ResolveName(InOuter, StrName, true, true, LoadFlags & (LOAD_EditorOnly | LOAD_NoVerify | LOAD_Quiet | LOAD_NoWarn | LOAD_DeferDependencyLoads), InstancingContext);
 	if (InOuter)
 	{
 		// If we have a full UObject name then attempt to find the object in memory first,
@@ -866,7 +866,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 			if (!InOuter->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
 			{
 				// now that we have one asset per package, we load the entire package whenever a single object is requested
-				LoadPackage(NULL, *InOuter->GetOutermost()->GetName(), LoadFlags & ~LOAD_Verify, nullptr, InSerializeContext);
+				LoadPackage(NULL, *InOuter->GetOutermost()->GetName(), LoadFlags & ~LOAD_Verify, nullptr, InstancingContext);
 			}
 
 			// now, find the object in the package
@@ -895,7 +895,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 		StrName = InName;
 		StrName += TEXT(".");
 		StrName += FPackageName::GetShortName(InName);
-		Result = StaticLoadObjectInternal(ObjectClass, InOuter, *StrName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InSerializeContext);
+		Result = StaticLoadObjectInternal(ObjectClass, InOuter, *StrName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InstancingContext);
 	}
 #if WITH_EDITORONLY_DATA
 	else if (Result && !(LoadFlags & LOAD_EditorOnly))
@@ -907,7 +907,7 @@ UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const T
 	return Result;
 }
 
-UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, FUObjectSerializeContext* InSerializeContext)
+UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, const FLinkerInstancingContext* InstancingContext)
 {
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	if (ThreadContext.IsRoutingPostLoad && IsInAsyncLoadingThread())
@@ -919,11 +919,11 @@ UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* In
 			*GetFullNameSafe(ThreadContext.CurrentlyPostLoadedObjectByALT));
 	}
 
-	UObject* Result = StaticLoadObjectInternal(ObjectClass, InOuter, InName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InSerializeContext);
+	UObject* Result = StaticLoadObjectInternal(ObjectClass, InOuter, InName, Filename, LoadFlags, Sandbox, bAllowObjectReconciliation, InstancingContext);
 	if (!Result)
 	{
 		FString ObjectName = InName;
-		ResolveName(InOuter, ObjectName, true, true, LoadFlags & LOAD_EditorOnly);
+		ResolveName(InOuter, ObjectName, true, true, LoadFlags & LOAD_EditorOnly, InstancingContext);
 
 		if (InOuter == nullptr || FLinkerLoad::IsKnownMissingPackage(FName(*InOuter->GetPathName())) == false)
 		{
@@ -1077,7 +1077,7 @@ public:
 // @todo: remove this in the new loader
 static int32 GGameThreadLoadCounter = 0;
 
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext)
+UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
 
@@ -1223,7 +1223,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 
 		{
 			FUObjectSerializeContext* InOutLoadContext = LoadContext;
-			Linker = GetPackageLinker(InOuter, *FileToLoad, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext);
+			Linker = GetPackageLinker(InOuter, *FileToLoad, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
 			if (InOutLoadContext != LoadContext && InOutLoadContext)
 			{
 				// The linker already existed and was associated with another context
@@ -1292,9 +1292,14 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			Result->SetPackageFlags(PKG_ForDiffing);
 		}
 
-		// Save the filename we load from
-		Result->FileName = FName(*FileToLoad);
-
+		// Save the filename we load from in Long package name form
+		{
+			// convert will succeed here, otherwise the linker will have been null
+			FString LongPackageFilename;
+			FPackageName::TryConvertFilenameToLongPackageName(FileToLoad, LongPackageFilename);
+			Result->FileName = FName(*LongPackageFilename);
+		}
+		
 		// is there a script SHA hash for this package?
 		uint8 SavedScriptSHA[20];
 		bool bHasScriptSHAHash = FSHA1::GetFileSHAHash(*Linker->LinkerRoot->GetName(), SavedScriptSHA, false);
@@ -1427,7 +1432,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 	return Result;
 }
 
-UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext)
+UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
 {
 	COOK_STAT(LoadPackageStats::NumPackagesLoaded++);
 	COOK_STAT(FScopedDurationTimer LoadTimer(LoadPackageStats::LoadPackageTimeSec));
@@ -1442,7 +1447,7 @@ UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 
 	// since we are faking the object name, this is basically a duplicate of LLM_SCOPED_TAG_WITH_OBJECT_IN_SET
 	FString FakePackageName = FString(TEXT("Package ")) + InLongPackageName;
 	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ? FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*FakePackageName)).GetName() : NAME_None, ELLMTagSet::Assets, ELLMTracker::Default);
-	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InLoadContext);
+	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext);
 }
 
 /**
@@ -1685,7 +1690,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			// Empty array before next iteration as we finished postloading all objects.
 			ObjLoaded.Reset();
 		}
-
+		
 		if ( GIsEditor && LoadedLinkers.Num() > 0 )
 		{
 			for (FLinkerLoad* LoadedLinker : LoadedLinkers)
@@ -1919,12 +1924,13 @@ FObjectDuplicationParameters::FObjectDuplicationParameters( UObject* InSourceObj
 : SourceObject(InSourceObject)
 , DestOuter(InDestOuter)
 , DestName(NAME_None)
-, FlagMask(RF_AllFlags & ~(RF_MarkAsRootSet|RF_MarkAsNative))
+, FlagMask(RF_AllFlags & ~(RF_MarkAsRootSet|RF_MarkAsNative|RF_HasExternalPackage))
 , InternalFlagMask(EInternalObjectFlags::AllFlags)
 , ApplyFlags(RF_NoFlags)
 , ApplyInternalFlags(EInternalObjectFlags::None)
 , PortFlags(PPF_None)
 , DuplicateMode(EDuplicateMode::Normal)
+, bAssignExternalPackages(true)
 , DestClass(NULL)
 , CreatedObjects(NULL)
 {
@@ -1967,7 +1973,8 @@ UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, 
 	{
 		Parameters.DestClass = DestClass;
 	}
-	Parameters.FlagMask = FlagMask;
+	// do not allow duplication of the Mark flags nor the HasExternalPackage flag
+	Parameters.FlagMask = FlagMask & ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
 	Parameters.InternalFlagMask = InternalFlagsMask;
 	Parameters.DuplicateMode = DuplicateMode;
 
@@ -1992,11 +1999,15 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 
 	if( !GIsDuplicatingClassForReinstancing )
 	{
-	// make sure we are not duplicating RF_RootSet as this flag is special
-	// also make sure we are not duplicating the RF_ClassDefaultObject flag as this can only be set on the real CDO
+		// make sure we are not duplicating RF_RootSet as this flag is special
+		// also make sure we are not duplicating the RF_ClassDefaultObject flag as this can only be set on the real CDO
 		Parameters.FlagMask &= ~RF_ClassDefaultObject;
 		Parameters.InternalFlagMask &= ~EInternalObjectFlags::RootSet;
 	}
+
+	// do not allow duplication of the Mark flags nor the HasExternalPackage flag in case the default flag mask was changed
+	Parameters.FlagMask &= ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
+
 
 	// disable object and component instancing while we're duplicating objects, as we're going to instance components manually a little further below
 	InstanceGraph.EnableSubobjectInstancing(false);
@@ -2005,6 +2016,8 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	// the ObjectArchetype for instanced components is set to the ObjectArchetype of the source component, which in the case of duplication (or loading)
 	// will be changing the archetype's ObjectArchetype to the wrong object (typically the CDO or something)
 	InstanceGraph.SetLoadingObject(true);
+
+	Parameters.SourceObject->PreDuplicate(Parameters);
 
 	UObject* DupRootObject = Parameters.DuplicationSeed.FindRef(Parameters.SourceObject);
 	if ( DupRootObject == NULL )
@@ -2043,16 +2056,17 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 
 	// Read from the source object(s)
 	FDuplicateDataWriter Writer(
-		DuplicatedObjectAnnotation,	// Ref: Object annotation which stores the duplicated object for each source object
-		ObjectData,					// Out: Serialized object data
-		Parameters.SourceObject,	// Source object to copy
-		DupRootObject,				// Destination object to copy into
-		Parameters.FlagMask,		// Flags to be copied for duplicated objects
-		Parameters.ApplyFlags,		// Flags to always set on duplicated objects
-		Parameters.InternalFlagMask,		// Internal Flags to be copied for duplicated objects
-		Parameters.ApplyInternalFlags,		// Internal Flags to always set on duplicated objects
-		&InstanceGraph,				// Instancing graph
-		Parameters.PortFlags );		// PortFlags
+		DuplicatedObjectAnnotation,				// Ref: Object annotation which stores the duplicated object for each source object
+		ObjectData,								// Out: Serialized object data
+		Parameters.SourceObject,				// Source object to copy
+		DupRootObject,							// Destination object to copy into
+		Parameters.FlagMask,					// Flags to be copied for duplicated objects
+		Parameters.ApplyFlags,					// Flags to always set on duplicated objects
+		Parameters.InternalFlagMask,			// Internal Flags to be copied for duplicated objects
+		Parameters.ApplyInternalFlags,			// Internal Flags to always set on duplicated objects
+		&InstanceGraph,							// Instancing graph
+		Parameters.PortFlags,					// PortFlags	
+		Parameters.bAssignExternalPackages);	// Assign duplicate external packages
 
 	TArray<UObject*> SerializedObjects;
 
@@ -2277,7 +2291,8 @@ UObject* StaticAllocateObject
 	EObjectFlags	InFlags,
 	EInternalObjectFlags InternalSetFlags,
 	bool bCanRecycleSubobjects,
-	bool* bOutRecycledSubobject
+	bool* bOutRecycledSubobject,
+	UPackage* ExternalPackage
 )
 {
 	LLM_SCOPE(ELLMTag::UObject);
@@ -2475,6 +2490,12 @@ UObject* StaticAllocateObject
 		// Propagate flags to subobjects created in the native constructor.
 		Obj->SetFlags(InFlags);
 		Obj->SetInternalFlags(InternalSetFlags);
+	}
+
+	// if an external package was specified, assign it to the object
+	if (ExternalPackage)
+	{
+		Obj->SetExternalPackage(ExternalPackage);
 	}
 
 	if (bWasConstructedOnOldObject)
@@ -3144,14 +3165,15 @@ void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 UObject* StaticConstructObject_Internal
 (
 	const UClass*	InClass,
-	UObject*		InOuter								/*=GetTransientPackage()*/,
-	FName			InName								/*=NAME_None*/,
-	EObjectFlags	InFlags								/*=0*/,
-	EInternalObjectFlags InternalSetFlags				/*=0*/,
-	UObject*		InTemplate							/*=NULL*/,
-	bool bCopyTransientsFromClassDefaults				/*=false*/,
-	FObjectInstancingGraph* InInstanceGraph				/*=NULL*/,
-	bool bAssumeTemplateIsArchetype	/*=false*/
+	UObject*		InOuter,					/*=GetTransientPackage()*/
+	FName			InName,						/*=NAME_None*/
+	EObjectFlags	InFlags,					/*=0*/
+	EInternalObjectFlags InternalSetFlags,		/*=0*/
+	UObject*		InTemplate,					/*=NULL*/
+	bool bCopyTransientsFromClassDefaults,		/*=false*/
+	FObjectInstancingGraph* InInstanceGraph,	/*=NULL*/
+	bool bAssumeTemplateIsArchetype,			/*=false*/
+	UPackage* ExternalPackage					/*=nullptr*/
 )
 {
 	LLM_SCOPE(ELLMTag::UObject);
@@ -3181,7 +3203,7 @@ UObject* StaticConstructObject_Internal
 		;
 
 	bool bRecycledSubobject = false;	
-	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject);
+	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, ExternalPackage);
 	check(Result != NULL);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)

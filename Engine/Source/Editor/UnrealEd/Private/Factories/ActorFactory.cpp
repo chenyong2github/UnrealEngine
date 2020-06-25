@@ -311,6 +311,7 @@ AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTrans
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.OverrideLevel = InLevel;
 		SpawnInfo.ObjectFlags = InObjectFlags;
+		SpawnInfo.bCreateActorPackage = true;
 		SpawnInfo.Name = Name;
 #if WITH_EDITOR
 		SpawnInfo.bTemporaryEditorActor = FLevelEditorViewportClient::IsDroppingPreviewActor();
@@ -1753,10 +1754,13 @@ void CreateBrushForVolumeActor( AVolume* NewActor, UBrushBuilder* BrushBuilder )
 		// this code builds a brush for the new actor
 		NewActor->PreEditChange(NULL);
 
+		// Use the same object flags as the owner volume
+		EObjectFlags ObjectFlags = NewActor->GetFlags() & (RF_Transient | RF_Transactional);
+
 		NewActor->PolyFlags = 0;
-		NewActor->Brush = NewObject<UModel>(NewActor, NAME_None, RF_Transactional);
+		NewActor->Brush = NewObject<UModel>(NewActor, NAME_None, ObjectFlags);
 		NewActor->Brush->Initialize(nullptr, true);
-		NewActor->Brush->Polys = NewObject<UPolys>(NewActor->Brush, NAME_None, RF_Transactional);
+		NewActor->Brush->Polys = NewObject<UPolys>(NewActor->Brush, NAME_None, ObjectFlags);
 		NewActor->GetBrushComponent()->Brush = NewActor->Brush;
 		if(BrushBuilder != nullptr)
 		{

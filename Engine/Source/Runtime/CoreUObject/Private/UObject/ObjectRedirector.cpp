@@ -20,7 +20,7 @@ void UObjectRedirector::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	if (DestinationObject == NULL
 	||	DestinationObject->HasAnyFlags(RF_Transient)
-	||	DestinationObject->IsIn(GetTransientPackage()) )
+	||	DestinationObject->IsInPackage(GetTransientPackage()) )
 	{
 		Modify();
 		SetFlags(RF_Transient);

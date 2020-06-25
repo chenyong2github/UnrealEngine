@@ -390,7 +390,16 @@ public:
 
 	/** Called at the end of Rename(), but only if the rename was actually carried out */
 	virtual void PostRename(UObject* OldOuter, const FName OldName) {}
-	
+
+	/**
+	 * Called before duplication.
+	 *
+	 * @param DupParams the full parameters the object will be duplicated with.
+	 *        Allows access to modify params such as the duplication seed for example for pre-filling the dup-source => dup-target map used by StaticDuplicateObject. 
+	 * @see FObjectDuplicationParameters
+	 */
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) {}
+
 	/**
 	 * Called after duplication & serialization and before PostLoad. Used to e.g. make sure UStaticMesh's UModel gets copied as well.
 	 * Note: NOT called on components on actor duplication (alt-drag or copy-paste).  Use PostEditImport as well to cover that case.

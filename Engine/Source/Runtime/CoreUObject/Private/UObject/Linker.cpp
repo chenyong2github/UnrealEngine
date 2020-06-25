@@ -221,7 +221,7 @@ FString FLinker::GetImportPathName(int32 ImportIndex)
 	FString Result;
 	for (FPackageIndex LinkerIndex = FPackageIndex::FromImport(ImportIndex); !LinkerIndex.IsNull();)
 	{
-		FObjectResource Resource = ImpExp(LinkerIndex);
+		const FObjectResource& Resource = ImpExp(LinkerIndex);
 		bool bSubobjectDelimiter=false;
 
 		if (Result.Len() > 0 && GetClassName(LinkerIndex) != NAME_Package
@@ -265,15 +265,15 @@ FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 	FString Result;
 
 	bool bForcedExport = false;
-	for ( FPackageIndex LinkerIndex = FPackageIndex::FromExport(ExportIndex); !LinkerIndex.IsNull(); LinkerIndex = Exp(LinkerIndex).OuterIndex )
+	for ( FPackageIndex LinkerIndex = FPackageIndex::FromExport(ExportIndex); !LinkerIndex.IsNull(); LinkerIndex = ImpExp(LinkerIndex).OuterIndex )
 	{ 
-		const FObjectExport Export = Exp(LinkerIndex);
+		const FObjectResource& Resource = ImpExp(LinkerIndex);
 
 		// don't append a dot in the first iteration
 		if ( Result.Len() > 0 )
 		{
 			// if this export is not a UPackage but this export's Outer is a UPackage, we need to use subobject notation
-			if ((Export.OuterIndex.IsNull() || GetExportClassName(Export.OuterIndex) == NAME_Package)
+			if ((Resource.OuterIndex.IsNull() || GetExportClassName(Resource.OuterIndex) == NAME_Package)
 			  && GetExportClassName(LinkerIndex) != NAME_Package)
 			{
 				Result = FString(SUBOBJECT_DELIMITER) + Result;
@@ -283,11 +283,11 @@ FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 				Result = FString(TEXT(".")) + Result;
 			}
 		}
-		Result = Export.ObjectName.ToString() + Result;
-		bForcedExport = bForcedExport || Export.bForcedExport;
+		Result = Resource.ObjectName.ToString() + Result;
+		bForcedExport = bForcedExport || (LinkerIndex.IsExport() ? Exp(LinkerIndex).bForcedExport : false);
 	}
 
-	if ( bForcedExport && FakeRoot == NULL && bResolveForcedExports )
+	if ( bForcedExport && FakeRoot == nullptr && bResolveForcedExports )
 	{
 		// Result already contains the correct path name for this export
 		return Result;
@@ -307,6 +307,78 @@ FString FLinker::GetExportFullName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 	FName ClassName = ClassIndex.IsNull() ? FName(NAME_Class) : ImpExp(ClassIndex).ObjectName;
 
 	return ClassName.ToString() + TEXT(" ") + GetExportPathName(ExportIndex, FakeRoot, bResolveForcedExports);
+}
+
+FPackageIndex FLinker::ResourceGetOutermost(FPackageIndex LinkerIndex) const
+{
+	const FObjectResource* Res = &ImpExp(LinkerIndex);
+	while (!Res->OuterIndex.IsNull())
+	{
+		LinkerIndex = Res->OuterIndex;
+		Res = &ImpExp(LinkerIndex);
+	}
+	return LinkerIndex;
+}
+
+bool FLinker::ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const
+{
+	LinkerIndex = ImpExp(LinkerIndex).OuterIndex;
+	while (!LinkerIndex.IsNull())
+	{
+		LinkerIndex = ImpExp(LinkerIndex).OuterIndex;
+		if (LinkerIndex == OuterIndex)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FLinker::DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const
+{
+	return ResourceGetOutermost(LinkerIndexLHS) == ResourceGetOutermost(LinkerIndexRHS);
+}
+
+bool FLinker::ImportIsInAnyExport(int32 ImportIndex) const
+{
+	FPackageIndex LinkerIndex = ImportMap[ImportIndex].OuterIndex;
+	while (!LinkerIndex.IsNull())
+	{
+		LinkerIndex = ImpExp(LinkerIndex).OuterIndex;
+		if (LinkerIndex.IsExport())
+		{
+			return true;
+		}
+	}
+	return false;
+
+}
+
+bool FLinker::AnyExportIsInImport(int32 ImportIndex) const
+{
+	FPackageIndex OuterIndex = FPackageIndex::FromImport(ImportIndex);
+	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
+	{
+		if (ResourceIsIn(FPackageIndex::FromExport(ExportIndex), OuterIndex))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FLinker::AnyExportShareOuterWithImport(int32 ImportIndex) const
+{
+	FPackageIndex Import = FPackageIndex::FromImport(ImportIndex);
+	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
+	{
+		if (ExportMap[ExportIndex].OuterIndex.IsImport()
+			&& DoResourcesShareOutermost(FPackageIndex::FromExport(ExportIndex), Import))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -572,7 +644,9 @@ FLinkerLoad* GetPackageLinker
 	UPackageMap*	Sandbox,
 	FGuid*			CompatibleGuid,
 	FArchive*		InReaderOverride,
-	FUObjectSerializeContext** InOutLoadContext
+	FUObjectSerializeContext** InOutLoadContext,
+	FLinkerLoad*	ImportLinker,
+	const FLinkerInstancingContext* InstancingContext
 )
 {
 	FUObjectSerializeContext* InExistingContext = InOutLoadContext ? *InOutLoadContext : nullptr;
@@ -714,7 +788,7 @@ FLinkerLoad* GetPackageLinker
 			InOuter = FilenamePkg;
 			Result = FLinkerLoad::FindExistingLinkerForPackage(InOuter);
 		}
-		else if (InOuter != FilenamePkg) //!!should be tested and validated in new UnrealEd
+		else if (InOuter != FilenamePkg && FLinkerLoad::FindExistingLinkerForPackage(InOuter)) //!!should be tested and validated in new UnrealEd
 		{
 			// Loading a new file into an existing package, so reset the loader.
 			//UE_LOG(LogLinker, Log,  TEXT("New File, Existing Package (%s, %s)"), *InOuter->GetFullName(), *FilenamePkg->GetFullName() );
@@ -737,7 +811,7 @@ FLinkerLoad* GetPackageLinker
 		// we will already have found the filename above
 		check(NewFilename.Len() > 0);
 		TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
-		Result = FLinkerLoad::CreateLinker(LoadContext, InOuter, *NewFilename, LoadFlags, InReaderOverride);
+		Result = FLinkerLoad::CreateLinker(LoadContext, InOuter, *NewFilename, LoadFlags, InReaderOverride, ImportLinker ? &ImportLinker->GetInstancingContext() : InstancingContext);
 	}
 	else if (InExistingContext)
 	{

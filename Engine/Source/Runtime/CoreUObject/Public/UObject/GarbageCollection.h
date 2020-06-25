@@ -46,6 +46,7 @@ enum EGCReferenceType
 	GCRT_Object,
 	GCRT_Class,
 	GCRT_PersistentObject,
+	GCRT_ExternalPackage,				// Specific reference type token for UObject external package
 	GCRT_ArrayObject,
 	GCRT_ArrayStruct,
 	GCRT_FixedArray,

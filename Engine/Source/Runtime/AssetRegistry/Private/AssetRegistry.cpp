@@ -23,11 +23,11 @@
 #include "AssetRegistryModule.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
+#include "HAL/ThreadHeartBeat.h"
 
 #if WITH_EDITOR
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
-#include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/IConsoleManager.h"
 #endif // WITH_EDITOR
@@ -91,6 +91,9 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 
 	// Read default serialization options
 	InitializeSerializationOptionsFromIni(SerializationOptions, FString());
+
+	// Read the scan filters for global asset scanning
+	InitializeBlacklistScanFiltersFromIni();
 
 	// If in the editor, we scan all content right now
 	// If in the game, we expect user to make explicit sync queries using ScanPathsSynchronous
@@ -262,7 +265,7 @@ void UAssetRegistryImpl::InitRedirectors()
 			PathsToSearch.Add(RootPackageName);
 
 			const bool bForceRescan = false;
-			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
+			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
 		}
 		
 		FName PluginPackageName = FName(*FString::Printf(TEXT("/%s/"), *Plugin->GetName()));
@@ -430,6 +433,25 @@ void UAssetRegistryImpl::InitializeSerializationOptionsFromIni(FAssetRegistrySer
 	}
 }
 
+void UAssetRegistryImpl::InitializeBlacklistScanFiltersFromIni()
+{
+	FConfigFile* EngineIni = GConfig->FindConfigFile(GEngineIni);
+	if (EngineIni)
+	{
+		TArray<FString> IniFilters;
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistPackagePathScanFilters"), IniFilters);
+		BlacklistScanFilters.Append(MoveTemp(IniFilters));
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), BlacklistContentSubPaths);
+
+		TArray<FString> ContentRoots;
+		FPackageName::QueryRootContentPaths(ContentRoots);		
+		for (const FString& ContentRoot : ContentRoots)
+		{
+			AddSubContentBlacklist(ContentRoot);
+		}
+	}
+}
+
 void UAssetRegistryImpl::CollectCodeGeneratorClasses()
 {
 	// Work around the fact we don't reference Engine module directly
@@ -536,19 +558,13 @@ void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
 			// Force a flush of the current gatherer instead
 			UE_LOG(LogAssetRegistry, Log, TEXT("Flushing asset discovery search because of synchronous request, this can take several seconds..."));
 
-			while (IsLoadingAssets())
-			{
-				Tick(-1.0f);
-
-				FThreadHeartBeat::Get().HeartBeat();
-				FPlatformProcess::SleepNoStats(0.0001f);
-			}
+			WaitForCompletion();
 		}
 		else
 #endif
 		{
 			const bool bForceRescan = false;
-			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseMonolithicCache);
+			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseMonolithicCache);
 		}
 
 
@@ -563,7 +579,18 @@ void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
 	else if (!BackgroundAssetSearch.IsValid())
 	{
 		// if the BackgroundAssetSearch is already valid then we have already called it before
-		BackgroundAssetSearch = MakeShareable(new FAssetDataGatherer(PathsToSearch, TArray<FString>(), bSynchronousSearch, EAssetDataCacheMode::UseMonolithicCache));
+		BackgroundAssetSearch = MakeShared<FAssetDataGatherer>(PathsToSearch, TArray<FString>(), BlacklistScanFilters, bSynchronousSearch, EAssetDataCacheMode::UseMonolithicCache);
+	}
+}
+
+void UAssetRegistryImpl::WaitForCompletion()
+{
+	while (IsLoadingAssets())
+	{
+		Tick(-1.0f);
+
+		FThreadHeartBeat::Get().HeartBeat();
+		FPlatformProcess::SleepNoStats(0.0001f);
 	}
 }
 
@@ -667,6 +694,9 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 	TSet<FName> PackagesToSkip = CachedEmptyPackages;
 	if (!InFilter.bIncludeOnlyOnDiskAssets)
 	{
+		// Skip assets that were loaded for diffing
+		const uint32 FilterWithoutPackageFlags = InFilter.WithoutPackageFlags | PKG_ForDiffing;
+		const uint32 FilterWithPackageFlags = InFilter.WithPackageFlags;
 		// Reusable structures to avoid memory allocations
 		TArray<UObject::FAssetRegistryTag> ObjectTags;
 
@@ -674,10 +704,22 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 		{
 			if (Obj->IsAsset())
 			{
+				// Skip assets that are currently loading
+				if (Obj->HasAnyFlags(RF_NeedLoad))
+				{
+					return;
+				}
+
 				UPackage* InMemoryPackage = Obj->GetOutermost();
 
-				// Skip assets that were loaded for diffing
-				if (InMemoryPackage->HasAnyPackageFlags(PKG_ForDiffing))
+				// Skip assets with any of the specified 'without' package flags 
+				if (InMemoryPackage->HasAnyPackageFlags(FilterWithoutPackageFlags))
+				{
+					return;
+				}
+
+				// Skip assets without any the specified 'with' packages flags
+				if (!InMemoryPackage->HasAllPackagesFlags(FilterWithPackageFlags))
 				{
 					return;
 				}
@@ -693,9 +735,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Object Path
+				const FString ObjectPathStr = Obj->GetPathName();
 				if (InFilter.ObjectPaths.Num() > 0)
 				{
-					const FName ObjectPath = FName(*Obj->GetPathName(), FNAME_Find);
+					const FName ObjectPath = FName(*ObjectPathStr, FNAME_Find);
 					if (!InFilter.ObjectPaths.Contains(ObjectPath))
 					{
 						return;
@@ -703,7 +746,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Package path
-				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(InMemoryPackage->GetName()));
+				const FString PackageNameStr = InMemoryPackage->GetName();
+				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(PackageNameStr));
 				if (InFilter.PackagePaths.Num() > 0 && !InFilter.PackagePaths.Contains(PackagePath))
 				{
 					return;
@@ -758,7 +802,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				ObjectTags.Reset();
 
 				// This asset is in memory and passes all filters
-				OutContinue = Callback(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
+				OutContinue = Callback(FAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
 			}
 		};
 
@@ -1178,10 +1222,22 @@ void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDat
 			continue;
 		}
 	}
-
 	if (OriginalArrayCount > AssetDataList.Num())
 	{
 		AssetDataList.Shrink();
+	}
+}
+
+void UAssetRegistryImpl::AddSubContentBlacklist(const FString& InMount)
+{
+	for (const FString& SubContentPath : BlacklistContentSubPaths)
+	{
+		BlacklistScanFilters.AddUnique(InMount / SubContentPath);
+	}
+
+	if (BackgroundAssetSearch.IsValid())
+	{
+		BackgroundAssetSearch->SetBlacklistScanFilters(BlacklistScanFilters);
 	}
 }
 
@@ -1197,6 +1253,8 @@ void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFil
 	ExpandedFilter.ClassNames = CompiledFilter.ClassNames.Array();
 	ExpandedFilter.TagsAndValues = CompiledFilter.TagsAndValues;
 	ExpandedFilter.bIncludeOnlyOnDiskAssets = CompiledFilter.bIncludeOnlyOnDiskAssets;
+	ExpandedFilter.WithoutPackageFlags = CompiledFilter.WithoutPackageFlags;
+	ExpandedFilter.WithPackageFlags = CompiledFilter.WithPackageFlags;
 }
 
 void UAssetRegistryImpl::CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const
@@ -1208,6 +1266,8 @@ void UAssetRegistryImpl::CompileFilter(const FARFilter& InFilter, FARCompiledFil
 	OutCompiledFilter.ClassNames.Append(InFilter.ClassNames);
 	OutCompiledFilter.TagsAndValues = InFilter.TagsAndValues;
 	OutCompiledFilter.bIncludeOnlyOnDiskAssets = InFilter.bIncludeOnlyOnDiskAssets;
+	OutCompiledFilter.WithoutPackageFlags = InFilter.WithoutPackageFlags;
+	OutCompiledFilter.WithPackageFlags = InFilter.WithPackageFlags;
 
 	if (InFilter.bRecursivePaths)
 	{
@@ -1336,7 +1396,11 @@ void UAssetRegistryImpl::PrioritizeAssetInstall(const FAssetData& AssetData) con
 
 bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)
 {
-	return AddAssetPath(FName(*PathToAdd));
+	if (AssetDataDiscoveryUtil::PassesScanFilters(BlacklistScanFilters, PathToAdd))
+	{
+		return AddAssetPath(FName(*PathToAdd));
+	}
+	return false;
 }
 
 bool UAssetRegistryImpl::RemovePath(const FString& PathToRemove)
@@ -1356,12 +1420,12 @@ bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
 
 void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan)
 {
-	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
+	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
 }
 
 void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan)
 {
-	ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, bForceRescan, EAssetDataCacheMode::UseModularCache);
+	ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
 }
 
 void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
@@ -1677,6 +1741,18 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 		UE_LOG(LogAssetRegistry, Warning, TEXT("Asset Registry Temp caching enabled, wasting memory: %dk"), TempCacheMem / 1024);
 	}
 
+	StaticSize += BlacklistScanFilters.GetAllocatedSize();
+	for (const FString& ScanFilter : BlacklistScanFilters)
+	{
+		StaticSize += ScanFilter.GetAllocatedSize();
+	}
+
+	StaticSize += BlacklistContentSubPaths.GetAllocatedSize();
+	for (const FString& ScanFilter : BlacklistContentSubPaths)
+	{
+		StaticSize += ScanFilter.GetAllocatedSize();
+	}
+
 	StaticSize += SerializationOptions.CookFilterlistTagsByClass.GetAllocatedSize();
 	for (const TPair<FName, TSet<FName>>& Pair : SerializationOptions.CookFilterlistTagsByClass)
 	{
@@ -1755,12 +1831,12 @@ const TSet<FName>& UAssetRegistryImpl::GetCachedEmptyPackages() const
 	return CachedEmptyPackages;
 }
 
-void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode)
+void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode)
 {
-	ScanPathsAndFilesSynchronous(InPaths, InSpecificFiles, bForceRescan, AssetDataCacheMode, nullptr, nullptr);
+	ScanPathsAndFilesSynchronous(InPaths, InSpecificFiles, InBlacklistScanFilters, bForceRescan, AssetDataCacheMode, nullptr, nullptr);
 }
 
-void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths)
+void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths)
 {
 	const double SearchStartTime = FPlatformTime::Seconds();
 
@@ -1822,7 +1898,7 @@ void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InP
 	if (PathsToScan.Num() > 0 || FilesToScan.Num() > 0)
 	{
 		// Start the sync asset search
-		FAssetDataGatherer AssetSearch(PathsToScan, FilesToScan, /*bSynchronous=*/true, AssetDataCacheMode);
+		FAssetDataGatherer AssetSearch(PathsToScan, FilesToScan, InBlacklistScanFilters, /*bSynchronous=*/true, AssetDataCacheMode);
 
 		// Get the search results
 		TBackgroundGatherResults<FAssetData*> AssetResults;
@@ -2565,7 +2641,7 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 
 		// Re-scan and update the asset registry with the new asset data
 		TArray<FName> FoundAssets;
-		ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, true, EAssetDataCacheMode::NoCache, &FoundAssets, nullptr);
+		ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, true, EAssetDataCacheMode::NoCache, &FoundAssets, nullptr);
 
 		// Remove any assets that are no longer present in the package
 		for (const TArray<FAssetData*>& OldPackageAssets : ExistingFilesAssetData)
@@ -2583,6 +2659,8 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 
 void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
+	AddSubContentBlacklist(InAssetPath);
+
 	// Sanitize
 	FString AssetPath = InAssetPath;
 	if (AssetPath.EndsWith(TEXT("/")) == false)

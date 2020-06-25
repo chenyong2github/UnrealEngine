@@ -525,6 +525,17 @@ struct ENGINE_API FActorSpawnParameters
 	/* The ULevel to spawn the Actor in, i.e. the Outer of the Actor. If left as NULL the Outer of the Owner is used. If the Owner is NULL the persistent level is used. */
 	class	ULevel* OverrideLevel;
 
+#if WITH_EDITOR
+	/* The UPackage to set the Actor in. If left as NULL the Package will not be set and the actor will be saved in the same package as the persistent level. */
+	class	UPackage* OverridePackage;
+
+	/* The parent component to set the Actor in. */
+	class   UChildActorComponent* OverrideParentComponent;
+
+	/** The Guid to set to this actor. Should only be set when reinstancing blueprint actors. */
+	FGuid	OverrideActorGuid;
+#endif
+
 	/** Method for resolving collisions at the spawn point. Undefined means no override, use the actor's setting. */
 	ESpawnActorCollisionHandlingMethod SpawnCollisionHandlingOverride;
 
@@ -554,6 +565,9 @@ public:
 
 	/* Determines whether or not the actor should be hidden from the Scene Outliner */
 	uint8	bHideFromSceneOutliner:1;
+
+	/** Determines whether to create a new package for the actor or not. */
+	uint16	bCreateActorPackage:1;
 #endif
 
 	/* Modes that SpawnActor can use the supplied name when it is not None. */
@@ -878,7 +892,7 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	TArray< class ULayer* > Layers; 
 
 	// Group actors currently "active"
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<AActor*> ActiveGroupActors;
 
 	/** Information for thumbnail rendering */
@@ -1188,7 +1202,7 @@ private:
 	UPROPERTY(Transient)
 	class UAvoidanceManager*					AvoidanceManager;
 
-	/** Array of levels currently in this world. Not serialized to disk to avoid hard references.								*/
+	/** Array of levels currently in this world. Not serialized to disk to avoid hard references. */
 	UPROPERTY(Transient)
 	TArray<class ULevel*>						Levels;
 
@@ -1222,7 +1236,7 @@ private:
 	FDelegateHandle AudioDeviceDestroyedHandle;
 
 #if WITH_EDITORONLY_DATA
-	/** Pointer to the current level being edited. Level has to be in the Levels array and == PersistentLevel in the game.		*/
+	/** Pointer to the current level being edited. Level has to be in the Levels array and == PersistentLevel in the game. */
 	UPROPERTY(Transient)
 	class ULevel*								CurrentLevel;
 #endif
@@ -2428,6 +2442,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
 	virtual void PostLoad() override;
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual bool PreSaveRoot(const TCHAR* Filename) override;
 	virtual void PostSaveRoot( bool bCleanupIsRequired ) override;
 	virtual UWorld* GetWorld() const override;
@@ -3611,6 +3626,9 @@ public:
 
 	/** Return the prefix for PIE packages given a PIE Instance ID */
 	static FString BuildPIEPackagePrefix(int32 PIEInstanceID);
+
+	/** Duplicate the editor world to create the PIE world. */
+	static UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld, UPackage* InPIEackage, int32 PIEInstanceID);
 
 	/** Given a loaded editor UWorld, duplicate it for play in editor purposes with OwningWorld as the world with the persistent level. */
 	static UWorld* DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningWorld);

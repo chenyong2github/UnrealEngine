@@ -91,7 +91,7 @@ public:
 	/** Default constructor */
 	FAssetData() = default;
 
-	/** Constructor */
+	/** Constructor building the ObjectPath in the form of InPackageName.InAssetName. does not work for object outer-ed to a different package. */
 	FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
 		: PackageName(InPackageName)
 		, PackagePath(InPackagePath)
@@ -108,10 +108,29 @@ public:
 		ObjectPath = FName(FStringView(ObjectPathStr));
 	}
 
+	/** Constructor with a long package name and a full object path which might not be part of the package this asset is in. */
+	FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
+		: ObjectPath(*InObjectPath)
+		, PackageName(*InLongPackageName)
+		, AssetClass(InAssetClass)
+		, TagsAndValues(MoveTemp(InTags))
+		, ChunkIDs(MoveTemp(InChunkIDs))
+		, PackageFlags(InPackageFlags)
+	{
+		PackagePath = FName(*FPackageName::GetLongPackagePath(InLongPackageName));
+
+		// Find the object name from the path, FPackageName::ObjectPathToObjectName(InObjectPath)) doesn't provide what we want here
+		int32 CharPos = InObjectPath.FindLastCharByPredicate([](TCHAR Char)
+		{
+			return Char == ':' || Char == '.';
+		});
+		AssetName = FName(*InObjectPath.Mid(CharPos + 1));
+	}
+
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
 	FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false)
 	{
-		if ( InAsset != nullptr )
+		if (InAsset != nullptr)
 		{
 			const UClass* InClass = Cast<UClass>(InAsset);
 			if (InClass && InClass->ClassGeneratedBy && !bAllowBlueprintClass)
@@ -303,29 +322,29 @@ public:
 	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
 	UObject* FastGetAsset(bool bLoad=false) const
 	{
-		if ( !IsValid() )
+		if ( !IsValid())
 		{
 			// Do not try to find the object if the objectpath is not set
-			return NULL;
+			return nullptr;
 		}
 
 		UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, PackageName);
-		if (FoundPackage == NULL)
+		if (FoundPackage == nullptr)
 		{
 			if (bLoad)
 			{
-				return LoadObject<UObject>(NULL, *ObjectPath.ToString());
+				return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
 			}
 			else
 			{
-				return NULL;
+				return nullptr;
 			}
 		}
 
 		UObject* Asset = FindObjectFast<UObject>(FoundPackage, AssetName);
-		if (Asset == NULL && bLoad)
+		if (Asset == nullptr && bLoad)
 		{
-			return LoadObject<UObject>(NULL, *ObjectPath.ToString());
+			return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
 		}
 
 		return Asset;
@@ -334,19 +353,41 @@ public:
 	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
 	UObject* GetAsset() const
 	{
-		if ( !IsValid() )
+		if ( !IsValid())
 		{
 			// Dont even try to find the object if the objectpath isn't set
-			return NULL;
+			return nullptr;
 		}
 
-		UObject* Asset = FindObject<UObject>(NULL, *ObjectPath.ToString());
-		if ( Asset == NULL )
+		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
+		if ( Asset == nullptr)
 		{
-			Asset = LoadObject<UObject>(NULL, *ObjectPath.ToString());
+			Asset = LoadObject<UObject>(nullptr, *ObjectPath.ToString());
 		}
 
 		return Asset;
+	}
+
+	/**
+	 * Used to check whether the any of the passed flags are set in the cached asset package flags.
+	 * @param	FlagsToCheck  Package flags to check for
+	 * @return	true if any of the passed in flag are set, false otherwise
+	 * @see UPackage::HasAnyPackageFlags
+	 */
+	bool HasAnyPackageFlags(uint32 FlagsToCheck) const
+	{
+		return (PackageFlags & FlagsToCheck) != 0;
+	}
+
+	/**
+	 * Used to check whether all of the passed flags are set in the cached asset package flags.
+	 * @param FlagsToCheck	Package flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 * @see UPackage::HasAllPackagesFlags
+	 */
+	bool HasAllPackageFlags(uint32 FlagsToCheck) const
+	{
+		return ((PackageFlags & FlagsToCheck) == FlagsToCheck);
 	}
 
 	UPackage* GetPackage() const

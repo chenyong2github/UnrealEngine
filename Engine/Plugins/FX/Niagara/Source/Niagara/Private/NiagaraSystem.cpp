@@ -382,7 +382,7 @@ void UNiagaraSystem::PostLoad()
 	if (PackageOuter != nullptr && HasAnyFlags(RF_Public | RF_Standalone))
 	{
 		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithOuter((UObject*)PackageOuter, ObjectsInPackage);
+		GetObjectsWithPackage(PackageOuter, ObjectsInPackage);
 		for (UObject* ObjectInPackage : ObjectsInPackage)
 		{
 			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(ObjectInPackage);

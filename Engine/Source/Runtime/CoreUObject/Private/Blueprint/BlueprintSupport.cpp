@@ -1254,7 +1254,7 @@ int32 FLinkerLoad::FindCDOExportIndex(UClass* LoadClass)
 	return INDEX_NONE;
 }
 
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext);
+UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext);
 
 void FLinkerLoad::ResolveDeferredDependencies(UStruct* LoadStruct)
 {
@@ -1374,7 +1374,7 @@ void FLinkerLoad::ResolveDeferredDependencies(UStruct* LoadStruct)
 			{
 				uint32 InternalLoadFlags = LoadFlags & (LOAD_NoVerify | LOAD_NoWarn | LOAD_Quiet);
 				// make sure LoadAllObjects() is called for this package
-				LoadPackageInternal(/*Outer =*/nullptr, *SourceLinker->Filename, InternalLoadFlags, this, nullptr, GetSerializeContext()); //-V595
+				LoadPackageInternal(/*Outer =*/nullptr, *SourceLinker->Filename, InternalLoadFlags, this, nullptr/*InReaderOverride*/, nullptr/*InstancingContext*/); //-V595
 			}
 
 			DEFERRED_DEPENDENCY_CHECK(ResolvingPlaceholderStack.Num() == 0);
@@ -2199,11 +2199,9 @@ bool FLinkerLoad::IsExportBeingResolved(int32 ExportIndex)
 	FPackageIndex OuterIndex = Export.OuterIndex;
 	// since child exports require their outers be set upon creation, then those 
 	// too count as being "resolved"... so here we check this export's outers too
-	while (!bIsExportClassBeingForceRegened && !OuterIndex.IsNull())
+	while (!bIsExportClassBeingForceRegened && OuterIndex.IsExport())
 	{
-		DEFERRED_DEPENDENCY_CHECK(OuterIndex.IsExport());
 		int32 OuterExportIndex = OuterIndex.ToExport();
-
 		if (OuterExportIndex != INDEX_NONE)
 		{
 			FObjectExport& OuterExport = ExportMap[OuterExportIndex];
@@ -2296,14 +2294,14 @@ UObject* FLinkerLoad::FindImport(UClass* ImportClass, UObject* ImportOuter, cons
 	return Result;
 }
 
-UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name)
+UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bAnyPackage)
 {
-	UObject* Result = StaticFindObjectFast(ImportClass, ImportOuter, Name);
+	UObject* Result = StaticFindObjectFast(ImportClass, ImportOuter, Name, false/*ExactClass*/, bAnyPackage);
 #if WITH_EDITORONLY_DATA
 	static FName NAME_BlueprintGeneratedClass(TEXT("BlueprintGeneratedClass"));
 	if (GLinkerAllowDynamicClasses && !Result && ImportClass->GetFName() == NAME_BlueprintGeneratedClass)
 	{
-		Result = StaticFindObjectFast(UDynamicClass::StaticClass(), ImportOuter, Name);
+		Result = StaticFindObjectFast(UDynamicClass::StaticClass(), ImportOuter, Name, false/*ExactClass*/, bAnyPackage);
 	}
 #endif
 	return Result;

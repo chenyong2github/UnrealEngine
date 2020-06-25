@@ -400,13 +400,40 @@ public:
 
 
 	/*-------------------
-			Outer
+		Outer & Package
 	-------------------*/
 
-	/** 
-	 * Walks up the list of outers until it finds the highest one.
+	/**
+	 * Utility function to temporarily detach the object external package, if any
+	 * GetPackage will report the outer's package once detached
+	 */
+	void DetachExternalPackage();
+
+	/**
+	 * Utility function to reattach the object external package, if any
+	 * GetPackage will report the object external package if set after this call
+	 */
+	void ReattachExternalPackage();
+
+	/**
+	 * Walks up the list of outers until it finds the top-level one that isn't a package.
+	 * Will return null if called on a package
+	 * @return outermost non package Outer.
+	 */
+	UObject* GetOutermostObject() const;
+
+	/**
+	 * Walks up the list of outers until it finds a package directly associated with the object.
 	 *
-	 * @return outermost non NULL Outer.
+	 * @return the package the object is in.
+	 */
+	UPackage* GetPackage() const;
+
+	/** 
+	 * Legacy function, has the same behavior as GetPackage
+	 * use GetPackage instead.
+	 * @return the package the object is in.
+	 * @see GetPackage
 	 */
 	UPackage* GetOutermost() const;
 
@@ -444,8 +471,23 @@ public:
 		return (T *)GetTypedOuter(T::StaticClass());
 	}
 
-	/** Returns true if the specified object appears somewhere in this object's outer chain. */
+	/** 
+	 * Return the dispatch to `IsInOuter` or `IsInPackage` depending on SomeOuter's class. 
+	 * Legacy function, preferably use IsInOuter or IsInPackage depending on use case.
+	 */
 	bool IsIn( const UObject* SomeOuter ) const;
+
+	/** 
+	 * Overload to determine if an object is in the specified package which can now be different than its outer chain.
+	 * Calls IsInPackage.
+	 */
+	bool IsIn(const UPackage* SomePackage) const;
+
+	/** Returns true if the object is contained in the specified outer. */
+	bool IsInOuter(const UObject* SomeOuter) const;
+
+	/** Returns true if the object is contained in the specified package. */
+	bool IsInPackage(const UPackage* SomePackage) const;
 
 	/**
 	 * Find out if this object is inside (has an outer) that is of the specified class

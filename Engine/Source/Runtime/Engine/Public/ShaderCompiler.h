@@ -682,13 +682,20 @@ extern bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar);
 /** Returns whether all global shader types containing the substring are complete and ready for rendering. if type name is null, check everything */
 extern ENGINE_API bool IsGlobalShaderMapComplete(const TCHAR* TypeNameSubstring = nullptr);
 
+/** Returns the delegate triggered when global shaders compilation jobs start. */
+DECLARE_MULTICAST_DELEGATE(FOnGlobalShadersCompilation);
+extern ENGINE_API FOnGlobalShadersCompilation& GetOnGlobalShaderCompilation();
+
 /**
 * Makes sure all global shaders are loaded and/or compiled for the passed in platform.
 * Note: if compilation is needed, this only kicks off the compile.
 *
-* @param	Platform	Platform to verify global shaders for
+* @param	Platform						Platform to verify global shaders for
+* @param	bLoadedFromCacheFile			Load the shaders from cache, will error out and not compile shaders if missing
+* @param	OutdatedShaderTypes				Optional list of shader types, will trigger compilation job for shader types found in this list even if the map already has the shader.
+* @param	OutdatedShaderPipelineTypes		Optional list of shader pipeline types, will trigger compilation job for shader pipeline types found in this list even if the map already has the pipeline.
 */
-extern ENGINE_API void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile);
+extern ENGINE_API void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes = nullptr, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes = nullptr);
 
 /**
 * Forces a recompile of the global shaders.

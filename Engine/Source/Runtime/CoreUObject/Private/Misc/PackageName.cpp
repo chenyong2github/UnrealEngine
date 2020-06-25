@@ -801,18 +801,19 @@ bool FPackageName::MountPointExists(const FString& RootPath)
 	return FLongPackagePathsSingleton::Get().MountPointExists(RootPath);
 }
 
-FName FPackageName::GetPackageMountPoint(const FString& InPackagePath)
+FName FPackageName::GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes)
 {
 	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
 	
 	TArray<FString> MountPoints;
 	Paths.GetValidLongPackageRoots(MountPoints, true);
 
+	int32 WithoutSlashes = InWithoutSlashes ? 1 : 0;
 	for (auto RootIt = MountPoints.CreateConstIterator(); RootIt; ++RootIt)
 	{
 		if (InPackagePath.StartsWith(*RootIt))
 		{
-			return FName(*RootIt->Mid(1, RootIt->Len() - 2));
+			return FName(*RootIt->Mid(WithoutSlashes, RootIt->Len() - (2 * WithoutSlashes)));
 		}
 	}
 
