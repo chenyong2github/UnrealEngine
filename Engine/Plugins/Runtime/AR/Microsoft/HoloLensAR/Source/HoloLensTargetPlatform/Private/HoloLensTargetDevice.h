@@ -84,7 +84,7 @@ public:
 
 private:
 
-	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> GenerateRequest() const;
+	TSharedPtr<class IHttpRequest, ESPMode::ThreadSafe> GenerateRequest() const;
 
 	void StartHeartBeat();
 
@@ -92,7 +92,7 @@ private:
 	FTimerHandle TimerHandle;
 #endif
 
-	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HeartBeatRequest;
+	TSharedPtr<class IHttpRequest, ESPMode::ThreadSafe> HeartBeatRequest;
 	FCriticalSection CriticalSection;
 
 	// Holds a reference to the device's target platform.
