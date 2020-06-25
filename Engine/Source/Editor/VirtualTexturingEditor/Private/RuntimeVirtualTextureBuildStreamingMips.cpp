@@ -15,10 +15,10 @@
 namespace
 {
 	/** Container for render resources needed to render the runtime virtual texture. */
-	class FRenderTileResources : public FRenderResource
+	class FTileRenderResources : public FRenderResource
 	{
 	public:
-		FRenderTileResources(int32 InTileSize, int32 InNumTilesX, int32 InNumTilesY, int32 InNumLayers, TArrayView<EPixelFormat> const& InLayerFormats)
+		FTileRenderResources(int32 InTileSize, int32 InNumTilesX, int32 InNumTilesY, int32 InNumLayers, TArrayView<EPixelFormat> const& InLayerFormats)
 			: TileSize(InTileSize)
 			, NumLayers(InNumLayers)
 			, TotalSizeBytes(0)
@@ -177,7 +177,7 @@ namespace RuntimeVirtualTexture
 		Task.MakeDialog(true);
 
 		// Allocate render targets for rendering out the runtime virtual texture tiles
-		FRenderTileResources RenderTileResources(TileSize, NumTilesX, NumTilesY, NumLayers, LayerFormats);
+		FTileRenderResources RenderTileResources(TileSize, NumTilesX, NumTilesY, NumLayers, LayerFormats);
 		BeginInitResource(&RenderTileResources);
 
 		// Final pixels will contain image data for each virtual texture layer in order
