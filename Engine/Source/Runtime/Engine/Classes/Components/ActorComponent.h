@@ -25,6 +25,9 @@ class ULevel;
 class UWorld;
 class UPrimitiveComponent;
 
+
+ENGINE_API extern int32 GEnableDeferredPhysicsCreation;
+
 class FRegisterComponentContext
 {
 public:
