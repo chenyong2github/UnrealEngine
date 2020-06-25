@@ -679,6 +679,13 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 		{
 			// If we're recording and the caller didn't provide a name, generate one automatically
 			FinalDemoName = GetAutomaticDemoName();
+
+			// if there was a problem generating the file name then we shouldn't continue recording
+			if (FinalDemoName.IsEmpty())
+			{
+				Delegate.ExecuteIfBound(Result);
+				return;
+			}
 		}
 		else
 		{
@@ -2594,8 +2601,9 @@ FString FLocalFileNetworkReplayStreamer::GetAutomaticDemoName() const
 			uint64 TotalDiskFreeSpace = 0;
 			if (!FPlatformMisc::GetDiskTotalAndFreeSpace(GetDemoPath(), TotalDiskSpace, TotalDiskFreeSpace))
 			{
-				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to determine free space in %s."), *GetDemoPath());
-				return FString();
+				// This initial call to GetDiskTotalAndFreeSpace can fail if no replay has been recorded before and the demo folder doesn't exist, so in this case just return the default path
+				UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to determine free space in %s."), *GetDemoPath());
+				return AutoPrefix + FDateTime::Now().ToString();
 			}
 			uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnGameThread();
 
