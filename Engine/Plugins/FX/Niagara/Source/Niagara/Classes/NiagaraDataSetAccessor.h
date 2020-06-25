@@ -437,6 +437,11 @@ struct FNiagaraDataSetAccessorTypeInfo<ENiagaraExecutionState>
 //////////////////////////////////////////////////////////////////////////
 // Structure readers
 
+
+#if defined(_MSC_VER) && USING_CODE_ANALYSIS
+#pragma warning(disable:6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
+#endif
+
 template<typename TType>
 struct FNiagaraDataSetReaderStruct
 {
@@ -493,6 +498,10 @@ private:
 	int32 NumInstances = 0;
 	const uint8* ComponentData[FNiagaraDataSetAccessorTypeInfo<TType>::NumFloatComponents + FNiagaraDataSetAccessorTypeInfo<TType>::NumInt32Components] = {};
 };
+
+#if defined(_MSC_VER) && USING_CODE_ANALYSIS
+#pragma warning(default:6294)
+#endif
 
 template<typename TType>
 struct FNiagaraDataSetAccessorStruct
