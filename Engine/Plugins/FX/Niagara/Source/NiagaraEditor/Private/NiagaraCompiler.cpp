@@ -216,7 +216,40 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						if (!PreprocessedFunctions.Contains(FunctionGraph))
 						{
 							UNiagaraScript* DupeScript = nullptr;
-							if (!bFromDifferentPackage && !bHasNumericInputs && !bHasNumericParams)
+							bool bNeedsDuplicateAndPreprocess = false;
+							if (bFromDifferentPackage || bHasNumericParams)
+							{
+								bNeedsDuplicateAndPreprocess = true;
+							}
+							else
+							{
+								// If the script isn't in a separate asset (e.g. scratch pad), and it doesn't have numeric inputs or outputs then we need to check the internal pins for numerics
+								// since those scripts need to be duplicated and preprocessed as well.
+								auto NodeHasNumericPins = [Schema](UEdGraphNode* Node)
+								{
+									UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
+									if (NiagaraNode == nullptr)
+									{
+										return false;
+									}
+
+									for (UEdGraphPin* Pin : NiagaraNode->Pins)
+									{
+										if (Schema->PinToTypeDefinition(Pin) == FNiagaraTypeDefinition::GetGenericNumericDef())
+										{
+											return true;
+										}
+									}
+									return false;
+								};
+
+								if(FunctionGraph->Nodes.ContainsByPredicate(NodeHasNumericPins))
+								{
+									bNeedsDuplicateAndPreprocess = true;
+								}
+							}
+
+							if (bNeedsDuplicateAndPreprocess == false)
 							{
 								DupeScript = FunctionScript;
 								ProcessedGraph = FunctionGraph;
