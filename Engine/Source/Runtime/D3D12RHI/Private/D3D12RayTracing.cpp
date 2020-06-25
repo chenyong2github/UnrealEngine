@@ -2361,6 +2361,11 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		SystemParameters.RootConstants.SetVertexAndIndexStride(Segment.VertexBufferStride, IndexStride);
 		SystemParameters.VertexBuffer = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Segment.VertexBufferOffset;
 
+		// Conservative estimate of the maximum number of elements in this VB.
+		// Real used number will depend on the index buffer and is not available here right now.
+		// #dxr_todo: Add explicit vertex count to FRayTracingGeometrySegment.
+		const uint32 MaxSegmentVertices = (VertexBuffer->ResourceLocation.GetSize() - Segment.VertexBufferOffset) / Segment.VertexBufferStride;
+
 		if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 		{
 			switch (Segment.VertexBufferElementType)
@@ -2400,21 +2405,18 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 				Desc.Triangles.IndexFormat = IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
 				Desc.Triangles.IndexBuffer = SystemParameters.IndexBuffer + SystemParameters.RootConstants.IndexBufferOffsetInBytes;
-
-				Desc.Triangles.VertexCount = VertexBuffer->ResourceLocation.GetSize() / Segment.VertexBufferStride;
+				Desc.Triangles.VertexCount = MaxSegmentVertices;
 
 				IndexBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 			}
 			else
 			{
 				// Non-indexed geometry
+				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
 				Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
 				Desc.Triangles.IndexCount = 0;
 				Desc.Triangles.IndexBuffer = D3D12_GPU_VIRTUAL_ADDRESS(0);
-
-				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
-
-				Desc.Triangles.VertexCount = FMath::Min<uint32>(VertexBuffer->ResourceLocation.GetSize() / Segment.VertexBufferStride, TotalPrimitiveCount * 3);
+				Desc.Triangles.VertexCount = FMath::Min<uint32>(MaxSegmentVertices, TotalPrimitiveCount * 3);
 			}
 
 			Desc.Triangles.VertexBuffer.StartAddress = SystemParameters.VertexBuffer;
