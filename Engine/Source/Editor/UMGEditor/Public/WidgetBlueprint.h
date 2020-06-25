@@ -248,18 +248,6 @@ public:
 	UPROPERTY(AssetRegistrySearchable, AssetRegistrySearchable)
 	FString PaletteCategory;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=WidgetBlueprintOptions, AssetRegistrySearchable)
-	bool bForceSlowConstructionPath;
-
-private:
-	/**
-	 * Widgets by default all support calling CreateWidget for them, however for mobile games
-	 * you may want to disable this by default, or on a per widget basis as it can save several
-	 * MB on a large game from lots of widget templates being cooked ready to make dynamic
-	 * construction faster.
-	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=WidgetBlueprintOptions, AssetRegistrySearchable)
-	EWidgetSupportsDynamicCreation SupportDynamicCreation;
 #endif
 
 public:
@@ -307,8 +295,6 @@ public:
 	/** Returns true if the supplied user widget will not create a circular reference when added to this blueprint */
 	bool IsWidgetFreeFromCircularReferences(UUserWidget* UserWidget) const;
 
-	bool WidgetSupportsDynamicCreation() const;
-
 	static bool ValidateGeneratedClass(const UClass* InClass);
 	
 	static TSharedPtr<FKismetCompilerContext> GetCompilerForWidgetBP(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
@@ -323,20 +309,6 @@ public:
 protected:
 #if WITH_EDITOR
 	virtual void LoadModulesRequiredForCompilation() override;
-
-public:
-
-	/**
-	 * The total number of widgets this widget contains.  This is a good way to find the "largest" widgets.
-	 */
-	UPROPERTY(AssetRegistrySearchable)
-	int32 InclusiveWidgets;
-
-	/**
-	 * The estimated size in bytes of the template class.
-	 */
-	UPROPERTY(AssetRegistrySearchable)
-	int32 EstimatedTemplateSize;
 
 private:
 	/**

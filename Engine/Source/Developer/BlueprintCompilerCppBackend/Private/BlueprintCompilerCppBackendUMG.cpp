@@ -36,9 +36,6 @@ void FBackendHelperUMG::CreateClassSubobjects(FEmitterLocalContext& Context, boo
 {
 	if (UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
 	{
-		// Currently nativization does not support widget templates. This method will need to be revised if that changes.
-		check(!WidgetClass->HasTemplate());
-		
 		// Child widgets may actually use the widget tree from a parent class.
 		// - @see UUserWidget::Initialize()
 		WidgetClass = WidgetClass->FindWidgetTreeOwningClass();
@@ -46,10 +43,10 @@ void FBackendHelperUMG::CreateClassSubobjects(FEmitterLocalContext& Context, boo
 		// Initialize the WidgetTree only if it's owned by the current widget class.
 		if (WidgetClass == Context.GetCurrentlyGeneratedClass())
 		{
-			if (WidgetClass->WidgetTree)
+			if (UWidgetTree* WidgetTree = WidgetClass->GetWidgetTreeArchetype())
 			{
-				ensure(WidgetClass->WidgetTree->GetOuter() == Context.GetCurrentlyGeneratedClass());
-				FEmitDefaultValueHelper::HandleClassSubobject(Context, WidgetClass->WidgetTree, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
+				ensure(WidgetTree->GetOuter() == Context.GetCurrentlyGeneratedClass());
+				FEmitDefaultValueHelper::HandleClassSubobject(Context, WidgetTree, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
 			}
 
 			for (UWidgetAnimation* Anim : WidgetClass->Animations)
@@ -109,7 +106,7 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 			UWidgetBlueprintGeneratedClass* WidgetTreeOwningClass = WidgetClass->FindWidgetTreeOwningClass();
 
 			// If we have a valid WidgetTree instance, emit code to initialize the widget using the owning class.
-			if (WidgetTreeOwningClass->WidgetTree != nullptr)
+			if (UWidgetTree* WidgetTree = WidgetTreeOwningClass->GetWidgetTreeArchetype())
 			{
 				FString WidgetClassStr;
 				FString WidgetTreeStr;
@@ -121,7 +118,7 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 
 					// This object was already created as a class-owned subobject and mapped to the 'WidgetTree' value.
 					// - @see CreateClassSubobjects()
-					WidgetTreeStr = Context.FindGloballyMappedObject(WidgetClass->WidgetTree, UWidgetTree::StaticClass());
+					WidgetTreeStr = Context.FindGloballyMappedObject(WidgetTree, UWidgetTree::StaticClass());
 				}
 				else
 				{
@@ -145,11 +142,9 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 				const FString AnimationsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Animations")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Animations));
 				const FString BindingsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Bindings")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Bindings));
 
-				Context.AddLine(FString::Printf(TEXT("UWidgetBlueprintGeneratedClass::%s(this, %s, %s, %s, %s, %s, %s);")
+				Context.AddLine(FString::Printf(TEXT("UWidgetBlueprintGeneratedClass::%s(this, %s, %s, %s, %s);")
 					, GET_FUNCTION_NAME_STRING_CHECKED(UWidgetBlueprintGeneratedClass, InitializeWidgetStatic)
 					, *WidgetClassStr
-					, WidgetTreeOwningClass->HasTemplate() ? TEXT("true") : TEXT("false")
-					, WidgetTreeOwningClass->bAllowDynamicCreation ? TEXT("true") : TEXT("false")
 					, *WidgetTreeStr
 					, *AnimationsArrayNativeName
 					, *BindingsArrayNativeName));
