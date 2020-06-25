@@ -675,6 +675,12 @@ bool UActorComponent::NeedsLoadForEditorGame() const
 
 int32 UActorComponent::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
+	if ((Function->FunctionFlags & FUNC_Static))
+	{
+		// Try to use the same logic as function libraries for static functions, will try to use the global context to check authority only/cosmetic
+		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
+	}
+
 	AActor* MyOwner = GetOwner();
 	return (MyOwner ? MyOwner->GetFunctionCallspace(Function, Stack) : FunctionCallspace::Local);
 }
