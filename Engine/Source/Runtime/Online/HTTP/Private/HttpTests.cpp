@@ -22,7 +22,7 @@ void FHttpTest::Run(void)
 
 	for (int Idx=0; Idx < TestsToRun; Idx++)
 	{
-		TSharedPtr<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 		Request->OnProcessRequestComplete().BindRaw(this, &FHttpTest::RequestComplete);
 		Request->SetURL(Url);
 		if (Payload.Len() > 0)

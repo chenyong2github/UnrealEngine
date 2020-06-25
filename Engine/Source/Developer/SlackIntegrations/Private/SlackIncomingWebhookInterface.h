@@ -31,7 +31,7 @@ public:
 
 private:
 	/** Helper used to make http requests by SendMessage() */
-	TSharedRef<IHttpRequest> CreateHttpRequest() const;
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpRequest() const;
 
 	/**
 	 * Callback from HTTP library when a request has completed
