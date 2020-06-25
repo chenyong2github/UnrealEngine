@@ -1301,6 +1301,12 @@ public:
 		WriteData(WriteOffset, ShaderIdentifier.Data, ShaderIdentifierSize);
 	}
 
+	void SetHitGroupSystemParameters(uint32 RecordIndex, const FHitGroupSystemParameters& SystemParameters)
+	{
+		const uint32 OffsetWithinRootSignature = 0; // System parameters are always first in the RS.
+		SetLocalShaderParameters(RecordIndex, OffsetWithinRootSignature, SystemParameters);
+	}
+
 	void SetLocalShaderIdentifier(uint32 RecordIndex, const FD3D12ShaderIdentifier& ShaderIdentifier)
 	{
 		checkfSlow(ShaderIdentifier.IsValid(), TEXT("Shader identifier must be initialized FD3D12RayTracingPipelineState::GetShaderIdentifier() before use."));
@@ -2727,9 +2733,11 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	const uint32 NumSceneInstances = Instances.Num();
 
 	uint32 NumDxrInstances = 0;
+	BaseInstancePrefixSum.Reserve(NumSceneInstances);
 	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 	{
 		const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
+		BaseInstancePrefixSum.Add(NumDxrInstances);
 		NumDxrInstances += Instance.NumTransforms;
 	}
 
@@ -3058,44 +3066,6 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	CreatedShaderTable->SetRayGenIdentifiers(Pipeline->RayGenShaders.Identifiers);
 	CreatedShaderTable->SetMissIdentifiers(Pipeline->MissShaders.Identifiers);
 	CreatedShaderTable->SetDefaultHitGroupIdentifier(Pipeline->HitGroupShaders.Identifiers[0]);
-
-	// Bind index/vertex buffers and fetch parameters to all SBT entries (all segments of all mesh instances)
-	// Resource binding is skipped for pipelines that don't use SBT indexing. Such pipelines use the same CHS for all primitives, which can't access any local resources.
-	if (NumHitGroupSlots)
-	{
-		checkf(CreatedShaderTable->LocalShaderTableOffset == CreatedShaderTable->HitGroupShaderTableOffset,
-			TEXT("Hit shader records are assumed to be at the beginning of local shader table"));
-
-		// Sum of number of transforms in ray tracing instances before current.
-		// Used to emulate SV_InstanceID in hit shaders.
-		uint32 BaseInstanceIndex = 0;
-
-		const uint32 NumInstances = Instances.Num();
-		for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
-		{
-			const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
-
-			const FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
-			checkf(!Geometry->IsDirty(GPUIndex), TEXT("Ray tracing acceleration structure must be built before it is used in a shader binding table."));
-
-			const TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = Geometry->HitGroupSystemParameters[GPUIndex];
-
-			const uint32 NumSegments = Geometry->Segments.Num();
-			for (uint32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
-			{
-				const uint32 RecordBaseIndex = GetHitRecordBaseIndex(InstanceIndex, SegmentIndex);
-
-				FHitGroupSystemParameters SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
-				SystemParameters.RootConstants.BaseInstanceIndex = BaseInstanceIndex;
-				for (uint32 SlotIndex = 0; SlotIndex < ShaderSlotsPerGeometrySegment; ++SlotIndex)
-				{
-					CreatedShaderTable->SetLocalShaderParameters(RecordBaseIndex + SlotIndex, 0, SystemParameters);
-				}
-			}
-
-			BaseInstanceIndex += Instance.NumTransforms;
-		}
-	}
 
 	ShaderTables[GPUIndex].Add(Pipeline, CreatedShaderTable);
 
@@ -3832,7 +3802,7 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 static void SetRayTracingHitGroup(
 	FD3D12Device* Device,
 	FD3D12RayTracingShaderTable* ShaderTable,
-	FD3D12RayTracingScene* Scene, 
+	FD3D12RayTracingScene* Scene,
 	FD3D12RayTracingPipelineState* Pipeline,
 	uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot, uint32 HitGroupIndex,
 	uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
@@ -3844,8 +3814,15 @@ static void SetRayTracingHitGroup(
 
 	const uint32 RecordIndex = Scene->GetHitRecordBaseIndex(InstanceIndex, SegmentIndex) + ShaderSlot;
 
-	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
-	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
+	const uint32 GPUIndex = Device->GetGPUIndex();
+	const FRayTracingGeometryInstance& Instance = Scene->Instances[InstanceIndex];
+	const FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
+	const TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = Geometry->HitGroupSystemParameters[GPUIndex];
+
+	FHitGroupSystemParameters SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
+	SystemParameters.RootConstants.BaseInstanceIndex = Scene->BaseInstancePrefixSum[InstanceIndex];
+	SystemParameters.RootConstants.UserData = UserData;
+	ShaderTable->SetHitGroupSystemParameters(RecordIndex, SystemParameters);
 
 	const FD3D12RayTracingShader* Shader = Pipeline->HitGroupShaders.Shaders[HitGroupIndex];
 
