@@ -32,9 +32,7 @@ public:
 	 * Adds a new event to the cache.
 	 * If the estimated payload size will increase beyond MaximumPayloadSize then a flush will be queued here. This will make HasFlushesQueued() == true.
 	 */
-	UE_DEPRECATED(4.25, "This method has been deprecated. Use FJsonFragment to construct Json attributes instead, or call the version that doesn't take a bIsJsonEvent argument.")
-	void AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes, bool bIsJsonEvent);
-	void AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes);
+	void AddToCache(FString EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
 	void AddToCache(FString EventName);
 
 	/**

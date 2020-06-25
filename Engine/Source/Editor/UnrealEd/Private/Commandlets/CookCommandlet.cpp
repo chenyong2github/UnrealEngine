@@ -134,7 +134,7 @@ namespace DetailedCookStats
 							{
 								StatAttrs.Emplace(Attr.Key, Attr.Value);
 							}
-							CookAnalytics->RecordEvent(StatName, MoveTemp(StatAttrs));
+							CookAnalytics->RecordEvent(StatName, StatAttrs);
 						}
 						else
 						{
