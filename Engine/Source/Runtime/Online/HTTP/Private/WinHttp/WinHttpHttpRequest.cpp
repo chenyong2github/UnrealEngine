@@ -228,11 +228,11 @@ bool FWinHttpHttpRequest::ProcessRequest()
 
 	State = EHttpRequestStatus::Processing;
 
-	TSharedRef<FWinHttpHttpRequest> LocalStrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared());
-	HttpManager->QuerySessionForUrl(RequestData.Url, FWinHttpQuerySessionComplete::CreateLambda([LocalWeakThis = TWeakPtr<FWinHttpHttpRequest>(LocalStrongThis)](FWinHttpSession* SessionPtr)
+	TSharedRef<FWinHttpHttpRequest, ESPMode::ThreadSafe> LocalStrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared());
+	HttpManager->QuerySessionForUrl(RequestData.Url, FWinHttpQuerySessionComplete::CreateLambda([LocalWeakThis = TWeakPtr<FWinHttpHttpRequest, ESPMode::ThreadSafe>(LocalStrongThis)](FWinHttpSession* SessionPtr)
 	{
 		// Validate state
-		TSharedPtr<FWinHttpHttpRequest> StrongThis = LocalWeakThis.Pin();
+		TSharedPtr<FWinHttpHttpRequest, ESPMode::ThreadSafe> StrongThis = LocalWeakThis.Pin();
 		if (!StrongThis.IsValid())
 		{
 			// We went away
@@ -264,10 +264,10 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		}
 
 		// Bind listeners
-		TSharedRef<FWinHttpHttpRequest> StrongThisRef = StrongThis.ToSharedRef();
-		Connection->SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleDataTransferred));
-		Connection->SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleHeaderReceived));
-		Connection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
+		TSharedRef<FWinHttpHttpRequest, ESPMode::ThreadSafe> StrongThisRef = StrongThis.ToSharedRef();
+		Connection->SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleDataTransferred));
+		Connection->SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleHeaderReceived));
+		Connection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
 
 		// Start request!
 		StrongThis->RequestStartTimeSeconds = FPlatformTime::Seconds();
@@ -381,7 +381,7 @@ void FWinHttpHttpRequest::HandleDataTransferred(int32 BytesSent, int32 BytesRece
 	{
 		TotalBytesSent += BytesSent;
 		TotalBytesReceived += BytesReceived;
-		TSharedRef<IHttpRequest> KeepAlive = AsShared();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 		OnRequestProgress().ExecuteIfBound(AsShared(), TotalBytesSent, TotalBytesReceived);
 	}
 }
@@ -390,7 +390,7 @@ void FWinHttpHttpRequest::HandleHeaderReceived(const FString& HeaderKey, const F
 {
 	check(IsInGameThread());
 
-	TSharedRef<IHttpRequest> KeepAlive = AsShared();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 	OnHeaderReceived().ExecuteIfBound(AsShared(), HeaderKey, HeaderValue);
 }
 
@@ -434,7 +434,7 @@ void FWinHttpHttpRequest::FinishRequest()
 		Connection.Reset();
 	}
 	
-	TSharedRef<IHttpRequest> KeepAlive = AsShared();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 	FHttpModule::Get().GetHttpManager().RemoveRequest(KeepAlive);
 	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid()); 
 }

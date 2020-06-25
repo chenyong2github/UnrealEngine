@@ -611,7 +611,7 @@ void FAnalyticsProviderET::FlushEventLegacy(const FString& EventName, const TArr
 			*EventParams);
 
 		// Create/send Http request for an event
-		TSharedRef<IHttpRequest> HttpRequest = CreateRequest();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = CreateRequest();
 		HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("text/plain"));
 
 		// Don't need to URL encode the APIServer or the EventParams, which are already encoded, and contain parameter separaters that we DON'T want encoded.
