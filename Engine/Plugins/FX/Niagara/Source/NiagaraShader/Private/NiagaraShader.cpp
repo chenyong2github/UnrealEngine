@@ -24,6 +24,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "NiagaraShaderModule.h"
 #include "NiagaraCustomVersion.h"
+#include "UObject/UObjectThreadContext.h"
 
 IMPLEMENT_SHADER_TYPE(, FNiagaraShader, TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
