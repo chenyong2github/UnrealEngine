@@ -98,6 +98,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			const int32 FunctionCount = ScriptExecutableData.CalledVMExternalFunctions.Num();
 			FunctionTable.Reset(FunctionCount);
 			FunctionTable.AddZeroed(FunctionCount);
+			LocalFunctionTable.Reset();
 			TArray<int32> LocalFunctionTableIndices;
 			LocalFunctionTableIndices.Reserve(FunctionCount);
 
