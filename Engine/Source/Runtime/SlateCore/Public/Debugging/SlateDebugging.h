@@ -32,27 +32,33 @@ class FSlateInvalidationRoot;
 UENUM()
 enum class ESlateDebuggingInputEvent : uint8
 {
-	MouseMove,
+	MouseMove = 0,
 	MouseEnter,
 	MouseLeave,
+	PreviewMouseButtonDown,
 	MouseButtonDown,
 	MouseButtonUp,
 	MouseButtonDoubleClick,
 	MouseWheel,
 	TouchStart,
 	TouchEnd,
+	TouchForceChanged,
+	TouchFirstMove,
+	TouchMoved,
 	DragDetected,
 	DragEnter,
 	DragLeave,
 	DragOver,
 	DragDrop,
 	DropMessage,
+	PreviewKeyDown,
 	KeyDown,
 	KeyUp,
 	KeyChar,
 	AnalogInput,
 	TouchGesture,
-	COUNT
+	MotionDetected,
+	MAX,
 };
 
 UENUM()
@@ -82,23 +88,28 @@ public:
 	const FReply& Reply;
 	const TSharedPtr<SWidget>& HandlerWidget;
 	const FString& AdditionalContent;
+
+	FText ToText() const;
 };
 
 struct SLATECORE_API FSlateDebuggingCursorQueryEventArgs
 {
 public:
-	FSlateDebuggingCursorQueryEventArgs(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply);
+	FSlateDebuggingCursorQueryEventArgs(const TSharedPtr<const SWidget>& InWidgetOverridingCursor, const FCursorReply& InReply);
 
-	const SWidget* WidgetOverridingCursor = nullptr;
+	const TSharedPtr<const SWidget>& WidgetOverridingCursor;
 	const FCursorReply& Reply;
+
+	FText ToText() const;
 };
 
 UENUM()
 enum class ESlateDebuggingFocusEvent : uint8
 {
-	FocusChanging,
+	FocusChanging = 0,
 	FocusLost,
-	FocusReceived
+	FocusReceived,
+	MAX
 };
 
 
@@ -123,6 +134,8 @@ public:
 	const TSharedPtr<SWidget>& OldFocusedWidget;
 	const FWidgetPath& NewFocusedWidgetPath;
 	const TSharedPtr<SWidget>& NewFocusedWidget;
+
+	FText ToText() const;
 };
 
 struct SLATECORE_API FSlateDebuggingNavigationEventArgs
@@ -141,6 +154,8 @@ public:
 	const FWidgetPath& NavigationSource;
 	const TSharedPtr<SWidget>& DestinationWidget;
 	const ESlateDebuggingNavigationMethod NavigationMethod;
+
+	FText ToText() const;
 };
 
 struct SLATECORE_API FSlateDebuggingExecuteNavigationEventArgs
@@ -158,6 +173,8 @@ public:
 
 	const FText& Warning;
 	const TSharedPtr<SWidget>& OptionalContextWidget;
+
+	FText ToText() const;
 };
 
 struct SLATECORE_API FSlateDebuggingMouseCaptureEventArgs
@@ -174,6 +191,8 @@ public:
 	uint32 UserIndex;
 	uint32 PointerIndex;
 	const TSharedPtr<const SWidget>& CaptureWidget;
+
+	FText ToText() const;
 };
 
 
@@ -199,6 +218,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FEndWidgetPaint, const SWidget* /*Widget*/, const FSlateWindowElementList& /*OutDrawElements*/, int32 /*LayerId*/);
 	static FEndWidgetPaint EndWidgetPaint;
 
+	/** Called once the window is drawn (including PaintDeferred). It can be used to draw additional debug info on top of the window. */
+	DECLARE_MULTICAST_DELEGATE_FourParams(FPaintDebugElements, const FPaintArgs& /*InArgs*/, const FGeometry& /*InAllottedGeometry*/, FSlateWindowElementList& /*InOutDrawElements*/, int32& /*InOutLayerId*/);
+	static FPaintDebugElements PaintDebugElements;
+
 	/**
 	 * Called as soon as the element is added to the element list.
 	 * NOTE: These elements are not valid until the widget finishes painting, or you can resolve them all after the window finishes painting.
@@ -221,6 +244,43 @@ public:
 	static void BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const TSharedPtr<SWidget>& HandlerWidget);
 	static void BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget);
 	static void BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const FString& AdditionalContent);
+	static void BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const FName& AdditionalContent);
+	static void BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const TCHAR AdditionalContent);
+	static void BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent InputEventType, const TSharedPtr<SWidget>& HandlerWidget);
+
+public:
+	/** */
+	struct SLATECORE_API FScopeProcessInputEvent
+	{
+		ESlateDebuggingInputEvent InputEvent;
+		FScopeProcessInputEvent(ESlateDebuggingInputEvent InputEvent, const FInputEvent& Event);
+		~FScopeProcessInputEvent();
+	};
+
+	/** */
+	struct SLATECORE_API FScopeRouteInputEvent
+	{
+		ESlateDebuggingInputEvent InputEvent;
+		FScopeRouteInputEvent(ESlateDebuggingInputEvent InputEvent, const FName& RoutingType);
+		~FScopeRouteInputEvent();
+	};
+
+	/** */
+	static void BroadcastPreProcessInputEvent(ESlateDebuggingInputEvent InputEventType, const TCHAR* InputPrecessorName, bool bHandled);
+
+	/** */
+	struct IWidgetInputRoutingEvent
+	{
+		virtual void OnProcessInput(ESlateDebuggingInputEvent InputEventType, const FInputEvent& Event) = 0;
+		virtual void OnPreProcessInput(ESlateDebuggingInputEvent InputEventType, const TCHAR* InputPrecessorName, bool bHandled) = 0;
+		virtual void OnRouteInput(ESlateDebuggingInputEvent InputEventType, const FName& RoutedType) = 0;
+		virtual void OnInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget) = 0;
+		virtual void OnInputRouted(ESlateDebuggingInputEvent InputEventType) = 0;
+		virtual void OnInputProcessed(ESlateDebuggingInputEvent InputEventType) = 0;
+	};
+
+	static void RegisterWidgetInputRoutingEvent(IWidgetInputRoutingEvent* Event);
+	static void UnregisterWidgetInputRoutingEvent(IWidgetInputRoutingEvent* Event);
 
 public:
 	/**  */
@@ -256,7 +316,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetCursorQuery, const FSlateDebuggingCursorQueryEventArgs& /*EventArgs*/);
 	static FWidgetCursorQuery CursorChangedEvent;
 
-	static void BroadcastCursorQuery(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply);
+	static void BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOverridingCursor, const FCursorReply& InReply);
 
 public:
 	/**  */
@@ -284,6 +344,8 @@ private:
 		EMouseCursor::Type MouseCursor;
 	};
 	static FLastCursorQuery LastCursorQuery;
+
+	static TArray<IWidgetInputRoutingEvent*> RoutingEvents;
 };
 
 #endif
