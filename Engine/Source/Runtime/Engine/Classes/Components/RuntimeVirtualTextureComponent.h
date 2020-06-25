@@ -29,7 +29,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Num Streaming Mips"))
 	int32 StreamLowMips = 0;
 
-	/** Enable Crunch compression. ZLib compression is used when Crunch is disabled. */
+	/** Enable Crunch texture compression for the streaming low mips. Generic ZLib compression is used when Crunch is disabled. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch"))
 	bool bEnableCompressCrunch = false;
 
@@ -40,6 +40,14 @@ protected:
 	/** Texture object containing min and max height. Only valid if the virtual texture contains a compatible height layer. This can be useful for ray marching against the height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTextureBuild)
 	UTexture2D* MinMaxTexture = nullptr;
+
+	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
+	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
+	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
+
+	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
+	bool bSnapBoundsToLandscape;
 
 public:
 	/** Get the runtime virtual texture object on this component. */
@@ -75,6 +83,13 @@ public:
 	void SetMinMaxTexture(UTexture2D* InTexture) { MinMaxTexture = InTexture; }
 	/** Initialize the MinMax height texture with the passed in size and data. */
 	void InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData);
+#endif
+
+#if WITH_EDITOR
+	/** Get the BoundsAlignActor on this component. */
+	TSoftObjectPtr<AActor>& GetBoundsAlignActor() { return BoundsAlignActor; }
+	/** Get if SnapBoundsToLandscape is set on this component. */
+	bool GetSnapBoundsToLandscape() const { return bSnapBoundsToLandscape; }
 #endif
 
 protected:
