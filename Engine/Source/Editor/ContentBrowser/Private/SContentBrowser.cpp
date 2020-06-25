@@ -2169,18 +2169,15 @@ void SContentBrowser::OnItemSelectionChanged(const FContentBrowserItem& Selected
 			AssetSelectionChangedDelegate.Broadcast(SelectedAssets, bIsPrimaryBrowser);
 		}
 	}
-	else if (SelectedItem.IsValid())
+	else if (ViewContext == EContentBrowserViewContext::FavoriteView)
 	{
-		if (ViewContext == EContentBrowserViewContext::FavoriteView)
-		{
-			checkf(SelectedItem.IsFolder(), TEXT("File item passed to path view selection!"));
-			FavoritePathSelected(SelectedItem.GetVirtualPath().ToString());
-		}
-		else
-		{
-			checkf(SelectedItem.IsFolder(), TEXT("File item passed to path view selection!"));
-			PathSelected(SelectedItem.GetVirtualPath().ToString());
-		}
+		checkf(!SelectedItem.IsValid() || SelectedItem.IsFolder(), TEXT("File item passed to path view selection!"));
+		FavoritePathSelected(SelectedItem.IsValid() ? SelectedItem.GetVirtualPath().ToString() : FString());
+	}
+	else
+	{
+		checkf(!SelectedItem.IsValid() || SelectedItem.IsFolder(), TEXT("File item passed to path view selection!"));
+		PathSelected(SelectedItem.IsValid() ? SelectedItem.GetVirtualPath().ToString() : FString());
 	}
 }
 
