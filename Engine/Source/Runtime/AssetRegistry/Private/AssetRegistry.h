@@ -239,7 +239,7 @@ private:
 	void GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TSet<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const;
 
 	/** Finds all class names of classes capable of generating new UClasses */
-	void CollectCodeGeneratorClasses();
+	void CollectCodeGeneratorClasses() const;
 
 	/** Updates TempCachedInheritanceMap from native classes */
 	void UpdateTemporaryCaches() const;
@@ -323,6 +323,7 @@ private:
 	    be invalidated whenever registered classes have changed.
 	*/
 	mutable uint64 TempCachingRegisteredClassesVersionNumber;
+	mutable uint64 ClassGeneratorNamesRegisteredClassesVersionNumber;
 
 	/** If true, will cache AssetData loaded from in memory assets back into the disk cache */
 	bool bUpdateDiskCacheAfterLoad;
@@ -393,7 +394,7 @@ private:
 	TSet<FString> SynchronouslyScannedPathsAndFiles;
 
 	/** List of all class names derived from Blueprint (including Blueprint itself) */
-	TSet<FName> ClassGeneratorNames;
+	mutable TSet<FName> ClassGeneratorNames;
 
 	/** Handles to all registered OnDirectoryChanged delegates */
 	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
