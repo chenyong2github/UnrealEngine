@@ -29,6 +29,7 @@ enum class EInstallBundleManagerInitResult : int
 {
 	OK,
 	BuildMetaDataNotFound,
+	RemoteBuildMetaDataNotFound,
 	BuildMetaDataDownloadError,
 	BuildMetaDataParsingError,
 	DistributionRootParseError,
