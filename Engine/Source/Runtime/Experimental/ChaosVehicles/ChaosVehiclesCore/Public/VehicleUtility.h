@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 // Disable Optimizations in non debug build configurations
-#define VEHICLE_DEBUGGING_ENABLED 0
+#define VEHICLE_DEBUGGING_ENABLED 1
 
 namespace Chaos
 {
@@ -152,7 +152,12 @@ namespace Chaos
 		return InRad * 180.f / PI;
 	}
 
-	 class CHAOSVEHICLESCORE_API FTimeAndDistanceMeasure
+	FORCEINLINE float Sqr(float Val)
+	{
+		return Val * Val;
+	}
+
+	class CHAOSVEHICLESCORE_API FTimeAndDistanceMeasure
 	{
 	public:
 		FTimeAndDistanceMeasure(const FString& DescriptionIn, float InitialVelocityIn, float TargetVelocityIn, float TargetDistanceIn);

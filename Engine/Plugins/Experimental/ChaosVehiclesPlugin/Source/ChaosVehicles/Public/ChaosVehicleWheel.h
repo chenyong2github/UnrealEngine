@@ -87,9 +87,13 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		float WheelMass;
 
-		/** CHEAT FRICTION FORCE */
+		/** Cheat Longitudinal Friction Force Multiplier */
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
-		float CheatFrictionForce;
+		float CheatLongitudinalFrictionForce;
+
+		/** Cheat Lateral Friction Force Multiplier */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		float CheatLateralFrictionForce;
 
 		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
@@ -319,7 +323,8 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
-			PWheelConfig.CheatFrictionForceMultiplier = this->CheatFrictionForce;
+			PWheelConfig.CheatLongitudinalFrictionMultiplier = this->CheatLongitudinalFrictionForce;
+			PWheelConfig.CheatLateralFrictionMultiplier = this->CheatLateralFrictionForce;
 			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
 		}
 
