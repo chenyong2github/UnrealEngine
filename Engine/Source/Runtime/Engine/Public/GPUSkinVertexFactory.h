@@ -151,7 +151,8 @@ public: // From FTickableObjectRenderThread
 
 enum GPUSkinBoneInfluenceType
 {
-	DefaultBoneInfluence,	// up to 8 bones per vertex
+	DefaultBoneInfluence,	// 4 bones per vertex
+	ExtraBoneInfluence,		// 8 bones per vertex
 	UnlimitedBoneInfluence	// unlimited bones per vertex
 };
 
