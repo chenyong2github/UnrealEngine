@@ -562,7 +562,10 @@ void FPreLoadScreenManager::StopPreLoadScreen()
 		{
 			HandleStopPreLoadScreen();
 		}
+
+		AcquireCriticalSection.Unlock();
 		FlushRenderingCommands();
+		AcquireCriticalSection.Lock();
 	}
 }
 
