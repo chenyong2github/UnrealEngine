@@ -1980,7 +1980,6 @@ int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiag
 		}
 		return History.AddVariable(InVar, InAliasedVar, InPin, MetaData);
 	}
-	//UE_LOG(LogNiagaraEditor, Display, TEXT("Variable added to parameter map history did not have metadata! Variable: %s"), *InVar.GetName().ToString());
 	TOptional<FNiagaraVariableMetaData> BlankMetaData = FNiagaraVariableMetaData();
 	return History.AddVariable(InVar, InAliasedVar, InPin, BlankMetaData);
 }
