@@ -652,20 +652,6 @@ public:
 			return nullptr;
 		}
 
-		FString AccessKey;
-		if (!FParse::Value(Entry, TEXT("AccessKey="), AccessKey))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'AccessKey'."), NodeName);
-			return nullptr;
-		}
-
-		FString SecretKey;
-		if (!FParse::Value(Entry, TEXT("SecretKey="), SecretKey))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'SecretKey'."), NodeName);
-			return nullptr;
-		}
-
 		// Check the EnvPathOverride environment variable to allow persistent overriding of data cache path, eg for offsite workers.
 		FString EnvPathOverride;
 		FString CachePath = FPaths::ProjectSavedDir() / TEXT("S3DDC");
@@ -688,7 +674,7 @@ public:
 		}
 
 		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
-		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath, *AccessKey, *SecretKey);
+		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath);
 		return new FDerivedDataBackendCorruptionWrapper(Backend);
 #else
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
