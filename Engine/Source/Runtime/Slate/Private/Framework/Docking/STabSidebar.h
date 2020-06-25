@@ -73,6 +73,7 @@ private:
 	void OnTabDrawerButtonClicked(TSharedRef<SDockTab> ForTab);
 	void OnTabDrawerFocusLost(TSharedRef<STabDrawer> Drawer);
 	void OnTabDrawerClosed(TSharedRef<STabDrawer> Drawer);
+	void OnTargetDrawerSizeChanged(TSharedRef<STabDrawer> Drawer, float NewSize);
 	void OnWindowDPIScaleChanged(TSharedRef<SWindow> WindowThatChanged);
 	/** Called when active tab changes which is used to determine if we should close an opened content browser drawer */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);

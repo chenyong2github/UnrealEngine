@@ -341,6 +341,17 @@ void STabSidebar::OnTabDrawerClosed(TSharedRef<STabDrawer> Drawer)
 	RemoveDrawer(Drawer->GetTab());
 }
 
+void STabSidebar::OnTargetDrawerSizeChanged(TSharedRef<STabDrawer> Drawer, float NewSize)
+{
+	TSharedRef<SDockTab> Tab = Drawer->GetTab();
+	TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	if (MyWindow.IsValid())
+	{
+		const float TargetDrawerSizePct = NewSize / MyWindow->GetPaintSpaceGeometry().GetLocalSize().X;
+		Tab->GetParentDockTabStack()->SetTabSidebarSizeCoefficient(Tab, TargetDrawerSizePct);
+	}
+}
+
 void STabSidebar::OnWindowDPIScaleChanged(TSharedRef<SWindow> WindowThatChanged)
 {
 	if (WindowThatChanged == WindowWithOverlayContent)
@@ -540,7 +551,7 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 			.MaxDrawerSize(MaxDrawerSize)
 			.OnDrawerFocusLost(this, &STabSidebar::OnTabDrawerFocusLost)
 			.OnDrawerClosed(this, &STabSidebar::OnTabDrawerClosed)
-			//.OnTargetHeightChanged(this, &SStatusBar::OnContentBrowserTargetHeightChanged)
+			.OnTargetDrawerSizeChanged(this, &STabSidebar::OnTargetDrawerSizeChanged)
 			[
 				ForTab->GetContent()
 			];

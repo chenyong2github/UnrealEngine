@@ -25,7 +25,7 @@ enum class ETabDrawerOpenDirection : uint8
 	Bottom
 };
 
-DECLARE_DELEGATE_OneParam(FOnDrawerTargetSizeChanged, float);
+DECLARE_DELEGATE_TwoParams(FOnDrawerTargetSizeChanged, TSharedRef<STabDrawer>, float);
 DECLARE_DELEGATE_OneParam(FOnDrawerFocusLost, TSharedRef<STabDrawer>);
 DECLARE_DELEGATE_OneParam(FOnDrawerClosed, TSharedRef<STabDrawer>);
 

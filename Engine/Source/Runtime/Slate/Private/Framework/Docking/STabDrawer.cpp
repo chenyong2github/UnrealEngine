@@ -19,7 +19,6 @@ void STabDrawer::SetCurrentSize(float InSize)
 
 void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab, ETabDrawerOpenDirection InOpenDirection)
 {
-	Visibility = EVisibility::SelfHitTestInvisible;
 	OpenDirection = InOpenDirection;
 
 	ForTab = InTab;
@@ -180,7 +179,7 @@ FReply STabDrawer::OnMouseButtonUp(const FGeometry& AllottedGeometry, const FPoi
 		bIsResizing = false;
 		FSlateThrottleManager::Get().LeaveResponsiveMode(ResizeThrottleHandle);
 
-		OnTargetDrawerSizeChanged.ExecuteIfBound(TargetDrawerSize);
+		OnTargetDrawerSizeChanged.ExecuteIfBound(SharedThis(this), TargetDrawerSize);
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 	return FReply::Unhandled();
@@ -194,11 +193,26 @@ FReply STabDrawer::OnMouseMove(const FGeometry& AllottedGeometry, const FPointer
 
 	if (bIsResizing && this->HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
 	{
-		const FVector2D LocalMousePos = InitialResizeGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-		const float DeltaHeight = (InitialResizeGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector) - LocalMousePos).Y;
+		const FVector2D MousePos = MouseEvent.GetScreenSpacePosition();
+		float DeltaSize = 0.0f;
 
-		TargetDrawerSize = FMath::Clamp(InitialSizeAtResize + DeltaHeight, MinDrawerSize, MaxDrawerSize);
-		SetCurrentSize(InitialSizeAtResize + DeltaHeight);
+		if (OpenDirection == ETabDrawerOpenDirection::Left)
+		{
+			DeltaSize = (MousePos - InitialResizeGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector)).X;
+		}
+		else if (OpenDirection == ETabDrawerOpenDirection::Right)
+		{
+			DeltaSize = (InitialResizeGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector) - MousePos).X;
+		}
+		else
+		{
+			DeltaSize = (InitialResizeGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector) - MousePos).Y;
+		}
+
+
+
+		TargetDrawerSize = FMath::Clamp(InitialSizeAtResize + DeltaSize, MinDrawerSize, MaxDrawerSize);
+		SetCurrentSize(InitialSizeAtResize + DeltaSize);
 
 
 		return FReply::Handled();
@@ -218,7 +232,7 @@ void STabDrawer::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 FCursorReply STabDrawer::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	return bIsResizing || bIsResizeHandleHovered ? FCursorReply::Cursor(EMouseCursor::ResizeUpDown) : FCursorReply::Unhandled();
+	return bIsResizing || bIsResizeHandleHovered ? FCursorReply::Cursor(OpenDirection == ETabDrawerOpenDirection::Bottom ? EMouseCursor::ResizeUpDown : EMouseCursor::ResizeLeftRight) : FCursorReply::Unhandled();
 }
 
 int32 STabDrawer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -307,7 +321,20 @@ FGeometry STabDrawer::GetRenderTransformedGeometry(const FGeometry& AllottedGeom
 
 FGeometry STabDrawer::GetResizeHandleGeometry(const FGeometry& AllottedGeometry) const
 {
-	return GetRenderTransformedGeometry(AllottedGeometry).MakeChild(ShadowOffset - FVector2D(0.0f, ExpanderSize), FVector2D(AllottedGeometry.GetLocalSize().X - ShadowOffset.X * 2, ExpanderSize));
+	FGeometry RenderTransformedGeometry = GetRenderTransformedGeometry(AllottedGeometry);
+
+	if (OpenDirection == ETabDrawerOpenDirection::Left)
+	{
+		return RenderTransformedGeometry.MakeChild((FVector2D(RenderTransformedGeometry.GetLocalSize().X-ShadowOffset.X, ShadowOffset.Y)), FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2));
+	}
+	else if (OpenDirection == ETabDrawerOpenDirection::Right)
+	{
+		return RenderTransformedGeometry.MakeChild(ShadowOffset - FVector2D(ExpanderSize, 0.0f), FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2));
+	}
+	else
+	{
+		return RenderTransformedGeometry.MakeChild(ShadowOffset - FVector2D(0.0f, ExpanderSize), FVector2D(AllottedGeometry.GetLocalSize().X - ShadowOffset.X * 2, ExpanderSize));
+	}
 }
 
 EActiveTimerReturnType STabDrawer::UpdateAnimation(double CurrentTime, float DeltaTime)
