@@ -1672,7 +1672,7 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 	{
 		TGuardValue<bool> Guard(ActorChannel->bHoldQueuedExportBunchesAndGUIDs, true);		// Don't export queued GUIDs in fast path
 		
-#if UE_NET_TRACE_ENABLED
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && (UE_NET_TRACE_ENABLED)
 		// If we want to trace the actual contents of the shared path, we need to create a temporary collector associated with the shared bunch, collect the shared data and report it every time it is reused
 		// For now we just set the debug name of the the bunch to be able to give some context on what this bunch contains
 		if (OutBunch.DebugString.IsEmpty())
