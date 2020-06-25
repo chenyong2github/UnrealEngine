@@ -957,7 +957,9 @@ void UNiagaraSystem::CacheFromCompiledData()
 	TStringBuilder<128> ExecutionStateNameBuilder;
 	for (int32 i=0; i < EmitterHandles.Num(); ++i)
 	{
-		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandles[i].GetInstance())
+		FNiagaraEmitterHandle& Handle = EmitterHandles[i];
+		UNiagaraEmitter* NiagaraEmitter = EmitterHandles[i].GetInstance();
+		if (Handle.GetIsEnabled() && NiagaraEmitter)
 		{
 			// Cache system instance accessors
 			ExecutionStateNameBuilder.Reset();
