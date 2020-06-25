@@ -129,6 +129,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
+#include "Engine/ViewportStatsSubsystem.h"
 
 #include "Chaos/TriangleMeshImplicitObject.h"
 
@@ -10272,7 +10273,7 @@ float UEngine::DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCa
 /**
 *	Renders stats
 *
-*  @param World			The World to render stats about
+*   @param World			The World to render stats about
 *	@param Viewport			The viewport to render to
 *	@param Canvas			Canvas object to use for rendering
 *	@param CanvasObject		Optional canvas object for visualizing properties
@@ -10481,6 +10482,14 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 
 		RenderStats( Viewport, Canvas, StatsXOffset, Y, FMath::FloorToInt(PixelSizeX / Canvas->GetDPIScale()));
 #endif
+	}
+
+	// Use the new Viewport stats subsystem to draw any additional items that the user may want to
+	{
+		if (UViewportStatsSubsystem* ViewportSubsystem = World->GetSubsystem<UViewportStatsSubsystem>())
+		{
+			ViewportSubsystem->Draw(Viewport, Canvas, CanvasObject, MessageY);
+		}
 	}
 
 	// draw debug properties
