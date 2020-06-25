@@ -566,6 +566,12 @@ namespace ObjectTools
 				FAssetRegistryModule::AssetCreated(DupWorld->PersistentLevel->MapBuildData);
 			}
 
+			// if the duplicated object package has external packages, they were also duplicated. Mark them dirty as well
+			for (UPackage* ExternalPackage : DupObject->GetPackage()->GetExternalPackages())
+			{
+				ExternalPackage->MarkPackageDirty();
+			}
+
 			ReturnObject = DupObject;
 		}
 
@@ -1436,7 +1442,7 @@ namespace ObjectTools
 				const FScopedBusyCursor BusyCursor;
 				TArray<UClass*> IgnoreClasses;
 				TArray<FString> IgnorePackageNames;
-				TArray<UObject*> IgnorePackages;
+				TArray<UPackage*> IgnorePackages;
 
 				// Assemble an ignore list.
 				IgnoreClasses.Add( ULevel::StaticClass() );
@@ -1465,7 +1471,7 @@ namespace ObjectTools
 				// Construct the ignore package list.
 				for( int32 PackageNameItr = 0; PackageNameItr < IgnorePackageNames.Num(); ++PackageNameItr )
 				{
-					UObject* PackageToIgnore = FindObject<UPackage>(NULL,*(IgnorePackageNames[PackageNameItr]),true);
+					UPackage* PackageToIgnore = FindObject<UPackage>(NULL,*(IgnorePackageNames[PackageNameItr]),true);
 
 					if( PackageToIgnore == NULL )
 					{// An invalid package name was provided.
@@ -1728,7 +1734,7 @@ namespace ObjectTools
 			for ( int32 PackageIdx = 0; PackageIdx < PackagesToDelete.Num(); ++PackageIdx )
 			{
 				UPackage* Package = PackagesToDelete[PackageIdx];
-				PackagesDialogModule.AddPackageItem(Package, Package->GetName(), ECheckBoxState::Checked);
+				PackagesDialogModule.AddPackageItem(Package, ECheckBoxState::Checked);
 			}
 
 			// Display the delete dialog
@@ -2028,12 +2034,17 @@ namespace ObjectTools
 		{
 			UObject* ObjectToDelete = ObjectsToDelete[i];
 
-			// Delete MapBuildData with maps
+			// Delete MapBuildData with maps & owned packages for map
 			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
 			{
 				if (World->PersistentLevel && World->PersistentLevel->MapBuildData)
 				{
 					ObjectsToDelete.AddUnique(World->PersistentLevel->MapBuildData);
+				}
+
+				for (UPackage* Package : World->GetOutermost()->GetExternalPackages())
+				{
+					ObjectsToDelete.AddUnique(Package);
 				}
 			}
 		}

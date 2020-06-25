@@ -64,7 +64,6 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 				// Add each selected actor to our new group
 				// Adding an actor will remove it from any existing groups.
 				FinalActorList.Add(Actor);
-
 			}
 		}
 
@@ -81,6 +80,7 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 
 					FActorSpawnParameters SpawnInfo;
 					SpawnInfo.OverrideLevel = ActorLevel;
+					SpawnInfo.bCreateActorPackage = true;
 					AGroupActor* SpawnedGroupActor = World->SpawnActor<AGroupActor>(SpawnInfo);
 
 					bool bActorsInSameFolder = true;

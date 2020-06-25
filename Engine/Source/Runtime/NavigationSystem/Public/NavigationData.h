@@ -551,6 +551,7 @@ public:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
+	virtual bool SupportsExternalPackaging() const override { return false; }
 #endif // WITH_EDITOR
 	virtual void Destroyed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

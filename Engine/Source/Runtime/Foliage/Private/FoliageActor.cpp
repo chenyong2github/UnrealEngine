@@ -85,6 +85,7 @@ AActor* FFoliageActor::Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.ObjectFlags = RF_Transactional;
 	SpawnParameters.bHideFromSceneOutliner = true;
+	SpawnParameters.bCreateActorPackage = true;
 	SpawnParameters.OverrideLevel = IFA->GetLevel();
 	AActor* NewActor = IFA->GetWorld()->SpawnActor(ActorClass, nullptr, nullptr, SpawnParameters);
 	if (NewActor)

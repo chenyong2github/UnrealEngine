@@ -121,6 +121,12 @@ struct FObjectDuplicationParameters
 	EDuplicateMode::Type DuplicateMode;
 
 	/**
+	 * if an object being duplicated as an assigned external package, the duplicated object will try to assign an associated package to itself.
+	 * The associated package should come from the DuplicationSeed.
+	 */
+	bool bAssignExternalPackages = true;
+	
+	/**
 	 * Optional class to specify for the destination object.
 	 * @warning: MUST BE SERIALIZATION COMPATIBLE WITH SOURCE OBJECT, AND DOES NOT WORK WELL FOR OBJECT WHICH HAVE COMPLEX COMPONENT HIERARCHIES!!!
 	 */
@@ -184,7 +190,7 @@ COREUOBJECT_API FString ResolveIniObjectsReference(const FString& ObjectReferenc
  * @param	InstancingContext		The linker instancing context used to resolve package name during instacning (i.e. when a package file is loaded into a package with a different name)
  * @return	True if the name was successfully resolved
  */
-COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Internal function used to possibly output an error message, taking into account the outer and LoadFlags. Returns true if a log message was emitted. */
 COREUOBJECT_API bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage);
@@ -275,7 +281,7 @@ COREUOBJECT_API bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClas
  *
  * @return The object that was loaded or found. nullptr for a failure.
  */
-COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Version of StaticLoadObject() that will load classes */
 COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr);
@@ -362,7 +368,7 @@ COREUOBJECT_API void StaticTick( float DeltaTime, bool bUseFullTimeLimit = true,
  *
  * @return	Loaded package if successful, nullptr otherwise
  */
-COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Async package loading result */
 namespace EAsyncLoadingResult
@@ -402,7 +408,7 @@ DECLARE_DELEGATE_ThreeParams(FLoadPackageAsyncDelegate, const FName& /*PackageNa
  * @param	InPackagePriority		Loading priority
  * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
  */
-COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0);
+COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
  * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
@@ -1062,12 +1068,13 @@ COREUOBJECT_API void CheckIsClassChildOf_Internal(const UClass* Parent, const UC
  * @param	Template	the object to use for initializing the new object.  If not specified, the class's default object will be used
  * @param	bCopyTransientsFromClassDefaults	if true, copy transient from the class defaults instead of the pass in archetype ptr (often these are the same)
  * @param	InInstanceGraph						contains the mappings of instanced objects and components to their templates
+ * @param	ExternalPackage						Assign an external Package to the created object if non-null
  *
  * @return	a pointer of type T to a new object of the specified class
  */
 template< class T >
 FUNCTION_NON_NULL_RETURN_START
-	T* NewObject(UObject* Outer, const UClass* Class, FName Name = NAME_None, EObjectFlags Flags = RF_NoFlags, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, FObjectInstancingGraph* InInstanceGraph = nullptr)
+	T* NewObject(UObject* Outer, const UClass* Class, FName Name = NAME_None, EObjectFlags Flags = RF_NoFlags, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, FObjectInstancingGraph* InInstanceGraph = nullptr, UPackage* ExternalPackage = nullptr)
 FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
@@ -1080,7 +1087,7 @@ FUNCTION_NON_NULL_RETURN_END
 	CheckIsClassChildOf_Internal(T::StaticClass(), Class);
 #endif
 
-	return static_cast<T*>(StaticConstructObject_Internal(Class, Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph));
+	return static_cast<T*>(StaticConstructObject_Internal(Class, Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph, false/*bAssumeTemplateIsArchetype*/, ExternalPackage));
 }
 
 template< class T >

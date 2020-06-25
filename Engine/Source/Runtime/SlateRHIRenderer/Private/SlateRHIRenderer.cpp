@@ -1695,10 +1695,36 @@ void FSlateRHIRenderer::DestroyCachedFastPathElementData(FSlateCachedElementData
 	});
 }
 
+#if WITH_EDITORONLY_DATA
+namespace SlateRendererUtil
+{
+	bool bSlateShadersInitialized = false;
+	FDelegateHandle GlobalShaderCompilationDelegateHandle;
+
+	bool AreShadersInitialized()
+	{
+		if (!bSlateShadersInitialized)
+		{
+			bSlateShadersInitialized = IsGlobalShaderMapComplete(TEXT("SlateElement"));
+			// if shaders are initialized, cache the value until global shaders gets recompiled.
+			if (bSlateShadersInitialized)
+			{
+				GlobalShaderCompilationDelegateHandle = GetOnGlobalShaderCompilation().AddLambda([]()
+				{
+					bSlateShadersInitialized = false;
+					GetOnGlobalShaderCompilation().Remove(GlobalShaderCompilationDelegateHandle);
+				});
+			}
+		}
+		return bSlateShadersInitialized;
+	}
+}
+#endif
+
 bool FSlateRHIRenderer::AreShadersInitialized() const
 {
 #if WITH_EDITORONLY_DATA
-	return IsGlobalShaderMapComplete(TEXT("SlateElement"));
+	return SlateRendererUtil::AreShadersInitialized();
 #else
 	return true;
 #endif

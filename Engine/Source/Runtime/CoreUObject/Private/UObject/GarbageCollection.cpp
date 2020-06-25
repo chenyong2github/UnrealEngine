@@ -2186,7 +2186,7 @@ void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector
 {
 #if WITH_EDITOR
 	//@todo UE4 - This seems to be required and it should not be. Seems to be related to the texture streamer.
-	FLinkerLoad* LinkerLoad = This->GetLinker();	
+	FLinkerLoad* LinkerLoad = This->GetLinker();
 	if (LinkerLoad)
 	{
 		LinkerLoad->AddReferencedObjects(Collector);

@@ -6499,7 +6499,7 @@ void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
 void ResolveSuperClasses(UPackage* Package)
 {
 	TArray<UObject*> Objects;
-	GetObjectsWithOuter(Package, Objects);
+	GetObjectsWithPackage(Package, Objects);
 
 	for (UObject* Object : Objects)
 	{

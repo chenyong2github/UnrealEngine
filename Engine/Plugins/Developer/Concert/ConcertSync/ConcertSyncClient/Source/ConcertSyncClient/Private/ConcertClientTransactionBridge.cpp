@@ -139,13 +139,20 @@ struct FEditorTransactionNotification
 				FTransactionObjectDeltaChange DeltaChange;
 				DeltaChange.bHasNameChange = !InObjectUpdate.ObjectData.NewName.IsNone();
 				DeltaChange.bHasOuterChange = !InObjectUpdate.ObjectData.NewOuterPathName.IsNone();
+				DeltaChange.bHasExternalPackageChange = !InObjectUpdate.ObjectData.NewExternalPackageName.IsNone();
 				DeltaChange.bHasPendingKillChange = InObjectUpdate.ObjectData.bIsPendingKill != InTransactionObject->IsPendingKill();
 				DeltaChange.bHasNonPropertyChanges = InObjectUpdate.ObjectData.SerializedData.Num() > 0;
 				for (const FConcertSerializedPropertyData& PropertyData : InObjectUpdate.PropertyDatas)
 				{
 					DeltaChange.ChangedProperties.Add(PropertyData.PropertyName);
 				}
-				TransactionObjectEvent = FTransactionObjectEvent(TransactionContext.TransactionId, TransactionContext.OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, InTransactionAnnotation, InTransactionObject->GetFName(), *InTransactionObject->GetPathName(), InObjectUpdate.ObjectId.ObjectOuterPathName, FName(*InTransactionObject->GetClass()->GetPathName()));
+				TransactionObjectEvent = FTransactionObjectEvent(TransactionContext.TransactionId, TransactionContext.OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, InTransactionAnnotation
+					, InObjectUpdate.ObjectId.ObjectPackageName
+					, InTransactionObject->GetFName()
+					, *InTransactionObject->GetPathName()
+					, InObjectUpdate.ObjectId.ObjectOuterPathName
+					, InObjectUpdate.ObjectId.ObjectExternalPackageName
+					, FName(*InTransactionObject->GetClass()->GetPathName()));
 			}
 			GUnrealEd->HandleObjectTransacted(InTransactionObject, TransactionObjectEvent);
 		}
@@ -199,8 +206,8 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			// Is this object excluded? We exclude certain packages when re-applying live transactions on a package load
 			if (InPackagesToProcess.Num() > 0)
 			{
-				const FName ObjectOuterPathName = ObjectUpdate.ObjectData.NewOuterPathName.IsNone() ? ObjectUpdate.ObjectId.ObjectOuterPathName : ObjectUpdate.ObjectData.NewOuterPathName;
-				const FName ObjectPackageName = *FPackageName::ObjectPathToPackageName(ObjectOuterPathName.ToString());
+				// if we have an assigned package, use that to validate package, or should we?
+				FName ObjectPackageName = ObjectUpdate.ObjectData.NewPackageName.IsNone() ? ObjectUpdate.ObjectId.ObjectPackageName : ObjectUpdate.ObjectData.NewPackageName;
 				if (!InPackagesToProcess.Contains(ObjectPackageName))
 				{
 					continue;
@@ -208,13 +215,13 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			}
 
 			// Find or create the object
-			TransactionObjectRef = ConcertSyncClientUtil::GetObject(ObjectUpdate.ObjectId, ObjectUpdate.ObjectData.NewName, ObjectUpdate.ObjectData.NewOuterPathName, ObjectUpdate.ObjectData.bAllowCreate);
+			TransactionObjectRef = ConcertSyncClientUtil::GetObject(ObjectUpdate.ObjectId, ObjectUpdate.ObjectData.NewName, ObjectUpdate.ObjectData.NewOuterPathName, ObjectUpdate.ObjectData.NewExternalPackageName, ObjectUpdate.ObjectData.bAllowCreate);
 			bObjectsDeleted |= (ObjectUpdate.ObjectData.bIsPendingKill || TransactionObjectRef.NeedsGC());
 		}
 	}
 
 #if WITH_EDITOR
-	UObject* PrimaryObject = InEvent.PrimaryObjectId.ObjectName.IsNone() ? nullptr : ConcertSyncClientUtil::GetObject(InEvent.PrimaryObjectId, FName(), FName(), /*bAllowCreate*/false).Obj;
+	UObject* PrimaryObject = InEvent.PrimaryObjectId.ObjectName.IsNone() ? nullptr : ConcertSyncClientUtil::GetObject(InEvent.PrimaryObjectId, FName(), FName(), FName(), /*bAllowCreate*/false).Obj;
 	FEditorTransactionNotification EditorTransactionNotification(FTransactionContext(InEvent.TransactionId, InEvent.OperationId, LOCTEXT("ConcertTransactionEvent", "Concert Transaction Event"), TEXT("Concert Transaction Event"), PrimaryObject));
 	if (!bIsSnapshot)
 	{
@@ -562,7 +569,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		return;
 	}
 
-	const FConcertObjectId ObjectId = FConcertObjectId(*InObject->GetClass()->GetPathName(), InTransactionEvent.GetOriginalObjectOuterPathName(), InTransactionEvent.GetOriginalObjectName(), InObject->GetFlags());
+	const FConcertObjectId ObjectId = FConcertObjectId(*InObject->GetClass()->GetPathName(), InTransactionEvent.GetOriginalObjectPackageName(), InTransactionEvent.GetOriginalObjectName(), InTransactionEvent.GetOriginalObjectOuterPathName(), InTransactionEvent.GetOriginalObjectExternalPackageName(), InObject->GetFlags());
 	FOngoingTransaction& OngoingTransaction = *TrackedTransaction;
 
 	// If the object is excluded or exclude the whole transaction add it to the excluded list
@@ -573,13 +580,29 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		return;
 	}
 
+	const FName NewObjectPackageName = InTransactionEvent.HasOuterChange() || InTransactionEvent.HasExternalPackageChange() ? InObject->GetPackage()->GetFName() : FName();
 	const FName NewObjectName = InTransactionEvent.HasNameChange() ? InObject->GetFName() : FName();
 	const FName NewObjectOuterPathName = (InTransactionEvent.HasOuterChange() && InObject->GetOuter()) ? FName(*InObject->GetOuter()->GetPathName()) : FName();
+	const FName NewObjectExternalPackageName = (InTransactionEvent.HasExternalPackageChange() && InObject->GetExternalPackage()) ? InObject->GetExternalPackage()->GetFName() : FName();
 	const TArray<FName> RootPropertyNames = ConcertSyncClientUtil::GetRootProperties(InTransactionEvent.GetChangedProperties());
 	TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation = InTransactionEvent.GetAnnotation();
 
 	// Track which packages were changed
 	OngoingTransaction.CommonData.ModifiedPackages.AddUnique(ChangedPackage->GetFName());
+
+	// if there was an outer change, track that outer package
+	if (InTransactionEvent.HasOuterChange())
+	{
+		FName OriginalOuterPackageName = *FPackageName::ObjectPathToPackageName(InTransactionEvent.GetOriginalObjectOuterPathName().ToString());
+		OngoingTransaction.CommonData.ModifiedPackages.AddUnique(OriginalOuterPackageName);
+	}
+
+	// if there was an package change, track that package
+	if (InTransactionEvent.HasExternalPackageChange())
+	{
+		FName OriginalPackageName = InTransactionEvent.GetOriginalObjectPackageName().IsNone() ? *FPackageName::ObjectPathToPackageName(InTransactionEvent.GetOriginalObjectOuterPathName().ToString()) : InTransactionEvent.GetOriginalObjectPackageName();
+		OngoingTransaction.CommonData.ModifiedPackages.AddUnique(OriginalPackageName);
+	}
 
 	// Add this object change to its pending transaction
 	if (InTransactionEvent.GetEventType() == ETransactionObjectEventType::Snapshot)
@@ -639,8 +662,10 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		ObjectUpdate.ObjectPathDepth = ConcertSyncClientUtil::GetObjectPathDepth(InObject);
 		ObjectUpdate.ObjectData.bAllowCreate = InTransactionEvent.HasPendingKillChange() && !InObject->IsPendingKill();
 		ObjectUpdate.ObjectData.bIsPendingKill = InObject->IsPendingKill();
+		ObjectUpdate.ObjectData.NewPackageName = NewObjectPackageName;
 		ObjectUpdate.ObjectData.NewName = NewObjectName;
 		ObjectUpdate.ObjectData.NewOuterPathName = NewObjectOuterPathName;
+		ObjectUpdate.ObjectData.NewExternalPackageName = NewObjectExternalPackageName;
 
 		if (TransactionAnnotation.IsValid())
 		{

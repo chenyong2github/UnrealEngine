@@ -67,11 +67,6 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
-// Enable this define to do slow checks for components being added to the wrong
-// world's scene, when using PIE. This can happen if a PIE component is reattached
-// while GWorld is the editor world, for example.
-#define CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH	0
-
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
 	TEXT("r.EarlyZPassOnlyMaterialMasking"),
@@ -882,14 +877,12 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSc
  */
 FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWorld* World)
 {
-#if CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH
-	checkf(Component->GetOuter() == GetTransientPackage() || 
-		(FPackageName::GetLongPackageAssetName(Component->GetOutermost()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX) == 
-		FPackageName::GetLongPackageAssetName(World->GetOutermost()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX)),
+	checkfSlow(Component->GetOuter() == GetTransientPackage() || 
+		(FPackageName::GetLongPackageAssetName(Component->GetOutermostObject()->GetPackage()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX) == 
+		FPackageName::GetLongPackageAssetName(World->GetPackage()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX)),
 		TEXT("The component %s was added to the wrong world's scene (due to PIE). The callstack should tell you why"), 
 		*Component->GetFullName()
 		);
-#endif
 }
 
 void FPersistentUniformBuffers::Clear()
