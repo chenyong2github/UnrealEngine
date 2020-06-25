@@ -616,6 +616,11 @@ public:
 	 * Mouse capture
 	 */
 
+	 /**
+	  * @param bAllow If true, mouse pointer capture will be processed even when the application is not active or widget is not a virtual window
+	  */
+	void SetHandleDeviceInputWhenApplicationNotActive(bool bAllow) { bHandleDeviceInputWhenApplicationNotActive = bAllow; }
+
 	/** returning platform-specific value designating window that captures mouse, or nullptr if mouse isn't captured */
 	virtual void* GetMouseCaptureWindow() const;
 
@@ -1772,6 +1777,9 @@ private:
 
 	/**For desktop platforms that the touch move event be called when this variable is true */
 	bool bIsFakingTouched;
+
+	/** Force Mouse Pointer Capture to always occur even when the application is not active or widget is not a virtual window */
+	bool bHandleDeviceInputWhenApplicationNotActive;
 
 	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
 	FOnKeyEvent UnhandledKeyDownEventHandler;
