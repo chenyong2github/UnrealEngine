@@ -984,17 +984,22 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	RegisterWithScalabilityManager();
 
+	// NOTE: This call can cause SystemInstance itself to get destroyed with auto destroy systems
 	SystemInstance->Activate(ResetMode);
-
-	if (SystemInstance->IsSolo())
+	
+	if (SystemInstance && SystemInstance->IsSolo())
 	{
 		const ETickingGroup SoloTickGroup = SystemInstance->CalculateTickGroup();
 		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
 		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
-	}
 
-	/** We only need to tick the component if we require solo mode. */
-	SetComponentTickEnabled(SystemInstance->IsSolo());
+		/** We only need to tick the component if we require solo mode. */
+		SetComponentTickEnabled(true);
+	}
+	else
+	{
+		SetComponentTickEnabled(false);
+	}
 }
 
 void UNiagaraComponent::Deactivate()
