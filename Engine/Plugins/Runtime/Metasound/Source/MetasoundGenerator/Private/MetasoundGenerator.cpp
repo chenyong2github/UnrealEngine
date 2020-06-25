@@ -192,36 +192,36 @@ ISoundGeneratorPtr USynthComponentMetasoundGenerator::CreateSoundGenerator(int32
 	using FDataEdge = Metasound::FDataEdge; // Need to make explicit to disambiguate with existing FDataEdge.
 	using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
 
-	TInputNode<FFloatTime> BopPeriodInputNode(TEXT("BopPeriod"), 1.f, ETimeResolution::Seconds);
-	TInputNode<FFrequency> FrequencyInputNode(TEXT("Frequency"), 100.f, EFrequencyResolution::Hertz);
+	TInputNode<FFloatTime> BopPeriodInputNode(TEXT("Input Bop Period Node"), TEXT("BopPeriod"), 1.f, ETimeResolution::Seconds);
+	TInputNode<FFrequency> FrequencyInputNode(TEXT("Input Frequency Node"), TEXT("Frequency"), 100.f, EFrequencyResolution::Hertz);
 
 	FPeriodicBopNode BopNode(TEXT("Bop"), 1.f);
 	FOscNode OscNode(TEXT("Osc"), 100.f);
 	FADSRNode ADSRNode(TEXT("ADSR"), 10.f /* AttackMs */, 10.f /* DecayMs */, 50.f /* SustainMs */, 10.f /* ReleaseMs */);
 	FAudioMultiplyNode MultiplyNode(TEXT("Multiply"));
 
-	TOutputNode<FAudioBuffer> OutputNode(TEXT("Audio"));
+	TOutputNode<FAudioBuffer> OutputNode(TEXT("Output Audio Node"), TEXT("Audio"));
 
 	FGraph Graph(TEXT("Graph"));
 
 	// Add rate of bop.
-	Graph.AddDataEdge({{&BopPeriodInputNode, BopPeriodInputNode.GetOutputs()[0]}, {&BopNode, BopNode.GetInputs()[0]}});
+	Graph.AddDataEdge(BopPeriodInputNode, TEXT("BopPeriod"), BopNode, TEXT("Period"));
 	// Add frequency controls
-	Graph.AddDataEdge({{&FrequencyInputNode, FrequencyInputNode.GetOutputs()[0]}, {&OscNode, OscNode.GetInputs()[0]}});
+	Graph.AddDataEdge(FrequencyInputNode, TEXT("Frequency"), OscNode, TEXT("Frequency"));
 
 	// TODO: maybe nodes should have name accessors to inputs and outputs instead of an array?
-	Graph.AddDataEdge({{&BopNode, BopNode.GetOutputs()[0]}, {&ADSRNode, ADSRNode.GetInputs()[0]}});
+	Graph.AddDataEdge(BopNode, TEXT("Bop"), ADSRNode, TEXT("Bop"));
 
 	// Hookup multiply nodes
-	Graph.AddDataEdge({{&OscNode, OscNode.GetOutputs()[0]}, {&MultiplyNode, MultiplyNode.GetInputs()[0]}});
-	Graph.AddDataEdge({{&ADSRNode, ADSRNode.GetOutputs()[0]}, {&MultiplyNode, MultiplyNode.GetInputs()[1]}});
+	Graph.AddDataEdge(OscNode, TEXT("Audio"), MultiplyNode, TEXT("InputBuffer1"));
+	Graph.AddDataEdge(ADSRNode, TEXT("Envelope"), MultiplyNode, TEXT("InputBuffer2"));
 
 	// Route to output.
-	Graph.AddDataEdge({{&MultiplyNode, MultiplyNode.GetOutputs()[0]}, {&OutputNode, OutputNode.GetInputs()[0]}});
+	Graph.AddDataEdge(MultiplyNode, TEXT("Audio"), OutputNode, TEXT("Audio"));
 
-	Graph.AddInputDataVertex({&BopPeriodInputNode, BopPeriodInputNode.GetInputs()[0]});
-	Graph.AddInputDataVertex({&FrequencyInputNode, FrequencyInputNode.GetInputs()[0]});
-	Graph.AddOutputDataVertex({&OutputNode, OutputNode.GetOutputs()[0]});
+	Graph.AddInputDataDestination(BopPeriodInputNode, TEXT("BopPeriod"));
+	Graph.AddInputDataDestination(FrequencyInputNode, TEXT("Frequency"));
+	Graph.AddOutputDataSource(OutputNode, TEXT("Audio"));
 
 
 	// Build everything

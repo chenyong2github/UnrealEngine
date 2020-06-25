@@ -92,8 +92,8 @@ namespace Metasound
 	:	FNode(InName)
 	,	DefaultPeriod(InDefaultPeriodInSeconds)
 	{
-		AddInputDataVertexDescription<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period of the bops in seconds."));
-		AddOutputDataVertexDescription<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "The output bop"));
+		AddInputDataVertex<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period of the bops in seconds."));
+		AddOutputDataVertex<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "The output bop"));
 	}
 
 	FPeriodicBopNode::~FPeriodicBopNode()

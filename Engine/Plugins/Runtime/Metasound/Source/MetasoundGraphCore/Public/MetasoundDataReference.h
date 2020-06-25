@@ -52,6 +52,13 @@ namespace Metasound
 		virtual TUniquePtr<IDataReference> Clone() const = 0;
 	};
 
+	/** Helper class to enforce specialization of TDataReferenceTypeInfo */
+	template<typename DataType>
+	struct TSpecializationHelper 
+	{
+		enum { Value = false };
+	};
+
 	/** Info for templated data reference types help perform runtime type 
 	 * verification. 
 	 */
@@ -62,10 +69,14 @@ namespace Metasound
 		 * Users should be aware of FName case-insensitivity and other 
 		 * limitiations. 
 		 */
-		static constexpr const TCHAR* TypeName = TEXT("");
+		static constexpr const TCHAR* TypeName = nullptr;
 
 		/** Magic number used to check the data type when casting. */
 		static constexpr const FDataTypeMagicNumber MagicNumber = -1;
+
+		// This static assert is triggered if TDataReferenceTypeInfo is used 
+		// without specialization.
+		static_assert(TSpecializationHelper<DataType>::Value, "TDataReferenceTypeInfo must be specialized.  Use macro DECLARE_METASOUND_DATA_REFERENCE_TYPES");
 	};
 	
 	/** Template class for a paramter reference. 

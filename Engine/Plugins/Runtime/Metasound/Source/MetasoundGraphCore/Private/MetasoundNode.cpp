@@ -20,33 +20,33 @@ namespace Metasound
 		return Description;
 	}
 
-	const TArray<FInputDataVertexDescription>& FNode::GetInputs() const
+	const FInputDataVertexCollection& FNode::GetInputDataVertices() const
 	{
 		return Inputs;
 	}
 
-	const TArray<FOutputDataVertexDescription>& FNode::GetOutputs() const
+	const FOutputDataVertexCollection& FNode::GetOutputDataVertices() const
 	{
 		return Outputs;
 	}
 
-	void FNode::AddInputDataVertexDescription(const FInputDataVertexDescription& InDescription)
+	void FNode::AddInputDataVertex(const FInputDataVertex& InVertex)
 	{
-		Inputs.Add(InDescription);
+		Inputs.Add(MakeDataVertexKey(InVertex), InVertex);
 	}
 
-	void FNode::RemoveInputDataVertexDescription(const FInputDataVertexDescription& InDescription)
+	void FNode::RemoveInputDataVertex(const FInputDataVertex& InVertex)
 	{
-		Inputs.RemoveSingle(InDescription);
+		Inputs.Remove(MakeDataVertexKey(InVertex));
 	}
 
-	void FNode::AddOutputDataVertexDescription(const FOutputDataVertexDescription& InDescription)
+	void FNode::AddOutputDataVertex(const FOutputDataVertex& InVertex)
 	{
-		Outputs.Add(InDescription);
+		Outputs.Add(MakeDataVertexKey(InVertex), InVertex);
 	}
 
-	void FNode::RemoveOutputDataVertexDescription(const FOutputDataVertexDescription& InDescription)
+	void FNode::RemoveOutputDataVertex(const FOutputDataVertex& InVertex)
 	{
-		Outputs.RemoveSingle(InDescription);
+		Outputs.Remove(MakeDataVertexKey(InVertex));
 	}
 }

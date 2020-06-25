@@ -4,17 +4,17 @@
 
 namespace Metasound
 {
-	bool operator==(const FDataVertexDescription& LHS, const FDataVertexDescription& RHS)
+	bool operator==(const FDataVertex& LHS, const FDataVertex& RHS)
 	{
 		bool bIsEqual = /*(LHS.Source == RHS.Source) && */
 			(LHS.VertexName == RHS.VertexName) &&
 			(LHS.DataReferenceTypeName == RHS.DataReferenceTypeName) &&
-			LHS.Tooltip.EqualTo(RHS.Tooltip);
+			LHS.Description.EqualTo(RHS.Description);
 
 		return bIsEqual;
 	}
 
-	bool operator!=(const FDataVertexDescription& LHS, const FDataVertexDescription& RHS)
+	bool operator!=(const FDataVertex& LHS, const FDataVertex& RHS)
 	{
 		return !(LHS == RHS);
 	}

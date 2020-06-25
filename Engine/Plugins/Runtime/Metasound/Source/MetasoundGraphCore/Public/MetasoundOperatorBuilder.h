@@ -9,7 +9,6 @@
 
 namespace Metasound
 {
-	// TODO: Builder needs a type registry to create inputs. Or can have specific input/output nodes and avoid registry.
 	class METASOUNDGRAPHCORE_API FOperatorBuilder : public IOperatorBuilder
 	{
 		public:

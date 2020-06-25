@@ -78,8 +78,8 @@ namespace Metasound
 	:	FNode(InName)
 	,	DefaultFrequency(InDefaultFrequency)
 	{
-		AddInputDataVertexDescription<FFrequency>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator."));
-		AddOutputDataVertexDescription<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
+		AddInputDataVertex<FFrequency>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator."));
+		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
 	}
 
 	FOscNode::~FOscNode()

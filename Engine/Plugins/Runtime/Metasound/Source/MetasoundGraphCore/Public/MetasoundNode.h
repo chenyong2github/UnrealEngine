@@ -7,8 +7,6 @@
 
 namespace Metasound
 {
-	//DECLARE_MULTICAST_DELEGATE_TwoParams(FParameterChangedDelegate, const INodeBase*, const FDataVertexDescription&);
-
 	class METASOUNDGRAPHCORE_API FNode : public INode
 	{
 		public:
@@ -17,35 +15,35 @@ namespace Metasound
 
 			virtual const FString& GetDescription() const override;
 
-			virtual const TArray<FInputDataVertexDescription>& GetInputs() const override;
-			virtual const TArray<FOutputDataVertexDescription>& GetOutputs() const override;
+			virtual const FInputDataVertexCollection& GetInputDataVertices() const override;
+			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const override;
 
 		protected:
 
 
 			template<typename DataType>
-			void AddInputDataVertexDescription(const FString& InVertexName, const FText& InVertexTooltip)
+			void AddInputDataVertex(const FString& InVertexName, const FText& InVertexDescription)
 			{
-				AddInputDataVertexDescription(MakeInputDataVertexDescription<DataType>(InVertexName, InVertexTooltip));
+				AddInputDataVertex(MakeInputDataVertex<DataType>(InVertexName, InVertexDescription));
 			}
 
-			void AddInputDataVertexDescription(const FInputDataVertexDescription& InDescription);
-			void RemoveInputDataVertexDescription(const FInputDataVertexDescription& InDescription);
+			void AddInputDataVertex(const FInputDataVertex& InVertex);
+			void RemoveInputDataVertex(const FInputDataVertex& InVertex);
 
 			template<typename DataType>
-			void AddOutputDataVertexDescription(const FString& InVertexName, const FText& InVertexTooltip)
+			void AddOutputDataVertex(const FString& InVertexName, const FText& InVertexDescription)
 			{
-				AddOutputDataVertexDescription(MakeOutputDataVertexDescription<DataType>(InVertexName, InVertexTooltip));
+				AddOutputDataVertex(MakeOutputDataVertex<DataType>(InVertexName, InVertexDescription));
 			}
 
-			void AddOutputDataVertexDescription(const FOutputDataVertexDescription& InDescription);
-			void RemoveOutputDataVertexDescription(const FOutputDataVertexDescription& InDescription);
+			void AddOutputDataVertex(const FOutputDataVertex& InVertex);
+			void RemoveOutputDataVertex(const FOutputDataVertex& InVertex);
 
 		private:
 
 			FString Description;
 
-			TArray<FInputDataVertexDescription> Inputs;
-			TArray<FOutputDataVertexDescription> Outputs;
+			FInputDataVertexCollection Inputs;
+			FOutputDataVertexCollection Outputs;
 	};
 }

@@ -11,6 +11,7 @@ namespace Metasound
 	template<typename DataType>
 	class TInputNode : public INode
 	{
+		
 			class FInputOperator : public IOperator
 			{
 				public:
@@ -51,6 +52,7 @@ namespace Metasound
 			{
 				public:
 					using FDataWriteReference = TDataWriteReference<DataType>;
+					using FInputNodeType = TInputNode<DataType>;
 
 					template<typename... ArgTypes, typename = typename TEnableIf< TIsConstructible<DataType, ArgTypes...>::Value >::Type >
 					FCopyOperatorFactory(ArgTypes&&... Args)
@@ -66,13 +68,14 @@ namespace Metasound
 
 					virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
 					{
-						// Use copy constructor to create a new paramter reference.
+						// Use copy constructor to create a new parameter reference.
 						FDataWriteReference DataRef(Data);
 						// TODO: Write special version of this for audio types since they will need to be constructed based upon the operator settings. 
 						// TODO: Need to ponder how inputs are initialized, but template specialization might do the trick. 
 
+						const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InNode);
 
-						return MakeUnique<FInputOperator>(InNode.GetDescription(), DataRef);
+						return MakeUnique<FInputOperator>(InputNode.GetVertexName(), DataRef);
 					}
 
 				private:
@@ -83,24 +86,43 @@ namespace Metasound
 
 
 			template<typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
-			TInputNode(const FString& InDescription)
-			:	Description(InDescription)
+			TInputNode(const FString& InNodeDescription, const FString& InVertexName)
+			:	NodeDescription(InNodeDescription)
+			,	VertexName(InVertexName)
 			{
-				Outputs.Add(MakeOutputDataVertexDescription<DataType>(Description, FText::GetEmpty()));
+				FOutputDataVertex OutputVertex = MakeOutputDataVertex<DataType>(VertexName, FText::GetEmpty());
+				FDataVertexKey OutputVertexKey = MakeDataVertexKey(OutputVertex);
+
+				Outputs.Add(OutputVertexKey, OutputVertex);
+
+				FInputDataVertex InputVertex = MakeInputDataVertex<DataType>(VertexName, FText::GetEmpty());
+				FDataVertexKey InputVertexKey = MakeDataVertexKey(InputVertex);
+
+				Inputs.Add(InputVertexKey, InputVertex);
+
 			}
 
 			template<typename... ArgTypes, typename = typename TEnableIf< TIsConstructible<DataType, ArgTypes...>::Value >::Type >
-			TInputNode(const FString& InDescription, ArgTypes&&... Args)
-			:	Description(InDescription)
+			TInputNode(const FString& InNodeDescription, const FString& InVertexName, ArgTypes&&... Args)
+			:	NodeDescription(InNodeDescription)
+			,	VertexName(InVertexName)
 			,	Factory(Forward<ArgTypes>(Args)...)
 			{
-				Inputs.Add(MakeInputDataVertexDescription<DataType>(Description, FText::GetEmpty()));
-				Outputs.Add(MakeOutputDataVertexDescription<DataType>(Description, FText::GetEmpty()));
+				FOutputDataVertex OutputVertex = MakeOutputDataVertex<DataType>(VertexName, FText::GetEmpty());
+				FDataVertexKey OutputVertexKey = MakeDataVertexKey(OutputVertex);
+
+				Outputs.Add(OutputVertexKey, OutputVertex);
+
+				FInputDataVertex InputVertex = MakeInputDataVertex<DataType>(VertexName, FText::GetEmpty());
+				FDataVertexKey InputVertexKey = MakeDataVertexKey(InputVertex);
+
+				Inputs.Add(InputVertexKey, InputVertex);
+
 			}
 
 			virtual const FString& GetDescription() const override
 			{
-				return Description;
+				return NodeDescription;
 			}
 
 			virtual const FName& GetClassName() const override
@@ -110,12 +132,17 @@ namespace Metasound
 				return ClassName;
 			}
 
-			virtual const TArray<FInputDataVertexDescription>& GetInputs() const override
+			const FString& GetVertexName() const
+			{
+				return VertexName;
+			}
+
+			virtual const FInputDataVertexCollection& GetInputDataVertices() const override
 			{
 				return Inputs;
 			}
 
-			virtual const TArray<FOutputDataVertexDescription>& GetOutputs() const override
+			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const override
 			{
 				return Outputs;
 			}
@@ -127,11 +154,12 @@ namespace Metasound
 
 
 		private:
-			FString Description;
+			FString NodeDescription;
+			FString VertexName;
 
 			FCopyOperatorFactory Factory;
 
-			TArray<FInputDataVertexDescription> Inputs;
-			TArray<FOutputDataVertexDescription> Outputs;
+			FInputDataVertexCollection Inputs;
+			FOutputDataVertexCollection Outputs;
 	};
 }

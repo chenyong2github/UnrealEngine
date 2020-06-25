@@ -155,7 +155,7 @@ namespace Metasound
 			
 			const FDataReferenceCollection& FromDataReferenceCollection = InDataReferenceMap[Edge->From.Node].Outputs;
 
-			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Description.VertexName, Edge->From.Description.DataReferenceTypeName))
+			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName))
 			{
 				// TODO: This is likely a node programming error where the edges reported by the INode interface
 				// did not match the readable parameter refs created by the operators outputs. Or, the edge description is invalid.
@@ -165,7 +165,7 @@ namespace Metasound
 				return false;
 			}
 
-			if (Edge->From.Description.DataReferenceTypeName != Edge->To.Description.DataReferenceTypeName)
+			if (Edge->From.Vertex.DataReferenceTypeName != Edge->To.Vertex.DataReferenceTypeName)
 			{
 				// TODO: add build error.
 				// TODO: may want to have this check higher up in the stack. 
@@ -174,7 +174,7 @@ namespace Metasound
 
 
 
-			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Description.VertexName, FromDataReferenceCollection, Edge->From.Description.VertexName, Edge->From.Description.DataReferenceTypeName);
+			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.VertexName, FromDataReferenceCollection, Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName);
 
 			if (!bSuccess)
 			{
@@ -225,24 +225,29 @@ namespace Metasound
 
 	bool FOperatorBuilder::GatherGraphDataReferences(const IGraph& InGraph, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs, TArray<FBuildErrorPtr>& OutErrors) const
 	{
+		using FDestinationElement = FInputDataDestinationCollection::ElementType;
+		using FSourceElement = FOutputDataSourceCollection::ElementType;
 		// Gather inputs
-		for (const FInputDataVertex& InputVertex : InGraph.GetInputDataVertices())
+
+		for (const FDestinationElement& Element : InGraph.GetInputDataDestinations())
 		{
-			if (!InNodeDataReferences.Contains(InputVertex.Node))
+			const FInputDataDestination& InputDestination = Element.Value;
+
+			if (!InNodeDataReferences.Contains(InputDestination.Node))
 			{
 				// TODO: build error.  input node does not exist.
 				return false;
 			}
 
-			FDataReferenceCollection& Collection = InNodeDataReferences[InputVertex.Node].Inputs;
+			FDataReferenceCollection& Collection = InNodeDataReferences[InputDestination.Node].Inputs;
 
-			if (!Collection.ContainsDataWriteReference(InputVertex.Description.VertexName, InputVertex.Description.DataReferenceTypeName))
+			if (!Collection.ContainsDataWriteReference(InputDestination.Vertex.VertexName, InputDestination.Vertex.DataReferenceTypeName))
 			{
 				// TODO: build error.  parameter ref does not exist
 				return false;
 			}
 
-			bool bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputVertex.Description.VertexName, Collection, InputVertex.Description.VertexName, InputVertex.Description.DataReferenceTypeName);
+			bool bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputDestination.Vertex.VertexName, Collection, InputDestination.Vertex.VertexName, InputDestination.Vertex.DataReferenceTypeName);
 
 			if (!bSuccess)
 			{
@@ -253,23 +258,25 @@ namespace Metasound
 		}
 
 		// Gather outputs
-		for (const FOutputDataVertex& OutputVertex : InGraph.GetOutputDataVertices())
+		for (const FSourceElement& Element : InGraph.GetOutputDataSources())
 		{
-			if (!InNodeDataReferences.Contains(OutputVertex.Node))
+			const FOutputDataSource& OutputSource = Element.Value;
+
+			if (!InNodeDataReferences.Contains(OutputSource.Node))
 			{
 				// TODO: build error.  input node does not exist.
 				return false;
 			}
 
-			FDataReferenceCollection& Collection = InNodeDataReferences[OutputVertex.Node].Outputs;
+			FDataReferenceCollection& Collection = InNodeDataReferences[OutputSource.Node].Outputs;
 
-			if (!Collection.ContainsDataReadReference(OutputVertex.Description.VertexName, OutputVertex.Description.DataReferenceTypeName))
+			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.VertexName, OutputSource.Vertex.DataReferenceTypeName))
 			{
 				// TODO: build error.  parameter ref does not exist
 				return false;
 			}
 
-			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputVertex.Description.VertexName, Collection, OutputVertex.Description.VertexName, OutputVertex.Description.DataReferenceTypeName);
+			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputSource.Vertex.VertexName, Collection, OutputSource.Vertex.VertexName, OutputSource.Vertex.DataReferenceTypeName);
 
 			if (!bSuccess)
 			{
