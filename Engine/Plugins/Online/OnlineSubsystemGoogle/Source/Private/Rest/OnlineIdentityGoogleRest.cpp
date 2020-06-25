@@ -223,7 +223,7 @@ void FOnlineIdentityGoogle::ExchangeCode(int32 LocalUserNum, const FAuthTokenGoo
 					*RedirectURL);
 
 				// kick off http request to convert the exchange code to access token
-				TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 				HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOnlineIdentityGoogle::ExchangeRequest_HttpRequestComplete, LocalUserNum, InExchangeToken, InCompletionDelegate);
 				HttpRequest->SetURL(Endpoints.TokenEndpoint);
@@ -325,7 +325,7 @@ void FOnlineIdentityGoogle::RefreshAuth(int32 LocalUserNum, const FAuthTokenGoog
 					*InAuthToken.RefreshToken);
 
 				// kick off http request to refresh the auth token
-				TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 				HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOnlineIdentityGoogle::RefreshAuthRequest_HttpRequestComplete, LocalUserNum, InAuthToken, InCompletionDelegate);
 				HttpRequest->SetURL(Endpoints.TokenEndpoint);

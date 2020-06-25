@@ -41,7 +41,7 @@ public:
 	 *
 	 * @param Request - the request object to add
 	 */
-	void AddRequest(const TSharedRef<IHttpRequest>& Request);
+	void AddRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request);
 
 	/**
 	 * Removes an Http request instance from the manager
@@ -49,7 +49,7 @@ public:
 	 *
 	 * @param Request - the request object to remove
 	 */
-	void RemoveRequest(const TSharedRef<IHttpRequest>& Request);
+	void RemoveRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request);
 
 	/**
 	* Find an Http request in the lists of current valid requests
@@ -81,14 +81,14 @@ public:
 	 *
 	 * @param Request - the request object to add
 	 */
-	void AddThreadedRequest(const TSharedRef<IHttpThreadedRequest>& Request);
+	void AddThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESPMode::ThreadSafe>& Request);
 
 	/**
 	 * Mark a threaded http request as cancelled to be removed from the http thread
 	 *
 	 * @param Request - the request object to cancel
 	 */
-	void CancelThreadedRequest(const TSharedRef<IHttpThreadedRequest>& Request);
+	void CancelThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESPMode::ThreadSafe>& Request);
 
 	/**
 	 * List all of the Http requests currently being processed
@@ -168,7 +168,7 @@ protected:
 
 protected:
 	/** List of Http requests that are actively being processed */
-	TArray<TSharedRef<IHttpRequest>> Requests;
+	TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>> Requests;
 
 	FHttpThread* Thread;
 

@@ -88,7 +88,7 @@ private:
 	void FlushEventLegacy(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
 
 	/** Create a request utilizing HttpRetry domains */
-	TSharedRef<IHttpRequest> CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest();
 
 	bool bSessionInProgress;
 	/** The current configuration (might be updated with respect to the one provided at construction). */
@@ -301,10 +301,10 @@ void FAnalyticsProviderET::EndSession()
 	bSessionInProgress = false;
 }
 
-TSharedRef<IHttpRequest> FAnalyticsProviderET::CreateRequest()
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FAnalyticsProviderET::CreateRequest()
 {
 	// TODO add config values for retries, for now, using default
-	TSharedRef<IHttpRequest> HttpRequest = HttpRetryManager->CreateRequest(FHttpRetrySystem::FRetryLimitCountSetting(),
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpRetryManager->CreateRequest(FHttpRetrySystem::FRetryLimitCountSetting(),
 		FHttpRetrySystem::FRetryTimeoutRelativeSecondsSetting(),
 		FHttpRetrySystem::FRetryResponseCodes(),
 		FHttpRetrySystem::FRetryVerbs(),
@@ -373,7 +373,7 @@ void FAnalyticsProviderET::FlushEventsOnce()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FlushEventsHttpRequest);
 			// Create/send Http request for an event
-			TSharedRef<IHttpRequest> HttpRequest = CreateRequest();
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = CreateRequest();
 			HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json; charset=utf-8"));
 			HttpRequest->SetURL(Config.APIServerET / URLPath);
 			HttpRequest->SetVerb(TEXT("POST"));
