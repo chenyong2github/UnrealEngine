@@ -58,7 +58,7 @@ class UMG_API UWidgetBlueprintGeneratedClass : public UBlueprintGeneratedClass
 {
 	GENERATED_UCLASS_BODY()
 
-public:
+private:
 
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
@@ -66,31 +66,14 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	UPROPERTY()
-	uint32 bCookSlowConstructionWidgetTree:1;
+public:
 
 	UPROPERTY(Transient)
 	uint32 bCanCallPreConstruct:1;
 
 #endif
 
-	/** This indicates that we *could* template the class */
-	UPROPERTY()
-	uint32 bAllowTemplate:1;
-
-	UPROPERTY()
-	uint32 bAllowDynamicCreation:1;
-
 private:
-
-	UPROPERTY()
-	uint32 bValidTemplate:1;
-
-	UPROPERTY(Transient)
-	uint32 bTemplateInitialized:1;
-
-	UPROPERTY(Transient)
-	uint32 bCookedTemplate:1;
 
 	/** The classes native parent requires a native tick */
 	UPROPERTY()
@@ -108,17 +91,8 @@ public:
 
 public:
 
-	bool HasTemplate() const;
-
-#if WITH_EDITOR
-	bool WillHaveTemplate() const
-	{
-		return bAllowTemplate && bAllowDynamicCreation;
-	}
-#endif
-
-	void SetTemplate(UUserWidget* InTemplate);
-	UUserWidget* GetTemplate();
+	UWidgetTree* GetWidgetTreeArchetype() const { return WidgetTree; }
+	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
 
 	// Walks up the hierarchy looking for a valid widget tree.
 	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass();
@@ -144,29 +118,16 @@ public:
 
 	static void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass
-		, bool InHasTemplate
-		, bool InAllowDynamicCreation
 		, UWidgetTree* InWidgetTree
 		, const TArray< UWidgetAnimation* >& InAnimations
 		, const TArray< FDelegateRuntimeBinding >& InBindings);
 
 	bool ClassRequiresNativeTick() const { return bClassRequiresNativeTick; }
+
 #if WITH_EDITOR
 	void SetClassRequiresNativeTick(bool InClassRequiresNativeTick);
 #endif
+
 private:
-	void InitializeTemplate(const ITargetPlatform* TargetPlatform);
-
 	static void BindAnimations(UUserWidget* Instance, const TArray< UWidgetAnimation* >& InAnimations);
-
-	UPROPERTY()
-	TSoftObjectPtr<UUserWidget> TemplateAsset;
-
-	UPROPERTY(Transient)
-	mutable UUserWidget* Template;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
-	mutable UUserWidget* EditorTemplate;
-#endif
 };
