@@ -1156,9 +1156,15 @@ void UBodySetup::PostLoad()
 
 	// make sure that we load the physX data while the linker's loader is still open
 #if PHYSICS_INTERFACE_PHYSX
-	// Chaos does not call this so we can defer work and CreatePhysicsMeshes in parallel.
 	CreatePhysicsMeshes();
+#elif WITH_CHAOS
+	// If Deferring physics creation, skip so we can call CreatePhysicsMeshes in parallel.
+	if (GEnableDeferredPhysicsCreation == false)
+	{
+		CreatePhysicsMeshes();
+	}
 #endif
+
 
 }
 
