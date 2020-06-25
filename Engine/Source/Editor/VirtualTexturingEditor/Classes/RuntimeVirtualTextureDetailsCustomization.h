@@ -45,6 +45,9 @@ public:
 protected:
 	FRuntimeVirtualTextureComponentDetailsCustomization();
 
+	/** Callback for Set Bounds button */
+	FReply SetBounds();
+
 	/** Callback for Build button */
 	FReply BuildStreamedMips();
 	/** Callback for Build Debug button */
