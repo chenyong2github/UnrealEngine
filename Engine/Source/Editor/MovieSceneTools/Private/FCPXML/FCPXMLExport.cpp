@@ -1272,8 +1272,7 @@ bool FFCPXMLExportVisitor::ComposeFileKey(const TSharedPtr<FMovieSceneExportSect
 		return false;
 	}
 
-	OutName = InSection->SourceFilePath + InSection->SourceFilename;
-
+	OutName = InSection->MovieSceneSection->GetPathName();
 	return true;
 }
 
