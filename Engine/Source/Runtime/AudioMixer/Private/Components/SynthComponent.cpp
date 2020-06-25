@@ -52,6 +52,8 @@ void USynthSound::OnBeginGenerate()
 
 int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	OutAudio.Reset();
 
 	if (bAudioMixer)
@@ -432,6 +434,8 @@ FAudioDevice* USynthComponent::GetAudioDevice() const
 
 int32 USynthComponent::OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	PumpPendingMessages();
 
 	check(NumSamples > 0);
@@ -552,5 +556,7 @@ void USynthComponent::SynthCommand(TFunction<void()> Command)
 
 ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(int32 InSampleRate, int32 InNumChannels)
 {	
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	return SoundGenerator = CreateSoundGenerator(InSampleRate, InNumChannels);
 }
