@@ -150,7 +150,7 @@ static void AddSkinUpdatePass(
 
 	FSkinUpdateCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FSkinUpdateCS::FUnlimitedBoneInfluence>(SkinWeight->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
-	PermutationVector.Set<FSkinUpdateCS::FUseExtraInfluence>(SkinWeight->GetMaxBoneInfluences() > 4);
+	PermutationVector.Set<FSkinUpdateCS::FUseExtraInfluence>(SkinWeight->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::ExtraBoneInfluence);
 	PermutationVector.Set<FSkinUpdateCS::FIndexUint16>(SkinWeight->Use16BitBoneIndex());
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(), 64);
