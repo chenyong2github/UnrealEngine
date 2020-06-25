@@ -157,7 +157,7 @@ public:
 	T_DERIVED& GetObjectChecked()
 	{
 		check(T_DERIVED::StaticType() == Type);
-		return static_cast<const T_DERIVED&>(*this);
+		return static_cast<T_DERIVED&>(*this);
 	}
 
 	EImplicitObjectType GetType() const;
