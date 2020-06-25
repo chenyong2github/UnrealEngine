@@ -12,6 +12,6 @@ namespace RuntimeVirtualTexture
 	/** Returns true if the component describes a runtime virtual texture that has streaming mips. */
 	bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent);
 
-	/** Build the streaming mips and store in the component's associated URuntimeVirtualTexture object. */
+	/** Build the streaming mips texture. */
 	bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType);
 };
