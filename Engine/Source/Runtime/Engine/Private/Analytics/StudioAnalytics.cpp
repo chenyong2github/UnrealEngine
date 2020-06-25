@@ -108,14 +108,6 @@ void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnaly
 	}
 }
 
-void FStudioAnalytics::RecordEvent(const FString& EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
-{
-	if (FStudioAnalytics::IsAvailable())
-	{
-		FStudioAnalytics::GetProvider().RecordEvent(EventName, MoveTemp(Attributes));
-	}
-}
-
 void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& InAttributes)
 {
 	// Ignore anything less than a 1/4th a second.
