@@ -110,6 +110,11 @@ namespace Chaos
 			return CurrentGear != TargetGear;
 		}
 
+		bool IsOutOfGear() const
+		{
+			return (CurrentGear == 0) || IsCurrentlyChangingGear();
+		}
+
 		/** Get the final combined gear ratio for the specified gear (reverse gears < 0, neutral 0, forward gears > 0) */
 		float GetGearRatio(int32 InGear);
 

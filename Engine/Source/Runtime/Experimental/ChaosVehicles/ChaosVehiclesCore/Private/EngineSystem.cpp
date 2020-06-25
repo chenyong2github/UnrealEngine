@@ -12,18 +12,22 @@ namespace Chaos
 
 	FSimpleEngineSim::FSimpleEngineSim(const FSimpleEngineConfig* StaticDataIn) : TVehicleSystem<FSimpleEngineConfig>(StaticDataIn)
 		, ThrottlePosition(0.f)
-		, EngineRPM(0.f)
+		, TargetSpeed(0.f)
+		, CurrentRPM(0.f)
 		, DriveTorque(0.f)
-		//	, Tce(0.f)
-		//	, Omega(0.f)
 		, EngineIdleSpeed(RPMToOmega(Setup().EngineIdleRPM))
+		, MaxEngineSpeed(RPMToOmega(Setup().MaxRPM))
+		, EngineStarted(true)
+		, FreeRunning(false)
+		, Omega(0.f)
+		, RevRate(0.)
 	{
 
 	}
 
 	float FSimpleEngineSim::GetTorqueFromRPM(float RPM, bool LimitToIdle /*= true*/)
 	{
-		if (RPM >= Setup().MaxRPM || Setup().MaxRPM == 0)
+		if (!EngineStarted || RPM >= Setup().MaxRPM || Setup().MaxRPM == 0)
 		{
 			return 0.f;
 		}
@@ -52,21 +56,36 @@ namespace Chaos
 
 	void FSimpleEngineSim::Simulate(float DeltaTime)
 	{
-		//EngineIdleSpeed = RPMToOmega(Setup().EngineIdleRPM);
+		if (!EngineStarted)
+		{
+			return;
+		}
 
-		//// we don't let the engine stall
-		//if (Omega < EngineIdleSpeed)
-		//{
-		//	Omega = EngineIdleSpeed;
-		//}
+		if (FreeRunning)
+		{
+			float PrevOmega = Omega;
+			Omega += GetEngineTorque() * DeltaTime / Setup().EngineRevUpMOI;
 
-		//if (Omega > RPMToOmega(Setup().MaxRPM))
-		//{
-		//	Omega = RPMToOmega(Setup().MaxRPM);
-		//}
+			float Decel = Setup().EngineRevDownRate * Sqr((Omega - 0.5f*EngineIdleSpeed) / MaxEngineSpeed);
+			Omega -= Decel * DeltaTime;
 
+			RevRate = (Omega - PrevOmega) / DeltaTime;
+		}
+		else
+		{
+			float PrevOmega = Omega;
+			Omega += (TargetSpeed - Omega) * 4.0f * DeltaTime;// / Setup().EngineRevUpMOI;
+			RevRate = (Omega - PrevOmega) / DeltaTime;
+		}
+
+		// we don't let the engine stall
+		if (Omega < EngineIdleSpeed)
+		{
+			Omega = EngineIdleSpeed;
+		}	
+		
 		// EngineSpeed == Omega
-		//EngineRPM = OmegaToRPM(Omega);
+		CurrentRPM = OmegaToRPM(Omega);
 	}
 
 

@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -74,18 +75,17 @@ void FVehicleState::CaptureState(FBodyInstance* TargetInstance, float DeltaTime)
 UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bReverseAsBrake = true;
 	Mass = 1500.0f;
-	DragCoefficient = 0.3f;
 	ChassisWidth = 180.f;
 	ChassisHeight = 140.f;
+	DragCoefficient = 0.3f;
+	DownforceCoefficient = 0.3f;
 	InertiaTensorScale = FVector( 1.0f, 1.0f, 1.0f );
-	AngErrorAccumulator = 0.0f;
 
-	AirControl.Enabled = true;
-	AirControl.RollTorqueScaling = 5.0f;
-	AirControl.PitchTorqueScaling = 5.0f; 
-	AirControl.YawTorqueScaling = 5.0f;
-	AirControl.RotationDamping = 0.02f;
+	AirControl.InitDefaults();
+
+	AngErrorAccumulator = 0.0f;
 
 	IdleBrakeInput = 0.0f;
 	StopThreshold = 10.0f; 
@@ -104,8 +104,6 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	HandbrakeInputRate.FallRate = 12.0f;
 	SteeringInputRate.RiseRate = 2.5f;
 	SteeringInputRate.FallRate = 5.0f;
-
-	//bDeprecatedSpringOffsetMode = false;	//This is just for backwards compat. Newly tuned content should never need to use this
 
 #if WANT_RVO
 	bUseRVOAvoidance = false;
@@ -203,21 +201,22 @@ bool UChaosVehicleMovementComponent::CanCreateVehicle() const
 
 	if (UpdatedComponent == NULL)
 	{
-		UE_LOG(LogVehicle, Warning, TEXT("Ca't create vehicle %s (%s). UpdatedComponent is not set."), *ActorName, *GetPathName());
+		UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent is not set."), *ActorName, *GetPathName());
 		return false;
 	}
 
 	if (UpdatedPrimitive == NULL)
 	{
-		UE_LOG(LogVehicle, Warning, TEXT("Ca't create vehicle %s (%s). UpdatedComponent is not a PrimitiveComponent."), *ActorName, *GetPathName());
+		UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent is not a PrimitiveComponent."), *ActorName, *GetPathName());
 		return false;
 	}
 
-	if (UpdatedPrimitive->GetBodyInstance() == NULL)
-	{
-		UE_LOG(LogVehicle, Warning, TEXT("Cannot create vehicle %s (%s). UpdatedComponent has not initialized its rigid body actor."), *ActorName, *GetPathName());
-		return false;
-	}
+	// #Note: As of 22/06/2020 BodyInstance is no longer valid at this point in the Init process
+	//if (UpdatedPrimitive->GetBodyInstance() == NULL)
+	//{
+	//	UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent has not initialized its rigid body actor."), *ActorName, *GetPathName());
+	//	return false;
+	//}
 
 	return true;
 }
@@ -248,19 +247,26 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 		}
 	}
 
-	if (USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(GetMesh()))
+	FBodyInstance* BodyInstance = nullptr;
+	if (USkeletalMeshComponent* SkeletalMesh = GetSkeletalMesh())
 	{
+		// #todo: should we touch these
 		SkeletalMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 		SkeletalMesh->SetNotifyRigidBodyCollision(true);
 		SkeletalMesh->SetEnablePhysicsBlending(false); //??
 
-		//SkeletalMesh->BodyInstance.bStartAwake = false;
-		//SkeletalMesh->BodyInstance.bGenerateWakeEvents = true;
-		//SkeletalMesh->BodyInstance.bContactModification = true; // #todo: put this on a param - expose implementation
-		//SkeletalMesh->BodyInstance.bUseCCD = true; // #todo: put this on a param
-		//SkeletalMesh->BodyInstance.bEnableGravity = false;  // #todo: param to say use own gravity or not
+		BodyInstance = &SkeletalMesh->BodyInstance;
 	}
+//	else if (UStaticMeshComponent* StaticMesh = GetStaticMesh())
+//	{
+//		BodyInstance = &StaticMesh->BodyInstance;
+//	}
 
+	// #todo: should we touch these
+	//BodyInstance.bStartAwake = false;
+	//BodyInstance.bGenerateWakeEvents = true;
+	//BodyInstance.bContactModification = true; // #todo: put this on a param - expose implementation
+	//BodyInstance.bUseCCD = true; // #todo: put this on a param
 }
 
 void UChaosVehicleMovementComponent::OnDestroyPhysicsState()
@@ -312,8 +318,8 @@ void UChaosVehicleMovementComponent::TickVehicle(float DeltaTime)
 		APawn* MyOwner = Cast<APawn>(UpdatedComponent->GetOwner());
 		if (MyOwner)
 		{
-			// Wake if control input pressed
-			if (VehicleState.bSleeping && RawThrottleInput > SMALL_NUMBER)
+			// Wake if control input pressed - #note : some other input might wake the vehicle also
+			if (!TargetInstance->IsInstanceAwake() && RawThrottleInput > SMALL_NUMBER)
 			{
 				VehicleState.bSleeping = false;
 				TargetInstance->WakeInstance();
@@ -324,20 +330,20 @@ void UChaosVehicleMovementComponent::TickVehicle(float DeltaTime)
 				UpdateSimulation(DeltaTime);
 			}
 
-			// Sleep - possibly more agressive than the standard physics one
-			bool bAutoSleepEnabled = true;
-			float LinearThreshold = 0.001f;
-			float AngularThreshold = 0.001f;
-			if (bAutoSleepEnabled && !VehicleState.bSleeping && RawBrakeInput == 1.f && !VehicleState.bVehicleInAir)
-			{
-				if (TargetInstance
-					&& TargetInstance->GetUnrealWorldVelocity().SizeSquared() < LinearThreshold
-					&& TargetInstance->GetUnrealWorldAngularVelocityInRadians().SizeSquared() < AngularThreshold)
-				{
-					TargetInstance->PutInstanceToSleep();
-					VehicleState.bSleeping = true;
-				}
-			}
+			//// Sleep - possibly more aggressive than the standard physics one
+			//bool bAutoSleepEnabled = true;
+			//float LinearThreshold = 0.001f;
+			//float AngularThreshold = 0.001f;
+			//if (bAutoSleepEnabled && !VehicleState.bSleeping && RawBrakeInput == 1.f && !VehicleState.bVehicleInAir)
+			//{
+			//	if (TargetInstance
+			//		&& TargetInstance->GetUnrealWorldVelocity().SizeSquared() < LinearThreshold
+			//		&& TargetInstance->GetUnrealWorldAngularVelocityInRadians().SizeSquared() < AngularThreshold)
+			//	{
+			//		TargetInstance->PutInstanceToSleep();
+			//		VehicleState.bSleeping = true;
+			//	}
+			//}
 		}
 	}
 
@@ -595,7 +601,7 @@ void UChaosVehicleMovementComponent::ClearInput()
 		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
 	}
 
-	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear/*GetCurrentGear()*/);
+	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
 }
 
 void UChaosVehicleMovementComponent::ClearRawInput()
@@ -659,7 +665,7 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		{
 			TargetGear = PVehicle->GetTransmission().GetTargetGear();
 		}
-		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear);
+		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear, RollInput, PitchInput, YawInput);
 
 		if (PawnOwner && PawnOwner->IsNetMode(NM_Client))
 		{
@@ -694,6 +700,17 @@ void UChaosVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		ApplyAerodynamics(DeltaTime);
 		ApplyAerofoilForces(DeltaTime);
 		ApplyAirControl(DeltaTime);
+
+		// #todo: make this formal - use alt Parameter rather than AirControl
+		// slowing rotation effect
+		FVector DampingTorque = (VehicleState.VehicleWorldAngularVelocity / DeltaTime) * AirControl.RotationDamping;
+
+		// combined world torque
+		FVector TotalWorldTorque = -DampingTorque;
+
+		// apply torque to physics body
+		TargetInstance->AddTorqueInRadians(TotalWorldTorque, /*bAllowSubstepping=*/false, /*bAccelChange=*/true);
+
 
 	}
 }
@@ -824,17 +841,21 @@ void UChaosVehicleMovementComponent::CopyToSolverSafeContactStaticData()
 
 /// @cond DOXYGEN_WARNINGS
 
-bool UChaosVehicleMovementComponent::ServerUpdateState_Validate(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear)
+bool UChaosVehicleMovementComponent::ServerUpdateState_Validate(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput)
 {
 	return true;
 }
 
-void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear)
+void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSteeringInput, float InThrottleInput, float InBrakeInput
+	, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput)
 {
 	SteeringInput = InSteeringInput;
 	ThrottleInput = InThrottleInput;
 	BrakeInput = InBrakeInput;
 	HandbrakeInput = InHandbrakeInput;
+	RollInput = InRollInput;
+	PitchInput = InPitchInput;
+	YawInput = InYawInput;
 
 	if (false/*!GetUseAutoGears()*/)
 	{
@@ -847,6 +868,10 @@ void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSt
 	ReplicatedState.BrakeInput = InBrakeInput;
 	ReplicatedState.HandbrakeInput = InHandbrakeInput;
 	ReplicatedState.TargetGear = InCurrentGear;
+	ReplicatedState.RollInput = InRollInput;
+	ReplicatedState.PitchInput = InPitchInput;
+	ReplicatedState.YawInput = InYawInput;
+
 }
 
 /// @endcond
@@ -878,9 +903,19 @@ FBodyInstance* UChaosVehicleMovementComponent::GetBodyInstance()
 }
 
 
-USkinnedMeshComponent* UChaosVehicleMovementComponent::GetMesh()
+UMeshComponent* UChaosVehicleMovementComponent::GetMesh()
 {
-	return Cast<USkinnedMeshComponent>(UpdatedComponent);
+	return Cast<UMeshComponent>(UpdatedComponent);
+}
+
+USkeletalMeshComponent* UChaosVehicleMovementComponent::GetSkeletalMesh()
+{
+	return Cast<USkeletalMeshComponent>(UpdatedComponent);
+}
+
+UStaticMeshComponent* UChaosVehicleMovementComponent::GetStaticMesh()
+{
+	return Cast<UStaticMeshComponent>(UpdatedComponent);
 }
 
 void UChaosVehicleMovementComponent::CreateVehicle()
@@ -894,7 +929,8 @@ void UChaosVehicleMovementComponent::CreateVehicle()
 			check(UpdatedComponent);
 			if (ensure(UpdatedPrimitive != nullptr))
 			{
-				check(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
+				// The underlying code has changed - BodyInstance is not valid at this time
+				//check(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
 
 				// Low level physics representation
 				PVehicle = MakeUnique<Chaos::FSimpleWheeledVehicle>();
@@ -938,15 +974,13 @@ void UChaosVehicleMovementComponent::PostSetupVehicle()
 
 void UChaosVehicleMovementComponent::SetupVehicleMass()
 {
-	if (!UpdatedPrimitive)
+	if (UpdatedPrimitive && UpdatedPrimitive->GetBodyInstance())
 	{
-		return;
+		//Ensure that if mass properties ever change we set them back to our override
+		UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties().AddUObject(this, &UChaosVehicleMovementComponent::UpdateMassProperties);
+
+		UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 	}
-
-	//Ensure that if mass properties ever change we set them back to our override
-	UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties().AddUObject(this, &UChaosVehicleMovementComponent::UpdateMassProperties);
-
-	UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 }
 
 void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BodyInstance)
