@@ -104,9 +104,9 @@ namespace Chaos
 			const FImplicitObject* Implicit1,
 			const TBVHParticles<FReal, 3>* Simplicial1,
 			const FRigidTransform3& Transform1,
-			FType InType, 
-			EContactShapesType ShapesType, 
-			int32 InTimestamp = -INT_MAX)
+			const FType InType, 
+			const EContactShapesType ShapesType, 
+			const int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
 			, ConstraintHandle(nullptr)
@@ -208,7 +208,7 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const TBVHParticles<FReal, 3>* Simplicial1, 
 			const FRigidTransform3& Transform1,
-			EContactShapesType ShapesType)
+			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial0, Transform1, Base::FType::SinglePoint, ShapesType)
 		{}
 
@@ -228,15 +228,24 @@ namespace Chaos
 			const TBVHParticles<FReal, 3>* Simplicial1,
 			const FRigidTransform3& Transform1,
 			typename Base::FType InType, 
-			EContactShapesType ShapesType)
+			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InType, ShapesType)
 		{}
 	};
 
 
 	/*
-	*
-	*/
+	 * Holds information about a one-shot contact manifold. The Contact Manifold consists of a plane
+	 * attached to one particle, and a set of points on the other. Once the manifold is created, collision
+	 * detection between the two particles is reduced to finding the point that most deeply penetrates
+	 * the plane.
+	 *
+	 * Note that Particles are moved as part of constraint solving (collision, joints, etc.) so a manifold
+	 * can become increasingly inaccurate as  adjustments are made. How tolerant the manifold is to
+	 * particle motion depends on the nature of the shapes it represents. I.e., how much would we have to
+	 * rotate or translate the shapes such that the feature-selection algorithm in the manifold creation 
+	 * would have selected different features.
+	 */
 	class CHAOS_API FRigidBodyMultiPointContactConstraint : public FRigidBodyPointContactConstraint
 	{
 	public:
@@ -253,24 +262,66 @@ namespace Chaos
 			const FImplicitObject* Implicit1, 
 			const TBVHParticles<FReal, 3>* Simplicial1, 
 			const FRigidTransform3& Transform1,
-			EContactShapesType ShapesType)
+			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, Base::FType::MultiPoint, ShapesType)
 			, PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0)
-		{}
+			, bUseManifoldTolerance(false)
+		{
+		}
 
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
+		// Put the manifold into the "created" state, although it still has no plane or points so IsValidManifold will be false.
+		// We require this state to support just-in-time manifold creation during the first call to Apply collisions, as opposed 
+		// to up-front manifold creation in the collision detection phase.
+		// After this, assuming a valid manifold can be found, there should be calls to SetManifoldPlane and AddManifoldPoint(s).
+		FORCEINLINE void InitManifold()
+		{
+			PlaneOwnerIndex = 0;
+			PlaneFaceIndex = INDEX_NONE;
+			bUseManifoldTolerance = false;
+			ResetManifoldPoints();
+		}
+
+		// Calling this enables the tolerance system to test whether a manifold has been invalidated when the particles that
+		// own the manifold plane and points move. If not called, the IsManifoldWithinTolerance() always returns true. Once called,
+		// the manifold is invalidated if the relative position and rotation of the particles changes by an amount that exceeds the tolerance.
+		void InitManifoldTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal InPositionTolerance, const FReal InRotationTolerance);
+
+		// Whether we attempted to create the Manifold (it might not be usable though - see IsValidManifold())
+		FORCEINLINE bool IsManifoldCreated() const
+		{
+			return PlaneOwnerIndex != INDEX_NONE;
+		}
+
+		// Whether the manifold has a usable plane and set of points
+		// If we were unable to select a decent manifold, we should fall back to geometry-based collision detection
+		FORCEINLINE bool IsManifoldValid() const
+		{
+			return IsManifoldCreated() && (Points.Num() > 0);
+		}
+
+		// Whether the current relative particle positions have changed by an amount that is within acceptable tolerance for this manifold
+		FORCEINLINE bool IsManifoldWithinTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1)
+		{
+			if (IsManifoldCreated() && IsManifoldValid() && bUseManifoldTolerance)
+			{
+				return IsManifoldWithinToleranceImpl(ParticleTransform0, ParticleTransform1);
+			}
+			return true;
+		}
+
 		// Get the particle that owns the plane
-		FGeometryParticleHandle* PlaneParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[PlaneOwnerIndex]; }
+		FORCEINLINE FGeometryParticleHandle* PlaneParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[PlaneOwnerIndex]; }
 
 		// Get the particle that owns the manifold sample points
-		FGeometryParticleHandle* PointsParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[1 - PlaneOwnerIndex]; }
+		FORCEINLINE FGeometryParticleHandle* PointsParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[1 - PlaneOwnerIndex]; }
 
-		int32 GetManifoldPlaneOwnerIndex() const { return PlaneOwnerIndex; }
-		int32 GetManifoldPlaneFaceIndex() const { return PlaneFaceIndex; }
-		const FVec3& GetManifoldPlaneNormal() const { return PlaneNormal; }
-		const FVec3& GetManifoldPlanePosition() const { return PlanePosition; }
-		void SetManifoldPlane(int32 OwnerIndex, int32 FaceIndex, const FVec3& Normal, const FVec3& Pos)
+		FORCEINLINE int32 GetManifoldPlaneOwnerIndex() const { return PlaneOwnerIndex; }
+		FORCEINLINE int32 GetManifoldPlaneFaceIndex() const { return PlaneFaceIndex; }
+		FORCEINLINE const FVec3& GetManifoldPlaneNormal() const { return PlaneNormal; }
+		FORCEINLINE const FVec3& GetManifoldPlanePosition() const { return PlanePosition; }
+		FORCEINLINE void SetManifoldPlane(int32 OwnerIndex, int32 FaceIndex, const FVec3& Normal, const FVec3& Pos)
 		{
 			PlaneOwnerIndex = OwnerIndex;
 			PlaneFaceIndex = FaceIndex;
@@ -278,13 +329,15 @@ namespace Chaos
 			PlanePosition = Pos;
 		}
 
-		int32               NumManifoldPoints() const { return Points.Num(); }
-		const FVec3& GetManifoldPoint(int32 Index) const { check(0 <= Index && Index < NumManifoldPoints()); return Points[Index]; }
-		void				SetManifoldPoint(int32 Index, const FVec3& Point) { check(0 <= Index && Index < NumManifoldPoints()); Points[Index] = Point; }
-		void                AddManifoldPoint(const FVec3& Point) { Points.Add(Point); };
-		void                ResetManifoldPoints(int32 NewSize = 0) { Points.Reset(NewSize); }
+		FORCEINLINE int32 NumManifoldPoints() const { return Points.Num(); }
+		FORCEINLINE const FVec3& GetManifoldPoint(int32 Index) const { check(0 <= Index && Index < NumManifoldPoints()); return Points[Index]; }
+		FORCEINLINE void SetManifoldPoint(int32 Index, const FVec3& Point) { check(0 <= Index && Index < NumManifoldPoints()); Points[Index] = Point; }
+		FORCEINLINE void AddManifoldPoint(const FVec3& Point) { Points.Add(Point); };
+		FORCEINLINE void ResetManifoldPoints(int32 NewSize = 0) { Points.Reset(NewSize); }
 
 	private:
+		bool IsManifoldWithinToleranceImpl(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1);
+
 		// Manifold plane data
 		int PlaneOwnerIndex; // index of particle which owns the plane. The other owns the sample positions
 		int PlaneFaceIndex; // index of face used as the manifold plane on plane-owner body
@@ -294,6 +347,13 @@ namespace Chaos
 		// Manifold point data
 		static const int32 MaxPoints = 4;
 		TArray<FVec3, TInlineAllocator<MaxPoints>> Points; // @todo(chaos): use TFixedAllocator when we handle building the best manifold properly
+
+		// Manifold tolerance data
+		FVec3 InitialPositionSeparation;
+		FVec3 InitialRotationSeparation;
+		FReal PositionToleranceSq;
+		FReal RotationToleranceSq;
+		bool bUseManifoldTolerance;
 	};
 
 	/*
