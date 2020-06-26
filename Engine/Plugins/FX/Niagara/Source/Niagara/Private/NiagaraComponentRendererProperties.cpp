@@ -102,7 +102,11 @@ FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFRotatorDef()
 TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> UNiagaraComponentRendererProperties::ComponentRendererPropertiesToDeferredInit;
 
 UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
-	: ComponentCountLimit(15), bEnableComponentPooling(true), bVisualizeComponents(true), TemplateComponent(nullptr)
+	: ComponentCountLimit(15), bEnableComponentPooling(true)
+#if WITH_EDITORONLY_DATA
+	, bVisualizeComponents(true)
+#endif
+	, TemplateComponent(nullptr)
 {
 }
 
