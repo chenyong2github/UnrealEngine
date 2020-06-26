@@ -172,7 +172,7 @@ void FDataValidationModule::FindAssetDependencies(const FAssetRegistryModule& As
 				TArray<FName> Dependencies;
 				AssetRegistryModule.Get().GetDependencies(SelectedPackageName, Dependencies, EAssetRegistryDependencyType::Packages);
 
-				for (const FName Dependency : Dependencies)
+				for (const FName& Dependency : Dependencies)
 				{
 					const FString DependencyPackageString = Dependency.ToString();
 					FString DependencyObjectString = FString::Printf(TEXT("%s.%s"), *DependencyPackageString, *FPackageName::GetLongPackageAssetName(DependencyPackageString));

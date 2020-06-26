@@ -1497,7 +1497,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 	if (bReimportWarnings && ExistingCurveNames.Num())
 	{
-		for (const FString CurveName : ExistingCurveNames)
+		for (const FString& CurveName : ExistingCurveNames)
 		{
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_NonExistingCurve", "Curve ({0}) was not found in the new Animation."), FText::FromString(CurveName))), FFbxErrors::Animation_CurveNotFound);
 		}

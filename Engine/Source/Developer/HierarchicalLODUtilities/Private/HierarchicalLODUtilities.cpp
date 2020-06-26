@@ -588,7 +588,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 		}
 
 		// Add imposters to the LODActor
-		for (const TPair<UMaterialInterface*, FLODImposterBatch> ImposterBatch : ImposterBatches)
+		for (const TPair<UMaterialInterface*, FLODImposterBatch>& ImposterBatch : ImposterBatches)
 		{
 			LODActor->SetupImposters(ImposterBatch.Key, ImposterBatch.Value.StaticMesh, ImposterBatch.Value.Transforms);
 		}

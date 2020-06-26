@@ -398,7 +398,7 @@ void SortPackagesForReload(const FName PackageName, TSet<FName>& ProcessedPackag
 	InAssetRegistry.GetDependencies(PackageName, PackageDependencies, EAssetRegistryDependencyType::Hard);
 
 	// Recursively go through processing each new dependency until we run out
-	for (const FName Dependency : PackageDependencies)
+	for (const FName& Dependency : PackageDependencies)
 	{
 		if (!ProcessedPackages.Contains(Dependency))
 		{

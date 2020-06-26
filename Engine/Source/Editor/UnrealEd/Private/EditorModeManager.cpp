@@ -857,12 +857,12 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 		{
 			bReentrant = true;
 
-			for( const FEditorModeID ModeID : DefaultModeIDs )
+			for( const FEditorModeID& ModeID : DefaultModeIDs )
 			{
 				ActivateMode( ModeID );
 			}
 
-			for( const FEditorModeID ModeID : DefaultModeIDs )
+			for( const FEditorModeID& ModeID : DefaultModeIDs )
 			{
 				check( IsModeActive( ModeID ) );
 			}
@@ -1741,7 +1741,7 @@ bool FEditorModeTools::IsModeActive( FEditorModeID InID ) const
 bool FEditorModeTools::IsDefaultModeActive() const
 {
 	bool bAllDefaultModesActive = true;
-	for( const FEditorModeID ModeID : DefaultModeIDs )
+	for( const FEditorModeID& ModeID : DefaultModeIDs )
 	{
 		if( !IsModeActive( ModeID ) )
 		{

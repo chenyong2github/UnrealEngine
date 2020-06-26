@@ -173,7 +173,7 @@ void UContentBrowserDataSubsystem::CompileFilter(const FName InPath, const FCont
 
 			// The requested path is not managed by this data source, but we may still need to report part of its mount root as a sub-folder
 			TArrayView<const FName> MountRootHierarchy = DataSource->GetVirtualMountRootHierarchy();
-			for (const FName MountRootPart : MountRootHierarchy)
+			for (const FName& MountRootPart : MountRootHierarchy)
 			{
 				if (MountRootPart == InPath)
 				{
@@ -320,7 +320,7 @@ void UContentBrowserDataSubsystem::EnumerateItemsAtPath(const FName InPath, cons
 
 			// The requested path is not managed by this data source, but we may still need to report part of its mount root as a sub-folder
 			TArrayView<const FName> MountRootHierarchy = DataSource->GetVirtualMountRootHierarchy();
-			for (const FName MountRootPart : MountRootHierarchy)
+			for (const FName& MountRootPart : MountRootHierarchy)
 			{
 				if (MountRootPart == InPath)
 				{

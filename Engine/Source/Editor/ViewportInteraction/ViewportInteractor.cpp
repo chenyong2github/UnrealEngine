@@ -720,7 +720,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 					TraceParams.AddIgnoredActors( *OptionalListOfIgnoredActors );
 				}
 
-				for( const TWeakObjectPtr<AActor> ActorToIgnoreWeakPtr : WorldInteraction->GetActorsToExcludeFromHitTest() )
+				for( const TWeakObjectPtr<AActor>& ActorToIgnoreWeakPtr : WorldInteraction->GetActorsToExcludeFromHitTest() )
 				{
 					AActor* ActorToIgnore = ActorToIgnoreWeakPtr.Get();
 					if( ActorToIgnore != nullptr )

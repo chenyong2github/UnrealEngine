@@ -87,7 +87,7 @@ FReply SVariantManagerTableRow::DragDetected( const FGeometry& InGeometry, const
 		case EVariantManagerNodeType::Variant:  // Intended fallthrough
 		case EVariantManagerNodeType::VariantSet:
 		{
-			for (const FDisplayNodeRef SelectedNode : Selection.GetSelectedOutlinerNodes())
+			for (const FDisplayNodeRef& SelectedNode : Selection.GetSelectedOutlinerNodes())
 			{
 				if (SelectedNode->CanDrag())
 				{

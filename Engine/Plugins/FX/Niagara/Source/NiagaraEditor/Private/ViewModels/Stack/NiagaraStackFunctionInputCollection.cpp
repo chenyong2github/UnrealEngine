@@ -234,7 +234,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	});
 
 	// Populate the category children
-	for (const FInputData InputData : InputDataCollection)
+	for (const FInputData& InputData : InputDataCollection)
 	{
 		// Try to find an existing category in the already processed children.
 		UNiagaraStackInputCategory* InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(NewChildren,

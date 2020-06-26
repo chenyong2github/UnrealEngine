@@ -1406,7 +1406,7 @@ void FSequencer::DeleteSections(const TSet<TWeakObjectPtr<UMovieSceneSection>>& 
 
 	FScopedTransaction DeleteSectionTransaction( NSLOCTEXT("Sequencer", "DeleteSection_Transaction", "Delete Section") );
 
-	for (const auto Section : Sections)
+	for (const auto& Section : Sections)
 	{
 		if (!Section.IsValid() || Section->IsLocked())
 		{

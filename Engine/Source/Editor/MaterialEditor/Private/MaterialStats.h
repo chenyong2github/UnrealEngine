@@ -512,7 +512,7 @@ void FMaterialStats::SetMaterial(TMaterial *MaterialPtr)
 	{
 		MaterialInterface = MaterialPtr;
 
-		for (const auto Entry : ShaderPlatformStatsDB)
+		for (const auto& Entry : ShaderPlatformStatsDB)
 		{
 			auto Platform = Entry.Value;
 			Platform->SetMaterial(MaterialPtr);
