@@ -73,8 +73,7 @@ public:
 	{
 		if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 		{
-			FCollisionContext Context;
-			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance, Context);
+			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance);
 		}
 	}
 

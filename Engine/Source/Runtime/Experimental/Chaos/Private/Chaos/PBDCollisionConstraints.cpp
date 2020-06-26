@@ -538,11 +538,9 @@ namespace Chaos
 		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
-		FCollisionContext Context;
-
 		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance, Context);
+			Collisions::UpdateManifold(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
