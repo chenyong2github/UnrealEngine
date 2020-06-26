@@ -5835,6 +5835,8 @@ void UParticleSystemComponent::SetTemplate(class UParticleSystem* NewTemplate)
 		// speculative fix for OR-11322. May become permanent if the ensure in InitParticles never fires.
 		LODLevel = 0;
 
+		SetComponentTickEnabled(false);
+
 		if(NewTemplate && IsRegistered())
 		{
 			if ((bAutoActivate || bWasActive) && (bIsTemplate == false))
