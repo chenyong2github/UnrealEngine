@@ -44,6 +44,8 @@ class SViewport;
 class FSlateUser;
 class FSlateVirtualUserHandle;
 
+enum class ESlateDebuggingInputEvent : uint8;
+
 /** A Delegate for querying whether source code access is possible */
 DECLARE_DELEGATE_RetVal(bool, FQueryAccessSourceCode);
 
@@ -1896,7 +1898,7 @@ private:
 		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
 
 	private:
-		bool PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
+		bool PreProcessInput(ESlateDebuggingInputEvent InputEvent, TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
 
 		void AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index);
 
