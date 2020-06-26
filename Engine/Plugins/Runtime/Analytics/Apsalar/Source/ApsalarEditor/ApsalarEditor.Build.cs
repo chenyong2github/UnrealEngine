@@ -15,7 +15,8 @@ public class ApsalarEditor : ModuleRules
                 "Analytics",
                 "AnalyticsVisualEditing",
                 "Engine",
-				"Projects"
+				"Projects",
+				"DeveloperSettings"
 			}
 			);
 
