@@ -281,7 +281,6 @@ bool FWindowsMixedRealityHandTracking::GetControllerOrientationAndPosition(const
 ETrackingStatus FWindowsMixedRealityHandTracking::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 {
 	const FWindowsMixedRealityHandTracking::FHandState& HandState = (DeviceHand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
-
 	return HandState.ReceivedJointPoses ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
 }
 

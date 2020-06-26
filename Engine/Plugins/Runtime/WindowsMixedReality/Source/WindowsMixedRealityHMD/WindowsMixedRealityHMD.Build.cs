@@ -78,7 +78,6 @@ namespace UnrealBuildTool.Rules
 						"Slate",
 						"SlateCore",
 						"Projects",
-                        "WindowsMixedRealityHandTracking",
 						"AugmentedReality",
 					}
 					);

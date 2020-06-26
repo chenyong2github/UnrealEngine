@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using Tools.DotNETCommon;
 
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -833,14 +834,78 @@ namespace UnrealBuildTool
 		public delegate UEBuildModule CreateModuleDelegate(string Name, string ReferenceChain);
 
 		/// <summary>
+		/// Public entry point to recursively create a module and all its dependencies
+		/// </summary>
+		/// <param name="CreateModule"></param>
+		/// <param name="ReferenceChain"></param>
+		public void RecursivelyCreateModules(CreateModuleDelegate CreateModule, string ReferenceChain)
+		{
+			List<UEBuildModule> ReferenceStack = new List<UEBuildModule>();
+			RecursivelyCreateModules(CreateModule, ReferenceChain, ReferenceStack);
+		}
+
+		/// <summary>
 		/// Creates all the modules required for this target
 		/// </summary>
 		/// <param name="CreateModule">Delegate to create a module with a given name</param>
 		/// <param name="ReferenceChain">Chain of references before reaching this module</param>
-		public void RecursivelyCreateModules(CreateModuleDelegate CreateModule, string ReferenceChain)
+		/// <param name="ReferenceStack">Stack of module dependencies that led to this module</param>
+		protected void RecursivelyCreateModules(CreateModuleDelegate CreateModule, string ReferenceChain, List<UEBuildModule> ReferenceStack)
 		{
-			// Get the reference chain for anything referenced by this module
-			string NextReferenceChain = String.Format("{0} -> {1}", ReferenceChain, (RulesFile == null)? Name : RulesFile.GetFileName());
+			// Name of this reference
+			string ThisRefName = (RulesFile == null) ? Name : RulesFile.GetFileName();
+
+			// Set the reference chain for anything referenced by this module
+			string NextReferenceChain = String.Format("{0} -> {1}", ReferenceChain, ThisRefName);
+
+			// We need to check for cycles if this module has already been created and its name is in the stack.
+			bool CheckForCycles = PrivateIncludePathModules != null && ReferenceStack.Contains(this);
+
+			// Add us to the reference stack - note do this before checking for cycles as we allow them if an element in the stack
+			// declares the next element at leading to a dependency cycle.
+			ReferenceStack.Add(this);
+
+			if (CheckForCycles)
+			{
+				// We are FeatureModuleA and we know we're already in the list so there must be a circular dependency like this:
+				//   Target -> FeatureModuleA -> FeatureModuleB -> BaseModule -> FeatureModuleA
+				// In this case it's up to BaseModule to confess that it's going to introduce a 
+				// cycle by referencing FeatureModuleA so let's check it did that.
+				// (Note: it's *bad* that it is doing this, but it's even worse not to flag these
+				// cycles when they're introduced and have a way of tracking them!)
+
+				string GuiltyModule = null;
+				string VictimModule = null;
+
+				for (int i = 0; i < ReferenceStack.Count() - 1; i++)
+				{
+					UEBuildModule ReferringModule = ReferenceStack.ElementAt(i);
+					UEBuildModule TargetModule = ReferenceStack.ElementAt(i + 1);
+
+					if (ReferringModule.HasCircularDependencyOn(TargetModule.Name))
+					{
+						GuiltyModule = ReferringModule.Name;
+						VictimModule = TargetModule.Name;
+						break;
+					}
+				}
+
+				// No module has confessed its guilt, so this is an error.
+				if (string.IsNullOrEmpty(GuiltyModule))
+				{
+					string CycleChain = string.Join(" -> ", ReferenceStack);
+					Log.TraceError("Circular dependency on {0} detected.\n" +
+						"\tFull Route: {1}\n" +
+						"\tCycled Route: is {2}.\n" +
+						"Break this loop by moving dependencies into a separate module or using Private/PublicIncludePathModuleNames to reference declarations\n", 
+						ThisRefName, NextReferenceChain, CycleChain);
+
+				}
+				else
+				{
+					Log.TraceVerbose("Found circular reference to {0}, but {1} declares a cycle on {2} which breaks the chain", ThisRefName, GuiltyModule, VictimModule);
+				}
+			}		
 
 			// Recursively create all the public include path modules. These modules may not be added to the target (and we don't process their referenced 
 			// dependencies), but they need to be created to set up their include paths.
@@ -853,14 +918,18 @@ namespace UnrealBuildTool
 				// Create the private include path modules
 				RecursivelyCreateIncludePathModulesByName(Rules.PrivateIncludePathModuleNames, ref PrivateIncludePathModules, CreateModule, NextReferenceChain);
 
-				// Create all the dependency modules
-				RecursivelyCreateModulesByName(Rules.PublicDependencyModuleNames, ref PublicDependencyModules, CreateModule, NextReferenceChain);
-				RecursivelyCreateModulesByName(Rules.PrivateDependencyModuleNames, ref PrivateDependencyModules, CreateModule, NextReferenceChain);
-				RecursivelyCreateModulesByName(Rules.DynamicallyLoadedModuleNames, ref DynamicallyLoadedModules, CreateModule, NextReferenceChain);
+				// Create all the dependency modules - pass through the reference stack so we can check for cycles
+				RecursivelyCreateModulesByName(Rules.PublicDependencyModuleNames, ref PublicDependencyModules, CreateModule, NextReferenceChain, ReferenceStack);
+				RecursivelyCreateModulesByName(Rules.PrivateDependencyModuleNames, ref PrivateDependencyModules, CreateModule, NextReferenceChain, ReferenceStack);
+				// Dynamic loads aren't considered a reference chain so start with an empty stack
+				RecursivelyCreateModulesByName(Rules.DynamicallyLoadedModuleNames, ref DynamicallyLoadedModules, CreateModule, NextReferenceChain, new List<UEBuildModule>());
 			}
+
+			// pop us off the current stack
+			ReferenceStack.RemoveAt(ReferenceStack.Count - 1);
 		}
 
-		private static void RecursivelyCreateModulesByName(List<string> ModuleNames, ref List<UEBuildModule> Modules, CreateModuleDelegate CreateModule, string ReferenceChain)
+		private static void RecursivelyCreateModulesByName(List<string> ModuleNames, ref List<UEBuildModule> Modules, CreateModuleDelegate CreateModule, string ReferenceChain, List<UEBuildModule> ReferenceStack)
 		{
 			// Check whether the module list is already set. We set this immediately (via the ref) to avoid infinite recursion.
 			if (Modules == null)
@@ -871,7 +940,7 @@ namespace UnrealBuildTool
 					UEBuildModule Module = CreateModule(ModuleName, ReferenceChain);
 					if (!Modules.Contains(Module))
 					{
-						Module.RecursivelyCreateModules(CreateModule, ReferenceChain);
+						Module.RecursivelyCreateModules(CreateModule, ReferenceChain, ReferenceStack);
 						Modules.Add(Module);
 					}
 				}

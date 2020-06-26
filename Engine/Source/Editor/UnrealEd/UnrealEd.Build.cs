@@ -152,7 +152,6 @@ public class UnrealEd : ModuleRules
 				"InternationalizationSettings",
 				"JsonUtilities",
 				"Landscape",
-				"HeadMountedDisplay",
 				"MeshPaint",
 				"MeshPaintMode",
 				"Foliage",
@@ -267,13 +266,22 @@ public class UnrealEd : ModuleRules
 		}
 
 		CircularlyReferencedDependentModules.AddRange(
-			new string[]
-			{
+			new string[] {
+				"Documentation",
 				"GraphEditor",
 				"Kismet",
 				"AudioEditor",
 				"ViewportInteraction",
 				"VREditor",
+				"MeshPaint",
+				"MeshPaintMode",
+				"PropertyEditor",
+				"ToolMenusEditor",
+				"InputBindingEditor",
+				"ClothingSystemEditor",
+				"PluginWarden",
+				"PIEPreviewDeviceProfileSelector",
+				"EditorInteractiveToolsFramework"
 			}
 		);
 

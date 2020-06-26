@@ -70,10 +70,13 @@ public class Kismet : ModuleRules
 			}
             );
 
-        CircularlyReferencedDependentModules.AddRange(
-            new string[] {
-                "BlueprintGraph",
-                "UMGEditor",
+		// Circular references that need to be cleaned up
+		CircularlyReferencedDependentModules.AddRange(
+			new string[] {
+				"BlueprintGraph",
+				"BlueprintNativeCodeGen",
+				"UMGEditor",
+				"Merge"
             }
         ); 
 	}
