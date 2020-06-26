@@ -7,6 +7,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerManager.h"
+#include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
 
 /*-----------------------------------------------------------------------------

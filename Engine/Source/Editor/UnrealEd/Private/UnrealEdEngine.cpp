@@ -66,6 +66,7 @@
 #include "EngineAnalytics.h"
 #include "CookerSettings.h"
 #include "Misc/MessageDialog.h"
+#include "Logging/MessageLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 

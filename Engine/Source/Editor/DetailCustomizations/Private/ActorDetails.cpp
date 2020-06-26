@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
+#include "Misc/MessageDialog.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
