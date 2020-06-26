@@ -9,8 +9,11 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/MessageDialog.h"
 #include "GameFramework/Actor.h"
+#include "ScopedTransaction.h"
 #include "Editor.h"
 #include "Engine/Texture2D.h"
 
