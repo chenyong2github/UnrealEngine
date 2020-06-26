@@ -3,7 +3,7 @@
 #pragma once
 
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
+#include "PhysicsSettingsEnums.h"
 
 namespace physx
 {

@@ -9,7 +9,7 @@
 #include "PhysxUserData.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "PhysScene_PhysX.h"
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
+#include "PhysicsSettingsEnums.h"
 #include "GenericPhysicsInterface.h"
 #include "HAL/LowLevelMemTracker.h"
 
