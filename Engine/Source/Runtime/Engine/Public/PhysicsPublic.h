@@ -340,11 +340,9 @@ FTransform FindBodyTransform(AActor* Actor, FName BoneName);
 FBox	FindBodyBox(AActor* Actor, FName BoneName);
 
 /** Set of delegates to allowing hooking different parts of the physics engine */
-class ENGINE_API FPhysicsDelegates
+class ENGINE_API FPhysicsDelegates : public FPhysicsDelegatesCore
 {
 public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdatePhysXMaterial, UPhysicalMaterial*);
-	static FOnUpdatePhysXMaterial OnUpdatePhysXMaterial;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysicsAssetChanged, const UPhysicsAsset*);
 	static FOnPhysicsAssetChanged OnPhysicsAssetChanged;

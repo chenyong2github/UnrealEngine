@@ -4,7 +4,7 @@
 	ChaosPhysicalMaterial.cpp
 =============================================================================*/ 
 
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 #include "Chaos/Defines.h"
 
 UChaosPhysicalMaterial::UChaosPhysicalMaterial(const FObjectInitializer& ObjectInitializer)

@@ -29,7 +29,7 @@
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 
 #include "Chaos/ChaosSolverActor.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
 

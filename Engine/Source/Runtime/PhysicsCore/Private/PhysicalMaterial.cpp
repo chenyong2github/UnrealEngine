@@ -5,17 +5,8 @@
 =============================================================================*/ 
 
 #include "PhysicalMaterials/PhysicalMaterial.h"
-#include "UObject/UObjectIterator.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "PhysicsPublic.h"
 #include "PhysicalMaterials/PhysicalMaterialPropertyBase.h"
-#include "PhysicsEngine/PhysicsSettings.h"
-
-#if PHYSICS_INTERFACE_PHYSX
-	#include "PhysicsEngine/PhysXSupport.h"
-	#include "Physics/PhysicsInterfacePhysX.h"
-#endif // WITH_PHYSX
+#include "UObject/UObjectIterator.h"
 
 #if WITH_CHAOS
 	#include "Chaos/PhysicalMaterials.h"
@@ -37,7 +28,6 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	SleepAngularVelocityThreshold = 0.05f;
 	SleepCounterThreshold = 4;
 	DestructibleDamageThresholdScale = 1.0f;
-	TireFrictionScale = 1.0f;
 	bOverrideFrictionCombineMode = false;
 	UserData = FChaosUserData(this);
 }
@@ -57,7 +47,7 @@ void UPhysicalMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
 	}
 	// Update PhysX material last so we have a valid Parent
-	FPhysicsInterface::UpdateMaterial(*MaterialHandle, this);
+	FChaosEngineInterface::UpdateMaterial(*MaterialHandle, this);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -73,7 +63,7 @@ void UPhysicalMaterial::RebuildPhysicalMaterials()
 			{
 				PhysicalMaterial->MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
 			}
-			FPhysicsInterface::UpdateMaterial(*PhysicalMaterial->MaterialHandle, PhysicalMaterial);
+			FChaosEngineInterface::UpdateMaterial(*PhysicalMaterial->MaterialHandle, PhysicalMaterial);
 		}
 	}
 }
@@ -87,9 +77,9 @@ void UPhysicalMaterial::PostLoad()
 	// we're removing physical material property, so convert to Material type
 	if (GetLinkerUE4Version() < VER_UE4_REMOVE_PHYSICALMATERIALPROPERTY)
 	{
-		if (PhysicalMaterialProperty)
+		if (PhysicalMaterialProperty_DEPRECATED)
 		{
-			SurfaceType = PhysicalMaterialProperty->ConvertToSurfaceType();
+			SurfaceType = PhysicalMaterialProperty_DEPRECATED->ConvertToSurfaceType();
 		}
 	}
 }
@@ -98,7 +88,7 @@ void UPhysicalMaterial::FinishDestroy()
 {
 	if(MaterialHandle)
 	{
-		FPhysicsInterface::ReleaseMaterial(*MaterialHandle);
+		FChaosEngineInterface::ReleaseMaterial(*MaterialHandle);
 	}
 	Super::FinishDestroy();
 }
@@ -111,22 +101,29 @@ FPhysicsMaterialHandle& UPhysicalMaterial::GetPhysicsMaterial()
 	}
 	if(!MaterialHandle->IsValid())
 	{
-		*MaterialHandle = FPhysicsInterface::CreateMaterial(this);
+		*MaterialHandle = FChaosEngineInterface::CreateMaterial(this);
 		check(MaterialHandle->IsValid());
 
-		FPhysicsInterface::SetUserData(*MaterialHandle, &UserData);
-		FPhysicsInterface::UpdateMaterial(*MaterialHandle, this);
+		FChaosEngineInterface::SetUserData(*MaterialHandle, &UserData);
+		FChaosEngineInterface::UpdateMaterial(*MaterialHandle, this);
 	}
 
 	return *MaterialHandle;
+}
+
+//This is a bit of a hack, should probably just have a default material live in PhysicsCore instead of in Engine
+static UPhysicalMaterial* GEngineDefaultPhysMaterial = nullptr;
+
+void UPhysicalMaterial::SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material)
+{
+	GEngineDefaultPhysMaterial = Material;
 }
 
 EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial)
 {
 	if (PhysicalMaterial == NULL)
 	{
-		PhysicalMaterial = GEngine->DefaultPhysMaterial;
+		PhysicalMaterial = GEngineDefaultPhysMaterial;
 	}
-	
 	return PhysicalMaterial->SurfaceType;
 }

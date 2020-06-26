@@ -60,6 +60,7 @@ public class DetailCustomizations : ModuleRules
 				"HeadMountedDisplay",
                 "DataTableEditor",
 				"ToolMenus",
+				"PhysicsCore"
             }
 		);
 
