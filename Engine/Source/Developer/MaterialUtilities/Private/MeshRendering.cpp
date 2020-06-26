@@ -204,7 +204,7 @@ public:
 		{
 			const FPolygonGroupID PolygonGroupID = RawMesh.GetPolygonPolygonGroup(PolygonID);
 			const TArray<FTriangleID>& TriangleIDs = RawMesh.GetPolygonTriangleIDs(PolygonID);
-			for (const FTriangleID TriangleID : TriangleIDs)
+			for (const FTriangleID& TriangleID : TriangleIDs)
 			{
 				if (PolygonGroupID.GetValue() == Data.MaterialIndex)
 				{

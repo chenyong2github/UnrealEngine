@@ -2934,7 +2934,7 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 		{
 			FARFilter ExclusionFilter = UAdvancedCopyCustomization::StaticClass()->GetDefaultObject<UAdvancedCopyCustomization>()->GetARFilter();
 			AssetRegistry.UseFilterToExcludeAssets(PathAssetData, ExclusionFilter);
-			for(const FAssetData Asset : PathAssetData)
+			for(const FAssetData& Asset : PathAssetData)
 			{
 				AllDependencies.Add(*Asset.GetPackage()->GetName());
 				// If we should check the assets we found for dependencies
@@ -2949,7 +2949,7 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 		{
 			TArray<FString> SubPaths;
 			AssetRegistry.GetSubPaths(PackageName.ToString(), SubPaths, false);
-			for (const FString SubPath : SubPaths)
+			for (const FString& SubPath : SubPaths)
 			{
 				TArray<FAssetData> EmptyArray;
 				RecursiveGetDependenciesAdvanced(FName(*SubPath), CopyParams, AllDependencies, DependencyMap, CopyCustomization, EmptyArray);
@@ -3042,7 +3042,7 @@ void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAnd
 		if (ExistingObject)
 		{
 			// Try to find the customization in the settings
-			for (const FAdvancedCopyMap Customization : Settings->AdvancedCopyCustomizations)
+			for (const FAdvancedCopyMap& Customization : Settings->AdvancedCopyCustomizations)
 			{
 				if (Customization.ClassToCopy.GetAssetPathString() == ExistingObject->GetClass()->GetPathName())
 				{

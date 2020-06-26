@@ -18,7 +18,7 @@ void FLiveLinkVirtualSubjectDetailCustomization::CustomizeDetails(IDetailLayoutB
 {
 	MyDetailsBuilder = &DetailBuilder;
 
-	for (const TWeakObjectPtr<UObject> SelectedObject : MyDetailsBuilder->GetSelectedObjects())
+	for (const TWeakObjectPtr<UObject>& SelectedObject : MyDetailsBuilder->GetSelectedObjects())
 	{
 		if (ULiveLinkVirtualSubject* Selection = Cast<ULiveLinkVirtualSubject>(SelectedObject.Get()))
 		{

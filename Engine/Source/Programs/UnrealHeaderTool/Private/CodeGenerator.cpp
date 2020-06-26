@@ -2617,9 +2617,9 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	{
 		OuterFunc = TEXT("nullptr");
 	}
-
+	
 	TArray<FProperty*> Props;
-	Algo::Copy(TFieldRange<FProperty>(Function, EFieldIteratorFlags::ExcludeSuper), Props);
+	Algo::Copy(TFieldRange<FProperty>(Function, EFieldIteratorFlags::ExcludeSuper), Props, Algo::NoRef);
 
 	FString StructureSize;
 	if (Props.Num())
@@ -3895,7 +3895,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	FString MetaDataParams = OutputMetaDataCodeForObject(GeneratedStructRegisterFunctionText, StaticDefinitions, Struct, *FString::Printf(TEXT("%s::Struct_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
 
 	TArray<FProperty*> Props;
-	Algo::Copy(TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper), Props);
+	Algo::Copy(TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper), Props, Algo::NoRef);
 
 	FString NewStructOps;
 	if (Struct->StructFlags & STRUCT_Native)

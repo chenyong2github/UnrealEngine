@@ -690,7 +690,7 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 	// Add IO file activity background events.
 	if (SharedState.bShowFileActivityBackgroundEvents)
 	{
-		for (const TSharedPtr<FFileActivitySharedState::FIoFileActivity> Activity : SharedState.FileActivities)
+		for (const TSharedPtr<FFileActivitySharedState::FIoFileActivity>& Activity : SharedState.FileActivities)
 		{
 			if (Activity->EndTime <= Viewport.GetStartTime())
 			{

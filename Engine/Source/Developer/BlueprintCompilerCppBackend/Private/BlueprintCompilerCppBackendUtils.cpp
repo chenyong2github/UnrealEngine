@@ -2160,7 +2160,7 @@ void FBackendHelperStaticSearchableValues::EmitFunctionDefinition(FEmitterLocalC
 	if(ensure(OriginalSourceClass))
 	{
 		FAssetData ClassAsset(OriginalSourceClass);
-		for (const FName TagPropertyName : FSearchableValuesdHelper_StaticData::Get().TagPropertyNames)
+		for (const FName& TagPropertyName : FSearchableValuesdHelper_StaticData::Get().TagPropertyNames)
 		{
 			const FName FoundValue = ClassAsset.GetTagValueRef<FName>(TagPropertyName);
 			if (!FoundValue.IsNone())

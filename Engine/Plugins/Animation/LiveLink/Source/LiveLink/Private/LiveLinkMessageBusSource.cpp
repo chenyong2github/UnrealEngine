@@ -69,7 +69,7 @@ void FLiveLinkMessageBusSource::Update()
 	if (!ConnectionAddress.IsValid())
 	{
 		FLiveLinkMessageBusDiscoveryManager& DiscoveryManager = ILiveLinkModule::Get().GetMessageBusDiscoveryManager();
-		for (const FProviderPollResultPtr Result : DiscoveryManager.GetDiscoveryResults())
+		for (const FProviderPollResultPtr& Result : DiscoveryManager.GetDiscoveryResults())
 		{
 			if (Client->GetSourceType(SourceGuid).ToString() == Result->Name)
 			{

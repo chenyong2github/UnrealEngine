@@ -66,7 +66,7 @@ struct FArrangement2d
 	 */
 	bool HasSelfIntersections()
 	{
-		for (const FDynamicGraph::FEdge& e : Graph.Edges())
+		for (const FDynamicGraph::FEdge e : Graph.Edges())
 		{
 			TArray<FIntersection> Hits;
 			int HitCount = find_intersecting_edges(Graph.GetVertex(e.A), Graph.GetVertex(e.B), Hits, 0.0);

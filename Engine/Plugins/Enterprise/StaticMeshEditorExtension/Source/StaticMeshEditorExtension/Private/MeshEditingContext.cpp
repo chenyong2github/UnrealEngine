@@ -111,7 +111,7 @@ namespace MeshEditingContext
 				// Calculate the center of this polygon
 				FVector Center = FVector::ZeroVector;
 				const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(PolygonID);
-				for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
+				for (const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs)
 				{
 					Center += VertexPositions[MeshDescription->GetVertexInstanceVertex(VertexInstanceID)];
 				}
@@ -122,7 +122,7 @@ namespace MeshEditingContext
 				FVector Tangent = FVector::ZeroVector;
 				FVector Binormal = FVector::ZeroVector;
 
-				for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
+				for (const FTriangleID& TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
 				{
 					TArrayView<const FVertexInstanceID> TriVertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleID);
 					const FVertexID VertexID0 = MeshDescription->GetVertexInstanceVertex(TriVertexInstanceIDs[0]);

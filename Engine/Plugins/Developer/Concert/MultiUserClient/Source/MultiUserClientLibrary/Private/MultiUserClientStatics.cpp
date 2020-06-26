@@ -136,7 +136,7 @@ void UMultiUserClientStatics::JumpToMultiUserPresence(const FString& OtherUserNa
 			if (ClientSession.IsValid())
 			{
 				const TArray<FConcertSessionClientInfo> SessionClients = ClientSession->GetSessionClients();
-				for (const FConcertSessionClientInfo SessionClient : SessionClients)
+				for (const FConcertSessionClientInfo& SessionClient : SessionClients)
 				{
 					if (SessionClient.ClientInfo.DisplayName == OtherUserName)
 					{
@@ -242,7 +242,7 @@ bool UMultiUserClientStatics::GetRemoteMultiUserClientInfos(TArray<FMultiUserCli
 			if (ClientSession.IsValid())
 			{
 				const TArray<FConcertSessionClientInfo> SessionClients = ClientSession->GetSessionClients();
-				for (const FConcertSessionClientInfo SessionClient : SessionClients)
+				for (const FConcertSessionClientInfo& SessionClient : SessionClients)
 				{
 					ClientInfos.Add(MultiUserClientUtil::ConvertClientInfo(SessionClient.ClientEndpointId, SessionClient.ClientInfo));
 				}

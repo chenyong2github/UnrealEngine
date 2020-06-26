@@ -446,7 +446,7 @@ void SGenerateUV::FitSettings()
 			float MaxSqrSize2D = 0;
 			const FVector CylinderExtent = BoundsBox.GetExtent(), VertexOffset = BoundsBox.GetCenter();
 
-			for (const FVector CurrentVertex : RotatedVertexPositions)
+			for (const FVector& CurrentVertex : RotatedVertexPositions)
 			{
 				FVector VertexRatio = (CurrentVertex - VertexOffset) / CylinderExtent;
 				float SqrSize2D = VertexRatio.Y * VertexRatio.Y + VertexRatio.Z * VertexRatio.Z;

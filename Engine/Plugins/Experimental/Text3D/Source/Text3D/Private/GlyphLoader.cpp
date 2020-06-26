@@ -390,7 +390,7 @@ void FGlyphLoader::FixParity(const FNodePtr Node, const bool bClockwiseIn)
 
 		if (bClockwiseIn != Clockwise[ContourB])
 		{
-			for (const FPartPtr Point : *ContourB)
+			for (const FPartPtr& Point : *ContourB)
 			{
 				Swap(Point->Prev, Point->Next);
 			}
@@ -409,7 +409,7 @@ void FGlyphLoader::FixParity(const FNodePtr Node, const bool bClockwiseIn)
 			Last->TangentX = -TangentFirst;
 
 
-			for (const FPartPtr Point : *ContourB)
+			for (const FPartPtr& Point : *ContourB)
 			{
 				Point->Normal *= -1.0f;
 			}

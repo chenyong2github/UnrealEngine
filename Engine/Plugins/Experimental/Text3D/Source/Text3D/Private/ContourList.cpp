@@ -35,7 +35,7 @@ void FContourList::Reset()
 {
 	for (FContour& Contour : *this)
 	{
-		for (const FPartPtr Part : Contour)
+		for (const FPartPtr& Part : Contour)
 		{
 			Part->ResetDoneExpand();
 			Part->ResetInitialPosition();
@@ -89,7 +89,7 @@ void FContourList::Initialize()
 			}
 		}
 
-		for (const FPartPtr Point : Contour)
+		for (const FPartPtr& Point : Contour)
 		{
 			if (!Point->bSmooth)
 			{

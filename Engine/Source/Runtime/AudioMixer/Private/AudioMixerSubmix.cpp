@@ -1202,7 +1202,7 @@ namespace Audio
 			check(SoundfieldStreams.Mixer.IsValid());
 
 			// Loop through this submix's sound sources
-			for (const auto MixerSourceVoiceIter : MixerSourceVoices)
+			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
 			{
 				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
 				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;

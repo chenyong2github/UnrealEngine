@@ -83,7 +83,7 @@ bool ULiveLinkAnimationVirtualSubject::AreSubjectsValid(const TArray<FLiveLinkSu
 
 	bool bValid = true;
 
-	for (const FName SubjectName : Subjects)
+	for (const FName& SubjectName : Subjects)
 	{
 		const FLiveLinkSubjectKey* FoundPtr = InActiveSubjects.FindByPredicate(
 			[SubjectName](const FLiveLinkSubjectKey& SubjectData)
@@ -107,7 +107,7 @@ bool ULiveLinkAnimationVirtualSubject::BuildSubjectSnapshot(TArray<FLiveLinkSubj
 
 	bool bSnapshotDone = true;
 
-	for (const FName SubjectName : Subjects)
+	for (const FName& SubjectName : Subjects)
 	{
 		FLiveLinkSubjectFrameData& NextSnapshot = OutSnapshot.AddDefaulted_GetRef();
 		if (!LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, GetRole(), NextSnapshot))

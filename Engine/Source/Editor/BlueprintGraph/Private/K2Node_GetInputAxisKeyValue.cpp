@@ -142,7 +142,7 @@ void UK2Node_GetInputAxisKeyValue::GetMenuActions(FBlueprintActionDatabaseRegist
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
-		for (FKey const Key : AllKeys)
+		for (const FKey& Key : AllKeys)
 		{
 			if (!Key.IsBindableInBlueprints() || !Key.IsFloatAxis())
 			{

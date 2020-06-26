@@ -1344,7 +1344,7 @@ void USkeleton::RemoveSmartnamesAndModify(FName ContainerName, const TArray<FNam
 	if (RequestedMapping)
 	{
 		bool bModified = false;
-		for (const FName CurveName : Names)
+		for (const FName& CurveName : Names)
 		{
 			if (RequestedMapping->Exists(CurveName))
 			{

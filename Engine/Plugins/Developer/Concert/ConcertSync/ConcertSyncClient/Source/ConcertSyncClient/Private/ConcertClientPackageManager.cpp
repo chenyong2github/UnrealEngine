@@ -81,7 +81,7 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 	// Add dirty packages that aren't for purging to the list of hot reload, overlaps with the sandbox are filtered directly in ReloadPackages
 	if (EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))
 	{
-		for (const FName DirtyPackageName : DirtyPackages)
+		for (const FName& DirtyPackageName : DirtyPackages)
 		{
 			if (!PackagesPendingPurge.Contains(DirtyPackageName))
 			{

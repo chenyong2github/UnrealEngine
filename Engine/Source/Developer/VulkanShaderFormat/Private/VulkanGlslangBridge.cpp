@@ -294,7 +294,7 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 	check((bDone && Ptr < PtrEnd) || (!bDone && Ptr == PtrEnd));
 
 	// Go through all found uniform variables and make sure we found the right info
-	for (const auto Pair : VariableUniformTypes)
+	for (const auto& Pair : VariableUniformTypes)
 	{
 		const uint32 VariableId = Pair.Key;
 		const FString* FoundVariableName = Names.Find(VariableId);

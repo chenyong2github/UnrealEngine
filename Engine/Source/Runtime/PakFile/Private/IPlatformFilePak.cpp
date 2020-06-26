@@ -5555,7 +5555,7 @@ void FPakFile::PruneDirectoryIndex(FDirectoryIndex& InOutDirectoryIndex, FDirect
 		}
 
 		// For each kept directory, mark that we need to keep all of its parents up to the mount point
-		for (const TPair<FString, bool> Pair : KeepDirectory)
+		for (const TPair<FString, bool>& Pair : KeepDirectory)
 		{
 			if (Pair.Value)
 			{
@@ -5578,7 +5578,7 @@ void FPakFile::PruneDirectoryIndex(FDirectoryIndex& InOutDirectoryIndex, FDirect
 		}
 
 		// Prune all of the directories
-		for (const TPair<FString, bool> Pair : KeepDirectory)
+		for (const TPair<FString, bool>& Pair : KeepDirectory)
 		{
 			const FString& DirectoryName = Pair.Key;
 			bool bKeep = Pair.Value;

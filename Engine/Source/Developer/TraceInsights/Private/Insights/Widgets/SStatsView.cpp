@@ -1940,7 +1940,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 	}
 
 	// Invalidate all tree table rows.
-	for (const FStatsNodePtr NodePtr : StatsNodes)
+	for (const FStatsNodePtr& NodePtr : StatsNodes)
 	{
 		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
 		if (TableRowPtr.IsValid())

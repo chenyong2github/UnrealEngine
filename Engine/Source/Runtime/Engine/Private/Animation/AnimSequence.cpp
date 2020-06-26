@@ -2367,7 +2367,7 @@ bool UAnimSequence::DoesSequenceContainZeroScale()
 {
 	for (const FRawAnimSequenceTrack& RawTrack : RawAnimationData)
 	{
-		for (const FVector ScaleKey : RawTrack.ScaleKeys)
+		for (const FVector& ScaleKey : RawTrack.ScaleKeys)
 		{
 			if (ScaleKey.IsZero())
 			{

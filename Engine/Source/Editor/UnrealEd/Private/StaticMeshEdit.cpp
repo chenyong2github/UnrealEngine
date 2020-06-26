@@ -722,7 +722,7 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 
 		int32 MaterialIndex = OutMaterials.AddUnique(FStaticMaterial(Material, Material->GetFName(), Material->GetFName()));
 		FPolygonGroupID CurrentPolygonGroupID = FPolygonGroupID::Invalid;
-		for (const FPolygonGroupID& PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+		for (const FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
 		{
 			if (Material->GetFName() == PolygonGroupImportedMaterialSlotNames[PolygonGroupID])
 			{
@@ -785,7 +785,7 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 			
 			TArray<FEdgeID> NewEdgeIDs;
 			const FPolygonID NewPolygonID = MeshDescription.CreatePolygon(CurrentPolygonGroupID, VertexInstanceIDs, &NewEdgeIDs);
-			for (const FEdgeID NewEdgeID : NewEdgeIDs)
+			for (const FEdgeID& NewEdgeID : NewEdgeIDs)
 			{
 				//All edge are hard for BSP
 				EdgeHardnesses[NewEdgeID] = true;

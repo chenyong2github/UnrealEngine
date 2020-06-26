@@ -830,7 +830,7 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 		if (Material)
 		{
 			// This is thread safe because material texture data is only updated while the renderthread is idle.
-			for (const FMaterialTextureInfo TextureData : Material->GetTextureStreamingData())
+			for (const FMaterialTextureInfo& TextureData : Material->GetTextureStreamingData())
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureData.IsValid(true))
@@ -839,7 +839,7 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
 				}
 			}
-			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			for (const FMaterialTextureInfo& TextureData : Material->TextureStreamingDataMissingEntries)
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)

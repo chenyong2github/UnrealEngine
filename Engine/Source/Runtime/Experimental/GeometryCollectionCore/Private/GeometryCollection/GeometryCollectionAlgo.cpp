@@ -661,7 +661,7 @@ namespace GeometryCollectionAlgo
 			const TArray<TArray<int32>> &GeomBoundaries = BoundaryVertexIndices[GeometryIdx];
 			TArray<FIntVector> &GeomFaces = Faces[GeometryIdx];
 			// for v0 let's just put a fan here
-			for (const TArray<int32> Boundary : GeomBoundaries)
+			for (const TArray<int32>& Boundary : GeomBoundaries)
 			{
 				if (Boundary.Num() < 3)
 				{

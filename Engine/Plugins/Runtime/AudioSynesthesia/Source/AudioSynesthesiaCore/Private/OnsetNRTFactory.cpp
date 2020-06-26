@@ -203,7 +203,7 @@ namespace Audio
 			for (const AlignedFloatBuffer& Window : SlidingWindow)
 			{
 				// Each channel is analyzed seperately.
-				for(const TDeinterleaveView<float>::TChannel<FAudioBufferAlignedAllocator>& Channel : TAutoDeinterleaveView<float, FAudioBufferAlignedAllocator>(Window, ChannelBuffer, NumChannels))
+				for(const TDeinterleaveView<float>::TChannel<FAudioBufferAlignedAllocator> Channel : TAutoDeinterleaveView<float, FAudioBufferAlignedAllocator>(Window, ChannelBuffer, NumChannels))
 				{
 					AnalyzeWindow(Channel.Values, Channel.ChannelIndex, *OnsetResult);
 				}

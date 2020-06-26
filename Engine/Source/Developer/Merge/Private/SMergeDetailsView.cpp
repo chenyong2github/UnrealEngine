@@ -218,7 +218,7 @@ void SMergeDetailsView::Construct(const FArguments InArgs
 			Parent->HighlightDifference(PropertyIdentifier);
 		};
 
-		for( const auto Difference : OrderedDifferences )
+		for( const auto& Difference : OrderedDifferences )
 		{
 			auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
 				new FBlueprintDifferenceTreeEntry(

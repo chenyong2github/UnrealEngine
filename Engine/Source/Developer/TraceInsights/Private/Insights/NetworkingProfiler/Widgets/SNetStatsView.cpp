@@ -1119,7 +1119,7 @@ void SNetStatsView::CreateSortings()
 	AvailableSorters.Reset();
 	CurrentSorter = nullptr;
 
-	for (const TSharedRef<Insights::FTableColumn> ColumnRef : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		if (ColumnRef->CanBeSorted())
 		{
