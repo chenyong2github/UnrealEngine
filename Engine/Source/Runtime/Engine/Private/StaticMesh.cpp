@@ -6535,10 +6535,12 @@ FName UStaticMesh::AddMaterial(UMaterialInterface* Material)
 	}
 
 #if WITH_EDITORONLY_DATA
-	StaticMaterials.Emplace(Material, MaterialName, MaterialName);
+	FStaticMaterial& StaticMaterial = StaticMaterials.Emplace_GetRef(Material, MaterialName, MaterialName);
 #else
-	StaticMaterials.Emplace(Material, MaterialName);
+	FStaticMaterial& StaticMaterial = StaticMaterials.Emplace_GetRef(Material, MaterialName);
 #endif
+
+	StaticMaterial.UVChannelData = FMeshUVChannelInfo(1.0f);
 
 	return MaterialName;
 }
