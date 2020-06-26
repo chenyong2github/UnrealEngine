@@ -433,7 +433,7 @@ namespace GeometryCollectionTest
 		// Particles array contains the following:		
 		// 0: Box1 (top)
 		// 1: Box2 (bottom)
-		TArray<bool> Conditions = { false,false,false,false,false };
+		int32 BrokenFrame = INDEX_NONE;
 
 		// 2: Box1+Box2 Cluster
 		for (int Frame = 1; Frame < 20; Frame++)
@@ -442,69 +442,38 @@ namespace GeometryCollectionTest
 
 			CurrentRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
 
-			if (!Conditions[0])
+			if ((BrokenFrame == INDEX_NONE) && !ParticleHandles[2]->Disabled())
 			{
 				// The two boxes are dropping to the ground as a cluster
 				EXPECT_TRUE(ParticleHandles[0]->Disabled());
 				EXPECT_TRUE(ParticleHandles[1]->Disabled());
-				EXPECT_FALSE(ParticleHandles[2]->Disabled());
 
+				// The boxes are still separated by StartingRigidDistance
 				EXPECT_LT(FMath::Abs(CurrentRigidDistance - StartingRigidDistance), 1e-4);
-				Conditions[0] = true;
 			}
 
-			if (Conditions[0] && !Conditions[1])
+			if ((BrokenFrame == INDEX_NONE) && ParticleHandles[2]->Disabled())
 			{
 				// The cluster has just hit the ground and should have broken.
-				// The boxes are still separated by StartingRigidDistance (when Rewind is disabled).
-				// All children should have zero velocity.
+				EXPECT_FALSE(ParticleHandles[0]->Disabled());
+				EXPECT_FALSE(ParticleHandles[1]->Disabled());
+				EXPECT_EQ(ClusterMap.Num(), 0);
+				BrokenFrame = Frame;
+			}
 
-				if (!ParticleHandles[0]->Disabled()
-					&& !ParticleHandles[1]->Disabled()
-					&& ParticleHandles[2]->Disabled()
-					&& ClusterMap.Num() == 0)
-				{
-					Conditions[1] = true;
-				}
-			}
-			if (Conditions[1] && !Conditions[2])
-			{
-				if (ParticleHandles[0]->V().Size() <= 1.e-4
-					&& ParticleHandles[1]->V().Size() <= 1.e-4
-					&& FMath::Abs(CurrentRigidDistance - StartingRigidDistance) <= 1e-4)
-				{
-					Conditions[2] = true;
-				}
-			}
-			if (Conditions[2] && !Conditions[3])
-			{
-				// The boxes are now moving independently, but they had zero velocity 
-				// last frame, so they should still be separated by StartingRigidDistance. 
-				if (!ParticleHandles[0]->Disabled()
-					&& !ParticleHandles[1]->Disabled()
-					&& ParticleHandles[2]->Disabled()
-					&& ClusterMap.Num() == 0
-					&& FMath::Abs(CurrentRigidDistance - StartingRigidDistance) <= 1e-4)
-				{
-					Conditions[3] = true;
-				}
-			}
-			if (Conditions[3])
+			if ((BrokenFrame != INDEX_NONE) && (Frame > BrokenFrame))
 			{
 				// The boxes are now moving independently - the bottom one is on the ground and should be stopped.
 				// The top one is still falling, so they should be closer together	
-				EXPECT_FALSE(ParticleHandles[0]->Disabled());
-				EXPECT_FALSE(ParticleHandles[1]->Disabled());
-				EXPECT_TRUE(ParticleHandles[2]->Disabled());
-				EXPECT_EQ(ClusterMap.Num(), 0);
-				Conditions[4] = true;
+				EXPECT_GT(FMath::Abs(CurrentRigidDistance - StartingRigidDistance), 1e-4);
 			}
 		}
 
-		for (int i = 0; i < Conditions.Num(); i++)
-		{
-			EXPECT_TRUE(Conditions[i]);
-		}
+		// Make sure it actually broke
+		EXPECT_FALSE(ParticleHandles[0]->Disabled());
+		EXPECT_FALSE(ParticleHandles[1]->Disabled());
+		EXPECT_TRUE(ParticleHandles[2]->Disabled());
+		EXPECT_TRUE(BrokenFrame != INDEX_NONE);
 
 		EXPECT_GT(FMath::Abs(CurrentRigidDistance - StartingRigidDistance), 1e-4);
 	}
