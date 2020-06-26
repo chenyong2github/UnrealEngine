@@ -185,6 +185,7 @@ public class UnrealEd : ModuleRules
 				"FreeImage",
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
+				"DeveloperSettings"
 			}
 		);
 

@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
 					"USDUtilities",
+					"DeveloperSettings"
 				}
 				);
 
