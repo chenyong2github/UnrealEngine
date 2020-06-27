@@ -17,6 +17,9 @@ namespace FMovieSceneEvaluationCustomVersion
 		// Added support for blending
 		AddBlendingSupport,
 
+		// Added ECS evaluation
+		EntityManager,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

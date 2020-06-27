@@ -105,7 +105,7 @@ void CleanupCurveKeys(FMovieSceneFloatChannel* InChannel)
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
 
-	MovieScene::Optimize(InChannel, Params);
+	UE::MovieScene::Optimize(InChannel, Params);
 }
 
 

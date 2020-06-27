@@ -49,7 +49,6 @@ public:
 
 	UMovieSceneCameraShakeSection(const FObjectInitializer& ObjectInitializer);
 
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 	virtual void PostLoad() override;
 	
 	UPROPERTY(EditAnywhere, Category="Camera Shake", meta=(ShowOnlyInnerProperties))

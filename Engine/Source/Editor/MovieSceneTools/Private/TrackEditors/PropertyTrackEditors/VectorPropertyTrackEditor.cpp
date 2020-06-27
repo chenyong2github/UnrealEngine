@@ -21,7 +21,7 @@ TSharedRef<ISequencerTrackEditor> FVectorPropertyTrackEditor::CreateTrackEditor(
 	return MakeShareable( new FVectorPropertyTrackEditor( InSequencer ) );
 }
 
-void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
 	if (!StructProp)
@@ -133,11 +133,16 @@ void FVectorPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilde
 
 bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
+	IMovieSceneTrackTemplateProducer* TrackTemplateProducer = Cast<IMovieSceneTrackTemplateProducer>(Track);
+	if (!TrackTemplateProducer)
+	{
+		return false;
+	}
 
 	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
 
 	UMovieSceneVectorTrack* VectorTrack = Cast<UMovieSceneVectorTrack>(Track);
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+	FMovieSceneEvaluationTrack EvalTrack = TrackTemplateProducer->GenerateTrackTemplate(Track);
 
 	if (VectorTrack)
 	{

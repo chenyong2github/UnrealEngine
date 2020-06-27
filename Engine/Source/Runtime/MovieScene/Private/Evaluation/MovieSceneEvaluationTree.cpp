@@ -13,21 +13,21 @@
 
 
 FMovieSceneEvaluationTreeRangeIterator::FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree)
-	: CurrentRange(TRange<FFrameNumber>::All()), CurrentNodeHandle(FMovieSceneEvaluationTreeNodeHandle::Root()), Tree(InTree)
+	: CurrentRange(TRange<FFrameNumber>::All()), CurrentNodeHandle(FMovieSceneEvaluationTreeNodeHandle::Root()), Tree(&InTree)
 {
 	// Compute the starting range by inspecting the front of the tree
-	const FMovieSceneEvaluationTreeNode* CurrentNode = &Tree.GetRootNode();
+	const FMovieSceneEvaluationTreeNode* CurrentNode = &Tree->GetRootNode();
 	TArrayView<const FMovieSceneEvaluationTreeNode> Children;
 
 	// Find the first child-most node that doesn't match the opening range bound
 	for(;;)
 	{
-		Children = Tree.GetChildren(*CurrentNode);
+		Children = Tree->GetChildren(*CurrentNode);
 		if (Children.Num() && Children[0].Range.GetLowerBound().IsOpen())
 		{
 			// Recurse into the child
 			CurrentNodeHandle = FMovieSceneEvaluationTreeNodeHandle(CurrentNode->ChildrenID, 0);
-			CurrentNode = &Tree.GetNode(CurrentNodeHandle);
+			CurrentNode = &Tree->GetNode(CurrentNodeHandle);
 		}
 		else
 		{
@@ -41,7 +41,7 @@ FMovieSceneEvaluationTreeRangeIterator::FMovieSceneEvaluationTreeRangeIterator(c
 }
 
 FMovieSceneEvaluationTreeRangeIterator::FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree, TRangeBound<FFrameNumber> StartingBound)
-	: CurrentNodeHandle(FMovieSceneEvaluationTreeNodeHandle::Root()), Tree(InTree)
+	: CurrentNodeHandle(FMovieSceneEvaluationTreeNodeHandle::Root()), Tree(&InTree)
 {
 	auto GetLowerBound = [](const FMovieSceneEvaluationTreeNode& In) {
 		return In.Range.GetLowerBound();
@@ -51,7 +51,7 @@ FMovieSceneEvaluationTreeRangeIterator::FMovieSceneEvaluationTreeRangeIterator(c
 
 	for (;;)
 	{
-		const FMovieSceneEvaluationTreeNode& ThisNode = Tree.GetNode(CurrentNodeHandle);
+		const FMovieSceneEvaluationTreeNode& ThisNode = Tree->GetNode(CurrentNodeHandle);
 
 		// Keep binary searching child nodes until we hit a leaf
 		CurrentRange = ThisNode.Range;
@@ -60,7 +60,7 @@ FMovieSceneEvaluationTreeRangeIterator::FMovieSceneEvaluationTreeRangeIterator(c
 			break;
 		}
 
-		TArrayView<const FMovieSceneEvaluationTreeNode> Children = Tree.GetChildren(ThisNode);
+		TArrayView<const FMovieSceneEvaluationTreeNode> Children = Tree->GetChildren(ThisNode);
 
 		// Binary search children's lower bounds for the first that's >= the starting bound. That results in either ChildIndex or ChildIndex-1 being the overlapping range (if any).
 		int32 ChildIndex = Algo::LowerBoundBy(Children, StartingBound, GetLowerBound, MovieSceneHelpers::SortLowerBounds);
@@ -94,7 +94,7 @@ void FMovieSceneEvaluationTreeRangeIterator::Iter(bool bForwards)
 		return;
 	}
 
-	const FMovieSceneEvaluationTreeNode& CurrentNode = Tree.GetNode(CurrentNodeHandle);
+	const FMovieSceneEvaluationTreeNode& CurrentNode = Tree->GetNode(CurrentNodeHandle);
 	if (GetTrailingBound(bForwards, CurrentNode.Range) == GetTrailingBound(bForwards, CurrentRange))
 	{
 		// We're done with this node, iterate forwards from the same position in the parent
@@ -107,7 +107,7 @@ void FMovieSceneEvaluationTreeRangeIterator::Iter(bool bForwards)
 
 	// Iterate into children when possible (where the leading bound matches the current new leading bound)
 	FMovieSceneEvaluationTreeNodeHandle NextChildHandle = FindNextChild(CurrentNodeHandle, NewLeadingBound, bForwards);
-	while (NextChildHandle.IsValid() && CompareBound(bForwards, Tree.GetNode(NextChildHandle).Range, NewLeadingBound))
+	while (NextChildHandle.IsValid() && CompareBound(bForwards, Tree->GetNode(NextChildHandle).Range, NewLeadingBound))
 	{
 		CurrentNodeHandle = NextChildHandle;
 		NextChildHandle = FindNextChild(CurrentNodeHandle, NewLeadingBound, bForwards);
@@ -115,10 +115,10 @@ void FMovieSceneEvaluationTreeRangeIterator::Iter(bool bForwards)
 
 	// The new traililng bound is either the trailing bound of the whole node, or the inverse of the leading bound of the next child (which will only be valid if it's not the same as the leading bound).
 	// The latter means this is space in-between child nodes
-	TRangeBound<FFrameNumber> NewTrailingBound = GetTrailingBound(bForwards, Tree.GetNode(CurrentNodeHandle).Range);
+	TRangeBound<FFrameNumber> NewTrailingBound = GetTrailingBound(bForwards, Tree->GetNode(CurrentNodeHandle).Range);
 	if (NextChildHandle.IsValid())
 	{
-		const FMovieSceneEvaluationTreeNode& NextChildNode = Tree.GetNode(NextChildHandle);
+		const FMovieSceneEvaluationTreeNode& NextChildNode = Tree->GetNode(NextChildHandle);
 		if (!CompareBound(bForwards, NextChildNode.Range, NewLeadingBound))
 		{
 			NewTrailingBound = TRangeBound<FFrameNumber>::FlipInclusion(GetLeadingBound(bForwards, NextChildNode.Range));
@@ -137,8 +137,8 @@ FMovieSceneEvaluationTreeNodeHandle FMovieSceneEvaluationTreeRangeIterator::Find
 		return In.Range.GetUpperBound();
 	};
 
-	const FMovieSceneEvaluationTreeNode& ParentNode = Tree.GetNode(ParentNodeHandle);
-	TArrayView<const FMovieSceneEvaluationTreeNode> Children = Tree.GetChildren(ParentNode);
+	const FMovieSceneEvaluationTreeNode& ParentNode = Tree->GetNode(ParentNodeHandle);
+	TArrayView<const FMovieSceneEvaluationTreeNode> Children = Tree->GetChildren(ParentNode);
 	if (Children.Num())
 	{
 		// Find the index of the next >= bound
@@ -212,14 +212,18 @@ void FMovieSceneEvaluationTree::AddTimeRange(TRange<FFrameNumber> InTimeRange)
 		virtual void operator()(FMovieSceneEvaluationTreeNode& Node) const {}
 	};
 
-	AddTimeRange(InTimeRange, FNullOp(), FMovieSceneEvaluationTreeNodeHandle::Root());
+	AddTimeRange(InTimeRange, FNullOp(), FMovieSceneEvaluationTreeNodeHandle::Root(), nullptr);
 }
 
-void FMovieSceneEvaluationTree::AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent)
+void FMovieSceneEvaluationTree::AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent, const TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)>* Predicate)
 {
 	// Take a temporary copy of the node as the container may be reallocated in this function
 	FMovieSceneEvaluationTreeNode ThisNode = GetNode(InParent);
 	if (!ensure(ThisNode.Range.Overlaps(InTimeRange)))
+	{
+		return;
+	}
+	else if (Predicate && !(*Predicate)(InParent))
 	{
 		return;
 	}
@@ -265,7 +269,7 @@ void FMovieSceneEvaluationTree::AddTimeRange(TRange<FFrameNumber> InTimeRange, c
 			if (ChildNode.Range.Overlaps(InTimeRange))
 			{
 				// Find the node again since InsertNewChild may have re-allocated the nodes
-				AddTimeRange(InTimeRange, InOperator, FMovieSceneEvaluationTreeNodeHandle(ThisNode.ChildrenID, ChildIndex));
+				AddTimeRange(InTimeRange, InOperator, FMovieSceneEvaluationTreeNodeHandle(ThisNode.ChildrenID, ChildIndex), Predicate);
 			}
 			LastBound = TRangeBound<FFrameNumber>::FlipInclusion(ChildNode.Range.GetUpperBound());
 			ChildIndex++;

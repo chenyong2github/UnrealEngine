@@ -2,6 +2,8 @@
 
 #include "Tracks/MovieSceneCameraShakeSourceTriggerTrack.h"
 #include "Sections/MovieSceneCameraShakeSourceTriggerSection.h"
+#include "Evaluation/MovieSceneCameraShakeSourceTriggerTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeSourceTrigger"
 
@@ -61,6 +63,11 @@ bool UMovieSceneCameraShakeSourceTriggerTrack::IsEmpty() const
 const TArray<UMovieSceneSection*>& UMovieSceneCameraShakeSourceTriggerTrack::GetAllSections() const
 {
 	return Sections;
+}
+
+FMovieSceneEvalTemplatePtr UMovieSceneCameraShakeSourceTriggerTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	return FMovieSceneCameraShakeSourceTriggerSectionTemplate(*CastChecked<const UMovieSceneCameraShakeSourceTriggerSection>(&InSection));
 }
 
 void UMovieSceneCameraShakeSourceTriggerTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const

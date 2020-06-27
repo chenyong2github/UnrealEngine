@@ -313,36 +313,6 @@ void FTemplateSequenceTrackEditor::OnTemplateSequenceAssetEnterPressed(const TAr
 	}
 }
 
-void FTemplateSequenceTrackEditor::AddKey(const FGuid& ObjectGuid)
-{
-	const UClass* RootBindingClass = AcquireObjectClassFromObjectGuid(ObjectGuid);
-
-	const UCameraComponent* CameraComponent = AcquireCameraComponentFromObjectGuid(ObjectGuid);
-	const bool bIsCameraAnimMenu = (CameraComponent != nullptr);
-
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	if (ParentWindow.IsValid() && RootBindingClass != nullptr)
-	{
-		TSharedPtr<SBox> MenuEntry = SNew(SBox)
-			.WidthOverride(300.0f)
-			.HeightOverride(300.f)
-			[
-				BuildTemplateSequenceAssetSubMenu(ObjectGuid, RootBindingClass, bIsCameraAnimMenu)
-			];
-
-		FMenuBuilder MenuBuilder(true, nullptr);
-		MenuBuilder.AddWidget(MenuEntry.ToSharedRef(), FText::GetEmpty(), true);
-		TSharedRef<SWidget> MenuContainer = MenuBuilder.MakeWidget();
-
-		FSlateApplication::Get().PushMenu(
-				ParentWindow.ToSharedRef(),
-				FWidgetPath(),
-				MenuContainer,
-				FSlateApplication::Get().GetCursorPos(),
-				FPopupTransitionEffect(FPopupTransitionEffect::TypeInPopup));
-	}
-}
-
 FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber KeyTime, FGuid ObjectBinding, UTemplateSequence* TemplateSequence)
 {
 	TArray<FGuid> ObjectBindings;

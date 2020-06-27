@@ -5,7 +5,6 @@
 #include "Logging/MessageLog.h"
 #include "MovieScene.h"
 #include "Sequencer/ControlRigSequence.h"
-#include "Sequencer/ControlRigBindingTemplate.h"
 #include "Sequencer/MovieSceneControlRigInstanceData.h"
 #include "Channels/MovieSceneChannelProxy.h"
 

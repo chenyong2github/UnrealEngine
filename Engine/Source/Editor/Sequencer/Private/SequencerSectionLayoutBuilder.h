@@ -11,7 +11,7 @@ class FSequencerSectionLayoutBuilder
 	: public ISectionLayoutBuilder
 {
 public:
-	FSequencerSectionLayoutBuilder(TSharedRef<FSequencerTrackNode> InRootTrackNode, UMovieSceneSection* InSection);
+	FSequencerSectionLayoutBuilder(TSharedRef<FSequencerTrackNode> InRootTrackNode, TSharedRef<ISequencerSection> InSection);
 
 public:
 
@@ -39,7 +39,7 @@ private:
 	TSharedRef<FSequencerDisplayNode> CurrentNode;
 
 	/** The section that we are building a layout for */
-	UMovieSceneSection* Section;
+	TSharedRef<ISequencerSection> Section;
 
 	/** Boolean indicating whether this section layout builder has been given any layout or not */
 	bool bHasAnyLayout;

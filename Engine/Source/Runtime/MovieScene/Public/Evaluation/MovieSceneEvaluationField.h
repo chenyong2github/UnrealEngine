@@ -9,12 +9,83 @@
 #include "Evaluation/MovieSceneSegment.h"
 #include "MovieSceneFrameMigration.h"
 #include "Evaluation/MovieSceneTrackIdentifier.h"
+#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "MovieSceneEvaluationField.generated.h"
 
 struct FFrameNumber;
 struct FMovieSceneSequenceHierarchy;
 struct IMovieSceneSequenceTemplateStore;
 class UMovieSceneSequence;
+
+USTRUCT()
+struct FMovieSceneEvaluationFieldEntityPtr
+{
+	GENERATED_BODY()
+
+	friend bool operator<(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
+	{
+		if (A.EntityOwner < B.EntityOwner)
+		{
+			return true;
+		}
+		return A.EntityID < B.EntityID;
+	}
+	friend bool operator==(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
+	{
+		return A.EntityOwner == B.EntityOwner && A.EntityID == B.EntityID;
+	}
+	friend bool operator!=(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
+	{
+		return !(A == B);
+	}
+	friend uint32 GetTypeHash(FMovieSceneEvaluationFieldEntityPtr In)
+	{
+		return HashCombine(GetTypeHash(In.EntityOwner), In.EntityID);
+	}
+
+	MOVIESCENE_API friend FArchive& operator<<(FArchive& Ar, FMovieSceneEvaluationFieldEntityPtr& Entity);
+
+	UPROPERTY()
+	UObject* EntityOwner = nullptr;
+
+	UPROPERTY()
+	uint32 EntityID = 0;
+};
+
+
+USTRUCT()
+struct MOVIESCENE_API FMovieSceneEvaluationFieldEntityTree
+{
+	GENERATED_BODY()
+
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << SerializedData;
+		return true;
+	}
+
+	bool Identical(const FMovieSceneEvaluationFieldEntityTree* Other, uint32 PortFlags) const
+	{
+		return Other->SerializedData == SerializedData;
+	}
+
+	void ExtractAtTime(FFrameNumber InTime, TRange<FFrameNumber>& OutRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const;
+
+	void Sweep(const TRange<FFrameNumber>& InRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const;
+
+	void Populate(const TRange<FFrameNumber>& EffectiveRange, UObject* Owner, uint32 EntityID);
+
+	bool IsEmpty() const;
+
+private:
+
+	TMovieSceneEvaluationTree<FMovieSceneEvaluationFieldEntityPtr> SerializedData;
+};
+template<> struct TStructOpsTypeTraits<FMovieSceneEvaluationFieldEntityTree> : public TStructOpsTypeTraitsBase2<FMovieSceneEvaluationFieldEntityTree>
+{
+	enum { WithSerializer = true, WithIdentical = true, WithCopy = false };
+};
 
 /** A pointer to a track held within an evaluation template */
 USTRUCT()
@@ -100,6 +171,45 @@ struct FMovieSceneEvaluationFieldSegmentPtr : public FMovieSceneEvaluationFieldT
 	FMovieSceneSegmentIdentifier SegmentID;
 };
 
+USTRUCT()
+struct FMovieSceneFieldEntry_EvaluationTrack
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FMovieSceneEvaluationFieldTrackPtr TrackPtr;
+
+	UPROPERTY()
+	uint16 NumChildren;
+};
+
+USTRUCT()
+struct FMovieSceneFieldEntry_ChildTemplate
+{
+	GENERATED_BODY()
+
+	FMovieSceneFieldEntry_ChildTemplate()
+		: ChildIndex(-1)
+		, Flags(ESectionEvaluationFlags::None)
+		, ForcedTime(TNumericLimits<int32>::Lowest())
+	{}
+
+	FMovieSceneFieldEntry_ChildTemplate(uint16 InChildIndex, ESectionEvaluationFlags InFlags, FFrameNumber InForcedTime)
+		: ChildIndex(InChildIndex)
+		, Flags(InFlags)
+		, ForcedTime(InForcedTime)
+	{}
+
+	UPROPERTY()
+	uint16 ChildIndex;
+
+	UPROPERTY()
+	ESectionEvaluationFlags Flags;
+
+	UPROPERTY()
+	FFrameNumber ForcedTime;
+};
+
 /** Lookup table index for a group of evaluation templates */
 USTRUCT()
 struct FMovieSceneEvaluationGroupLUTIndex
@@ -107,14 +217,9 @@ struct FMovieSceneEvaluationGroupLUTIndex
 	GENERATED_BODY()
 
 	FMovieSceneEvaluationGroupLUTIndex()
-		: LUTOffset(0)
-		, NumInitPtrs(0)
+		: NumInitPtrs(0)
 		, NumEvalPtrs(0)
 	{}
-
-	/** The offset within FMovieSceneEvaluationGroup::SegmentPtrLUT that this index starts */
-	UPROPERTY()
-	int32 LUTOffset;
 
 	/** The number of initialization pointers are stored after &FMovieSceneEvaluationGroup::SegmentPtrLUT[0] + LUTOffset. */
 	UPROPERTY()
@@ -135,9 +240,13 @@ struct FMovieSceneEvaluationGroup
 	UPROPERTY()
 	TArray<FMovieSceneEvaluationGroupLUTIndex> LUTIndices;
 
-	/** A grouping of evaluation pointers that occur in this range of the sequence */
+	/** */
 	UPROPERTY()
-	TArray<FMovieSceneEvaluationFieldSegmentPtr> SegmentPtrLUT;
+	TArray<FMovieSceneFieldEntry_EvaluationTrack> TrackLUT;
+
+	/** */
+	UPROPERTY()
+	TArray<FMovieSceneFieldEntry_ChildTemplate> SectionLUT;
 };
 
 /** Struct that stores the key for an evaluated entity, and the index at which it was (or is to be) evaluated */
@@ -189,18 +298,6 @@ struct FMovieSceneEvaluationMetaData
 	 */
 	void DiffEntities(const FMovieSceneEvaluationMetaData& LastFrame, TArray<FMovieSceneOrderedEvaluationKey>* NewKeys, TArray<FMovieSceneOrderedEvaluationKey>* ExpiredKeys) const;
 
-	/**
-	 * Check whether this meta-data entry is still up-to-date
-	 *
-	 * @param RootHierarchy				The hierarchy that corresponds to this meta-data's root sequence
-	 * @param TemplateStore				The template store used to retrieve templates for sub sequences
-	 * @param OutSubRangeToInvalidate	(Optional) A range to fill with a range to invalidate in the sequence's evaluation field (in root space)
-	 * @param OutDirtySequences			(Optional) A set to populate with dirty sequences
-	 *
-	 * @return true if the meta-data needs re-generating, false otherwise
-	 */
-	bool IsDirty(const FMovieSceneSequenceHierarchy& RootHierarchy, IMovieSceneSequenceTemplateStore& TemplateStore, TRange<FFrameNumber>* OutSubRangeToInvalidate = nullptr, TSet<UMovieSceneSequence*>* OutDirtySequences = nullptr) const;
-
 	/** Array of sequences that are active in this time range. */
 	UPROPERTY()
 	TArray<FMovieSceneSequenceID> ActiveSequences;
@@ -208,10 +305,6 @@ struct FMovieSceneEvaluationMetaData
 	/** Array of entities (tracks and/or sections) that are active in this time range. */
 	UPROPERTY()
 	TArray<FMovieSceneOrderedEvaluationKey> ActiveEntities;
-
-	/** Map of sub sequence IDs to FMovieSceneEvaluationTemplate::TemplateSerialNumber that this meta data was generated with (not including root). */
-	UPROPERTY()
-	TMap<FMovieSceneSequenceID, uint32> SubTemplateSerialNumbers;
 };
 
 /**
@@ -221,16 +314,6 @@ USTRUCT()
 struct FMovieSceneEvaluationField
 {
 	GENERATED_BODY()
-
-	/**
-	 * Ensure that the evaluation field is up-to-date for the range encompassing at least the range specified, and return its entries
-	 *
-	 * @param OverlapRange	A range specifying the smallest set of times to ensure are compiled
-	 * @param InSequence	The sequence that this evaluation field relates to
-	 * @param TemplateStore	A template store that defines how to retrieve templates for the specified sequence
-	 * @return A range of indices for which GetRange() overlaps the specified OverlapRange, of the form [First, First+Num)
-	 */
-	MOVIESCENE_API TRange<int32> ConditionallyCompileRange(const TRange<FFrameNumber>& OverlapRange, UMovieSceneSequence* InSequence, IMovieSceneSequenceTemplateStore& TemplateStore);
 
 	/**
 	 * Efficiently find the entry that exists at the specified time, if any
@@ -349,4 +432,26 @@ private:
 	/** Meta data that maps to entries in the 'Ranges' array. */
 	UPROPERTY()
 	TArray<FMovieSceneEvaluationMetaData> MetaData;
+};
+
+
+
+
+/**
+ */
+USTRUCT()
+struct FMovieSceneEntityComponentField
+{
+	GENERATED_BODY()
+
+	bool IsEmpty() const;
+
+	UPROPERTY()
+	FMovieSceneEvaluationFieldEntityTree Entities;
+
+	UPROPERTY()
+	FMovieSceneEvaluationFieldEntityTree OneShotEntities;
+
+	UPROPERTY()
+	TMap<UObject*, FGuid> EntityOwnerToObjectBinding;
 };

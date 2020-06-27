@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Curves/KeyHandle.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneLevelVisibilitySection.generated.h"
 
@@ -29,6 +30,7 @@ enum class ELevelVisibility : uint8
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneLevelVisibilitySection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,10 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
 	void SetLevelNames(const TArray<FName>& InLevelNames) { LevelNames = InLevelNames; }
 
-public:
+private:
 
-	//~ UMovieSceneSection interface
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
+	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 private:
 

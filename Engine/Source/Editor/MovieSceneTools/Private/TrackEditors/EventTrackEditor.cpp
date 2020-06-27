@@ -190,17 +190,6 @@ void FEventTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieS
 		{
 			DetailBuilder.HideCategory("Track");
 			DetailBuilder.HideCategory("General");
-
-			if (ObjectBindingID.IsValid())
-			{
-				// Do not show event receivers for tracks that exist on object bindings
-				DetailBuilder.HideProperty("EventReceivers");
-			}
-			else
-			{
-				IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("TrackEvent");
-				Category.AddProperty("EventReceivers").ShouldAutoExpand(true);
-			}
 		}
 	};
 

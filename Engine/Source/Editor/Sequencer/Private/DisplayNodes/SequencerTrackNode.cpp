@@ -2,6 +2,7 @@
 
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "Algo/Copy.h"
+#include "Algo/Sort.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -199,42 +200,52 @@ void FSequencerTrackNode::UpdateSections()
 		ObjectBinding = ObjectBindingNode->GetObjectBinding();
 	}
 
-	TArray<UMovieSceneSection*, TInlineAllocator<4>> CurrentSections;
+	TArray<UMovieSceneSection*, TInlineAllocator<4>> NewSections;
 
 	// ParentTracks never contain sections
 	if (SubTrackMode == ESubTrackMode::SubTrack)
 	{
-		Algo::CopyIf(Track->GetAllSections(), CurrentSections, [this](UMovieSceneSection* In) { return In->GetRowIndex() == this->RowIndex; });
+		Algo::CopyIf(Track->GetAllSections(), NewSections, [this](UMovieSceneSection* In) { return In->GetRowIndex() == this->RowIndex; });
 	}
 	else if (SubTrackMode == ESubTrackMode::None)
 	{
-		CurrentSections = Track->GetAllSections();
+		NewSections = Track->GetAllSections();
 	}
 
-	if (Sections.Num() != CurrentSections.Num())
-	{
-		Sections.Empty();
-	}
+	Algo::SortBy(Sections, &ISequencerSection::GetSectionObject);
+	Algo::Sort(NewSections);
 
-	for (int32 Index = 0; Index < CurrentSections.Num(); ++Index)
+	for (int32 Index = 0; Index < NewSections.Num(); ++Index)
 	{
-		UMovieSceneSection* ThisSection     = CurrentSections[Index];
-		UMovieSceneSection* ExistingSection = Index < Sections.Num() ? Sections[Index]->GetSectionObject() : nullptr;
+		UMovieSceneSection* ThisSection = NewSections[Index];
 
-		// Add a new section interface if there isn't one, or it doesn't correspond to the same section
-		if ( !ExistingSection || ExistingSection != ThisSection )
+		// Remove any old sections that are less that this one
+		while (Index < Sections.Num() && Sections[Index]->GetSectionObject() < ThisSection)
 		{
+			Sections.RemoveAt(Index, 1, false);
+		}
+
+		if (Index >= Sections.Num() || Sections[Index]->GetSectionObject() != ThisSection)
+		{
+			// Generate a new section if it didn't exist before
 			TSharedRef<ISequencerSection> SectionInterface = AssociatedEditor.MakeSectionInterface(*ThisSection, *Track, ObjectBinding);
 			Sections.Insert(SectionInterface, Index);
 		}
 
 		// Ask the section to generate its inner layout
-		FSequencerSectionLayoutBuilder LayoutBuilder(SharedThis(this), ThisSection);
+		FSequencerSectionLayoutBuilder LayoutBuilder(SharedThis(this), Sections[Index]);
 		Sections[Index]->GenerateSectionLayout(LayoutBuilder);
 	}
 
+	// Prune any left overs
+	const int32 Remaining = Sections.Num() - NewSections.Num();
+	if (Remaining > 0)
+	{
+		Sections.RemoveAt(NewSections.Num(), Remaining, true);
+	}
+
 	// Crop the section array at the new length
-	const int32 NumToRemove = Sections.Num() - CurrentSections.Num();
+	const int32 NumToRemove = Sections.Num() - NewSections.Num();
 	if (NumToRemove > 0)
 	{
 		Sections.RemoveAt(Sections.Num()-NumToRemove, NumToRemove, true);
@@ -326,12 +337,34 @@ void FSequencerTrackNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
 				FSequencerUtilities::PopulateMenu_CreateNewSection(SubMenuBuilder, NewRowIndex, Track, WeakSequencer);
 			})
-		);
-		
+		);	
 	}
+
+	TArray<TWeakObjectPtr<UObject>> TrackSections;
+	if (Track)
+	{
+		for (UMovieSceneSection* Section : Track->GetAllSections())
+		{
+			if (SubTrackMode != ESubTrackMode::SubTrack || GetRowIndex() == Section->GetRowIndex())
+			{
+				TrackSections.Add(Section);
+			}
+		}
+	}
+		
+	if (TrackSections.Num())
+	{
+		MenuBuilder.AddSubMenu(
+			TrackSections.Num() > 1 ? LOCTEXT("BatchEditSections", "Batch Edit Sections") : LOCTEXT("EditSection", "Edit Section"),
+			FText(),
+			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
+				SequencerHelpers::AddPropertiesMenu(GetSequencer(), SubMenuBuilder, TrackSections);
+			})
+		);	
+	}
+
 	FSequencerDisplayNode::BuildContextMenu(MenuBuilder );
 }
-
 
 bool FSequencerTrackNode::CanRenameNode() const
 {
@@ -728,7 +761,7 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 			{
 				if (UObject* Object = WeakObject.Get())
 				{
-					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
+					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
 					if (PropertyBinding.GetProperty(*Object))
 					{
 						return bIsDimmed ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;

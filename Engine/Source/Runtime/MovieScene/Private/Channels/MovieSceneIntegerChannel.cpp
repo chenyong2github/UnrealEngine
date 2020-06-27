@@ -123,7 +123,7 @@ void FMovieSceneIntegerChannel::Reset()
 
 void FMovieSceneIntegerChannel::Optimize(const FKeyDataOptimizationParams& InParameters)
 {
-	MovieScene::Optimize(this, InParameters);
+	UE::MovieScene::Optimize(this, InParameters);
 }
 
 void FMovieSceneIntegerChannel::Offset(FFrameNumber DeltaPosition)

@@ -2,9 +2,7 @@
 
 #include "Tracks/MovieSceneLevelVisibilityTrack.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
-#include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "Evaluation/PersistentEvaluationData.h"
-#include "Evaluation/MovieSceneLevelVisibilityTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "IMovieSceneTracksModule.h"
 
@@ -13,13 +11,6 @@
 UMovieSceneLevelVisibilityTrack::UMovieSceneLevelVisibilityTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
-}
-
-
-void UMovieSceneLevelVisibilityTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	// Apply level visibility as part of the spawning flush group
-	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
 }
 
 

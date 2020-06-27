@@ -72,7 +72,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 		}
 	}
 
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	return AddKeyToChannel(Channel, InTime, NewValue, Sequencer.GetKeyInterpolation());
 }
 

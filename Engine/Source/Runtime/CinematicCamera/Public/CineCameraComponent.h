@@ -267,7 +267,7 @@ public:
 	virtual void SetFieldOfView(float InFieldOfView) override;
 	
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Cine Camera")
-	void SetCurrentFocalLength(const float& InFocalLength);
+	void SetCurrentFocalLength(float InFocalLength);
 
 	/** Returns the horizonal FOV of the camera with current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")

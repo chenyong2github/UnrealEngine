@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneNameableTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneGeometryCollectionTrack.generated.h"
 
 /**
@@ -15,6 +16,8 @@ class UGeometryCollectionComponent;
 UCLASS(MinimalAPI)
 class UMovieSceneGeometryCollectionTrack
 	: public UMovieSceneNameableTrack
+	, public IMovieSceneTrackTemplateProducer
+
 {
 	GENERATED_UCLASS_BODY()
 
@@ -37,6 +40,8 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
+
+	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;

@@ -4691,6 +4691,16 @@ void UWorld::RemoveOnActorSpawnedHandler( FDelegateHandle InHandle )
 	OnActorSpawned.Remove(InHandle);
 }
 
+FDelegateHandle UWorld::AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler)
+{
+	return MovieSceneSequenceTick.Add(InHandler);
+}
+
+void UWorld::RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle)
+{
+	MovieSceneSequenceTick.Remove(InHandle);
+}
+
 ABrush* UWorld::GetDefaultBrush() const
 {
 	check(PersistentLevel);

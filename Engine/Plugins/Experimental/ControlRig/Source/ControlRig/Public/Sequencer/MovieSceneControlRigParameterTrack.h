@@ -7,6 +7,7 @@
 #include "Sections/MovieSceneParameterSection.h"
 #include "MovieSceneNameableTrack.h"
 #include "ControlRig.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneControlRigParameterTrack.generated.h"
 
 /**
@@ -18,6 +19,7 @@ class IControlRigManipulatable;
 UCLASS(MinimalAPI)
 class UMovieSceneControlRigParameterTrack
 	: public UMovieSceneNameableTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

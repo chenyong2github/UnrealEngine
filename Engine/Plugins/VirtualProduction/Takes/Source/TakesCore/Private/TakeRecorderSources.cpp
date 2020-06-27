@@ -587,6 +587,11 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 
 			SubSection->SetRange(SubSequence->GetMovieScene()->GetPlaybackRange());
 
+			for (UMovieSceneSection* Section : SubSequence->GetMovieScene()->GetAllSections())
+			{
+				Section->MarkAsChanged();
+			}
+
 			// Re-enable transactional after recording
 			SubSequence->GetMovieScene()->SetFlags(RF_Transactional);
 		}

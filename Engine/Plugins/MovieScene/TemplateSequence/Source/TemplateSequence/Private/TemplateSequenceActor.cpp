@@ -2,6 +2,7 @@
 
 #include "TemplateSequenceActor.h"
 #include "TemplateSequence.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "Engine/World.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -49,7 +50,7 @@ void ATemplateSequenceActor::PostInitializeComponents()
 
 void ATemplateSequenceActor::BeginPlay()
 {
-	GetWorld()->LevelSequenceActors.Add(this);
+	UMovieSceneSequenceTickManager::Get(this)->SequenceActors.Add(this);
 
 	Super::BeginPlay();
 	
@@ -67,7 +68,7 @@ void ATemplateSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		SequencePlayer->Stop();
 	}
 
-	GetWorld()->LevelSequenceActors.Remove(this);
+	UMovieSceneSequenceTickManager::Get(this)->SequenceActors.Remove(this);
 
 	Super::EndPlay(EndPlayReason);
 }

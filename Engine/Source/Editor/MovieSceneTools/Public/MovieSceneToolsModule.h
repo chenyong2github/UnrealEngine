@@ -95,5 +95,7 @@ private:
 	FDelegateHandle FixupPayloadParameterNameHandle;
 	FDelegateHandle UpgradeLegacyEventEndpointHandle;
 
+	FDelegateHandle OnObjectsReplacedHandle;
+
 	TArray<IMovieSceneToolsTakeData*> TakeDatas;
 };

@@ -16,6 +16,7 @@
 #include "Rendering/DrawElements.h"
 #include "SequencerSectionPainter.h"
 #include "TrackEditorThumbnail/TrackEditorThumbnailPool.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "CommonMovieSceneTools.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -357,7 +358,7 @@ void FMediaThumbnailSection::DrawLoopIndicators(FSequencerSectionPainter& InPain
 	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
 
 	FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	double SectionDuration = FFrameTime(MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
+	double SectionDuration = FFrameTime(UE::MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
 	const float MediaSizeX = MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration;
 	float DrawOffset = 0.0f;
 
@@ -382,7 +383,7 @@ void FMediaThumbnailSection::DrawLoopIndicators(FSequencerSectionPainter& InPain
 	const FTimeToPixel& TimeToPixelConverter = InPainter.GetTimeConverter();
 
 	FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	double SectionDuration = FFrameTime(MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
+	double SectionDuration = FFrameTime(UE::MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
 	const float MediaSizeX = MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration;
 	float DrawOffset = MediaSizeX - TimeToPixelConverter.SecondsToPixel(TickResolution.AsSeconds(MediaSection->StartFrameOffset));
 
@@ -411,7 +412,7 @@ void FMediaThumbnailSection::DrawSampleStates(FSequencerSectionPainter& InPainte
 	const FTimeToPixel& TimeToPixelConverter = InPainter.GetTimeConverter();
 
 	FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	double SectionDuration = FFrameTime(MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
+	double SectionDuration = FFrameTime(UE::MovieScene::DiscreteSize(Section->GetRange())) / TickResolution;
 	const float MediaSizeX = MediaDuration.GetTotalSeconds() * SectionSize.X / SectionDuration;
 
 	TArray<TRange<FTimespan>> Ranges;
@@ -450,9 +451,20 @@ UMediaPlayer* FMediaThumbnailSection::GetTemplateMediaPlayer() const
 		return nullptr; // no movie scene player
 	}
 
-	const FMovieSceneSequenceID SequenceId = Sequencer->GetFocusedTemplateID();
-	FMovieSceneEvaluationTemplate* Template = Sequencer->GetEvaluationTemplate().FindTemplate(SequenceId);
+	// @todo: arodham: Test this and/or check dirty/compile?
+	FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
 
+	FMovieSceneSequenceID           SequenceId          = Sequencer->GetFocusedTemplateID();
+	UMovieSceneCompiledDataManager* CompiledDataManager = Instance.GetCompiledDataManager();
+	UMovieSceneSequence*            SubSequence         = Instance.GetSequence(SequenceId);
+	FMovieSceneCompiledDataID       CompiledDataID      = CompiledDataManager->GetDataID(SubSequence);
+
+	if (!CompiledDataID.IsValid())
+	{
+		return nullptr;
+	}
+
+	const FMovieSceneEvaluationTemplate* Template = CompiledDataManager->FindTrackTemplate(CompiledDataID);
 	if (Template == nullptr)
 	{
 		return nullptr; // section template not found
@@ -465,8 +477,8 @@ UMediaPlayer* FMediaThumbnailSection::GetTemplateMediaPlayer() const
 		return nullptr; // media track not found
 	}
 
-	const FMovieSceneTrackIdentifier TrackIdentifier = Template->GetLedger().FindTrack(OwnerTrack->GetSignature());
-	FMovieSceneEvaluationTrack* EvaluationTrack = Template->FindTrack(TrackIdentifier);
+	const FMovieSceneTrackIdentifier  TrackIdentifier = Template->GetLedger().FindTrackIdentifier(OwnerTrack->GetSignature());
+	const FMovieSceneEvaluationTrack* EvaluationTrack = Template->FindTrack(TrackIdentifier);
 
 	if (EvaluationTrack == nullptr)
 	{
@@ -476,7 +488,7 @@ UMediaPlayer* FMediaThumbnailSection::GetTemplateMediaPlayer() const
 	FMovieSceneMediaData* MediaData = nullptr;
 
 	// find the persistent data of the section being drawn
-	TArrayView<FMovieSceneEvalTemplatePtr> Children = EvaluationTrack->GetChildTemplates();
+	TArrayView<const FMovieSceneEvalTemplatePtr> Children = EvaluationTrack->GetChildTemplates();
 	FPersistentEvaluationData PersistentData(*Sequencer.Get());
 
 	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)

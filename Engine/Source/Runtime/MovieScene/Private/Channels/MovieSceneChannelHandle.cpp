@@ -38,6 +38,11 @@ FName FMovieSceneChannelHandle::GetChannelTypeName() const
 	return ChannelTypeName;
 }
 
+int32 FMovieSceneChannelHandle::GetChannelIndex() const
+{
+	return ChannelIndex;
+}
+
 #if WITH_EDITOR
 
 const FMovieSceneChannelMetaData* FMovieSceneChannelHandle::GetMetaData() const

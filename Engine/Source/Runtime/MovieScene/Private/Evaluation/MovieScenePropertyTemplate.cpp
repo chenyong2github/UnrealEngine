@@ -10,9 +10,9 @@ PropertyTemplate::FSectionData::FSectionData()
 {
 }
 
-void PropertyTemplate::FSectionData::Initialize(FName InPropertyName, FString InPropertyPath, FName InFunctionName, FName InNotifyFunctionName)
+void PropertyTemplate::FSectionData::Initialize(FName InPropertyName, FString InPropertyPath)
 {
-	PropertyBindings = MakeShareable(new FTrackInstancePropertyBindings(InPropertyName, MoveTemp(InPropertyPath), InFunctionName, InNotifyFunctionName));
+	PropertyBindings = MakeShareable(new FTrackInstancePropertyBindings(InPropertyName, MoveTemp(InPropertyPath)));
 	PropertyID = PropertyTypeIDs.GetAnimTypeID(InPropertyPath);
 }
 

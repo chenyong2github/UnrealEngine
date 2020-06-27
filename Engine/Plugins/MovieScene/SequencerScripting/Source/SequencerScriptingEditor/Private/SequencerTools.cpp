@@ -70,8 +70,8 @@ bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSe
 			LevelSequenceCapture->Settings.bUseRelativeFrameNumbers = false;
 			TRange<FFrameNumber> Range = LevelSequence->GetMovieScene()->GetPlaybackRange();
 
-			FFrameNumber StartFrame = MovieScene::DiscreteInclusiveLower(Range);
-			FFrameNumber EndFrame = MovieScene::DiscreteExclusiveUpper(Range);
+			FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower(Range);
+			FFrameNumber EndFrame = UE::MovieScene::DiscreteExclusiveUpper(Range);
 
 			FFrameNumber RoundedStartFrame = FFrameRate::TransformTime(StartFrame, TickResolution, DisplayRate).CeilToFrame();
 			FFrameNumber RoundedEndFrame = FFrameRate::TransformTime(EndFrame, TickResolution, DisplayRate).CeilToFrame();
@@ -204,7 +204,7 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 		{
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			Player->Play();
-			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
+			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
 		}
 
 		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);

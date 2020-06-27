@@ -4,6 +4,7 @@
 
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "Channels/MovieSceneEvent.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneEventRepeaterSection.generated.h"
 
 
@@ -13,9 +14,13 @@
 UCLASS(MinimalAPI)
 class UMovieSceneEventRepeaterSection
 	: public UMovieSceneEventSectionBase
+	, public IMovieSceneEntityProvider
 {
 public:
 	GENERATED_BODY()
+
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField) override;
+	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual TArrayView<FMovieSceneEvent> GetAllEntryPoints() override { return MakeArrayView(&Event, 1); }

@@ -6,7 +6,7 @@
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
 #include "Algo/Find.h"
-#include "Compilation/MovieSceneCompiler.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 
 TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FilterTracks(TArrayView<UMovieSceneTrack* const> InTracks, UClass* DesiredClass, bool bExactMatch)
 {
@@ -174,7 +174,7 @@ int32 UMovieSceneSequenceExtensions::GetPlaybackStart(UMovieSceneSequence* Seque
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = GetDisplayRate(Sequence);
-		return ConvertFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate).FloorToFrame().Value;
+		return ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate).FloorToFrame().Value;
 	}
 	else
 	{
@@ -188,7 +188,7 @@ float UMovieSceneSequenceExtensions::GetPlaybackStartSeconds(UMovieSceneSequence
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = GetDisplayRate(Sequence);
-		return DisplayRate.AsSeconds(ConvertFrameTime(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate));
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate));
 	}
 
 	return -1.f;
@@ -200,7 +200,7 @@ int32 UMovieSceneSequenceExtensions::GetPlaybackEnd(UMovieSceneSequence* Sequenc
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = GetDisplayRate(Sequence);
-		return ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate).FloorToFrame().Value;
+		return ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate).FloorToFrame().Value;
 	}
 	else
 	{
@@ -214,7 +214,7 @@ float UMovieSceneSequenceExtensions::GetPlaybackEndSeconds(UMovieSceneSequence* 
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = GetDisplayRate(Sequence);
-		return DisplayRate.AsSeconds(ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate));
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(MovieScene->GetPlaybackRange()), GetTickResolution(Sequence), DisplayRate));
 	}
 
 	return -1.f;
@@ -478,17 +478,21 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 {
 	FMovieSceneSequenceID SequenceID = MovieSceneSequenceID::Root;
 
-	FMovieSceneSequenceHierarchy SequenceHierarchyCache;
-	FMovieSceneCompiler::CompileHierarchy(*MasterSequence, SequenceHierarchyCache);
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterSequence);
 
-	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : SequenceHierarchyCache.AllSubSequenceData())
+
+	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
+	if (Hierarchy)
 	{
-		if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
 		{
-			if (SubSequence == InBinding.Sequence)
+			if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
 			{
-				SequenceID = Pair.Key;
-				break;
+				if (SubSequence == InBinding.Sequence)
+				{
+					SequenceID = Pair.Key;
+					break;
+				}
 			}
 		}
 	}

@@ -4,12 +4,14 @@
 
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 
 #include "MovieSceneMediaPlayerPropertyTrack.generated.h"
 
 UCLASS(MinimalAPI)
 class UMovieSceneMediaPlayerPropertyTrack
 	: public UMovieScenePropertyTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 public:
 
