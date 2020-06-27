@@ -179,6 +179,10 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 
 	TBitArray<> StaleProperties;
 
+	TArrayView<const FPropertyDefinition> Properties = BuiltInComponents->PropertyRegistry.GetProperties();
+
+	FPropertyParameters Params;
+
 	// This is all random access at this point :(
 	for (TConstSetBitIterator<> It(InvalidatedProperties); It; ++It)
 	{
@@ -189,10 +193,11 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 		}
 
 		// Update our view of how this property is animated
-		FObjectPropertyInfo* PropertyInfo = &ResolvedProperties[PropertyIndex];
-		const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetProperties()[PropertyInfo->PropertyDefinitionIndex];
+		Params.PropertyInfo = &ResolvedProperties[PropertyIndex];
+		Params.PropertyDefinition = &Properties[Params.PropertyInfo->PropertyDefinitionIndex];
+		Params.PropertyInfoIndex = PropertyIndex;
 
-		UpdatePropertyInfo(PropertyInfo, PropertyIndex);
+		UpdatePropertyInfo(Params);
 
 		// Does it have anything at all contributing to it anymore?
 		if (!Contributors.Contains(PropertyIndex))
@@ -201,27 +206,30 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 			StaleProperties[PropertyIndex] = true;
 		}
 		// Does it support fast path?
-		else if (PropertySupportsFastPath(PropertyInfo, PropertyIndex))
+		else if (PropertySupportsFastPath(Params))
 		{
-			InitializeFastPath(PropertyInfo, PropertyIndex);
+			InitializeFastPath(Params);
 		}
 		// Else use the (slightly more) expensive blend path
 		else
 		{
-			InitializeBlendPath(PropertyInfo, PropertyIndex);
+			InitializeBlendPath(Params);
 		}
 
-		const bool bHasPreAnimatedValue = PropertyDefinition.PreAnimatedValue && Linker->EntityManager.HasComponent(PropertyInfo->PropertyEntityID, PropertyDefinition.PreAnimatedValue);
-		if (PropertyDefinition.PreAnimatedValue && PropertyInfo->bWantsRestoreState && !bHasPreAnimatedValue)
-		{
-			Linker->EntityManager.AddComponents(PropertyInfo->PropertyEntityID, { BuiltInComponents->Tags.RestoreState, BuiltInComponents->Tags.CachePreAnimatedValue, PropertyDefinition.PreAnimatedValue });
 
-			CachePreAnimatedStateTasks.PadToNum(PropertyInfo->PropertyDefinitionIndex+1, false);
-			CachePreAnimatedStateTasks[PropertyInfo->PropertyDefinitionIndex] = true;
-		}
-		else if (!PropertyInfo->bWantsRestoreState && bHasPreAnimatedValue)
+		const int32 PropertyDefinitionIndex = Params.PropertyInfo->PropertyDefinitionIndex;
+
+		const bool bHasPreAnimatedValue = Params.PropertyDefinition->PreAnimatedValue && Linker->EntityManager.HasComponent(Params.PropertyInfo->PropertyEntityID, Params.PropertyDefinition->PreAnimatedValue);
+		if (Params.PropertyDefinition->PreAnimatedValue && Params.PropertyInfo->bWantsRestoreState && !bHasPreAnimatedValue)
 		{
-			Linker->EntityManager.RemoveComponents(PropertyInfo->PropertyEntityID, { PropertyDefinition.PreAnimatedValue, BuiltInComponents->Tags.RestoreState });
+			Linker->EntityManager.AddComponents(Params.PropertyInfo->PropertyEntityID, { BuiltInComponents->Tags.RestoreState, BuiltInComponents->Tags.CachePreAnimatedValue, Params.PropertyDefinition->PreAnimatedValue });
+
+			CachePreAnimatedStateTasks.PadToNum(PropertyDefinitionIndex+1, false);
+			CachePreAnimatedStateTasks[PropertyDefinitionIndex] = true;
+		}
+		else if (!Params.PropertyInfo->bWantsRestoreState && bHasPreAnimatedValue)
+		{
+			Linker->EntityManager.RemoveComponents(Params.PropertyInfo->PropertyEntityID, { Params.PropertyDefinition->PreAnimatedValue, BuiltInComponents->Tags.RestoreState });
 		}
 	}
 
@@ -270,19 +278,19 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 	NewContributors.Empty();
 }
 
-void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex)
+void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
 
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetProperties()[PropertyInfo->PropertyDefinitionIndex];
+	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetProperties()[Params.PropertyInfo->PropertyDefinitionIndex];
 	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
 
-	FChannelMask EmptyChannels(true, PropertyDefinition.CompositeSize);
+	FChannelMask EmptyChannels(true, Params.PropertyDefinition->CompositeSize);
 
 	bool bWantsRestoreState = false;
 	int32 NumContributors = 0;
 
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(PropertyIndex); ContributorIt; ++ContributorIt)
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
 	{
 		++NumContributors;
 
@@ -291,7 +299,7 @@ void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(FObjectPropertyIn
 			bWantsRestoreState = true;
 		}
 
-		for (int32 CompositeIndex = 0; CompositeIndex < PropertyDefinition.CompositeSize; ++CompositeIndex)
+		for (int32 CompositeIndex = 0; CompositeIndex < Params.PropertyDefinition->CompositeSize; ++CompositeIndex)
 		{
 			if (EmptyChannels[CompositeIndex] == false)
 			{
@@ -310,31 +318,32 @@ void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(FObjectPropertyIn
 	// We do not do this if there are no contributors to ensure that stale properties are restored correctly
 	if (NumContributors > 0)
 	{
-		const bool bWasPartial = PropertyInfo->EmptyChannels.Find(false) != INDEX_NONE;
+		const bool bWasPartial = Params.PropertyInfo->EmptyChannels.Find(false) != INDEX_NONE;
 		const bool bIsPartial  = EmptyChannels.Find(false) != INDEX_NONE;
 
 		if (bWasPartial != bIsPartial)
 		{
-			PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties += bIsPartial ? 1 : -1;
+			const int32 StatIndex = Params.PropertyInfo->PropertyDefinitionIndex;
+			PropertyStats[StatIndex].NumPartialProperties += bIsPartial ? 1 : -1;
 		}
 
-		PropertyInfo->EmptyChannels = EmptyChannels;
-		PropertyInfo->bWantsRestoreState = bWantsRestoreState;
+		Params.PropertyInfo->EmptyChannels = EmptyChannels;
+		Params.PropertyInfo->bWantsRestoreState = bWantsRestoreState;
 	}
 }
 
-bool UMovieScenePropertyInstantiatorSystem::PropertySupportsFastPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex) const
+bool UMovieScenePropertyInstantiatorSystem::PropertySupportsFastPath(const FPropertyParameters& Params) const
 {
 	using namespace UE::MovieScene;
 
 	// Properties that are already blended, or are currently animated must use the blend path
-	if (ResolvedProperties[PropertyIndex].BlendChannel != INVALID_BLEND_CHANNEL || PropertyInfo->PropertyEntityID.IsValid())
+	if (ResolvedProperties[Params.PropertyInfoIndex].BlendChannel != INVALID_BLEND_CHANNEL || Params.PropertyInfo->PropertyEntityID.IsValid())
 	{
 		return false;
 	}
 
 	int32 NumContributors = 0;
-	for (auto It = Contributors.CreateConstKeyIterator(PropertyIndex); It; ++It)
+	for (auto It = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); It; ++It)
 	{
 		++NumContributors;
 		if (NumContributors > 1)
@@ -352,46 +361,45 @@ bool UMovieScenePropertyInstantiatorSystem::PropertySupportsFastPath(FObjectProp
 	return true;
 }
 
-void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex)
+void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
 
-	FMovieSceneEntityID SoleContributor = Contributors.FindChecked(PropertyIndex);
+	FMovieSceneEntityID SoleContributor = Contributors.FindChecked(Params.PropertyInfoIndex);
 
 	// Have we ever seen this property before?
-	if (SoleContributor == PropertyInfo->PropertyEntityID)
+	if (SoleContributor == Params.PropertyInfo->PropertyEntityID)
 	{
 		return;
 	}
 
-	PropertyInfo->PropertyEntityID = SoleContributor;
+	Params.PropertyInfo->PropertyEntityID = SoleContributor;
 
-	check(PropertyInfo->BlendChannel == INVALID_BLEND_CHANNEL);
-	switch (PropertyInfo->Property->GetIndex())
+	check(Params.PropertyInfo->BlendChannel == INVALID_BLEND_CHANNEL);
+	switch (Params.PropertyInfo->Property->GetIndex())
 	{
 	case 0:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->FastPropertyOffset,  PropertyInfo->Property->template Get<uint16>());
+		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->FastPropertyOffset,  Params.PropertyInfo->Property->template Get<uint16>());
 		break;
 	case 1:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->CustomPropertyIndex, PropertyInfo->Property->template Get<FCustomPropertyIndex>());
+		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->CustomPropertyIndex, Params.PropertyInfo->Property->template Get<FCustomPropertyIndex>());
 		break;
 	case 2:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->SlowProperty,        PropertyInfo->Property->template Get<FSlowPropertyPtr>());
+		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->SlowProperty,        Params.PropertyInfo->Property->template Get<FSlowPropertyPtr>());
 		break;
 	}
 }
 
-void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex)
+void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
 
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetProperties()[PropertyInfo->PropertyDefinitionIndex];
-	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
+	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*Params.PropertyDefinition);
 
 	UClass* BlenderClass = UMovieScenePiecewiseFloatBlenderSystem::StaticClass();
 
 	// Ensure contributors all have the necessary blend inputs and tags
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(PropertyIndex); ContributorIt; ++ContributorIt)
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
 	{
 		FMovieSceneEntityID Contributor = ContributorIt.Value();
 		
@@ -405,19 +413,19 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(FObjectPropertyI
 
 	check(BlenderClass);
 
-	UMovieSceneBlenderSystem* ExistingBlender = PropertyInfo->Blender.Get();
+	UMovieSceneBlenderSystem* ExistingBlender = Params.PropertyInfo->Blender.Get();
 	if (ExistingBlender && BlenderClass != ExistingBlender->GetClass())
 	{
-		ExistingBlender->ReleaseBlendChannel(PropertyInfo->BlendChannel);
-		PropertyInfo->BlendChannel = INVALID_BLEND_CHANNEL;
+		ExistingBlender->ReleaseBlendChannel(Params.PropertyInfo->BlendChannel);
+		Params.PropertyInfo->BlendChannel = INVALID_BLEND_CHANNEL;
 	}
 
-	PropertyInfo->Blender = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(BlenderClass));
+	Params.PropertyInfo->Blender = CastChecked<UMovieSceneBlenderSystem>(Linker->LinkSystem(BlenderClass));
 
-	const bool bWasAlreadyBlended = PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL;
+	const bool bWasAlreadyBlended = Params.PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL;
 	if (!bWasAlreadyBlended)
 	{
-		PropertyInfo->BlendChannel = PropertyInfo->Blender->AllocateBlendChannel();
+		Params.PropertyInfo->BlendChannel = Params.PropertyInfo->Blender->AllocateBlendChannel();
 	}
 
 	FComponentMask NewMask;
@@ -425,30 +433,30 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(FObjectPropertyI
 
 	if (!bWasAlreadyBlended)
 	{
-		NewMask.Set(PropertyDefinition.InitialValueType);
-		InitialValueStateTasks.PadToNum(PropertyInfo->PropertyDefinitionIndex+1, false);
-		InitialValueStateTasks[PropertyInfo->PropertyDefinitionIndex] = true;
+		NewMask.Set(Params.PropertyDefinition->InitialValueType);
+		InitialValueStateTasks.PadToNum(Params.PropertyInfo->PropertyDefinitionIndex+1, false);
+		InitialValueStateTasks[Params.PropertyInfo->PropertyDefinitionIndex] = true;
 
 		for (int32 Index = 0; Index < Composites.Num(); ++Index)
 		{
-			if (PropertyInfo->EmptyChannels[Index] == false)
+			if (Params.PropertyInfo->EmptyChannels[Index] == false)
 			{
 				NewMask.Set(Composites[Index].ComponentTypeID);
 			}
 		}
-		NewMask.Set(PropertyDefinition.PropertyType);
+		NewMask.Set(Params.PropertyDefinition->PropertyType);
 
 		FMovieSceneEntityID NewEntityID;
-		switch (PropertyInfo->Property->GetIndex())
+		switch (Params.PropertyInfo->Property->GetIndex())
 		{
 		// Never seen this property before
 		case 0:
 			NewEntityID = FEntityBuilder()
-			.Add(BuiltInComponents->FastPropertyOffset,      PropertyInfo->Property->template Get<uint16>())
-			.Add(BuiltInComponents->BoundObject,             PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,      PropertyInfo->BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, PropertyInfo->bWantsRestoreState)
+			.Add(BuiltInComponents->FastPropertyOffset,      Params.PropertyInfo->Property->template Get<uint16>())
+			.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
+			.Add(BuiltInComponents->BlendChannelOutput,      Params.PropertyInfo->BlendChannel)
+			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
+			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
 			.AddTag(BuiltInComponents->Tags.NeedsLink)
 			.AddMutualComponents()
 			.CreateEntity(&Linker->EntityManager, NewMask);
@@ -456,11 +464,11 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(FObjectPropertyI
 
 		case 1:
 			NewEntityID = FEntityBuilder()
-			.Add(BuiltInComponents->CustomPropertyIndex, PropertyInfo->Property->template Get<FCustomPropertyIndex>())
-			.Add(BuiltInComponents->BoundObject,         PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,  PropertyInfo->BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, PropertyInfo->bWantsRestoreState)
+			.Add(BuiltInComponents->CustomPropertyIndex, Params.PropertyInfo->Property->template Get<FCustomPropertyIndex>())
+			.Add(BuiltInComponents->BoundObject,         Params.PropertyInfo->BoundObject)
+			.Add(BuiltInComponents->BlendChannelOutput,  Params.PropertyInfo->BlendChannel)
+			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
+			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
 			.AddTag(BuiltInComponents->Tags.NeedsLink)
 			.AddMutualComponents()
 			.CreateEntity(&Linker->EntityManager, NewMask);
@@ -468,49 +476,49 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(FObjectPropertyI
 
 		case 2:
 			NewEntityID = FEntityBuilder()
-			.Add(BuiltInComponents->SlowProperty,            PropertyInfo->Property->template Get<FSlowPropertyPtr>())
-			.Add(BuiltInComponents->BoundObject,             PropertyInfo->BoundObject)
-			.Add(BuiltInComponents->BlendChannelOutput,      PropertyInfo->BlendChannel)
-			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, PropertyInfo->PropertyEntityID.IsValid())
-			.AddTagConditional(BuiltInComponents->Tags.RestoreState, PropertyInfo->bWantsRestoreState)
+			.Add(BuiltInComponents->SlowProperty,            Params.PropertyInfo->Property->template Get<FSlowPropertyPtr>())
+			.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
+			.Add(BuiltInComponents->BlendChannelOutput,      Params.PropertyInfo->BlendChannel)
+			.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
+			.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
 			.AddTag(BuiltInComponents->Tags.NeedsLink)
 			.AddMutualComponents()
 			.CreateEntity(&Linker->EntityManager, NewMask);
 			break;
 		}
 
-		if (PropertyInfo->PropertyEntityID)
+		if (Params.PropertyInfo->PropertyEntityID)
 		{
 			// Move any migratable components over from the existing fast-path entity
-			Linker->EntityManager.CopyComponents(PropertyInfo->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetMigrationMask());
+			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetMigrationMask());
 
 			// Add blend inputs on the first contributor, which was using the fast-path
-			Linker->EntityManager.AddComponent(PropertyInfo->PropertyEntityID, BuiltInComponents->BlendChannelInput, PropertyInfo->BlendChannel);
-			Linker->EntityManager.RemoveComponents(PropertyInfo->PropertyEntityID, CleanFastPathMask);
+			Linker->EntityManager.AddComponent(Params.PropertyInfo->PropertyEntityID, BuiltInComponents->BlendChannelInput, Params.PropertyInfo->BlendChannel);
+			Linker->EntityManager.RemoveComponents(Params.PropertyInfo->PropertyEntityID, CleanFastPathMask);
 		}
 
-		PropertyInfo->PropertyEntityID = NewEntityID;
+		Params.PropertyInfo->PropertyEntityID = NewEntityID;
 	}
 	else
 	{
-		FComponentMask NewEntityType = Linker->EntityManager.GetEntityType(PropertyInfo->PropertyEntityID);
+		FComponentMask NewEntityType = Linker->EntityManager.GetEntityType(Params.PropertyInfo->PropertyEntityID);
 
 		// Ensure the property has only the exact combination of components that constitute its animation
 		for (int32 Index = 0; Index < Composites.Num(); ++Index)
 		{
 			FComponentTypeID Composite = Composites[Index].ComponentTypeID;
-			NewEntityType[Composite] = (PropertyInfo->EmptyChannels[Index] != true);
+			NewEntityType[Composite] = (Params.PropertyInfo->EmptyChannels[Index] != true);
 		}
-		NewEntityType.Set(PropertyDefinition.PropertyType);
+		NewEntityType.Set(Params.PropertyDefinition->PropertyType);
 
-		Linker->EntityManager.ChangeEntityType(PropertyInfo->PropertyEntityID, NewEntityType);
+		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->PropertyEntityID, NewEntityType);
 	}
 
 	// Ensure contributors all have the necessary blend inputs and tags
-	for (auto ContributorIt = NewContributors.CreateConstKeyIterator(PropertyIndex); ContributorIt; ++ContributorIt)
+	for (auto ContributorIt = NewContributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
 	{
 		FMovieSceneEntityID Contributor = ContributorIt.Value();
-		Linker->EntityManager.AddComponent(Contributor, BuiltInComponents->BlendChannelInput, PropertyInfo->BlendChannel);
+		Linker->EntityManager.AddComponent(Contributor, BuiltInComponents->BlendChannelInput, Params.PropertyInfo->BlendChannel);
 		Linker->EntityManager.RemoveComponents(Contributor, CleanFastPathMask);
 	}
 }
