@@ -1844,7 +1844,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		Result.bStaticRelevance = true;
 	}
 
-	Result.bShadowRelevance = (GAllowLandscapeShadows > 0) && IsShadowCast(View);
+	Result.bShadowRelevance = (GAllowLandscapeShadows > 0) && IsShadowCast(View) && View->Family->EngineShowFlags.Landscape;
 	return Result;
 }
 
