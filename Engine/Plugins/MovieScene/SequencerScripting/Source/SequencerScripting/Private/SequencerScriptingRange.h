@@ -32,12 +32,12 @@ struct FSequencerScriptingRange
 
 		if (NewRange.bHasStart)
 		{
-			NewRange.InclusiveStart = MovieScene::DiscreteInclusiveLower(InRange).Value;
+			NewRange.InclusiveStart = UE::MovieScene::DiscreteInclusiveLower(InRange).Value;
 		}
 
 		if (NewRange.bHasEnd)
 		{
-			NewRange.ExclusiveEnd = MovieScene::DiscreteExclusiveUpper(InRange).Value;
+			NewRange.ExclusiveEnd = UE::MovieScene::DiscreteExclusiveUpper(InRange).Value;
 		}
 
 		return NewRange;
@@ -52,12 +52,12 @@ struct FSequencerScriptingRange
 
 		if (NewRange.bHasStart)
 		{
-			NewRange.InclusiveStart = ConvertFrameTime(MovieScene::DiscreteInclusiveLower(InRange), InputRate, InOutputRate).FloorToFrame().Value;
+			NewRange.InclusiveStart = ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(InRange), InputRate, InOutputRate).FloorToFrame().Value;
 		}
 
 		if (NewRange.bHasEnd)
 		{
-			NewRange.ExclusiveEnd = ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(InRange), InputRate, InOutputRate).FloorToFrame().Value;
+			NewRange.ExclusiveEnd = ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(InRange), InputRate, InOutputRate).FloorToFrame().Value;
 		}
 
 		return NewRange;

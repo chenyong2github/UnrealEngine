@@ -65,7 +65,7 @@ struct TMovieSceneScriptingChannel
 				KeyTime = FFrameRate::TransformTime(KeyTime, UMovieSceneSequenceExtensions::GetDisplayRate(Sequence.Get()), UMovieSceneSequenceExtensions::GetTickResolution(Sequence.Get())).RoundToFrame();
 			}
 
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			Key->KeyHandle = AddKeyToChannel(Channel, KeyTime, NewValue, Interpolation);
 			Key->ChannelHandle = ChannelHandle;
 			Key->OwningSequence = Sequence;
@@ -133,8 +133,8 @@ struct TMovieSceneScriptingChannel
 			if (SpecifiedRange.HasLowerBound() && SpecifiedRange.HasUpperBound())
 			{
 				FFrameTime Interval = FFrameRate::TransformTime(1, FrameRate, Resolution);
-				FFrameNumber InFrame = MovieScene::DiscreteInclusiveLower(SpecifiedRange);
-				FFrameNumber OutFrame = MovieScene::DiscreteExclusiveUpper(SpecifiedRange);
+				FFrameNumber InFrame = UE::MovieScene::DiscreteInclusiveLower(SpecifiedRange);
+				FFrameNumber OutFrame = UE::MovieScene::DiscreteExclusiveUpper(SpecifiedRange);
 				for (FFrameTime EvalTime = InFrame; EvalTime < OutFrame; EvalTime += Interval)
 				{
 					FFrameNumber KeyTime = FFrameRate::Snap(EvalTime, Resolution, FrameRate).FloorToFrame();
@@ -175,7 +175,7 @@ struct TMovieSceneScriptingChannel
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			SetChannelDefault(Channel, InDefaultValue);
 			return;
 		}
@@ -187,7 +187,7 @@ struct TMovieSceneScriptingChannel
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			RemoveChannelDefault(Channel);
 			return;
 		}
@@ -201,7 +201,7 @@ struct TMovieSceneScriptingChannel
 		{
 			ScriptingKeyValueType Ret;
 
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			if (GetChannelDefault(Channel, Ret))
 			{
 				return TOptional<ScriptingKeyValueType>(Ret);
@@ -294,7 +294,7 @@ struct TMovieSceneScriptingKey
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			if (!GetKeyValue(Channel, KeyHandle, Value))
 			{
 				FFrame::KismetExecutionMessage(TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to get value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);
@@ -313,7 +313,7 @@ struct TMovieSceneScriptingKey
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			if (!AssignValue(Channel, KeyHandle, InNewValue))
 			{
 				FFrame::KismetExecutionMessage(TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to set value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);

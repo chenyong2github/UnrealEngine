@@ -180,53 +180,53 @@ void SSequencerHierarchyBrowser::AddChildren(TSharedRef<FSequencerHierarchyNode>
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(MovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass()));
-	if (CinematicShotTrack)
+	for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
 	{
-		TArray<UMovieSceneCinematicShotSection*> ShotSections;
-		for (UMovieSceneSection* Section : CinematicShotTrack->GetAllSections())
+		if (UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(MasterTrack))
 		{
-			if (UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section))
+			TArray<UMovieSceneCinematicShotSection*> ShotSections;
+			for (UMovieSceneSection* Section : CinematicShotTrack->GetAllSections())
 			{
-				if (ShotSection->GetSequence())
+				if (UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section))
 				{
-					ShotSections.Add(ShotSection);
+					if (ShotSection->GetSequence())
+					{
+						ShotSections.Add(ShotSection);
+					}
 				}
 			}
-		}
-		ShotSections.Sort([](const UMovieSceneCinematicShotSection& A, const UMovieSceneCinematicShotSection& B) { return A.GetShotDisplayName().Compare(B.GetShotDisplayName()) < 0; });
+			ShotSections.Sort([](const UMovieSceneCinematicShotSection& A, const UMovieSceneCinematicShotSection& B) { return A.GetShotDisplayName().Compare(B.GetShotDisplayName()) < 0; });
 
-		for (UMovieSceneCinematicShotSection* ShotSection : ShotSections)
-		{
-			TSharedPtr<FSequencerHierarchyNode> ChildNode = MakeShared<FSequencerHierarchyNode>(FText::FromString(ShotSection->GetShotDisplayName()), ShotSection);
-			ParentNode->Children.Add(ChildNode);
-
-			AddChildren(ChildNode.ToSharedRef(), ShotSection->GetSequence());
-		}
-	}
-
-	UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MovieScene->FindMasterTrack(UMovieSceneSubTrack::StaticClass()));
-	if (SubTrack)
-	{
-		TArray<UMovieSceneSubSection*> SubSections;
-		for (UMovieSceneSection* Section : SubTrack->GetAllSections())
-		{
-			if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))
+			for (UMovieSceneCinematicShotSection* ShotSection : ShotSections)
 			{
-				if (SubSection->GetSequence())
-				{
-					SubSections.Add(SubSection);
-				}
+				TSharedPtr<FSequencerHierarchyNode> ChildNode = MakeShared<FSequencerHierarchyNode>(FText::FromString(ShotSection->GetShotDisplayName()), ShotSection);
+				ParentNode->Children.Add(ChildNode);
+
+				AddChildren(ChildNode.ToSharedRef(), ShotSection->GetSequence());
 			}
 		}
-		SubSections.Sort([](const UMovieSceneSubSection& A, const UMovieSceneSubSection& B) { return A.GetSequence()->GetDisplayName().CompareTo(B.GetSequence()->GetDisplayName()) < 0; });
-
-		for (UMovieSceneSubSection* SubSection : SubSections)
+		else if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MasterTrack))
 		{
-			TSharedPtr<FSequencerHierarchyNode> ChildNode = MakeShared<FSequencerHierarchyNode>(SubSection->GetSequence()->GetDisplayName(), SubSection);
-			ParentNode->Children.Add(ChildNode);
+			TArray<UMovieSceneSubSection*> SubSections;
+			for (UMovieSceneSection* Section : SubTrack->GetAllSections())
+			{
+				if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))
+				{
+					if (SubSection->GetSequence())
+					{
+						SubSections.Add(SubSection);
+					}
+				}
+			}
+			SubSections.Sort([](const UMovieSceneSubSection& A, const UMovieSceneSubSection& B) { return A.GetSequence()->GetDisplayName().CompareTo(B.GetSequence()->GetDisplayName()) < 0; });
 
-			AddChildren(ChildNode.ToSharedRef(), SubSection->GetSequence());
+			for (UMovieSceneSubSection* SubSection : SubSections)
+			{
+				TSharedPtr<FSequencerHierarchyNode> ChildNode = MakeShared<FSequencerHierarchyNode>(SubSection->GetSequence()->GetDisplayName(), SubSection);
+				ParentNode->Children.Add(ChildNode);
+
+				AddChildren(ChildNode.ToSharedRef(), SubSection->GetSequence());
+			}
 		}
 	}
 }

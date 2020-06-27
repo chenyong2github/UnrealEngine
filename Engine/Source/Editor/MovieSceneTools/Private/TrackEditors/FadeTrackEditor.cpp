@@ -44,7 +44,7 @@ public:
 		const double DurationSeconds  = EndTimeSeconds - StartTimeSeconds;
 
 		TArray<TTuple<double, double>> CurvePoints;
-		FadeSection->GetChannel().PopulateCurvePoints(StartTimeSeconds, EndTimeSeconds, TimeThreshold, 0.1f, TickResolution, CurvePoints);
+		FadeSection->FloatCurve.PopulateCurvePoints(StartTimeSeconds, EndTimeSeconds, TimeThreshold, 0.1f, TickResolution, CurvePoints);
 
 		TArray<FSlateGradientStop> GradientStops;
 		for (TTuple<double, double> Vector : CurvePoints)

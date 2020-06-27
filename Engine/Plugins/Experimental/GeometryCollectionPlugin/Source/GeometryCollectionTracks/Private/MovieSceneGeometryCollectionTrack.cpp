@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "MovieSceneGeometryCollectionTemplate.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
+#include "MovieSceneGeometryCollectionTemplate.h"
 #include "MovieScene.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCollectionTrack"
@@ -125,6 +126,11 @@ void UMovieSceneGeometryCollectionTrack::RemoveSection(UMovieSceneSection& Secti
 bool UMovieSceneGeometryCollectionTrack::IsEmpty() const
 {
 	return AnimationSections.Num() == 0;
+}
+
+FMovieSceneEvalTemplatePtr UMovieSceneGeometryCollectionTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	return FMovieSceneGeometryCollectionSectionTemplate(*CastChecked<const UMovieSceneGeometryCollectionSection>(&InSection));
 }
 
 #if WITH_EDITORONLY_DATA

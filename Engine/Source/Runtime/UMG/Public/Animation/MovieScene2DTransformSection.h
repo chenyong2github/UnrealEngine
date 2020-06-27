@@ -6,8 +6,11 @@
 #include "UObject/ObjectMacros.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "MovieSceneSection.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieScene2DTransformSection.generated.h"
 
+
+struct FWidgetTransform;
 
 enum class EMovieScene2DTransformChannel : uint32
 {
@@ -95,6 +98,7 @@ private:
 UCLASS(MinimalAPI)
 class UMovieScene2DTransformSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -115,14 +119,15 @@ public:
 	 */
 	UMG_API FMovieScene2DTransformMask GetMaskByName(const FName& InName) const;
 
+	UMG_API FWidgetTransform GetCurrentValue(const UObject* Object) const;
+
 protected:
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostEditImport() override;
+	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
-	void UpdateChannelProxy();
-public:
-	UMG_API const static FMovieSceneInterrogationKey GetWidgetTransformInterrogationKey();
+private:
+
+	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 public:
 
@@ -144,7 +149,4 @@ public:
 	/** Shear curve */
 	UPROPERTY()
 	FMovieSceneFloatChannel Shear[2];
-
-	/** Unserialized mask that defines the mask of the current channel proxy so we don't needlessly re-create it on post-undo */
-	EMovieScene2DTransformChannel ProxyChannels;
 };

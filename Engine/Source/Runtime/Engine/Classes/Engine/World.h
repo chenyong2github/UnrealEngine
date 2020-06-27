@@ -142,6 +142,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneSequenceTick, float);
 
 /** Proxy class that allows verification on GWorld accesses. */
 class UWorldProxy
@@ -940,10 +941,6 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	UPROPERTY(Transient)
 	TArray<UObject*>							PerModuleDataObjects;
 
-	// Level sequence actors to tick first
-	UPROPERTY(transient)
-	TArray<AActor*>								LevelSequenceActors;
-
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
 	UPROPERTY(Transient)
@@ -1463,8 +1460,10 @@ private:
 
 	/** a delegate that broadcasts a notification whenever the current feautre level is changed */
 	FOnFeatureLevelChanged OnFeatureLevelChanged;
-
 #endif //WITH_EDITORONLY_DATA
+
+	FOnMovieSceneSequenceTick MovieSceneSequenceTick;
+
 public:
 	/** The URL that was used when loading this World.																			*/
 	FURL										URL;
@@ -2436,6 +2435,11 @@ public:
 	 * @return true if current world is GWorld, false otherwise
 	 */
 	bool AllowAudioPlayback() const;
+
+	/** Adds a tick handler for sequences. These handlers get ticked before pre-physics */
+	FDelegateHandle AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler);
+	/** Removes a tick handler for sequences */
+	void RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle);
 
 	//~ Begin UObject Interface
 	virtual void Serialize( FArchive& Ar ) override;

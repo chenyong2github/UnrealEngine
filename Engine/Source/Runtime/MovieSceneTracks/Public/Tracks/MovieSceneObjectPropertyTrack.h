@@ -4,10 +4,11 @@
 
 #include "MovieSceneTrack.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneObjectPropertyTrack.generated.h"
 
 UCLASS(MinimalAPI)
-class UMovieSceneObjectPropertyTrack : public UMovieScenePropertyTrack
+class UMovieSceneObjectPropertyTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 public:
 

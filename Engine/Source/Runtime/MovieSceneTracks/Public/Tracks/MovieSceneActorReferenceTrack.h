@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneActorReferenceTrack.generated.h"
 
 /**
  * Handles manipulation of actor reference properties in a movie scene
  */
 UCLASS( MinimalAPI )
-class UMovieSceneActorReferenceTrack : public UMovieScenePropertyTrack
+class UMovieSceneActorReferenceTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

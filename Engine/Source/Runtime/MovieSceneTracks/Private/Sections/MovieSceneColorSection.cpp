@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneColorSection.h"
+#include "Tracks/MovieSceneColorTrack.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Styling/SlateColor.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 #if WITH_EDITOR
 struct FColorSectionEditorData
@@ -115,7 +117,7 @@ struct FColorSectionEditorData
 
 		if (Track)
 		{
-			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneColorTrack>(Track)->GenerateTrackTemplate(Track);
 			FMovieSceneInterrogationData InterrogationData;
 			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
 

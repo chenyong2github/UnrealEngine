@@ -966,7 +966,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 	FFrameNumber HandleFrameTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame().Value * InNumHandleFrames;
 
 	// Expand their total output range so the renderer accounts for them.
-	InShot->ShotInfo.TotalOutputRangeLocal = MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeLocal, -HandleFrameTicks, HandleFrameTicks);
+	InShot->ShotInfo.TotalOutputRangeLocal = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeLocal, -HandleFrameTicks, HandleFrameTicks);
 
 	// Warm up frames only apply to the first camera cut in a shot, so we'll take the number of ticks for real warm up and
 	// convert that into frames. if they don't want real warm up it will be overriden later. 
@@ -1005,13 +1005,13 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 		}
 
 		// Expand our inner playback bounds and outer movie scene section to keep them in sync.
-		InSegmentData.ShotSection->SetRange(MovieScene::DilateRange(InSegmentData.ShotSection->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
-		InSegmentData.MovieScene->SetPlaybackRange(MovieScene::DilateRange(InSegmentData.MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
+		InSegmentData.ShotSection->SetRange(UE::MovieScene::DilateRange(InSegmentData.ShotSection->GetRange(), -LeftDeltaTicks, RightDeltaTicks));
+		InSegmentData.MovieScene->SetPlaybackRange(UE::MovieScene::DilateRange(InSegmentData.MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
 	}
 
 	// Expansion of the top level playback bounds needs to happen regardless of whether there is an inner movie scene or not to cover handle frames + temporal sample.
 	// This will over-expand (once per camera cut) but it's effectively cosmetic so no harm.
-	TotalPlaybackRangeMaster = MovieScene::DilateRange(TargetSequence->MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks);
+	TotalPlaybackRangeMaster = UE::MovieScene::DilateRange(TargetSequence->MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks);
 
 	// Ensure the overall Movie Scene Playback Range is large enough. This will clamp evaluation if we don't expand it. We hull the existing range
 	// with the new range.

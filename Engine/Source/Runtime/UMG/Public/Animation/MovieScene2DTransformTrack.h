@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieScene2DTransformTrack.generated.h"
 
 struct FWidgetTransform;
@@ -13,7 +14,8 @@ struct FWidgetTransform;
  * Handles manipulation of 2D transforms in a movie scene
  */
 UCLASS( MinimalAPI )
-class UMovieScene2DTransformTrack : public UMovieScenePropertyTrack
+class UMovieScene2DTransformTrack
+	: public UMovieScenePropertyTrack
 {
 	GENERATED_BODY()
 
@@ -24,5 +26,4 @@ public:
 	//~ UMovieSceneTrack interface
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 };

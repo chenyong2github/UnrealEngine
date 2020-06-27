@@ -3,11 +3,12 @@
 #pragma once
 
 #include "MovieScene/Parameters/MovieSceneNiagaraParameterTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNiagaraIntegerParameterTrack.generated.h"
 
 /** A track for animating integer niagara parameters. */
 UCLASS(MinimalAPI)
-class UMovieSceneNiagaraIntegerParameterTrack : public UMovieSceneNiagaraParameterTrack
+class UMovieSceneNiagaraIntegerParameterTrack : public UMovieSceneNiagaraParameterTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

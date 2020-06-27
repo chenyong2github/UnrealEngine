@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
 #include "Curves/KeyHandle.h"
-#include "MovieSceneSection.h"
-#include "UObject/SequencerObjectVersion.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "Misc/Guid.h"
 #include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneCameraCutSection.generated.h"
 
 struct FMovieSceneSequenceID;
@@ -21,6 +23,7 @@ class UCameraComponent;
 UCLASS(MinimalAPI)
 class UMovieSceneCameraCutSection 
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_BODY()
 
@@ -49,7 +52,6 @@ public:
 	}
 
 	//~ UMovieSceneSection interface
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 	virtual void OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap) override;
 	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
 
@@ -69,6 +71,9 @@ public:
 #if WITH_EDITOR
 	MOVIESCENETRACKS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+
+private:
+	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 private:
 

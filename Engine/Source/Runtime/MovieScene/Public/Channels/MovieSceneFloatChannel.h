@@ -234,6 +234,14 @@ public:
 public:
 
 	/**
+	 * Check whether this channel has any data
+	 */
+	FORCEINLINE bool HasAnyData() const
+	{
+		return Times.Num() != 0 || bHasDefaultValue == true;
+	}
+
+	/**
 	 * Set this channel's default value that should be used when no keys are present
 	 *
 	 * @param InDefaultValue The desired default value
@@ -414,13 +422,13 @@ inline void AssignValue(FMovieSceneFloatChannel* InChannel, FKeyHandle InKeyHand
 }
 
 /**
- * Overload for adding a new key to a float channel at a given time. See MovieScene::AddKeyToChannel for default implementation.
+ * Overload for adding a new key to a float channel at a given time. See UE::MovieScene::AddKeyToChannel for default implementation.
  */
 MOVIESCENE_API FKeyHandle AddKeyToChannel(FMovieSceneFloatChannel* Channel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation);
 
 
 /**
- * Overload for dilating float channel data. See MovieScene::Dilate for default implementation.
+ * Overload for dilating float channel data. See UE::MovieScene::Dilate for default implementation.
  */
 MOVIESCENE_API void Dilate(FMovieSceneFloatChannel* InChannel, FFrameNumber Origin, float DilationFactor);
 

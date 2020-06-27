@@ -12,7 +12,7 @@
 enum class EMovieSceneKeyInterpolation : uint8;
 
 /**
- * Parameter structure passed to MovieScene::Optimize that defines optimization parameters
+ * Parameter structure passed to UE::MovieScene::Optimize that defines optimization parameters
  */
 struct FKeyDataOptimizationParams
 {
@@ -53,6 +53,8 @@ struct TMovieSceneChannelTraits : TMovieSceneChannelTraitsBase<ChannelType>
 {
 };
 
+namespace UE
+{
 namespace MovieScene
 {
 	/**
@@ -215,7 +217,7 @@ namespace MovieScene
 	template<typename ChannelType>
 	void Optimize(ChannelType* InChannel, const FKeyDataOptimizationParams& Params)
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		auto ChannelInterface = InChannel->GetData();
 		if (ChannelInterface.GetTimes().Num() > 1)
@@ -248,4 +250,5 @@ namespace MovieScene
 			}
 		}
 	}
-}
+} // namespace MovieScene
+} // namespace UE

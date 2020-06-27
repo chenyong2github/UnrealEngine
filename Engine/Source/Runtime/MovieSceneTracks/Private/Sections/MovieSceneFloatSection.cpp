@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneFloatSection.h"
+#include "Tracks/MovieSceneFloatTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Systems/MovieSceneFloatPropertySystem.h"
 
 UMovieSceneFloatSection::UMovieSceneFloatSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -18,45 +25,54 @@ UMovieSceneFloatSection::UMovieSceneFloatSection( const FObjectInitializer& Obje
 			EMovieSceneCompletionMode::ProjectDefault);
 	BlendType = EMovieSceneBlendType::Absolute;
 	bSupportsInfiniteRange = true;
+}
+
+EMovieSceneChannelProxyType UMovieSceneFloatSection::CacheChannelProxy()
+{
 #if WITH_EDITOR
 
-	struct FGetCurrentValueAndWeight
-	{
-		static void GetFloatValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-			float& OutValue, float& OutWeight)
-		{
-			OutValue = 0.0f;
-			OutWeight = 1.0f;
-
-			UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-
-			if (Track)
-			{
-				FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
-				FMovieSceneInterrogationData InterrogationData;
-				RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
-
-				FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
-				EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-				for (const float &Value : InterrogationData.Iterate<float>(FMovieScenePropertySectionTemplate::GetFloatInterrogationKey()))
-				{
-					OutValue = Value;
-					break;
-				}
-			}
-			OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
-		}
-	};
-
-	TMovieSceneExternalValue<float> ExternalValue;
-	ExternalValue.OnGetCurrentValueAndWeight = FGetCurrentValueAndWeight::GetFloatValueAndWeight;
-
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve, FMovieSceneChannelMetaData(), ExternalValue);
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve, FMovieSceneChannelMetaData(), TMovieSceneExternalValue<float>::Make());
 
 #else
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve);
 
 #endif
+
+	return EMovieSceneChannelProxyType::Static;
+}
+
+UE::MovieScene::ESequenceUpdateResult UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (!FloatCurve.HasAnyData())
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(GetOuter()))
+	{
+		OutImportedEntity->AddBuilder(
+			FEntityBuilder()
+			.Add(Components->FloatChannel[0], &FloatCurve)
+			.Add(Components->PropertyBinding, PropertyTrack->GetPropertyBinding())
+			.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+			.AddTag(TracksComponents->Float.PropertyTag)
+		);
+	}
+	else
+	{
+		OutImportedEntity->AddBuilder(
+			FEntityBuilder()
+			.Add(Components->FloatChannel[0], &FloatCurve)
+			.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+			.AddTag(TracksComponents->Float.PropertyTag)
+		);
+	}
+
+	return ESequenceUpdateResult::EntitiesDirty;
 }

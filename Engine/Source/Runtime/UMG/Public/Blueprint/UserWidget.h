@@ -32,6 +32,7 @@ class FSlateWindowElementList;
 class UDragDropOperation;
 class UTexture2D;
 class UUMGSequencePlayer;
+class UUMGSequenceTickManager;
 class UWidgetAnimation;
 class UWidgetTree;
 class UNamedSlot;
@@ -1050,6 +1051,12 @@ public:
 	bool IsAnimationPlayingForward(const UWidgetAnimation* InAnimation);
 
 	/**
+	 * Flushes all animations on all widgets to guarantee that any queued updates are processed before this call returns
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
+	void FlushAnimations();
+
+	/**
 	 * Plays a sound through the UI
 	 *
 	 * @param The sound to play
@@ -1139,6 +1146,9 @@ public:
 	/** All the sequence players currently playing */
 	UPROPERTY(Transient)
 	TArray<UUMGSequencePlayer*> ActiveSequencePlayers;
+
+	UPROPERTY(Transient)
+	UUMGSequenceTickManager* AnimationTickManager;
 
 	/** List of sequence players to cache and clean up when safe */
 	UPROPERTY(Transient)
@@ -1291,7 +1301,8 @@ protected:
 	/**
 	 * Ticks the active sequences and latent actions that have been scheduled for this Widget.
 	 */
-	void TickActionsAndAnimation(const FGeometry& MyGeometry, float InDeltaTime);
+	void TickActionsAndAnimation(float InDeltaTime);
+	void PostTickActionsAndAnimation(float InDeltaTime);
 
 	void RemoveObsoleteBindings(const TArray<FName>& NamedSlots);
 
@@ -1405,6 +1416,8 @@ protected:
 	 * UserWidget of state transitions.
 	 */
 	friend UUMGSequencePlayer;
+
+	friend UUMGSequenceTickManager;
 
 	/** The compiler is a friend so that it can disable initialization from the widget tree */
 	friend class FWidgetBlueprintCompilerContext;

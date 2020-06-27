@@ -6,6 +6,7 @@
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "MovieSceneSection.h"
 #include "MovieSceneCameraShakeSourceTriggerSection.generated.h"
 
 UCLASS(MinimalAPI)
@@ -18,8 +19,6 @@ public:
 	UMovieSceneCameraShakeSourceTriggerSection(const FObjectInitializer& Init);
 
 	const FMovieSceneCameraShakeSourceTriggerChannel& GetChannel() const { return Channel; }
-
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 
 private:
 	UPROPERTY()

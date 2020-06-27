@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "MovieSceneNameableTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneParticleParameterTrack.generated.h"
 
 /**
@@ -14,6 +15,7 @@
 UCLASS( MinimalAPI )
 class UMovieSceneParticleParameterTrack
 	: public UMovieSceneNameableTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

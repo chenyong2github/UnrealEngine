@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
-#include "Evaluation/MovieSceneCameraCutTemplate.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -219,6 +218,8 @@ struct FMontagePlayerPerSectionData
 	int32 MontageInstanceId;
 };
 
+namespace UE
+{
 namespace MovieScene
 {
 	struct FBlendedAnimation
@@ -530,9 +531,10 @@ namespace MovieScene
 		TMap<FObjectKey, FMontagePlayerPerSectionData> MontageData;
 	};
 
-}	// namespace MovieScene
+} // namespace MovieScene
+} // namespace UE
 
-template<> FMovieSceneAnimTypeID GetBlendingDataType<MovieScene::FBlendedAnimation>()
+template<> FMovieSceneAnimTypeID GetBlendingDataType<UE::MovieScene::FBlendedAnimation>()
 {
 	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
 	return TypeID;
@@ -551,11 +553,11 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 		check(BlendType.IsValid());
 
 		// Ensure the accumulator knows how to actually apply component transforms
-		FMovieSceneBlendingActuatorID ActuatorTypeID = MovieScene::FComponentAnimationActuator::GetActuatorTypeID();
+		FMovieSceneBlendingActuatorID ActuatorTypeID = UE::MovieScene::FComponentAnimationActuator::GetActuatorTypeID();
 		FMovieSceneBlendingAccumulator& Accumulator = ExecutionTokens.GetBlendingAccumulator();
-		if (!Accumulator.FindActuator<MovieScene::FBlendedAnimation>(ActuatorTypeID))
+		if (!Accumulator.FindActuator<UE::MovieScene::FBlendedAnimation>(ActuatorTypeID))
 		{
-			Accumulator.DefineActuator(ActuatorTypeID, MakeShared<MovieScene::FComponentAnimationActuator>());
+			Accumulator.DefineActuator(ActuatorTypeID, MakeShared<UE::MovieScene::FComponentAnimationActuator>());
 		}
 
 		// Calculate the time at which to evaluate the animation
@@ -572,7 +574,7 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 			Params.Animation, PreviousEvalTime, EvalTime, Weight, ExecutionTokens.GetCurrentScope(), Params.SlotName, GetSourceSection(), Params.bSkipAnimNotifiers, 
 			Params.bForceCustomMode
 		);
-		ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<MovieScene::FBlendedAnimation>(AnimParams, BlendType.Get(), 1.f));
+		ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<UE::MovieScene::FBlendedAnimation>(AnimParams, BlendType.Get(), 1.f));
 
 		if (IMovieSceneMotionVectorSimulation::IsEnabled(PersistentData, Context))
 		{
@@ -591,7 +593,7 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 			SimulatedAnimParams.AnimParams.FromEvalTime = CurrentEvalTime;
 			SimulatedAnimParams.AnimParams.ToEvalTime = SimulatedEvalTime;
 			SimulatedAnimParams.AnimParams.BlendWeight = SimulatedWeight;
-			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<MovieScene::FBlendedAnimation>(SimulatedAnimParams, BlendType.Get(), 1.f));
+			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<UE::MovieScene::FBlendedAnimation>(SimulatedAnimParams, BlendType.Get(), 1.f));
 		}
 	}
 }

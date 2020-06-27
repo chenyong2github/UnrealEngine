@@ -55,12 +55,3 @@ void UMovieSceneCameraAnimSection::PostLoad()
 
 	Super::PostLoad();
 }
-
-FMovieSceneEvalTemplatePtr UMovieSceneCameraAnimSection::GenerateTemplate() const
-{
-	if (AnimData.CameraAnim)
-	{
-		return FMovieSceneCameraAnimSectionTemplate(*this);
-	}
-	return FMovieSceneEvalTemplatePtr();
-}

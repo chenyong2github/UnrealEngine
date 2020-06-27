@@ -168,11 +168,6 @@ void UMovieSceneSkeletalAnimationSection::PostLoad()
 	Super::PostLoad();
 }
 
-FMovieSceneEvalTemplatePtr UMovieSceneSkeletalAnimationSection::GenerateTemplate() const
-{
-	return FMovieSceneSkeletalAnimationSectionTemplate(*this);
-}
-
 FFrameNumber GetFirstLoopStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneSkeletalAnimationParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
 {
 	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
@@ -308,7 +303,7 @@ void UMovieSceneSkeletalAnimationSection::PostEditChangeProperty(FPropertyChange
 
 		if (!FMath::IsNearlyZero(NewPlayRate))
 		{
-			float CurrentDuration = MovieScene::DiscreteSize(GetRange());
+			float CurrentDuration = UE::MovieScene::DiscreteSize(GetRange());
 			float NewDuration = CurrentDuration * (PreviousPlayRate / NewPlayRate);
 			SetEndFrame( GetInclusiveStartFrame() + FMath::FloorToInt(NewDuration) );
 

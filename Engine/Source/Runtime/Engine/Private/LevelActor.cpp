@@ -609,7 +609,10 @@ bool UWorld::EditorDestroyActor( AActor* ThisActor, bool bShouldModifyLevel )
 	FNavigationSystem::OnActorUnregistered(*ThisActor);
 
 	bool bReturnValue = DestroyActor( ThisActor, false, bShouldModifyLevel );
-	ThisActor->GetWorld()->BroadcastLevelsChanged();
+	if (UWorld* World = ThisActor->GetWorld())
+	{
+		World->BroadcastLevelsChanged();
+	}
 	return bReturnValue;
 }
 

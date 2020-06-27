@@ -33,6 +33,7 @@ struct FMovieSceneSegmentIdentifier
 	GENERATED_BODY()
 
 	FMovieSceneSegmentIdentifier() : IdentifierIndex(INDEX_NONE) {}
+	FMovieSceneSegmentIdentifier(int32 InIndex) : IdentifierIndex(InIndex) {}
 
 	friend bool operator==(FMovieSceneSegmentIdentifier A, FMovieSceneSegmentIdentifier B) { return A.IdentifierIndex == B.IdentifierIndex; }
 	friend bool operator!=(FMovieSceneSegmentIdentifier A, FMovieSceneSegmentIdentifier B) { return A.IdentifierIndex != B.IdentifierIndex; }
@@ -56,15 +57,10 @@ struct FMovieSceneSegmentIdentifier
 		return Ar;
 	}
 
-private:
-
 	int32 GetIndex() const
 	{
 		return IdentifierIndex;
 	}
-	explicit FMovieSceneSegmentIdentifier(int32 InIdentifier) : IdentifierIndex(InIdentifier) {}
-
-	friend FMovieSceneEvaluationTrackSegments;
 
 	UPROPERTY()
 	int32 IdentifierIndex;

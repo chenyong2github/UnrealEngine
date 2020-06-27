@@ -5948,6 +5948,12 @@ UScriptStruct* TBaseStructure<FFrameNumber>::Get()
 	return ScriptStruct;
 }
 
+UScriptStruct* TBaseStructure<FFrameTime>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("FrameTime"));
+	return ScriptStruct;
+}
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UFunction, UStruct,
 	{
 	}

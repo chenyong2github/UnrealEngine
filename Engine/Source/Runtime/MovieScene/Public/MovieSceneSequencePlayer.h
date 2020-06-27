@@ -11,7 +11,12 @@
 #include "IMovieScenePlaybackClient.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeController.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "MovieSceneSequenceTickManager.h"
+#include "Evaluation/MovieScenePlayback.h"
 #include "MovieSceneSequencePlayer.generated.h"
+
+class UMovieSceneSequenceTickManager;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMovieSceneSequencePlayerEvent);
 
@@ -463,11 +468,11 @@ public:
 
 public:
 
-	/** Update the sequence for the current time, if playing */
-	void Update(const float DeltaSeconds);
-
 	/** Initialize this player with a sequence and some settings */
 	void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);
+
+	/** Update the sequence for the current time, if playing */
+	void Update(const float DeltaSeconds);
 
 public:
 
@@ -492,7 +497,14 @@ protected:
 	void PlayInternal();
 	void StopInternal(FFrameTime TimeToResetTo);
 
-	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false);
+	struct FMovieSceneUpdateArgs
+	{
+		bool bHasJumped = false;
+		bool bIsAsync = false;
+	};
+
+	void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false);
+	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args);
 
 	void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method);
 	bool ShouldStopOrLoop(FFrameTime NewPosition) const;
@@ -501,6 +513,10 @@ protected:
 	UWorld* GetPlaybackWorld() const;
 
 	FFrameTime GetLastValidTime() const;
+
+	bool NeedsQueueLatentAction() const;
+	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const;
+	void RunLatentActions();
 
 protected:
 
@@ -517,12 +533,15 @@ protected:
 	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
 	virtual void ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override { return PlaybackClient ? &*PlaybackClient : nullptr; }
+	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
+	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
 
 	/*~ Begin UObject interface */
 	virtual bool IsSupportedForNetworking() const { return true; }
 	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
 	virtual void PostNetReceive() override;
+	virtual void BeginDestroy() override;
 	/*~ End UObject interface */
 
 protected:
@@ -535,11 +554,11 @@ protected:
 	
 private:
 
-	/** Apply any latent actions which may have accumulated while the sequence was being evaluated */
-	void ApplyLatentActions();
-
 	void UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method);
 
+	void RunPreEvaluationCallbacks();
+	void RunPostEvaluationCallbacks();
+	
 private:
 
 	/**
@@ -574,11 +593,14 @@ protected:
 	UPROPERTY(replicated)
 	uint32 bReversePlayback : 1;
 
-	/** Set to true while evaluating to prevent reentrancy */
-	uint32 bIsEvaluating : 1;
-
 	/** Set to true to invoke OnStartedPlaying on first update tick for started playing */
 	uint32 bPendingOnStartedPlaying : 1;
+
+	/** Set to true while the player's sequence is being evaluated */
+	uint32 bIsEvaluating : 1;
+
+	/** Set to true when the player is currently in the main level update */
+	uint32 bIsMainLevelUpdate : 1;
 
 	/** The sequence to play back */
 	UPROPERTY(transient)
@@ -595,26 +617,6 @@ protected:
 	/** The number of times we have looped in the current playback */
 	UPROPERTY(transient)
 	int32 CurrentNumLoops;
-
-	struct FLatentAction
-	{
-		enum class EType : uint8 { Stop, Pause, Update, Play };
-
-		FLatentAction(EType InType, FFrameTime DesiredTime = 0)
-			: Type(InType), Position(DesiredTime)
-		{}
-
-		FLatentAction(EUpdatePositionMethod InUpdateMethod, FFrameTime DesiredTime)
-			: Type(EType::Update), UpdateMethod(InUpdateMethod), Position(DesiredTime)
-		{}
-
-		EType                 Type;
-		EUpdatePositionMethod UpdateMethod;
-		FFrameTime            Position;
-	};
-
-	/** Set of latent actions that are to be performed when the sequence has finished evaluating this frame */
-	TArray<FLatentAction> LatentActions;
 
 	/** Specific playback settings for the animation. */
 	UPROPERTY(replicated)
@@ -637,6 +639,10 @@ protected:
 	UPROPERTY(Transient)
 	TScriptInterface<IMovieScenePlaybackClient> PlaybackClient;
 
+	/** Global tick manager, held here to keep it alive while world sequences are in play */
+	UPROPERTY(transient)
+	UMovieSceneSequenceTickManager* TickManager;
+
 	/** (Optional) Externally supplied time controller */
 	TSharedPtr<FMovieSceneTimeController> TimeController;
 
@@ -656,4 +662,9 @@ private:
 
 	/** If set, pause playback on this frame */
 	TOptional<FFrameTime> PauseOnFrame;
+
+	/** Pre and post evaluation callbacks, for async evaluations */
+	DECLARE_DELEGATE(FOnEvaluationCallback);
+	TArray<FOnEvaluationCallback> PreEvaluationCallbacks;
+	TArray<FOnEvaluationCallback> PostEvaluationCallbacks;
 };

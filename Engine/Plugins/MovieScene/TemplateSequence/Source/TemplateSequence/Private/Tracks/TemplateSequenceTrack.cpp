@@ -7,6 +7,7 @@
 #include "Sections/TemplateSequenceSection.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "Evaluation/TemplateSequenceSectionTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 #define LOCTEXT_NAMESPACE "TemplateSequenceTrack"
 
@@ -26,6 +27,16 @@ UMovieSceneSection* UTemplateSequenceTrack::CreateNewSection()
 	return NewObject<UTemplateSequenceSection>(this, NAME_None, RF_Transactional);
 }
 
+FMovieSceneEvalTemplatePtr UTemplateSequenceTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	const UTemplateSequenceSection* TemplateSection = CastChecked<const UTemplateSequenceSection>(&InSection);
+	if (TemplateSection->GetSequence() != nullptr)
+	{
+		return FTemplateSequenceSectionTemplate(*TemplateSection);
+	}
+	return FMovieSceneEvalTemplatePtr();
+}
+
 UMovieSceneSection* UTemplateSequenceTrack::AddNewTemplateSequenceSection(FFrameNumber KeyTime, UTemplateSequence* InSequence)
 {
 	UTemplateSequenceSection* NewSection = Cast<UTemplateSequenceSection>(CreateNewSection());
@@ -33,7 +44,7 @@ UMovieSceneSection* UTemplateSequenceTrack::AddNewTemplateSequenceSection(FFrame
 		UMovieScene* OuterMovieScene = GetTypedOuter<UMovieScene>();
 		UMovieScene* InnerMovieScene = InSequence->GetMovieScene();
 
-		int32      InnerSequenceLength = MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
+		int32      InnerSequenceLength = UE::MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
 		FFrameTime OuterSequenceLength = ConvertFrameTime(InnerSequenceLength, InnerMovieScene->GetTickResolution(), OuterMovieScene->GetTickResolution());
 
 		NewSection->InitialPlacement(Sections, KeyTime, OuterSequenceLength.FrameNumber.Value, SupportsMultipleRows());

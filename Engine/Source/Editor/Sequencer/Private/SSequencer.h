@@ -193,6 +193,18 @@ public:
 		/** The current scrub position in (seconds) */
 		SLATE_ATTRIBUTE( FFrameTime, ScrubPosition )
 
+		/** The current scrub position text */
+		SLATE_ATTRIBUTE( FString, ScrubPositionText )
+
+		/** The parent sequence that the scrub position display text is relative to */
+		SLATE_ATTRIBUTE( FMovieSceneSequenceID, ScrubPositionParent )
+
+		/** Called when the scrub position parent sequence is changed */
+		SLATE_EVENT( FOnScrubPositionParentChanged, OnScrubPositionParentChanged )
+
+		/** Attribute for the parent sequence chain of the current sequence */
+		SLATE_ATTRIBUTE( TArray<FMovieSceneSequenceID>, ScrubPositionParentChain )
+
 		/** Called when the user changes the view range */
 		SLATE_EVENT( FOnViewRangeChanged, OnViewRangeChanged )
 

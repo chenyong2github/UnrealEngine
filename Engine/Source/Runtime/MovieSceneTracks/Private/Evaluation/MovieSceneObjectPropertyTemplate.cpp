@@ -95,7 +95,7 @@ struct FObjectPropertyExecToken : IMovieSceneExecutionToken
 
 
 FMovieSceneObjectPropertyTemplate::FMovieSceneObjectPropertyTemplate(const UMovieSceneObjectPropertySection& Section, const UMovieSceneObjectPropertyTrack& Track)
-	: FMovieScenePropertySectionTemplate(Track.GetPropertyName(), Track.GetPropertyPath())
+	: FMovieScenePropertySectionTemplate(Track.GetPropertyName(), Track.GetPropertyPath().ToString())
 	, ObjectChannel(Section.ObjectChannel)
 {}
 

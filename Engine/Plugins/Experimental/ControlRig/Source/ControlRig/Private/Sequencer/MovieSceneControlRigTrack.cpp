@@ -6,7 +6,6 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Sequencer/ControlRigSequence.h"
 #include "MovieScene.h"
-#include "Sequencer/ControlRigBindingTrack.h"
 #include "MovieSceneTimeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlRigTrack"
@@ -28,7 +27,7 @@ void UMovieSceneControlRigTrack::AddNewControlRig(FFrameNumber KeyTime, UControl
 		UMovieScene* OuterMovieScene = GetTypedOuter<UMovieScene>();
 		UMovieScene* InnerMovieScene = InSequence->GetMovieScene();
 
-		int32      InnerSequenceLength = MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
+		int32      InnerSequenceLength = UE::MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
 		FFrameTime OuterSequenceLength = ConvertFrameTime(InnerSequenceLength, InnerMovieScene->GetTickResolution(), OuterMovieScene->GetTickResolution());
 
 		NewSection->InitialPlacement(Sections, KeyTime, OuterSequenceLength.FrameNumber.Value, SupportsMultipleRows());

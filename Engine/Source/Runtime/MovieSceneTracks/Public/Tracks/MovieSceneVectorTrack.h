@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 
 #include "MovieSceneVectorTrack.generated.h"
 
@@ -12,7 +13,7 @@
  * Handles manipulation of component transforms in a movie scene
  */
 UCLASS(MinimalAPI)
-class UMovieSceneVectorTrack : public UMovieScenePropertyTrack
+class UMovieSceneVectorTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 public:

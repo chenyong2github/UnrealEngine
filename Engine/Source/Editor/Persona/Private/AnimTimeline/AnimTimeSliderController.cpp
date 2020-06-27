@@ -988,7 +988,7 @@ TSharedRef<SWidget> FAnimTimeSliderController::OpenSetPlaybackRangeMenu(FFrameNu
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetSelectionRangeStart(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < MovieScene::DiscreteExclusiveUpper(SelectionRange); })
+				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(SelectionRange); })
 			)
 		);
 
@@ -998,7 +998,7 @@ TSharedRef<SWidget> FAnimTimeSliderController::OpenSetPlaybackRangeMenu(FFrameNu
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetSelectionRangeEnd(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= MovieScene::DiscreteInclusiveLower(SelectionRange); })
+				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange); })
 			)
 		);
 
@@ -1180,7 +1180,7 @@ void FAnimTimeSliderController::SetPlaybackRangeStart(FFrameNumber NewStart)
 {
 	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 
-	if (NewStart <= MovieScene::DiscreteExclusiveUpper(PlaybackRange))
+	if (NewStart <= UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange))
 	{
 		TimeSliderArgs.OnPlaybackRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, PlaybackRange.GetUpperBound()));
 	}
@@ -1190,7 +1190,7 @@ void FAnimTimeSliderController::SetPlaybackRangeEnd(FFrameNumber NewEnd)
 {
 	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 
-	if (NewEnd >= MovieScene::DiscreteInclusiveLower(PlaybackRange))
+	if (NewEnd >= UE::MovieScene::DiscreteInclusiveLower(PlaybackRange))
 	{
 		TimeSliderArgs.OnPlaybackRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(PlaybackRange.GetLowerBound(), NewEnd));
 	}
@@ -1204,7 +1204,7 @@ void FAnimTimeSliderController::SetSelectionRangeStart(FFrameNumber NewStart)
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, NewStart + 1));
 	}
-	else if (NewStart <= MovieScene::DiscreteExclusiveUpper(SelectionRange))
+	else if (NewStart <= UE::MovieScene::DiscreteExclusiveUpper(SelectionRange))
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, SelectionRange.GetUpperBound()));
 	}
@@ -1218,7 +1218,7 @@ void FAnimTimeSliderController::SetSelectionRangeEnd(FFrameNumber NewEnd)
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewEnd - 1, NewEnd));
 	}
-	else if (NewEnd >= MovieScene::DiscreteInclusiveLower(SelectionRange))
+	else if (NewEnd >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange))
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(SelectionRange.GetLowerBound(), NewEnd));
 	}

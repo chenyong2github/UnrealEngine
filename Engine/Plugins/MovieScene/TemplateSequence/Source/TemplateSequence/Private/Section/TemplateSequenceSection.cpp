@@ -3,7 +3,6 @@
 #include "Sections/TemplateSequenceSection.h"
 #include "TemplateSequence.h"
 #include "Evaluation/TemplateSequenceInstanceData.h"
-#include "Evaluation/TemplateSequenceSectionTemplate.h"
 #include "UObject/SequencerObjectVersion.h"
 
 
@@ -26,14 +25,5 @@ FMovieSceneSubSequenceData UTemplateSequenceSection::GenerateSubSequenceData(con
 	SubData.InstanceData = FMovieSceneSequenceInstanceDataPtr(InstanceData);
 
 	return SubData;
-}
-
-FMovieSceneEvalTemplatePtr UTemplateSequenceSection::GenerateTemplate() const
-{
-	if (SubSequence != nullptr)
-	{
-		return FTemplateSequenceSectionTemplate(*this);
-	}
-	return FMovieSceneEvalTemplatePtr();
 }
 

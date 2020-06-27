@@ -20,7 +20,7 @@ FColorPropertySection::FColorPropertySection(UMovieSceneSection& InSectionObject
 	UMovieScenePropertyTrack* PropertyTrack = InSectionObject.GetTypedOuter<UMovieScenePropertyTrack>();
 	if (PropertyTrack)
 	{
-		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
+		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
 	}
 }
 

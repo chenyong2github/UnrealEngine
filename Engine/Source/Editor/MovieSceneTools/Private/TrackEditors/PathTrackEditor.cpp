@@ -46,7 +46,7 @@ public:
 				if (PathSection->GetConstraintBindingID().GetSequenceID().IsValid())
 				{
 					// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-					FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, Sequencer->GetEvaluationTemplate().GetHierarchy());
+					FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, *Sequencer);
 					SequenceID = RootBindingID.GetSequenceID();
 				}
 
@@ -144,7 +144,7 @@ bool F3DPathTrackEditor::IsActorPickable(const AActor* const ParentActor, FGuid 
 		if (PathSection->GetConstraintBindingID().GetSequenceID().IsValid())
 		{
 			// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-			FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, GetSequencer()->GetEvaluationTemplate().GetHierarchy());
+			FMovieSceneObjectBindingID RootBindingID = PathSection->GetConstraintBindingID().ResolveLocalToRoot(SequenceID, *GetSequencer());
 			SequenceID = RootBindingID.GetSequenceID();
 		}
 

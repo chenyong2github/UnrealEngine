@@ -129,7 +129,7 @@ struct F3DPathExecutionToken
 		if (PathBindingID.GetSequenceID().IsValid())
 		{
 			// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-			FMovieSceneObjectBindingID RootBindingID = PathBindingID.ResolveLocalToRoot(SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
+			FMovieSceneObjectBindingID RootBindingID = PathBindingID.ResolveLocalToRoot(SequenceID, Player);
 			SequenceID = RootBindingID.GetSequenceID();
 		}
 
