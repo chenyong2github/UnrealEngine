@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "PreviewScene.h"
-#include "ActorPaletteViewportClient.h"
 #include "EditorViewportClient.h"
 
 class FCanvas;
