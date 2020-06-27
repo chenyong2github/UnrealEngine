@@ -412,17 +412,17 @@ public class Engine : ModuleRules
 				"VorbisFile"
 				);
 
-			PrivateDependencyModuleNames.Add("AndroidRuntimeSettings");
+			PrivateIncludePathModuleNames.Add("AndroidRuntimeSettings");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
-			PrivateDependencyModuleNames.Add("IOSRuntimeSettings");
+			PrivateIncludePathModuleNames.Add("IOSRuntimeSettings");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			PrivateDependencyModuleNames.Add("SwitchRuntimeSettings");
+			PrivateIncludePathModuleNames.Add("SwitchRuntimeSettings");
 		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
