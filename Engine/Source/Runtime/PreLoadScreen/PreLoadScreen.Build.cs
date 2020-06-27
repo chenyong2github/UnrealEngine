@@ -36,7 +36,7 @@ public class PreLoadScreen : ModuleRules
 		//Need to make sure Android has Launch module so it can find and process AndroidEventManager events
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PrivateDependencyModuleNames.AddRange(
+			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Launch"
 				}
