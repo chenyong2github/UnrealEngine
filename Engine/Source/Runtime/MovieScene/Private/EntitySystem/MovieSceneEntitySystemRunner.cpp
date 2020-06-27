@@ -147,8 +147,8 @@ void FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce()
 	TRACE_COUNTER_INCREMENT(MovieSceneEntitySystemEvaluations);
 
 	// Setup the completion task that we can wait on.
-	CompletionTask = TGraphTask<FFunctionGraphTask>::CreateTask(nullptr, ENamedThreads::GameThread)
-		.ConstructAndHold([] {}, TStatId(), ENamedThreads::GameThread_Local);
+	CompletionTask = TGraphTask<FNullGraphTask>::CreateTask(nullptr, ENamedThreads::GameThread)
+		.ConstructAndHold(TStatId(), ENamedThreads::GameThread_Local);
 
 	// Set the debug vizualizer's entity manager pointer, so all debugging happening here will show
 	// relevant information. We need to set it here instead of higher up because we could have, say,
