@@ -18,6 +18,8 @@
 #include "MovieSceneSectionDetailsCustomization.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 
 void SequencerHelpers::GetAllKeyAreas(TSharedPtr<FSequencerDisplayNode> DisplayNode, TSet<TSharedPtr<IKeyArea>>& KeyAreas)
 {
