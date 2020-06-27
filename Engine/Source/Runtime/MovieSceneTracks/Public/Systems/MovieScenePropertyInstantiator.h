@@ -119,12 +119,22 @@ private:
 
 private:
 
+	/* Parameter structure passed around when instantiating a specific instance of a property */
+	struct FPropertyParameters
+	{
+		/** Pointer to the property instance to be animated */
+		FObjectPropertyInfo* PropertyInfo;
+		/** Pointer to the property type definition from FPropertyRegistry */
+		const UE::MovieScene::FPropertyDefinition* PropertyDefinition;
+		/** The index of the PropertyInfo member within UMovieScenePropertyInstantiatorSystem::ResolvedProperties */
+		int32 PropertyInfoIndex;
+	};
 	void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
 	void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
-	void UpdatePropertyInfo(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex);
-	bool PropertySupportsFastPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex) const;
-	void InitializeFastPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex);
-	void InitializeBlendPath(FObjectPropertyInfo* PropertyInfo, int32 PropertyIndex);
+	void UpdatePropertyInfo(const FPropertyParameters& Params);
+	bool PropertySupportsFastPath(const FPropertyParameters& Params) const;
+	void InitializeFastPath(const FPropertyParameters& Params);
+	void InitializeBlendPath(const FPropertyParameters& Params);
 	int32 FindCustomAccessorIndex(UE::MovieScene::FCustomAccessorView Accessors, UClass* ClassType, FName PropertyPath);
 	TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovieScenePropertyBinding& PropertyBinding);
 	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding);
