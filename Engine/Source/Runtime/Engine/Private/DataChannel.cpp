@@ -1950,7 +1950,7 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 			if ((Reason == EChannelCloseReason::Dormancy) && !Connection->IsInternalAck()) // Replay connections always keep dormant channels open and handle this logic elsewhere
 			{
 				const bool bIsDriverValid = Connection->Driver != nullptr;
-				const bool bIsServer = Connection->Driver->IsServer();
+				const bool bIsServer = bIsDriverValid && Connection->Driver->IsServer();
 				if (bIsDriverValid)
 				{
 					if (!bIsServer)
