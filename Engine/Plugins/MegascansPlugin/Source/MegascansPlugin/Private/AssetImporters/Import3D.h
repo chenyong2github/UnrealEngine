@@ -3,6 +3,7 @@
 #include "AssetPreferencesData.h"
 
 class UMaterialInstanceConstant;
+struct FAssetTypeData;
 
 class FImport3d
 {

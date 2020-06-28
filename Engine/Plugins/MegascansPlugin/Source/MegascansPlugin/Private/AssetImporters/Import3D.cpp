@@ -2,6 +2,7 @@
 
 #include "AssetImporters/ImportSurface.h"
 #include "AssetImportData.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Runtime/Engine/Classes/Engine/StaticMesh.h"
 #include "Utilities/MeshOp.h"
 #include "Utilities/MiscUtils.h"
@@ -89,7 +90,7 @@ void FImport3d::Import3d(TSharedPtr<F3DPreferences> Type3dPrefs, TSharedPtr<FAss
 		//checkf(ImportedAsset != nullptr, TEXT("Error importing mesh file."));
 		if (ImportedAsset == nullptr) return;
 		if(MaterialInstance != nullptr)
-			ImportedAsset->SetMaterial(0, CastChecked<UMaterialInterface>(MaterialInstance));
+			ImportedAsset->SetMaterial(0, MaterialInstance);
 
 		if (MegascansSettings->bEnableLods && AssetImportData->LodList.Num() > 0)
 		{			

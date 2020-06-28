@@ -1,6 +1,9 @@
 #pragma once
 #include "CoreMinimal.h"
 
+class UMaterialInstanceConstant;
+struct FAssetTypeData;
+struct FSurfacePreferences;
 
 class FMaterialUtils
 {
