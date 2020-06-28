@@ -10,9 +10,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node dist/robo/watchdog.js -botname=TEST -devMode",
-    "test": "node dist/robo/unit-tests.js"
+    "test": "node dist/robo/unit-tests.js",
+    "postinstall": "./install-graphviz.js"
   },
   "dependencies": {
+    "@hpcc-js/graph": "^2.27.0",
+    "@hpcc-js/wasm": "^0.3.14",
     "@sentry/node": "^5.7.1",
     "@types/ldapjs": "^1.0.3",
     "@types/marked": "^0.6.5",
@@ -27,6 +30,7 @@
     "markdown-toc": "^1.2.0",
     "marked": "^0.7.0",
     "mustache": "^3.2.1",
+    "node-gzip": "^1.1.2",
     "nodemailer": "^4.6.3",
     "request": "^2.88.0",
     "sanitize-html": "^1.20.0",

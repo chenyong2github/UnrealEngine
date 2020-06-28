@@ -9,23 +9,12 @@ const EDGE_STYLES = {
 	blockAssets: [['color', 'darkgray'], ['style', 'dashed'], ['arrowhead', 'odiamond']]
 };
 
-function showFlowGraph(data, botName) {
-	let renderGraph = (function() {
-		let w = new Worker('/js/graphviz-worker.js');
+function renderGraph(src) {
+	var hpccWasm = window["@hpcc-js/wasm"];
+	return hpccWasm.graphviz.layout(src, "svg", "dot");
+}
 
-		let promise;
-		w.onmessage = event => {
-			if (event.data[0] === 'error')
-				promise.reject(event.data[1]);
-			else
-				promise.resolve(event.data[1]);
-		};
-		return src => {
-			promise = $.Deferred();
-			w.postMessage(src);
-			return promise;
-		};
-	})();
+function showFlowGraph(data, botName) {
 
 	const addLinesForBranchGraph = (outLines, bot, branchList) => {
 		const aliases = new Map;
@@ -218,9 +207,7 @@ function showFlowGraph(data, botName) {
 		if (!done) {
 			let [bot, src] = value;
 			console.log(src);
-			renderGraph(src).done(function(graphSvg) {
-				present(bot, graphSvg);
-			});
+			renderGraph(src).then(graphSvg => present(bot, graphSvg));
 		}
 	};
 

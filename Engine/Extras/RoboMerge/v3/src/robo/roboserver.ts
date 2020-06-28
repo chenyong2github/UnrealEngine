@@ -90,7 +90,7 @@ interface BackendFunctions {
 
 export class RoboServer {
 
-	constructor(roboVersion: string, externalUrl: string, sendMessage: (msg: string, args?: any[]) => any, getLogTail: Function | null, 
+	constructor(externalUrl: string, sendMessage: (msg: string, args?: any[]) => any, getLogTail: Function | null, 
 		getLastCrash: Function, stopBot: Function, startBot: Function) {
 		this.server = new WebServer(this.roboserverLogger)
 		this.functions = {
@@ -103,10 +103,13 @@ export class RoboServer {
 
 		//this.server.addFileMapping('/', 'index.html')
 		this.server.addFileMapping('/login', 'login.html', {secureOnly: true})
-		this.server.addFileMapping('/js/*-asm.js', 'js/$1-asm.gz', {headers: [
-			['Cache-Control', 'max-age=' + 60*60*24*7],
-			['Content-Encoding', 'gzip']
-		]})
+		this.server.addFileMapping('/js/*.wasm', 'bin/$1.wasm.gz', {
+			filetype: "application/wasm", 
+			headers: [
+				['Cache-Control', 'max-age=' + 60*60*24*7],
+				['Content-Encoding', 'gzip']
+			]
+			})
 		this.server.addFileMapping('/js/*.js', 'js/$1.js')
 		this.server.addFileMapping('/css/*.css', 'css/$1.css')
 		this.server.addFileMapping('/img/*.png', 'images/$1.png')
@@ -123,7 +126,7 @@ export class RoboServer {
 		this.server.addFileMapping('/webfonts/*.woff', 'webfonts/$1.woff', {filetype: 'application/octet-stream'})
 		this.server.addFileMapping('/webfonts/*.woff2', 'webfonts/$1.woff2', {filetype: 'application/octet-stream'})
 		
-		this.server.addApp(RoboWebApp, (req: WebRequest) => new RoboWebApp(req, this.server.secure, this.functions, roboVersion, externalUrl, this.roboserverLogger));
+		this.server.addApp(RoboWebApp, (req: WebRequest) => new RoboWebApp(req, this.server.secure, this.functions, externalUrl, this.roboserverLogger));
 	}
 
 	open(...args: any[]) {
@@ -145,18 +148,16 @@ export class RoboServer {
 }
 
 class RoboWebApp implements AppInterface {
-	secure: boolean
-	version: string
-	externalUrl: string
 	private readonly webAppLogger: ContextualLogger
+	private authData: AuthData | null
 
 	// could put access to various parts of request in an App base class?
-	constructor(request: WebRequest, secure: boolean, functions: BackendFunctions, version: string, externalUrl: string, parentLogger: ContextualLogger) {
-		this.request = request
-		this.secure = secure
-		this.functions = functions
-		this.version = version
-		this.externalUrl = externalUrl
+	constructor(
+		private request: WebRequest, 
+		public secure: boolean, 
+		private functions: BackendFunctions, 
+		private externalUrl: string, 
+		parentLogger: ContextualLogger) {
 		this.webAppLogger = parentLogger.createChild('WebApp')
 	}
 
@@ -665,10 +666,6 @@ class RoboWebApp implements AppInterface {
 
 		return getSentryUser(this.authData)
 	}
-
- 	private request: WebRequest
-	private authData: AuthData | null
-	private functions: BackendFunctions
 }
 
 export interface BlockageNodeOpUrls {
