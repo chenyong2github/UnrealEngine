@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Tools/BlendMaterials.h"
 #include "EditorAssetLibrary.h"
 #include "Utilities/MiscUtils.h"

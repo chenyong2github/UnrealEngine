@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MiscUtils.h"
 #include "AssetImportData.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
