@@ -148,6 +148,7 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("UnrealEd", "ViewportInteraction"),
 			new KeyValuePair<string, string>("UnrealEd", "VREditor"),
 			new KeyValuePair<string, string>("WebBrowser", "WebBrowserTexture"),
+			new KeyValuePair<string, string>("WindowsMixedRealityHMD", "WindowsMixedRealityHandTracking"),
 		};
 
 
