@@ -150,6 +150,16 @@ public:
 	virtual void SetContent(const TArray<uint8>& ContentPayload) = 0;
 
 	/**
+	 * Sets the content of the request (optional data).
+	 * Usually only set for POST requests.
+	 *
+	 * This version lets the API take ownership of the payload directly, helpful for larger payloads.
+	 *
+	 * @param ContentPayload - payload to set.
+	 */
+	virtual void SetContent(TArray<uint8>&& ContentPayload) = 0;
+
+	/**
 	 * Sets the content of the request as a string encoded as UTF8.
 	 *
 	 * @param ContentString - payload to set.

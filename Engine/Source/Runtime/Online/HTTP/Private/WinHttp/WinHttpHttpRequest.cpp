@@ -104,13 +104,18 @@ void FWinHttpHttpRequest::SetURL(const FString& InURL)
 
 void FWinHttpHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 {
+	SetContent(CopyTemp(ContentPayload));
+}
+
+void FWinHttpHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
+{
 	if (State != EHttpRequestStatus::NotStarted)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
 		return;
 	}
 
-	RequestData.Payload = MakeShared<FRequestPayloadInMemory, ESPMode::ThreadSafe>(ContentPayload);
+	RequestData.Payload = MakeShared<FRequestPayloadInMemory, ESPMode::ThreadSafe>(MoveTemp(ContentPayload));
 }
 
 void FWinHttpHttpRequest::SetContentAsString(const FString& ContentString)
