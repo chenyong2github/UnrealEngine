@@ -35,38 +35,31 @@ FString convertReceiptToString(const SKPaymentTransaction* transaction)
 
 /**
  * Retrieve the original transaction id from an Apple transaction object
- * Ignores code comment in SKPaymentTransaction.h that it can only be found in "restored" state
  * Successful attempts to repurchase already owned items (NOT restore purchase), will end in "purchased" state with an original transaction id
  *
  * @param Transaction the transaction to retrieve an original transaction id
  *
- * @return original transaction id for the transaction
+ * @return original transaction id for transactions in the "restored" state, otherwise the current transaction id
  */
 FString GetOriginalTransactionId(const SKPaymentTransaction* Transaction)
 {
+	UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId TransactionState=%d"), static_cast<int32>(Transaction.transactionState));
+
 	SKPaymentTransaction* OriginalTransaction = nullptr;
-	if (Transaction.originalTransaction)
-	{
-		if (Transaction.transactionState != SKPaymentTransactionStateRestored)
-		{
-			UE_LOG_ONLINE_STORE(Log, TEXT("Original transaction id in state %d"), static_cast<int32>(Transaction.transactionState));
-		}
-		
-		int32 RecurseCount = 0;
-		
+	if (Transaction.originalTransaction && Transaction.transactionState == SKPaymentTransactionStateRestored)
+	{		
+		int32 RecurseCount = 0;	
 		if (Transaction != Transaction.originalTransaction)
 		{
+			UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId TransactionId=%s"), *FString(Transaction.transactionIdentifier));
+
 			OriginalTransaction = Transaction.originalTransaction;
 			while (OriginalTransaction.originalTransaction && (RecurseCount < 100))
 			{
 				++RecurseCount;
 				OriginalTransaction = OriginalTransaction.originalTransaction;
+				UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId RecurseCount=%d, OriginalTransactionId=%s"), RecurseCount, *FString(OriginalTransaction.transactionIdentifier));
 			}
-		}
-		
-		if (RecurseCount > 0)
-		{
-			UE_LOG_ONLINE_STORE(Log, TEXT("Original transaction id recurse count %d"), RecurseCount);
 		}
 	}
 	
