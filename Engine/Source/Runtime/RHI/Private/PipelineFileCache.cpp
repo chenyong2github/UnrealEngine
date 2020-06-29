@@ -62,12 +62,13 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	EOFMarker = 15,
 	EngineFlags = 16,
 	Subpass = 17,
+	PatchSizeReduction_NoDuplicatedGuid = 18
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
-const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415254; // TOCSTART
+const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415232; // TOCSTAR2
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::Subpass;
+const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::PatchSizeReduction_NoDuplicatedGuid;
 const int32  FPipelineCacheGraphicsDescPartsNum = 63; // parser will expect this number of parts in a description string
 
 /**
@@ -233,7 +234,20 @@ struct FPipelineCacheFileFormatPSOMetaData
 	{
 		Ar << Info.FileOffset;
 		Ar << Info.FileSize;
-		Ar << Info.FileGuid;
+		// if FileGuid is zeroed out (a frequent case), don't write all 16 bytes of it
+		uint8 ArchiveFullGuid = 1;
+		if (Ar.GameNetVer() == (uint32)EPipelineCacheFileFormatVersions::PatchSizeReduction_NoDuplicatedGuid)
+		{
+			if (Ar.IsSaving())
+			{
+				ArchiveFullGuid = (Info.FileGuid != FGuid()) ? 1 : 0;
+			}
+			Ar << ArchiveFullGuid;
+		}
+		if (ArchiveFullGuid != 0)
+		{
+			Ar << Info.FileGuid;
+		}
 		Ar << Info.Stats;
         if (Ar.GameNetVer() == (uint32)EPipelineCacheFileFormatVersions::LibraryID)
         {
@@ -1296,7 +1310,12 @@ struct FPipelineCacheFileFormatTOC
 	{
 		// TOC is assumed to be at the end of the file
 		// If this changes then the EOF read check and write need to moved out of here
-		
+
+		// if all entries are using the same GUID (which is the norm when saving a packaged cache with the "buildsc" command of the commandlet),
+		// do not save it with every entry, reducing the surface of changes (GUID is regenerated on each save even if entries are the same)
+		bool bAllEntriesUseSameGuid = true;
+		FGuid FirstEntryGuid;
+
 		if(Ar.IsLoading())
 		{
 			uint64 TOCMagic = 0;
@@ -1324,8 +1343,50 @@ struct FPipelineCacheFileFormatTOC
 		{
 			uint64 TOCMagic = FPipelineCacheTOCFileFormatMagic;
 			Ar << TOCMagic;
+
+			// check if the whole file is using the same GUID
+			bool bGuidSet = false;
+			for (TMap<uint32, FPipelineCacheFileFormatPSOMetaData>::TConstIterator It(Info.MetaData); It; ++It)
+			{
+				if (bGuidSet)
+				{
+					if (It.Value().FileGuid != FirstEntryGuid)
+					{
+						bAllEntriesUseSameGuid = false;
+						break;
+					}
+				}
+				else
+				{
+					FirstEntryGuid = It.Value().FileGuid;
+					bGuidSet = true;
+				}
+			}
+
+			if (!bGuidSet)
+			{
+				bAllEntriesUseSameGuid = false;	// no entries, so don't do save the guid at all
+			}
+
+			// if the whole file uses the same guids, zero out
+			if (bAllEntriesUseSameGuid)
+			{
+				for (TMap<uint32, FPipelineCacheFileFormatPSOMetaData>::TIterator It(Info.MetaData); It; ++It)
+				{
+					It.Value().FileGuid = FGuid();
+				}
+			}
 		}
-		
+
+		uint8 AllEntriesUseSameGuid = bAllEntriesUseSameGuid ? 1 : 0;
+		Ar << AllEntriesUseSameGuid;
+		bAllEntriesUseSameGuid = AllEntriesUseSameGuid != 0;
+
+		if (bAllEntriesUseSameGuid)
+		{
+			Ar << FirstEntryGuid;
+		}
+
 		Ar << Info.SortedOrder;
 		Ar << Info.MetaData;
 		
@@ -1333,6 +1394,13 @@ struct FPipelineCacheFileFormatTOC
 		{
 			uint64 EOFMagic = FPipelineCacheEOFFileFormatMagic;
 			Ar << EOFMagic;
+		}
+		else if (bAllEntriesUseSameGuid)
+		{
+			for (TMap<uint32, FPipelineCacheFileFormatPSOMetaData>::TIterator It(Info.MetaData); It; ++It)
+			{
+				It.Value().FileGuid = FirstEntryGuid;
+			}
 		}
 		
 		return Ar;
