@@ -65,7 +65,7 @@ struct FSimpleWheelConfig
 	FSimpleWheelConfig() 
 		: Offset(FVector(2.f, 1.f, 0.f))
 		, WheelMass(20.f) // [Kg]
-		, WheelRadius(30.f)
+		, WheelRadius(30.f) // [cm]
 		, WheelWidth(20.f)
 		, WheelInertia(20.0f/*VehicleUtility::CalculateInertia(WheelMass, WheelRadius)*/)
 		, MaxSteeringAngle(70)
@@ -76,8 +76,9 @@ struct FSimpleWheelConfig
 		, HandbrakeEnabled(true)
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
-		, CheatFrictionForce(1.0f)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
+		, CheatFrictionForceMultiplier(1.0f)
+		, CheatSkidFactor(1.0f)
 	//	, SingleWheel(false)
 	{
 
@@ -106,9 +107,11 @@ struct FSimpleWheelConfig
 	bool SteeringEnabled;		// Steering is operational on this wheel
 	bool EngineEnabled;			// Wheel is driven by an engine
 
-	float CheatFrictionForce;
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
-	
+
+	float CheatFrictionForceMultiplier;
+	float CheatSkidFactor;
+
 	// #todo: simulated Damage
 	//EWheelDamageStatus DamageStatus;
 	//float BuckleAngle;
@@ -124,7 +127,7 @@ public:
 
 	FSimpleWheelSim(const FSimpleWheelConfig* SetupIn) 
 		: TVehicleSystem<FSimpleWheelConfig>(SetupIn)
-		, Re(0.3f)
+		, Re(30.f)
 		, Omega(0.f)
 		, Sx(0.f)
 		, DriveTorque(0.f)
@@ -135,6 +138,7 @@ public:
 		, SteeringAngle(0.f)
 		, SurfaceFriction(1.f)
 		, ForceFromFriction(FVector::ZeroVector)
+		, MassPerWheel(250.f)
 		, SlipVelocity(0.f)
 		, SlipAngle(0.f)
 		, bInContact(false)
@@ -338,161 +342,86 @@ public:
 	{
 		SlipAngle = FMath::Atan2(GroundVelocityVector.Y, GroundVelocityVector.X);
 
-		ForceFromFriction = FVector::ZeroVector;
-		float NormalizedFrictionFromSlip = 1.0f;// RealWorldConsts::DryRoadFriction();
-		Sx = 0.2f;
-		//if (FMath::Abs(DriveTorque) < SMALL_NUMBER && FMath::Abs(BrakeTorque) < SMALL_NUMBER)
-		//{
-		//	BrakeTorque = 10.0f; // loss in transmission system - until we hook one up.
-		//}
+		float FinalLongitudinalForce = 0.f;
 
-		float FinalTorque = 0.f;
-		float AbsDriveTorque = FMath::Abs(DriveTorque);
-		if (BrakeTorque > AbsDriveTorque)
-		{
-			BrakeTorque = BrakeTorque - AbsDriveTorque;
-		}
-		else
-		{
-			//DriveTorque = DriveTorque;// -BrakeTorque;
-			BrakeTorque = 0.f;
-		}
+		// IMPORTANT - The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
+		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius
+		// for torque must be real size to obtain the correct output values. Meter vs Cm test appears in HeadessChaos
+		AppliedLinearDriveForce = DriveTorque / CmToM(Re);
+		AppliedLinearBrakeForce = BrakeTorque / CmToM(Re);
 
+		// #todo: currently just letting the brake override the throttle
+		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
 
-		//	if (bInContact)
+		// are we actually touching the ground
+		if (ForceIntoSurface > SMALL_NUMBER)
 		{
-			float Direction = GroundVelocityVector.X > 0 ? -1.f : 1.f;
-			if (BrakeTorque > SMALL_NUMBER && FMath::Abs(GroundVelocityVector.X) > SMALL_NUMBER)
+			AdhesiveLimit = (ForceIntoSurface) * SurfaceFriction * Setup().CheatFrictionForceMultiplier;
+
+			if (Braking)
 			{
-				if (Omega >= 0.f)
+				// whether the velocity is +ve or -ve when we brake we are slowing the vehicle down
+				// so force is opposing current direction of travel.
+				float ForceRequiredToBringToStop = MassPerWheel * (GroundVelocityVector.X) / DeltaTime;
+				FinalLongitudinalForce = AppliedLinearBrakeForce;
+
+				// check we are not applying more force than required so we end up overshooting 
+				// and accelerating in the opposite direction
+				if (FinalLongitudinalForce > FMath::Abs(ForceRequiredToBringToStop))
 				{
-					// this is only correct for GroundVelocityVector.X >= 0
-					Omega -= (BrakeTorque * DeltaTime) / Setup().WheelMass;
-					if (Omega < 0.f)
-					{
-						Omega = 0.f;	// wheel has locked
-					}
-				}
-				else
-				{
-					// this is only correct for GroundVelocityVector.X < 0
-					Omega += (BrakeTorque * DeltaTime) / Setup().WheelMass;
-					if (Omega > 0.f)
-					{
-						Omega = 0.f;	// wheel has locked
-					}
+					FinalLongitudinalForce = FMath::Abs(ForceRequiredToBringToStop);
 				}
 
-
-				float diff = GroundVelocityVector.X - Omega * Re;
-				Sx = FMath::Abs((GroundVelocityVector.X - Omega * Re) / GroundVelocityVector.X);
-				NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-
-				ForceFromFriction.X = Direction * NormalizedFrictionFromSlip * ForceIntoSurface;
+				// ensure the brake opposes current direction of travel
+				if (GroundVelocityVector.X > 0.0f)
+				{
+					FinalLongitudinalForce = -FinalLongitudinalForce;
+				}
 			}
 			else
 			{
-				if (DriveTorque > SMALL_NUMBER)
-				{
-					Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
-
-					Sx = 0.0f;
-					if (GroundVelocityVector.X > SMALL_NUMBER)
-					{
-						Sx = (Omega * Re - GroundVelocityVector.X) / GroundVelocityVector.X;
-					}
-					else
-					{
-						Sx = Omega * Re;
-					}
-					// FVehicleUtility::ClampNormalRange(Sx);
-
-					NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-					ForceFromFriction.X = NormalizedFrictionFromSlip * ForceIntoSurface;
-				}
-				else
-				{
-					if (DriveTorque < -SMALL_NUMBER)
-					{
-						Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
-
-						Sx = 0.0f;
-						if (FMath::Abs(GroundVelocityVector.X) > SMALL_NUMBER)
-						{
-							Sx = (Omega * Re + GroundVelocityVector.X) / GroundVelocityVector.X;
-						}
-						else
-						{
-							Sx = Omega * Re;
-						}
-						Sx = FMath::Abs(Sx);
-					//	FVehicleUtility::ClampNormalRange(Sx);
-
-						NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-						ForceFromFriction.X = -NormalizedFrictionFromSlip * ForceIntoSurface;
-					}
-					else
-					{
-						if (InContact())
-						{
-							// wheel rolling - just match the ground speed exactly
-							float GroundOmega = GroundVelocityVector.X / Re;
-							Omega += GroundOmega - Omega;
-						}
-						else
-						{
-							Omega *= 0.995f; // friction slowing wheel down
-						}
-					}
-				}
-
+				FinalLongitudinalForce = AppliedLinearDriveForce;
 			}
-		}
 
+			// lateral grip
+			float FinalLateralForce = -(MassPerWheel * GroundVelocityVector.Y) / DeltaTime;
 
-		// lateral slip - cheat f = mass * v / dt;
-		// cancel out any lateral wheel movement
-		// this is not correct
-		static float QuarterMass = 1500.0f * 0.25f;
-		float KillSpeed = -0.25f * QuarterMass * GroundVelocityVector.Y / DeltaTime;
+			float BrakeFactor = Braking ? 0.1f*(10.0f-(FMath::Clamp(FMath::Abs(FinalLongitudinalForce) / AdhesiveLimit, 1.f, 10.f) - 1.0f)) : 1.f;
 
-		float SlipAngleEffect = 1.0f;
-		//SlipAngleEffect = (FMath::Abs(RadToDeg(SlipAngle)) > 20.f) ? 0.3f : 1.0f;
-
-		//float SlipAngleEffect = GetNormalisedFrictionFromSlipAngle(RadToDeg(SlipAngle) / 20.0f);
-		//float SlipAngleEffect = GetNormalisedFrictionFromSlipAngle(Sx);
-
-		float FrictionFromSlipSide = /*GetNormalisedFrictionFromSlipAngle(GetNormalizedLateralSlip()) * */ SurfaceFriction;
-		float ForceFromSideSlip = FrictionFromSlipSide * ForceIntoSurface;
-
-		//////////////////////////////////////////////////////////////////////////
-		//if (Handbrake)
-		//{
-		//	FVector KillSpeedForce = -0.5f * QuarterMass * GroundVelocityVector / DeltaTime;
-		//	float Length = KillSpeedForce.Size();
-		//	float ScaleBack = SurfaceFriction / Length;
-		//	KillSpeedForce *= ScaleBack;
-		//	ForceFromFriction = KillSpeedForce;
-		//}
-		//else
-		{
-
-			float F = 0.f;
-			if (KillSpeed > 0.f)
+			ForceFromFriction.X = FinalLongitudinalForce;
+			// we can only obtain as much accel/decel force as the friction will allow
+			if (FinalLongitudinalForce > AdhesiveLimit)
 			{
-				F = FMath::Min(ForceFromSideSlip, KillSpeed);
+				ForceFromFriction.X = AdhesiveLimit * 0.7f; // now dynamic friction - want more analog feel
+			}
+			else if (FinalLongitudinalForce < -AdhesiveLimit)
+			{
+				ForceFromFriction.X = -AdhesiveLimit * 0.7f;
+			}
+
+			ForceFromFriction.Y = FinalLateralForce;
+			if (FinalLateralForce > AdhesiveLimit)
+			{
+				ForceFromFriction.Y = AdhesiveLimit * 0.7f; // broke friction - want more analog feel
+			}
+			else if (FinalLateralForce < -AdhesiveLimit)
+			{
+				ForceFromFriction.Y = -AdhesiveLimit * 0.7f; // broke friction - want more analog feel
+			}
+
+			// wheel rolling - just match the ground speed exactly
+			if (BrakeFactor < 1.0f)
+			{
+				Omega *= BrakeFactor;
 			}
 			else
 			{
-				F = FMath::Max(-ForceFromSideSlip, KillSpeed);
-
+				float GroundOmega = GroundVelocityVector.X / Re;
+				Omega += (GroundOmega - Omega);
 			}
-			ForceFromFriction.Y = F;
+
 		}
-		//////////////////////////////////////////////////////////////////////////
-
-	//	Omega = FMath::Clamp(Omega, -MaxOmega, MaxOmega);
-
+		// Wheel angular position
 		AngularPosition += Omega * DeltaTime;
 
 		while (AngularPosition >= PI * 2.f)
@@ -508,7 +437,17 @@ public:
 		{
 			ForceFromFriction = FVector::ZeroVector;
 		}
+
+		return;
+
 	}
+
+
+	void SetMassPerWheel(float VehicleMassPerWheel)
+	{
+		MassPerWheel = VehicleMassPerWheel;
+	}
+
 
 public:
 
@@ -526,6 +465,7 @@ public:
 	float MaxOmega;
 
 	FVector ForceFromFriction;
+	float MassPerWheel;
 
 	// Not sure about these here
 	//float BrakeInput;			// Normalised [0 to 1]
@@ -539,6 +479,12 @@ public:
 	float SlipAngle;			// Angle between wheel forwards and velocity vector
 	bool bInContact;			// Is tire in contact with the ground or free in the air
 	uint32 WheelIndex;			// purely for debugging purpoese
+
+	public:
+	// debug for now
+	float AppliedLinearDriveForce;
+	float AppliedLinearBrakeForce;
+	float AdhesiveLimit;
 };
 
 

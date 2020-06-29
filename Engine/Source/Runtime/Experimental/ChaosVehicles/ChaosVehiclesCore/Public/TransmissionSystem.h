@@ -106,6 +106,11 @@ namespace Chaos
 			EngineRPM = InRPM;
 		}
 
+		void SetAllowedToChangeGear(bool OkToChangeIn)
+		{
+			AllowedToChangeGear = OkToChangeIn;
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		// Output functions
 
@@ -185,8 +190,8 @@ namespace Chaos
 		{
 			if (Setup().TransmissionType == ETransmissionType::Automatic)
 			{
-				// not currently changing gear
-				if (!IsCurrentlyChangingGear())
+				// not currently changing gear, also don't want to change up because the wheels are spinning up due to having no load
+				if (!IsCurrentlyChangingGear() && AllowedToChangeGear)
 				{
 					if (EngineRPM >= Setup().ChangeUpRPM)
 					{
@@ -222,6 +227,8 @@ namespace Chaos
 		float CurrentGearChangeTime; // Time to change gear, no power transmitted to the wheels during change
 
 		float EngineRPM;	// Engine Revs Per Minute
+
+		bool AllowedToChangeGear; /** conditions are ok for an automatic gear change */
 
 	};
 

@@ -77,7 +77,7 @@ namespace Chaos
 		 */
 		void SetEngineRPM(float InEngineRPM)
 		{
-			EngineRPM = FMath::Clamp(InEngineRPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
+			EngineRPM = FMath::Clamp(FMath::Abs(InEngineRPM), (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
 		}
 
 		float GetEngineTorque()
