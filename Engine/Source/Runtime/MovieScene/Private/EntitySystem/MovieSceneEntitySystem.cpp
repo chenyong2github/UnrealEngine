@@ -288,6 +288,16 @@ void UMovieSceneEntitySystem::ConditionalLinkSystemImpl(UMovieSceneEntitySystemL
 	}
 }
 
+void UMovieSceneEntitySystem::TagGarbage()
+{
+	OnTagGarbage();
+}
+
+void UMovieSceneEntitySystem::CleanTaggedGarbage()
+{
+	OnCleanTaggedGarbage();
+}
+
 bool UMovieSceneEntitySystem::IsReadyForFinishDestroy()
 {
 	return Linker == nullptr;

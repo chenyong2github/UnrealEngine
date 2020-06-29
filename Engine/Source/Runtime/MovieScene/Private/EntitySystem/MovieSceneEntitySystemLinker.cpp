@@ -220,6 +220,10 @@ void UMovieSceneEntitySystemLinker::HandlePostGarbageCollection()
 	// Allow any other system to tag garbage
 	Events.TagGarbage.Broadcast(this);
 
+	auto RouteTagGarbage = [](UMovieSceneEntitySystem* System){ System->TagGarbage(); };
+	SystemGraph.IteratePhase(ESystemPhase::Spawn, RouteTagGarbage);
+	SystemGraph.IteratePhase(ESystemPhase::Instantiation, RouteTagGarbage);
+
 	CleanGarbage();
 }
 
@@ -235,6 +239,10 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 
 	// Allow any other system to tag garbage
 	Events.CleanTaggedGarbage.Broadcast(this);
+
+	auto RouteCleanTaggedGarbage = [](UMovieSceneEntitySystem* System){ System->CleanTaggedGarbage(); };
+	SystemGraph.IteratePhase(ESystemPhase::Spawn, RouteCleanTaggedGarbage);
+	SystemGraph.IteratePhase(ESystemPhase::Instantiation, RouteCleanTaggedGarbage);
 
 	// Free the entities
 	TSet<FMovieSceneEntityID> FreedEntities;

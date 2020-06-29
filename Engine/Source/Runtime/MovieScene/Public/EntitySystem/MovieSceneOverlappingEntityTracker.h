@@ -60,6 +60,20 @@ struct TOverlappingEntityTracker
 		.Iterate_PerAllocation(&Linker->EntityManager, [this](const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys){ this->VisitLinkedAllocation(Allocation, ReadKeys); });
 	}
 
+	/**
+	 * Update this tracker by iterating any entity that contains InKeyComponent, and matches the additional optional filter
+	 * Only entities tagged as NeedsUnlink are iterated, invalidating their outputs
+	 */
+	void UpdateUnlinkedOnly(UMovieSceneEntitySystemLinker* Linker, TComponentTypeID<KeyType> InKeyComponent, const FEntityComponentFilter& InFilter)
+	{
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		// Visit unlinked entities
+		TFilteredEntityTask<>(TEntityTaskComponents<>())
+		.CombineFilter(InFilter)
+		.FilterAll({ BuiltInComponents->Tags.NeedsUnlink, InKeyComponent })
+		.Iterate_PerAllocation(&Linker->EntityManager, [this](const FEntityAllocation* Allocation){ this->VisitUnlinkedAllocation(Allocation); });
+	}
 
 
 	/**
