@@ -29,10 +29,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
 	void SetRPM(float InRPM, float InTimeSec);
 
+	/** Sets a moto synth settings dynamically. */
+	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
+	void SetSettings(const FMotoSynthRuntimeSettings& InSettings);
+
 	/** Retrieves RPM range of the moto synth, taking into account the acceleration and deceleration sources. The min RPM is the largest of the min RPms of either and the max RPM is min of the max RPMs of either. */
 	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
 	void GetRPMRange(float& OutMinRPM, float& OutMaxRPM);
-
 
 	/** Returns if the moto synth is enabled. */
 	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
@@ -41,6 +44,11 @@ public:
 	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
 
 private:
+	FMotoSynthRuntimeSettings* GetSettingsToUse();
+
+	FCriticalSection SettingsCriticalSection;
 	FVector2D RPMRange;
 	ISoundGeneratorPtr MotoSynthEngine;
+	FMotoSynthRuntimeSettings OverrideSettings;
+	bool bSettingsOverridden = false;
 };
