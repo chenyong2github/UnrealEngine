@@ -12,7 +12,7 @@ class UAnimSequenceBase;
 class USkeletalMeshComponent;
 class USoundBase;
 
-UCLASS(const, hidecategories=Object, collapsecategories, meta=(DisplayName="Play Sound"))
+UCLASS(const, hidecategories=Object, collapsecategories, Config = Game, meta=(DisplayName="Play Sound"))
 class ENGINE_API UAnimNotify_PlaySound : public UAnimNotify
 {
 	GENERATED_BODY()
@@ -44,6 +44,11 @@ public:
 	// If this sound should follow its owner
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")
 	uint32 bFollow:1;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Config, EditAnywhere, Category = "AnimNotify")
+	uint32 bPreviewIgnoreAttenuation:1;
+#endif
 
 	// Socket or bone name to attach sound to
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AnimNotify", meta=(EditCondition="bFollow", ExposeOnSpawn = true))
