@@ -459,6 +459,9 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HairDebugMaterialRef(TEXT("/HairStrands/Materials/HairDebugMaterial.HairDebugMaterial"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HairDefaultMaterialRef(TEXT("/HairStrands/Materials/HairDefaultMaterial.HairDefaultMaterial"));
+	
+	AngularSpringsSystem = nullptr;
+	CosseratRodsSystem = nullptr;
 
 	HairDebugMaterial = HairDebugMaterialRef.Object;
 	HairDefaultMaterial = HairDefaultMaterialRef.Object;
@@ -526,8 +529,8 @@ void UGroomComponent::ReleaseHairSimulation()
 
 void UGroomComponent::UpdateHairSimulation()
 {
-	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
-	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+	if (AngularSpringsSystem == nullptr) AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+	if (CosseratRodsSystem == nullptr) CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
 
 	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
 	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
@@ -970,10 +973,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 
 	uint32 SkeletalComponentId = ~0;
+	USkeletalMeshComponent* SkelMesh = nullptr;
 	if (bHasValidSketalMesh)
 	{
 		RegisteredSkeletalMeshComponent = SkeletalMeshComponent;
 		SkeletalComponentId = SkeletalMeshComponent->ComponentId.PrimIDValue;
+		SkelMesh = SkeletalMeshComponent;
 		AddTickPrerequisiteComponent(SkeletalMeshComponent);
 	}
 
@@ -1128,6 +1133,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		[
 			Id,
 			SkeletalComponentId,
+			SkelMesh,
 			Interpolation,
 			LocalResources,
 			HairLocalToWorld, SkinLocalToWorld,
@@ -1256,6 +1262,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		RegisterHairStrands(
 			Id,
 			SkeletalComponentId,
+			SkelMesh,
 			WorldType,
 			Interpolation,
 			RenProjectionDatas,
@@ -1651,12 +1658,6 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		bIsEventProcess = true;
 	}
 
-	const bool bSupportSkinProjection = GetDefault<URendererSettings>()->bSupportSkinCacheShaders;
-	if (!bSupportSkinProjection)
-	{
-		bBindGroomToSkeletalMesh = false;
-	}
-
 #if WITH_EDITOR
 	if (bAssetChanged)
 	{
@@ -1722,11 +1723,6 @@ bool UGroomComponent::CanEditChange(const FProperty* InProperty) const
 			}
 			#endif
 			return bIsEditable;
-		}
-
-		if (FCString::Strcmp(*PropertyName, TEXT("bBindGroomToSkeletalMesh")) == 0)
-		{
-			return GetDefault<URendererSettings>()->bSupportSkinCacheShaders;
 		}
 	}
 

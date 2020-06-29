@@ -85,3 +85,13 @@ void InterpolateHairStrandsMeshTriangles(
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
 	FBufferTransitionQueue& TransitionQueue);
 
+void UpateSkin(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	class FSkinWeightVertexBuffer* SkinWeight,
+	class FSkeletalMeshLODRenderData& RenderData,
+	FRDGBufferRef BoneMatrices,
+	FRDGBufferRef MatrixOffsets,
+	FRDGBufferRef OutDeformedosition);
+
+
