@@ -766,6 +766,8 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 #endif
 
 	HasKHRImageFormatList = HasExtension(DeviceExtensions, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+
+	HasQcomRenderPassTransform = HasExtension(DeviceExtensions, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()

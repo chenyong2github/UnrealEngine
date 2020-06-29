@@ -401,6 +401,11 @@ public:
 
 	bool RHIRequiresComputeGenerateMips() const override { return true; };
 
+	inline TArray<FVulkanViewport*>& GetViewports()
+	{
+		return Viewports;
+	}
+
 public:
 	static void SavePipelineCache();
 
