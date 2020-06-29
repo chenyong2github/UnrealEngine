@@ -18,7 +18,7 @@ namespace Chaos
 	*	#todo: Proper defaults
 	*/
 
-	struct FSimpleAerodynamicsConfig
+	struct CHAOSVEHICLESCORE_API FSimpleAerodynamicsConfig
 	{
 		FSimpleAerodynamicsConfig()
 			: AreaMetresSquared(2.0f)
@@ -36,18 +36,10 @@ namespace Chaos
 	};
 
 
-	class FSimpleAerodynamicsSim : public TVehicleSystem<FSimpleAerodynamicsConfig>
+	class CHAOSVEHICLESCORE_API FSimpleAerodynamicsSim : public TVehicleSystem<FSimpleAerodynamicsConfig>
 	{
 	public:
-		FSimpleAerodynamicsSim(const FSimpleAerodynamicsConfig* SetupIn)
-			: TVehicleSystem< FSimpleAerodynamicsConfig>(SetupIn)
-			, DensityOfMedium(RealWorldConsts::AirDensity())
-		{
-			// pre-calculate static values
-			EffectiveDragConstant = 0.5f * Setup().AreaMetresSquared * Setup().DragCoefficient;
-			EffectiveLiftConstant = 0.5f * Setup().AreaMetresSquared * Setup().DownforceCoefficient;
-		}
-
+		FSimpleAerodynamicsSim(const FSimpleAerodynamicsConfig* SetupIn);
 
 		/** set the density of the medium through which you are traveling Air/Water, etc */
 		void SetDensityOfMedium(float DensityIn)
@@ -68,13 +60,7 @@ namespace Chaos
 		}
 
 		/** Get the drag and down forces combined in a 3D vector, drag on X-axis, down-force on Z-axis*/
-		FVector GetCombinedForces(float VelocityIn)
-		{
-			// -ve as forces applied in opposite direction to velocity
-			float CommonSum = -DensityOfMedium * VelocityIn* VelocityIn;
-			FVector CombinedForces(EffectiveDragConstant * CommonSum, 0.f, EffectiveLiftConstant * CommonSum);
-			return CombinedForces;
-		}
+		FVector GetCombinedForces(float VelocityIn);
 
 	protected:
 		float DensityOfMedium;
