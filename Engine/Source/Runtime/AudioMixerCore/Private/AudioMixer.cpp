@@ -15,7 +15,7 @@
 // This should only be defined here. Modules who wish to use this category should contain the line
 // 		CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 //
-CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, true);
+CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, false);
 
 // Command to enable logging to display accurate audio render times
 static int32 LogRenderTimesCVar = 0;

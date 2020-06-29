@@ -884,7 +884,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 
 bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess, bool bParallel)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(WaterPassRenderSingleLayer);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Water);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderSingleLayerWaterPass, FColor::Emerald);
 
 	bool bDirty = false;

@@ -44,6 +44,7 @@ DEFINE_STAT(STAT_PakFile_Read);
 DEFINE_STAT(STAT_PakFile_NumOpenHandles);
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
+CSV_DEFINE_CATEGORY(FileIOVerbose, false);
 
 #ifndef DISABLE_NONUFS_INI_WHEN_COOKED
 #define DISABLE_NONUFS_INI_WHEN_COOKED 0
@@ -2746,7 +2747,7 @@ public:
 
 	bool QueueRequest(IPakRequestor* Owner, FPakFile* InActualPakFile, FName File, int64 PakFileSize, int64 Offset, int64 Size, EAsyncIOPriorityAndFlags PriorityAndFlags)
 	{
-		CSV_SCOPED_TIMING_STAT(FileIO, PakPrecacherQueueRequest);
+		CSV_SCOPED_TIMING_STAT(FileIOVerbose, PakPrecacherQueueRequest);
 		check(Owner && File != NAME_None && Size > 0 && Offset >= 0 && Offset < PakFileSize && (PriorityAndFlags&AIOP_PRIORITY_MASK) >= AIOP_MIN && (PriorityAndFlags&AIOP_PRIORITY_MASK) <= AIOP_MAX);
 		FScopeLock Lock(&CachedFilesScopeLock);
 		uint16* PakIndexPtr = RegisterPakFile(InActualPakFile, File, PakFileSize);
@@ -4303,7 +4304,7 @@ public:
 
 IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 {
-	CSV_SCOPED_TIMING_STAT(FileIO, PakOpenAsyncRead);
+	CSV_SCOPED_TIMING_STAT(FileIOVerbose, PakOpenAsyncRead);
 #if USE_PAK_PRECACHE
 	if (FPlatformProcess::SupportsMultithreading() && GPakCache_Enable > 0)
 	{
