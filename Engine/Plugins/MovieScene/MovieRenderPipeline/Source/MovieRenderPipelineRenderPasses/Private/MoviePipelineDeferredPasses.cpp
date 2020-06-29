@@ -206,7 +206,63 @@ namespace MoviePipeline
 		{
 			return;
 		}
-		
+
+		// Draw letterboxing
+		APlayerCameraManager* PlayerCameraManager = GetPipeline()->GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+		if(PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
+		{
+			const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
+			UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+			check(OutputSettings);
+			
+			const FIntPoint FullOutputSize = OutputSettings->OutputResolution;
+			const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > 1.0f ?
+				FIntPoint(FullOutputSize.X, (1.0 / CameraCache.AspectRatio) * FullOutputSize.X) :
+				FIntPoint(CameraCache.AspectRatio * FullOutputSize.Y, FullOutputSize.Y);
+
+			const FIntPoint TileViewMin = InSampleState.OverlappedOffset;
+			const FIntPoint TileViewMax = TileViewMin + InSampleState.BackbufferSize;
+
+			// Camera ratio constrained rect, clipped by the tile rect
+			FIntPoint ConstrainedViewMin = (FullOutputSize - ConstrainedFullSize) / 2;
+			FIntPoint ConstrainedViewMax = ConstrainedViewMin + ConstrainedFullSize;
+			ConstrainedViewMin = FIntPoint(FMath::Clamp(ConstrainedViewMin.X, TileViewMin.X, TileViewMax.X),
+				FMath::Clamp(ConstrainedViewMin.Y, TileViewMin.Y, TileViewMax.Y));
+			ConstrainedViewMax = FIntPoint(FMath::Clamp(ConstrainedViewMax.X, TileViewMin.X, TileViewMax.X),
+				FMath::Clamp(ConstrainedViewMax.Y, TileViewMin.Y, TileViewMax.Y));
+
+			// Difference between the clipped constrained rect and the tile rect
+			const FIntPoint OffsetMin = ConstrainedViewMin - TileViewMin;
+			const FIntPoint OffsetMax = TileViewMax - ConstrainedViewMax;
+
+			// Clear left
+			if (OffsetMin.X > 0)
+			{
+				Canvas.DrawTile(0, 0, OffsetMin.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear right
+			if (OffsetMax.X > 0)
+			{
+				Canvas.DrawTile(InSampleState.BackbufferSize.X - OffsetMax.X, 0, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear top
+			if (OffsetMin.Y > 0)
+			{
+				Canvas.DrawTile(0, 0, InSampleState.BackbufferSize.X, OffsetMin.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear bottom
+			if (OffsetMax.Y > 0)
+			{
+				Canvas.DrawTile(0, InSampleState.BackbufferSize.Y - OffsetMax.Y, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+
+			Canvas.Flush_GameThread(true);
+		}
+
 		TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 		FRenderTarget* BackbufferRenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
