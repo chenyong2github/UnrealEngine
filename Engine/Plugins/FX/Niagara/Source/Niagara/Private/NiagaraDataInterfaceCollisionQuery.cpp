@@ -14,6 +14,23 @@
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
+struct FNiagaraCollisionDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		AddedTraceSkip = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
+
+const FName UNiagaraDataInterfaceCollisionQuery::SceneDepthName(TEXT("QuerySceneDepthGPU"));
+const FName UNiagaraDataInterfaceCollisionQuery::DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
+const FName UNiagaraDataInterfaceCollisionQuery::SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
+const FName UNiagaraDataInterfaceCollisionQuery::AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
+
 UNiagaraDataInterfaceCollisionQuery::UNiagaraDataInterfaceCollisionQuery(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -55,10 +72,13 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
 	FNiagaraFunctionSignature SigDepth;
-	SigDepth.Name = TEXT("QuerySceneDepthGPU");
+	SigDepth.Name = UNiagaraDataInterfaceCollisionQuery::SceneDepthName;
 	SigDepth.bMemberFunction = true;
 	SigDepth.bRequiresContext = false;
 	SigDepth.bSupportsCPU = false;
+#if WITH_EDITORONLY_DATA
+	SigDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
 	SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")));
 	SigDepth.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")));
@@ -69,10 +89,13 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	OutFunctions.Add(SigDepth);
 
 	FNiagaraFunctionSignature SigMeshField;
-	SigMeshField.Name = TEXT("QueryMeshDistanceFieldGPU");
+	SigMeshField.Name = UNiagaraDataInterfaceCollisionQuery::DistanceFieldName;
 	SigMeshField.bMemberFunction = true;
 	SigMeshField.bRequiresContext = false;
 	SigMeshField.bSupportsCPU = false;
+#if WITH_EDITORONLY_DATA
+	SigMeshField.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
 	SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("FieldSamplePosWorld")));
 	SigMeshField.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("DistanceToNearestSurface")));
@@ -81,14 +104,18 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
     OutFunctions.Add(SigMeshField);
 
 	FNiagaraFunctionSignature SigCpuSync;
-	SigCpuSync.Name = TEXT("PerformCollisionQuerySyncCPU");
+	SigCpuSync.Name = UNiagaraDataInterfaceCollisionQuery::SyncTraceName;
 	SigCpuSync.bMemberFunction = true;
 	SigCpuSync.bRequiresContext = false;
 	SigCpuSync.bSupportsGPU = false;
+#if WITH_EDITORONLY_DATA
+	SigCpuSync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")));
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")));
 	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")));
+	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")));
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")));
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionPosWorld")));
@@ -98,15 +125,19 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	OutFunctions.Add(SigCpuSync);
 
 	FNiagaraFunctionSignature SigCpuAsync;
-	SigCpuAsync.Name = TEXT("PerformCollisionQueryAsyncCPU");
+	SigCpuAsync.Name = UNiagaraDataInterfaceCollisionQuery::AsyncTraceName;
 	SigCpuAsync.bMemberFunction = true;
 	SigCpuAsync.bRequiresContext = false;
 	SigCpuAsync.bSupportsGPU = false;
+#if WITH_EDITORONLY_DATA
+	SigCpuAsync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+#endif
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")));
 	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")));
+	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NextFrameQueryID")));
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")));
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")));
@@ -174,6 +205,34 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	// Early out for version matching
+	if (FunctionSignature.FunctionVersion == FNiagaraCollisionDIFunctionVersion::LatestVersion)
+	{
+		return bWasChanged;
+	}
+
+	// Added the possibility to skip a line trace to increase performance when only a fraction of particles wants to do a line trace
+	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::AddedTraceSkip)
+	{
+		if (FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::SyncTraceName || FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::AsyncTraceName)
+		{
+			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
+			bWasChanged = true;
+		}
+	}
+
+	// Set latest version
+	FunctionSignature.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+
+	return bWasChanged;
+}
+#endif
+
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	// we don't need to add these to hlsl, as they're already in common.ush
@@ -186,19 +245,19 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDist
 
 void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
-	if (BindingInfo.Name == TEXT("PerformCollisionQuerySyncCPU"))
+	if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SyncTraceName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQuerySyncCPU)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == TEXT("PerformCollisionQueryAsyncCPU"))
+	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::AsyncTraceName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQueryAsyncCPU)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == TEXT("QuerySceneDepthGPU"))
+	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SceneDepthName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QuerySceneDepth)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == TEXT("QueryMeshDistanceFieldGPU"))
+	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::DistanceFieldName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDistanceField)::Bind(this, OutFunc);
 	}
@@ -223,8 +282,10 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 
 	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
 
-	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryValid(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutInsideMesh(Context);
+	VectorVM::FExternalFuncInputHandler<FNiagaraBool> IsSkipTrace(Context);
+
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutQueryValid(Context);
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutInsideMesh(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosZ(Context);
@@ -240,13 +301,14 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
 		FVector Dir(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
 		ECollisionChannel TraceChannel = TraceChannelParam.GetAndAdvance();
+		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
 		ensure(!Pos.ContainsNaN());
 		FNiagaraDICollsionQueryResult Res;
-		bool Valid = InstanceData->CollisionBatch.PerformQuery(Pos, Dir, Res, TraceChannel);
-		if (Valid)
+
+		if (!Skip && InstanceData->CollisionBatch.PerformQuery(Pos, Dir, Res, TraceChannel))
 		{
-			*OutQueryValid.GetDestAndAdvance() = 0xFFFFFFFF; //->SetValue(true);
-			*OutInsideMesh.GetDestAndAdvance() = Res.IsInsideMesh ? 0xFFFFFFFF : 0;
+			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
+			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);
 			*OutCollisionPosX.GetDestAndAdvance() = Res.CollisionPos.X;
 			*OutCollisionPosY.GetDestAndAdvance() = Res.CollisionPos.Y;
 			*OutCollisionPosZ.GetDestAndAdvance() = Res.CollisionPos.Z;
@@ -258,8 +320,8 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 		}
 		else
 		{
-			*OutQueryValid.GetDestAndAdvance() = 0; //->SetValue(false);
-			*OutInsideMesh.GetDestAndAdvance() = 0;
+			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool();
+			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool();
 			*OutCollisionPosX.GetDestAndAdvance() = 0.0f;
 			*OutCollisionPosY.GetDestAndAdvance() = 0.0f;
 			*OutCollisionPosZ.GetDestAndAdvance() = 0.0f;
@@ -287,10 +349,12 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 
 	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
 
+	VectorVM::FExternalFuncInputHandler<FNiagaraBool> IsSkipTrace(Context);
+
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryID(Context);
 
-	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryValid(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutInsideMesh(Context);
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutQueryValid(Context);
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutInsideMesh(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosZ(Context);
@@ -306,18 +370,18 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
 		FVector End(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
 		ECollisionChannel TraceChannel = TraceChannelParam.GetAndAdvance();
+		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
 		ensure(!Pos.ContainsNaN());
 
-		*OutQueryID.GetDestAndAdvance() = InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
+		*OutQueryID.GetDestAndAdvance() = Skip ? 0 : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
 
 		// try to retrieve a query with the supplied query ID
 		FNiagaraDICollsionQueryResult Res;
 		int32 ID = InIDParam.GetAndAdvance();
-		bool Valid = InstanceData->CollisionBatch.GetQueryResult(ID, Res);
-		if (Valid)
+		if (ID > 0 && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
 		{
-			*OutQueryValid.GetDestAndAdvance() = 0xFFFFFFFF; //->SetValue(true);
-			*OutInsideMesh.GetDestAndAdvance() = Res.IsInsideMesh ? 0xFFFFFFFF : 0;
+			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
+			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);
 			*OutCollisionPosX.GetDestAndAdvance() = Res.CollisionPos.X;
 			*OutCollisionPosY.GetDestAndAdvance() = Res.CollisionPos.Y;
 			*OutCollisionPosZ.GetDestAndAdvance() = Res.CollisionPos.Z;
@@ -329,8 +393,8 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 		}
 		else
 		{
-			*OutQueryValid.GetDestAndAdvance() = 0; //->SetValue(false);
-			*OutInsideMesh.GetDestAndAdvance() = 0;
+			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool();
+			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool();
 			*OutCollisionPosX.GetDestAndAdvance() = 0.0f;
 			*OutCollisionPosY.GetDestAndAdvance() = 0.0f;
 			*OutCollisionPosZ.GetDestAndAdvance() = 0.0f;
