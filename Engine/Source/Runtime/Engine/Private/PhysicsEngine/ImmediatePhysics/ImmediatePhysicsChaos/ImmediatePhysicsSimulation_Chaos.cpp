@@ -635,8 +635,6 @@ namespace ImmediatePhysics_Chaos
 		Implementation->SimulationSpace.AngularAcceleration = AngularAcc;
 		Implementation->SimulationSpace.LinearVelocity = LinearVel;
 		Implementation->SimulationSpace.AngularVelocity = AngularVel;
-
-		Implementation->NarrowPhase.GetContext().SpaceTransform = Transform;	// @todo(chaos): remove when manifolds are fixed or removed
 	}
 
 	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha, const FReal ExternalLinearEtherDrag)
