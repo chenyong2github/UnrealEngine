@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "InputState.h"
 
 /**
  * IModifierToggleBehaviorTarget is an interface that InputBehaviors can use to notify
