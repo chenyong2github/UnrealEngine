@@ -82,9 +82,11 @@ SAssetView::~SAssetView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem();
-		ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
-		ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+		if (UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem())
+		{
+			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+			ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+		}
 	}
 
 	// Remove the listener for when view settings are changed

@@ -10,7 +10,7 @@ class FContentBrowserDataModule : public IContentBrowserDataModule
 public:
 	virtual UContentBrowserDataSubsystem* GetSubsystem() const override
 	{
-		return GEditor->GetEditorSubsystem<UContentBrowserDataSubsystem>();
+		return GEditor ? GEditor->GetEditorSubsystem<UContentBrowserDataSubsystem>() : nullptr;
 	}
 };
 
