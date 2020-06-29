@@ -441,7 +441,13 @@ void FSequencerObjectBindingNode::AddSpawnLevelMenu(FMenuBuilder& MenuBuilder)
 		EUserInterfaceActionType::ToggleButton
 	);
 
-	for (ULevelStreaming* LevelStreaming : GWorld->GetStreamingLevels())
+	UWorld* World = Cast<UWorld>(GetSequencer().GetPlaybackContext());
+	if (!World)
+	{
+		return;
+	}
+
+	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
 	{
 		if (LevelStreaming)
 		{
