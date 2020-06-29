@@ -90,6 +90,9 @@ void SetGBufferForShadingModel(
 		GBuffer.CustomData.x = ClearCoat;
 		GBuffer.CustomData.y = ClearCoatRoughness;
 
+		// Clamp roughness to guarantee functional inverse when computing SphereSinAlpha for multiple layers
+		GBuffer.Roughness = clamp(GBuffer.Roughness, 0.0, 254.0 / 255.0);
+
 	#if CLEAR_COAT_BOTTOM_NORMAL
 		{
 			float2 oct2 = UnitVectorToOctahedron(GBuffer.WorldNormal);
