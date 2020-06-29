@@ -23,8 +23,10 @@
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "AssetGenerationUtil.h"
 
+// required to pass UStaticMesh asset so we can save at same location
+#include "Engine/Classes/Components/StaticMeshComponent.h"
+#include "Engine/Classes/Engine/StaticMesh.h"
 
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
 #include "Async/ParallelFor.h"
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsTool"
@@ -37,7 +39,9 @@
 
 bool UBakeMeshAttributeMapsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 2;
+	// NOTE: currently can only bake for UStaticMeshComponent
+	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 2 
+		&&(ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; }) == 2);
 }
 
 UInteractiveTool* UBakeMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -137,6 +141,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { InvalidateOcclusion(); });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->BlurRadius, [this](float) { InvalidateOcclusion(); });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->bGaussianBlur, [this](float) { InvalidateOcclusion(); });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { InvalidateOcclusion(); });
 
 	VisualizationProps = NewObject<UBakedOcclusionMapVisualizationProperties>(this);
 	VisualizationProps->RestoreProperties(this);
@@ -166,6 +171,9 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
+			UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(ComponentTargets[0]->GetOwnerComponent());
+			UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
+			check(StaticMeshAsset);
 			FString BaseName = ComponentTargets[0]->GetOwnerActor()->GetName();
 
 			if (AssetAPI != nullptr)
@@ -174,7 +182,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 				{
 					FTexture2DBuilder::CopyPlatformDataToSourceData(NormalMapProps->Result, FTexture2DBuilder::ETextureType::NormalMap);
 					bool bOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, NormalMapProps->Result,
-						FString::Printf(TEXT("%s_Normals"), *BaseName));
+						FString::Printf(TEXT("%s_Normals"), *BaseName), StaticMeshAsset);
 					check(bOK);
 				}
 
@@ -182,7 +190,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 				{
 					FTexture2DBuilder::CopyPlatformDataToSourceData(OcclusionMapProps->Result, FTexture2DBuilder::ETextureType::AmbientOcclusion);
 					bool bOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, OcclusionMapProps->Result,
-						FString::Printf(TEXT("%s_Occlusion"), *BaseName));
+						FString::Printf(TEXT("%s_Occlusion"), *BaseName), StaticMeshAsset);
 					check(bOK);
 				}
 			}
@@ -330,7 +338,9 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	OcclusionMapSettings.MaxDistance = (OcclusionMapProps->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionMapProps->MaxDistance;
 	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
 	OcclusionMapSettings.BlurRadius = (OcclusionMapProps->bGaussianBlur) ? OcclusionMapProps->BlurRadius : 0.0;
+	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
 	bool bBakeOcclusion = Settings->bAmbientOcclusionMap && ! (CachedOcclusionMapSettings == OcclusionMapSettings);
+	double BiasDotThreshold = FMathd::Cos( FMathd::Clamp(90.0-OcclusionMapSettings.BiasAngle, 0.0, 90.0) * FMathd::DegToRad );
 
 	// if we have nothing to do, we can early-out
 	if (bBakeNormals == false && bBakeOcclusion == false)
@@ -355,6 +365,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	{
 		//FVector3d BaseTriNormal = Mesh->GetTriNormal(SampleInfo.TriangleIndex);
 		NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords[0], &ValueOut.BaseNormal[0]);
+		ValueOut.BaseNormal.Normalize();
 		FVector3d RayDir = ValueOut.BaseNormal;
 
 		ValueOut.BaseSample = SampleInfo;
@@ -381,6 +392,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 
 			FVector3d DetailNormal;
 			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
+			DetailNormal.Normalize();
 			double dx = DetailNormal.Dot(BaseTangentX);
 			double dy = DetailNormal.Dot(BaseTangentY);
 			double dz = DetailNormal.Dot(SampleData.BaseNormal);
@@ -419,9 +431,10 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 		if (DetailMesh.IsTriangle(DetailTriID))
 		{
 			FIndex3i DetailTri = DetailMesh.GetTriangle(DetailTriID);
-			FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
-			//FVector3d DetailNormal;
-			//DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTID, &DetailTriBaryCoords[0], &DetailNormal[0]);
+			//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
+			FVector3d DetailTriNormal;
+			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailTriNormal.X);
+			DetailTriNormal.Normalize();
 
 			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
 			FVector3d DetailPos = DetailMesh.GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);
@@ -435,17 +448,30 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 			QueryOptions.MaxDistance = OcclusionMapSettings.MaxDistance;
 
 			double AccumOcclusion = 0;
+			double TotalWeight = 0;
 			for (FVector3d SphereDir : RayDirections)
 			{
 				FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
 				check(OcclusionRay.Direction.Dot(DetailTriNormal) > 0);
-				if ( DetailSpatial.TestAnyHitTriangle(OcclusionRay, QueryOptions) )
+
+				// Have weight of point fall off as it becomes more coplanar with face. 
+				// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
+				double PointWeight = 1.0;
+				double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
+				if (BiasDot < BiasDotThreshold)
 				{
-					AccumOcclusion += 1.0;
+					PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot/BiasDotThreshold,0.0,1.0));
+					PointWeight *= PointWeight;
+				}
+				TotalWeight += PointWeight;
+
+				if (DetailSpatial.TestAnyHitTriangle(OcclusionRay, QueryOptions))
+				{
+					AccumOcclusion += PointWeight;
 				}
 			}
 
-			AccumOcclusion /= (double)RayDirections.Num();
+			AccumOcclusion = (TotalWeight > 0.0001) ? (AccumOcclusion / TotalWeight) : 0.0;
 			return AccumOcclusion;
 		}
 		return 0.0;
