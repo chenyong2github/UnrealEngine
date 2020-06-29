@@ -1030,6 +1030,16 @@ bool FLiveLinkClient::DoesSubjectSupportsRole(const FLiveLinkSubjectKey& InSubje
 	return false;
 }
 
+bool FLiveLinkClient::DoesSubjectSupportsRole(FLiveLinkSubjectName InSubjectName, TSubclassOf<ULiveLinkRole> InSupportedRole) const
+{
+	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
+	{
+		return SubjectItem->GetSubject()->SupportsRole(InSupportedRole);
+	}
+
+	return false;
+}
+
 TArray<FLiveLinkTime> FLiveLinkClient::GetSubjectFrameTimes(const FLiveLinkSubjectKey& InSubjectKey) const
 {
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
