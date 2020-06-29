@@ -53,6 +53,7 @@
 #include "IPlacementModeModule.h"
 #include "Classes/EditorStyleSettings.h"
 #include "StatusBarSubsystem.h"
+#include "Widgets/Colors/SColorPicker.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -587,12 +588,25 @@ TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 {
 	TSharedRef<SActorDetails> ActorDetails = StaticCastSharedRef<SActorDetails>( CreateActorDetails( TabIdentifier ) );
 
+	TWeakPtr<SActorDetails> ActorDetailsWeakPtr = ActorDetails;
+
 	const FText Label = NSLOCTEXT( "LevelEditor", "DetailsTabTitle", "Details" );
 
 	TSharedRef<SDockTab> DocTab = SNew(SDockTab)
 		.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
 		.Label( Label )
 		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "DetailsTab" ) )
+		.OnTabDrawerClosed_Lambda([ActorDetailsWeakPtr]()
+			{
+				// Close the color picker if a details panel is put into a drawer since you cant visually see the properties anymore
+				if (TSharedPtr<SColorPicker> ColorPicker = GetColorPicker())
+				{
+					if (ColorPicker->GetOptionalOwningDetailsView().IsValid())
+					{
+						DestroyColorPicker();
+					}
+				}
+			})
 		[
 			SNew( SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))

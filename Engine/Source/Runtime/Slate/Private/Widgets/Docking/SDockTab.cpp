@@ -515,6 +515,8 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->TabIcon = InArgs._Icon;
 	this->bShouldAutosize = InArgs._ShouldAutosize;
 	this->TabColorScale = InArgs._TabColorScale;
+	
+	OnTabDrawerClosedEvent = InArgs._OnTabDrawerClosed;
 
 	MajorTabStyle = &FAppStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.MajorTab");
 	GenericTabStyle = &FAppStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.Tab");
@@ -683,6 +685,11 @@ void SDockTab::UpdateTabStyle()
 	const FTextBlockStyle& TabTextStyle = GetCurrentStyle().TabTextStyle;
 	LabelSuffix->SetTextStyle(&TabTextStyle);
 	LabelWidget->SetTextStyle(&TabTextStyle);
+}
+
+void SDockTab::OnTabDrawerClosed()
+{
+	OnTabDrawerClosedEvent.ExecuteIfBound();
 }
 
 const FDockTabStyle& SDockTab::GetCurrentStyle() const

@@ -360,7 +360,7 @@ void STabSidebar::OnWindowDPIScaleChanged(TSharedRef<SWindow> WindowThatChanged)
 	}
 }
 
-void STabSidebar::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
+void STabSidebar::OnActiveTabChanged(TSharedPtr<SDockTab> NewlyActivated, TSharedPtr<SDockTab> PreviouslyActive)
 {
 	// If a new major tab was activated remove any visible drawer instantly
 	if (NewlyActivated.IsValid() && NewlyActivated->GetVisualTabRole() == ETabRole::MajorTab)
@@ -441,6 +441,8 @@ void STabSidebar::RemoveDrawer(TSharedRef<SDockTab> ForTab)
 
 		OpenedDrawers.Remove(OpenedDrawerRef);
 	}
+
+	ForTab->OnTabDrawerClosed();
 
 	UpdateDrawerAppearance();
 }

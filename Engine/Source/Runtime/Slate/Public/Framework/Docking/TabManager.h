@@ -22,9 +22,9 @@ struct FSidebarTabLists;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnActiveTabChanged,
-	/** Previously active tab */
-	TSharedPtr<SDockTab>,
 	/** Newly active tab */
+	TSharedPtr<SDockTab>,
+	/** Previously active tab */
 	TSharedPtr<SDockTab> );
 	
 

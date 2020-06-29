@@ -356,6 +356,19 @@ EActiveTimerReturnType STabDrawer::UpdateAnimation(double CurrentTime, float Del
 	return EActiveTimerReturnType::Continue;
 }
 
+static bool IsLegalWidgetFocused(const FWidgetPath& FocusPath, const TArrayView<TSharedRef<SWidget>> LegalFocusWidgets)
+{
+	for (const TSharedRef<const SWidget>& Widget : LegalFocusWidgets)
+	{
+		if (FocusPath.ContainsWidget(Widget))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
 {
 	// Sometimes when dismissing focus can change which will trigger this again
@@ -366,25 +379,34 @@ void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 		TGuardValue<bool> RentrancyGuard(bIsRentrant, true);
 
 		TSharedRef<STabDrawer> ThisWidget = SharedThis(this);
+		TArray<TSharedRef<SWidget>, TInlineAllocator<4>> LegalFocusWidgets;
+		LegalFocusWidgets.Add(ThisWidget);
+		LegalFocusWidgets.Add(ChildSlot.GetWidget());
 
 		bool bShouldLoseFocus = false;
 		// Do not close due to slow tasks as those opening send window activation events
-		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && (!NewFocusedWidgetPath.ContainsWidget(ChildSlot.GetWidget()) && !NewFocusedWidgetPath.ContainsWidget(ThisWidget)))
+		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && !IsLegalWidgetFocused(NewFocusedWidgetPath, MakeArrayView(LegalFocusWidgets)))
 		{
-			if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
-			{
-				FWidgetPath MenuHostPath;
+			TSharedRef<SWindow> NewWindow = NewFocusedWidgetPath.GetWindow();
+			TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(ThisWidget);
 
-				// See if the menu being opened is owned by the drawer contents and if so the menu should not be dismissed
-				FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath);
-				if (!MenuHostPath.ContainsWidget(ChildSlot.GetWidget()))
+			if (!NewWindow->IsDescendantOf(MyWindow))
+			{
+				if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
+				{
+					FWidgetPath MenuHostPath;
+
+					// See if the menu being opened is owned by the drawer contents and if so the menu should not be dismissed
+					FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath);
+					if (!MenuHostPath.ContainsWidget(ChildSlot.GetWidget()))
+					{
+						bShouldLoseFocus = true;
+					}
+				}
+				else
 				{
 					bShouldLoseFocus = true;
 				}
-			}
-			else
-			{
-				bShouldLoseFocus = true;
 			}
 		}
 

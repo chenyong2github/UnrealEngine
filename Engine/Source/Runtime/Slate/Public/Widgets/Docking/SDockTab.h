@@ -47,6 +47,7 @@ enum ETabActivationCause : uint8
 class SLATE_API SDockTab : public SBorder
 {
 	friend class FTabManager;
+	friend class STabSidebar;
 public:
 
 	/** Invoked when a tab is closing */
@@ -92,6 +93,8 @@ public:
 		SLATE_ARGUMENT( bool, ShouldAutosize )
 		SLATE_EVENT( FCanCloseTab, OnCanCloseTab )
 		SLATE_EVENT( FOnPersistVisualState, OnPersistVisualState )
+		/** Invoked when a tab is closed from a drawer. This does not mean the tab or its contents is destroyed, just hidden. Use OnTabClosed for that */
+		SLATE_EVENT( FSimpleDelegate, OnTabDrawerClosed)
 		SLATE_ATTRIBUTE( FLinearColor, TabColorScale )
 		SLATE_ATTRIBUTE( FSlateColor, ForegroundColor )
 	SLATE_END_ARGS()
@@ -333,6 +336,8 @@ private:
 
 	void UpdateTabStyle();
 
+	void OnTabDrawerClosed();
+
 	/** The handle to the active tab activation tick */
 	TWeakPtr<FActiveTimerHandle> DragDropTimerHandle;
 	TWeakPtr<FActiveTimerHandle> UpdateStyleTimerHandle;
@@ -373,6 +378,8 @@ protected:
 
 	/** Delegate to execute to determine if we can close this tab */
 	FCanCloseTab OnCanCloseTab;
+
+	FSimpleDelegate OnTabDrawerClosedEvent;
 
 	/**
 	 * Invoked during the Save Visual State pass; gives this tab a chance to save misc info about visual state.

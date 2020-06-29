@@ -76,6 +76,14 @@ void FColorStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>&
 }
 
 
+FColorStructCustomization::~FColorStructCustomization()
+{
+	if (ActiveTransaction != INDEX_NONE && GEditor)
+	{
+		GEditor->CancelTransaction(ActiveTransaction);
+	}
+}
+
 TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPropertyHandle> StructWeakHandlePtr)
 {
 	FSlateFontInfo NormalText = IDetailLayoutBuilder::GetDetailFont();
@@ -173,7 +181,7 @@ void FColorStructCustomization::GetSortedChildren(TSharedRef<IPropertyHandle> In
 
 void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 {
-	GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
+	ActiveTransaction = GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
 
 	int32 NumObjects = StructPropertyHandle->GetNumOuterObjects();
 
@@ -231,7 +239,7 @@ void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 
 TSharedRef<SColorPicker> FColorStructCustomization::CreateInlineColorPicker(TWeakPtr<IPropertyHandle> StructWeakHandlePtr)
 {
-	GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
+	ActiveTransaction = GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
 
 	int32 NumObjects = StructPropertyHandle->GetNumOuterObjects();
 
@@ -318,7 +326,12 @@ void FColorStructCustomization::OnColorPickerCancelled(FLinearColor OriginalColo
 		StructPropertyHandle->SetPerObjectValues(PerObjectColors);
 	}
 
-	GEditor->CancelTransaction(0);
+	if (ActiveTransaction != INDEX_NONE)
+	{
+		GEditor->CancelTransaction(ActiveTransaction);
+		ActiveTransaction = INDEX_NONE;
+	}
+
 }
 
 void FColorStructCustomization::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window)
@@ -328,6 +341,7 @@ void FColorStructCustomization::OnColorPickerWindowClosed(const TSharedRef<SWind
 	StructPropertyHandle->GetValueAsFormattedString(ColorString);
 	StructPropertyHandle->SetValueFromFormattedString(ColorString);
 	GEditor->EndTransaction();
+	ActiveTransaction = INDEX_NONE;
 }
 
 

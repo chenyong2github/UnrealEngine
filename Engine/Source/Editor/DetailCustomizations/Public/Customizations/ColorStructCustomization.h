@@ -22,7 +22,8 @@ class DETAILCUSTOMIZATIONS_API FColorStructCustomization
 public:
 
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
-	
+	~FColorStructCustomization();
+
 protected:
 
 	FColorStructCustomization()
@@ -30,6 +31,7 @@ protected:
 		, bIsInlineColorPickerVisible(false)
 		, bIsInteractive(false)
 		, bDontUpdateWhileEditing(false)
+		, ActiveTransaction(INDEX_NONE)
 	{}
 
 protected:
@@ -157,4 +159,6 @@ protected:
 
 	/** Overrides the default state of the sRGB check box */
 	TOptional<bool> sRGBOverride;
+
+	int32 ActiveTransaction;
 };
