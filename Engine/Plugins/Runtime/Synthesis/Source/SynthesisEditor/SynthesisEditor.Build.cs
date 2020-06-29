@@ -4,39 +4,45 @@ namespace UnrealBuildTool.Rules
 {
 	public class SynthesisEditor : ModuleRules
 	{
-        public SynthesisEditor(ReadOnlyTargetRules Target) : base(Target)
+		public SynthesisEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-
-            PublicDependencyModuleNames.AddRange(
-				new string[] {
-                    "Core",
+			PublicDependencyModuleNames.AddRange
+			(
+				new string[]
+				{
+					"Core",
 					"CoreUObject",
 					"Engine",
-                    "UnrealEd",
+					"UnrealEd",
 					"AudioEditor",
-                    "Synthesis",
+					"Synthesis",
 					"AudioMixer",
-                    "ToolMenus",
-                    "EditorStyle",
-                    "Slate",
-                    "SlateCore",
-                    "ContentBrowser",
+					"ToolMenus",
+					"EditorStyle",
+					"Slate",
+					"SlateCore",
+					"ContentBrowser",
 				}
 			);
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
+			PrivateDependencyModuleNames.AddRange
+			(
+				new string[]
+				{
 					"AudioSynesthesiaCore",
+					"DeveloperSettings",
 					"UMG",
 					"UMGEditor",
-			});
+				}
+			);
 
-			OptimizeCode = CodeOptimization.Never;
-
-            PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                    "AssetTools"
-            });
-        }
+			PrivateIncludePathModuleNames.AddRange
+			(
+				new string[]
+				{
+					"AssetTools"
+				}
+			);
+		}
 	}
 }
