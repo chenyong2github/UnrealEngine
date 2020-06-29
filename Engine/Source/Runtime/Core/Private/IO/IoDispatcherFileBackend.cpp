@@ -162,7 +162,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	for (const FIoStoreTocCompressedBlockEntry& CompressedBlockEntry : TocResource.CompressionBlocks)
 	{
-		if (CompressedBlockEntry.GetOffset() + CompressedBlockEntry.GetSize() > ContainerFile.FileSize)
+		if (CompressedBlockEntry.GetOffset() + CompressedBlockEntry.GetCompressedSize() > ContainerFile.FileSize)
 		{
 			return (FIoStatus)(FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'"));
 		}
@@ -416,11 +416,10 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 		uint64 OffsetInBuffer = CompressedBlock->RawOffset - RawBlock->Offset;
 		CompressedBuffer = RawBlock->Buffer->Memory + OffsetInBuffer;
 	}
-	const uint64 BufferSize = CompressedBlock->CompressionMethod.IsNone() ? CompressedBlock->Size : CompressedBlock->RawSize;
 	if (CompressedBlock->SignatureHash)
 	{
 		FSHAHash BlockHash;
-		FSHA1::HashBuffer(CompressedBuffer, BufferSize, BlockHash.Hash);
+		FSHA1::HashBuffer(CompressedBuffer, CompressedBlock->RawSize, BlockHash.Hash);
 		if (*CompressedBlock->SignatureHash != BlockHash)
 		{
 			FIoSignatureError Error;
@@ -444,7 +443,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 	}
 	if (CompressedBlock->EncryptionKey.IsValid())
 	{
-		FAES::DecryptData(CompressedBuffer, static_cast<uint32>(BufferSize), CompressedBlock->EncryptionKey);
+		FAES::DecryptData(CompressedBuffer, CompressedBlock->RawSize, CompressedBlock->EncryptionKey);
 	}
 	uint8* UncompressedBuffer;
 	if (CompressedBlock->CompressionMethod.IsNone())
@@ -453,15 +452,15 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 	}
 	else
 	{
-		if (CompressionContext->UncompressedBufferSize < CompressedBlock->Size)
+		if (CompressionContext->UncompressedBufferSize < CompressedBlock->UncompressedSize)
 		{
 			FMemory::Free(CompressionContext->UncompressedBuffer);
-			CompressionContext->UncompressedBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->Size));
-			CompressionContext->UncompressedBufferSize = CompressedBlock->Size;
+			CompressionContext->UncompressedBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedBlock->UncompressedSize));
+			CompressionContext->UncompressedBufferSize = CompressedBlock->UncompressedSize;
 		}
 		UncompressedBuffer = CompressionContext->UncompressedBuffer;
 
-		bool bFailed = !FCompression::UncompressMemory(CompressedBlock->CompressionMethod, UncompressedBuffer, int32(CompressedBlock->Size), CompressedBuffer, int32(CompressedBlock->RawSize));
+		bool bFailed = !FCompression::UncompressMemory(CompressedBlock->CompressionMethod, UncompressedBuffer, int32(CompressedBlock->UncompressedSize), CompressedBuffer, int32(CompressedBlock->CompressedSize));
 		check(!bFailed);
 	}
 
@@ -720,11 +719,12 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 			bool bCacheable = OffsetInRequest > 0 || RequestRemainingBytes < CompressionBlockSize;
 
 			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[CompressedBlockIndex];
-			CompressedBlock->Size = CompressionBlockEntry.GetUncompressedSize();
+			CompressedBlock->UncompressedSize = CompressionBlockEntry.GetUncompressedSize();
+			CompressedBlock->CompressedSize = CompressionBlockEntry.GetCompressedSize();
 			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.GetCompressionMethodIndex()];
 			CompressedBlock->SignatureHash = Reader.IsSigned() ? &ContainerFile.BlockSignatureHashes[CompressedBlockIndex] : nullptr;
 			uint64 RawOffset = CompressionBlockEntry.GetOffset();
-			uint64 RawSize = CompressionBlockEntry.GetSize();
+			uint32 RawSize = Align(CompressionBlockEntry.GetCompressedSize(), FAES::AESBlockSize); // The raw blocks size is always aligned to AES blocks size
 			CompressedBlock->RawOffset = RawOffset;
 			CompressedBlock->RawSize = RawSize;
 			const uint32 RawBeginBlockIndex = uint32(RawOffset / ReadBufferSize);
@@ -771,10 +771,10 @@ void FFileIoStore::ReadBlocks(uint32 ReaderIndex, const FFileIoStoreResolvedRequ
 				++CompressedBlock->UnfinishedRawBlocksCount;
 			}
 		}
-		check(CompressedBlock->Size > RequestStartOffsetInBlock);
-		uint64 RequestSizeInBlock = FMath::Min<uint64>(CompressedBlock->Size - RequestStartOffsetInBlock, RequestRemainingBytes);
+		check(CompressedBlock->UncompressedSize > RequestStartOffsetInBlock);
+		uint64 RequestSizeInBlock = FMath::Min<uint64>(CompressedBlock->UncompressedSize - RequestStartOffsetInBlock, RequestRemainingBytes);
 		check(OffsetInRequest + RequestSizeInBlock <= ResolvedRequest.Request->IoBuffer.DataSize());
-		check(RequestStartOffsetInBlock + RequestSizeInBlock <= CompressedBlock->Size);
+		check(RequestStartOffsetInBlock + RequestSizeInBlock <= CompressedBlock->UncompressedSize);
 
 		++ResolvedRequest.Request->UnfinishedReadsCount;
 		FFileIoStoreBlockScatter& Scatter = CompressedBlock->ScatterList.AddDefaulted_GetRef();
