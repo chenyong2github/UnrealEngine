@@ -43,6 +43,7 @@ void UMovieSceneEntityInstantiatorSystem::UnlinkStaleObjectBindings(UE::MovieSce
 	.ReadEntityIDs()
 	.Read(Components->InstanceHandle)
 	.Read(BindingType)
+	.FilterAll({ Components->Tags.ImportedEntity })
 	.FilterNone({ Components->Tags.NeedsUnlink })
 	.Iterate_PerEntity(&Linker->EntityManager, GatherStaleBindings);
 
@@ -112,6 +113,7 @@ void UMovieSceneEntityInstantiatorSystem::UnlinkStaleObjectBindings(UE::MovieSce
 	.ReadEntityIDs()
 	.Read(Components->InstanceHandle)
 	.Read(BindingType)
+	.FilterAll({ Components->Tags.ImportedEntity })
 	.FilterNone({ Components->Tags.NeedsUnlink })
 	.Iterate_PerEntity(&Linker->EntityManager, GatherStaleBindings);
 
