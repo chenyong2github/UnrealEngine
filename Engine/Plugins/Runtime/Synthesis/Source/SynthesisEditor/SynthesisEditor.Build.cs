@@ -27,6 +27,8 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"AudioSynesthesiaCore",
+					"UMG",
+					"UMGEditor",
 			});
 
 			OptimizeCode = CodeOptimization.Never;
