@@ -23,6 +23,7 @@
 #include "Rendering/ColorVertexBuffer.h"
 #include "FXSystem.h"
 #include "GPUSortManager.h"
+#include "VT/VirtualTextureSystem.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -217,6 +218,13 @@ void InitHitProxyRender(FRHICommandListImmediate& RHICmdList, const FSceneRender
 
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
+
+	// Ensure VirtualTexture resources are allocated
+	if (UseVirtualTexturing(FeatureLevel))
+	{
+		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
+	}
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
