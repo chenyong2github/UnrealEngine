@@ -28,7 +28,7 @@ enum class EHandleSourcesMethod : uint8
 
 // Standard property settings for tools that create a new actor and need to decide what to do with the input (source) actor(s)
 UCLASS()
-class MESHMODELINGTOOLS_API UOnAcceptHandleSourcesProperties : public UInteractiveToolPropertySet
+class MODELINGCOMPONENTS_API UOnAcceptHandleSourcesProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:

@@ -9,7 +9,7 @@
 #include "MultiSelectionTool.h"
 #include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
-#include "Properties/OnAcceptProperties.h"
+#include "PropertySets/OnAcceptProperties.h"
 
 #include "VoxelCSGMeshesTool.generated.h"
 
