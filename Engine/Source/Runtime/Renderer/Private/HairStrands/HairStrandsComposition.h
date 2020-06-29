@@ -12,4 +12,4 @@
 void RenderHairComposition(
 	FRHICommandListImmediate& RHICmdList, 
 	const TArray<FViewInfo>& Views,
-	const struct FHairStrandsDatas* HairDatas);
+	const struct FHairStrandsRenderingData* HairDatas);

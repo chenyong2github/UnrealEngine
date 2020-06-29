@@ -447,7 +447,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FRHICommandListImmediate& RHICmdList,
 	TRefCountPtr<IPooledRenderTarget>& SkyLightRT,
 	TRefCountPtr<IPooledRenderTarget>& HitDistanceRT,
-	const FHairStrandsDatas* HairDatas
+	const FHairStrandsRenderingData* HairDatas
 )
 {
 	SCOPED_DRAW_EVENT(RHICmdList, RayTracingSkyLight);
