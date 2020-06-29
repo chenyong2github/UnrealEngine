@@ -58,12 +58,13 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	//Bail if we don't have the required attributes to render this emitter.
 	const UNiagaraLightRendererProperties* Properties = CastChecked<const UNiagaraLightRendererProperties>(InProperties);
 	FNiagaraDataSet& Data = Emitter->GetData();
-	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
-	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
-	if (!Properties)
+	FNiagaraDataBuffer* DataToRender = Data.GetCurrentData();
+	if (DataToRender == nullptr)
 	{
-		return DynamicData;
+		return nullptr;
 	}
+
+	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
 
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
 	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
@@ -100,7 +101,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	float DefaultRadius = Properties->RadiusBinding.DefaultValueIfNonExistent.GetValue<float>();
 	float DefaultScattering = Properties->VolumetricScatteringBinding.DefaultValueIfNonExistent.GetValue<float>();
 
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
+	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 	{
 		bool ShouldRenderParticleLight = EnabledAccessor.GetSafe(ParticleIndex, true) != 0;
 		float LightRadius = RadiusAccessor.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
