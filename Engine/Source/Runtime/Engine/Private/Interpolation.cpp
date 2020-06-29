@@ -411,7 +411,7 @@ AMatineeActor::AMatineeActor(const FObjectInitializer& ObjectInitializer)
 
 void AMatineeActor::PostLoad()
 {
-	SetReplicates(!bClientSideOnly);
+	bReplicates = !bClientSideOnly;
 	Super::PostLoad();
 }
 
