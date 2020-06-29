@@ -1783,7 +1783,7 @@ void FRenderAssetStreamingManager::GetAssetComponents(const UStreamableRenderAss
 			}
 		}
 
-		const FRenderAssetInstanceView* DynamicInstancesView = DynamicComponentManager.GetAsyncView(false);
+		const FRenderAssetInstanceView* DynamicInstancesView = DynamicComponentManager.GetGameThreadView();
 		GatherComponentsFromView(RenderAsset, DynamicInstancesView, ShouldChoose, OutComps);
 	}
 }
