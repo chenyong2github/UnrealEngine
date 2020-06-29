@@ -19,7 +19,7 @@ enum class EAssetEditorCloseReason : uint8;
 enum class EMapChangeType : uint8;
 
 UCLASS()
-class UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
+class BLUTILITY_API UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
 {
 	GENERATED_UCLASS_BODY()
 
