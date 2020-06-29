@@ -8182,7 +8182,7 @@ void FSequencer::ExportObjectsToText(TArray<UObject*> ObjectsToExport, FString& 
 	ExportedText = Archive;
 }
 
-bool FSequencer::DoPaste()
+bool FSequencer::DoPaste(bool bClearSelection)
 {
 	if (IsReadOnly())
 	{
@@ -8197,8 +8197,8 @@ bool FSequencer::DoPaste()
 
 	TArray<FNotificationInfo> PasteErrors;
 	bool bAnythingPasted = false;
-	bAnythingPasted |= PasteObjectBindings(TextToImport, PasteErrors);
-	bAnythingPasted |= PasteTracks(TextToImport, PasteErrors);
+	bAnythingPasted |= PasteObjectBindings(TextToImport, PasteErrors, bClearSelection);
+	bAnythingPasted |= PasteTracks(TextToImport, PasteErrors, bClearSelection);
 	
 	if (!bAnythingPasted)
 	{
@@ -8217,7 +8217,7 @@ bool FSequencer::DoPaste()
 	return bAnythingPasted;
 }
 
-bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
+bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
 {
 	UWorld* World = Cast<UWorld>(GetPlaybackContext());
 
@@ -8240,17 +8240,20 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
 
 	TArray<FGuid> SelectedParentGuids;
-	for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
+	if (!bClearSelection)
 	{
-		if (Node->GetType() != ESequencerNode::Object)
+		for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 		{
-			continue;
-		}
+			if (Node->GetType() != ESequencerNode::Object)
+			{
+				continue;
+			}
 
-		TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
-		if (ObjectNode.IsValid())
-		{
-			SelectedParentGuids.Add(ObjectNode->GetObjectBinding());
+			TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+			if (ObjectNode.IsValid())
+			{
+				SelectedParentGuids.Add(ObjectNode->GetObjectBinding());
+			}
 		}
 	}
 
@@ -8519,7 +8522,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	return true;
 }
 
-bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
+bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
 {
 	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
@@ -8542,17 +8545,21 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
 
 	TArray<TSharedPtr<FSequencerObjectBindingNode>> ObjectNodes;
-	for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
-	{
-		if (Node->GetType() != ESequencerNode::Object)
-		{
-			continue;
-		}
 
-		TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
-		if (ObjectNode.IsValid())
+	if (bClearSelection)
+	{
+		for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 		{
-			ObjectNodes.Add(ObjectNode);
+			if (Node->GetType() != ESequencerNode::Object)
+			{
+				continue;
+			}
+
+			TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+			if (ObjectNode.IsValid())
+			{
+				ObjectNodes.Add(ObjectNode);
+			}
 		}
 	}
 
@@ -10896,10 +10903,12 @@ void FSequencer::DuplicateSelection()
 {
 	FScopedTransaction DuplicateSelectionTransaction(LOCTEXT("DuplicateSelection_Transaction", "Duplicate Selection"));
 
+	const bool bClearSelection = true;
+
 	if (Selection.GetSelectedKeys().Num() != 0)
 	{
 		CopySelection();
-		DoPaste();
+		DoPaste(bClearSelection);
 
 		// Shift duplicated keys by one display rate frame as an overlapping key isn't useful
 
@@ -10936,15 +10945,14 @@ void FSequencer::DuplicateSelection()
 	else if (Selection.GetSelectedSections().Num() != 0)
 	{
 		CopySelection();
-		DoPaste();
+		DoPaste(bClearSelection);
 	}
 	else
 	{
 		CopySelection();
+		DoPaste(bClearSelection);
 
-		EmptySelection();
-
-		DoPaste();
+		SynchronizeSequencerSelectionWithExternalSelection();
 	}
 }
 
@@ -11985,7 +11993,7 @@ void FSequencer::BindCommands()
 
 	auto CanDuplicate = [this]{
 
-		if (Selection.GetSelectedKeys().Num() || Selection.GetSelectedSections().Num())
+		if (Selection.GetSelectedKeys().Num() || Selection.GetSelectedSections().Num() || Selection.GetSelectedTracks().Num())
 		{
 			return true;
 		}
