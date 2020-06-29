@@ -353,19 +353,28 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 {
 	bool bSaveLODActorsToHLODPackages = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
 
-	bool bChanged = false;
+	// Check if the level must be resaved
+	bool bLevelChanged = false;
 	for (ALODActor* LODActor : OldLODActors)
 	{
+		// If the config was changed, we must resave the level
 		if (LODActor->WasBuiltFromHLODDesc() != bSaveLODActorsToHLODPackages)
 		{
-			bChanged = true;
+			bLevelChanged = true;
+			break;
+		}
+
+		// If actors spawned from the HLODPackage aren't transients, we must resave the level
+		if (LODActor->WasBuiltFromHLODDesc() && !LODActor->HasAllFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient))
+		{
+			bLevelChanged = true;
 			break;
 		}
 	}
 
 	// Compare the LOD actors we spawned against those in the level
-	bChanged = bChanged || OldLODActors.Num() != NewLODActors.Num();
-	if (!bChanged)
+	bool bActorChanged = bLevelChanged || OldLODActors.Num() != NewLODActors.Num();
+	if (!bActorChanged)
 	{
 		TSet<int32> HashedLODActors;
 		Algo::Transform(OldLODActors, HashedLODActors, [](ALODActor* LODActor) { return HashLODActorForClusterComparison(LODActor); });
@@ -375,14 +384,14 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 			int32 Hash = HashLODActorForClusterComparison(LODActor);
 			if (!HashedLODActors.Contains(Hash))
 			{
-				bChanged = true;
+				bActorChanged = true;
 				break;
 			}
 		}
 	}
 
 	// If clusters changed, delete old LOD actors and move the new ones in the proper level
-	if (bChanged)
+	if (bActorChanged)
 	{
 		// Delete all 
 		DeleteLODActors(InLevel);
@@ -393,7 +402,7 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 		for (ALODActor* LODActor : NewLODActors)
 		{
 			// Move the LOD actor from the temp level to the proper level
-			LODActor->Rename(nullptr, InLevel);
+			LODActor->Rename(nullptr, InLevel, REN_DoNotDirty);
 
 			// Reinsert actors properly in the LODActor subactors array
 			// Will also setup LODParentPrimitive for each actors primitive components.
@@ -409,10 +418,12 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 				UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(InLevel, LODActor->LODLevel - 1);
 				Proxy->AddLODActor(LODActor);
 			}
-			else
-			{
-				LODActor->MarkPackageDirty();
-			}
+		}
+
+		// If the level must be resaved, mark its package dirty
+		if (bLevelChanged)
+		{
+			InLevel->MarkPackageDirty();
 		}
 	}
 
@@ -1280,6 +1291,9 @@ ALODActor* FHierarchicalLODBuilder::CreateLODActor(const FLODCluster& InCluster,
 
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.OverrideLevel = TempLevel;
+
+			// LODActors that are saved to HLOD packages must be transient
+			ActorSpawnParams.ObjectFlags = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages ? EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient : EObjectFlags::RF_NoFlags;
 
 			NewActor = LevelWorld->SpawnActor<ALODActor>(ALODActor::StaticClass(), Transform, ActorSpawnParams);
 			NewLODActors.Add(NewActor);

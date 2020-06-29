@@ -42,6 +42,7 @@ void UHLODEditorSubsystem::RegisterRecreateLODActorsDelegates()
 	{
 		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEditorSubsystem::RecreateLODActorsForWorld);
 		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEditorSubsystem::RecreateLODActorsForLevel);
+		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorld.AddUObject(this, &UHLODEditorSubsystem::OnPreSaveWorld);
 	}	
 }
 
@@ -87,6 +88,32 @@ void UHLODEditorSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 		{
 			// Spawn LODActors from the HLODDesc, if any is found
 			HLODProxy->SpawnLODActors(InLevel);
+		}
+	}
+}
+
+void UHLODEditorSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)
+{
+	// When cooking, make sure that the LODActors are not transient
+	if (InWorld && InWorld->PersistentLevel && GIsCookerLoadingPackage)
+	{
+		for (TActorIterator<ALODActor> It(InWorld); It; ++It)
+		{
+			ALODActor* LODActor = *It;
+			if (LODActor->WasBuiltFromHLODDesc())
+			{
+				EObjectFlags TransientFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
+				if (LODActor->HasAnyFlags(TransientFlags))
+				{
+					LODActor->ClearFlags(TransientFlags);
+
+					const bool bIncludeNestedObjects = true;
+					ForEachObjectWithOuter(LODActor, [TransientFlags](UObject* Subobject)
+					{
+						Subobject->ClearFlags(TransientFlags);
+					}, bIncludeNestedObjects);
+				}
+			}
 		}
 	}
 }

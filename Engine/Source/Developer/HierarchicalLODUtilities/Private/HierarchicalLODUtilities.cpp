@@ -547,7 +547,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			Proxy->AddMesh(LODActor, MainMesh, UHLODProxy::GenerateKeyForActor(LODActor));
 			bDirtyPackage |= (LODActor->GetProxy() != PreviousProxy);
 
-			if(bDirtyPackage)
+			if(bDirtyPackage && !LODActor->WasBuiltFromHLODDesc())
 			{
 				LODActor->MarkPackageDirty();
 			}
@@ -755,8 +755,12 @@ ALODActor* FHierarchicalLODUtilities::CreateNewClusterActor(UWorld* InWorld, con
 		return nullptr;
 	}
 
+	// LODActors that are saved to HLOD packages must be transient
+	FActorSpawnParameters ActorSpawnParams;
+	ActorSpawnParams.ObjectFlags = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages ? EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient : EObjectFlags::RF_NoFlags;
+
 	// Spawn and setup actor
-	ALODActor* NewActor = InWorld->SpawnActor<ALODActor>(ALODActor::StaticClass(), FTransform());
+	ALODActor* NewActor = InWorld->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorSpawnParams);
 	NewActor->LODLevel = InLODLevel + 1;
 	NewActor->CachedNumHLODLevels = WorldSettings->GetNumHierarchicalLODLevels();
 	NewActor->SetDrawDistance(0.0f);
@@ -773,8 +777,10 @@ ALODActor* FHierarchicalLODUtilities::CreateNewClusterFromActors(UWorld* InWorld
 	checkf(WorldSettings != nullptr, TEXT("Invalid world settings"));
 	checkf(WorldSettings->bEnableHierarchicalLODSystem, TEXT("Hierarchical LOD system is disabled"));
 
+	const bool bWasWorldPackageDirty = InWorld->GetOutermost()->IsDirty();
+
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_CreateNewCluster", "Create new Cluster"));
-	InWorld->Modify();
+	InWorld->Modify(false);
 
 	// Create the cluster
 	ALODActor* NewCluster = CreateNewClusterActor(InWorld, InLODLevel, WorldSettings);
@@ -806,6 +812,22 @@ ALODActor* FHierarchicalLODUtilities::CreateNewClusterFromActors(UWorld* InWorld
 
 	// Update sub actor LOD parents to populate 
 	NewCluster->UpdateSubActorLODParents();
+
+	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+	{
+		UHLODProxy* Proxy = CreateOrRetrieveLevelHLODProxy(InWorld->PersistentLevel, NewCluster->LODLevel - 1);
+		Proxy->AddLODActor(NewCluster);
+
+		// Don't dirty the level file after spawning a transient actor
+		if (!bWasWorldPackageDirty)
+		{
+			InWorld->GetOutermost()->SetDirtyFlag(false);
+		}
+	}
+	else
+	{
+		NewCluster->MarkPackageDirty();
+	}	
 
 	return NewCluster;
 }
