@@ -422,8 +422,6 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 			SpawnInstanceParameterDataSet.Init(&SystemCompiledData.SpawnInstanceParamsDataSetCompiledData);
 
 			UpdateInstanceParameterDataSet.Init(&SystemCompiledData.UpdateInstanceParamsDataSetCompiledData);
-
-			ConstantBufferToDataSetBinding.Init(SystemCompiledData);
 		}
 
 		UNiagaraScript* SpawnScript = System->GetSystemSpawnScript();
@@ -468,8 +466,9 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 			// the system and emitter scripts use the default shared data interfaces.
 			if (!bIsSolo)
 			{
-				GetSystem()->GetExposedParameters().Bind(&GetSpawnExecutionContext().Parameters);
-				GetSystem()->GetExposedParameters().Bind(&GetUpdateExecutionContext().Parameters);
+				FNiagaraUserRedirectionParameterStore& ExposedParameters = System->GetExposedParameters();
+				ExposedParameters.Bind(&SpawnExecContext.Parameters);
+				ExposedParameters.Bind(&UpdateExecContext.Parameters);
 			}
 		}
 
@@ -477,11 +476,14 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DatasetAccessors);
 
-			SystemExecutionStateAccessor.Create(&MainDataSet, FNiagaraVariable(EnumPtr, TEXT("System.ExecutionState")));
+			static const FName NAME_System_ExecutionState = "System.ExecutionState";
+
+			SystemExecutionStateAccessor.Create(&MainDataSet, FNiagaraVariableBase(EnumPtr, NAME_System_ExecutionState));
 			EmitterSpawnInfoAccessors.Reset();
 			EmitterExecutionStateAccessors.Reset();
 			EmitterSpawnInfoAccessors.SetNum(System->GetNumEmitters());
 
+			TStringBuilder<128> ExecutionStateNameBuilder;
 			for (int32 EmitterIdx = 0; EmitterIdx < System->GetNumEmitters(); ++EmitterIdx)
 			{
 				FNiagaraEmitterHandle& EmitterHandle = System->GetEmitterHandle(EmitterIdx);
@@ -489,10 +491,15 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 				bool bAddedAccessor = false;
 				if (Emitter)
 				{
-					FString EmitterName = Emitter->GetUniqueEmitterName();
-					FNiagaraVariable ExecutionStateVar(EnumPtr, *(EmitterName + TEXT(".ExecutionState")));
-					if (MainDataSet.HasVariable(ExecutionStateVar))
+					ExecutionStateNameBuilder.Reset();
+					ExecutionStateNameBuilder << Emitter->GetUniqueEmitterName();
+					ExecutionStateNameBuilder << TEXT(".ExecutionState");
+
+					const FName ExecutionStateName(ExecutionStateNameBuilder.ToString());
+
+					if (MainDataSet.HasVariable(ExecutionStateName))
 					{
+						FNiagaraVariableBase ExecutionStateVar(EnumPtr, ExecutionStateName);
 						EmitterExecutionStateAccessors.Emplace(MainDataSet, ExecutionStateVar);
 						bAddedAccessor = true;
 						const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& EmitterCompiledData = System->GetEmitterCompiledData();
@@ -1371,7 +1378,8 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 			UpdateInstanceParameterToDataSetBinding.ParameterStoreToDataSet(InstParameters, UpdateInstanceParameterDataSet, SystemIndex);
 		}
 
-		ConstantBufferToDataSetBinding.CopyToDataSets(*Inst, SpawnInstanceParameterDataSet, UpdateInstanceParameterDataSet, SystemIndex);
+		FNiagaraConstantBufferToDataSetBinding::CopyToDataSets(
+			Context.System->GetSystemCompiledData(), *Inst, SpawnInstanceParameterDataSet, UpdateInstanceParameterDataSet, SystemIndex);
 
 		//TODO: Find good way to check that we're not using any instance parameter data interfaces in the system scripts here.
 		//In that case we need to solo and will never get here.
@@ -1978,42 +1986,29 @@ const FString& FNiagaraSystemSimulation::GetCrashReporterTag()const
 	return CrashReporterTag;
 }
 
-void FNiagaraConstantBufferToDataSetBinding::Init(const FNiagaraSystemCompiledData& CompiledData)
-{
-	// for now we'll copy the data to our local structure so that we don't have to worry about the lifetime of the compiled data
-	SpawnInstanceGlobalBinding = CompiledData.SpawnInstanceGlobalBinding;
-	SpawnInstanceSystemBinding = CompiledData.SpawnInstanceSystemBinding;
-	SpawnInstanceOwnerBinding = CompiledData.SpawnInstanceOwnerBinding;
-	SpawnInstanceEmitterBindings = CompiledData.SpawnInstanceEmitterBindings;
-
-	UpdateInstanceGlobalBinding = CompiledData.UpdateInstanceGlobalBinding;
-	UpdateInstanceSystemBinding = CompiledData.UpdateInstanceSystemBinding;
-	UpdateInstanceOwnerBinding = CompiledData.UpdateInstanceOwnerBinding;
-	UpdateInstanceEmitterBindings = CompiledData.UpdateInstanceEmitterBindings;
-}
-
 void FNiagaraConstantBufferToDataSetBinding::CopyToDataSets(
+	const FNiagaraSystemCompiledData& CompiledData,
 	const FNiagaraSystemInstance& SystemInstance,
 	FNiagaraDataSet& SpawnDataSet,
 	FNiagaraDataSet& UpdateDataSet,
-	int32 DataSestInstanceIndex) const
+	int32 DataSestInstanceIndex)
 {
 	{
 		const uint8* GlobalParameters = reinterpret_cast<const uint8*>(&SystemInstance.GetGlobalParameters());
-		ApplyOffsets(SpawnInstanceGlobalBinding, GlobalParameters, SpawnDataSet, DataSestInstanceIndex);
-		ApplyOffsets(UpdateInstanceGlobalBinding, GlobalParameters, UpdateDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.SpawnInstanceGlobalBinding, GlobalParameters, SpawnDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.UpdateInstanceGlobalBinding, GlobalParameters, UpdateDataSet, DataSestInstanceIndex);
 	}
 
 	{
 		const uint8* SystemParameters = reinterpret_cast<const uint8*>(&SystemInstance.GetSystemParameters());
-		ApplyOffsets(SpawnInstanceSystemBinding, SystemParameters, SpawnDataSet, DataSestInstanceIndex);
-		ApplyOffsets(UpdateInstanceSystemBinding, SystemParameters, UpdateDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.SpawnInstanceSystemBinding, SystemParameters, SpawnDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.UpdateInstanceSystemBinding, SystemParameters, UpdateDataSet, DataSestInstanceIndex);
 	}
 
 	{
 		const uint8* OwnerParameters = reinterpret_cast<const uint8*>(&SystemInstance.GetOwnerParameters());
-		ApplyOffsets(SpawnInstanceOwnerBinding, OwnerParameters, SpawnDataSet, DataSestInstanceIndex);
-		ApplyOffsets(UpdateInstanceOwnerBinding, OwnerParameters, UpdateDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.SpawnInstanceOwnerBinding, OwnerParameters, SpawnDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.UpdateInstanceOwnerBinding, OwnerParameters, UpdateDataSet, DataSestInstanceIndex);
 	}
 
 	const auto& Emitters = SystemInstance.GetEmitters();
@@ -2022,8 +2017,8 @@ void FNiagaraConstantBufferToDataSetBinding::CopyToDataSets(
 	for (int32 EmitterIdx = 0; EmitterIdx < EmitterCount; ++EmitterIdx)
 	{
 		const uint8* EmitterParameters = reinterpret_cast<const uint8*>(&SystemInstance.GetEmitterParameters(EmitterIdx));
-		ApplyOffsets(SpawnInstanceEmitterBindings[EmitterIdx], EmitterParameters, SpawnDataSet, DataSestInstanceIndex);
-		ApplyOffsets(UpdateInstanceEmitterBindings[EmitterIdx], EmitterParameters, UpdateDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.SpawnInstanceEmitterBindings[EmitterIdx], EmitterParameters, SpawnDataSet, DataSestInstanceIndex);
+		ApplyOffsets(CompiledData.UpdateInstanceEmitterBindings[EmitterIdx], EmitterParameters, UpdateDataSet, DataSestInstanceIndex);
 	}
 }
 
@@ -2031,7 +2026,7 @@ void FNiagaraConstantBufferToDataSetBinding::ApplyOffsets(
 	const FNiagaraParameterDataSetBindingCollection& Offsets,
 	const uint8* SourceData,
 	FNiagaraDataSet& DataSet,
-	int32 DataSetInstanceIndex) const
+	int32 DataSetInstanceIndex)
 {
 	FNiagaraDataBuffer& CurrBuffer = DataSet.GetDestinationDataChecked();
 
