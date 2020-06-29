@@ -62,7 +62,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** The scene component class to instantiate */
-	UPROPERTY(EditAnywhere, Category = "Component Rendering", meta = (DisallowedClasses = "ArrowComponent"))
+	UPROPERTY(EditAnywhere, Category = "Component Rendering")
 	TSubclassOf<USceneComponent> ComponentType;
 
 	/** The max number of components that this emitter will spawn or update each frame. */
@@ -73,9 +73,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Rendering")
 	FNiagaraVariableAttributeBinding EnabledBinding;
 
-	/** If true then unused components can be disabled and kept around in a pool. If false then each tick new components will be spawned. */
+	/** If true then components will not be automatically assigned to the first particle available, but try to stick to the same particle based on its unique id.
+	 * Disabling this option is faster, but a particle can get a different component each tick, which can lead to problems with for example motion blur. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering")
-	bool bEnableComponentPooling;
+	bool bAssignComponentsOnParticleID;
 
 #if WITH_EDITORONLY_DATA
 
