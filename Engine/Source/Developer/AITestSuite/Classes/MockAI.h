@@ -13,6 +13,8 @@
 
 class UAIPerceptionComponent;
 class UBlackboardComponent;
+class UPawnActionsComponent;
+class UBrainComponent;
 class UMockAI;
 
 struct FTestTickHelper : FTickableGameObject

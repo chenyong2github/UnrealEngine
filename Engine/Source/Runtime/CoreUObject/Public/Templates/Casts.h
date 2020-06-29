@@ -310,11 +310,6 @@ template< class T, class U > FORCEINLINE T* Cast       ( const TWeakObjectPtr<U>
 template< class T, class U > FORCEINLINE T* ExactCast  ( const TWeakObjectPtr<U>& Src                                                                   ) { return ExactCast  <T>(Src.Get()); }
 template< class T, class U > FORCEINLINE T* CastChecked( const TWeakObjectPtr<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(Src.Get(), CheckType); }
 
-// FSubobjectPtr versions
-template< class T > FORCEINLINE T* Cast       ( const FSubobjectPtr& Src                                                                   ) { return Cast       <T>(Src.Get()); }
-template< class T > FORCEINLINE T* ExactCast  ( const FSubobjectPtr& Src                                                                   ) { return ExactCast  <T>(Src.Get()); }
-template< class T > FORCEINLINE T* CastChecked( const FSubobjectPtr& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(Src.Get(), CheckType); }
-
 // TSubclassOf versions
 template< class T, class U > FORCEINLINE T* Cast       ( const TSubclassOf<U>& Src                                                                   ) { return Cast       <T>(*Src); }
 template< class T, class U > FORCEINLINE T* CastChecked( const TSubclassOf<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(*Src, CheckType); }

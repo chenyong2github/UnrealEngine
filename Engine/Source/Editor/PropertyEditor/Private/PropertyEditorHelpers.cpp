@@ -281,9 +281,12 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		}
 		else if ( SPropertyEditorCombo::Supports( PropertyEditorRef ) )
 		{
+			FPropertyComboBoxArgs ComboArgs;
+			ComboArgs.Font = FontStyle;
+
 			TSharedRef<SPropertyEditorCombo> ComboWidget = 
 				SAssignNew( PropertyWidget, SPropertyEditorCombo, PropertyEditorRef )
-				.Font( FontStyle );
+				.ComboArgs( ComboArgs );
 
 			ComboWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
 		}
@@ -682,12 +685,6 @@ namespace PropertyEditorHelpers
 		// Handle a container property.
 		if( NodeProperty->IsA(FArrayProperty::StaticClass()) || NodeProperty->IsA(FSetProperty::StaticClass()) || NodeProperty->IsA(FMapProperty::StaticClass()) )
 		{
-			if (!NodeProperty->IsA(FArrayProperty::StaticClass()))
-		{
-				// Only Sets and Maps get a Documentation widget
-				OutRequiredButtons.Add(EPropertyButton::Documentation);
-			}
-			
 			if( !(NodeProperty->PropertyFlags & CPF_EditFixedSize) )
 			{
 				OutRequiredButtons.Add( EPropertyButton::Add );

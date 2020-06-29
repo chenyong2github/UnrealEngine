@@ -43,3 +43,32 @@ EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 
 	return AlphabetizedValues[TypeIndex];
 }
+
+EPackageOverrideType::Type EPackageOverrideType::Parse(const TCHAR* Value)
+{
+	static const TCHAR* AlphabetizedTypes[] = {
+		TEXT("EditorOnly"),
+		TEXT("EngineDeveloper"),
+		TEXT("EngineUncookedOnly"),
+		TEXT("GameDeveloper"),
+		TEXT("GameUncookedOnly"),
+		TEXT("None"),
+	};
+
+	int32 TypeIndex = Algo::FindSortedStringCaseInsensitive(Value, AlphabetizedTypes);
+	if (TypeIndex < 0)
+	{
+		FError::Throwf(TEXT("Unrecognized EPackageOverrideType name: %s"), Value);
+	}
+
+	static EPackageOverrideType::Type AlphabetizedValues[] = {
+		EditorOnly,
+		EngineDeveloper,
+		EngineUncookedOnly,
+		GameDeveloper,
+		GameUncookedOnly,
+		None
+	};
+
+	return AlphabetizedValues[TypeIndex];
+}

@@ -233,6 +233,13 @@ EVisibility SDetailsViewBase::GetTreeVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SDetailsViewBase::GetScrollBarVisibility() const
+{
+	const bool bHasAnythingToShow = RootTreeNodes.Num() > 0;
+	const bool bShowScrollBar = DetailsViewArgs.bShowScrollBar && bHasAnythingToShow;
+	return bShowScrollBar ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 /** Returns the image used for the icon on the filter button */
 const FSlateBrush* SDetailsViewBase::OnGetFilterButtonImageResource() const
 {

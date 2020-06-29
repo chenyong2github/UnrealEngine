@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"SourceControl",
 					"ToolMenus",
+					"SettingsEditor",
 				}
 			);
 

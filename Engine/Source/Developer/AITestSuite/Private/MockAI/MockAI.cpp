@@ -3,6 +3,8 @@
 #include "MockAI.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
+#include "Actions/PawnActionsComponent.h"
+#include "BrainComponent.h"
 
 //----------------------------------------------------------------------//
 // 

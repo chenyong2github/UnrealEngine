@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "Kismet2/ListenerManager.h"
 #include "Widgets/SWidget.h"
+#include "Framework/Commands/UIAction.h"
 #include "AssetData.h"
 
 struct FDataTableEditorColumnHeaderData
@@ -106,6 +107,12 @@ struct UNREALED_API FDataTableEditorUtils
 	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
 	static bool IsValidTableStruct(const UScriptStruct* Struct);
+
+	/** Add a UI action for search for references, useful for customizations */
+	static void AddSearchForReferencesContextMenu(class FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
+
+	/** Short description for a data or curve handle */
+	static FText GetHandleShortDescription(const UObject* TableAsset, FName RowName);
 
 	/** Tooltip text for the data table row type */
 	static FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);

@@ -37,6 +37,14 @@ enum class EControllerHand : uint8
 	ControllerHand_Count UMETA(Hidden, DisplayName = "<INVALID>"),
 };
 
+enum class EPairedAxis : uint8
+{
+	Unpaired,			// This key is unpaired
+	X,					// This key represents the X axis of its PairedAxisKey
+	Y,					// This key represents the Y axis of its PairedAxisKey
+	Z,					// This key represents the Z axis of its PairedAxisKey - Currently unused
+};
+
 USTRUCT(BlueprintType,Blueprintable)
 struct INPUTCORE_API FKey
 {
@@ -66,8 +74,16 @@ struct INPUTCORE_API FKey
 	bool IsGamepadKey() const;
 	bool IsTouch() const;
 	bool IsMouseButton() const;
+	bool IsButtonAxis() const;
+	bool IsAxis1D() const;
+	bool IsAxis2D() const;
+	bool IsAxis3D() const;
+	UE_DEPRECATED(4.26, "Please use IsAxis1D instead.")
 	bool IsFloatAxis() const;
+	UE_DEPRECATED(4.26, "Please use IsAxis2D/IsAxis3D instead.")
 	bool IsVectorAxis() const;
+	bool IsDigital() const;
+	bool IsAnalog() const;
 	bool IsBindableInBlueprints() const;
 	bool ShouldUpdateAxisWithoutSamples() const;
 	bool IsBindableToActions() const;
@@ -76,6 +92,8 @@ struct INPUTCORE_API FKey
 	FString ToString() const;
 	FName GetFName() const;
 	FName GetMenuCategory() const;
+	EPairedAxis GetPairedAxis() const;
+	FKey GetPairedAxisKey() const;
 
 	bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
 	bool ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
@@ -96,7 +114,7 @@ private:
 
 	UPROPERTY()
 	FName KeyName;
-	
+
 	mutable class TSharedPtr<struct FKeyDetails> KeyDetails;
 
 	void ConditionalLookupKeyDetails() const;
@@ -128,24 +146,41 @@ struct INPUTCORE_API FKeyDetails
 		MouseButton				 = 1 << 2,
 		ModifierKey				 = 1 << 3,
 		NotBlueprintBindableKey	 = 1 << 4,
-		FloatAxis				 = 1 << 5,
-		VectorAxis				 = 1 << 6,
+		Axis1D					 = 1 << 5,
+		Axis3D					 = 1 << 6,
 		UpdateAxisWithoutSamples = 1 << 7,
 		NotActionBindableKey	 = 1 << 8,
 		Deprecated				 = 1 << 9,
 
-		NoFlags                 = 0,
+		// All axis representations
+		ButtonAxis				 = 1 << 10,		// Analog 1D axis emulating a digital button press. E.g. Gamepad right stick up
+		Axis2D					 = 1 << 11,
+
+		// Deprecated. Replace with axis definitions for clarity.
+
+		FloatAxis  UE_DEPRECATED(4.26, "Please use Axis1D instead.") = Axis1D,
+		VectorAxis UE_DEPRECATED(4.26, "Please use Axis2D/Axis3D instead.") = Axis3D,
+
+		NoFlags                  = 0,
 	};
 
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint16 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint16 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
+	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
+	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
 
 	FORCEINLINE bool IsModifierKey() const { return bIsModifierKey != 0; }
 	FORCEINLINE bool IsGamepadKey() const { return bIsGamepadKey != 0; }
 	FORCEINLINE bool IsTouch() const { return bIsTouch != 0; }
 	FORCEINLINE bool IsMouseButton() const { return bIsMouseButton != 0; }
-	FORCEINLINE bool IsFloatAxis() const { return AxisType == EInputAxisType::Float; }
-	FORCEINLINE bool IsVectorAxis() const { return AxisType == EInputAxisType::Vector; }
+	FORCEINLINE bool IsAxis1D() const { return AxisType == EInputAxisType::Axis1D; }
+	FORCEINLINE bool IsAxis2D() const { return AxisType == EInputAxisType::Axis2D; }
+	FORCEINLINE bool IsAxis3D() const { return AxisType == EInputAxisType::Axis3D; }
+	FORCEINLINE bool IsButtonAxis() const { return AxisType == EInputAxisType::Button; }	// Analog 1D axis emulating a digital button press.
+	UE_DEPRECATED(4.26, "Please use IsAxis1D instead.")
+	FORCEINLINE bool IsFloatAxis() const { return IsAxis1D(); }
+	UE_DEPRECATED(4.26, "Please use IsAxis2D/IsAxis3D instead.")
+	FORCEINLINE bool IsVectorAxis() const { return IsAxis2D() || IsAxis3D(); }
+	FORCEINLINE bool IsAnalog() const { return IsAxis1D() || IsAxis2D() || IsAxis3D(); }
+	FORCEINLINE bool IsDigital() const { return !IsAnalog(); }
 	FORCEINLINE bool IsBindableInBlueprints() const { return bIsBindableInBlueprints != 0; }
 	FORCEINLINE bool ShouldUpdateAxisWithoutSamples() const { return bShouldUpdateAxisWithoutSamples != 0; }
 	FORCEINLINE bool IsBindableToActions() const { return bIsBindableToActions != 0; }
@@ -154,18 +189,29 @@ struct INPUTCORE_API FKeyDetails
 	FText GetDisplayName(const bool bLongDisplayName = true) const;
 	FORCEINLINE const FKey& GetKey() const { return Key; }
 
-private:
+	// Key pairing
+	FORCEINLINE EPairedAxis GetPairedAxis() const { return PairedAxis; }
+	FORCEINLINE const FKey& GetPairedAxisKey() const { return PairedAxisKey; }
 
-	void CommonInit(const uint16 InKeyFlags);	
+private:
+	friend struct EKeys;
+
+	void CommonInit(const uint32 InKeyFlags);
 
 	enum class EInputAxisType : uint8
 	{
 		None,
-		Float,
-		Vector
+		Button,			// Whilst the physical input is an analog axis the FKey uses it to emulate a digital button.
+		Axis1D,
+		Axis2D,
+		Axis3D,
 	};
 
 	FKey  Key;
+
+	// Key pairing
+	EPairedAxis PairedAxis = EPairedAxis::Unpaired;		// Paired axis identifier. Lets this key know which axis it represents on the PairedAxisKey
+	FKey		PairedAxisKey;							// Paired axis reference. This is the FKey representing the final paired vector axis. Note: NOT the other key in the pairing.
 
 	FName MenuCategory;
 
@@ -200,7 +246,7 @@ namespace ETouchIndex
 		Touch9,
 		Touch10,
 		/**
-		 * This entry is special.  NUM_TOUCH_KEYS - 1, is used for the cursor so that it's represented 
+		 * This entry is special.  NUM_TOUCH_KEYS - 1, is used for the cursor so that it's represented
 		 * as another finger index, but doesn't overlap with touch input indexes.
 		 */
 		CursorPointerIndex UMETA(Hidden),
@@ -225,6 +271,7 @@ struct INPUTCORE_API EKeys
 
 	static const FKey MouseX;
 	static const FKey MouseY;
+	static const FKey Mouse2D;
 	static const FKey MouseScrollUp;
 	static const FKey MouseScrollDown;
 	static const FKey MouseWheelAxis;
@@ -373,8 +420,10 @@ struct INPUTCORE_API EKeys
 	static const FKey Platform_Delete;
 
 	// Gamepad Keys
+	static const FKey Gamepad_Left2D;
 	static const FKey Gamepad_LeftX;
 	static const FKey Gamepad_LeftY;
+	static const FKey Gamepad_Right2D;
 	static const FKey Gamepad_RightX;
 	static const FKey Gamepad_RightY;
 	static const FKey Gamepad_LeftTriggerAxis;
@@ -656,6 +705,7 @@ struct INPUTCORE_API EKeys
 
 	static void Initialize();
 	static void AddKey(const FKeyDetails& KeyDetails);
+	static void AddPairedKey(const FKeyDetails& PairedKeyDetails, FKey KeyX, FKey KeyY);	// Map the two provided keys to the X and Z axes of the paired key
 	static void GetAllKeys(TArray<FKey>& OutKeys);
 	static TSharedPtr<FKeyDetails> GetKeyDetails(const FKey Key);
 	static void RemoveKeysWithCategory(const FName InCategory);
@@ -663,7 +713,7 @@ struct INPUTCORE_API EKeys
 	// These exist for backwards compatibility reasons only
 	static bool IsModifierKey(FKey Key) { return Key.IsModifierKey(); }
 	static bool IsGamepadKey(FKey Key) { return Key.IsGamepadKey(); }
-	static bool IsAxis(FKey Key) { return Key.IsFloatAxis(); }
+	static bool IsAxis(FKey Key) { return Key.IsAxis1D(); }
 	static bool IsBindableInBlueprints(const FKey Key) { return Key.IsBindableInBlueprints(); }
 	static void SetConsoleForGamepadLabels(const EConsoleForGamepadLabels::Type Console) { ConsoleForGamepadLabels = Console; }
 

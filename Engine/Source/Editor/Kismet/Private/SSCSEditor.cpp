@@ -75,7 +75,12 @@
 #include "ToolMenus.h"
 #include "SSCSEditorMenuContext.h"
 #include "Kismet2/ComponentEditorContextMenuContex.h"
+#include "K2Node_ComponentBoundEvent.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Dialogs/Dialogs.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
@@ -2861,10 +2866,8 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 						if(InstancedSceneComponent && InstancedSceneComponent->IsRegistered())
 						{
 							// If we find a match, save off the world position
-							FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-							SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
-							SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
-							SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
+							const FTransform& ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
+							SceneComponentTemplate->SetRelativeTransform_Direct(ComponentToWorld);
 						}
 					}
 				}
@@ -2995,10 +2998,8 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 				if(InstancedSceneComponent && InstancedSceneComponent->IsRegistered())
 				{
 					// If we find a match, save off the world position
-					FTransform ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
-					SceneComponentTemplate->SetRelativeLocation_Direct(ComponentToWorld.GetTranslation());
-					SceneComponentTemplate->SetRelativeRotation_Direct(ComponentToWorld.Rotator());
-					SceneComponentTemplate->SetRelativeScale3D_Direct(ComponentToWorld.GetScale3D());
+					const FTransform& ComponentToWorld = InstancedSceneComponent->GetComponentToWorld();
+					SceneComponentTemplate->SetRelativeTransform_Direct(ComponentToWorld);
 				}
 			}
 
@@ -4262,34 +4263,43 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 							BlueprintSCSSection.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
 						}
 
-						// Collect the classes of all selected objects
-						TArray<UClass*> SelectionClasses;
-						for (auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter)
+						// Create an "Add Event" option in the context menu only if we can edit
+						// the currently selected objects
+						if (IsEditingAllowed())
 						{
-							const FSCSEditorTreeNodePtrType& TreeNode = *NodeIter;
-							if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
+							// Collect the classes of all selected objects
+							TArray<UClass*> SelectionClasses;
+							for (auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter)
 							{
-								SelectionClasses.Add(ComponentTemplate->GetClass());
+								FSCSEditorTreeNodePtrType TreeNode = *NodeIter;
+								if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
+								{
+									// If the component is native then we need to ensure it can actually be edited before we display it
+									if (!TreeNode->IsNativeComponent() || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate))
+									{
+										SelectionClasses.Add(ComponentTemplate->GetClass());
+									}
+								}
 							}
-						}
 
-						if (SelectionClasses.Num())
-						{
-							// Find the common base class of all selected classes
-							UClass* SelectedClass = UClass::FindCommonBase(SelectionClasses);
-							// Build an event submenu if we can generate events
-							if (FBlueprintEditorUtils::CanClassGenerateEvents(SelectedClass))
+							if (SelectionClasses.Num())
 							{
-								BlueprintSCSSection.AddSubMenu(
-									"AddEventSubMenu",
-									LOCTEXT("AddEventSubMenu", "Add Event"),
-									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"),
-									FNewMenuDelegate::CreateStatic(&SSCSEditor::BuildMenuEventsSection,
-										GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
-										FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+								// Find the common base class of all selected classes
+								UClass* SelectedClass = UClass::FindCommonBase(SelectionClasses);
+								// Build an event submenu if we can generate events
+								if (FBlueprintEditorUtils::CanClassGenerateEvents(SelectedClass))
+								{
+									BlueprintSCSSection.AddSubMenu(
+										"AddEventSubMenu",
+										LOCTEXT("AddEventSubMenu", "Add Event"),
+										LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"),
+										FNewMenuDelegate::CreateStatic(&SSCSEditor::BuildMenuEventsSection,
+											GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
+											FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+								}
 							}
-						}
-					}
+						}						
+					}					
 
 					// Common menu options added for all component types
 					FComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedComponents);
@@ -4375,7 +4385,7 @@ void SSCSEditor::BuildMenuEventsSection(FMenuBuilder& Menu, UBlueprint* Blueprin
 	// Build Events entries
 	for (TFieldIterator<FMulticastDelegateProperty> PropertyIt(SelectedClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		FProperty* Property = *PropertyIt;
+		FMulticastDelegateProperty* Property = *PropertyIt;
 
 		// Check for multicast delegates that we can safely assign
 		if (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable))
@@ -4403,14 +4413,14 @@ void SSCSEditor::BuildMenuEventsSection(FMenuBuilder& Menu, UBlueprint* Blueprin
 			}
 			if( ComponentEventViewEntries < SelectedNodes.Num() )
 			{
-			// Create menu Add entry
+				// Create menu Add entry
 				FMenuEntry NewEntry;
 				NewEntry.Label = FText::Format( LOCTEXT("AddEvent_ToolTip", "Add {0}" ), FText::FromName( EventName ));
 				NewEntry.UIAction =	FUIAction(FExecuteAction::CreateStatic( &SSCSEditor::CreateEventsForSelection, Blueprint, EventName, GetSelectedObjectsDelegate), CanExecuteActionDelegate);
 				Actions.Add( NewEntry );
+			}
 		}
 	}
-}
 	// Build Menu Sections
 	Menu.BeginSection("AddComponentActions", LOCTEXT("AddEventHeader", "Add Event"));
 	for (auto ItemIter = Actions.CreateConstIterator(); ItemIter; ++ItemIter )
@@ -5090,19 +5100,22 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 
 		if(SelectedTreeNodes.Num() > 0)
 		{
+			// If there is only one item selected, imitate user selection to preserve navigation
+			ESelectInfo::Type SelectInfo = SelectedTreeNodes.Num() == 1 ? ESelectInfo::OnMouseClick : ESelectInfo::Direct;
+
 			// Restore the previous selection state on the new tree nodes
 			for (int i = 0; i < SelectedTreeNodes.Num(); ++i)
 			{
 				if (SelectedTreeNodes[i]->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
 				{
-					SCSTreeWidget->SetItemSelection(RootActorNode, true);
+					SCSTreeWidget->SetItemSelection(RootActorNode, true, SelectInfo);
 				}
 				else
 				{
 					FSCSEditorTreeNodePtrType NodeToSelectPtr = FindTreeNode(SelectedTreeNodes[i]->GetComponentTemplate());
 					if (NodeToSelectPtr.IsValid())
 					{
-						SCSTreeWidget->SetItemSelection(NodeToSelectPtr, true);
+						SCSTreeWidget->SetItemSelection(NodeToSelectPtr, true, SelectInfo);
 					}
 				}
 			}
@@ -5597,7 +5610,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			UActorComponent* NewInstanceComponent = NewObject<UActorComponent>(ActorInstance, NewComponentClass, NewComponentName, RF_Transactional);
 			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewInstanceComponent);
 						
-			// Do Scene Attachment if this new Comnponent is a USceneComponent
+			// Do Scene Attachment if this new Component is a USceneComponent
 			if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
 			{
 				if(ParentNodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
@@ -6152,8 +6165,6 @@ void SSCSEditor::OnDeleteNodes()
 	// Invalidate any active component in the visualizer
 	GUnrealEd->ComponentVisManager.ClearActiveComponentVis();
 
-	const FScopedTransaction Transaction( LOCTEXT("RemoveComponents", "Remove Components") );
-
 	if (EditorMode == EComponentEditorMode::BlueprintSCS)
 	{
 		UBlueprint* Blueprint = GetBlueprint();
@@ -6162,13 +6173,61 @@ void SSCSEditor::OnDeleteNodes()
 		// Get the current render info for the blueprint. If this is NULL then the blueprint is not currently visualizable (no visible primitive components)
 		FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo( Blueprint );
 
+		// A lamda for displaying a confirm message to the user if there is a dynamic delegate bound to the 
+		// component they are trying to delete
+		auto ConfirmDeleteLambda = [](USCS_Node* ScsNode) -> FSuppressableWarningDialog::EResult
+		{
+			if (ensure(ScsNode))
+			{
+				FText VarNam = FText::FromName(ScsNode->GetVariableName());
+				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteDynamicDelegate",
+					"Component \"{0}\" has bound events in use! If you delete it then those nodes will become invalid. Are you sure you want to delete it?"),
+					VarNam);
+
+				// Warn the user that this may result in data loss
+				FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteComponent", "Delete Component"), "DeleteComponentInUse_Warning");
+				Info.ConfirmText = LOCTEXT("ConfirmDeleteDynamicDelegate_Yes", "Yes");
+				Info.CancelText = LOCTEXT("ConfirmDeleteDynamicDelegate_No", "No");
+
+				FSuppressableWarningDialog DeleteVariableInUse(Info);
+
+				// If the user selects cancel then return false
+				return DeleteVariableInUse.ShowModal();
+			}
+
+			return FSuppressableWarningDialog::Cancel;
+		};
+
 		// Remove node(s) from SCS
 		TArray<FSCSEditorTreeNodePtrType> SelectedNodes = SCSTreeWidget->GetSelectedItems();
+
+		// Confirm that the user wants to delete this node
 		for (int32 i = 0; i < SelectedNodes.Num(); ++i)
 		{
 			FSCSEditorTreeNodePtrType Node = SelectedNodes[i];
-
 			USCS_Node* SCS_Node = Node->GetSCSNode();
+
+			if (SCS_Node != nullptr)
+			{
+				// If this node is in use by Dynamic delegates, then confirm before continuing
+				if (FKismetEditorUtilities::PropertyHasBoundEvents(Blueprint, SCS_Node->GetVariableName()))
+				{
+					// The user has decided not to delete the component, stop trying to delete this component
+					if (ConfirmDeleteLambda(SCS_Node) == FSuppressableWarningDialog::Cancel)
+					{
+						return;
+					}
+				}
+			}
+		}
+
+		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+
+		for (int32 i = 0; i < SelectedNodes.Num(); ++i)
+		{
+			FSCSEditorTreeNodePtrType Node = SelectedNodes[i];
+			USCS_Node* SCS_Node = Node->GetSCSNode();
+
 			if(SCS_Node != nullptr)
 			{
 				USimpleConstructionScript* SCS = SCS_Node->GetSCS();
@@ -6195,9 +6254,14 @@ void SSCSEditor::OnDeleteNodes()
 			UPackage* BPPackage = Blueprint->GetOutermost();
 			ThumbnailTools::CacheEmptyThumbnail( BPFullName, BPPackage );
 		}
+
+		// Do this AFTER marking the Blueprint as modified
+		UpdateSelectionFromNodes(SCSTreeWidget->GetSelectedItems());
 	}
 	else    // EComponentEditorMode::ActorInstance
 	{
+		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+
 		if (AActor* ActorInstance = GetActorContext())
 		{
 			ActorInstance->Modify();
@@ -6235,10 +6299,10 @@ void SSCSEditor::OnDeleteNodes()
 			// Rebuild the tree view to reflect the new component hierarchy
 			UpdateTree();
 		}
-	}
 
-	// Do this AFTER marking the Blueprint as modified
-	UpdateSelectionFromNodes(SCSTreeWidget->GetSelectedItems());
+		// Do this AFTER marking the Blueprint as modified
+		UpdateSelectionFromNodes(SCSTreeWidget->GetSelectedItems());
+	}
 }
 
 void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
@@ -6248,7 +6312,7 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 	if (EditorMode == EComponentEditorMode::BlueprintSCS)
 	{
 		USCS_Node* SCS_Node = InNodePtr->GetSCSNode();
-		if(SCS_Node != NULL)
+		if(SCS_Node != nullptr)
 		{
 			// Clear selection if current
 			if (SCSTreeWidget->GetSelectedItems().Contains(InNodePtr))
@@ -6264,6 +6328,30 @@ void SSCSEditor::RemoveComponentNode(FSCSEditorTreeNodePtrType InNodePtr)
 			if(Blueprint != nullptr)
 			{
 				FBlueprintEditorUtils::RemoveVariableNodes(Blueprint, InNodePtr->GetVariableName());
+				
+				// If there are any Bound Component events for this property then give them compiler errors
+				TArray<UK2Node_ComponentBoundEvent*> EventNodes;
+				FKismetEditorUtilities::FindAllBoundEventsForComponent(Blueprint, SCS_Node->GetVariableName(), EventNodes);
+				if(EventNodes.Num() > 0)
+				{
+					// Find any dynamic delegate nodes and give a compiler error for each that is problematic
+					FCompilerResultsLog LogResults;
+					FMessageLog MessageLog("BlueprintLog");
+					
+					// Add a compiler error for each bound event node
+					for (UK2Node_ComponentBoundEvent* Node : EventNodes)
+					{
+						LogResults.Error(*LOCTEXT("RemoveBoundEvent_Error", "The component that @@ was bound to has been deleted! This node is no longer valid").ToString(), Node);
+					}
+
+					// Notify the user that these nodes are no longer valid
+					MessageLog.NewPage(LOCTEXT("RemoveBoundEvent_Error_Label", "Removed Owner of Component Bound Event"));
+					MessageLog.AddMessages(LogResults.Messages);
+					MessageLog.Notify(LOCTEXT("RemoveBoundEvent_Error_Msg", "Removed Owner of Component Bound Event"));
+						
+					// Focus on the first node that we found
+					FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(EventNodes[0]);									
+				}
 			}
 
 			// Remove node from SCS tree
@@ -6979,11 +7067,12 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 				{
 					const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::PropagateChangesToArchetypeInstances | EditorUtilities::ECopyOptions::SkipInstanceOnlyProperties);
 					NumChangedProperties = EditorUtilities::CopyActorProperties(Actor, BlueprintCDO, CopyOptions);
-					if (Actor->GetInstanceComponents().Num() > 0)
+					const TArray<UActorComponent*>& InstanceComponents = Actor->GetInstanceComponents();
+					if (InstanceComponents.Num() > 0)
 					{
 						RestoreSelectedInstanceComponent.Save(Actor);
-						FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, Actor->GetInstanceComponents());
-						NumChangedProperties += Actor->GetInstanceComponents().Num();
+						FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, InstanceComponents);
+						NumChangedProperties += InstanceComponents.Num();
 						Actor->ClearInstanceComponents(true);
 					}
 					if (NumChangedProperties > 0)
@@ -7202,4 +7291,3 @@ bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool b
 }
 
 #undef LOCTEXT_NAMESPACE
-

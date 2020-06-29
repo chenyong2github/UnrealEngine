@@ -15,8 +15,8 @@
 #define DO_SIGHT_VLOGGING (0 && ENABLE_VISUAL_LOG)
 
 #if DO_SIGHT_VLOGGING
-	#define SIGHT_LOG_SEGMENT UE_VLOG_SEGMENT
-	#define SIGHT_LOG_LOCATION UE_VLOG_LOCATION
+	#define SIGHT_LOG_SEGMENT(LogOwner, SegmentStart, SegmentEnd, Color, Format, ...) UE_VLOG_SEGMENT(LogOwner, LogAIPerception, Verbose, SegmentStart, SegmentEnd, Color, Format, ##__VA_ARGS__)
+	#define SIGHT_LOG_LOCATION(LogOwner, Location, Radius, Color, Format, ...) UE_VLOG_LOCATION(LogOwner, LogAIPerception, Verbose, Location, Radius, Color, Format, ##__VA_ARGS__)
 #else
 	#define SIGHT_LOG_SEGMENT(...)
 	#define SIGHT_LOG_LOCATION(...)
@@ -290,7 +290,7 @@ float UAISense_Sight::Update()
 				}
 				else if (FAISystem::CheckIsTargetInSightCone(Listener.CachedLocation, Listener.CachedDirection, PropDigest.PeripheralVisionAngleCos, PropDigest.PointOfViewBackwardOffset, PropDigest.NearClippingRadiusSq, SightRadiusSq, TargetLocation))
 				{
-					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Green, TEXT("%s"), *(Target.TargetId.ToString()));
+					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Green, TEXT("TargetID %d"), Target.TargetId);
 
 					FVector OutSeenLocation(0.f);
 					// do line checks
@@ -358,7 +358,7 @@ float UAISense_Sight::Update()
 				// communicate failure only if we've seen give actor before
 				else if (SightQuery->bLastResult)
 				{
-					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Red, TEXT("%s"), *(Target.TargetId.ToString()));
+					SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, FColor::Red, TEXT("TargetID %d"), Target.TargetId);
 					Listener.RegisterStimulus(TargetActor, FAIStimulus(*this, 0.f, TargetLocation, Listener.CachedLocation, FAIStimulus::SensingFailed));
 					SightQuery->bLastResult = false;
 				}
