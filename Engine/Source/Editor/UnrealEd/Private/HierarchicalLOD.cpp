@@ -26,7 +26,7 @@
 #include "../Classes/Editor/EditorEngine.h"
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
-#include "Subsystems/HLODEditorSubsystem.h"
+#include "HLOD/HLODEngineSubsystem.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #endif // WITH_EDITOR
@@ -67,7 +67,7 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UHierarchicalLODSettings, bSaveLODActorsToHLODPackages))
 	{
-		GEditor->GetEditorSubsystem<UHLODEditorSubsystem>()->OnSaveLODActorsToHLODPackagesChanged();
+		GEngine->GetEngineSubsystem<UHLODEngineSubsystem>()->OnSaveLODActorsToHLODPackagesChanged();
 	}
 }
 
