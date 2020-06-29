@@ -4448,6 +4448,12 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, co
 						GlobalShaderType->GetName(), PermutationId);
 				}
 
+				if (OutdatedShaderTypes)
+				{
+					// Remove old shader, if it exists
+					GlobalShaderMap->RemoveShaderTypePermutaion(GlobalShaderType, PermutationId);
+				}
+
 				// Compile this global shader type.
 				auto* Job = FGlobalShaderTypeCompiler::BeginCompileShader(GlobalShaderType, PermutationId, Platform, nullptr, GlobalShaderJobs);
 				TShaderTypePermutation<const FShaderType> ShaderTypePermutation(GlobalShaderType, PermutationId);
@@ -4490,6 +4496,12 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, co
 					{
 						break;
 					}
+				}
+
+				if (OutdatedShaderPipelineTypes)
+				{
+					// Remove old pipeline
+					GlobalShaderMap->RemoveShaderPipelineType(Pipeline);
 				}
 
 				if (ShaderStages.Num() == StageTypes.Num())
