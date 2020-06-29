@@ -80,17 +80,17 @@ public:
 	void TerminateInstance();
 
 public:
-	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
-	FVector Location;
-
 	UPROPERTY()
 	FQuat Rotation;
 
 	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
-	FVector Normal;
+	FVector Location;
 
 	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
 	float Age;
+
+	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
+	FVector Normal;
 
 	UPROPERTY()
 	float Scale;
@@ -98,10 +98,9 @@ public:
 	UPROPERTY()
 	const UFoliageType* Type;
 
+	UActorComponent* BaseComponent;
 
 	bool bBlocker;
-
-	UActorComponent* BaseComponent;
 private:
 	bool bAlive;
 };
