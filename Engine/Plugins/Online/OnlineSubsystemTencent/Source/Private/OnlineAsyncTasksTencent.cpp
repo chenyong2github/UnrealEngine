@@ -466,6 +466,7 @@ void FOnlineAsyncTaskRailShowFloatingWindow::Initialize()
 				// Register events before triggering code
 				FOnlineAsyncTaskRail::Initialize();
 				Result = FloatingWindow->AsyncShowRailFloatingWindow(WindowType, RailString());
+				FloatingWindow->SetNotifyWindowEnable(rail::kRailNotifyWindowAntiAddiction, false); //prevent AntiAddiction message from Tencent to be shown.
 			}
 		}
 	}
