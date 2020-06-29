@@ -288,7 +288,7 @@ protected:
 	class FScopedSelectionChangedEvent
 	{
 	public:
-		FScopedSelectionChangedEvent(const TSharedRef<SPathView>& InPathView);
+		FScopedSelectionChangedEvent(const TSharedRef<SPathView>& InPathView, const bool InShouldEmitEvent = true);
 		~FScopedSelectionChangedEvent();
 
 	private:
@@ -296,6 +296,7 @@ protected:
 
 		TSharedRef<SPathView> PathView;
 		TSet<FName> InitialSelectionSet;
+		bool bShouldEmitEvent = true;
 	};
 
 	/** The tree view widget */
