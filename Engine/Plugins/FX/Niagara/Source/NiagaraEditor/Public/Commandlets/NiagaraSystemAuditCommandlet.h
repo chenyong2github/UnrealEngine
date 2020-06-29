@@ -16,8 +16,15 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 	TSet<FString> NiagaraSystemsWithWarmup;
 	/** All Niagara systems with lights and the details */
 	TSet<FString> NiagaraSystemsWithLights;
+	/** All Niagara systems with events */
+	TSet<FString> NiagaraSystemsWithEvents;
 	/** All Niagara systems with GPU emitters */
 	TSet<FString> NiagaraSystemsWithGPUEmitters;
+	/** All Niagara systems with prerequisites */
+	TSet<FString> NiagaraSystemsWithPrerequisites;
+
+	/** All Niagara systems that use a user requested data interface */
+	TSet<FString> NiagaraSystemsWithUserDataInterface;
 
 	/** The folder in which the commandlet's output files will be stored */
 	FString AuditOutputFolder;
@@ -27,6 +34,9 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 
 	/** Package paths to include */
 	TArray<FName> PackagePaths;
+
+	/** Systems using specific data interfaces to find */
+	TSet<UClass*> UserDataInterfacesToFind;
 
 	/** Entry point */
 	int32 Main(const FString& Params) override;
@@ -42,4 +52,7 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 
 	/** Gets an archive to write to an output file */
 	FArchive* GetOutputFile(const TCHAR* InShortFilename);
+
+private:
+	TArray<class UNiagaraDataInterface*> GetDataInterfaces(class UNiagaraSystem* System);
 };
