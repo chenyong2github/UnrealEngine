@@ -87,7 +87,7 @@ namespace Chaos
 			// we can only obtain as much accel/decel force as the friction will allow
 			if (FMath::Abs(FinalLongitudinalForce) > AdhesiveLimit)
 			{
-				if (Braking && Setup().ABSEnabled || !Braking && Setup().TractionControlEnabled)
+				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
 				{
 					ForceFromFriction.X = AdhesiveLimit * TractionControlAndABSScaling;
 				}
