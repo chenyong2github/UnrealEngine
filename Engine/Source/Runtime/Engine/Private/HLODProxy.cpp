@@ -525,6 +525,14 @@ void UHLODProxy::SpawnLODActors(ULevel* InLevel)
 	}
 }
 
+void UHLODProxy::PostLoad()
+{
+	Super::PostLoad();
+
+	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
+	GetOutermost()->SetPackageFlags(PKG_ContainsMapData);
+}
+
 #endif // #if WITH_EDITOR
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
