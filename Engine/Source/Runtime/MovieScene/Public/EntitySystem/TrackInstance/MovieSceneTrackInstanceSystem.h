@@ -51,7 +51,7 @@ private:
 	virtual void OnUnlink() override final;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
-	void TagGarbage(UMovieSceneEntitySystemLinker*);
+	virtual void OnTagGarbage() override;
 
 	virtual void Serialize(FArchive& Ar) override;
 
