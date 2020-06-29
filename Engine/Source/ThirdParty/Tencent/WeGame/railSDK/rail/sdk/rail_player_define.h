@@ -1,10 +1,9 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_PLAYER_DEFINE_H
 #define RAIL_SDK_RAIL_PLAYER_DEFINE_H
 
-#include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_event.h"
 
 namespace rail {
@@ -52,6 +51,16 @@ struct PlayerPersonalInfo {
     RailString rail_name;
     RailString avatar_url;
     RailString email_address;
+};
+
+struct RailGetAuthenticateURLOptions {
+    RailGetAuthenticateURLOptions() {
+        client_id = 0;
+    }
+
+    RailString url;
+    RailString oauth2_state;  // the size of oauth2_state parameter can not more than 64 characters.
+    uint64_t client_id;
 };
 
 namespace rail_event {
@@ -105,6 +114,24 @@ struct RailAntiAddictionGameOnlineTimeChanged
     }
 
     uint32_t game_online_time_count_minutes;
+};
+
+struct RailGetEncryptedGameTicketResult
+    : public RailEvent<kRailEventPlayerGetEncryptedGameTicketResult> {
+    RailGetEncryptedGameTicketResult() {
+        result = kFailure;
+    }
+
+    RailString encrypted_game_ticket;
+};
+
+struct RailGetPlayerMetadataResult
+    : public RailEvent<kRailEventPlayerGetPlayerMetadataResult> {
+    RailGetPlayerMetadataResult() {
+        result = kFailure;
+    }
+
+    RailArray<RailKeyValue> key_values;
 };
 
 }  // namespace rail_event

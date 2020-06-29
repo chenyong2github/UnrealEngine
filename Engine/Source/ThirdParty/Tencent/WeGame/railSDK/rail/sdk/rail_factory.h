@@ -1,6 +1,5 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
-// Rail Factory interface
 
 #ifndef RAIL_SDK_RAIL_FACTORY_H
 #define RAIL_SDK_RAIL_FACTORY_H
@@ -16,9 +15,10 @@
 #include "rail/sdk/rail_game_server.h"
 #include "rail/sdk/rail_group_chat.h"
 #include "rail/sdk/rail_http_session.h"
-#include "rail/sdk/rail_in_game_purchase.h"
-#include "rail/sdk/rail_in_game_store_purchase_define.h"
 #include "rail/sdk/rail_ime_helper.h"
+#include "rail/sdk/rail_in_game_coin.h"
+#include "rail/sdk/rail_in_game_purchase.h"
+#include "rail/sdk/rail_in_game_store_purchase.h"
 #include "rail/sdk/rail_leaderboard.h"
 #include "rail/sdk/rail_network.h"
 #include "rail/sdk/rail_player.h"
@@ -49,8 +49,8 @@ class IRailFactory {
     virtual IRailBrowserHelper* RailBrowserHelper() = 0;
 
     virtual IRailInGamePurchase* RailInGamePurchase() = 0;
+    virtual IRailInGameCoin* RailInGameCoin() = 0;
 
-    virtual IRailZoneHelper* RailZoneHelper() = 0;
     virtual IRailRoomHelper* RailRoomHelper() = 0;
     virtual IRailGameServerHelper* RailGameServerHelper() = 0;
 
@@ -88,6 +88,8 @@ class IRailFactory {
     virtual IRailZoneServerHelper* RailZoneServerHelper() = 0;
 
     virtual IRailGroupChatHelper* RailGroupChatHelper() = 0;
+
+    virtual IRailInGameStorePurchaseHelper* RailInGameStorePurchaseHelper() = 0;
 };
 
 #pragma pack(pop)
