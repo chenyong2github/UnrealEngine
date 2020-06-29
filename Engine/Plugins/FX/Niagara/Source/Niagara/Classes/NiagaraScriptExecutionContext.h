@@ -420,6 +420,7 @@ public:
 	bool bRequiresDistanceFieldData = false;
 	bool bRequiresDepthBuffer = false;
 	bool bRequiresEarlyViewData = false;
+	bool bRequiresViewUniformBuffer = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
 };
