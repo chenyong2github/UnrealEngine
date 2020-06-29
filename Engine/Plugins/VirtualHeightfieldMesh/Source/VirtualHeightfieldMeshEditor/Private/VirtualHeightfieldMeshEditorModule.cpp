@@ -3,6 +3,8 @@
 #include "VirtualHeightfieldMeshEditorModule.h"
 
 #include "Interfaces/IPluginManager.h"
+#include "PropertyEditorModule.h"
+#include "VirtualHeightfieldMeshDetailsCustomization.h"
 
 IMPLEMENT_MODULE(FVirtualHeightfieldMeshEditorModule, VirtualHeightfieldMeshEditor);
 
