@@ -59,13 +59,15 @@ public:
 	/** Used to upgrade a serialized FNiagaraParameterStore property to our own struct */
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
+	/** Turn the input NiagaraVariable into the User namespaced version if needed, independent of whether or not it is in a redirection table.*/
+	static void MakeUserVariable(FNiagaraVariableBase& InVar);
 private:
 
 	/** Map from the variables with shortened display names to the original variables with the full namespace */
 	UPROPERTY()
 	TMap<FNiagaraVariable, FNiagaraVariable> UserParameterRedirects;
 
-	bool IsUserParameter(const FNiagaraVariable& InVar) const;
+	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
 
 	FNiagaraVariable GetUserRedirection(const FNiagaraVariable& InVar) const;
 };
