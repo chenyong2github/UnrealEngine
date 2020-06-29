@@ -404,6 +404,7 @@ private:
 		SetVisualizeCalibrationColor(false);
 		SetVisualizeCalibrationGrayscale(false);
 		SetVisualizeCalibrationCustom(false);
+		SetVirtualTexturePrimitives(false);
 	}
 
 
