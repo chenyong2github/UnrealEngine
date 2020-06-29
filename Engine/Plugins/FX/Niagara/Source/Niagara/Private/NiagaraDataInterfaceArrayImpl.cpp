@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceArrayImpl.h"
 
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_GetNumName(TEXT("GetNum"));
+const FName FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName(TEXT("IsValidIndex"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_GetValueName(TEXT("GetValue"));
 
 FString FNiagaraDataInterfaceArrayImplHelper::GetBufferName(const FString& InterfaceName)

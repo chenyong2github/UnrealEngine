@@ -37,6 +37,7 @@ struct FNiagaraDataInterfaceProxyArrayImpl : public FNiagaraDataInterfaceProxy
 struct FNiagaraDataInterfaceArrayImplHelper
 {
 	static const FName Function_GetNumName;
+	static const FName Function_IsValidIndexName;
 	static const FName Function_GetValueName;
 
 	static FString GetBufferName(const FString& InterfaceName);
@@ -72,16 +73,18 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 {
 	TUniquePtr<FNiagaraDataInterfaceProxy>& Proxy;
 	TArray<TArrayType>& Data;
+	FRWLock& ArrayGuard;
 
-	FNiagaraDataInterfaceArrayImpl(TUniquePtr<FNiagaraDataInterfaceProxy>& InProxy, TArray<TArrayType>& InData)
+	FNiagaraDataInterfaceArrayImpl(TUniquePtr<FNiagaraDataInterfaceProxy>& InProxy, TArray<TArrayType>& InData, FRWLock& InArrayGuard)
 		: Proxy(InProxy)
 		, Data(InData)
+		, ArrayGuard(InArrayGuard)
 	{
 	}
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) const override
 	{
-		OutFunctions.Reserve(OutFunctions.Num() + 2);
+		OutFunctions.Reserve(OutFunctions.Num() + 3);
 
 		{
 			FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
@@ -96,6 +99,22 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 			Sig.bSupportsGPU = FNDIArrayImplHelper<TArrayType>::bSupportsGPU;
 			Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(TObjectType::StaticClass()), TEXT("Array interface")));
 			Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Num")));
+		}
+
+		{
+			FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+			Sig.Name = FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName;
+			//#if WITH_EDITORONLY_DATA
+			//		Sig.Description = NSLOCTEXT("Niagara", "GetNumDescription", "This function returns the properties of the current view. Only valid for gpu particles.");
+			//#endif
+			Sig.bMemberFunction = true;
+			Sig.bRequiresContext = false;
+			Sig.bExperimental = true;
+			Sig.bSupportsCPU = FNDIArrayImplHelper<TArrayType>::bSupportsCPU;
+			Sig.bSupportsGPU = FNDIArrayImplHelper<TArrayType>::bSupportsGPU;
+			Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(TObjectType::StaticClass()), TEXT("Array interface")));
+			Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Index")));
+			Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")));
 		}
 
 		{
@@ -122,6 +141,11 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		{
 			check(BindingInfo.GetNumInputs() == 0 && BindingInfo.GetNumOutputs() == 1);
 			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->GetNum(Context); });
+		}
+		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName)
+		{
+			check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->IsValidIndex(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_GetValueName)
 		{
@@ -164,6 +188,11 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		if (FunctionInfo.DefinitionName == FNiagaraDataInterfaceArrayImplHelper::Function_GetNumName)
 		{
 			OutHLSL.Appendf(TEXT("void %s(out int OutValue) { OutValue = %s[0]; }\n"), *FunctionInfo.InstanceName, *FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(ParamInfo.DataInterfaceHLSLSymbol));
+			return true;
+		}
+		else if (FunctionInfo.DefinitionName == FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName)
+		{
+			OutHLSL.Appendf(TEXT("void %s(in int Index, out bool bValid) { bValid = Index >=0 && Index < %s[0]; }\n"), *FunctionInfo.InstanceName, *FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(ParamInfo.DataInterfaceHLSLSymbol));
 			return true;
 		}
 		else if (FunctionInfo.DefinitionName == FNiagaraDataInterfaceArrayImplHelper::Function_GetValueName)
@@ -289,18 +318,36 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 	{
 		FNDIOutputParam<int32> OutValue(Context);
 
+		ArrayGuard.ReadLock();
 		const int32 Num = Data.Num();
+		ArrayGuard.ReadUnlock();
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			OutValue.SetAndAdvance(Num);
 		}
 	}
 
+	void IsValidIndex(FVectorVMContext& Context)
+	{
+		FNDIInputParam<int32> IndexParam(Context);
+		FNDIOutputParam<FNiagaraBool> OutValue(Context);
+
+		ArrayGuard.ReadLock();
+		const int32 Num = Data.Num();
+		ArrayGuard.ReadUnlock();
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			const int32 Index = IndexParam.GetAndAdvance();
+			OutValue.SetAndAdvance((Index >= 0) && (Index < Num));
+		}
+	}
+
 	void GetValue(FVectorVMContext& Context)
 	{
-		VectorVM::FExternalFuncInputHandler<int32> IndexParam(Context);
+		FNDIInputParam<int32> IndexParam(Context);
 		FNDIOutputParam<TArrayType> OutValue(Context);
 
+		FRWScopeLock ReadLock(ArrayGuard, SLT_ReadOnly);
 		const int32 Num = Data.Num() - 1;
 		if (Num >= 0)
 		{
