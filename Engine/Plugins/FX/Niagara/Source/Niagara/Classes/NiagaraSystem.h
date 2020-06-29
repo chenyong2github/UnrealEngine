@@ -157,12 +157,7 @@ struct FNiagaraSystemCompileRequest
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraSystemCompileRequest()
-		: bIsValid(true)
-	{
-	}
-		
-	double StartTime;
+	double StartTime = 0.0;
 
 	UPROPERTY()
 	TArray<UObject*> RootObjects;
@@ -171,7 +166,9 @@ struct FNiagaraSystemCompileRequest
 	
 	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> > MappedData;
 
-	bool bIsValid;
+	bool bIsValid = true;
+
+	bool bForced = false;
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
@@ -428,6 +425,8 @@ private:
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
 
 	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
+
+	bool CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const;
 
 	void InitEmitterCompiledData();
 

@@ -660,6 +660,14 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 {
 	if (!SystemSpawnScript || !SystemUpdateScript)
 	{
+		if (FPlatformProperties::RequiresCookedData())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("%s IsReadyToRunInternal() failed due to missing SystemScript.  Spawn[%s] Update[%s]"),
+				*GetFullName(),
+				SystemSpawnScript ? *SystemSpawnScript->GetName() : TEXT("<none>"),
+				SystemUpdateScript ? *SystemUpdateScript->GetName() : TEXT("<none>"));
+		}
+
 		return false;
 	}
 
@@ -684,13 +692,36 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 		return false;
 	}
 
-	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	const int32 EmitterCount = EmitterHandles.Num();
+	for (int32 EmitterIt = 0; EmitterIt < EmitterCount; ++EmitterIt)
 	{
+		const FNiagaraEmitterHandle& Handle = EmitterHandles[EmitterIt];
 		if (Handle.GetInstance() && !Handle.GetInstance()->IsReadyToRun())
 		{
+			if (FPlatformProperties::RequiresCookedData())
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("%s IsReadyToRunInternal() failed due to Emitter not being ready to run.  Emitter #%d - %s"),
+					*GetFullName(),
+					EmitterIt,
+					Handle.GetInstance() ? *Handle.GetInstance()->GetUniqueEmitterName() : TEXT("<none>"));
+			}
+
 			return false;
 		}
 	}
+
+	// SystemSpawnScript and SystemUpdateScript needs to agree on the attributes of the datasets
+	// Outside of DDC weirdness it's unclear how they can get out of sync, but this is a precaution to make sure that mismatched scripts won't run
+	if (SystemSpawnScript->GetVMExecutableData().Attributes != SystemUpdateScript->GetVMExecutableData().Attributes)
+	{
+		if (FPlatformProperties::RequiresCookedData())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("%s IsReadyToRunInternal() failed due to mismatch between System spawn and update script attributes."), *GetFullName());
+		}
+
+		return false;
+	}
+
 	return true;
 }
 
@@ -1112,6 +1143,35 @@ bool InternalCompileGuardCheck(void* TestValue)
 	return bCompileGuardInProgress;
 }
 
+bool UNiagaraSystem::CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const
+{
+	// for now the only thing we're concerned about is if we've got results for SystemSpawn and SystemUpdate scripts
+	// then we need to make sure that they agree in terms of the dataset attributes
+	const FEmitterCompiledScriptPair* SpawnScriptRequest =
+		Algo::FindBy(CompileRequest.EmitterCompiledScriptPairs, SystemSpawnScript, &FEmitterCompiledScriptPair::CompiledScript);
+	const FEmitterCompiledScriptPair* UpdateScriptRequest =
+		Algo::FindBy(CompileRequest.EmitterCompiledScriptPairs, SystemUpdateScript, &FEmitterCompiledScriptPair::CompiledScript);
+
+	const bool SpawnScriptValid = SpawnScriptRequest
+		&& SpawnScriptRequest->CompileResults.IsValid()
+		&& SpawnScriptRequest->CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
+
+	const bool UpdateScriptValid = UpdateScriptRequest
+		&& UpdateScriptRequest->CompileResults.IsValid()
+		&& UpdateScriptRequest->CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
+
+	if (SpawnScriptValid && UpdateScriptValid)
+	{
+		if (SpawnScriptRequest->CompileResults->Attributes != UpdateScriptRequest->CompileResults->Attributes)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply)
 {
 
@@ -1140,9 +1200,24 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		check(bWait ? (bAreWeWaitingForAnyResults == false) : true);
 
 		// Make sure that we aren't waiting for any results to come back.
-		if (bAreWeWaitingForAnyResults && !bWait)
+		if (bAreWeWaitingForAnyResults)
 		{
-			return false;
+			if (!bWait)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
+			// we've run into a compatibility issue and so we should see if we should issue a full rebuild
+			if (!ActiveCompilations[ActiveCompileIdx].bForced && !CompilationResultsValid(ActiveCompilations[ActiveCompileIdx]))
+			{
+				ActiveCompilations[ActiveCompileIdx].RootObjects.Empty();
+				ActiveCompilations.RemoveAt(ActiveCompileIdx);
+				RequestCompile(true, nullptr);
+				return false;
+			}
 		}
 
 		// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
@@ -1425,7 +1500,6 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 	if (bForce)
 	{
 		ForceGraphToRecompileOnNextCheck();
-		bForce = false;
 	}
 
 	if (bCompileGuardInProgress)
@@ -1442,8 +1516,9 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 	// Record that we entered this function already.
 	FPlatformTLS::SetTlsValue(CompileGuardSlot, this);
 
-	int32 ActiveCompileIdx = ActiveCompilations.AddDefaulted();
-	ActiveCompilations[ActiveCompileIdx].StartTime = FPlatformTime::Seconds();
+	FNiagaraSystemCompileRequest& ActiveCompilation = ActiveCompilations.AddDefaulted_GetRef();
+	ActiveCompilation.bForced = bForce;
+	ActiveCompilation.StartTime = FPlatformTime::Seconds();
 
 	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_Precompile);
 	
@@ -1489,7 +1564,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 							ScriptsNeedingCompile.Add(EmitterScript);
 							bAnyUnsynchronized = true;
 						}
-						ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
+						ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
 					}
 
 				}
@@ -1509,7 +1584,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					ScriptsNeedingCompile.Add(SystemSpawnScript);
 					bAnyCompiled = true;
 				}
-				ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
+				ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
 			}
 
 			{
@@ -1522,7 +1597,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					ScriptsNeedingCompile.Add(SystemUpdateScript);
 					bAnyCompiled = true;
 				}
-				ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
+				ActiveCompilation.EmitterCompiledScriptPairs.Add(Pair);
 			}
 		}
 
@@ -1543,9 +1618,9 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					return false;
 				}
 
-				SystemPrecompiledData->GetReferencedObjects(ActiveCompilations[ActiveCompileIdx].RootObjects);
-				ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemSpawnScript, SystemPrecompiledData);
-				ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemUpdateScript, SystemPrecompiledData);
+				SystemPrecompiledData->GetReferencedObjects(ActiveCompilation.RootObjects);
+				ActiveCompilation.MappedData.Add(SystemSpawnScript, SystemPrecompiledData);
+				ActiveCompilation.MappedData.Add(SystemUpdateScript, SystemPrecompiledData);
 
 				check(EmitterHandles.Num() == SystemPrecompiledData->GetDependentRequestCount());
 
@@ -1561,14 +1636,14 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					{
 						UNiagaraScriptSourceBase* GraphSource = Handle.GetInstance()->GraphSource;
 						TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = SystemPrecompiledData->GetDependentRequest(i);
-						EmitterPrecompiledData->GetReferencedObjects(ActiveCompilations[ActiveCompileIdx].RootObjects);
+						EmitterPrecompiledData->GetReferencedObjects(ActiveCompilation.RootObjects);
 
 						TArray<UNiagaraScript*> EmitterScripts;
 						Handle.GetInstance()->GetScripts(EmitterScripts, false);
 						check(EmitterScripts.Num() > 0);
 						for (UNiagaraScript* EmitterScript : EmitterScripts)
 						{
-							ActiveCompilations[ActiveCompileIdx].MappedData.Add(EmitterScript, EmitterPrecompiledData);
+							ActiveCompilation.MappedData.Add(EmitterScript, EmitterPrecompiledData);
 						}
 
 
@@ -1601,8 +1676,8 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				return CompiledScript == Other.CompiledScript;
 			};
 
-			TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = ActiveCompilations[ActiveCompileIdx].MappedData.FindChecked(CompiledScript);
-			FEmitterCompiledScriptPair* Pair = ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.FindByPredicate(InPairs);
+			TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = ActiveCompilation.MappedData.FindChecked(CompiledScript);
+			FEmitterCompiledScriptPair* Pair = ActiveCompilation.EmitterCompiledScriptPairs.FindByPredicate(InPairs);
 			check(Pair);
 			if (!CompiledScript->RequestExternallyManagedAsyncCompile(EmitterPrecompiledData, Pair->CompileId, Pair->PendingJobID))
 			{
@@ -1716,7 +1791,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 
 	ExposedParameters.CopyParametersTo(SystemCompiledData.InstanceParamStore, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
 
-	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TArrayView<FNiagaraVariable> Vars)
+	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TConstArrayView<FNiagaraVariable> Vars)
 	{
 		CompiledData.Empty();
 
@@ -1733,12 +1808,15 @@ void UNiagaraSystem::InitSystemCompiledData()
 		CompiledData.BuildLayout();
 	};
 
-	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, GetSystemUpdateScript()->GetVMExecutableData().Attributes);
+	const FNiagaraVMExecutableData& SystemSpawnScriptData = GetSystemSpawnScript()->GetVMExecutableData();
+	const FNiagaraVMExecutableData& SystemUpdateScriptData = GetSystemUpdateScript()->GetVMExecutableData();
 
-	FNiagaraParameters* EngineParamsSpawn = GetSystemSpawnScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? TArrayView<FNiagaraVariable>(EngineParamsSpawn->Parameters) : TArrayView<FNiagaraVariable>());
-	FNiagaraParameters* EngineParamsUpdate = GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? TArrayView<FNiagaraVariable>(EngineParamsUpdate->Parameters) : TArrayView<FNiagaraVariable>());
+	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, SystemUpdateScriptData.Attributes);
+
+	const FNiagaraParameters* EngineParamsSpawn = SystemSpawnScriptData.DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? TConstArrayView<FNiagaraVariable>(EngineParamsSpawn->Parameters) : TArrayView<FNiagaraVariable>());
+	const FNiagaraParameters* EngineParamsUpdate = SystemUpdateScriptData.DataSetToParameters.Find(TEXT("Engine"));
+	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? TConstArrayView<FNiagaraVariable>(EngineParamsUpdate->Parameters) : TArrayView<FNiagaraVariable>());
 
 	// create the bindings to be used with our constant buffers; geenrating the offsets to/from the data sets; we need
 	// editor data to build these bindings because of the constant buffer structs only having their variable definitions
