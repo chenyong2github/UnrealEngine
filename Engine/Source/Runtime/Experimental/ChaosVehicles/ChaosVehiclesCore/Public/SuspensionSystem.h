@@ -34,7 +34,7 @@ namespace Chaos
 			, ReboundDamping(0.9f)
 			, Swaybar(0.5f)
 			, DampingRatio(0.3f)
-			, RaycastSafetyMargin(10.0f)
+			, RaycastSafetyMargin(0.0f)
 			, SuspensionSmoothing(6)
 		{
 			MaxLength = FMath::Abs(SuspensionMaxRaise) + FMath::Abs(SuspensionMaxDrop);
@@ -135,6 +135,7 @@ namespace Chaos
 		{
 			FVector LocalDirection(0.f, 0.f, -1.f);
 			FVector WorldLocation = BodyTransform.TransformPosition(GetLocalRestingPosition());
+			WorldLocation.Z += Setup().SuspensionMaxRaise;
 			FVector WorldDirection = BodyTransform.TransformVector(LocalDirection);
 
 			OutTrace.Start = WorldLocation - WorldDirection * Setup().RaycastSafetyMargin;
@@ -187,6 +188,11 @@ namespace Chaos
 		{
 			FVector LocalDirection(0.f, 0.f, 1.f);
 			return InTransform.TransformVector(LocalDirection) * SuspensionForce;
+		}
+
+		float GetSuspensionOffset()
+		{
+			return Setup().SuspensionMaxRaise + GetSpringLength();
 		}
 
 		const FVector& GetLocalRestingPosition() const
