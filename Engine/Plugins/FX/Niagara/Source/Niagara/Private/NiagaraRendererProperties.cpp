@@ -39,48 +39,46 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 		BaseType_NUM
 	};
 
-	uint32 MaxNumComponents = 0;
-
 	TArray<int32, TInlineAllocator<32>> SeenOffsets[BaseType_NUM];
-	uint32 NumComponents[BaseType_NUM] = { 0, 0 };
+	uint32 NumComponents[BaseType_NUM] = { 0 };
+
+	auto AccumulateUniqueComponents = [&](BaseType Type, uint32 ComponentCount, int32 ComponentOffset)
+	{
+		if (!SeenOffsets[Type].Contains(ComponentOffset))
+		{
+			SeenOffsets[Type].Add(ComponentOffset);
+			NumComponents[Type] += ComponentCount;
+		}
+	};
+
 	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 	{
 		const FNiagaraVariable& Var = Binding->DataSetVariable;
 
-		int32 FloatOffset, IntOffset, HalfOffset;
-		DataSet.GetVariableComponentOffsets(Var, FloatOffset, IntOffset, HalfOffset);
+		if (const FNiagaraVariableLayoutInfo* DataSetVarLayout = DataSet.GetVariableLayout(Var))
+		{
+			if (const uint32 FloatCount = DataSetVarLayout->GetNumFloatComponents())
+			{
+				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout->FloatComponentStart);
+			}
 
-		int32 VarOffset, VarBaseSize;
-		BaseType VarBaseType;
-		if (FloatOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Float;
-			VarOffset = FloatOffset;
-			VarBaseSize = sizeof(float);
-		}
-		else if (IntOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Int;
-			VarOffset = IntOffset;
-			VarBaseSize = sizeof(int32);
-		}
-		else if (HalfOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Half;
-			VarOffset = HalfOffset;
-			VarBaseSize = sizeof(float) / 2;
-		}
-		else
-		{
-			continue;
-		}
+			if (const uint32 IntCount = DataSetVarLayout->GetNumInt32Components())
+			{
+				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout->Int32ComponentStart);
+			}
 
-		if (!SeenOffsets[VarBaseType].Contains(VarOffset))
-		{
-			SeenOffsets[VarBaseType].Add(VarOffset);
-			NumComponents[VarBaseType] += Var.GetSizeInBytes() / VarBaseSize;
-			MaxNumComponents = FMath::Max(MaxNumComponents, NumComponents[VarBaseType]);
+			if (const uint32 HalfCount = DataSetVarLayout->GetNumHalfComponents())
+			{
+				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout->HalfComponentStart);
+			}
 		}
+	}
+
+	uint32 MaxNumComponents = 0;
+
+	for (uint32 ComponentCount : NumComponents)
+	{
+		MaxNumComponents = FMath::Max(MaxNumComponents, ComponentCount);
 	}
 
 	return MaxNumComponents;
