@@ -1926,6 +1926,96 @@ void UNiagaraComponent::PostLoad()
 		FixInvalidUserParameters(OverrideParameters);
 		
 		UpgradeDeprecatedParameterOverrides();
+
+#if WITH_EDITORONLY_DATA
+		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+		if (NiagaraVer < FNiagaraCustomVersion::ComponentsOnlyHaveUserVariables)
+		{
+			{
+				TArray<FNiagaraVariableBase> ToRemoveNonUser;
+				TArray<FNiagaraVariableBase> ToAddNonUser;
+
+				auto InstanceKeyIter = InstanceParameterOverrides.CreateConstIterator();
+				while (InstanceKeyIter)
+				{
+					FName KeyName = InstanceKeyIter.Key().GetName();
+					FNiagaraVariableBase VarBase = InstanceKeyIter.Key();
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(VarBase);
+					FName UserKeyName = VarBase.GetName();
+					if (KeyName != UserKeyName)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("InstanceParameterOverrides for %s has non-user keys in it! %s. Updating in PostLoad to User key."), *GetPathName(), *KeyName.ToString());
+						const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(VarBase);
+						if (FoundVar != nullptr)
+						{
+							UE_LOG(LogNiagara, Warning, TEXT("InstanceParameterOverrides for %s has values for both keys in it! %s and %s. PostLoad keeping User version."), *GetPathName(), *KeyName.ToString(), *UserKeyName.ToString());
+						}
+						else
+						{
+							ToAddNonUser.Add(InstanceKeyIter.Key());
+						}
+						ToRemoveNonUser.Add(InstanceKeyIter.Key());
+					}
+					++InstanceKeyIter;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToAddNonUser)
+				{
+					const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(Var);
+					FNiagaraVariableBase UserVar = Var;
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
+					InstanceParameterOverrides.Add(UserVar) = *FoundVar;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
+				{
+					InstanceParameterOverrides.Remove(Var);
+				}
+			}
+
+			{
+				TArray<FNiagaraVariableBase> ToRemoveNonUser;
+				TArray<FNiagaraVariableBase> ToAddNonUser;
+
+				auto TemplateKeyIter = TemplateParameterOverrides.CreateConstIterator();
+				while (TemplateKeyIter)
+				{
+					FName KeyName = TemplateKeyIter.Key().GetName();
+					FNiagaraVariableBase VarBase = TemplateKeyIter.Key();
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(VarBase);
+					FName UserKeyName = VarBase.GetName();
+					if (KeyName != UserKeyName)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("TemplateParameterOverrides for %s has non-user keys in it! %s. Updating in PostLoad to User key."), *GetPathName(), *KeyName.ToString());
+						const FNiagaraVariant* FoundVar = TemplateParameterOverrides.Find(VarBase);
+						if (FoundVar != nullptr)
+						{
+							UE_LOG(LogNiagara, Warning, TEXT("TemplateParameterOverrides for %s has values for both keys in it! %s and %s.  PostLoad keeping User version."), *GetPathName(), *KeyName.ToString(), *UserKeyName.ToString());
+						}
+						else
+						{
+							ToAddNonUser.Add(TemplateKeyIter.Key());
+						}
+						ToRemoveNonUser.Add(TemplateKeyIter.Key());
+					}
+					++TemplateKeyIter;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToAddNonUser)
+				{
+					const FNiagaraVariant* FoundVar = TemplateParameterOverrides.Find(Var);
+					FNiagaraVariableBase UserVar = Var;
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
+					TemplateParameterOverrides.Add(UserVar) = *FoundVar;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
+				{
+					TemplateParameterOverrides.Remove(Var);
+				}
+			}
+		}
+#endif
 		SynchronizeWithSourceSystem();
 
 		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
@@ -2248,19 +2338,41 @@ FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableB
 		return FNiagaraVariant();
 	}
 
+	FNiagaraVariableBase RedirectedVar = Asset->GetExposedParameters().FindRedirection(InKey);
+
 	if (!IsTemplate())
 	{
-		const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
+		// Check both user and non-user keys
+		{
+			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
+			if (Value != nullptr)
+			{
+				return *Value;
+			}
+		}
+		{
+			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(RedirectedVar);
+			if (Value != nullptr)
+			{
+				return *Value;
+			}
+		}
+	}
+
+	// Check both user and non-user keys
+	{
+		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
 		if (Value != nullptr)
 		{
 			return *Value;
 		}
 	}
-
-	const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
-	if (Value != nullptr)
 	{
-		return *Value;
+		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(RedirectedVar);
+		if (Value != nullptr)
+		{
+			return *Value;
+		}
 	}
 
 	return FNiagaraVariant();
