@@ -9,12 +9,17 @@
 #include "ISoundSubmixEditor.h"
 #include "ISoundCueEditor.h"
 
+
+// Forward Declarations
 class UDialogueWave;
 class USoundClass;
 class USoundCue;
+class USoundEffectPreset;
 class USoundSubmixBase;
 class USoundNode;
 class USoundWave;
+class UWidgetBlueprint;
+
 struct FDialogueContextMapping;
 
 AUDIOEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioEditor, Log, All);
@@ -60,6 +65,15 @@ public:
 
 	/** Returns the toolbar extensibility manager for the given audio editor type. */
 	virtual TSharedPtr<FExtensibilityManager> GetSoundCueToolBarExtensibilityManager() = 0;
+
+	/** Registers a custom widget blueprint with a SoundEffectPreset class for editing. */
+	virtual void RegisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass, UWidgetBlueprint* WidgetBlueprint) = 0;
+
+	/** Returns custom widget blueprint for a given SoundEffectPreset class (or null if unset). */
+	virtual UWidgetBlueprint* GetSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) = 0;
+
+	/** Unregisters a custom widget blueprint with a SoundEffectPreset class for editing. */
+	virtual void UnregisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) = 0;
 
 	/** Replaces sound cue nodes in the graph. */
 	virtual void ReplaceSoundNodesInGraph(USoundCue* SoundCue, UDialogueWave* DialogueWave, TArray<USoundNode*>& NodesToReplace, const FDialogueContextMapping& ContextMapping) = 0;
