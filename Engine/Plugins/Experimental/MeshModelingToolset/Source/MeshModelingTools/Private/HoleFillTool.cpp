@@ -50,6 +50,46 @@ void UHoleFillToolActions::PostAction(EHoleFillToolActions Action)
 }
 
 
+void UHoleFillStatisticsProperties::Initialize(const UHoleFillTool& HoleFillTool)
+{
+	if (HoleFillTool.Topology == nullptr)
+	{
+		return;
+	}
+
+	int Initial = HoleFillTool.Topology->Edges.Num();
+	int Selected = 0;
+	int Successful = 0;
+	int Failed = 0;
+	int Remaining = Initial;
+	
+	InitialHoles = FString::FromInt(Initial);
+	SelectedHoles = FString::FromInt(Selected);
+	SuccessfulFills = FString::FromInt(Successful);
+	FailedFills = FString::FromInt(Failed);
+	RemainingHoles = FString::FromInt(Remaining);
+}
+
+void UHoleFillStatisticsProperties::Update(const UHoleFillTool& HoleFillTool, const FHoleFillOp& Op)
+{
+	if (HoleFillTool.Topology == nullptr)
+	{
+		return;
+	}
+
+	int Initial = HoleFillTool.Topology->Edges.Num();
+	int Selected = Op.Loops.Num();
+	int Failed = Op.NumFailedLoops;
+	int Successful = Selected - Failed;
+	int Remaining = Initial - Successful;
+
+	InitialHoles = FString::FromInt(Initial);
+	SelectedHoles = FString::FromInt(Selected);
+	SuccessfulFills = FString::FromInt(Successful);
+	FailedFills = FString::FromInt(Failed);
+	RemainingHoles = FString::FromInt(Remaining);
+}
+
 /*
 * Op Factory
 */
@@ -115,6 +155,10 @@ void UHoleFillTool::Setup()
 	AddToolPropertySource(Actions);
 	SetToolPropertySourceEnabled(Actions, true);
 
+	Statistics = NewObject<UHoleFillStatisticsProperties>();
+	AddToolPropertySource(Statistics);
+	SetToolPropertySourceEnabled(Statistics, true);
+
 	ToolPropertyObjects.Add(this);
 
 	// click behavior
@@ -152,6 +196,8 @@ void UHoleFillTool::Setup()
 	// Store a UV scale based on the original mesh bounds
 	MeshUVScaleFactor = (1.0 / OriginalMesh->GetBounds().MaxDim());
 
+	Statistics->Initialize(*this);
+
 	// initialize the PreviewMesh+BackgroundCompute object
 	SetupPreview();
 	InvalidatePreviewResult();
@@ -178,6 +224,11 @@ void UHoleFillTool::Setup()
 	}
 	else
 	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("HoleFillToolDescription", 
+				"Holes in the mesh are highlighted. Select individual holes to fill or use the Select All or Clear buttons."),
+			EToolMessageLevel::UserNotification);
+
 		// Hide all meshes except the Preview
 		ComponentTarget->SetOwnerVisibility(false);
 	}
@@ -350,6 +401,8 @@ void UHoleFillTool::SetupPreview()
 				FText::Format(LOCTEXT("FillFailNotification", "Failed to fill {0} holes."), HoleFillOp->NumFailedLoops),
 				EToolMessageLevel::UserWarning);
 		}
+
+		Statistics->Update(*this, *HoleFillOp);
 	});
 
 	Preview->PreviewMesh->EnableSecondaryTriangleBuffers(
