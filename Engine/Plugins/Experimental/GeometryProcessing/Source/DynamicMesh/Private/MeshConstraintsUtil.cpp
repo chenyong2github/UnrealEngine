@@ -13,7 +13,7 @@ void FMeshConstraintsUtil::ConstrainAllSeams(FMeshConstraints& Constraints, cons
 	const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
 
 	FEdgeConstraint EdgeConstraint = (bAllowSplits) ? FEdgeConstraint::SplitsOnly() : FEdgeConstraint::FullyConstrained();
-	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PinnedMovable() : FVertexConstraint::Pinned();
+	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PermanentMovable() : FVertexConstraint::FullyConstrained();
 
 	FCriticalSection ConstraintSetLock;
 
@@ -61,18 +61,19 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 			const bool bIsSeam = Attributes && Attributes->IsSeamEdge(EdgeID);
 			FVertexConstraint VtxConstraint = FVertexConstraint::Unconstrained();
 			EEdgeRefineFlags EdgeFlags{};
-			auto ApplyBoundaryConstraint =
-				[&VtxConstraint, &EdgeFlags](uint8 BoundaryConstraint)
-				{
-					VtxConstraint.Fixed = VtxConstraint.Fixed ||
-						(BoundaryConstraint == (uint8)EEdgeRefineFlags::FullyConstrained) ||
-						(BoundaryConstraint == (uint8)EEdgeRefineFlags::SplitsOnly);
-					VtxConstraint.Movable = VtxConstraint.Movable &&
-						(BoundaryConstraint != (uint8)EEdgeRefineFlags::FullyConstrained) &&
-						(BoundaryConstraint != (uint8)EEdgeRefineFlags::SplitsOnly);
-					EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
-												 (uint8)BoundaryConstraint);
-				};
+
+			auto ApplyBoundaryConstraint = [&VtxConstraint, &EdgeFlags](uint8 BoundaryConstraint)
+			{
+				VtxConstraint.bCannotDelete = VtxConstraint.bCannotDelete ||
+					(BoundaryConstraint == (uint8)EEdgeRefineFlags::FullyConstrained) ||
+					(BoundaryConstraint == (uint8)EEdgeRefineFlags::SplitsOnly);
+				VtxConstraint.bCanMove = VtxConstraint.bCanMove &&
+					(BoundaryConstraint != (uint8)EEdgeRefineFlags::FullyConstrained) &&
+					(BoundaryConstraint != (uint8)EEdgeRefineFlags::SplitsOnly);
+				EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
+												(uint8)BoundaryConstraint);
+			};
+
 			if ( bIsMeshBoundary )
 			{
 				ApplyBoundaryConstraint((uint8)MeshBoundaryConstraint);
@@ -87,8 +88,8 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 			}
 			if ( bIsSeam )
 			{
-				VtxConstraint.Movable = VtxConstraint.Movable && bAllowSeamSmoothing;
-				VtxConstraint.Fixed = true;
+				VtxConstraint.bCanMove = VtxConstraint.bCanMove && bAllowSeamSmoothing;
+				VtxConstraint.bCannotDelete = true;
 				EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
 											 (uint8)(bAllowSeamSplits ?
 													 EEdgeRefineFlags::SplitsOnly : EEdgeRefineFlags::FullyConstrained));
@@ -126,7 +127,7 @@ void FMeshConstraintsUtil::ConstrainSeamsInEdgeROI(FMeshConstraints& Constraints
 	const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
 
 	FEdgeConstraint EdgeConstraint = (bAllowSplits) ? FEdgeConstraint::SplitsOnly() : FEdgeConstraint::FullyConstrained();
-	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PinnedMovable() : FVertexConstraint::Pinned();
+	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PermanentMovable() : FVertexConstraint::FullyConstrained();
 
 	FCriticalSection ConstraintSetLock;
 
@@ -171,7 +172,7 @@ void FMeshConstraintsUtil::ConstrainROIBoundariesInEdgeROI(FMeshConstraints& Con
 	bool bAllowSmoothing)
 {
 	FEdgeConstraint EdgeConstraint = (bAllowSplits) ? FEdgeConstraint::SplitsOnly() : FEdgeConstraint::FullyConstrained();
-	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PinnedMovable() : FVertexConstraint::Pinned();
+	FVertexConstraint VtxConstraint = (bAllowSmoothing) ? FVertexConstraint::PermanentMovable() : FVertexConstraint::FullyConstrained();
 
 	for (int EdgeID : EdgeROI)
 	{
