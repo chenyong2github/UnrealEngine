@@ -340,18 +340,33 @@ TOptional<ELevelVisibility> FMovieSceneLevelStreamingSharedData::FVisibilityData
 UMovieSceneLevelVisibilitySystem::UMovieSceneLevelVisibilitySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
 	Phase = UE::MovieScene::ESystemPhase::Spawn;
-	RelevantComponent = UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->LevelVisibility;
+	RelevantComponent = TracksComponents->LevelVisibility;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneSpawnablesSystem::StaticClass());
 	}
+
+	// We only need to run if there are level visibility components that need (un)linking
+	ApplicableFilter.Filter.All({ TracksComponents->LevelVisibility });
+	ApplicableFilter.Filter.Any({ BuiltInComponents->Tags.NeedsLink,BuiltInComponents->Tags.NeedsUnlink });
 }
 
 void UMovieSceneLevelVisibilitySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
+
+	// Only run if we must
+	if (!ApplicableFilter.Matches(Linker->EntityManager))
+	{
+		return;
+	}
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();

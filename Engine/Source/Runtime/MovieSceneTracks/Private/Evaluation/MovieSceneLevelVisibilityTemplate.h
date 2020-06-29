@@ -4,6 +4,7 @@
 
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
 #include "Engine/LevelStreaming.h"
 #include "MovieSceneLevelVisibilityTemplate.generated.h"
@@ -71,5 +72,8 @@ private:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
 private:
+
+	/** Cached filter that tells us whether we need to run this frame */
+	UE::MovieScene::FCachedEntityFilterResult_Match ApplicableFilter;
 	UE::MovieScene::FMovieSceneLevelStreamingSharedData SharedData;
 };
