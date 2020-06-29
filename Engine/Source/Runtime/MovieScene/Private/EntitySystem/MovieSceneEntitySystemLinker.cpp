@@ -160,7 +160,7 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 
 	auto Iter = [&ExpiredBoundObjects](FMovieSceneEntityID EntityID, UObject* BoundObject)
 	{
-		if (!BoundObject || BoundObject->IsPendingKill())
+		if (FBuiltInComponentTypes::IsBoundObjectGarbage(BoundObject))
 		{
 			ExpiredBoundObjects.Add(EntityID);
 		}

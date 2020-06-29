@@ -257,6 +257,11 @@ public:
 
 	static FBuiltInComponentTypes* Get();
 
+	FORCEINLINE static bool IsBoundObjectGarbage(UObject* InObject)
+	{
+		return InObject == nullptr || InObject->IsPendingKillOrUnreachable();
+	}
+
 private:
 	FBuiltInComponentTypes();
 };

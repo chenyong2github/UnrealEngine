@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 #include "Algo/Sort.h"
 
 void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker)
@@ -22,7 +23,7 @@ void UMovieSceneTrackInstance::Animate()
 
 void UMovieSceneTrackInstance::Destroy()
 {
-	if (bIsMasterTrackInstance || (AnimatedObject && !AnimatedObject->IsPendingKill()))
+	if (bIsMasterTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(AnimatedObject))
 	{
 		OnDestroyed();
 	}
