@@ -36,16 +36,16 @@ protected:
 		const int32& DepSet, int32& DepOrder, int32 DepHierarchy, TSet<FName>& ProcessedFiles, const TSet<FName>& OriginalSet, const FName& FilePath, const FName& PackageFName, const TArray<FName>& FilterByClass);
 
 	void ReorderOrderFile(const FString& OrderFilePath, const FString& ReorderFileOutPath);
-	void ReorderOrderFiles(FFileOpenOrder& FileOpenOrder, const FString& CmdLineParams);
-	
 	// Generate a new FOO which only takes partial update from new FOO files with input of an old FOO file and a new FOO file
 	bool GeneratePartiallyUpdatedOrderFile(const FString& OldOrderFilePath, const FString& NewOrderFilePath, const FString& OutOrderFilePath, const float PatchSizePerfBalanceFactor);
-	bool GenerateOrderFile(FFileOpenOrder& NewFileOpenOrder, const FString& ReorderFileOutPath);
+
+	bool MergeOrderFiles(TMap<FString, int64>& NewOrderMap, TMap<FString, int64>& PrevOrderMap);
+	bool GenerateOrderFile(TMap<FString, int64>& OutputOrderMap, const FString& ReorderFileOutPath);
 
 private:
 
 
 	bool LoadOrderFiles(const FString& OrderFilePath, TSet<FName>& OrderFiles);
-	bool LoadOrderFiles(const FString& OrderFilePath, FFileOpenOrder& FileOpenOrder);
+	bool LoadOrderFile(const FString& OrderFilePath, TMap<FString, int64>& OrderMap);
 };
 
