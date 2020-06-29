@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Properties/OnAcceptProperties.h"
+#include "PropertySets/OnAcceptProperties.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectGlobals.h"

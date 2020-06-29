@@ -11,7 +11,7 @@
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UVoxelProperties : public UInteractiveToolPropertySet
+class MODELINGCOMPONENTS_API UVoxelProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
