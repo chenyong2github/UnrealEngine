@@ -126,6 +126,7 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 	{
 		check(SkelMeshRenderData);
 		check(SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex));
+
 		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData->LODRenderData[LODIndex];
 		FVertexBufferRHIRef VertexBufferRHI = LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 		FIndexBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
@@ -140,36 +141,44 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 
 		TArray<FSkelMeshRenderSection>* RenderSections = &LODModel.RenderSections;
 		ENQUEUE_RENDER_COMMAND(InitSkeletalRenderStaticRayTracingGeometry)(
-			[this, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections](FRHICommandListImmediate& RHICmdList)
+			[this, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections, LODIndex = LODIndex](FRHICommandListImmediate& RHICmdList)
+		{
+			if (LODIndex < SkelMeshRenderData->CurrentFirstLODIdx)
+				// According to GetMeshElementsConditionallySelectable(), non-resident LODs should just be skipped
+				// TODO: build AS for this static object on streaming in? Dynamic objects don't need that as they will be rebuilt very soon
+				// This check needs to happen inside this render thread command as CurrentFirstLODIdx is RT only
 			{
-				FRayTracingGeometryInitializer Initializer;
-				static const FName DebugName("FSkeletalMeshObjectLOD");
-				static int32 DebugNumber = 0;
-				Initializer.DebugName = FName(DebugName, DebugNumber++);
-				Initializer.IndexBuffer = IndexBufferRHI;
-				Initializer.TotalPrimitiveCount = TrianglesCount;
-				Initializer.GeometryType = RTGT_Triangles;
-				Initializer.bFastBuild = false;
-
-				TArray<FRayTracingGeometrySegment> GeometrySections;
-				GeometrySections.Reserve(RenderSections->Num());
-				for (const FSkelMeshRenderSection& Section : *RenderSections)
-				{
-					FRayTracingGeometrySegment Segment;
-					Segment.VertexBuffer = VertexBufferRHI;
-					Segment.VertexBufferElementType = VET_Float3;
-					Segment.VertexBufferOffset = 0;
-					Segment.VertexBufferStride = VertexBufferStride;
-					Segment.FirstPrimitive = Section.BaseIndex / 3;
-					Segment.NumPrimitives = Section.NumTriangles;
-					Segment.bEnabled = !Section.bDisabled;
-					GeometrySections.Add(Segment);
-				}
-				Initializer.Segments = GeometrySections;
-
-				RayTracingGeometry.SetInitializer(Initializer);
-				RayTracingGeometry.InitResource();
+				return;
 			}
+
+			FRayTracingGeometryInitializer Initializer;
+			static const FName DebugName("FSkeletalMeshObjectLOD");
+			static int32 DebugNumber = 0;
+			Initializer.DebugName = FName(DebugName, DebugNumber++);
+			Initializer.IndexBuffer = IndexBufferRHI;
+			Initializer.TotalPrimitiveCount = TrianglesCount;
+			Initializer.GeometryType = RTGT_Triangles;
+			Initializer.bFastBuild = false;
+
+			TArray<FRayTracingGeometrySegment> GeometrySections;
+			GeometrySections.Reserve(RenderSections->Num());
+			for (const FSkelMeshRenderSection& Section : *RenderSections)
+			{
+				FRayTracingGeometrySegment Segment;
+				Segment.VertexBuffer = VertexBufferRHI;
+				Segment.VertexBufferElementType = VET_Float3;
+				Segment.VertexBufferOffset = 0;
+				Segment.VertexBufferStride = VertexBufferStride;
+				Segment.FirstPrimitive = Section.BaseIndex / 3;
+				Segment.NumPrimitives = Section.NumTriangles;
+				Segment.bEnabled = !Section.bDisabled;
+				GeometrySections.Add(Segment);
+			}
+			Initializer.Segments = GeometrySections;
+
+			RayTracingGeometry.SetInitializer(Initializer);
+			RayTracingGeometry.InitResource();
+		}
 		);
 	}
 #endif // RHI_RAYTRACING
