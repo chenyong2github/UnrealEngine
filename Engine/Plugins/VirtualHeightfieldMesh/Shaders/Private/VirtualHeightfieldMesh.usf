@@ -1,0 +1,554 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"	
+#include "/Engine/Private/MortonCode.ush"	
+#include "VirtualHeightfieldMesh.ush"	
+
+//#include "/Engine/Private/ShaderPrintCommon.ush"	
+//#include "/Engine/Private/ShaderDrawDebug.ush"	
+
+groupshared uint NumGroupTasks;
+globallycoherent RWStructuredBuffer<WorkerQueueInfo> RWQueueInfo;
+globallycoherent RWStructuredBuffer<QuadItem> RWQueueBuffer;
+
+RWStructuredBuffer<QuadRenderItem> RWQuadBuffer;
+StructuredBuffer<QuadRenderItem> QuadBuffer;
+
+RWStructuredBuffer<QuadNeighborItem> RWQuadNeighborBuffer;
+StructuredBuffer<QuadNeighborItem> QuadNeighborBuffer;
+
+RWStructuredBuffer<QuadRenderInstance> RWInstanceBuffer;
+StructuredBuffer<QuadRenderInstance> InstanceBuffer;
+
+RWBuffer<uint> RWFeedbackBuffer;
+
+Texture2D<uint> PageTableTexture;
+uint4 PageTablePackedUniform;
+float3 PageTableSize;
+uint PageTableFeedbackId;
+
+Texture2D<float4> MinMaxTexture;
+SamplerState MinMaxTextureSampler;
+
+Texture2D<float> OcclusionTexture;
+int OcclusionLevelOffset;
+
+float4x4 UVToWorld;
+float3 CameraPosition;
+float ProjectionScale;
+float LodThreshold;
+float4 FrustumPlanes[5];
+
+Texture2D<float2> LodTexture;
+
+RWBuffer<uint> RWIndirectArgsBuffer;
+int NumIndices;
+
+
+/**
+ * Clear the buffers and seed with the queue with the lowest mip page.
+ */
+
+[numthreads(1, 1, 1)]
+void InitBuffersCS()
+{
+	RWQueueInfo[0].Read = 0;
+	RWQueueInfo[0].Write = 1;
+	RWQueueInfo[0].NumActive = 1;
+
+	RWQueueBuffer[0].Address = 0;
+	RWQueueBuffer[0].Level = (uint)PageTableSize.z;
+
+	RWQuadBuffer[0].Address = 0;
+	RWQuadBuffer[0].Level = 0;
+
+	RWFeedbackBuffer[0] = 0;
+}
+
+/** */
+struct FUniform
+{
+	// Page sizes are scaled by RcpPhysicalTextureSize
+	float pPageSize;
+	float vPageSize;
+	float vPageBorderSize;
+	uint PageCoordinateBitCount;
+};
+
+/** */
+FUniform VTUniform_Unpack2(uint4 InPackedUniform)
+{
+	FUniform result;
+	result.pPageSize = asfloat(InPackedUniform.w);
+	result.vPageSize = asfloat(InPackedUniform.y);
+	result.vPageBorderSize = asfloat(InPackedUniform.z);
+	result.PageCoordinateBitCount = InPackedUniform.x == 0 ? 8 : 6;
+	return result;
+}
+
+/** */
+void Split( in QuadItem InItem, out QuadItem OutItems0, out QuadItem OutItems1, out QuadItem OutItems2, out QuadItem OutItems3 )
+{
+	uint Address = InItem.Address << 2;
+	uint Level = InItem.Level - 1;
+
+	OutItems0.Address = Address;
+	OutItems0.Level = Level;
+	OutItems1.Address = Address + 1;
+	OutItems1.Level = Level;
+	OutItems2.Address = Address + 2;
+	OutItems2.Level = Level;
+	OutItems3.Address = Address + 3;
+	OutItems3.Level = Level;
+}
+
+/** */
+float2 UnPackMinMaxHeight(float4 Packed)
+{
+	uint4 PackedScaled = (uint4)floor(Packed *= 255.f);
+	uint2 UnPackedScaled = uint2(PackedScaled.x << 8 | PackedScaled.y, PackedScaled.z << 8 | PackedScaled.w);
+	float2 UnPacked = (float2)UnPackedScaled / 65535.f;
+	return UnPacked;
+}
+
+/** */
+float GetSphereScreenSpaceSquared(float3 Center, float3 Extent, float3 LookPos, float ProjectiveScaleSq)
+{
+	float RSq = dot(Extent, Extent);
+	float DSq = dot(Center - LookPos, Center - LookPos);
+	return (RSq * ProjectiveScaleSq) / max(1, DSq);
+}
+
+/** */
+bool PlaneTestAABB(float4 Planes[5], float3 PlaneSigns[5], float3 Center, float3 Extent)
+{
+	bool bInsideAllPlanes = true;
+	[unroll]
+	for (uint PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
+	{
+		float D = dot(Planes[PlaneIndex], float4(Center + Extent * PlaneSigns[PlaneIndex], 1.0f));
+		bInsideAllPlanes = bInsideAllPlanes && (D > 0);
+	}
+
+	return bInsideAllPlanes;
+}
+
+/** */
+bool OcclusionTest(uint2 Pos, int Level)
+{
+	int OcclusionLevel = Level - OcclusionLevelOffset;
+	if (Level < 0)
+	{
+		return true;
+	}
+	return OcclusionTexture.Load(uint3(Pos, OcclusionLevel)) == 0;
+}
+
+/** */
+void DebugDrawUVBox(float3 UVMin, float3 UVMax, float4x4 Mat, float4 Color)
+{
+	float3 WorldPos[8];
+	WorldPos[0] = mul(float4(UVMin.x, UVMin.y, UVMin.z, 1), Mat);
+	WorldPos[1] = mul(float4(UVMax.x, UVMin.y, UVMin.z, 1), Mat);
+	WorldPos[2] = mul(float4(UVMin.x, UVMax.y, UVMin.z, 1), Mat);
+	WorldPos[3] = mul(float4(UVMax.x, UVMax.y, UVMin.z, 1), Mat);
+	WorldPos[4] = mul(float4(UVMin.x, UVMin.y, UVMax.z, 1), Mat);
+	WorldPos[5] = mul(float4(UVMax.x, UVMin.y, UVMax.z, 1), Mat);
+	WorldPos[6] = mul(float4(UVMin.x, UVMax.y, UVMax.z, 1), Mat);
+	WorldPos[7] = mul(float4(UVMax.x, UVMax.y, UVMax.z, 1), Mat);
+
+	//AddQuad(WorldPos[0], WorldPos[2], WorldPos[3], WorldPos[1], Color);
+	//AddQuad(WorldPos[4], WorldPos[6], WorldPos[7], WorldPos[5], Color);
+	//AddLine(WorldPos[0], WorldPos[4], Color, Color);
+	//AddLine(WorldPos[1], WorldPos[5], Color, Color);
+	//AddLine(WorldPos[2], WorldPos[6], Color, Color);
+	//AddLine(WorldPos[3], WorldPos[7], Color, Color);
+}
+
+/** */
+float2 VTComputePhysicalUVs(float2 LocalUV, uint PhysicalAddress, FUniform Uniform)
+{
+	// See packing in PageTableUpdate.usf
+	const uint vLevel = PhysicalAddress & 0xf;
+	const float UVScale = 1.0f / (float)(1 << vLevel);
+	const float pPageX = (float)((PhysicalAddress >> 4) & ((1 << Uniform.PageCoordinateBitCount) - 1));
+	const float pPageY = (float)(PhysicalAddress >> (4 + Uniform.PageCoordinateBitCount));
+
+	const float2 pUV = float2(pPageX, pPageY) * Uniform.pPageSize + (LocalUV * Uniform.vPageSize + Uniform.vPageBorderSize);
+
+	return pUV;
+}
+
+/** */
+float3 GetLocalToPhysicalUV(float4 LocalUVMinMax, uint PhysicalAddress, uint4 InPackedUniform)
+{
+	FUniform Uniform = VTUniform_Unpack2(InPackedUniform);
+	float2 Min = VTComputePhysicalUVs(LocalUVMinMax.xy, PhysicalAddress, Uniform);
+	float2 Max = VTComputePhysicalUVs(LocalUVMinMax.zw, PhysicalAddress, Uniform);
+	return float3(Min, Max.x - Min.x); // Assume Max.y - Min.y == Max.x - Min.x
+}
+
+/**
+ * 
+ */
+
+[numthreads(64, 1, 1)]
+void CollectQuadsCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint GroupIndex : SV_GroupIndex
+)
+{
+	//if (any(DispatchThreadId) != 0) return;
+
+	float3 FrustumPlaneSigns[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		FrustumPlaneSigns[i].x = FrustumPlanes[i].x >= 0 ? 1 : -1;
+		FrustumPlaneSigns[i].y = FrustumPlanes[i].y >= 0 ? 1 : -1;
+		FrustumPlaneSigns[i].z = FrustumPlanes[i].z >= 0 ? 1 : -1;
+	}
+
+	bool bExit = false;
+	while (!bExit)
+	//for (int i=0; i < 2024; ++i)
+	{
+		NumGroupTasks = 0;
+		GroupMemoryBarrierWithGroupSync();
+		
+		// Try and pull a task
+		int NumActive;
+		InterlockedAdd(RWQueueInfo[0].NumActive, -1, NumActive);
+		if (NumActive > 0)
+		{
+			uint Dummy;
+			InterlockedAdd(NumGroupTasks, 1, Dummy);
+
+			uint Read;
+			InterlockedAdd(RWQueueInfo[0].Read, 1, Read);
+			Read &= 4095;
+			QuadItem Item = RWQueueBuffer[Read];
+			uint2 Pos = MortonDecode(Item.Address);
+
+			bool bSubdivide = false;
+
+			// Do we want to subdivide? 
+			
+			// Get UV bounding box
+			float2 Scale = (float)(1 << Item.Level) / PageTableSize.xy;
+			
+			float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
+			float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
+			
+			float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, Item.Level));
+			
+			float3 UVMin = float3(UV0, MinMaxHeight.x);
+			float3 UVMax = float3(UV1, MinMaxHeight.y);
+
+			float3 UVCenter = (UVMax + UVMin) * 0.5f;
+			float3 UVExtent = UVMax - UVCenter;
+
+			// Get World space sphere for lod query
+			float3 World0 = mul(float4(UVMin, 1), UVToWorld).xyz;
+			float3 World1 = mul(float4(UVMax, 1), UVToWorld).xyz;
+			float3 WorldCenter = (World0 + World1) * 0.5f;
+			float3 WorldExtent = abs(World1 - WorldCenter);
+			float ScreenSizeSq = GetSphereScreenSpaceSquared(WorldCenter, WorldExtent, CameraPosition, ProjectionScale);
+
+			bool bRequestSubdivide = Item.Level > 0 && ScreenSizeSq > LodThreshold;
+
+			// check: clamp or saturate?
+			const float LodFracScale = 0.5; // reduce to force smoother but shorter lod transition - maybe expose this?
+			float LodFrac = clamp((LodThreshold - ScreenSizeSq) / (LodThreshold * LodFracScale), 0, 0.999);
+
+			bool bCull = !PlaneTestAABB(FrustumPlanes, FrustumPlaneSigns, UVCenter, UVExtent);
+			bool bOcclude = !OcclusionTest(Pos, Item.Level);
+
+			// hack
+			//if (bCull) { bCull = false; bRequestSubdivide = false; }
+			// hack
+
+			if (bCull || bOcclude)
+			{
+				// we will store without further subdivision
+				bSubdivide = false; 
+				//DebugDrawUVBox(UVMin, UVMax, UVToWorld, float4(0, 0, 1, 1));
+			}
+			else if (bRequestSubdivide)
+			{
+				// Can we subdivide?
+				uint2 PosMulTwo = Pos<<1;
+				uint LevelMinus1 = Item.Level - 1;
+				uint Level0 = PageTableTexture.Load(int3(PosMulTwo + uint2(0,0), LevelMinus1)) & 0xf;
+				uint Level1 = PageTableTexture.Load(int3(PosMulTwo + uint2(0,1), LevelMinus1)) & 0xf;
+				uint Level2 = PageTableTexture.Load(int3(PosMulTwo + uint2(1,0), LevelMinus1)) & 0xf;
+				uint Level3 = PageTableTexture.Load(int3(PosMulTwo + uint2(1,1), LevelMinus1)) & 0xf;
+
+				// Write page requests to feedback buffer
+				uint Request0 = PageTableFeedbackId | (PosMulTwo.x + 0) | ((PosMulTwo.y + 0) << 12) | (LevelMinus1 << 24);
+				uint Request1 = PageTableFeedbackId | (PosMulTwo.x + 0) | ((PosMulTwo.y + 1) << 12) | (LevelMinus1 << 24);
+				uint Request2 = PageTableFeedbackId | (PosMulTwo.x + 1) | ((PosMulTwo.y + 0) << 12) | (LevelMinus1 << 24);
+				uint Request3 = PageTableFeedbackId | (PosMulTwo.x + 1) | ((PosMulTwo.y + 1) << 12) | (LevelMinus1 << 24);
+				
+				uint FeedbackPos;
+				InterlockedAdd(RWFeedbackBuffer[0], 4, FeedbackPos);
+				RWFeedbackBuffer[FeedbackPos + 1] = Request0;
+				RWFeedbackBuffer[FeedbackPos + 2] = Request1;
+				RWFeedbackBuffer[FeedbackPos + 3] = Request2;
+				RWFeedbackBuffer[FeedbackPos + 4] = Request3;
+
+				bool bSplit = Level0 <= LevelMinus1 && Level1 <= LevelMinus1 && Level2 <= LevelMinus1 && Level3 <= LevelMinus1;
+				if (bSplit)
+				{
+					// Divide and add new nodes to queue
+					QuadItem C0, C1, C2, C3;
+					Split(Item, C0, C1, C2, C3);
+
+					uint Write;
+					InterlockedAdd(RWQueueInfo[0].Write, 4, Write);
+
+					RWQueueBuffer[(Write + 0) & 4095] = C0; 
+					RWQueueBuffer[(Write + 1) & 4095] = C2;
+					RWQueueBuffer[(Write + 2) & 4095] = C1;
+					RWQueueBuffer[(Write + 3) & 4095] = C3;
+					//DeviceMemoryBarrier();
+			
+					InterlockedAdd(RWQueueInfo[0].NumActive, 4, NumActive);
+
+					bSubdivide = true;
+				}
+			}
+
+			if (!bSubdivide)
+			{
+				// Move to final list
+				uint Write;
+				InterlockedAdd(RWQuadBuffer[0].Address, 1, Write);
+				RWQuadBuffer[Write + 1].Address = Item.Address;
+				RWQuadBuffer[Write + 1].Level = Item.Level;
+				RWQuadBuffer[Write + 1].LocalToPhysicalUV = GetLocalToPhysicalUV(float4(0, 0, 1, 1), PageTableTexture.Load(int3(Pos, Item.Level)), PageTablePackedUniform);
+				RWQuadBuffer[Write + 1].Lod = LodFrac + ((bCull || bOcclude) ? 1 : 0);
+				
+				float4 Color = float4(1, 0, 0, 1);
+				//if (Item.Address == 25 && Item.Level == 3) Color = float4(0, 1, 0, 1);
+				//DebugDrawUVBox(UVMin, UVMax, UVToWorld, Color);
+			}
+		}
+		else
+		{
+			InterlockedAdd(RWQueueInfo[0].NumActive, 1, NumActive);
+		}
+
+		DeviceMemoryBarrier();
+		//GroupMemoryBarrierWithGroupSync();
+		if (NumGroupTasks == 0)
+		{
+			bExit = true;
+		}
+	}
+}
+
+/**
+ *
+ */
+
+[numthreads(1, 1, 1)]
+void BuildIndirectArgsForLodAndCullCS()
+{
+	// RenderLodMap
+	RWIndirectArgsBuffer[0] = 6;
+	RWIndirectArgsBuffer[1] = QuadBuffer[0].Address;
+	RWIndirectArgsBuffer[2] = 0;
+	RWIndirectArgsBuffer[3] = 0;
+	RWIndirectArgsBuffer[4] = 0;
+
+	// FetchNeighborLod
+	RWIndirectArgsBuffer[5] = (QuadBuffer[0].Address * 4 + 63) / 64;
+	RWIndirectArgsBuffer[6] = 1;
+	RWIndirectArgsBuffer[7] = 1;
+	RWIndirectArgsBuffer[8] = 0;
+
+	// FinalCull
+	RWIndirectArgsBuffer[9] = (QuadBuffer[0].Address + 63) / 64;
+	RWIndirectArgsBuffer[10] = 1;
+	RWIndirectArgsBuffer[11] = 1;
+	RWIndirectArgsBuffer[12] = 0;
+}
+
+/**
+ *
+ */
+
+void RenderLodMapVS(
+	in uint InstanceId : SV_InstanceID,
+	in uint VertexId : SV_VertexID,
+	out float4 OutPosition : SV_POSITION,
+	out float2 OutLod : TEXCOORD0
+	)
+{
+	uint2 VertexUV = float2((VertexId >> 0) & 1, (VertexId >> 1) & 1);
+	
+	uint Address = QuadBuffer[InstanceId + 1].Address;
+	uint Level = QuadBuffer[InstanceId + 1].Level;
+	float Lod = frac(QuadBuffer[InstanceId + 1].Lod);
+
+	uint2 BaseXY = uint2( ReverseMortonCode2(Address), ReverseMortonCode2(Address >> 1) );
+	uint2 XY = (BaseXY + VertexUV) * (1 << Level);
+	float2 VertexPos = (float2(XY) / PageTableSize.xy) * float2(2.f, -2.f) + float2(-1.f, 1.f);
+
+	OutPosition = float4(VertexPos, 0.f, 1.f);
+	OutLod = float2(Level, Lod);
+}
+
+void RenderLodMapPS(
+	in float4 InPosition : SV_POSITION,
+	in noperspective float2 InLod : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{
+	// Need to pack to render target...
+	OutColor = float4(InLod.x / 255.f, InLod.y, 0.f, 1.f);
+}
+
+/**
+ *
+ */
+
+[numthreads(64, 1, 1)]
+void ReadNeighborLodsCS( uint3 DispatchThreadId : SV_DispatchThreadID )
+{
+	uint QuadIndex = DispatchThreadId.x >> 2;
+	uint NeighborIndex = DispatchThreadId.x & 3;
+
+	if (QuadIndex >= QuadBuffer[0].Address)
+		return;
+
+	QuadRenderItem Item = QuadBuffer[QuadIndex + 1];
+	uint Address = Item.Address;
+	uint Level = Item.Level;
+	
+	float LocalLodFloor = Level;
+	float LocalLodFrac = frac(Item.Lod);
+
+	uint2 AddressXY = uint2(ReverseMortonCode2(Address), ReverseMortonCode2(Address >> 1));
+
+	uint2 BaseXY = AddressXY << Level;
+
+	//bool bPrint = Address == 795 && Level == 0;
+	//ShaderPrintFilter(bPrint); 
+	//ShaderPrint(uint2(Address, Level)); ShaderPrintNewline();
+	//ShaderPrint(Item.LocalToPhysicalUV * 2040); ShaderPrintNewline();
+	//ShaderPrint(DispatchThreadId.x >> 2);
+
+	int2 Offset;
+	if (NeighborIndex == 0) Offset = int2(-1, 0);
+	else if (NeighborIndex == 1) Offset = int2(0, (1 << Level));
+	else if (NeighborIndex == 2) Offset = int2((1 << Level), 0);
+	else Offset = int2(0, -1); 
+
+	int2 XY = (int2)BaseXY + Offset;
+	XY = clamp(XY, 0, (int2)PageTableSize.xy - 1);
+
+	float2 NeighborLodPacked = LodTexture.Load(int3(XY, 0));
+	float NeighborLodFloor = floor(NeighborLodPacked.r * 255.f);
+	float NeighborLodFrac = NeighborLodPacked.g;
+
+	if (NeighborLodFloor != LocalLodFloor)
+	{
+		NeighborLodFloor = max(LocalLodFloor, NeighborLodFloor);
+		NeighborLodFrac = 0.f;
+	}
+	else
+	{
+		NeighborLodFrac = (LocalLodFrac + NeighborLodFrac) * 0.5;
+	}
+
+	QuadNeighborItem Neighbor;
+	Neighbor.Lod = NeighborLodFloor + NeighborLodFrac;
+	//ShaderPrint(Neighbor.Lod);
+	//ShaderPrint(LocalLodFrac);
+
+	uint LodShift = (uint)(max(NeighborLodFloor - LocalLodFloor, 0));
+	float2 MinUV = frac((float2)AddressXY / (float)(1 << LodShift));
+	float2 MaxUV = MinUV + 1.f / (float)(1 << LodShift);
+
+	uint PhysicalAddress = PageTableTexture.Load(int3(AddressXY >> LodShift, Level + LodShift));
+	Neighbor.LocalToPhysicalUV = GetLocalToPhysicalUV(float4(MinUV, MaxUV), PhysicalAddress, PageTablePackedUniform);
+	
+	RWQuadNeighborBuffer[DispatchThreadId.x] = Neighbor;
+}
+
+/**
+ *
+ */
+
+[numthreads(1, 1, 1)]
+void InitInstanceBufferCS()
+{
+	RWInstanceBuffer[0].Quad.Address = 0;
+}
+
+/**
+ *
+ */
+
+[numthreads(64, 1, 1)]
+void CullInstancesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint QuadIndex = DispatchThreadId.x;
+	if (QuadIndex >= QuadBuffer[0].Address)
+		return;
+
+	QuadRenderItem Item = QuadBuffer[QuadIndex + 1];
+	uint2 Pos = MortonDecode(Item.Address);
+	bool bWasCulled = Item.Lod >= 1;
+
+	float2 Scale = (float)(1 << Item.Level) / PageTableSize.xy;
+	float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
+	float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
+
+	float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, Item.Level));
+
+	float3 UVMin = float4(UV0, MinMaxHeight.x, 1);
+	float3 UVMax = float4(UV1, MinMaxHeight.y, 1);
+
+	float3 UVCenter = (UVMax + UVMin) * 0.5f;
+	float3 UVExtent = UVMax - UVCenter;
+
+	float3 FrustumPlaneSigns[5];
+	for (int i = 0; i < 5; ++i)
+	{
+		FrustumPlaneSigns[i].x = FrustumPlanes[i].x >= 0 ? 1 : -1;
+		FrustumPlaneSigns[i].y = FrustumPlanes[i].y >= 0 ? 1 : -1;
+		FrustumPlaneSigns[i].z = FrustumPlanes[i].z >= 0 ? 1 : -1;
+	}
+
+	bool bCull = !PlaneTestAABB(FrustumPlanes, FrustumPlaneSigns, UVCenter, UVExtent) || bWasCulled;
+
+	if (!bCull)
+	{
+		// Add to final list
+		uint Write;
+		InterlockedAdd(RWInstanceBuffer[0].Quad.Address, 1, Write);
+		
+		RWInstanceBuffer[Write + 1].Quad = Item;
+		RWInstanceBuffer[Write + 1].Neighbor[0] = QuadNeighborBuffer[QuadIndex * 4];
+		RWInstanceBuffer[Write + 1].Neighbor[1] = QuadNeighborBuffer[QuadIndex * 4 + 1];
+		RWInstanceBuffer[Write + 1].Neighbor[2] = QuadNeighborBuffer[QuadIndex * 4 + 2];
+		RWInstanceBuffer[Write + 1].Neighbor[3] = QuadNeighborBuffer[QuadIndex * 4 + 3];
+	}
+}
+
+/**
+ *
+ */
+
+[numthreads(1, 1, 1)]
+void BuildIndirectArgsForDrawCS()
+{
+	// Final draw call
+	RWIndirectArgsBuffer[0] = NumIndices;
+	RWIndirectArgsBuffer[1] = InstanceBuffer[0].Quad.Address;
+	RWIndirectArgsBuffer[2] = 0;
+	RWIndirectArgsBuffer[3] = 0;
+	RWIndirectArgsBuffer[4] = 0;
+}
