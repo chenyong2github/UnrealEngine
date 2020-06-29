@@ -805,6 +805,7 @@ void FPhysScene_Chaos::CopySolverAccelerationStructure()
 	if (SceneSolver && SceneSolver->GetThreadingMode() != Chaos::EThreadingModeTemp::SingleThread)
 	{
 		ExternalDataLock.WriteLock();
+		SceneSolver->FlushCommands_External();	//make sure any pending commands are flushed so that scene query structure is up to date
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
