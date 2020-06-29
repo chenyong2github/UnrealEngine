@@ -132,7 +132,7 @@ extern bool GShowSplashScreen;
 		if (self.bEngineInit && GEngine != nullptr)
 		{
 			TArray<TCHAR> Ch;
-			Ch.AddZeroed([ConsoleCommand length]);
+			Ch.AddZeroed([ConsoleCommand length]+1);
 
 			FPlatformString::CFStringToTCHAR((CFStringRef)ConsoleCommand, Ch.GetData());
 			new(GEngine->DeferredCommands) FString(Ch.GetData());
