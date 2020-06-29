@@ -1636,7 +1636,8 @@ void FPhysScene_ChaosInterface::ProcessDeferredCreatePhysicsState()
 	// TODO explore parallelization of other physics initialization, not trivial and likely to break stuff.
 	for (UPrimitiveComponent* PrimitiveComponent : DeferredCreatePhysicsStateComponents)
 	{
-		if (PrimitiveComponent->GetOwner() && PrimitiveComponent->GetOwner()->IsPendingKill() == false && PrimitiveComponent->ShouldCreatePhysicsState() && PrimitiveComponent->IsPhysicsStateCreated() == false)
+		const bool bPendingKill = PrimitiveComponent->GetOwner() && PrimitiveComponent->GetOwner()->IsPendingKill();
+		if ( !bPendingKill && PrimitiveComponent->ShouldCreatePhysicsState() && PrimitiveComponent->IsPhysicsStateCreated() == false)
 		{
 			PrimitiveComponent->OnCreatePhysicsState();
 			PrimitiveComponent->GlobalCreatePhysicsDelegate.Broadcast(PrimitiveComponent);
