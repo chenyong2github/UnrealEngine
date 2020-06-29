@@ -195,7 +195,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.ContentPadding(FMargin(2))
-						.ToolTipText(LOCTEXT("NiagaraPropertyBindingToolTip", "Bind to a particle attribute to update this parameter each tick"))
+						.ToolTipText(LOCTEXT("NiagaraRendererChangePropertyBindingToolTip", "Bind to a particle attribute to update this parameter each tick"))
 						.MenuPlacement(MenuPlacement_BelowRightAnchor)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
@@ -238,20 +238,32 @@ void FNiagaraComponentRendererPropertiesDetails::ChangePropertyBinding(TSharedPt
 	UNiagaraComponentRendererProperties* ComponentProperties = RendererProperties.Get();
 	if (ComponentProperties)
 	{
-		const FNiagaraComponentPropertyBinding* PropertyBinding = FindBinding(PropertyHandle);
-		if (!PropertyBinding)
-		{
-			FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangePropertyBinding", "Change component property binding to \"{0}\" "), FText::FromName(BindingVar.GetName())));
-			FNiagaraComponentPropertyBinding NewBinding = ToPropertyBinding(PropertyHandle, ComponentProperties);
-			NewBinding.AttributeBinding.BoundVariable = BindingVar;
-			NewBinding.AttributeBinding.DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(NewBinding.AttributeBinding.BoundVariable);
+		FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangePropertyBinding", "Change component property binding to \"{0}\" "), FText::FromName(BindingVar.GetName())));
+		FNiagaraComponentPropertyBinding NewBinding = ToPropertyBinding(PropertyHandle, ComponentProperties);
+		NewBinding.AttributeBinding.BoundVariable = BindingVar;
+		NewBinding.AttributeBinding.DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(NewBinding.AttributeBinding.BoundVariable);
 
-			ComponentProperties->Modify();
-			PropertyHandle->NotifyPreChange();
-			ComponentProperties->PropertyBindings.Add(NewBinding);
-			PropertyHandle->NotifyPostChange();
-			PropertyHandle->NotifyFinishedChangingProperties();
+		ComponentProperties->Modify();
+		PropertyHandle->NotifyPreChange();
+
+		const FNiagaraComponentPropertyBinding* PropertyBinding = FindBinding(PropertyHandle);
+		if (PropertyBinding)
+		{
+			// this is an update, so remove the preexisting binding
+			for (int i = ComponentProperties->PropertyBindings.Num() - 1; i >= 0; i--)
+			{
+				const FNiagaraComponentPropertyBinding& Binding = ComponentProperties->PropertyBindings[i];
+				if (Binding.PropertyName == NewBinding.PropertyName)
+				{
+					ComponentProperties->PropertyBindings.RemoveAt(i);
+				}
+			}
 		}
+		ComponentProperties->PropertyBindings.Add(NewBinding);
+
+		PropertyHandle->NotifyPostChange();
+		PropertyHandle->NotifyFinishedChangingProperties();
+
 		RefreshPropertiesPanel();
 	}
 }

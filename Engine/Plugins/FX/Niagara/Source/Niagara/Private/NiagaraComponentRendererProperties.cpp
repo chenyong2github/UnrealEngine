@@ -102,7 +102,7 @@ FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFRotatorDef()
 TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> UNiagaraComponentRendererProperties::ComponentRendererPropertiesToDeferredInit;
 
 UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
-	: ComponentCountLimit(15), bEnableComponentPooling(true)
+	: ComponentCountLimit(15), bAssignComponentsOnParticleID(true)
 #if WITH_EDITORONLY_DATA
 	, bVisualizeComponents(true)
 #endif
@@ -239,10 +239,6 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 	{
 		OutWarnings.Add(FText::FromString(TEXT("Creating and updating many components each tick will have a serious impact on performance.")));
 	}
-	if (!bEnableComponentPooling)
-	{
-		OutWarnings.Add(FText::FromString(TEXT("Disabling the component pooling will incur a big performance penaly because it forces components to be re-created each frame.")));
-	}
 }
 
 const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAttributes()
@@ -250,6 +246,10 @@ const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAtt
 	CurrentBoundAttributes.Reset();
 
 	CurrentBoundAttributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+	if (bAssignComponentsOnParticleID)
+	{
+		CurrentBoundAttributes.Add(SYS_PARAM_PARTICLES_UNIQUE_ID);
+	}
 	for (const FNiagaraComponentPropertyBinding& PropertyBinding : PropertyBindings)
 	{
 		if (PropertyBinding.AttributeBinding.BoundVariable.IsValid())

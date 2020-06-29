@@ -620,13 +620,15 @@ struct FNiagaraComponentRenderPoolEntry
 	TWeakObjectPtr<USceneComponent> Component;
 	float InactiveTimeLeft = 0;
 	TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
+	int32 LastAssignedToParticleID = -1;
 };
 
 struct FNiagaraComponentUpdateTask
 {
 	TWeakObjectPtr<USceneComponent> TemplateObject;
 	TFunction<void(USceneComponent*, FNiagaraComponentRenderPoolEntry&)> UpdateCallback;
-	bool bEnableComponentPooling = true;
+	int32 ParticleID = -1;
+	int32 SmallestID = -1;
 #if WITH_EDITORONLY_DATA
 	bool bVisualizeComponents = true;
 #endif
