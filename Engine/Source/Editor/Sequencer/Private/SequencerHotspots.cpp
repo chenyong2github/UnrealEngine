@@ -65,7 +65,7 @@ void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer
 	{
 		InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 	}
-	else
+	else if (ThisSection)
 	{
 		// Activate selection mode if the section has keys
 		for (const FMovieSceneChannelEntry& Entry : ThisSection->GetChannelProxy().GetAllEntries())
