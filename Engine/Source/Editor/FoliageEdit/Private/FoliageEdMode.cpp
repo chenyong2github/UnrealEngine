@@ -819,6 +819,9 @@ void FEdModeFoliage::ClearAllToolSelection()
 	UISettings.SetReapplyToolSelected(false);
 	UISettings.SetSelectToolSelected(false);
 	UISettings.SetPaintBucketToolSelected(false);
+	UISettings.SetIsInQuickEraseMode(false);
+	UISettings.SetIsInQuickSingleInstantiationMode(false);
+	UISettings.SetIsInSingleInstantiationMode(false);
 }
 
 void FEdModeFoliage::OnSetPaint()
@@ -859,7 +862,6 @@ void FEdModeFoliage::OnSetPaintFill()
 void FEdModeFoliage::OnSetErase()
 {
 	ClearAllToolSelection();
-	UISettings.SetIsInSingleInstantiationMode(false);
 	UISettings.SetPaintToolSelected(true);
 	UISettings.SetEraseToolSelected(true);
 	HandleToolChanged();
