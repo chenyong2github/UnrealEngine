@@ -384,7 +384,7 @@ void UMovieSceneSubSection::TrimSection( FQualifiedFrameTime TrimTime, bool bTri
 	UMovieSceneSection::TrimSection( TrimTime, bTrimLeft, bDeleteKeys );
 
 	// If trimming off the left, set the offset of the shot
-	if ( bTrimLeft && InitialRange.GetLowerBound().IsClosed() )
+	if ( bTrimLeft && InitialRange.GetLowerBound().IsClosed() && GetSequence())
 	{
 		// Sections need their offsets calculated in their local resolution. Different sequences can have different tick resolutions 
 		// so we need to transform from the parent resolution to the local one before splitting them.
