@@ -729,14 +729,6 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 	}
 }
 
-void FChaosSolversModule::GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer)
-{
-	if(IsValidRef(GlobalCommandTaskEventRef))
-	{
-		InPrerequisiteContainer.Add(GlobalCommandTaskEventRef);
-	}
-}
-
 const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
 {
 	return SettingsProvider ? *SettingsProvider : Chaos::GDefaultChaosSettings;
