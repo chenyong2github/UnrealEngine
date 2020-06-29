@@ -17,7 +17,7 @@ namespace Chaos
 	{
 	public:
 
-		using FHandleID = FParticleID;
+		using FHandleID = FUniqueIdx;
 
 		FIgnoreCollisionManager() {};
 
