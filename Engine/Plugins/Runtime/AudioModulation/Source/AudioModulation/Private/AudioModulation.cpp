@@ -19,12 +19,17 @@ namespace AudioModulation
 {
 	FAudioModulation::FAudioModulation()
 	{
-		ModSystem = TUniquePtr<FAudioModulationSystem>(new FAudioModulationSystem());
+		ModSystem = MakeUnique<FAudioModulationSystem>();
 	}
 
 	FAudioModulationSystem* FAudioModulation::GetModulationSystem()
 	{
 		return ModSystem.Get();
+	}
+
+	Audio::FModulationParameter FAudioModulation::GetParameter(FName InParamName)
+	{
+		return ModSystem->GetParameter(InParamName);
 	}
 
 	void FAudioModulation::Initialize(const FAudioPluginInitializationParams& InitializationParams)
@@ -88,9 +93,9 @@ namespace AudioModulation
 		ModSystem->ProcessModulators(InElapsed);
 	}
 
-	Audio::FModulatorTypeId FAudioModulation::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase)
+	Audio::FModulatorTypeId FAudioModulation::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter)
 	{
-		return ModSystem->RegisterModulator(InParentId, InModulatorBase);
+		return ModSystem->RegisterModulator(InParentId, InModulatorBase, OutParameter);
 	}
 
 	void FAudioModulation::RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId)

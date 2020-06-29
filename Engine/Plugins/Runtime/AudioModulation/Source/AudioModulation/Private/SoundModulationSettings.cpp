@@ -18,13 +18,11 @@ USoundModulationSettings::USoundModulationSettings(const FObjectInitializer& Obj
 	Lowpass.Output.Transform.OutputMin = 20.0f;
 	Lowpass.Output.Transform.OutputMax = 20000.0f;
 	Lowpass.Output.Transform.Curve = ESoundModulatorOutputCurve::Exp;
-	Lowpass.Output.SetOperator(ESoundModulatorOperator::Min);
 
 	Highpass.DefaultInputValue = 0.0f;
 	Highpass.Output.Transform.OutputMin = 20.0f;
 	Highpass.Output.Transform.OutputMax = 20000.0f;
 	Highpass.Output.Transform.Curve = ESoundModulatorOutputCurve::Exp;
-	Highpass.Output.SetOperator(ESoundModulatorOperator::Max);
 }
 
 #if WITH_EDITOR

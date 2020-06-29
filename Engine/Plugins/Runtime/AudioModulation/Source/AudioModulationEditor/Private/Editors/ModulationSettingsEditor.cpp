@@ -233,7 +233,7 @@ void FModulationSettingsEditor::SetCurveAtOrderIndex(int32 InCurveIndex, FRichCu
 		if (InCurveIndex < static_cast<int32>(EModSettingsEditorCurveOutput::Control))
 		{
 			const EModSettingsEditorCurveOutput CurveOutput = static_cast<EModSettingsEditorCurveOutput>(InCurveIndex);
-			TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), CurveOutput, InSource, InSharedCurve);
+			TUniquePtr<FModSettingsCurveEditorModel> NewCurve = MakeUnique<FModSettingsCurveEditorModel>(InRichCurve, GetEditingObject(), CurveOutput, InSource, InSharedCurve);
 			CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
 		}
 	}

@@ -19,19 +19,17 @@ namespace AudioModulation
 
 	FModulationSettingsProxy::FModulationSettingsProxy()
 	{
-		Volume.OutputProxy.Settings.Transform.Curve = ESoundModulatorOutputCurve::Exp;
-		Volume.OutputProxy.Settings.Transform.Scalar = 0.5f;
+		Volume.OutputProxy.Transform.Curve = ESoundModulatorOutputCurve::Exp;
+		Volume.OutputProxy.Transform.Scalar = 0.5f;
 
-		Lowpass.OutputProxy.Settings.Transform.OutputMin = 20.0f;
-		Lowpass.OutputProxy.Settings.Transform.OutputMax = 20000.0f;
-		Lowpass.OutputProxy.Settings.Transform.Curve = ESoundModulatorOutputCurve::Exp;
-		Lowpass.OutputProxy.Settings.Operator = ESoundModulatorOperator::Min;
+		Lowpass.OutputProxy.Transform.OutputMin = 20.0f;
+		Lowpass.OutputProxy.Transform.OutputMax = 20000.0f;
+		Lowpass.OutputProxy.Transform.Curve = ESoundModulatorOutputCurve::Exp;
 
 		Highpass.DefaultInputValue = 0.0f;
-		Highpass.OutputProxy.Settings.Transform.OutputMin = 20.0f;
-		Highpass.OutputProxy.Settings.Transform.OutputMax = 20000.0f;
-		Highpass.OutputProxy.Settings.Transform.Curve = ESoundModulatorOutputCurve::Exp;
-		Highpass.OutputProxy.Settings.Operator = ESoundModulatorOperator::Max;
+		Highpass.OutputProxy.Transform.OutputMin = 20.0f;
+		Highpass.OutputProxy.Transform.OutputMax = 20000.0f;
+		Highpass.OutputProxy.Transform.Curve = ESoundModulatorOutputCurve::Exp;
 	}
 
 	FModulationSettingsProxy::FModulationSettingsProxy(const FSoundModulationSettings& InSettings, FAudioModulationSystem& OutModSystem)

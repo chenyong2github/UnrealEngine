@@ -3,10 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "IAudioModulation.h"
-#include "SoundControlBus.h"
 #include "SoundModulationValue.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UnrealType.h"
 
 #include "SoundControlBusMix.generated.h"
 
@@ -20,15 +20,15 @@ struct FSoundControlBusMixChannel
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundControlBusMixChannel();
+	FSoundControlBusMixChannel() = default;
 	FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue);
 
 	/* Bus controlled by channel. */
 	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
-	USoundControlBusBase* Bus;
+	USoundControlBusBase* Bus = nullptr;
 
 	/* Value mix is set to. */
-	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
 	FSoundModulationValue Value;
 };
 
@@ -75,7 +75,10 @@ public:
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;
+	virtual void OnPropertyChanged(FProperty* Property, EPropertyChangeType::Type ChangeType);
+
 #endif // WITH_EDITOR
 
 	/* Array of channels controlled by mix. */
