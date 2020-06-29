@@ -248,7 +248,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 //	WorldPos = mul(LocalToWorld, float4(WorldPos, 0)).xyz;
 //	Intermediates.WorldPosPreDisplacement = float4(WorldPos + ResolvedView.PreViewTranslation.xyz, 1);
 
-	Intermediates.LocalUV = LocalUV;
+	Intermediates.LocalUV = NormalizedPos;
 
 	Intermediates.WorldNormal = float3(0, 0, 1);
 //	Intermediates.WorldNormal = VirtualTextureUnpackNormal2(NormalTexture.SampleLevel(NormalSampler, PhysicalUV, 0).xy, 1);
