@@ -256,8 +256,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 					FRegexMatcher ErrorMatcher(ErrorPattern, *MonitorLog);
 					if (ErrorMatcher.FindNext())
 					{
-						constexpr int32 CrcErrorCode = /*CrashReporterError*/777007; // Added in 4.25.2 but to avoid breaking public API in a dot release wasn't added to ECrashExitCodes. Should be added to the enum in 4.26.
-						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrcErrorCode);
+						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), static_cast<int32>(ECrashExitCodes::OutOfProcessReporterCheckFailed));
 						MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
 					}
 				}
