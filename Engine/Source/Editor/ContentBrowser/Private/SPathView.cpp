@@ -33,6 +33,43 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+SPathView::FScopedSelectionChangedEvent::FScopedSelectionChangedEvent(const TSharedRef<SPathView>& InPathView)
+	: PathView(InPathView)
+{
+	PathView->PreventTreeItemChangedDelegateCount++;
+	InitialSelectionSet = GetSelectionSet();
+}
+
+SPathView::FScopedSelectionChangedEvent::~FScopedSelectionChangedEvent()
+{
+	check(PathView->PreventTreeItemChangedDelegateCount > 0);
+	PathView->PreventTreeItemChangedDelegateCount--;
+
+	const TSet<FName> FinalSelectionSet = GetSelectionSet();
+	const bool bHasSelectionChanges = InitialSelectionSet.Num() != FinalSelectionSet.Num() || InitialSelectionSet.Difference(FinalSelectionSet).Num() > 0;
+	if (bHasSelectionChanges)
+	{
+		const TArray<TSharedPtr<FTreeItem>> SelectedItems = PathView->TreeViewPtr->GetSelectedItems();
+		PathView->TreeSelectionChanged(SelectedItems.Num() > 0 ? SelectedItems[0] : nullptr, ESelectInfo::Direct);
+	}
+}
+
+TSet<FName> SPathView::FScopedSelectionChangedEvent::GetSelectionSet() const
+{
+	TSet<FName> SelectionSet;
+
+	const TArray<TSharedPtr<FTreeItem>> SelectedItems = PathView->TreeViewPtr->GetSelectedItems();
+	for (const TSharedPtr<FTreeItem> Item : SelectedItems)
+	{
+		if (ensure(Item.IsValid()))
+		{
+			SelectionSet.Add(Item->GetItem().GetVirtualPath());
+		}
+	}
+
+	return SelectionSet;
+}
+
 SPathView::~SPathView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
@@ -1042,8 +1079,8 @@ FText SPathView::GetHighlightText() const
 
 void SPathView::Populate()
 {
-	// Don't allow the selection changed delegate to be fired here
-	FScopedPreventTreeItemChangedDelegate DelegatePrevention( SharedThis(this) );
+	// Batch the selection changed event
+	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this));
 
 	// Clear all root items and clear selection
 	TreeRootItems.Empty();
@@ -1393,8 +1430,8 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 		return;
 	}
 
-	// Don't allow the selection changed delegate to be fired here
-	FScopedPreventTreeItemChangedDelegate DelegatePrevention(SharedThis(this));
+	// Batch the selection changed event
+	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this));
 
 	const double HandleItemDataUpdatedStartTime = FPlatformTime::Seconds();
 
