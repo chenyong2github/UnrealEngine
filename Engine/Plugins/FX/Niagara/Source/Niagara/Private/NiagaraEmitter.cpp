@@ -923,6 +923,8 @@ UNiagaraScript* UNiagaraEmitter::GetScript(ENiagaraScriptUsage Usage, FGuid Usag
 
 void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
+	bRequiresViewUniformBuffer = false;
+
 	MaxInstanceCount = 0;
 	BoundsCalculators.Empty();
 
@@ -950,6 +952,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 					BoundsCalculator->InitAccessors(*CompiledData);
 					BoundsCalculators.Emplace(BoundsCalculator);
 				}
+			}
+		}
+	}
+
+	// Cache information for GPU compute sims
+	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
+	{
+		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
+		{
+			FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread();
+			if (NiagaraShaderRef.IsValid())
+			{
+				bRequiresViewUniformBuffer = NiagaraShaderRef->ViewUniformBufferParam.IsBound();
 			}
 		}
 	}

@@ -829,8 +829,7 @@ bool NiagaraEmitterInstanceBatcher::ShouldTickForStage(const FNiagaraGPUSystemTi
 		return TickStage == ETickStage::PostInitViews;
 	}
 
-	FNiagaraShaderRef ComputeShader = Tick.GetInstanceData()->Context->GPUScript_RT->GetShader();
-	if (ComputeShader->ViewUniformBufferParam.IsBound())
+	if (Tick.bRequiresViewUniformBuffer)
 	{
 		return TickStage == ETickStage::PostOpaqueRender;
 	}
@@ -1580,9 +1579,12 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	SetShaderValue(RHICmdList, ComputeShader, Shader->SimStartParam, Tick.bNeedsReset ? 1U : 0U);
 
 	// set the view uniform buffer param
-	if (Shader->ViewUniformBufferParam.IsBound() && ViewUniformBuffer)
+	if (Shader->ViewUniformBufferParam.IsBound())
 	{
-		RHICmdList.SetShaderUniformBuffer(ComputeShader, Shader->ViewUniformBufferParam.GetBaseIndex(), ViewUniformBuffer);
+		if (ensureMsgf(ViewUniformBuffer != nullptr, TEXT("ViewUniformBuffer is required for '%s' but we do not have one to bind"), Context->GetDebugSimName()))
+		{
+			RHICmdList.SetShaderUniformBuffer(ComputeShader, Shader->ViewUniformBufferParam.GetBaseIndex(), ViewUniformBuffer);
+		}
 	}
 
 	SetDataInterfaceParameters(DataInterfaceProxies, Shader, RHICmdList, Instance, Tick, SimulationStageIndex);
