@@ -152,18 +152,22 @@ namespace LevelUtil
 	{
 		check(World);
 		TArray<FString> ActorPackageNames;
-		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName())), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-			{
-				if (!bIsDirectory)
+		FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName());
+		if (!ExternalActorsPath.IsEmpty())
+		{
+			IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 				{
-					FString Filename(FilenameOrDirectory);
-					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+					if (!bIsDirectory)
 					{
-						ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
+						FString Filename(FilenameOrDirectory);
+						if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+						{
+							ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
+						}
 					}
-				}
-				return true;
-			});
+					return true;
+				});
+		}
 		return ActorPackageNames;
 	}
 }
@@ -2176,9 +2180,11 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 	}
 
 	FString MountPoint, PackagePath, ShortName;
-	bool bSuccess = FPackageName::SplitLongPackageName(LevelPackageName, MountPoint, PackagePath, ShortName);
-	check(bSuccess);
-	return FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
+	if (FPackageName::SplitLongPackageName(LevelPackageName, MountPoint, PackagePath, ShortName))
+	{
+		return FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
+	}
+	return FString();
 }
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid)
