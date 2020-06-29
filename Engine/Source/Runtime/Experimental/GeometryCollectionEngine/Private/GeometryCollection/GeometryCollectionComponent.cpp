@@ -422,6 +422,13 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Ev
 
 bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
+	if(!RestCollection)
+	{
+		// No geometry data so skip export - geometry collections don't have other geometry sources
+		// so return false here to skip non-custom export for this component as well.
+		return false;
+	}
+
 	TArray<FVector> OutVertexBuffer;
 	TArray<int32> OutIndexBuffer;
 
