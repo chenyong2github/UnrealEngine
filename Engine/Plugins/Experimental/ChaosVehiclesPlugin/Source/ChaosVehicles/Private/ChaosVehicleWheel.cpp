@@ -72,7 +72,8 @@ float UChaosVehicleWheel::GetRotationAngle() const
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
 	check(VehicleSim && VehicleSim->PhysicsVehicle());
-	return VehicleSim->PhysicsVehicle()->Suspension[WheelIndex].GetSpringLength();
+	FSimpleSuspensionSim& SimSuspension = VehicleSim->PhysicsVehicle()->Suspension[WheelIndex];
+	return SimSuspension.GetSuspensionOffset();
 }
 
 bool UChaosVehicleWheel::IsInAir() const

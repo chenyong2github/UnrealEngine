@@ -363,7 +363,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	GENERATED_UCLASS_BODY()
 
 	/** Wheels to create */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
 
 	/** Engine */

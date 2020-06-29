@@ -470,13 +470,12 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
 
 void UChaosWheeledVehicleMovementComponent::SetupSuspension()
 {
-	FBodyInstance* TargetInstance = GetBodyInstance();
-	if (!PVehicle.IsValid() || TargetInstance == nullptr)
+	if (!PVehicle.IsValid())
 	{
 		return;
 	}
 	
-	float TotalMass = this->Mass; // TargetInstance->GetBodyMass();
+	float TotalMass = this->Mass;
 	ensureMsgf(TotalMass >= 1.0f, TEXT("The mass of this vehicle is too small."));
 
 	TArray<FVector> LocalSpringPositions;
@@ -484,9 +483,12 @@ void UChaosWheeledVehicleMovementComponent::SetupSuspension()
 	// cache vehicle local position of springs
 	for (int SpringIdx = 0; SpringIdx < PVehicle->Suspension.Num(); SpringIdx++)
 	{
-		PVehicle->Suspension[SpringIdx].AccessSetup().MaxLength = PVehicle->Suspension[SpringIdx].Setup().SuspensionMaxDrop;
+		auto& PSuspension = PVehicle->Suspension[SpringIdx];
 
-		LocalSpringPositions.Add(GetWheelRestingPosition(WheelSetups[SpringIdx]));
+		PSuspension.AccessSetup().MaxLength = PSuspension.Setup().SuspensionMaxDrop + PSuspension.Setup().SuspensionMaxRaise;
+
+		FVector TotalOffset = GetWheelRestingPosition(WheelSetups[SpringIdx]);
+		LocalSpringPositions.Add(TotalOffset);
 		PVehicle->Suspension[SpringIdx].SetLocalRestingPosition(LocalSpringPositions[SpringIdx]);
 	}
 
@@ -511,49 +513,7 @@ void UChaosWheeledVehicleMovementComponent::SetupSuspension()
 FVector UChaosWheeledVehicleMovementComponent::GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup)
 {
 	FVector Offset = WheelSetup.WheelClass.GetDefaultObject()->Offset + WheelSetup.AdditionalOffset;
-
-	if (WheelSetup.BoneName != NAME_None)
-	{
-		if (USkinnedMeshComponent* Mesh = Cast<USkinnedMeshComponent>(GetMesh()))
-		{
-			const FVector BonePosition = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(WheelSetup.BoneName).GetOrigin() * Mesh->GetRelativeScale3D();
-			//BonePosition is local for the root BONE of the skeletal mesh - however, we are using the Root BODY which may have its own transform, so we need to return the position local to the root BODY
-			const FMatrix RootBodyMTX = FMatrix::Identity;
-			// Body Instance is no longer valid at this point in the code
-				//Mesh->SkeletalMesh->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
-			const FVector LocalBonePosition = RootBodyMTX.InverseTransformPosition(BonePosition);
-			Offset += LocalBonePosition;
-		}
-		else if (UStaticMeshComponent* StaticMesh = GetStaticMesh())
-		{
-			USceneComponent* Parent = StaticMesh->GetAttachParent();
-
-			// scan for wheels, could be a hierarchy of static meshes in a hierarchy within a blueprint
-			//TArray<USceneComponent*> Components;
-			//StaticMesh->GetChildrenComponents(true, Components);
-			//for (USceneComponent* Component : Components)
-			//{
-			//	if (Component != nullptr)
-			//	{
-			//		UStaticMeshComponent* ChildStaticMesh = Cast<UStaticMeshComponent>(Component);
-			//		if (ChildStaticMesh)
-			//		{
-			//			//		const FString& NodeName2 = ChildStaticMesh->GetAttachSocketName();
-			//			const FString& NodeName = ChildStaticMesh->GetName();
-			//			if (WheelSetup.BoneName.ToString() == NodeName)
-			//			{
-			//				Offset = ChildStaticMesh->K2_GetComponentToWorld().GetLocation();
-			//			}
-			//		}
-			//	}
-			//}
-
-		}
-
-
-
-	}
-	return Offset;
+	return LocateBoneOffset(WheelSetup.BoneName, Offset);
 }
 
 // Update
