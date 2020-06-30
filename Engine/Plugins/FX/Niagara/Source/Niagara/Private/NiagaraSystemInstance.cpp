@@ -2045,7 +2045,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	}
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraProcessComponentRendererTasks);
 
-	TMap<UClass*, TArray<FNiagaraComponentRenderPoolEntry>> NewRenderPool;
+	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> NewRenderPool;
 	int32 AttachedComponentCount = 0;
 
 	FNiagaraComponentUpdateTask UpdateTask;
@@ -2056,7 +2056,8 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 			continue;
 		}
 
-		TArray<FNiagaraComponentRenderPoolEntry>& CurrentPool = ComponentRenderPool.PoolsByTemplate.FindOrAdd(UpdateTask.TemplateObject->StaticClass());
+		TObjectKey<USceneComponent> ObjectKey(UpdateTask.TemplateObject.Get());
+		TArray<FNiagaraComponentRenderPoolEntry>& CurrentPool = ComponentRenderPool.PoolsByTemplate.FindOrAdd(ObjectKey);
 		USceneComponent* SceneComponent = nullptr;
 		FNiagaraComponentRenderPoolEntry NewEntry;
 		if (CurrentPool.Num() > 0)
@@ -2134,7 +2135,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 
 		NewEntry.LastAssignedToParticleID = UpdateTask.ParticleID;
 		NewEntry.InactiveTimeLeft = GNiagaraComponentRenderPoolInactiveTimeLimit;
-		NewRenderPool.FindOrAdd(UpdateTask.TemplateObject->StaticClass()).Add(NewEntry);
+		NewRenderPool.FindOrAdd(ObjectKey).Add(NewEntry);
 		AttachedComponentCount++;
 	}
 
@@ -2144,7 +2145,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	}
 
 	// go over the pooled components we didn't need this tick to see if we can destroy some and deactivate the rest
-	for (TPair<UClass*, TArray<FNiagaraComponentRenderPoolEntry>>& Pair : ComponentRenderPool.PoolsByTemplate)
+	for (TPair<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>>& Pair : ComponentRenderPool.PoolsByTemplate)
 	{
 		for (FNiagaraComponentRenderPoolEntry& PoolEntry : Pair.Value)
 		{
@@ -2174,7 +2175,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 
 void FNiagaraSystemInstance::ResetComponentRenderPool()
 {
-	for (TPair<UClass*, TArray<FNiagaraComponentRenderPoolEntry>>& Pair : ComponentRenderPool.PoolsByTemplate)
+	for (TPair<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>>& Pair : ComponentRenderPool.PoolsByTemplate)
 	{
 		for (FNiagaraComponentRenderPoolEntry PoolEntry : Pair.Value)
 		{
