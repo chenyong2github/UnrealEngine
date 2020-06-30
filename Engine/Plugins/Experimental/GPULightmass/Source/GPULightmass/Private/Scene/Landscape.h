@@ -39,7 +39,6 @@ public:
 		int8 CurrentLOD;
 
 		FRayTracingGeometry Geometry;
-		FRWBuffer RayTracingDynamicVertexBuffer;
 		FLandscapeVertexFactoryMVFUniformBufferRef UniformBuffer;
 
 		FLandscapeSectionRayTracingState() : CurrentLOD(-1) {}

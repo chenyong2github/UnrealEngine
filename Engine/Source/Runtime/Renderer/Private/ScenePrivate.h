@@ -2426,8 +2426,6 @@ struct FMeshComputeDispatchCommand
 
 	uint32 NumMaxVertices;
 	FRWBuffer* TargetBuffer;
-
-	bool bApplyWorldPositionOffset;
 };
 #endif
 
