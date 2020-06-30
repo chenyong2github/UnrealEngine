@@ -325,10 +325,6 @@ public class UnrealEd : ModuleRules
 
 		SetupModulePhysicsSupport(Target);
 
-		if(Target.bCompileChaos && Target.bUseChaos)
-        {
-			PrivateDependencyModuleNames.Add("ChaosSolvers");
-        }
 
 		if (Target.bCompileRecast)
 		{

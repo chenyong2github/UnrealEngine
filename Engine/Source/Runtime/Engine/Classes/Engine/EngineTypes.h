@@ -660,10 +660,6 @@ enum class ENetworkSmoothingMode : uint8
 	Replay			UMETA(Hidden, DisplayName="Replay"),
 };
 
-/** This filter allows us to refine queries (channel, object) with an additional level of ignore by tagging entire classes of objects (e.g. "Red team", "Blue team")
-    If(QueryIgnoreMask & ShapeFilter != 0) filter out */
-typedef uint8 FMaskFilter;
-
 // Number of bits used currently from FMaskFilter.
 enum { NumExtraFilterBits = 6 };
 
@@ -1163,29 +1159,6 @@ private:
 	static FCollisionResponseContainer DefaultResponseContainer;
 
 	friend class UCollisionProfile;
-};
-
-/** Enum for controlling the falloff of strength of a radial impulse as a function of distance from Origin. */
-UENUM()
-enum ERadialImpulseFalloff
-{
-	/** Impulse is a constant strength, up to the limit of its range. */
-	RIF_Constant,
-	/** Impulse should get linearly weaker the further from origin. */
-	RIF_Linear,
-	RIF_MAX,
-};
-
-/** Presets of values used in considering when put this body to sleep. */
-UENUM()
-enum class ESleepFamily : uint8
-{
-	/** Engine defaults. */
-	Normal,
-	/** A family of values with a lower sleep threshold; good for slower pendulum-like physics. */
-	Sensitive,
-	/** Specify your own sleep threshold multiplier */
-	Custom,
 };
 
 /** Enum used to indicate what type of timeline signature a function matches. */
@@ -3791,31 +3764,6 @@ struct FComponentSocketDescription
 
 /** Dynamic delegate to use by components that want to route the broken-event into blueprints */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FConstraintBrokenSignature, int32, ConstraintIndex);
-
-/** Specifies angular degrees of freedom */
-UENUM()
-enum EAngularConstraintMotion
-{
-	/** No constraint against this axis. */ 
-	ACM_Free		UMETA(DisplayName="Free"),
-	/** Limited freedom along this axis. */ 
-	ACM_Limited		UMETA(DisplayName="Limited"),
-	/** Fully constraint against this axis. */
-	ACM_Locked		UMETA(DisplayName="Locked"),
-
-	ACM_MAX,
-};
-
-/** Enum to indicate which context frame we use for physical constraints */
-UENUM()
-namespace EConstraintFrame
-{
-	enum Type
-	{
-		Frame1,
-		Frame2
-	};
-}
 
 /** Structure for file paths that are displayed in the editor with a picker UI. */
 USTRUCT(BlueprintType)

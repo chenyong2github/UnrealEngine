@@ -72,35 +72,3 @@ struct FGeometryAddParams
 	TArrayView<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 };
-
-namespace PhysicsInterfaceTypes
-{
-	enum class ELimitAxis : uint8
-	{
-		X,
-		Y,
-		Z,
-		Twist,
-		Swing1,
-		Swing2
-	};
-
-	enum class EDriveType : uint8
-	{
-		X,
-		Y,
-		Z,
-		Swing,
-		Twist,
-		Slerp
-	};
-
-	/**
-	* Default number of inlined elements used in FInlineShapeArray.
-	* Increase if for instance character meshes use more than this number of physics bodies and are involved in many queries.
-	*/
-	enum { NumInlinedPxShapeElements = 32 };
-
-	/** Array that is intended for use when fetching shapes from a rigid body. */
-	typedef TArray<FPhysicsShapeHandle, TInlineAllocator<NumInlinedPxShapeElements>> FInlineShapeArray;
-}

@@ -15,20 +15,6 @@ namespace physx
 }
 #endif // WITH_PHYSX
 
-// LINEAR DOF
-UENUM()
-enum ELinearConstraintMotion
-{
-	/** No constraint against this axis. */ 
-	LCM_Free	UMETA(DisplayName="Free"),
-	/** Limited freedom along this axis. */ 
-	LCM_Limited UMETA(DisplayName="Limited"),
-	/** Fully constraint against this axis. */
-	LCM_Locked UMETA(DisplayName="Locked"),
-
-	LCM_MAX,
-};
-
 USTRUCT()
 struct ENGINE_API FConstraintBaseParams
 {

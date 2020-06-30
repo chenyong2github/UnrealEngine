@@ -1210,28 +1210,21 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
 		{
-			PublicIncludePathModuleNames.Add("PhysicsCore");
 			PublicDependencyModuleNames.Add("PhysicsCore");
 
 			bool bUseNonPhysXInterface = Target.bUseChaos == true;
-            PublicIncludePathModuleNames.AddRange(
-                new string[] {
-                    "Chaos",
-					"FieldSystemCore"
-                }
-            );
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Chaos",
+					"ChaosSolvers",
 					"FieldSystemCore"
-                }
-            );
-
-            // 
-            if (Target.bCompileChaos == true || Target.bUseChaos == true)
+				}
+				);
+			// 
+			if (Target.bCompileChaos == true || Target.bUseChaos == true)
             {
                 PublicDefinitions.Add("INCLUDE_CHAOS=1");
-            }
+			}
             else
             {
                 PublicDefinitions.Add("INCLUDE_CHAOS=0");
