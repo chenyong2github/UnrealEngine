@@ -166,10 +166,24 @@ private:
 template<typename TType>
 struct FNiagaraDataSetAccessorFloat
 {
-	FNiagaraDataSetAccessorFloat() {}
-	explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
-	explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
-	void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE FNiagaraDataSetAccessorFloat() {}
+	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
+	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+
+	void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
+	{
+		if (DataSetCompiledData != nullptr)
+		{
+			Init(*DataSetCompiledData, VariableName);
+		}
+		else
+		{
+			bIsFloat = true;
+			ComponentIndex = INDEX_NONE;
+		}
+	}
 
 	void Init(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName)
 	{
@@ -382,7 +396,20 @@ struct FNiagaraDataSetAccessorInt32
 	FORCEINLINE FNiagaraDataSetAccessorInt32() {}
 	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
 	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+
+	FORCEINLINE void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
+	{
+		if (DataSetCompiledData != nullptr)
+		{
+			Init(*DataSetCompiledData, VariableName);
+		}
+		else
+		{
+			ComponentIndex = INDEX_NONE;
+		}
+	}
 
 	void Init(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName)
 	{
@@ -509,7 +536,22 @@ struct FNiagaraDataSetAccessorStruct
 	FORCEINLINE FNiagaraDataSetAccessorStruct() {}
 	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
 	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+
+	void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
+	{
+		if (DataSetCompiledData != nullptr)
+		{
+			Init(*DataSetCompiledData, VariableName);
+		}
+		else
+		{
+			bIsValid = false;
+			FloatComponentIndex = INDEX_NONE;
+			Int32ComponentIndex = INDEX_NONE;
+		}
+	}
 
 	void Init(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName)
 	{
