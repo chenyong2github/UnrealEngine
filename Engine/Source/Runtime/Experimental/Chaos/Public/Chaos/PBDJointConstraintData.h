@@ -14,6 +14,7 @@ namespace Chaos
 		Position                    = 0,
 		CollisionEnabled            = 1 << 1,
 		ProjectionEnabled           = 1 << 2,
+		ParentInvMassScale          = 1 << 3,
 		DummyFlag
 	};
 
@@ -60,6 +61,10 @@ namespace Chaos
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, ProjectionEnabled, EJointConstraintFlags::ProjectionEnabled, JointSettings.bProjectionEnabled);
 		//void SetProjectionEnabled(bool bInProjectionEnabled);
 		//bool GetProjectionEnabled() const;
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ParentInvMassScale, EJointConstraintFlags::ParentInvMassScale, JointSettings.ParentInvMassScale);
+		//void SetParentInvMassScale(FReal InParentInvMassScale);
+		//FReal GetParentInvMassScale() const
 
 		const FData& GetJointSettings()const {return JointSettings; }
 
