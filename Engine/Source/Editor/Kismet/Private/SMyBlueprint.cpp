@@ -2496,7 +2496,19 @@ void SMyBlueprint::OnFindAndReplaceReference()
 
 bool SMyBlueprint::CanFindAndReplaceReference() const
 {
-	return SelectionAsVar() != nullptr;
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+	{
+		// If this variable was introduced in this class
+		// note: this also disallows SCS component variables because they won't be found in the NewVariables list
+		UBlueprint* SourceBlueprint;
+		int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(Blueprint, VarAction->GetVariableName(), SourceBlueprint);
+		if (VarIndex != INDEX_NONE)
+		{
+			return SourceBlueprint == Blueprint;
+		}
+	}
+	
+	return false;
 }
 
 void SMyBlueprint::OnDeleteGraph(UEdGraph* InGraph, EEdGraphSchemaAction_K2Graph::Type InGraphType)
