@@ -4981,7 +4981,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		bool bOnlyDeleted = FParse::Param( CmdLine, TEXT("OnlyDeleted") );
 		bool bSortByOrdering = FParse::Param(CmdLine, TEXT("SortByOrdering"));
-		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("bMoveBulkAndUptnlOrderLast"));
+		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("moveBulkAndUptnlOrderLast"));
 
 		FPakOrderMap OrderMap;
 		FString ResponseFile;
