@@ -97,6 +97,18 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::ParentInvMassScale);
 			}
 
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
+			{
+				JointSettingsBuffer.LinearBreakForce = Constraint->GetLinearBreakForce();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::LinearBreakForce);
+			}
+
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
+			{
+				JointSettingsBuffer.AngularBreakTorque = Constraint->GetAngularBreakTorque();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::AngularBreakTorque);
+			}
+
 			Constraint->ClearDirtyFlags();
 		}
 	}
@@ -168,6 +180,16 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
 		{
 			ConstraintSettings.ParentInvMassScale = JointSettingsBuffer.ParentInvMassScale;
+		}
+
+		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
+		{
+			ConstraintSettings.LinearBreakForce = JointSettingsBuffer.LinearBreakForce;
+		}
+
+		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
+		{
+			ConstraintSettings.AngularBreakTorque = JointSettingsBuffer.AngularBreakTorque;
 		}
 
 		DirtyFlagsBuffer.Clear();
