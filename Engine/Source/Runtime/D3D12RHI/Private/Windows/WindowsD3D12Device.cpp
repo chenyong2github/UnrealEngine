@@ -741,11 +741,6 @@ void FD3D12DynamicRHI::Init()
 	// - Standalones are added to the deferred deletion queue of its parent FD3D12Adapter
 	GRHIForceNoDeletionLatencyForStreamingTextures = !!PLATFORM_WINDOWS;
 
-#if D3D12_RHI_RAYTRACING
-	GRHISupportsRayTracing = GetAdapter().GetD3DDevice5() != nullptr;
-	GRHISupportsRayTracingMissShaderBindings = true;
-#endif
-
 	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
 	FRenderResource::InitPreRHIResources();
