@@ -154,21 +154,27 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 			{
 				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
 
-				ConstraintSetLock.Lock();
+				FEdgeConstraint EdgeConstraint(EdgeFlags);
 
-				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint{ EdgeFlags });
+				// don't update with a phantom constraint (i.e. an unconstrained constraint )
+				if (!(EdgeConstraint.IsUnconstrained() && VtxConstraint.IsUnconstrained()))
+				{
+					ConstraintSetLock.Lock();
 
-				// If any vertex constraints exist, we can only make them more restrictive!
-							
-				FVertexConstraint ConstraintA = VtxConstraint;
-				ConstraintA.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.A));
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, ConstraintA);
+					Constraints.SetOrUpdateEdgeConstraint(EdgeID, EdgeConstraint);
 
-				FVertexConstraint ConstraintB = VtxConstraint;
-				ConstraintB.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.B));
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, ConstraintB);
+					// If any vertex constraints exist, we can only make them more restrictive!
 
-				ConstraintSetLock.Unlock();
+					FVertexConstraint ConstraintA = VtxConstraint;
+					ConstraintA.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.A));
+					Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, ConstraintA);
+
+					FVertexConstraint ConstraintB = VtxConstraint;
+					ConstraintB.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.B));
+					Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, ConstraintB);
+
+					ConstraintSetLock.Unlock();
+				}
 			}
 		}
 	}, (bParallel == false) );
