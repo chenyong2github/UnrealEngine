@@ -519,7 +519,7 @@ bool UPaperGroupedSpriteComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 	{
 		if (InstanceBody != nullptr)
 		{
-			if (UBodySetup* BodySetup = InstanceBody->BodySetup.Get())
+			if (UBodySetup* BodySetup = InstanceBody->GetBodySetup())
 			{
 				GeomExport.ExportRigidBodySetup(*BodySetup, FTransform::Identity);
 			}

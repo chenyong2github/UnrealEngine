@@ -293,7 +293,7 @@ void UWheeledVehicleMovementComponent::SetupVehicleShapes()
 					{
 						if(const FBodyInstance* WheelBI = SkinnedMesh->GetBodyInstance(WheelSetup.BoneName))
 						{
-							WheelBodySetup = WheelBI->BodySetup.Get();
+							WheelBodySetup = WheelBI->GetBodySetup();
 						}
 					}
 

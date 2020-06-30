@@ -5,7 +5,7 @@
 #include "EngineGlobals.h"
 #include "Engine/EngineTypes.h"
 #include "PhysicsInterfaceDeclares.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "PhysicsInterfaceTypesCore.h"
 
 #if WITH_CHAOS

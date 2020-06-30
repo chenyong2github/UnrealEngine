@@ -25,7 +25,7 @@
 #include "MeshBatch.h"
 #include "SceneManagement.h"
 #include "Components/StaticMeshComponent.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Materials/MaterialInterface.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "Rendering/StaticMeshVertexBuffer.h"

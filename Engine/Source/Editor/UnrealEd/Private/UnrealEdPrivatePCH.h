@@ -593,7 +593,7 @@
 #include "Engine/LevelStreaming.h"
 #include "LatentActions.h"
 #include "PreviewScene.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Sound/SoundConcurrency.h"
 #include "AlphaBlend.h"
 #include "Engine/Font.h"

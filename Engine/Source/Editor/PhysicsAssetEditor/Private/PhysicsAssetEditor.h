@@ -17,7 +17,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "IPhysicsAssetEditor.h"
 #include "Editor/PhysicsAssetEditor/Private/PhysicsAssetEditorSharedData.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Containers/ArrayView.h"
 #include "GraphEditor.h"
 
