@@ -4,6 +4,7 @@
 #include "MotoSynthEngine.h"
 #include "MotoSynthDataManager.h"
 #include "MotoSynthSourceAsset.h"
+#include "SynthesisModule.h"
 
 void UMotoSynthPreset::BeginDestroy()
 {
@@ -27,6 +28,25 @@ void UMotoSynthPreset::StartEnginePreview()
 void UMotoSynthPreset::StopEnginePreview()
 {
 	EnginePreviewer.StopPreviewing();
+}
+
+void UMotoSynthPreset::DumpRuntimeMemoryUsage()
+{
+	float TotalMemMB = 0.0f;
+	float AccelRuntime = 0.0f;
+	float DecelRuntime = 0.0f;
+
+	if (Settings.AccelerationSource)
+	{
+		AccelRuntime = Settings.AccelerationSource->GetRuntimeMemoryUsageMB();
+	}
+
+	if (Settings.DecelerationSource)
+	{
+		DecelRuntime = Settings.DecelerationSource->GetRuntimeMemoryUsageMB();
+	}
+
+	UE_LOG(LogSynthesis, Display, TEXT("Moto Synth Preset Memory: %s, Accel: %.2f MB, Decel: %.2f MB, Total: %.2f MB"), *GetName(), AccelRuntime, DecelRuntime, AccelRuntime + DecelRuntime);
 }
 
 void UMotoSynthPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -76,24 +96,21 @@ void FMotoSynthEnginePreviewer::SetSettings(const FMotoSynthRuntimeSettings& InS
 	FScopeLock Lock(&PreviewEngineCritSect);
 
 	// Set the accel and decel data separately
-	if (Settings.AccelerationSource != InSettings.AccelerationSource || Settings.DecelerationSource != InSettings.DecelerationSource)
+	uint32 AccelDataID = INDEX_NONE;
+	uint32 DecelDataID = INDEX_NONE;
+
+	if (InSettings.AccelerationSource)
 	{
-		uint32 AccelDataID = INDEX_NONE;
-		uint32 DecelDataID = INDEX_NONE;
-
-		if (InSettings.AccelerationSource)
-		{
-			AccelDataID = InSettings.AccelerationSource->GetDataID();
-		}
-
-		if (InSettings.DecelerationSource)
-		{
-			DecelDataID = InSettings.DecelerationSource->GetDataID();
-		}
-
-		SynthEngine->SetSourceData(AccelDataID, DecelDataID);
-		SynthEngine->GetRPMRange(RPMRange);
+		AccelDataID = InSettings.AccelerationSource->GetDataID();
 	}
+
+	if (InSettings.DecelerationSource)
+	{
+		DecelDataID = InSettings.DecelerationSource->GetDataID();
+	}
+
+	SynthEngine->SetSourceData(AccelDataID, DecelDataID);
+	SynthEngine->GetRPMRange(RPMRange);
 
 	Settings = InSettings;
 	SynthEngine->SetSettings(InSettings);
