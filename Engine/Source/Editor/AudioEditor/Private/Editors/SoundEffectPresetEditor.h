@@ -17,7 +17,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWidget.h"
 
-#include "SoundEFfectPresetEditor.generated.h"
+#include "SoundEffectPresetEditor.generated.h"
 
 // Forward Declarations
 class FCurveEditor;
