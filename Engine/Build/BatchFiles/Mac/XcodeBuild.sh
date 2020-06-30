@@ -3,14 +3,19 @@
 # This script gets called every time Xcode does a build or clean operation, even though it's called "Build.sh".
 # Values for $ACTION: "" = building, "clean" = cleaning
 
-# Setup Mono
-source Engine/Build/BatchFiles/Mac/SetupMono.sh Engine/Build/BatchFiles/Mac
+# Setup Environment & Mono
+source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
+
+# First make sure that the UnrealBuildTool is up-to-date
+if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
+  echo "Failed to build to build tool (UnrealBuildTool)"
+  exit 1
+fi
 
 # override env if action is specified on command line
 if [ $1 == "clean" ]; then
 	ACTION="clean"
 fi
-
 
 case $ACTION in
 	"")
