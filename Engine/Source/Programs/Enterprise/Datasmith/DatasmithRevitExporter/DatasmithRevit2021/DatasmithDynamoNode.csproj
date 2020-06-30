@@ -65,7 +65,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>set PUBLISH_DIR=C:\ProgramData\Autodesk\Revit\Addins\2021\DatasmithRevit2021
+    <PostBuildEvent>set PUBLISH_DIR=$(ProjectDir)..\..\..\..\..\..\Binaries\Win64\Revit\2021\
 xcopy "$(ProjectDir)$(OutputPath)*.dll" "%25PUBLISH_DIR%25" /Y
 </PostBuildEvent>
   </PropertyGroup>
