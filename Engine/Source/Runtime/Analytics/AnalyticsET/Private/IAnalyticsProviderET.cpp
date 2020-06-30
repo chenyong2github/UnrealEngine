@@ -19,6 +19,7 @@
 #include "PlatformHttp.h"
 #include "Misc/EngineVersion.h"
 #include "HttpRetrySystem.h"
+#include "HAL/IConsoleManager.h"
 
 #include "AnalyticsPerfTracker.h"
 
