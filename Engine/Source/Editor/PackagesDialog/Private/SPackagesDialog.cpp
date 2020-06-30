@@ -22,7 +22,8 @@ namespace SPackagesDialogDefs
 {
 	const FName ColumnID_CheckBoxLabel( "CheckBox" );
 	const FName ColumnID_IconLabel( "Icon" );
-	const FName ColumnID_FileLabel( "File" );
+	const FName ColumnID_AssetLabel( "Asset" );
+	const FName ColumnID_PackageLabel( "Package" );
 	const FName ColumnID_TypeLabel( "Type" );
 	const FName ColumnID_CheckedOutByLabel( "CheckedOutBy" );
 
@@ -33,10 +34,10 @@ namespace SPackagesDialogDefs
 
 UObject* FPackageItem::GetPackageObject() const
 {
-	if ( !EntryName.StartsWith(TEXT("/Temp/Untitled")) )
+	if ( !FileName.StartsWith(TEXT("/Temp/Untitled")) )
 	{
 		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithOuter(Package, ObjectsInPackage, false);
+		GetObjectsWithPackage(Package, ObjectsInPackage, false);
 		for (UObject* Obj : ObjectsInPackage)
 		{
 			if (Obj->IsAsset())
@@ -51,10 +52,10 @@ UObject* FPackageItem::GetPackageObject() const
 bool FPackageItem::HasMultipleAssets() const
 {
 	bool bHasMultipleAssets = false;
-	if ( !EntryName.StartsWith(TEXT("/Temp/Untitled")) )
+	if ( !FileName.StartsWith(TEXT("/Temp/Untitled")) )
 	{
 		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithOuter(Package, ObjectsInPackage, false);
+		GetObjectsWithPackage(Package, ObjectsInPackage, false);
 		UObject* FirstObj = nullptr;
 		for (UObject* Obj : ObjectsInPackage)
 		{
@@ -84,11 +85,12 @@ bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
 		Object = GetPackageObject();
 	}
 
-	if (Object.IsValid())
+	if (Object.IsValid(/*bEvenIfPendingKill*/true, /*bThreadsafeTest*/false))
 	{
 		// Load the asset tools module to get access to the class color
+		UObject* ObjectPtr = Object.Get(/*bEvenIfPendingKill*/true);
 		const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-		const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Object->GetClass()).Pin();
+		const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ObjectPtr->GetClass()).Pin();
 		if ( AssetTypeActions.IsValid() )
 		{
 			if(HasMultipleAssets())
@@ -98,7 +100,7 @@ bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
 			}
 			else
 			{
-				const FColor EngineBorderColor = AssetTypeActions->GetTypeColor();
+				const FColor EngineBorderColor = ObjectPtr->IsPendingKill() ? FColor::Red : AssetTypeActions->GetTypeColor();
 				OutColor = FColor(						// Copied from ContentBrowserCLR.cpp
 					127 + EngineBorderColor.R / 2,		// Desaturate the colors a bit (GB colors were too.. much)
 					127 + EngineBorderColor.G / 2,
@@ -109,7 +111,17 @@ bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
 			return true;
 		}
 	}
-
+	// if we do not find any package object, consider the package empty, return a red `Empty Package`
+	else
+	{
+		OutName = FString(TEXT("Empty Package"));
+		OutColor = FColor(					// Copied from ContentBrowserCLR.cpp
+			127 + FColor::Red.R / 2,		// Desaturate the colors a bit (GB colors were too.. much)
+			127 + FColor::Red.G / 2,
+			127 + FColor::Red.B / 2,
+			200);		// Opacity
+		return true;
+	}
 	return false;
 }
 
@@ -126,7 +138,7 @@ void SPackagesDialog::Construct(const FArguments& InArgs)
 	Message = InArgs._Message;
 	Warning = InArgs._Warning;
 	OnSourceControlStateChanged = InArgs._OnSourceControlStateChanged;
-	SortByColumn = SPackagesDialogDefs::ColumnID_FileLabel;
+	SortByColumn = SPackagesDialogDefs::ColumnID_AssetLabel;
 	SortMode = EColumnSortMode::Ascending;
 
 	ButtonsBox = SNew( SHorizontalBox );
@@ -173,9 +185,17 @@ void SPackagesDialog::Construct(const FArguments& InArgs)
 		);
 
 	HeaderRowWidget->AddColumn(
-		SHeaderRow::Column( SPackagesDialogDefs::ColumnID_FileLabel )
+		SHeaderRow::Column( SPackagesDialogDefs::ColumnID_AssetLabel )
+		.DefaultLabel( LOCTEXT("AssetColumnLabel", "Asset" ) )
+		.SortMode( this, &SPackagesDialog::GetColumnSortMode, SPackagesDialogDefs::ColumnID_AssetLabel )
+		.OnSort( this, &SPackagesDialog::OnColumnSortModeChanged )
+		.FillWidth( 5.0f )
+	);
+
+	HeaderRowWidget->AddColumn(
+		SHeaderRow::Column( SPackagesDialogDefs::ColumnID_PackageLabel )
 		.DefaultLabel( LOCTEXT("FileColumnLabel", "File" ) )
-		.SortMode( this, &SPackagesDialog::GetColumnSortMode, SPackagesDialogDefs::ColumnID_FileLabel )
+		.SortMode( this, &SPackagesDialog::GetColumnSortMode, SPackagesDialogDefs::ColumnID_PackageLabel )
 		.OnSort( this, &SPackagesDialog::OnColumnSortModeChanged )
 		.FillWidth( 7.0f )
 	);
@@ -445,7 +465,9 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 		PackageType = FString(TEXT("(")) + PackageType + FString(TEXT(")"));
 	}
 
-	const FString PackageName = Item->GetName();
+	const FString AssetName = Item->GetAssetName();
+	const FString PackageName = Item->GetPackageName();
+	const FString FileName = Item->GetFileName();
 
 	TSharedPtr<SWidget> ItemContentWidget;
 
@@ -473,7 +495,18 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 				.IsEnabled(!Item->IsDisabled())
 			];
 	}
-	else if (ColumnID == SPackagesDialogDefs::ColumnID_FileLabel)
+	else if (ColumnID == SPackagesDialogDefs::ColumnID_AssetLabel)
+	{
+		ItemContentWidget = SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.Padding(RowPadding)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(AssetName))
+				.IsEnabled(!Item->IsDisabled())
+			];
+	}
+	else if (ColumnID == SPackagesDialogDefs::ColumnID_PackageLabel)
 	{
 		ItemContentWidget = SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -481,7 +514,7 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(PackageName))
-				.ToolTipText(FText::FromString(PackageName))
+				.ToolTipText(FText::FromString(FileName))
 				.IsEnabled(!Item->IsDisabled())
 			];
 	}
@@ -562,7 +595,7 @@ void SPackagesDialog::ExecuteSCCDiffAgainstDepot() const
 		UObject* Object = SelectedItem->GetPackageObject();
 		if( Object )
 		{
-			const FString PackagePath = SelectedItem->GetName();
+			const FString PackagePath = SelectedItem->GetFileName();
 			const FString PackageName = FPaths::GetBaseFilename( PackagePath );
 			AssetToolsModule.Get().DiffAgainstDepot( Object, PackagePath, PackageName );
 		}
@@ -687,7 +720,7 @@ void SPackagesDialog::PopulateIgnoreForSaveItems( const TSet<FString>& InIgnoreP
 {
 	for( auto ItItem=Items.CreateIterator(); ItItem; ++ItItem )
 	{
-		const FString& ItemName = (*ItItem)->GetName();
+		const FString& ItemName = (*ItItem)->GetFileName();
 
 		const ECheckBoxState CheckedStatus = (InIgnorePackages.Find(ItemName) != NULL) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 
@@ -704,11 +737,11 @@ void SPackagesDialog::PopulateIgnoreForSaveArray( OUT TSet<FString>& InOutIgnore
 	{
 		if((*ItItem)->GetState()==ECheckBoxState::Unchecked)
 		{
-			InOutIgnorePackages.Add( (*ItItem)->GetName() );
+			InOutIgnorePackages.Add( (*ItItem)->GetFileName() );
 		}
 		else
 		{
-			InOutIgnorePackages.Remove( (*ItItem)->GetName() );
+			InOutIgnorePackages.Remove( (*ItItem)->GetFileName() );
 		}
 	}
 }
@@ -761,17 +794,30 @@ void SPackagesDialog::RequestSort()
 
 void SPackagesDialog::SortTree()
 {
-	if (SortByColumn == SPackagesDialogDefs::ColumnID_FileLabel)
+	if (SortByColumn == SPackagesDialogDefs::ColumnID_AssetLabel)
 	{
 		if (SortMode == EColumnSortMode::Ascending)
 		{
 			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
-				return A->GetName() < B->GetName(); } );
+				return A->GetAssetName() < B->GetAssetName(); } );
 		}
 		else if (SortMode == EColumnSortMode::Descending)
 		{
 			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
-				return A->GetName() >= B->GetName(); } );
+				return A->GetAssetName() >= B->GetAssetName(); } );
+		}
+	}
+	else if (SortByColumn == SPackagesDialogDefs::ColumnID_PackageLabel)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
+				return A->GetPackageName() < B->GetPackageName(); } );
+		}
+		else if (SortMode == EColumnSortMode::Descending)
+		{
+			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
+				return A->GetPackageName() >= B->GetPackageName(); } );
 		}
 	}
 	else if (SortByColumn == SPackagesDialogDefs::ColumnID_TypeLabel)

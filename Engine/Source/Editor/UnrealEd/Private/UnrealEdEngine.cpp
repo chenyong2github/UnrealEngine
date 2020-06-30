@@ -93,7 +93,18 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Register for the package dirty state updated callback to catch packages that have been modified and need to be checked out.
 	UPackage::PackageDirtyStateChangedEvent.AddUObject(this, &UUnrealEdEngine::OnPackageDirtyStateUpdated);
-	
+
+	// Set-up the initial set of content mount paths to check for write permision
+	TArray<FString> RootPaths;
+	FPackageName::QueryRootContentPaths(RootPaths);
+	for (const FString& RootPath : RootPaths)
+	{
+		VerifyMountPointWritePermission(*RootPath);
+	}
+	// Watch for new content mount paths
+	FPackageName::OnContentPathMounted().AddUObject(this, &UUnrealEdEngine::OnContentPathMounted);
+	FPackageName::OnContentPathDismounted().AddUObject(this, &UUnrealEdEngine::OnContentPathDismounted);
+
 	// Register to the PostGarbageCollect delegate, as we want to use this to trigger the RefreshAllBroweser delegate from 
 	// here rather then from Core
 	FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UUnrealEdEngine::OnPostGarbageCollect);
@@ -396,6 +407,8 @@ void UUnrealEdEngine::FinishDestroy()
 		delete PerformanceMonitor;
 	}
 
+	FPackageName::OnContentPathMounted().RemoveAll(this);
+	FPackageName::OnContentPathDismounted().RemoveAll(this);
 	UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	FCoreDelegates::ColorPickerChanged.RemoveAll(this);
@@ -435,16 +448,8 @@ void UUnrealEdEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		PackageAutoSaver->AttemptAutoSave();
 	}
 
-	// Try and notify the user about modified packages needing checkout
+	// Try and notify the user about modified packages needing checkout and write permission warnings
 	AttemptModifiedPackageNotification();
-
-	// Attempt to warn about any packages that have been modified but were previously
-	// saved with an engine version newer than the current one
-	AttemptWarnAboutPackageEngineVersions();
-
-	// Attempt to warn about any packages that have been modified but the user
-	// does not have permission to write them to disk
-	AttemptWarnAboutWritePermission();
 
 	// Update lightmass
 	UpdateBuildLighting();
@@ -459,47 +464,6 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 	UPackage* Package = Pkg->GetOutermost();
 	const FString PackageName = Package->GetName();
 
-	// Alert the user if they have modified a package that won't be able to be saved because
-	// it's already been saved with an engine version that is newer than the current one.
-	if (!FUObjectThreadContext::Get().IsRoutingPostLoad && Package->IsDirty() && !PackagesCheckedForEngineVersion.Contains(PackageName))
-	{
-		EWriteDisallowedWarningState WarningStateToSet = WDWS_WarningUnnecessary;
-				
-		FString PackageFileName;
-		if ( FPackageName::DoesPackageExist( Package->GetName(), NULL, &PackageFileName ) )
-		{
-			// If a package has never been loaded, a file reader is necessary to find the package file summary for its saved engine version.
-			FArchive* PackageReader = IFileManager::Get().CreateFileReader( *PackageFileName );
-			if ( PackageReader )
-			{
-				FPackageFileSummary Summary;
-				*PackageReader << Summary;
-
-				if ( Summary.GetFileVersionUE4() > GPackageFileUE4Version || !FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion) )
-				{
-					WarningStateToSet = WDWS_PendingWarn;
-					bNeedWarningForPkgEngineVer = true;
-				}
-			}
-			delete PackageReader;
-		}
-		PackagesCheckedForEngineVersion.Add( PackageName, WarningStateToSet );
-	}
-
-	// Alert the user if they have modified a package that they do not have sufficient permission to write to disk.
-	// This can be due to the content being in the "Program Files" folder and the user does not have admin privileges.
-	if (!FUObjectThreadContext::Get().IsRoutingPostLoad && Package->IsDirty() && !PackagesCheckedForWritePermission.Contains(PackageName))
-	{
-		EWriteDisallowedWarningState WarningStateToSet = GetWarningStateForWritePermission(PackageName);
-
-		if ( WarningStateToSet == WDWS_PendingWarn )
-		{
-			bNeedWarningForWritePermission = true;
-		}
-		
-		PackagesCheckedForWritePermission.Add( PackageName, WarningStateToSet );
-	}
-
 	if( Package->IsDirty() )
 	{
 		// Find out if we have already asked the user to modify this package
@@ -511,16 +475,18 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 		// Any callback that happens during an autosave is bogus since a package wasn't marked dirty due to a user modification.
 		const bool bIsAutoSaving = PackageAutoSaver.Get() && PackageAutoSaver->IsAutoSaving();
 
-		const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
-
 		if( !bIsAutoSaving && 
 			!GIsEditorLoadingPackage && // Don't ask if the package was modified as a result of a load
-			!GIsCookerLoadingPackage && // don't ask if the package was modified as a result of a cooker load
-			!bAlreadyAsked && // Don't ask if we already asked once!
-			(Settings->bPromptForCheckoutOnAssetModification || Settings->bAutomaticallyCheckoutOnAssetModification) )
+			!GIsCookerLoadingPackage)   // don't ask if the package was modified as a result of a cooker load
 		{
 			PackagesDirtiedThisTick.Add(Package);
-			PackageToNotifyState.Add(Package, NS_Updating);
+
+			const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
+			if (!bAlreadyAsked && // Don't ask if we already asked once!
+				(Settings->bPromptForCheckoutOnAssetModification || Settings->bAutomaticallyCheckoutOnAssetModification))
+			{
+				PackageToNotifyState.Add(Package, NS_Updating);
+			}
 		}
 	}
 	else
@@ -540,11 +506,14 @@ void UUnrealEdEngine::AttemptModifiedPackageNotification()
 		ShowPackageNotification();
 	}
 
+	bool bShowWritePermissionWarning = false;
+	FMessageLog EditorLog("EditorErrors");
 	if (PackagesDirtiedThisTick.Num() > 0 && !bIsCooking)
 	{
 		// Force source control state to be updated
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
+		FString PackageName;
 		TArray<FString> Files;
 		TArray<TWeakObjectPtr<UPackage>> Packages;
 		for (const TWeakObjectPtr<UPackage>& Package : PackagesDirtiedThisTick)
@@ -553,10 +522,43 @@ void UUnrealEdEngine::AttemptModifiedPackageNotification()
 			{
 				Packages.Add(Package);
 				Files.Add(SourceControlHelpers::PackageFilename(Package.Get()));
+
+				// if we do not have write permission under the mount point for this package log an error in the message log to link to.
+				PackageName = Package->GetName();
+				if (!HasMountWritePersmissionForPackage(PackageName))
+				{
+					bShowWritePermissionWarning = true;
+					EditorLog.Warning(FText::Format(NSLOCTEXT("UnrealEd", "WritePermissionFailureLog", "Insufficient writing permission to save {0}"), FText::FromString(PackageName)));
+				}
 			}
 		}
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlHelpers::AbsoluteFilenames(Files), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateUObject(this, &UUnrealEdEngine::OnSourceControlStateUpdated, Packages));
+	}
+	
+	if (bShowWritePermissionWarning)
+	{
+		// Display a toast notification when a writing permission failure occurs.
+		FText WarningText = NSLOCTEXT("UnrealEd", "WritePermissionFailureNotification", "Insufficient permission to save content.");
+		if (!WritePermissionWarningNotificationWeakPtr.IsValid())
+		{
+			FNotificationInfo WarningNotification(WarningText);
+			WarningNotification.bFireAndForget = true;
+			WarningNotification.Hyperlink = FSimpleDelegate::CreateLambda([]()
+			{
+				FMessageLog("EditorErrors").Open();
+			});
+			WarningNotification.HyperlinkText = NSLOCTEXT("UnrealEd", "WritePermissionFailureHyperlink", "Open Message Log");
+			WarningNotification.ExpireDuration = 6.0f;
+			WarningNotification.bUseThrobber = false;
 
+			// For adding notifications.
+			WritePermissionWarningNotificationWeakPtr = FSlateNotificationManager::Get().AddNotification(WarningNotification);
+		}
+		else
+		{
+			WritePermissionWarningNotificationWeakPtr.Pin()->SetText(WarningText);
+			WritePermissionWarningNotificationWeakPtr.Pin()->ExpireAndFadeout();
+		}
 	}
 
 	PackagesDirtiedThisTick.Empty();
@@ -963,17 +965,7 @@ void UUnrealEdEngine::GetPackageList( TArray<UPackage*>* InPackages, UClass* InC
 
 bool UUnrealEdEngine::CanSavePackage( UPackage* PackageToSave )
 {
-	const FString& PackageName = PackageToSave->GetName();
-	EWriteDisallowedWarningState WarningState = GetWarningStateForWritePermission(PackageName);
-
-	if ( WarningState == WDWS_PendingWarn )
-	{
-		bNeedWarningForWritePermission = true;
-		PackagesCheckedForWritePermission.Add( PackageName, WarningState );
-		return false;
-	}
-
-	return true;
+	return HasMountWritePersmissionForPackage(PackageToSave->GetName());
 }
 
 
@@ -1387,55 +1379,43 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 	}
 }
 
-
-EWriteDisallowedWarningState UUnrealEdEngine::GetWarningStateForWritePermission(const FString& PackageName) const
+bool UUnrealEdEngine::HasMountWritePersmissionForPackage(const FString& PackageName)
 {
-	EWriteDisallowedWarningState WarningState = WDWS_WarningUnnecessary;
-
-	if ( FPackageName::IsValidLongPackageName(PackageName, /*bIncludeReadOnlyRoots=*/false) )
+	FName MountPoint = FPackageName::GetPackageMountPoint(PackageName, false);
+	if (const bool* bWritePermission = MountPointCheckedForWritePermission.Find(MountPoint))
 	{
-		// Test for write permission in the folder the package is in by creating a temp file and writing to it.
-		// This isn't exactly the same as testing the package file for write permission, but we can not test that without directly writing to the file.
-		FString BasePackageFileName = FPackageName::LongPackageNameToFilename(PackageName);
-		FString TempPackageFileName = BasePackageFileName;
+		return *bWritePermission;
+	}
+	return VerifyMountPointWritePermission(MountPoint);
+}
 
-		// Make sure the temp file we are writing does not already exist by appending a numbered suffix
-		const int32 MaxSuffix = 32;
-		bool bCanTestPermission = false;
-		for ( int32 SuffixIdx = 0; SuffixIdx < MaxSuffix; ++SuffixIdx )
-		{
-			TempPackageFileName = BasePackageFileName + FString::Printf(TEXT(".tmp%d"), SuffixIdx);
-			if ( !FPlatformFileManager::Get().GetPlatformFile().FileExists(*TempPackageFileName) )
-			{
-				// Found a file that is not already in use
-				bCanTestPermission = true;
-				break;
-			}
-		}
+bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
+{
+	// Get a unique temp filename under the mount point
+	FString WriteCheckPath = FPackageName::LongPackageNameToFilename(MountPoint.ToString()) + FGuid::NewGuid().ToString();
 
-		// If we actually found a file to test permission, test it now.
-		if ( bCanTestPermission )
-		{
-			bool bHasWritePermission = FFileHelper::SaveStringToFile( TEXT("Write Test"), *TempPackageFileName );
-			if ( bHasWritePermission )
-			{
-				// We can successfully write to the folder containing the package.
-				// Delete the temp file.
-				IFileManager::Get().Delete(*TempPackageFileName);
-			}
-			else
-			{
-				// We may not write to the specified location. Warn the user that he will not be able to write to this file.
-				WarningState = WDWS_PendingWarn;
-			}
-		}
-		else
-		{
-			// Failed to find a proper file to test permission...
-		}
+	// Check if we could successfully write to a file
+	bool bHasWritePermission = FFileHelper::SaveStringToFile(TEXT("Write"), *WriteCheckPath);
+	if (bHasWritePermission)
+	{
+		// We can successfully write to the folder containing the package.
+		// Delete the temp file.
+		IFileManager::Get().Delete(*WriteCheckPath);
 	}
 
-	return WarningState;
+	// Add the result to the mount point checks
+	MountPointCheckedForWritePermission.Add(MountPoint, bHasWritePermission);
+	return bHasWritePermission;
+}
+
+void UUnrealEdEngine::OnContentPathMounted(const FString&, const FString& ContentPath)
+{
+	VerifyMountPointWritePermission(*ContentPath);
+}
+
+void UUnrealEdEngine::OnContentPathDismounted(const FString&, const FString& ContentPath)
+{
+	MountPointCheckedForWritePermission.Remove(*ContentPath);
 }
 
 void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)

@@ -1962,6 +1962,12 @@ public:
 	void SetSelectionStateOfLevel(const FSelectionStateOfLevel& InSelectionStateOfLevel);
 
 	/**
+	 * Reset All Selection Sets (i.e. objects, actors, components)
+	 * @note each set is independent and a selected actor might not be in the object selection set.
+	 */
+	void ResetAllSelectionSets();
+
+	/**
 	 * Clears out the current map, if any, and creates a new blank map.
 	 *
 	 * @return	Pointer to the map that was created.

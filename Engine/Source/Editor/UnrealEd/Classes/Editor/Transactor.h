@@ -135,9 +135,11 @@ protected:
 
 			void SetObject(const UObject* InObject)
 			{
+				ObjectPackageName = InObject->GetPackage()->GetFName();
 				ObjectName = InObject->GetFName();
 				ObjectPathName = *InObject->GetPathName();
 				ObjectOuterPathName = InObject->GetOuter() ? FName(*InObject->GetOuter()->GetPathName()) : FName();
+				ObjectExternalPackageName = InObject->GetExternalPackage() ? InObject->GetExternalPackage()->GetFName() : FName();
 				ObjectClassPathName = FName(*InObject->GetClass()->GetPathName());
 				bIsPendingKill = InObject->IsPendingKill();
 				ObjectAnnotation = InObject->FindOrCreateTransactionAnnotation();
@@ -145,9 +147,11 @@ protected:
 
 			void Reset()
 			{
+				ObjectPackageName = FName();
 				ObjectName = FName();
 				ObjectPathName = FName();
 				ObjectOuterPathName = FName();
+				ObjectExternalPackageName = FName();
 				ObjectClassPathName = FName();
 				bIsPendingKill = false;
 				Data.Reset();
@@ -161,9 +165,11 @@ protected:
 
 			void Swap(FSerializedObject& Other)
 			{
+				Exchange(ObjectPackageName, Other.ObjectPackageName);
 				Exchange(ObjectName, Other.ObjectName);
 				Exchange(ObjectPathName, Other.ObjectPathName);
 				Exchange(ObjectOuterPathName, Other.ObjectOuterPathName);
+				Exchange(ObjectExternalPackageName, Other.ObjectExternalPackageName);
 				Exchange(ObjectClassPathName, Other.ObjectClassPathName);
 				Exchange(bIsPendingKill, Other.bIsPendingKill);
 				Exchange(Data, Other.Data);
@@ -175,12 +181,16 @@ protected:
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
 			}
 
+			/** The package name of the object when it was serialized, can be dictated either by outer chain or external package */
+			FName ObjectPackageName;
 			/** The name of the object when it was serialized */
 			FName ObjectName;
 			/** The path name of the object when it was serialized */
 			FName ObjectPathName;
 			/** The outer path name of the object when it was serialized */
 			FName ObjectOuterPathName;
+			/** The external package name of the object when it was serialized, if any */
+			FName ObjectExternalPackageName;
 			/** The path name of the object's class. */
 			FName ObjectClassPathName;
 			/** The pending kill state of the object when it was serialized */

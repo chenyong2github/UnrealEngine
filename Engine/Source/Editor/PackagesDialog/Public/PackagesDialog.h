@@ -95,13 +95,12 @@ public:
 	 * Adds a new item to the checkbox that represents a package
 	 *
 	 * @param	InPackage		The package that will be represented as a checkbox
-	 * @param	InEntryName		The name to display
 	 * @param	InChecked		The state of the checkbox
 	 * @param	InDisabled		If the item should be disabled
 	 * @param	InIconName		The name of the icon to display
 	 * @param	InIconToolTip	The tooltip to display
 	 */
-	virtual void AddPackageItem(UPackage* InPackage, const FString& InEntryName, ECheckBoxState InChecked, 
+	virtual void AddPackageItem(UPackage* InPackage, ECheckBoxState InChecked, 
 								bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""));
 
 	/**

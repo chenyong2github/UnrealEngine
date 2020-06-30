@@ -1778,13 +1778,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 					FObjectImport* Import = &Imp(Export.OuterIndex);
 					while (Import->OuterIndex.IsImport())
 					{
-						if (!Import->PackageName.IsNone())
+						if (Import->HasPackageName())
 						{
 							InstancingPackageName.Add(Import->PackageName);
 						}
 						Import = &Imp(Import->OuterIndex);
 					}
-					check(Import->OuterIndex.IsNull() && Import->PackageName.IsNone());
+					check(Import->OuterIndex.IsNull() && !Import->HasPackageName());
 					InstancingPackageName.Add(Import->ObjectName);
 				}
 			}
@@ -1801,7 +1801,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 
 			for (const FObjectImport& Import : ImportMap)
 			{
-				if (!Import.PackageName.IsNone() && HasExportOuterChain(&Import))
+				if (Import.HasPackageName() && HasExportOuterChain(&Import))
 				{
 					InstancingPackageName.Add(Import.PackageName);
 				}
@@ -2936,7 +2936,7 @@ FLinkerLoad::EVerifyResult FLinkerLoad::VerifyImport(int32 ImportIndex)
 }
 
 // Internal Load package call so that we can pass the linker that requested this package as an import dependency
-UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FLinkerInstancingContext* InstancingContext);
+UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext);
 
 /**
  * Safely verify that an import in the ImportMap points to a good object. This decides whether or not
@@ -3106,6 +3106,12 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// if we have an assigned package, load it, this will also assign the import source linker (Import.SourceLinker)
 		if (Import.HasPackageName())
 		{
+#if WITH_EDITOR
+			if (SlowTask)
+			{
+				SlowTask->TotalAmountOfWork += 100;
+			}
+#endif
 			Pkg = LoadImportPackage(Import, SlowTask);
 		}
 		

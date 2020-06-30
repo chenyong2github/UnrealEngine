@@ -21,6 +21,8 @@
 #include "ActorEditorUtils.h"
 #include "EngineGlobals.h"
 
+#include "AssetRegistryModule.h"
+
 #if WITH_EDITOR
 
 #include "Editor.h"
@@ -759,6 +761,46 @@ bool AActor::EditorCanAttachTo(const AActor* InParent, FText& OutReason) const
 	return true;
 }
 
+void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
+{
+	if (bExternal == IsPackageExternal())
+	{
+		return;
+	}
+
+    // Mark the current actor & package as dirty
+	Modify(bShouldDirty);
+
+	UPackage* LevelPackage = GetLevel()->GetPackage();
+	if (bExternal)
+	{
+		ActorGuid = ActorGuid.IsValid() ? ActorGuid : FGuid::NewGuid();
+		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage,  ActorGuid);
+		SetExternalPackage(NewActorPackage);
+		// should be removed but needed for now so the package creation is visible to Multi-User
+		FAssetRegistryModule::AssetCreated(this);
+	}
+	// if the actor package is different, embed the actor back in the level
+	else 
+	{
+		UPackage* ActorPackage = GetExternalPackage();
+		// Detach the linker from the actor package so that the actor won't keep references to it if we wanted to delete the package
+		ResetLoaders(ActorPackage);
+		SetExternalPackage(nullptr);
+	}
+
+	for (UActorComponent* ActorComponent : GetComponents())
+	{
+		if (ActorComponent && ActorComponent->IsRegistered())
+		{
+			ActorComponent->SetPackageExternal(bExternal, bShouldDirty);
+		}
+	}
+	
+	// Mark the new actor package dirty
+	MarkPackageDirty();
+}
+
 const FString& AActor::GetActorLabel() const
 {
 	// If the label string is empty then we'll use the default actor label (usually the actor's class name.)
@@ -1000,6 +1042,12 @@ bool AActor::GetReferencedContentObjects( TArray<UObject*>& Objects ) const
 
 EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 {
+	// Do not run asset validation on external actors, validation will be caught through map check
+	if (IsPackageExternal())
+	{
+		return EDataValidationResult::NotValidated;
+	}
+
 	bool bSuccess = CheckDefaultSubobjects();
 	if (!bSuccess)
 	{

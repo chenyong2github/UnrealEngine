@@ -483,7 +483,7 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypesForModule(const FName ModuleNam
 		// Need to use Get rather than ForEach as generating wrapped types 
 		// may generate new objects which breaks the iteration
 		TArray<UObject*> ObjectsToProcess;
-		GetObjectsWithOuter(ModulePackage, ObjectsToProcess);
+		GetObjectsWithPackage(ModulePackage, ObjectsToProcess);
 
 		for (UObject* ObjectToProcess : ObjectsToProcess)
 		{

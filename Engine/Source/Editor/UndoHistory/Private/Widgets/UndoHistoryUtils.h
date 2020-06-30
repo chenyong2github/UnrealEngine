@@ -34,7 +34,7 @@ public:
 
 		for (TFieldIterator<FProperty> Property(InObjectClass); Property; ++Property)
 		{
-			if (!InChangedProperties.Contains(FName(*Property->GetName())))
+			if (!InChangedProperties.Contains(Property->GetFName()))
 			{
 				continue;
 			}

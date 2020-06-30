@@ -66,8 +66,15 @@ enum class EGuidFormats
 	 * Base64 characters with dashes and underscores instead of pluses and slashes (respectively)
 	 *
 	 * For example: AQsMCQ0PAAUKCgQEBAgADQ
+	*/
+	Short,
+
+	/**
+	 * Base-36 encoded, compatible with case-insensitive OS file systems (such as Windows).
+	 *
+	 * For example: 1DPF6ARFCM4XH5RMWPU8TGR0J
 	 */
-	Short
+	Base36Encoded,
 };
 
 /**
@@ -93,9 +100,17 @@ public:
 	 * @param InC The third component.
 	 * @param InD The fourth component.
 	 */
-	FGuid(uint32 InA, uint32 InB, uint32 InC, uint32 InD)
+	explicit FGuid(uint32 InA, uint32 InB, uint32 InC, uint32 InD)
 		: A(InA), B(InB), C(InC), D(InD)
 	{ }
+
+	explicit FGuid(const FString& InGuidStr)
+	{
+		if (!Parse(InGuidStr, *this))
+		{
+			Invalidate();
+		}
+	}
 
 public:
 

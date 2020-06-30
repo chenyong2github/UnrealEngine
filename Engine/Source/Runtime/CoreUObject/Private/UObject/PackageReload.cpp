@@ -194,9 +194,10 @@ public:
 void MarkPackageReplaced(UPackage* InPackage)
 {
 	InPackage->SetFlags(RF_NewerVersionExists);
-	ForEachObjectWithOuter(InPackage, [](UObject* InSubObject)
+	ForEachObjectWithPackage(InPackage, [](UObject* InSubObject)
 	{
 		InSubObject->SetFlags(RF_NewerVersionExists);
+		return true; // continue
 	});
 }
 
@@ -206,9 +207,10 @@ void MarkPackageReplaced(UPackage* InPackage)
 void ClearPackageReplaced(UPackage* InPackage)
 {
 	InPackage->ClearFlags(RF_NewerVersionExists);
-	ForEachObjectWithOuter(InPackage, [](UObject* InSubObject)
+	ForEachObjectWithPackage(InPackage, [](UObject* InSubObject)
 	{
 		InSubObject->ClearFlags(RF_NewerVersionExists);
+		return true; // continue
 	});
 }
 
@@ -230,9 +232,10 @@ void MakeObjectPurgeable(UObject* InObject)
 void MakePackagePurgeable(UPackage* InPackage)
 {
 	MakeObjectPurgeable(InPackage);
-	ForEachObjectWithOuter(InPackage, [](UObject* InObject)
+	ForEachObjectWithPackage(InPackage, [](UObject* InObject)
 	{
 		MakeObjectPurgeable(InObject);
+		return true; // continue
 	});
 }
 
@@ -676,9 +679,10 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 			if (bDumpExternalReferences)
 			{
 				PackageReloadInternal::DumpExternalReferences(ExistingPackage, ExistingPackage);
-				//ForEachObjectWithOuter(ExistingPackage, [](UObject* InExistingObject)
+				//ForEachObjectWithPackage(ExistingPackage, [](UObject* InExistingObject)
 				//{
 				//	PackageReloadInternal::DumpExternalReferences(InExistingObject, ExistingPackage);
+				//	return true; // continue
 				//}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 			}
 		}

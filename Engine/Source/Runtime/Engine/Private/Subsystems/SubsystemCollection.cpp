@@ -320,7 +320,7 @@ void FSubsystemModuleWatcher::AddClassesForModule(const FName& InModuleName)
 
 	TArray<TSubclassOf<UDynamicSubsystem>> SubsystemClasses;
 	TArray<UObject*> PackageObjects;
-	GetObjectsWithOuter(ClassPackage, PackageObjects, false);
+	GetObjectsWithPackage(ClassPackage, PackageObjects, false);
 	for (UObject* Object : PackageObjects)
 	{
 		UClass* const CurrentClass = Cast<UClass>(Object);

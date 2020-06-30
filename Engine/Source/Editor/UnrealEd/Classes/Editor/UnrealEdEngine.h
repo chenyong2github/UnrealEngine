@@ -46,18 +46,6 @@ enum EPackageNotifyState
 	NS_MAX,
 };
 
-UENUM()
-enum EWriteDisallowedWarningState
-{
-	/** The user needs to be warned about the package. */
-	WDWS_PendingWarn,
-	/** The user has been warned about the package. */
-	WDWS_Warned,
-	/** Warning for the package unnecessary. */
-	WDWS_WarningUnnecessary,
-	WDWS_MAX,
-};
-
 /** Used during asset renaming/duplication to specify class-specific package/group targets. */
 USTRUCT()
 struct FClassMoveInfo
@@ -156,10 +144,6 @@ public:
 	UPROPERTY()
 	uint32 bNeedWarningForPkgEngineVer:1;
 
-	/** Whether the user needs to be prompted about a package being saved when the user does not have permission to write the file */
-	UPROPERTY()
-	uint32 bNeedWarningForWritePermission:1;
-
 	/** Whether there is a pending package notification */
  	uint32 bShowPackageNotification:1;
 
@@ -171,7 +155,7 @@ public:
 	UPROPERTY(config)
 	TArray<FTemplateMapInfo> TemplateMapInfos;
 
-	/** Cooker server incase we want to cook ont he side while editing... */
+	/** Cooker server incase we want to cook on the side while editing... */
 	UPROPERTY()
 	class UCookOnTheFlyServer* CookServer;
 
@@ -179,13 +163,7 @@ public:
 	TArray<TWeakObjectPtr<UPackage>> PackagesDirtiedThisTick;
 
 	/** A mapping of packages to their checkout notify state.  This map only contains dirty packages.  Once packages become clean again, they are removed from the map.*/
-	TMap<TWeakObjectPtr<UPackage>, uint8>	PackageToNotifyState;
-
-	/** Map to track which packages have been checked for engine version when modified */
-	TMap<FString, uint8>		PackagesCheckedForEngineVersion;
-
-	/** Map to track which packages have been checked for write permission when modified */
-	TMap<FString, uint8>		PackagesCheckedForWritePermission;
+	TMap<TWeakObjectPtr<UPackage>, uint8> PackageToNotifyState;
 
 	/** Mapping of sprite category ids to their matching indices in the sorted sprite categories array */
 	TMap<FName, int32>			SpriteIDToIndexMap;
@@ -649,18 +627,6 @@ public:
 	void AttemptModifiedPackageNotification();
 
 	/**
-	 * Alerts the user to any packages that have been modified which have been previously saved with an engine version newer than
-	 * the current version. These packages cannot be saved, so the user should be alerted ASAP.
-	 */
-	void AttemptWarnAboutPackageEngineVersions();
-
-	/**
-	 * Alerts the user to any packages that they do not have permission to write to. This may happen in the program files directory if the user is not an admin.
-	 * These packages cannot be saved, so the user should be alerted ASAP.
-	 */
-	void AttemptWarnAboutWritePermission();
-
-	/**
 	 * Prompts the user with a modal checkout dialog to checkout packages from source control.
 	 * This should only be called by the auto prompt to checkout package notification system.
 	 * For a general checkout packages routine use FEditorFileUtils::PromptToCheckoutPackages
@@ -820,13 +786,14 @@ public:
 
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
+	/** Return if we have write permission under the mount point this packages lives in. */
+	bool HasMountWritePersmissionForPackage(const FString& PackageName);
+
 protected:
 
 	/** Called when global editor selection changes */
 	void OnEditorSelectionChanged(UObject* SelectionThatChanged);
 
-	EWriteDisallowedWarningState GetWarningStateForWritePermission(const FString& PackageName) const;
-	
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;
 
@@ -849,9 +816,25 @@ protected:
 	/** Whether the pivot has been moved independently */
 	bool bPivotMovedIndependently;
 
+	/** Weak Pointer to the file checkout notification toast. */
 	TWeakPtr<SNotificationItem> CheckOutNotificationWeakPtr;
 
 private:
+	/** Verify if we have write permission under the specified mount point. */
+	bool VerifyMountPointWritePermission(FName MountPoint);
+
+	/** Delegate when a new mount point is added, used to test writing permission. */
+	void OnContentPathMounted(const FString&, const FString& ContentPath);
+
+	/** Delegate when a new mount point is removed, used to test writing permission. */
+	void OnContentPathDismounted(const FString&, const FString& ContentPath);
+
+	/** Map to track which mount point has write permissions. */
+	TMap<FName, bool> MountPointCheckedForWritePermission;
+
+	/** Weak Pointer to the write permission warning toast. */
+	TWeakPtr<SNotificationItem> WritePermissionWarningNotificationWeakPtr;
+
 	/**
 	* Internal helper function to count how many dirty packages require checkout.
 	*

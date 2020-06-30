@@ -12,6 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Warning, All);
 
 UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ActorOuter(nullptr)
 {
 	bAllowReregistration = false;
 
@@ -23,6 +24,16 @@ UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectIniti
 void UChildActorComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	if (ActorOuter)
+	{
+		if (ActorOuter != GetOwner()->GetOuter())
+		{
+			ChildActorName = NAME_None;
+		}
+
+		ActorOuter = nullptr;
+	}
 
 	if (ChildActor)
 	{
@@ -39,8 +50,20 @@ void UChildActorComponent::OnRegister()
 		if (bNeedsRecreate)
 		{
 			bNeedsRecreate = false;
+
+			// Avoid dirtying packages if not necessary
+			FName PreviousChildActorName = ChildActorName;
+			bool bChildActorPackageWasDirty = ChildActor->GetPackage()->IsDirty();
+			bool bPackageWasDirty = GetPackage()->IsDirty();
+
 			DestroyChildActor();
 			CreateChildActor();
+			
+			if (ChildActor && ChildActorName == PreviousChildActorName)
+			{
+				ChildActor->GetPackage()->SetDirtyFlag(bChildActorPackageWasDirty);
+				GetPackage()->SetDirtyFlag(bPackageWasDirty);
+			}
 		}
 		else
 		{
@@ -141,6 +164,12 @@ void UChildActorComponent::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+void UChildActorComponent::SetPackageExternal(bool bExternal, bool bShouldDirty)
+{
+	DestroyChildActor();
+	CreateChildActor();
+}
+
 void UChildActorComponent::PostEditImport()
 {
 	Super::PostEditImport();
@@ -245,16 +274,10 @@ void UChildActorComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME(UChildActorComponent, ChildActor);
 }
 
-struct FActorParentComponentSetter
+void FActorParentComponentSetter::Set(AActor* ChildActor, UChildActorComponent* ParentComponent)
 {
-private:
-	static void Set(AActor* ChildActor, UChildActorComponent* ParentComponent)
-	{
-		ChildActor->ParentComponent = ParentComponent;
-	}
-
-	friend UChildActorComponent;
-};
+	ChildActor->ParentComponent = ParentComponent;
+}
 
 void UChildActorComponent::PostRepNotifies()
 {
@@ -284,7 +307,7 @@ void UChildActorComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 void UChildActorComponent::OnUnregister()
 {
 	Super::OnUnregister();
-
+	ActorOuter = GetOwner()->GetOuter();
 	DestroyChildActor();
 }
 
@@ -296,6 +319,9 @@ FChildActorComponentInstanceData::FChildActorComponentInstanceData(const UChildA
 {
 	if (AActor* ChildActor = Component->GetChildActor())
 	{
+#if WITH_EDITOR
+		ChildActorGUID = ChildActor->GetActorGuid();
+#endif
 		if (ChildActorName.IsNone())
 		{
 			ChildActorName = ChildActor->GetFName();
@@ -589,6 +615,11 @@ void UChildActorComponent::CreateChildActor()
 				Params.OverrideLevel = (MyOwner ? MyOwner->GetLevel() : nullptr);
 				Params.Name = ChildActorName;
 				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+#if WITH_EDITOR
+				Params.OverridePackage = GetOwner()->GetExternalPackage();
+				Params.OverrideParentComponent = this;
+				Params.OverrideActorGuid = CachedInstanceData ? CachedInstanceData->ChildActorGUID : FGuid();
+#endif
 				if (ChildActorTemplate && ChildActorTemplate->GetClass() == ChildActorClass)
 				{
 					Params.Template = ChildActorTemplate;
@@ -614,9 +645,6 @@ void UChildActorComponent::CreateChildActor()
 				if(ChildActor != nullptr)
 				{
 					ChildActorName = ChildActor->GetFName();
-
-					// Remember which component spawned it (for selection in editor etc)
-					FActorParentComponentSetter::Set(ChildActor, this);
 
 					// Parts that we deferred from SpawnActor
 					const FComponentInstanceDataCache* ComponentInstanceData = (CachedInstanceData ? CachedInstanceData->ComponentInstanceData.Get() : nullptr);
