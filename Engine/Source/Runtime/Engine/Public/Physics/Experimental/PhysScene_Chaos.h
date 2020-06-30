@@ -33,6 +33,11 @@ class FPerSolverFieldSystem;
 
 class IPhysicsProxyBase;
 
+class UWorld;
+class AWorldSettings;
+class FPhysicsReplicationFactory;
+class FContactModifyCallbackFactory;
+
 namespace Chaos
 {
 	class FPhysicsProxy;
@@ -66,7 +71,7 @@ class ENGINE_API FPhysScene_Chaos : public FChaosScene
 public:
 
 	using Super = FChaosScene;
-
+	
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	FPhysScene_Chaos(AActor* InSolverActor
 #if CHAOS_CHECKED
@@ -143,6 +148,82 @@ public:
 	 * sync as the editor will ignore packages being dirtied in PIE. Also used to clean up any other references
 	 */
 	void OnWorldEndPlay();
+	void OnWorldBeginPlay();
+
+	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
+
+	void SetOwningWorld(UWorld* InOwningWorld);
+
+	UWorld* GetOwningWorld();
+	const UWorld* GetOwningWorld() const;
+
+	void ResimNFrames(int32 NumFrames);
+
+	/**
+	 * Flushes all pending global, task and solver command queues and refreshes the spatial acceleration
+	 * for the scene. Required when querying against a currently non-running scene to ensure the scene
+	 * is correctly represented
+	 */
+	void Flush_AssumesLocked();
+
+	void RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType);
+	void AddCustomPhysics_AssumesLocked(FBodyInstance* BodyInstance, FCalculateCustomPhysics& CalculateCustomPhysics);
+	void AddForce_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, bool bAllowSubstepping, bool bAccelChange);
+	void AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce = false);
+	void AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping);
+	void ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
+	void AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange);
+	void ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
+	void SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping);
+	bool GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const;
+
+	void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable);
+	void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID);
+
+	bool MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
+	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
+
+	void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType);
+	void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType, int32 SceneType);
+	int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal, 3>, Chaos::FReal, 3>& Collection);
+
+	TArray<FCollisionNotifyInfo>& GetPendingCollisionNotifies(int32 SceneType);
+
+	static bool SupportsOriginShifting();
+	void ApplyWorldOffset(FVector InOffset);
+	void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps, bool bSubstepping);
+	void StartFrame();
+	void EndFrame(ULineBatchComponent* InLineBatcher);
+	void WaitPhysScenes();
+	FGraphEventRef GetCompletionEvent();
+
+	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
+	void ListAwakeRigidBodies(bool bIncludeKinematic);
+	int32 GetNumAwakeBodies() const;
+
+	static TSharedPtr<IPhysicsReplicationFactory> PhysicsReplicationFactory;
+
+	void StartAsync();
+	bool HasAsyncScene() const;
+	void SetPhysXTreeRebuildRate(int32 RebuildRate);
+	void EnsureCollisionTreeIsBuilt(UWorld* World);
+	void KillVisualDebugger();
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysScenePreTick, FPhysScene_Chaos*, float /*DeltaSeconds*/);
+	FOnPhysScenePreTick OnPhysScenePreTick;
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysSceneStep, FPhysScene_Chaos*, float /*DeltaSeconds*/);
+	FOnPhysSceneStep OnPhysSceneStep;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick, FPhysScene_Chaos*);
+	FOnPhysScenePostTick OnPhysScenePostTick;
+
+	bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
+	bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
+
+	static Chaos::FCollisionModifierCallback CollisionModifierCallback;
+
+	void DeferPhysicsStateCreation(UPrimitiveComponent* Component);
+	void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
+	void ProcessDeferredCreatePhysicsState();
 
 private:
 	UPROPERTY()
@@ -186,6 +267,81 @@ private:
 	void OnUpdateWorldPause();
 #endif
 
+
+#if WITH_EDITOR
+	bool IsOwningWorldEditor() const;
+#endif
+
+	template <typename TSolver>
+	void SyncBodies(TSolver* Solver);
+
+#if 0
+	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)
+	{
+		// #todo : Initialize
+		// Set the buffered kinematic data on the game and render thread
+		// InActorReference.GetPhysicsProxy()->SetKinematicData(...)
+	}
+
+	void EnableCollisionPair(const TTuple<int32,int32>& CollisionPair)
+	{
+		// #todo : Implement
+	}
+
+	void DisableCollisionPair(const TTuple<int32,int32>& CollisionPair)
+	{
+		// #todo : Implement
+	}
+#endif
+
+	void SetGravity(const Chaos::TVector<float,3>& Acceleration)
+	{
+		// #todo : Implement
+	}
+
+	FPhysicsConstraintHandle AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle,FPhysicsActorHandle> >& Constraint);
+	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
+
+#if 0
+	void AddForce(const Chaos::TVector<float,3>& Force,FPhysicsActorHandle& Handle)
+	{
+		// #todo : Implement
+	}
+
+	void AddTorque(const Chaos::TVector<float,3>& Torque,FPhysicsActorHandle& Handle)
+	{
+		// #todo : Implement
+	}
+#endif
+
+	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent);
+
+	/** Process kinematic updates on any deferred skeletal meshes */
+	void UpdateKinematicsOnDeferredSkelMeshes();
+
+	/** Information about how to perform kinematic update before physics */
+	struct FDeferredKinematicUpdateInfo
+	{
+		/** Whether to teleport physics bodies or not */
+		ETeleportType	TeleportType;
+		/** Whether to update skinning info */
+		bool			bNeedsSkinning;
+	};
+
+	/** Map of SkeletalMeshComponents that need their bone transforms sent to the physics engine before simulation. */
+	TArray<TPair<USkeletalMeshComponent*,FDeferredKinematicUpdateInfo>>	DeferredKinematicUpdateSkelMeshes;
+
+	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
+	float MDeltaTime;
+	//Body Instances
+	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;
+	// Temp Interface
+	UWorld* MOwningWorld;
+	TArray<FCollisionNotifyInfo> MNotifies;
+
+	// Taskgraph control
+	FGraphEventRef CompletionEvent;
+
 	// Maps PhysicsProxy to Component that created the PhysicsProxy
 	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;
 
@@ -208,220 +364,3 @@ private:
 	friend struct FScopedSceneReadLock;
 	friend struct FScopedSceneLock_Chaos;
 };
-
-class UWorld;
-class AWorldSettings;
-class FPhysicsReplicationFactory;
-class FContactModifyCallbackFactory;
-
-#if WITH_CHAOS
-
-class FPhysScene_ChaosInterface
-{
-public:
-
-	friend class FPhysInterface_Chaos;
-
-	ENGINE_API FPhysScene_ChaosInterface(const AWorldSettings* InSettings = nullptr
-#if CHAOS_CHECKED
-		, const FName& DebugName = NAME_None
-#endif
-	);
-
-	ENGINE_API ~FPhysScene_ChaosInterface();
-
-	// Scene
-	void OnWorldBeginPlay();
-	void OnWorldEndPlay();
-
-	// In Chaos, this function will update the pointers from actor handles to their proxies.
-	// So the array of handles must be non-const.
-	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors, const bool bImmediate=true)
-	{
-		Scene.AddActorsToScene_AssumesLocked(InActors,bImmediate);
-	}
-
-	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
-
-	void ENGINE_API AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
-	void ENGINE_API RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
-
-	void SetOwningWorld(UWorld* InOwningWorld);
-
-	UWorld* GetOwningWorld();
-	const UWorld* GetOwningWorld() const;
-
-	Chaos::FPhysicsSolver* GetSolver();
-	const Chaos::FPhysicsSolver* GetSolver() const;
-
-	FPhysScene_Chaos& GetScene() { return Scene; }
-	const FPhysScene_Chaos& GetScene() const { return Scene; }
-
-	void ResimNFrames(int32 NumFrames);
-
-	/**
-	 * Flushes all pending global, task and solver command queues and refreshes the spatial acceleration
-	 * for the scene. Required when querying against a currently non-running scene to ensure the scene
-	 * is correctly represented
-	 */
-	ENGINE_API void Flush_AssumesLocked();
-
-	FPhysicsReplication* GetPhysicsReplication();
-	void RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType);
-	void AddCustomPhysics_AssumesLocked(FBodyInstance* BodyInstance, FCalculateCustomPhysics& CalculateCustomPhysics);
-	void AddForce_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, bool bAllowSubstepping, bool bAccelChange);
-	void AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce = false);
-	void AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping);
-	void ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
-	void AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange);
-	void ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
-	void SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping);
-	bool GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const;
-
-	ENGINE_API void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable);
-	ENGINE_API void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID);
-
-	bool MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
-	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
-
-	void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType);
-	void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType, int32 SceneType);
-	int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal, 3>, Chaos::FReal, 3>& Collection);
-
-	TArray<FCollisionNotifyInfo>& GetPendingCollisionNotifies(int32 SceneType);
-
-	ENGINE_API static bool SupportsOriginShifting();
-	void ApplyWorldOffset(FVector InOffset);
-	ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps, bool bSubstepping);
-	ENGINE_API void StartFrame();
-	ENGINE_API void EndFrame(ULineBatchComponent* InLineBatcher);
-	ENGINE_API void WaitPhysScenes();
-	FGraphEventRef GetCompletionEvent();
-
-	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
-	void ListAwakeRigidBodies(bool bIncludeKinematic);
-	ENGINE_API int32 GetNumAwakeBodies() const;
-
-	ENGINE_API static TSharedPtr<IPhysicsReplicationFactory> PhysicsReplicationFactory;
-
-	ENGINE_API void StartAsync();
-	ENGINE_API bool HasAsyncScene() const;
-	void SetPhysXTreeRebuildRate(int32 RebuildRate);
-	ENGINE_API void EnsureCollisionTreeIsBuilt(UWorld* World);
-	ENGINE_API void KillVisualDebugger();
-
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysScenePreTick, FPhysScene_ChaosInterface*, float /*DeltaSeconds*/);
-	FOnPhysScenePreTick OnPhysScenePreTick;
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysSceneStep, FPhysScene_ChaosInterface*, float /*DeltaSeconds*/);
-	FOnPhysSceneStep OnPhysSceneStep;
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick, FPhysScene_ChaosInterface*);
-	FOnPhysScenePostTick OnPhysScenePostTick;
-
-	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
-	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
-
-	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
-
-	ENGINE_API void DeferPhysicsStateCreation(UPrimitiveComponent* Component);
-	ENGINE_API void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
-	ENGINE_API void ProcessDeferredCreatePhysicsState();
-
-#if XGE_FIXED
-	template<typename PayloadType>
-	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
-	{
-		Scene.RegisterEvent(EventID, InLambda);
-	}
-	void UnregisterEvent(const Chaos::EEventType& EventID)
-	{
-		Scene.UnregisterEvent(EventID);
-	}
-
-	template<typename PayloadType, typename HandlerType>
-	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func)
-	{
-		Scene.RegisterEventHandler<PayloadType, HandlerType>(EventID, Handler, Func);
-	}
-	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler)
-	{
-		Scene.UnregisterEventHandler(EventID, Handler);
-	}
-#endif // XGE_FIXED
-
-private:
-
-
-#if WITH_EDITOR
-	bool IsOwningWorldEditor() const;
-#endif
-
-	template <typename TSolver>
-	void SyncBodies(TSolver* Solver);
-
-	void SetKinematicTransform(FPhysicsActorHandle& InActorReference, const Chaos::TRigidTransform<float, 3>& NewTransform)
-	{
-		// #todo : Initialize
-		// Set the buffered kinematic data on the game and render thread
-		// InActorReference.GetPhysicsProxy()->SetKinematicData(...)
-	}
-
-	void EnableCollisionPair(const TTuple<int32, int32>& CollisionPair)
-	{
-		// #todo : Implement
-	}
-
-	void DisableCollisionPair(const TTuple<int32, int32>& CollisionPair)
-	{
-		// #todo : Implement
-	}
-
-	void SetGravity(const Chaos::TVector<float, 3>& Acceleration)
-	{
-		// #todo : Implement
-	}
-
-	FPhysicsConstraintHandle AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
-	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
-
-	void AddForce(const Chaos::TVector<float, 3>& Force, FPhysicsActorHandle& Handle)
-	{
-		// #todo : Implement
-	}
-
-	void AddTorque(const Chaos::TVector<float, 3>& Torque, FPhysicsActorHandle& Handle)
-	{
-		// #todo : Implement
-	}
-
-
-	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-
-	/** Process kinematic updates on any deferred skeletal meshes */
-	void UpdateKinematicsOnDeferredSkelMeshes();
-
-	/** Information about how to perform kinematic update before physics */
-	struct FDeferredKinematicUpdateInfo
-	{
-		/** Whether to teleport physics bodies or not */
-		ETeleportType	TeleportType;
-		/** Whether to update skinning info */
-		bool			bNeedsSkinning;
-	};
-
-	/** Map of SkeletalMeshComponents that need their bone transforms sent to the physics engine before simulation. */
-	TArray<TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>>	DeferredKinematicUpdateSkelMeshes;
-
-	FPhysScene_Chaos Scene;
-
-	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
-	float MDeltaTime;
-	//Body Instances
-	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;
-	// Temp Interface
-	UWorld* MOwningWorld;
-	TArray<FCollisionNotifyInfo> MNotifies;
-
-	// Taskgraph control
-	FGraphEventRef CompletionEvent;
-};
-#endif

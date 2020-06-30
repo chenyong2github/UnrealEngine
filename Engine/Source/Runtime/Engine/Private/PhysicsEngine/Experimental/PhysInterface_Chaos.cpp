@@ -259,7 +259,7 @@ void FPhysInterface_Chaos::ReleaseActor(FPhysicsActorHandle& Handle, FPhysScene*
 
 	if (InScene)
 	{
-		InScene->GetScene().RemoveActorFromAccelerationStructure(Handle);
+		InScene->RemoveActorFromAccelerationStructure(Handle);
 		RemoveActorFromSolver(Handle, InScene->GetSolver());
 	}
 
@@ -379,8 +379,8 @@ struct FScopedSceneLock_Chaos
 	FScopedSceneLock_Chaos(FPhysicsActorHandle const * InActorHandleA, FPhysicsActorHandle const * InActorHandleB, EPhysicsInterfaceScopedLockType InLockType)
 		: LockType(InLockType)
 	{
-		FPhysScene_ChaosInterface* SceneA = GetSceneForActor(InActorHandleA);
-		FPhysScene_ChaosInterface* SceneB = GetSceneForActor(InActorHandleB);
+		FPhysScene_Chaos* SceneA = GetSceneForActor(InActorHandleA);
+		FPhysScene_Chaos* SceneB = GetSceneForActor(InActorHandleB);
 
 		if(SceneA == SceneB)
 		{
@@ -425,7 +425,7 @@ struct FScopedSceneLock_Chaos
 		LockScene();
 	}
 
-	FScopedSceneLock_Chaos(FPhysScene_ChaosInterface* InScene, EPhysicsInterfaceScopedLockType InLockType)
+	FScopedSceneLock_Chaos(FPhysScene_Chaos* InScene, EPhysicsInterfaceScopedLockType InLockType)
 		: Scene(InScene)
 		, LockType(InLockType)
 	{
@@ -449,10 +449,10 @@ private:
 		switch(LockType)
 		{
 		case EPhysicsInterfaceScopedLockType::Read:
-			Scene->GetScene().ExternalDataLock.ReadLock();
+			Scene->ExternalDataLock.ReadLock();
 			break;
 		case EPhysicsInterfaceScopedLockType::Write:
-			Scene->GetScene().ExternalDataLock.WriteLock();
+			Scene->ExternalDataLock.WriteLock();
 			break;
 		}
 	}
@@ -467,15 +467,15 @@ private:
 		switch(LockType)
 		{
 		case EPhysicsInterfaceScopedLockType::Read:
-			Scene->GetScene().ExternalDataLock.ReadUnlock();
+			Scene->ExternalDataLock.ReadUnlock();
 			break;
 		case EPhysicsInterfaceScopedLockType::Write:
-			Scene->GetScene().ExternalDataLock.WriteUnlock();
+			Scene->ExternalDataLock.WriteUnlock();
 			break;
 		}
 	}
 
-	FPhysScene_ChaosInterface* GetSceneForActor(FPhysicsActorHandle const * InActorHandle)
+	FPhysScene_Chaos* GetSceneForActor(FPhysicsActorHandle const * InActorHandle)
 	{
 		FBodyInstance* ActorInstance = (*InActorHandle) ? FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData()) : nullptr;
 
@@ -487,7 +487,7 @@ private:
 		return nullptr;
 	}
 
-	FPhysScene_ChaosInterface* Scene;
+	FPhysScene_Chaos* Scene;
 	EPhysicsInterfaceScopedLockType LockType;
 };
 
@@ -1159,7 +1159,7 @@ void FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle
 	InActorReference->UpdateShapeBounds();
 
 	FPhysScene* Scene = GetCurrentScene(InActorReference);
-	Scene->GetScene().UpdateActorInAccelerationStructure(InActorReference);
+	Scene->UpdateActorInAccelerationStructure(InActorReference);
 }
 
 void FPhysInterface_Chaos::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
