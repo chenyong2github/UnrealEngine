@@ -141,12 +141,14 @@ public:
 	 * Get compiler rules to use when compiling sections that overlap on the same row.
 	 * These define how to deal with overlapping sections and empty space on a row
 	 */
+	UE_DEPRECATED(4.26, "Please use PopulateEvaluationTree instead")
 	MOVIESCENE_API virtual FMovieSceneTrackRowSegmentBlenderPtr GetRowSegmentBlender() const;
 
 	/** 
 	 * Get compiler rules to use when compiling sections that overlap on different rows.
 	 * These define how to deal with overlapping sections and empty space at the track level
 	 */
+	UE_DEPRECATED(4.26, "Please use PopulateEvaluationTree instead")
 	MOVIESCENE_API virtual FMovieSceneTrackSegmentBlenderPtr GetTrackSegmentBlender() const;
 
 	/**
@@ -188,10 +190,6 @@ public:
 
 protected:
 
-	static void PopulateEvaluationTree_Blended(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
-	static void PopulateEvaluationTree_HighPass(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
-	static void PopulateEvaluationTree_HighPassPerRow(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
-
 	enum class ETreePopulationMode : uint8
 	{
 		None,
@@ -204,7 +202,7 @@ protected:
 
 private:
 
-	virtual bool PopulateEvaluationTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
+	virtual bool PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
 	{
 		return false;
 	}
