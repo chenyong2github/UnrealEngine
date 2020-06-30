@@ -839,22 +839,43 @@ void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstr
 
 FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
 {
-	// #todo : Implement
-	//
-	//int32 Index1 = InConstraintRef.GetScene()->MSpringConstraints->Constraints()[InConstraintRef.GetScene()->GetConstraintIndexFromId(InConstraintRef.GetId())][0];
-	//int32 Index2 = InConstraintRef.GetScene()->MSpringConstraints->Constraints()[InConstraintRef.GetScene()->GetConstraintIndexFromId(InConstraintRef.GetId())][1];
-	//Chaos::TRigidTransform<float, 3> Transform1(InConstraintRef.GetScene()->Scene.GetSolver()->GetRigidParticles().X(Index1), InConstraintRef.GetScene()->Scene.GetSolver()->GetRigidParticles().R(Index1));
-	//Chaos::TRigidTransform<float, 3> Transform2(InConstraintRef.GetScene()->Scene.GetSolver()->GetRigidParticles().X(Index2), InConstraintRef.GetScene()->Scene.GetSolver()->GetRigidParticles().R(Index2));
-	// @todo(mlentine): This is likely broken
-	//FTransform(Transform1.Inverse() * Transform2);
-
-	return  FTransform();
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
+			if (InFrame == EConstraintFrame::Frame1)
+			{
+				return M[0];
+			}
+			else if (InFrame == EConstraintFrame::Frame2)
+			{
+				return M[1];
+			}
+		}
+	}
+	return FTransform::Identity;
 }
 
 FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
 {
-	// #todo : Implement
-	return  FTransform();
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			const Chaos::FJointConstraint::FParticlePair& Particles = Constraint->GetJointParticles();
+
+			if (InFrame == EConstraintFrame::Frame1)
+			{
+				return FTransform(Particles[0]->R(), Particles[0]->X());
+			}
+			else if (InFrame == EConstraintFrame::Frame2)
+			{
+				return FTransform(Particles[1]->R(), Particles[1]->X());
+			}
+		}
+	}
+	return FTransform::Identity;
 }
 
 FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InConstraintRef)
