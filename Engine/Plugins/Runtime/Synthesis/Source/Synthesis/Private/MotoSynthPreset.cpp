@@ -237,8 +237,7 @@ void FMotoSynthEnginePreviewer::OnNewSubmixBuffer(const USoundSubmix* OwningSubm
 void FMotoSynthEnginePreviewer::Reset()
 {
 	CurrentPreviewCurveStartTime = 0.0f;
-
-	SynthEngine->Reset();
+	bEngineInitialized = false;
 }
 #endif // WITH_EDITOR
 
