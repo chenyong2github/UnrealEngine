@@ -219,6 +219,11 @@ public:
 	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack);
 	static void TriggerNonFatalCrashHandler(enum class ECrashContextType InType, const FString& Message);
 
+	// To help track down issues with failing crash handler.
+	static FString GetFatalSignalMessage(int Signal, siginfo* Info);
+	static void OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context));
+	// To help track down issues with failing crash handler.
+
 	static bool IsInSignalHandler();
 
 #if !UE_BUILD_SHIPPING
@@ -280,7 +285,8 @@ public:
 	 */
 	static bool Expand16BitIndicesTo32BitOnLoad();
 private:
-    static EDeviceScreenOrientation DeviceOrientation;
+	static const ANSICHAR* CodeToString(int Signal, int si_code);
+	static EDeviceScreenOrientation DeviceOrientation;
 };
 
 #if !PLATFORM_LUMIN
