@@ -16,6 +16,7 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 	: Super(ObjectInitializer)
 	, SceneProxy(nullptr)
 {
+	Mobility = EComponentMobility::Stationary;
 }
 
 bool URuntimeVirtualTextureComponent::IsVisible() const
