@@ -212,14 +212,14 @@ class FPhysInterface_Chaos;
 class FPhysicsConstraintReference_Chaos;
 class FPhysicsAggregateReference_Chaos;
 class FPhysicsShapeReference_Chaos;
-class FPhysScene_ChaosInterface;
+class FPhysScene_Chaos;
 class FPhysicsShapeAdapter_Chaos;
 struct FPhysicsGeometryCollection_Chaos;
 class FPhysicsUserData_Chaos;
 
 typedef FPhysicsConstraintReference_Chaos	FPhysicsConstraintHandle;
 typedef FPhysInterface_Chaos				FPhysicsInterface;
-typedef FPhysScene_ChaosInterface			FPhysScene;
+typedef FPhysScene_Chaos					FPhysScene;
 typedef FPhysicsAggregateReference_Chaos	FPhysicsAggregateHandle;
 typedef FPhysInterface_Chaos				FPhysicsCommand;
 typedef FPhysicsShapeReference_Chaos		FPhysicsShapeHandle;

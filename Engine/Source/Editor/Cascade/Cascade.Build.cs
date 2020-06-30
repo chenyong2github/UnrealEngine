@@ -31,7 +31,8 @@ public class Cascade : ModuleRules
                 "EditorStyle",
 				"DistCurveEditor",
 				"UnrealEd",
-				"RHI"
+				"RHI",
+				"PhysicsCore"
 			}
 		);
 

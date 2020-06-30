@@ -455,7 +455,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 					int32 NewIdx = Solvers.Add(FSolverData());
 
 					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = &World->GetPhysicsScene()->GetScene();
+					SolverData.PhysScene = World->GetPhysicsScene();
 					SolverData.Solver = SolverData.PhysScene->GetSolver();
 
 					RegisterWithSolverEventManager(SolverData.Solver);
