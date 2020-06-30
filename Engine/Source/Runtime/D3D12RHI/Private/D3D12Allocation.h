@@ -31,6 +31,8 @@ D3D12Allocation.h: A Collection of allocators
 
 #define D3D12RHI_SEGLIST_ALLOC_TRACK_LEAK_STACK_DEPTH 12
 
+#define D3D12RHI_TRACK_DETAILED_STATS (PLATFORM_WINDOWS && !(UE_BUILD_TEST || UE_BUILD_SHIPPING))
+
 struct FD3D12SegListAllocatorLeakTrack
 {
 	uint32 Offset;
@@ -65,33 +67,47 @@ class FD3D12ResourceAllocator : public FD3D12DeviceChild, public FD3D12MultiNode
 {
 public:
 
+	struct FInitConfig
+	{
+		bool operator==(const FInitConfig& InOther) const
+		{
+			return HeapType == InOther.HeapType && 
+				HeapFlags && InOther.HeapFlags && 
+				ResourceFlags == InOther.ResourceFlags && 
+				InitialResourceState == InOther.InitialResourceState;
+		}
+
+		D3D12_HEAP_TYPE HeapType;
+		D3D12_HEAP_FLAGS HeapFlags;
+		D3D12_RESOURCE_FLAGS ResourceFlags;
+		D3D12_RESOURCE_STATES InitialResourceState;
+	};
+
 	FD3D12ResourceAllocator(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
+		const FInitConfig& InInitConfig,
 		const FString& Name,
-		D3D12_HEAP_TYPE HeapType,
-		D3D12_RESOURCE_FLAGS Flags,
 		uint32 MaxSizeForPooling);
-
 	~FD3D12ResourceAllocator();
+
+	const FInitConfig& GetInitConfig() const { return InitConfig; }
+	const uint32 GetMaximumAllocationSizeForPooling() const { return MaximumAllocationSizeForPooling; }
+
+protected:
+
+	const FInitConfig InitConfig;
+	const FString DebugName;
+	bool Initialized;
 
 	// Any allocation larger than this just gets straight up allocated (i.e. not pooled).
 	// These large allocations should be infrequent so the CPU overhead should be minimal
 	const uint32 MaximumAllocationSizeForPooling;
-	D3D12_RESOURCE_FLAGS ResourceFlags;
-
-protected:
-
-	const FString DebugName;
-
-	bool Initialized;
-
-	const D3D12_HEAP_TYPE HeapType;
 
 	FCriticalSection CS;
 
-#if defined(UE_BUILD_DEBUG)
-	uint32 SpaceUsed;
-	uint32 InternalFragmentation;
+#if defined(D3D12RHI_TRACK_DETAILED_STATS)
+	uint32 SpaceAlignedUsed;
+	uint32 SpaceActualUsed;
 	uint32 NumBlocksInDeferredDeletionQueue;
 	uint32 PeakUsage;
 	uint32 FailedAllocationSpace;
@@ -112,7 +128,7 @@ protected:
 #define MIN_PLACED_BUFFER_SIZE (64 * 1024)
 #define D3D_BUFFER_ALIGNMENT (64 * 1024)
 
-#if defined(UE_BUILD_DEBUG)
+#if defined(D3D12RHI_TRACK_DETAILED_STATS)
 #define INCREASE_ALLOC_COUNTER(A, B) (A = A + B);
 #define DECREASE_ALLOC_COUNTER(A, B) (A = A - B);
 #else
@@ -120,35 +136,33 @@ protected:
 #define DECREASE_ALLOC_COUNTER(A, B)
 #endif
 
-enum eBuddyAllocationStrategy
-{
-	// This strategy uses Placed Resources to sub-allocate a buffer out of an underlying ID3D12Heap.
-	// The benefit of this is that each buffer can have it's own resource state and can be treated
-	// as any other buffer. The downside of this strategy is the API limitation which enforces
-	// the minimum buffer size to 64k leading to large internal fragmentation in the allocator
-	kPlacedResourceStrategy,
-	// The alternative is to manually sub-allocate out of a single large buffer which allows block
-	// allocation granularity down to 1 byte. However, this strategy is only really valid for buffers which
-	// will be treated as read-only after their creation (i.e. most Index and Vertex buffers). This 
-	// is because the underlying resource can only have one state at a time.
-	kManualSubAllocationStrategy
-};
 
 class FD3D12BuddyAllocator : public FD3D12ResourceAllocator
 {
 public:
 
+	enum class EAllocationStrategy
+	{
+		// This strategy uses Placed Resources to sub-allocate a buffer out of an underlying ID3D12Heap.
+		// The benefit of this is that each buffer can have it's own resource state and can be treated
+		// as any other buffer. The downside of this strategy is the API limitation which enforces
+		// the minimum buffer size to 64k leading to large internal fragmentation in the allocator
+		kPlacedResource,
+		// The alternative is to manually sub-allocate out of a single large buffer which allows block
+		// allocation granularity down to 1 byte. However, this strategy is only really valid for buffers which
+		// will be treated as read-only after their creation (i.e. most Index and Vertex buffers). This 
+		// is because the underlying resource can only have one state at a time.
+		kManualSubAllocation
+	};
+
 	FD3D12BuddyAllocator(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
+		const FInitConfig& InInitConfig,
 		const FString& Name,
-		eBuddyAllocationStrategy InAllocationStrategy,
-		D3D12_HEAP_TYPE HeapType,
-		D3D12_HEAP_FLAGS HeapFlags,
-		D3D12_RESOURCE_FLAGS Flags,
+		EAllocationStrategy InAllocationStrategy,
 		uint32 MaxSizeForPooling,
-		uint32 InAllocatorID,
 		uint32 InMaxBlockSize,
-		uint32 InMinBlockSize = MIN_PLACED_BUFFER_SIZE);
+		uint32 InMinBlockSize);
 
 	bool TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD3D12ResourceLocation& ResourceLocation);
 
@@ -161,6 +175,7 @@ public:
 	void CleanUpAllocations();
 
 	void DumpAllocatorStats(class FOutputDevice& Ar);
+	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
 
 	void ReleaseAllResources();
 
@@ -170,11 +185,12 @@ public:
 	{
 		return FreeBlocks[MaxOrder].Num() == 1;
 	}
+	inline uint64 GetLastUsedFrameFence() const { return LastUsedFrameFence; }
 
 	inline uint32 GetTotalSizeUsed() const { return TotalSizeUsed; }
 	inline uint64 GetAllocationOffsetInBytes(const FD3D12BuddyAllocatorPrivateData& AllocatorPrivateData) const { return uint64(AllocatorPrivateData.Offset) * MinBlockSize; }
 
-	inline FD3D12Heap* GetBackingHeap() { check(AllocationStrategy == kPlacedResourceStrategy); return BackingHeap.GetReference(); }
+	inline FD3D12Heap* GetBackingHeap() { check(AllocationStrategy == EAllocationStrategy::kPlacedResource); return BackingHeap.GetReference(); }
 
 	inline bool IsOwner(FD3D12ResourceLocation& ResourceLocation)
 	{
@@ -182,11 +198,10 @@ public:
 	}
 
 protected:
+
 	const uint32 MaxBlockSize;
 	const uint32 MinBlockSize;
-	const D3D12_HEAP_FLAGS HeapFlags;
-	const eBuddyAllocationStrategy AllocationStrategy;
-	const uint32 AllocatorID;
+	const FD3D12BuddyAllocator::EAllocationStrategy AllocationStrategy;
 
 	TRefCountPtr<FD3D12Resource> BackingResource;
 	TRefCountPtr<FD3D12Heap> BackingHeap;
@@ -197,14 +212,15 @@ private:
 		FD3D12Resource* PlacedResource;
 		uint64 FrameFence;
 		FD3D12BuddyAllocatorPrivateData Data;
-#if defined(UE_BUILD_DEBUG)
-		// Padding is only need in debug builds to keep track of internal fragmentation for stats.
-		uint32 Padding;
+#if defined(D3D12RHI_TRACK_DETAILED_STATS)
+		// Actual size only used for tracking memory stats
+		uint32 AllocationSize;
 #endif
 	};
 
 	TArray<RetiredBlock> DeferredDeletionQueue;
 	TArray<TSet<uint32>> FreeBlocks;
+	uint64 LastUsedFrameFence;
 	uint32 MaxOrder;
 	uint32 TotalSizeUsed;
 
@@ -251,16 +267,15 @@ public:
 
 	FD3D12MultiBuddyAllocator(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
+		const FInitConfig& InInitConfig,
 		const FString& Name,
-		eBuddyAllocationStrategy InAllocationStrategy,
-		D3D12_HEAP_TYPE HeapType,
-		D3D12_HEAP_FLAGS InHeapFlags,
-		D3D12_RESOURCE_FLAGS Flags,
-		uint32 MaxSizeForPooling,
-		uint32 InAllocatorID,
-		uint32 InMaxBlockSize,
-		uint32 InMinBlockSize = MIN_PLACED_BUFFER_SIZE);
+		FD3D12BuddyAllocator::EAllocationStrategy InAllocationStrategy,
+		uint32 InMaxAllocationSize,
+		uint32 InDefaultPoolSize,
+		uint32 InMinBlockSize);
 	~FD3D12MultiBuddyAllocator();
+
+	const FD3D12BuddyAllocator::EAllocationStrategy GetAllocationStrategy() const { return AllocationStrategy; }
 
 	bool TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD3D12ResourceLocation& ResourceLocation);
 
@@ -270,24 +285,22 @@ public:
 
 	void Destroy();
 
-	void CleanUpAllocations();
+	void CleanUpAllocations(uint64 InFrameLag);
 
 	void DumpAllocatorStats(class FOutputDevice& Ar);
+	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
 
 	void ReleaseAllResources();
 
 	void Reset();
-
-	const eBuddyAllocationStrategy GetAllocationStrategy() const { return AllocationStrategy; }
-
+	
 protected:
-	const eBuddyAllocationStrategy AllocationStrategy;
-	const D3D12_HEAP_FLAGS HeapFlags;
-	const uint32 MaxBlockSize;
-	const uint32 MinBlockSize;
-	const uint32 AllocatorID;
 
-	FD3D12BuddyAllocator* CreateNewAllocator();
+	FD3D12BuddyAllocator* CreateNewAllocator(uint32 InMinSizeInBytes);
+
+	const FD3D12BuddyAllocator::EAllocationStrategy AllocationStrategy;
+	const uint32 MinBlockSize;
+	const uint32 DefaultPoolSize;
 
 	TArray<FD3D12BuddyAllocator*> Allocators;
 };
@@ -303,9 +316,8 @@ public:
 
 	FD3D12BucketAllocator(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
+		const FInitConfig& InInitConfig,
 		const FString& Name,
-		D3D12_HEAP_TYPE HeapType,
-		D3D12_RESOURCE_FLAGS Flags,
 		uint64 InBlockRetentionFrameCount);
 
 	bool TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD3D12ResourceLocation& ResourceLocation);
@@ -316,9 +328,10 @@ public:
 
 	void Destroy();
 
-	void CleanUpAllocations();
+	void CleanUpAllocations(uint64 InFrameLag);
 
 	void DumpAllocatorStats(class FOutputDevice& Ar);
+	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount) {}
 
 	void ReleaseAllResources();
 
@@ -374,7 +387,7 @@ class FD3D12DynamicHeapAllocator : public FD3D12AdapterChild, public FD3D12Multi
 {
 public:
 
-	FD3D12DynamicHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName, eBuddyAllocationStrategy InAllocationStrategy,
+	FD3D12DynamicHeapAllocator(FD3D12Adapter* InParent, FD3D12Device* InParentDevice, const FString& InName, FD3D12BuddyAllocator::EAllocationStrategy InAllocationStrategy,
 		uint32 InMaxSizeForPooling,
 		uint32 InMaxBlockSize,
 		uint32 InMinBlockSize);
@@ -384,7 +397,7 @@ public:
 	// Allocates <size> bytes from the end of an available resource heap.
 	void* AllocUploadResource(uint32 size, uint32 alignment, FD3D12ResourceLocation& ResourceLocation);
 
-	void CleanUpAllocations();
+	void CleanUpAllocations(uint64 InFrameLag);
 
 	void Destroy();
 
@@ -402,10 +415,13 @@ public:
 	FD3D12DefaultBufferPool(FD3D12Device* InParent, FD3D12AllocatorType* InAllocator);
 	~FD3D12DefaultBufferPool() { delete Allocator; }
 
-	// Grab a buffer from the available buffers or create a new buffer if none are available
-	void AllocDefaultResource(const D3D12_RESOURCE_DESC& Desc, uint32 InUsage, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name);
+	bool SupportsAllocation(D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode) const;
+	void AllocDefaultResource(const D3D12_RESOURCE_DESC& Desc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name);
+	void CleanUpAllocations(uint64 InFrameLag);
+	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
 
-	void CleanUpAllocations();
+	static FD3D12ResourceAllocator::FInitConfig GetResourceAllocatorInitConfig(D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage);
+	static FD3D12BuddyAllocator::EAllocationStrategy GetBuddyAllocatorAllocationStrategy(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode);
 
 private:
 	FD3D12AllocatorType* Allocator;
@@ -419,45 +435,16 @@ public:
 	FD3D12DefaultBufferAllocator(FD3D12Device* InParent, FRHIGPUMask VisibleNodes);
 
 	// Grab a buffer from the available buffers or create a new buffer if none are available
-	void AllocDefaultResource(const D3D12_RESOURCE_DESC& pDesc, uint32 InUsage, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name);
+	void AllocDefaultResource(const D3D12_RESOURCE_DESC& pDesc, EBufferUsageFlags InBufferUsage,	ED3D12ResourceStateMode InResourceStateMode, FD3D12ResourceLocation& ResourceLocation, uint32 Alignment, const TCHAR* Name);
 	void FreeDefaultBufferPools();
-	void CleanupFreeBlocks();
+	void CleanupFreeBlocks(uint64 InFrameLag);
+	void UpdateMemoryStats();
 
 private:
 
-	enum class EBufferPool : uint32
-	{
-		None,
-		SRV,
-		UAV,
+	FD3D12DefaultBufferPool* CreateBufferPool(D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode);
 
-		Count,
-	};
-
-	void InitializeAllocator(EBufferPool PoolIndex, D3D12_RESOURCE_FLAGS Flags);
-	FD3D12DefaultBufferPool* DefaultBufferPools[(uint32)EBufferPool::Count];
-
-	inline EBufferPool GetBufferPool(D3D12_RESOURCE_FLAGS Flags) const
-	{
-		if (Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-			return EBufferPool::UAV;
-		else if (Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE)
-			return EBufferPool::None;
-		else
-			return EBufferPool::SRV;
-	}
-
-	bool BufferIsWriteable(const D3D12_RESOURCE_DESC& Desc)
-	{
-		const bool bDSV = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
-		const bool bRTV = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
-		const bool bUAV = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0;
-
-		// Buffer Depth Stencils are invalid
-		check(bDSV == false);
-		const bool bWriteable = bDSV || bRTV || bUAV;
-		return bWriteable;
-	}
+	TArray<FD3D12DefaultBufferPool*> DefaultBufferPools;
 };
 
 //-----------------------------------------------------------------------------
@@ -965,7 +952,7 @@ public:
 
 	HRESULT AllocateTexture(D3D12_RESOURCE_DESC Desc, const D3D12_CLEAR_VALUE* ClearValue, uint8 UEFormat, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name);
 
-	void CleanUpAllocations() { ReadOnlyTexturePool.CleanUpAllocations(); }
+	void CleanUpAllocations() { ReadOnlyTexturePool.CleanUpAllocations(0); }
 
 	void Destroy() { ReadOnlyTexturePool.Destroy(); }
 
