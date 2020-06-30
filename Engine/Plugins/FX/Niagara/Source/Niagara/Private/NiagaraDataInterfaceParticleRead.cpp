@@ -5,6 +5,7 @@
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleRead"
@@ -33,6 +34,8 @@ static const FName GetVec4ByIndexFunctionName("Get Vector 4 By Index");
 static const FName GetColorByIndexFunctionName("Get Color By Index");
 static const FName GetQuatByIndexFunctionName("Get Quaternion By Index");
 static const FName GetIDByIndexFunctionName("Get ID By Index");
+
+static const FName ParticleReadIDName(TEXT("ID"));
 
 static const FString NumSpawnedParticlesBaseName(TEXT("NumSpawnedParticles_"));
 static const FString SpawnedParticlesAcquireTagBaseName(TEXT("SpawnedParticlesAcquireTag_"));
@@ -1366,8 +1369,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 		return;
 	}
 
-	FNiagaraVariable IDVar(FNiagaraTypeDefinition::GetIDDef(), "ID");
-	FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
+	const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
 	const TArray<int32>& IDTable = CurrentData->GetIDTable();
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -1423,7 +1425,6 @@ struct FDirectReadParamHandler
 template <typename T>
 FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead, T Default)
 {
-	using AccessorType = FNiagaraDataConversions<T>;//TODO: Route template calls in here so we can use a regular accessor rather than a converatable accessor.
 	FDirectReadParamHandler<T> Params(Context);
 	bool bWriteDummyData = true;
 	if (FNiagaraEmitterInstance* EmitterInstance = Params.GetEmitterInstance())
@@ -1431,16 +1432,14 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 		const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();//TODO: We should really be grabbing this in the instance data tick and adding a read ref to it.
 		if (CurrentData && EmitterInstance->GetGPUContext() == nullptr)
 		{
-			static const FNiagaraVariable IDVar(FNiagaraTypeDefinition::GetIDDef(), "ID");
 			const TArray<int32>& IDTable = CurrentData->GetIDTable();
 			int32 NumSourceInstances = CurrentData->GetNumInstances();
 
 			if (IDTable.Num() > 0)
 			{
-				FNiagaraVariable ReadVar(FNiagaraTypeDefinition::Get<T>(), AttributeToRead);
-				FNiagaraDataSetAccessor<AccessorType> ValueData(EmitterInstance->GetData(), ReadVar);
+				const auto ValueData = FNiagaraDataSetAccessor<T>::CreateReader(EmitterInstance->GetData(), AttributeToRead);
+				const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
 
-				FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
 
 				bWriteDummyData = false;
 
@@ -1458,7 +1457,7 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 							FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
 							if (ActualID == ParticleID)
 							{
-								Value = ValueData.GetSafe(ParticleIndex, T());
+								Value = ValueData.GetSafe(ParticleIndex, Default);
 								bValid = true;
 							}
 						}
@@ -1557,7 +1556,6 @@ struct FDirectReadByIndexParamHandler
 template<typename T>
 FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName AttributeToRead, T Default)
 {
-	using AccessorType = FNiagaraDataConversions<T>;//TODO: Route template calls in here so we can use a regular accessor rather than a converatable accessor.
 	FDirectReadByIndexParamHandler<T> Params(Context);
 
 	bool bWriteDummyData = true;
@@ -1566,14 +1564,12 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 		const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();//TODO: We should really be grabbing these during instance data tick and adding a read ref. Releasing that on PostTick.
 		if (CurrentData && CurrentData->GetNumInstances() > 0 && EmitterInstance->GetGPUContext() == nullptr)
 		{
-			static const FNiagaraVariable IDVar(FNiagaraTypeDefinition::GetIDDef(), "ID");
 			const TArray<int32>& IDTable = CurrentData->GetIDTable();
 			int32 NumSourceInstances = (int32)CurrentData->GetNumInstances();
 
-			FNiagaraVariable ReadVar(FNiagaraTypeDefinition::Get<T>(), AttributeToRead);
-			FNiagaraDataSetAccessor<AccessorType> ValueData(EmitterInstance->GetData(), ReadVar);
+			const auto ValueData = FNiagaraDataSetAccessor<T>::CreateReader(EmitterInstance->GetData(), AttributeToRead);
+			const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
 
-			FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
 
 			bWriteDummyData = false;
 

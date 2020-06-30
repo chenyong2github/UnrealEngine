@@ -243,10 +243,10 @@ struct FNiagaraComputeExecutionContext
 	
 #if !UE_BUILD_SHIPPING
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
-	void SetDebugName(FString InDebugName) { DebugSimName = InDebugName; }
+	void SetDebugSimName(const TCHAR* InDebugSimName) { DebugSimName = InDebugSimName; }
 #else
 	const TCHAR* GetDebugSimName() const { return TEXT(""); }
-	void SetDebugName(FString InDebugName) { }
+	void SetDebugSimName(const TCHAR*) { }
 #endif
 
 private:

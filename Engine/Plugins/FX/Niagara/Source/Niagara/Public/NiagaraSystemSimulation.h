@@ -402,12 +402,7 @@ protected:
 	/** List of instances that are pending a tick group promotion. */
 	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
-	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
-
 	void InitParameterDataSetBindings(FNiagaraSystemInstance* SystemInst);
-
-	FNiagaraDataSetAccessor<int32> SystemExecutionStateAccessor;
-	TArray<FNiagaraDataSetAccessor<int32>> EmitterExecutionStateAccessors;
 
 	uint32 bCanExecute : 1;
 	uint32 bBindingsInitialized : 1;
