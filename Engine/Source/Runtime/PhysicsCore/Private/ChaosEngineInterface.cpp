@@ -864,14 +864,15 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
 			const Chaos::FJointConstraint::FParticlePair& Particles = Constraint->GetJointParticles();
+			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
 
 			if (InFrame == EConstraintFrame::Frame1)
 			{
-				return FTransform(Particles[0]->R(), Particles[0]->X());
+				return FTransform(Particles[0]->R(), Particles[0]->X())*M[0];
 			}
 			else if (InFrame == EConstraintFrame::Frame2)
 			{
-				return FTransform(Particles[1]->R(), Particles[1]->X());
+				return FTransform(Particles[1]->R(), Particles[1]->X())*M[1];
 			}
 		}
 	}
@@ -880,8 +881,15 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 
 FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	// #todo : Implement
-	return  FVector(0.f);
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			return 0.5 * (GetGlobalPose(InConstraintRef, EConstraintFrame::Frame1).GetTranslation() + GetGlobalPose(InConstraintRef, EConstraintFrame::Frame2).GetTranslation());
+		}
+	}
+	return FVector::ZeroVector;
+
 }
 
 void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinForce,FVector& OutAngForce)
