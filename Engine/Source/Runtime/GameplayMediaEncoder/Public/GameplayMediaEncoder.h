@@ -36,6 +36,26 @@ public:
 	void SetVideoBitrate(uint32 Bitrate);
 	void SetVideoFramerate(uint32 Framerate);
 
+	/*
+	 * When capturing frame data, we should use the App Time rather than Platform time
+	 * Default is to use Platform Time
+	 * This is useful for fixed framerate video rendering
+	 * **AUDIO is not supported**
+	*/
+	void SetFramesShouldUseAppTime(bool bUseAppTime);
+
+	bool IsFramesUsingAppTime() const
+	{
+		static bool bIsForcedAppTime = FParse::Param(FCommandLine::Get(), TEXT("GameplayMediaEncoder.UseAppTime"));
+
+		return bIsForcedAppTime || bShouldFramesUseAppTime;
+	}
+
+	double QueryClock() const
+	{
+		return IsFramesUsingAppTime() ? FApp::GetCurrentTime() : FPlatformTime::Seconds();
+	}
+
 	/**
 	 * Returns the audio codec name and configuration
 	 */
@@ -128,5 +148,6 @@ private:
 	TAtomic<uint32> NewVideoFramerate{ 0 };
 	FThreadSafeBool bChangeFramerate = false;
 
+	bool bShouldFramesUseAppTime = false;
 };
 
