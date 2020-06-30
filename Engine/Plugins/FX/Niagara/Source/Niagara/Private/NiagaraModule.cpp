@@ -898,11 +898,13 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 		{
 			UnderlyingType = UT_Enum;
 			ClassStructOrEnum = Enum_DEPRECATED;
+			Enum_DEPRECATED = nullptr;
 		}
 		else if (Struct_DEPRECATED != nullptr)
 		{
 			UnderlyingType = Struct_DEPRECATED->IsA<UClass>() ? UT_Class : UT_Struct;
 			ClassStructOrEnum = Struct_DEPRECATED;
+			Struct_DEPRECATED = nullptr;
 		}
 		else
 		{
