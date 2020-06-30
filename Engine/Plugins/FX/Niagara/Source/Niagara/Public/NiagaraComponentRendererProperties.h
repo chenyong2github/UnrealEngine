@@ -41,6 +41,7 @@ public:
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//UObject Interface END
 
 	static void InitCDOPropertiesAfterModuleStartup();
@@ -103,4 +104,6 @@ private:
 
 	// this is just used to check for localspace when creating a new template component
 	const UNiagaraEmitter* EmitterPtr;
+
+	void CreateTemplateComponent();
 };
