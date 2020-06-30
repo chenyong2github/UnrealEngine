@@ -853,6 +853,19 @@ protected:
 	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
 
 	void OnConvertFunctionToEvent();
+
+public:
+	/** Converts the given function entry node to an event if it passes validation */
+	bool ConvertFunctionIfValid(UK2Node_FunctionEntry* FuncEntryNode);
+
+	/** Converts the given event node to a function graph on this blueprint if it passes validation */
+	bool ConvertEventIfValid(UK2Node_Event* EventToConv);
+
+protected:
+	/** 
+	* Callback function for the context menu on a node to determine if a function 
+	* could possibly be converted to an event
+	*/
 	bool CanConvertFunctionToEvent() const;
 
 	/*
