@@ -419,6 +419,12 @@ public:
 	*/
 	virtual float GetDownSampleMeshDistanceFieldDivider() const = 0;
 
+	/**
+	* Gets an integer representing the height fog mode for opaque materials on a platform.
+	* @return 0 if no override (i.e. use r.VertexFoggingForOpaque from project settings); 1 if pixel fog; 2 if vertex fog.
+	*/
+	virtual int32 GetHeightFogModeForOpaque() const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.
