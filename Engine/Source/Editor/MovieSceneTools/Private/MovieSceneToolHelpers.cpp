@@ -2110,12 +2110,21 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	RecordingSettings.bRecordInWorldSpace = true;
 	RecordingSettings.bRemoveRootAnimation = false;
 	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
+
+
+
 	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
 
 
 	//Begin records a frame so need to set things up first
 	AnimTrackAdapter.UpdateAnimation(LocalStartFrame );
-
+	SkelMeshComp->TickAnimation(0.03f, false);
+	SkelMeshComp->RefreshBoneTransforms();
+	SkelMeshComp->RefreshSlaveComponents();
+	SkelMeshComp->UpdateComponentToWorld();
+	SkelMeshComp->FinalizeBoneTransform();
+	SkelMeshComp->MarkRenderTransformDirty();
+	SkelMeshComp->MarkRenderDynamicDataDirty();
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
