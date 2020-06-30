@@ -11,12 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "CompositeCurveTables"
 
-static TAutoConsoleVariable<int32> CVarCompositeCurveTableMinimalUpdateEnable(
-	TEXT("compositecurvetable.minimalupdate"),
-	0,
-	TEXT("Minimizes the in memory changes when updating composite curve tables. Significantly slower than the standard update."),
-	ECVF_ReadOnly);
-
 //////////////////////////////////////////////////////////////////////////
 UCompositeCurveTable::UCompositeCurveTable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -109,98 +103,81 @@ void UCompositeCurveTable::UpdateCachedRowMap(bool bWarnOnInvalidChildren)
 #if WITH_EDITOR
 	FCurveTableEditorUtils::BroadcastPreChange(this, FCurveTableEditorUtils::ECurveTableChangeInfo::RowList);
 #endif
+	UCurveTable::EmptyTable();
 
-	ECurveTableMode NewCurveTableMode = ECurveTableMode::SimpleCurves;
-
-	// First determine if all our parent tables are simple
-	for (const UCurveTable* ParentTable : ParentTables)
+	if (!bLeaveEmpty)
 	{
-		if (ParentTable && ParentTable->GetCurveTableMode() == ECurveTableMode::RichCurves)
+		CurveTableMode = ECurveTableMode::SimpleCurves;
+
+		// First determine if all our parent tables are simple
+		for (const UCurveTable* ParentTable : ParentTables)
 		{
-			NewCurveTableMode = ECurveTableMode::RichCurves;
-			break;
-		}
-	}
-
-	if (bLeaveEmpty)
-	{
-		UCurveTable::EmptyTable();
-		CurveTableMode = NewCurveTableMode;
-	}
-	else if (GIsEditor || NewCurveTableMode != CurveTableMode || !CVarCompositeCurveTableMinimalUpdateEnable.GetValueOnGameThread())
-	{
-		UCurveTable::EmptyTable();
-		CurveTableMode = NewCurveTableMode;
-		BuildTableFromParents(this);
-	}
-	else
-	{
-		// build a duplicate table using the stack of parent tables
-		UCurveTable* TempTable = NewObject<UCurveTable>(GetTransientPackage());
-		TempTable->CurveTableMode = NewCurveTableMode;
-
-		BuildTableFromParents(TempTable);
-
-		// now that we have an up to date copy of the composite table we can update the old copy row by row
-		// first remove any rows that are in the old table but not the new table
-		TArray<FName> RowsToRemove;
-		for (TMap<FName, FRealCurve*>::TConstIterator RowMapIter(RowMap.CreateConstIterator()); RowMapIter; ++RowMapIter)
-		{
-			static const FString ContextString(TEXT("UCompositeCurveTable::UpdateCachedRowMap looking for curves to remove."));
-			if (!TempTable->FindCurve(RowMapIter.Key(), ContextString, false))
+			if (ParentTable && ParentTable->GetCurveTableMode() == ECurveTableMode::RichCurves)
 			{
-				RowsToRemove.Add(RowMapIter.Key());
+				CurveTableMode = ECurveTableMode::RichCurves;
+				break;
 			}
 		}
 
-		for (const FName& RowToRemove : RowsToRemove)
+		// iterate through all of the rows
+		for (const UCurveTable* ParentTable : ParentTables)
 		{
-			RowMap.Remove(RowToRemove);
-		}
-
-		// for each row in the updated table try to find it in the old table
-		// if we don't find it, add it to the old table
-		// if we do find it, see if it is different in the two tables; is so, update the old table entry
-		for (TMap<FName, FRealCurve*>::TConstIterator TempRowMapIter(TempTable->GetRowMap().CreateConstIterator()); TempRowMapIter; ++TempRowMapIter)
-		{
-			static const FString ContextString(TEXT("UCompositeCurveTable::UpdateCachedRowMap looking for curves to add or update."));
-			if (FRealCurve* OldCurve = FindCurve(TempRowMapIter.Key(), ContextString, false))
+			if (ParentTable == nullptr)
 			{
-				if (CurveTableMode == ECurveTableMode::SimpleCurves)
+				continue;
+			}
+
+			// Add new rows or overwrite previous rows
+			auto AddCurveToMap = [&RowMap=RowMap](FName CurveName, FRealCurve* NewCurve)
+			{
+				if (FRealCurve** Curve = RowMap.Find(CurveName))
 				{
-					FSimpleCurve* OldSimpleCurve = (FSimpleCurve*)OldCurve;
-					FSimpleCurve* TempSimpleCurve = (FSimpleCurve*)TempRowMapIter.Value();
-					if (*OldSimpleCurve != *TempSimpleCurve)
-					{
-						FSimpleCurve NewSimpleCurve = AddSimpleCurve(TempRowMapIter.Key());
-						NewSimpleCurve.SetKeys(TempSimpleCurve->Keys);
-					}
+					delete *Curve;
+					*Curve = NewCurve;
 				}
-				else if (CurveTableMode == ECurveTableMode::RichCurves)
+				else
 				{
-					FRichCurve* OldRichCurve = (FRichCurve*)OldCurve;
-					FRichCurve* TempRichCurve = (FRichCurve*)TempRowMapIter.Value();
-					if (*OldRichCurve != *TempRichCurve)
-					{
-						FRichCurve NewRichCurve = AddRichCurve(TempRowMapIter.Key());
-						NewRichCurve.SetKeys(TempRichCurve->Keys);
-					}
+					RowMap.Add(CurveName, NewCurve);
+				}
+			};
+
+			// If we are using simple curves we know all our parents are also simple
+			if (CurveTableMode == ECurveTableMode::SimpleCurves)
+			{
+				for (const TPair<FName, FSimpleCurve*>& CurveRow : ParentTable->GetSimpleCurveRowMap())
+				{
+					FSimpleCurve* NewCurve = new FSimpleCurve();
+					FSimpleCurve* InCurve = CurveRow.Value;
+					NewCurve->SetKeys(InCurve->GetConstRefOfKeys());
+					NewCurve->SetKeyInterpMode(InCurve->GetKeyInterpMode());
+					AddCurveToMap(CurveRow.Key, NewCurve);
 				}
 			}
+			// If we are Rich but this Parent is Simple then we need to do a little more conversion work
+			else if (ParentTable->GetCurveTableMode() == ECurveTableMode::SimpleCurves)
+			{
+				for (const TPair<FName, FSimpleCurve*>& CurveRow : ParentTable->GetSimpleCurveRowMap())
+				{
+					FRichCurve* NewCurve = new FRichCurve();
+					FSimpleCurve* InCurve = CurveRow.Value;
+					for (const FSimpleCurveKey& CurveKey : InCurve->GetConstRefOfKeys())
+					{
+						FKeyHandle KeyHandle = NewCurve->AddKey(CurveKey.Time, CurveKey.Value);
+						NewCurve->SetKeyInterpMode(KeyHandle, InCurve->GetKeyInterpMode());
+					}
+					NewCurve->AutoSetTangents();
+					AddCurveToMap(CurveRow.Key, NewCurve);
+				}
+			}
+			// Otherwise Rich to Rich is also straightforward
 			else
 			{
-				// we didn't find the row in the old table so add it
-				if (CurveTableMode == ECurveTableMode::SimpleCurves)
+				for (const TPair<FName, FRichCurve*>& CurveRow : ParentTable->GetRichCurveRowMap())
 				{
-					FSimpleCurve* TempSimpleCurve = (FSimpleCurve*)TempRowMapIter.Value();
-					FSimpleCurve NewSimpleCurve = AddSimpleCurve(TempRowMapIter.Key());
-					NewSimpleCurve.SetKeys(TempSimpleCurve->Keys);
-				}
-				else if (CurveTableMode == ECurveTableMode::RichCurves)
-				{
-					FRichCurve* TempRichCurve = (FRichCurve*)TempRowMapIter.Value();
-					FRichCurve NewRichCurve = AddRichCurve(TempRowMapIter.Key());
-					NewRichCurve.SetKeys(TempRichCurve->Keys);
+					FRichCurve* NewCurve = new FRichCurve();
+					FRichCurve* InCurve = CurveRow.Value;
+					NewCurve->SetKeys(InCurve->GetConstRefOfKeys());
+					AddCurveToMap(CurveRow.Key, NewCurve);
 				}
 			}
 		}
@@ -309,75 +286,6 @@ const UCompositeCurveTable* UCompositeCurveTable::FindLoops(TArray<const UCompos
 
 	// no loops
 	return nullptr;
-}
-
-void UCompositeCurveTable::BuildTableFromParents(UCurveTable* Table)
-{
-	check(Table);
-	Table->UCurveTable::EmptyTable();
-
-	// iterate through all of the rows
-	for (const UCurveTable* ParentTable : ParentTables)
-	{
-		if (ParentTable == nullptr)
-		{
-			continue;
-		}
-
-		// Add new rows or overwrite previous rows
-		auto AddCurveToMap = [&RowMap = Table->RowMap](FName CurveName, FRealCurve* NewCurve)
-		{
-			if (FRealCurve** Curve = RowMap.Find(CurveName))
-			{
-				delete* Curve;
-				*Curve = NewCurve;
-			}
-			else
-			{
-				RowMap.Add(CurveName, NewCurve);
-			}
-		};
-
-		// If we are using simple curves we know all our parents are also simple
-		if (CurveTableMode == ECurveTableMode::SimpleCurves)
-		{
-			for (const TPair<FName, FSimpleCurve*>& CurveRow : ParentTable->GetSimpleCurveRowMap())
-			{
-				FSimpleCurve* NewCurve = new FSimpleCurve();
-				FSimpleCurve* InCurve = CurveRow.Value;
-				NewCurve->SetKeys(InCurve->GetConstRefOfKeys());
-				NewCurve->SetKeyInterpMode(InCurve->GetKeyInterpMode());
-				AddCurveToMap(CurveRow.Key, NewCurve);
-			}
-		}
-		// If we are Rich but this Parent is Simple then we need to do a little more conversion work
-		else if (ParentTable->GetCurveTableMode() == ECurveTableMode::SimpleCurves)
-		{
-			for (const TPair<FName, FSimpleCurve*>& CurveRow : ParentTable->GetSimpleCurveRowMap())
-			{
-				FRichCurve* NewCurve = new FRichCurve();
-				FSimpleCurve* InCurve = CurveRow.Value;
-				for (const FSimpleCurveKey& CurveKey : InCurve->GetConstRefOfKeys())
-				{
-					FKeyHandle KeyHandle = NewCurve->AddKey(CurveKey.Time, CurveKey.Value);
-					NewCurve->SetKeyInterpMode(KeyHandle, InCurve->GetKeyInterpMode());
-				}
-				NewCurve->AutoSetTangents();
-				AddCurveToMap(CurveRow.Key, NewCurve);
-			}
-		}
-		// Otherwise Rich to Rich is also straightforward
-		else
-		{
-			for (const TPair<FName, FRichCurve*>& CurveRow : ParentTable->GetRichCurveRowMap())
-			{
-				FRichCurve* NewCurve = new FRichCurve();
-				FRichCurve* InCurve = CurveRow.Value;
-				NewCurve->SetKeys(InCurve->GetConstRefOfKeys());
-				AddCurveToMap(CurveRow.Key, NewCurve);
-			}
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE
