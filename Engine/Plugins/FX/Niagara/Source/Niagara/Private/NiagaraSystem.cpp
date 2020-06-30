@@ -985,6 +985,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 					MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), NiagaraEmitter->MaxDeltaTimePerTick) : NiagaraEmitter->MaxDeltaTimePerTick;
 				}
 			}
+			NiagaraEmitter->ConditionalPostLoad();
 			NiagaraEmitter->CacheFromCompiledData(DataSetCompiledData);
 		}
 		else
