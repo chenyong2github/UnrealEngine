@@ -2665,6 +2665,8 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateDatasmithMaterialFunc(UP
 
 	UMaterialEditingLibrary::LayoutMaterialFunctionExpressions( UnrealMaterialFunc );
 
+	UnrealMaterialFunc->UpdateDependentFunctionCandidates();
+
 	return UnrealMaterialFunc;
 }
 
@@ -3113,6 +3115,8 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UP
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterialFunc);
 
 	UMaterialEditingLibrary::LayoutMaterialFunctionExpressions(UnrealMaterialFunc);
+
+	UnrealMaterialFunc->UpdateDependentFunctionCandidates();
 
 	return UnrealMaterialFunc;
 }
