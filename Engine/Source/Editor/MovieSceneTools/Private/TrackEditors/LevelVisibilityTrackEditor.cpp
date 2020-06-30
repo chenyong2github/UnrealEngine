@@ -9,6 +9,7 @@
 #include "SequencerUtilities.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
+#include "Misc/PackageName.h"
 #include "LevelUtils.h"
 
 #define LOCTEXT_NAMESPACE "LevelVisibilityTrackEditor.h"
