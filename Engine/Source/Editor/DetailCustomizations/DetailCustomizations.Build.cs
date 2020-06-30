@@ -12,7 +12,7 @@ public class DetailCustomizations : ModuleRules
 			new string[] {
 				"AppFramework",
 				"Core",
-				"AudioEditor",
+// 				"AudioEditor",
 				"CoreUObject",
 				"ApplicationCore",
 				"DesktopWidgets",
