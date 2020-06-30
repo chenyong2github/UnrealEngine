@@ -17,6 +17,9 @@ DECLARE_CYCLE_STAT(TEXT("TickVehicles"), STAT_ChaosVehicleManager_TickVehicles, 
 DECLARE_CYCLE_STAT(TEXT("VehicleManagerUpdate"), STAT_ChaosVehicleManager_Update, STATGROUP_ChaosVehicleManager);
 DECLARE_CYCLE_STAT(TEXT("PretickVehicles"), STAT_ChaosVehicleManager_PretickVehicles, STATGROUP_Physics);
 
+int GSlowFrameRate = 0;
+FAutoConsoleVariableRef CVarChaosVehiclesFlowFrameRate(TEXT("p.Vehicles.SlowFrameRate"), GSlowFrameRate, TEXT("Enable/Disable Debug Slowing of the frame rate to under 30 FPS."));
+
 
 TMap<FPhysScene*, FChaosVehicleManager*> FChaosVehicleManager::SceneToVehicleManagerMap;
 uint32 FChaosVehicleManager::VehicleSetupTag = 0;
@@ -95,6 +98,12 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 	if (Vehicles.Num() == 0 )
 	{
 		return;
+	}
+
+	// Debug slowing of frame rate so we can check handling is not affected
+	if (GSlowFrameRate)
+	{
+		FPlatformProcess::Sleep(1.f / (float)GSlowFrameRate);
 	}
 
 	//	Suspension raycasts

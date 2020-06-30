@@ -22,10 +22,6 @@ namespace Chaos
 		 *  S - Steering Rod Length (Half)
 		 *
 		*/
-		static FORCEINLINE float Sqr(float Val)
-		{
-			return Val * Val;
-		}
 
 		/** Intersection of two axis aligned circles Radius R1, R2 with a separation distance between centers of D */
 		static bool IntersectTwoCircles(float R1, float R2, float D, FVector2D& OutIntersection)

@@ -25,6 +25,7 @@ namespace Chaos
 		, SlipAngle(0.f)
 		, bInContact(false)
 		, WheelIndex(0)
+		, Spin(0.f)
 	{
 
 	}
@@ -43,14 +44,17 @@ namespace Chaos
 
 		// #todo: currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
-
+		float BrakeFactor = 1.0f;
+		
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
 		{
-			AdhesiveLimit = (ForceIntoSurface)*SurfaceFriction * Setup().CheatFrictionForceMultiplier;
+			LongitudinalAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().CheatLongitudinalFrictionMultiplier;
+			LateralAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().CheatLateralFrictionMultiplier;
 
 			if (Braking)
 			{
+
 				// whether the velocity is +ve or -ve when we brake we are slowing the vehicle down
 				// so force is opposing current direction of travel.
 				float ForceRequiredToBringToStop = MassPerWheel * (GroundVelocityVector.X) / DeltaTime;
@@ -68,6 +72,7 @@ namespace Chaos
 				{
 					FinalLongitudinalForce = -FinalLongitudinalForce;
 				}
+
 			}
 			else
 			{
@@ -77,47 +82,71 @@ namespace Chaos
 			// lateral grip
 			float FinalLateralForce = -(MassPerWheel * GroundVelocityVector.Y) / DeltaTime;
 
-			float BrakeFactor = Braking ? 0.1f * (10.0f - (FMath::Clamp(FMath::Abs(FinalLongitudinalForce) / AdhesiveLimit, 1.f, 10.f) - 1.0f)) : 1.f;
-
 			ForceFromFriction.X = FinalLongitudinalForce;
 
-			float DynamicFrictionScaling = 0.75f;
+			float DynamicFrictionLongitudialScaling = 0.75f;
 			float TractionControlAndABSScaling = 0.98f;	// how close to perfection is the system working
 
+			SideSlipModifier = 1.0f;
+			
 			// we can only obtain as much accel/decel force as the friction will allow
-			if (FMath::Abs(FinalLongitudinalForce) > AdhesiveLimit)
+			if (FMath::Abs(FinalLongitudinalForce) > LongitudinalAdhesiveLimit)
 			{
+				SideSlipModifier = FMath::Clamp(LongitudinalAdhesiveLimit / FMath::Abs(FinalLongitudinalForce), 0.6f, 1.0f);
+				if (Braking)
+				{
+					BrakeFactor = FMath::Clamp(LongitudinalAdhesiveLimit / FMath::Abs(FinalLongitudinalForce), 0.6f, 1.0f);
+				}
+
 				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
 				{
-					ForceFromFriction.X = AdhesiveLimit * TractionControlAndABSScaling;
+					Spin = 0.0f;
+					ForceFromFriction.X = LongitudinalAdhesiveLimit * TractionControlAndABSScaling;
 				}
 				else
 				{
-					ForceFromFriction.X = AdhesiveLimit * DynamicFrictionScaling;
+					if (!Braking)
+					{
+						Spin += 0.5f * DeltaTime;
+						Spin = FMath::Clamp(Spin, -2.f, 2.f);
+					}
+					ForceFromFriction.X = LongitudinalAdhesiveLimit * DynamicFrictionLongitudialScaling;
 				}
 			}
+			else
+			{
+				Spin = 0.0f;
+			}
 
-			if (FinalLongitudinalForce < -AdhesiveLimit)
+			if (FinalLongitudinalForce < -LongitudinalAdhesiveLimit)
 			{
 				ForceFromFriction.X = -ForceFromFriction.X;
 			}
 
-			// Lateral needs more grip!
-			AdhesiveLimit *= 2.0f;
+			float DynamicFrictionLateralScaling = 0.75f;
+
+			// Lateral needs more grip to feel right!
+			LateralAdhesiveLimit *= 1.0f * SideSlipModifier;
 			ForceFromFriction.Y = FinalLateralForce;
-			if (FinalLateralForce > AdhesiveLimit)
+			if (FMath::Abs(FinalLateralForce) > LateralAdhesiveLimit)
 			{
-				ForceFromFriction.Y = AdhesiveLimit * 0.7f; // broke friction - want more analog feel
+				ForceFromFriction.Y = LateralAdhesiveLimit * DynamicFrictionLateralScaling;
 			}
-			else if (FinalLateralForce < -AdhesiveLimit)
+
+			if (FinalLateralForce < -LateralAdhesiveLimit)
 			{
-				ForceFromFriction.Y = -AdhesiveLimit * 0.7f; // broke friction - want more analog feel
+				ForceFromFriction.Y = -ForceFromFriction.Y;
 			}
+
 
 			// wheel rolling - just match the ground speed exactly
 			if (BrakeFactor < 1.0f)
 			{
 				Omega *= BrakeFactor;
+			}
+			else if (Spin > 0.1f)
+			{
+				Omega += Spin;
 			}
 			else
 			{
