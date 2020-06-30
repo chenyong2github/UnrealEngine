@@ -267,6 +267,15 @@ bool FFCPXMLImportVisitor::VisitVideoClipItemNode(TSharedRef<FFCPXMLClipItemNode
 	if (!LoggingInfoNode.IsValid() && !MasterClipId.IsEmpty())
 	{
 		GetMasterClipLoggingNode(MasterClipId, LoggingInfoNode);
+
+		// If the logging info node is validated, get the lognote data since it's a child of the new logging info node
+		if (LoggingInfoNode.IsValid())
+		{
+			if (!LoggingInfoNode->GetChildValue<FString>("lognote", LogNote, ENodeInherit::NoInherit, ENodeReference::NoReferences))
+			{
+				LogNote = TEXT("");
+			}
+		}
 	}
 
 	FString SectionPathName = GetCinematicSectionPathName(LogNote, MasterClipId);
@@ -355,6 +364,15 @@ bool FFCPXMLImportVisitor::VisitAudioClipItemNode(TSharedRef<FFCPXMLClipItemNode
 	if (!LoggingInfoNode.IsValid() && !MasterClipId.IsEmpty())
 	{
 		GetMasterClipLoggingNode(MasterClipId, LoggingInfoNode);
+
+		// If the logging info node is validated, get the lognote data since it's a child of the new logging info node
+		if (LoggingInfoNode.IsValid())
+		{
+			if (!LoggingInfoNode->GetChildValue<FString>("lognote", LogNote, ENodeInherit::NoInherit, ENodeReference::NoReferences))
+			{
+				LogNote = TEXT("");
+			}
+		}
 	}
 
 	// Get audio metadata
