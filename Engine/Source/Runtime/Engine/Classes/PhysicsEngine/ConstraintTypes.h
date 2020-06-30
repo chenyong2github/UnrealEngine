@@ -6,6 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "EngineDefines.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "ConstraintTypes.generated.h"
 
 #if WITH_PHYSX
