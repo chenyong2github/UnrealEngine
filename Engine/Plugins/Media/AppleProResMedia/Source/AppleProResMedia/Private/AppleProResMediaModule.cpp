@@ -56,7 +56,13 @@ class FAppleProResMediaModule : public IModuleInterface
 			return;
 		}
 
-		IWmfMediaModule::Get()->GetCodecManager()->AddCodec(MakeUnique<WmfMediaCodecGenerator<WmfMediaAppleProResDecoder>>(true));
+		if (IWmfMediaModule* Module = IWmfMediaModule::Get())
+		{
+			if (Module->IsInitialized())
+			{
+				Module->GetCodecManager()->AddCodec(MakeUnique<WmfMediaCodecGenerator<WmfMediaAppleProResDecoder>>(true));
+			}
+		}
 
 #if WITH_EDITOR
 		// register settings
