@@ -519,7 +519,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// SSplitter
 	{
 		Style->Set("Splitter", FSplitterStyle()
-			.SetHandleNormalBrush(FSlateNoResource())
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Title))
 			.SetHandleHighlightBrush(IMAGE_BRUSH("Common/SplitterHandleHighlight", Icon8x8, FLinearColor::White))
 		);
 	}
