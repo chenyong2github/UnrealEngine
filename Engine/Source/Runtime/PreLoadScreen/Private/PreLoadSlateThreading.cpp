@@ -1,44 +1,46 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PreLoadSlateThreading.h"
-#include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
-#include "Misc/ScopeLock.h"
-#include "Framework/Application/SlateApplication.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "HAL/PlatformAtomics.h"
-#include "Rendering/SlateDrawBuffer.h"
-#include "RenderingThread.h"
-
 #include "PreLoadScreenManager.h"
 
-FThreadSafeCounter FPreLoadScreenSlateSynchMechanism::LoadingThreadInstanceCounter;
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
+#include "Input/HittestGrid.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/StringBuilder.h"
+#include "Rendering/SlateDrawBuffer.h"
+#include "RenderingThread.h"
+#include "Widgets/SVirtualWindow.h"
+
+
+TAtomic<int32> FPreLoadScreenSlateSynchMechanism::LoadingThreadInstanceCounter(0);
 
 bool FPreLoadScreenSlateThreadTask::Init()
 {
     // First thing to do is set the slate loading thread ID
     // This guarantees all systems know that a slate thread exists
-    GSlateLoadingThreadId = FPlatformTLS::GetCurrentThreadId();
+	const int32 PreviousValue = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, FPlatformTLS::GetCurrentThreadId(), 0);
+	check(PreviousValue == 0);
 
     return true;
 }
 
 uint32 FPreLoadScreenSlateThreadTask::Run()
 {
-    check(GSlateLoadingThreadId == FPlatformTLS::GetCurrentThreadId());
-
-    SyncMechanism->SlateThreadRunMainLoop();
-
-    // Tear down the slate loading thread ID
-    FPlatformAtomics::InterlockedExchange((int32*)&GSlateLoadingThreadId, 0);
-
+    SyncMechanism->RunMainLoop_SlateThread();
     return 0;
 }
 
-void FPreLoadScreenSlateThreadTask::Stop()
+void FPreLoadScreenSlateThreadTask::Exit()
 {
-    SyncMechanism->ResetSlateDrawPassEnqueued();
-    SyncMechanism->ResetSlateMainLoopRunning();
+	// Tear down the slate loading thread ID
+	const int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+	const int32 PreviousThreadId = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, 0, CurrentThreadId);
+	check(PreviousThreadId == CurrentThreadId);
 }
 
 FPreLoadSlateWidgetRenderer::FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindow, FSlateRenderer* InRenderer)
@@ -58,56 +60,66 @@ void FPreLoadSlateWidgetRenderer::DrawWindow(float DeltaTime)
 		return;
 	}
 
-    if (GDynamicRHI && GDynamicRHI->RHIIsRenderingSuspended())
-    {
-        // This avoids crashes if we Suspend rendering whilst the loading screen is up
-        // as we don't want Slate to submit any more draw calls until we Resume.
-        return;
-    }
+	// FPreLoadScreenSlateSynchMechanism need to be shutdown before we release the FSlateApplication
+	if (ensure(FSlateApplication::IsInitialized()))
+	{
+		FSlateRenderer* MainSlateRenderer = FSlateApplication::Get().GetRenderer();
+		FScopeLock ScopeLock(MainSlateRenderer->GetResourceCriticalSection());
 
-    const FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen();
+		if (GDynamicRHI && GDynamicRHI->RHIIsRenderingSuspended())
+		{
+			// This avoids crashes if we Suspend rendering whilst the loading screen is up
+			// as we don't want Slate to submit any more draw calls until we Resume.
+			return;
+		}
 
-    FSlateApplication::Get().Tick(ESlateTickType::Time);
+		const FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen();
 
-    const float Scale = 1.0f;
-    FGeometry WindowGeometry = FGeometry::MakeRoot(DrawSize, FSlateLayoutTransform(Scale));
+		FSlateApplication::Get().Tick(ESlateTickType::Time);
 
-    VirtualRenderWindow->SlatePrepass(WindowGeometry.Scale);
+		const float Scale = 1.0f;
+		FGeometry WindowGeometry = FGeometry::MakeRoot(DrawSize, FSlateLayoutTransform(Scale));
 
-    FSlateRect ClipRect = WindowGeometry.GetLayoutBoundingRect();
+		VirtualRenderWindow->SlatePrepass(WindowGeometry.Scale);
 
-	HittestGrid->SetHittestArea(VirtualRenderWindow->GetPositionInScreen(), VirtualRenderWindow->GetViewportSize());
-    HittestGrid->Clear();
+		FSlateRect ClipRect = WindowGeometry.GetLayoutBoundingRect();
 
-    // Get the free buffer & add our virtual window
-    FSlateDrawBuffer& DrawBuffer = SlateRenderer->GetDrawBuffer();
-    FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(VirtualRenderWindow);
+		HittestGrid->SetHittestArea(VirtualRenderWindow->GetPositionInScreen(), VirtualRenderWindow->GetViewportSize());
+		HittestGrid->Clear();
 
-    WindowElementList.SetRenderTargetWindow(MainWindow);
+		// Get the free buffer & add our virtual window
+		FSlateDrawBuffer& DrawBuffer = SlateRenderer->GetDrawBuffer();
+		FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(VirtualRenderWindow);
 
-    int32 MaxLayerId = 0;
-    {
-        FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
+		WindowElementList.SetRenderTargetWindow(MainWindow);
 
-        // Paint the window
-        MaxLayerId = VirtualRenderWindow->Paint(
-            PaintArgs,
-            WindowGeometry, ClipRect,
-            WindowElementList,
-            0,
-            FWidgetStyle(),
-            VirtualRenderWindow->IsEnabled());
-    }
+		int32 MaxLayerId = 0;
+		{
+			FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
 
-    SlateRenderer->DrawWindows(DrawBuffer);
+			// Paint the window
+			MaxLayerId = VirtualRenderWindow->Paint(
+				PaintArgs,
+				WindowGeometry, ClipRect,
+				WindowElementList,
+				0,
+				FWidgetStyle(),
+				VirtualRenderWindow->IsEnabled());
+		}
 
-    DrawBuffer.ViewOffset = FVector2D::ZeroVector;
+		SlateRenderer->DrawWindows(DrawBuffer);
+
+		DrawBuffer.ViewOffset = FVector2D::ZeroVector;
+	}
 }
 
 
 FPreLoadScreenSlateSynchMechanism::FPreLoadScreenSlateSynchMechanism(TSharedPtr<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer)
-    : MainLoopCounter(0)
-    , WidgetRenderer(InWidgetRenderer)
+    : bIsRunningSlateMainLoop(false)
+	, SlateLoadingThread(nullptr)
+	, SlateRunnableTask(nullptr)
+	, SleepEvent(nullptr)
+	, WidgetRenderer(InWidgetRenderer)
 {
 }
 
@@ -120,35 +132,35 @@ void FPreLoadScreenSlateSynchMechanism::Initialize()
 {
     check(IsInGameThread());
 
-    ResetSlateDrawPassEnqueued();
-    SetSlateMainLoopRunning();
+	// Initialize should only be called once
+	if (ensure(FSlateApplication::IsInitialized() && bIsRunningSlateMainLoop == 0))
+	{
+		bIsRunningSlateMainLoop = true;
+		check(SlateLoadingThread == nullptr);
 
-    //Try to only spin up 1 Slate Loading Thread
-    int8 LoopRunningCount = FPlatformAtomics::InterlockedIncrement(&MainLoopCounter);
-    if (LoopRunningCount == 1)
-    {
-        FString ThreadName = TEXT("SlateLoadingThread");
-        ThreadName.AppendInt(LoadingThreadInstanceCounter.Increment());
+		TStringBuilder<32> ThreadName;
+		ThreadName.Append(TEXT("SlateLoadingThread"));
+		ThreadName.Appendf(TEXT("%d"), LoadingThreadInstanceCounter.Load());
+		LoadingThreadInstanceCounter++;
 
-        SlateRunnableTask = new FPreLoadScreenSlateThreadTask(*this);
-        SlateLoadingThread = FRunnableThread::Create(SlateRunnableTask, *ThreadName);
-    }
+		SleepEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
+		SlateRunnableTask = new FPreLoadScreenSlateThreadTask(*this);
+		SlateLoadingThread = FRunnableThread::Create(SlateRunnableTask, ThreadName.GetData());
+	}
 }
 
 void FPreLoadScreenSlateSynchMechanism::DestroySlateThread()
 {
     check(IsInGameThread());
 
-    if (SlateLoadingThread)
+    if (bIsRunningSlateMainLoop)
     {
-        IsRunningSlateMainLoop.Reset();
+		check(SlateLoadingThread != nullptr);
+		bIsRunningSlateMainLoop = false;
+		SleepEvent->Trigger();
+		SlateLoadingThread->WaitForCompletion();
 
-        while (FPlatformAtomics::AtomicRead(&MainLoopCounter) > 0)
-        {
-            FPlatformApplicationMisc::PumpMessages(false);
-            FPlatformProcess::Sleep(0.1f);
-        }
-
+		FGenericPlatformProcess::ReturnSynchEventToPool(SleepEvent);
         delete SlateLoadingThread;
         delete SlateRunnableTask;
         SlateLoadingThread = nullptr;
@@ -156,92 +168,79 @@ void FPreLoadScreenSlateSynchMechanism::DestroySlateThread()
     }
 }
 
-bool FPreLoadScreenSlateSynchMechanism::IsSlateDrawPassEnqueued()
+bool FPreLoadScreenSlateSynchMechanism::IsSlateMainLoopRunning_AnyThread() const
 {
-    return IsSlateDrawEnqueued.GetValue() != 0;
+    return bIsRunningSlateMainLoop;
 }
 
-void FPreLoadScreenSlateSynchMechanism::SetSlateDrawPassEnqueued()
+void FPreLoadScreenSlateSynchMechanism::RunMainLoop_SlateThread()
 {
-    IsSlateDrawEnqueued.Set(1);
-}
+	double LastTime = FPlatformTime::Seconds();
+	TAtomic<int32> SlateDrawEnqueuedCounter(0);
+	FEvent* EnqueueRenderEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
 
-void FPreLoadScreenSlateSynchMechanism::ResetSlateDrawPassEnqueued()
-{
-    IsSlateDrawEnqueued.Reset();
-}
+	while (IsSlateMainLoopRunning_AnyThread())
+	{
+		// Test to ensure that we are still the SlateLoadingThread
+		checkCode(
+			const int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+			const int32 PreviousThreadId = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, CurrentThreadId, CurrentThreadId);
+			check(PreviousThreadId == CurrentThreadId)
+		);
 
-bool FPreLoadScreenSlateSynchMechanism::IsSlateMainLoopRunning()
-{
-    return IsRunningSlateMainLoop.GetValue() != 0;
-}
+		double CurrentTime = FPlatformTime::Seconds();
+		double DeltaTime = CurrentTime - LastTime;
+		{
+			// 60 fps max
+			const double MaxTickRate = 1.0 / 60.0f;
+			double TimeToWait = MaxTickRate - DeltaTime;
 
-void FPreLoadScreenSlateSynchMechanism::SetSlateMainLoopRunning()
-{
-    IsRunningSlateMainLoop.Set(1);
-}
+			if (TimeToWait > 0.0)
+			{
+				SleepEvent->Wait(FTimespan::FromSeconds(TimeToWait));
+				CurrentTime = FPlatformTime::Seconds();
+				DeltaTime = CurrentTime - LastTime;
+			}
+		}
 
-void FPreLoadScreenSlateSynchMechanism::ResetSlateMainLoopRunning()
-{
-    IsRunningSlateMainLoop.Reset();
-}
+		// Wait for the current render command to be executed
+		while (IsSlateMainLoopRunning_AnyThread() && SlateDrawEnqueuedCounter != 0)
+		{
+			EnqueueRenderEvent->Wait(FTimespan::FromMilliseconds(1));
+		}
 
-void FPreLoadScreenSlateSynchMechanism::SlateThreadRunMainLoop()
-{
-    double LastTime = FPlatformTime::Seconds();
+		if (IsSlateMainLoopRunning_AnyThread())
+		{
+			FScopeLock Lock(&FPreLoadScreenManager::AcquireCriticalSection);
+			if (IsSlateMainLoopRunning_AnyThread() && FPreLoadScreenManager::bRenderingEnabled)
+			{
+				WidgetRenderer->DrawWindow(DeltaTime);
+				++SlateDrawEnqueuedCounter;
+			}
 
-    while (IsSlateMainLoopRunning())
-    {
-        double CurrentTime = FPlatformTime::Seconds();
-        double DeltaTime = CurrentTime - LastTime;
-
-        // 60 fps max
-        const double MaxTickRate = 1.0 / 60.0f;
-
-        const double TimeToWait = MaxTickRate - DeltaTime;
-
-        if (TimeToWait > 0)
-        {
-            FPlatformProcess::Sleep(TimeToWait);
-            CurrentTime = FPlatformTime::Seconds();
-            DeltaTime = CurrentTime - LastTime;
-        }
-
-        if (FSlateApplication::IsInitialized() && !IsSlateDrawPassEnqueued() && FPreLoadScreenManager::ShouldRender())
-        {
-            FSlateRenderer* MainSlateRenderer = FSlateApplication::Get().GetRenderer();
-            FScopeLock ScopeLock(MainSlateRenderer->GetResourceCriticalSection());
-
-            //Don't queue up a draw pass if our main loop is shutting down
-            if (IsSlateMainLoopRunning())
-            {
-                WidgetRenderer->DrawWindow(DeltaTime);
-                SetSlateDrawPassEnqueued();
-            }
-
-            //Queue up a render tick every time we tick on this sync thread.
+			//Queue up a render tick every time we tick on this sync thread.
 			FPreLoadScreenSlateSynchMechanism* SyncMech = this;
 			ENQUEUE_RENDER_COMMAND(PreLoadScreenRenderTick)(
-				[SyncMech](FRHICommandListImmediate& RHICmdList)
-                {
-                    FPreLoadScreenManager* PreLoadManager = FPreLoadScreenManager::Get();
-                    if (PreLoadManager && FPreLoadScreenManager::ShouldRender())
-                    {
-                        FPreLoadScreenManager::Get()->RenderTick();
-                    }
-                        
-                    SyncMech->ResetSlateDrawPassEnqueued();
-                }
-            );
-        }
+				[SyncMech, &SlateDrawEnqueuedCounter, EnqueueRenderEvent](FRHICommandListImmediate& RHICmdList)
+				{
+					if (SyncMech->IsSlateMainLoopRunning_AnyThread())
+					{
+						FPreLoadScreenManager::StaticRenderTick_RenderThread();
+					}
+					--SlateDrawEnqueuedCounter;
+					EnqueueRenderEvent->Trigger();
+				}
+			);
+		}
 
-        LastTime = CurrentTime;
-    }
+		LastTime = CurrentTime;
+	}
 
-    while (IsSlateDrawPassEnqueued())
-    {
-        FPlatformProcess::Sleep(0.1f);
-    }
+	// Need to wait because the enqueued command has references this & SlateDrawEnqueuedCounter
+	while (SlateDrawEnqueuedCounter > 0)
+	{
+		EnqueueRenderEvent->Wait(FTimespan::FromMilliseconds(1));
+	}
 
-    FPlatformAtomics::InterlockedDecrement(&MainLoopCounter);
+	FGenericPlatformProcess::ReturnSynchEventToPool(EnqueueRenderEvent);
 }
