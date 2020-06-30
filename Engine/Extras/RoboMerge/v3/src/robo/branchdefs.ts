@@ -96,6 +96,7 @@ type EdgeOptionFields = {
 
 	disallowSkip: boolean
 	incognitoMode: boolean
+	doHackyOkForGithubThing: boolean
 
 	excludeAuthors: string[] // if present, completely overrides bot and node configs
 }
