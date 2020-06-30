@@ -401,7 +401,10 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 Features5 = {};
 		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &Features5, sizeof(Features5))))
 		{
-			GRHISupportsRayTracing = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0 && FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform);
+			GRHISupportsRayTracing = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0 
+				&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform)
+				&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing"));
+
 			GRHISupportsRayTracingMissShaderBindings = true;
 			GRHISupportsRayTracingPSOAdditions = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
 
@@ -443,7 +446,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 	const bool bRayTracingEnabled = bHasRayTracingInGameSetting ? bRayTracingInGameSettingEnabled : GetRayTracingCVarValue();
 
- 	if (GRHISupportsRayTracing && bRayTracingEnabled && !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+ 	if (GRHISupportsRayTracing && bRayTracingEnabled)
 	{
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference())); // DXR 1.0 (required)
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference())); // DXR 1.1 (optional)
