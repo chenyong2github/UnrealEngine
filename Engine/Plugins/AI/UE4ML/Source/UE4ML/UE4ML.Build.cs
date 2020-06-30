@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "GameplayTags",
-                    "GameplayDebugger",
                     "AIModule",
                     "InputCore",
                     "Json",
@@ -54,6 +53,16 @@ namespace UnrealBuildTool.Rules
             if (Target.bBuildEditor == true)
             {
                 PrivateDependencyModuleNames.Add("UnrealEd");
+            }
+
+            if (Target.bBuildDeveloperTools || (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test))
+            {
+                PrivateDependencyModuleNames.Add("GameplayDebugger");
+                PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=1");
+            }
+            else
+            {
+                PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
             }
         }
     }
