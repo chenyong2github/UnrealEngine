@@ -30,7 +30,6 @@
 #include "SoundCueGraph/SoundCueGraph.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
-#include "Audio.h"
 #endif // WITH_EDITOR
 
 /*-----------------------------------------------------------------------------
@@ -83,14 +82,51 @@ void USoundCue::CacheAggregateValues()
 
 		if (GIsEditor)
 		{
-#if WITH_EDITOR
 			const float NewDuration = FirstNode->GetDuration();
-			if (!FMath::IsNearlyEqual(NewDuration, Duration) && FMath::IsNearlyZero(Duration))
+			const float NewMaxDistance = FindMaxDistanceInternal();
+			const bool bNewHasDelayNode = FirstNode->HasDelayNode();
+			const bool bNewHasConcatenatorNode = FirstNode->HasConcatenatorNode();
+			const bool bNewHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
+
+			bool bValuesHaveChanged = false;
+
+			if (!FMath::IsNearlyEqual(NewDuration, Duration))
 			{
-				UE_LOG(LogAudio, Display, TEXT("Cached duration for Sound Cue %s was zero and has changed. Consider manually Re-saving the asset"), *GetFullName());
+				Duration = NewDuration;
+				bValuesHaveChanged = true;
 			}
-#endif // #if WITH_EDITOR
-			Duration = NewDuration;
+
+			if (!FMath::IsNearlyEqual(NewMaxDistance, MaxDistance))
+			{
+				MaxDistance = NewMaxDistance;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasDelayNode != bHasDelayNode)
+			{
+				bHasDelayNode = bNewHasDelayNode;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasConcatenatorNode != bHasConcatenatorNode)
+			{
+				bHasConcatenatorNode = bNewHasConcatenatorNode;
+				bValuesHaveChanged = true;
+			}
+
+			if (bNewHasPlayWhenSilent != bHasPlayWhenSilent)
+			{
+				bHasPlayWhenSilent = bNewHasPlayWhenSilent;
+				bValuesHaveChanged = true;
+			}
+
+			if (bValuesHaveChanged)
+			{
+				MarkPackageDirty();
+			}
+		}
+		else
+		{
 			MaxDistance = FindMaxDistanceInternal();
 			bHasDelayNode = FirstNode->HasDelayNode();
 			bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
