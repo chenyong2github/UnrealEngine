@@ -743,7 +743,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	else if(PackagingSettings->Build == EProjectPackagingBuild::IfProjectHasCode)
 	{
 		bBuild = true;
-		if (FApp::GetEngineIsPromotedBuild())
+		if (FApp::GetEngineIsPromotedBuild() && !bAssetNativizationEnabled)
 		{
 			FString BaseDir;
 
