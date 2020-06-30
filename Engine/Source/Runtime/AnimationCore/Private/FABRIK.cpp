@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FABRIK.h"
-#include "BoneContainer.h"
-
-FVector FFABRIKChainLink::GetDirectionToParent(const FBoneContainer& BoneContainer, FCompactPoseBoneIndex BoneIndex)
-{
-	const FTransform& RefTransform = BoneContainer.GetRefPoseTransform(BoneIndex);
-	return -RefTransform.GetTranslation().GetSafeNormal();
-}
 
 namespace AnimationCore
 {

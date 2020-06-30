@@ -6,11 +6,17 @@ public class AnimationCore : ModuleRules
 {
     public AnimationCore(ReadOnlyTargetRules Target) : base(Target)
     {
-        PublicDependencyModuleNames.AddRange(
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"Engine"
+			}
+		);
+
+		PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
                 "CoreUObject",
-                "Engine",
             }
         );
     }

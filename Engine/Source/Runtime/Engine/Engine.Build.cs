@@ -98,6 +98,7 @@ public class Engine : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AnimationCore",
 				"AppFramework",
 				"Networking",
 				"Landscape",

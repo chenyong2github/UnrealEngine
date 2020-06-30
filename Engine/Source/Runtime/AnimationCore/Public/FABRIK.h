@@ -75,8 +75,6 @@ public:
 		, DefaultDirToParent(FVector(-1.f, 0.f, 0.f))
 	{
 	}
-
-	static ANIMATIONCORE_API FVector GetDirectionToParent(const FBoneContainer& BoneContainer, FCompactPoseBoneIndex BoneIndex);
 };
 
 namespace AnimationCore
