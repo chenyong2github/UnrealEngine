@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundGenerator.h"
+#include "HAL/LowLevelMemTracker.h"
 
 ISoundGenerator::ISoundGenerator()
 {
@@ -12,6 +13,8 @@ ISoundGenerator::~ISoundGenerator()
 
 int32 ISoundGenerator::GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	PumpPendingMessages();
 
 	int32 NumSamplesToGenerate = NumSamples;
@@ -25,6 +28,8 @@ int32 ISoundGenerator::GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRe
 
 void ISoundGenerator::SynthCommand(TUniqueFunction<void()> Command)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	CommandQueue.Enqueue(MoveTemp(Command));
 }
 
