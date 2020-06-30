@@ -46,7 +46,7 @@ struct SYNTHESIS_API FMotoSynthRuntimeSettings
 	float GranularEngineVolume = 1.0f;
 
 	// The volume of the granular engine
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0", ClampMax = "100", UIMin = "0", UIMax = "100", EditCondition = "bGranularEngineEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0", UIMin = "0", EditCondition = "bGranularEngineEnabled"))
 	int32 NumSamplesToCrossfadeBetweenGrains = 10;
 
 	// How many grain-table entries to use per runtime grain
