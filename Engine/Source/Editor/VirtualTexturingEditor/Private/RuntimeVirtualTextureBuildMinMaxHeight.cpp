@@ -16,10 +16,10 @@
 namespace
 {
 	/** Container for render resources needed to render the MinMax height texture. */
-	class FRenderTileResources : public FRenderResource
+	class FMinMaxTileRenderResources : public FRenderResource
 	{
 	public:
-		FRenderTileResources(int32 InTileSize, int32 InNumTilesX, int32 InNumTilesY, int32 InNumMips)
+		FMinMaxTileRenderResources(int32 InTileSize, int32 InNumTilesX, int32 InNumTilesY, int32 InNumMips)
 			: TileSize(InTileSize)
 			, NumTilesX(InNumTilesX)
 			, NumTilesY(InNumTilesY)
@@ -132,7 +132,7 @@ namespace RuntimeVirtualTexture
 		const int32 NumMips = (int32)FMath::CeilLogTwo(FMath::Max(NumTilesX, NumTilesY)) + 1;
 
 		// Allocate render targets for rendering out the runtime virtual texture tiles
-		FRenderTileResources RenderTileResources(TileSize, NumTilesX, NumTilesY, NumMips);
+		FMinMaxTileRenderResources RenderTileResources(TileSize, NumTilesX, NumTilesY, NumMips);
 		BeginInitResource(&RenderTileResources);
 
 		// Spin up slow task UI
