@@ -811,6 +811,10 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 	Request.RequestType = ESceneSnapQueryType::Position;
 	Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
 	Request.Position = WorldPosition;
+	if ( bGridSizeIsExplicit )
+	{
+		Request.GridSize = ExplicitGridSize;
+	}
 	TArray<FSceneSnapQueryResult> Results;
 	if (GetGizmoManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
 	{
@@ -832,6 +836,10 @@ FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 		Request.RequestType   = ESceneSnapQueryType::Rotation;
 		Request.TargetTypes   = ESceneSnapQueryTargetType::Grid;
 		Request.DeltaRotation = DeltaRotation;
+		if ( bRotationGridSizeIsExplicit )
+		{
+			Request.RotGridSize = ExplicitRotationGridSize;
+		}
 		TArray<FSceneSnapQueryResult> Results;
 		if (GetGizmoManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
 		{
