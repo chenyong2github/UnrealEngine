@@ -636,7 +636,12 @@ void CalculateTransforms(int InstanceId, in FVertexFactoryIntermediates Intermed
 	}
 
 	// Apply CameraOffset
-	WorldParticlePosition += CalculateCameraOffset(WorldParticlePosition, InstanceId);
+	float3 CameraOffsetWorldPosition = WorldParticlePosition;
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		CameraOffsetWorldPosition = TransformLocalToWorld(WorldParticlePosition);
+	}
+	WorldParticlePosition += CalculateCameraOffset(CameraOffsetWorldPosition, InstanceId);
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Rotation
