@@ -138,7 +138,8 @@ public:
 		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
 		{
 			FRotator Rotator ( Request.DeltaRotation );
-			Rotator = Rotator.GridSnap( GEditor->GetRotGridSize() );
+			FRotator RotGrid = Request.RotGridSize.Get(GEditor->GetRotGridSize());
+			Rotator = Rotator.GridSnap( RotGrid );
 
 			FSceneSnapQueryResult SnapResult;
 			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
@@ -157,10 +158,14 @@ public:
 		{
 			FSceneSnapQueryResult SnapResult;
 			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+
 			float SnapSize = GEditor->GetGridSize();
-			SnapResult.Position.X = SnapToIncrement(Request.Position.X, SnapSize);
-			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, SnapSize);
-			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, SnapSize);
+			FVector GridSize = Request.GridSize.Get(FVector(SnapSize, SnapSize, SnapSize));
+
+			SnapResult.Position.X = SnapToIncrement(Request.Position.X, GridSize.X);
+			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, GridSize.Y);
+			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, GridSize.Z);
+
 			Results.Add(SnapResult);
 			FoundResultCount++;
 		}
