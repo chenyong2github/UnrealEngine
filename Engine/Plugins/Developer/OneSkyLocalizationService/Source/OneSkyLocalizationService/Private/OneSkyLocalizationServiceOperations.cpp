@@ -146,7 +146,7 @@ bool FOneSkyListProjectGroupsWorker::Execute(FOneSkyLocalizationServiceCommand& 
 	}
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListProjectGroupsWorker::Query_HttpRequestComplete);
@@ -211,7 +211,7 @@ bool FOneSkyShowProjectGroupWorker::Execute(class FOneSkyLocalizationServiceComm
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyShowProjectGroupWorker::Query_HttpRequestComplete);
@@ -274,7 +274,7 @@ bool FOneSkyCreateProjectGroupWorker::Execute(class FOneSkyLocalizationServiceCo
 	Url += "?" + Parameters;
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// Seems to work fine with no content payload (same info is in the URL anyway)
 	// Leaving code here as a reference for later
@@ -353,7 +353,7 @@ bool FOneSkyListProjectGroupLanguagesWorker::Execute(class FOneSkyLocalizationSe
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListProjectGroupLanguagesWorker::Query_HttpRequestComplete);
@@ -412,7 +412,7 @@ bool FOneSkyListProjectsInGroupWorker::Execute(class FOneSkyLocalizationServiceC
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListProjectsInGroupWorker::Query_HttpRequestComplete);
@@ -469,7 +469,7 @@ bool FOneSkyShowProjectWorker::Execute(class FOneSkyLocalizationServiceCommand& 
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyShowProjectWorker::Query_HttpRequestComplete);
@@ -536,7 +536,7 @@ bool FOneSkyCreateProjectWorker::Execute(class FOneSkyLocalizationServiceCommand
 	Url += "?" + Parameters;
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read 
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyCreateProjectWorker::Query_HttpRequestComplete);
@@ -595,7 +595,7 @@ bool FOneSkyListProjectLanguagesWorker::Execute(class FOneSkyLocalizationService
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListProjectLanguagesWorker::Query_HttpRequestComplete);
@@ -657,7 +657,7 @@ bool FOneSkyTranslationStatusWorker::Execute(class FOneSkyLocalizationServiceCom
 	Url += FString(TEXT("&file_name=")) + InFileName + FString(TEXT("&locale=")) + InLocale;
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyTranslationStatusWorker::Query_HttpRequestComplete);
@@ -735,7 +735,7 @@ bool FOneSkyTranslationExportWorker::Execute(class FOneSkyLocalizationServiceCom
 	}
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyTranslationExportWorker::Query_HttpRequestComplete);
@@ -894,7 +894,7 @@ bool FOneSkyListUploadedFilesWorker::Execute(class FOneSkyLocalizationServiceCom
 	}
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListUploadedFilesWorker::Query_HttpRequestComplete);
@@ -974,7 +974,7 @@ bool FOneSkyUploadFileWorker::Execute(class FOneSkyLocalizationServiceCommand& I
 	}
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyUploadFileWorker::Query_HttpRequestComplete);
@@ -1087,7 +1087,7 @@ bool FOneSkyListPhraseCollectionsWorker::Execute(class FOneSkyLocalizationServic
 	}
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyListPhraseCollectionsWorker::Query_HttpRequestComplete);
@@ -1158,7 +1158,7 @@ bool FOneSkyShowImportTaskWorker::Execute(class FOneSkyLocalizationServiceComman
 	Url = AddAuthenticationParameters(InCommand.ConnectionInfo, Url);
 
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	TSharedRef<class IHttpRequest> HttpRequest = HttpModule.Get().CreateRequest();
+	FHttpRequestRef HttpRequest = HttpModule.Get().CreateRequest();
 
 	// kick off http request to read
 	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOneSkyShowImportTaskWorker::Query_HttpRequestComplete);
