@@ -7,6 +7,7 @@
 #include "RuntimeVirtualTextureComponent.generated.h"
 
 class URuntimeVirtualTexture;
+class UTexture2D;
 class UVirtualTextureBuilder;
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
@@ -36,12 +37,16 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View Streaming Mips in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
+	/** Texture object containing min and max height. Only valid if the virtual texture contains a compatible height layer. This can be useful for ray marching against the height. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTextureBuild)
+	UTexture2D* MinMaxTexture = nullptr;
+
 public:
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
 	/** Get the streaming virtual texture object on this component. */
-	class UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
+	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
 
 	/** Public getter for virtual texture streaming low mips */
 	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
@@ -53,11 +58,32 @@ public:
 	bool IsCrunchCompressed() const { return bEnableCompressCrunch; }
 
 #if WITH_EDITOR
+	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */
+	void SetStreamingTexture(UVirtualTextureBuilder* InTexture) { StreamingTexture = InTexture; }
 	/** Initialize the low mip streaming texture with the passed in size and data. */
 	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
 #endif
 
+	/** Returns true if a MinMax height texture is relevant for this virtual texture type. */
+	bool IsMinMaxTextureEnabled() const;
+
+	/** Get the streaming MinMax height texture on this component. */
+	UTexture2D* GetMinMaxTexture() { return IsMinMaxTextureEnabled() ? MinMaxTexture : nullptr; }
+
+#if WITH_EDITOR
+	/** Set a new asset to hold the MinMax height texture. This should only be called directly before setting data to the new asset. */
+	void SetMinMaxTexture(UTexture2D* InTexture) { MinMaxTexture = InTexture; }
+	/** Initialize the MinMax height texture with the passed in size and data. */
+	void InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData);
+#endif
+
 protected:
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const;
+#endif
+	//~ End UObject Interface
+
 	//~ Begin UActorComponent Interface
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
@@ -76,6 +102,9 @@ protected:
 	uint64 CalculateStreamingTextureSettingsHash() const;
 	/** Returns true if the StreamingTexure contents are valid for use. */
 	bool IsStreamingTextureValid() const;
+
+	/** Returns true if the MinMaxTexture contents are valid for use. */
+	bool IsMinMaxTextureValid() const;
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */
