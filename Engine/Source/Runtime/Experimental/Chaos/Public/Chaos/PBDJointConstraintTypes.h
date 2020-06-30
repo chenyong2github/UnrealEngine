@@ -161,6 +161,8 @@ namespace Chaos
 
 		FReal LinearBreakForce;
 		FReal AngularBreakTorque;
+
+		void* UserData;
 	};
 
 	class CHAOS_API FPBDJointSolverSettings
