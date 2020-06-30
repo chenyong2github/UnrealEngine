@@ -1425,6 +1425,7 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 {
 	using AccessorType = FNiagaraDataConversions<T>;//TODO: Route template calls in here so we can use a regular accessor rather than a converatable accessor.
 	FDirectReadParamHandler<T> Params(Context);
+	bool bWriteDummyData = true;
 	if (FNiagaraEmitterInstance* EmitterInstance = Params.GetEmitterInstance())
 	{
 		const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();//TODO: We should really be grabbing this in the instance data tick and adding a read ref to it.
@@ -1440,6 +1441,8 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 				FNiagaraDataSetAccessor<AccessorType> ValueData(EmitterInstance->GetData(), ReadVar);
 
 				FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
+
+				bWriteDummyData = false;
 
 				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 				{
@@ -1465,16 +1468,17 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 					Params.SetValue(Value);
 				}
 			}
-
-			return;
 		}
 	}
 
-	//If we get there there's been a problem so just fill the output with default;
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	// Do we need to write dummy data due to not being in a valid state?
+	if (bWriteDummyData)
 	{
-		Params.SetValid(false);
-		Params.SetValue(Default);
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			Params.SetValid(false);
+			Params.SetValue(Default);
+		}
 	}
 }
 
@@ -1556,6 +1560,7 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 	using AccessorType = FNiagaraDataConversions<T>;//TODO: Route template calls in here so we can use a regular accessor rather than a converatable accessor.
 	FDirectReadByIndexParamHandler<T> Params(Context);
 
+	bool bWriteDummyData = true;
 	if (FNiagaraEmitterInstance* EmitterInstance = Params.GetEmitterInstance())
 	{
 		const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();//TODO: We should really be grabbing these during instance data tick and adding a read ref. Releasing that on PostTick.
@@ -1569,6 +1574,8 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 			FNiagaraDataSetAccessor<AccessorType> ValueData(EmitterInstance->GetData(), ReadVar);
 
 			FNiagaraDataSetAccessor<FNiagaraID> IDData(EmitterInstance->GetData(), IDVar);
+
+			bWriteDummyData = false;
 
 			for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 			{
@@ -1585,16 +1592,17 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 				Params.SetValid(bValid);
 				Params.SetValue(Value);
 			}
-
-			return;
 		}
 	}
 
-	//If we get there there's been a problem so just fill the output with default;
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	// Do we need to write dummy data due to not being in a valid state?
+	if (bWriteDummyData)
 	{
-		Params.SetValid(false);
-		Params.SetValue(Default);
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			Params.SetValid(false);
+			Params.SetValue(Default);
+		}
 	}
 }
 
