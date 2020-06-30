@@ -55,21 +55,17 @@ FAutoConsoleCommand GDumpTemplateSizesCommand(
 			FClassAndSize Entry;
 			Entry.ClassName = WidgetClass->GetName();
 
-#if WITH_EDITOR
-			if (WidgetClass->WillHaveTemplate())
-#else
-			if (WidgetClass->HasTemplate())
-#endif
+			if (UUserWidget* TemplateWidget = WidgetClass->GetDefaultObject<UUserWidget>())
 			{
-				if (UUserWidget* TemplateWidget = WidgetClass->GetTemplate())
+				int32 TemplateSize = WidgetClass->GetStructureSize();
+				if (const UWidgetTree* TemplateWidgetTree = WidgetClass->GetWidgetTreeArchetype())
 				{
-					int32 TemplateSize = WidgetClass->GetStructureSize();
-					TemplateWidget->WidgetTree->ForEachWidgetAndDescendants([&TemplateSize](UWidget* Widget) {
+					TemplateWidgetTree->ForEachWidget([&TemplateSize](UWidget* Widget) {
 						TemplateSize += Widget->GetClass()->GetStructureSize();
 					});
-
-					Entry.TemplateSize = TemplateSize;
 				}
+
+				Entry.TemplateSize = TemplateSize;
 			}
 
 			TemplateSizes.Add(Entry);
@@ -120,8 +116,6 @@ namespace
 
 UWidgetBlueprintGeneratedClass::UWidgetBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bAllowDynamicCreation(true)
-	, bTemplateInitialized(false)
 {
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UWidgetBlueprintGeneratedClass::StaticClass(), &CollectWidgetBlueprintGeneratedClassTextReferences); }
@@ -183,8 +177,6 @@ void UWidgetBlueprintGeneratedClass::InitializeBindingsStatic(UUserWidget* UserW
 
 void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWidget
 	, const UClass* InClass
-	, bool InHasTemplate
-	, bool InAllowDynamicCreation
 	, UWidgetTree* InWidgetTree
 	, const TArray< UWidgetAnimation* >& InAnimations
 	, const TArray< FDelegateRuntimeBinding >& InBindings)
@@ -208,60 +200,15 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 
 	UWidgetTree* ClonedTree = UserWidget->WidgetTree;
 
-	if ( UserWidget->bCookedWidgetTree )
+	// Normally the ClonedTree should be null - we do in the case of design time with the widget, actually
+	// clone the widget tree directly from the WidgetBlueprint so that the rebuilt preview matches the newest
+	// widget tree, without a full blueprint compile being required.  In that case, the WidgetTree on the UserWidget
+	// will have already been initialized to some value.  When that's the case, we'll avoid duplicating it from the class
+	// similar to how we use to use the DesignerWidgetTree.
+	if ( ClonedTree == nullptr )
 	{
-#if WITH_EDITOR
-		// TODO This can get called at editor time when PostLoad runs and we attempt to initialize the tree.
-		// Perhaps we shouldn't call init in post load if it's a cooked tree?
-
-		//UE_LOG(LogUMG, Fatal, TEXT("Initializing a cooked widget tree at editor time! %s."), *InClass->GetName());
-#else
-		// If we can be templated, we need to go ahead and initialize all the user widgets under us, since we're
-		// an already expanded tree.
-		check(ClonedTree);
-		// Either we have a template and permit fast creation, or we don't have a template and don't allow dynamic creation
-		// and this is some widget with a cooked widget tree nested inside some other template.
-		check((InHasTemplate && InAllowDynamicCreation) || (!InHasTemplate && !InAllowDynamicCreation))
-
-		// TODO NDarnell This initialization can be made faster if part of storing the template data is some kind of
-		// acceleration structure that could be the all the userwidgets we need to initialize bindings for...etc.
-
-		// If there's an existing widget tree, then we need to initialize all userwidgets in the tree.
-		ClonedTree->ForEachWidget([&] (UWidget* Widget) {
-			check(Widget);
-
-#if !UE_BUILD_SHIPPING
-			Widget->WidgetGeneratedByClass = WidgetGeneratedByClass;
-#endif
-
-			if ( UUserWidget* SubUserWidget = Cast<UUserWidget>(Widget) )
-			{
-				SubUserWidget->Initialize();
-			}
-		});
-
-		BindAnimations(UserWidget, InAnimations);
-
-		InitializeBindingsStatic(UserWidget, InBindings);
-
-		UBlueprintGeneratedClass::BindDynamicDelegates(InClass, UserWidget);
-
-#endif
-		// We don't need any more initialization for template widgets.
-		return;
-	}
-	else
-	{
-		// Normally the ClonedTree should be null - we do in the case of design time with the widget, actually
-		// clone the widget tree directly from the WidgetBlueprint so that the rebuilt preview matches the newest
-		// widget tree, without a full blueprint compile being required.  In that case, the WidgetTree on the UserWidget
-		// will have already been initialized to some value.  When that's the case, we'll avoid duplicating it from the class
-		// similar to how we use to use the DesignerWidgetTree.
-		if ( ClonedTree == nullptr )
-		{
-			UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree);
-			ClonedTree = UserWidget->WidgetTree;
-		}
+		UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree);
+		ClonedTree = UserWidget->WidgetTree;
 	}
 
 #if !WITH_EDITOR && UE_BUILD_DEBUG
@@ -372,19 +319,26 @@ void UWidgetBlueprintGeneratedClass::InitializeWidget(UUserWidget* UserWidget) c
 		SuperClass = SuperClass->GetSuperClass();
 	}
 
-	InitializeWidgetStatic(UserWidget, this, HasTemplate(), bAllowDynamicCreation, WidgetTree, AllAnims, AllBindings);
+	InitializeWidgetStatic(UserWidget, this, WidgetTree, AllAnims, AllBindings);
 }
 
 void UWidgetBlueprintGeneratedClass::PostLoad()
 {
 	Super::PostLoad();
 
-	// Clear CDO flag on tree
 	if (WidgetTree)
 	{
+		// Clear CDO flag on tree
 		WidgetTree->ClearFlags(RF_DefaultSubObject);
+		// We're going to use the widget tree as an archetype for widget construction.
+		WidgetTree->SetFlags(RF_ArchetypeObject);
+
+#if !WITH_EDITOR
+		WidgetTree->AddToCluster(this, true);
+#endif
 	}
 
+#if WITH_EDITOR
 	if ( GetLinkerUE4Version() < VER_UE4_RENAME_WIDGET_VISIBILITY )
 	{
 		static const FName Visiblity(TEXT("Visiblity"));
@@ -398,6 +352,7 @@ void UWidgetBlueprintGeneratedClass::PostLoad()
 			}
 		}
 	}
+#endif
 }
 
 void UWidgetBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
@@ -422,15 +377,6 @@ void UWidgetBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
 	}
 	Animations.Empty();
 
-	bValidTemplate = false;
-
-	Template = nullptr;
-	TemplateAsset.Reset();
-
-#if WITH_EDITOR
-	EditorTemplate = nullptr;
-#endif
-
 	Bindings.Empty();
 }
 
@@ -441,130 +387,25 @@ bool UWidgetBlueprintGeneratedClass::NeedsLoadForServer() const
 	return UISettings->bLoadWidgetsOnDedicatedServer;
 }
 
-bool UWidgetBlueprintGeneratedClass::HasTemplate() const
+void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidgetTree)
 {
-	return bValidTemplate && bAllowDynamicCreation;
-}
+	WidgetTree = InWidgetTree;
 
-void UWidgetBlueprintGeneratedClass::SetTemplate(UUserWidget* InTemplate)
-{
-	Template = InTemplate;
-	TemplateAsset = InTemplate;
-	
-	if (Template)
+	if (WidgetTree)
 	{
-		Template->AddToCluster(this, true);
+		WidgetTree->SetFlags(RF_ArchetypeObject);
 	}
-
-	bValidTemplate = TemplateAsset.IsNull() ? false : true;
-}
-
-UUserWidget* UWidgetBlueprintGeneratedClass::GetTemplate()
-{
-#if WITH_EDITOR
-
-	if ( TemplatePreviewInEditor )
-	{
-		if ( EditorTemplate == nullptr && bAllowTemplate && bAllowDynamicCreation )
-		{
-			EditorTemplate = NewObject<UUserWidget>(this, this, NAME_None, EObjectFlags(RF_ArchetypeObject | RF_Transient));
-			EditorTemplate->TemplateInit();
-
-#if UE_BUILD_DEBUG
-			TArray<FText> OutErrors;
-			if ( EditorTemplate->VerifyTemplateIntegrity(OutErrors) == false )
-			{
-				UE_LOG(LogUMG, Error, TEXT("Widget Class %s - Template Failed Verification"), *GetName());
-			}
-#endif
-		}
-
-		return EditorTemplate;
-	}
-	else
-	{
-		return nullptr;
-	}
-
-#else
-
-	if ( bTemplateInitialized == false && HasTemplate() )
-	{
-		// This shouldn't be possible with the EDL loader, so only attempt to do it then.
-		if (GEventDrivenLoaderEnabled == false && Template == nullptr)
-		{
-			Template = TemplateAsset.LoadSynchronous();
-		}
-
-		// If you hit this ensure, it's possible there's a problem with the loader, or the cooker and the template
-		// widget did not end up in the cooked package.
-		if ( ensureMsgf(Template, TEXT("No Template Found!  Could not load a Widget Archetype for %s."), *GetName()) )
-		{
-			bTemplateInitialized = true;
-
-			// This should only ever happen if the EDL is disabled, where you're not guaranteed every object in the package
-			// has been loaded at this point.
-			if (GEventDrivenLoaderEnabled == false)
-			{
-				if (Template->HasAllFlags(RF_NeedLoad))
-				{
-					if (FLinkerLoad* Linker = Template->GetLinker())
-					{
-						Linker->Preload(Template);
-					}
-				}
-			}
-
-#if !UE_BUILD_SHIPPING
-			UE_LOG(LogUMG, Display, TEXT("Widget Class %s - Loaded Fast Template."), *GetName());
-#endif
-
-#if UE_BUILD_DEBUG
-			TArray<FText> OutErrors;
-			if ( Template->VerifyTemplateIntegrity(OutErrors) == false )
-			{
-				UE_LOG(LogUMG, Error, TEXT("Widget Class %s - Template Failed Verification"), *GetName());
-			}
-#endif
-		}
-		else
-		{
-#if !UE_BUILD_SHIPPING
-			UE_LOG(LogUMG, Error, TEXT("Widget Class %s - Failed To Load Template."), *GetName());
-#endif
-		}
-	}
-
-#endif
-
-	return Template;
 }
 
 void UWidgetBlueprintGeneratedClass::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITOR
-	if ( TargetPlatform && TargetPlatform->RequiresCookedData() )
-	{
-		if ( WidgetTree )
-		{
-			if (bCookSlowConstructionWidgetTree)
-			{
-				WidgetTree->ClearFlags(RF_Transient);
-			}
-			else
-			{
-				WidgetTree->SetFlags(RF_Transient);
-			}
-		}
-
-		InitializeTemplate(TargetPlatform);
-	}
-	else
+	if (TargetPlatform == nullptr)
 	{
 		// If we're saving the generated class in the editor, should we allow it to preserve a shadow copy of the one in the
 		// blueprint?  Seems dangerous to have this potentially stale copy around, when really it should be the latest version
 		// that's compiled on load.
-		if ( WidgetTree )
+		if (WidgetTree)
 		{
 			WidgetTree->SetFlags(RF_Transient);
 		}
@@ -579,76 +420,6 @@ void UWidgetBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
-}
-
-void UWidgetBlueprintGeneratedClass::InitializeTemplate(const ITargetPlatform* TargetPlatform)
-{
-#if WITH_EDITOR
-
-	if ( TargetPlatform && TargetPlatform->RequiresCookedData() )
-	{
-		bool bCanTemplate = bAllowTemplate && bAllowDynamicCreation;
-
-		if ( bCanTemplate )
-		{
-			UUserWidget* WidgetTemplate = NewObject<UUserWidget>(GetTransientPackage(), this);
-			WidgetTemplate->TemplateInit();
-
-			// Determine if we can generate a template for this widget to speed up CreateWidget time.
-			TArray<FText> OutErrors;
-			bCanTemplate = WidgetTemplate->VerifyTemplateIntegrity(OutErrors);
-			for ( FText Error : OutErrors )
-			{
-				UE_LOG(LogUMG, Warning, TEXT("Widget Class %s Template Error - %s."), *GetName(), *Error.ToString());
-			}
-		}
-
-		UPackage* WidgetTemplatePackage = GetOutermost();
-
-		// Remove the old archetype.
-		{
-			UUserWidget* OldArchetype = FindObject<UUserWidget>(WidgetTemplatePackage, TEXT("WidgetArchetype"));
-			if ( OldArchetype )
-			{
-				const ERenameFlags RenFlags = REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty | REN_ForceNoResetLoaders;
-
-				FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_%s"), *OldArchetype->GetName());
-				FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), OldArchetype->GetClass(), FName(*TransientArchetypeString));
-				OldArchetype->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
-				OldArchetype->SetFlags(RF_Transient);
-				OldArchetype->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-			}
-		}
-
-		if ( bCanTemplate )
-		{
-			UUserWidget* WidgetTemplate = NewObject<UUserWidget>(WidgetTemplatePackage, this, TEXT("WidgetArchetype"), EObjectFlags(RF_Public | RF_Standalone | RF_ArchetypeObject));
-			WidgetTemplate->TemplateInit();
-
-			SetTemplate(WidgetTemplate);
-
-			UE_LOG(LogUMG, Verbose, TEXT("Widget Class %s - Template Initialized."), *GetName());
-		}
-		else if (bAllowDynamicCreation == false)
-		{
-			UE_LOG(LogUMG, Display, TEXT("Widget Class %s - Not Allowed To Create Template"), *GetName());
-
-			SetTemplate(nullptr);
-		}
-		else if ( bAllowTemplate == false )
-		{
-			UE_LOG(LogUMG, Display, TEXT("Widget Class %s - Not Allowed To Create Template"), *GetName());
-
-			SetTemplate(nullptr);
-		}
-		else
-		{
-			UE_LOG(LogUMG, Warning, TEXT("Widget Class %s - Failed To Create Template"), *GetName());
-
-			SetTemplate(nullptr);
-		}
-	}
-#endif
 }
 
 UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOwningClass()

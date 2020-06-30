@@ -3412,6 +3412,21 @@ public:
 	void RetrieveObjectInstances( class UObject* SearchOuter, TArray<class UObject*>& out_Objects );
 
 	/**
+	 * Allows looping over instances that were created during this instancing.
+	 *
+	 * @param	Pred		the object to retrieve object instances for
+	 */
+	template <typename Predicate>
+	void ForEachObjectInstance(Predicate Pred)
+	{
+		for (TMap<UObject*, UObject*>::TIterator It(SourceToDestinationMap); It; ++It)
+		{
+			UObject* InstancedObject = It.Value();
+			Pred(InstancedObject);
+		}
+	}
+
+	/**
 	 * Enables / disables component instancing.
 	 */
 	void EnableSubobjectInstancing( bool bEnabled )
