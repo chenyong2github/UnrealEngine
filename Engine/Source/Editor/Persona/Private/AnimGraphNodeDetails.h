@@ -111,6 +111,8 @@ protected:
 
 	// Target Skeleton this widget is referencing
 	TSharedPtr<IEditableSkeleton> TargetEditableSkeleton;
+
+	bool bEnsureOnInvalidSkeleton = true;
 private:
 
 	// Bone tree widget delegates
