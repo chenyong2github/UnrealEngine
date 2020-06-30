@@ -96,10 +96,10 @@ private:
 	FString UserID;
 	/** The session ID */
 	FString SessionID;
-	/** interval which to ensure events are flushed to the server. An event should not sit in the cache longer than this. It may be flushed sooner, but not longer (unless there is a hitch) */
-	float FlushIntervalSec;
 	/** Default flush interval, when one is not explicitly given. */
 	const float DefaultFlushIntervalSec = 60.0f;
+	/** interval which to ensure events are flushed to the server. An event should not sit in the cache longer than this. It may be flushed sooner, but not longer (unless there is a hitch) */
+	float FlushIntervalSec;
 	/** Allows events to not be cached when -AnalyticsDisableCaching is used. This should only be used for debugging as caching significantly reduces bandwidth overhead per event. */
 	bool bShouldCacheEvents;
 	/** Current timer to keep track of FlushIntervalSec flushes */
