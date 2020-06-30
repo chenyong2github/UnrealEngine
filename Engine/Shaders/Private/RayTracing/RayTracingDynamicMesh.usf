@@ -49,6 +49,7 @@ uint VertexBufferSize;
 uint NumVertices;
 uint MinVertexIndex;
 uint PrimitiveId;
+uint OutputVertexBaseIndex;
 RWBuffer<float> RWVertexPositions;
 int bApplyWorldPositionOffset;
 
@@ -79,15 +80,15 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 			WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 		}
 
-		RWVertexPositions[VertexIndex * 3 + 0] = WorldPosition.x;
-		RWVertexPositions[VertexIndex * 3 + 1] = WorldPosition.y;
-		RWVertexPositions[VertexIndex * 3 + 2] = WorldPosition.z;
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 0] = WorldPosition.x;
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 1] = WorldPosition.y;
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 2] = WorldPosition.z;
 	}
 	else if (bUsingIndirectDraw)
 	{
-		RWVertexPositions[VertexIndex * 3 + 0] = asfloat(0xFFFFFFFF);
-		RWVertexPositions[VertexIndex * 3 + 1] = 0;
-		RWVertexPositions[VertexIndex * 3 + 2] = 0;
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 0] = asfloat(0xFFFFFFFF);
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 1] = 0;
+		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 2] = 0;
 	}
 }
 #endif

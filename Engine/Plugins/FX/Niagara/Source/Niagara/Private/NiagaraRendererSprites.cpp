@@ -167,7 +167,6 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 	if (IsRayTracingEnabled())
 	{
 		RayTracingGeometry.ReleaseResource();
-		RayTracingDynamicVertexBuffer.Release();
 	}
 #endif
 }
@@ -180,8 +179,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererSprites::RayTracingDynamicVertexBuffer"));
-
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererSprites");
 		static int32 DebugNumber = 0;
@@ -672,8 +669,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				6 *  SourceParticleData->GetNumInstances(),
 				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
 				2 *  SourceParticleData->GetNumInstances(),
-				&RayTracingGeometry,
-				&RayTracingDynamicVertexBuffer
+				&RayTracingGeometry
 			}
 		);
 	}

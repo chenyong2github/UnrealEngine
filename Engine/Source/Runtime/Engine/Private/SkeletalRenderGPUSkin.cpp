@@ -219,7 +219,6 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 
 #if RHI_RAYTRACING
 	BeginReleaseResource(&RayTracingGeometry);
-	ENQUEUE_RENDER_COMMAND(ReleaseRayTracingDynamicVertexBuffer)([&RayTracingDynamicVertexBuffer = RayTracingDynamicVertexBuffer](FRHICommandListImmediate& RHICmdList) mutable { RayTracingDynamicVertexBuffer.Release(); });
 #endif
 }
 

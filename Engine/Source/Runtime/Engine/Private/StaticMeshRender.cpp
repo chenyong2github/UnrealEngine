@@ -340,12 +340,9 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 				Initializer.bFastBuild = true;
 			}
 
-			DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
-
 			for (int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
 			{
 				auto& Geometry = DynamicRayTracingGeometries[i];
-				DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
 				Geometry.InitResource();
 			}
 
@@ -367,13 +364,6 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 
 			DynamicRayTracingGeometries.Empty();
 
-			for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
-			{
-				Buffer.Release();
-			}
-
-			DynamicRayTracingGeometryVertexBuffers.Empty();
-
 			if (GetPrimitiveSceneInfo())
 			{
 				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
@@ -386,11 +376,6 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
 #if RHI_RAYTRACING
-	for (auto& Buffer: DynamicRayTracingGeometryVertexBuffers)
-	{
-		Buffer.Release();
-	}
-
 	for (auto& Geometry: DynamicRayTracingGeometries)
 	{
 		Geometry.ReleaseResource();
@@ -656,11 +641,9 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 			}
 		}
 
-		DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
 		for(int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
 		{
 			auto& Geometry = DynamicRayTracingGeometries[i];
-			DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FStaticMeshSceneProxy::RayTracingDynamicVertexBuffer"));
 			Geometry.InitResource();
 		}
 	}
@@ -1734,8 +1717,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					(uint32)LODModel.GetNumVertices(),
 					uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 					Geometry.Initializer.TotalPrimitiveCount,
-					&Geometry,
-					&DynamicRayTracingGeometryVertexBuffers[LODIndex]
+					&Geometry
 				}
 		);
 		}
