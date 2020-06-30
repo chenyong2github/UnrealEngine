@@ -1115,6 +1115,8 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 				UPartyMember& LeftMember = **FoundPartyMember;
 				PartyMembersById.Remove(FUniqueNetIdRepl(MemberId.AsShared()));
 
+				OnPartyMemberLeft().Broadcast(&LeftMember, ExitReason);
+
 				UpdatePlatformSessionLeader(LeftMember.GetPlatformOssName());
 				LeftMember.NotifyRemovedFromParty(ExitReason);
 				LeftMember.MarkPendingKill();
