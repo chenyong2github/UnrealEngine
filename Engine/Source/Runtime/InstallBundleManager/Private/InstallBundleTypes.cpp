@@ -42,6 +42,7 @@ const TCHAR* LexToString(EInstallBundleManagerInitResult Result)
 	{
 		TEXT("OK"),
 		TEXT("BuildMetaDataNotFound"),
+		TEXT("RemoteBuildMetaDataNotFound"),
 		TEXT("BuildMetaDataDownloadError"),
 		TEXT("BuildMetaDataParsingError"),
 		TEXT("DistributionRootParseError"),
