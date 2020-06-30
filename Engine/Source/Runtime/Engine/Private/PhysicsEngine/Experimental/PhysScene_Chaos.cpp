@@ -390,6 +390,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, bIsWorldPaused(false)
 #endif
 {
+#if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::Chaos);
 
 	PhysicsProxyToComponentMap.Reset();
@@ -417,6 +418,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	SceneSolver->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
+#endif
 }
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
