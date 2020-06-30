@@ -5,6 +5,7 @@
 #include "coreminimal.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/Guid.h"
+#include "UObject/ObjectKey.h"
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraGraph.h"
