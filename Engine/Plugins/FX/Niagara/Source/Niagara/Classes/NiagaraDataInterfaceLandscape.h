@@ -65,7 +65,8 @@ public:
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual int32 PerInstanceDataSize() const override { return sizeof(FNDILandscapeData_GameThread); }	
+	virtual int32 PerInstanceDataSize() const override { return sizeof(FNDILandscapeData_GameThread); }
+	virtual bool HasPreSimulateTick() const override { return true; }
 	
 	static const FString LandscapeTextureName;
 	static const FString SamplerName;

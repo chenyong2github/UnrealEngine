@@ -91,6 +91,22 @@ static FAutoConsoleVariableRef CVarSystemSimTransferParamsParallelThreshold(
 	ECVF_Default
 );
 
+static int32 GNiagaraConcurrentGPUTickInit = 1;
+static FAutoConsoleVariableRef CVarNiagaraConcurrentGPUTickInit(
+	TEXT("fx.Niagara.ConcurrentGPUTickInit"),
+	GNiagaraConcurrentGPUTickInit,
+	TEXT("The if non zero we allow GPU Ticks to be initialized in the System's concurrent tick rather than on the game thread."),
+	ECVF_Default
+);
+
+static int32 GNiagaraBatchGPUTickSubmit = 1;
+static FAutoConsoleVariableRef CVarNiagaraBatchGPUTickSubmit(
+	TEXT("fx.Niagara.BatchGPUTickSubmit"),
+	GNiagaraBatchGPUTickSubmit,
+	TEXT("The if non zero we allow GPU Ticks to be submitted to the Render Thread in batches."),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 // Task priorities for simulation tasks
 
@@ -319,9 +335,44 @@ public:
 		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, false);
 
 		PARTICLE_PERF_STAT_CYCLES(SystemSim->GetSystem(), Finalize);
-		for (FNiagaraSystemInstance* Inst : Batch)
+
+		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
+		if(Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched)
 		{
-			Inst->FinalizeTick_GameThread();
+			TArray<FNiagaraGPUSystemTick, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
+			GPUTicks.Reserve(Batch.Num());
+			for (FNiagaraSystemInstance* Inst : Batch)
+			{
+				//Don't submit if the finalize was already done in a wait() as then we'd be double ticking GPU emitters.
+				if(Inst->FinalizeTick_GameThread(false))
+				{
+					if(Inst->NeedsGPUTick())
+					{
+						Inst->InitGPUTick(GPUTicks.AddDefaulted_GetRef());
+					}
+				}
+			}
+
+			if(GPUTicks.Num() > 0)
+			{
+				NiagaraEmitterInstanceBatcher* TheBatcher = SystemSim->GetBatcher();
+				ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
+					[TheBatcher, GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
+					{
+						for(auto& GPUTick : GPUTicks)
+						{
+							TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+						}
+					}
+				);
+			}
+		}
+		else
+		{
+			for (FNiagaraSystemInstance* Inst : Batch)
+			{
+				Inst->FinalizeTick_GameThread();
+			}
 		}
 	}
 };
@@ -349,9 +400,41 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		PARTICLE_PERF_STAT_CYCLES(Batch[0]->GetSystem(), TickConcurrent);
-		for (FNiagaraSystemInstance* Inst : Batch)
+
+		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
+		if (Mode == ENiagaraGPUTickHandlingMode::ConcurrentBatched)
 		{
-			Inst->Tick_Concurrent();
+			TArray<FNiagaraGPUSystemTick, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
+			GPUTicks.Reserve(Batch.Num());
+			for (FNiagaraSystemInstance* Inst : Batch)
+			{
+				Inst->Tick_Concurrent(false);
+				if(Inst->NeedsGPUTick())
+				{
+					Inst->InitGPUTick(GPUTicks.AddDefaulted_GetRef());
+				}
+			}
+
+			if (GPUTicks.Num() > 0)
+			{
+				NiagaraEmitterInstanceBatcher* TheBatcher = SystemSim->GetBatcher();
+				ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
+					[TheBatcher, GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
+					{
+						for (auto& GPUTick : GPUTicks)
+						{
+							TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+						}
+					}
+				);
+			}
+		}
+		else
+		{
+			for (FNiagaraSystemInstance* Inst : Batch)
+			{
+				Inst->Tick_Concurrent();
+			}
 		}
 	}
 };
@@ -400,12 +483,21 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 	FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(InWorld);
 	check(WorldMan);
 
+	Batcher = nullptr;
+	if (World && World->Scene)
+	{
+		FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem();
+		if (FXSystemInterface)
+		{
+			Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
+		}
+	}
+
 	bCanExecute = System->GetSystemSpawnScript()->GetVMExecutableData().IsValid() && System->GetSystemUpdateScript()->GetVMExecutableData().IsValid();
 	UEnum* EnumPtr = FNiagaraTypeDefinition::GetExecutionStateEnum();
 
 	if (bCanExecute)
 	{
-
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_DataSets);
 
@@ -2062,4 +2154,26 @@ void FNiagaraSystemSimulation::BuildConstantBufferTable(
 	ConstantBufferTable.AddTypedBuffer(GlobalParameters);
 	ConstantBufferTable.AddRawBuffer(ExternalParameterBuffer, ExternalParameterSize);
 	ConstantBufferTable.AddRawBuffer(ScriptLiterals.GetData(), ScriptLiterals.Num());
+}
+
+ENiagaraGPUTickHandlingMode FNiagaraSystemSimulation::GetGPUTickHandlingMode()const
+{
+	const UNiagaraSystem* System = GetSystem();
+	if (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) && System && System->HasAnyGPUEmitters())
+	{
+		//TODO: Maybe some DI post ticks can even be done concurrent too which would also remove this restriction.
+		bool bGT = System->HasDIsWithPostSimulateTick() || GNiagaraConcurrentGPUTickInit == 0;
+		bool bBatched = GNiagaraBatchGPUTickSubmit && !bIsSolo;
+
+		if (bGT)
+		{
+			return bBatched ? ENiagaraGPUTickHandlingMode::GameThreadBatched : ENiagaraGPUTickHandlingMode::GameThread;
+		}
+		else
+		{
+			return bBatched ? ENiagaraGPUTickHandlingMode::ConcurrentBatched : ENiagaraGPUTickHandlingMode::Concurrent;
+		}
+	}
+
+	return ENiagaraGPUTickHandlingMode::None;
 }

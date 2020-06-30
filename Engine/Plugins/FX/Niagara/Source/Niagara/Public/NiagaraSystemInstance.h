@@ -112,9 +112,15 @@ public:
 	/** Initial phase of system instance tick. Must be executed on the game thread. */
 	void Tick_GameThread(float DeltaSeconds);
 	/** Secondary phase of the system instance tick that can be executed on any thread. */
-	void Tick_Concurrent();
-	/** Final phase of system instance tick. Must be executed on the game thread. */
-	void FinalizeTick_GameThread();
+	void Tick_Concurrent(bool bEnqueueGPUTickIfNeeded = true);
+	/** 
+		Final phase of system instance tick. Must be executed on the game thread. 
+		Returns whether the Finalize was actually done. It's possible for the finalize in a task to have already been done earlier on the GT by a WaitForAsyncAndFinalize call.
+	*/
+	bool FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
+
+	void GenerateAndSubmitGPUTick();
+	void InitGPUTick(FNiagaraGPUSystemTick& OutTick);
 
 	/**
 		Blocks until any async work for this system instance has completed, must be called on the GameThread.
@@ -168,6 +174,8 @@ public:
 
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
+	FORCEINLINE bool NeedsGPUTick()const{ return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
@@ -190,9 +198,9 @@ public:
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
 	{
-		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(MakeWeakObjectPtr(const_cast<UNiagaraDataInterface*>(Interface))))
+		if (auto* InstDataOffsetPair = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair){ return Pair.Key.Get() == Interface;}))
 		{
-			return &DataInterfaceInstanceData[*InstDataOffset];
+			return &DataInterfaceInstanceData[InstDataOffsetPair->Value];
 		}
 		return nullptr;
 	}
@@ -249,8 +257,6 @@ public:
 
 	/** Dumps information about the instances tick to the log */
 	void DumpTickInfo(FOutputDevice& Ar);
-
-	bool GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets);
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
@@ -352,9 +358,11 @@ private:
 	
 	/** Per instance data for any data interfaces requiring it. */
 	TArray<uint8, TAlignedHeapAllocator<16>> DataInterfaceInstanceData;
+	TArray<int32> PreTickDataInterfaces;
+	TArray<int32> PostTickDataInterfaces;
 
 	/** Map of data interfaces to their instance data. */
-	TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32> DataInterfaceInstanceDataOffsets;
+	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> DataInterfaceInstanceDataOffsets;
 
 	/** Per system instance parameters. These can be fed by the component and are placed into a dataset for execution for the system scripts. */
 	FNiagaraParameterStore InstanceParameters;
