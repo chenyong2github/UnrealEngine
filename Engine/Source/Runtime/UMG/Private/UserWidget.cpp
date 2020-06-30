@@ -420,6 +420,12 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 {
 	if (InAnimation && !bStoppingAllAnimations)
 	{
+		if (!AnimationTickManager)
+		{
+			AnimationTickManager = UUMGSequenceTickManager::Get(this);
+			AnimationTickManager->UserWidgets.Add(this);
+		}
+
 		// @todo UMG sequencer - Restart animations which have had Play called on them?
 		UUMGSequencePlayer* FoundPlayer = nullptr;
 		for (UUMGSequencePlayer* Player : ActiveSequencePlayers)
@@ -439,12 +445,6 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 			ActiveSequencePlayers.Add(NewPlayer);
 
 			NewPlayer->InitSequencePlayer(*InAnimation, *this);
-
-			if (!AnimationTickManager)
-			{
-				AnimationTickManager = UUMGSequenceTickManager::Get(this);
-				AnimationTickManager->UserWidgets.Add(this);
-			}
 
 			return NewPlayer;
 		}
