@@ -653,7 +653,7 @@ void FCrashUploadToReceiver::BeginUploadImpl()
 	}
 }
 
-TSharedRef<IHttpRequest> FCrashUploadToReceiver::CreateHttpRequest()
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FCrashUploadToReceiver::CreateHttpRequest()
 {
 	auto Request = FHttpModule::Get().CreateRequest();
 	Request->OnProcessRequestComplete().BindRaw(this, &FCrashUploadToReceiver::OnProcessRequestComplete);
@@ -790,7 +790,7 @@ void FCrashUploadToDataRouter::CompressAndSendData()
 	}
 }
 
-TSharedRef<IHttpRequest> FCrashUploadToDataRouter::CreateHttpRequest()
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FCrashUploadToDataRouter::CreateHttpRequest()
 {
 	auto Request = FHttpModule::Get().CreateRequest();
 	Request->OnProcessRequestComplete().BindRaw(this, &FCrashUploadToDataRouter::OnProcessRequestComplete);

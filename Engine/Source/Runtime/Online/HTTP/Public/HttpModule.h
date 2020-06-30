@@ -57,7 +57,7 @@ public:
 	 *
 	 * @return new Http request instance
 	 */
-	virtual TSharedRef<IHttpRequest> CreateRequest();
+	virtual TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest();
 
 	/**
 	 * Only meant to be used by Http request/response implementations

@@ -13,7 +13,7 @@
 class FHttpRequestAdapterBase : public FHttpRequestImpl
 {
 public:
-    FHttpRequestAdapterBase(const TSharedRef<IHttpRequest>& InHttpRequest) 
+    FHttpRequestAdapterBase(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& InHttpRequest) 
 		: HttpRequest(InHttpRequest)
     {}
 
@@ -40,6 +40,6 @@ public:
 	virtual void                          Tick(float DeltaSeconds) override                                        { HttpRequest->Tick(DeltaSeconds); }
 
 protected:
-    TSharedRef<IHttpRequest> HttpRequest;
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest;
 };
 

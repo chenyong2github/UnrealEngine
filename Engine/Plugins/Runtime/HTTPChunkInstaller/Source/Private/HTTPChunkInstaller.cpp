@@ -293,7 +293,7 @@ public:
 		else
 		{
 			// Create the Http request and add to pending request list
-			TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 			EnumerateFilesRequests.Add(HttpRequest, Page);
 
 			HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOnlineTitleFileHttp::EnumerateFiles_HttpRequestComplete);
@@ -505,7 +505,7 @@ private:
 			CloudFile->AsyncState = ECloudAsyncTaskState::InProgress;
 
 			// Create the Http request and add to pending request list
-			TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 			FileRequests.Add(HttpRequest, FPendingFileRequest(FileName));
 			FileProgressRequestsMap.Add(HttpRequest, FPendingFileRequest(FileName));
 
