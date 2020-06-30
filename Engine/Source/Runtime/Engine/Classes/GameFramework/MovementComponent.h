@@ -19,6 +19,8 @@ class UPrimitiveComponent;
 struct FCollisionQueryParams;
 struct FCollisionResponseParams;
 struct FCollisionShape;
+enum ERadialImpulseFalloff;
+
 
 /**
  * Setting that controls behavior when movement is restricted to a 2D plane defined by a specific axis/normal,
