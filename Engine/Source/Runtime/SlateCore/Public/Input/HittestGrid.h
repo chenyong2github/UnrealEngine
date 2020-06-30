@@ -265,11 +265,13 @@ private:
 	/** Are both grid of the same size. */
 	bool SameSize(const FHittestGrid* OtherGrid) const;
 
+	using FCollapsedHittestGridArray = TArray<const FHittestGrid*, TInlineAllocator<16>>;
 	/** Get all the hittest grid appended to this grid. */
-	void GetCollapsedHittestGrid(TArray<const FHittestGrid*, TInlineAllocator<16>>& OutResult) const;
+	void GetCollapsedHittestGrid(FCollapsedHittestGridArray& OutResult) const;
 
+	using FCollapsedWidgetsArray = TArray<FWidgetIndex, TInlineAllocator<100>>;
 	/** Return the list of all the widget in that cell. */
-	void GetCollapsedWidgets(TArray<FWidgetIndex, TMemStackAllocator<>>& Out, const int32 X, const int32 Y) const;
+	void GetCollapsedWidgets(FCollapsedWidgetsArray& Out, const int32 X, const int32 Y) const;
 
 	/** Remove appended hittest grid that are not valid anymore. */
 	void RemoveStaleAppendedHittestGrid();

@@ -15,6 +15,12 @@ DECLARE_CYCLE_STAT(TEXT("HitTestGrid Clear"), STAT_SlateHTG_Clear, STATGROUP_Sla
 DECLARE_CYCLE_STAT(TEXT("HitTestGrid GetCollapsedWidgets"), STAT_SlateHTG_GetCollapsedWidgets, STATGROUP_Slate);
 
 #define LOCTEXT_NAMESPACE "HittestGrid"
+#define UE_SLATE_HITTESTGRID_ARRAYSIZEMAX 0
+
+#if UE_SLATE_HITTESTGRID_ARRAYSIZEMAX
+int32 HittestGrid_CollapsedHittestGridArraySizeMax = 0;
+int32 HittestGrid_CollapsedWidgetsArraySizeMax = 0;
+#endif
 
 #if WITH_SLATE_DEBUGGING
 FHittestGrid::FDebuggingFindNextFocusableWidget FHittestGrid::OnFindNextFocusableWidgetExecuted;
@@ -348,7 +354,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 
 		for (StrideCellPoint[StrideAxis] = StrideAxisMin; StrideCellPoint[StrideAxis] <= StrideAxisMax; ++StrideCellPoint[StrideAxis])
 		{
-			TArray<FWidgetIndex, TMemStackAllocator<>> WidgetIndexes;
+			FCollapsedWidgetsArray WidgetIndexes;
 			GetCollapsedWidgets(WidgetIndexes, StrideCellPoint.X, StrideCellPoint.Y);
 
 			for (int32 i = WidgetIndexes.Num() - 1; i >= 0; --i)
@@ -585,7 +591,7 @@ void FHittestGrid::AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid)
 	{
 		{
 			// Check for recursion
-			TArray<const FHittestGrid*, TInlineAllocator<16>> AllHittestGrid;
+			FCollapsedHittestGridArray AllHittestGrid;
 			GetCollapsedHittestGrid(AllHittestGrid);
 			const bool bIsInCollapsed = AllHittestGrid.ContainsByPredicate([OtherGrid](const FHittestGrid* Other) { return &*OtherGrid == Other; });
 			ensure(!bIsInCollapsed);
@@ -750,7 +756,7 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 	if (IsValidCellCoord(Params.CellCoord))
 	{
 		// Get the cell and sort it 
-		TArray<FWidgetIndex, TMemStackAllocator<>> WidgetIndexes;
+		FCollapsedWidgetsArray WidgetIndexes;
 		GetCollapsedWidgets(WidgetIndexes, Params.CellCoord.X, Params.CellCoord.Y);
 
 #if 0 //Unroll some data for debugging if necessary
@@ -831,7 +837,7 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 	return FIndexAndDistance();
 }
 
- void FHittestGrid::GetCollapsedHittestGrid(TArray<const FHittestGrid*, TInlineAllocator<16>>& OutResult) const
+ void FHittestGrid::GetCollapsedHittestGrid(FCollapsedHittestGridArray& OutResult) const
 {
 	OutResult.Add(this);
 	for (const FAppendedGridData& AppendedGridData : AppendedGridArray)
@@ -847,17 +853,21 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 			}
 		}
 	}
+
+#if UE_SLATE_HITTESTGRID_ARRAYSIZEMAX
+	HittestGrid_CollapsedHittestGridArraySizeMax = FMath::Max(OutResult.Num(), HittestGrid_CollapsedHittestGridArraySizeMax);
+#endif
 }
 
 #define UE_VERIFY_WIDGET_VALIDITE 0
- void FHittestGrid::GetCollapsedWidgets(TArray<FWidgetIndex, TMemStackAllocator<>>& Out, const int32 X, const int32 Y) const
+ void FHittestGrid::GetCollapsedWidgets(FCollapsedWidgetsArray& OutResult, const int32 X, const int32 Y) const
  {
 	 SCOPE_CYCLE_COUNTER(STAT_SlateHTG_GetCollapsedWidgets);
 
 	 const int32 CellIndex = Y * NumCells.X + X;
 	 check(Cells.IsValidIndex(CellIndex));
 
-	 TArray<const FHittestGrid*, TInlineAllocator<16>> AllHitTestGrids;
+	 FCollapsedHittestGridArray AllHitTestGrids;
 	 GetCollapsedHittestGrid(AllHitTestGrids);
 
 	 // N.B. it would be more efficient if we only rebuild if the cell has changed
@@ -872,17 +882,21 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 #if UE_VERIFY_WIDGET_VALIDITE
 				 ensureAlways(HittestGrid->WidgetArray.IsValidIndex(WidgetIndex));
 #endif
-				 Out.Emplace(HittestGrid, WidgetIndex);
+				 OutResult.Emplace(HittestGrid, WidgetIndex);
 			 }
 		 }
 
-		 Out.StableSort([](const FWidgetIndex& A, const FWidgetIndex& B)
+		 OutResult.StableSort([](const FWidgetIndex& A, const FWidgetIndex& B)
 			 {
 				 const FWidgetData& WidgetDataA = A.GetWidgetData();
 				 const FWidgetData& WidgetDataB = B.GetWidgetData();
 				 return WidgetDataA.PrimarySort < WidgetDataB.PrimarySort || (WidgetDataA.PrimarySort == WidgetDataB.PrimarySort && WidgetDataA.SecondarySort < WidgetDataB.SecondarySort);
 			 });
 	 }
+
+#if UE_SLATE_HITTESTGRID_ARRAYSIZEMAX
+	 HittestGrid_CollapsedWidgetsArraySizeMax = FMath::Max(OutResult.Num(), HittestGrid_CollapsedWidgetsArraySizeMax);
+#endif
  }
 #undef UE_VERIFY_WIDGET_VALIDITE
 
@@ -1002,7 +1016,7 @@ void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry,
 		}
 	};
 
-	TArray<const FHittestGrid*, TInlineAllocator<16>> AllHitTestGrids;
+	FCollapsedHittestGridArray AllHitTestGrids;
 	GetCollapsedHittestGrid(AllHitTestGrids);
 	for(const FHittestGrid* HittestGrid : AllHitTestGrids)
 	{
@@ -1010,7 +1024,7 @@ void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry,
 	}
 
 	// Appended grid should always be valid
-	TArray<const FHittestGrid*, TInlineAllocator<16>> TestHitTestGrids;
+	FCollapsedHittestGridArray TestHitTestGrids;
 	TestHitTestGrids.Add(this);
 	for (int32 Index = 0; Index < TestHitTestGrids.Num(); ++Index)
 	{
@@ -1027,4 +1041,5 @@ void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry,
 }
 #endif // WITH_SLATE_DEBUGGING
 
+#undef UE_SLATE_HITTESTGRID_ARRAYSIZEMAX
 #undef LOCTEXT_NAMESPACE
