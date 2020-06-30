@@ -10,6 +10,7 @@
 #include "GameFramework/PlayerController.h"
 #include "MoviePipelineRenderPass.h"
 #include "EngineModule.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Engine/TextureRenderTarget.h"
 #include "MoviePipeline.h"
