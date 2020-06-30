@@ -11,7 +11,6 @@
 #include "ISoundClassEditor.h"
 
 class IDetailsView;
-class SDockableTab;
 class UEdGraph;
 class USoundClass;
 
@@ -110,9 +109,6 @@ private:
 private:
 	/** The SoundClass asset being inspected */
 	USoundClass* SoundClass;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
 
 	/** Graph Editor */
 	TSharedPtr<SGraphEditor> GraphEditor;

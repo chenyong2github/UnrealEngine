@@ -20,9 +20,6 @@ public:
 	/** Brings this toolkit host's window (and tab, if it has one), to the front */
 	virtual void BringToFront() = 0;
 
-	/** Gets a tab stack to place a new tab for the specified toolkit area */
-	virtual TSharedRef< class SDockTabStack > GetTabSpot( const EToolkitTabSpot::Type TabSpot ) = 0;
-
 	/** Access the toolkit host's tab manager */
 	virtual TSharedPtr< class FTabManager > GetTabManager() const = 0;
 

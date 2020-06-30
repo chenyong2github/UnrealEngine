@@ -26,7 +26,6 @@ class FStaticMeshDetails;
 class FEditorViewportClient;
 class IDetailsView;
 class SConvexDecomposition;
-class SDockableTab;
 class SStaticMeshEditorViewport;
 class UStaticMesh;
 class UStaticMeshComponent;
@@ -464,9 +463,6 @@ private:
 private:
 	// Tracking the active viewports in this editor.
 	TSharedPtr<class FEditorViewportTabContent> ViewportTabContent;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
 
 	/** Property View */
 	TSharedPtr<class IDetailsView> StaticMeshDetailsView;

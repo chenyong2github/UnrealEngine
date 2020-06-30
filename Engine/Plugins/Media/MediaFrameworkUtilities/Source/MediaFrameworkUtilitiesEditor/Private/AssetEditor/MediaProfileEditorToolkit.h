@@ -60,9 +60,6 @@ private:
 	void HandleMediaProxiesChanged();
 
 private:
-	/** Dockable tab for properties */
-	TSharedPtr<class SDockableTab> PropertiesTab;
-
 	/** Details view */
 	TSharedPtr<class IDetailsView> DetailsView;
 	

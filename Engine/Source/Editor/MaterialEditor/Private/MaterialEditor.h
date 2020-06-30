@@ -27,7 +27,6 @@ class FCanvas;
 class FMaterialCompiler;
 class FScopedTransaction;
 class IMessageLogListing;
-class SDockableTab;
 class SFindInMaterial;
 class SGraphEditor;
 class SMaterialPalette;
@@ -788,9 +787,6 @@ private:
 	void GeneratorRowsRefreshed();
 	void UpdateGenerator();
 private:
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
-
 	/** Property View */
 	TSharedPtr<class IDetailsView> MaterialDetailsView;
 

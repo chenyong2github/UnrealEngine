@@ -84,7 +84,7 @@ private:
 	/** Level editor that we're associated with */
 	TWeakPtr<class ILevelEditor> LevelEditor;
 
-	/** SDockableTab in the LevelEditor that we're associated with */
+	/** SDockTab in the LevelEditor that we're associated with */
 	TWeakPtr<SDockTab> ParentDockTab;
 
 	/** The package list that acts as the items source for the additional packages list widget */

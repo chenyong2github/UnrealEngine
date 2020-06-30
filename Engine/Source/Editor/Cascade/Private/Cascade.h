@@ -22,7 +22,6 @@ class FFXSystemInterface;
 class IDetailsView;
 class SCascadeEmitterCanvas;
 class SCascadePreviewViewport;
-class SDockableTab;
 class UCascadeConfiguration;
 class UCascadeOptions;
 class UCascadeParticleSystemComponent;
@@ -411,9 +410,6 @@ private:
 private:
 	/** The ParticleSystem asset being inspected */
 	UParticleSystem* ParticleSystem;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<SDockableTab> > SpawnedToolPanels;
 
 	/** Preview Viewport */
 	TSharedPtr<SCascadePreviewViewport> PreviewViewport;

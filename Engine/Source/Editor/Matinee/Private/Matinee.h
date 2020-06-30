@@ -33,7 +33,6 @@ class FSceneView;
 class FViewport;
 class IDetailsView;
 class SBorder;
-class SDockableTab;
 class SMatineeRecorder;
 class SMatineeViewport;
 class UInterpFilter;
@@ -1535,9 +1534,6 @@ private:
 	AMatineeActor* GetMatineeActor() override { return MatineeActor; }
 	UInterpData* GetInterpData() override { return IData; }
 	bool Hide3DTrackView() override { return bHide3DTrackView; }
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<SDockableTab> > SpawnedToolPanels;
 
 	/** Action Mapping */
 	void BindCommands();

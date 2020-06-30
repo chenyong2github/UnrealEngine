@@ -12,7 +12,6 @@
 #include "IDetailsView.h"
 #include "TextureEditorSettings.h"
 
-class SDockableTab;
 class STextBlock;
 class STextureEditorViewport;
 class UFactory;
@@ -258,9 +257,6 @@ private:
 
 	/** The Texture asset being inspected */
 	UTexture* Texture;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
 	/** Viewport */
 	TSharedPtr<STextureEditorViewport> TextureViewport;

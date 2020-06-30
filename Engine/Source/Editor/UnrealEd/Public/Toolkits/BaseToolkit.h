@@ -11,7 +11,6 @@
 
 class UInteractiveTool;
 class UInteractiveToolManager;
-class SDockableTab;
 class UEdMode;
 class IDetailsView;
 enum class EToolShutdownType;
@@ -39,7 +38,6 @@ public:
 	virtual bool ProcessCommandBindings(const FKeyEvent& InKeyEvent) const override;
 	virtual bool IsHosted() const override;
 	virtual const TSharedRef<IToolkitHost> GetToolkitHost() const override;
-	virtual const TMap<EToolkitTabSpot::Type, TArray<TWeakPtr<SDockableTab>>>& GetToolkitTabsInSpots() const override;
 	virtual void BringToolkitToFront() override;
 	virtual TSharedPtr<SWidget> GetInlineContent() const override;
 	virtual bool IsBlueprintEditor() const override;
@@ -55,15 +53,6 @@ public:
 	{
 		return ToolkitCommands;
 	}
-
-	/**
-	 * Adds an already-created toolkit tab to the toolkit.  Used for tabs that have no tab identifier, such as a "document" tab
-	 *
-	 * @param	TabToAdd		The dockable tab object to add
-	 * @param	TabSpot			Which spot to spawn this tab into
-	 */
-	void AddToolkitTab(const TSharedRef<SDockableTab>& TabToAdd, const EToolkitTabSpot::Type TabSpot);
-
 
 protected:
 
@@ -86,9 +75,6 @@ protected:
 	/** The host application for this editor.  If editing in world-centric mode, this is the level level editor that we're editing the asset within 
 	    Use GetToolkitHost() method to access this member. */
 	TWeakPtr<IToolkitHost> ToolkitHost;
-
-	/** Map of toolkit tab spots to known tabs (these are weak pointers and may be invalid after tabs are closed.) */
-	TMap<EToolkitTabSpot::Type, TArray<TWeakPtr<SDockableTab>>> ToolkitTabsInSpots;
 
 	/** The workspace menu category of this toolkit */
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;

@@ -13,7 +13,6 @@
 #include "ApexDestructionStyle.h"
 
 class IDetailsView;
-class SDockableTab;
 class SSlider;
 class UDestructibleMesh;
 
@@ -140,9 +139,6 @@ private:
 
 	/** Preview Viewport widget */
 	TSharedPtr<class SDestructibleMeshEditorViewport>	Viewport;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<class SDockableTab> >			SpawnedToolPanels;
 
 	/** Property View */
 	TSharedPtr<class IDetailsView>						DestructibleMeshDetailsView;

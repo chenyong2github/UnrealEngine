@@ -155,5 +155,3 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 // Docking Framework
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Docking/SDockableTab.h"
-#include "Widgets/Docking/SDockTabStack.h"

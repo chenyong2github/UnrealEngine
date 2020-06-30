@@ -25,7 +25,6 @@ struct FAssetData;
 class FPhysicsAssetEditorTreeInfo;
 class IDetailsView;
 class SComboButton;
-class SDockableTab;
 class SPhysicsAssetEditorPreviewViewport;
 class UAnimationAsset;
 class UAnimSequence;

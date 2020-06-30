@@ -43,7 +43,6 @@ FSimpleAssetEditor::~FSimpleAssetEditor()
 	GEditor->OnObjectsReplaced().RemoveAll(this);
 
 	DetailsView.Reset();
-	PropertiesTab.Reset();
 }
 
 

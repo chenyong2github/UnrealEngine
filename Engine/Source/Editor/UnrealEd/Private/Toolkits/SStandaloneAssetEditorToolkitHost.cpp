@@ -236,13 +236,6 @@ void SStandaloneAssetEditorToolkitHost::BringToFront()
 	FGlobalTabmanager::Get()->DrawAttentionToTabManager( this->MyTabManager.ToSharedRef() );
 }
 
-
-TSharedRef< SDockTabStack > SStandaloneAssetEditorToolkitHost::GetTabSpot( const EToolkitTabSpot::Type TabSpot )
-{
-	return TSharedPtr<SDockTabStack>().ToSharedRef();
-}
-
-
 void SStandaloneAssetEditorToolkitHost::OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit )
 {
 	// Keep track of the toolkit we're hosting
@@ -301,57 +294,9 @@ FReply SStandaloneAssetEditorToolkitHost::OnKeyDown( const FGeometry& MyGeometry
 	// If we are in debug mode do not process commands
 	if (FSlateApplication::Get().IsNormalExecution())
 	{
-		// Figure out if any of our toolkit's tabs is the active tab.  This is important because we want
-		// the toolkit to have it's own keybinds (which may overlap the level editor's keybinds or any
-		// other toolkit).  When a toolkit tab is active, we give that toolkit a chance to process
-		// commands instead of the level editor.
-		TSharedPtr< IToolkit > ActiveToolkit;
+		if (HostedAssetEditorToolkit->ProcessCommandBindings(InKeyEvent))
 		{
-			const TSharedPtr<SDockableTab> CurrentActiveTab;// = FSlateApplication::xxxGetGlobalTabManager()->GetActiveTab();
-
-			for (auto HostedToolkitIt = HostedToolkits.CreateConstIterator(); HostedToolkitIt && !ActiveToolkit.IsValid(); ++HostedToolkitIt)
-			{
-				const auto& CurToolkit = *HostedToolkitIt;
-				if (CurToolkit.IsValid())
-				{
-					// Iterate over this toolkits spawned tabs
-					const auto& ToolkitTabsInSpots = CurToolkit->GetToolkitTabsInSpots();
-
-					for (auto CurSpotIt(ToolkitTabsInSpots.CreateConstIterator()); CurSpotIt && !ActiveToolkit.IsValid(); ++CurSpotIt)
-					{
-						const auto& TabsForSpot = CurSpotIt.Value();
-						for (auto CurTabIt(TabsForSpot.CreateConstIterator()); CurTabIt; ++CurTabIt)
-						{
-							const auto& PinnedTab = CurTabIt->Pin();
-							if (PinnedTab.IsValid())
-							{
-								if (PinnedTab == CurrentActiveTab)
-								{
-									ActiveToolkit = CurToolkit;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		//@TODO: This seems wrong (should prioritize it but not totally block it)
-		if (ActiveToolkit.IsValid())
-		{
-			// A toolkit tab is active, so direct all command processing to it
-			if (ActiveToolkit->ProcessCommandBindings(InKeyEvent))
-			{
-				return FReply::Handled();
-			}
-		}
-		else
-		{
-			// No toolkit tab is active, so let the underlying asset editor have a chance at the keystroke
-			if (HostedAssetEditorToolkit->ProcessCommandBindings(InKeyEvent))
-			{
-				return FReply::Handled();
-			}
+			return FReply::Handled();
 		}
 	}
 

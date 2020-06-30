@@ -8,7 +8,6 @@
 #include "ISoundSubmixEditor.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/Object.h"
-#include "Widgets/Docking/SDockableTab.h"
 
 
 // Forward Declarations
@@ -100,9 +99,6 @@ private:
 	void RedoGraphAction();
 
 private:
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
-
 	/** Graph Editor */
 	TSharedPtr<SGraphEditor> GraphEditor;
 

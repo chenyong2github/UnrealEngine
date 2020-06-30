@@ -10,7 +10,6 @@
 #include "EditorUndoClient.h"
 
 class IDetailsView;
-class SDockableTab;
 class SGraphEditor;
 class SSoundCuePalette;
 class UEdGraphNode;
@@ -199,9 +198,6 @@ private:
 private:
 	/** The SoundCue asset being inspected */
 	USoundCue* SoundCue;
-
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap< FName, TWeakPtr<SDockableTab> > SpawnedToolPanels;
 
 	/** New Graph Editor */
 	TSharedPtr<SGraphEditor> SoundCueGraphEditor;

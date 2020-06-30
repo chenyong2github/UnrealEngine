@@ -52,7 +52,6 @@ public:
 	/** IToolkitHost interface */
 	virtual TSharedRef< class SWidget > GetParentWidget() override;
 	virtual void BringToFront() override;
-	virtual TSharedRef< class SDockTabStack > GetTabSpot( const EToolkitTabSpot::Type TabSpot ) override;
 	virtual TSharedPtr< class FTabManager > GetTabManager() const override { return MyTabManager; }
 	virtual void OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual void OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit ) override;
@@ -91,11 +90,8 @@ private:
 	/** Manages internal tab layout */
 	TSharedPtr<FTabManager> MyTabManager;
 
-	/** The widget that will house the default menu widget */
-	TSharedPtr<SBorder> MenuWidgetContent;
-
 	/** The widget that will house the overlay widgets (if any) */
-	TSharedPtr<SBorder> MenuOverlayWidgetContent;
+	TSharedPtr<SBox> MenuOverlayWidgetContent;
 
 	/** The default menu widget */
 	TSharedPtr< SWidget > DefaultMenuWidget;

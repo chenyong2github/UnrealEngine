@@ -450,12 +450,6 @@ void SLevelEditor::BringToFront()
 	}
 }
 
-TSharedRef< SDockTabStack > SLevelEditor::GetTabSpot( const EToolkitTabSpot::Type TabSpot )
-{
-	ensureMsgf(false, TEXT("Unimplemented"));
-	return TSharedPtr<SDockTabStack>().ToSharedRef();
-}
-
 void SLevelEditor::OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit )
 {
 	// @todo toolkit minor: We should consider only allowing a single toolkit for a specific asset editor type hosted

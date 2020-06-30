@@ -9,7 +9,6 @@
 class FEdMode;
 class UEdMode;
 class IToolkitHost;
-class SDockableTab;
 
 /** Some toolkits can be spawned as either standalone tools or within an existing level editing UI */
 namespace EToolkitMode
@@ -107,9 +106,6 @@ public:
 
 	/** @return Returns the toolkit host for this toolkit */
 	virtual const TSharedRef<IToolkitHost> GetToolkitHost() const = 0;
-
-	/** @return Returns a map of weak pointers to all of this toolkit's spawned tabs that may currently exist, indexed by the tab spots they are suitable for  */
-	virtual const TMap<EToolkitTabSpot::Type, TArray<TWeakPtr<SDockableTab>>>& GetToolkitTabsInSpots() const = 0;
 
 	/**
 	 * Processes any UI commands which are activated by the specified event

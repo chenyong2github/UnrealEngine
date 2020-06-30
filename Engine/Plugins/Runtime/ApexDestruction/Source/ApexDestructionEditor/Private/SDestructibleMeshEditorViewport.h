@@ -12,7 +12,6 @@
 
 class FDestructibleMeshEditorViewportClient;
 class IDestructibleMeshEditor;
-class SDockableTab;
 class UDestructibleComponent;
 class UDestructibleMesh;
 
@@ -42,9 +41,6 @@ public:
 	
 	/** Component for the preview Destructible mesh. */
 	class UDestructibleComponent* PreviewComponent;
-
-	/** The parent tab where this viewport resides */
-	TWeakPtr<SDockableTab> ParentTab;
 
 	/** 
 	 *	Causes chunks at the given PreviewDepth to be displayed in the viewport.  Clamped to the range [0, depth count), where (depth count) = the number of chunk hierarchy depths in the destructible.

@@ -17,7 +17,6 @@
 #include "UObject/UObjectHash.h"
 #include "ComponentReregisterContext.h"
 #include "DestructibleMesh.h"
-#include "Widgets/Docking/SDockableTab.h"
 #include "Engine/StaticMesh.h"
 #include "PhysXPublic.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
@@ -658,7 +657,7 @@ void SDestructibleMeshEditorViewport::UpdatePreviewMesh(UDestructibleMesh* InDes
 
 bool SDestructibleMeshEditorViewport::IsVisible() const
 {
-	return ViewportWidget.IsValid() && (!ParentTab.IsValid() || ParentTab.Pin()->IsForeground());
+	return ViewportWidget.IsValid();
 }
 
 void SDestructibleMeshEditorViewport::SetPreviewDepth(uint32 InPreviewDepth)

@@ -8,7 +8,6 @@
 #include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
 
 class IDetailsView;
-class SDockableTab;
 
 class UNREALED_API FSimpleAssetEditor : public FAssetEditorToolkit
 {
@@ -58,9 +57,6 @@ private:
 
 	/** Called when objects need to be swapped out for new versions, like after a blueprint recompile. */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
-
-	/** Dockable tab for properties */
-	TSharedPtr< SDockableTab > PropertiesTab;
 
 	/** Details view */
 	TSharedPtr< class IDetailsView > DetailsView;
