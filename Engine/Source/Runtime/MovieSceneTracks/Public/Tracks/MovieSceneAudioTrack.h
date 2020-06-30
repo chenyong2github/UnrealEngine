@@ -56,7 +56,6 @@ public:
 	virtual bool IsEmpty() const override;
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsMultipleRows() const override;
-	virtual FMovieSceneTrackRowSegmentBlenderPtr GetRowSegmentBlender() const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
 
 	// ~IMovieSceneTrackTemplateProducer interface
