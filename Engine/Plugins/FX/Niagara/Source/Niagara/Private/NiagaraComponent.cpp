@@ -2585,8 +2585,18 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 	OverrideParameters.Rebind();
 #endif
 
+	bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
+
 	//Force a reinit.
 	DestroyInstance();
+
+	if (Asset && IsRegistered())
+	{
+		if (bAutoActivate || bWasActive)
+		{
+			Activate();
+		}
+	}
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 
