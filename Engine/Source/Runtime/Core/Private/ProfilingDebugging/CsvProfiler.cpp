@@ -2636,6 +2636,12 @@ void FCsvProfiler::BeginFrame()
 					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
 #endif
 
+#if PLATFORM_COMPILER_OPTIMIZATION_PG
+					SetMetadata(TEXT("PGOEnabled"), TEXT("1"));
+#else
+					SetMetadata(TEXT("PGOEnabled"), TEXT("0"));
+#endif
+
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
 					// Initialize tls before setting the capturing flag to true.
