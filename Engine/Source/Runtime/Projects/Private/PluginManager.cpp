@@ -621,6 +621,21 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					}
 				}
 			}
+
+			// Which extra plugins should be disabled?
+			TArray<FString> ExtraPluginsToDisable;
+			ExtraPluginsToDisable = ParsePluginsList(TEXT("DisablePlugins="));
+			for (const FString& DisablePluginName : ExtraPluginsToDisable)
+			{
+				if (!ConfiguredPluginNames.Contains(DisablePluginName))
+				{
+					if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(DisablePluginName, false), EnabledPlugins))
+					{
+						return false;
+					}
+					ConfiguredPluginNames.Add(DisablePluginName);
+				}
+			}
 		}
 
 		if (!FParse::Param(FCommandLine::Get(), TEXT("NoEnginePlugins")))
