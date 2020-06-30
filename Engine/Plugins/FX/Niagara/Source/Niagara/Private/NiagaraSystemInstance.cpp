@@ -112,6 +112,13 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 			}
 			FeatureLevel = World->FeatureLevel;
 		}
+		
+		// In some cases the system may have already stated that you should ignore dependencies and tick as early as possible.
+		ENiagaraTickBehavior SystemTickBehavior = TickBehavior;
+		if (!Component->GetAsset()->bRequireCurrentFrameData)
+		{
+			TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
+		}
 	}
 }
 
@@ -1475,6 +1482,9 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 			NewTickGroup = NiagaraLastTickGroup;
 			break;
 	}
+
+
+	//UE_LOG(LogNiagara, Log, TEXT("TickGroup: %s %d %d"), *Component->GetPathName(), (int32)TickBehavior, (int32)NewTickGroup);
 
 	return NewTickGroup;
 }
