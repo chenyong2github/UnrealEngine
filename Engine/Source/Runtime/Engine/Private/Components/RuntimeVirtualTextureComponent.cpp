@@ -190,6 +190,7 @@ void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, ui
 		Texture->Filter = TF_Nearest;
 		Texture->MipGenSettings = TMGS_LeaveExistingMips;
 		Texture->MipLoadOptions = ETextureMipLoadOptions::AllMips;
+		Texture->NeverStream = true;
 		Texture->SetLayerFormatSettings(0, Settings);
 		Texture->Source.Init(InSizeX, InSizeY, 1, InNumMips, TSF_BGRA8, InData);
 		Texture->PostEditChange();
