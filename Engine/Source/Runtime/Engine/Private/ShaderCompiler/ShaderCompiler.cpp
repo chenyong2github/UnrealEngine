@@ -2980,20 +2980,26 @@ void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const
 					FShaderPipelineCompileJob* PipelineJob = Job->GetShaderPipelineJob();
 					if (PipelineJob)
 					{
-						TotalNumJobsRemoved += PipelineJob->StageJobs.Num();
 						NumJobsRemoved += PipelineJob->StageJobs.Num();
 					}
 					else
 					{
-						++TotalNumJobsRemoved;
 						++NumJobsRemoved;
 					}
+
+					// Note that the NumOutstandingJobs is the number of shaders could be compiled which counts pipeline job as one job.
+					// And the NumJobsQueued is the number of jobs counts through GetNumTotalJobs which counts pipeline stage jobs.
+					++TotalNumJobsRemoved;
+
 					CompileQueue.RemoveAt(JobIndex, 1, false);
 				}
 			}
 
 			ShaderMapJob->NumJobsQueued -= NumJobsRemoved;
-
+			
+			// The shader map job result should be skipped since it is out of date.
+			ShaderMapJob->bSkipResultProcessing = true;
+			
 			if (ShaderMapJob->NumJobsQueued == 0)
 			{
 				//We've removed all the jobs for this shader map so remove it.
