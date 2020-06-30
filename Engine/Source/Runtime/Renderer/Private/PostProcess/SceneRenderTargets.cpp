@@ -521,7 +521,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 	// we want to shrink the buffer but as we can have multiple scenecaptures per frame we have to delay that a frame to get all size requests
 	// Don't save buffer size in history while making high-res screenshot.
 	// We have to use the requested size when allocating an hmd depth target to ensure it matches the hmd allocated render target size.
-	bool bAllowDelayResize = !GIsHighResScreenshot && !bHMDAllocatedDepthTarget;
+	bool bAllowDelayResize = !GIsHighResScreenshot && !bIsVRScene;
 
 	// Don't consider the history buffer when the aspect ratio changes, the existing buffers won't make much sense at all.
 	// This prevents problems when orientation changes on mobile in particular.
