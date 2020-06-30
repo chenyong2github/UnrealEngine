@@ -26,6 +26,13 @@ class FD3D12RayTracingPipelineState;
 class FD3D12RayTracingShader;
 #endif // D3D12_RHI_RAYTRACING
 
+enum class ED3D12ResourceStateMode
+{
+	Default,					//< Decide if tracking is required based on flags
+	SingleState,				//< Force disable state tracking of resource - resource will always be in the initial resource state
+	MultiState,					//< Force enable state tracking of resource
+};
+
 class FD3D12PendingResourceBarrier
 {
 public:
@@ -129,10 +136,20 @@ public:
 	explicit FD3D12Resource(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
 		ID3D12Resource* InResource,
-		D3D12_RESOURCE_STATES InitialState,
+		D3D12_RESOURCE_STATES InInitialResourceState,
 		D3D12_RESOURCE_DESC const& InDesc,
 		FD3D12Heap* InHeap = nullptr,
 		D3D12_HEAP_TYPE InHeapType = D3D12_HEAP_TYPE_DEFAULT);
+
+	explicit FD3D12Resource(FD3D12Device* ParentDevice,
+		FRHIGPUMask VisibleNodes,
+		ID3D12Resource* InResource,
+		D3D12_RESOURCE_STATES InInitialResourceState,
+		ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InDefaultResourceState,
+		D3D12_RESOURCE_DESC const& InDesc,
+		FD3D12Heap* InHeap,
+		D3D12_HEAP_TYPE InHeapType);
 
 	virtual ~FD3D12Resource();
 
@@ -273,33 +290,42 @@ public:
 	};
 
 private:
-	void InitalizeResourceState(D3D12_RESOURCE_STATES InitialState)
+	void InitalizeResourceState(D3D12_RESOURCE_STATES InInitialState, ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InDefaultState)
 	{
 		SubresourceCount = GetMipLevels() * GetArraySize() * GetPlaneCount();
 
-#if D3D12_RHI_RAYTRACING
-		if (InitialState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+		if (InResourceStateMode == ED3D12ResourceStateMode::SingleState)
 		{
-			// Ray-tracing acceleration structure resources can never be transitioned out of their initial state.
+			// make sure a valid default state is set
+			check(IsValidD3D12ResourceState(InDefaultState));
+
+#if UE_BUILD_DEBUG
+			FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
+#endif
+			DefaultResourceState = InDefaultState;
+			WritableState = D3D12_RESOURCE_STATE_CORRUPT;
+			ReadableState = D3D12_RESOURCE_STATE_CORRUPT;
 			bRequiresResourceStateTracking = false;
-			WritableState = InitialState;
-			ReadableState = InitialState;
 		}
 		else
-#endif // D3D12_RHI_RAYTRACING
 		{
-			DetermineResourceStates();
+			DetermineResourceStates(InDefaultState);
 		}
 
 		if (bRequiresResourceStateTracking)
 		{
+#if D3D12_RHI_RAYTRACING
+			// No state tracking for acceleration structures because they can't have another state
+			check(InDefaultState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+#endif // D3D12_RHI_RAYTRACING
+
 			// Only a few resources (~1%) actually need resource state tracking
 			ResourceState.Initialize(SubresourceCount);
-			ResourceState.SetResourceState(InitialState);
+			ResourceState.SetResourceState(InInitialState);
 		}
 	}
 
-	void DetermineResourceStates()
+	void DetermineResourceStates(D3D12_RESOURCE_STATES InDefaultState)
 	{
 		const FD3D12ResourceTypeHelper Type(Desc, HeapType);
 
@@ -342,7 +368,14 @@ private:
 #if UE_BUILD_DEBUG
 				FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
 #endif
-				DefaultResourceState = (HeapType == D3D12_HEAP_TYPE_READBACK) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+				if (InDefaultState != D3D12_RESOURCE_STATE_TBD)
+				{
+					DefaultResourceState = InDefaultState;
+				}
+				else
+				{
+					DefaultResourceState = (HeapType == D3D12_HEAP_TYPE_READBACK) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+				}
 				bRequiresResourceStateTracking = false;
 				return;
 			}
@@ -356,7 +389,14 @@ private:
 #if UE_BUILD_DEBUG
 				FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
 #endif
-				DefaultResourceState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+				if (InDefaultState != D3D12_RESOURCE_STATE_TBD)
+				{
+					DefaultResourceState = InDefaultState;
+				}
+				else
+				{
+					DefaultResourceState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+				}
 				bRequiresResourceStateTracking = false;
 				return;
 			}
@@ -994,6 +1034,8 @@ public:
 				return -1;
 			}
 		}
+
+		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
 
 		Barriers.AddUninitialized();
 		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();

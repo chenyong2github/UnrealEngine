@@ -273,6 +273,11 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER *pBarriers, 
 #define D3D12_RESOURCE_STATE_TBD (D3D12_RESOURCE_STATES)-1
 #define D3D12_RESOURCE_STATE_CORRUPT (D3D12_RESOURCE_STATES)-2
 
+static bool IsValidD3D12ResourceState(D3D12_RESOURCE_STATES InState)
+{
+	return (InState != D3D12_RESOURCE_STATE_TBD && InState != D3D12_RESOURCE_STATE_CORRUPT);
+}
+
 //==================================================================================================================================
 // CResourceState
 // Tracking of per-resource or per-subresource state

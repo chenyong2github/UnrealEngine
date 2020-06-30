@@ -1272,6 +1272,14 @@ DEFINE_STAT(STAT_D3D12AvailableVideoMemory);
 DEFINE_STAT(STAT_D3D12TotalVideoMemory);
 DEFINE_STAT(STAT_D3D12TextureAllocatorWastage);
 
+DEFINE_STAT(STAT_D3D12BufferPoolMemoryAllocated);
+DEFINE_STAT(STAT_D3D12BufferPoolMemoryUsed);
+DEFINE_STAT(STAT_D3D12BufferPoolMemoryFree);
+DEFINE_STAT(STAT_D3D12BufferPoolAlignmentWaste);
+DEFINE_STAT(STAT_D3D12BufferPoolPageCount);
+DEFINE_STAT(STAT_D3D12BufferPoolFullPages);
+DEFINE_STAT(STAT_D3D12BufferStandAloneUsedMemory);
+
 DEFINE_STAT(STAT_UniqueSamplers);
 
 DEFINE_STAT(STAT_ViewHeapChanged);

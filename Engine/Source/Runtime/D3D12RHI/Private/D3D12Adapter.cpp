@@ -110,9 +110,32 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 						// get the actual message data from the queue
 						hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
 
-						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+						switch (d3dMessage->Severity)
+						{
+						case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+						case D3D12_MESSAGE_SEVERITY_ERROR:
+						{
+							UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							break;
+						}
+						case D3D12_MESSAGE_SEVERITY_WARNING:
+						{
+							UE_LOG(LogD3D12RHI, Warning, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							break;
+						}
+						case D3D12_MESSAGE_SEVERITY_INFO:
+						case D3D12_MESSAGE_SEVERITY_MESSAGE:
+						{
+							UE_LOG(LogD3D12RHI, Log, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+							break;
+						}
+						}
 					}
 				}
+
+				// Make sure the log is flushed!
+				GLog->PanicFlushThreadedLogs();
+				GLog->Flush();
 
 				// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
 				UE_DEBUG_BREAK();
@@ -243,6 +266,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				TRefCountPtr<ID3D12Debug1> DebugController1;
 				VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
 				DebugController1->SetEnableGPUBasedValidation(true);
+
+				SetEmitDrawEvents(true);
 				bD3d12gpuvalidation = true;
 			}
 		}
@@ -767,7 +792,7 @@ void FD3D12Adapter::InitializeDevices()
 			UploadHeapAllocator[GPUIndex] = new FD3D12DynamicHeapAllocator(this,
 				Devices[GPUIndex],
 				Name,
-				kManualSubAllocationStrategy,
+				FD3D12BuddyAllocator::EAllocationStrategy::kManualSubAllocation,
 				DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT);
@@ -991,7 +1016,8 @@ void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations();
+		uint64 FrameLag = 2;
+		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
 
