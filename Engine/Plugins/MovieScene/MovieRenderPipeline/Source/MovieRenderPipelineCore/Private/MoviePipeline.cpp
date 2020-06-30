@@ -1068,7 +1068,6 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 	}
 
 	// Warn for not whole frame aligned shots
-	MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(InShot);
 	const TRange<FFrameNumber> SectionRange = InShot->ShotInfo.OriginalRangeLocal;
 
 	TRange<FFrameTime> OriginalRangeOuter;
