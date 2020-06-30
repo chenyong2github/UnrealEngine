@@ -597,10 +597,13 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 	PIData->EmitterInstance = nullptr;
 	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 	{
-		if (EmitterName == EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName())
+		if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
 		{
-			PIData->EmitterInstance = EmitterInstance.Get();
-			break;
+			if (EmitterName == CachedEmitter->GetUniqueEmitterName())
+			{
+				PIData->EmitterInstance = EmitterInstance.Get();
+				break;
+			}
 		}
 	}
 
