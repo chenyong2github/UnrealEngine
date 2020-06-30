@@ -2366,10 +2366,25 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 			LogSimpleMessage( FText::Format( LOCTEXT("Blueprint Modified Long", "Blueprint \"{BlueprintName}\" was updated to fix issues detected on load. Please resave."), Args ) );
 		}
 
-		// If we have a warning/error, open output log.
-		if (!Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings))
+		// Determine if the current "mode" supports invoking the Compiler Results tab.
+		const bool bCanInvokeCompilerResultsTab = TabManager->HasTabSpawner(FBlueprintEditorTabs::CompilerResultsID);
+
+		// If we have a warning/error, open output log if the current mode allows us to invoke it.
+		const bool bIsBlueprintInWarningOrErrorState = !Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings);
+		if (bIsBlueprintInWarningOrErrorState && bCanInvokeCompilerResultsTab)
 		{
 			TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+		}
+		else
+		{
+			// Toolkit modes that don't include this tab may have been incorrectly saved with layout information for restoring it
+			// as an "unrecognized" tab, due to having previously invoked it above without checking to see if the layout can open
+			// it first. To correct this, we check if the tab was restored from a saved layout here, and close it if not supported.
+			TSharedPtr<SDockTab> TabPtr = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::CompilerResultsID);
+			if (TabPtr.IsValid() && !bCanInvokeCompilerResultsTab)
+			{
+				TabPtr->RequestCloseTab();
+			}
 		}
 	}
 
