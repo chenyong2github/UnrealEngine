@@ -25,6 +25,7 @@ class UUserDefinedStruct;
 struct FEdGraphSchemaAction_K2Struct;
 struct FGraphActionNode;
 struct FGraphActionSort;
+struct FReplaceNodeReferencesHelper;
 
 class FMyBlueprintCommands : public TCommands<FMyBlueprintCommands>
 {
@@ -43,6 +44,7 @@ public:
 	TSharedPtr<FUICommandInfo> ImplementFunction;
 	TSharedPtr<FUICommandInfo> DeleteEntry;
 	TSharedPtr<FUICommandInfo> GotoNativeVarDefinition;
+	TSharedPtr<FUICommandInfo> MoveToParent;
 	// Add New Item
 	/** Initialize commands */
 	virtual void RegisterCommands() override;
@@ -233,6 +235,9 @@ private:
 	void OnDuplicateAction();
 	void GotoNativeCodeVarDefinition();
 	bool IsNativeVariable() const;
+	void OnMoveToParent();
+	void OnMoveToParentCompleted();
+	bool CanMoveToParent() const;
 
 	/** Callback when the filter is changed, forces the action tree(s) to filter */
 	void OnFilterTextChanged( const FText& InFilterText );
@@ -299,6 +304,9 @@ private:
 
 	/** The Kismet Inspector used to display properties: */
 	TWeakPtr<SKismetInspector> Inspector;
+
+	/** A transient Replace helper used when moving variables to the parent class */
+	TSharedPtr<FReplaceNodeReferencesHelper> ReplaceHelper;
 
 	/** Flag to indicate whether or not we need to refresh the panel */
 	bool bNeedsRefresh;

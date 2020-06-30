@@ -54,6 +54,7 @@
 
 #include "BlueprintEditorSettings.h"
 #include "SReplaceNodeReferences.h"
+#include "ReplaceNodeReferencesHelper.h"
 #include "Animation/AnimClassInterface.h"
 
 #define LOCTEXT_NAMESPACE "MyBlueprint"
@@ -67,8 +68,9 @@ void FMyBlueprintCommands::RegisterCommands()
 	UI_COMMAND( FocusNode, "Focus", "Focuses on the associated node", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( FocusNodeInNewTab, "Focus in New Tab", "Focuses on the associated node in a new tab", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ImplementFunction, "Implement Function", "Implements this overridable function as a new function.", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(DeleteEntry, "Delete", "Deletes this function or variable from this blueprint.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+	UI_COMMAND( DeleteEntry, "Delete", "Deletes this function or variable from this blueprint.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
 	UI_COMMAND( GotoNativeVarDefinition, "Goto Code Definition", "Goto the native code definition of this variable", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( MoveToParent, "Move to Parent Class", "Moves the variable to its parent class", EUserInterfaceActionType::Button, FInputChord() );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -294,6 +296,12 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanDuplicateAction),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::IsDuplicateActionVisible) );
+
+		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().MoveToParent,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnMoveToParent),
+			FCanExecuteAction(),
+			FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanMoveToParent) );
 
 		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().GotoNativeVarDefinition,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::GotoNativeCodeVarDefinition),
@@ -979,6 +987,12 @@ bool SMyBlueprint::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSel
 void SMyBlueprint::Refresh()
 {
 	bNeedsRefresh = false;
+
+	// If there's a valid replace helper and it needs to be deleted, get rid of it
+	if (ReplaceHelper.IsValid() && ReplaceHelper->IsCompleted())
+	{
+		ReplaceHelper.Reset();
+	}
 
 	// Conform to our interfaces here to ensure we catch any newly added functions
 	FBlueprintEditorUtils::ConformImplementedInterfaces(GetBlueprintObj());
@@ -2088,6 +2102,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 			MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().FindAndReplaceReferences);
 			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().GotoNativeVarDefinition);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().MoveToParent);
 			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().DeleteEntry);
 		}
 		MenuBuilder.EndSection();
@@ -2945,6 +2960,81 @@ bool SMyBlueprint::IsNativeVariable() const
 		}
 	}
 	return false;
+}
+
+void SMyBlueprint::OnMoveToParent()
+{
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+	{
+		if (UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(Blueprint->ParentClass))
+		{
+			TSharedPtr<FScopedTransaction> Transaction = MakeShared<FScopedTransaction>(LOCTEXT("MoveToParent", "Move To Parent"));
+
+			FName VarCopyName = FBlueprintEditorUtils::DuplicateMemberVariable(Blueprint, ParentBlueprint, VarAction->GetVariableName());
+
+			if (VarCopyName != NAME_None)
+			{
+				// If properties are not found, these will be nullptr
+				const FProperty* SourceProperty = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, VarAction->GetVariableName());
+				const FProperty* ReplacementProperty = FindFProperty<FProperty>(ParentBlueprint->SkeletonGeneratedClass, VarCopyName);
+				if (SourceProperty && ReplacementProperty)
+				{
+					// ReplaceAllReferences
+					FMemberReference OldVar;
+					FMemberReference NewVar;
+					OldVar.SetFromField<FProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
+					NewVar.SetFromField<FProperty>(ReplacementProperty, true, ReplacementProperty->GetOwnerClass());
+					ReplaceHelper = MakeShared<FReplaceNodeReferencesHelper>(MoveTemp(OldVar), MoveTemp(NewVar), Blueprint);
+					ReplaceHelper->SetTransaction(Transaction);
+
+					FSimpleDelegate OnCompleted = FSimpleDelegate::CreateSP(this, &SMyBlueprint::OnMoveToParentCompleted);
+
+					// This starts an FSlowTask, so we don't need to worry about anything breaking while the task is completed
+					ReplaceHelper->BeginFindAndReplace(OnCompleted);
+				}
+			}
+		}
+	}
+}
+
+void SMyBlueprint::OnMoveToParentCompleted()
+{
+	if (UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(Blueprint->ParentClass))
+	{
+		// Remove old var
+		FName OldName = ReplaceHelper->GetSource().GetMemberName();
+		Blueprint->Modify();
+		FBlueprintEditorUtils::RemoveMemberVariable(Blueprint, ReplaceHelper->GetSource().GetMemberName());
+
+		// Rename new var
+		FBlueprintEditorUtils::RenameMemberVariable(ParentBlueprint, ReplaceHelper->GetReplacement().GetMemberName(), OldName);
+	}
+	
+	// We need to defer destroying the helper until the next refresh because helper is currently ticking
+	bNeedsRefresh = true;
+}
+
+bool SMyBlueprint::CanMoveToParent() const
+{
+	bool bCanMove = false;
+
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && PinnedEditor->IsParentClassABlueprint())
+	{
+		if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+		{
+			// If this variable is new to this class
+			UBlueprint* SourceBlueprint;
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(Blueprint, VarAction->GetVariableName(), SourceBlueprint);
+			bCanMove = (VarIndex != INDEX_NONE) && (SourceBlueprint == Blueprint);
+		}
+		else if (SelectionAsGraph())
+		{
+			// TODO : add support for functions
+		}
+	}
+
+	return bCanMove;
 }
 
 void SMyBlueprint::OnResetItemFilter()

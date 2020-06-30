@@ -5026,19 +5026,19 @@ void FBlueprintEditorUtils::ChangeMemberVariableType(UBlueprint* Blueprint, cons
 	}
 }
 
-FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate)
+FName FBlueprintEditorUtils::DuplicateMemberVariable(UBlueprint* InFromBlueprint, UBlueprint* InToBlueprint, FName InVariableToDuplicate)
 {
-	FName DuplicatedVariableName = NAME_None;
+	FName DuplicatedVariableName;
 
 	if (InVariableToDuplicate != NAME_None)
 	{
 		const FScopedTransaction Transaction(LOCTEXT("DuplicateVariable", "Duplicate Variable"));
-		InBlueprint->Modify();
+		InToBlueprint->Modify();
 
 		FBPVariableDescription NewVar;
 
 		UBlueprint* SourceBlueprint;
-		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(InBlueprint, InVariableToDuplicate, SourceBlueprint);
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(InFromBlueprint, InVariableToDuplicate, SourceBlueprint);
 		if (VarIndex != INDEX_NONE)
 		{
 			FBPVariableDescription& Variable = SourceBlueprint->NewVariables[VarIndex];
@@ -5066,15 +5066,42 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 			}
 
 			// Add the new variable
-			InBlueprint->NewVariables.Add(NewVar);
+			InToBlueprint->NewVariables.Add(NewVar);
 		}
-		else
+
+		if (NewVar.VarGuid.IsValid())
+		{
+			DuplicatedVariableName = NewVar.VarName;
+
+			// Potentially adjust variable names for any child blueprints
+			FBlueprintEditorUtils::ValidateBlueprintChildVariables(InToBlueprint, NewVar.VarName);
+
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InToBlueprint);
+		}
+	}
+
+	return DuplicatedVariableName;
+}
+
+FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate)
+{
+	FName DuplicatedVariableName;
+
+	if (InVariableToDuplicate != NAME_None)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DuplicateVariable", "Duplicate Variable"));
+		InBlueprint->Modify();
+
+		DuplicatedVariableName = FBlueprintEditorUtils::DuplicateMemberVariable(InBlueprint, InBlueprint, InVariableToDuplicate);
+		
+		if (DuplicatedVariableName == NAME_None)
 		{
 			// It's probably a local variable
 
 			UK2Node_FunctionEntry* FunctionEntry = nullptr;
 			FBPVariableDescription* LocalVariable = FBlueprintEditorUtils::FindLocalVariable(InBlueprint, InScope, InVariableToDuplicate, &FunctionEntry);
 
+			FBPVariableDescription NewVar;
 			if (LocalVariable)
 			{
 				FunctionEntry->Modify();
@@ -5084,17 +5111,18 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 				// Add the new variable
 				FunctionEntry->LocalVariables.Add(NewVar);
 			}
+
+			if (NewVar.VarGuid.IsValid())
+			{
+				DuplicatedVariableName = NewVar.VarName;
+
+				// Potentially adjust variable names for any child blueprints
+				FBlueprintEditorUtils::ValidateBlueprintChildVariables(InBlueprint, NewVar.VarName);
+
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
+			}
 		}
 
-		if (NewVar.VarGuid.IsValid())
-		{
-			DuplicatedVariableName = NewVar.VarName;
-
-			// Potentially adjust variable names for any child blueprints
-			FBlueprintEditorUtils::ValidateBlueprintChildVariables(InBlueprint, NewVar.VarName);
-
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
-		}
 	}
 
 	return DuplicatedVariableName;

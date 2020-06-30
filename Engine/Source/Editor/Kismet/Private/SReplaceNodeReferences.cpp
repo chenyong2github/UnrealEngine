@@ -15,6 +15,7 @@
 #include "ObjectEditorUtils.h"
 #include "EditorCategoryUtils.h"
 #include "ScopedTransaction.h"
+#include "ReplaceNodeReferencesHelper.h"
 
 #define LOCTEXT_NAMESPACE "SNodeVariableReferences"
 
@@ -570,47 +571,28 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 		FMemberReference VariableReference;
 		if (SelectedTargetReferenceItem->GetMemberReference(VariableReference))
 		{
-			const FScopedTransaction Transaction( GetTransactionTitle(VariableReference) );
-			
-			BlueprintEditor.Pin()->GetBlueprintObj()->Modify();
-
-			TArray< UBlueprint* > BlueprintsModified;
-			for (FImaginaryFiBDataSharedPtr ImaginaryData : InRawDataList)
+			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
+			if (PinnedEditor.IsValid())
 			{
-				BlueprintsModified.AddUnique(ImaginaryData->GetBlueprint());
-				UObject* Node = ImaginaryData->GetObject(ImaginaryData->GetBlueprint());
-				UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node);
-				if (ensure(VariableNode))
+				UBlueprint* Blueprint = PinnedEditor->GetBlueprintObj();
+				if (Blueprint)
 				{
-					VariableNode->Modify();
-					if (VariableNode->VariableReference.IsLocalScope() || VariableNode->VariableReference.IsSelfContext())
-					{
-						VariableNode->VariableReference = VariableReference;
-					}
-					else
-					{
-						UBlueprint* Blueprint = BlueprintEditor.Pin()->GetBlueprintObj();
-						VariableNode->VariableReference.SetFromField<FProperty>(VariableReference.ResolveMember<FProperty>(Blueprint), Blueprint->GeneratedClass);
-					}
-					VariableNode->ReconstructNode();
-				}
-			}
+					const FScopedTransaction Transaction(GetTransactionTitle(VariableReference));
+					Blueprint->Modify();
 
-			for (UBlueprint* Blueprint : BlueprintsModified)
-			{
-				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
-				FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(Blueprint);
-			}
+					FReplaceNodeReferencesHelper::ReplaceReferences(VariableReference, Blueprint, InRawDataList);
 
-			if (SourceProperty && bShowReplacementsWhenFinished)
-			{
-				TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
-				if (GlobalResults)
-				{
-					FStreamSearchOptions SearchOptions;
-					SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
-					SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-					GlobalResults->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+					if (SourceProperty && bShowReplacementsWhenFinished)
+					{
+						TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
+						if (GlobalResults)
+						{
+							FStreamSearchOptions SearchOptions;
+							SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+							SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+							GlobalResults->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+						}
+					}
 				}
 			}
 		}

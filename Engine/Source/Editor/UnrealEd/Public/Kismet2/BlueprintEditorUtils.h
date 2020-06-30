@@ -814,13 +814,24 @@ public:
 	static bool AddMemberVariable(UBlueprint* Blueprint, const FName& NewVarName, const FEdGraphPinType& NewVarType, const FString& DefaultValue = FString());
 
 	/**
+	 * Duplicates a variable from one Blueprint to another blueprint
+	 *
+	 * @param InFromBlueprint				The Blueprint the variable can be found in
+	 * @param InToBlueprint					The Blueprint the new variable should be added to (can be the same blueprint)
+	 * @param InVariableToDuplicate			Variable name to be found and duplicated
+	 *
+	 * @return								Returns the name of the new variable or NAME_None if failed to duplicate
+	 */
+	static FName DuplicateMemberVariable(UBlueprint* InFromBlueprint, UBlueprint* InToBlueprint, FName InVariableToDuplicate);
+
+	/**
 	 * Duplicates a variable given its name and Blueprint
 	 *
 	 * @param InBlueprint					The Blueprint the variable can be found in
 	 * @paramInScope						Local variable's scope
 	 * @param InVariableToDuplicate			Variable name to be found and duplicated
 	 *
-	 * @return								Returns the name of the new variable or NAME_None is failed to duplicate
+	 * @return								Returns the name of the new variable or NAME_None if failed to duplicate
 	 */
 	static FName DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate);
 
