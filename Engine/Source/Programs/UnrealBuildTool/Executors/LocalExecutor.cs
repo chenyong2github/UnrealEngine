@@ -209,9 +209,29 @@ namespace UnrealBuildTool
 		[XmlConfigFile]
 		int MaxProcessorCount = int.MaxValue;
 
-		public LocalExecutor()
+		/// <summary>
+		/// How many processes that will be executed in parallel
+		/// </summary>
+		int NumParallelProcesses;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="MaxLocalActions">How many actions to execute in parallel. When 0 a default will be chosen based on system resources</param>
+		public LocalExecutor(int MaxLocalActions=0)
 		{
 			XmlConfig.ApplyTo(this);
+
+			// if specified this caps how many processors we can use
+			if (MaxLocalActions > 0)
+			{
+				NumParallelProcesses = MaxLocalActions;
+			}
+			else
+			{
+				// Figure out how many processors to use
+				NumParallelProcesses = GetMaxActionsToExecuteInParallel();
+			}
 		}
 
 		public override string Name
@@ -281,8 +301,7 @@ namespace UnrealBuildTool
 			const float LoopSleepTime = 0.1f;
 
 			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
-			int MaxActionsToExecuteInParallel = GetMaxActionsToExecuteInParallel();
-			Log.TraceInformation("Performing {0} actions ({1} in parallel)", Actions.Count, MaxActionsToExecuteInParallel);
+			Log.TraceInformation("Performing {0} actions ({1} in parallel)", Actions.Count, NumParallelProcesses);
 
 			Dictionary<Action, ActionThread> ActionThreadDictionary = new Dictionary<Action, ActionThread>();
 			int JobNumber = 1;
@@ -334,7 +353,7 @@ namespace UnrealBuildTool
 						bool bFoundActionProcess = ActionThreadDictionary.TryGetValue(Action, out ActionProcess);
 						if (bFoundActionProcess == false)
 						{
-							if (NumExecutingActions < Math.Max(1, MaxActionsToExecuteInParallel))
+							if (NumExecutingActions < Math.Max(1, NumParallelProcesses))
 							{
 								// Determine whether there are any prerequisites of the action that are outdated.
 								bool bHasOutdatedPrerequisites = false;

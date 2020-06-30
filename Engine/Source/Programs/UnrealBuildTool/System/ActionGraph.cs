@@ -210,7 +210,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Executor = new LocalExecutor();
+					Executor = new LocalExecutor(BuildConfiguration.MaxParallelActions);
 				}
 
 				// Execute the build
