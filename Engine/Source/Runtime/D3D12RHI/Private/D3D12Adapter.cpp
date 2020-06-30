@@ -430,18 +430,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	bool bRayTracingInGameSettingEnabled = false;
 	if (!GIsEditor && GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), bRayTracingInGameSettingEnabled, GGameUserSettingsIni))
 	{
-		bHasRayTracingInGameSetting = true;
-
-		if (bRayTracingInGameSettingEnabled)
-		{
-			// Raytracing assumes contents have been cooked with r.SkinCache.CompileShaders enabled. Enable SC in runtime when ray tracing in game is enabled
-			static IConsoleVariable* CVarSkinCacheMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.skincache.mode"));
-			if (CVarSkinCacheMode)
-			{
-				int32 ScMode = 1;
-				CVarSkinCacheMode->Set(ScMode, ECVF_SetByGameSetting);
-			}
-		}	
+		bHasRayTracingInGameSetting = true;	
 	}
 
 	const bool bRayTracingEnabled = bHasRayTracingInGameSetting ? bRayTracingInGameSettingEnabled : GetRayTracingCVarValue();
@@ -455,10 +444,19 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		{
 			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing enabled."));
 
-			static auto CVarSkinCache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
-			if (CVarSkinCache->GetInt() <= 0)
+			// Raytracing assumes contents have been cooked with r.SkinCache.CompileShaders enabled. 
+			static auto CVarSkinCacheCompileShaders = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
+			if (CVarSkinCacheCompileShaders->GetInt() <= 0)
 			{
 				UE_LOG(LogD3D12RHI, Fatal, TEXT("D3D12 ray tracing requires skin cache to be enabled. Set r.SkinCache.CompileShaders=1."));
+			}
+
+			// Enable SC in runtime when ray tracing in game is enabled
+			static IConsoleVariable* CVarSkinCacheMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.skincache.mode"));
+			if (CVarSkinCacheMode)
+			{
+				int32 ScMode = 1;
+				CVarSkinCacheMode->Set(ScMode, ECVF_SetByConsole);
 			}
 		}
 		else
