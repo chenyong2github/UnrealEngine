@@ -386,9 +386,7 @@ void FTransitionAndLayoutManager::BeginRealRenderPass(FVulkanCommandListContext&
 			VulkanSetImageLayout(CmdBuffer->GetHandle(), QCOMDepthStencilImage, QCOMDepthStencilImageLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, SetupImageSubresourceRange(QCOMDepthStencilSurface->GetFullAspectMask()));
 			Layouts[QCOMDepthStencilImage] = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
-		else
-		// Check if we need to transition the depth stencil texture(s) based on the current layout and the requested access mode for the render target
-		if (DSLayout != FinalLayout)
+		else if (DSLayout != FinalLayout) // Check if we need to transition the depth stencil texture(s) based on the current layout and the requested access mode for the render target
 		{
 			int32 BarrierIndex = Barrier.AddImageBarrier(Surface.Image, Surface.GetFullAspectMask(), 1);
 			VulkanRHI::EImageLayoutBarrier SrcLayout = VulkanRHI::GetImageLayoutFromVulkanLayout(DSLayout);
