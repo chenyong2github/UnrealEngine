@@ -137,6 +137,7 @@ void FCachedFontData::ClearFreeTypeFace()
 	{
 		FT_Done_Face(FreeTypeFace);
 		FreeTypeFace = nullptr;
+		Data.Reset();
 	}
 }
 
@@ -159,16 +160,12 @@ void FCachedFontData::LoadFreeTypeFace()
 
 	if (FaceData->HasData() && FaceData->GetData().Num() > 0)
 	{
-		const TArray<uint8>& Data = FaceData->GetData();
+		Data = FaceData->GetData();
 		FT_New_Memory_Face(FText3DModule::GetFreeTypeLibrary(), Data.GetData(), Data.Num(), 0, &FreeTypeFace);
 	}
-	else
+	else if (FFileHelper::LoadFileToArray(Data, *Typeface.Font.GetFontFilename()) && Data.Num() > 0)
 	{
-		TArray<uint8> Data;
-		if (FFileHelper::LoadFileToArray(Data, *Typeface.Font.GetFontFilename()) && Data.Num() > 0)
-		{
-			FT_New_Memory_Face(FText3DModule::GetFreeTypeLibrary(), Data.GetData(), Data.Num(), 0, &FreeTypeFace);
-		}
+		FT_New_Memory_Face(FText3DModule::GetFreeTypeLibrary(), Data.GetData(), Data.Num(), 0, &FreeTypeFace);
 	}
 
 	if (FreeTypeFace)
