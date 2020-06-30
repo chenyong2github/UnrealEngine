@@ -3607,6 +3607,20 @@ void UMaterialInstance::PostLoad()
 
 void UMaterialInstance::BeginDestroy()
 {
+#if UE_CHECK_FMATERIAL_LIFETIME
+	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+	{
+		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
+		{
+			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
+			if (CurrentResource)
+			{
+				CurrentResource->SetOwnerBeginDestroyed();
+			}
+		}
+	}
+#endif // UE_CHECK_FMATERIAL_LIFETIME
+
 	Super::BeginDestroy();
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
