@@ -54,7 +54,9 @@ enum EBulkDataFlags : uint32
 	/** Assigned at runtime to indicate that the BulkData allocation is a memory mapped region of a file and not raw data. */
 	BULKDATA_DataIsMemoryMapped = 1 << 30,
 	/** Assigned at runtime to indicate that the BulkData object has an async loading request in flight and will need to wait on it. */
-	BULKDATA_HasAsyncReadPending = 1 << 29
+	BULKDATA_HasAsyncReadPending = 1 << 29,
+	/** Assigned at runtime to indicate that the BulkData object should be considered for discard even if it cannot load from disk. */
+	BULKDATA_AlwaysAllowDiscard = 1 << 28,
 };
 
 /**
