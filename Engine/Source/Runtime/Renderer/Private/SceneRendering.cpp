@@ -2084,6 +2084,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	InstancedStereoWidth(0)
 ,	RootMark(nullptr)
 ,	FamilySize(0, 0)
+,	bHasRequestedToggleFreeze(false)
 {
 	check(Scene != NULL);
 
@@ -2195,8 +2196,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 	}
 
 	// copy off the requests
-	// (I apologize for the const_cast, but didn't seem worth refactoring just for the freezerendering command)
-	bHasRequestedToggleFreeze = const_cast<FRenderTarget*>(InViewFamily->RenderTarget)->HasToggleFreezeCommand();
+	if(ensure(InViewFamily->RenderTarget))
+	{
+		// (I apologize for the const_cast, but didn't seem worth refactoring just for the freezerendering command)
+		bHasRequestedToggleFreeze = const_cast<FRenderTarget*>(InViewFamily->RenderTarget)->HasToggleFreezeCommand();
+	}
 
 	FeatureLevel = Scene->GetFeatureLevel();
 	ShaderPlatform = Scene->GetShaderPlatform();
