@@ -30,33 +30,24 @@ public class WeGame : ModuleRules
 			// add header include
 			PublicSystemIncludePaths.Add(RailSdkPath);
 			// add dll dependencies
-			List<string> DLLNames = new List<string>();
-			DLLNames.AddRange(
-				new string[] {
-					"rail_api.dll",
-					"rail_sdk_wegame_platform.dll"
-			});
-			foreach (string DLLNameEntry in DLLNames)
+			string DLLName = "rail_api.dll";
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				string DLLName = DLLNameEntry;
+				DLLName = DLLName.Replace(".dll", "64.dll");
+			}
+			if (Target.ProjectFile != null)
+			{
+				// Can't add this DLL as a dependency of the base editor
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					DLLName = DLLName.Replace(".dll", "64.dll");
+					RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win64", DLLName));
 				}
-				if(Target.ProjectFile != null)
+				else if (Target.Platform == UnrealTargetPlatform.Win32)
 				{
-					// Can't add this DLL as a dependency of the base editor
-					if (Target.Platform == UnrealTargetPlatform.Win64)
-					{
-						RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win64", DLLName));
-					}
-					else if (Target.Platform == UnrealTargetPlatform.Win32)
-					{
-						RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win32", DLLName));
-					}
+					RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win32", DLLName));
 				}
-				PublicDelayLoadDLLs.Add(DLLName);
 			}
+			PublicDelayLoadDLLs.Add(DLLName);
 		}
 		else
 		{
