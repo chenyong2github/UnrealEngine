@@ -378,7 +378,7 @@ void FAnalyticsProviderET::FlushEventsOnce()
 			HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json; charset=utf-8"));
 			HttpRequest->SetURL(Config.APIServerET / URLPath);
 			HttpRequest->SetVerb(TEXT("POST"));
-			HttpRequest->SetContent(Payload);
+			HttpRequest->SetContent(MoveTemp(Payload));
 
 			// Don't set a response callback if we are in our destructor, as the instance will no longer be there to call.
 			if (!bInDestructor)
