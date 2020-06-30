@@ -178,6 +178,15 @@ protected:
 	/** Returns the label text for the "OnlyLocalResults" CheckBox */
 	FText GetLocalCheckBoxLabelText() const;
 
+	/** Callback for when the "Show When Finished" CheckBox is changed */
+	void OnShowReplacementsCheckBoxChanged(ECheckBoxState Checked);
+
+	/** Returns the current state of the "Show When Finished" CheckBox */
+	ECheckBoxState GetShowReplacementsCheckBoxState() const;
+
+	/** Returns the label text for the "Show When Finished" CheckBox */
+	FText GetShowReplacementsCheckBoxLabelText() const;
+
 	/** Returns the text to display in the bottom right corner of the window */
 	FText GetStatusText() const;
 
@@ -221,4 +230,7 @@ protected:
 
 	/** Whether to search only within the currently open blueprint */
 	bool bFindWithinBlueprint;
+
+	/** Whether to show a FindResults tab for the replacements after completing action */
+	bool bShowReplacementsWhenFinished;
 };

@@ -123,6 +123,7 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 {
 	BlueprintEditor = InBlueprintEditor;
 	Refresh();
+	bShowReplacementsWhenFinished = true;
 
 	ChildSlot
 		[
@@ -288,6 +289,29 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 					
 					+SHorizontalBox::Slot()
 					.Padding(2.0f)
+					.HAlign(HAlign_Left)
+					.AutoWidth()
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SCheckBox)
+							.IsChecked(this, &SReplaceNodeReferences::GetShowReplacementsCheckBoxState)
+							.OnCheckStateChanged(this, &SReplaceNodeReferences::OnShowReplacementsCheckBoxChanged)
+						]
+
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(this, &SReplaceNodeReferences::GetShowReplacementsCheckBoxLabelText)
+						]
+					]
+
+					+SHorizontalBox::Slot()
+					.Padding(2.0f)
 					.HAlign(HAlign_Right)
 					.VAlign(VAlign_Bottom)
 					.FillWidth(1.0f)
@@ -302,7 +326,6 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 void SReplaceNodeReferences::Refresh()
 {
 	SetSourceVariable(nullptr);
-
 	BlueprintVariableList.Empty();
 	TargetClass = BlueprintEditor.Pin()->GetBlueprintObj()->SkeletonGeneratedClass;
 	GatherAllAvailableBlueprintVariables(TargetClass);
@@ -579,12 +602,16 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 				FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(Blueprint);
 			}
 
-			if (SourceProperty)
+			if (SourceProperty && bShowReplacementsWhenFinished)
 			{
-				FStreamSearchOptions SearchOptions;
-				SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
-				SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-				FindInBlueprints->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+				TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
+				if (GlobalResults)
+				{
+					FStreamSearchOptions SearchOptions;
+					SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+					SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+					GlobalResults->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+				}
 			}
 		}
 	}
@@ -675,7 +702,7 @@ bool SReplaceNodeReferences::CanBeginSearch(bool bFindAndReplace) const
 
 void SReplaceNodeReferences::OnLocalCheckBoxChanged(ECheckBoxState Checked)
 {
-	bFindWithinBlueprint = Checked == ECheckBoxState::Checked;
+	bFindWithinBlueprint = (Checked == ECheckBoxState::Checked);
 }
 
 ECheckBoxState SReplaceNodeReferences::GetLocalCheckBoxState() const
@@ -686,6 +713,21 @@ ECheckBoxState SReplaceNodeReferences::GetLocalCheckBoxState() const
 	}
 
 	return ECheckBoxState::Unchecked;
+}
+
+FText SReplaceNodeReferences::GetShowReplacementsCheckBoxLabelText() const
+{
+	return LOCTEXT("ShowReplacements", "Show Replacements when complete?");
+}
+
+void SReplaceNodeReferences::OnShowReplacementsCheckBoxChanged(ECheckBoxState Checked)
+{
+	bShowReplacementsWhenFinished = (Checked == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SReplaceNodeReferences::GetShowReplacementsCheckBoxState() const
+{
+	return bShowReplacementsWhenFinished ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 FText SReplaceNodeReferences::GetLocalCheckBoxLabelText() const
