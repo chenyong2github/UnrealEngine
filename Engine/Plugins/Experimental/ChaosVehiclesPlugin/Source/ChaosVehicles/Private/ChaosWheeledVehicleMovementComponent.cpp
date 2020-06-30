@@ -969,19 +969,6 @@ void UChaosWheeledVehicleMovementComponent::ProcessSteering()
 		{
 			PWheel.SetSteeringAngle(0.0f);
 		}
-
-		//float EngineBraking = 0.f;
-
-		//if (PWheel.Setup().EngineEnabled)
-		//{
-		//	check(NumDrivenWheels > 0);
-		//	PWheel.SetDriveTorque(TransmissionTorque / (float)NumDrivenWheels);
-		//	if (ThrottleInput < SMALL_NUMBER)
-		//	{
-		//		EngineBraking = 0.f;// PWheel.Setup().HandbrakeTorque * 0.015f; // PEngine.GetEngineRPM()* PEngine.Setup().EngineBrakeEffect * 0.001f;
-		//	}
-		//}
-
 	}
 }
 
@@ -1019,9 +1006,9 @@ void UChaosWheeledVehicleMovementComponent::ApplyInput(float DeltaTime)
 		auto& PWheel = PVehicle->Wheels[WheelIdx];
 
 		float EngineBraking = 0.0f;
-		if ((ThrottleInput < SMALL_NUMBER) && VehicleState.ForwardSpeed > SMALL_NUMBER && PWheel.Setup().EngineEnabled)
+		if ((ThrottleInput < SMALL_NUMBER) && FMath::Abs(VehicleState.ForwardSpeed) > SMALL_NUMBER && PWheel.Setup().EngineEnabled)
 		{
-			EngineBraking = PEngine.GetEngineRPM()* PEngine.Setup().EngineBrakeEffect;
+			EngineBraking = PEngine.GetEngineRPM() * PEngine.Setup().EngineBrakeEffect;
 		}
 
 		if (PWheel.Setup().BrakeEnabled)
