@@ -99,6 +99,14 @@ public:
 	 */
 	void NotifyMeshChanged(bool bTopologyModified);
 
+	/**
+	 * Perform a hit test on the topology using the current selection settings. In cases of hitting edges and
+	 * corners, OutHit contains the following:
+	 *   OutHit.FaceIndex: edge or corner id in the topology
+	 *   OutHit.ImpactPoint: closest point on the ray to the hit element (Note: not a point on the element!)
+	 *   OutHit.Distance: distance along the ray to ImpactPoint
+	 *   OutHit.Item: if hit item was an edge, index of the segment within the edge polyline. Otherwise undefined.
+	 */
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection);
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit);
 

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "Math/UnrealMathUtility.h"
 #include "MeshShapeGenerator.h"
 #include "Misc/AssertionMacros.h"
@@ -13,6 +15,8 @@
 #include "MatrixTypes.h"
 #include "Polygon2.h"
 #include "Curve/CurveUtil.h"
+
+#include "Util/ProgressCancel.h"
 
 /**
  * ECapType indicates the type of cap to use on a sweep
@@ -598,4 +602,114 @@ public:
 
 		return *this;
 	}
+};
+
+enum class EProfileSweepPolygonGrouping : uint8
+{
+	/** One polygroup for entire output mesh */
+	Single,
+	/** One polygroup per mesh quad/triangle */
+	PerFace,
+
+	/* One polygroup per strip that represents a step along the sweep curve. */
+	PerSweepSegment,
+	/* One polygroup per strip coming from each individual edge of the profile curve. */
+	PerProfileSegment
+};
+
+enum class EProfileSweepQuadSplit : uint8
+{
+	/** Always split the quad in the same way relative sweep direction and profile direction. */
+	Uniform,
+	/** Split the quad to connect the shortest diagonal. */
+	ShortestDiagonal
+};
+
+/**
+ * Much like FGeneralizedCylinderGenerator, but allows an arbitrary profile curve to be swept, and gives
+ * control over the frames of the sweep curve. A mesh will be properly oriented if the profile curve is
+ * oriented counterclockwise when facing down the direction in which it is being swept.
+ *
+ * Because it supports open profile curves, as well as welded points (for welding points on an axis of rotation), 
+ * it cannot actually use the utility function from FSweepGeneratorBase, and so it doesn't inherit from 
+ * that class.
+ */
+class GEOMETRICOBJECTS_API FProfileSweepGenerator : public FMeshShapeGenerator
+{
+public:
+
+	// Curve that will be swept along the curve, given in coordinates of the frames used in the sweep curve.
+	TArray<FVector3d> ProfileCurve;
+
+	// Curve along which to sweep the profile curve
+	TArray<FFrame3d> SweepCurve;
+
+	// Indices into ProfileCurve that should not be swept along the curve, instead being instantiated
+	// just once. This is useful for welding vertices on an axis of rotation if the sweep curve denotes
+	// a revolution.
+	TSet<int32> WeldedVertices;
+
+	// Generated UV coordinates will be multiplied by these values.
+	FVector2d UVScale = FVector2d(1,1);
+
+	// These values will be added to the generated UV coordinates after applying UVScale.
+	FVector2d UVOffset = FVector2d(0, 0);
+
+	// When true, the generator attempts to scale UV's in a way that preserves scaling across different mesh
+	// results, aiming for 1.0 in UV space to be equal to UnitUVInWorldCoordinates in world space. This is 
+	// generally speaking unrealistic because UV's are going to be variably stretched no matter what, but 
+	// in practice it means adjusting the V scale relative to the profile curve length and U scale relative
+	// to a very crude measurement of movement across sweep frames.
+	bool bUVScaleRelativeWorld = false;
+
+	// Only relevant if bUVScaleRelativeWorld is true (see that description)
+	float UnitUVInWorldCoordinates = 100;
+
+	// If true, the last point of the sweep curve is considered to be connected to the first.
+	bool bSweepCurveIsClosed = false;
+
+	// If true, the last point of the profile curve is considered to be connected to the first.
+	bool bProfileCurveIsClosed = false;
+
+	// If true, each triangle will have its own normals at each vertex, rather than sharing averaged
+	// ones with nearby triangles.
+	bool bSharpNormals = true;
+
+	// If true, welded-to-welded connections in the profile curve (which can't result in triangles)
+	// do not affect the UV layout.
+	bool bUVsSkipFullyWeldedEdges = true;
+
+	EProfileSweepQuadSplit QuadSplitMethod = EProfileSweepQuadSplit::ShortestDiagonal;
+
+	EProfileSweepPolygonGrouping PolygonGroupingMode = EProfileSweepPolygonGrouping::PerFace;
+
+	// If not null, this pointer is intermittently used to check whether the current operation should stop early
+	FProgressCancel* Progress = nullptr;
+
+	// TODO: We could allow the user to dissallow bowtie vertex creation, which currently could 
+	// happen depending on which vertices are welded.
+
+public:
+
+	/** Generate the mesh */
+	virtual FMeshShapeGenerator& Generate() override;
+
+	/** If the sweep curve is not closed, this will store the vertex ids of the first and last instances
+	 * of the profile curve. Note that even if the profile curve is closed, depending on the welding,
+	 * these could be part of a single boundary (ie, a square revolved 90 degrees around a welded side
+	 * actually has one open boundary rather than two, since they are joined), but the user likely
+	 * wants to be given them separately for ease in making end caps.
+	 */
+	TArray<int32> EndProfiles[2];
+
+	// TODO: We could output other boundaries too, but that's probably only worth doing once we find
+	// a case where we would actually use them.
+protected:
+
+	void InitializeUvBuffer(const TArray<int32>& VertPositionOffsets, 
+		int32& NumUvRowsOut, int32& NumUvColumnsOut);
+	void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
+		TArray<FVector3d>& WeightedNormals);
+	void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
+		TArray<FVector3d>& WeightedNormals, const FVector3d& AbNormalized);
 };

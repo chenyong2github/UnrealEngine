@@ -104,7 +104,7 @@ void FGroupTopologySelector::UpdateSelectionModeFlags(bool bPreferAlignedElement
 
 
 bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopologySelection& ResultOut,
-	FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut)
+	FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut)
 {
 	// These get used for finding intersections with triangles and corners/edges, repectively.
 	FDynamicMeshAABBTree3* Spatial = GetSpatial();
@@ -130,7 +130,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 	// Deal with corner hits first (and edges that project to a corner)
 	if (bEnableCornerHits || (bEnableEdgeHits && bPreferAlignedElement))
 	{
-		if (DoCornerBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut))
+		if (DoCornerBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
 		{
 			return true;
 		}
@@ -139,7 +139,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 	// If corner selection didn't yield results, try edge selection
 	if (bEnableEdgeHits || (bEnableFaceHits && bPreferAlignedElement))
 	{
-		if (DoEdgeBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut))
+		if (DoEdgeBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
 		{
 			return true;
 		}
@@ -157,7 +157,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 }
 
 bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
-	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const
+	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const
 {
 	// These will store our results, depending on whether we select all along the ray or not.
 	FGeometrySet3::FNearest SingleElement;
@@ -253,6 +253,12 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 				{
 					ResultOut.SelectedEdgeIDs.Add(TopologyEdgeIndex);
 					AddedTopologyEdges.Add(TopologyEdgeIndex);
+
+					if (EdgeSegmentIdOut)
+					{
+						Topology->GetGroupEdgeEdges(TopologyEdgeIndex).Find(Eid, *EdgeSegmentIdOut);
+					}
+
 					break;
 				}
 			}
@@ -314,7 +320,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 }
 
 bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
-	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const
+	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32* EdgeSegmentIdOut) const
 {
 	// These will store our results, depending on whether we select all along the ray or not.
 	FGeometrySet3::FNearest SingleElement;
@@ -496,6 +502,11 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 		else
 		{
 			ResultOut.SelectedEdgeIDs.Add(ClosestElement->ID);
+		}
+
+		if (EdgeSegmentIdOut)
+		{
+			*EdgeSegmentIdOut = ClosestElement->PolySegmentIdx;
 		}
 
 		return true;
