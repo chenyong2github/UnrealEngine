@@ -44,6 +44,6 @@ namespace EBodyCollisionResponse
 
 
 /** Helpers to convert enum to string */
-ENGINE_API const TCHAR* LexToString(ECollisionTraceFlag Enum);
-ENGINE_API const TCHAR* LexToString(EPhysicsType Enum);
-ENGINE_API const TCHAR* LexToString(EBodyCollisionResponse::Type Enum);
+PHYSICSCORE_API const TCHAR* LexToString(ECollisionTraceFlag Enum);
+PHYSICSCORE_API const TCHAR* LexToString(EPhysicsType Enum);
+PHYSICSCORE_API const TCHAR* LexToString(EBodyCollisionResponse::Type Enum);
