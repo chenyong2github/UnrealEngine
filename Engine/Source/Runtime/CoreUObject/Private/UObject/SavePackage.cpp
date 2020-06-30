@@ -3273,7 +3273,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	// Sanity checks
 	check(InOuter);
 	check(Filename);
-	FString PackageFilename(Filename);
 	const bool bIsCooking = TargetPlatform != nullptr;
 
 #if WITH_EDITOR
