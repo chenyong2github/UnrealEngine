@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FastUpdate/SlateInvalidationRoot.h"
+#include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Application/SlateApplicationBase.h"
 #include "Widgets/SWidget.h"
+#include "Input/HittestGrid.h"
 #include "Layout/Children.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
@@ -22,17 +24,60 @@ static FAutoConsoleCommand HandleDumpUpdateListCommand(
 	TEXT(""),
 	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleDumpUpdateList)
 );
-#endif
-
-TArray<FSlateInvalidationRoot*> FSlateInvalidationRoot::ClearUpdateList;
+#endif //WITH_SLATE_DEBUGGING
 
 #if SLATE_CSV_TRACKER
-	static int32 CascadeInvalidationEventAmount = 5;
-	FAutoConsoleVariableRef CVarCascadeInvalidationEventAmount(
-		TEXT("Slate.CSV.CascadeInvalidationEventAmount"),
-		CascadeInvalidationEventAmount,
-		TEXT("The amount of cascaded invalidated parents before we fire a CSV event."));
-#endif
+static int32 CascadeInvalidationEventAmount = 5;
+FAutoConsoleVariableRef CVarCascadeInvalidationEventAmount(
+	TEXT("Slate.CSV.CascadeInvalidationEventAmount"),
+	CascadeInvalidationEventAmount,
+	TEXT("The amount of cascaded invalidated parents before we fire a CSV event."));
+#endif //SLATE_CSV_TRACKER
+
+/**
+ * List of the invalidation root. Used to create unique id to retrieve them safely.
+ */
+class FSlateInvalidationRootList
+{
+public:
+	int32 AddInvalidationRoot(FSlateInvalidationRoot* InvalidationRoot)
+	{
+		++GenerationNumber;
+		check(GenerationNumber != INDEX_NONE);
+		InvalidationRoots.Add(GenerationNumber, InvalidationRoot);
+		return GenerationNumber;
+	}
+
+	void RemoveInvalidationRoot(int32 Id)
+	{
+		InvalidationRoots.Remove(Id);
+	}
+
+	const FSlateInvalidationRoot* GetInvalidationRoot(int32 UniqueId) const
+	{
+		if (UniqueId != INDEX_NONE)
+		{
+			const FSlateInvalidationRoot* const * FoundElement = InvalidationRoots.Find(UniqueId);
+			return FoundElement ? *FoundElement : nullptr;
+		}
+		return nullptr;
+	}
+
+	FSlateInvalidationRoot* GetInvalidationRoot(int32 UniqueId)
+	{
+		return const_cast<FSlateInvalidationRoot*>(const_cast<const FSlateInvalidationRootList*>(this)->GetInvalidationRoot(UniqueId));
+	}
+
+private:
+	TMap<int32, FSlateInvalidationRoot*> InvalidationRoots;
+	int32 GenerationNumber = INDEX_NONE;
+
+} GSlateInvalidationRootListInstance;
+
+/**
+ *
+ */
+TArray<FSlateInvalidationRoot*> FSlateInvalidationRoot::ClearUpdateList;
 
 FSlateInvalidationRoot::FSlateInvalidationRoot()
 	: CachedElementData(new FSlateCachedElementData)
@@ -43,6 +88,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 {
+	InvalidationRootHandle = FSlateInvalidationRootHandle(GSlateInvalidationRootListInstance.AddInvalidationRoot(this));
 	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::HandleInvalidateAllWidgets);
 }
 
@@ -50,6 +96,9 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 {
 	ClearAllFastPathData(true);
 
+#if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
+	ensure(FastWidgetPathToClearedBecauseOfDelay.Num() == 0);
+#endif
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::ClearInvalidatedWidgets(*this);
 #endif
@@ -66,6 +115,8 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 	}
 
 	CachedElementData = nullptr;
+
+	GSlateInvalidationRootListInstance.RemoveInvalidationRoot(InvalidationRootHandle.GetUniqueId());
 }
 
 void FSlateInvalidationRoot::AddReferencedObjects(FReferenceCollector& Collector)
@@ -75,8 +126,7 @@ void FSlateInvalidationRoot::AddReferencedObjects(FReferenceCollector& Collector
 
 FString FSlateInvalidationRoot::GetReferencerName() const
 {
-	static FString ReferencerName(TEXT("FSlateInvalidationRoot"));
-	return ReferencerName;
+	return TEXT("FSlateInvalidationRoot");
 }
 
 void FSlateInvalidationRoot::InvalidateChildOrder()
@@ -446,7 +496,9 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 	}
 }
 
-#define VERIFY_CHILD_ORDER 0
+#define UE_VERIFY_CHILD_ORDER 0
+#define UE_VERIFY_UNIQUENESS 0
+#define UE_VERIFY_FAST_PATH_PROXY_HANDLE 0
 void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 {
 	SCOPED_NAMED_EVENT_TEXT("AssignFastPathIndices", FColor::Magenta);
@@ -464,7 +516,7 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 		WidgetsNeedingUpdate.Empty();
 
 
-#if VERIFY_CHILD_ORDER
+#if UE_VERIFY_CHILD_ORDER
 		TArray<FWidgetProxy, TMemStackAllocator<>> Copy;
 		Copy.Reserve(FastWidgetPathList.Num());
 		RootWidget->AssignIndicesToChildren(*this, INDEX_NONE, Copy, bParentVisible, bParentVolatile);
@@ -493,8 +545,8 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 			RootWidget->AssignIndicesToChildren(*this, INDEX_NONE, TempList, bParentVisible, bParentVolatile);
 		}
 
-#if VERIFY_CHILD_ORDER
-		for (int i = 0; i < Copy.Num(); ++i)
+#if UE_VERIFY_CHILD_ORDER
+		for (int32 i = 0; i < Copy.Num(); ++i)
 		{
 			ensureAlways(Copy[i].Widget == TempList[i].Widget);
 		}
@@ -512,9 +564,44 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 			ClearUpdateList.RemoveSingleSwap(this, false);
 		}
 
-		FastWidgetPathList = MoveTemp(TempList);
+#if UE_VERIFY_UNIQUENESS
+		for (int32 Index = 0; Index < TempList.Num(); ++Index)
+		{
+			const SWidget* Widget = TempList[Index].Widget;
+			ensureAlways(TempList.FindLastByPredicate([Widget](const FWidgetProxy& Proxy){ return Proxy.Widget == Widget; }) == Index);
+		}
+#endif
+
+#if UE_VERIFY_FAST_PATH_PROXY_HANDLE
+		for (const FWidgetProxy& Proxy : FastWidgetPathList)
+		{
+			const SWidget* Widget = Proxy.Widget;
+			if (Widget)
+			{
+				const bool bContains = TempList.ContainsByPredicate([Widget](const FWidgetProxy& Proxy) { return Proxy.Widget == Widget; });
+				if (!bContains)
+				{
+					ensureAlways(Widget->FastPathProxyHandle.GetIndex() == INDEX_NONE);
+				}
+			}
+
+		}
+#endif
+
+#if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
+		for (const FWidgetProxy& Proxy : TempList)
+		{
+			FastWidgetPathToClearedBecauseOfDelay.RemoveSingleSwap(Proxy.Widget);
+		}
+		ensureAlways(FastWidgetPathToClearedBecauseOfDelay.Num() == 0);
+#endif
+
+		FastWidgetPathList = TempList;
 	}
 }
+#undef UE_VERIFY_CHILD_ORDER
+#undef UE_VERIFY_UNIQUENESS
+#undef UE_VERIFY_FAST_PATH_PROXY_HANDLE
 
 bool FSlateInvalidationRoot::ProcessInvalidation()
 {
@@ -713,6 +800,29 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 		}
 	}
 
+#if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
+	if (!bClearResourcesImmediately)
+	{
+		for (const FWidgetProxy& Proxy : FastWidgetPathList)
+		{
+			if (SWidget* Widget = Proxy.Widget)
+			{
+				if (Widget->FastPathProxyHandle.IsValid())
+				{
+					FastWidgetPathToClearedBecauseOfDelay.Add(Widget);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (const FWidgetProxy& Proxy : FastWidgetPathList)
+		{
+			FastWidgetPathToClearedBecauseOfDelay.RemoveSingleSwap(Proxy.Widget);
+		}
+	}
+#endif
+
 
 	if (FastWidgetPathList.Num() != 0)
 	{
@@ -742,4 +852,25 @@ void FSlateInvalidationRoot::Advanced_ResetInvalidation(bool bClearResourcesImme
 	}
 
 	bNeedsSlowPath = true;
+}
+
+/**
+ * 
+ */
+FSlateInvalidationRootHandle::FSlateInvalidationRootHandle()
+	: InvalidationRoot(nullptr)
+	, UniqueId(INDEX_NONE)
+{
+
+}
+
+FSlateInvalidationRootHandle::FSlateInvalidationRootHandle(int32 InUniqueId)
+	: UniqueId(InUniqueId)
+{
+	InvalidationRoot = GSlateInvalidationRootListInstance.GetInvalidationRoot(UniqueId);
+}
+
+FSlateInvalidationRoot* FSlateInvalidationRootHandle::GetInvalidationRoot() const
+{
+	return GSlateInvalidationRootListInstance.GetInvalidationRoot(UniqueId);
 }

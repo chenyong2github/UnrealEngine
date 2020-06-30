@@ -215,7 +215,7 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWi
 }
 
 FWidgetProxyHandle::FWidgetProxyHandle(FSlateInvalidationRoot& InInvalidationRoot, int32 InIndex)
-	: InvalidationRoot(&InInvalidationRoot)
+	: InvalidationRootHandle(InInvalidationRoot.GetInvalidationRootHandle())
 	, MyIndex(InIndex)
 	, GenerationNumber(InInvalidationRoot.GetFastPathGenerationNumber())
 {
@@ -224,27 +224,32 @@ FWidgetProxyHandle::FWidgetProxyHandle(FSlateInvalidationRoot& InInvalidationRoo
 
 bool FWidgetProxyHandle::IsValid() const
 {
+	FSlateInvalidationRoot* InvalidationRoot = InvalidationRootHandle.GetInvalidationRoot();
 	return InvalidationRoot && InvalidationRoot->GetFastPathGenerationNumber() == GenerationNumber && MyIndex != INDEX_NONE;
 }
 
 FWidgetProxy& FWidgetProxyHandle::GetProxy()
 {
-	return InvalidationRoot->FastWidgetPathList[MyIndex];
+	check(IsValid());
+	return GetInvalidationRoot()->FastWidgetPathList[MyIndex];
 }
 
 const FWidgetProxy& FWidgetProxyHandle::GetProxy() const
 {
-	return InvalidationRoot->FastWidgetPathList[MyIndex];
+	check(IsValid());
+	return GetInvalidationRoot()->FastWidgetPathList[MyIndex];
 }
 
 void FWidgetProxyHandle::MarkWidgetUpdatedThisFrame()
 {
-	FWidgetProxy::MarkProxyUpdatedThisFrame(GetProxy(), InvalidationRoot->WidgetsNeedingUpdate);
+	check(IsValid());
+	FWidgetProxy::MarkProxyUpdatedThisFrame(GetInvalidationRoot()->FastWidgetPathList[MyIndex], GetInvalidationRoot()->WidgetsNeedingUpdate);
 }
 
 void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 {
-	FWidgetProxy& Proxy = GetProxy();
+	check(IsValid());
+	FWidgetProxy& Proxy = GetInvalidationRoot()->FastWidgetPathList[MyIndex];
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder))
 	{
@@ -254,12 +259,12 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 				UE_LOG(LogSlate, Log, TEXT("Slow Widget Path Needed: %s %s"), *Proxy.Widget->ToString(), *Proxy.Widget->GetTag().ToString());
 		#endif*/
 		Proxy.bChildOrderInvalid = true;
-		InvalidationRoot->InvalidateChildOrder();
+		GetInvalidationRoot()->InvalidateChildOrder();
 	}
 
 	if (Proxy.CurrentInvalidateReason == EInvalidateWidget::None)
 	{
-		InvalidationRoot->WidgetsNeedingUpdate.Push(Proxy);
+		GetInvalidationRoot()->WidgetsNeedingUpdate.Push(Proxy);
 	}
 #if 0
 	else
@@ -272,7 +277,8 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 
 void FWidgetProxyHandle::UpdateWidgetFlags(EWidgetUpdateFlags NewFlags)
 {
-	FWidgetProxy& Proxy = GetProxy();
+	check(IsValid());
+	FWidgetProxy& Proxy = GetInvalidationRoot()->FastWidgetPathList[MyIndex];
 
 	if (!Proxy.bInvisibleDueToParentOrSelfVisibility)
 	{
@@ -281,7 +287,7 @@ void FWidgetProxyHandle::UpdateWidgetFlags(EWidgetUpdateFlags NewFlags)
 		// Add to update list if the widget is now tickable or has an active timer.  Disregard if dirty, it was already in the list
 		if (!Proxy.bInUpdateList && EnumHasAnyFlags(NewFlags, EWidgetUpdateFlags::AnyUpdate))
 		{
-			InvalidationRoot->WidgetsNeedingUpdate.Push(Proxy);
+			GetInvalidationRoot()->WidgetsNeedingUpdate.Push(Proxy);
 		}
 	}
 }
