@@ -11,6 +11,7 @@
 #include "UnrealExporter.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "NiagaraNodeFunctionCall.h"
 
 struct FNiagaraClipboardContentTextObjectFactory : public FCustomizableTextObjectFactory
 {

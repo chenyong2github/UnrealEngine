@@ -85,6 +85,10 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 
 	EffectType = nullptr;
 	bOverrideScalabilitySettings = false;
+
+#if WITH_EDITORONLY_DATA
+	AssetGuid = FGuid::NewGuid();
+#endif
 }
 
 UNiagaraSystem::UNiagaraSystem(FVTableHelper& Helper)

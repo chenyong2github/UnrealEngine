@@ -37,6 +37,7 @@ class UNiagaraNodeFunctionCall;
 class FNiagaraEmitterViewModel;
 class FNiagaraOverviewGraphViewModel;
 class UNiagaraScratchPadViewModel;
+class UNiagaraMessageData;
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -309,7 +310,26 @@ public:
 	/** Duplicates a set of emitters and refreshes everything.*/
 	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
 
+	/** Get the Guid Key for messages associated with this asset. */
 	FGuid GetMessageLogGuid() const;
+
+	/** Add a serialized message to the Emitter/System this viewmodel is managing. Returns a key to the new message. */
+	NIAGARAEDITOR_API FGuid AddMessage(UNiagaraMessageData* NewMessage, bool bRefresh = true) const;
+
+	/** Remove a serialized message from the Emitter/System this viewmodel is managing. */
+	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey, bool bRefresh = true) const;
+
+	/** Add a serialized message to the target function call node inside a script this viewmodel is managing. Returns a key to the new message. */
+	NIAGARAEDITOR_API FGuid AddStackMessage(UNiagaraMessageData* NewMessage, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh = true) const;
+
+	/** Remove a serialized message from the target function call node inside a script this viewmodel is managing. */
+	NIAGARAEDITOR_API void RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh = true) const;
+
+	/** Notify the viewmodel that its assets messages have changed and need to be refreshed next tick. */
+	NIAGARAEDITOR_API void OnMessagesChanged() { bPendingMessagesChanged = true; };
+
+	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
+	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
 
 private:
 
@@ -447,6 +467,9 @@ private:
 
 	/** Called whenever one of the scripts in the scratch pad changes. */
 	void ScratchPadScriptsChanged();
+
+	/** Called whenever the map of messages associated with the managed Emitter/System changes. */
+	void RefreshAssetMessages();
 
 private:
 	/** The System being viewed and edited by this view model. */
@@ -591,4 +614,9 @@ private:
 	TOptional<ENiagaraScriptCompileStatus> LatestCompileStatusCache;
 
 	FDelegateHandle SystemChangedDelegateHandle;
+
+	/** ObjectKeys for function call nodes that supply messages. Used to invalidate the messages of these nodes on refresh.*/
+	TArray<FObjectKey> LastFunctionCallNodeObjectKeys;
+
+	mutable bool bPendingMessagesChanged;
 };

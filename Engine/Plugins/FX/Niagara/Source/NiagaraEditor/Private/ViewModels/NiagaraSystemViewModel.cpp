@@ -42,6 +42,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Framework/Commands/UICommandList.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
+#include "NiagaraMessageUtilities.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -74,6 +76,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, SystemStackViewModel(nullptr)
 	, SelectionViewModel(nullptr)
 	, ScriptScratchPadViewModel(nullptr)
+	, bPendingMessagesChanged(true)
 {
 	GEditor->RegisterForUndo(this);
 }
@@ -430,6 +433,89 @@ FGuid FNiagaraSystemViewModel::GetMessageLogGuid() const
 	return SystemMessageLogGuidKey.IsSet() ? SystemMessageLogGuidKey.GetValue() : FGuid();
 }
 
+FGuid FNiagaraSystemViewModel::AddMessage(UNiagaraMessageData* NewMessage, bool bRefresh /*= true*/) const
+{
+	FGuid NewGuid = FGuid::NewGuid();
+	UNiagaraSystem& ViewedSystem = GetSystem();
+	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		ViewedSystem.AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
+	}
+	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = ViewedSystem.GetEmitterHandles();
+		if (ensureMsgf(EmitterHandles.Num() == 1, TEXT("There was not exactly 1 Emitter Handle for the SystemViewModel in Emitter edit mode!")))
+		{
+			EmitterHandles[0].GetInstance()->AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
+		}
+	}
+	else
+	{
+		checkf(false, TEXT("New system viewmodel edit mode defined! Must implemented AddMessage() for this edit mode!"));
+		return FGuid();
+	}
+	
+	if(bRefresh)
+	{ 
+		bPendingMessagesChanged = true;
+	}
+	return NewGuid;
+}
+
+void FNiagaraSystemViewModel::RemoveMessage(const FGuid& MessageKey, bool bRefresh /*= true*/) const
+{
+	UNiagaraSystem& ViewedSystem = GetSystem();
+	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		ViewedSystem.RemoveMessage(MessageKey);
+	}
+	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = ViewedSystem.GetEmitterHandles();
+		if (ensureMsgf(EmitterHandles.Num() == 1, TEXT("There was not exactly 1 Emitter Handle for the SystemViewModel in Emitter edit mode!")))
+		{
+			EmitterHandles[0].GetInstance()->RemoveMessage(MessageKey);
+		}
+	}
+	else
+	{
+		checkf(false, TEXT("New system viewmodel edit mode defined! Must implemented RemoveMessage() for this edit mode!"));
+	}
+
+	if(bRefresh)
+	{ 
+		bPendingMessagesChanged = true;
+	}
+}
+
+FGuid FNiagaraSystemViewModel::AddStackMessage(UNiagaraMessageData* NewMessage, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh /*= true*/) const
+{
+	FGuid NewGuid = FGuid::NewGuid();
+	TargetFunctionCallNode->AddMessage(NewGuid, NewMessage);
+
+	if (bRefresh)
+	{
+		bPendingMessagesChanged = true;
+	}
+	return NewGuid;
+}
+
+NIAGARAEDITOR_API void FNiagaraSystemViewModel::RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh /*= true*/) const
+{
+	TargetFunctionCallNode->RemoveMessage(MessageKey);
+
+	if (bRefresh)
+	{
+		bPendingMessagesChanged = true;
+	}
+}
+
+void FNiagaraSystemViewModel::ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate)
+{
+	MessageDelegate.ExecuteIfBound();
+	bPendingMessagesChanged = true;
+}
+
 void FNiagaraSystemViewModel::DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete)
 {
 	if (EmitterHandleIdsToDelete.Num() > 0)
@@ -611,6 +697,12 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 	{
 		SelectionViewModel->Tick();
 	}
+
+	if (bPendingMessagesChanged)
+	{
+		bPendingMessagesChanged = false;
+		RefreshAssetMessages();
+	}
 }
 
 void FNiagaraSystemViewModel::NotifyPreSave()
@@ -738,6 +830,7 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 		const FString OwningScriptNameString;
 	};
 
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
 	int32 ErrorCount = 0;
 	int32 WarningCount = 0;
 
@@ -756,12 +849,11 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 		}
 	}
 
-	// Clear out existing compile event messages from compile event message jobs for this asset.
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
+	// Clear out existing compile event messages.
+	MessageManager->ClearAssetMessagesForTopic(SystemMessageLogGuidKey.GetValue(), FNiagaraMessageTopics::CompilerTopicName);
 
 	// Make new messages and messages jobs from the compile.
-	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
-	// Iterate from back to front to avoid reordering the events when they are queued
+	// Iterate from back to front to avoid reordering the events when they are queued.
 	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
 	{ 
 		const FNiagaraScriptAndOwningScriptNameString& ScriptInfo = ScriptsToGetCompileEventsFrom[i];
@@ -778,7 +870,7 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 				WarningCount++;
 			}
 
-			JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString));
+			MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
 		}
 		
 		// Check if there are any GPU compile errors and if so push them.
@@ -800,14 +892,14 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 					WarningCount++;
 				}
 				FNiagaraCompileEvent CompileEvent = FNiagaraCompileEvent(Severity, String);
-				JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
-					ScriptInfo.OwningScriptNameString));
+				MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
+					ScriptInfo.OwningScriptNameString), SystemMessageLogGuidKey.GetValue());
 			}
 		}
-		
 	}
-	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("System")), 0);
-	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, SystemMessageLogGuidKey.GetValue());
+
+	const FText PostCompileSummaryText = FNiagaraMessageUtilities::MakePostCompileSummaryText(FText::FromString("System"), GetLatestCompileStatus(), WarningCount, ErrorCount);
+	MessageManager->AddMessage(MakeShared<FNiagaraMessageText>(PostCompileSummaryText, EMessageSeverity::Info, FNiagaraMessageTopics::CompilerTopicName), SystemMessageLogGuidKey.GetValue());
 }
 
 void FNiagaraSystemViewModel::InvalidateCachedCompileStatus()
@@ -1550,12 +1642,16 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	// Remove from cache on graph change 
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 	InvalidateCachedCompileStatus();
+
+	bPendingMessagesChanged = true;
 }
 
 void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
 	GuidToCachedStackModuleData.Empty();
 	InvalidateCachedCompileStatus();
+
+	bPendingMessagesChanged = true;
 }
 
 void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript)
@@ -2115,6 +2211,94 @@ void FNiagaraSystemViewModel::ScratchPadScriptsChanged()
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 	{
 		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
+	}
+}
+
+void FNiagaraSystemViewModel::RefreshAssetMessages()
+{
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	for (const FObjectKey& FunctionCallNodeObjectKey : LastFunctionCallNodeObjectKeys)
+	{
+		MessageManager->ClearAssetMessagesForObject(SystemMessageLogGuidKey.GetValue(), FunctionCallNodeObjectKey);
+	}
+
+	auto PublishMessages = [this, MessageManager](const auto& MessageSource) {
+		for (auto It = MessageSource.GetMessages().CreateConstIterator(); It; ++It)
+		{
+			const UNiagaraMessageData* MessageData = static_cast<const UNiagaraMessageData*>(It.Value());
+			MessageManager->AddMessage(MessageData->GenerateNiagaraMessage(), SystemMessageLogGuidKey.GetValue());
+		}
+	};
+
+	auto PublishScriptMessages = [this, MessageManager](const TArray<UNiagaraScript*>& Scripts)->TArray<FObjectKey> /* FunctionCallNodeObjectKeys */ {
+		TArray<FObjectKey> NewObjectKeys;
+		for(UNiagaraScript* Script : Scripts)
+		{
+			UNiagaraNodeOutput* OutputNode = FNiagaraEditorUtilities::GetScriptOutputNode(*Script);
+			if (OutputNode == nullptr)
+			{
+				// The output node may be null if the target script is a GPU compute script that is not in use.
+				continue;
+			}
+			TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+			FNiagaraStackGraphUtilities::GetOrderedModuleNodes(*OutputNode, FunctionCallNodes);
+			for(UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
+			{
+				for (auto It = FunctionCallNode->GetMessages().CreateConstIterator(); It; ++It)
+				{
+					const UNiagaraMessageData* MessageData = It.Value();
+					FGenerateNiagaraMessageInfo GenerateNiagaraMessageInfo = FGenerateNiagaraMessageInfo();
+
+					TArray<FObjectKey> AssociatedObjectKeys = {FObjectKey(FunctionCallNode)};
+					NewObjectKeys.Append(AssociatedObjectKeys);
+					GenerateNiagaraMessageInfo.SetAssociatedObjectKeys(AssociatedObjectKeys);
+
+					TArray<FLinkNameAndDelegate> Links;
+					const FText LinkText = LOCTEXT("AcknowledgeAndClearIssue", "Acknowledge and clear this issue.");
+					const FGuid MessageKey = It.Key();
+					FSimpleDelegate MessageDelegate = FSimpleDelegate::CreateUObject(FunctionCallNode, &UNiagaraNodeFunctionCall::RemoveMessageDelegateable, MessageKey);
+					FSimpleDelegate WrapperDelegate = FSimpleDelegate::CreateSP(this, &FNiagaraSystemViewModel::ExecuteMessageDelegateAndRefreshMessages, MessageDelegate);
+					const FLinkNameAndDelegate Link = FLinkNameAndDelegate(LinkText, WrapperDelegate);
+					Links.Add(Link);
+					GenerateNiagaraMessageInfo.SetLinks(Links);
+
+					TSharedRef<const INiagaraMessage> Message = MessageData->GenerateNiagaraMessage(GenerateNiagaraMessageInfo);
+					MessageManager->AddMessage(Message, SystemMessageLogGuidKey.GetValue());
+				}
+			}
+		}
+		return NewObjectKeys;
+	};
+
+	UNiagaraSystem& ViewedSystem = GetSystem();
+	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		//PublishMessages(ViewedSystem); //@todo(ng) skip publishing these messages for now as need to find a way to anchor to stack headers
+		TArray<UNiagaraScript*> Scripts;
+		Scripts.Add(ViewedSystem.GetSystemSpawnScript());
+		Scripts.Add(ViewedSystem.GetSystemUpdateScript());
+		for (const FNiagaraEmitterHandle& EmitterHandle : ViewedSystem.GetEmitterHandles())
+		{
+			EmitterHandle.GetInstance()->GetScripts(Scripts, false);
+		}
+		LastFunctionCallNodeObjectKeys = PublishScriptMessages(Scripts);
+
+	}
+	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = ViewedSystem.GetEmitterHandles();
+		if (ensureMsgf(EmitterHandles.Num() == 1, TEXT("There was not exactly 1 Emitter Handle for the SystemViewModel in Emitter edit mode!")))
+		{
+			UNiagaraEmitter& ViewedEmitter = *(EmitterHandles[0].GetInstance());
+			//PublishMessages(ViewedEmitter);
+			TArray<UNiagaraScript*> Scripts;
+			ViewedEmitter.GetScripts(Scripts, false);
+			LastFunctionCallNodeObjectKeys = PublishScriptMessages(Scripts);
+		}
+	}
+	else
+	{
+		checkf(false, TEXT("New system viewmodel edit mode defined! Must implemented OnMessagesChanged() for this edit mode!"));
 	}
 }
 

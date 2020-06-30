@@ -57,7 +57,7 @@ enum class ENiagaraRibbonTessellationMode : uint8
 };
 
 UCLASS(editinlinenew, meta = (DisplayName = "Ribbon Renderer"))
-class UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
+class NIAGARA_API UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
 {
 public:
 	GENERATED_BODY()

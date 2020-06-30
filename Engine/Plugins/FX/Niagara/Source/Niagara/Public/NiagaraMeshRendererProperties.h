@@ -66,7 +66,7 @@ struct TStructOpsTypeTraits<FNiagaraMeshMaterialOverride> : public TStructOpsTyp
 };
 
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
-class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
+class NIAGARA_API UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
 public:
 	GENERATED_BODY()

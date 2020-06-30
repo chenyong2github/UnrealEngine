@@ -206,7 +206,7 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	SystemOptions.bCanModifyEmittersFromTimeline = true;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
 	SystemOptions.OnGetSequencerAddMenuContent.BindSP(this, &FNiagaraSystemToolkit::GetSequencerAddMenuContent);
-	SystemOptions.MessageLogGuid = FGuid::NewGuid();
+	SystemOptions.MessageLogGuid = InSystem.GetAssetGuid();
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
@@ -277,7 +277,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	FNiagaraSystemViewModelOptions SystemOptions;
 	SystemOptions.bCanModifyEmittersFromTimeline = false;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::EmitterAsset;
-	SystemOptions.MessageLogGuid = FGuid::NewGuid();
+	SystemOptions.MessageLogGuid = System->GetAssetGuid();
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
