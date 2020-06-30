@@ -273,11 +273,34 @@ void SDockingTabStack::OnTabRemoved( const FTabId& TabId )
 void SDockingTabStack::OpenTab( const TSharedRef<SDockTab>& InTab, int32 InsertLocationAmongActiveTabs )
 {
 	const int32 TabIndex = OpenPersistentTab( InTab->GetLayoutIdentifier(), InsertLocationAmongActiveTabs );
+
 	// The tab may be a nomad tab, in which case it should inherit whichever tab manager it is being put into!
-	InTab->SetTabManager( GetDockArea()->GetTabManager() );
-	AddTabWidget( InTab, TabIndex );
-	OnLiveTabAdded();
-	TabWell->RefreshParentContent();
+	InTab->SetTabManager(GetDockArea()->GetTabManager());
+
+	const FTabManager::FTab& TabInfo = Tabs[TabIndex];
+	if (TabInfo.TabState == ETabState::SidebarTab)
+	{
+		FSidebarTabLists SidebarLists;
+		if (TabInfo.SidebarLocation == ESidebarLocation::Left)
+		{
+			SidebarLists.LeftSidebarTabs.Add(InTab);
+		}
+		else
+		{
+			ensure(TabInfo.SidebarLocation == ESidebarLocation::Right);
+			SidebarLists.RightSidebarTabs.Add(InTab);
+		}
+
+		AddSidebarTab(InTab);
+		GetDockArea()->AddSidebarTabsFromRestoredLayout(SidebarLists);
+	}
+	else
+	{
+		AddTabWidget(InTab, TabIndex);
+		OnLiveTabAdded();
+		TabWell->RefreshParentContent();
+	}
+
 }
 
 void SDockingTabStack::AddTabWidget( const TSharedRef<SDockTab>& InTab, int32 AtLocation )
@@ -948,6 +971,21 @@ void SDockingTabStack::MoveTabToSidebar(TSharedRef<SDockTab> Tab)
 	}
 }
 
+void SDockingTabStack::RestoreTabFromSidebar(TSharedRef<SDockTab> Tab)
+{
+	const int32 TabIndex = Tabs.IndexOfByPredicate(FTabMatcher(Tab->GetLayoutIdentifier(), ETabState::SidebarTab));
+	if (TabIndex != INDEX_NONE)
+	{
+		FTabManager::FTab& TabInfo = Tabs[TabIndex];
+
+		TabInfo.SidebarSizeCoefficient = 0;
+		// Set the sate to closed so its reopened by OpenTab
+		TabInfo.TabState = ETabState::ClosedTab;
+		TabInfo.SidebarLocation = ESidebarLocation::None;
+		OpenTab(Tab);
+	}
+}
+
 FReply SDockingTabStack::UnhideTabWell()
 {
 	SetTabWellHidden(false);
@@ -1099,8 +1137,8 @@ int32 SDockingTabStack::OpenPersistentTab( const FTabId& TabId, int32 OpenLocati
 	{						
 		if (ExistingClosedTabIndex != INDEX_NONE)
 		{
-			// There's already a tab with that name; open it.
-			Tabs[ExistingClosedTabIndex].TabState = ETabState::OpenedTab;
+			FTabManager::FTab& Tab = Tabs[ExistingClosedTabIndex];
+			Tab.TabState = Tab.SidebarLocation == ESidebarLocation::None ? ETabState::OpenedTab : ETabState::SidebarTab;
 			return ExistingClosedTabIndex;
 		}
 		else

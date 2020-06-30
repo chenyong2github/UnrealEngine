@@ -866,11 +866,22 @@ bool SDockTab::CanCloseTab() const
 bool SDockTab::RequestCloseTab()
 {	
 	this->PersistVisualState();
+
 	// The tab can be closed if the delegate is not bound or if the delegate call indicates we cannot close it
 	const bool bCanCloseTabNow = CanCloseTab();
-	if( bCanCloseTabNow )
+
+	if(bCanCloseTabNow)
 	{
-		RemoveTabFromParent();
+		bool bRemovedFromSidebar = false;
+		if (GetParentDockTabStack() && GetParentDockTabStack()->GetDockArea())
+		{
+			bRemovedFromSidebar = GetParentDockTabStack()->GetDockArea()->RemoveTabFromSidebar(SharedThis(this));
+		}
+
+		if (bCanCloseTabNow && !bRemovedFromSidebar)
+		{
+			RemoveTabFromParent();
+		}
 	}
 	return bCanCloseTabNow;
 }

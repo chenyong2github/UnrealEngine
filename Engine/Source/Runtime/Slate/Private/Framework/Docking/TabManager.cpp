@@ -1927,6 +1927,7 @@ TSharedPtr<SDockTab> FTabManager::FindExistingLiveTab( const FTabId& TabId ) con
 		if ( SomeDockArea.IsValid() )
 		{
 			TArray< TSharedRef<SDockTab> > ChildTabs = SomeDockArea->GetAllChildTabs();
+			ChildTabs.Append(SomeDockArea->GetAllSidebarTabs());
 			for (int32 ChildTabIndex=0; ChildTabIndex < ChildTabs.Num(); ++ChildTabIndex)
 			{
 				if ( TabId == ChildTabs[ChildTabIndex]->GetLayoutIdentifier() )

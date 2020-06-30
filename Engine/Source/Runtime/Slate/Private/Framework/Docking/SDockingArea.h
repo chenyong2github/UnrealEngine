@@ -113,6 +113,12 @@ public:
 	bool IsTabInSidebar(TSharedRef<SDockTab> Tab) const;
 
 	/**
+ 	 * Removes a tab from a sidebar
+	 * @return true if the specified tab was found and removed
+	 */
+	bool RemoveTabFromSidebar(TSharedRef<SDockTab> Tab);
+
+	/**
 	 * Attempts to open a sidebar drawer that may the tab to open
 	 *
 	 * @true if the drawer was opened, false if the tab is not in a drawer
@@ -123,6 +129,11 @@ public:
 	 * Adds all tabs back to a sidebar that were saved in a sidebar from a previous session
 	 */
 	void AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& SidebarTabs);
+
+	/**
+	 * Gets all tabs in all sidebars in this dock area
+	 */
+	TArray<TSharedRef<SDockTab>> GetAllSidebarTabs() const;
 
 	bool CanHaveSidebar() const { return bCanHaveSidebar; }
 protected:

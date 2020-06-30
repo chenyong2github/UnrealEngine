@@ -42,6 +42,7 @@ public:
 	/**
 	 * Removes a tab from the sidebar. Does not restore it to the parent stack
 	 *
+	 * Note it is not sufficient to call this to clean up the tab completely. Call RequestCloseTab on the dock tab to do that.
 	 * @return true if the tab was found and removal was successful
 	 */
 	bool RemoveTab(TSharedRef<SDockTab> TabToRemove);
@@ -62,6 +63,11 @@ public:
 	 * Get all layout identifiers for tabs in this sidebar
 	 */
 	TArray<FTabId> GetAllTabIds() const;
+
+	/**
+	 * Get all tabs in this sidebar
+	 */
+	TArray<TSharedRef<SDockTab>> GetAllTabs() const;
 
 	/**
 	 * Attempt to open a drawer in the sidebar for a specified tab

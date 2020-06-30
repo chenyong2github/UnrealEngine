@@ -409,6 +409,11 @@ bool SDockingArea::IsTabInSidebar(TSharedRef<SDockTab> Tab) const
 	return LeftSidebar->ContainsTab(Tab) || RightSidebar->ContainsTab(Tab);
 }
 
+bool SDockingArea::RemoveTabFromSidebar(TSharedRef<SDockTab> Tab)
+{
+	return LeftSidebar->RemoveTab(Tab) || RightSidebar->RemoveTab(Tab);
+}
+
 bool SDockingArea::TryOpenSidebarDrawer(TSharedRef<SDockTab> TabToOpen) const
 {
 	return LeftSidebar->TryOpenSidebarDrawer(TabToOpen) || RightSidebar->TryOpenSidebarDrawer(TabToOpen);
@@ -425,6 +430,15 @@ void SDockingArea::AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& Side
 	{
 		RightSidebar->AddTab(Tab);
 	}
+}
+
+TArray<TSharedRef<SDockTab>> SDockingArea::GetAllSidebarTabs() const
+{
+	TArray<TSharedRef<SDockTab>> AllSidebarTabs;
+	AllSidebarTabs.Append(LeftSidebar->GetAllTabs());
+	AllSidebarTabs.Append(RightSidebar->GetAllTabs());
+
+	return AllSidebarTabs;
 }
 
 SDockingNode::ECleanupRetVal SDockingArea::CleanUpNodes()

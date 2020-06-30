@@ -280,9 +280,7 @@ bool STabSidebar::RestoreTab(TSharedRef<SDockTab> TabToRestore)
 {
 	if(RemoveTab(TabToRestore))
 	{
-		TabToRestore->GetParentDockTabStack()->SetTabSidebarSizeCoefficient(TabToRestore, 0);
-		TabToRestore->GetParentDockTabStack()->OpenTab(TabToRestore);
-
+		TabToRestore->GetParentDockTabStack()->RestoreTabFromSidebar(TabToRestore);
 		return true;
 	}
 
@@ -307,6 +305,17 @@ TArray<FTabId> STabSidebar::GetAllTabIds() const
 	}
 
 	return TabIds;
+}
+
+TArray<TSharedRef<SDockTab>> STabSidebar::GetAllTabs() const
+{
+	TArray<TSharedRef<SDockTab>> DockTabs;
+	for (auto TabPair : Tabs)
+	{
+		DockTabs.Add(TabPair.Key);
+	}
+
+	return DockTabs;
 }
 
 bool STabSidebar::TryOpenSidebarDrawer(TSharedRef<SDockTab> ForTab)
@@ -413,10 +422,11 @@ void STabSidebar::OnRestoreTab(TSharedRef<SDockTab> TabToRestore)
 
 void STabSidebar::OnCloseTab(TSharedRef<SDockTab> TabToClose)
 {
-	RemoveTab(TabToClose);
-
-	TabToClose->RequestCloseTab();
-	TabToClose->GetParentDockTabStack()->OnTabClosed(TabToClose, SDockingNode::TabRemoval_Closed);
+	if(TabToClose->RequestCloseTab())
+	{
+		RemoveTab(TabToClose);
+		TabToClose->GetParentDockTabStack()->OnTabClosed(TabToClose, SDockingNode::TabRemoval_Closed);
+	}
 }
 
 void STabSidebar::RemoveDrawer(TSharedRef<SDockTab> ForTab)

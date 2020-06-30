@@ -86,6 +86,9 @@ public:
 	/** Moves a specific tab from this stack into a sidebar */
 	void MoveTabToSidebar(TSharedRef<SDockTab> Tab);
 
+	/** Restores a specific tab from this stack to its original position */
+	void RestoreTabFromSidebar(TSharedRef<SDockTab> Tab);
+
 	/** @return All child tabs in this node */
 	const TSlotlessChildren<SDockTab>& GetTabs() const;
 
