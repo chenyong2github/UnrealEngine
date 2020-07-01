@@ -36,7 +36,9 @@ public class SkeletalMeshEditor : ModuleRules
 				"ClothingSystemRuntimeInterface",
 				"SkeletalMeshUtilitiesCommon",
 				"ToolMenus",
-            }
+				"EditorSubsystem",
+				"Blutility"
+			}
 		);
 
         PrivateIncludePathModuleNames.AddRange(

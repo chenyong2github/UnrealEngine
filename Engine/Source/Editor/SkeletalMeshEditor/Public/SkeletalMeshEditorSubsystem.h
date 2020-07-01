@@ -4,21 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Editor.h"
-#include "EditorSkeletalMeshLibrary.generated.h"
+#include "EditorSubsystem.h"
 
-class USkeletalMesh;
+#include "SkeletalMeshEditorSubsystem.generated.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshEditorSubsystem, Log, All);
 
 /**
-* Utility class to altering and analyzing a SkeletalMesh and use the common functionalities of the SkeletalMesh Editor.
-* The editor should not be in play in editor mode.
- */
+* USkeletalMeshEditorSubsystem
+* Subsystem for exposing skeletal mesh functionality to scripts
+*/
 UCLASS()
-class EDITORSCRIPTINGUTILITIES_API UEditorSkeletalMeshLibrary : public UBlueprintFunctionLibrary
+class SKELETALMESHEDITOR_API USkeletalMeshEditorSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
+	USkeletalMeshEditorSubsystem();
+
 	/** Regenerate LODs of the mesh
 	 *
 	 * @param SkeletalMesh	The mesh that will regenerate LOD
@@ -29,8 +32,7 @@ public:
 	 * @param bGenerateBaseLOD If this is true and there is some reduction data, the base LOD will be reduce according to the settings
 	 * @return	true if succeed. If mesh reduction is not available this will return false.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities", meta = (ScriptMethod))
 	static bool RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount = 0, bool bRegenerateEvenIfImported = false, bool bGenerateBaseLOD = false);
 
 	/** Get number of mesh vertices for an LOD of a Skeletal Mesh
@@ -39,8 +41,7 @@ public:
 	 * @param LODIndex			Index of the mesh LOD.
 	 * @return Number of vertices. Returns 0 if invalid mesh or LOD index.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | SkeletalMesh")
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
 	static int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 	/** Rename a socket within a skeleton
@@ -49,9 +50,9 @@ public:
 	 * @param NewName		The new name of the socket
 	 * @return true if the renaming succeeded.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities", meta = (ScriptMethod))
 	static bool RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName);
 
-};
+private:
 
+};

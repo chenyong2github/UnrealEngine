@@ -29,6 +29,8 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
                     "SkeletalMeshUtilitiesCommon",
                     "LevelEditor",
+					"StaticMeshEditor",
+					"SkeletalMeshEditor"
                 }
             );
 		}

@@ -1022,7 +1022,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("AudioEditor"),
 			TEXT("TimeManagementEditor"),
 			TEXT("EditorInteractiveToolsFramework"),
-			TEXT("TraceInsights")
+			TEXT("TraceInsights"),
+			TEXT("StaticMeshEditor")
 		};
 
 		FScopedSlowTask ModuleSlowTask(UE_ARRAY_COUNT(ModuleNames));

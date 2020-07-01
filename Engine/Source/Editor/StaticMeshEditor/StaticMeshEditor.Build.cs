@@ -39,8 +39,12 @@ public class StaticMeshEditor : ModuleRules
                 "JsonUtilities",
                 "AdvancedPreviewScene",
                 "DesktopPlatform",
-                "DesktopWidgets"
-            }
+                "DesktopWidgets",
+				"EditorSubsystem",
+				"Blutility",
+				"MeshDescription",
+				"StaticMeshDescription"
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(

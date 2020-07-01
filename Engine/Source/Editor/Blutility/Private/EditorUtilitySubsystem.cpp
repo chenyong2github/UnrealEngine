@@ -193,4 +193,24 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(cl
 	return InBlueprint->GetCreatedWidget();
 }
 
+bool UEditorUtilitySubsystem::CheckIfInEditorAndPIE()
+{
+	if (!IsInGameThread())
+	{
+		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("You are not on the main thread."));
+		return false;
+	}
+	if (!GIsEditor)
+	{
+		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("You are not in the Editor."));
+		return false;
+	}
+	if (GEditor->PlayWorld || GIsPlayInEditorWorld)
+	{
+		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("The Editor is currently in a play mode."));
+		return false;
+	}
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE
