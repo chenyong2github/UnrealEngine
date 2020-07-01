@@ -65,14 +65,18 @@ class ListThirdPartySoftware : BuildCommand
 			{
 				JsonObject Module = Modules.GetObjectField(ModuleName);
 				DirectoriesToScan.Add(new DirectoryReference(Module.GetStringField("Directory")));
-
-				foreach(JsonObject RuntimeDependency in Module.GetObjectArrayField("RuntimeDependencies"))
+				
+				JsonObject[] RuntimeDependencies;
+				if (Module.TryGetObjectArrayField("RuntimeDependencies", out RuntimeDependencies))
 				{
-					string RuntimeDependencyPath;
-					if(RuntimeDependency.TryGetStringField("SourcePath", out RuntimeDependencyPath) || RuntimeDependency.TryGetStringField("Path", out RuntimeDependencyPath))
+					foreach (JsonObject RuntimeDependency in RuntimeDependencies)
 					{
-						List<FileReference> Files = FileFilter.ResolveWildcard(DirectoryReference.Combine(CommandUtils.EngineDirectory, "Source"), RuntimeDependencyPath);
-						DirectoriesToScan.UnionWith(Files.Select(x => x.Directory));
+						string RuntimeDependencyPath;
+						if (RuntimeDependency.TryGetStringField("SourcePath", out RuntimeDependencyPath) || RuntimeDependency.TryGetStringField("Path", out RuntimeDependencyPath))
+						{
+							List<FileReference> Files = FileFilter.ResolveWildcard(DirectoryReference.Combine(CommandUtils.EngineDirectory, "Source"), RuntimeDependencyPath);
+							DirectoriesToScan.UnionWith(Files.Select(x => x.Directory));
+						}
 					}
 				}
 			}
