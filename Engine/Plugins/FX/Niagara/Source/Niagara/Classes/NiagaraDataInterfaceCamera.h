@@ -49,6 +49,7 @@ public:
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool RequiresEarlyViewData() const override { return true; }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	virtual bool HasPreSimulateTick() const override { return true; }
 #if WITH_EDITOR	
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
         TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;

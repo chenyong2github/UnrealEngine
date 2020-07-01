@@ -321,8 +321,6 @@ TArrayView<const uint8> FNiagaraScriptExecutionContext::GetScriptLiterals() cons
 
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
-	check(IsInGameThread());
-
 	ensure(InSystemInstance != nullptr);
 	CA_ASSUME(InSystemInstance != nullptr);
 	ensure(!InSystemInstance->IsComplete());
