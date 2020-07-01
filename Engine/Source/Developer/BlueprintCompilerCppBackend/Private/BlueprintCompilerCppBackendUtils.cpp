@@ -2075,8 +2075,20 @@ FString FEmitHelper::AccessInaccessibleProperty(FEmitterLocalContext& EmitterCon
 	const FString TypeDeclaration = (!CustomTypeDeclaration.IsEmpty() ? MoveTemp(CustomTypeDeclaration)
 									: EmitterContext.ExportCppDeclaration(Property, EExportedDeclaration::Member, CppTemplateTypeFlags, FEmitterLocalContext::EPropertyNameInDeclaration::Skip));
 	
+	// Types marked as 'NoExport' do not have a generated body, and thus will not have a PPO function definition.
+	bool bOwnerIsNoExportType = false;
+	const UStruct* PropertyOwner = Property->GetOwnerStruct();
+	if (const UClass* OwnerAsClass = Cast<UClass>(PropertyOwner))
+	{
+		bOwnerIsNoExportType = OwnerAsClass->HasAnyClassFlags(CLASS_NoExport);
+	}
+	else if (const UScriptStruct* OwnerAsScriptStruct = Cast<UScriptStruct>(PropertyOwner))
+	{
+		bOwnerIsNoExportType = (OwnerAsScriptStruct->StructFlags & STRUCT_NoExport) != 0;
+	}
+
 	// Private Property Offset functions are generated only for private/protected properties - see PrivatePropertiesOffsetGetters in CodeGenerator.cpp
-	const bool bHasPPO = Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected); 
+	const bool bHasPPO = Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected) && !bOwnerIsNoExportType; 
 	if (!bHasPPO)
 	{
 		//TODO: if property is inaccessible due to const specifier, use const_cast
@@ -2091,7 +2103,6 @@ FString FEmitHelper::AccessInaccessibleProperty(FEmitterLocalContext& EmitterCon
 			, StaticArrayIdx);
 	}
 
-	const UStruct* PropertyOwner = Property->GetOwnerStruct();
 	const FString OwnerStructName = FEmitHelper::GetCppName(PropertyOwner);
 	const FString PropertyName = FEmitHelper::GetCppName(Property);
 	const FString ArrayParams = (StaticArrayIdx != 0)
@@ -2382,6 +2393,8 @@ private:
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInt32Range>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFloatInterval>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInt32Interval>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFrameNumber>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFrameTime>::Get());
 
 		{
 			// Cache the known set of noexport types that are known to be compatible with emitting native code to access fields directly.
