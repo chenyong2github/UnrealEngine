@@ -202,7 +202,7 @@ protected:
 	FGroupTopologySelector TopoSelector;
 
 	/** 
-	 * Update the topology selecter given the current selection settings.
+	 * Update the topology selector given the current selection settings.
 	 *
 	 * @param bUseOrthoSettings If true, the topology selector will be configured to use ortho settings,
 	 *  which are generally different to allow for selection of projected elements, etc.
@@ -214,7 +214,7 @@ protected:
 	int32 SelectionTimestamp = 0;
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
 
-	/** The temporary actor we create internally to own the preview mesh component */
+	/** The actor we create internally to own the DrawnTriangleSetComponent */
 	UPROPERTY()
 	APreviewGeometryActor* PreviewGeometryActor;
 
