@@ -1342,13 +1342,13 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 	}
 	MenuBuilder.EndSection(); // SequencerPlaybackRangeMenu
 
-	if (TimeSliderArgs.ScrubPositionParentChain.IsSet())
+	UMovieSceneCompiledDataManager* CompiledDataManager = WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataManager();
+	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataID());
+
+	if (TimeSliderArgs.ScrubPositionParentChain.IsSet() && Hierarchy)
 	{
 		MenuBuilder.BeginSection("SequencerParentChainMenu");
 		{
-			UMovieSceneCompiledDataManager* CompiledDataManager = WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataManager();
-			const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataID());
-
 			TArray<FMovieSceneSequenceID> ParentChain = TimeSliderArgs.ScrubPositionParentChain.Get();
 			for (FMovieSceneSequenceID ParentID : ParentChain)
 			{
