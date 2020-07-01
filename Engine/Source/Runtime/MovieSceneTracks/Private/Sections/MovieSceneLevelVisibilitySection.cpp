@@ -23,7 +23,7 @@ void UMovieSceneLevelVisibilitySection::SetVisibility( ELevelVisibility InVisibi
 	Visibility = InVisibility;
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneLevelVisibilitySection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneLevelVisibilitySection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -33,6 +33,4 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneLevelVisibilitySection::ImportE
 		FEntityBuilder()
 		.Add(FMovieSceneTracksComponentTypes::Get()->LevelVisibility, LevelVisibilityData)
 	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }

@@ -22,7 +22,7 @@ public:
 	UMovieSceneEventTriggerSection(const FObjectInitializer& ObjInit);
 
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField) override;
-	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual TArrayView<FMovieSceneEvent> GetAllEntryPoints() override { return EventChannel.GetData().GetValues(); }
