@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ClassIconFinder.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Views/STableRow.h"

@@ -398,7 +398,7 @@ private:
 	static TSharedPtr<FExtensibilityManager> SharedToolBarExtensibilityManager;
 
 	/** The object we're currently editing */
-	// @todo toolkit minor: Currently we don't need to serialize this object reference because the FAssetEditorManager is kept in sync (and will always serialize it.)
+	// @todo toolkit minor: Currently we don't need to serialize this object reference because the AssetEditorSubsystem is kept in sync (and will always serialize it.)
 	TArray<UObject*> EditingObjects;
 	
 	/** Asset Editor Default Toolbar */

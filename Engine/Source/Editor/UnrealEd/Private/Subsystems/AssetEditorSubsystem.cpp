@@ -729,7 +729,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 
 void UAssetEditorSubsystem::SpawnRestorePreviouslyOpenAssetsNotification(const bool bCleanShutdown, const TArray<FString>& AssetsToOpen)
 {
-	/** Utility functions for the notification which don't rely on the state from FAssetEditorManager */
+	/** Utility functions for notifications */
 	struct Local
 	{
 		static ECheckBoxState GetDontAskAgainCheckBoxState()

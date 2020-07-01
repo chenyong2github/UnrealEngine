@@ -10,7 +10,6 @@
 #include "Engine/Blueprint.h"
 #include "Misc/PackageName.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "EditorStyleSet.h"

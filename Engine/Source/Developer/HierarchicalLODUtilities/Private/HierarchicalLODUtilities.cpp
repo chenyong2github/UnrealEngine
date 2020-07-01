@@ -31,7 +31,6 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "ScopedTransaction.h"
 #include "PackageTools.h"
 #include "Settings/EditorExperimentalSettings.h"

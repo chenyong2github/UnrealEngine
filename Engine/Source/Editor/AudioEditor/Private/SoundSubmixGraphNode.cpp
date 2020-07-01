@@ -4,9 +4,9 @@
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "SoundSubmixEditor.h"
 #include "SoundSubmixDefaultColorPalette.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SoundSubmixGraphNode"
 

@@ -14,7 +14,6 @@
 #include "IAssetTools.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "UObject/Object.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboBox.h"

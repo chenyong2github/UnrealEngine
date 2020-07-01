@@ -63,7 +63,6 @@
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "Engine/MeshMergeCullingVolume.h"
 
-#include "Toolkits/AssetEditorManager.h"
 #include "LevelEditor.h"
 #include "IAnimationBlueprintEditor.h"
 #include "IAnimationBlueprintEditorModule.h"

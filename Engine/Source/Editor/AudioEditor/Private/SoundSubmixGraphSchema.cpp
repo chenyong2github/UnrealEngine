@@ -17,7 +17,7 @@
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
 #include "SoundSubmixEditor.h"
 #include "SoundSubmixEditorUtilities.h"
-#include "Toolkits/AssetEditorManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "ToolMenus.h"
 #include "SoundSubmixDefaultColorPalette.h"
 

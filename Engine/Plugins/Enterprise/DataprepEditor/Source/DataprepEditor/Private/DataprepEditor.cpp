@@ -633,7 +633,7 @@ void FDataprepEditor::OnExecutePipeline()
 	{
 		FTimeLogger TimeLogger( TEXT("ExecutePipeline") );
 
-		// Some operation can indirectly call FAssetEditorManager::CloseAllAssetEditors (eg. Remove Asset)
+		// Some operation can indirectly call UAssetEditorSubsystem::CloseAllAssetEditors (eg. Remove Asset)
 		// Editors can individually refuse this request: we ignore it during the pipeline traversal.
 		TGuardValue<bool> IgnoreCloseRequestGuard(bIgnoreCloseRequest, true);
 

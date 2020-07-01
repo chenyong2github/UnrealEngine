@@ -17,7 +17,7 @@ public class Paper2DEditor : ModuleRules
 				"SlateCore",
 				"Engine",
 				"InputCore",
-				"UnrealEd", // for FAssetEditorManager
+				"UnrealEd", // for AssetEditorSubsystem
 				"KismetWidgets",
 				"Kismet",  // for FWorkflowCentricApplication
 				"PropertyEditor",

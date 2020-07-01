@@ -279,7 +279,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		EditorModeManager->SetToolkitHost(ToolkitHost.Pin().ToSharedRef());
 	}
 
-	// NOTE: Currently, the AssetEditorManager will keep a hard reference to our object as we're editing it
+	// NOTE: Currently, the AssetEditorSubsystem will keep a hard reference to our object as we're editing it
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( EditingObjects, this );
 }
 
@@ -605,12 +605,12 @@ void FAssetEditorToolkit::SaveAssetAs_Execute()
 	{
 		if ((SavedObjects[Index] != ObjectsToSave[Index]) && (SavedObjects[Index] != nullptr))
 		{
-			AssetEditorManager.CloseAllEditorsForAsset(ObjectsToSave[Index]);
+			AssetEditorSubsystem->CloseAllEditorsForAsset(ObjectsToSave[Index]);
 		}
 	}
 
 	// reopen asset editor
-	AssetEditorManager.OpenEditorForAssets(TArrayBuilder<UObject*>().Add(SavedObjects[0]), ToolkitMode, MyToolkitHost.ToSharedRef());
+	AssetEditorSubsystem->OpenEditorForAssets(TArrayBuilder<UObject*>().Add(SavedObjects[0]), ToolkitMode, MyToolkitHost.ToSharedRef());
 	*/
 	// hack
 	TArray<UObject*> ObjectsToReopen;
