@@ -45,7 +45,16 @@ void UMotoSynthPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		}
 		else
 		{
-			EnginePreviewer.SetSettings(Settings);
+			// Only set the settings on the engine previewer when we have both a acceleration and deceleration source
+			if (Settings.AccelerationSource && Settings.DecelerationSource)
+			{
+				EnginePreviewer.SetSettings(Settings);
+			}
+			else
+			{
+				// Stop previewing if we've cleared out any sources (i.e. were previously previewing an accel/decel source, stop it now if one of them is null)
+				EnginePreviewer.StopPreviewing();
+			}
 		}
 	}
 }
@@ -69,8 +78,18 @@ void FMotoSynthEnginePreviewer::SetSettings(const FMotoSynthRuntimeSettings& InS
 	// Set the accel and decel data separately
 	if (Settings.AccelerationSource != InSettings.AccelerationSource || Settings.DecelerationSource != InSettings.DecelerationSource)
 	{
-		uint32 AccelDataID = InSettings.AccelerationSource->GetDataID();
-		uint32 DecelDataID = InSettings.DecelerationSource->GetDataID();
+		uint32 AccelDataID = INDEX_NONE;
+		uint32 DecelDataID = INDEX_NONE;
+
+		if (InSettings.AccelerationSource)
+		{
+			AccelDataID = InSettings.AccelerationSource->GetDataID();
+		}
+
+		if (InSettings.DecelerationSource)
+		{
+			DecelDataID = InSettings.DecelerationSource->GetDataID();
+		}
 
 		SynthEngine->SetSourceData(AccelDataID, DecelDataID);
 		SynthEngine->GetRPMRange(RPMRange);

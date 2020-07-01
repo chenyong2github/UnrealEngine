@@ -19,7 +19,6 @@
 #include "MotoSynthSourceAsset.generated.h"
 
 class UMotoSynthSource;
-class FMotoSynthEnginePreviewer;
 
 USTRUCT()
 struct FGrainTableEntry
@@ -235,7 +234,6 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	FRPMEstimationPreviewTone MotoSynthSineToneTest;
-	FMotoSynthEnginePreviewer EnginePreviewer;
 #endif
 
 	// Data ID used to track the source data with the data manager
