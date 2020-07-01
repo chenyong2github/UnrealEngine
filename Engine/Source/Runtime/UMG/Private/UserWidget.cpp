@@ -258,9 +258,11 @@ void UUserWidget::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	TearDownAnimations();
+
 	if (AnimationTickManager)
 	{
-		AnimationTickManager->UserWidgets.Remove(this);
+		AnimationTickManager->RemoveWidget(this);
 		AnimationTickManager = nullptr;
 	}
 
@@ -423,7 +425,7 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 		if (!AnimationTickManager)
 		{
 			AnimationTickManager = UUMGSequenceTickManager::Get(this);
-			AnimationTickManager->UserWidgets.Add(this);
+			AnimationTickManager->AddWidget(this);
 		}
 
 		// @todo UMG sequencer - Restart animations which have had Play called on them?
@@ -455,6 +457,20 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 	}
 
 	return nullptr;
+}
+
+void UUserWidget::TearDownAnimations()
+{
+	for (UUMGSequencePlayer* Player : ActiveSequencePlayers)
+	{
+		Player->TearDown();
+	}
+	for (UUMGSequencePlayer* Player : StoppedSequencePlayers)
+	{
+		Player->TearDown();
+	}
+	ActiveSequencePlayers.Empty();
+	StoppedSequencePlayers.Empty();
 }
 
 void UUserWidget::Invalidate()

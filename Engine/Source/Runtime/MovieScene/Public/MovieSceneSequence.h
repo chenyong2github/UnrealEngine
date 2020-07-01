@@ -182,11 +182,6 @@ public:
 	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) { return nullptr; }
 
 	/**
-	 * Called to retrieve or construct an entity linker for the specified playback context
-	 */
-	virtual UMovieSceneEntitySystemLinker* GetEntitySystemLinker(IMovieScenePlayer& Player) { return nullptr; }
-
-	/**
 	 * Find the first object binding ID associated with the specified tag name (set up through RMB->Expose on Object bindings from within sequencer)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")

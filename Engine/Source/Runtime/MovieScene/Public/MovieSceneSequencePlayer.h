@@ -522,6 +522,7 @@ protected:
 
 	//~ IMovieScenePlayer interface
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
+	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
 	virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
 	virtual FMovieSceneSpawnRegister& GetSpawnRegister() override;
 	virtual UObject* AsUObject() override { return this; }

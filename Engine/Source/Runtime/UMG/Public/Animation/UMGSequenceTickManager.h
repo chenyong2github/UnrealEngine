@@ -34,17 +34,20 @@ public:
 
 	void ForceFlush();
 
+	void AddWidget(UUserWidget* InWidget);
+	void RemoveWidget(UUserWidget* InWidget);
+
 private:
 	virtual void BeginDestroy() override;
 
 	void HandleSlatePostTick(float DeltaSeconds);
 	void TickWidgetAnimations(float DeltaSeconds);
 
-public:
-	UPROPERTY(transient)
-	TArray<UUserWidget*> UserWidgets;
-
 private:
+
+	UPROPERTY(transient)
+	TSet<TWeakObjectPtr<UUserWidget>> WeakUserWidgets;
+
 	UPROPERTY(transient)
 	UMovieSceneEntitySystemLinker* Linker;
 
