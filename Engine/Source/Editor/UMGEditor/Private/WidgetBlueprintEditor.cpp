@@ -985,7 +985,7 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
 				if (BGClass)
 				{
-					LatestWidgetTree = BGClass->WidgetTree;
+					LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
 				}
 			}
 
