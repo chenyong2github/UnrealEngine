@@ -38,14 +38,16 @@ public class WebBrowser : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"WebBrowserTexture",
 					"Engine",
-					"Launch"
+					"Launch",
+					"WebBrowserTexture"
 				}
 			);
 
 			// We need this one on Android for URL decoding
 			PrivateDependencyModuleNames.Add("HTTP");
+
+			CircularlyReferencedDependentModules.Add("WebBrowserTexture");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64
