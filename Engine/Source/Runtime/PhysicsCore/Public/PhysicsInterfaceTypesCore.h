@@ -8,6 +8,7 @@
 
 struct FBodyInstanceCore;
 struct FChaosQueryFlag;
+class FChaosScene;
 
 struct FActorCreationParams
 {
@@ -21,7 +22,11 @@ struct FActorCreationParams
 		, DebugName(nullptr)
 	{}
 
+#if WITH_CHAOS
+	FChaosScene* Scene;
+#else
 	FPhysScene* Scene;
+#endif
 	FBodyInstanceCore* BodyInstance;
 	FTransform InitialTM;
 	bool bStatic;
