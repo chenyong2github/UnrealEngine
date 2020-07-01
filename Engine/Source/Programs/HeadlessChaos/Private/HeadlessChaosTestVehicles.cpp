@@ -291,40 +291,62 @@ namespace ChaosTest
 		EXPECT_LT(AOAFlat2, SMALL_NUMBER);
 
 		float AOA90 = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(0, 0, 1));
-		EXPECT_LT(AOA90-90.0f, SMALL_NUMBER);
+		EXPECT_LT(AOA90 - 90.0f, SMALL_NUMBER);
 
 		float AOA45 = RWing.CalcAngleOfAttackDegrees(FVector(0, 0, 1), FVector(0, 0.707, 0.707));
 		EXPECT_LT(AOA45 - 45.0f, SMALL_NUMBER);
 
 		//////////////////////////////////////////////////////////////////////////
-		
-		float Zero = RWing.CalcLiftCoefficient(0, 0);
-		EXPECT_LT(Zero, SMALL_NUMBER);
+		// Lift
+		{
+			float Zero = RWing.CalcLiftCoefficient(0, 0);
+			EXPECT_LT(Zero, SMALL_NUMBER);
 
-		float Two = RWing.CalcLiftCoefficient(2, 0);
-		float NegTwo = RWing.CalcLiftCoefficient(-2, 0);
-		EXPECT_GT(Two, SMALL_NUMBER);
-		EXPECT_LT(NegTwo, SMALL_NUMBER);
-		EXPECT_LT(Two - FMath::Abs(NegTwo), SMALL_NUMBER);
+			float Two = RWing.CalcLiftCoefficient(2, 0);
+			float NegTwo = RWing.CalcLiftCoefficient(-2, 0);
+			EXPECT_GT(Two, SMALL_NUMBER);
+			EXPECT_LT(NegTwo, SMALL_NUMBER);
+			EXPECT_LT(Two - FMath::Abs(NegTwo), SMALL_NUMBER);
 
-		float Three = RWing.CalcLiftCoefficient(0, 3);
-		float NegThree = RWing.CalcLiftCoefficient(0, -3);
-		EXPECT_GT(Three, SMALL_NUMBER);
-		EXPECT_LT(NegThree, SMALL_NUMBER);
-		EXPECT_LT(Three - FMath::Abs(NegThree), SMALL_NUMBER);
+			float Three = RWing.CalcLiftCoefficient(0, 3);
+			float NegThree = RWing.CalcLiftCoefficient(0, -3);
+			EXPECT_GT(Three, SMALL_NUMBER);
+			EXPECT_LT(NegThree, SMALL_NUMBER);
+			EXPECT_LT(Three - FMath::Abs(NegThree), SMALL_NUMBER);
 
-		float Nine = RWing.CalcLiftCoefficient(6, 3);
-		float NegNine = RWing.CalcLiftCoefficient(-6, -3);
-		EXPECT_GT(Nine, SMALL_NUMBER);
-		EXPECT_LT(NegNine, SMALL_NUMBER);
-		EXPECT_LT(Nine - FMath::Abs(NegNine), SMALL_NUMBER);
+			float Nine = RWing.CalcLiftCoefficient(6, 3);
+			float NegNine = RWing.CalcLiftCoefficient(-6, -3);
+			EXPECT_GT(Nine, SMALL_NUMBER);
+			EXPECT_LT(NegNine, SMALL_NUMBER);
+			EXPECT_LT(Nine - FMath::Abs(NegNine), SMALL_NUMBER);
 
-		float Stall = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 0);
-		float StallPlus = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 5);
-		EXPECT_GT(Stall, Nine);
-		EXPECT_GT(Stall, Three);
-		EXPECT_GT(Stall, Two);
-		EXPECT_GT(Stall, StallPlus);
+			float Stall = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 0);
+			float StallPlus = RWing.CalcLiftCoefficient(RWingSetup.StallAngle, 5);
+			EXPECT_GT(Stall, Nine);
+			EXPECT_GT(Stall, Three);
+			EXPECT_GT(Stall, Two);
+			EXPECT_GT(Stall, StallPlus);
+		}
+
+		// Drag
+		{
+			float Two = RWing.CalcDragCoefficient(2, 0);
+			float NegTwo = RWing.CalcDragCoefficient(-2, 0);
+			EXPECT_GT(Two, SMALL_NUMBER);
+			EXPECT_GT(NegTwo, SMALL_NUMBER);
+			EXPECT_LT(Two - NegTwo, SMALL_NUMBER);
+
+			float Six = RWing.CalcDragCoefficient(4, 2);
+			float NegSix = RWing.CalcDragCoefficient(-4, -2);
+			EXPECT_GT(Six, SMALL_NUMBER);
+			EXPECT_GT(NegSix, SMALL_NUMBER);
+			EXPECT_LT(Six - NegSix, SMALL_NUMBER);
+
+			float AltNegTwo = RWing.CalcDragCoefficient(2, -4);
+			EXPECT_GT(AltNegTwo, SMALL_NUMBER);
+			EXPECT_LT(AltNegTwo - NegTwo, SMALL_NUMBER);
+		}
+
 
 		////////////////////////////////////////////////////////////////////////////
 

@@ -44,7 +44,6 @@ struct FSolverSafeContactData
 	float VehicleSideScrapeFriction;
 };
 
-
 struct FBodyInstance;
 
 // #todo: are these too wheeled vehicle specific?
@@ -119,8 +118,16 @@ struct FVehicleAirControlConfig
 	/** Rotation damping */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RotationDamping;
-};
 
+	void InitDefaults()
+	{
+		Enabled = false;
+		YawTorqueScaling = 5.0f;
+		PitchTorqueScaling = 5.0f;
+		RollTorqueScaling = 5.0f;
+		RotationDamping = 0.02f;
+	}
+};
 
 USTRUCT()
 struct FVehicleThrustConfig
@@ -138,47 +145,22 @@ struct FVehicleThrustConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	FRuntimeFloatCurve ThrustCurve;
 
-	/** Roll Torque Scaling */
+	/** Maximum speed after which the thrust will cut off */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float MaxSpeed;
 
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float MaxThrustForce;
-};
 
-
-USTRUCT()
-struct FVehicleGroundControlConfig
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Ground Control Enabled */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	bool Enabled;
-
-	/** Yaw Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float YawTorqueScaling;
-
-	/** Pitch/Wheelie Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float PitchTorqueScaling;
-
-	/** Roll/Lean Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float RollTorqueScaling;
-
-	/** pitch rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float PitchDamping;
-
-	/** roll rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float RollDamping;
-
-	/** yaw rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float YawDamping;
+	void InitDefaults()
+	{
+		BoneName = NAME_None;
+		Offset = FVector::ZeroVector;
+		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
+		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
+		MaxSpeed = 50;
+		MaxThrustForce = 100.0f;
+	}
 };
 
 
@@ -282,7 +264,7 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
 	FVector UpAxis;
 
-	// Area of aerofoil surface - larger value creates more lift but also more drag
+	// Area of aerofoil surface [Meters Squared] - larger value creates more lift but also more drag
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
 	float Area;
 
@@ -309,6 +291,20 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 	{
 		FillAerofoilSetup();
 		return PAerofoilConfig;
+	}
+
+	void InitDefaults()
+	{
+		AerofoilType = FVehicleAerofoilType::Fixed;
+		BoneName = NAME_None;
+		Offset = FVector::ZeroVector;
+		UpAxis = FVector(0.f, 0.f, -1.f);
+		Area = 1.f;
+		Camber = 3.f;
+		MaxControlAngle = 0.f;
+		StallAngle = 16.f;
+		LiftMultiplier = 1.0f;
+		DragMultiplier = 1.0f;
 	}
 
 private:
@@ -377,7 +373,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	float DownforceCoefficient;
 
-	// Drag area in cm^2
+	// Drag area in Meters^2
 	UPROPERTY(transient)
 	float DragArea;
 
@@ -732,8 +728,10 @@ protected:
 	/** Compute yaw input */
 	float CalcYawInput();
 
-	/** Compute throttle input */
+	/** Compute throttle inputs */
 	virtual float CalcThrottleInput();
+	float CalcThrottleUpInput();
+	float CalcThrottleDownInput();
 
 	/**
 	* Clear all interpolated inputs to default values.
@@ -781,7 +779,8 @@ protected:
 
 	/** Pass current state to server */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 TargetGear);
+	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput
+			, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput);
 
 #if WANT_RVO
 
@@ -810,7 +809,13 @@ protected:
 	AController* GetController() const;
 
 	/** Get the mesh this vehicle is tied to */
-	class USkinnedMeshComponent* GetMesh();
+	class UMeshComponent* GetMesh();
+
+	/** Get Mesh cast as USkeletalMeshComponent, may return null if cast fails */
+	USkeletalMeshComponent* GetSkeletalMesh();
+
+	/** Get Mesh cast as UStaticMeshComponent, may return null if cast fails */
+	UStaticMeshComponent* GetStaticMesh();
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();

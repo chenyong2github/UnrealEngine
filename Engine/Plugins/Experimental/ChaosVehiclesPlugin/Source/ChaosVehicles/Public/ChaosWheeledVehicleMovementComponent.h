@@ -53,7 +53,7 @@ enum EDebugPages : uint8
 UENUM()
 enum class EVehicleDifferential : uint8
 {
-	FourWheelDrive,
+	AllWheelDrive,
 	FrontWheelDrive,
 	RearWheelDrive,
 };
@@ -91,6 +91,12 @@ struct FVehicleDifferentialConfig
 	///** Maximum allowed ratio of rear-left and rear-right wheel rotation speeds (range: 1..inf, works only with LimitedSlip_4W, LimitedSlip_FrontDrive) */
 	//UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "1.0", UIMin = "1.0"))
 	//float RearBias;
+
+	void InitDefaults()
+	{
+		DifferentialType = EVehicleDifferential::RearWheelDrive;
+		FrontRearSplit = 0.5f;
+	}
 };
 
 USTRUCT()
@@ -118,13 +124,34 @@ struct FVehicleEngineConfig
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.001", UIMin = "0.001"))
 	float EngineBrakeEffect;
 
+	/** Affects how fast the engine RPM speed up */
+	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float EngineRevUpMOI;
+
+	/** Affects how fast the engine RPM slows down */
+	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float EngineRevDownRate;
+
 	/** Find the peak torque produced by the TorqueCurve */
-	float FindPeakTorque() const;
+	//float FindPeakTorque() const;
 
 	const Chaos::FSimpleEngineConfig& GetPhysicsEngineConfig()
 	{
 		FillEngineSetup();
 		return PEngineConfig;
+	}
+
+	void InitDefaults()
+	{
+		//TorqueCurve.GetRichCurve().AddKey(0.0f, 1.0f);
+		//TorqueCurve.GetRichCurve().AddKey(1.0f, 0.0f);
+		MaxTorque = 300.0f;
+		MaxRPM = 4500.0f;
+		EngineIdleRPM = 1200.0f;
+		EngineBrakeEffect = 0.001f;
+
+		EngineRevUpMOI = 5.0f;
+		EngineRevDownRate = 600.0f;
 	}
 
 private:
@@ -146,6 +173,8 @@ private:
 		PEngineConfig.MaxRPM = this->MaxRPM;
 		PEngineConfig.EngineIdleRPM = this->EngineIdleRPM;
 		PEngineConfig.EngineBrakeEffect = this->EngineBrakeEffect;
+		PEngineConfig.EngineRevUpMOI = this->EngineRevUpMOI;
+		PEngineConfig.EngineRevDownRate = this->EngineRevDownRate;
 	}
 
 	Chaos::FSimpleEngineConfig PEngineConfig;
@@ -163,7 +192,6 @@ struct FVehicleTransmissionConfig
 
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (DisplayName = "Automatic Reverse"))
 	bool bUseAutoReverse;
-
 
 	/** The final gear ratio multiplies the transmission gear ratios.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
@@ -193,20 +221,38 @@ struct FVehicleTransmissionConfig
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
 	float TransmissionEfficiency;
 
-
 	/** Value of engineRevs/maxEngineRevs that is high enough to increment gear*/
 	//UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	//float NeutralGearUpRatio;
-
-	///** Strength of clutch (Kgm^2/s)*/
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float ClutchStrength;
 
 
 	const Chaos::FSimpleTransmissionConfig& GetPhysicsTransmissionConfig()
 	{
 		FillTransmissionSetup();
 		return PTransmissionConfig;
+	}
+
+	void InitDefaults()
+	{
+		bUseAutomaticGears = true;
+		bUseAutoReverse = true;
+		FinalRatio = 3.08f;
+
+		ForwardGearRatios.Add(2.85f);
+		ForwardGearRatios.Add(2.02f);
+		ForwardGearRatios.Add(1.35f);
+		ForwardGearRatios.Add(1.0f);
+
+		ReverseGearRatios.Add(2.86f);
+
+		ChangeUpRPM = 4500.0f;
+		ChangeDownRPM = 2000.0f;
+		GearChangeTime = 0.4f;
+
+		TransmissionEfficiency = 0.9f;
+
+		// #todo: probably need something like this
+		// NeutralGearUpRatio
 	}
 
 private:
@@ -243,13 +289,19 @@ struct FVehicleSteeringConfig
 	GENERATED_USTRUCT_BODY()
 
 	/** Maximum steering versus forward speed (km/h) */
-	UPROPERTY(EditAnywhere, Category = SteeringSetup)
-	FRuntimeFloatCurve SteeringCurve;
+	//UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	//FRuntimeFloatCurve SteeringCurve;
 
 	const Chaos::FSimpleSteeringConfig& GetPhysicsSteeringConfig(FVector2D WheelTrackDimensions)
 	{
 		FillSteeringSetup(WheelTrackDimensions);
 		return PSteeringConfig;
+	}
+
+	void InitDefaults()
+	{
+		// #todo: need to implement a Max steering Angle vs vehicle speed curve.
+		//SteeringCurve
 	}
 
 private:
@@ -321,10 +373,6 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Differential */
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
 	FVehicleDifferentialConfig DifferentialSetup;
-
-	/** Accuracy of Ackermann steer calculation (range: 0..1) */
-	//UPROPERTY(EditAnywhere, Category = SteeringSetup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	//float AckermannAccuracy;
 
 	/** Transmission data */
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
@@ -475,6 +523,12 @@ protected:
 
 	/** Get distances between wheels - primarily a debug display helper */
 	FVector2D CalculateWheelLayoutDimensions();
+	bool IsWheelSpinning() const;
+
+#if WITH_EDITOR
+	float CalcDialAngle(float CurrentValue, float MaxValue);
+	void DrawDial(UCanvas* Canvas, FVector2D Pos, float Radius, float CurrentValue, float MaxValue);
+#endif
 
 	static EDebugPages DebugPage;
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */

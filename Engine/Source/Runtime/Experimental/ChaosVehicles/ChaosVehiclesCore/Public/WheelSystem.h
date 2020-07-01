@@ -78,7 +78,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, EngineEnabled(false)
 		, TractionControlEnabled(false)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
-		, CheatFrictionForceMultiplier(1.0f)
+		, CheatLateralFrictionMultiplier(1.0f)
+		, CheatLongitudinalFrictionMultiplier(1.0f)
 		, CheatSkidFactor(1.0f)
 	//	, SingleWheel(false)
 	{
@@ -111,7 +112,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
 
-	float CheatFrictionForceMultiplier;
+	float CheatLateralFrictionMultiplier;
+	float CheatLongitudinalFrictionMultiplier;
 	float CheatSkidFactor;
 
 	// #todo: simulated Damage
@@ -253,6 +255,11 @@ public:
 		return bInContact;
 	}
 
+	bool IsSpinning() const
+	{ 
+		return (FMath::Abs(Spin) > 0.1f);
+	}
+
 	float GetSteeringAngle() const
 	{
 		return SteeringAngle;
@@ -359,7 +366,10 @@ public:
 	// debug for now
 	float AppliedLinearDriveForce;
 	float AppliedLinearBrakeForce;
-	float AdhesiveLimit;
+	float LongitudinalAdhesiveLimit;
+	float LateralAdhesiveLimit;
+	float SideSlipModifier;
+	float Spin;
 };
 
 
