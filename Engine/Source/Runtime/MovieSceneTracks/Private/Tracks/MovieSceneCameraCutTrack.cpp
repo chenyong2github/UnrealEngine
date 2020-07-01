@@ -172,31 +172,6 @@ void UMovieSceneCameraCutTrack::RemoveAllAnimationData()
 	Sections.Empty();
 }
 
-FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneCameraCutTrack::GetRowSegmentBlender() const
-{
-	return FDefaultTrackRowSegmentBlender();
-}
-
-struct FMovieSceneCameraCutTrackBlender : public FMovieSceneTrackSegmentBlender
-{
-	virtual void Blend(FSegmentBlendData& BlendData) const override
-	{
-		// Sort by start time to match application order of player camera
-		BlendData.Sort(SortByStartTime);
-	}
-
-private:
-	static bool SortByStartTime(const FMovieSceneSectionData& A, const FMovieSceneSectionData& B)
-	{
-		return TRangeBound<FFrameNumber>::MinLower(A.Section->GetRange().GetLowerBound(), B.Section->GetRange().GetLowerBound()) == A.Section->GetRange().GetLowerBound();
-	}
-};
-
-FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraCutTrack::GetTrackSegmentBlender() const
-{
-	return FMovieSceneCameraCutTrackBlender();
-}
-
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneCameraCutTrack::GetDefaultDisplayName() const
 {
