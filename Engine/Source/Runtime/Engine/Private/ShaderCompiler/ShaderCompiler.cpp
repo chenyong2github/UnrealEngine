@@ -2593,7 +2593,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 								FString ErrorMessage = Errors[ErrorIndex];
 								// Work around build machine string matching heuristics that will cause a cook to fail
 								ErrorMessage.ReplaceInline(TEXT("error "), TEXT("err0r "), ESearchCase::CaseSensitive);
-								UE_LOG(LogShaderCompilers, Display, TEXT("%s"), *ErrorMessage);
+								UE_LOG(LogShaderCompilers, Display, TEXT("	%s"), *ErrorMessage);
 							}
 						}
 						else
@@ -4415,13 +4415,23 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 	return Shader;
 }
 
+namespace ShaderCompilerUtil
+{
+	FOnGlobalShadersCompilation GOnGlobalShdersCompilationDelegate;
+}
+
+FOnGlobalShadersCompilation& GetOnGlobalShaderCompilation()
+{
+	return ShaderCompilerUtil::GOnGlobalShdersCompilationDelegate;
+}
+
 /**
 * Makes sure all global shaders are loaded and/or compiled for the passed in platform.
 * Note: if compilation is needed, this only kicks off the compile.
 *
 * @param	Platform	Platform to verify global shaders for
 */
-void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
+void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes)
 {
 	SCOPED_LOADTIMER(VerifyGlobalShaders);
 
@@ -4463,24 +4473,8 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 		int32 PermutationCountToCompile = 0;
 		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
 		{
-			if (!GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId))
-			{
-				continue;
-			}
-			
-			TShaderRef<FShader> Shader = GlobalShaderMap->GetShader(GlobalShaderType, PermutationId);
-			if (Shader.IsValid())
-			{
-				// Validate the shader parameter structure early.
-				if (const FShaderParametersMetadata* ParameterStructMetadata = GlobalShaderType->GetRootParametersMetadata())
-				{
-					checkf(
-						Shader->Bindings.StructureLayoutHash == ParameterStructMetadata->GetLayoutHash(),
-						TEXT("Seems shader %s's (permutation %i) parameter structure has changed without recompilation of the shader"),
-						GlobalShaderType->GetName(), PermutationId);
-				}
-			}
-			else
+			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId) 
+				&& (!GlobalShaderMap->HasShader(GlobalShaderType, PermutationId) || (OutdatedShaderTypes && OutdatedShaderTypes->Contains(GlobalShaderType))))
 			{
 				if (bErrorOnMissing)
 				{
@@ -4515,7 +4509,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 		const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
 		if (Pipeline->IsGlobalTypePipeline())
 		{
-			if (!GlobalShaderMap->HasShaderPipeline(Pipeline))
+			if (!GlobalShaderMap->HasShaderPipeline(Pipeline) || (OutdatedShaderPipelineTypes && OutdatedShaderPipelineTypes->Contains(Pipeline)))
 			{
 				auto& StageTypes = Pipeline->GetStages();
 				TArray<FGlobalShaderType*> ShaderStages;
@@ -4572,6 +4566,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 
 	if (GlobalShaderJobs.Num() > 0)
 	{
+		GetOnGlobalShaderCompilation().Broadcast();
 		GShaderCompilingManager->AddJobs(GlobalShaderJobs, true, false, "Globals");
 
 		const bool bAllowAsynchronousGlobalShaderCompiling =
@@ -5138,30 +5133,8 @@ void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShade
 		// Now check if there is any work to be done wrt outdates types
 		if (OutdatedShaderTypes.Num() > 0 || OutdatedShaderPipelineTypes.Num() > 0)
 		{
-			for (int32 TypeIndex = 0; TypeIndex < OutdatedShaderTypes.Num(); TypeIndex++)
-			{
-				const FGlobalShaderType* CurrentGlobalShaderType = OutdatedShaderTypes[TypeIndex]->GetGlobalShaderType();
-				if (CurrentGlobalShaderType)
-				{
-					UE_LOG(LogShaders, Log, TEXT("Flushing Global Shader %s"), CurrentGlobalShaderType->GetName());
-					for (int32 PermutationId = 0; PermutationId < CurrentGlobalShaderType->GetPermutationCount(); PermutationId++)
-					{
-						GlobalShaderMap->RemoveShaderTypePermutaion(CurrentGlobalShaderType, PermutationId);
-					}
-				}
-			}
 
-			for (int32 PipelineTypeIndex = 0; PipelineTypeIndex < OutdatedShaderPipelineTypes.Num(); ++PipelineTypeIndex)
-			{
-				const FShaderPipelineType* ShaderPipelineType = OutdatedShaderPipelineTypes[PipelineTypeIndex];
-				if (ShaderPipelineType->IsGlobalTypePipeline())
-				{
-					UE_LOG(LogShaders, Log, TEXT("Flushing Global Shader Pipeline %s"), ShaderPipelineType->GetName());
-					GlobalShaderMap->RemoveShaderPipelineType(ShaderPipelineType);
-				}
-			}
-
-			VerifyGlobalShaders(ShaderPlatform, false);
+			VerifyGlobalShaders(ShaderPlatform, false, &OutdatedShaderTypes, &OutdatedShaderPipelineTypes);
 		}
 	}
 }

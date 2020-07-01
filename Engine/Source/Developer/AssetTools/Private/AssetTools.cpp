@@ -28,6 +28,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 #include "IClassTypeActions.h"
+#include "AssetTypeActions/AssetTypeActions_Actor.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_Curve.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
@@ -163,13 +164,27 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
-
 	for (const FString& Type : SupportedTypesArray)
 	{
 		AssetClassBlacklist->AddWhitelistItem("AssetToolsConfigFile", *Type);
 	}
-
 	AssetClassBlacklist->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassBlacklistChanged);
+
+	TArray<FString> BlacklistedViewPath;
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("BlacklistAssetPaths"), BlacklistedViewPath, GEditorIni);
+	for (const FString& Path : BlacklistedViewPath)
+	{
+		FolderBlacklist->AddBlacklistItem("AssetToolsConfigFile", Path);
+	}
+
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("BlacklistContentSubPaths"), SubContentBlacklistPaths, GEditorIni);
+	TArray<FString> ContentRoots;
+	FPackageName::QueryRootContentPaths(ContentRoots);
+	for (const FString& ContentRoot : ContentRoots)
+	{
+		AddSubContentBlacklist(ContentRoot);
+	}
+	FPackageName::OnContentPathMounted().AddUObject(this, &UAssetToolsImpl::OnContentPathMounted);
 
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
@@ -186,6 +201,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	EAssetTypeCategories::Type FoliageCategoryBit = RegisterAdvancedAssetCategory(FName(TEXT("Foliage")), LOCTEXT("FoliageAssetCategory", "Foliage"));
 
 	// Register the built-in asset type actions
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Actor));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimationAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprint));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
@@ -255,7 +271,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureCube));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Texture2DArray));
-	RegisterAssetTypeActions( MakeShareable(new FAssetTypeActions_VolumeTexture) );
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VolumeTexture));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetCube));
@@ -3191,6 +3207,19 @@ void UAssetToolsImpl::AssetClassBlacklistChanged()
 		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
 		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
 	}
+}
+
+void UAssetToolsImpl::AddSubContentBlacklist(const FString& InMount)
+{
+	for (const FString& SubContentPath : SubContentBlacklistPaths)
+	{
+		FolderBlacklist->AddBlacklistItem("AssetToolsConfigFile", InMount / SubContentPath);
+	}
+}
+
+void UAssetToolsImpl::OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath)
+{
+	AddSubContentBlacklist(InAssetPath);
 }
 
 TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()

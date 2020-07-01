@@ -83,14 +83,15 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	{
 		check(GIsEditor);
 
-		ForEachObjectWithOuter(PackageBeingUnloaded, [](UObject* Object)
+		ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Object)
+		{
+			if ( ObjectsThatHadFlagsCleared.Find(Object) )
 			{
-				if ( ObjectsThatHadFlagsCleared.Find(Object) )
-				{
-					Object->SetFlags(RF_Standalone);
-				}
-			},
-			true, RF_NoFlags, EInternalObjectFlags::Unreachable);
+				Object->SetFlags(RF_Standalone);
+			}
+			return true;
+		},
+		true, RF_NoFlags, EInternalObjectFlags::Unreachable);
 	}
 
 	/**
@@ -139,12 +140,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		{
 			for (UPackage* Package : *InPackages)
 			{
-				ForEachObjectWithOuter(Package,[&OutObjects](UObject* Obj)
+				ForEachObjectWithPackage(Package,[&OutObjects](UObject* Obj)
 					{
 						if (ObjectTools::IsObjectBrowsable(Obj))
 						{
 							OutObjects.Add(Obj);
 						}
+						return true;
 					});
 			}
 		}
@@ -380,12 +382,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				FlushRenderingCommands();
 
 				// Close any open asset editors
-				ForEachObjectWithOuter(PackageBeingUnloaded, [](UObject* Obj)
+				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
 				{
 					if (Obj->IsAsset())
 					{
 						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Obj);
 					}
+					return true;
 				}, false);
 
 				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
@@ -398,7 +401,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				// Clear RF_Standalone flag from objects in the package to be unloaded so they get GC'd.
 				{
 					TArray<UObject*> ObjectsInPackage;
-					GetObjectsWithOuter(PackageBeingUnloaded, ObjectsInPackage);
+					GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage);
 					for ( UObject* Object : ObjectsInPackage )
 					{
 						if (Object->HasAnyFlags(RF_Standalone))
@@ -718,10 +721,10 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			// We need to sort the packages to reload so that dependencies are reloaded before the assets that depend on them
 			::SortPackagesForReload(PackagesToReload);
 
-			// Remove potential references to to-be deleted objects from the global selection set.
+			// Remove potential references to to-be deleted objects from the global selection sets.
 			if (GIsEditor)
 			{
-				GEditor->GetSelectedObjects()->DeselectAll();
+				GEditor->ResetAllSelectionSets();
 			}
 			// Detach all components while loading a package.
 			// This is necessary for the cases where the load replaces existing objects which may be referenced by the attached components.
@@ -846,12 +849,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			GEngine->NotifyToolsOfObjectReplacement(InPackageReloadedEvent->GetRepointedObjects());
 
 			// Notify any Blueprints that are about to be unloaded.
-			ForEachObjectWithOuter(InPackageReloadedEvent->GetOldPackage(), [&](UObject* InObject)
+			ForEachObjectWithPackage(InPackageReloadedEvent->GetOldPackage(), [&](UObject* InObject)
 			{
 				if (UBlueprint* BP = Cast<UBlueprint>(InObject))
 				{
 					BP->ClearEditorReferences();
 				}
+				return true;
 			}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 		}
 
@@ -953,6 +957,18 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				if (BlueprintToRecompile)
 				{
 					BlueprintsToRecompileThisBatch.Add(BlueprintToRecompile);
+				}
+			}
+
+			// @todo FH: we should eventually have a specific api for hot reloading single objects or external packages' objects
+			// Call post edit change property on the reloaded objects in the package if they are external 
+			FPropertyChangedEvent PropertyEvent(nullptr, EPropertyChangeType::Redirected);
+			for (const auto& ObjectPair : InPackageReloadedEvent->GetRepointedObjects())
+			{
+				// An object is external, if it has a directly assigned package
+				if (ObjectPair.Value && ObjectPair.Value->GetExternalPackage())
+				{
+					ObjectPair.Value->PostEditChangeProperty(PropertyEvent);
 				}
 			}
 		}

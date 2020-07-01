@@ -325,6 +325,7 @@ SLevelEditor::~SLevelEditor()
 
 	if (GEditor)
 	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
 

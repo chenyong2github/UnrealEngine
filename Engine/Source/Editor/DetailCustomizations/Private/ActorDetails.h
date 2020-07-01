@@ -88,6 +88,10 @@ private:
 	const TArray< TWeakObjectPtr<AActor> >& GetSelectedActors() const;
 
 private:
+	// Functions to handle actor packaging mode (i.e. external or internal)
+	bool IsActorPackagingModeEditable() const;
+	FText GetCurrentActorPackagingMode() const;
+	void OnActorPackagingModeChanged(bool bExternal);
 
 	/** Bring up the menu for user to select the path to create blueprint at */
 	FReply OnPickBlueprintPathClicked(bool bHavest);
@@ -98,5 +102,6 @@ private:
 	/** The path the user has selected to create a blueprint at*/
 	FString PathForActorBlueprint;
 
+	/** List of currently selected actors*/
 	TArray< TWeakObjectPtr<AActor> > SelectedActors;
 };

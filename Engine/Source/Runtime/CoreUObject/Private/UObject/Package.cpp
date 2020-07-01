@@ -40,6 +40,7 @@ void UPackage::PostInitProperties()
 
 #if WITH_EDITORONLY_DATA
 	MetaData = nullptr;
+	PersistentGuid = FGuid::NewGuid();
 #endif
 	LinkerPackageVersion = GPackageFileUE4Version;
 	LinkerLicenseeVersion = GPackageFileLicenseeUE4Version;
@@ -111,22 +112,24 @@ void UPackage::Serialize( FArchive& Ar )
 	}
 }
 
-#if WITH_EDITORONLY_DATA
-bool UPackage::IsOwned() const
+TArray<UPackage*> UPackage::GetExternalPackages() const
 {
-	return OwnerPersistentGuid.IsValid();
+	TArray<UPackage*> Result;
+	TArray<UObject*> TopLevelObjects;
+	GetObjectsWithPackage(const_cast<UPackage*>(this), TopLevelObjects, false);
+	for (UObject* Object : TopLevelObjects)
+	{
+		ForEachObjectWithOuter(Object, [&Result, ThisPackage = this](UObject* InObject)
+			{
+				UPackage* ObjectPackage = InObject->GetExternalPackage();
+				if (ObjectPackage && ObjectPackage != ThisPackage)
+				{
+					Result.Add(ObjectPackage);
+				}
+			});
+	}
+	return Result;
 }
-
-bool UPackage::IsOwnedBy(const UPackage* Package) const
-{
-	return OwnerPersistentGuid.IsValid() && (OwnerPersistentGuid == Package->GetPersistentGuid());
-}
-
-bool UPackage::HasSameOwner(const UPackage* Package) const
-{
-	return OwnerPersistentGuid.IsValid() && (OwnerPersistentGuid == Package->OwnerPersistentGuid);
-}
-#endif
 
 /**
  * Gets (after possibly creating) a metadata object for this package

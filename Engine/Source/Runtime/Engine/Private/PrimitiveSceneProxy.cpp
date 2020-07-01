@@ -156,7 +156,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	PrimitiveSceneInfo(NULL)
 ,	OwnerName(InComponent->GetOwner() ? InComponent->GetOwner()->GetFName() : NAME_None)
 ,	ResourceName(InResourceName)
-,	LevelName(InComponent->GetOutermost()->GetFName())
+,	LevelName(InComponent->GetOwner() ? InComponent->GetOwner()->GetLevel()->GetOutermost()->GetFName() : NAME_None)
 #if WITH_EDITOR
 // by default we are always drawn
 ,	HiddenEditorViews(0)

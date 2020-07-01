@@ -733,6 +733,7 @@ public:
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
 	virtual bool IsSelectable() const override { return false; }
+	virtual bool SupportsExternalPackaging() const override { return false; }
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;
 	virtual void PreInitializeComponents() override;

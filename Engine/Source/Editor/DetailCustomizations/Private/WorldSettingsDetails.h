@@ -61,14 +61,24 @@ protected:
 	 */
 	void AddLightmapCustomization( IDetailLayoutBuilder& DetailBuilder );
 
+	/**
+	 * Add the level external actors customization to the World section
+	 * @param DetailBuilder the detail builder.
+	 */
+	void AddLevelExternalActorsCustomization(IDetailLayoutBuilder& DetailBuilder);
+
 private:
+	// Called when `ULevel::bUseExternalActors` changes.
+	void OnUseExternalActorsChanged(ECheckBoxState State, ULevel* Level);
+
+	// return the state of `ULevel::bUseExternalActors`
+	ECheckBoxState IsUseExternalActorsChecked(ULevel* Level) const;
 
 	// Handles checking whether a given asset is acceptable for drag-and-drop.
 	bool HandleAssetDropTargetIsAssetAcceptableForDrop( const UObject* InObject ) const;
 
 	// Handles dropping an asset.
 	void HandleAssetDropped( UObject* Object, TSharedRef<IPropertyHandle> GameInfoProperty );
-
 
 	/** Helper class to customizer GameMode property */
 	TSharedPtr<FGameModeInfoCustomizer>	GameInfoModeCustomizer;

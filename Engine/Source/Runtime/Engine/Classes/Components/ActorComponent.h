@@ -872,6 +872,7 @@ public:
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual bool IsSelectedInEditor() const override;
+	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) {}
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
