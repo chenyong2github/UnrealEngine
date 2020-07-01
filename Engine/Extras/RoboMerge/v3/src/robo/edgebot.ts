@@ -104,6 +104,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	get disallowSkip() {
 		return !!this.options.disallowSkip
 	}
+	get doHackyOkForGithubThing() {
+		return !!this.options.doHackyOkForGithubThing
+	}
 	get excludedAuthors() {
 		return this.options.excludeAuthors || []
 	}
@@ -332,6 +335,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		if (authorTag) {
 			description += `#ROBOMERGE-AUTHOR: ${authorTag}\n`
+		}
+
+		if (this.doHackyOkForGithubThing && !info.hasOkForGithubTag) {
+			description += '#okforgithub ignore\n'
 		}
 
 		if (info.overriddenCommand) {
