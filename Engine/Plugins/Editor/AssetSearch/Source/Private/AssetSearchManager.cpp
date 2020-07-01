@@ -284,21 +284,32 @@ void FAssetSearchManager::TryConnectToDatabase()
 {
 	if (!bDatabaseOpen)
 	{
+		check(!IsInGameThread());
+
 		if ((FPlatformTime::Seconds() - LastConnectionAttempt) > 30)
 		{
 			LastConnectionAttempt = FPlatformTime::Seconds();
 
 			const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
 			
-			if (!FileInfoDatabase.Open(SessionPath))
+			if (!FileInfoDatabase.IsValid())
 			{
-				return;
+				FScopeLock ScopedLock(&FileInfoDatabaseCS);
+
+				if (!FileInfoDatabase.Open(SessionPath))
+				{
+					return;
+				}
 			}
 
-			if (!SearchDatabase.Open(SessionPath))
+			if (!SearchDatabase.IsValid())
 			{
-				FileInfoDatabase.Close();
-				return;
+				FScopeLock ScopedLock(&SearchDatabaseCS);
+
+				if (!SearchDatabase.Open(SessionPath))
+				{
+					return;
+				}
 			}
 
 			bDatabaseOpen = true;
@@ -676,8 +687,6 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 
 	UpdateScanningAssets();
 
-	TryConnectToDatabase();
-
 	ProcessGameThreadTasks();
 
 	const USearchUserSettings* UserSettings = GetDefault<USearchUserSettings>();
@@ -773,6 +782,7 @@ void FAssetSearchManager::Tick_DatabaseOperationThread()
 	{
 		if (!bDatabaseOpen)
 		{
+			TryConnectToDatabase();
 			FPlatformProcess::Sleep(1);
 			continue;
 		}
