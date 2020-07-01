@@ -172,7 +172,7 @@ bool FHttpModule::HandleHTTPCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				HttpMethod = TEXT("PUT");
 			}
 
-			TSharedRef<IHttpRequest> Request = CreateRequest();
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = CreateRequest();
 			Request->SetURL(UploadUrl);
 			Request->SetVerb(HttpMethod);
 			Request->SetHeader(TEXT("Content-Type"), TEXT("application/x-uehttp-upload-test"));
@@ -209,15 +209,15 @@ FHttpModule& FHttpModule::Get()
 	return *Singleton;
 }
 
-TSharedRef<IHttpRequest> FHttpModule::CreateRequest()
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FHttpModule::CreateRequest()
 {
 	if (bUseNullHttp)
 	{
-		return TSharedRef<IHttpRequest>(new FNullHttpRequest());
+		return TSharedRef<IHttpRequest, ESPMode::ThreadSafe>(new FNullHttpRequest());
 	}
 	else
 	{
 		// Create the platform specific Http request instance
-		return TSharedRef<IHttpRequest>(FPlatformHttp::ConstructRequest());
+		return TSharedRef<IHttpRequest, ESPMode::ThreadSafe>(FPlatformHttp::ConstructRequest());
 	}
 }

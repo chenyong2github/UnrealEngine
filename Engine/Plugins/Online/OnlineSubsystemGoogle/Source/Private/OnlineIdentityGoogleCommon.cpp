@@ -273,7 +273,7 @@ void FOnlineIdentityGoogleCommon::RetrieveDiscoveryDocument(PendingLoginRequestC
 	{
 		static const FString DiscoveryURL = TEXT("https://accounts.google.com/.well-known/openid-configuration");
 		// kick off http request to get the discovery document
-		TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 		HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOnlineIdentityGoogleCommon::DiscoveryRequest_HttpRequestComplete, LoginCb);
 		HttpRequest->SetURL(DiscoveryURL);
@@ -328,7 +328,7 @@ void FOnlineIdentityGoogleCommon::ProfileRequest(int32 LocalUserNum, const FAuth
 				bStarted = true;
 
 				// kick off http request to get user info with the access token
-				TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 				const FString BearerToken = FString::Printf(TEXT("Bearer %s"), *InAuthToken.AccessToken);
 

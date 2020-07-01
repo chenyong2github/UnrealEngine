@@ -19,10 +19,10 @@ namespace BuildPatchServices
 		{
 		}
 
-		virtual TSharedRef<IHttpRequest> CreateRequest() override
+		virtual TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest() override
 		{
 			++RxCreateRequest;
-			return TSharedRef<IHttpRequest>(new FMockHttpRequest());
+			return TSharedRef<IHttpRequest, ESPMode::ThreadSafe>(new FMockHttpRequest());
 		}
 
 	public:

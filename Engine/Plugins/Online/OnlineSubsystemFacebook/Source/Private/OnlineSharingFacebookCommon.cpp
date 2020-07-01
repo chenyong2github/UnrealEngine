@@ -180,7 +180,7 @@ void FOnlineSharingFacebookCommon::RequestCurrentPermissions(int32 LocalUserNum,
 				// kick off http request to get user info with the access token
 				FString FinalURL = PermissionsURL.Replace(TEXT("`token"), *AccessToken, ESearchCase::IgnoreCase);
 
-				TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 				HttpRequest->OnProcessRequestComplete().BindRaw(this, &FOnlineSharingFacebookCommon::Permissions_HttpComplete, LocalUserNum, CompletionDelegate);
 				HttpRequest->SetURL(FinalURL);
 				HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));

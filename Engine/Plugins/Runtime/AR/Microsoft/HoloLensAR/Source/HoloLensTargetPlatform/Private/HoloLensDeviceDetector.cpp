@@ -358,7 +358,7 @@ void FHoloLensDeviceDetector::OnDeviceWatcherDeviceAdded(IDeviceInformation* Inf
 
 	// Now make a test request against the device to determine whether or not the Device Portal requires authentication.
 	// If it does, the user will have to add it manually so we can collect the username and password.
-	TSharedRef<IHttpRequest> TestRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> TestRequest = FHttpModule::Get().CreateRequest();
 	TestRequest->SetVerb(TEXT("GET"));
 	TestRequest->SetURL(NewDevice.WdpUrl);
 	TestRequest->OnProcessRequestComplete().BindLambda(
@@ -450,7 +450,7 @@ void FHoloLensDeviceDetector::TryAddDevice(const FString& DeviceId, const FStrin
 		DeviceInfo->WdpUrl += TEXT("/");
 	}
 
-	TSharedRef<IHttpRequest> TestRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> TestRequest = FHttpModule::Get().CreateRequest();
 	TestRequest->SetVerb(TEXT("GET"));
 	TestRequest->SetURL(DeviceInfo->WdpUrl + TEXT("api/os/info"));
 

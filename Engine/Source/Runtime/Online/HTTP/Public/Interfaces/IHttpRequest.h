@@ -65,10 +65,10 @@ namespace EHttpRequestStatus
 class IHttpRequest;
 class IHttpResponse;
 
-typedef TSharedPtr<IHttpRequest> FHttpRequestPtr;
+typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
-typedef TSharedRef<IHttpRequest> FHttpRequestRef;
+typedef TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestRef;
 typedef TSharedRef<IHttpResponse, ESPMode::ThreadSafe> FHttpResponseRef;
 
 /**
@@ -111,7 +111,7 @@ DECLARE_DELEGATE_ThreeParams(FHttpRequestWillRetryDelegate, FHttpRequestPtr /*Re
  * Interface for Http requests (created using FHttpFactory)
  */
 class IHttpRequest : 
-	public IHttpBase, public TSharedFromThis<IHttpRequest>
+	public IHttpBase, public TSharedFromThis<IHttpRequest, ESPMode::ThreadSafe>
 {
 public:
 
