@@ -161,8 +161,8 @@ void FMotoSynthSourceDataManager::LogMemoryUsage()
 		}
 		NumBytesGrainTable += MotoSynthData->GrainTable.Num() * sizeof(FGrainTableEntry);
 	}
-	int32 NumMBSource = NumBytesSource / (1024 * 1024);
-	int32 NumMBGrainTable = NumBytesGrainTable / (1024 * 1024);
+	float NumMBSource = (float)NumBytesSource / (1024.0f * 1024.0f);
+	float NumMBGrainTable = (float)NumBytesGrainTable / (1024.0f * 1024.0f);
 
 	UE_LOG(LogSynthesis, Display, TEXT("MotoSynthSource Data: %d Sources, %.2f MB source, %.2f MB grain table (%.2f MB total)"), NumSources, NumMBSource, NumMBGrainTable, NumMBSource + NumMBGrainTable);
 }
