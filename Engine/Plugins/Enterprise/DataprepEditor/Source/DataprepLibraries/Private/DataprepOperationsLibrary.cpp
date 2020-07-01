@@ -378,7 +378,7 @@ namespace DataprepOperationsLibraryUtil
 	}
 } // ns DataprepOperationsLibraryUtil
 
-void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions& ReductionOptions, TArray<UObject*>& ModifiedObjects)
+void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, TArray<UObject*>& ModifiedObjects)
 {
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
@@ -396,7 +396,7 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 	}
 }
 
-void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType ShapeType, TArray<UObject*>& ModifiedObjects)
+void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType_Deprecated ShapeType, TArray<UObject*>& ModifiedObjects)
 {
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
@@ -404,11 +404,11 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 	bool bNeedRenderData = false;
 	switch (ShapeType)
 	{
-		case EScriptingCollisionShapeType::NDOP10_X:
-		case EScriptingCollisionShapeType::NDOP10_Y:
-		case EScriptingCollisionShapeType::NDOP10_Z:
-		case EScriptingCollisionShapeType::NDOP18:
-		case EScriptingCollisionShapeType::NDOP26:
+		case EScriptingCollisionShapeType_Deprecated::NDOP10_X:
+		case EScriptingCollisionShapeType_Deprecated::NDOP10_Y:
+		case EScriptingCollisionShapeType_Deprecated::NDOP10_Z:
+		case EScriptingCollisionShapeType_Deprecated::NDOP18:
+		case EScriptingCollisionShapeType_Deprecated::NDOP26:
 		{
 			bNeedRenderData = true;
 			break;
