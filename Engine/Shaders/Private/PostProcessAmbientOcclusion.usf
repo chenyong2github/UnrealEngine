@@ -1047,7 +1047,7 @@ float2 SearchForLargestAngleDual(uint NumSteps, float2 BaseUV, float2 ScreenDir,
 	float2 SceneDepths =0;
 
 	float2 BestAng = float2(-1,-1);
-	float Thickness = 0.9;	
+	float Thickness = GTAOParams[1].y;
 
 	for(uint i=0; i<NumSteps; i++)
 	{
@@ -1097,7 +1097,7 @@ float2 SearchForLargestAngleDual_HZB(uint NumSteps, float2 BaseUV, float2 Screen
 	float MipLevel = 0 ;
 
 	float2 BestAng = float2(-1,-1);
-	float Thickness = 0.9;	
+	float Thickness = GTAOParams[1].y;
 
 	for(uint i=0; i<NumSteps; i++)
 	{
@@ -1136,7 +1136,7 @@ float2 SearchForLargestAngleDual_HZB(uint NumSteps, float2 BaseUV, float2 Screen
 
 		FallOff   	= saturate(LenSq * AttenFactor);  
 		Ang			= lerp(Ang, BestAng.x, FallOff);
-		BestAng.x  = ( Ang > BestAng.x ) ? Ang : BestAng.x;
+		BestAng.x  = ( Ang > BestAng.x ) ? Ang : lerp( Ang, BestAng.x, Thickness );  
 
 	// Negative Direction
 		V			= ScreenToViewPos(UV2.zw, SceneDepths.y) - ViewPos;
@@ -1146,7 +1146,7 @@ float2 SearchForLargestAngleDual_HZB(uint NumSteps, float2 BaseUV, float2 Screen
 
 		FallOff   	= saturate(LenSq * AttenFactor);  
 		Ang			= lerp(Ang, BestAng.y, FallOff);
-		BestAng.y  = ( Ang > BestAng.y ) ? Ang : BestAng.y;
+		BestAng.y  = ( Ang > BestAng.y ) ? Ang : lerp( Ang, BestAng.y, Thickness );  
 	}
 
 	BestAng.x = acosFast(clamp(BestAng.x, -1.0,  1.0));
@@ -1227,12 +1227,12 @@ float3 GetRandomVector(uint2 iPos )
 	RandomTexVec.x = cos((GradientNoise*PI) );
 	RandomTexVec.y = sin((GradientNoise*PI) );
 
-//	ScaleOffset = (1.0/4.0)  *  (( iPos.y - iPos.x) & 3);
-	ScaleOffset = (1.0/5.0)  *  (( iPos.y - iPos.x) % 5);
+	ScaleOffset = (1.0/4.0)  *  (( iPos.y - iPos.x) & 3);
+//	ScaleOffset = (1.0/5.0)  *  (( iPos.y - iPos.x) % 5);
 
 	RandomVec.x = dot(RandomTexVec.xy, float2(TemporalCos, -TemporalSin ));
     RandomVec.y = dot(RandomTexVec.xy, float2(TemporalSin, TemporalCos ));
-	RandomVec.z = frac(ScaleOffset );
+	RandomVec.z = frac(ScaleOffset + GTAOParams[0].z);
 
 	return RandomVec;
 }
@@ -1264,7 +1264,7 @@ void GTAOCombinedPSandCS(in float2 UV, in uint2 iPos, out float OutColor, inout 
 	float3 ViewSpaceNormal	= GetNormal(UV, ViewSpacePos);
 	float3 ViewDir			= normalize(-ViewSpacePos.xyz);
 
-	const float WorldRadius = 300;	
+	const float WorldRadius = GTAOParams[3].y;	
 
 	float InvTanHalfFov				= ScreenSpaceAOParams[3].w;
 	float FOVScale					= PostprocessInput0Size.y * InvTanHalfFov; // TODO
@@ -1295,11 +1295,11 @@ void GTAOCombinedPSandCS(in float2 UV, in uint2 iPos, out float OutColor, inout 
 
 		Sum += ComputeInnerIntegral(UV, Angles, ScreenDir, ViewDir, ViewSpaceNormal, SceneDepth);
 
-
 		// Rotate for the next angle
 		float2 TempScreenDir = ScreenDir.xy;
 		ScreenDir.x = (TempScreenDir.x *  CosDeltaAngle) + (TempScreenDir.y * -SinDeltaAngle);
 		ScreenDir.y = (TempScreenDir.x *  SinDeltaAngle) + (TempScreenDir.y * CosDeltaAngle);
+		Offset      = frac(Offset + 0.617);
 	}
 
 	Sum = Sum   / (float)NumAngles;
@@ -1380,10 +1380,7 @@ float GTAOInnerIntegratePSandCS(in float2 UV, in uint2 iPos)
 	uint NumAngles			= (uint) GTAOParams[4].y;
 	if(NumAngles>1)
 	{
-		float2 TempScreenDir = ScreenDir;
-		ScreenDir.x = -TempScreenDir.y;
-		ScreenDir.y =  TempScreenDir.x;
-
+		ScreenDir.xy = float2(-ScreenDir.y, ScreenDir.x);
 		AO += ComputeInnerIntegral(UV, Angles.zw, ScreenDir, ViewDir, ViewSpaceNormal, SceneDepth);
 		AO *=0.5;
 	}
