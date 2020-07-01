@@ -1708,11 +1708,14 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				}
 
 				// Checkout and save each dirty package
-				for (UPackage* Package : PackagesToSave)
+				if (!bVerifyContent)
 				{
-					if (Package->IsDirty())
+					for (UPackage* Package : PackagesToSave)
 					{
-						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
+						if (Package->IsDirty())
+						{
+							CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
+						}
 					}
 				}
 
