@@ -224,7 +224,7 @@ FWidgetTransform UMovieScene2DTransformSection::GetCurrentValue(const UObject* O
 	return Track->GetCurrentValue<FWidgetTransform>(Object).Get(FWidgetTransform{});
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieScene2DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieScene2DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -246,7 +246,7 @@ UE::MovieScene::ESequenceUpdateResult UMovieScene2DTransformSection::ImportEntit
 
 	if (!Algo::AnyOf(ActiveChannelsMask))
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	// Create a new entity for this section
@@ -263,6 +263,4 @@ UE::MovieScene::ESequenceUpdateResult UMovieScene2DTransformSection::ImportEntit
 		.AddConditional(Components->FloatChannel[6],      &Shear[1],       ActiveChannelsMask[6])
 		.AddTag(UMGComponents->WidgetTransform.PropertyTag)
 	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }
