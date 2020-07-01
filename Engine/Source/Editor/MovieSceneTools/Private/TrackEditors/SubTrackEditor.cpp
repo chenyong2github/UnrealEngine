@@ -632,7 +632,7 @@ FKeyPropertyResult FSubTrackEditor::AddKeyInternal(FFrameNumber KeyTime, UMovieS
 
 		const FFrameRate TickResolution = InMovieSceneSequence->GetMovieScene()->GetTickResolution();
 		const FQualifiedFrameTime InnerDuration = FQualifiedFrameTime(
-			MovieScene::DiscreteSize(InMovieSceneSequence->GetMovieScene()->GetPlaybackRange()),
+			UE::MovieScene::DiscreteSize(InMovieSceneSequence->GetMovieScene()->GetPlaybackRange()),
 			TickResolution);
 
 		const FFrameRate OuterFrameRate = SubTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
@@ -670,7 +670,7 @@ FKeyPropertyResult FSubTrackEditor::HandleSequenceAdded(FFrameNumber KeyTime, UM
 
 	const FFrameRate TickResolution = Sequence->GetMovieScene()->GetTickResolution();
 	const FQualifiedFrameTime InnerDuration = FQualifiedFrameTime(
-		MovieScene::DiscreteSize(Sequence->GetMovieScene()->GetPlaybackRange()),
+		UE::MovieScene::DiscreteSize(Sequence->GetMovieScene()->GetPlaybackRange()),
 		TickResolution);
 
 	const FFrameRate OuterFrameRate = SubTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
@@ -760,10 +760,10 @@ void FSubTrackEditor::SwitchTake(UObject* TakeObject)
 			float                NewShotTimeScale     = Section->Parameters.TimeScale;
 			int32                NewShotPrerollFrames = Section->GetPreRollFrames();
 			int32                NewRowIndex          = Section->GetRowIndex();
-			FFrameNumber         NewShotStartTime     = NewShotRange.GetLowerBound().IsClosed() ? MovieScene::DiscreteInclusiveLower(NewShotRange) : 0;
+			FFrameNumber         NewShotStartTime     = NewShotRange.GetLowerBound().IsClosed() ? UE::MovieScene::DiscreteInclusiveLower(NewShotRange) : 0;
 			int32                NewShotRowIndex      = Section->GetRowIndex();
 
-			const int32 Duration = (NewShotRange.GetLowerBound().IsClosed() && NewShotRange.GetUpperBound().IsClosed() ) ? MovieScene::DiscreteSize(NewShotRange) : 1;
+			const int32 Duration = (NewShotRange.GetLowerBound().IsClosed() && NewShotRange.GetUpperBound().IsClosed() ) ? UE::MovieScene::DiscreteSize(NewShotRange) : 1;
 			UMovieSceneSubSection* NewShot = SubTrack->AddSequence(MovieSceneSequence, NewShotStartTime, Duration);
 
 			if (NewShot != nullptr)

@@ -121,7 +121,7 @@ struct FFadeExecutionToken : IMovieSceneExecutionToken, FFadeTrackToken
 };
 
 FMovieSceneFadeSectionTemplate::FMovieSceneFadeSectionTemplate(const UMovieSceneFadeSection& Section)
-	: FadeCurve(Section.GetChannel())
+	: FadeCurve(Section.FloatCurve)
 	, FadeColor(Section.FadeColor)
 	, bFadeAudio(Section.bFadeAudio)
 {

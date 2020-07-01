@@ -569,7 +569,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		UMovieScene*    MovieScene      = CurrentSequence ? CurrentSequence->GetMovieScene() : nullptr;
 		if (MovieScene)
 		{
-			return FQualifiedFrameTime(FFrameTime(MovieScene::DiscreteSize(MovieScene->GetPlaybackRange())), MovieScene->GetTickResolution());
+			return FQualifiedFrameTime(FFrameTime(UE::MovieScene::DiscreteSize(MovieScene->GetPlaybackRange())), MovieScene->GetTickResolution());
 		}
 		return FQualifiedFrameTime();
 	}

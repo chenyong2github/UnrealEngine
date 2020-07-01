@@ -337,7 +337,7 @@ TRange<double> FThumbnailSection::GetTotalRange() const
 	{
 		const bool bHasDiscreteSize = SectionRange.GetLowerBound().IsClosed() && SectionRange.GetUpperBound().IsClosed();
 		TRangeBound<double> UpperBound = bHasDiscreteSize
-			? TRangeBound<double>::Exclusive(FFrameNumber(MovieScene::DiscreteSize(SectionRange)) / TickResolution)
+			? TRangeBound<double>::Exclusive(FFrameNumber(UE::MovieScene::DiscreteSize(SectionRange)) / TickResolution)
 			: TRangeBound<double>::Open();
 
 		return TRange<double>(0, UpperBound);

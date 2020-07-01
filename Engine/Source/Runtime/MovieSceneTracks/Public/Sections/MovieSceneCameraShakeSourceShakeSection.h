@@ -13,8 +13,6 @@ class UMovieSceneCameraShakeSourceShakeSection : public UMovieSceneSection
 
 public:
 	UMovieSceneCameraShakeSourceShakeSection(const FObjectInitializer& ObjectInitializer);
-
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 	
 	UPROPERTY(EditAnywhere, Category="Camera Shake", meta=(ShowOnlyInnerProperties))
 	FMovieSceneCameraShakeSectionData ShakeData;

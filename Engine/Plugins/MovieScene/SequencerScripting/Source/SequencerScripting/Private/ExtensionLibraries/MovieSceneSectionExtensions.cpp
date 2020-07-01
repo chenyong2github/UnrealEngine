@@ -37,7 +37,7 @@ int32 UMovieSceneSectionExtensions::GetStartFrame(UMovieSceneSection* Section)
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-		return ConvertFrameTime(MovieScene::DiscreteInclusiveLower(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
+		return ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
 	}
 	else
 	{
@@ -57,7 +57,7 @@ float UMovieSceneSectionExtensions::GetStartFrameSeconds(UMovieSceneSection* Sec
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-		return DisplayRate.AsSeconds(ConvertFrameTime(MovieScene::DiscreteInclusiveLower(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate));
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate));
 	}
 
 	return -1.f;
@@ -75,7 +75,7 @@ int32 UMovieSceneSectionExtensions::GetEndFrame(UMovieSceneSection* Section)
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-		return ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
+		return ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
 	}
 	else
 	{
@@ -95,7 +95,7 @@ float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Secti
 	if (MovieScene)
 	{
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-		return DisplayRate.AsSeconds(ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate));
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(Section->GetRange()), MovieScene->GetTickResolution(), DisplayRate));
 	}
 
 	return -1.f;
@@ -232,16 +232,22 @@ void UMovieSceneSectionExtensions::SetEndFrameBounded(UMovieSceneSection* Sectio
 template<typename ChannelType, typename ScriptingChannelType>
 void GetScriptingChannelsForChannel(FMovieSceneChannelProxy& ChannelProxy, TWeakObjectPtr<UMovieSceneSequence> Sequence, TArray<UMovieSceneScriptingChannel*>& OutChannels)
 {
-	for (int32 i = 0; i < ChannelProxy.GetChannels<ChannelType>().Num(); i++)
+	const FMovieSceneChannelEntry* Entry = ChannelProxy.FindEntry(ChannelType::StaticStruct()->GetFName());
+	if (Entry)
 	{
-		TMovieSceneChannelHandle<ChannelType> ChannelHandle = ChannelProxy.MakeHandle<ChannelType>(i);
+		TArrayView<const FMovieSceneChannelMetaData> MetaData = Entry->GetMetaData();
+		for (int32 Index = 0; Index < MetaData.Num(); ++Index)
+		{
+			if (MetaData[Index].bEnabled)
+			{
+				const FName ChannelName = MetaData[Index].Name;
+				ScriptingChannelType* ScriptingChannel = NewObject<ScriptingChannelType>(GetTransientPackage(), ChannelName);
+				ScriptingChannel->ChannelHandle = ChannelProxy.MakeHandle<ChannelType>(Index);
+				ScriptingChannel->OwningSequence = Sequence;
 
-		const FName ChannelName = ChannelHandle.GetMetaData()->Name;
-		ScriptingChannelType* ScriptingChannel = NewObject<ScriptingChannelType>(GetTransientPackage(), ChannelName);
-		ScriptingChannel->ChannelHandle = ChannelHandle;
-		ScriptingChannel->OwningSequence = Sequence;
-
-		OutChannels.Add(ScriptingChannel);
+				OutChannels.Add(ScriptingChannel);
+			}
+		}
 	}
 }
 

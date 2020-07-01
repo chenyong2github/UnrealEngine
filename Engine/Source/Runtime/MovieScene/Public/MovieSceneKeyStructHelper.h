@@ -142,7 +142,7 @@ struct TChannelValueHelper : FMovieSceneChannelValueHelper::IChannelValueHelper
 	{
 		if (ChannelType* Channel = ChannelHandle.Get())
 		{
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			EvaluateChannel(Channel, InUnifiedTime, *UserValue);
 		}
 	}
@@ -152,7 +152,7 @@ struct TChannelValueHelper : FMovieSceneChannelValueHelper::IChannelValueHelper
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 		if (Channel && KeyHandleAndTime.IsSet())
 		{
 			FKeyHandle Handle = KeyHandleAndTime->Get<0>();

@@ -134,7 +134,7 @@ void FMovieSceneLiveLinkPropertyHandler<float>::Finalize(bool bInReduceKeys, con
 	{
 		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
 		{
-			MovieScene::Optimize(&Channel, InOptimizationParams);
+			UE::MovieScene::Optimize(&Channel, InOptimizationParams);
 		}
 	}
 	else
@@ -548,7 +548,7 @@ void FMovieSceneLiveLinkPropertyHandler<FVector>::Finalize(bool bInReduceKeys, c
 	{
 		for (FMovieSceneFloatChannel& Channel : PropertyStorage->FloatChannel)
 		{
-			MovieScene::Optimize(&Channel, InOptimizationParams);
+			UE::MovieScene::Optimize(&Channel, InOptimizationParams);
 		}
 	}
 	else
@@ -648,7 +648,7 @@ void FMovieSceneLiveLinkPropertyHandler<FColor>::Finalize(bool bInReduceKeys, co
 	{
 		for (FMovieSceneByteChannel& Channel : PropertyStorage->ByteChannel)
 		{
-			MovieScene::Optimize(&Channel, InOptimizationParams);
+			UE::MovieScene::Optimize(&Channel, InOptimizationParams);
 		}
 	}
 }

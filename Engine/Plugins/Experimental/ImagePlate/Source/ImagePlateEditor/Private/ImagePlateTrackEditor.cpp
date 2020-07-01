@@ -332,7 +332,7 @@ void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 		const FMovieSceneBinding* Binding = MovieScene->GetBindings().FindByPredicate([=](const FMovieSceneBinding& InBinding){ return InBinding.GetObjectGuid() == ObjectBindings[0]; });
 		if (Binding)
 		{
-			FString PredicatePath = Path->ToString(TEXT("."));
+			FName PredicatePath(*Path->ToString(TEXT(".")));
 
 			bCanAddTrack = !Binding->GetTracks().ContainsByPredicate(
 				[&](UMovieSceneTrack* Track)

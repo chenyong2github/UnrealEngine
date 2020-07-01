@@ -72,32 +72,6 @@ TSharedRef<ISequencerSection> FCameraShakeTrackEditor::MakeSectionInterface(UMov
 	return MakeShareable(new FCameraShakeSection(SectionObject));
 }
 
-
-void FCameraShakeTrackEditor::AddKey(const FGuid& ObjectGuid)
-{
-	// Load the asset registry module
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	// Collect a full list of assets with the specified class
-	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssetsByClass(UCameraShake::StaticClass()->GetFName(), AssetDataList);
-
-	if (AssetDataList.Num())
-	{
-		TSharedPtr< SWindow > Parent = FSlateApplication::Get().GetActiveTopLevelWindow();
-		if (Parent.IsValid())
-		{
-			FSlateApplication::Get().PushMenu(
-				Parent.ToSharedRef(),
-				FWidgetPath(),
-				BuildCameraShakeSubMenu(ObjectGuid),
-				FSlateApplication::Get().GetCursorPos(),
-				FPopupTransitionEffect(FPopupTransitionEffect::TypeInPopup)
-				);
-		}
-	}
-}
-
 bool FCameraShakeTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid)
 {
 	if (TargetObjectGuid.IsValid())

@@ -4,7 +4,6 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneBoolSection.h"
 #include "Sections/MovieSceneSpawnSection.h"
-#include "Evaluation/MovieSceneSpawnTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "Serialization/ObjectReader.h"
@@ -92,9 +91,9 @@ void UMovieSceneSpawnTrack::PopulateSpawnedRangeMask(const TRange<FFrameNumber>&
 		TRangeBound<FFrameNumber> StartBound = MaskedRange.GetLowerBound();
 
 		// Find the effective key
-		int32 Index = FMath::Min(StartBound.IsOpen() ? 0 : Algo::UpperBound(Times, MovieScene::DiscreteInclusiveLower(StartBound)), Times.Num()-1);
+		int32 Index = FMath::Min(StartBound.IsOpen() ? 0 : Algo::UpperBound(Times, UE::MovieScene::DiscreteInclusiveLower(StartBound)), Times.Num()-1);
 		
-		bool bIsSpawned = Values[StartBound.IsOpen() ? 0 : FMath::Max(0, Algo::UpperBound(Times, MovieScene::DiscreteInclusiveLower(StartBound))-1)];
+		bool bIsSpawned = Values[StartBound.IsOpen() ? 0 : FMath::Max(0, Algo::UpperBound(Times, UE::MovieScene::DiscreteInclusiveLower(StartBound))-1)];
 		for ( ; Index < Times.Num(); ++Index)
 		{
 			if (!MaskedRange.Contains(Times[Index]))
@@ -175,36 +174,6 @@ bool UMovieSceneSpawnTrack::IsEmpty() const
 const TArray<UMovieSceneSection*>& UMovieSceneSpawnTrack::GetAllSections() const
 {
 	return Sections;
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneSpawnTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	const UMovieSceneSpawnSection* BoolSection = CastChecked<const UMovieSceneSpawnSection>(&InSection);
-	return FMovieSceneSpawnSectionTemplate(*BoolSection);
-}
-
-void UMovieSceneSpawnTrack::GenerateTemplate(const FMovieSceneTrackCompilerArgs& Args) const
-{
-	UMovieScene* ParentMovieScene = GetTypedOuter<UMovieScene>();
-	if (ParentMovieScene && ParentMovieScene->FindPossessable(Args.ObjectBindingId))
-	{
-		return;
-	}
-
-	Super::GenerateTemplate(Args);
-}
-
-void UMovieSceneSpawnTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	// Must match the name returned from IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects)
-	FName BuiltInEvaluationGroup_SpawnObjects = "SpawnObjects";
-
-	// All objects must be spawned/destroyed before the sequence continues
-	OutTrack.SetEvaluationGroup(BuiltInEvaluationGroup_SpawnObjects);
-	// Set priority to highest possible
-	OutTrack.SetEvaluationPriority(GetEvaluationPriority());
-
-	OutTrack.PrioritizeTearDown();
 }
 
 #if WITH_EDITORONLY_DATA

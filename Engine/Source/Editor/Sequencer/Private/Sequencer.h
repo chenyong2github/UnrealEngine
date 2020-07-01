@@ -63,10 +63,10 @@ class UMovieSceneSequence;
 class UMovieSceneSubSection;
 class USequencerSettings;
 class UMovieSceneCopyableBinding;
+class UMovieSceneCompiledDataManager;
 class UMovieSceneCopyableTrack;
 struct FMovieSceneTimeController;
 struct FMovieScenePossessable;
-struct FSequencerTemplateStore;
 struct FTransformData;
 struct ISequencerHotspot;
 struct FKeyAttributes;
@@ -762,7 +762,7 @@ public:
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) override;
-	virtual void SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) override;
+	virtual void SelectByChannels(UMovieSceneSection* Section, TArrayView<const FMovieSceneChannelHandle> InChannels, bool bSelectParentInstead, bool bSelect) override;
 	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) override;
 	virtual void EmptySelection() override;
 	virtual void ThrobKeySelection() override;
@@ -893,6 +893,18 @@ protected:
 
 	/** Get the unqualified local time */
 	FFrameTime GetLocalFrameTime() const { return GetLocalTime().Time; }
+
+	/** Get the frame time text */
+	FString GetFrameTimeText() const;
+
+	/** The parent sequence that the scrub position display text is relative to */
+	FMovieSceneSequenceID GetScrubPositionParent() const;
+	
+	/** The parent sequence chain of the current sequence */
+	TArray<FMovieSceneSequenceID> GetScrubPositionParentChain() const;
+	
+	/** Called when the scrub position parent sequence is changed */
+	void OnScrubPositionParentChanged(FMovieSceneSequenceID InScrubPositionParent);
 
 	/** Exports sequence to a FBX file */
 	void ExportFBXInternal(const FString& Filename, TArray<FGuid>& Bindings);
@@ -1084,6 +1096,11 @@ private:
 
 	/** Recompile any dirty director blueprints in the sequence hierarchy */
 	void RecompileDirtyDirectors();
+
+	void ToggleAsyncEvaluation();
+	bool UsesAsyncEvaluation();
+
+	void UpdateCachedPlaybackContext();
 
 public:
 
@@ -1340,7 +1357,7 @@ private:
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;
 
-	TSharedPtr<struct FSequencerTemplateStore> TemplateStore;
+	UMovieSceneCompiledDataManager* CompiledDataManager;
 
 	TMap<FName, TFunction<void()>> CleanupFunctions;
 
@@ -1383,4 +1400,6 @@ private:
 	FVector PreAnimatedViewportLocation;
 	FRotator PreAnimatedViewportRotation;
 	float PreAnimatedViewportFOV;
+
+	TOptional<FMovieSceneSequenceID> ScrubPositionParent;
 };

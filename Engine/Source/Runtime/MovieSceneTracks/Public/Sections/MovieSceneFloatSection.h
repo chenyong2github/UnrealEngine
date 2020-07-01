@@ -8,6 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneFloatSection.generated.h"
 
 
@@ -17,8 +18,11 @@
 UCLASS( MinimalAPI )
 class UMovieSceneFloatSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+	MOVIESCENETRACKS_API UMovieSceneFloatSection(const FObjectInitializer& ObjectInitializer);
 
 public:
 
@@ -32,4 +36,9 @@ protected:
 	/** Float data */
 	UPROPERTY()
 	FMovieSceneFloatChannel FloatCurve;
+
+private:
+
+	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 };

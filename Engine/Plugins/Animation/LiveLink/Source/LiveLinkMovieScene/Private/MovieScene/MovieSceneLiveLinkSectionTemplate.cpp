@@ -77,7 +77,7 @@ FMovieSceneLiveLinkSectionTemplate::FMovieSceneLiveLinkSectionTemplate()
 }
 
 FMovieSceneLiveLinkSectionTemplate::FMovieSceneLiveLinkSectionTemplate(const UMovieSceneLiveLinkSection& Section, const UMovieScenePropertyTrack& Track)
-	: FMovieScenePropertySectionTemplate(Track.GetPropertyName(), Track.GetPropertyPath())
+	: FMovieScenePropertySectionTemplate(Track.GetPropertyName(), Track.GetPropertyPath().ToString())
 	, SubjectPreset(Section.SubjectPreset)
 	, ChannelMask(Section.ChannelMask)
 	, StaticData(Section.StaticData)

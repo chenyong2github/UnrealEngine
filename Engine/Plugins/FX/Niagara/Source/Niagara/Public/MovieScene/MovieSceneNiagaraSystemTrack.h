@@ -2,10 +2,11 @@
 
 #pragma once
 #include "MovieScene/MovieSceneNiagaraTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNiagaraSystemTrack.generated.h"
 
 UCLASS(MinimalAPI)
-class UMovieSceneNiagaraSystemTrack : public UMovieSceneNiagaraTrack
+class UMovieSceneNiagaraSystemTrack : public UMovieSceneNiagaraTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

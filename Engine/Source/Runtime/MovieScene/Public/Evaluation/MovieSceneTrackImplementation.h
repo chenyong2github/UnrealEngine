@@ -15,6 +15,7 @@ struct FMovieSceneEvaluationOperand;
 struct FMovieSceneEvaluationTrack;
 struct FMovieSceneExecutionTokens;
 struct FMovieSceneInterrogationData;
+struct FMovieSceneFieldEntry_ChildTemplate;
 
 /**
  * Structure that allows the implementation of setup/teardown/initialization/evaluation logic at the track level.
@@ -60,7 +61,7 @@ public:
 	 * @param PersistentData	Persistent data store which can be used to store arbitrary data pertaining to the current template that may be required in Evaluate(Swept)
 	 * @param Player			The movie scene player currently playing back this sequence
 	 */
-	virtual void Initialize(const FMovieSceneEvaluationTrack& Track, FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
+	virtual void Initialize(const FMovieSceneEvaluationTrack& Track, TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
 	{
 		ensureMsgf(false, TEXT("FMovieSceneTrackImplementation::Initialize has not been implemented. Did you erroneously call EnableOverrides(CustomInitializeFlag)?"));
 	}
@@ -78,7 +79,7 @@ public:
 	 * @param PersistentData	Persistent data store which can be used to access arbitrary data pertaining to the current template that should have been set up in initialize.
 	 * @param ExecutionTokens	Stack of execution tokens that will be used to apply animated state to the environment at a later time.
 	 */
-	virtual void Evaluate(const FMovieSceneEvaluationTrack& Track, FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
+	virtual void Evaluate(const FMovieSceneEvaluationTrack& Track, TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 	{
 		ensureMsgf(false, TEXT("FMovieSceneTrackImplementation::Evaluate has not been implemented. Did you erroneously call EnableOverrides(CustomEvaluateFlag)?"));
 	}

@@ -135,17 +135,7 @@ public:
 	 * Access the wrapped object's base type
 	 * @return A reference to the object. Will assert where IsValid() is false.
 	 */
-	FORCEINLINE BaseType& GetValue()
-	{
-		checkf(bIsValid, TEXT("It is an error to call GetValue() on an invalid TInlineValue. Please either check IsValid() or use Get(DefaultValue) instead."));
-		return bInline ? (BaseType&)Data : **((BaseType**)&Data);
-	}
-
-	/**
-	 * Access the wrapped object's base type
-	 * @return A reference to the object. Will assert where IsValid() is false.
-	 */
-	FORCEINLINE const BaseType& GetValue() const
+	FORCEINLINE BaseType& GetValue() const
 	{
 		checkf(bIsValid, TEXT("It is an error to call GetValue() on an invalid TInlineValue. Please either check IsValid() or use Get(DefaultValue) instead."));
 		return bInline ? (BaseType&)Data : **((BaseType**)&Data);
@@ -164,25 +154,13 @@ public:
 	 * Get a pointer the wrapped object, or a user-specified default
 	 * @return A pointer to the object, or the user-specified default
 	 */
-	FORCEINLINE BaseType* GetPtr(BaseType* Default = nullptr)
+	FORCEINLINE BaseType* GetPtr(BaseType* Default = nullptr) const
 	{
 		return bIsValid ? &GetValue() : Default;
 	}
 
-	/**
-	 * Get a pointer the wrapped object, or a user-specified default
-	 * @return A pointer to the object, or the user-specified default
-	 */
-	FORCEINLINE const BaseType* GetPtr(const BaseType* Default = nullptr) const
-	{
-		return bIsValid ? &GetValue() : Default;
-	}
-
-	FORCEINLINE BaseType&		operator*()			{ return GetValue(); }
-	FORCEINLINE const BaseType&	operator*() const	{ return GetValue(); }
-
-	FORCEINLINE BaseType*		operator->()		{ return &GetValue(); }
-	FORCEINLINE const BaseType*	operator->() const	{ return &GetValue(); }
+	FORCEINLINE BaseType&		operator*() const	{ return GetValue(); }
+	FORCEINLINE BaseType*		operator->() const	{ return &GetValue(); }
 
 	/**
 	 * Reserve space for a structure derived from BaseType, of the size and alignment specified .

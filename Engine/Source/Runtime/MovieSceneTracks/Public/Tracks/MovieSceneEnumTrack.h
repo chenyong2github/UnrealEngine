@@ -5,6 +5,7 @@
 #include "MovieScene.h"
 #include "MovieSceneTrack.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneEnumTrack.generated.h"
 
 class UEnum;
@@ -13,7 +14,7 @@ class UEnum;
  * Handles manipulation of byte properties in a movie scene
  */
 UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneEnumTrack : public UMovieScenePropertyTrack
+class MOVIESCENETRACKS_API UMovieSceneEnumTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

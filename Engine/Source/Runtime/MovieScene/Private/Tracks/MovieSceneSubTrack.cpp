@@ -21,6 +21,8 @@ UMovieSceneSubTrack::UMovieSceneSubTrack( const FObjectInitializer& ObjectInitia
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(180, 0, 40, 65);
 #endif
+
+	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
 }
 
 UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceOnRow(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration, int32 RowIndex)

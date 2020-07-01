@@ -8,6 +8,8 @@
 #include "MovieSceneToolHelpers.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
 
+#include "Systems/MovieScenePropertyInstantiator.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 TSharedRef<ISequencerTrackEditor> FFloatPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer )
 {
@@ -15,10 +17,11 @@ TSharedRef<ISequencerTrackEditor> FFloatPropertyTrackEditor::CreateTrackEditor( 
 }
 
 
-void FFloatPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FFloatPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
-	const float KeyedValue =  PropertyChangedParams.GetPropertyValue<float>();
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, KeyedValue, true));
+	const float KeyedValue = PropertyChangedParams.GetPropertyValue<float>();
+	const float NewValue   = RecomposeFloat(KeyedValue, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, NewValue, true));
 }
 
 
@@ -55,28 +58,29 @@ void FFloatPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder
 }
 
 
-bool FFloatPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
+float FFloatPropertyTrackEditor::RecomposeFloat(float InCurrentValue, UObject* AnimatedObject, UMovieSceneSection* Section)
 {
-	
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+	using namespace UE::MovieScene;
 
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+	float Recomposed = InCurrentValue;
 
-	FMovieSceneInterrogationData InterrogationData;
-	GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+	const FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = GetSequencer()->GetEvaluationTemplate();
 
-	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-	EvalTrack.Interrogate(Context, InterrogationData, Object);
+	UMovieSceneEntitySystemLinker* EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
+	FMovieSceneEntityID EntityID = EvaluationTemplate.FindEntityFromOwner(Section, 0, GetSequencer()->GetFocusedTemplateID());
 
-	float CurValue = 0.0f;
-	for (const float &Value : InterrogationData.Iterate<float>(FMovieScenePropertySectionTemplate::GetFloatInterrogationKey()))
+	if (EntityLinker && EntityID)
 	{
-		CurValue = Value;
-		break;
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		if (System)
+		{
+			FDecompositionQuery Query;
+			Query.Entities = MakeArrayView(&EntityID, 1);
+			Query.Object   = AnimatedObject;
+
+			Recomposed = System->RecomposeBlendFinal(FMovieSceneTracksComponentTypes::Get()->Float, Query, InCurrentValue).Values[0];
+		}
 	}
 
-	FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
-	GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurValue, Weight);
-	return true;
-
+	return Recomposed;
 }

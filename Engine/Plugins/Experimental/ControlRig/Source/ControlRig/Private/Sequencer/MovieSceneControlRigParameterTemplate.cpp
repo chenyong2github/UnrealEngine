@@ -272,32 +272,34 @@ template<> FMovieSceneAnimTypeID GetBlendingDataType<FControlRigTrackTokenTransf
 /** Define working data types for blending calculations  */
 template<>  struct TBlendableTokenTraits<FControlRigTrackTokenFloat>
 {
-	typedef MovieScene::TMaskedBlendable<float, 1> WorkingDataType;
+	typedef UE::MovieScene::TMaskedBlendable<float, 1> WorkingDataType;
 };
 
 template<>  struct TBlendableTokenTraits<FControlRigTrackTokenBool>
 {
-	typedef MovieScene::TMaskedBlendable<bool, 1> WorkingDataType;
+	typedef UE::MovieScene::TMaskedBlendable<bool, 1> WorkingDataType;
 };
 
 template<> struct TBlendableTokenTraits<FControlRigTrackTokenVector2D>
 {
-	typedef MovieScene::TMaskedBlendable<float, 2> WorkingDataType;
+	typedef UE::MovieScene::TMaskedBlendable<float, 2> WorkingDataType;
 };
 
 template<> struct TBlendableTokenTraits<FControlRigTrackTokenVector>
 {
-	typedef MovieScene::TMaskedBlendable<float, 3> WorkingDataType;
+	typedef UE::MovieScene::TMaskedBlendable<float, 3> WorkingDataType;
 };
 
 template<>  struct TBlendableTokenTraits<FControlRigTrackTokenTransform>
 {
-	typedef MovieScene::TMaskedBlendable<float, 9> WorkingDataType;
+	typedef UE::MovieScene::TMaskedBlendable<float, 9> WorkingDataType;
 };
 
 
 
 
+namespace UE
+{
 namespace MovieScene
 {
 
@@ -358,7 +360,9 @@ namespace MovieScene
 			FVector(In[6], In[7], In[8])
 		);
 	}
-}
+
+} // namespace MovieScene
+} // namespace UE
 
 namespace FControlRigBindingHelper
 {
@@ -992,7 +996,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<FControlRigTrackTokenFloat>(ScalarNameAndValue.Value, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 3> VectorData;
+		UE::MovieScene::TMultiChannelValue<float, 3> VectorData;
 		for (const FVectorParameterStringAndValue& VectorNameAndValue : Values.VectorValues)
 		{
 			FString NewString(VectorNameAndValue.ParameterString);
@@ -1011,7 +1015,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<FControlRigTrackTokenVector>(VectorData, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 2> Vector2DData;
+		UE::MovieScene::TMultiChannelValue<float, 2> Vector2DData;
 		for (const FVector2DParameterStringAndValue& Vector2DNameAndValue : Values.Vector2DValues)
 		{
 			FString NewString(Vector2DNameAndValue.ParameterString);
@@ -1029,7 +1033,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<FControlRigTrackTokenVector2D>(Vector2DData, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 9> TransformData;
+		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
 		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
 			FString NewString(TransformNameAndValue.ParameterString);
@@ -1245,7 +1249,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 			Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(), ActuatorTypeID, FMovieSceneEvaluationScope(), Context,TBlendableToken<FControlRigTrackTokenFloat>(ScalarNameAndValue.Value, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 2> Vector2DData;
+		UE::MovieScene::TMultiChannelValue<float, 2> Vector2DData;
 		for (const FVector2DParameterStringAndValue& Vector2DNameAndValue : Values.Vector2DValues)
 		{
 			FMovieSceneAnimTypeID AnimTypeID = Vector2DAnimTypeIDsByName.GetAnimTypeID(Vector2DNameAndValue.ParameterString);
@@ -1261,7 +1265,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 			Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(), ActuatorTypeID, FMovieSceneEvaluationScope(), Context, TBlendableToken<FControlRigTrackTokenVector2D>(Vector2DData, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 3> VectorData;
+		UE::MovieScene::TMultiChannelValue<float, 3> VectorData;
 		for (const FVectorParameterStringAndValue& VectorNameAndValue : Values.VectorValues)
 		{
 			FMovieSceneAnimTypeID AnimTypeID = VectorAnimTypeIDsByName.GetAnimTypeID(VectorNameAndValue.ParameterString);
@@ -1278,7 +1282,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 			Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(), ActuatorTypeID, FMovieSceneEvaluationScope(),Context,TBlendableToken<FControlRigTrackTokenVector>(VectorData, Section->GetBlendType().Get(), Weight));
 		}
 
-		MovieScene::TMultiChannelValue<float, 9> TransformData;
+		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
 		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
 			uint32 ID = BindingOverride->GetUniqueID();

@@ -124,7 +124,7 @@ void FMovieSceneByteChannel::Reset()
 
 void FMovieSceneByteChannel::Optimize(const FKeyDataOptimizationParams& InParameters)
 {
-	MovieScene::Optimize(this, InParameters);
+	UE::MovieScene::Optimize(this, InParameters);
 }
 
 void FMovieSceneByteChannel::Offset(FFrameNumber DeltaPosition)

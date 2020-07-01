@@ -12,6 +12,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SFrameRateEntryBox.h"
 #include "EditorFontGlyphs.h"
@@ -122,19 +123,22 @@ EVisibility SSequencerPlayRateCombo::GetFrameRateMismatchErrorVisibility() const
 	{
 		FFrameRate DisplayRate = Sequencer->GetRootDisplayRate();
 
-		const FMovieSceneSequenceHierarchy& Hierarchy = Sequencer->GetEvaluationTemplate().GetHierarchy();
-		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy.AllSubSequenceData())
+		const FMovieSceneRootEvaluationTemplateInstance& Template = Sequencer->GetEvaluationTemplate();
+		const FMovieSceneSequenceHierarchy* Hierarchy = Template.GetCompiledDataManager()->FindHierarchy(Template.GetCompiledDataID());
+
+		if (!Hierarchy)
 		{
-			if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
+			return EVisibility::Collapsed;
+		}
+
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+		{
+			UMovieSceneSequence* SubSequence = Pair.Value.GetSequence();
+			UMovieScene*         MovieScene  = SubSequence ? SubSequence->GetMovieScene() : nullptr;
+
+			if (MovieScene && MovieScene->GetDisplayRate() != DisplayRate)
 			{
-				if (SubSequence->GetMovieScene())
-				{
-					FFrameRate SubDisplayRate = SubSequence->GetMovieScene()->GetDisplayRate();
-					if (SubDisplayRate != DisplayRate)
-					{
-						return EVisibility::Visible;
-					}
-				}
+				return EVisibility::Visible;
 			}
 		}
 	}
@@ -169,25 +173,30 @@ FText SSequencerPlayRateCombo::GetFrameRateMismatchErrorDescription() const
 	{
 		FFrameRate DisplayRate = Sequencer->GetRootDisplayRate();
 
-		const FMovieSceneSequenceHierarchy& Hierarchy = Sequencer->GetEvaluationTemplate().GetHierarchy();
-		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy.AllSubSequenceData())
+		const FMovieSceneRootEvaluationTemplateInstance& Template = Sequencer->GetEvaluationTemplate();
+		const FMovieSceneSequenceHierarchy* Hierarchy = Template.GetCompiledDataManager()->FindHierarchy(Template.GetCompiledDataID());
+
+		if (!Hierarchy)
 		{
-			if (UMovieSceneSequence* SubSequence = Pair.Value.GetSequence())
+			return FText();
+		}
+
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+		{
+			UMovieSceneSequence* SubSequence = Pair.Value.GetSequence();
+			UMovieScene*         MovieScene  = SubSequence ? SubSequence->GetMovieScene() : nullptr;
+
+			if (MovieScene && MovieScene->GetDisplayRate() != DisplayRate)
 			{
-				if (SubSequence->GetMovieScene())
-				{
-					FFrameRate SubDisplayRate = SubSequence->GetMovieScene()->GetDisplayRate();
-					if (DisplayRate != SubDisplayRate)
-					{
-						const FCommonFrameRateInfo* DisplayRateInfo = FCommonFrameRates::Find(DisplayRate);
-						const FCommonFrameRateInfo* SubDisplayRateInfo = FCommonFrameRates::Find(SubDisplayRate);
+				FFrameRate SubDisplayRate = MovieScene->GetDisplayRate();
 
-						FText DisplayRateText = DisplayRateInfo ? DisplayRateInfo->DisplayName : FText::Format(LOCTEXT("DisplayRateFormat", "{0} fps"), DisplayRate.AsDecimal());
-						FText SubDisplayRateText = SubDisplayRateInfo ? SubDisplayRateInfo->DisplayName : FText::Format(LOCTEXT("SubDisplayRateFormat", "{0} fps"), SubDisplayRate.AsDecimal());
+				const FCommonFrameRateInfo* DisplayRateInfo = FCommonFrameRates::Find(DisplayRate);
+				const FCommonFrameRateInfo* SubDisplayRateInfo = FCommonFrameRates::Find(SubDisplayRate);
 
-						return FText::Format(LOCTEXT("FrameRateMismatchDescription", "At least one mismatch in display rate: {0} is at {1} and {2} is at {3}"), Sequencer->GetRootMovieSceneSequence()->GetDisplayName(), DisplayRateText, SubSequence->GetDisplayName(), SubDisplayRateText);
-					}
-				}
+				FText DisplayRateText = DisplayRateInfo ? DisplayRateInfo->DisplayName : FText::Format(LOCTEXT("DisplayRateFormat", "{0} fps"), DisplayRate.AsDecimal());
+				FText SubDisplayRateText = SubDisplayRateInfo ? SubDisplayRateInfo->DisplayName : FText::Format(LOCTEXT("SubDisplayRateFormat", "{0} fps"), SubDisplayRate.AsDecimal());
+
+				return FText::Format(LOCTEXT("FrameRateMismatchDescription", "At least one mismatch in display rate: {0} is at {1} and {2} is at {3}"), Sequencer->GetRootMovieSceneSequence()->GetDisplayName(), DisplayRateText, SubSequence->GetDisplayName(), SubDisplayRateText);
 			}
 		}
 	}

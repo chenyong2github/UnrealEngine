@@ -2,13 +2,19 @@
 
 #include "MovieSceneObjectBindingID.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "IMovieScenePlayer.h"
 
-FMovieSceneObjectBindingID FMovieSceneObjectBindingID::ResolveLocalToRoot(FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy& Hierarchy) const
+FMovieSceneObjectBindingID FMovieSceneObjectBindingID::ResolveLocalToRoot(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) const
 {
 	FMovieSceneSequenceID NewSequenceID = FMovieSceneSequenceID(uint32(SequenceID));
 
 	if (Space == EMovieSceneObjectBindingSpace::Local && LocalSequenceID != MovieSceneSequenceID::Root)
 	{
+		FMovieSceneRootEvaluationTemplateInstance& Instance  = Player.GetEvaluationTemplate();
+		const FMovieSceneSequenceHierarchy&        Hierarchy = Instance.GetCompiledDataManager()->GetHierarchyChecked(Instance.GetCompiledDataID());
+
 		while (LocalSequenceID != MovieSceneSequenceID::Root)
 		{
 			const FMovieSceneSequenceHierarchyNode* CurrentNode = Hierarchy.FindNode(LocalSequenceID);

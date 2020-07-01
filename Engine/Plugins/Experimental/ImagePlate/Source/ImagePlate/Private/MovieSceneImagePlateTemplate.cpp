@@ -146,7 +146,7 @@ FMovieSceneImagePlateSectionTemplate::FMovieSceneImagePlateSectionTemplate()
 {}
 
 FMovieSceneImagePlateSectionTemplate::FMovieSceneImagePlateSectionTemplate(const UMovieSceneImagePlateSection& InSection, const UMovieSceneImagePlateTrack& InTrack)
-	: PropertyData(InTrack.GetPropertyName(), InTrack.GetPropertyPath(), NAME_None, "OnRenderTextureChanged")
+	: PropertyData(InTrack.GetPropertyName(), InTrack.GetPropertyPath().ToString())
 {
 	Params.FileSequence = InSection.FileSequence;
 	Params.SectionStartTime = InSection.GetInclusiveStartFrame();

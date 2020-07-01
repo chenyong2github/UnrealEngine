@@ -4,12 +4,15 @@
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneSequence.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "Engine/Engine.h"
 #include "GameFramework/WorldSettings.h"
 #include "Misc/RuntimeErrors.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/NetDriver.h"
 #include "Engine/NetConnection.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 
@@ -78,8 +81,9 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	: Super(Init)
 	, Status(EMovieScenePlayerStatus::Stopped)
 	, bReversePlayback(false)
-	, bIsEvaluating(false)
 	, bPendingOnStartedPlaying(false)
+	, bIsEvaluating(false)
+	, bIsMainLevelUpdate(false)
 	, Sequence(nullptr)
 	, StartTime(0)
 	, DurationFrames(0)
@@ -142,33 +146,57 @@ void UMovieSceneSequencePlayer::ResolveBoundObjects(const FGuid& InBindingId, FM
 
 void UMovieSceneSequencePlayer::Play()
 {
+	if (NeedsQueueLatentAction())
+	{
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::Play));
+		return;
+	}
+
 	bReversePlayback = false;
 	PlayInternal();
 }
 
 void UMovieSceneSequencePlayer::PlayReverse()
 {
+	if (NeedsQueueLatentAction())
+	{
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::PlayReverse));
+		return;
+	}
+
 	bReversePlayback = true;
 	PlayInternal();
 }
 
 void UMovieSceneSequencePlayer::ChangePlaybackDirection()
 {
+	if (NeedsQueueLatentAction())
+	{
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::ChangePlaybackDirection));
+		return;
+	}
+
 	bReversePlayback = !bReversePlayback;
 	PlayInternal();
 }
 
 void UMovieSceneSequencePlayer::PlayLooping(int32 NumLoops)
 {
+	if (NeedsQueueLatentAction())
+	{
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::PlayLooping, NumLoops));
+		return;
+	}
+
 	PlaybackSettings.LoopCount.Value = NumLoops;
 	PlayInternal();
 }
 
 void UMovieSceneSequencePlayer::PlayInternal()
 {
-	if (bIsEvaluating)
+	if (NeedsQueueLatentAction())
 	{
-		LatentActions.Emplace(FLatentAction::EType::Play);
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::PlayInternal));
 		return;
 	}
 
@@ -198,7 +226,7 @@ void UMovieSceneSequencePlayer::PlayInternal()
 		// @todo: Is this still the case now that eval state is stored (correctly) in the player?
 		if (!RootTemplateInstance.IsValid())
 		{
-			RootTemplateInstance.Initialize(*Sequence, *this);
+			RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
 		}
 
 		// Update now
@@ -255,9 +283,9 @@ void UMovieSceneSequencePlayer::PlayInternal()
 
 void UMovieSceneSequencePlayer::Pause()
 {
-	if (bIsEvaluating)
+	if (NeedsQueueLatentAction())
 	{
-		LatentActions.Emplace(FLatentAction::EType::Pause);
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::Pause));
 		return;
 	}
 
@@ -271,16 +299,13 @@ void UMovieSceneSequencePlayer::Pause()
 
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
 		{
-			bIsEvaluating = true;
-
 			FMovieSceneEvaluationRange CurrentTimeRange = PlayPosition.GetCurrentPositionAsRange();
 			const FMovieSceneContext Context(CurrentTimeRange, EMovieScenePlayerStatus::Stopped);
 			RootTemplateInstance.Evaluate(Context, *this);
-
-			bIsEvaluating = false;
 		}
 
-		ApplyLatentActions();
+		RunLatentActions();
+
 		UpdateNetworkSyncProperties();
 
 		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
@@ -305,7 +330,7 @@ void UMovieSceneSequencePlayer::Scrub()
 	{
 		if (!RootTemplateInstance.IsValid())
 		{
-			RootTemplateInstance.Initialize(*Sequence, *this);
+			RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
 		}
 	}
 
@@ -327,15 +352,14 @@ void UMovieSceneSequencePlayer::StopAtCurrentTime()
 
 void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 {
-	if (bIsEvaluating)
+	if (NeedsQueueLatentAction())
 	{
-		LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::StopInternal, TimeToResetTo));
 		return;
 	}
 
 	if (IsPlaying() || IsPaused())
 	{
-		bIsEvaluating = true;
 		Status = EMovieScenePlayerStatus::Stopped;
 
 		// Put the cursor at the specified position
@@ -390,9 +414,8 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		{
 			OnStop.Broadcast();
 		}
-		bIsEvaluating = false;
 
-		ApplyLatentActions();
+		RunLatentActions();
 	}
 }
 
@@ -499,7 +522,6 @@ void UMovieSceneSequencePlayer::PlayTo(FMovieSceneSequencePlaybackParams InPlayb
 	}
 }
 
-
 void UMovieSceneSequencePlayer::SetPlaybackPosition(FMovieSceneSequencePlaybackParams InPlaybackParams)
 {
 	FFrameTime NewPosition = InPlaybackParams.GetPlaybackPosition(this);
@@ -555,10 +577,9 @@ bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
 		}
 		else
 		{
-			bShouldStopOrLoop = NewPosition.FrameNumber < StartTime ;
+			bShouldStopOrLoop = NewPosition.FrameNumber < StartTime;
 		}
 	}
-
 	return bShouldStopOrLoop;
 }
 
@@ -619,8 +640,8 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 			// Set up the default frame range from the sequence's play range
 			TRange<FFrameNumber> PlaybackRange   = MovieScene->GetPlaybackRange();
 
-			const FFrameNumber SrcStartFrame = MovieScene::DiscreteInclusiveLower(PlaybackRange);
-			const FFrameNumber SrcEndFrame   = MovieScene::DiscreteExclusiveUpper(PlaybackRange);
+			const FFrameNumber SrcStartFrame = UE::MovieScene::DiscreteInclusiveLower(PlaybackRange);
+			const FFrameNumber SrcEndFrame   = UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange);
 
 			const FFrameNumber StartingFrame = ConvertFrameTime(SrcStartFrame, TickResolution, DisplayRate).FloorToFrame();
 			const FFrameNumber EndingFrame   = ConvertFrameTime(SrcEndFrame,   TickResolution, DisplayRate).FloorToFrame();
@@ -663,11 +684,18 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		}
 	}
 
-	RootTemplateInstance.Initialize(*Sequence, *this);
+	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
 
 	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
 	PlayPosition.Reset(StartTimeWithOffset);
 	TimeController->Reset(GetCurrentTime());
+
+	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
+	UObject* PlaybackContext = GetPlaybackContext();
+	if (ensure(PlaybackContext))
+	{
+		TickManager = UMovieSceneSequenceTickManager::Get(PlaybackContext);
+	}
 }
 
 void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
@@ -698,8 +726,16 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 			PlayRate *= World->GetWorldSettings()->GetEffectiveTimeDilation();
 		}
 
+		check(!bIsMainLevelUpdate && !bIsEvaluating);
+		bIsMainLevelUpdate = true;
+
 		FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate);
 		UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
+
+		bIsMainLevelUpdate = false;
+
+		// CAREFUL with stateful changes after this... in 95% of cases, the sequence evaluation was
+		// only queued up, and hasn't run yet!
 	}
 
 	if (World)
@@ -710,11 +746,7 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method)
 {
-	if (bIsEvaluating)
-	{
-		LatentActions.Emplace(Method, NewPosition);
-	}
-	else
+	if (ensure(!bIsEvaluating))
 	{
 		UpdateTimeCursorPosition_Internal(NewPosition, Method);
 	}
@@ -793,8 +825,7 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 				UpdateMovieSceneInstance(Range, StatusOverride);
 			}
 
-
-			const FFrameTime Overplay       = FFrameTime(PositionRelativeToStart.FrameNumber.Value % Duration, PositionRelativeToStart.GetSubFrame());
+			const FFrameTime Overplay = FFrameTime(PositionRelativeToStart.FrameNumber.Value % Duration, PositionRelativeToStart.GetSubFrame());
 			FFrameTime NewFrameOffset;
 			
 			if (bReversePlayback)
@@ -858,63 +889,109 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 				OnFinished.Broadcast();
 			}
 		}
+
+		UpdateNetworkSyncProperties();
 	}
 	else
 	{
-		// Just update the time and sequence
+		// Just update the time and sequence... if we are in the main level update we want, if possible,
+		// to only queue this sequence's update, so everything updates in parallel. If not possible, or if
+		// not in the main level update, we run the evaluation synchronously.
+		
+		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
+		const bool bIsSequenceBlocking = EnumHasAnyFlags(MovieSceneSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation);
 		FMovieSceneEvaluationRange Range = UpdatePlayPosition(PlayPosition, NewPosition, Method);
-		UpdateMovieSceneInstance(Range, StatusOverride);
+		FMovieSceneUpdateArgs Args;
+		Args.bIsAsync = (bIsMainLevelUpdate && !bIsSequenceBlocking);
+
+		PostEvaluationCallbacks.Add(FOnEvaluationCallback::CreateUObject(this, &UMovieSceneSequencePlayer::UpdateNetworkSyncProperties));
+
+		UpdateMovieSceneInstance(Range, StatusOverride, Args);
 	}
 
-	UpdateNetworkSyncProperties();
+	// WARNING: DO NOT CHANGE PLAYER STATE ANYMORE HERE!
+	// The code path above (in the "else" statement) queues an asynchronous evaluation, so any further 
+	// state change must be moved in the first first block, with a post-evaluation callback in the second 
+	// block... see `UpdateNetworkSyncProperties` as an example.
 }
 
 void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped)
 {
-#if !NO_LOGGING
+	FMovieSceneUpdateArgs Args;
+	Args.bHasJumped = bHasJumped;
+	UpdateMovieSceneInstance(InRange, PlayerStatus, Args);
+}
+
+void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args)
+{
 	UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
-	if (MovieSceneSequence)
+	if (!MovieSceneSequence)
 	{
-		FQualifiedFrameTime CurrentTime = GetCurrentTime();
-		UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *MovieSceneSequence->GetName(), CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
+		return;
 	}
+
+#if !NO_LOGGING
+	FQualifiedFrameTime CurrentTime = GetCurrentTime();
+	UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *MovieSceneSequence->GetName(), CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
 #endif
 
-	bIsEvaluating = true;
+	// We shouldn't be asked to run an async update if we have a blocking sequence.
+	check(!Args.bIsAsync || !EnumHasAnyFlags(MovieSceneSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation));
+	// We shouldn't be asked to run an async update if we don't have a tick manager.
+	check(!Args.bIsAsync || TickManager != nullptr);
 
 	FMovieSceneContext Context(InRange, PlayerStatus);
-	Context.SetHasJumped(bHasJumped);
+	Context.SetHasJumped(Args.bHasJumped);
 
-	RootTemplateInstance.Evaluate(Context, *this);
+	if (!Args.bIsAsync)
+	{
+		// Evaluate the sequence synchronously.
+		RootTemplateInstance.Evaluate(Context, *this, MovieSceneSequenceID::Root);
+	}
+	else
+	{
+		// Queue an evaluation on the tick manager.
+		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
+		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+	}
+}
 
+void UMovieSceneSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
+{
+	RunPreEvaluationCallbacks();
+
+	bIsEvaluating = true;
+}
+
+void UMovieSceneSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
+{
 #if WITH_EDITOR
 	FFrameTime CurrentTime  = ConvertFrameTime(Context.GetTime(),         Context.GetFrameRate(), PlayPosition.GetInputRate());
 	FFrameTime PreviousTime = ConvertFrameTime(Context.GetPreviousTime(), Context.GetFrameRate(), PlayPosition.GetInputRate());
 	OnMovieSceneSequencePlayerUpdate.Broadcast(*this, CurrentTime, PreviousTime);
 #endif
-	bIsEvaluating = false;
 
-	ApplyLatentActions();
+	RunPostEvaluationCallbacks();
+
+	bIsEvaluating = false;
 }
 
-void UMovieSceneSequencePlayer::ApplyLatentActions()
+void UMovieSceneSequencePlayer::RunPreEvaluationCallbacks()
 {
-	// Swap to a stack array to ensure no reentrancy if we evaluate during a pause, for instance
-	TArray<FLatentAction> TheseActions;
-	Swap(TheseActions, LatentActions);
-
-	for (const FLatentAction& LatentAction : TheseActions)
+	for (const FOnEvaluationCallback& Callback : PreEvaluationCallbacks)
 	{
-		switch (LatentAction.Type)
-		{
-		case FLatentAction::EType::Stop:   StopInternal(LatentAction.Position); continue;
-		case FLatentAction::EType::Pause:  Pause();                             continue;
-		case FLatentAction::EType::Play:   PlayInternal();                      continue;
-		}
-
-		check(LatentAction.Type == FLatentAction::EType::Update);
-		SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LatentAction.Position, LatentAction.UpdateMethod));
+		Callback.ExecuteIfBound();
 	}
+	PreEvaluationCallbacks.Reset();
+}
+
+void UMovieSceneSequencePlayer::RunPostEvaluationCallbacks()
+{
+	for (const FOnEvaluationCallback& Callback : PostEvaluationCallbacks)
+	{
+		Callback.ExecuteIfBound();
+	}
+	PostEvaluationCallbacks.Reset();
 }
 
 void UMovieSceneSequencePlayer::SetPlaybackClient(TScriptInterface<IMovieScenePlaybackClient> InPlaybackClient)
@@ -946,20 +1023,9 @@ TArray<UObject*> UMovieSceneSequencePlayer::GetBoundObjects(FMovieSceneObjectBin
 
 TArray<FMovieSceneObjectBindingID> UMovieSceneSequencePlayer::GetObjectBindings(UObject* InObject)
 {
-	TArray<FMovieSceneObjectBindingID> ObjectBindings;
-
-	for (FMovieSceneSequenceIDRef SequenceID : GetEvaluationTemplate().GetThisFrameMetaData().ActiveSequences)
-	{
-		FGuid ObjectGuid = FindObjectId(*InObject, SequenceID);
-		if (ObjectGuid.IsValid())
-		{
-			FMovieSceneObjectBindingID ObjectBinding(ObjectGuid, SequenceID);
-
-			ObjectBindings.Add(ObjectBinding);
-		}
-	}
-
-	return ObjectBindings;
+	TArray<FMovieSceneObjectBindingID> Bindings;
+	State.FilterObjectBindings(InObject, *this, &Bindings);
+	return Bindings;
 }
 
 UWorld* UMovieSceneSequencePlayer::GetPlaybackWorld() const
@@ -1229,6 +1295,15 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 	}
 }
 
+void UMovieSceneSequencePlayer::BeginDestroy()
+{
+	RootTemplateInstance.BeginDestroy();
+
+	TickManager = nullptr;
+
+	Super::BeginDestroy();
+}
+
 int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -1253,5 +1328,23 @@ bool UMovieSceneSequencePlayer::CallRemoteFunction(UFunction* Function, void* Pa
 	}
 
 	return false;
+}
+
+bool UMovieSceneSequencePlayer::NeedsQueueLatentAction() const
+{
+	return bIsEvaluating;
+}
+
+void UMovieSceneSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const
+{
+	if (ensure(TickManager))
+	{
+		TickManager->AddLatentAction(Delegate);
+	}
+}
+
+void UMovieSceneSequencePlayer::RunLatentActions()
+{
+	TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
 }
 

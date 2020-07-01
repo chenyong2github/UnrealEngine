@@ -16,7 +16,7 @@ FName UMovieScenePropertyTrackExtensions::GetPropertyName(UMovieScenePropertyTra
 
 FString UMovieScenePropertyTrackExtensions::GetPropertyPath(UMovieScenePropertyTrack* Track)
 {
-	return Track->GetPropertyPath();
+	return Track->GetPropertyPath().ToString();
 }
 
 FName UMovieScenePropertyTrackExtensions::GetUniqueTrackName(UMovieScenePropertyTrack* Track)

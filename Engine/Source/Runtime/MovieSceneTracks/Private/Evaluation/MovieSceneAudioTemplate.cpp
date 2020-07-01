@@ -292,7 +292,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 				if (AttachBindingID.GetSequenceID().IsValid())
 				{
 					// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-					FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
+					FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Player);
 					SequenceID = RootBindingID.GetSequenceID();
 				}
 

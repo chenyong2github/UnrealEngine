@@ -66,7 +66,5 @@ FMovieSceneObjectBindingID FTemplateSequenceSectionTemplate::GetAbsoluteInnerBin
 	// Convert the binding ID that we have, which is local to the child template sequence, into
 	// an absolute ID that fits in the current hierarchy.
 	const FMovieSceneObjectBindingID LocalBinding(InnerOperand.ObjectBindingID, InnerOperand.SequenceID, EMovieSceneObjectBindingSpace::Local);
-
-	const FMovieSceneSequenceHierarchy& Hierarchy = Player.GetEvaluationTemplate().GetHierarchy();
-	return LocalBinding.ResolveLocalToRoot(LocalSequenceID, Hierarchy);
+	return LocalBinding.ResolveLocalToRoot(LocalSequenceID, Player);
 }

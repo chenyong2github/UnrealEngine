@@ -17,6 +17,7 @@
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "Modules/ModuleManager.h"
 #include "LevelSequencePlayer.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 
 #if WITH_EDITOR
@@ -456,7 +457,9 @@ void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
 	}
 
 	MarkAsChanged();
-	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
+
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(this);
+	UMovieSceneCompiledDataManager::GetPrecompiledData()->DestroyTemplate(DataID);
 }
 
 void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
@@ -465,7 +468,9 @@ void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
 	DirectorClass = DirectorBlueprint->GeneratedClass.Get();
 
 	MarkAsChanged();
-	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
+
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(this);
+	UMovieSceneCompiledDataManager::GetPrecompiledData()->DestroyTemplate(DataID);
 }
 
 FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)

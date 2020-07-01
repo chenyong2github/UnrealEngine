@@ -2,7 +2,6 @@
 
 #include "Sections/MovieSceneCameraShakeSection.h"
 #include "Tracks/MovieSceneCameraShakeTrack.h"
-#include "Evaluation/MovieSceneCameraAnimTemplate.h"
 #include "UObject/SequencerObjectVersion.h"
 
 
@@ -43,13 +42,4 @@ void UMovieSceneCameraShakeSection::PostLoad()
 	}
 
 	Super::PostLoad();
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneCameraShakeSection::GenerateTemplate() const
-{
-	if (*ShakeData.ShakeClass)
-	{
-		return FMovieSceneCameraShakeSectionTemplate(*this);
-	}
-	return FMovieSceneEvalTemplatePtr();
 }

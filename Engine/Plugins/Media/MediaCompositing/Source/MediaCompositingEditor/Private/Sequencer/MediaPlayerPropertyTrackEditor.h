@@ -43,7 +43,7 @@ private:
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual void OnAnimatedPropertyChanged(const FPropertyChangedParams& PropertyChangedParams) override;
 
-	virtual void GenerateKeysFromPropertyChanged(const FPropertyChangedParams&, FGeneratedTrackKeys&) override {}
+	virtual void GenerateKeysFromPropertyChanged(const FPropertyChangedParams&, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys&) override {}
 
 	void AddNewSection(const FAssetData& AssetData, UMovieSceneMediaPlayerPropertyTrack* MediaTrack);
 	void AddNewSectionEnterPressed(const TArray<FAssetData>& AssetData, UMovieSceneMediaPlayerPropertyTrack* Track);

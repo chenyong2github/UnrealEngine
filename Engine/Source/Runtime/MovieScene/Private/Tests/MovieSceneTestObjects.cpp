@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTestObjects.h"
-#include "Compilation/MovieSceneCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 

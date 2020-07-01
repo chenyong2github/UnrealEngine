@@ -472,7 +472,7 @@ bool MovieSceneTranslatorEDL::ExportEDL(const UMovieScene* InMovieScene, FFrameR
 				FString ShotPath = CinematicShotSection->GetSequence()->GetMovieScene()->GetOuter()->GetPathName();
 
 				FFrameNumber SourceInFrame = ConvertFrameTime(InHandleFrames + 1, InFrameRate, TickResolution).FrameNumber;
-				FFrameNumber SourceOutFrame = ConvertFrameTime(InHandleFrames, InFrameRate, TickResolution).FrameNumber + MovieScene::DiscreteSize(CinematicShotSection->GetRange());
+				FFrameNumber SourceOutFrame = ConvertFrameTime(InHandleFrames, InFrameRate, TickResolution).FrameNumber + UE::MovieScene::DiscreteSize(CinematicShotSection->GetRange());
 
 				FFrameNumber EditInFrame    = CinematicShotSection->GetInclusiveStartFrame();
 				FFrameNumber EditOutFrame   = CinematicShotSection->GetExclusiveEndFrame();

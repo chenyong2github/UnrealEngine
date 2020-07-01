@@ -7,6 +7,7 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MovieSceneSequence.h"
 #include "ToolMenus.h"
@@ -21,7 +22,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Editor.h"
-#include "Compilation/MovieSceneCompiler.h"
 #include "ScopedTransaction.h"
 
 static const FName OutputPinName(TEXT("Output"));
@@ -158,6 +158,15 @@ UMovieScene* UK2Node_GetSequenceBinding::GetObjectMovieScene() const
 					bHierarchyIsValid = false;
 					break;
 				}
+
+				const FMovieSceneSequenceHierarchyNode* Node = SequenceHierarchyCache.FindNode(CurrentSequenceID);
+				if (!Node)
+				{
+					bHierarchyIsValid = false;
+					break;
+				}
+
+				CurrentSequenceID = Node->ParentID;
 			}
 
 			// If it's not valid, it needs recompiling
@@ -167,24 +176,15 @@ UMovieScene* UK2Node_GetSequenceBinding::GetObjectMovieScene() const
 				SequenceSignatureCache.Reset();
 				SequenceHierarchyCache = FMovieSceneSequenceHierarchy();
 
-				FMovieSceneCompiler::CompileHierarchy(*Sequence, SequenceHierarchyCache);
+				UMovieSceneCompiledDataManager::CompileHierarchy(Sequence, &SequenceHierarchyCache);
 
-				TArray<FMovieSceneSequenceID> AllSequenceIDs;
-				while (AllSequenceIDs.Num())
+				for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : SequenceHierarchyCache.AllSubSequenceData())
 				{
-					int32 NumSequenceIDs = AllSequenceIDs.Num();
-					for (int32 Index = 0; Index < NumSequenceIDs; ++Index)
+					const UMovieSceneSequence* SubSequence = Pair.Value.GetSequence();
+					if (ensure(SubSequence))
 					{
-						FMovieSceneSequenceID ThisSequenceID = AllSequenceIDs[Index];
-						const FMovieSceneSubSequenceData* SubData = SequenceHierarchyCache.FindSubData(ThisSequenceID);
-						const UMovieSceneSequence* SubSequence = SubData ? SubData->GetSequence() : nullptr;
-						if (ensure(SubSequence))
-						{
-							SequenceSignatureCache.Add(ThisSequenceID, SubSequence->GetSignature());
-						}
+						SequenceSignatureCache.Add(Pair.Key, SubSequence->GetSignature());
 					}
-
-					AllSequenceIDs.RemoveAt(0, NumSequenceIDs);
 				}
 			}
 
