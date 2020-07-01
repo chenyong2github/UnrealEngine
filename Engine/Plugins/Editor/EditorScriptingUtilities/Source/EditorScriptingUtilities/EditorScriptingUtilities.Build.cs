@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"StaticMeshEditor",
 				}
 			);
 
@@ -29,7 +30,6 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
                     "SkeletalMeshUtilitiesCommon",
                     "LevelEditor",
-					"StaticMeshEditor",
 					"SkeletalMeshEditor"
                 }
             );
