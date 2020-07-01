@@ -35,43 +35,53 @@ void CALLBACK UE_WinHttpStatusHttpCallback(HINTERNET hInternet, DWORD_PTR dwCont
 }
 
 TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> FWinHttpConnectionHttp::CreateHttpConnection(
-	FWinHttpSession& Session,
-	const FString& Verb,
-	const bool bIsSecure,
-	const FString& Domain,
-	const TOptional<uint16> Port,
-	const FString& PathAndQuery,
-	const TMap<FString, FString>& Headers,
-	const TSharedPtr<FRequestPayload, ESPMode::ThreadSafe>& Payload)
+	FWinHttpSession& InSession,
+	const FString& InVerb,
+	const FString& InUrl,
+	const TMap<FString, FString>& InHeaders,
+	const TSharedPtr<FRequestPayload, ESPMode::ThreadSafe>& InPayload)
 {
-	if (!Session.IsValid())
+	if (!InSession.IsValid())
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with no active session"));
 		return nullptr;
 	}
+
+	if (InVerb.IsEmpty())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with an empty verb"));
+		return nullptr;
+	}
+	
+	if (InUrl.IsEmpty())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with an empty url"));
+		return nullptr;
+	}
+
+	const bool bIsSecure = FGenericPlatformHttp::IsSecureProtocol(InUrl).Get(false);
+	if (!bIsSecure && InSession.AreOnlySecureConnectionsAllowed())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create an insecure WinHttp Request which is disabled on this platform"));
+		return nullptr;
+	}
+
+	const FString Domain = FGenericPlatformHttp::GetUrlDomain(InUrl);
 	if (Domain.IsEmpty())
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with an unset domain"));
 		return nullptr;
 	}
-	if (Verb.IsEmpty())
-	{
-		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with an unset verb"));
-		return nullptr;
-	}
+
+	const FString PathAndQuery = FGenericPlatformHttp::GetUrlPath(InUrl, true, false);
 	if (PathAndQuery.IsEmpty())
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a WinHttp Request with an unset path"));
 		return nullptr;
 	}
-
-	if (!bIsSecure && Session.AreOnlySecureConnectionsAllowed())
-	{
-		UE_LOG(LogWinHttp, Warning, TEXT("Attempted to create a insecure WinHttp Request which is disabled on this platform"));
-		return nullptr;
-	}
-
-	TSharedRef<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Result = MakeShareable(new FWinHttpConnectionHttp(Session, Verb, bIsSecure, Domain, Port, PathAndQuery, Headers, Payload));
+	
+	TOptional<uint16> Port = FGenericPlatformHttp::GetUrlPort(InUrl);
+	TSharedRef<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Result = MakeShareable(new FWinHttpConnectionHttp(InSession, InVerb, InUrl, bIsSecure, Domain, Port, PathAndQuery, InHeaders, InPayload));
 	if (!Result->IsValid())
 	{
 		return nullptr;
@@ -84,9 +94,13 @@ FWinHttpConnectionHttp::~FWinHttpConnectionHttp()
 {
 	UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Destructing WinHttp request"), this);
 
-
 	RequestHandle.Reset();
 	ConnectionHandle.Reset();
+
+	if (FWinHttpHttpManager* const HttpManager = FWinHttpHttpManager::GetManager())
+	{
+		HttpManager->ReleaseRequestResources(*this);
+	}
 }
 
 bool FWinHttpConnectionHttp::IsValid() const
@@ -95,10 +109,10 @@ bool FWinHttpConnectionHttp::IsValid() const
 	return ConnectionHandle.IsValid() && RequestHandle.IsValid();
 }
 
-const FString& FWinHttpConnectionHttp::GetUrlDomain() const
+const FString& FWinHttpConnectionHttp::GetRequestUrl() const
 {
 	// No lock because this data is constant for the entire request
-	return UrlDomain;
+	return RequestUrl;
 }
 
 void* FWinHttpConnectionHttp::GetHandle()
@@ -299,13 +313,14 @@ void FWinHttpConnectionHttp::SetRequestCompletedHandler(FWinHttpConnectionHttpOn
 FWinHttpConnectionHttp::FWinHttpConnectionHttp(
 	FWinHttpSession& InSession,
 	const FString& InVerb,
+	const FString& InUrl,
 	const bool bInIsSecure,
 	const FString& InDomain,
 	const TOptional<uint16> InPort,
 	const FString& InPathAndQuery,
 	const TMap<FString, FString>& InHeaders,
 	const TSharedPtr<FRequestPayload, ESPMode::ThreadSafe>& InPayload)
-	: UrlDomain(InDomain)
+	: RequestUrl(InUrl)
 {
 	const uint32 LogPort = InPort.Get(bInIsSecure ? 443 : 80);
 	const int32 LogPayloadSize = InPayload.IsValid() ? InPayload->GetContentLength() : 0;
@@ -393,7 +408,7 @@ bool FWinHttpConnectionHttp::SetHeaders(const TMap<FString, FString>& Headers)
 			continue;
 		}
 
-		const int32 StringSizeNeeded = HeaderPair.Key.Len() + NumCharsColonSpace + HeaderPair.Value.Len() ;
+		const int32 StringSizeNeeded = HeaderPair.Key.Len() + NumCharsColonSpace + HeaderPair.Value.Len();
 		HeaderBuffer.Reset(StringSizeNeeded);
 
 		HeaderBuffer.Append(HeaderPair.Key);
@@ -411,6 +426,47 @@ bool FWinHttpConnectionHttp::SetHeaders(const TMap<FString, FString>& Headers)
 			FWinHttpErrorHelper::LogWinHttpAddRequestHeadersFailure(ErrorCode);
 			return false;
 		}
+	}
+
+	return true;
+}
+
+bool FWinHttpConnectionHttp::SetHeader(const FString& Key, const FString& Value)
+{
+	if (Key.IsEmpty())
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("WinHttp Http[%p]: Attempted to set empty header key"), this);
+		return false;
+	}
+
+	FScopeLock ScopeLock(&SyncObject);
+	if (CurrentAction != EState::WaitToStart)
+	{
+		UE_LOG(LogWinHttp, Warning, TEXT("WinHttp Http[%p]: Attempted to set headers on request that has already started"), this);
+		return false;
+	}
+
+	FString HeaderBuffer;
+
+	const int32 NumCharsColonSpace = 2;
+
+	const int32 StringSizeNeeded = Key.Len() + NumCharsColonSpace + Value.Len();
+	HeaderBuffer.Reset(StringSizeNeeded);
+
+	HeaderBuffer.Append(Key);
+	HeaderBuffer.AppendChar(TEXT(':'));
+	HeaderBuffer.AppendChar(TEXT(' '));
+	HeaderBuffer.Append(Value);
+	check(HeaderBuffer.Len() == StringSizeNeeded);
+
+	const DWORD HeaderLength = HeaderBuffer.Len();
+	const DWORD Flags = WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE;
+
+	if (!WinHttpAddRequestHeaders(RequestHandle.Get(), TCHAR_TO_WCHAR(*HeaderBuffer), HeaderLength, Flags))
+	{
+		const DWORD ErrorCode = GetLastError();
+		FWinHttpErrorHelper::LogWinHttpAddRequestHeadersFailure(ErrorCode);
+		return false;
 	}
 
 	return true;
