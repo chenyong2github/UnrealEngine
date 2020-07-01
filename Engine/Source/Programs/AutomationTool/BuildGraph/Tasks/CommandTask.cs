@@ -127,6 +127,15 @@ namespace BuildGraph.Tasks
 		}
 
 		/// <summary>
+		/// Gets the name of this trace
+		/// </summary>
+		/// <returns>Name of the trace</returns>
+		public override string GetTraceName()
+		{
+			return String.Format("{0}.{1}", base.GetTraceName(), Parameters.Name.ToLowerInvariant());
+		}
+
+		/// <summary>
 		/// Output this task out to an XML writer.
 		/// </summary>
 		public override void Write(XmlWriter Writer)
