@@ -10,6 +10,7 @@
 #include "Containers/StringConv.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/CString.h"
+#include "HAL/IConsoleManager.h"
 
 namespace EventCacheStatic
 {
