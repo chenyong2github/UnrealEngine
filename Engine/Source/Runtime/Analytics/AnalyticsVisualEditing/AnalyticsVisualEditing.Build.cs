@@ -12,7 +12,8 @@ namespace UnrealBuildTool.Rules
 					"Analytics",
     				"Core",
 	    			"CoreUObject",
-                    "Engine"
+					"DeveloperSettings",
+					"Engine"
 				}
 			);
 		}

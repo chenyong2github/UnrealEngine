@@ -12,6 +12,9 @@
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "NiagaraConstants.h"
+#include "Widgets/Input/SButton.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraComponentRendererPropertiesDetails"
 
