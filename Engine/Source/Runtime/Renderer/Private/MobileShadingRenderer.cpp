@@ -75,6 +75,13 @@ static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMobileFlushSceneColorRendering(
+	TEXT("r.Mobile.FlushSceneColorRendering"),
+	1,
+	TEXT("0: Submmit command buffer after all rendering is finished.\n")
+	TEXT("1: Submmit command buffer (flush) before starting post-processing (default)"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarMobileCustomDepthForTranslucency(
 	TEXT("r.Mobile.CustomDepthForTranslucency"),
 	1,
@@ -445,7 +452,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth))));
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
-	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
+	bool bSubmitOffscreenRendering = (!bGammaSpace || bRenderToSceneColor) && CVarMobileFlushSceneColorRendering.GetValueOnAnyThread() != 0;
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, ViewFeatureLevel);
