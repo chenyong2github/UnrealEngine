@@ -56,6 +56,17 @@ bool FHLODISMComponentDesc::operator==(const FHLODISMComponentDesc& Other) const
 	return true;
 }
 
+FTransform RemoveStreamingLevelTransform(ULevel* InLevel, const FTransform InTransform)
+{
+	ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel);
+	if (StreamingLevel)
+	{
+		return InTransform.GetRelativeTransform(StreamingLevel->LevelTransform);
+	}
+
+	return InTransform;
+}
+
 bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 {
 	// Check if there's any difference between the LODActor & its description
@@ -103,6 +114,8 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 
 	LODLevel = InLODActor->LODLevel;
 	LODActorTag = InLODActor->LODActorTag;
+
+	Location = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
 
 	return true;
 }
@@ -199,6 +212,13 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
+	FVector LODActorLocation = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
+	const float Tolerance = 0.1f;
+	if (!Location.Equals(LODActorLocation, Tolerance))
+	{
+		return true;
+	}
+
 	return false;
 }
 
@@ -213,8 +233,7 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	ActorSpawnParameters.bHideFromSceneOutliner = true;
 	ActorSpawnParameters.ObjectFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
 
-	FTransform ActorTransform;
-	bool bAppliedTransform = false;
+	FTransform ActorTransform(Location);
 
 	// If level is a streamed level with a transform and the transform was already applied,
 	// make sure to spawn this new LODActor with a proper transform.
@@ -223,8 +242,7 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 		ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel);
 		if (StreamingLevel)
 		{
-			ActorTransform = StreamingLevel->LevelTransform;
-			bAppliedTransform = true;
+			ActorTransform = ActorTransform * StreamingLevel->LevelTransform;
 		}
 	}
 
@@ -239,7 +257,8 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
 		// Apply transform to HISM instances
-		if (bAppliedTransform)
+		const bool bTransformInstances = !ActorTransform.Equals(FTransform::Identity);
+		if (bTransformInstances)
 		{
 			TArray<FTransform> Transforms = ISMComponentDesc.Instances;
 			for (FTransform& Transform : Transforms)
