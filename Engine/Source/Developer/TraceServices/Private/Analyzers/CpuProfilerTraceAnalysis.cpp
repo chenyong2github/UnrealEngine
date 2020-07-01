@@ -2,11 +2,12 @@
 #include "CpuProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
-#include "TraceServices/Model/Threads.h"
+#include "Model/ThreadsPrivate.h"
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider)
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider, Trace::FThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, TimingProfilerProvider(InTimingProfilerProvider)
+	, ThreadProvider(InThreadProvider)
 {
 
 }
@@ -197,6 +198,10 @@ FCpuProfilerAnalyzer::FThreadState& FCpuProfilerAnalyzer::GetThreadState(uint32 
 		ThreadState = new FThreadState();
 		ThreadState->Timeline = &TimingProfilerProvider.EditCpuThreadTimeline(ThreadId);
 		ThreadStatesMap.Add(ThreadId, ThreadState);
+
+		// Just in case the rest of Insight's reporting/analysis doesn't know about
+		// this thread, we'll explicitly add it. For fault tolerance.
+		ThreadProvider.AddThread(ThreadId, nullptr, TPri_Normal);
 	}
 	return *ThreadState;
 }
