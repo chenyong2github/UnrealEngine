@@ -12,15 +12,15 @@ namespace UnrealBuildTool.Rules
 			PublicIncludePathModuleNames.AddRange(
 				new string[]
 				{
-					"WindowsMixedRealityHandTracking"
+					"WindowsMixedRealityHandTracking",
+					"WindowsMixedRealityHMD"
 				}
 			);
 
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"HeadMountedDisplay",
-					"WindowsMixedRealityHMD"
+					"HeadMountedDisplay"
 				}
 			);
 

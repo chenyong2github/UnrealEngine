@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"OptionalMobileFeaturesBPLibrary",
 					"ApplicationCore",
 					// ... add private dependencies that you statically link with here ...
 				}
