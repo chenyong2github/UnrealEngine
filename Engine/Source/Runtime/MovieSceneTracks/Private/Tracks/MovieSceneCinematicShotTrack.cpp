@@ -129,15 +129,15 @@ namespace MovieScene
 }
 }
 
-bool UMovieSceneCinematicShotTrack::PopulateEvaluationTree(TArrayView<UMovieSceneSection* const> InSections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
+bool UMovieSceneCinematicShotTrack::PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
 {
 	using namespace UE::MovieScene;
 
 	TArray<FCinematicShotSectionSortData, TInlineAllocator<16>> SortedSections;
 
-	for (int32 SectionIndex = 0; SectionIndex < InSections.Num(); ++SectionIndex)
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 	{
-		UMovieSceneSection* Section = InSections[SectionIndex];
+		UMovieSceneSection* Section = Sections[SectionIndex];
 
 		if (Section && Section->IsActive())
 		{
@@ -161,16 +161,10 @@ bool UMovieSceneCinematicShotTrack::PopulateEvaluationTree(TArrayView<UMovieScen
 
 	SortedSections.Sort();
 
-	auto AnythingExistsAtTime = [&OutData](FMovieSceneEvaluationTreeNodeHandle Node)
-	{
-		const bool bSectionExistsAtTime = OutData.GetAllData(Node).IsValid();
-		return !bSectionExistsAtTime;
-	};
-
 	for (const FCinematicShotSectionSortData& SectionData : SortedSections)
 	{
-		UMovieSceneSection* Section = InSections[SectionData.SectionIndex];
-		OutData.AddSelective(Section->GetRange(), FMovieSceneTrackEvaluationData::FromSection(Section), AnythingExistsAtTime);
+		UMovieSceneSection* Section = Sections[SectionData.SectionIndex];
+		OutData.AddIfEmpty(Section->GetRange(), FMovieSceneTrackEvaluationData::FromSection(Section));
 	}
 
 	return true;

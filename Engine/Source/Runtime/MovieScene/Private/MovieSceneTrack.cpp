@@ -9,6 +9,7 @@
 #include "Evaluation/MovieSceneSegment.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
+#include "Compilation/MovieSceneEvaluationTreePopulationRules.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 
 #include "Evaluation/MovieSceneEvaluationTrack.h"
@@ -25,7 +26,7 @@ UMovieSceneTrack::UMovieSceneTrack(const FObjectInitializer& InInitializer)
 	bSupportsDefaultSections = true;
 #endif
 
-	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
+	BuiltInTreePopulationMode = ETreePopulationMode::HighPassPerRow;
 }
 
 void UMovieSceneTrack::PostInitProperties()
@@ -281,155 +282,31 @@ FGuid UMovieSceneTrack::FindObjectBindingGuid() const
 	return FGuid();
 }
 
-void UMovieSceneTrack::PopulateEvaluationTree_Blended(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
-{
-	for (UMovieSceneSection* Section : Sections)
-	{
-		if (Section && Section->IsActive())
-		{
-			const TRange<FFrameNumber> SectionRange = Section->GetRange();
-			if (!SectionRange.IsEmpty())
-			{
-				OutTree.Add(SectionRange, FMovieSceneTrackEvaluationData::FromSection(Section));
-			}
-		}
-	}
-}
-
-void UMovieSceneTrack::PopulateEvaluationTree_HighPass(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
-{
-	struct FSection
-	{
-		int32 Row; int32 ZIndex; int32 Index;
-
-		bool operator<(const FSection& Other) const
-		{
-			if (Row == Other.Row)
-			{
-				return ZIndex > Other.ZIndex;
-			}
-			return Row < Other.Row;
-		}
-	};
-
-	TArray<FSection, TInlineAllocator<16>> SortedSections;
-
-	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
-	{
-		UMovieSceneSection* Section = Sections[SectionIndex];
-
-		if (Section && Section->IsActive())
-		{
-			const TRange<FFrameNumber> SectionRange = Section->GetRange();
-			if (!SectionRange.IsEmpty())
-			{
-				SortedSections.Add(FSection{ Section->GetRowIndex(), Section->GetOverlapPriority(), SectionIndex });
-			}
-		}
-	}
-
-	SortedSections.Sort();
-
-	auto AnythingExistsAtTime = [&OutTree](FMovieSceneEvaluationTreeNodeHandle Node)
-	{
-		const bool bSectionExistsAtTime = OutTree.GetAllData(Node).IsValid();
-		return !bSectionExistsAtTime;
-	};
-
-	for (const FSection& SectionEntry : SortedSections)
-	{
-		UMovieSceneSection* Section = Sections[SectionEntry.Index];
-		OutTree.AddSelective(Section->GetRange(), FMovieSceneTrackEvaluationData::FromSection(Section), AnythingExistsAtTime);
-	}
-}
-
-void UMovieSceneTrack::PopulateEvaluationTree_HighPassPerRow(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
-{
-	if (Sections.Num() == 0)
-	{
-		return;
-	}
-
-	struct FSection
-	{
-		int32 Row; int32 ZIndex; int32 Index;
-
-		bool operator<(const FSection& Other) const
-		{
-			if (Row == Other.Row)
-			{
-				return ZIndex > Other.ZIndex;
-			}
-			return Row < Other.Row;
-		}
-	};
-
-	TArray<FSection, TInlineAllocator<16>> SortedSections;
-
-	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
-	{
-		UMovieSceneSection* Section = Sections[SectionIndex];
-
-		if (Section && Section->IsActive())
-		{
-			const TRange<FFrameNumber> SectionRange = Section->GetRange();
-			if (!SectionRange.IsEmpty())
-			{
-				SortedSections.Add(FSection{ Section->GetRowIndex(), Section->GetOverlapPriority(), SectionIndex });
-			}
-		}
-	}
-
-	SortedSections.Sort();
-
-	int32 CurrentRowIndex = 0;
-
-	auto RowIsVacantAtCurrentTime = [&OutTree, &CurrentRowIndex](FMovieSceneEvaluationTreeNodeHandle Node)
-	{
-		for (FMovieSceneTrackEvaluationData Data : OutTree.GetAllData(Node))
-		{
-			if (Data.Section.Get()->GetRowIndex() == CurrentRowIndex)
-			{
-				return false;
-			}
-		}
-		return true;
-	};
-
-	for (const FSection& SectionEntry : SortedSections)
-	{
-		UMovieSceneSection* Section = Sections[SectionEntry.Index];
-
-		CurrentRowIndex = SectionEntry.Row;
-		OutTree.AddSelective(Section->GetRange(), FMovieSceneTrackEvaluationData::FromSection(Section), RowIsVacantAtCurrentTime);
-	}
-}
-
 void UMovieSceneTrack::AddSectionRangesToTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
 {
-	if (PopulateEvaluationTree(Sections, OutTree))
+	if (PopulateEvaluationTree(OutTree))
 	{
 		return;
 	}
 
 	ETreePopulationMode ModeToUse = BuiltInTreePopulationMode;
-	if (!ensureMsgf(ModeToUse != ETreePopulationMode::None, TEXT("No default tree population mode specified, and no PopulateEvaluationTree implemented - falling back to a blended population.")))
+	if (!ensureMsgf(ModeToUse != ETreePopulationMode::None, TEXT("No default tree population mode specified, and no PopulateEvaluationTree implemented - falling back to high-pass-per-row population.")))
 	{
-		ModeToUse = ETreePopulationMode::Blended;
+		ModeToUse = ETreePopulationMode::HighPassPerRow;
 	}
 
 	switch (ModeToUse)
 	{
 	case ETreePopulationMode::Blended:
-		PopulateEvaluationTree_Blended(Sections, OutTree);
+		UE::MovieScene::FEvaluationTreePopulationRules::Blended(Sections, OutTree);
 		break;
 
 	case ETreePopulationMode::HighPass:
-		PopulateEvaluationTree_HighPass(Sections, OutTree);
+		UE::MovieScene::FEvaluationTreePopulationRules::HighPass(Sections, OutTree);
 		break;
 
 	case ETreePopulationMode::HighPassPerRow:
-		PopulateEvaluationTree_HighPassPerRow(Sections, OutTree);
+		UE::MovieScene::FEvaluationTreePopulationRules::HighPassPerRow(Sections, OutTree);
 		break;
 	}
 }
