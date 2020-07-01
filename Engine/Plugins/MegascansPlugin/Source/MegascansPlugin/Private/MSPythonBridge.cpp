@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MSPythonBridge.h"
 
 UMSPythonBridge* UMSPythonBridge::Get()

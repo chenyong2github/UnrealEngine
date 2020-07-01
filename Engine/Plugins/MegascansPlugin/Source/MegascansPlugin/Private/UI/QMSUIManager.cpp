@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "UI/QMSUIManager.h"
 #include "UI/MSStyle.h"
 

@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Import3D.h"
 
 #include "AssetImporters/ImportSurface.h"

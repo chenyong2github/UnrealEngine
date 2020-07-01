@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MeshOp.h"
 #include "UnrealEd/Classes/Factories/FbxImportUI.h"
 #include "UnrealEd/Classes/Factories/FbxStaticMeshImportData.h"
