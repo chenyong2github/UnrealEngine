@@ -42,6 +42,7 @@
 #include "Indexers/CurveTableIndexer.h"
 #include "Indexers/DialogueWaveIndexer.h"
 #include "Indexers/LevelIndexer.h"
+#include "Indexers/ActorIndexer.h"
 #include "Indexers/SoundCueIndexer.h"
 #include "Providers/AssetRegistrySearchProvider.h"
 
@@ -209,6 +210,7 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWidgetBlueprint::StaticClass(), MakeUnique<FWidgetBlueprintIndexer>());
 	RegisterAssetIndexer(UDialogueWave::StaticClass(), MakeUnique<FDialogueWaveIndexer>());
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
+	RegisterAssetIndexer(AActor::StaticClass(), MakeUnique<FActorIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
 
 	RegisterSearchProvider(TEXT("AssetRegistry"), MakeUnique<FAssetRegistrySearchProvider>());
@@ -432,7 +434,7 @@ void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UOb
 	{
 		TArray<UObject*> Objects;
 		const bool bIncludeNestedObjects = false;
-		GetObjectsWithOuter(Package, Objects, bIncludeNestedObjects);
+		GetObjectsWithPackage(Package, Objects, bIncludeNestedObjects);
 		for (UObject* Entry : Objects)
 		{
 			RequestIndexAsset(Entry);
