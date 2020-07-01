@@ -1242,6 +1242,11 @@ public:
 		return MHandle->ParticleID();
 	}
 
+	FUniqueIdx UniqueIdx() const
+	{
+		return MHandle->UniqueIdx();
+	}
+
 	//Named this way for templated code
 	bool HasBoundingBox() const
 	{

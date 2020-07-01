@@ -230,7 +230,7 @@ namespace Chaos
 
 					if (Particle1.HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions) )
 					{
-						if (IgnoreCollisionManager.IgnoresCollision(Particle1.ParticleID(), Particle2.ParticleID()))
+						if (IgnoreCollisionManager.IgnoresCollision(Particle1.UniqueIdx(), Particle2.UniqueIdx()))
 						{
 							continue;
 						}
@@ -260,7 +260,6 @@ namespace Chaos
 					{
 						continue;
 					}
-
 
 					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
