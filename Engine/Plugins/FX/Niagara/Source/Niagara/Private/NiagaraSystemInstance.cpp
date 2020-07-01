@@ -1744,6 +1744,8 @@ void FNiagaraSystemInstance::InitEmitters()
 	{
 		const TArray<FNiagaraEmitterHandle>& EmitterHandles = System->GetEmitterHandles();
 
+		const bool bAllowComputeShaders = FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
+
 		const int32 NumEmitters = EmitterHandles.Num();
 		Emitters.Reserve(NumEmitters);
 		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
@@ -1758,13 +1760,14 @@ void FNiagaraSystemInstance::InitEmitters()
 
 			Sim->Init(EmitterIdx, ID);
 			Emitters.Add(Sim);
-		}
 
-		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
-		{
-			if (const UNiagaraEmitter* Emitter = Simulation->GetCachedEmitter())
+			// Only set bHasGPUEmitters if we allow compute shaders on the platform
+			if (bAllowComputeShaders)
 			{
-				bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+				if (const UNiagaraEmitter* Emitter = Sim->GetCachedEmitter())
+				{
+					bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+				}
 			}
 		}
 
