@@ -1,0 +1,123 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/GCObject.h"
+#include "Chaos/ChaosEngineInterface.h"
+
+//Chaos includes. Todo: move to chaos core so we can include for all of engine
+#include "Chaos/Declares.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#include "Framework/Threading.h"
+#include "Chaos/Core.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
+
+// Currently compilation issue with Incredibuild when including headers required by event template functions
+#define XGE_FIXED 0
+
+class AdvanceOneTimeStepTask;
+class FChaosSolversModule;
+struct FForceFieldProxy;
+struct FSolverStateStorage;
+
+class FSkeletalMeshPhysicsProxy;
+class FStaticMeshPhysicsProxy;
+class FPerSolverFieldSystem;
+
+class IPhysicsProxyBase;
+
+namespace Chaos
+{
+	class FPhysicsProxy;
+
+	struct FCollisionEventData;
+
+	enum EEventType : int32;
+
+	template<typename PayloadType, typename HandlerType>
+	class TRawEventHandler;
+
+	template <typename T, int d>
+	class TAccelerationStructureHandle;
+
+	template <typename TPayload, typename T, int d>
+	class ISpatialAcceleration;
+
+	template <typename TPayload, typename T, int d>
+	class ISpatialAccelerationCollection;
+
+	template <typename T>
+	class TArrayCollectionArray;
+
+}
+
+/**
+* Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
+*/
+class PHYSICSCORE_API FChaosScene : public FGCObject
+{
+public:
+	FChaosScene(
+		UObject* OwnerPtr
+#if CHAOS_CHECKED
+	, const FName& DebugName=NAME_None
+#endif
+);
+
+	virtual ~FChaosScene();
+
+	/**
+	 * Get the internal Chaos solver object
+	 */
+	Chaos::FPhysicsSolver* GetSolver() const { return SceneSolver; }
+
+	// FGCObject Interface ///////////////////////////////////////////////////
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const
+	{
+		return "FChaosScene";
+	}
+	//////////////////////////////////////////////////////////////////////////
+	
+	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration() const;
+	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration();
+
+	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
+	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
+
+	/**
+	 * Copies the acceleration structure out of the solver, does no thread safety checking so ensure calls
+	 * to this are made at appropriate sync points if required
+	 */
+	void CopySolverAccelerationStructure();
+
+#if WITH_EDITOR
+	void AddPieModifiedObject(UObject* InObj);
+#endif
+
+protected:
+
+	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+
+	// Control module for Chaos - cached to avoid constantly hitting the module manager
+	FChaosSolversModule* ChaosModule;
+
+	// Solver representing this scene
+	Chaos::FPhysicsSolver* SceneSolver;
+
+	/** Scene lock object for external threads (non-physics) */
+	Chaos::FPhysicsSceneGuard ExternalDataLock;
+
+#if WITH_EDITOR
+	// List of objects that we modified during a PIE run for physics simulation caching.
+	TArray<UObject*> PieModifiedObjects;
+#endif
+
+	// Allow other code to obtain read-locks when needed
+	friend struct FScopedSceneReadLock;
+	friend struct FScopedSceneLock_Chaos;
+};
