@@ -753,7 +753,7 @@ void FSlateUser::QueryCursor()
 					if (CursorReply.IsEventHandled())
 					{
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastCursorQuery(&ArrangedWidget.Widget.Get(), CursorReply);
+						FSlateDebugging::BroadcastCursorQuery(ArrangedWidget.Widget, CursorReply);
 #endif
 
 						if (!CursorReply.GetCursorWidget().IsValid())

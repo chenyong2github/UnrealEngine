@@ -5,10 +5,12 @@
 #include "SlateGlobals.h"
 #include "FastUpdate/WidgetProxy.h"
 #include "Animation/CurveSequence.h"
-#include "Widgets/SNullWidget.h"
+#include "Layout/WidgetPath.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
+#include "Types/ReflectionMetadata.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/SNullWidget.h"
 #include "Application/SlateApplicationBase.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -122,6 +124,23 @@ FSlateDebuggingInputEventArgs::FSlateDebuggingInputEventArgs(ESlateDebuggingInpu
 {
 }
 
+FText FSlateDebuggingInputEventArgs::ToText() const
+{
+	static const FText InputEventFormat = LOCTEXT("InputEventFormat", "{0} - ({1}) - [{2}]");
+
+	const UEnum* SlateDebuggingInputEventEnum = StaticEnum<ESlateDebuggingInputEvent>();
+	const FText InputEventTypeText = SlateDebuggingInputEventEnum->GetDisplayNameTextByValue((int64)InputEventType);
+	const FText AdditionalContentText = FText::FromString(AdditionalContent);
+	const FText HandlerWidgetText = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(HandlerWidget.Get()));
+
+	return FText::Format(
+		InputEventFormat,
+		InputEventTypeText,
+		HandlerWidgetText,
+		AdditionalContentText
+	);
+}
+
 FSlateDebuggingFocusEventArgs::FSlateDebuggingFocusEventArgs(
 	ESlateDebuggingFocusEvent InFocusEventType,
 	const FFocusEvent& InFocusEvent,
@@ -138,6 +157,66 @@ FSlateDebuggingFocusEventArgs::FSlateDebuggingFocusEventArgs(
 {
 }
 
+FText FSlateDebuggingFocusEventArgs::ToText() const
+{
+	static const FText FocusEventFormat = LOCTEXT("FocusEventFormat", "{0}({1}:{2}) - {3} -> {4}");
+
+	FText FocusEventText;
+	switch (FocusEventType)
+	{
+	case ESlateDebuggingFocusEvent::FocusChanging:
+		FocusEventText = LOCTEXT("FocusChanging", "Focus Changing");
+		break;
+	case ESlateDebuggingFocusEvent::FocusLost:
+		FocusEventText = LOCTEXT("FocusLost", "Focus Lost");
+		break;
+	case ESlateDebuggingFocusEvent::FocusReceived:
+		FocusEventText = LOCTEXT("FocusReceived", "Focus Received");
+		break;
+	default:
+		ensureMsgf(false, TEXT("A focus event was not handled."));
+	}
+
+	FText CauseText;
+	switch (FocusEvent.GetCause())
+	{
+	case EFocusCause::Mouse:
+		CauseText = LOCTEXT("FocusCause_Mouse", "Mouse");
+		break;
+	case EFocusCause::Navigation:
+		CauseText = LOCTEXT("FocusCause_Navigation", "Navigation");
+		break;
+	case EFocusCause::SetDirectly:
+		CauseText = LOCTEXT("FocusCause_SetDirectly", "SetDirectly");
+		break;
+	case EFocusCause::Cleared:
+		CauseText = LOCTEXT("FocusCause_Cleared", "Cleared");
+		break;
+	case EFocusCause::OtherWidgetLostFocus:
+		CauseText = LOCTEXT("FocusCause_OtherWidgetLostFocus", "OtherWidgetLostFocus");
+		break;
+	case EFocusCause::WindowActivate:
+		CauseText = LOCTEXT("FocusCause_WindowActivate", "WindowActivate");
+		break;
+	default:
+		ensureMsgf(false, TEXT("A focus case was not handled."));
+	}
+
+	const int32 UserIndex = FocusEvent.GetUser();
+
+	const FText OldFocusedWidgetText = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(OldFocusedWidget.Get()));
+	const FText NewFocusedWidgetText = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(NewFocusedWidget.Get()));
+
+	return FText::Format(
+		FocusEventFormat,
+		FocusEventText,
+		UserIndex,
+		CauseText,
+		OldFocusedWidgetText,
+		NewFocusedWidgetText
+	);
+}
+
 FSlateDebuggingNavigationEventArgs::FSlateDebuggingNavigationEventArgs(
 	const FNavigationEvent& InNavigationEvent,
 	const FNavigationReply& InNavigationReply,
@@ -152,12 +231,46 @@ FSlateDebuggingNavigationEventArgs::FSlateDebuggingNavigationEventArgs(
 {
 }
 
+FText FSlateDebuggingNavigationEventArgs::ToText() const
+{
+	static const FText NavEventFormat = LOCTEXT("NavEventFormat", "Navigation User({4}) Source({0}:{1}) | {5} | {2} -> {3}");
+
+	const FText SourceWidgetText = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(&NavigationSource.GetLastWidget().Get()));
+	const FText DestinationWidgetText = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(DestinationWidget.Get()));
+	const FText NavigationTypeText = StaticEnum<EUINavigation>()->GetDisplayNameTextByValue((int64)NavigationEvent.GetNavigationType());
+	const FText NavigationGenesisText = StaticEnum<ENavigationGenesis>()->GetDisplayNameTextByValue((int64)NavigationEvent.GetNavigationGenesis());
+	const FText NavigationMethodText = StaticEnum<ESlateDebuggingNavigationMethod>()->GetDisplayNameTextByValue((int64)NavigationMethod);
+
+	return FText::Format(
+		NavEventFormat,
+		NavigationGenesisText,
+		NavigationTypeText,
+		SourceWidgetText,
+		DestinationWidgetText,
+		NavigationEvent.GetUserIndex(),
+		NavigationMethodText
+	);
+}
+
 FSlateDebuggingWarningEventArgs::FSlateDebuggingWarningEventArgs(
 	const FText& InWarning,
 	const TSharedPtr<SWidget>& InOptionalContextWidget)
 	: Warning(InWarning)
 	, OptionalContextWidget(InOptionalContextWidget)
 {
+}
+
+FText FSlateDebuggingWarningEventArgs::ToText() const
+{
+	static const FText InputEventFormat = LOCTEXT("WarningEventFormat", "{0} (Widget: {1})");
+
+	const FText ContextWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(OptionalContextWidget.Get()));
+
+	return FText::Format(
+		InputEventFormat,
+		Warning,
+		ContextWidget
+	);
 }
 
 FSlateDebuggingMouseCaptureEventArgs::FSlateDebuggingMouseCaptureEventArgs(
@@ -172,10 +285,52 @@ FSlateDebuggingMouseCaptureEventArgs::FSlateDebuggingMouseCaptureEventArgs(
 {
 }
 
-FSlateDebuggingCursorQueryEventArgs::FSlateDebuggingCursorQueryEventArgs(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply)
+FText FSlateDebuggingMouseCaptureEventArgs::ToText() const
+{
+	static const FText StateChangeEventFormat = LOCTEXT("StateChangeEventFormat", "{0}({1}:{2}) : {3}");
+
+	const FText StateText = Captured ? LOCTEXT("MouseCaptured", "Mouse Captured") : LOCTEXT("MouseCaptureLost", "Mouse Capture Lost");
+	const FText SourceWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(CaptureWidget.Get()));
+
+	return FText::Format(
+		StateChangeEventFormat,
+		StateText,
+		UserIndex,
+		PointerIndex,
+		SourceWidget
+	);
+}
+
+FSlateDebuggingCursorQueryEventArgs::FSlateDebuggingCursorQueryEventArgs(const TSharedPtr<const SWidget>& InWidgetOverridingCursor, const FCursorReply& InReply)
 	: WidgetOverridingCursor(InWidgetOverridingCursor)
 	, Reply(InReply)
 {
+}
+
+FText FSlateDebuggingCursorQueryEventArgs::ToText() const
+{
+	const FText ContextWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(WidgetOverridingCursor.Get()));
+
+	FText EventText;
+	if (Reply.GetCursorWidget().IsValid())
+	{
+		static const FText InputEventFormat = LOCTEXT("CursorChangedToWidget", "{0} To Widget: {0} (Widget: {1})");
+		EventText = FText::Format(
+			InputEventFormat,
+			FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(Reply.GetCursorWidget().Get())),
+			ContextWidget
+		);
+	}
+	else
+	{
+		static const FText InputEventFormat = LOCTEXT("CursorChangedToCursor", "Cursor Changed: To Type: {0} (By Widget: {1})");
+		EventText = FText::Format(
+			InputEventFormat,
+			FText::FromString(StaticEnum<EMouseCursor::Type>()->GetNameStringByValue((int64)Reply.GetCursorType())),
+			ContextWidget
+		);
+	}
+	return EventText;
 }
 
 FSlateDebugging::FBeginWindow FSlateDebugging::BeginWindow;
@@ -185,6 +340,8 @@ FSlateDebugging::FEndWindow FSlateDebugging::EndWindow;
 FSlateDebugging::FBeginWidgetPaint FSlateDebugging::BeginWidgetPaint;
 
 FSlateDebugging::FEndWidgetPaint FSlateDebugging::EndWidgetPaint;
+
+FSlateDebugging::FPaintDebugElements FSlateDebugging::PaintDebugElements;
 
 FSlateDebugging::FDrawElement FSlateDebugging::ElementAdded;
 
@@ -209,82 +366,217 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebugg
 TArray<struct FInvalidatedWidgetDrawer> FSlateDebugging::InvalidatedWidgetDrawers;
 FSlateDebugging::FLastCursorQuery FSlateDebugging::LastCursorQuery;
 
+TArray<FSlateDebugging::IWidgetInputRoutingEvent*> FSlateDebugging::RoutingEvents;
+
 void FSlateDebugging::BroadcastWarning(const FText& WarningText, const TSharedPtr<SWidget>& OptionalContextWidget)
 {
-	Warning.Broadcast(FSlateDebuggingWarningEventArgs(WarningText, OptionalContextWidget));
+	if (Warning.IsBound())
+	{
+		Warning.Broadcast(FSlateDebuggingWarningEventArgs(WarningText, OptionalContextWidget));
+	}
 }
 
 void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply)
 {
-	if (InReply.IsEventHandled())
+	if (InReply.IsEventHandled() && InputEvent.IsBound())
 	{
-		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, TSharedPtr<SWidget>(), TEXT("")));
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, TSharedPtr<SWidget>(), FString()));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, InReply, TSharedPtr<SWidget>());
 	}
 }
 
 void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const TSharedPtr<SWidget>& HandlerWidget)
 {
-	InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, FReply::Handled(), TSharedPtr<SWidget>(), TEXT("")));
+	if (InputEvent.IsBound())
+	{
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, FReply::Handled(), TSharedPtr<SWidget>(), FString()));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, FReply::Handled(), HandlerWidget);
+	}
 }
 
 void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget)
 {
-	if (InReply.IsEventHandled())
+	if (InReply.IsEventHandled() && InputEvent.IsBound())
 	{
-		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, HandlerWidget, TEXT("")));
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, HandlerWidget, FString()));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, InReply, HandlerWidget);
 	}
 }
 
 void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const FString& AdditionalContent)
 {
-	if (InReply.IsEventHandled())
+	if (InReply.IsEventHandled() && InputEvent.IsBound())
 	{
 		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, HandlerWidget, AdditionalContent));
 	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, InReply, HandlerWidget);
+	}
+}
+
+void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const FName& AdditionalContent)
+{
+	if (InReply.IsEventHandled() && InputEvent.IsBound())
+	{
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, HandlerWidget, AdditionalContent.ToString()));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, InReply, HandlerWidget);
+	}
+}
+
+void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventType, const FReply& InReply, const TSharedPtr<SWidget>& HandlerWidget, const TCHAR AdditionalContent)
+{
+	if (InReply.IsEventHandled() && InputEvent.IsBound())
+	{
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, InReply, HandlerWidget, FString(1, &AdditionalContent)));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, InReply, HandlerWidget);
+	}
+}
+
+void FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent InputEventType, const TSharedPtr<SWidget>& HandlerWidget)
+{
+	if (InputEvent.IsBound())
+	{
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, FReply::Unhandled(), HandlerWidget, FString()));
+	}
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnInputEvent(InputEventType, FReply::Unhandled(), HandlerWidget);
+	}
+}
+
+void FSlateDebugging::BroadcastPreProcessInputEvent(ESlateDebuggingInputEvent InputEventType, const TCHAR* InputPrecessorName, bool bHandled)
+{
+	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
+	{
+		Event->OnPreProcessInput(InputEventType, InputPrecessorName, bHandled);
+	}
+}
+
+FSlateDebugging::FScopeProcessInputEvent::FScopeProcessInputEvent(ESlateDebuggingInputEvent InInputEvent, const FInputEvent& Event)
+	: InputEvent(InInputEvent)
+{
+	for (IWidgetInputRoutingEvent* RoutingEvent : FSlateDebugging::RoutingEvents)
+	{
+		RoutingEvent->OnProcessInput(InputEvent, Event);
+	}
+}
+
+FSlateDebugging::FScopeProcessInputEvent::~FScopeProcessInputEvent()
+{
+	for (IWidgetInputRoutingEvent* RoutingEvent : FSlateDebugging::RoutingEvents)
+	{
+		RoutingEvent->OnInputProcessed(InputEvent);
+	}
+}
+
+FSlateDebugging::FScopeRouteInputEvent::FScopeRouteInputEvent(ESlateDebuggingInputEvent InInputEvent, const FName& RoutingType)
+	: InputEvent(InInputEvent)
+{
+	for (IWidgetInputRoutingEvent* RoutingEvent : FSlateDebugging::RoutingEvents)
+	{
+		RoutingEvent->OnRouteInput(InputEvent, RoutingType);
+	}
+}
+
+FSlateDebugging::FScopeRouteInputEvent::~FScopeRouteInputEvent()
+{
+	for (IWidgetInputRoutingEvent* RoutingEvent : FSlateDebugging::RoutingEvents)
+	{
+		RoutingEvent->OnInputRouted(InputEvent);
+	}
+}
+
+void FSlateDebugging::RegisterWidgetInputRoutingEvent(IWidgetInputRoutingEvent* Event)
+{
+	check(Event);
+	RoutingEvents.Add(Event);
+}
+
+void FSlateDebugging::UnregisterWidgetInputRoutingEvent(IWidgetInputRoutingEvent* Event)
+{
+	check(Event);
+	RoutingEvents.RemoveSwap(Event);
 }
 
 void FSlateDebugging::BroadcastFocusChanging(const FFocusEvent& InFocusEvent, const FWeakWidgetPath& InOldFocusedWidgetPath, const TSharedPtr<SWidget>& InOldFocusedWidget, const FWidgetPath& InNewFocusedWidgetPath, const TSharedPtr<SWidget>& InNewFocusedWidget)
 {
-	FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusChanging, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	if (FocusEvent.IsBound())
+	{
+		FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusChanging, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	}
 }
 
 void FSlateDebugging::BroadcastFocusLost(const FFocusEvent& InFocusEvent, const FWeakWidgetPath& InOldFocusedWidgetPath, const TSharedPtr<SWidget>& InOldFocusedWidget, const FWidgetPath& InNewFocusedWidgetPath, const TSharedPtr<SWidget>& InNewFocusedWidget)
 {
-	FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusLost, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	if (FocusEvent.IsBound())
+	{
+		FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusLost, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	}
 }
 
 void FSlateDebugging::BroadcastFocusReceived(const FFocusEvent& InFocusEvent, const FWeakWidgetPath& InOldFocusedWidgetPath, const TSharedPtr<SWidget>& InOldFocusedWidget, const FWidgetPath& InNewFocusedWidgetPath, const TSharedPtr<SWidget>& InNewFocusedWidget)
 {
-	FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusReceived, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	if (FocusEvent.IsBound())
+	{
+		FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusReceived, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
+	}
 }
 
 void FSlateDebugging::BroadcastAttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget, ESlateDebuggingNavigationMethod InNavigationMethod)
 {
-	AttemptNavigationEvent.Broadcast(FSlateDebuggingNavigationEventArgs(InNavigationEvent, InNavigationReply, InNavigationSource, InDestinationWidget, InNavigationMethod));
+	if (AttemptNavigationEvent.IsBound())
+	{
+		AttemptNavigationEvent.Broadcast(FSlateDebuggingNavigationEventArgs(InNavigationEvent, InNavigationReply, InNavigationSource, InDestinationWidget, InNavigationMethod));
+	}
 }
 
 void FSlateDebugging::BroadcastExecuteNavigation()
 {
-	ExecuteNavigationEvent.Broadcast(FSlateDebuggingExecuteNavigationEventArgs());
+	if (ExecuteNavigationEvent.IsBound())
+	{
+		ExecuteNavigationEvent.Broadcast(FSlateDebuggingExecuteNavigationEventArgs());
+	}
 }
 
 void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InCapturingWidget)
 {
-	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(true, UserIndex, PointerIndex, InCapturingWidget));
+	if (MouseCaptureEvent.IsBound())
+	{
+		MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(true, UserIndex, PointerIndex, InCapturingWidget));
+	}
 }
 
 void FSlateDebugging::BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InWidgetLostCapture)
 {
-	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(false, UserIndex, PointerIndex, InWidgetLostCapture));
+	if (MouseCaptureEvent.IsBound())
+	{
+		MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(false, UserIndex, PointerIndex, InWidgetLostCapture));
+	}
 }
 
-void FSlateDebugging::BroadcastCursorQuery(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply)
+void FSlateDebugging::BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOverridingCursor, const FCursorReply& InReply)
 {
-	if (LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare != InWidgetOverridingCursor || 
-		LastCursorQuery.MouseCursor != InReply.GetCursorType() || 
+	if (LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare != InWidgetOverridingCursor.Get() ||
+		LastCursorQuery.MouseCursor != InReply.GetCursorType() ||
 		LastCursorQuery.CursorWidget.Pin() != InReply.GetCursorWidget())
 	{
-		LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare = InWidgetOverridingCursor;
+		LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare = InWidgetOverridingCursor.Get();
 		LastCursorQuery.MouseCursor = InReply.GetCursorType();
 		LastCursorQuery.CursorWidget = InReply.GetCursorWidget();
 
@@ -344,7 +636,6 @@ void FSlateDebugging::DrawInvalidatedWidgets(const FSlateInvalidationRoot& Root,
 		}
 	}
 }
-
 
 void FSlateDebugging::ClearInvalidatedWidgets(const FSlateInvalidationRoot& Root)
 {
