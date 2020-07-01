@@ -145,16 +145,22 @@ void FRDGBarrierBatcher::End(FRHICommandList& RHICmdList)
 	{
 		FTransitionParameters TransitionParameters = Element.Key;
 		FTextureBatch& Batch = Element.Value;
-		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
-		Batch.Reset();
+		if (Batch.Num())
+		{
+			RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
+			Batch.Reset();
+		}
 	}
 
 	for (auto& Element : UAVBatchMap)
 	{
 		FTransitionParameters TransitionParameters = Element.Key;
 		FUAVBatch& Batch = Element.Value;
-		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
-		Batch.Reset();
+		if (Batch.Num())
+		{
+			RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
+			Batch.Reset();
+		}
 	}
 
 	for (FRHITexture* RHITexture : TextureUpdateMultiFrameEnds)
