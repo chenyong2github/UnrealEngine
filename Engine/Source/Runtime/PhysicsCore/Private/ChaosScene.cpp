@@ -44,7 +44,7 @@ FChaosScene::FChaosScene(
 {
 	LLM_SCOPE(ELLMTag::Chaos);
 
-	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+	ChaosModule = FChaosSolversModule::GetModule();
 	check(ChaosModule);
 
 	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
@@ -77,6 +77,7 @@ FChaosScene::~FChaosScene()
 	SceneSolver = nullptr;
 }
 
+#if WITH_ENGINE
 void FChaosScene::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
@@ -86,6 +87,7 @@ void FChaosScene::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 #endif
 }
+#endif
 
 #if WITH_EDITOR
 void FChaosScene::AddPieModifiedObject(UObject* InObj)

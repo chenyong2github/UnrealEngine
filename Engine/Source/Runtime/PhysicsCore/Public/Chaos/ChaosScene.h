@@ -57,7 +57,10 @@ namespace Chaos
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
 */
-class PHYSICSCORE_API FChaosScene : public FGCObject
+class PHYSICSCORE_API FChaosScene
+#if WITH_ENGINE
+	: public FGCObject
+#endif
 {
 public:
 	FChaosScene(
@@ -74,6 +77,7 @@ public:
 	 */
 	Chaos::FPhysicsSolver* GetSolver() const { return SceneSolver; }
 
+#if WITH_ENGINE
 	// FGCObject Interface ///////////////////////////////////////////////////
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const
@@ -81,6 +85,7 @@ public:
 		return "FChaosScene";
 	}
 	//////////////////////////////////////////////////////////////////////////
+#endif
 	
 	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration() const;
 	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration();
