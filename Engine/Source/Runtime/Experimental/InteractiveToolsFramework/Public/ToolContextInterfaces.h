@@ -117,6 +117,12 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 	/** What does caller want to try to snap to */
 	ESceneSnapQueryTargetType TargetTypes = ESceneSnapQueryTargetType::Grid;
 
+	/** Optional explicitly specified position grid */
+	TOptional<FVector> GridSize{};
+
+	/** Optional explicitly specified rotation grid */
+	TOptional<FRotator> RotGridSize{};
+
 	/** Snap input position */
 	FVector Position;
 	/** Another position must deviate less than this number of degrees (in visual angle) to be considered an acceptable snap position */
