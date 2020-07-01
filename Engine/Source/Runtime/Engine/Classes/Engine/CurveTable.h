@@ -42,8 +42,6 @@ class UCurveTable
 {
 	GENERATED_UCLASS_BODY()
 
-	friend class UCompositeCurveTable;
-
 	DECLARE_MULTICAST_DELEGATE(FOnCurveTableChanged);
 
 	const TMap<FName, FRealCurve*>& GetRowMap() const { return RowMap; }
@@ -71,7 +69,7 @@ protected:
 public:
 	//~ Begin UObject Interface.
 	virtual void FinishDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
+	virtual void Serialize( FArchive& Ar ) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -165,7 +163,7 @@ public:
 
 	/** Output entire contents of table as JSON. bAsArray true will write is as a JSON array, false will write it as a series of named objects*/
 	template <typename CharType = TCHAR>
-	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, bool bAsArray = true) const;
+	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter,bool bAsArray = true) const;
 
 	/** 
 	 *	Create table from CSV style comma-separated string. 
@@ -272,7 +270,7 @@ struct ENGINE_API FCurveTableRowHandle
 	 * @param ContextString A string to provide context for where this operation is being carried out
 	 * @return The value of the curve if valid, 0 if not
 	 */
-	float Eval(float XValue, const FString& ContextString) const
+	float Eval(float XValue,const FString& ContextString) const
 	{
 		float Result = 0.f;
 		Eval(XValue, &Result, ContextString);
@@ -285,7 +283,7 @@ struct ENGINE_API FCurveTableRowHandle
 	 * @param ContextString A string to provide context for where this operation is being carried out
 	 * @return True if it filled out YValue with a valid number, false otherwise
 	 */
-	bool Eval(float XValue, float* YValue, const FString& ContextString) const;
+	bool Eval(float XValue, float* YValue,const FString& ContextString) const;
 
 	bool operator==(const FCurveTableRowHandle& Other) const;
 	bool operator!=(const FCurveTableRowHandle& Other) const;
