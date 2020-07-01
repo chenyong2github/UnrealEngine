@@ -6,6 +6,8 @@
 #include "FindInBlueprintManager.h"
 #include "Engine/MemberReference.h"
 #include "TickableEditorObject.h"
+#include "Misc/ScopedSlowTask.h"
+#include "ScopedTransaction.h"
 
 /** A helper class for Replacing Variable references in blueprints */
 struct FReplaceNodeReferencesHelper : FTickableEditorObject
