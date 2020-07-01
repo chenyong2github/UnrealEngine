@@ -1278,6 +1278,41 @@ void FChaosEngineInterface::ReleaseActor(FPhysicsActorHandle& Handle,FChaosScene
 	Handle = nullptr;
 }
 
+
+FChaosScene* FChaosEngineInterface::GetCurrentScene(const FPhysicsActorHandle& InHandle)
+{
+	if(!InHandle)
+	{
+		UE_LOG(LogChaos,Warning,TEXT("Attempting to get the current scene for a null handle."));
+		CHAOS_ENSURE(false);
+		return nullptr;
+	}
+
+	if(IPhysicsProxyBase* Proxy = InHandle->GetProxy())
+	{
+		Chaos::FPBDRigidsSolver* Solver = Proxy->GetSolver<Chaos::FPBDRigidsSolver>();
+		return static_cast<FChaosScene*>(Solver ? Solver->PhysSceneHack : nullptr);
+	}
+	return nullptr;
+}
+
+void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake)
+{
+	InActorReference->SetX(InNewPose.GetLocation());
+	InActorReference->SetR(InNewPose.GetRotation());
+	InActorReference->UpdateShapeBounds();
+
+	FChaosScene* Scene = GetCurrentScene(InActorReference);
+	Scene->UpdateActorInAccelerationStructure(InActorReference);
+}
+
+void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
+{
+	// #todo : Implement
+	//for now just use global pose
+	FChaosEngineInterface::SetGlobalPose_AssumesLocked(InActorReference,InNewTarget);
+}
+
 #elif WITH_ENGINE //temp physx code to make moving out of engine easier
 
 #include "PhysXSupportCore.h"
