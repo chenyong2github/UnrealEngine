@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Globalization;
@@ -119,7 +120,8 @@ namespace Turnkey
 				// All platforms means to install every platform with an installer
 				if (PlatformChoice == PlatformOptions.Count)
 				{
-					Platforms = PossiblePlatforms;
+					// HACK UNTIL WIN32 IS GONE
+					Platforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32).ToList();
 				}
 				else
 				{
@@ -128,7 +130,8 @@ namespace Turnkey
 			}
 			else if (PlatformString == "All")
 			{
-				Platforms = PossiblePlatforms;
+				// HACK UNTIL WIN32 IS GONE
+				Platforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32).ToList();
 			}
 			else
 			{
@@ -297,7 +300,7 @@ namespace Turnkey
 
 				// convert inputs to uint (unless already converted above by platform)
 				UInt64 ValueInt = 0;
-				if (!TryConvertToUint64(Value, out ValueInt) && !UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).TryConvertVersionToInt(Value, out ValueInt))
+				if (!TryConvertToUint64(Value, out ValueInt) && !UEBuildPlatformSDK.GetSDKForPlatform(Platform.PlatformType.ToString()).TryConvertVersionToInt(Value, out ValueInt))
 				{
 					TurnkeyUtils.Log("Warning: range: input value [{0}] was not an unsigned integer, and platform couldn't convert it", Value);
 					return false;

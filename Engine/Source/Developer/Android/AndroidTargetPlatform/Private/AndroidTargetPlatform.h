@@ -226,18 +226,6 @@ public:
 		InStringKeys.Add(TEXT("NDKAPILevel"));
 	}
 
-	DECLARE_DERIVED_EVENT(FAndroidTargetPlatform, ITargetPlatform::FOnTargetDeviceDiscovered, FOnTargetDeviceDiscovered);
-	virtual FOnTargetDeviceDiscovered& OnDeviceDiscovered( ) override
-	{
-		return DeviceDiscoveredEvent;
-	}
-
-	DECLARE_DERIVED_EVENT(FAndroidTargetPlatform, ITargetPlatform::FOnTargetDeviceLost, FOnTargetDeviceLost);
-	virtual FOnTargetDeviceLost& OnDeviceLost( ) override
-	{
-		return DeviceLostEvent;
-	}
-
 	virtual bool ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const override;
 	//~ End ITargetPlatform Interface
 
@@ -311,12 +299,6 @@ protected:
 
 	ITargetDevicePtr DefaultDevice;
 #endif //WITH_ENGINE
-
-	// Holds an event delegate that is executed when a new target device has been discovered.
-	FOnTargetDeviceDiscovered DeviceDiscoveredEvent;
-
-	// Holds an event delegate that is executed when a target device has been lost, i.e. disconnected or timed out.
-	FOnTargetDeviceLost DeviceLostEvent;
 };
 
 

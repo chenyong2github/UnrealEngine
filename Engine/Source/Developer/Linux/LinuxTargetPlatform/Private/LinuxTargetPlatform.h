@@ -109,7 +109,7 @@ public:
 			Device->SetUserCredentials(Username, Password);
 		}
 
-		DeviceDiscoveredEvent.Broadcast(Device.ToSharedRef());
+		this->OnDeviceDiscovered().Broadcast(Device.ToSharedRef());
 		return true;
 	}
 
@@ -218,7 +218,7 @@ public:
 		int32 ReadyToBuild = TSuper::CheckRequirements(bProjectHasCode, Configuration, bRequiresAssetNativization, OutTutorialPath, OutDocumentationPath, CustomizedLogMessage);
 
 		// do not support code/plugins in Installed builds if the required libs aren't bundled (on Windows/Mac)
-		if (!PLATFORM_LINUX && !FInstalledPlatformInfo::Get().IsValidPlatform(TSuper::GetPlatformInfo().BinaryFolderName, EProjectType::Code))
+		if (!PLATFORM_LINUX && !FInstalledPlatformInfo::Get().IsValidPlatform(TSuper::GetPlatformInfo().UBTPlatformString, EProjectType::Code))
 		{
 			if (bProjectHasCode)
 			{
@@ -388,18 +388,6 @@ public:
 		return TProperties::GetVariantPriority();
 	}
 
-	DECLARE_DERIVED_EVENT(TLinuxTargetPlatform, ITargetPlatform::FOnTargetDeviceDiscovered, FOnTargetDeviceDiscovered);
-	virtual FOnTargetDeviceDiscovered& OnDeviceDiscovered( ) override
-	{
-		return DeviceDiscoveredEvent;
-	}
-
-	DECLARE_DERIVED_EVENT(TLinuxTargetPlatform, ITargetPlatform::FOnTargetDeviceLost, FOnTargetDeviceLost);
-	virtual FOnTargetDeviceLost& OnDeviceLost( ) override
-	{
-		return DeviceLostEvent;
-	}
-
 	//~ End ITargetPlatform Interface
 
 protected:
@@ -520,14 +508,6 @@ protected:
 	// True if the project requires encoded HDR reflection captures
 	bool bRequiresEncodedHDRReflectionCaptures;
 #endif // WITH_ENGINE
-
-private:
-
-	// Holds an event delegate that is executed when a new target device has been discovered.
-	FOnTargetDeviceDiscovered DeviceDiscoveredEvent;
-
-	// Holds an event delegate that is executed when a target device has been lost, i.e. disconnected or timed out.
-	FOnTargetDeviceLost DeviceLostEvent;
 };
 
 #undef LOCTEXT_NAMESPACE

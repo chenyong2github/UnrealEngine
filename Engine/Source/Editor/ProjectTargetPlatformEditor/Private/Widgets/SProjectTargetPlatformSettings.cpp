@@ -22,27 +22,27 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 {
 	// Create and sort a list of vanilla platforms that are game targets (sort by display name)
 	// We show all of the platforms regardless of whether we have an SDK installed for them or not
-	for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+	for(const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 	{
-		if(PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == EBuildTargetType::Game)
+		if(PlatformInfo->IsVanilla() && PlatformInfo->PlatformType == EBuildTargetType::Game)
 		{
-			AvailablePlatforms.Add(&PlatformInfo);
+			AvailablePlatforms.Add(PlatformInfo);
 		}
 	}
 
-	AvailablePlatforms.Sort([](const PlatformInfo::FPlatformInfo& One, const PlatformInfo::FPlatformInfo& Two) -> bool
+	AvailablePlatforms.Sort([](const PlatformInfo::FTargetPlatformInfo& One, const PlatformInfo::FTargetPlatformInfo& Two) -> bool
 	{
 		return One.DisplayName.CompareTo(Two.DisplayName) < 0;
 	});
 
 	// Generate a widget for each platform
 	TSharedRef<SVerticalBox> PlatformsListBox = SNew(SVerticalBox);
-	for(const PlatformInfo::FPlatformInfo* AvailablePlatform : AvailablePlatforms)
+	for(const PlatformInfo::FTargetPlatformInfo* AvailablePlatform : AvailablePlatforms)
 	{
 		PlatformsListBox->AddSlot()
 		.AutoHeight()
 		[
-			MakePlatformRow(AvailablePlatform->DisplayName, AvailablePlatform->PlatformInfoName, FEditorStyle::GetBrush(AvailablePlatform->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)))
+			MakePlatformRow(AvailablePlatform->DisplayName, AvailablePlatform->PlatformInfoName, FEditorStyle::GetBrush(AvailablePlatform->GetIconStyleName(EPlatformIconSize::Normal)))
 		];
 	}
 
@@ -187,7 +187,7 @@ void SProjectTargetPlatformSettings::HandlePlatformCheckBoxStateChanged(ECheckBo
 		else
 		{
 			// We've deselected "All Platforms", so manually select every available platform
-			for(const PlatformInfo::FPlatformInfo* AvailablePlatform : AvailablePlatforms)
+			for(const PlatformInfo::FTargetPlatformInfo* AvailablePlatform : AvailablePlatforms)
 			{
 				FGameProjectGenerationModule::Get().UpdateSupportedTargetPlatforms(AvailablePlatform->TargetPlatformName, true);
 			}

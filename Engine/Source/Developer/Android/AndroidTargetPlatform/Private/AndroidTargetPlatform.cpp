@@ -755,7 +755,7 @@ bool FAndroidTargetPlatform::HandleTicker( float DeltaTime )
 				TestDevice->SetConnected(false);
 				Devices.Remove(DeviceIt.Key());
 
-				DeviceLostEvent.Broadcast(TestDevice.ToSharedRef());
+				OnDeviceLost().Broadcast(TestDevice.ToSharedRef());
 			}
 
 			// check if this platform is supported by the extensions and version
@@ -775,7 +775,7 @@ bool FAndroidTargetPlatform::HandleTicker( float DeltaTime )
 			Device->SetAuthorized(DeviceInfo.bAuthorizedDevice);
 			Device->SetVersions(DeviceInfo.SDKVersion, DeviceInfo.HumanAndroidVersion);
 
-			DeviceDiscoveredEvent.Broadcast(Device.ToSharedRef());
+			OnDeviceDiscovered().Broadcast(Device.ToSharedRef());
 		}
 	}
 
@@ -789,7 +789,7 @@ bool FAndroidTargetPlatform::HandleTicker( float DeltaTime )
 
 			Iter.RemoveCurrent();
 
-			DeviceLostEvent.Broadcast(RemovedDevice.ToSharedRef());
+			OnDeviceLost().Broadcast(RemovedDevice.ToSharedRef());
 		}
 	}
 

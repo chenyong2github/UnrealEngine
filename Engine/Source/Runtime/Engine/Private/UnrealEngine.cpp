@@ -16277,7 +16277,7 @@ void UEngine::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChang
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const
+bool UEngine::GetPreviewPlatformName(FName& PlatformName) const
 {
 	// Support returning "Mobile" when started with -featureleveles31 etc
 
@@ -16294,8 +16294,8 @@ bool UEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPla
 
 	if (bCachedMobile)
 	{
-		PlatformGroupName = NAME_Mobile;
-		PlatformGroupName = NAME_None;
+		// the editor uses a real platform - this is unlikely tyo actually be called, but the code does technically handle using a group name as a platform name
+		PlatformName = NAME_Mobile;
 		return true;
 	}
 	else

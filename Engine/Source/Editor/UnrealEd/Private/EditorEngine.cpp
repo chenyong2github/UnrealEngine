@@ -7675,14 +7675,12 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->PostEditChange();
 }
 
-bool UEditorEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const
+bool UEditorEngine::GetPreviewPlatformName(FName& PlatformName) const
 {
-	FName PlatformName = PreviewPlatform.GetEffectivePreviewPlatformName();
-	const PlatformInfo::FPlatformInfo* PlatInfo;
-	if (PlatformName != NAME_None && (PlatInfo = PlatformInfo::FindPlatformInfo(PlatformName)) != nullptr)
+	FName PreviewPlatformName = PreviewPlatform.GetEffectivePreviewPlatformName();
+	if (PreviewPlatformName != NAME_None)
 	{
-		VanillaPlatformName = PlatInfo->VanillaPlatformName;
-		PlatformGroupName = PlatInfo->PlatformGroupName;
+		PlatformName = PreviewPlatformName;
 		return true;
 	}
 

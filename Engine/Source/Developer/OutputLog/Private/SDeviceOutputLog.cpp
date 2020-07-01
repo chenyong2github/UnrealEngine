@@ -104,19 +104,11 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 	bIsUserScrolled = false;
 	RequestForceScroll();
 	
-	//
-	TArray<ITargetPlatform*> Platforms = GetTargetPlatformManager()->GetTargetPlatforms();
-	for (ITargetPlatform* Platform : Platforms)
-	{
-		if (IsSupportedPlatform(Platform))
-		{
-			Platform->OnDeviceDiscovered().AddRaw(this, &SDeviceOutputLog::HandleTargetPlatformDeviceDiscovered);
-			Platform->OnDeviceLost().AddRaw(this, &SDeviceOutputLog::HandleTargetPlatformDeviceLost);
-		}
-	}
+	ITargetPlatform::OnDeviceDiscovered().AddRaw(this, &SDeviceOutputLog::HandleTargetPlatformDeviceDiscovered);
+	ITargetPlatform::OnDeviceLost().AddRaw(this, &SDeviceOutputLog::HandleTargetPlatformDeviceLost);
 		
 	// Get list of available devices
-	for (ITargetPlatform* Platform : Platforms)
+	for (ITargetPlatform* Platform : GetTargetPlatformManager()->GetTargetPlatforms())
 	{
 		if (IsSupportedPlatform(Platform))
 		{
@@ -136,17 +128,8 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 
 SDeviceOutputLog::~SDeviceOutputLog()
 {
-	ITargetPlatformManagerModule* Module = FModuleManager::GetModulePtr<ITargetPlatformManagerModule>("TargetPlatform");
-	if (Module)
-	{
-		TArray<ITargetPlatform*> Platforms = Module->GetTargetPlatforms();
-		for (ITargetPlatform* Platform : Platforms)
-		{
-			Platform->OnDeviceDiscovered().RemoveAll(this);
-			Platform->OnDeviceLost().RemoveAll(this);
-		}
-	}
-	CurrentDeviceOutputPtr.Reset();
+	ITargetPlatform::OnDeviceDiscovered().RemoveAll(this);
+	ITargetPlatform::OnDeviceLost().RemoveAll(this);
 }
 
 void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

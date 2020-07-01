@@ -695,7 +695,7 @@ public:
 				{
 					// Get the target we're building for
 					const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(TargetPlatformName);
-					const PlatformInfo::FPlatformInfo& PlatformInfo = TargetPlatform->GetPlatformInfo();
+					const PlatformInfo::FTargetPlatformInfo& PlatformInfo = TargetPlatform->GetTargetPlatformInfo();
 
 					// Figure out which target we're building
 					FString ReceiptDir;
@@ -725,7 +725,7 @@ public:
 					}
 
 					// Check if the existing target is valid
-					FString BuildPlatform = PlatformInfo.UBTTargetId.ToString();
+					FString BuildPlatform = PlatformInfo.DataDrivenPlatformInfo->UBTPlatformString;
 					if (!HasPromotedTarget(*ReceiptDir, *TargetName, *BuildPlatform, BuildConfiguration, nullptr))
 					{
 						break;
@@ -1642,7 +1642,7 @@ public:
 		for (int32 PlatformIndex = 0; PlatformIndex < InPlatforms.Num(); ++PlatformIndex)
 		{
 			// Platform info for the given platform
-			const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*InPlatforms[PlatformIndex]));
+			const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*InPlatforms[PlatformIndex]));
 			if (PlatformInfo == nullptr)
 			{
 				return false;
@@ -1693,7 +1693,7 @@ public:
 				OptionalParams += PlatformInfo->UATCommandLine;
 			}
 
-			bUATClosesAfterLaunch |= PlatformInfo->bUATClosesAfterLaunch;
+			bUATClosesAfterLaunch |= PlatformInfo->DataDrivenPlatformInfo->bUATClosesAfterLaunch;
 		}
 		return bUATClosesAfterLaunch;
 	}

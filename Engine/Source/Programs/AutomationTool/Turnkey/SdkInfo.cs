@@ -190,7 +190,7 @@ namespace Turnkey
 				List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
 				Sdks = Sdks.FindAll(x => x.SupportsPlatform(Platform.IniPlatformType));
 				Sdks = Sdks.FindAll(x => x.Type == Type);
-				Sdks = Sdks.FindAll(x => (x.Version == null && x.CustomSdkId != null) || (Type == SdkType.Flash ? TurnkeyUtils.IsValueValid(Platform.GetAllowedSoftwareVersions(), x.Version, Platform) : SDK.IsVersionValid(x.Version, bForAutoSDK:x.Type==SdkType.AutoSdk)));
+				Sdks = Sdks.FindAll(x => (x.Version == null && x.CustomSdkId != null) || (Type == SdkType.Flash ? TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSoftwareVersions(), Platform) : SDK.IsVersionValid(x.Version, bForAutoSDK:x.Type==SdkType.AutoSdk)));
 				if (DeviceType != null)
 				{
 					Sdks = Sdks.FindAll(x => TurnkeyUtils.IsValueValid(DeviceType, x.AllowedFlashDeviceTypes, Platform));

@@ -36,58 +36,52 @@ public:
 	static void MakeMenu( FMenuBuilder& MenuBuilder )
 	{
 		TArray<FName> AllPlatformSubMenus;
-		const TArray<FString>& ConfidentalPlatforms = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
 
-		TArray<PlatformInfo::FVanillaPlatformEntry> VanillaPlatforms = PlatformInfo::BuildPlatformHierarchy(PlatformInfo::EPlatformFilter::All);
+		TArray<PlatformInfo::FTargetPlatformInfo*> VanillaPlatforms = PlatformInfo::GetVanillaPlatformInfoArray();
 		if (!VanillaPlatforms.Num())
 		{
 			return;
 		}
 
-		VanillaPlatforms.Sort([](const PlatformInfo::FVanillaPlatformEntry& One, const PlatformInfo::FVanillaPlatformEntry& Two) -> bool
+		Algo::Sort(VanillaPlatforms, [](const PlatformInfo::FTargetPlatformInfo* One, const PlatformInfo::FTargetPlatformInfo* Two) -> bool
 		{
-			return One.PlatformInfo->DisplayName.CompareTo(Two.PlatformInfo->DisplayName) < 0;
+			return One->DisplayName.CompareTo(Two->DisplayName) < 0;
 		});
 
 		IProjectTargetPlatformEditorModule& ProjectTargetPlatformEditorModule = FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor");
 		EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
 
 		// Build up a menu from the tree of platforms
-		for (const PlatformInfo::FVanillaPlatformEntry& VanillaPlatform : VanillaPlatforms)
+		for (const PlatformInfo::FTargetPlatformInfo* VanillaPlatform : VanillaPlatforms)
 		{
-			check(VanillaPlatform.PlatformInfo->IsVanilla());
+			check(VanillaPlatform->IsVanilla());
 
 			// Only care about game targets
-			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
-			{
-				continue;
-			}
-
-			// Make sure we're able to run this platform
-			if (VanillaPlatform.PlatformInfo->bIsConfidential && !ConfidentalPlatforms.Contains(VanillaPlatform.PlatformInfo->IniPlatformName))
+			if (VanillaPlatform->PlatformType != EBuildTargetType::Game || !VanillaPlatform->DataDrivenPlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform->DataDrivenPlatformInfo->UBTPlatformString, ProjectType))
 			{
 				continue;
 			}
 
 			// Check if this platform has a submenu entry
-			if (VanillaPlatform.PlatformInfo->PlatformSubMenu != NAME_None)
+			if (VanillaPlatform->DataDrivenPlatformInfo->PlatformSubMenu != NAME_None)
 			{
-				TArray<const PlatformInfo::FPlatformInfo*> SubMenuEntries;
-				const FName& PlatformSubMenu = VanillaPlatform.PlatformInfo->PlatformSubMenu;
+				TArray<const PlatformInfo::FTargetPlatformInfo*> SubMenuEntries;
+				const FName& PlatformSubMenu = VanillaPlatform->DataDrivenPlatformInfo->PlatformSubMenu;
 
 				// Check if we've already added this submenu
 				if (AllPlatformSubMenus.Find(PlatformSubMenu) != INDEX_NONE)
+				{
 					continue;
+				}
+
 				AllPlatformSubMenus.Add(PlatformSubMenu);
 
 				// Go through all vanilla platforms looking for matching submenus
-				for (const PlatformInfo::FVanillaPlatformEntry& SubMenuVanillaPlatform : VanillaPlatforms)
+				for (PlatformInfo::FTargetPlatformInfo* SubMenuVanillaPlatform : VanillaPlatforms)
 				{
-					const PlatformInfo::FPlatformInfo* PlatformInfo = SubMenuVanillaPlatform.PlatformInfo;
-
-					if ((PlatformInfo->PlatformType == EBuildTargetType::Game) && (PlatformInfo->PlatformSubMenu == PlatformSubMenu))
+					if (SubMenuVanillaPlatform->PlatformType == EBuildTargetType::Game && SubMenuVanillaPlatform->DataDrivenPlatformInfo->PlatformSubMenu == PlatformSubMenu)
 					{
-						SubMenuEntries.Add(PlatformInfo);
+						SubMenuEntries.Add(SubMenuVanillaPlatform);
 					}
 				}
 
@@ -96,23 +90,23 @@ public:
 					const FText DisplayName = FText::FromName(PlatformSubMenu);
 
 					MenuBuilder.AddSubMenu(
-							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo, false, DisplayName), 
+							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform, false, DisplayName), 
 							FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::AddPlatformSubPlatformsToMenu, SubMenuEntries),
 							false
 							);
 				}
 			}
-			else if (VanillaPlatform.PlatformFlavors.Num())
+			else if (VanillaPlatform->Flavors.Num())
 			{
 				MenuBuilder.AddSubMenu(
-					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform.PlatformInfo), 
-					FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::AddPlatformSubPlatformsToMenu, VanillaPlatform.PlatformFlavors),
+					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform), 
+					FNewMenuDelegate::CreateStatic(&FPackageProjectMenu::AddPlatformSubPlatformsToMenu, VanillaPlatform->Flavors),
 					false
 					);
 			}
 			else
 			{
-				AddPlatformToMenu(MenuBuilder, *VanillaPlatform.PlatformInfo);
+				AddPlatformToMenu(MenuBuilder, *VanillaPlatform);
 			}
 		}
 
@@ -150,12 +144,12 @@ protected:
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 * @param Platform The target platform we allow packaging for
 	 */
-	static void AddPlatformToMenu(FMenuBuilder& MenuBuilder, const PlatformInfo::FPlatformInfo& PlatformInfo)
+	static void AddPlatformToMenu(FMenuBuilder& MenuBuilder, const PlatformInfo::FTargetPlatformInfo& PlatformInfo)
 	{
 		EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
 
 		// don't add sub-platforms that can't be displayed in an installed build
-		if (!FInstalledPlatformInfo::Get().CanDisplayPlatform(PlatformInfo.BinaryFolderName, ProjectType))
+		if (!FInstalledPlatformInfo::Get().CanDisplayPlatform(PlatformInfo.DataDrivenPlatformInfo->UBTPlatformString, ProjectType))
 		{
 			return;
 		}
@@ -173,7 +167,7 @@ protected:
 		FText Tooltip = FText::Format(LOCTEXT("PackageGameForPlatformTooltip", "Build, cook and package your game for the {DisplayName} platform"), TooltipArguments);
 
 		FProjectStatus ProjectStatus;
-		if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo.VanillaPlatformName))
+		if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo.VanillaInfo->PlatformInfoName))
 		{
 			FText TooltipLine2 = FText::Format(LOCTEXT("PackageUnsupportedPlatformWarning", "{DisplayName} is not listed as a target platform for this project, so may not run as expected."), TooltipArguments);
 			Tooltip = FText::Format(FText::FromString(TEXT("{0}\n\n{1}")), Tooltip, TooltipLine2);
@@ -195,9 +189,9 @@ protected:
 	 * @param MenuBuilderThe builder for the menu that owns this menu.
 	 * @param SubPlatformInfos The Sub-platform information
 	 */
-	static void AddPlatformSubPlatformsToMenu(FMenuBuilder& MenuBuilder, TArray<const PlatformInfo::FPlatformInfo*> SubPlatformInfos)
+	static void AddPlatformSubPlatformsToMenu(FMenuBuilder& MenuBuilder, TArray<const PlatformInfo::FTargetPlatformInfo*> SubPlatformInfos)
 	{
-		for (const PlatformInfo::FPlatformInfo* SubPlatformInfo : SubPlatformInfos)
+		for (const PlatformInfo::FTargetPlatformInfo* SubPlatformInfo : SubPlatformInfos)
 		{
 			if (SubPlatformInfo->PlatformType != EBuildTargetType::Game)
 			{

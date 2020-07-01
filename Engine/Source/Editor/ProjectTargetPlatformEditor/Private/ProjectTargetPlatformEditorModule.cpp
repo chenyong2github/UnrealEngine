@@ -69,7 +69,7 @@ public:
 			);
 	}
 
-	virtual TSharedRef<SWidget> MakePlatformMenuItemWidget(const PlatformInfo::FPlatformInfo& PlatformInfo, const bool bForCheckBox = false, const FText& DisplayNameOverride = FText()) const override
+	virtual TSharedRef<SWidget> MakePlatformMenuItemWidget(const PlatformInfo::FTargetPlatformInfo& PlatformInfo, const bool bForCheckBox = false, const FText& DisplayNameOverride = FText()) const override
 	{
 		struct Local
 		{
@@ -79,6 +79,8 @@ public:
 				return (!IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) || ProjectStatus.IsTargetPlatformSupported(PlatformName)) ? EVisibility::Hidden : EVisibility::Visible;
 			}
 		};
+
+		const float MenuIconSize = FCoreStyle::Get().GetFloat("Menu.MenuIconSize", nullptr, 16.f);
 
 		return 
 			SNew(SHorizontalBox)
@@ -94,24 +96,24 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBox)
-					.WidthOverride(MultiBoxConstants::MenuIconSize)
-					.HeightOverride(MultiBoxConstants::MenuIconSize)
+					.WidthOverride(MenuIconSize)
+					.HeightOverride(MenuIconSize)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)))
+						.Image(FEditorStyle::GetBrush(PlatformInfo.GetIconStyleName(EPlatformIconSize::Normal)))
 					]
 				]
 				+SOverlay::Slot()
-				.Padding(FMargin(MultiBoxConstants::MenuIconSize * 0.5f, 0, 0, 0))
+				.Padding(FMargin(MenuIconSize * 0.5f, 0, 0, 0))
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Bottom)
 				[
 					SNew(SBox)
-					.WidthOverride(MultiBoxConstants::MenuIconSize)
-					.HeightOverride(MultiBoxConstants::MenuIconSize)
+					.WidthOverride(MenuIconSize)
+					.HeightOverride(MenuIconSize)
 					[
 						SNew(SImage)
-						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&Local::IsUnsupportedPlatformWarningVisible, PlatformInfo.VanillaPlatformName)))
+						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&Local::IsUnsupportedPlatformWarningVisible, PlatformInfo.VanillaInfo->PlatformInfoName)))
 						.Image(FEditorStyle::GetBrush("Launcher.Platform.Warning"))
 					]
 				]
@@ -129,12 +131,12 @@ public:
 
 	virtual bool ShowUnsupportedTargetWarning(const FName PlatformName) const override
 	{
-		const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
+		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
 		check(PlatformInfo);
 
 		// Don't show the warning during automation testing; the dlg is modal and blocks
 		FProjectStatus ProjectStatus;
-		if(!GIsAutomationTesting && IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo->VanillaPlatformName))
+		if(!GIsAutomationTesting && IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo->VanillaInfo->PlatformInfoName))
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("DisplayName"), PlatformInfo->DisplayName);

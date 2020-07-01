@@ -200,7 +200,7 @@ bool FTargetPlatformBase::RequiresTempTarget(bool bProjectHasCode, EBuildConfigu
 
 	// check if there's a non-default plugin change
 	FText Reason;
-	if (IPluginManager::Get().RequiresTempTargetForCodePlugin(Project, PlatformInfo->UBTTargetId.ToString(), Configuration, PlatformInfo->PlatformType, Reason))
+	if (IPluginManager::Get().RequiresTempTargetForCodePlugin(Project, GetPlatformInfo().UBTPlatformString, Configuration, PlatformInfo->PlatformType, Reason))
 	{
 		OutReason = Reason;
 		return true;
@@ -232,8 +232,7 @@ bool FTargetPlatformBase::HasDefaultBuildSettings() const
 	BuildKeys.Add(TEXT("bCompileCEF3")); 
 	BuildKeys.Add(TEXT("bCompileCustomSQLitePlatform"));
 
-	const PlatformInfo::FPlatformInfo& PlatInfo = GetPlatformInfo();
-	if (!DoProjectSettingsMatchDefault(PlatInfo.TargetPlatformName.ToString(), TEXT("/Script/BuildSettings.BuildSettings"), &BuildKeys, nullptr, nullptr))
+	if (!DoProjectSettingsMatchDefault(IniPlatformName(), TEXT("/Script/BuildSettings.BuildSettings"), &BuildKeys, nullptr, nullptr))
 	{
 		return false;
 	}
@@ -241,7 +240,7 @@ bool FTargetPlatformBase::HasDefaultBuildSettings() const
 	FString PlatformSection;
 	GetBuildProjectSettingKeys(PlatformSection, BoolKeys, IntKeys, StringKeys);
 
-	if(!DoProjectSettingsMatchDefault(PlatInfo.TargetPlatformName.ToString(), PlatformSection, &BoolKeys, &IntKeys, &StringKeys))
+	if(!DoProjectSettingsMatchDefault(IniPlatformName(), PlatformSection, &BoolKeys, &IntKeys, &StringKeys))
 	{
 		return false;
 	}

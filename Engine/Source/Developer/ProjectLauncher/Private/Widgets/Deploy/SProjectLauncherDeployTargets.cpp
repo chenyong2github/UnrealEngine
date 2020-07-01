@@ -134,17 +134,12 @@ void SProjectLauncherDeployTargets::Construct(const FArguments& InArgs, const TS
 	VanillaNames.Add(NAME_None);
 	VanillaPlatformList.Add(MakeShareable(new FName(NAME_None)));
 
-	TArray<ITargetPlatform*> Platforms = GetTargetPlatformManager()->GetTargetPlatforms();
-	if (Platforms.Num() > 0)
+	for (FName VanillaName : PlatformInfo::GetAllVanillaPlatformNames())
 	{
-		for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
+		if (!VanillaNames.Contains(VanillaName))
 		{
-			FName VanillaName = Platforms[PlatformIndex]->GetPlatformInfo().VanillaPlatformName;
-			if (!VanillaNames.Contains(VanillaName))
-			{
-				VanillaNames.Add(VanillaName);
-				VanillaPlatformList.AddUnique(MakeShareable(new FName(VanillaName)));
-			}
+			VanillaNames.Add(VanillaName);
+			VanillaPlatformList.AddUnique(MakeShareable(new FName(VanillaName)));
 		}
 	}
 

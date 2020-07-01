@@ -28,13 +28,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
+// AutoSDKs needs the extra DDPI info
+#define AUTOSDKS_ENABLED DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
-// autosdks only function properly on windows right now.
-#if !IS_MONOLITHIC && (PLATFORM_WINDOWS)
-	#define AUTOSDKS_ENABLED 1
-#else
-	#define AUTOSDKS_ENABLED 0
-#endif
 
 static const size_t MaxPlatformCount = 64;		// In the unlikely event that someone bumps this please note that there's
 												// an implicit assumption that there won't be more than 64 unique target
@@ -45,8 +41,7 @@ static const ITargetPlatform* TargetPlatformArray[MaxPlatformCount];
 
 static int32 PlatformCounter = 0;
 
-int32 
-ITargetPlatform::AssignPlatformOrdinal(const ITargetPlatform& Platform)
+int32 ITargetPlatform::AssignPlatformOrdinal(const ITargetPlatform& Platform)
 {
 	check(PlatformCounter < MaxPlatformCount);
 
@@ -58,12 +53,23 @@ ITargetPlatform::AssignPlatformOrdinal(const ITargetPlatform& Platform)
 	return Ordinal;
 }
 
-const ITargetPlatform* 
-ITargetPlatform::GetPlatformFromOrdinal(int32 Ordinal)
+const ITargetPlatform* ITargetPlatform::GetPlatformFromOrdinal(int32 Ordinal)
 {
 	check(Ordinal < PlatformCounter);
 
 	return TargetPlatformArray[Ordinal];
+}
+
+ITargetPlatform::FOnTargetDeviceDiscovered& ITargetPlatform::OnDeviceDiscovered()
+{
+	static FOnTargetDeviceDiscovered Delegate;
+	return Delegate;
+}
+
+ITargetPlatform::FOnTargetDeviceLost& ITargetPlatform::OnDeviceLost()
+{
+	static FOnTargetDeviceLost Delegate;
+	return Delegate;
 }
 
 
@@ -103,11 +109,11 @@ public:
 
 			// we have to setup our local environment according to AutoSDKs or the ITargetPlatform's IsSDkInstalled calls may fail
 			// before we get a change to setup for a given platform.  Use the platforminfo list to avoid any kind of interdependency.
-			for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+			for (auto Pair: FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 			{
-				if (PlatformInfo.AutoSDKPath.Len() > 0)
+				if (Pair.Value.AutoSDKPath.Len() > 0)
 				{
-					SetupAndValidateAutoSDK(PlatformInfo.AutoSDKPath);
+					SetupAndValidateAutoSDK(Pair.Value.AutoSDKPath);
 				}
 			}
 		}
@@ -634,6 +640,64 @@ protected:
 		return false;
 	}
 
+	bool InitializeSinglePlatform(const FString& PlatformName, const FDataDrivenPlatformInfo& Info)
+	{
+		// disabled?
+		if (Info.bEnabledForUse == false)
+		{
+			return false;
+		}
+
+		// there are two ways targetplatform modules are setup: a single DLL per TargetPlatform, or a DLL for the platform
+		// that returns multiple TargetPlatforms. we try single first, then full platform
+		FName PlatformModuleName = *(PlatformName + TEXT("TargetPlatform"));
+
+		ITargetPlatformModule* Module = nullptr;
+
+		if (FModuleManager::Get().ModuleExists(*PlatformModuleName.ToString()))
+		{
+			Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(PlatformModuleName);
+		}
+
+		// original logic for module loading here
+		if (Module)
+		{
+			// would like to move this check to GetActiveTargetPlatforms, but too many things cache this result
+			// this setup will become faster after TTP 341897 is complete.
+		RETRY_SETUPANDVALIDATE:
+			if (SetupAndValidateAutoSDK(Info.AutoSDKPath))
+			{
+				TArray<ITargetPlatform*> TargetPlatforms = Module->GetTargetPlatforms();
+				for (ITargetPlatform* Platform : TargetPlatforms)
+				{
+					UE_LOG(LogTargetPlatformManager, Display, TEXT("Loaded TargetPlatform '%s'"), *Platform->PlatformName());
+					Platforms.Add(Platform);
+					PlatformsByName.Add(FName(Platform->PlatformName()), Platform);
+				}
+
+				// only success path
+				return true;
+			}
+			else
+			{
+				// this hack is here because if you try and setup and validate autosdk some times it will fail because shared files are in use by another child cooker
+				static bool bIsChildCooker = FParse::Param(FCommandLine::Get(), TEXT("cookchild"));
+				if (bIsChildCooker)
+				{
+					static int Counter = 0;
+					++Counter;
+					if (Counter < 10)
+					{
+						goto RETRY_SETUPANDVALIDATE;
+					}
+				}
+				UE_LOG(LogTargetPlatformManager, Display, TEXT("Failed to SetupAndValidateAutoSDK for platform '%s'"), *PlatformName);
+			}
+		}
+
+		return false;
+	}
+
 	/** Discovers the available target platforms. */
 	void DiscoverAvailablePlatforms()
 	{
@@ -656,97 +720,29 @@ protected:
 
 		// find a set of valid target platform names (the platform DataDrivenPlatformInfo.ini file was found indicates support for the platform 
 		// exists on disk, so the TP is expected to work)
-		const TArray<PlatformInfo::FPlatformInfo>& PlatformInfos = PlatformInfo::GetPlatformInfoArray();
+		const TArray<PlatformInfo::FTargetPlatformInfo*>& PlatformInfos = PlatformInfo::GetPlatformInfoArray();
 
-		TSet<ITargetPlatformModule*> ProcessedModules;
 		FScopedSlowTask SlowTask(PlatformInfos.Num());
-		for (const PlatformInfo::FPlatformInfo& PlatInfo : PlatformInfos)
+		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
+			const FString& PlatformName = Pair.Key;
+			const FDataDrivenPlatformInfo& Info = Pair.Value;
+
 			SlowTask.EnterProgressFrame(1);
-
-			// by defaulty load all PIs we can have
-			bool bLoadTargetPlatform = true;
-
-			// disabled?
-			if (PlatInfo.bEnabledForUse == false)
-			{
-				bLoadTargetPlatform = false;
-			}
 
 #if WITH_EDITOR
 			// if we have the editor and we are using -game
 			// only need to instantiate the current platform 
 			if (IsRunningGame())
 			{
-				if (PlatInfo.IniPlatformName != FPlatformProperties::IniPlatformName())
+				if (PlatformName != FPlatformProperties::IniPlatformName())
 				{
-					bLoadTargetPlatform = false;
+					continue;
 				}
 			}
 #endif
 
-			// now load the TP module
-			if (bLoadTargetPlatform)
-			{
-				// there are two ways targetplatform modules are setup: a single DLL per TargetPlatform, or a DLL for the platform
-				// that returns multiple TargetPlatforms. we try single first, then full platform
-				FName FullPlatformModuleName = *(PlatInfo.IniPlatformName + TEXT("TargetPlatform"));
-				FName SingleTargetPlatformModuleName = *(PlatInfo.TargetPlatformName.ToString() + TEXT("TargetPlatform"));
-				bool bFullPlatformModuleNameIsValid = !PlatInfo.IniPlatformName.IsEmpty();
-
-				ITargetPlatformModule* Module = nullptr;
-				
-				if (FModuleManager::Get().ModuleExists(*SingleTargetPlatformModuleName.ToString()))
-				{
-					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(SingleTargetPlatformModuleName);
-				}
-				else if (bFullPlatformModuleNameIsValid && FModuleManager::Get().ModuleExists(*FullPlatformModuleName.ToString()))
-				{
-					Module = FModuleManager::LoadModulePtr<ITargetPlatformModule>(FullPlatformModuleName);
-				}
-
-				// if we have already processed this module, we can skip it!
-				if (ProcessedModules.Contains(Module))
-				{
-					continue;
-				}
-
-				// original logic for module loading here
-				if (Module)
-				{
-					ProcessedModules.Add(Module);
-
-					TArray<ITargetPlatform*> TargetPlatforms = Module->GetTargetPlatforms();
-					for (ITargetPlatform* Platform : TargetPlatforms)
-					{
-						// would like to move this check to GetActiveTargetPlatforms, but too many things cache this result
-						// this setup will become faster after TTP 341897 is complete.
-					RETRY_SETUPANDVALIDATE:
-						if (SetupAndValidateAutoSDK(Platform->GetPlatformInfo().AutoSDKPath))
-						{
-							const FString& PlatformName = Platform->PlatformName();
-							UE_LOG(LogTargetPlatformManager, Display, TEXT("Loaded TargetPlatform '%s'"), *PlatformName);
-							Platforms.Add(Platform);
-							PlatformsByName.Add(FName(PlatformName), Platform);
-						}
-						else
-						{
-							// this hack is here because if you try and setup and validate autosdk some times it will fail because shared files are in use by another child cooker
-							static bool bIsChildCooker = FParse::Param(FCommandLine::Get(), TEXT("cookchild"));
-							if (bIsChildCooker)
-							{
-								static int Counter = 0;
-								++Counter;
-								if (Counter < 10)
-								{
-									goto RETRY_SETUPANDVALIDATE;
-								}
-							}
-							UE_LOG(LogTargetPlatformManager, Display, TEXT("Failed to SetupAndValidateAutoSDK for platform '%s'"), *Platform->PlatformName());
-						}
-					}
-				}
-			}
+			InitializeSinglePlatform(PlatformName, Info);
 		}
 
 		if (!Platforms.Num())
@@ -805,7 +801,7 @@ protected:
 #if PLATFORM_WINDOWS
 		FString HostPlatform(TEXT("HostWin64"));
 #else
-#error Fill in your host platform directory
+		FString HostPlatform = FString::Printf(TEXT("Host%hs"), FPlatformProperties::IniPlatformName());
 #endif		
 
 		static const FString SDKRootEnvFar(TEXT("UE_SDKS_ROOT"));
@@ -987,6 +983,8 @@ protected:
 
 	bool SetupSDKStatus(const FString& TargetPlatforms)
 	{
+		FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+#if 0
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FTargetPlatformManagerModule::SetupSDKStatus" ), STAT_FTargetPlatformManagerModule_SetupSDKStatus, STATGROUP_TargetPlatform );
 
 		// run UBT with -validate -allplatforms and read the output
@@ -1074,7 +1072,52 @@ protected:
 				}
 			}
 		}
+#endif
 		return true;
+	}
+
+	bool UpdateAfterSDKInstall(const FString& PlatformName)
+	{
+		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+
+		FString AutoSDKPath = Info.AutoSDKPath;
+		FName AutoSDKName(*AutoSDKPath);
+		if (AutoSDKName != NAME_None)
+		{
+			// make sure we can re-do the AutoSDK setup
+			PlatformsSetup.Remove(AutoSDKName);
+		}
+
+		// note: this assumes, along with other Turnkey code, that there is a TargetPlatform named with the IniPlatformName
+		ITargetPlatform* TargetPlatform = FindTargetPlatform(PlatformName);
+
+		bool bTPInitialized = false;
+		// if we didn't have a TP before, discover it now, it will do everything we need)
+		if (TargetPlatform == nullptr)
+		{
+			// create the TP(s) that weren't around before due to a bad SDK
+			bTPInitialized = InitializeSinglePlatform(PlatformName, Info);
+		}
+		else
+		{
+			if (AutoSDKName != NAME_None)
+			{
+				// setup AutoSDK, and then re-initialize the TP
+				SetupAndValidateAutoSDK(AutoSDKPath);
+			}
+
+			bTPInitialized = TargetPlatform->InitializeHostPlatform();
+		}
+
+		if (bTPInitialized)
+		{
+			FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+		}
+
+		FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(PlatformName);
+		Invalidate();
+
+		return bTPInitialized;
 	}
 
 private:

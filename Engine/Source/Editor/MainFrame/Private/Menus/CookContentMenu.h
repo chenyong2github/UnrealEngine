@@ -55,7 +55,7 @@ public:
 			check(VanillaPlatform.PlatformInfo->IsVanilla());
 
 			// Only care about game targets
-			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
+			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->UBTPlatformString, ProjectType))
 			{
 				continue;
 			}
@@ -90,12 +90,12 @@ protected:
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 * @param Platform The target platform we allow packaging for
 	 */
-	static void AddPlatformToMenu(FMenuBuilder& MenuBuilder, const PlatformInfo::FPlatformInfo& PlatformInfo)
+	static void AddPlatformToMenu(FMenuBuilder& MenuBuilder, const PlatformInfo::FTargetPlatformInfo& PlatformInfo)
 	{
 		EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
 
 		// don't add sub-platforms that can't be displayed in an installed build
-		if (!FInstalledPlatformInfo::Get().CanDisplayPlatform(PlatformInfo.BinaryFolderName, ProjectType))
+		if (!FInstalledPlatformInfo::Get().CanDisplayPlatform(PlatformInfo.UBTPlatformString, ProjectType))
 		{
 			return;
 		}
@@ -135,9 +135,9 @@ protected:
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 * @param SubPlatformInfos The Sub-platform information
 	 */
-	static void AddPlatformSubPlatformsToMenu(FMenuBuilder& MenuBuilder, TArray<const PlatformInfo::FPlatformInfo*> SubPlatformInfos)
+	static void AddPlatformSubPlatformsToMenu(FMenuBuilder& MenuBuilder, TArray<const PlatformInfo::FTargetPlatformInfo*> SubPlatformInfos)
 	{
-		for (const PlatformInfo::FPlatformInfo* SubPlatformInfo : SubPlatformInfos)
+		for (const PlatformInfo::FTargetPlatformInfo* SubPlatformInfo : SubPlatformInfos)
 		{
 			AddPlatformToMenu(MenuBuilder, *SubPlatformInfo);
 		}

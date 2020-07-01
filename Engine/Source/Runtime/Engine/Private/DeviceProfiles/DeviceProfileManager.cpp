@@ -594,7 +594,7 @@ void UDeviceProfileManager::LoadProfiles()
 				ITargetPlatform* Platform = TargetPlatforms[PlatformIndex];
 
 				// Set TextureLODSettings
-				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(*Platform->GetPlatformInfo().VanillaPlatformName.ToString(), false);
+				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(*Platform->GetTargetPlatformInfo().VanillaInfo->PlatformInfoName.ToString(), false);
 				Platform->RegisterTextureLODSettings(TextureLODSettingsObj);
 			}
 		}

@@ -7,7 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 
-#define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA WITH_EDITOR && !IS_MONOLITHIC
+#define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA (WITH_EDITOR || IS_PROGRAM) && !IS_MONOLITHIC
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
@@ -22,67 +22,213 @@ enum class DDPIPlatformSdkStatus : uint8
 	Error,
 	FlashValid,
 	FlashOutOfDate,
+	// @todo turnkey: add AutoSdkValid and ManualSdkValid, with Valid a Combination of both
+};
+
+
+/** Available icon sizes (see FPlatformIconPaths) */
+enum class EPlatformIconSize : uint8
+{
+	/** Normal sized icon (24x24) */
+	Normal,
+
+	/** Large sized icon (64x64) */
+	Large,
+
+	/** Extra large sized icon (128x128) */
+	XLarge,
+};
+
+
+
+// enum class EPlatformSDKStatus : uint8
+// {
+// 	/** SDK status is unknown */
+// 	Unknown,
+// 
+// 	/** SDK is installed */
+// 	Installed,
+// 
+// 	/** SDK is not installed */
+// 	NotInstalled,
+// };
+
+/** Information about where to find the platform icons (for use by FEditorStyle) */
+struct FPlatformIconPaths
+{
+	FPlatformIconPaths()
+	{
+	}
+
+	FPlatformIconPaths(const FString& InIconPath)
+		: NormalPath(InIconPath)
+		, LargePath(InIconPath)
+		, XLargePath(InIconPath)
+	{
+	}
+
+	FPlatformIconPaths(const FString& InNormalPath, const FString& InLargePath)
+		: NormalPath(InNormalPath)
+		, LargePath(InLargePath)
+		, XLargePath(InLargePath)
+	{
+	}
+
+	FPlatformIconPaths(const FString& InNormalPath, const FString& InLargePath, const FString& InXLargePath)
+		: NormalPath(InNormalPath)
+		, LargePath(InLargePath)
+		, XLargePath(InXLargePath)
+	{
+	}
+
+	FName NormalStyleName;
+	FString NormalPath;
+
+	FName LargeStyleName;
+	FString LargePath;
+
+	FName XLargeStyleName;
+	FString XLargePath;
 };
 
 #endif
 
-
-struct CORE_API FDataDrivenPlatformInfoRegistry
+// Information about a platform loaded from disk
+struct FDataDrivenPlatformInfo
 {
-	// Information about a platform loaded from disk
-	struct FPlatformInfo
-	{
-		// cached list of ini parents
-		TArray<FString> IniParentChain;
+	// cached list of ini parents
+	TArray<FString> IniParentChain;
 
-		// is this platform confidential
-		bool bIsConfidential = false;
+	// is this platform confidential
+	bool bIsConfidential = false;
 
-		// some platforms are here just for IniParentChain needs and are not concrete platforms
-		bool bIsFakePlatform = false;
+	// some platforms are here just for IniParentChain needs and are not concrete platforms
+	bool bIsFakePlatform = false;
 
-		// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
-		FString AudioCompressionSettingsIniSectionName;
+	// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
+	FString AudioCompressionSettingsIniSectionName;
 
-		// list of additonal restricted folders
-		TArray<FString> AdditionalRestrictedFolders;
+	// list of additonal restricted folders
+	TArray<FString> AdditionalRestrictedFolders;
 
-		// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
-		uint32 Freezing_MaxFieldAlignment = 0xffffffff;
-		bool Freezing_b32Bit = false;
-		bool Freezing_bForce64BitMemoryImagePointers = false;
-		bool Freezing_bAlignBases = false;
-		bool Freezing_bWithRayTracing = false;
+	// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
+	uint32 Freezing_MaxFieldAlignment = 0xffffffff;
+	bool Freezing_b32Bit = false;
+	bool Freezing_bForce64BitMemoryImagePointers = false;
+	bool Freezing_bAlignBases = false;
+	bool Freezing_bWithRayTracing = false;
 
-		// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
+	// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
 
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
-		// list of TP names (WindowsNoEditor, etc)
-		TArray<FString> AllTargetPlatformNames;
-		// list of UBT platform names (Win32, Win64, etc)
-		TArray<FString> AllUBTPlatformNames;
 
-		// Information about the validity of using a platform, discovered via Turnkey
-		DDPIPlatformSdkStatus SdkStatus;
-		FString SdkErrorInformation;
+	// Information about the validity of using a platform, discovered via Turnkey
+private:
+	DDPIPlatformSdkStatus SdkStatus;
+public:
+	DDPIPlatformSdkStatus GetSdkStatus(bool bBlockIfQuerying = true) const
+	{
+		check(!(bBlockIfQuerying && SdkStatus == DDPIPlatformSdkStatus::Querying));
+		return SdkStatus;
+	}
+	FString SdkErrorInformation;
 
-		// Get the status of a device, or Unknown if not specified
-		CORE_API DDPIPlatformSdkStatus GetStatusForDeviceId(const FString& DeviceId) const;
-		CORE_API void ClearDeviceStatus();
+	// setting moved from PlatformInfo::FTargetPlatformInfo
+
+
+	/** Information about where to find the platform icons (for use by FEditorStyle) */
+	FPlatformIconPaths IconPaths;
+
+	/** Path under CarefullyRedist for the SDK.  FString so case sensitive platforms don't get messed up by a pre-existing FName of a different casing. */
+	FString AutoSDKPath;
+
+	/** Tutorial path for tutorial to install SDK */
+	FString SDKTutorial;
+
+	/** An identifier to group similar platforms together, such as "Mobile" and "Console". Used for Per-Platform Override Properties. */
+	FName PlatformGroupName;
+
+	/** Submenu name to group similar platforms together in menus, such as "Linux" and "LinuxAArch64".  */
+	FName PlatformSubMenu;
+
+	/** An identifier that corresponds to UBT's UnrealTargetPlatform enum (and by proxy, FGenericPlatformMisc::GetUBTPlatform()), as well as the directory Binaries are placed under */
+	FName UBTPlatformName;
+	FString UBTPlatformString;
+
+	/** Whether or not the platform can use Crash Reporter */
+	bool bCanUseCrashReporter;
+
+	/** Enabled for use */
+	bool bEnabledForUse;
+
+	/** Whether code projects for this platform require the host platform compiler to be installed. Host platforms typically have a SDK status of valid, but they can't necessarily build. */
+	bool bUsesHostCompiler;
+
+	/** Whether UAT closes immediately after launching on this platform, or if it sticks around to read output from the running process */
+	bool bUATClosesAfterLaunch;
+
+	/** Whether or not this editor/program has compiled in support for this platform (by looking for TargetPlatform style DLLs, without loading them) */
+	bool bHasCompiledTargetSupport;
+
+
+
+	// Get the status of a device, or Unknown if not specified
+	CORE_API DDPIPlatformSdkStatus GetStatusForDeviceId(const FString& DeviceId) const;
+	CORE_API void ClearDeviceStatus();
+
+
+	/** Get the icon name (for FEditorStyle) used by the given icon type for this platform */
+	FName GetIconStyleName(const EPlatformIconSize InIconSize) const
+	{
+		switch (InIconSize)
+		{
+		case EPlatformIconSize::Normal:
+			return IconPaths.NormalStyleName;
+		case EPlatformIconSize::Large:
+			return IconPaths.LargeStyleName;
+		case EPlatformIconSize::XLarge:
+			return IconPaths.XLargeStyleName;
+		default:
+			break;
+		}
+		return NAME_None;
+	}
+
+	/** Get the path to the icon on disk (for FEditorStyle) for the given icon type for this platform */
+	const FString& GetIconPath(const EPlatformIconSize InIconSize) const
+	{
+		switch (InIconSize)
+		{
+		case EPlatformIconSize::Normal:
+			return IconPaths.NormalPath;
+		case EPlatformIconSize::Large:
+			return IconPaths.LargePath;
+		case EPlatformIconSize::XLarge:
+			return IconPaths.XLargePath;
+		default:
+			break;
+		}
+		static const FString EmptyString = TEXT("");
+		return EmptyString;
+	}
 
 private:
-		friend FDataDrivenPlatformInfoRegistry;
+	friend struct FDataDrivenPlatformInfoRegistry;
 
-		// Information about the validity of each connected device (by string, discovered by Turnkey)
-		TMap<FString, DDPIPlatformSdkStatus> PerDeviceStatus;
+	// Information about the validity of each connected device (by string, discovered by Turnkey)
+	TMap<FString, DDPIPlatformSdkStatus> PerDeviceStatus;
 #endif
-	};
+};
+
+
+struct CORE_API FDataDrivenPlatformInfoRegistry
+{
 
 	/**
 	* Get the global set of data driven platform information
 	*/
-	static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetAllPlatformInfos();
+	static const TMap<FString, FDataDrivenPlatformInfo>& GetAllPlatformInfos();
 
 	/**
 	 * Gets a set of platform names based on GetAllPlatformInfos, their AdditionalRestrictedFolders, and possibly filtered based on what editor has support compiled for
@@ -94,7 +240,9 @@ private:
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,
 	 * this will return a default constructed FConfigDataDrivenPlatformInfo
 	 */
-	static const FPlatformInfo& GetPlatformInfo(const FString& PlatformName);
+	static const FDataDrivenPlatformInfo& GetPlatformInfo(const FString& PlatformName);
+	static const FDataDrivenPlatformInfo& GetPlatformInfo(FName PlatformName);
+	static const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
 
 	/**
 	 * Gets a list of all known confidential platforms (note these are just the platforms you have access to, so, for example PS4 won't be
@@ -139,13 +287,18 @@ private:
 	 */
 	static void UpdateDeviceSdkStatus(TArray<FString> PlatformDeviceIds);
 
+	/**
+	 * Wipes out cached device status for all devices in a platform (or all platforms if PlatformName is empty)
+	 */
+	static void ClearDeviceStatus(const FString& PlatformName);
+
 private:
-	static FDataDrivenPlatformInfoRegistry::FPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
+	static FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
 
 #endif
 
 
 private:
-	static TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> DataDrivenPlatforms;
+	static TMap<FString, FDataDrivenPlatformInfo> DataDrivenPlatforms;
 };
 

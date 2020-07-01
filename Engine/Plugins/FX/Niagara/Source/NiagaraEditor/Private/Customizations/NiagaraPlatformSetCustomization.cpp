@@ -743,9 +743,9 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	//Top level profile. Look for a platform icon.
 	if (InItem->Profile->Parent == nullptr)
 	{
-		if (const PlatformInfo::FPlatformInfo* Info = PlatformInfo::FindPlatformInfo(*InItem->Profile->DeviceType))
+		if (const PlatformInfo::FTargetPlatformInfo* Info = PlatformInfo::FindPlatformInfo(*InItem->Profile->DeviceType))
 		{
-			const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetBrush(Info->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
+			const FSlateBrush* DeviceProfileTypeIcon = FEditorStyle::GetBrush(Info->GetIconStyleName(EPlatformIconSize::Normal));
 			if (DeviceProfileTypeIcon != FEditorStyle::Get().GetDefaultBrush())
 			{
 				RowContainer->AddSlot()

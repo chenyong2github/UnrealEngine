@@ -427,10 +427,10 @@ private:
 	{
 		if (LaunchProfile.IsValid())
 		{
-			const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
+			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
 			if (PlatformInfo)
 			{
-				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Large));
+				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Large));
 			}
 		}
 		return FStyleDefaults::GetNoBrush();

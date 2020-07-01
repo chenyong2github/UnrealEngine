@@ -133,19 +133,19 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayerNamesValueW
 	}
 
 	// get available platforms
-	TArray<const PlatformInfo::FPlatformInfo*> AvailablePlatforms;
+	TArray<const PlatformInfo::FTargetPlatformInfo*> AvailablePlatforms;
 
-	for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+	for (const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetVanillaPlatformInfoArray())
 	{
-		if (PlatformInfo.IsVanilla() && (PlatformInfo.PlatformType == EBuildTargetType::Game))
+		if (PlatformInfo->PlatformType == EBuildTargetType::Game)
 		{
-			AvailablePlatforms.Add(&PlatformInfo);
+			AvailablePlatforms.Add(PlatformInfo);
 		}
 	}
 
-	AvailablePlatforms.Sort([](const PlatformInfo::FPlatformInfo& One, const PlatformInfo::FPlatformInfo& Two) -> bool
+	Algo::Sort(AvailablePlatforms, [](const PlatformInfo::FTargetPlatformInfo* One, const PlatformInfo::FTargetPlatformInfo* Two) -> bool
 	{
-		return One.DisplayName.CompareTo(Two.DisplayName) < 0;
+		return One->DisplayName.CompareTo(Two->DisplayName) < 0;
 	});
 
 	// build value widget
@@ -153,14 +153,14 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayerNamesValueW
 
 	for (int32 PlatformIndex = 0; PlatformIndex < AvailablePlatforms.Num(); ++PlatformIndex)
 	{
-		const PlatformInfo::FPlatformInfo* Platform = AvailablePlatforms[PlatformIndex];
+		const PlatformInfo::FTargetPlatformInfo* Platform = AvailablePlatforms[PlatformIndex];
 
 		// platform icon
 		PlatformPanel->AddSlot(0, PlatformIndex)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)))
+					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
 			];
 
 		// platform name
@@ -180,13 +180,13 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayerNamesValueW
 					.ButtonContent()
 					[
 						SNew(STextBlock)
-							.Text(this, &FBaseMediaSourceCustomization::HandlePlatformPlayersComboButtonText, Platform->IniPlatformName)
+							.Text(this, &FBaseMediaSourceCustomization::HandlePlatformPlayersComboButtonText, Platform->IniPlatformName.ToString())
 							.ToolTipText(LOCTEXT("PlatformPlayerComboButtonToolTipText", "Choose desired player for this platform"))
 					]
 					.ContentPadding(FMargin(6.0f, 2.0f))
 					.MenuContent()
 					[
-						MakePlatformPlayersMenu(Platform->IniPlatformName, PlayerFactories)
+						MakePlatformPlayersMenu(Platform->IniPlatformName.ToString(), PlayerFactories)
 					]
 			];
 	}

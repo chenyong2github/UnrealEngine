@@ -261,10 +261,10 @@ private:
 	{
 		if (DeviceService.IsValid())
 		{
-			const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(DeviceService->GetDevicePlatformName());
+			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(DeviceService->GetDevicePlatformName());
 			if(PlatformInfo)
 			{
-				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge));
+				return FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::XLarge));
 			}
 		}
 

@@ -739,8 +739,8 @@ void SProfileWizardUI::CacheCookFlavorsList()
 		
 	DLCFlavorList.Empty();
 
-	FVanillaPlatformEntry PlatformEntry = BuildPlatformHierarchy(TargetPlatformName, EPlatformFilter::CookFlavor);
-	for (const FPlatformInfo* PlatformFlaworInfo : PlatformEntry.PlatformFlavors)
+	const PlatformInfo::FTargetPlatformInfo* Info = FindPlatformInfo(TargetPlatformName);
+	for (const FTargetPlatformInfo* PlatformFlaworInfo : Info->Flavors)
 	{
 		DLCFlavorList.Add(MakeShareable(new FString(PlatformFlaworInfo->PlatformInfoName.ToString())));
 	}

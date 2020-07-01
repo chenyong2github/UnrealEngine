@@ -91,7 +91,7 @@ FString FScreenShotManager::GetApprovedFolderForImageWithOptions(const FAutomati
 {
 	// plaform will be something like PS4
 	// RHI = SM5
-	const FDataDrivenPlatformInfoRegistry::FPlatformInfo& PlatInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(MetaData.Platform);
+	const FDataDrivenPlatformInfo& PlatInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(MetaData.Platform);
 
 	bool bUsePlatformPath = PlatInfo.bIsConfidential && (InOptions & EApprovedFolderOptions::UsePlatformFolders) == 0;
 

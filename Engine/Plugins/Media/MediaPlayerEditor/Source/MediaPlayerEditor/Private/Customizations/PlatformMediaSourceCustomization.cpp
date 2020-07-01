@@ -71,25 +71,25 @@ TSharedRef<SWidget> FPlatformMediaSourceCustomization::MakePlatformMediaSourcesV
 	const TArray<IMediaPlayerFactory*>& PlayerFactories = MediaModule->GetPlayerFactories();
 
 	// get available platforms
-	TArray<const PlatformInfo::FPlatformInfo*> AvailablePlatforms;
+	TArray<PlatformInfo::FTargetPlatformInfo*> AvailablePlatforms;
 
-	for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+	for (PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetVanillaPlatformInfoArray())
 	{
-		if (PlatformInfo.IsVanilla() && (PlatformInfo.PlatformType == EBuildTargetType::Game))
+		if (PlatformInfo->PlatformType == EBuildTargetType::Game)
 		{
-			if (PlatformInfo.PlatformInfoName == TEXT("TVOS"))
+			if (PlatformInfo->PlatformInfoName == TEXT("TVOS"))
 			{
 				continue; // tvOS is just iOS for now
 			}
 
-			AvailablePlatforms.Add(&PlatformInfo);
+			AvailablePlatforms.Add(PlatformInfo);
 		}
 	}
 
 	// sort available platforms alphabetically
-	AvailablePlatforms.Sort([](const PlatformInfo::FPlatformInfo& One, const PlatformInfo::FPlatformInfo& Two) -> bool
+	Algo::Sort(AvailablePlatforms, [](const PlatformInfo::FTargetPlatformInfo* One, const PlatformInfo::FTargetPlatformInfo* Two) -> bool
 	{
-		return One.DisplayName.CompareTo(Two.DisplayName) < 0;
+		return One->DisplayName.CompareTo(Two->DisplayName) < 0;
 	});
 
 	// build value widget
@@ -97,14 +97,14 @@ TSharedRef<SWidget> FPlatformMediaSourceCustomization::MakePlatformMediaSourcesV
 
 	for (int32 PlatformIndex = 0; PlatformIndex < AvailablePlatforms.Num(); ++PlatformIndex)
 	{
-		const PlatformInfo::FPlatformInfo* Platform = AvailablePlatforms[PlatformIndex];
+		const PlatformInfo::FTargetPlatformInfo* Platform = AvailablePlatforms[PlatformIndex];
 
 		// platform icon
 		PlatformPanel->AddSlot(0, PlatformIndex)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)))
+					.Image(FEditorStyle::GetBrush(Platform->GetIconStyleName(EPlatformIconSize::Normal)))
 			];
 
 		// platform name
@@ -123,8 +123,8 @@ TSharedRef<SWidget> FPlatformMediaSourceCustomization::MakePlatformMediaSourcesV
 				SNew(SObjectPropertyEntryBox)
 					.AllowedClass(UMediaSource::StaticClass())
 					.AllowClear(true)
-					.ObjectPath(this, &FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxObjectPath, Platform->IniPlatformName)
-					.OnObjectChanged(this, &FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxChanged, Platform->IniPlatformName)
+					.ObjectPath(this, &FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxObjectPath, Platform->IniPlatformName.ToString())
+					.OnObjectChanged(this, &FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxChanged, Platform->IniPlatformName.ToString())
 					.OnShouldFilterAsset(this, &FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxShouldFilterAsset)
 			];
 	}

@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "Interfaces/ITargetDevice.h"
 
+struct FDataDrivenPlatformInfo;
+
 namespace PlatformInfo
 {
 	// Forward declare type from DesktopPlatform rather than add an include dependency to everything using ITargetPlatform
-	struct FPlatformInfo;
+	struct FTargetPlatformInfo;
 }
 
 class IDeviceManagerCustomPlatformWidgetCreator;
@@ -208,9 +210,14 @@ public:
 	virtual bool RequiresTempTarget(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FText& OutReason) const = 0;
 
 	/**
-	 * Returns the information about this platform
+	 * Returns the information about this target platform
 	 */
-	virtual const PlatformInfo::FPlatformInfo& GetPlatformInfo() const = 0;
+	virtual const PlatformInfo::FTargetPlatformInfo& GetTargetPlatformInfo() const = 0;
+
+	/**
+	 * Returns the information about the platform as a whole
+	 */
+	virtual const FDataDrivenPlatformInfo& GetPlatformInfo() const = 0;
 
 	/**
 	 * Gets the platform's INI name (so an offline tool can load the INI for the given target platform).
@@ -608,19 +615,24 @@ public:
 	 */
 	virtual bool CopyFileToTarget(const FString& DeviceId, const FString& HostFilename, const FString& TargetFilename, const TMap<FString,FString>& CustomPlatformData) = 0;
 
+	/**
+	 * Initializes the host platform to support target devices (may be called multiple times after an SDK is installed while running)
+	 */
+	virtual bool InitializeHostPlatform() = 0;
+
 public:
 
 	/**
 	 * Gets an event delegate that is executed when a new target device has been discovered.
 	 */
 	DECLARE_EVENT_OneParam(ITargetPlatform, FOnTargetDeviceDiscovered, ITargetDeviceRef /*DiscoveredDevice*/);
-	virtual FOnTargetDeviceDiscovered& OnDeviceDiscovered() = 0;
+	static TARGETPLATFORM_API FOnTargetDeviceDiscovered& OnDeviceDiscovered();
 
 	/**
 	 * Gets an event delegate that is executed when a target device has been lost, i.e. disconnected or timed out.
 	 */
 	DECLARE_EVENT_OneParam(ITargetPlatform, FOnTargetDeviceLost, ITargetDeviceRef /*LostDevice*/);
-	virtual FOnTargetDeviceLost& OnDeviceLost() = 0;
+	static TARGETPLATFORM_API FOnTargetDeviceLost& OnDeviceLost();
 
 public:
 

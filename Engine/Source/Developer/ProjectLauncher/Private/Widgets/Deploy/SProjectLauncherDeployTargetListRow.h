@@ -271,10 +271,10 @@ private:
 	{
 		if (DeviceProxy->HasVariant(NAME_None))
 		{
-			const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(NAME_None));
+			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(NAME_None));
 			if (PlatformInfo)
 			{
-				FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
+				FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal));
 			}
 		}
 		return FStyleDefaults::GetNoBrush();

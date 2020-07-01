@@ -805,7 +805,7 @@ public:
 	virtual void SetMapBuildCancelled(bool InCancelled) override { /* Intentionally empty. */ }
 	virtual void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString) override;
 	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const override { return DefaultWorldFeatureLevel; }
-	virtual bool GetPreviewPlatformName(FName& PlatformGroupName, FName& VanillaPlatformName) const override;
+	virtual bool GetPreviewPlatformName(FName& PlatformName) const override;
 
 protected:
 	virtual void InitializeObjectReferences() override;

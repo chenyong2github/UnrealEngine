@@ -82,7 +82,7 @@ public:
 		}
 		else if (ColumnName == TEXT("Icon"))
 		{
-			const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(DeviceService->GetDevicePlatformName());
+			const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(DeviceService->GetDevicePlatformName());
 
 			return SNew(SBox)
 				.Padding(FMargin(4.0f, 0.0f))
@@ -90,7 +90,7 @@ public:
 				.HeightOverride(24)
 				[
 					SNew(SImage)
-						.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
+						.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
 				];
 		}
 		else if (ColumnName == TEXT("Name"))

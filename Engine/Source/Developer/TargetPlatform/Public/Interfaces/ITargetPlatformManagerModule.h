@@ -169,6 +169,11 @@ public:
 	 */
 	virtual bool UpdatePlatformEnvironment(const FString& PlatformName, TArray<FString> &Keys, TArray<FString> &Values) = 0;
 
+	/**
+	 * After installing an SDK with Turnkey, this will refresh the TargetPlatform, find devices, etc
+	 */
+	virtual bool UpdateAfterSDKInstall(const FString& TargetPlatformName) = 0;
+
 public:
 
 	/** Virtual destructor. */

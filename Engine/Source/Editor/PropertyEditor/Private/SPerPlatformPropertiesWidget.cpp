@@ -62,7 +62,7 @@ void SPerPlatformPropertiesWidget::ConstructChildren()
 		const TArray<FString> Filters = { TEXT("NoEditor"), TEXT("Client"), TEXT("Server") };
 		for (const FName& PlatformName : VanillaPlatformNameArray)
 		{
-			const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
+			const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
 			FString PlatformNameString = PlatformName.ToString();
 			for ( const FString& Filter : Filters)
 			{
@@ -79,7 +79,7 @@ void SPerPlatformPropertiesWidget::ConstructChildren()
 			if (PlatformNameString.Len() && !PlatformOverrides.Contains(FilteredName))
 			{	
 				BasePlatformNameArray.AddUnique(FilteredName);
-				GroupToPlatform.AddUnique(PlatformInfo->PlatformGroupName, FilteredName);
+				GroupToPlatform.AddUnique(PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName, FilteredName);
 			}
 		}
 

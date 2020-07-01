@@ -34,5 +34,5 @@ private:
 	/** Handle the "enabled" checkbox state being changed for this platform */
 	void HandlePlatformCheckBoxStateChanged(ECheckBoxState InState, const FName PlatformName) const;
 
-	TArray<const PlatformInfo::FPlatformInfo*> AvailablePlatforms;
+	TArray<const PlatformInfo::FTargetPlatformInfo*> AvailablePlatforms;
 };

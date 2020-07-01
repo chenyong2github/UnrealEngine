@@ -153,15 +153,11 @@ bool FTargetDeviceServiceManager::AddTargetDevice(ITargetDevicePtr InDevice)
 
 void FTargetDeviceServiceManager::InitializeTargetPlatforms()
 {
-	TArray<ITargetPlatform*> Platforms = GetTargetPlatformManager()->GetTargetPlatforms();
-
-	for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
+	ITargetPlatform::OnDeviceDiscovered().AddRaw(this, &FTargetDeviceServiceManager::HandleTargetPlatformDeviceDiscovered);
+	ITargetPlatform::OnDeviceLost().AddRaw(this, &FTargetDeviceServiceManager::HandleTargetPlatformDeviceLost);
+	
+	for (ITargetPlatform* Platform : GetTargetPlatformManager()->GetTargetPlatforms())
 	{
-		// set up target platform callbacks
-		ITargetPlatform* Platform = Platforms[PlatformIndex];
-		Platform->OnDeviceDiscovered().AddRaw(this, &FTargetDeviceServiceManager::HandleTargetPlatformDeviceDiscovered);
-		Platform->OnDeviceLost().AddRaw(this, &FTargetDeviceServiceManager::HandleTargetPlatformDeviceLost);
-
 		// add services for existing devices
 		TArray<ITargetDevicePtr> Devices;
 		Platform->GetAllDevices(Devices);
@@ -329,19 +325,8 @@ void FTargetDeviceServiceManager::SaveSettings()
 
 void FTargetDeviceServiceManager::ShutdownTargetPlatforms()
 {
-	ITargetPlatformManagerModule* Module = FModuleManager::GetModulePtr<ITargetPlatformManagerModule>("TargetPlatform");
-	if (Module)
-	{
-		TArray<ITargetPlatform*> Platforms = Module->GetTargetPlatforms();
-
-		for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
-		{
-			// set up target platform callbacks
-			ITargetPlatform* Platform = Platforms[PlatformIndex];
-			Platform->OnDeviceDiscovered().RemoveAll(this);
-			Platform->OnDeviceLost().RemoveAll(this);
-		}
-	}
+	ITargetPlatform::OnDeviceDiscovered().RemoveAll(this);
+	ITargetPlatform::OnDeviceLost().RemoveAll(this);
 }
 
 

@@ -280,8 +280,7 @@ void UTextureLODSettings::GetDownscaleOptions(const UTexture& Texture, const ITa
 		GroupDownscaleOptions = ETextureDownscaleOptions::SimpleAverage;
 	}
 		
-	const PlatformInfo::FPlatformInfo& Info = CurrentPlatform.GetPlatformInfo();
-	Downscale = Texture.Downscale.GetValueForPlatformIdentifiers(Info.PlatformGroupName, Info.VanillaPlatformName);;
+	Downscale = Texture.Downscale.GetValueForPlatform(*CurrentPlatform.IniPlatformName());
 	if (Downscale < 1.f)
 	{
 		// value is not overriden for this texture

@@ -308,60 +308,15 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	for (int32 PlatformIndex = 0; PlatformIndex < InPlatforms.Num(); ++PlatformIndex)
 	{
 		// Platform info for the given platform
-		const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*InPlatforms[PlatformIndex]));
+		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*InPlatforms[PlatformIndex]));
 
 		if (ensure(PlatformInfo))
 		{
-			// switch server and no editor platforms to the proper type
-			if (PlatformInfo->TargetPlatformName == FName("LinuxServer"))
-			{
-				ServerPlatforms += TEXT("+Linux");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64Server"))
-			{
-				ServerPlatforms += TEXT("+LinuxAArch64");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsServer"))
-			{
-				ServerPlatforms += TEXT("+Win64");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("MacServer"))
-			{
-				ServerPlatforms += TEXT("+Mac");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxNoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxClient"))
-			{
-				Platforms += TEXT("+Linux");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxAArch64Client"))
-			{
-				Platforms += TEXT("+LinuxAArch64");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows") || PlatformInfo->TargetPlatformName == FName("WindowsClient"))
-			{
-				Platforms += TEXT("+Win64");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("MacNoEditor") || PlatformInfo->TargetPlatformName == FName("MacClient"))
-			{
-				Platforms += TEXT("+Mac");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("IOSClient"))
-			{
-				Platforms += TEXT("+IOS");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("TVOSClient"))
-			{
-				Platforms += TEXT("+TVOS");
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
-			{
-				Platforms += TEXT("+HoloLens");
-			}
-			else
-			{
-				Platforms += TEXT("+");
-				Platforms += PlatformInfo->UBTTargetId.ToString();
-			}
+			// separate out Server platforms
+			FString& PlatformString = (PlatformInfo->PlatformType == EBuildTargetType::Server) ? ServerPlatforms : Platforms;
+
+			PlatformString += TEXT("+");
+			PlatformString += PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
 
 			// Append any extra UAT flags specified for this platform flavor
 			if (!PlatformInfo->UATCommandLine.IsEmpty())
@@ -385,7 +340,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				OptionalParams += TEXT(" ");
 				OptionalParams += OptionalUATCommandLine;
 			}
-			bUATClosesAfterLaunch |= PlatformInfo->bUATClosesAfterLaunch;
+			bUATClosesAfterLaunch |= PlatformInfo->DataDrivenPlatformInfo->bUATClosesAfterLaunch;
 		}
 	}
 	if (ServerPlatforms.Len() > 0)

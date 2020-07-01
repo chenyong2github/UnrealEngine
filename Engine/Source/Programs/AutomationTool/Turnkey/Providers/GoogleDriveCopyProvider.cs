@@ -163,6 +163,8 @@ namespace Turnkey
 				return null;
 			}
 
+			TurnkeyUtils.Log("Enumerating GoogleDrive spec: {0}", Operation);
+
 			Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>> Output = new Dictionary<string, Tuple<Google.Apis.Drive.v3.Data.File, List<string>>>();
 
 			List<string> ExpansionSet = new List<string>();

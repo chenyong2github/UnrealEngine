@@ -22,8 +22,7 @@ ENGINE_API FArchive& operator<<(FArchive& Ar, TPerPlatformProperty<StructType, V
 		bCooked = true;
 		Ar << bCooked;
 		// Save out platform override if it exists and Default otherwise
-		const PlatformInfo::FPlatformInfo& PlatformInfo = Ar.CookingTarget()->GetPlatformInfo();
-		ValueType Value = Property.GetValueForPlatformIdentifiers(PlatformInfo.PlatformGroupName, PlatformInfo.VanillaPlatformName);
+		ValueType Value = Property.GetValueForPlatform(*Ar.CookingTarget()->IniPlatformName());
 		Ar << Value;
 	}
 	else
@@ -56,7 +55,7 @@ ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<
 		bCooked = true;
 		Record << SA_VALUE(TEXT("bCooked"), bCooked);
 		// Save out platform override if it exists and Default otherwise
-		ValueType Value = Property.GetValueForPlatformIdentifiers(UnderlyingArchive.CookingTarget()->GetPlatformInfo().PlatformGroupName);
+		ValueType Value = Property.GetValueForPlatform(*UnderlyingArchive.CookingTarget()->IniPlatformName());
 		Record << SA_VALUE(TEXT("Value"), Value);
 	}
 	else

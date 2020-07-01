@@ -43,7 +43,7 @@ private:
 	// Callback for getting the icon image of the profile.
 	const FSlateBrush* HandleProfileImage() const
 	{
-		//const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
+		//const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*DeviceProxy->GetTargetPlatformName(SimpleProfile->GetDeviceVariant()));
 		//return (PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Large)) : FStyleDefaults::GetNoBrush();
 		return FEditorStyle::GetBrush("LauncherCommand.QuickLaunch");
 	}

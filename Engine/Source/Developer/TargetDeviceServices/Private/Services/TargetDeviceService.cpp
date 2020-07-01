@@ -87,9 +87,10 @@ void FTargetDeviceService::AddTargetDevice(TSharedPtr<ITargetDevice, ESPMode::Th
 	{
 		// If this seems nasty your right!
 		// This is just one more nastiness in this class due to the fact that we intend to refactor the target platform stuff as a separate task.
-		const PlatformInfo::FPlatformInfo& Info = InDevice->GetTargetPlatform().GetPlatformInfo();
+		const PlatformInfo::FTargetPlatformInfo& Info = InDevice->GetTargetPlatform().GetTargetPlatformInfo();
+		const PlatformInfo::FTargetPlatformInfo* VanillaInfo = Info.VanillaInfo;
+
 		DevicePlatformName = Info.PlatformInfoName;
-		const PlatformInfo::FPlatformInfo* VanillaInfo = PlatformInfo::FindVanillaPlatformInfo(Info.VanillaPlatformName);
 		DevicePlatformDisplayName = VanillaInfo->DisplayName.ToString();
 		
 		// Sigh the hacks... Should be able to remove if platform info gets cleaned up.... Windows doesn't have a reasonable vanilla platform.
@@ -492,7 +493,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 	if (DefaultDevice.IsValid())
 	{
 		const FString& PlatformName = DefaultDevice->GetTargetPlatform().PlatformName();
-		const PlatformInfo::FPlatformInfo* VanillaInfo = PlatformInfo::FindVanillaPlatformInfo(FName(*PlatformName));
+		const PlatformInfo::FTargetPlatformInfo* VanillaInfo = DefaultDevice->GetTargetPlatform().GetTargetPlatformInfo().VanillaInfo;
 
 		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
 		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServicePong), alignof(FTargetDeviceServicePong));
@@ -517,7 +518,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 
 		// Check if we should also create an aggregate (All_<platform>_devices_on_<host>) proxy
 		Message->Aggregated = DefaultDevice->IsPlatformAggregated();
-		Message->AllDevicesName = DefaultDevice->GetAllDevicesName().IsEmpty() ? VanillaInfo->VanillaPlatformName.ToString() : DefaultDevice->GetAllDevicesName();
+		Message->AllDevicesName = DefaultDevice->GetAllDevicesName().IsEmpty() ? VanillaInfo->PlatformInfoName.ToString() : DefaultDevice->GetAllDevicesName();
 		Message->AllDevicesDefaultVariant = DefaultDevice->GetAllDevicesDefaultVariant().IsNone() ? Message->DefaultVariant : DefaultDevice->GetAllDevicesDefaultVariant();
 
 		// Add the data for all the flavors
@@ -527,7 +528,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 		for (auto TargetDeviceIt = TargetDevicePtrs.CreateIterator(); TargetDeviceIt; ++TargetDeviceIt, ++Index)
 		{
 			const ITargetDevicePtr& TargetDevice = TargetDeviceIt.Value().Pin();
-			const PlatformInfo::FPlatformInfo& Info = TargetDevice->GetTargetPlatform().GetPlatformInfo();
+			const PlatformInfo::FTargetPlatformInfo& Info = TargetDevice->GetTargetPlatform().GetTargetPlatformInfo();
 
 			FTargetDeviceVariant& Variant = Message->Variants[Index];
 
@@ -535,7 +536,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 			Variant.VariantName = TargetDeviceIt.Key();
 			Variant.TargetPlatformName = TargetDevice->GetTargetPlatform().PlatformName();
 			Variant.TargetPlatformId = Info.TargetPlatformName;
-			Variant.VanillaPlatformId = Info.VanillaPlatformName;
+			Variant.VanillaPlatformId = Info.VanillaInfo->PlatformInfoName;
 			Variant.PlatformDisplayName = Info.DisplayName.ToString();
 		}
 

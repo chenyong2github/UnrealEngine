@@ -186,10 +186,10 @@ void UAnimationSharingManager::Initialise(const UAnimationSharingSetup* InSetup)
 #if WITH_EDITOR
 		// Update local copy defaults with current platform value
 		const FName PlatformName = UAnimationSharingManager::GetPlatformName();
-		ScalabilitySettings.UseBlendTransitions = ScalabilitySettings.UseBlendTransitions.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
-		ScalabilitySettings.BlendSignificanceValue = ScalabilitySettings.BlendSignificanceValue.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
-		ScalabilitySettings.MaximumNumberConcurrentBlends = ScalabilitySettings.MaximumNumberConcurrentBlends.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
-		ScalabilitySettings.TickSignificanceValue = ScalabilitySettings.TickSignificanceValue.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
+		ScalabilitySettings.UseBlendTransitions = ScalabilitySettings.UseBlendTransitions.GetValueForPlatform(PlatformName);
+		ScalabilitySettings.BlendSignificanceValue = ScalabilitySettings.BlendSignificanceValue.GetValueForPlatform(PlatformName);
+		ScalabilitySettings.MaximumNumberConcurrentBlends = ScalabilitySettings.MaximumNumberConcurrentBlends.GetValueForPlatform(PlatformName);
+		ScalabilitySettings.TickSignificanceValue = ScalabilitySettings.TickSignificanceValue.GetValueForPlatform(PlatformName);
 #endif
 
 		// Debug materials
@@ -701,8 +701,7 @@ FName UAnimationSharingManager::GetPlatformName()
 	const FString PlatformString = CVarAnimSharing_PreviewScalabilityPlatform.GetValueOnAnyThread();
 	if (PlatformString.IsEmpty())
 	{
-		ITargetPlatform* CurrentPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-		return CurrentPlatform->GetPlatformInfo().PlatformGroupName;
+		return FName(FPlatformProperties::IniPlatformName());
 	}
 
 	FName PlatformNameFromString(*PlatformString);
@@ -862,7 +861,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 	int32 MaximumNumberOfConcurrentInstances = StateEntry.MaximumNumberOfConcurrentInstances.Default;
 #if WITH_EDITOR
 	const FName PlatformName = UAnimationSharingManager::GetPlatformName();
-	MaximumNumberOfConcurrentInstances = StateEntry.MaximumNumberOfConcurrentInstances.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
+	MaximumNumberOfConcurrentInstances = StateEntry.MaximumNumberOfConcurrentInstances.GetValueForPlatform(PlatformName);
 #endif
 
 	/** Ensure that we spread our number over the number of enabled setups */
@@ -874,7 +873,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 			bool bEnabled = AnimationSetup.Enabled.Default;
 #if WITH_EDITOR
 			const FName PlatformName = UAnimationSharingManager::GetPlatformName();
-			bEnabled = AnimationSetup.Enabled.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
+			bEnabled = AnimationSetup.Enabled.GetValueForPlatform(PlatformName);
 #endif
 			TotalEnabled += bEnabled ? 1 : 0;
 		}
@@ -900,7 +899,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 
 		bool bEnabled = AnimationSetup.Enabled.Default;
 #if WITH_EDITOR			
-		bEnabled = AnimationSetup.Enabled.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
+		bEnabled = AnimationSetup.Enabled.GetValueForPlatform(PlatformName);
 #endif
 
 		/** Only create component if the setup is enabled for this platform and we have a valid animation asset */
@@ -908,7 +907,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 		{
 			int32 NumRandomizedInstances = AnimationSetup.NumRandomizedInstances.Default;
 #if WITH_EDITOR			
-			NumRandomizedInstances = AnimationSetup.NumRandomizedInstances.GetValueForPlatformIdentifiers(PlatformName, PlatformName);
+			NumRandomizedInstances = AnimationSetup.NumRandomizedInstances.GetValueForPlatform(PlatformName);
 #endif
 			const uint32 NumInstances = StateEntry.bOnDemand ? NumInstancesPerSetup	: FGenericPlatformMath::Max(NumRandomizedInstances, 1);
 			for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)

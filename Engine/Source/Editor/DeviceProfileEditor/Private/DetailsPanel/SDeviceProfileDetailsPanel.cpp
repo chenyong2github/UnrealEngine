@@ -100,7 +100,7 @@ void SDeviceProfileDetailsPanel::RefreshUI()
 		TArray<ITargetPlatform*> TargetPlatforms = GetTargetPlatformManager()->GetTargetPlatforms();
 		if (TargetPlatforms.Num())
 		{
-			DeviceProfileTypeIcon = FEditorStyle::GetBrush(TargetPlatforms[0]->GetPlatformInfo().GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
+			DeviceProfileTypeIcon = FEditorStyle::GetBrush(TargetPlatforms[0]->GetPlatformInfo().GetIconStyleName(EPlatformIconSize::Normal));
 		}
 
 		SettingsView->SetObject(&*ViewingProfile);

@@ -140,7 +140,7 @@ void FHoloLensTargetPlatform::OnDeviceDetected(const FHoloLensDeviceInfo& Info)
 		FScopeLock Lock(&DevicesLock);
 		Devices.Add(NewDevice);
 	}
-	DeviceDiscoveredEvent.Broadcast(NewDevice.ToSharedRef());
+	OnDeviceDiscovered().Broadcast(NewDevice.ToSharedRef());
 }
 
 bool FHoloLensTargetPlatform::SupportsBuildTarget(EBuildTargetType BuildTarget) const

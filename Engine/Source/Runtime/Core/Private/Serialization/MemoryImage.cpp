@@ -46,7 +46,7 @@ void FPlatformTypeLayoutParameters::InitializeForArchive(FArchive& Ar)
 
 void FPlatformTypeLayoutParameters::InitializeForPlatform(const FString& PlatformName, bool bHasEditorOnlyData)
 {
-	const FDataDrivenPlatformInfoRegistry::FPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
 
 	Flags = Flag_Initialized;
 	if (bHasEditorOnlyData) Flags |= Flag_WithEditorOnly;

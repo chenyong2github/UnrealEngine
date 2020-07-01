@@ -123,23 +123,24 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 		ModuleDesc->LoadingPhase = ELoadingPhase::Default;
 
 		const FName PlatformName = TargetPaths.GetTargetPlatformName();
-		for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+		for (const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			if (PlatformInfo.TargetPlatformName == PlatformName)
+			if (PlatformInfo->TargetPlatformName == PlatformName)
 			{
-				// We use the 'UBTTargetId' because this white-list expects the 
+				// We use the 'UBTPlatformName' because this white-list expects the 
 				// string to correspond to UBT's UnrealTargetPlatform enum (and by proxy, FPlatformMisc::GetUBTPlatform)
-				ModuleDesc->WhitelistPlatforms.AddUnique(PlatformInfo.UBTTargetId.ToString());
+				ModuleDesc->WhitelistPlatforms.AddUnique(PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString);
 
+				FName UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformName;
 				// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
-				const bool bIsClientValidForPlatform = PlatformInfo.UBTTargetId == TEXT("Win32") ||
-					PlatformInfo.UBTTargetId == TEXT("Win64") ||
-					PlatformInfo.UBTTargetId == TEXT("Linux") ||
-					PlatformInfo.UBTTargetId == TEXT("LinuxAArch64") ||
-					PlatformInfo.UBTTargetId == TEXT("Mac");
+				const bool bIsClientValidForPlatform = UBTPlatformName == TEXT("Win32") ||
+					UBTPlatformName == TEXT("Win64") ||
+					UBTPlatformName == TEXT("Linux") ||
+					UBTPlatformName == TEXT("LinuxAArch64") ||
+					UBTPlatformName == TEXT("Mac");
 
 				// should correspond to UnrealBuildTool::TargetType in TargetRules.cs
-				switch (PlatformInfo.PlatformType)
+				switch (PlatformInfo->PlatformType)
 				{
 				case EBuildTargetType::Game:
 					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Game);
@@ -161,7 +162,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 					break;
 
 				case EBuildTargetType::Editor:
-					ensureMsgf(PlatformInfo.PlatformType != EBuildTargetType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
+					ensureMsgf(PlatformInfo->PlatformType != EBuildTargetType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
 					break;
 				};				
 			}

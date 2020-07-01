@@ -12,6 +12,7 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 #include "Containers/Map.h"
 #include "Algo/Find.h"
 #include "Serialization/MemoryLayout.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 #include "Engine/Engine.h"
@@ -29,8 +30,27 @@ struct ENGINE_API TPerPlatformProperty
 	typedef _ValueType ValueType;
 
 #if WITH_EDITOR
+	/** Get the value for the given platform (using standard "ini" name, so Windows, not Win64 or WindowsNoEditor), which can be used to lookup the group */
+	_ValueType GetValueForPlatform(FName PlatformName) const
+	{
+		const _StructType* This = StaticCast<const _StructType*>(this);
+		const _ValueType* Ptr = This->PerPlatform.Find(PlatformName);
+
+		if (Ptr == nullptr)
+		{
+			const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+			if (Info.PlatformGroupName != NAME_None)
+			{
+				Ptr = This->PerPlatform.Find(Info.PlatformGroupName);
+			}
+		}
+
+		return Ptr ? *Ptr : This->Default;
+	}
+
 	/* Return the value */
-	_ValueType GetValueForPlatformIdentifiers(FName PlatformGroupName, FName VanillaPlatformName = NAME_None) const
+	UE_DEPRECATED(5.0, "GetValueForPlatform should now be used, with a single platform name")
+		_ValueType GetValueForPlatformIdentifiers(FName PlatformGroupName, FName VanillaPlatformName = NAME_None) const
 	{
 		const _StructType* This = StaticCast<const _StructType*>(this);
 		
@@ -68,11 +88,12 @@ struct ENGINE_API TPerPlatformProperty
 	_ValueType GetValue() const
 	{
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
-		FName PlatformGroupName, VanillaPlatformName;
+		FName PlatformName;
 		// Lookup the override preview platform info, if any
-		if (GEngine && GEngine->GetPreviewPlatformName(PlatformGroupName, VanillaPlatformName))
+		// @todo this doesn't set PlatformName, just a group, but GetValueForPlatform() will technically work being given a Group name instead of a platform name, so we just use it
+		if (GEngine && GEngine->GetPreviewPlatformName(PlatformName))
 		{
-			return GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+			return GetValueForPlatform(PlatformName);
 		}
 		else		
 #endif

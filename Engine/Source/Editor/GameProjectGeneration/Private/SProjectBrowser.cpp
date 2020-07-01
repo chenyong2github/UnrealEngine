@@ -569,7 +569,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 	TSharedRef<SHorizontalBox> TargetPlatformIconsBox = SNew(SHorizontalBox);
 	for(const FName& PlatformName : ProjectItem->TargetPlatforms)
 	{
-		const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
+		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
 		check(PlatformInfo);
 
 		TargetPlatformIconsBox->AddSlot()
@@ -583,7 +583,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 			.HeightOverride(20)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)))
+				.Image(FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)))
 			]
 		];
 	}
@@ -800,11 +800,11 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 
 			// Work out which platforms this project is targeting
 			TArray<FName> TargetPlatforms;
-			for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
+			for (const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetVanillaPlatformInfoArray())
 			{
-				if (PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == EBuildTargetType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo.PlatformInfoName))
+				if (PlatformInfo->PlatformType == EBuildTargetType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo->PlatformInfoName))
 				{
-					TargetPlatforms.Add(PlatformInfo.PlatformInfoName);
+					TargetPlatforms.Add(PlatformInfo->PlatformInfoName);
 				}
 			}
 			TargetPlatforms.Sort(FNameLexicalLess());

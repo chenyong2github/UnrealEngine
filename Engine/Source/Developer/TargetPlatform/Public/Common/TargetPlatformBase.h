@@ -31,9 +31,14 @@ public:
 		return PlatformInfo->DisplayName;
 	}
 
-	virtual const PlatformInfo::FPlatformInfo& GetPlatformInfo() const override
+	virtual const PlatformInfo::FTargetPlatformInfo& GetTargetPlatformInfo() const override
 	{
 		return *PlatformInfo;
+	}
+
+	virtual const FDataDrivenPlatformInfo& GetPlatformInfo() const override
+	{
+		return *PlatformInfo->DataDrivenPlatformInfo;
 	}
 
 	TARGETPLATFORM_API virtual bool UsesForwardShading() const override;
@@ -168,9 +173,16 @@ public:
 		return false; 
 	}
 
+	virtual bool InitializeHostPlatform()
+	{
+		// if the platform doesn't need anything, it's valid to do nothing
+		return true;
+	}
+
+
 protected:
 
-	FTargetPlatformBase(const PlatformInfo::FPlatformInfo *const InPlatformInfo)
+	FTargetPlatformBase(const PlatformInfo::FTargetPlatformInfo *const InPlatformInfo)
 		: PlatformInfo(InPlatformInfo)
 	{
 		checkf(PlatformInfo, TEXT("Null PlatformInfo was passed to FTargetPlatformBase. Check the static IsUsable function before creating this object. See FWindowsTargetPlatformModule::GetTargetPlatform()"));
@@ -179,7 +191,7 @@ protected:
 	}
 
 	/** Information about this platform */
-	const PlatformInfo::FPlatformInfo *PlatformInfo;
+	const PlatformInfo::FTargetPlatformInfo *PlatformInfo;
 	int32 PlatformOrdinal;
 
 private:

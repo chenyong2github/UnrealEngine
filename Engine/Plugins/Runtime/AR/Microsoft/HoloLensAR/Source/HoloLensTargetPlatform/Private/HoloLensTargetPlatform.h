@@ -104,18 +104,6 @@ public:
 
 #endif //WITH_ENGINE
 
-	DECLARE_DERIVED_EVENT(FHoloLensTargetPlatform, ITargetPlatform::FOnTargetDeviceDiscovered, FOnTargetDeviceDiscovered);
-	virtual FOnTargetDeviceDiscovered& OnDeviceDiscovered( ) override
-	{
-		return DeviceDiscoveredEvent;
-	}
-
-	DECLARE_DERIVED_EVENT(FHoloLensTargetPlatform, ITargetPlatform::FOnTargetDeviceLost, FOnTargetDeviceLost);
-	virtual FOnTargetDeviceLost& OnDeviceLost( ) override
-	{
-		return DeviceLostEvent;
-	}
-
 	virtual EPlatformAuthentication RequiresUserCredentials() const override
 	{
 		return EPlatformAuthentication::Possible;
@@ -172,13 +160,6 @@ private:
 	FStaticMeshLODSettings StaticMeshLODSettings;
 #endif //WITH_ENGINE
 
-private:
-
-	// Holds an event delegate that is executed when a new target device has been discovered.
-	FOnTargetDeviceDiscovered DeviceDiscoveredEvent;
-
-	// Holds an event delegate that is executed when a target device has been lost, i.e. disconnected or timed out.
-	FOnTargetDeviceLost DeviceLostEvent;
 };
 
 

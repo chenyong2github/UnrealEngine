@@ -268,9 +268,7 @@ int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* Targe
 {
 #if WITH_EDITOR
 	check(TargetPlatform && StaticMesh);
-	return StaticMesh->MinLOD.GetValueForPlatformIdentifiers(
-		TargetPlatform->GetPlatformInfo().PlatformGroupName,
-		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	return StaticMesh->MinLOD.GetValueForPlatform(*TargetPlatform->IniPlatformName());
 #else
 	return 0;
 #endif
@@ -353,9 +351,7 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	}
 
 	int32 MaxNumStreamedLODs = 0;
-	const int32 NumStreamedLODsOverride = StaticMesh->NumStreamedLODs.GetValueForPlatformIdentifiers(
-		TargetPlatform->GetPlatformInfo().PlatformGroupName,
-		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	const int32 NumStreamedLODsOverride = StaticMesh->NumStreamedLODs.GetValueForPlatform(*TargetPlatform->IniPlatformName());
 	if (NumStreamedLODsOverride >= 0)
 	{
 		MaxNumStreamedLODs = NumStreamedLODsOverride;
@@ -2300,9 +2296,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 	KeySuffix += TEXT("MNS");
 	if (bAllowLODStreaming)
 	{
-		int32 MaxNumStreamedLODs = Mesh->NumStreamedLODs.GetValueForPlatformIdentifiers(
-			TargetPlatform->GetPlatformInfo().PlatformGroupName,
-			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+		int32 MaxNumStreamedLODs = Mesh->NumStreamedLODs.GetValueForPlatform(*TargetPlatform->IniPlatformName());
 		if (MaxNumStreamedLODs < 0)
 		{
 			MaxNumStreamedLODs = LODGroup.GetDefaultMaxNumStreamedLODs();

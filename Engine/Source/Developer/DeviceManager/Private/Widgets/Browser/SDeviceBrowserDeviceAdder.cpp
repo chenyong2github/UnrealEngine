@@ -61,7 +61,7 @@ void SDeviceBrowserDeviceAdder::Construct(const FArguments& InArgs, const TShare
 
 	// callback for generating widgets for the platforms combo box
 	auto PlatformComboBoxGenerateWidget = [this](TSharedPtr<FString> Item) -> TSharedRef<SWidget> {
-		const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(**Item);
+		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(**Item);
 
 		return
 			SNew(SHorizontalBox)
@@ -75,7 +75,7 @@ void SDeviceBrowserDeviceAdder::Construct(const FArguments& InArgs, const TShare
 						.HeightOverride(24)
 						[
 							SNew(SImage)
-								.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
+								.Image((PlatformInfo) ? FEditorStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())
 						]
 				]
 

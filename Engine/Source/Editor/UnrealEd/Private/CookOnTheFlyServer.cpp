@@ -6653,7 +6653,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		for (const ITargetPlatform* Platform : TargetPlatforms)
 		{
 			FString UBTPlatformName;
-			Platform->GetPlatformInfo().UBTTargetId.ToString(UBTPlatformName);
+			Platform->GetPlatformInfo().UBTPlatformName.ToString(UBTPlatformName);
 			UBTPlatformStrings.Emplace(MoveTemp(UBTPlatformName));
 		}
 
@@ -6721,7 +6721,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
-		for ( const ITargetPlatform* TargetPlatform: TargetPlatforms )
+		for ( const ITargetPlatform* TargetPlatform : TargetPlatforms )
 		{
 			FString PlatformNameString = TargetPlatform->PlatformName();
 			FName PlatformName(*PlatformNameString);
@@ -6738,13 +6738,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 			if (!bSucceeded)
 			{
-				using namespace PlatformInfo;
 				// Check all possible flavors 
 				// For example release version could be cooked as Android_ASTC flavor, but DLC can be made as Android_ETC2
-				FVanillaPlatformEntry VanillaPlatfromEntry = BuildPlatformHierarchy(PlatformName, EPlatformFilter::CookFlavor);
-				for (const FPlatformInfo* PlatformFlaworInfo : VanillaPlatfromEntry.PlatformFlavors)
+				for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavorInfo : TargetPlatform->GetTargetPlatformInfo().Flavors)
 				{
-					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlaworInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
+					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
 					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
 					if (bSucceeded)
 					{
