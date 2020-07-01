@@ -406,8 +406,8 @@ struct AIMODULE_API FAIResourceLock
 	}
 
 private:
-	FLockFlags Locks;
 	TArray<uint8> ResourceLockCount;
+	FLockFlags Locks;
 	bool bUseResourceLockCount;
 };
 
