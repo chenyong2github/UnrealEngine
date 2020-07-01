@@ -85,6 +85,7 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	
 	// The initial value doesn't matter since caching has not yet been computed
 	TempCachingRegisteredClassesVersionNumber = 0;
+	ClassGeneratorNamesRegisteredClassesVersionNumber = 0;
 
 	// Collect all code generator classes (currently BlueprintCore-derived ones)
 	CollectCodeGeneratorClasses();
@@ -452,20 +453,25 @@ void UAssetRegistryImpl::InitializeBlacklistScanFiltersFromIni()
 	}
 }
 
-void UAssetRegistryImpl::CollectCodeGeneratorClasses()
+void UAssetRegistryImpl::CollectCodeGeneratorClasses() const
 {
-	// Work around the fact we don't reference Engine module directly
-	UClass* BlueprintCoreClass = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, TEXT("BlueprintCore")));
-	if (BlueprintCoreClass)
+	// Only refresh the list if our registered classes have changed
+	if (ClassGeneratorNamesRegisteredClassesVersionNumber != GetRegisteredClassesVersionNumber())
 	{
-		ClassGeneratorNames.Add(BlueprintCoreClass->GetFName());
-
-		TArray<UClass*> BlueprintCoreDerivedClasses;
-		GetDerivedClasses(BlueprintCoreClass, BlueprintCoreDerivedClasses);
-		for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
+		// Work around the fact we don't reference Engine module directly
+		UClass* BlueprintCoreClass = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, TEXT("BlueprintCore")));
+		if (BlueprintCoreClass)
 		{
-			ClassGeneratorNames.Add(BPCoreClass->GetFName());
+			ClassGeneratorNames.Add(BlueprintCoreClass->GetFName());
+
+			TArray<UClass*> BlueprintCoreDerivedClasses;
+			GetDerivedClasses(BlueprintCoreClass, BlueprintCoreDerivedClasses);
+			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
+			{
+				ClassGeneratorNames.Add(BPCoreClass->GetFName());
+			}
 		}
+		ClassGeneratorNamesRegisteredClassesVersionNumber = GetRegisteredClassesVersionNumber();
 	}
 }
 
@@ -1699,6 +1705,9 @@ void UAssetRegistryImpl::AppendState(const FAssetRegistryState& InState)
 
 void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
 {
+	// Refreshes ClassGeneratorNames if out of date due to module load
+	CollectCodeGeneratorClasses();
+
 	// Add paths to cache
 	for (const TPair<FName, FAssetData*>& AssetDataPair : InState.CachedAssetsByObjectPath)
 	{
@@ -1965,6 +1974,9 @@ void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InP
 void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
+
+	// Refreshes ClassGeneratorNames if out of date due to module load
+	CollectCodeGeneratorClasses();
 
 	// Add the found assets
 	while (AssetResults.Num() > 0)
@@ -2533,6 +2545,9 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStart
 		LoadedAssetsThatDidNotHaveCachedData.Reset();
 	}
 
+	// Refreshes ClassGeneratorNames if out of date due to module load
+	CollectCodeGeneratorClasses();
+
 	// Add the found assets
 	int32 LoadedAssetIndex = 0;
 	for (LoadedAssetIndex = 0; LoadedAssetIndex < LoadedAssetsToProcess.Num(); ++LoadedAssetIndex)
@@ -2791,6 +2806,9 @@ void UAssetRegistryImpl::UpdateTemporaryCaches() const
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetRegistryImpl::UpdateTemporaryCaches)
+
+	// Refreshes ClassGeneratorNames if out of date due to module load
+	CollectCodeGeneratorClasses();
 
 	TempCachedInheritanceMap = CachedBPInheritanceMap;
 	TempReverseInheritanceMap.Reset();
