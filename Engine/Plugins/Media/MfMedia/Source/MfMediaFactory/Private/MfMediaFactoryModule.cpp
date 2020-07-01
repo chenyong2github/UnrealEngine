@@ -165,6 +165,10 @@ public:
 #if MFMEDIAFACTORY_WINDOWS && MFMEDIAFACTORY_USE_WINDOWS
 		SupportedPlatforms.Add(TEXT("Windows"));
 #endif
+#ifdef MFMEDIAFACTORY_SUPPORTED_PLATFORM_NAME
+		SupportedPlatforms.Add(MFMEDIAFACTORY_SUPPORTED_PLATFORM_NAME);
+#endif
+
 
 		// supported schemes
 		SupportedUriSchemes.Add(TEXT("file"));
