@@ -1610,6 +1610,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				}
 				else if (command === 'OKFORGITHUB') {
 					hasOkForGithubTag = true
+					descFinal.push(line)
 				}
 				else {
 
