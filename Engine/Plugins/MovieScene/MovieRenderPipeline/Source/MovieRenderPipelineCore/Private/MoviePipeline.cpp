@@ -75,12 +75,10 @@ UMoviePipeline::UMoviePipeline()
 }
 
 
-void UMoviePipeline::ValidateSequenceAndSettings()
+void UMoviePipeline::ValidateSequenceAndSettings() const
 {
 	// ToDo: 
 	// Warn for Blueprint Streaming Levels
-	// Warn for sections that aren't extended far enough (once handle frames are taken into account)
-	// Warn for not whole frame aligned sections
 
 	// Check to see if they're trying to output alpha and don't have the required project setting set.
 	{
@@ -203,14 +201,14 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	// want to modify things in the sequence, or modify things in the world before rendering.
 	// @ToDo: ModifySequenceViaExtensions(TargetSequence);
 
-	// Now that we've post-processed it, we're going to run a validation pass on it. This will produce warnings
-	// for anything we can't fix that might be an issue - extending sections, etc. This should be const as this
-	// validation should re-use what was used in the UI.
-	// @ToDo: ValidateSequence(TargetSequence);
-
-	// Now that we've fixed up the sequence and validated it, we're going to build a list of shots that we need
+	// Now that we've fixed up the sequence, we're going to build a list of shots that we need
 	// to produce in a simplified data structure. The simplified structure makes the flow/debugging easier.
 	BuildShotListFromSequence();
+
+	// Now that we've built up the shot list, we're going to run a validation pass on it. This will produce warnings
+	// for anything we can't fix that might be an issue - extending sections, etc. This should be const as this
+	// validation should re-use what was used in the UI.
+	ValidateSequenceAndSettings();
 
 	// Finally, we're going to create a Level Sequence Actor in the world that has its settings configured by us.
 	// Because this callback is at the end of startup (and before tick) we should be able to spawn the actor
@@ -1019,6 +1017,75 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 	// with the new range.
 	TRange<FFrameNumber> EncompassingPlaybackRange = TRange<FFrameNumber>::Hull(TotalPlaybackRangeMaster, TargetSequence->MovieScene->GetPlaybackRange());
 	TargetSequence->GetMovieScene()->SetPlaybackRange(EncompassingPlaybackRange);
+
+	// Validate sections evaluated in the expanded shot 
+	check(InShot->ShotInfo.OriginalRangeLocal.HasLowerBound());
+	TRange<FFrameNumber> WarningRange = TRange<FFrameNumber>(
+		TRangeBound<FFrameNumber>::Exclusive(InShot->ShotInfo.OriginalRangeLocal.GetLowerBoundValue() - LeftDeltaTicks), 
+		TRangeBound<FFrameNumber>::Inclusive(InShot->ShotInfo.OriginalRangeLocal.GetLowerBoundValue())
+	);
+
+	// Iterate through increasing outer shot sections 
+	UMovieSceneCinematicShotSection* OuterShotSection = Cast<UMovieSceneCinematicShotSection>(InShot->OuterPathKey.TryLoad());
+	while (OuterShotSection)
+	{
+		// Warn if any of the sections are contained in the handle + temporal sampling ranges
+		for (UMovieSceneSection* SectionToValidate : OuterShotSection->GetSequence()->GetMovieScene()->GetAllSections())
+		{
+			// Skip shot sections and camera cut sections since they don't apply and their range may already be expanded anyways
+			if (SectionToValidate->GetClass() == UMovieSceneCinematicShotSection::StaticClass() ||
+				SectionToValidate->GetClass() == UMovieSceneCameraCutSection::StaticClass())
+			{
+				continue;
+			}
+			
+			if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
+			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
+			}
+		}
+
+		// Update the ranges to be in the outer sequence space
+		FMovieSceneSequenceTransform InnerToOuterTransform = OuterShotSection->OuterToInnerTransform().InverseLinearOnly();
+		WarningRange = InnerToOuterTransform.TransformRangePure(WarningRange);
+
+		OuterShotSection = OuterShotSection->GetSequence()->GetTypedOuter<UMovieSceneCinematicShotSection>();
+	}
+
+	// Same warning as above, but for the top level sequence
+	for (UMovieSceneSection* SectionToValidate : TargetSequence->GetMovieScene()->GetAllSections())
+	{
+		if (SectionToValidate->GetClass() == UMovieSceneCinematicShotSection::StaticClass() ||
+			SectionToValidate->GetClass() == UMovieSceneCameraCutSection::StaticClass())
+		{
+			continue;
+		}
+
+		if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
+		{
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
+		}
+	}
+
+	// Warn for not whole frame aligned shots
+	MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(InShot);
+	const TRange<FFrameNumber> SectionRange = InShot->ShotInfo.OriginalRangeLocal;
+
+	TRange<FFrameTime> OriginalRangeOuter;
+	const FFrameNumber LowerInMasterTicks = (SectionRange.GetLowerBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
+	OriginalRangeOuter.SetLowerBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
+		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
+	));
+
+	const FFrameNumber UpperInMasterTicks = (SectionRange.GetUpperBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
+	OriginalRangeOuter.SetUpperBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(UpperInMasterTicks, 0.0f),
+		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
+	));
+
+	if ((OriginalRangeOuter.GetLowerBoundValue().GetSubFrame() != 0.0f) || (OriginalRangeOuter.GetUpperBoundValue().GetSubFrame() != 0.0f))
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a range that started on a sub-frame. Range time has been rounded down on %s in %s"), *InShot->InnerName, *InShot->OuterName)
+	}
 }
 
 bool UMoviePipeline::IsDebugFrameStepIdling() const

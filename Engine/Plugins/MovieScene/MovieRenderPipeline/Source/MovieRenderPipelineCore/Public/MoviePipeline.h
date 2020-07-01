@@ -167,7 +167,7 @@ private:
 	/** Called after the Engine has ticked for a given frame. Everything in the world has been updated by now so we can submit things to render. */
 	void OnEngineTickEndFrame();
 
-	void ValidateSequenceAndSettings();
+	void ValidateSequenceAndSettings() const;
 
 
 	/** Runs the per-tick logic when doing the ProducingFrames state. */
