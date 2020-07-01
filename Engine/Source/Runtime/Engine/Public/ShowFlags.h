@@ -245,6 +245,14 @@ struct FEngineShowFlags
 	ENGINE_API bool GetSingleFlag(uint32 Index) const;
 
 	/**
+	 * O(1)
+	 * Check if a CVar is forcing a particular flag on / off
+	 * @param Index you can get the index from FindIndexByName() or IterateAllFlags()
+	 * @return true if CVars are forcing flag on / off, false otherwise
+	 */
+	static ENGINE_API bool IsForceFlagSet(uint32 Index);
+
+	/**
 	 * not optimized for speed, good for serialization and debugging
 	 * @return e.g. TEXT("PostProcessingTonemapper=0,AmbientCubemap=1")
 	 */
