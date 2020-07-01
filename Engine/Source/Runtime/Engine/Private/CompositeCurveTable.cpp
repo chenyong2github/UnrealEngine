@@ -9,6 +9,8 @@
 #include "CurveTableEditorUtils.h"
 #endif
 
+#include "HAL/IConsoleManager.h"
+
 #define LOCTEXT_NAMESPACE "CompositeCurveTables"
 
 static TAutoConsoleVariable<int32> CVarCompositeCurveTableMinimalUpdateEnable(
