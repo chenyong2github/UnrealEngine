@@ -7,6 +7,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "D3D12RHIPrivate.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
