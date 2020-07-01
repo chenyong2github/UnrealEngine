@@ -108,7 +108,7 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 
 	//	Suspension raycasts
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_VehicleSuspensionRaycasts);
+		//SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_VehicleSuspensionRaycasts);
 		// #todo: batch all the vehicle raycasts here
 		// #todo: possibly cache raycasts. Seen x4 factor improvement in scene query perf in previous games
 	}
