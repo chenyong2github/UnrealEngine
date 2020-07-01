@@ -200,6 +200,10 @@ class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 	UPROPERTY(config, EditAnywhere, Category = Broadphase)
 	FBroadphaseSettings DefaultBroadphaseSettings;
 
+	/** Minimum velocity delta required on a collinding object for Chaos to send a hit event */
+	UPROPERTY(EditAnywhere, Category = ChaosPhysics)
+	float MinDeltaVelocityForHitEvents;
+
 	/** Chaos physics engine settings */
 	UPROPERTY(config, EditAnywhere, Category = ChaosPhysics)
 	FChaosPhysicsSettings ChaosSettings;
