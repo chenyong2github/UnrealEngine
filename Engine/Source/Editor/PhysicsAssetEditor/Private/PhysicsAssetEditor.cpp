@@ -181,10 +181,10 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	// Force disable simulation as InitArticulated can be called during viewport creation
 	SharedData->ForceDisableSimulation();
 
-	GetAssetEditorModeManager()->SetDefaultMode(FPhysicsAssetEditorEditMode::ModeName);
-	GetAssetEditorModeManager()->ActivateMode(FPersonaEditModes::SkeletonSelection);
-	GetAssetEditorModeManager()->ActivateMode(FPhysicsAssetEditorEditMode::ModeName);
-	static_cast<FPhysicsAssetEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FPhysicsAssetEditorEditMode::ModeName))->SetSharedData(SharedThis(this), *SharedData.Get());
+	GetEditorModeManager().SetDefaultMode(FPhysicsAssetEditorEditMode::ModeName);
+	GetEditorModeManager().ActivateMode(FPersonaEditModes::SkeletonSelection);
+	GetEditorModeManager().ActivateMode(FPhysicsAssetEditorEditMode::ModeName);
+	static_cast<FPhysicsAssetEditorEditMode*>(GetEditorModeManager().GetActiveMode(FPhysicsAssetEditorEditMode::ModeName))->SetSharedData(SharedThis(this), *SharedData.Get());
 
 	IPhysicsAssetEditorModule* PhysicsAssetEditorModule = &FModuleManager::LoadModuleChecked<IPhysicsAssetEditorModule>( "PhysicsAssetEditor" );
 	ExtendMenu();

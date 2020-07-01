@@ -42,10 +42,7 @@ SClothPaintTab::~SClothPaintTab()
 {
 	if(ISkeletalMeshEditor* SkeletalMeshEditor = static_cast<ISkeletalMeshEditor*>(HostingApp.Pin().Get()))
 	{
-		if(FAssetEditorModeManager* ModeManager = SkeletalMeshEditor->GetAssetEditorModeManager())
-		{
-			ModeManager->ActivateDefaultMode();
-		}
+		SkeletalMeshEditor->GetEditorModeManager().ActivateDefaultMode();
 	}
 }
 
@@ -145,9 +142,9 @@ void SClothPaintTab::UpdatePaintTools()
 	if (bPaintModeEnabled)
 	{
 		ISkeletalMeshEditor* SkeletalMeshEditor = static_cast<ISkeletalMeshEditor*>(HostingApp.Pin().Get());
-		SkeletalMeshEditor->GetAssetEditorModeManager()->ActivateMode(PaintModeID, true);
+		SkeletalMeshEditor->GetEditorModeManager().ActivateMode(PaintModeID, true);
 
-		FClothingPaintEditMode* PaintMode = (FClothingPaintEditMode*)SkeletalMeshEditor->GetAssetEditorModeManager()->GetActiveMode(PaintModeID);
+		FClothingPaintEditMode* PaintMode = (FClothingPaintEditMode*)SkeletalMeshEditor->GetEditorModeManager().GetActiveMode(PaintModeID);
 		if (PaintMode)
 		{
 			FClothPainter* ClothPainter = static_cast<FClothPainter*>(PaintMode->GetMeshPainter());
@@ -178,7 +175,7 @@ void SClothPaintTab::UpdatePaintTools()
 	{
 		ContentBox->RemoveSlot(ModeWidget->AsShared());
 		ISkeletalMeshEditor* SkeletalMeshEditor = static_cast<ISkeletalMeshEditor*>(HostingApp.Pin().Get());
-		SkeletalMeshEditor->GetAssetEditorModeManager()->ActivateDefaultMode();
+		SkeletalMeshEditor->GetEditorModeManager().ActivateDefaultMode();
 		ModeWidget = nullptr;
 	}
 }
@@ -189,7 +186,7 @@ void SClothPaintTab::OnAssetSelectionChanged(TWeakObjectPtr<UClothingAssetCommon
 	{
 		ISkeletalMeshEditor* SkeletalMeshEditor = static_cast<ISkeletalMeshEditor*>(HostingApp.Pin().Get());
 
-		FClothingPaintEditMode* PaintMode = (FClothingPaintEditMode*)SkeletalMeshEditor->GetAssetEditorModeManager()->GetActiveMode(PaintModeID);
+		FClothingPaintEditMode* PaintMode = (FClothingPaintEditMode*)SkeletalMeshEditor->GetEditorModeManager().GetActiveMode(PaintModeID);
 		if(PaintMode)
 		{
 			FClothPainter* ClothPainter = static_cast<FClothPainter*>(PaintMode->GetMeshPainter());

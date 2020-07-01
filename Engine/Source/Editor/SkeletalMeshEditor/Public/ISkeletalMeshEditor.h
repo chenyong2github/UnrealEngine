@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "PersonaAssetEditorToolkit.h"
 #include "IHasPersonaToolkit.h"
 
-class ISkeletalMeshEditor : public FWorkflowCentricApplication, public IHasPersonaToolkit
+class ISkeletalMeshEditor : public FPersonaAssetEditorToolkit, public IHasPersonaToolkit
 {
 };
 

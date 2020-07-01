@@ -17,7 +17,7 @@
 #include "PersonaModule.h"
 #include "ControlRigEditorEditMode.h"
 #include "ControlRigEditModeSettings.h"
-#include "AssetEditorModeManager.h"
+#include "EditorModeManager.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "AnimCustomInstanceHelper.h"
 #include "Sequencer/ControlRigLayerInstance.h"
@@ -229,12 +229,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	SetCurrentMode(FControlRigEditorModes::ControlRigEditorMode);
 
 	// Activate our edit mode
-//	GetAssetEditorModeManager()->SetToolkitHost(GetToolkitHost());
-	if (GetAssetEditorModeManager() != nullptr)
-	{
-		GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
-		GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
-	}
+	GetEditorModeManager().SetDefaultMode(FControlRigEditorEditMode::ModeName);
+	GetEditorModeManager().ActivateMode(FControlRigEditorEditMode::ModeName);
 
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
@@ -2604,11 +2600,7 @@ void FControlRigEditor::OnControlUISettingChanged(FRigHierarchyContainer* Contai
 
 FControlRigEditorEditMode* FControlRigEditor::GetEditMode() const
 {
-	if (GetAssetEditorModeManager() == nullptr)
-	{
-		return nullptr;
-	}
-	return static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName));
+	return static_cast<FControlRigEditorEditMode*>(GetEditorModeManager().GetActiveMode(FControlRigEditorEditMode::ModeName));
 }
 
 

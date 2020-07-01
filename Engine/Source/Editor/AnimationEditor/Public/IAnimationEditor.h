@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "PersonaAssetEditorToolkit.h"
 #include "IHasPersonaToolkit.h"
 #include "Animation/SmartName.h"
 
@@ -14,7 +14,7 @@ struct FRichCurve;
 class ITimeSliderController;
 enum class ERawCurveTrackTypes : uint8;
 
-class IAnimationEditor : public FWorkflowCentricApplication, public IHasPersonaToolkit
+class IAnimationEditor : public FPersonaAssetEditorToolkit, public IHasPersonaToolkit
 {
 public:
 	/** Set the animation asset of the editor. */

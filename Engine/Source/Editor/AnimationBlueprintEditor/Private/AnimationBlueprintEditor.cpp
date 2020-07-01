@@ -1429,6 +1429,15 @@ void FAnimationBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, 
 	OnPostCompile();
 }
 
+void FAnimationBlueprintEditor::CreateEditorModeManager()
+{
+	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SetAssetEditorModeManager(ModeManager.Get());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 TSharedRef<IPersonaPreviewScene> FAnimationBlueprintEditor::GetPreviewScene() const
 { 
 	return PersonaToolkit->GetPreviewScene(); 
@@ -1485,7 +1494,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 {
 	FBlueprintEditor::OnSelectedNodesChangedImpl(NewSelection);
 
-	IPersonaEditorModeManager* PersonaEditorModeManager = static_cast<IPersonaEditorModeManager*>(GetAssetEditorModeManager());
+	IPersonaEditorModeManager* PersonaEditorModeManager = static_cast<IPersonaEditorModeManager*>(&GetEditorModeManager());
 
 	if (UAnimGraphNode_Base* SelectedAnimGraphNodePtr = SelectedAnimGraphNode.Get())
 	{

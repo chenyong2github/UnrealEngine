@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "PersonaAssetEditorToolkit.h"
 #include "IHasPersonaToolkit.h"
 
 
@@ -11,7 +11,7 @@
    IPhysicsAssetEditor
 -----------------------------------------------------------------------------*/
 
-class IPhysicsAssetEditor : public FWorkflowCentricApplication, public IHasPersonaToolkit
+class IPhysicsAssetEditor : public FPersonaAssetEditorToolkit, public IHasPersonaToolkit
 {
 
 };

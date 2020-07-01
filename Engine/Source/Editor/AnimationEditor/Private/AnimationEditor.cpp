@@ -50,6 +50,8 @@
 #include "Algo/Transform.h"
 #include "ISequenceRecorder.h"
 #include "IAnimSequenceCurveEditor.h"
+#include "EditorModeManager.h"
+#include "IPersonaEditorModeManager.h"
 
 const FName AnimationEditorAppIdentifier = FName(TEXT("AnimationEditorApp"));
 
