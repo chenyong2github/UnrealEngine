@@ -326,6 +326,9 @@ class PHYSICSCORE_API FChaosEngineInterface
 public:
 	virtual ~FChaosEngineInterface() = default;
 
+	static void CreateActor(const FActorCreationParams& InParams,FPhysicsActorHandle& Handle);
+	static void ReleaseActor(FPhysicsActorHandle& InActorReference,FChaosScene* InScene = nullptr,bool bNeverDeferRelease=false);
+
 	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle != nullptr; }
 	static void AddActorToSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);
 	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);

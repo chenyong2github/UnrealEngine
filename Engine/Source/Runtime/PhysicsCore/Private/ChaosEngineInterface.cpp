@@ -4,6 +4,8 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsSettingsCore.h"
 #include "PhysicsPublicCore.h"
+#include "BodyInstanceCore.h"
+#include "Chaos/ChaosScene.h"
 
 FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhysXMaterial;
 
@@ -1215,6 +1217,65 @@ int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandl
 int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorHandle,PhysicsInterfaceTypes::FInlineShapeArray& OutShapes)
 {
 	return GetAllShapesInternalImp_AssumedLocked(InActorHandle,OutShapes);
+}
+
+void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPhysicsActorHandle& Handle)
+{
+	LLM_SCOPE(ELLMTag::Chaos);
+
+	// Set object state based on the requested particle type
+	if(InParams.bStatic)
+	{
+		Handle = Chaos::TGeometryParticle<float,3>::CreateParticle().Release();
+	} else
+	{
+		// Create an underlying dynamic particle
+		Chaos::TPBDRigidParticle<float,3>* RigidHandle = Chaos::TPBDRigidParticle<float,3>::CreateParticle().Release(); //todo: should BodyInstance use a unique ptr to manage this memory?
+		Handle = RigidHandle;
+		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
+		if(InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
+		{
+			if(InParams.BodyInstance->bStartAwake)
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+			} else
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+			}
+		} else
+		{
+			RigidHandle->SetObjectState(Chaos::EObjectStateType::Kinematic);
+		}
+	}
+
+	// Set up the new particle's game-thread data. This will be sent to physics-thread when
+	// the particle is added to the scene later.
+	Handle->SetX(InParams.InitialTM.GetLocation(), /*bInvalidate=*/false);	//do not generate wake event since this is part of initialization
+	Handle->SetR(InParams.InitialTM.GetRotation(), /*bInvalidate=*/false);
+#if CHAOS_CHECKED
+	Handle->SetDebugName(InParams.DebugName);
+#endif
+}
+
+void FChaosEngineInterface::ReleaseActor(FPhysicsActorHandle& Handle,FChaosScene* InScene,bool bNeverDerferRelease)
+{
+	if(!Handle)
+	{
+		UE_LOG(LogChaos,Warning,TEXT("Attempting to release an actor with a null handle"));
+		CHAOS_ENSURE(false);
+
+		return;
+	}
+
+	if(InScene)
+	{
+		InScene->RemoveActorFromAccelerationStructure(Handle);
+		RemoveActorFromSolver(Handle,InScene->GetSolver());
+	}
+
+	delete Handle;
+
+	Handle = nullptr;
 }
 
 #elif WITH_ENGINE //temp physx code to make moving out of engine easier
