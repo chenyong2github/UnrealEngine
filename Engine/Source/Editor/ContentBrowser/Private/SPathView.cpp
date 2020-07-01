@@ -1103,7 +1103,7 @@ void SPathView::Populate()
 			{
 				// Use the whole path so we deliberately include any children of matched parents in the filtered list
 				const FString PathStr = InItemData.GetVirtualPath().ToString();
-				bPassesFilter |= SearchBoxFolderFilter->PassesFilter(PathStr);
+				bPassesFilter &= SearchBoxFolderFilter->PassesFilter(PathStr);
 			}
 
 			if (bPassesFilter)
