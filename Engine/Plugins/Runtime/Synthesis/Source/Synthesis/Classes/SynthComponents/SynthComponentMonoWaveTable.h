@@ -224,9 +224,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
 	void SetPosLfoType(const ESynthLFOType InLfoType);
 
-	// Set the Cut-off frequency of the low-pass filter
-	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
-	void SetLowPassFilterFrequency(float InNewFrequency);
+	virtual void SetLowPassFilterFrequency(float InLowPassFilterFrequency) override;
 
 	// Set the Cut-off frequency of the low-pass filter
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio",  Meta = (ClampMin = "0.0", ClampMax = "10.0"))
