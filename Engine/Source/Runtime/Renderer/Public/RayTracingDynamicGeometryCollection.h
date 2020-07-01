@@ -19,7 +19,7 @@ public:
 	);
 
 	void BeginUpdate();
-	void DispatchUpdates(FRHIComputeCommandList& RHICmdList);
+	void DispatchUpdates(FRHIComputeCommandList& ParentCmdList);
 	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
 private:
