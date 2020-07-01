@@ -932,12 +932,6 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	MaxInstanceCount = 0;
 	BoundsCalculators.Empty();
 
-	// Emitter is invalid if the compiled data is nullptr
-	if (CompiledData == nullptr)
-	{
-		return;
-	}
-
 	// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
 	// generate the bounds from the readback in the tool.
 #if !WITH_EDITOR
@@ -953,7 +947,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 				FNiagaraBoundsCalculator* BoundsCalculator = Renderer->CreateBoundsCalculator();
 				if (BoundsCalculator != nullptr)
 				{
-					BoundsCalculator->InitAccessors(*CompiledData);
+					BoundsCalculator->InitAccessors(CompiledData);
 					BoundsCalculators.Emplace(BoundsCalculator);
 				}
 			}
@@ -961,19 +955,10 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	}
 
 	// Cache information for GPU compute sims
-	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
-	{
-		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
-		{
-			FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread();
-			if (NiagaraShaderRef.IsValid())
-			{
-				bRequiresViewUniformBuffer = NiagaraShaderRef->ViewUniformBufferParam.IsBound();
-			}
-		}
-	}
+	CacheFromShaderCompiled();
 
 	// Find number maximum number of instance we can support for this emitter
+	if (CompiledData != nullptr)
 	{
 		// Prevent division by 0 in case there are no renderers.
 		uint32 MaxGPUBufferComponents = 1;
@@ -1004,6 +989,25 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 			MaxInstanceCount = (MaxInstanceCount / NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
 			// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
 			MaxInstanceCount -= 1;
+		}
+	}
+	else
+	{
+		MaxInstanceCount = 0;
+	}
+}
+
+void UNiagaraEmitter::CacheFromShaderCompiled()
+{
+	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
+	{
+		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
+		{
+			FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread();
+			if (NiagaraShaderRef.IsValid())
+			{
+				bRequiresViewUniformBuffer = NiagaraShaderRef->ViewUniformBufferParam.IsBound();
+			}
 		}
 	}
 }
