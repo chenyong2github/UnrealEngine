@@ -22,6 +22,8 @@ DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
 
 FString ConvertToFullTextSearchQuery(const FString& QueryText);
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 enum class EAssetSearchDatabaseVersion
 {
 	Empty,
@@ -475,6 +477,8 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath)
 
 bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatabaseOpenMode InOpenMode)
 {
+	SessionPath = InSessionPath;
+
 	if (Database->IsValid())
 	{
 		return false;
@@ -486,7 +490,15 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 		return false;
 	}
 
-	SessionPath = InSessionPath;
+	if (!Database->PerformQuickIntegrityCheck())
+	{
+		UE_LOG(LogAssetSearch, Error, TEXT("Database failed integrity check, deleting."));
+
+		const bool bDeleteTheDatabase = true;
+		Close(bDeleteTheDatabase);
+		
+		return false;
+	}
 
 	// Set the database to use exclusive WAL mode for performance (exclusive works even on platforms without a mmap implementation)
 	// Set the database "NORMAL" fsync mode to only perform a fsync when check-pointing the WAL to the main database file (fewer fsync calls are better for performance, with a very slight loss of WAL durability if the power fails)
@@ -906,3 +918,5 @@ FString ConvertToFullTextSearchQuery(const FString& QueryText)
 
 	return Q.ToString();
 }
+
+PRAGMA_ENABLE_OPTIMIZATION
