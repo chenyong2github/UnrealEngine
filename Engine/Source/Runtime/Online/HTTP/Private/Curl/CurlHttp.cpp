@@ -308,13 +308,18 @@ void FCurlHttpRequest::SetURL(const FString& InURL)
 
 void FCurlHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 {
+	SetContent(CopyTemp(ContentPayload));
+}
+
+void FCurlHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
+{
 	if (CompletionStatus == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("FCurlHttpRequest::SetContent() - attempted to set content on a request that is inflight"));
 		return;
 	}
 
-	RequestPayload = MakeUnique<FRequestPayloadInMemory>(ContentPayload);
+	RequestPayload = MakeUnique<FRequestPayloadInMemory>(MoveTemp(ContentPayload));
 	bIsRequestPayloadSeekable = true;
 }
 
