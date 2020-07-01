@@ -449,12 +449,7 @@ void SScreenShotBrowser::RebuildTree()
 
 bool SScreenShotBrowser::CanAddNewReportResult(const FImageComparisonResult& Comparison)
 {
-	bool bHasApprovedFile = !Comparison.ApprovedFilePath.IsEmpty();
-	FString ApprovedPath = FPaths::GetPath(Comparison.ApprovedFilePath);
-	FString IncomingPath = FPaths::GetPath(Comparison.IncomingFilePath);
-	bool bIsComparingAgainstPlatformFallback = bHasApprovedFile && ApprovedPath != IncomingPath;
-
-	return Comparison.IsNew() || bIsComparingAgainstPlatformFallback;
+	return Comparison.IsNew();
 }
 
 #undef LOCTEXT_NAMESPACE
