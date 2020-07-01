@@ -20,7 +20,7 @@ bool FSimpleCurveKey::Serialize(FArchive& Ar)
 }
 
 
-bool FSimpleCurveKey::operator==(const FSimpleCurveKey& Curve) const
+bool FSimpleCurveKey::operator==( const FSimpleCurveKey& Curve ) const
 {
 	return (Time == Curve.Time) && (Value == Curve.Value);
 }
@@ -85,25 +85,25 @@ FSimpleCurveKey* FSimpleCurve::GetFirstMatchingKey(const TArray<FKeyHandle>& Key
 	return nullptr;
 }
 
-FKeyHandle FSimpleCurve::AddKey(const float InTime, const float InValue, const bool bUnwindRotation, FKeyHandle NewHandle)
+FKeyHandle FSimpleCurve::AddKey( const float InTime, const float InValue, const bool bUnwindRotation, FKeyHandle NewHandle )
 {
 	int32 Index = 0;
-	for (; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
+	for(; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
 	Keys.Insert(FSimpleCurveKey(InTime, InValue), Index);
 
 	// If we were asked to treat this curve as a rotation value and to unwindow the rotation, then
 	// we'll look at the previous key and modify the key's value to use a rotation angle that is
 	// continuous with the previous key while retaining the exact same rotation angle, if at all necessary
-	if (Index > 0 && bUnwindRotation)
+	if( Index > 0 && bUnwindRotation )
 	{
 		const float OldValue = Keys[ Index - 1 ].Value;
 		float NewValue = Keys[ Index ].Value;
 
-		while (NewValue - OldValue > 180.0f)
+		while( NewValue - OldValue > 180.0f )
 		{
 			NewValue -= 360.0f;
 		}
-		while (NewValue - OldValue < -180.0f)
+		while( NewValue - OldValue < -180.0f )
 		{
 			NewValue += 360.0f;
 		}
@@ -119,12 +119,11 @@ FKeyHandle FSimpleCurve::AddKey(const float InTime, const float InValue, const b
 
 void FSimpleCurve::SetKeys(const TArray<FSimpleCurveKey>& InKeys)
 {
-	Reset(InKeys.Num());
-	Keys.SetNum(InKeys.Num());
+	Reset();
 
 	for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 	{
-		Keys[Index] = InKeys[Index];
+		Keys.Add(InKeys[Index]);
 		KeyHandlesToIndices.Add(FKeyHandle(), Index);
 	}
 }
@@ -167,7 +166,7 @@ FKeyHandle FSimpleCurve::UpdateOrAddKey(float InTime, float InValue, const bool 
 }
 
 
-void FSimpleCurve::SetKeyTime(FKeyHandle KeyHandle, float NewTime)
+void FSimpleCurve::SetKeyTime( FKeyHandle KeyHandle, float NewTime )
 {
 	if (IsKeyHandleValid(KeyHandle))
 	{
@@ -205,7 +204,7 @@ int32 FSimpleCurve::GetKeyIndex(float KeyTime, float KeyTimeTolerance) const
 		{
 			return TestPos;
 		}
-		else if (TestKeyTime < KeyTime)
+		else if(TestKeyTime < KeyTime)
 		{
 			Start = TestPos+1;
 		}
@@ -240,7 +239,7 @@ float FSimpleCurve::GetKeyValue(FKeyHandle KeyHandle) const
 	return GetKey(KeyHandle).Value;
 }
 
-TPair<float, float> FSimpleCurve::GetKeyTimeValuePair(FKeyHandle KeyHandle) const
+TPair<float,float> FSimpleCurve::GetKeyTimeValuePair(FKeyHandle KeyHandle) const
 {
 	if (!IsKeyHandleValid(KeyHandle))
 	{
@@ -248,7 +247,7 @@ TPair<float, float> FSimpleCurve::GetKeyTimeValuePair(FKeyHandle KeyHandle) cons
 	}
 
 	const FSimpleCurveKey& Key = GetKey(KeyHandle);
-	return TPair<float, float>(Key.Time, Key.Value);
+	return TPair<float,float>(Key.Time, Key.Value);
 }
 
 void FSimpleCurve::GetTimeRange(float& MinTime, float& MaxTime) const
@@ -285,10 +284,10 @@ void FSimpleCurve::GetValueRange(float& MinValue, float& MaxValue) const
 	}
 }
 
-void FSimpleCurve::Reset(uint32 Slack)
+void FSimpleCurve::Reset()
 {
-	Keys.Empty(Slack);
-	KeyHandlesToIndices.Empty(Slack);
+	Keys.Empty();
+	KeyHandlesToIndices.Empty();
 }
 
 void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime)
@@ -298,7 +297,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 
 	if (bInsert)
 	{
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for(int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			float& CurrentTime = Keys[KeyIndex].Time;
 			if (CurrentTime >= OldStartTime)
@@ -315,7 +314,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 		float NewValue = 0.f;
 		TArray<int32> KeysToDelete;
 
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for(int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			float& CurrentTime = Keys[KeyIndex].Time;
 			// if this key exists between range of deleted
@@ -325,7 +324,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 			// But that means if there are multiple keys, 
 			// since we don't want multiple values in the same time
 			// the last one will override the value
-			if (CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
+			if( CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
 			{
 				// get new value and add new key on one of OldStartTime, OldEndTime;
 				// this is a bit complicated problem since we don't know if OldStartTime or OldEndTime is preferred. 
@@ -354,7 +353,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 			for (int32 KeyIndex = KeysToDelete.Num()-1; KeyIndex >= 0; --KeyIndex)
 			{
 				const FKeyHandle* KeyHandle = KeyHandlesToIndices.FindKey(KeysToDelete[KeyIndex]);
-				if (KeyHandle)
+				if(KeyHandle)
 				{
 					DeleteKey(*KeyHandle);
 				}
@@ -368,7 +367,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 	TArray<FSimpleCurveKey> NewKeys;
 	Exchange(NewKeys, Keys);
 
-	for (int32 KeyIndex = 0; KeyIndex < NewKeys.Num(); ++KeyIndex)
+	for(int32 KeyIndex=0; KeyIndex<NewKeys.Num(); ++KeyIndex)
 	{
 		UpdateOrAddKey(NewKeys[KeyIndex].Time, NewKeys[KeyIndex].Value);
 	}
@@ -377,7 +376,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 	float MinTime, MaxTime;
 	GetTimeRange(MinTime, MaxTime);
 
-	bool bNeedToDeleteKey = false;
+	bool bNeedToDeleteKey=false;
 
 	// if there is key below min time, just add key at new min range, 
 	if (MinTime < NewMinTimeRange)
@@ -389,7 +388,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 	}
 
 	// if there is key after max time, just add key at new max range, 
-	if (MaxTime > NewMaxTimeRange)
+	if(MaxTime > NewMaxTimeRange)
 	{
 		float NewValue = Eval(NewMaxTimeRange);
 		UpdateOrAddKey(NewMaxTimeRange, NewValue);
@@ -400,7 +399,7 @@ void FSimpleCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRang
 	// delete the keys outside of range
 	if (bNeedToDeleteKey)
 	{
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for (int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			if (Keys[KeyIndex].Time < NewMinTimeRange || Keys[KeyIndex].Time > NewMaxTimeRange)
 			{
@@ -554,7 +553,7 @@ void FSimpleCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKee
 		NewKeys.Reserve(Keys.Num());
 
 		//Add all the keys we are keeping from the start
-		for (int32 StartKeepIndex = 0; StartKeepIndex <= ActualStartKeepKey; ++StartKeepIndex)
+		for(int32 StartKeepIndex = 0; StartKeepIndex <= ActualStartKeepKey; ++StartKeepIndex)
 		{
 			NewKeys.Add(Keys[StartKeepIndex]);
 			KeepHandles.Add(AllHandlesByIndex[StartKeepIndex]);
@@ -747,23 +746,18 @@ float FSimpleCurve::Eval(float InTime, float InDefaultValue) const
 
 bool FSimpleCurve::operator==(const FSimpleCurve& Curve) const
 {
-	if (Keys.Num() != Curve.Keys.Num())
+	if(Keys.Num() != Curve.Keys.Num())
 	{
 		return false;
 	}
 
-	for (int32 i = 0; i < Keys.Num(); ++i)
+	for(int32 i = 0;i<Keys.Num();++i)
 	{
-		if (!(Keys[i] == Curve.Keys[i]))
+		if(!(Keys[i] == Curve.Keys[i]))
 		{
 			return false;
 		}
 	}
 
 	return true;
-}
-
-bool FSimpleCurve::operator!=(const FSimpleCurve& Curve) const
-{
-	return !(*this == Curve);
 }
