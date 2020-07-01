@@ -40,6 +40,9 @@ void UUMGSequenceTickManager::BeginDestroy()
 			FSlateApplication& SlateApp = FSlateApplication::Get();
 			SlateApp.OnPreTick().Remove(SlateApplicationPreTickHandle);
 			SlateApplicationPreTickHandle.Reset();
+
+			SlateApp.OnPostTick().Remove(SlateApplicationPostTickHandle);
+			SlateApplicationPostTickHandle.Reset();
 		}
 	}
 
