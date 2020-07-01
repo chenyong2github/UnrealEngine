@@ -360,7 +360,7 @@ bool FStringTable::ExportStrings(const FString& InFilename) const
 
 		// Write header
 		ExportedStrings += TEXT("Key,SourceString");
-		for (const FName MetaDataColumnName : MetaDataColumnNames)
+		for (const FName& MetaDataColumnName : MetaDataColumnNames)
 		{
 			ExportedStrings += TEXT(",");
 			ExportedStrings += MetaDataColumnName.ToString();
@@ -386,7 +386,7 @@ bool FStringTable::ExportStrings(const FString& InFilename) const
 			ExportedStrings += ExportedSourceString;
 			ExportedStrings += TEXT("\"");
 
-			for (const FName MetaDataColumnName : MetaDataColumnNames)
+			for (const FName& MetaDataColumnName : MetaDataColumnNames)
 			{
 				FString ExportedMetaData = GetMetaData(KeyToEntryPair.Key, MetaDataColumnName);
 				ExportedMetaData.ReplaceInline(TEXT("\""), TEXT("\"\""));

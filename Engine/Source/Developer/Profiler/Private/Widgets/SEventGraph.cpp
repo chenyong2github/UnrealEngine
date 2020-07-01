@@ -1035,7 +1035,7 @@ void SEventGraph::FillThreadFilterOptions()
 	}
 
 	// Add a thread filter entry for each root child
-	for ( const FEventGraphSamplePtr Child : Root->GetChildren() )
+	for ( const FEventGraphSamplePtr& Child : Root->GetChildren() )
 	{
 		ThreadNamesForCombo.Add( MakeShareable( new FName( Child->_ThreadName ) ) );
 	}

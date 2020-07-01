@@ -913,7 +913,7 @@ void SEditToolMenuDialog::SaveSettingsToDisk()
 FReply SEditToolMenuDialog::UndoAllChanges()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	for (const FName HierarchyMenuName : MenuNames)
+	for (const FName& HierarchyMenuName : MenuNames)
 	{
 		ToolMenus->RemoveCustomization(HierarchyMenuName);
 	}

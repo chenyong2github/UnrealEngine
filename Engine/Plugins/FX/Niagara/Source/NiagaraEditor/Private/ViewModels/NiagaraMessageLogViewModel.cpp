@@ -57,7 +57,7 @@ void FNiagaraMessageLogViewModel::RefreshMessageLog(const TArray<TSharedRef<cons
 {
 	MessageLogListing->ClearMessages();
 	TArray<TSharedRef<FTokenizedMessage>> NewTokenizedMessages;
-	for (const TSharedRef<const INiagaraMessage> NewMessage : InNewMessages)
+	for (const TSharedRef<const INiagaraMessage>& NewMessage : InNewMessages)
 	{
 		NewTokenizedMessages.Add(NewMessage->GenerateTokenizedMessage());
 	}

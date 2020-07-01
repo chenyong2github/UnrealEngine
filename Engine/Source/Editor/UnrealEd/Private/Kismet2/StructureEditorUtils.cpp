@@ -617,7 +617,7 @@ void FStructureEditorUtils::RemoveInvalidStructureMemberVariableFromBlueprint(UB
 			{				
 				Blueprint->Modify();
 
-				for (const FName Name : ZombieMemberNames)
+				for (const FName& Name : ZombieMemberNames)
 				{
 					Blueprint->NewVariables.RemoveAll(FFindByNameHelper<FBPVariableDescription>(Name)); //TODO: Add RemoveFirst to TArray
 					FBlueprintEditorUtils::RemoveVariableNodes(Blueprint, Name);

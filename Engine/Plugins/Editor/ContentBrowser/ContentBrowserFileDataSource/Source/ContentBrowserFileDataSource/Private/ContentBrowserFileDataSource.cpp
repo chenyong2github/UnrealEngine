@@ -474,7 +474,7 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 	TFunction<void(const FDiscoveredItem&)> PopulateMatchingChildItems;
 	PopulateMatchingChildItems = [this, &PopulateMatchingChildItems, &PassesExternalFilters, &InFilter, &FileDataFilter, bIncludeFolders, bIncludeFiles](const FDiscoveredItem& InDiscoveredItem)
 	{
-		for (const FName ChildItemName : InDiscoveredItem.ChildItems)
+		for (const FName& ChildItemName : InDiscoveredItem.ChildItems)
 		{
 			if (const FDiscoveredItem* DiscoveredChildItem = DiscoveredItems.Find(ChildItemName))
 			{
@@ -540,7 +540,7 @@ void UContentBrowserFileDataSource::EnumerateItemsMatchingFilter(const FContentB
 
 	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 	{
-		for (const FName ItemMountPath : FileDataFilter->MatchingFolderItems)
+		for (const FName& ItemMountPath : FileDataFilter->MatchingFolderItems)
 		{
 			if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(ItemMountPath))
 			{
@@ -554,7 +554,7 @@ void UContentBrowserFileDataSource::EnumerateItemsMatchingFilter(const FContentB
 
 	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 	{
-		for (const FName ItemMountPath : FileDataFilter->MatchingFileItems)
+		for (const FName& ItemMountPath : FileDataFilter->MatchingFileItems)
 		{
 			if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(ItemMountPath))
 			{
@@ -1230,7 +1230,7 @@ void UContentBrowserFileDataSource::RemoveDiscoveredItemImpl(const FName InMount
 	}
 
 	// Remove any children of this item as they are now orphaned
-	for (const FName ChildItemMountPath : DiscoveredItem.ChildItems)
+	for (const FName& ChildItemMountPath : DiscoveredItem.ChildItems)
 	{
 		RemoveDiscoveredItemImpl(ChildItemMountPath, /*bParentIsOrphan*/true);
 	}
@@ -1422,7 +1422,7 @@ void UContentBrowserFileDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu)
 
 	// Extract the internal file paths that belong to this data source from the full list of selected paths given in the context
 	TArray<FName> SelectedFilePaths;
-	for (const FName SelectedPath : ContextObject->SelectedPaths)
+	for (const FName& SelectedPath : ContextObject->SelectedPaths)
 	{
 		FName InternalPath;
 		if (TryConvertVirtualPathToInternal(SelectedPath, InternalPath) && IsKnownFileMount(InternalPath))

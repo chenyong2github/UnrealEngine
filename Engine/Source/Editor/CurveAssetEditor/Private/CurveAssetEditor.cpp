@@ -267,7 +267,7 @@ TSharedRef<SDockTab> FCurveAssetEditor::SpawnTab_CurveAsset( const FSpawnTabArgs
 				// Pin all of the created curves by default for now so that they're visible when you open the
 				// editor. Since there's only ever up to 4 channels we don't have to worry about overwhelming
 				// amounts of curves.
-				for (const FCurveModelID CurveModel : NewItem->GetOrCreateCurves(CurveEditor.Get()))
+				for (const FCurveModelID& CurveModel : NewItem->GetOrCreateCurves(CurveEditor.Get()))
 				{
 					CurveEditor->PinCurve(CurveModel);
 				}

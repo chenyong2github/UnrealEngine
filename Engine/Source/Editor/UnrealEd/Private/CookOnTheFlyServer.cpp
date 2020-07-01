@@ -2938,12 +2938,12 @@ const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName
 
 			// all these packages referenced us apparently so fix them all up
 			const TArray<FName>& PackagesForFixup = CachedFullPackageDependencies.FindChecked(CircularReferenceArrayName);
-			for ( const FName FixupPackage : PackagesForFixup )
+			for ( const FName& FixupPackage : PackagesForFixup )
 			{
 				TArray<FName> &FixupList = CachedFullPackageDependencies.FindChecked(FixupPackage);
 				// check( FixupList.Contains( CircularReferenceArrayName) );
 				ensure( FixupList.Remove(CircularReferenceArrayName) == 1 );
-				for( const FName AdditionalDependency : Dependencies )
+				for( const FName& AdditionalDependency : Dependencies )
 				{
 					FixupList.AddUnique(AdditionalDependency);
 					if ( AdditionalDependency.GetComparisonIndex() == NAME_CircularReference.GetComparisonIndex() )
@@ -3345,7 +3345,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 		const TArray<FName>* LocalizedVariants = CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(Package->GetFName());
 		if (LocalizedVariants)
 		{
-			for (const FName LocalizedPackageName : *LocalizedVariants)
+			for (const FName& LocalizedPackageName : *LocalizedVariants)
 			{
 				UE::Cook::FPackageData* LocalizedPackageData = PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
 				if (LocalizedPackageData)
@@ -6921,7 +6921,7 @@ bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlat
 bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<FName>& TargetPlatformNames)
 {
 	bool bShadersRecompiled = false;
-	for (const FName TargetPlatformName : TargetPlatformNames)
+	for (const FName& TargetPlatformName : TargetPlatformNames)
 	{
 		bShadersRecompiled |= RecompileChangedShadersForPlatform(TargetPlatformName.ToString());
 	}

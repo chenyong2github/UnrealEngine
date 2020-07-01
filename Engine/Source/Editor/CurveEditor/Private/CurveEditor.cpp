@@ -862,7 +862,7 @@ void FCurveEditor::CutSelection()
 void FCurveEditor::GetChildCurveModelIDs(const FCurveEditorTreeItemID TreeItemID, TSet<FCurveModelID>& OutCurveModelIDs) const
 {
 	const FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
-	for (const FCurveModelID CurveModelID : TreeItem.GetCurves())
+	for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
 	{
 		OutCurveModelIDs.Add(CurveModelID);
 	}
@@ -922,7 +922,7 @@ void FCurveEditor::CopySelection() const
 	{
 		TSet<FCurveModelID> CurveModelIDs;
 
-		for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> Pair : GetTreeSelection())
+		for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
 		{
 			if (Pair.Value == ECurveEditorTreeSelectionState::Explicit)
 			{
@@ -930,7 +930,7 @@ void FCurveEditor::CopySelection() const
 			}
 		}
 
-		for(const FCurveModelID CurveModelID : CurveModelIDs)
+		for(const FCurveModelID& CurveModelID : CurveModelIDs)
 		{
 			if (FCurveModel* Curve = FindCurve(CurveModelID))
 			{
@@ -1055,7 +1055,7 @@ void FCurveEditor::PasteKeys()
 	bool bSelectionNeedsLongNames = false;
 	FCurveEditorTreeItemID LastRootItem;
 
-	for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> Pair : GetTreeSelection())
+	for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
 	{
 		FCurveEditorTreeItem* TreeItem = &GetTreeItem(Pair.Key);
 
@@ -1134,10 +1134,10 @@ void FCurveEditor::PasteKeys()
 			}
 		}
 
-		for (const FCurveEditorTreeItemID TreeItemID: NodesToSearch)
+		for (const FCurveEditorTreeItemID& TreeItemID: NodesToSearch)
 		{
 			FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
-			for (const FCurveModelID CurveModelID : TreeItem.GetCurves())
+			for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
 			{
 				FCurveModel* Curve = FindCurve(CurveModelID);
 				const FString CurveLongDisplayName = Curve->GetLongDisplayName().ToString();
@@ -1447,7 +1447,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 
 	TMap<FString, int32> IntentMatchIndexes;
 
-	for (const FCurveModelID CurveModelID : InCurvesToApplyTo)
+	for (const FCurveModelID& CurveModelID : InCurvesToApplyTo)
 	{
 		FCurveModel* TargetCurve = FindCurve(CurveModelID);
 		check(TargetCurve);

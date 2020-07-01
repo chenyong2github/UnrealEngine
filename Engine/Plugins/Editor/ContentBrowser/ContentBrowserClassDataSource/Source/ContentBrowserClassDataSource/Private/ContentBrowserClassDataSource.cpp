@@ -183,7 +183,7 @@ void UContentBrowserClassDataSource::EnumerateItemsMatchingFilter(const FContent
 
 	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 	{
-		for (const FName ValidFolder : ClassDataFilter->ValidFolders)
+		for (const FName& ValidFolder : ClassDataFilter->ValidFolders)
 		{
 			if (!InCallback(CreateClassFolderItem(ValidFolder)))
 			{
@@ -437,7 +437,7 @@ void UContentBrowserClassDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 
 	// Extract the internal class paths that belong to this data source from the full list of selected paths given in the context
 	TArray<FName> SelectedClassPaths;
-	for (const FName SelectedPath : ContextObject->SelectedPaths)
+	for (const FName& SelectedPath : ContextObject->SelectedPaths)
 	{
 		FName InternalPath;
 		if (TryConvertVirtualPathToInternal(SelectedPath, InternalPath) && IsKnownClassPath(InternalPath))

@@ -192,7 +192,7 @@ void SRigWindow::CreateBoneMappingList( const FString& SearchText, TArray< TShar
 		bool bDoFiltering = !SearchText.IsEmpty();
 		const TArray<FNode>& Nodes = Rig->GetNodes();
 
-		for ( const auto Node : Nodes )
+		for ( const auto& Node : Nodes )
 		{
 			const FName& Name = Node.Name;
 			const FString& DisplayName = Node.DisplayName;

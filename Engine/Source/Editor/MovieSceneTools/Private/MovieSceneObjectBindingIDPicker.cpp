@@ -62,7 +62,7 @@ void FMovieSceneObjectBindingIDPicker::OnGetMenuContent(FMenuBuilder& MenuBuilde
 		);
 	}
 
-	for (const TSharedPtr<FSequenceBindingNode>& Child : Node->Children)
+	for (const TSharedPtr<FSequenceBindingNode> Child : Node->Children)
 	{
 		check(Child.IsValid())
 

@@ -873,7 +873,7 @@ FString ConvertToFullTextSearchQuery(const FString& QueryText)
 				{
 					Q.Append(TEXT(" OR "));
 					Q.Append(TEXT("\""));
-					for (const FString SimpleString : TokenStreak)
+					for (const FString& SimpleString : TokenStreak)
 					{
 						Q.Append(SimpleString);
 					}
@@ -891,7 +891,7 @@ FString ConvertToFullTextSearchQuery(const FString& QueryText)
 		{
 			Q.Append(TEXT(" OR "));
 			Q.Append(TEXT("\""));
-			for (const FString SimpleString : TokenStreak)
+			for (const FString& SimpleString : TokenStreak)
 			{
 				Q.Append(SimpleString);
 			}

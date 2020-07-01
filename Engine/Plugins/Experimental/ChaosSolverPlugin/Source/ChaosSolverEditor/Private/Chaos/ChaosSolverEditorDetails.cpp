@@ -25,7 +25,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 
 	// Find associated actor
 	bool bHasBegunPlay = false;
-	for (const TWeakObjectPtr<UObject> SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
+	for (const TWeakObjectPtr<UObject>& SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
 	{
 		if (AChaosSolverActor* const ChaosSolverActor = Cast<AChaosSolverActor>(SelectedObject.Get()))
 		{

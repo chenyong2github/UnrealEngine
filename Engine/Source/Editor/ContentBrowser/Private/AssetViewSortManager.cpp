@@ -470,7 +470,7 @@ void FAssetViewSortManager::ExportColumnsToCSV(TArray<TSharedPtr<FAssetViewItem>
 			continue;
 		}
 
-		for (const FName Column : ColumnList)
+		for (const FName& Column : ColumnList)
 		{
 			FString ValueString;
 		

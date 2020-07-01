@@ -127,7 +127,7 @@ void FNiagaraStackGraphUtilities::RelayoutGraph(UEdGraph& Graph)
 	{
 		float CurrentXOffset = 0;
 		float MaxYOffset = YOffset;
-		for (const TArray<UEdGraphNode*> TraversalLevel : TraversalStack)
+		for (const TArray<UEdGraphNode*>& TraversalLevel : TraversalStack)
 		{
 			float CurrentYOffset = YOffset;
 			for (UEdGraphNode* Node : TraversalLevel)

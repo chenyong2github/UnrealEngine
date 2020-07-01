@@ -278,7 +278,7 @@ void FAsyncCompressedAnimationsManagement::AddReferencedObjects(FReferenceCollec
 		Task.DataToCompress->AddReferencedObjects(Collector);
 	}
 
-	for (const FQueuedAsyncCompressionWork QueuedTask : QueuedAsyncCompressionWork)
+	for (const FQueuedAsyncCompressionWork& QueuedTask : QueuedAsyncCompressionWork)
 	{
 		QueuedTask.Compressor.GetCompressibleData()->AddReferencedObjects(Collector);
 	}

@@ -13774,7 +13774,7 @@ bool UEngine::PrepareMapChange(FWorldContext &Context, const TArray<FName>& Leve
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Verify that all levels specified are in the package file cache.
-		for (const FName LevelName : Context.LevelsToLoadForPendingMapChange)
+		for (const FName& LevelName : Context.LevelsToLoadForPendingMapChange)
 		{
 			if( !FPackageName::DoesPackageExist( LevelName.ToString() ) )
 			{
@@ -13800,7 +13800,7 @@ bool UEngine::PrepareMapChange(FWorldContext &Context, const TArray<FName>& Leve
 		}
 
 		// Kick off async loading of packages.
-		for (const FName LevelName : Context.LevelsToLoadForPendingMapChange)
+		for (const FName& LevelName : Context.LevelsToLoadForPendingMapChange)
 		{
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "PrepareMapChange - " ) + LevelName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("PrepareMapChange - %s"), *LevelName.ToString());
