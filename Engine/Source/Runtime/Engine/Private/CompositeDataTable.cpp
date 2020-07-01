@@ -15,6 +15,8 @@
 #include "DataTableEditorUtils.h"
 #endif
 
+#include "HAL/IConsoleManager.h"
+
 #define LOCTEXT_NAMESPACE "CompositeDataTables"
 
 #define DATATABLE_CHANGE_SCOPE()	UDataTable::FScopedDataTableChange ActiveScope(this);
