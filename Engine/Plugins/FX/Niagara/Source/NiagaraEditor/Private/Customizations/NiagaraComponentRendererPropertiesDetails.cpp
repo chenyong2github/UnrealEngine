@@ -15,6 +15,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include <ObjectEditorUtils.h>
 
 #define LOCTEXT_NAMESPACE "FNiagaraComponentRendererPropertiesDetails"
 
@@ -79,25 +80,66 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 	static const FName ComponentCategoryName = TEXT("Component Properties");
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(ComponentCategoryName);
 
-	uint32 CategoryCount;
-	TemplateHandle->GetChildHandle(0)->GetNumChildren(CategoryCount);
+	uint32 PropertyChildCount;
+	TemplateHandle->GetChildHandle(0)->GetNumChildren(PropertyChildCount);
 
-	for (uint32 i = 0; i < CategoryCount; i++)
+	// we need to build a mapping between categories and properties first because the CLASS_CollapseCategories class flag can
+	// remove the categories from top-level properties, so we need to traverse them differently
+	TMap<FName, TArray<TSharedPtr<IPropertyHandle>>> CategoryMapping;
+	UClass* TemplateClass = RendererProperties->TemplateComponent->GetClass();
+	bool HasCollapsedCategories = TemplateClass->HasAnyClassFlags(CLASS_CollapseCategories);
+
+	for (uint32 i = 0; i < PropertyChildCount; i++)
 	{
-		TSharedPtr<IPropertyHandle> CategoryHandle = TemplateHandle->GetChildHandle(0)->GetChildHandle(i);
-		uint32 CategoryChildren;
-		CategoryHandle->GetNumChildren(CategoryChildren);
+		TSharedPtr<IPropertyHandle> TopLevelHandle = TemplateHandle->GetChildHandle(0)->GetChildHandle(i);
 
-		if (CategoryChildren == 0)
+		if (HasCollapsedCategories)
+		{
+			if (!TopLevelHandle.IsValid() || !TopLevelHandle->GetProperty() || !TopLevelHandle->GetProperty()->GetClass())
+			{
+				continue;
+			}
+
+			// with collapsed categories, the properties are given to us directly, without the category properties as parents
+			FProperty* Property = TopLevelHandle->GetProperty();
+			FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
+			CategoryMapping.FindOrAdd(CategoryFName).Add(TopLevelHandle);
+		}
+		else
+		{
+			uint32 CategoryChildren;
+			TopLevelHandle->GetNumChildren(CategoryChildren);
+			for (uint32 k = 0; k < CategoryChildren; k++)
+			{
+				TSharedPtr<IPropertyHandle> ChildHandle = TopLevelHandle->GetChildHandle(k);
+				if (!ChildHandle->GetProperty() || !ChildHandle->GetProperty()->GetClass())
+				{
+					continue;
+				}
+
+				FName CategoryFName = FName(TopLevelHandle->GetPropertyDisplayName().ToString());
+				CategoryMapping.FindOrAdd(CategoryFName).Add(ChildHandle);
+			}
+		}
+	}
+	
+
+	for (TPair<FName, TArray<TSharedPtr<IPropertyHandle>>> CategoryPair : CategoryMapping)
+	{
+		if (CategoryPair.Key == FName("Activation"))
+		{
+			// we don't want the user to change the component activation settings because we need to be able to control that in the component pool
+			continue;
+		}
+		if (CategoryPair.Value.Num() == 0)
 		{
 			continue;
 		}
 
 		// we add the original property categories as groups, as we don't want them to be top-level entries in the ui
-		IDetailGroup& CategoryGroup = CategoryBuilder.AddGroup(FName(CategoryHandle->GetPropertyDisplayName().ToString()), CategoryHandle->GetPropertyDisplayName());
-		for (uint32 k = 0; k < CategoryChildren; k++)
+		IDetailGroup& CategoryGroup = CategoryBuilder.AddGroup(CategoryPair.Key, FText::FromName(CategoryPair.Key));
+		for (TSharedPtr<IPropertyHandle> PropHandle : CategoryPair.Value)
 		{
-			TSharedPtr<IPropertyHandle> PropHandle = CategoryHandle->GetChildHandle(k);				
 			IDetailPropertyRow& PropertyRow = CategoryGroup.AddPropertyRow(PropHandle.ToSharedRef());
 
 			TSharedPtr<SWidget> NameWidget;
