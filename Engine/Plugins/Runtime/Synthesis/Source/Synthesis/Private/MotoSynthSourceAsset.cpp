@@ -168,6 +168,45 @@ void UMotoSynthSource::BeginDestroy()
 	}
 }
 
+uint32 UMotoSynthSource::GetNextSourceID() const
+{
+	static uint32 SourceIDs = INDEX_NONE;
+	return ++SourceIDs;
+}
+
+void UMotoSynthSource::RegisterSourceData()
+{
+	FMotoSynthSourceDataManager& MotoSynthDataManager = FMotoSynthSourceDataManager::Get();
+
+	if (SourceDataID != INDEX_NONE)
+	{
+		MotoSynthDataManager.UnRegisterData(SourceDataID);
+	}
+
+	SourceDataID = GetNextSourceID();
+
+	// We need a curve data
+	FRichCurve* RichRPMCurve = RPMCurve.GetRichCurve();
+	if (ensure(RichRPMCurve))
+	{
+		FName SourceName = GetFName();
+
+		// In the editor, we don't want to modify the SourcDataPCM array
+		// At runtime we want to move from it, which requires an unload and load to get back
+#if WITH_EDITOR
+		TArray<int16> DataCopy = SourceDataPCM;
+		TArray<FGrainTableEntry> GrainTableCopy = GrainTable;
+		MotoSynthDataManager.RegisterData(SourceDataID, SourceName, MoveTemp(DataCopy), SourceSampleRate, MoveTemp(GrainTableCopy), *RichRPMCurve, bConvertTo8Bit);
+#else
+		MotoSynthDataManager.RegisterData(SourceDataID, SourceName, MoveTemp(SourceDataPCM), SourceSampleRate, MoveTemp(GrainTable), *RichRPMCurve, bConvertTo8Bit);
+#endif
+	}
+	else
+	{
+		UE_LOG(LogSynthesis, Error, TEXT("No RPM curve data loaded for moto synth source %s"), *GetName());
+	}
+}
+
 void UMotoSynthSource::PostLoad()
 {
 	Super::PostLoad();
@@ -189,27 +228,7 @@ void UMotoSynthSource::PostLoad()
 		SourceData_DEPRECATED.Reset();
 	}
 
-	// Set this moto synth's data with a source ID
-	if (SourceDataID == INDEX_NONE)
-	{
-		static uint32 SourceIDs = 0;
-
-		SourceDataID = SourceIDs++;
-
-		// We need a curve data
-		FRichCurve* RichRPMCurve = RPMCurve.GetRichCurve();
-		if (ensure(RichRPMCurve))
-		{
-			// register this moto synth source data with the moto synth data manager using the new ID.		
-			FMotoSynthSourceDataManager& MotoSynthDataManager = FMotoSynthSourceDataManager::Get();
-			MotoSynthDataManager.RegisterData(SourceDataID, MoveTemp(SourceDataPCM), SourceSampleRate, MoveTemp(GrainTable), *RichRPMCurve);
-		}
-		else
-		{
-			UE_LOG(LogSynthesis, Error, TEXT("No RPM curve data loaded for moto synth source %s"), *GetName());
-		}
-	}
-
+	RegisterSourceData();
 }
 
 #if WITH_EDITOR
@@ -349,7 +368,7 @@ void UMotoSynthSource::NormalizeForAnalysis()
 
 void UMotoSynthSource::BuildGrainTableByFFT()
 {
-
+	// TODO
 }
 
 static void GetBufferViewFromAnalysisBuffer(const Audio::AlignedFloatBuffer& InAnalysisBuffer, int32 StartingBufferIndex, int32 BufferSize, TArrayView<const float>& OutBufferView)
@@ -479,6 +498,8 @@ void UMotoSynthSource::PerformGrainTableAnalysis()
 	BuildGrainTableByRPMEstimation();
 	WriteDebugDataToWaveFiles();
 
+	RegisterSourceData();
+
 	AnalysisBuffer.Reset();
 }
 
@@ -588,14 +609,40 @@ void UMotoSynthSource::WriteGrainTableDataToWaveFile()
 
 float UMotoSynthSource::GetCurrentRPMForSampleIndex(int32 CurrentSampleIndex)
 {
-	float CurrentTime = (float)CurrentSampleIndex / (float)SourceSampleRate;
+	float CurrentTimeSec = (float)CurrentSampleIndex / (float)SourceSampleRate;
 	FRichCurve* RichRPMCurve = RPMCurve.GetRichCurve();
-	float CurveValue = RichRPMCurve->Eval(CurrentTime);
+	float CurveValue = RichRPMCurve->Eval(CurrentTimeSec);
 	return CurveValue;
 }
 
 void UMotoSynthSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	RegisterSourceData();
 }
 #endif // #if WITH_EDITOR
+
+
+float UMotoSynthSource::GetRuntimeMemoryUsageMB() const
+{
+	if (SourceDataID != INDEX_NONE)
+	{
+		FMotoSynthSourceDataManager& MotoSynthDataManager = FMotoSynthSourceDataManager::Get();
+		MotoSynthDataPtr MotoSynthData = MotoSynthDataManager.GetMotoSynthData(SourceDataID);
+		
+		int32 TotalMemBytes = MotoSynthData->GrainTable.Num() * sizeof(FGrainTableEntry);
+		if (MotoSynthData->AudioSourceBitCrushed.Num() > 0)
+		{
+			TotalMemBytes += MotoSynthData->AudioSourceBitCrushed.Num();
+		}
+		else
+		{
+			TotalMemBytes += MotoSynthData->AudioSource.Num() * sizeof(int16);
+		}
+
+		return (float)TotalMemBytes / (1024.0f * 1024.0f);
+	}
+	// SourceData isn't loaded so no memory usage
+	return 0.0f;
+}
