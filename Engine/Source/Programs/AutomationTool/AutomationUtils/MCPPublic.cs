@@ -144,7 +144,7 @@ namespace EpicGames.MCP.Automation
 		/// <summary>
 		/// Xbox One Platform
 		/// </summary>
-		XBoxOne,
+		XboxOne,
 
 
 	}
