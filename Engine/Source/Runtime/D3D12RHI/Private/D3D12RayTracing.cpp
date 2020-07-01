@@ -60,10 +60,18 @@ static FAutoConsoleVariableRef CVarRayTracingShaderRecordCache(
 static int32 GD3D12RayTracingViewDescriptorHeapSize = 250'000;
 static int32 GD3D12RayTracingViewDescriptorHeapOverflowReported = 0;
 static FAutoConsoleVariableRef CVarD3D12RayTracingViewDescriptorHeapSize(
-	TEXT("r.D3D12.RayTracingViewDescriptorHeapSize"),
+	TEXT("r.D3D12.RayTracing.ViewDescriptorHeapSize"),
 	GD3D12RayTracingViewDescriptorHeapSize,
 	TEXT("Maximum number of descriptors per ray tracing view descriptor heap. (default = 250k, ~8MB per heap)\n")
 	TEXT("Typical measured descriptor heap usage in large scenes is ~50k. An error is reported when this limit is reached and shader bindings for subsequent objects are skipped.\n"),
+	ECVF_ReadOnly
+);
+
+static int32 GD3D12RayTracingAllowCompaction = 1;
+static FAutoConsoleVariableRef CVarD3D12RayTracingAllowCompaction(
+	TEXT("r.D3D12.RayTracing.AllowCompaction"),
+	GD3D12RayTracingAllowCompaction,
+	TEXT("Whether to automatically perform compaction for static acceleration structures to save GPU memory. (default = 1)\n"),
 	ECVF_ReadOnly
 );
 
@@ -2210,7 +2218,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(const FRayTracingGeometryInit
 		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 	}
 
-	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate)
+	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate && GD3D12RayTracingAllowCompaction)
 	{
 		BuildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION;
 	}
