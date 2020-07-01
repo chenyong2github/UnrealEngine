@@ -352,7 +352,7 @@ bool FSequencerTrackNode::ValidateDisplayName(const FText& NewDisplayName, FText
 	{
 		return NameableTrack->ValidateDisplayName(NewDisplayName, OutErrorMessage);
 	}
-	return true;
+	return FSequencerDisplayNode::ValidateDisplayName(NewDisplayName, OutErrorMessage);
 }
 
 FReply FSequencerTrackNode::CreateNewSection() const
