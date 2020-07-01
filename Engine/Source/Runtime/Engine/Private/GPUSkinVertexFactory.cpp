@@ -35,7 +35,7 @@ static FAutoConsoleVariableRef CVarSupport16BitBoneIndex(
 static TAutoConsoleVariable<int32> CVarGPUSkinLimit2BoneInfluences(
 	TEXT("r.GPUSkin.Limit2BoneInfluences"),
 	0,	
-	TEXT("Whether to use 2 bones influence instead of default 4 for GPU skinning. Cannot be changed at runtime."),
+	TEXT("Whether to use 2 bones influence instead of default 4/8 for GPU skinning. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
 // Changing the unlimited bone influences settings require DDC key SKELETALMESH_DERIVEDDATA_VER to update in order to regenerate bone weight vertex buffers
@@ -50,7 +50,7 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 
 #define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE_INTERNAL(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
 	template <GPUSkinBoneInfluenceType BoneInfluenceType> FVertexFactoryType FactoryClass<BoneInfluenceType>::StaticType( \
-	BoneInfluenceType == DefaultBoneInfluence ? TEXT(#FactoryClass) TEXT("Default") : (BoneInfluenceType == ExtraBoneInfluence ? TEXT(#FactoryClass) TEXT("Extra") : TEXT(#FactoryClass) TEXT("Unlimited")), \
+	BoneInfluenceType == DefaultBoneInfluence ? TEXT(#FactoryClass) TEXT("Default") : TEXT(#FactoryClass) TEXT("Unlimited"), \
 	TEXT(ShaderFilename), \
 	bUsedWithMaterials, \
 	bSupportsStaticLighting, \
@@ -67,12 +67,10 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 #define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
 	IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE_INTERNAL(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
 	template class FactoryClass<DefaultBoneInfluence>;	\
-	template class FactoryClass<ExtraBoneInfluence>;	\
 	template class FactoryClass<UnlimitedBoneInfluence>;
 
 #define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass, Frequency, ParameterType) \
 	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<DefaultBoneInfluence>, Frequency, ParameterType); \
-	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<ExtraBoneInfluence>, Frequency, ParameterType); \
 	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<UnlimitedBoneInfluence>, Frequency, ParameterType)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -367,14 +365,6 @@ TGlobalResource<FBoneBufferPool> FGPUBaseSkinVertexFactory::BoneBufferPool;
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
-	
-	// Skip trying to use extra bone influences on < SM4 or when project uses 2 bones influence
-	if (BoneInfluenceType != DefaultBoneInfluence && (GetMaxSupportedFeatureLevel(Parameters.Platform) < ERHIFeatureLevel::ES3_1 || bLimit2BoneInfluences))
-	{
-		return false;
-	}
-
 	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GUnlimitedBoneInfluences);
 	return ((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
@@ -386,8 +376,6 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("MAX_SHADER_BONES"), MaxGPUSkinBones);
-	const uint32 UseExtraBoneInfluences = (BoneInfluenceType == ExtraBoneInfluence);
-	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_EXTRA_INFLUENCES"), UseExtraBoneInfluences);
 	{
 		bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_LIMIT_2BONE_INFLUENCES"), (bLimit2BoneInfluences ? 1 : 0));
@@ -485,11 +473,16 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 		// bone weights decls
 		OutElements.Add(AccessStreamComponent(InData.BoneWeights,4));
 
+		// Extra bone indices & weights decls
 		if (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
 		{
-			// Extra bone indices & weights decls
 			OutElements.Add(AccessStreamComponent(InData.ExtraBoneIndices, 14));
 			OutElements.Add(AccessStreamComponent(InData.ExtraBoneWeights, 15));
+		}
+		else
+		{
+			OutElements.Add(AccessStreamComponent(InData.BoneIndices, 14));
+			OutElements.Add(AccessStreamComponent(InData.BoneWeights, 15));
 		}
 	}
 }
@@ -554,6 +547,7 @@ public:
 		PreviousBoneMatrices.Bind(ParameterMap,TEXT("PreviousBoneMatrices"));
 		InputWeightIndexSize.Bind(ParameterMap, TEXT("InputWeightIndexSize"));
 		InputWeightStream.Bind(ParameterMap, TEXT("InputWeightStream"));
+		NumBoneInfluencesParam.Bind(ParameterMap, TEXT("NumBoneInfluencesParam"));
 	}
 
 	void GetElementShaderBindings(
@@ -601,6 +595,12 @@ public:
 			FRHIShaderResourceView* CurrentData = ShaderData.InputWeightStream;
 			ShaderBindings.Add(InputWeightStream, CurrentData);
 		}
+
+		if (NumBoneInfluencesParam.IsBound())
+		{
+			uint32 NumInfluences = ((const FGPUBaseSkinVertexFactory*)VertexFactory)->GetNumBoneInfluences();
+			ShaderBindings.Add(NumBoneInfluencesParam, NumInfluences);
+		}
 	}
 
 private:
@@ -609,6 +609,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousBoneMatrices)
 	LAYOUT_FIELD(FShaderParameter, InputWeightIndexSize);
 	LAYOUT_FIELD(FShaderResourceParameter, InputWeightStream);
+	LAYOUT_FIELD(FShaderParameter, NumBoneInfluencesParam);
 
 };
 
@@ -870,8 +871,7 @@ public:
 		// to use virtual inheritance, but that requires RTTI and complicates things further...
 		const FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType& ClothShaderData = 
 			 GPUSkinVertexFactory->GetBoneInfluenceType() == DefaultBoneInfluence ? ((const TGPUSkinAPEXClothVertexFactory<DefaultBoneInfluence>*)GPUSkinVertexFactory)->GetClothShaderData() :
-			(GPUSkinVertexFactory->GetBoneInfluenceType() == ExtraBoneInfluence   ? ((const TGPUSkinAPEXClothVertexFactory<ExtraBoneInfluence>*)GPUSkinVertexFactory)->GetClothShaderData() :
-																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothShaderData());
+																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothShaderData();
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FAPEXClothUniformShaderParameters>(),ClothShaderData.GetClothUniformBuffer());
 
@@ -885,13 +885,11 @@ public:
 
 		ShaderBindings.Add(GPUSkinApexClothParameter,
 			 GPUSkinVertexFactory->GetBoneInfluenceType() == DefaultBoneInfluence ? ((const TGPUSkinAPEXClothVertexFactory<DefaultBoneInfluence>*)GPUSkinVertexFactory)->GetClothBuffer() :
-			(GPUSkinVertexFactory->GetBoneInfluenceType() == ExtraBoneInfluence   ? ((const TGPUSkinAPEXClothVertexFactory<ExtraBoneInfluence>*)GPUSkinVertexFactory)->GetClothBuffer() :
-																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothBuffer()));
+																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothBuffer() );
 
 		int32 ClothIndexOffset =
 			 GPUSkinVertexFactory->GetBoneInfluenceType() == DefaultBoneInfluence ? ((const TGPUSkinAPEXClothVertexFactory<DefaultBoneInfluence>*)GPUSkinVertexFactory)->GetClothIndexOffset(BatchElement.MinVertexIndex) :
-			(GPUSkinVertexFactory->GetBoneInfluenceType() == ExtraBoneInfluence   ? ((const TGPUSkinAPEXClothVertexFactory<ExtraBoneInfluence>*)GPUSkinVertexFactory)->GetClothIndexOffset(BatchElement.MinVertexIndex) :
-																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothIndexOffset(BatchElement.MinVertexIndex));
+																					((const TGPUSkinAPEXClothVertexFactory<UnlimitedBoneInfluence>*)GPUSkinVertexFactory)->GetClothIndexOffset(BatchElement.MinVertexIndex);
 
 		FIntPoint GPUSkinApexClothStartIndexOffset(BatchElement.MinVertexIndex, ClothIndexOffset);
 		ShaderBindings.Add(GPUSkinApexClothStartIndexOffsetParameter, GPUSkinApexClothStartIndexOffset);
