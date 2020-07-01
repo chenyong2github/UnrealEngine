@@ -1326,7 +1326,6 @@ namespace AutomationTool
 						"AutomationUtils.Automation.dll",
 						"DotNETUtilities.dll",
 						"BuildUtilities.dll",
-						"MobileDeviceInterface.dll"
 					});
 
 			foreach (var UATFile in UATFiles)
