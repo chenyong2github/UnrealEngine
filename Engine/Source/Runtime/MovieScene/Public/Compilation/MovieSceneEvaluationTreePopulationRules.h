@@ -79,6 +79,11 @@ struct FEvaluationTreePopulationRules
 	 */
 	MOVIESCENE_API static void HighPassCustomPerRow(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree, FSectionSortPredicate Predicate);
 
+	/**
+	 * Runs the logic to populate empty ranges in the field with the nearest section
+	 */
+	MOVIESCENE_API static void PopulateNearestSection(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree);
+
 private:
 	static void SortSections(TArrayView<UMovieSceneSection* const> Sections, TArray<FSortedSection, TInlineAllocator<16>>& SortedSections, FSectionSortPredicate Predicate);
 };

@@ -210,7 +210,6 @@ private:
 	void UpdateEvaluationTree();
 	void AddSectionRangesToTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
 	void AddSectionPrePostRollRangesToTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
-	void FillGapsInEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData);
 
 	/** The guid of the object signature that the EvaluationField member relates to */
 	UPROPERTY()
