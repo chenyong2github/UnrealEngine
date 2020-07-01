@@ -42,7 +42,7 @@ void FPhysicsAssetDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 
 #if !WITH_CHAOS
 	// Hide Chaos-Only settings in PhysX
-	ProfilePropertiesProperty->DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, SolverIterations))->MarkHiddenByCustomization();
+	DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, SolverIterations))->MarkHiddenByCustomization();
 #endif
 
 	DetailLayout.EditCategory(TEXT("Physical Animation Profiles"))
