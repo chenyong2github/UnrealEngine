@@ -87,6 +87,14 @@ static FAutoConsoleVariableRef CVarNiagaraComponentRenderPoolInactiveTimeLimit(
 	ECVF_Default
 	);
 
+static int GNiagaraAllowDeferredReset = 1;
+static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
+	TEXT("fx.Niagara.AllowDeferredReset"),
+	GNiagaraAllowDeferredReset,
+	TEXT("If we are running async work when a reset is requested we will instead queue for the finalize to perform, this avoid stalling the GameThread."),
+	ECVF_Default
+);
+
 FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	: SystemInstanceIndex(INDEX_NONE)
 	, Component(InComponent)
@@ -483,12 +491,21 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemActivate);
 
-	WaitForAsyncTickAndFinalize();
-
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		Reset(InResetMode);
+		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize))
+		{
+			DeferredResetMode = InResetMode;
+		}
+		else
+		{
+			// Wait and clear any other resets that may be pending
+			WaitForAsyncTickAndFinalize();
+			DeferredResetMode = EResetMode::None;
+			
+			Reset(InResetMode);
+		}
 	}
 	else
 	{
@@ -500,16 +517,18 @@ void FNiagaraSystemInstance::Deactivate(bool bImmediate)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemDeactivate);
 
-	WaitForAsyncTickAndFinalize();
-
-	if (IsComplete())
-	{
-		return;
-	}
+	// Clear our pending reset mode
+	DeferredResetMode = EResetMode::None;
 
 	if (bImmediate)
 	{
-		Complete();
+		// We must wait for the current system simulation to complete in order to read the actual execution state
+		WaitForAsyncTickAndFinalize();
+
+		if (!IsComplete())
+		{
+			Complete();
+		}
 	}
 	else
 	{
@@ -1825,7 +1844,7 @@ void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
 		if ( bDoWarning && (FPlatformTime::Cycles64() > WarnCycles) )
 		{
 			bDoWarning = false;
-			UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has stalled GT for %g seconds and is not complete, this may result in a deadlock.\nComponent: %s \nSystem: %s"), WarnSeconds, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
+			UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has stalled GT for %g seconds and is not complete, this may result in a deadlock. Component(%s) System(%s)"), WarnSeconds, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
 		}
 	}
 
@@ -1833,7 +1852,7 @@ void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
 	if (StallTimeMS > GWaitForAsyncStallWarnThresholdMS)
 	{
 		//-TODO: This should be put back to a warning once EngineTests no longer cause it show up.  The reason it's triggered is because we pause in latent actions right after a TG running Niagara sims.
-		UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms.\nComponent: %s \nSystem: %s"), StallTimeMS, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
+		UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms. Component(%s) System(%s)"), StallTimeMS, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
 	}
 }
 
@@ -2234,6 +2253,15 @@ bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 				}
 			}
 		}
+
+		if (DeferredResetMode != EResetMode::None)
+		{
+			const EResetMode ResetMode = DeferredResetMode;
+			DeferredResetMode = EResetMode::None;
+
+			Reset(ResetMode);
+		}
+
 		return true;
 	}
 
