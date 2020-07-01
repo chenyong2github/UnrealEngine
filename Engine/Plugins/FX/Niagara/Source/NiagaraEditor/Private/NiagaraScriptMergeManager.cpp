@@ -2053,7 +2053,18 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 		if (InputOverridePin.LinkedTo.Num() != 0)
 		{
 			Results.bSucceeded = false;
-			Results.ErrorMessages.Add(LOCTEXT("AddPinBasedInputOverrideFailedOverridePinStillLinked", "Failed to add input override because the target override pin was still linked to other nodes."));
+			Results.ErrorMessages.Add(FText::Format(
+				LOCTEXT("AddPinBasedInputOverrideFailedOverridePinStillLinkedFormat", "Failed to add input override because the target override pin was still linked to other nodes.  Target Script Usage: {0} Target Script Usage Id: {1} Target Node: {2} Target Input Handle: {3} Linked Node: {4} Linked Pin: {5}"),
+				FNiagaraTypeDefinition::GetScriptUsageEnum()->GetDisplayNameTextByValue((int64)OwningScript.GetUsage()),
+				FText::FromString(OwningScript.GetUsageId().ToString(EGuidFormats::DigitsWithHyphens)),
+				FText::FromString(TargetFunctionCall.GetFunctionName()),
+				FText::FromName(AliasedFunctionInputHandle.GetParameterHandleString()),
+				InputOverridePin.LinkedTo[0] != nullptr && InputOverridePin.LinkedTo[0]->GetOwningNode() != nullptr
+					? InputOverridePin.LinkedTo[0]->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView)
+					: FText::FromString(TEXT("(null)")),
+				InputOverridePin.LinkedTo[0] != nullptr
+					? FText::FromName(InputOverridePin.LinkedTo[0]->PinName)
+					: FText::FromString(TEXT("(null)"))));
 		}
 		else
 		{
@@ -2201,12 +2212,19 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> EnableModules;
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> DisableModules;
 
-	if (!bNoParentAtLastMerge)
+	for (TSharedRef<FNiagaraStackFunctionMergeAdapter> RemovedModule : DiffResults.RemovedBaseModules)
 	{
-		for (TSharedRef<FNiagaraStackFunctionMergeAdapter> RemovedModule : DiffResults.RemovedBaseModules)
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(RemovedModule->GetFunctionCallNode()->NodeGuid);
+		if (MatchingModuleAdapter.IsValid())
 		{
-			TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(RemovedModule->GetFunctionCallNode()->NodeGuid);
-			if (MatchingModuleAdapter.IsValid())
+			if (bNoParentAtLastMerge)
+			{
+				// If there is no last known parent we don't know if the module was removed in the child, or added in the parent, so
+				// instead of removing the parent module we disable it in this case, since removing modules in child emitters isn't
+				// supported through the UI.
+				DisableModules.Add(MatchingModuleAdapter.ToSharedRef());
+			}
+			else
 			{
 				RemoveModules.Add(MatchingModuleAdapter.ToSharedRef());
 			}
@@ -2214,7 +2232,6 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 	}
 
 	AddModules.Append(DiffResults.AddedOtherModules);
-
 
 	for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> RemovedInputOverrideAdapter : DiffResults.RemovedBaseInputOverrides)
 	{
@@ -2311,15 +2328,12 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		Results.ErrorMessages.Append(AddModuleResults.ErrorMessages);
 	}
 
-	if (!bNoParentAtLastMerge)
+	for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> RemoveInputOverrideItem : RemoveInputOverrides)
 	{
-		for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> RemoveInputOverrideItem : RemoveInputOverrides)
-		{
-			FApplyDiffResults RemoveInputOverrideResults = RemoveInputOverride(*BaseScriptStackAdapter->GetScript(), RemoveInputOverrideItem);
-			Results.bSucceeded &= RemoveInputOverrideResults.bSucceeded;
-			Results.bModifiedGraph |= RemoveInputOverrideResults.bModifiedGraph;
-			Results.ErrorMessages.Append(RemoveInputOverrideResults.ErrorMessages);
-		}
+		FApplyDiffResults RemoveInputOverrideResults = RemoveInputOverride(*BaseScriptStackAdapter->GetScript(), RemoveInputOverrideItem);
+		Results.bSucceeded &= RemoveInputOverrideResults.bSucceeded;
+		Results.bModifiedGraph |= RemoveInputOverrideResults.bModifiedGraph;
+		Results.ErrorMessages.Append(RemoveInputOverrideResults.ErrorMessages);
 	}
 
 	for (const FAddInputOverrideActionData& AddInputOverrideActionData : AddInputOverrideActionDatas)
@@ -2548,14 +2562,22 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyR
 {
 	TArray<UNiagaraRendererProperties*> RenderersToRemove;
 	TArray<UNiagaraRendererProperties*> RenderersToAdd;
+	TArray<UNiagaraRendererProperties*> RenderersToDisable;
 
-	if (!bNoParentAtLastMerge)
+	for (TSharedRef<FNiagaraRendererMergeAdapter> RemovedRenderer : DiffResults.RemovedBaseRenderers)
 	{
-		for (TSharedRef<FNiagaraRendererMergeAdapter> RemovedRenderer : DiffResults.RemovedBaseRenderers)
+		auto FindRendererByMergeId = [=](UNiagaraRendererProperties* Renderer) { return Renderer->GetMergeId() == RemovedRenderer->GetRenderer()->GetMergeId(); };
+		UNiagaraRendererProperties* const* MatchingRendererPtr = BaseEmitter.GetRenderers().FindByPredicate(FindRendererByMergeId);
+		if (MatchingRendererPtr != nullptr)
 		{
-			auto FindRendererByMergeId = [=](UNiagaraRendererProperties* Renderer) { return Renderer->GetMergeId() == RemovedRenderer->GetRenderer()->GetMergeId(); };
-			UNiagaraRendererProperties* const* MatchingRendererPtr = BaseEmitter.GetRenderers().FindByPredicate(FindRendererByMergeId);
-			if (MatchingRendererPtr != nullptr)
+			if (bNoParentAtLastMerge)
+			{
+				// If there is no last known parent we don't know if the renderer was removed in the child, or added in the parent, so
+				// instead of removing the parent renderer we disable it in this case, since removing renderers in child emitters isn't
+				// supported through the UI, and instead the user is expected to disable it.
+				RenderersToDisable.Add(*MatchingRendererPtr);
+			}
+			else
 			{
 				RenderersToRemove.Add(*MatchingRendererPtr);
 			}
@@ -2586,6 +2608,11 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyR
 	for (UNiagaraRendererProperties* RendererToAdd : RenderersToAdd)
 	{
 		BaseEmitter.AddRenderer(RendererToAdd);
+	}
+
+	for (UNiagaraRendererProperties* RendererToDisable : RenderersToDisable)
+	{
+		RendererToDisable->bIsEnabled = false;
 	}
 
 	FApplyDiffResults Results;
