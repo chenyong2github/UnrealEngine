@@ -9,6 +9,7 @@
 #include "Particles/ParticlePerfStats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
@@ -203,8 +204,11 @@ public:
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
 
+private:
+	bool IsValidInternal() const;
+public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
-	bool IsValid()const;
+	bool IsValid() const { return FPlatformProperties::RequiresCookedData() ? bIsValidCached : IsValidInternal(); }
 
 #if WITH_EDITORONLY_DATA
 	/** Adds a new emitter handle to this System.  The new handle exposes an Instance value which is a copy of the
@@ -248,11 +252,15 @@ public:
 	UNiagaraScript* GetSystemSpawnScript();
 	UNiagaraScript* GetSystemUpdateScript();
 
+	TOptional<float> GetMaxDeltaTime() const { return MaxDeltaTime; }
+	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
+	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> GetEmitterExecutionStateAccessors() const { return MakeArrayView(EmitterExecutionStateAccessors); }
+	TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> GetEmitterSpawnInfoAccessors(int32 EmitterIndex) const { return MakeArrayView(EmitterSpawnInfoAccessors[EmitterIndex]);  }
+
 private:
 	bool IsReadyToRunInternal() const;
-	bool bIsReadyToRunCached = false;
 public:
-	bool IsReadyToRun() const;
+	bool IsReadyToRun() const { return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal(); }
 
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
@@ -366,6 +374,9 @@ public:
 
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
+
+	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
+	void CacheFromCompiledData();
 
 	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 
@@ -553,6 +564,14 @@ protected:
 
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
+
+	uint32 bIsValidCached : 1;
+	uint32 bIsReadyToRunCached : 1;
+
+	TOptional<float> MaxDeltaTime;
+	FNiagaraDataSetAccessor<ENiagaraExecutionState> SystemExecutionStateAccessor;
+	TArray<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors;
+	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
 
 	void GenerateStatID()const;
 #if STATS

@@ -12,6 +12,7 @@
 #include "NiagaraModule.h"
 #include "NiagaraSystem.h"
 #include "NiagaraStats.h"
+#include "NiagaraRenderer.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -52,6 +53,14 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	TEXT("fx.EnableEmitterMergeChangeIdLogging"),
 	GbEnableEmitterChangeIdMergeLogging,
 	TEXT("If > 0 verbose change id information will be logged to help with debuggin merge issues. \n"),
+	ECVF_Default
+);
+
+static int32 GDebugForcedMaxGPUBufferElements = 0;
+static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
+	TEXT("fx.NiagaraDebugForcedMaxGPUBufferElements"),
+	GDebugForcedMaxGPUBufferElements,
+	TEXT("Force the maximum buffer size supported by the GPU to this value, for debugging purposes."),
 	ECVF_Default
 );
 
@@ -561,6 +570,10 @@ void UNiagaraEmitter::PostLoad()
 #endif
 
 	ResolveScalabilitySettings();
+
+#if !UE_BUILD_SHIPPING
+	DebugSimName = GetFullName();
+#endif
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const
@@ -906,6 +919,74 @@ UNiagaraScript* UNiagaraEmitter::GetScript(ENiagaraScriptUsage Usage, FGuid Usag
 		}
 	}
 	return nullptr;
+}
+
+void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	MaxInstanceCount = 0;
+	BoundsCalculators.Empty();
+
+	// Emitter is invalid if the compiled data is nullptr
+	if (CompiledData == nullptr)
+	{
+		return;
+	}
+
+	// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
+	// generate the bounds from the readback in the tool.
+#if !WITH_EDITOR
+	bool bUseDynamicBounds = !bFixedBounds && SimTarget == ENiagaraSimTarget::CPUSim;
+	if (bUseDynamicBounds)
+#endif
+	{
+		BoundsCalculators.Reserve(RendererProperties.Num());
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
+		{
+			if ((Renderer != nullptr) && Renderer->GetIsEnabled())
+			{
+				FNiagaraBoundsCalculator* BoundsCalculator = Renderer->CreateBoundsCalculator();
+				if (BoundsCalculator != nullptr)
+				{
+					BoundsCalculator->InitAccessors(*CompiledData);
+					BoundsCalculators.Emplace(BoundsCalculator);
+				}
+			}
+		}
+	}
+
+	// Find number maximum number of instance we can support for this emitter
+	{
+		// Prevent division by 0 in case there are no renderers.
+		uint32 MaxGPUBufferComponents = 1;
+		if (SimTarget == ENiagaraSimTarget::CPUSim && GbEnableMinimalGPUBuffers)
+		{
+			// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
+			// among all the enabled renderers, since this will decide how many particles we can upload.
+			for (UNiagaraRendererProperties* RendererProperty : GetEnabledRenderers())
+			{
+				const uint32 RendererMaxNumComponents = RendererProperty->ComputeMaxUsedComponents(CompiledData);
+				MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, RendererMaxNumComponents);
+			}
+		}
+		else
+		{
+			// GPU emitters must store the entire particle payload on GPU buffers, so get the maximum component count from the dataset.
+			MaxGPUBufferComponents = FMath::Max3(CompiledData->TotalFloatComponents, CompiledData->TotalInt32Components, CompiledData->TotalHalfComponents);
+		}
+
+		// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
+		uint64 MaxBufferElements = (GDebugForcedMaxGPUBufferElements > 0) ? (uint64)GDebugForcedMaxGPUBufferElements : GetMaxBufferDimension();
+		// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
+		MaxInstanceCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
+
+		if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			// On GPU, the size of the allocated buffers must be a multiple of NIAGARA_COMPUTE_THREADGROUP_SIZE, so round down.
+			MaxInstanceCount = (MaxInstanceCount / NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
+			// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
+			MaxInstanceCount -= 1;
+		}
+	}
 }
 
 bool UNiagaraEmitter::IsAllowedByScalability()const

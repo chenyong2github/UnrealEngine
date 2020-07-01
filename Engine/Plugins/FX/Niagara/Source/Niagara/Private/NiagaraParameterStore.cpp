@@ -176,7 +176,7 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters)
 {
 	check(DestStore);
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
+	//SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
 
 	if (!Algo::FindBy(Bindings, DestStore, &BindingPair::Key))
 	{
@@ -339,7 +339,7 @@ void FNiagaraParameterStore::UnbindAll()
 
 void FNiagaraParameterStore::Rebind()
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreRebind);
+	//SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreRebind);
 	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
 	{
 		Binding.Value.Initialize(Binding.Key, this);
