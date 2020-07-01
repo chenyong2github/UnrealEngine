@@ -31,21 +31,6 @@ struct FEntityImportParams;
 class FEntityManager;
 
 
-/** Specifies what changes have been made to the evaluation environment prior to an update */
-enum class ESequenceUpdateResult
-{
-	/** Nothing has changed - skip instantiation phases and go straight to evaluation */
-	NoChange       = 0,
-
-	/** The current set of entities has changed and will need a re-instantiation pass */
-	EntitiesDirty  = 1 << 0,
-
-	/** Everything has changed */
-	Everything = EntitiesDirty
-};
-ENUM_CLASS_FLAGS(ESequenceUpdateResult);
-
-
 struct FImportedEntity
 {
 	bool IsEmpty() const
@@ -104,7 +89,6 @@ public:
 
 	using FEntityImportParams   = UE::MovieScene::FEntityImportParams;
 	using FImportedEntity       = UE::MovieScene::FImportedEntity;
-	using ESequenceUpdateResult = UE::MovieScene::ESequenceUpdateResult;
 
 
 	GENERATED_BODY()
@@ -119,11 +103,11 @@ public:
 	}
 
 
-	ESequenceUpdateResult ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+	void ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
 
 private:
 
-	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) = 0;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) = 0;
 
 	/** Optional user-implementation function for populating an evaluation entity field */
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* Field) { return false; }

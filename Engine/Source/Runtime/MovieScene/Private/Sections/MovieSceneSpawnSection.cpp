@@ -23,7 +23,7 @@ UMovieSceneSpawnSection::UMovieSceneSpawnSection(const FObjectInitializer& Init)
 	BoolCurve.SetDefault(true);
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneSpawnSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneSpawnSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -34,11 +34,7 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneSpawnSection::ImportEntityImpl(
 			FEntityBuilder()
 			.Add(FBuiltInComponentTypes::Get()->SpawnableBinding, Params.ObjectBindingID)
 		);
-
-		return ESequenceUpdateResult::EntitiesDirty;
 	}
-
-	return ESequenceUpdateResult::NoChange;
 }
 
 bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)

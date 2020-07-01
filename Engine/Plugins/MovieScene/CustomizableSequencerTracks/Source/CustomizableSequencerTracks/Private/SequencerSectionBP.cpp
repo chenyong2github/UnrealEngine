@@ -20,23 +20,19 @@ USequencerSectionBP::USequencerSectionBP(const FObjectInitializer& ObjInit)
 }
 
 
-UE::MovieScene::ESequenceUpdateResult USequencerSectionBP::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void USequencerSectionBP::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	USequencerTrackBP* CustomTrack = GetTypedOuter<USequencerTrackBP>();
-	if (!CustomTrack->TrackInstanceType.Get())
+	if (CustomTrack->TrackInstanceType.Get())
 	{
-		return ESequenceUpdateResult::NoChange;
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		OutImportedEntity->AddBuilder(
+			FEntityBuilder()
+			.Add(BuiltInComponents->TrackInstance, FMovieSceneTrackInstanceComponent{ this, CustomTrack->TrackInstanceType })
+			.AddConditional(BuiltInComponents->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+		);
 	}
-
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
-	OutImportedEntity->AddBuilder(
-		FEntityBuilder()
-		.Add(BuiltInComponents->TrackInstance, FMovieSceneTrackInstanceComponent{ this, CustomTrack->TrackInstanceType })
-		.AddConditional(BuiltInComponents->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
-	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }

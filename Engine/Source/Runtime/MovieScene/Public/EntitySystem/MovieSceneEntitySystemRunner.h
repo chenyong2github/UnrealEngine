@@ -118,7 +118,7 @@ private:
 	/** When an update is running, the list of sub-contexts for the requested update */
 	TArray<FDissectedUpdate> DissectedUpdates;
 
-	UE::MovieScene::ESequenceUpdateResult PendingUpdateResult;
+	uint64 LastInstantiationVersion = 0;
 
 	bool bCanQueueEventTriggers;
 	FMovieSceneEntitySystemEventTriggers EventTriggers;

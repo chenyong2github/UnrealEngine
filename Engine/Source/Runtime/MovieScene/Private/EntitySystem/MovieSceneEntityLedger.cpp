@@ -15,10 +15,8 @@ namespace MovieScene
 {
 
 
-ESequenceUpdateResult FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
+void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
 {
-	ESequenceUpdateResult Result = ESequenceUpdateResult::NoChange;
-
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 	if (NewEntities.Num() != 0)
 	{
@@ -34,8 +32,6 @@ ESequenceUpdateResult FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinke
 					if (It.Value())
 					{
 						Linker->EntityManager.AddComponents(It.Value(), FinishedMask, EEntityRecursion::Full);
-
-						Result |= ESequenceUpdateResult::EntitiesDirty;
 					}
 					It.RemoveCurrent();
 				}
@@ -47,36 +43,32 @@ ESequenceUpdateResult FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinke
 		{
 			for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
 			{
-				Result |= ImportEntity(Linker, ImportParams, EntityField, Entity);
+				ImportEntity(Linker, ImportParams, EntityField, Entity);
 			}
 		}
 		else for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
 		{
 			if (!HasImportedEntity(Entity))
 			{
-				Result |= ImportEntity(Linker, ImportParams, EntityField, Entity);
+				ImportEntity(Linker, ImportParams, EntityField, Entity);
 			}
 		}
 	}
 	else
 	{
-		Result |= UnlinkEverything(Linker);
+		UnlinkEverything(Linker);
 	}
 
 	// Nothing is invalidated now
 	bInvalidated = false;
-
-	return Result;
 }
 
-ESequenceUpdateResult FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
+void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
 {
-	ESequenceUpdateResult Result = ESequenceUpdateResult::NoChange;
-
 	checkf(OneShotEntities.Num() == 0, TEXT("One shot entities should not be updated multiple times per-evaluation. They must not have gotten cleaned up correctly."));
 	if (NewEntities.Num() == 0)
 	{
-		return Result;
+		return;
 	}
 
 	FEntityImportParams Params;
@@ -97,7 +89,7 @@ ESequenceUpdateResult FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySyst
 		}
 
 		FImportedEntity ImportedEntity;
-		Result |= Provider->ImportEntity(Linker, Params, &ImportedEntity);
+		Provider->ImportEntity(Linker, Params, &ImportedEntity);
 
 		if (!ImportedEntity.IsEmpty())
 		{
@@ -107,13 +99,9 @@ ESequenceUpdateResult FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySyst
 			}
 
 			FMovieSceneEntityID NewEntityID = ImportedEntity.Manufacture(Params, &Linker->EntityManager);
-
 			OneShotEntities.Add(NewEntityID);
-			Result |= ESequenceUpdateResult::EntitiesDirty;
 		}
 	}
-
-	return Result;
 }
 
 void FEntityLedger::Invalidate()
@@ -136,7 +124,7 @@ FMovieSceneEntityID FEntityLedger::FindImportedEntity(const FMovieSceneEvaluatio
 	return ImportedEntities.FindRef(Entity);
 }
 
-ESequenceUpdateResult FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityPtr& Entity)
+void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityPtr& Entity)
 {
 	check(!HasImportedEntity(Entity) || bInvalidated);
 
@@ -146,7 +134,7 @@ ESequenceUpdateResult FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker*
 	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(Entity.EntityOwner);
 	if (!Provider)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	FEntityImportParams Params;
@@ -158,7 +146,7 @@ ESequenceUpdateResult FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker*
 	}
 
 	FImportedEntity ImportedEntity;
-	ESequenceUpdateResult Result = Provider->ImportEntity(Linker, Params, &ImportedEntity);
+	Provider->ImportEntity(Linker, Params, &ImportedEntity);
 
 	if (!ImportedEntity.IsEmpty())
 	{
@@ -170,16 +158,11 @@ ESequenceUpdateResult FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker*
 		FMovieSceneEntityID NewEntityID = ImportedEntity.Manufacture(Params, &Linker->EntityManager);
 
 		Linker->EntityManager.ReplaceEntityID(RefEntityID, NewEntityID);
-		Result |= ESequenceUpdateResult::EntitiesDirty;
 	}
-
-	return Result;
 }
 
-ESequenceUpdateResult FEntityLedger::UnlinkEverything(UMovieSceneEntitySystemLinker* Linker)
+void FEntityLedger::UnlinkEverything(UMovieSceneEntitySystemLinker* Linker)
 {
-	ESequenceUpdateResult Result = ESequenceUpdateResult::NoChange;
-
 	FComponentMask FinishedMask = FBuiltInComponentTypes::Get()->FinishedMask;
 
 	for (TPair<FMovieSceneEvaluationFieldEntityPtr, FMovieSceneEntityID>& Pair : ImportedEntities)
@@ -187,12 +170,9 @@ ESequenceUpdateResult FEntityLedger::UnlinkEverything(UMovieSceneEntitySystemLin
 		if (Pair.Value)
 		{
 			Linker->EntityManager.AddComponents(Pair.Value, FinishedMask, EEntityRecursion::Full);
-			Result = ESequenceUpdateResult::EntitiesDirty;
 		}
 	}
 	ImportedEntities.Empty();
-
-	return Result;
 }
 
 void FEntityLedger::UnlinkOneShots(UMovieSceneEntitySystemLinker* Linker)

@@ -36,9 +36,8 @@ struct FEntityLedger
 	 * @param ImportParams   Basis for import parameters
 	 * @param EntityField    Possibly null if NewEntities is empty- an entity field containing structural information about the sequence
 	 * @param NewEntities    A set specifying all the entities required for the next evaluation. Specifying an empty set will unlink all existing entities.
-	 * @return A mask representing the changes made to the environment
 	 */
-	ESequenceUpdateResult UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities);
+	void UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities);
 
 	/**
 	 * Update any one-shot entities for the current frame
@@ -47,9 +46,8 @@ struct FEntityLedger
 	 * @param ImportParams   Basis for import parameters
 	 * @param EntityField    Possibly null if NewEntities is empty- an entity field containing structural information about the sequence
 	 * @param NewEntities    A set specifying all the entities required for the next evaluation. Specifying an empty set will unlink all existing entities.
-	 * @return A mask representing the changes made to the environment
 	 */
-	ESequenceUpdateResult UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities);
+	void UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities);
 
 	/**
 	 * Invalidate any and all entities that are currently being tracked, causing new linker entities to be created on the next evaluation, and ones to become unlinked (preserving any components with the preserve flag)
@@ -79,17 +77,15 @@ public:
 	 * @param Linker         The linker To import into
 	 * @param InstanceHandle A handle to the sequence instance that the entity relates to (relating to Linker->GetInstanceRegistry())
 	 * @param Entity         The field entity that is being imported
-	 * @return An enumeration specifying whether any entity was imported or not
 	 */
-	ESequenceUpdateResult ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityPtr& Entity);
+	void ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityPtr& Entity);
 
 	/**
 	 * Unlink all imported linker entities and their children, whilst maintaining the map of imported entities
 	 *
 	 * @param Linker The linker that owns this ledger
-	 * @return A mask representing the changes made to the environment
 	 */
-	ESequenceUpdateResult UnlinkEverything(UMovieSceneEntitySystemLinker* Linker);
+	void UnlinkEverything(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Unlink all imported one-shot linker entities and their children and clear the list of one shots
