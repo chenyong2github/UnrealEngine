@@ -15,7 +15,7 @@
 
 namespace AssetDataGathererConstants
 {
-	static const int32 CacheSerializationVersion = 13;
+	static const int32 CacheSerializationVersion = 14;
 	static const int32 MaxFilesToDiscoverBeforeFlush = 2500;
 	static const int32 MaxFilesToGatherBeforeFlush = 250;
 	static const int32 MinSecondsToElapseBeforeCacheWrite = 60;
