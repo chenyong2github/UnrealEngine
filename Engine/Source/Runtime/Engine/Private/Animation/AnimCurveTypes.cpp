@@ -4,6 +4,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/AnimObjectVersion.h"
 #include "Math/RandomStream.h"
+#include "Animation/AnimSequenceBase.h"
 
 DECLARE_CYCLE_STAT(TEXT("EvalRawCurveData"), STAT_EvalRawCurveData, STATGROUP_Anim);
 

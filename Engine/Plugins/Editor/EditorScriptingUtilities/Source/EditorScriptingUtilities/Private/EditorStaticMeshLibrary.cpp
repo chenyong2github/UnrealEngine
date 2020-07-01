@@ -120,7 +120,11 @@ TEnumAsByte<ECollisionTraceFlag> UEditorStaticMeshLibrary::GetCollisionComplexit
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetCollisionComplexity(StaticMesh) : ECollisionTraceFlag::CTF_UseDefault;
+	if (StaticMeshEditorSubsystem)
+	{
+		return StaticMeshEditorSubsystem->GetCollisionComplexity(StaticMesh);
+	}
+	return ECollisionTraceFlag::CTF_UseDefault;
 }
 
 int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)

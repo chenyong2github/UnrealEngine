@@ -11,7 +11,7 @@ class FMenuBuilder;
 namespace PlatformInfo
 {
 	// Forward declare type from DesktopPlatform rather than add an include dependency to everything using IProjectTargetPlatformEditorModule
-	struct FPlatformInfo;
+	struct FTargetPlatformInfo;
 }
 
 /**
