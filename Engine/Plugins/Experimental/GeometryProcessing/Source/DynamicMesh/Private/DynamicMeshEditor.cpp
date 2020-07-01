@@ -789,7 +789,6 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 }
 
 
-
 void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles)
 {
 	check(Mesh->HasAttributes());
@@ -1015,6 +1014,12 @@ void FDynamicMeshEditor::SetGeneralTubeUVs(const TArray<int>& Triangles,
 
 void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, const FVector2f& UVTranslation, bool bShiftToOrigin, int UVLayerIndex)
 {
+	SetTriangleUVsFromProjection(Triangles, ProjectionFrame, FVector2f(UVScaleFactor, UVScaleFactor), UVTranslation, UVLayerIndex, bShiftToOrigin, false);
+}
+
+void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, const FVector2f& UVScale, 
+	const FVector2f& UVTranslation, int UVLayerIndex, bool bShiftToOrigin, bool bNormalizeBeforeScaling)
+{
 	if (!Triangles.Num())
 	{
 		return;
@@ -1051,11 +1056,14 @@ void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangl
 		UVs->SetTriangle(TID, ElemTri);
 	}
 
+	FVector2f UvScaleToUse = bNormalizeBeforeScaling ? FVector2f(UVScale[0] / UVBounds.Width(), UVScale[1] / UVBounds.Height())
+		: UVScale;
+
 	// shift UVs so that their bbox min-corner is at origin and scaled by external scale factor
 	for (int UVID : AllUVIndices)
 	{
 		FVector2f UV = UVs->GetElement(UVID);
-		FVector2f TransformedUV = (bShiftToOrigin) ? ((UV - UVBounds.Min) * UVScaleFactor) : (UV * UVScaleFactor);
+		FVector2f TransformedUV = (bShiftToOrigin) ? ((UV - UVBounds.Min) * UvScaleToUse) : (UV * UvScaleToUse);
 		TransformedUV += UVTranslation;
 		UVs->SetElement(UVID, TransformedUV);
 	}

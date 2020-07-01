@@ -92,9 +92,11 @@ public:
 	 * @param ResultOut resulting selection. At most one of the Groups/Corners/Edges members will contain one element.
 	 * @param SelectedPositionOut The point on the ray nearest to the selected element
 	 * @param SelectedNormalOut the normal at that point if ResultOut contains a selected face, otherwise uninitialized
+	 * @param EdgeSegmentIdOut When not null, if the selected element is a group edge, the segment id of the segment
+	 *   that was actually clicked within the edge polyline will be stored here.
 	 */
 	bool FindSelectedElement(const FRay3d& Ray, FGroupTopologySelection& ResultOut, 
-		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut);
+		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut = nullptr);
 
 	/**
 	 * Render the given selection with the default settings of the FToolDataVisualizer.
@@ -128,7 +130,7 @@ protected:
 	bool bIgnoreOcclusion = false;
 
 	bool DoCornerBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial, 
-		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const;
+		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const;
 	bool DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
-		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut) const;
+		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const;
 };
