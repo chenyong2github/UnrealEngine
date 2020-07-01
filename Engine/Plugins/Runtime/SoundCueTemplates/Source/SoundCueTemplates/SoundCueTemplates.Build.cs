@@ -22,8 +22,9 @@ public class SoundCueTemplates : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "Slate",
-                "SlateCore"
-            }
+                "SlateCore",
+				"DeveloperSettings"
+			}
         );
     }
 }

@@ -51,6 +51,7 @@ public class NiagaraEditor : ModuleRules
 				"ToolMenus",
 				"Renderer",
 				"EditorWidgets",
+				"DeveloperSettings"
 			}
         );
 

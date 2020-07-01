@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
                     "MovieSceneTracks",
                     "PropertyPath",
 					"TimeManagement",
-                }
+					"DeveloperSettings"
+				}
             );
 
             PublicDependencyModuleNames.AddRange(
