@@ -22,6 +22,8 @@ FCriticalSection FAndroidInputInterface::TouchInputCriticalSection;
 FAndroidGamepadDeviceMapping FAndroidInputInterface::DeviceMapping[MAX_NUM_CONTROLLERS];
 
 bool FAndroidInputInterface::VibeIsOn;
+int32 FAndroidInputInterface::MaxVibeTime = 1000;
+double FAndroidInputInterface::LastVibeUpdateTime = 0.0;
 FForceFeedbackValues FAndroidInputInterface::VibeValues;
 
 bool FAndroidInputInterface::bAllowControllers = true;
@@ -196,6 +198,12 @@ void FAndroidInputInterface::Tick(float DeltaTime)
 	{
 		(*DeviceIt)->Tick(DeltaTime);
 	}
+
+	if (VibeIsOn && 1000 * (FPlatformTime::Seconds() - LastVibeUpdateTime) > MaxVibeTime)
+	{
+		VibeIsOn = false;
+		UpdateVibeMotors();
+	}
 }
 
 void FAndroidInputInterface::SetLightColor(int32 ControllerId, FColor Color)
@@ -340,9 +348,9 @@ extern void AndroidThunkCpp_Vibrate(int32 Duration);
 void FAndroidInputInterface::UpdateVibeMotors()
 {
 	// Use largest vibration state as value
-	float MaxLeft = VibeValues.LeftLarge > VibeValues.LeftSmall ? VibeValues.LeftLarge : VibeValues.LeftSmall;
-	float MaxRight = VibeValues.RightLarge > VibeValues.RightSmall ? VibeValues.RightLarge : VibeValues.RightSmall;
-	float Value = MaxLeft > MaxRight ? MaxLeft : MaxRight;
+	const float MaxLeft = VibeValues.LeftLarge > VibeValues.LeftSmall ? VibeValues.LeftLarge : VibeValues.LeftSmall;
+	const float MaxRight = VibeValues.RightLarge > VibeValues.RightSmall ? VibeValues.RightLarge : VibeValues.RightSmall;
+	const float Value = MaxLeft > MaxRight ? MaxLeft : MaxRight;
 
 	if (VibeIsOn)
 	{
@@ -357,7 +365,8 @@ void FAndroidInputInterface::UpdateVibeMotors()
 		if (Value >= 0.3f)
 		{
 			// Turn it on for 10 seconds (or until below threshold)
-			AndroidThunkCpp_Vibrate(10000);
+			AndroidThunkCpp_Vibrate(MaxVibeTime);
+			LastVibeUpdateTime = FPlatformTime::Seconds();
 			VibeIsOn = true;
 		}
 	}

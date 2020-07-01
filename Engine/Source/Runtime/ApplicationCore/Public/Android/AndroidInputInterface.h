@@ -329,6 +329,9 @@ private:
 
 	/** Vibration settings */
 	static bool VibeIsOn;
+	// Maximum time vibration will be triggered without an update
+	static int32 MaxVibeTime;
+	static double LastVibeUpdateTime;
 	static FForceFeedbackValues VibeValues;
 
 	// should we allow controllers to send input
