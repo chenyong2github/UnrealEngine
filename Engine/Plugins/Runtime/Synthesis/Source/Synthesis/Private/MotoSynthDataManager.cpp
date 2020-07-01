@@ -12,7 +12,7 @@ static FAutoConsoleCommand LogMotoSynthMemoryUsageCommand(
 );
 
 static int32 MemoryLoggingCvar = 0;
-FAutoConsoleVariableRef CVarSetAudioChannelCount(
+FAutoConsoleVariableRef CVarMemoryLoggingCvar(
 	TEXT("au.motosynth.enablememorylogging"),
 	MemoryLoggingCvar,
 	TEXT("Enables logging of memory usage whenever new sources are registered and unregistered.\n")
