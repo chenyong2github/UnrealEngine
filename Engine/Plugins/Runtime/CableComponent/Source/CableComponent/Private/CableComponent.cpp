@@ -435,7 +435,7 @@ void UCableComponent::VerletIntegrate(float InSubstepTime, const FVector& Gravit
 }
 
 /** Solve a single distance constraint between a pair of particles */
-static void SolveDistanceConstraint(FCableParticle& ParticleA, FCableParticle& ParticleB, float DesiredDistance)
+static FORCEINLINE void SolveDistanceConstraint(FCableParticle& ParticleA, FCableParticle& ParticleB, float DesiredDistance)
 {
 	// Find current vector between particles
 	FVector Delta = ParticleB.Position - ParticleA.Position;
@@ -627,6 +627,17 @@ void UCableComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (bSkipCableUpdateWhenNotVisible && !IsVisible())
+	{
+		return;
+	}
+
+	AActor* Owner = GetOwner();
+	if (bSkipCableUpdateWhenNotOwnerRecentlyRendered && Owner && !Owner->WasRecentlyRendered(2.0f))
+	{
+		return;
+	}
+
 	const FVector Gravity = FVector(0, 0, GetWorld()->GetGravityZ()) * CableGravityScale;
 
 	// Update end points
@@ -661,10 +672,18 @@ void UCableComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 	// Perform simulation substeps
 	TimeRemainder += DeltaTime;
-	while(TimeRemainder > UseSubstep)
+	while (TimeRemainder > UseSubstep)
 	{
-		PerformSubstep(UseSubstep, Gravity);
-		TimeRemainder -= UseSubstep;
+
+		PerformSubstep(bUseSubstepping ? UseSubstep : TimeRemainder, Gravity);
+		if (bUseSubstepping)
+		{
+			TimeRemainder -= UseSubstep;
+		}
+		else
+		{
+			TimeRemainder = 0.0f;
+		}
 	}
 
 	// Need to send new data to render thread
