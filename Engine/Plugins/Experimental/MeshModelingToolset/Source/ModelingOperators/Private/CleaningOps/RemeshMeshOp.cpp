@@ -154,5 +154,9 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	{
 		FMeshNormals::QuickComputeVertexNormals(*TargetMesh);
 	}
+	else
+	{
+		FMeshNormals::QuickRecomputeOverlayNormals(*TargetMesh);
+	}
 
 }
