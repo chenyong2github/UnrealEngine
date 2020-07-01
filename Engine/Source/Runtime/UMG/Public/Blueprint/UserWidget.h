@@ -1309,6 +1309,8 @@ protected:
 	UUMGSequencePlayer* GetSequencePlayer(const UWidgetAnimation* InAnimation) const;
 	UUMGSequencePlayer* GetOrAddSequencePlayer(UWidgetAnimation* InAnimation);
 
+	void TearDownAnimations();
+
 	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
 	void Invalidate();
 

@@ -38,26 +38,6 @@ static FComponentRegistry GComponentRegistry;
 } // namespace UE
 
 
-
-UMovieSceneEntitySystemLinker* UGlobalEntitySystemLinker::Get(UObject* PlaybackContext)
-{
-	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-	if (World)
-	{
-		static const TCHAR* LinkerName = TEXT("DefaultMovieSceneEntitySystemLinker");
-
-		UGlobalEntitySystemLinker* WorldSystem = FindObject<UGlobalEntitySystemLinker>(World, LinkerName);
-		if (!WorldSystem)
-		{
-			WorldSystem = NewObject<UGlobalEntitySystemLinker>(World, LinkerName);
-		}
-		return WorldSystem;
-	}
-
-	static UGlobalEntitySystemLinker* System = NewObject<UGlobalEntitySystemLinker>(GetTransientPackage(), UGlobalEntitySystemLinker::StaticClass(), "GlobalMovieSceneEntitySystemLinker", RF_MarkAsRootSet);
-	return System;
-}
-
 UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -76,6 +56,31 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 
 		InstanceRegistry.Reset(new FInstanceRegistry(this));
 	}
+}
+
+UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name)
+{
+	if (!PreferredOuter)
+	{
+		PreferredOuter = GetTransientPackage();
+	}
+
+	UMovieSceneEntitySystemLinker* Existing = FindObject<UMovieSceneEntitySystemLinker>(PreferredOuter, Name);
+	if (!Existing)
+	{
+		Existing = NewObject<UMovieSceneEntitySystemLinker>(PreferredOuter, Name);
+	}
+	return Existing;
+}
+
+UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::CreateLinker(UObject* PreferredOuter)
+{
+	if (!PreferredOuter)
+	{
+		PreferredOuter = GetTransientPackage();
+	}
+
+	return NewObject<UMovieSceneEntitySystemLinker>(PreferredOuter);
 }
 
 UE::MovieScene::FComponentRegistry* UMovieSceneEntitySystemLinker::GetComponents()
@@ -295,20 +300,6 @@ void UMovieSceneEntitySystemLinker::LinkRelevantSystems()
 
 		LastSystemLinkVersion = EntityManager.GetSystemSerial();
 	}
-}
-
-UGlobalEntitySystemLinker::UGlobalEntitySystemLinker(const FObjectInitializer& ObjInit)
-	: Super(ObjInit)
-{
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UGlobalEntitySystemLinker::Tick));
-	}
-}
-
-bool UGlobalEntitySystemLinker::Tick(float)
-{
-	return true;
 }
 
 FMovieSceneEntitySystemEvaluationReentrancyWindow::FMovieSceneEntitySystemEvaluationReentrancyWindow(UMovieSceneEntitySystemLinker& InLinker)

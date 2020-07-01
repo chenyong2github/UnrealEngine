@@ -36,6 +36,17 @@ void UUMGSequencePlayer::InitSequencePlayer(UWidgetAnimation& InAnimation, UUser
 	AbsolutePlaybackStart = UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange());
 }
 
+UMovieSceneEntitySystemLinker* UUMGSequencePlayer::ConstructEntitySystemLinker()
+{
+	UUserWidget* Widget = UserWidget.Get();
+	if (ensure(Widget) && !EnumHasAnyFlags(Animation->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		return Widget->AnimationTickManager->GetLinker();
+	}
+
+	return UMovieSceneEntitySystemLinker::CreateLinker(Widget ? Widget->GetWorld() : nullptr);
+}
+
 void UUMGSequencePlayer::Tick(float DeltaTime)
 {
 	if ( PlayerStatus == EMovieScenePlayerStatus::Playing )

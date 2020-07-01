@@ -20,6 +20,7 @@
 class UMovieSceneSequence;
 class FViewportClient;
 class IMovieScenePlaybackClient;
+class UMovieSceneEntitySystemLinker;
 struct FMovieSceneRootEvaluationTemplateInstance;
 class FMovieSceneSequenceInstance;
 class IMovieScenePlayer;
@@ -85,6 +86,11 @@ public:
 	 * Access the evaluation template that we are playing back
 	 */
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() = 0;
+
+	/**
+	 * Called to retrieve or construct an entity linker for the specified playback context
+	 */
+	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() { return nullptr; }
 
 	/**
 	 * Cast this player instance as a UObject if possible

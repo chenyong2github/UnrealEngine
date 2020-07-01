@@ -601,6 +601,16 @@ bool UMovieSceneSequencePlayer::ShouldPause(FFrameTime NewPosition) const
 	return bShouldPause;
 }
 
+UMovieSceneEntitySystemLinker* UMovieSceneSequencePlayer::ConstructEntitySystemLinker()
+{
+	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		return TickManager->GetLinker();
+	}
+
+	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext());
+}
+
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings)
 {
 	check(InSequence);
@@ -684,11 +694,6 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		}
 	}
 
-	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
-
-	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
-	PlayPosition.Reset(StartTimeWithOffset);
-	TimeController->Reset(GetCurrentTime());
 
 	// Store a reference to the global tick manager to keep it alive while there are sequence players active.
 	UObject* PlaybackContext = GetPlaybackContext();
@@ -696,6 +701,12 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 	{
 		TickManager = UMovieSceneSequenceTickManager::Get(PlaybackContext);
 	}
+
+	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
+
+	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
+	PlayPosition.Reset(StartTimeWithOffset);
+	TimeController->Reset(GetCurrentTime());
 }
 
 void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
