@@ -4,6 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
+#include "CompGeom/PolygonTriangulation.h"
 #include "SegmentTypes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"
@@ -1643,6 +1644,21 @@ void UEditMeshPolygonsTool::ApplyFillHole()
 				int32 NewGroupID = Mesh->AllocateTriangleGroup();
 				Filler.Fill(NewGroupID);
 				NewSelection.SelectedGroupIDs.Add(NewGroupID);
+
+				// Compute normals and UVs
+				if (Mesh->HasAttributes())
+				{
+					TArray<FVector3d> VertexPositions;
+					Loop.GetVertices(VertexPositions);
+					FVector3d PlaneOrigin;
+					FVector3d PlaneNormal;
+					PolygonTriangulation::ComputePolygonPlane<double>(VertexPositions, PlaneNormal, PlaneOrigin);
+
+					FDynamicMeshEditor Editor(Mesh);
+					FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
+					Editor.SetTriangleNormals(Filler.NewTriangles);
+					Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
+				}
 			}
 		}
 	}
