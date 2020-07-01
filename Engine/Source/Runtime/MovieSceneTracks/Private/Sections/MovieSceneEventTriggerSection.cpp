@@ -25,7 +25,7 @@ UMovieSceneEventTriggerSection::UMovieSceneEventTriggerSection(const FObjectInit
 #endif
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneEventTriggerSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneEventTriggerSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -35,12 +35,12 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneEventTriggerSection::ImportEnti
 	TArrayView<const FMovieSceneEvent> Events = EventChannel.GetData().GetValues();
 	if (!ensureMsgf(Events.IsValidIndex(EventIndex), TEXT("Attempting to import an event entity for an invalid index (Index: %d, Num: %d)"), EventIndex, Events.Num()))
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	if (Events[EventIndex].Ptrs.Function == nullptr)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	UMovieSceneEventTrack*   EventTrack     = GetTypedOuter<UMovieSceneEventTrack>();
@@ -52,15 +52,15 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneEventTriggerSection::ImportEnti
 	// all the events from the last playback position to the start of playback be fired.
 	if (Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 	else if (Context.GetDirection() == EPlayDirection::Forwards && !EventTrack->bFireEventsWhenForwards)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 	else if (Context.GetDirection() == EPlayDirection::Backwards && !EventTrack->bFireEventsWhenBackwards)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	UMovieSceneEventSystem* EventSystem = nullptr;
@@ -86,7 +86,9 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneEventTriggerSection::ImportEnti
 	};
 
 	EventSystem->AddEvent(ThisInstance.GetRootInstanceHandle(), TriggerData);
-	return ESequenceUpdateResult::EntitiesDirty;
+
+	// Mimic the structure changing in order to ensure that the instantiation phase runs
+	EntityLinker->EntityManager.MimicStructureChanged();
 }
 
 bool UMovieSceneEventTriggerSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
