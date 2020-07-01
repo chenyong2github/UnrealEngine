@@ -8,7 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/Texture.h"
 #include "EngineDefines.h"
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
+#include "PhysicsSettingsEnums.h"
 #if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
 #endif

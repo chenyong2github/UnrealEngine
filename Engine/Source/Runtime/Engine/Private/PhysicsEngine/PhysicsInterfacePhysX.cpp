@@ -1115,58 +1115,6 @@ void FPhysicsInterface_PhysX::SetMaterials(const FPhysicsShapeHandle_PhysX& InSh
 	}
 }
 
-FPhysicsMaterialHandle FPhysicsInterface_PhysX::CreateMaterial(const UPhysicalMaterial* InMaterial)
-{
-	check(GPhysXSDK);
-
-	FPhysicsMaterialHandle_PhysX NewRef;
-
-	const float Friction = InMaterial->Friction;
-	const float Restitution = InMaterial->Restitution;
-
-	NewRef.Material = GPhysXSDK->createMaterial(Friction, Friction, Restitution);
-
-	return NewRef;
-}
-
-void FPhysicsInterface_PhysX::ReleaseMaterial(FPhysicsMaterialHandle_PhysX& InHandle)
-{
-	if(InHandle.IsValid())
-	{
-		InHandle.Material->userData = nullptr;
-		GPhysXPendingKillMaterial.Add(InHandle.Material);
-		InHandle.Material = nullptr;
-	}
-}
-
-void FPhysicsInterface_PhysX::UpdateMaterial(const FPhysicsMaterialHandle_PhysX& InHandle, UPhysicalMaterial* InMaterial)
-{
-	if(InHandle.IsValid())
-	{
-		PxMaterial* PMaterial = InHandle.Material;
-
-		PMaterial->setStaticFriction(InMaterial->Friction);
-		PMaterial->setDynamicFriction(InMaterial->Friction);
-		PMaterial->setRestitution(InMaterial->Restitution);
-
-		const uint32 UseFrictionCombineMode = (InMaterial->bOverrideFrictionCombineMode ? InMaterial->FrictionCombineMode.GetValue() : UPhysicsSettings::Get()->FrictionCombineMode.GetValue());
-		PMaterial->setFrictionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseFrictionCombineMode));
-
-		const uint32 UseRestitutionCombineMode = (InMaterial->bOverrideRestitutionCombineMode ? InMaterial->RestitutionCombineMode.GetValue() : UPhysicsSettings::Get()->RestitutionCombineMode.GetValue());
-		PMaterial->setRestitutionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseRestitutionCombineMode));
-
-		FPhysicsDelegates::OnUpdatePhysXMaterial.Broadcast(InMaterial);
-	}
-}
-
-void FPhysicsInterface_PhysX::SetUserData(const FPhysicsMaterialHandle_PhysX& InHandle, void* InUserData)
-{
-	if(InHandle.IsValid())
-	{
-		InHandle.Material->userData = InUserData;
-	}
-}
-
 void FPhysicsInterface_PhysX::SetActorUserData_AssumesLocked(const FPhysicsActorHandle_PhysX& InActorHandle, FPhysxUserData* InUserData)
 {
 	if (InActorHandle.SyncActor)

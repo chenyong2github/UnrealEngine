@@ -11,6 +11,7 @@
 #include "PhysicsInterfaceTypes.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "GenericPhysicsInterface.h"
+#include "Chaos/ChaosEngineInterface.h"	//temp to help get code out of engine
 
 struct FLinearDriveConstraint;
 struct FAngularDriveConstraint;
@@ -144,20 +145,6 @@ private:
 };
 
 /**
- * Wrapper for internal PhysX materials
- */
-
-struct ENGINE_API FPhysicsMaterialHandle_PhysX
-{
-	FPhysicsMaterialHandle_PhysX() : Material(nullptr) {}
-	explicit FPhysicsMaterialHandle_PhysX(physx::PxMaterial* InMaterial) : Material(InMaterial) {}
-
-	bool IsValid() const { return Material != nullptr; }
-
-	physx::PxMaterial* Material;
-};
-
-/**
 * API to access the physics interface. All calls to FPhysicsInterface functions should be inside an Execute* callable.
 * This is to ensure correct lock semantics and command buffering if the specific API supports deferred commands.
 */
@@ -182,7 +169,7 @@ struct ENGINE_API FPhysicsCommand_PhysX
 	static void ExecuteShapeWrite(FBodyInstance* InInstance, FPhysicsShapeHandle_PhysX& InShape, TFunctionRef<void(FPhysicsShapeHandle_PhysX& InShape)> InCallable);
 };
 
-struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
+struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface, public FChaosEngineInterface	//temp to help get code out of engine
 {
 	// Describe the interface to identify it to the caller
 	static FString GetInterfaceDescription() { return TEXT("PhysX"); }
