@@ -1401,25 +1401,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 		}
 
-		if (info.targets) {
-			// check incognito mode compliance: we don't allow explicit targets
-			// to be specified to avoid exposing, e.g. [FORTNITE] bot name
-
-			for (const target of info.targets) {
-				if (this.getImmediateEdge(target.branch)!.incognitoMode) {
-					if (target.furtherMerges.length !== 0) {
-						info.errors = info.errors || []
-						info.errors.push(`Target ${target.branch.name} has explicit targets - not allowed in incognito mode`)
-					}
-
-					if (target.flags.has('review')) {
-						info.errors = info.errors || []
-						info.errors.push(`Target ${target.branch.name} flagged for review - not allowed in incognito mode`)
-					}
-				}
-			}
-		}
-
 		// stop on errors and e-mail interested parties
 		if (info.errors) {
 			this.nodeBotLogger.debug(`Errors during createChangeInfo():\n${info.errors.join('\n')}`)
