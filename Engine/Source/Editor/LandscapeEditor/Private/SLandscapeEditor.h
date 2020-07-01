@@ -88,6 +88,7 @@ protected:
 	void OnChangeTool(FName ToolName);
 	bool IsToolEnabled(FName ToolName) const;
 	bool IsToolActive(FName ToolName) const;
+	bool IsToolAvailable(FName ToolName) const;
 
 	void OnChangeBrushSet(FName BrushSetName);
 	bool IsBrushSetEnabled(FName BrushSetName) const;
