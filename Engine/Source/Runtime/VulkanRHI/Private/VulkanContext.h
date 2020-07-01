@@ -15,6 +15,7 @@ class FVulkanPendingGfxState;
 class FVulkanPendingComputeState;
 class FVulkanQueue;
 class FVulkanOcclusionQueryPool;
+class FVulkanSwapChain;
 
 struct FInputAttachmentData;
 
@@ -391,6 +392,11 @@ protected:
 	static void ClearUAV(TRHICommandList_RecursiveHazardous<FVulkanCommandListContext>& RHICmdList, FVulkanUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
 
 public:
+	bool IsSwapchainImage(FRHITexture* InTexture) const;
+	VkSurfaceTransformFlagBitsKHR GetSwapchainQCOMRenderPassTransform() const;
+	VkFormat GetSwapchainImageFormat() const;
+	FVulkanSwapChain* GetSwapChain() const;
+
 	inline FTransitionAndLayoutManager& GetTransitionAndLayoutManager()
 	{
 		return TransitionAndLayoutManager;

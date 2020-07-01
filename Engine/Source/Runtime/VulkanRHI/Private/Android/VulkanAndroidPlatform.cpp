@@ -151,12 +151,25 @@ void FVulkanAndroidPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutE
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 }
 
+static int32 GVulkanQcomRenderPassTransform = 1;
+static FAutoConsoleVariableRef CVarVulkanQcomRenderPassTransform(
+	TEXT("r.Vulkan.UseQcomRenderPassTransform"),
+	GVulkanQcomRenderPassTransform,
+	TEXT("UseQcomRenderPassTransform\n"),
+	ECVF_ReadOnly
+);
+
 void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
 	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
+
+	if (GVulkanQcomRenderPassTransform)
+	{
+		OutExtensions.Add(VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
+	}
 
 #if !UE_BUILD_SHIPPING
 	OutExtensions.Add(VULKAN_MALI_LAYER_NAME);
