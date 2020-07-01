@@ -20,7 +20,8 @@ public class AnalyticsMulticastEditor : ModuleRules
 				"WorkspaceMenuStructure",
 				"EditorStyle",
 				"EditorWidgets",
-				"Projects"
+				"Projects",
+				"DeveloperSettings"
 			}
 			);
 
