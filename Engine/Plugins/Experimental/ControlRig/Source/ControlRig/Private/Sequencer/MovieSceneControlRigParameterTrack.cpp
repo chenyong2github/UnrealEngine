@@ -418,6 +418,7 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 	Super::PostLoad();
 	if (ControlRig && ControlRig->GetObjectBinding() && !ControlRig->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
 	{
+		ControlRig->ConditionalPostLoad();
 		ControlRig->Initialize();
 		ControlRig->CreateRigControlsForCurveContainer();
 		for (UMovieSceneSection * Section: Sections)
