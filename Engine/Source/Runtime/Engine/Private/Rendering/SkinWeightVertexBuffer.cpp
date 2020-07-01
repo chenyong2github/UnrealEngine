@@ -705,10 +705,6 @@ GPUSkinBoneInfluenceType FSkinWeightVertexBuffer::GetBoneInfluenceType() const
 	{
 		return GPUSkinBoneInfluenceType::UnlimitedBoneInfluence;
 	}
-	else if (GetMaxBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
-	{
-		return GPUSkinBoneInfluenceType::ExtraBoneInfluence;
-	}
 	else
 	{
 		return GPUSkinBoneInfluenceType::DefaultBoneInfluence;
