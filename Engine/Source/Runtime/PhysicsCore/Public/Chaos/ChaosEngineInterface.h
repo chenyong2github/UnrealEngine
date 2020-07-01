@@ -333,6 +333,11 @@ public:
 	static void AddActorToSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);
 	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);
 
+	static void SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake = true);
+	static void SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget);
+
+	static FChaosScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
+
 	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
 	static void UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial);
 	static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle);
