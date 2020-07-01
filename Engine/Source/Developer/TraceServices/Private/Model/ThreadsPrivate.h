@@ -29,7 +29,7 @@ private:
 	struct FThreadInfoInternal
 	{
 		uint32 Id = 0;
-		const TCHAR* Name = nullptr;
+		const TCHAR* Name = TEXT("UnnamedThread");
 		uint32 GroupSortOrder = ~0u;
 		int32 PrioritySortOrder = INT_MAX;
 		uint32 FallbackSortOrder = ~0u;
