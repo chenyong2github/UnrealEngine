@@ -504,7 +504,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 -(void)completeTransaction: (SKPaymentTransaction *)transaction
 {
 	FStoreKitTransactionData TransactionData(transaction);
-	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::completeTransaction - %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::completeTransaction"));
 	
 	EPurchaseTransactionState Result = EPurchaseTransactionState::Failed;
 	
@@ -527,9 +527,6 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)failedTransaction: (SKPaymentTransaction *)transaction
 {
-	FStoreKitTransactionData TransactionData(transaction);
-	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::failedTransaction - %s"), *TransactionData.ToDebugString());
-
 	EPurchaseTransactionState CompletionState = EPurchaseTransactionState::Failed;
 	switch (transaction.error.code)
 	{
@@ -545,7 +542,10 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 			CompletionState = EPurchaseTransactionState::NotAllowed;
 			break;
 	}
-	
+
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::failedTransaction State=%s"), LexToString(CompletionState));
+
+	FStoreKitTransactionData TransactionData(transaction);
 	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 	{
 	    // Notify listeners of the request completion
@@ -560,7 +560,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 -(void)restoreTransaction: (SKPaymentTransaction *)transaction
 {
 	FStoreKitTransactionData TransactionData(transaction);
-	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::restoreTransaction - %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::restoreTransaction"));
 
 	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 	{
@@ -577,7 +577,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 -(void)purchaseInProgress: (SKPaymentTransaction *)transaction
 {
 	FStoreKitTransactionData TransactionData(transaction);
-	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::purchaseInProgress - %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::purchaseInProgress"));
 	
 	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 	{
@@ -590,7 +590,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 -(void)purchaseDeferred: (SKPaymentTransaction *)transaction
 {
 	FStoreKitTransactionData TransactionData(transaction);
-	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::purchaseDeferred - %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelperV2::purchaseDeferred"));
 	
 	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 	{
