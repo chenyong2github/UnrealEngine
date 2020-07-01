@@ -129,5 +129,39 @@ void FEvaluationTreePopulationRules::HighPassCustomPerRow(TArrayView<UMovieScene
 	}
 }
 
+void FEvaluationTreePopulationRules::PopulateNearestSection(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
+{
+	// Fill in gaps
+	TArray<TTuple<TRange<FFrameNumber>, FMovieSceneTrackEvaluationData>> RangesToInsert;
+
+	for (FMovieSceneEvaluationTreeRangeIterator It(OutTree); It; ++It)
+	{
+		const bool bContainsSection = OutTree.GetAllData(It.Node()).IsValid();
+		if (!bContainsSection)
+		{
+			FMovieSceneEvaluationTreeRangeIterator NodeToCopy = It.Next();
+			if (!NodeToCopy)
+			{
+				NodeToCopy = It.Previous();
+			}
+
+			if (NodeToCopy)
+			{
+				TMovieSceneEvaluationTreeDataIterator<FMovieSceneTrackEvaluationData> DataIt = OutTree.GetAllData(It.Node());
+				while (DataIt)
+				{
+					RangesToInsert.Add(MakeTuple(It.Range(), *DataIt));
+					++DataIt;
+				}
+			}
+		}
+	}
+
+	for (const TTuple<TRange<FFrameNumber>, FMovieSceneTrackEvaluationData>& Pair : RangesToInsert)
+	{
+		OutTree.Add(Pair.Get<0>(), Pair.Get<1>());
+	}
+}
+
 } // namespace MovieScene
 } // namespace UE
