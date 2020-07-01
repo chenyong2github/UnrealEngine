@@ -61,7 +61,7 @@ int32 ChaosImmediate_Collision_Priority = 1;
 float ChaosImmediate_Collision_CullDistance = 1.0f;
 float ChaosImmediate_Collision_ShapePadding = 0;
 float ChaosImmediate_Collision_RestitutionThresholdMultiplier = 3.0f;
-int32 ChaosImmediate_Collision_RestitutionEnabled = false;
+int32 ChaosImmediate_Collision_RestitutionEnabled = true;
 int32 ChaosImmediate_Collision_DeferNarrowPhase = 1;
 int32 ChaosImmediate_Collision_UseManifolds = 0;
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionDisable(TEXT("p.Chaos.ImmPhys.Collision.Enabled"), ChaosImmediate_Collision_Enabled, TEXT("Enable/Disable collisions in Immediate Physics."));
