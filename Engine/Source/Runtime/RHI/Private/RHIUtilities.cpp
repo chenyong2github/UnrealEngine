@@ -155,8 +155,7 @@ struct FRHIFrameOffsetThread : public FRunnable
 	FCriticalSection CS;
 	FRHIFlipDetails LastFlipFrame;
 
-
-	FEvent* WaitEvent;
+	static FEvent* WaitEvent;
 
 #if !UE_BUILD_SHIPPING
 	struct FFrameDebugInfo
@@ -207,7 +206,10 @@ struct FRHIFrameOffsetThread : public FRunnable
 #endif
 			}
 
-			WaitEvent->Trigger();
+			if (WaitEvent)
+			{
+				WaitEvent->Trigger();
+			}
 		}
 
 		return 0;
@@ -220,16 +222,10 @@ struct FRHIFrameOffsetThread : public FRunnable
 
 public:
 	FRHIFrameOffsetThread()
-		: WaitEvent(nullptr)
 	{}
 
 	~FRHIFrameOffsetThread()
 	{
-		if (WaitEvent)
-		{
-			FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
-			WaitEvent = nullptr;
-		}
 	}
 
 	static FRHIFlipDetails WaitForFlip(double Timeout)
@@ -271,6 +267,12 @@ public:
 		}
 		bInitialized = false;
 		GDynamicRHI->RHISignalFlipEvent();
+
+		if (WaitEvent)
+		{
+			FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
+			WaitEvent = nullptr;
+		}
 
 		if (Thread)
 		{
@@ -314,6 +316,7 @@ FRunnableThread* FRHIFrameOffsetThread::Thread = nullptr;
 FRHIFrameOffsetThread FRHIFrameOffsetThread::Singleton;
 bool FRHIFrameOffsetThread::bInitialized = false;
 bool FRHIFrameOffsetThread::bRun = false;
+FEvent* FRHIFrameOffsetThread::WaitEvent = nullptr;
 
 #endif // USE_FRAME_OFFSET_THREAD
 
