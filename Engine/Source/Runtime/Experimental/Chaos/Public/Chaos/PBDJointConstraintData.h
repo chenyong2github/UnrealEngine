@@ -17,6 +17,7 @@ namespace Chaos
 		ParentInvMassScale          = 1 << 3,
 		LinearBreakForce            = 1 << 4,
 		AngularBreakTorque          = 1 << 5,
+		UserData                    = 1 << 6,
 		DummyFlag
 	};
 
@@ -76,6 +77,9 @@ namespace Chaos
 		//void SetAngularBreakTorque(FReal InAngularBreakTorque);
 		//FReal GetAngularBreakTorque() const
 
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(void*, UserData, EJointConstraintFlags::UserData, UserData);
+		//void SetUserData(void* InUserData);
+		//void* GetUserData() const
 
 		const FData& GetJointSettings()const {return JointSettings; }
 
@@ -87,6 +91,7 @@ namespace Chaos
 
 		FParticlePair JointParticles;
 		FTransformPair JointTransforms;
+		void* UserData;
 
 	};
 
