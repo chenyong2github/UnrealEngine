@@ -3895,27 +3895,35 @@ void FD3D12CommandContext::RHISetRayTracingHitGroups(
 
 	const uint32 MinItemsPerTask = 1024u;
 	const uint32 NumTasks = FMath::Min(MaxTasks, FMath::Max(1u, FMath::DivideAndRoundUp(NumBindings, MinItemsPerTask)));
-	const uint32 ItemsPerTask = FMath::DivideAndRoundUp(NumBindings, NumTasks);
 
-	auto BindingTask = [Bindings, Device, ShaderTable, Scene, Pipeline]
-	(uint32 FirstItemIndex, uint32 NumItems, uint32 WorkerIndex)
+	volatile int32 SharedCounter = 0;
+	const int32 IncrementCount = 128;
+
+	auto BindingTask = [Bindings, Device, ShaderTable, Scene, Pipeline, &SharedCounter, IncrementCount, NumBindings](uint32 WorkerIndex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SetRayTracingHitGroups_Task);
-
-		for (uint32 i = 0; i < NumItems; ++i)
+	 
+		int32 BaseIndex = 0;
+		while (BaseIndex < (int32)NumBindings)
 		{
-			const FRayTracingLocalShaderBindings& Binding = Bindings[FirstItemIndex + i];
-			SetRayTracingHitGroup(Device, ShaderTable, Scene, Pipeline,
-				Binding.InstanceIndex,
-				Binding.SegmentIndex,
-				Binding.ShaderSlot,
-				Binding.ShaderIndexInPipeline,
-				Binding.NumUniformBuffers,
-				Binding.UniformBuffers,
-				Binding.LooseParameterDataSize,
-				Binding.LooseParameterData,
-				Binding.UserData,
-				WorkerIndex);
+			BaseIndex = FPlatformAtomics::InterlockedAdd(&SharedCounter, IncrementCount);
+			int32 EndIndex = FMath::Min(BaseIndex + IncrementCount, (int32)NumBindings);
+
+			for (int32 CurrentIndex = BaseIndex; CurrentIndex < EndIndex; ++CurrentIndex)
+			{
+				const FRayTracingLocalShaderBindings& Binding = Bindings[CurrentIndex];
+				SetRayTracingHitGroup(Device, ShaderTable, Scene, Pipeline,
+					Binding.InstanceIndex,
+					Binding.SegmentIndex,
+					Binding.ShaderSlot,
+					Binding.ShaderIndexInPipeline,
+					Binding.NumUniformBuffers,
+					Binding.UniformBuffers,
+					Binding.LooseParameterDataSize,
+					Binding.LooseParameterData,
+					Binding.UserData,
+					WorkerIndex);
+			}
 		}
 	};
 
@@ -3924,19 +3932,15 @@ void FD3D12CommandContext::RHISetRayTracingHitGroups(
 	// Create and kick any parallel tasks first and run task 0 on this thread
 	for (uint32 TaskIndex = 1; TaskIndex < NumTasks; ++TaskIndex)
 	{
-		const uint32 FirstItemIndex = TaskIndex * ItemsPerTask;
-		const uint32 NumItems = FMath::Min(ItemsPerTask, NumBindings - FirstItemIndex);
-		const FRayTracingLocalShaderBindings* Items = Bindings + FirstItemIndex;
-
 		TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[TaskIndex, FirstItemIndex, NumItems, &BindingTask]()
+			[TaskIndex, &BindingTask]()
 		{
-			BindingTask(FirstItemIndex, NumItems, TaskIndex);
+			BindingTask(TaskIndex);
 		}, TStatId(), nullptr, ENamedThreads::AnyThread));
 	}
 
 	// Run task 0 on this thread, in parallel with any workers
-	BindingTask(0, FMath::Min(ItemsPerTask, NumBindings), 0);
+	BindingTask(0);
 
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(TaskList, ENamedThreads::AnyThread);
 }
