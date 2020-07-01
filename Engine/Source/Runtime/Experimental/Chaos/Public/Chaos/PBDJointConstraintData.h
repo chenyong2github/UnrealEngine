@@ -15,6 +15,8 @@ namespace Chaos
 		CollisionEnabled            = 1 << 1,
 		ProjectionEnabled           = 1 << 2,
 		ParentInvMassScale          = 1 << 3,
+		LinearBreakForce            = 1 << 4,
+		AngularBreakTorque          = 1 << 5,
 		DummyFlag
 	};
 
@@ -65,6 +67,15 @@ namespace Chaos
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ParentInvMassScale, EJointConstraintFlags::ParentInvMassScale, JointSettings.ParentInvMassScale);
 		//void SetParentInvMassScale(FReal InParentInvMassScale);
 		//FReal GetParentInvMassScale() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearBreakForce, EJointConstraintFlags::LinearBreakForce, JointSettings.LinearBreakForce);
+		//void SetLinearBreakForce(FReal InLinearBreakForce);
+		//FReal GetLinearBreakForce() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, AngularBreakTorque, EJointConstraintFlags::AngularBreakTorque, JointSettings.AngularBreakTorque);
+		//void SetAngularBreakTorque(FReal InAngularBreakTorque);
+		//FReal GetAngularBreakTorque() const
+
 
 		const FData& GetJointSettings()const {return JointSettings; }
 
