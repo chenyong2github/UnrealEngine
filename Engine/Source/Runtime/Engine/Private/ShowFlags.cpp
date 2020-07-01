@@ -138,6 +138,17 @@ bool FEngineShowFlags::GetSingleFlag(uint32 Index) const
 	}
 }
 
+bool FEngineShowFlags::IsForceFlagSet(uint32 Index)
+{
+	const uint8* Force0Ptr = (const uint8*)&GSystemSettings.GetForce0Mask();
+	const uint8* Force1Ptr = (const uint8*)&GSystemSettings.GetForce1Mask();
+
+	bool Force0Set = *(Force0Ptr + Index / CHAR_BIT) & (1 << Index % CHAR_BIT);
+	bool Force1Set = *(Force1Ptr + Index / CHAR_BIT) & (1 << Index % CHAR_BIT);
+
+	return !Force0Set && !Force1Set;
+}
+
 void FEngineShowFlags::SetSingleFlag(uint32 Index, bool bSet)
 {
 	switch( Index )
