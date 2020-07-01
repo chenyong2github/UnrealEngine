@@ -1018,6 +1018,10 @@ bool UObject::ConditionalFinishDestroy()
 		DebugFinishDestroyed.Add(this);
 #endif
 		FinishDestroy();
+
+		// Make sure this object can't be found through any delete listeners (annotation maps etc) after it's been FinishDestroyed
+		GUObjectArray.RemoveObjectFromDeleteListeners(this);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if( DebugFinishDestroyed.Contains(this) )
 		{
