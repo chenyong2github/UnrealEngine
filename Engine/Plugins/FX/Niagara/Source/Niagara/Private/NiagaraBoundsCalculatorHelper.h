@@ -16,7 +16,7 @@ public:
 		: MeshExtents(InMeshExtents)
 	{}
 
-	virtual void InitAccessors(const FNiagaraDataSetCompiledData& CompiledData) override final
+	virtual void InitAccessors(const FNiagaraDataSetCompiledData* CompiledData) override final
 	{
 		static const FName PositionName(TEXT("Position"));
 		static const FName SpriteSizeName(TEXT("SpriteSize"));
