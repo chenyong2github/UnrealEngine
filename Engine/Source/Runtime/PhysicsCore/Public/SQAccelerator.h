@@ -36,7 +36,7 @@ struct FCollisionQueryParams;
 struct FCollisionQueryParams;
 class ICollisionQueryFilterCallbackBase;
 
-class PHYSICSSQ_API FChaosSQAccelerator
+class PHYSICSCORE_API FChaosSQAccelerator
 {
 public:
 
@@ -57,7 +57,7 @@ private:
 // This was used in the 2019 GDC demos and is now broken. To make it work again, we would need to implement
 // the FChaosSQAcceleratorAdapter below to use its internal SQ accelerator and convert the inputs and outputs
 // from/to PhysX types.
-class PHYSICSSQ_API ISQAccelerator
+class PHYSICSCORE_API ISQAccelerator
 {
 public:
 	virtual ~ISQAccelerator() {};
@@ -66,7 +66,7 @@ public:
 	virtual void Overlap(const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const = 0;
 };
 
-class PHYSICSSQ_API FSQAcceleratorUnion : public ISQAccelerator
+class PHYSICSCORE_API FSQAcceleratorUnion : public ISQAccelerator
 {
 public:
 
@@ -84,7 +84,7 @@ private:
 #if WITH_PHYSX
 // A Chaos Query Accelerator with a PhysX API
 // TODO: Not implemented - required to make GDC 2019 demos work again.
-class PHYSICSSQ_API FChaosSQAcceleratorAdapter : public ISQAccelerator
+class PHYSICSCORE_API FChaosSQAcceleratorAdapter : public ISQAccelerator
 {
 public:
 
@@ -102,7 +102,7 @@ private:
 
 
 #if WITH_PHYSX && !WITH_CHAOS
-class PHYSICSSQ_API FPhysXSQAccelerator : public ISQAccelerator
+class PHYSICSCORE_API FPhysXSQAccelerator : public ISQAccelerator
 {
 public:
 
