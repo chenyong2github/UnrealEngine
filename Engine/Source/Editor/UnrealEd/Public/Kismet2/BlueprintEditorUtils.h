@@ -389,6 +389,13 @@ public:
 	}
 
 	/**
+	* Check if the blueprint and function are valid options for conversion to an event (BP is not a function library)
+	*
+	* @return	True if this function can be converted to a custom event
+	*/
+	static bool IsFunctionConvertableToEvent(UBlueprint* const BlueprintObj, UFunction* const Function);
+
+	/**
 	* Get the override class of a given function from its name
 	* 
 	* @param Blueprint		Blueprint to check the function on
