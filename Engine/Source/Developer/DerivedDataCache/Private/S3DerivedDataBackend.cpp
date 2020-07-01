@@ -693,115 +693,174 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 };
 
 //----------------------------------------------------------------------------------------------------------
+// FS3DerivedDataBackend::FRootManifest
+//----------------------------------------------------------------------------------------------------------
+
+struct FS3DerivedDataBackend::FRootManifest
+{
+	FString AccessKey;
+	FString SecretKey;
+	TArray<FString> Keys;
+
+	bool Load(const FString& RootManifestPath)
+	{
+		// Read the root manifest from disk
+		FString RootManifestText;
+		if (!FFileHelper::LoadFileToString(RootManifestText, *RootManifestPath))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to read manifest from %s"), *RootManifestPath);
+			return false;
+		}
+
+		// Deserialize a JSON object from the string
+		TSharedPtr<FJsonObject> RootManifestObject;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(RootManifestText), RootManifestObject) || !RootManifestObject.IsValid())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to parse manifest from %s"), *RootManifestPath);
+			return false;
+		}
+
+		// Read the access and secret keys
+		if (!RootManifestObject->TryGetStringField(TEXT("AccessKey"), AccessKey))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify AccessKey"), *RootManifestPath);
+			return false;
+		}
+		if (!RootManifestObject->TryGetStringField(TEXT("SecretKey"), SecretKey))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest %s does not specify SecretKey"), *RootManifestPath);
+			return false;
+		}
+
+		// Parse out the list of manifests
+		const TArray<TSharedPtr<FJsonValue>>* RootEntriesArray;
+		if (!RootManifestObject->TryGetArrayField(TEXT("Entries"), RootEntriesArray))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Root manifest from %s is missing entries array"), *RootManifestPath);
+			return false;
+		}
+		for (const TSharedPtr<FJsonValue>& Value : *RootEntriesArray)
+		{
+			const TSharedPtr<FJsonObject>& LastRootManifestEntry = (*RootEntriesArray)[RootEntriesArray->Num() - 1]->AsObject();
+			Keys.Add(LastRootManifestEntry->GetStringField("Key"));
+		}
+
+		return true;
+	}
+};
+
+//----------------------------------------------------------------------------------------------------------
 // FS3DerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath, const TCHAR* InAccessKey, const TCHAR* InSecretKey)
+FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
 	: RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
 	, CanaryObjectKey(InCanaryObjectKey)
 	, CacheDir(InCachePath)
-	, RequestPool(new FRequestPool(TCHAR_TO_ANSI(InRegion), TCHAR_TO_ANSI(InAccessKey), TCHAR_TO_ANSI(InSecretKey)))
 	, bEnabled(false)
 {
-
-	// Test whether we can reach the canary URL
-	bool bCanaryValid = true;
-	if (GIsBuildMachine)
+	FRootManifest RootManifest;
+	if (RootManifest.Load(InRootManifestPath))
 	{
-		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
-		bCanaryValid = false;
-	}
-	else if (CanaryObjectKey.Len() > 0)
-	{
-		TArray<uint8> Data;
+		RequestPool.Reset(new FRequestPool(TCHAR_TO_ANSI(InRegion), TCHAR_TO_ANSI(*RootManifest.AccessKey), TCHAR_TO_ANSI(*RootManifest.SecretKey)));
 
-		FStringOutputDevice DummyOutputDevice;
-		if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
+		// Test whether we can reach the canary URL
+		bool bCanaryValid = true;
+		if (GIsBuildMachine)
 		{
-			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
 			bCanaryValid = false;
 		}
-	}
-
-
-
-	// Allow the user to override it from the editor
-	bool bSetting;
-	if (GConfig->GetBool(TEXT("/Script/UnrealEd.EditorSettings"), TEXT("bEnableS3DDC"), bSetting, GEditorSettingsIni) && !bSetting)
-	{
-		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
-		bCanaryValid = false;
-	}
-
-	// Try to read the bundles
-	if (bCanaryValid)
-	{
-		UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
-
-		FFeedbackContext* Context = FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
-		Context->BeginSlowTask(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundles", "Downloading DDC bundles..."), true, true);
-
-		if (DownloadManifest(Context))
+		else if (CanaryObjectKey.Len() > 0)
 		{
-			// Get the path for each bundle that needs downloading
-			for (FBundle& Bundle : Bundles)
+			TArray<uint8> Data;
+
+			FStringOutputDevice DummyOutputDevice;
+			if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
 			{
-				Bundle.LocalFile = CacheDir / Bundle.Name;
+				UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+				bCanaryValid = false;
 			}
-
-			// Remove any bundles that are no longer required
-			RemoveUnusedBundles();
-
-			// Create a critical section used for updating download state
-			FCriticalSection CriticalSection;
-
-			// Create all the download tasks
-			TArray<TSharedPtr<FBundleDownload>> Downloads;
-			for (FBundle& Bundle : Bundles)
-			{
-				if (!FPaths::FileExists(Bundle.LocalFile))
-				{
-					TSharedPtr<FBundleDownload> Download(new FBundleDownload(CriticalSection, Bundle, BaseUrl + Bundle.ObjectKey, *RequestPool.Get(), Context));
-					Download->Event = FFunctionGraphTask::CreateAndDispatchWhenReady([Download]() { Download->Execute(); }, TStatId());
-					Downloads.Add(MoveTemp(Download));
-				}
-			}
-
-			// Loop until the downloads have all finished
-			for(bool bComplete = false; !bComplete; )
-			{
-				FPlatformProcess::Sleep(0.1f);
-
-				int64 NumBytes = 0;
-				int64 MaxBytes = 0;
-				bComplete = true;
-
-				CriticalSection.Lock();
-				for (TSharedPtr<FBundleDownload>& Download : Downloads)
-				{
-					NumBytes += Download->DownloadedBytes;
-					MaxBytes += Download->Bundle.CompressedLength;
-					bComplete &= Download->Event->IsComplete();
-				}
-				CriticalSection.Unlock();
-
-				int NumMB = (int)((NumBytes + (1024 * 1024) - 1) / (1024 * 1024));
-				int MaxMB = (int)((MaxBytes + (1024 * 1024) - 1) / (1024 * 1024));
-				if (MaxBytes > 0)
-				{
-					FText StatusText = FText::Format(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundlesPct", "Downloading DDC bundles... ({0}Mb/{1}Mb)"), NumMB, MaxMB);
-					Context->StatusUpdate((int)((NumBytes * 1000) / MaxBytes), 1000, StatusText);
-				}
-			}
-
-			// Mount all the bundles
-			ParallelFor(Bundles.Num(), [this](int32 Index) { ReadBundle(Bundles[Index]); });
-			bEnabled = true;
 		}
 
-		Context->EndSlowTask();
+		// Allow the user to override it from the editor
+		bool bSetting;
+		if (GConfig->GetBool(TEXT("/Script/UnrealEd.EditorSettings"), TEXT("bEnableS3DDC"), bSetting, GEditorSettingsIni) && !bSetting)
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
+			bCanaryValid = false;
+		}
+
+		// Try to read the bundles
+		if (bCanaryValid)
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
+
+			FFeedbackContext* Context = FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
+			Context->BeginSlowTask(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundles", "Downloading DDC bundles..."), true, true);
+
+			if (DownloadManifest(RootManifest, Context))
+			{
+				// Get the path for each bundle that needs downloading
+				for (FBundle& Bundle : Bundles)
+				{
+					Bundle.LocalFile = CacheDir / Bundle.Name;
+				}
+
+				// Remove any bundles that are no longer required
+				RemoveUnusedBundles();
+
+				// Create a critical section used for updating download state
+				FCriticalSection CriticalSection;
+
+				// Create all the download tasks
+				TArray<TSharedPtr<FBundleDownload>> Downloads;
+				for (FBundle& Bundle : Bundles)
+				{
+					if (!FPaths::FileExists(Bundle.LocalFile))
+					{
+						TSharedPtr<FBundleDownload> Download(new FBundleDownload(CriticalSection, Bundle, BaseUrl + Bundle.ObjectKey, *RequestPool.Get(), Context));
+						Download->Event = FFunctionGraphTask::CreateAndDispatchWhenReady([Download]() { Download->Execute(); }, TStatId());
+						Downloads.Add(MoveTemp(Download));
+					}
+				}
+
+				// Loop until the downloads have all finished
+				for (bool bComplete = false; !bComplete; )
+				{
+					FPlatformProcess::Sleep(0.1f);
+
+					int64 NumBytes = 0;
+					int64 MaxBytes = 0;
+					bComplete = true;
+
+					CriticalSection.Lock();
+					for (TSharedPtr<FBundleDownload>& Download : Downloads)
+					{
+						NumBytes += Download->DownloadedBytes;
+						MaxBytes += Download->Bundle.CompressedLength;
+						bComplete &= Download->Event->IsComplete();
+					}
+					CriticalSection.Unlock();
+
+					int NumMB = (int)((NumBytes + (1024 * 1024) - 1) / (1024 * 1024));
+					int MaxMB = (int)((MaxBytes + (1024 * 1024) - 1) / (1024 * 1024));
+					if (MaxBytes > 0)
+					{
+						FText StatusText = FText::Format(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundlesPct", "Downloading DDC bundles... ({0}Mb/{1}Mb)"), NumMB, MaxMB);
+						Context->StatusUpdate((int)((NumBytes * 1000) / MaxBytes), 1000, StatusText);
+					}
+				}
+
+				// Mount all the bundles
+				ParallelFor(Bundles.Num(), [this](int32 Index) { ReadBundle(Bundles[Index]); });
+				bEnabled = true;
+			}
+
+			Context->EndSlowTask();
+		}
 	}
 }
 
@@ -897,40 +956,17 @@ bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const u
 	return false;
 }
 
-bool FS3DerivedDataBackend::DownloadManifest(FFeedbackContext* Context)
+bool FS3DerivedDataBackend::DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context)
 {
 	// Read the root manifest from disk
-	FString RootManifestText;
-	if (!FFileHelper::LoadFileToString(RootManifestText, *RootManifestPath))
+	if (RootManifest.Keys.Num() == 0)
 	{
-		Context->Logf(ELogVerbosity::Warning, TEXT("Unable to read manifest from %s"), *RootManifestPath);
-		return false;
-	}
-
-	// Deserialize a JSON object from the string
-	TSharedPtr<FJsonObject> RootManifestObject;
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(RootManifestText), RootManifestObject) || !RootManifestObject.IsValid())
-	{
-		Context->Logf(ELogVerbosity::Warning, TEXT("Unable to parse manifest from %s"), *RootManifestPath);
-		return false;
-	}
-
-	// Parse out the list of manifests
-	const TArray<TSharedPtr<FJsonValue>>* RootEntriesArray;
-	if (!RootManifestObject->TryGetArrayField(TEXT("Entries"), RootEntriesArray))
-	{
-		Context->Logf(ELogVerbosity::Warning, TEXT("Root manifest from %s is missing entries array"), *RootManifestPath);
-		return false;
-	}
-	if (RootEntriesArray->Num() == 0)
-	{
-		Context->Logf(ELogVerbosity::Warning, TEXT("Root manifest from %s has empty entries array"), *RootManifestPath);
+		Context->Logf(ELogVerbosity::Warning, TEXT("Root manifest has empty entries array"));
 		return false;
 	}
 
 	// Get the object key for the last entry
-	const TSharedPtr<FJsonObject>& LastRootManifestEntry = (*RootEntriesArray)[RootEntriesArray->Num() - 1]->AsObject();
-	FString BundleManifestKey = LastRootManifestEntry->GetStringField("Key");
+	FString BundleManifestKey = RootManifest.Keys.Last();
 
 	// Download the bundle manifest
 	TArray<uint8> BundleManifestData;
