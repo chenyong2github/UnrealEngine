@@ -113,10 +113,6 @@ FMaterialResource::FMaterialResource()
 {
 }
 
-FMaterialResource::~FMaterialResource()
-{
-}
-
 int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty Property, FMaterialCompiler* Compiler, EShaderFrequency OverrideShaderFrequency, bool bUsePreviousFrameTime) const
 {
 #if WITH_EDITOR
@@ -4476,20 +4472,6 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 void UMaterial::BeginDestroy()
 {
-#if UE_CHECK_FMATERIAL_LIFETIME
-	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
-	{
-		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-		{
-			FMaterialResource* CurrentResource = MaterialResources[QualityLevelIndex][FeatureLevelIndex];
-			if (CurrentResource)
-			{
-				CurrentResource->SetOwnerBeginDestroyed();
-			}
-		}
-	}
-#endif // UE_CHECK_FMATERIAL_LIFETIME
-
 	Super::BeginDestroy();
 
 	if (DefaultMaterialInstance)
