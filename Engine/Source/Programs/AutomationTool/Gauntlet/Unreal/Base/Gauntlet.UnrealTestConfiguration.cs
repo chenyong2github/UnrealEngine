@@ -257,7 +257,8 @@ namespace Gauntlet
         Content,
         Demos,
         Profiling,
-        Saved
+        Saved,
+		Platform
     }
 
 	/// <summary>
