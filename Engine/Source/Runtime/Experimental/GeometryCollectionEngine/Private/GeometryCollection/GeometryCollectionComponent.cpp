@@ -569,7 +569,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForCollisionEvents(this, this);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateCollisionData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateCollisionData(true);
 #endif
 		}
 
@@ -577,7 +577,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateBreakingData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateBreakingData(true);
 #endif
 		}
 	}
@@ -2107,11 +2107,10 @@ FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 #if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
-			FPhysScene_ChaosInterface* WorldPhysScene = GetOwner()->GetWorld()->GetPhysicsScene();
-			return &WorldPhysScene->GetScene();
+			return GetOwner()->GetWorld()->GetPhysicsScene();
 		}
 		check(GWorld);
-		return &GWorld->GetPhysicsScene()->GetScene();
+		return GWorld->GetPhysicsScene();
 #else
 		return nullptr;
 #endif
