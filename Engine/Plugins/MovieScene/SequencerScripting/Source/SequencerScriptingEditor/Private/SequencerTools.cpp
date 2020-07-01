@@ -271,7 +271,7 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 		{
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			Player->Play();
-			Player->PlayToFrame(MovieScene::DiscreteInclusiveLower(UE::MovieScene->GetPlaybackRange()));
+			Player->PlayToFrame(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()));
 		}
  
 		USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
@@ -447,7 +447,7 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 		{
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			Player->Play();
-			Player->PlayToFrame(MovieScene::DiscreteInclusiveLower(UE::MovieScene->GetPlaybackRange()));
+			Player->PlayToFrame(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()));
 		}
 
 		ImportFBXCamera(FbxImporter, World, Sequence, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, bMatchByNameOnly, ImportFBXSettings->bCreateCameras);
