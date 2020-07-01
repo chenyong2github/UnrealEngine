@@ -11,10 +11,16 @@ namespace Chaos
 
 	enum class EJointConstraintFlags : uint32
 	{
-		Position = 0,
-		CollisionEnabled=1,
+		Position                    = 0,
+		CollisionEnabled            = 1 << 1,
+		ProjectionEnabled           = 1 << 2,
 		DummyFlag
 	};
+
+#define CONSTRAINT_JOINT_PROPERPETY_IMPL(TYPE, FNAME, ENAME, VNAME)\
+	void Set##FNAME(TYPE InValue){if (InValue != VNAME){VNAME = InValue;MDirtyFlags.MarkDirty(ENAME);SetProxy(Proxy);}}\
+	TYPE Get##FNAME() const{return VNAME;}\
+
 
 	using FJointConstraintDirtyFlags = TDirtyFlags<EJointConstraintFlags>;
 
@@ -47,8 +53,13 @@ namespace Chaos
 		const FTransformPair GetJointTransforms() const;
 		FTransformPair GetJointTransforms();
 
-		void SetCollisionEnabled(bool InValue);
-		bool GetCollisionEnabled() const;
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, CollisionEnabled, EJointConstraintFlags::CollisionEnabled, JointSettings.bCollisionEnabled);
+		//void SetCollisionEnabled(bool InValue);
+		//bool GetCollisionEnabled() const;
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, ProjectionEnabled, EJointConstraintFlags::ProjectionEnabled, JointSettings.bProjectionEnabled);
+		//void SetProjectionEnabled(bool bInProjectionEnabled);
+		//bool GetProjectionEnabled() const;
 
 		const FData& GetJointSettings()const {return JointSettings; }
 
@@ -56,11 +67,16 @@ namespace Chaos
 		class IPhysicsProxyBase* Proxy;
 
 		FJointConstraintDirtyFlags MDirtyFlags;
-
 		FData JointSettings;
+
 		FParticlePair JointParticles;
 		FTransformPair JointTransforms;
 
 	};
+
+
+
+
+
 
 } // Chaos
