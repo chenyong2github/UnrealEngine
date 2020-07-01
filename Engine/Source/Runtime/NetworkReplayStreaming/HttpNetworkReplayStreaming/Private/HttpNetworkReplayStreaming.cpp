@@ -397,10 +397,10 @@ void FHttpNetworkReplayStreamer::AddRequestToQueue( const EQueuedHttpRequestType
 {
 	UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::AddRequestToQueue. Type: %s" ), EQueuedHttpRequestType::ToString( Type ) );
 
-	QueuedHttpRequests.Add(MakeShared<FQueuedHttpRequest, ESPMode::ThreadSafe>(Type, Request, InMaxRetries, InRetryDelay));
+	QueuedHttpRequests.Add( TSharedPtr< FQueuedHttpRequest >( new FQueuedHttpRequest( Type, Request, InMaxRetries, InRetryDelay ) ) );
 }
 
-void FHttpNetworkReplayStreamer::AddCustomRequestToQueue( TSharedPtr<FQueuedHttpRequest, ESPMode::ThreadSafe> Request )
+void FHttpNetworkReplayStreamer::AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest > Request )
 {
 	UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::AddCustomRequestToQueue. Type: %s" ), EQueuedHttpRequestType::ToString( Request->Type ) );
 
@@ -485,7 +485,7 @@ static FString BuildRequestErrorString( FHttpRequestPtr HttpRequest, FHttpRespon
 	return FString::Printf( TEXT( "Response code: %d, Extra info: %s" ), HttpResponse.IsValid() ? HttpResponse->GetResponseCode() : 0, *ExtraInfo );
 }
 
-bool FHttpNetworkReplayStreamer::RetryRequest( TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > Request, FHttpResponsePtr HttpResponse, const bool bIgnoreResponseCode )
+bool FHttpNetworkReplayStreamer::RetryRequest( TSharedPtr< FQueuedHttpRequest > Request, FHttpResponsePtr HttpResponse, const bool bIgnoreResponseCode )
 {
 	if ( !Request.IsValid() )
 	{
@@ -813,7 +813,7 @@ void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointInde
 		GotoCheckpointDelegate = Delegate;
 		SetHighPriorityTimeRange( 0, LastGotoTimeInMS );
 		LastChunkTime = 0;		// Force the next chunk to start downloading immediately
-		AddCustomRequestToQueue(MakeShared<FQueuedHttpRequest, ESPMode::ThreadSafe>(FQueuedGotoFakeCheckpoint()));
+		AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest >( new FQueuedGotoFakeCheckpoint() ) );
 		return;
 	}
 
@@ -1107,7 +1107,7 @@ void FHttpNetworkReplayStreamer::AddOrUpdateEvent( const FString& Name, const ui
 	HttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpUploadCustomEventFinished );
 
 	// Add it as a custom event so we can snag the session name at the time of send (which we should have by then)
-	AddCustomRequestToQueue(MakeShared<FQueuedHttpRequest, ESPMode::ThreadSafe>(FQueuedHttpRequestAddEvent(Name, TimeInMS, Group, Meta, Data, HttpRequest)));
+	AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest >( new FQueuedHttpRequestAddEvent( Name, TimeInMS, Group, Meta, Data, HttpRequest ) ) );
 }
 
 void FHttpNetworkReplayStreamer::AddEvent( const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data )
@@ -1143,7 +1143,7 @@ void FHttpNetworkReplayStreamer::DownloadHeader(const FDownloadHeaderCallback& D
 
 bool FHttpNetworkReplayStreamer::IsTaskPendingOrInFlight( const EQueuedHttpRequestType::Type Type ) const
 {
-	for ( const TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe >& Request : QueuedHttpRequests )
+	for ( const TSharedPtr< FQueuedHttpRequest >& Request : QueuedHttpRequests )
 	{
 		if ( Request->Type == Type )
 		{
@@ -1639,7 +1639,7 @@ void FHttpNetworkReplayStreamer::AddUserToReplay(const FString& UserString)
 	HttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpAddUserFinished );
 
 	// Add it as a custom event so we can snag the session name at the time of send (which we should have by then)
-	AddCustomRequestToQueue(MakeShared<FQueuedHttpRequest, ESPMode::ThreadSafe>(FQueuedHttpRequestAddUser(UserString, HttpRequest)));
+	AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest >( new FQueuedHttpRequestAddUser( UserString, HttpRequest ) ) );
 }
 
 void FHttpNetworkReplayStreamer::EnumerateCheckpoints()
@@ -1721,7 +1721,7 @@ void FHttpNetworkReplayStreamer::RequestFinished( EStreamerState ExpectedStreame
 
 void FHttpNetworkReplayStreamer::HttpStartUploadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::StartUploading, HttpRequest );
 
@@ -1759,7 +1759,7 @@ void FHttpNetworkReplayStreamer::HttpStartUploadingFinished( FHttpRequestPtr Htt
 
 void FHttpNetworkReplayStreamer::HttpStopUploadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::StopUploading, HttpRequest );
 
@@ -1788,7 +1788,7 @@ void FHttpNetworkReplayStreamer::HttpStopUploadingFinished( FHttpRequestPtr Http
 
 void FHttpNetworkReplayStreamer::HttpHeaderUploadFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingHeader, HttpRequest );
 
@@ -1822,7 +1822,7 @@ void FHttpNetworkReplayStreamer::HttpHeaderUploadFinished( FHttpRequestPtr HttpR
 
 void FHttpNetworkReplayStreamer::HttpUploadStreamFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingStream, HttpRequest );
 
@@ -1844,7 +1844,7 @@ void FHttpNetworkReplayStreamer::HttpUploadStreamFinished( FHttpRequestPtr HttpR
 
 void FHttpNetworkReplayStreamer::HttpUploadCheckpointFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingUp, EQueuedHttpRequestType::UploadingCheckpoint, HttpRequest );
 
@@ -2222,7 +2222,7 @@ void FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished( FHttpRequestPtr
 
 void FHttpNetworkReplayStreamer::HttpRefreshViewerFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
 {
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > SavedFlightHttpRequest = InFlightHttpRequest;
+	TSharedPtr< FQueuedHttpRequest > SavedFlightHttpRequest = InFlightHttpRequest;
 
 	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::RefreshingViewer, HttpRequest );
 
@@ -2408,7 +2408,7 @@ bool FHttpNetworkReplayStreamer::ProcessNextHttpRequest()
 
 	if ( QueuedHttpRequests.Num() > 0 )
 	{
-		TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > QueuedRequest = QueuedHttpRequests[0];
+		TSharedPtr< FQueuedHttpRequest > QueuedRequest = QueuedHttpRequests[0];
 
 		QueuedHttpRequests.RemoveAt( 0 );
 
