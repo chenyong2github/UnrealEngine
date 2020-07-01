@@ -8,6 +8,7 @@
 #include "DSP/Filter.h"
 #include "DSP/DynamicsProcessor.h"
 #include "DSP/Dsp.h"
+#include "DSP/SampleRateConverter.h"
 #endif
 
 ///////////////////////////////////////////////////////////
@@ -288,6 +289,26 @@ void UMotoSynthSource::UpdateSourceData()
 			const int32 SampleIndex = FrameIndex * ImportedChannelCount;
 			RawSourceDataPtr[FrameIndex] = ImportedDataPtr[SampleIndex];
 		}
+	}
+
+	// Perform downsample if there is a downsample factor specified
+	if (DownSampleFactor < 1.0f)
+	{
+		Audio::ISampleRateConverter* SRC = Audio::ISampleRateConverter::CreateSampleRateConverter();
+		SRC->Init(1.0f / DownSampleFactor, 1);
+
+		TArray<float> DownsampledImportedData;
+		SRC->ProcessFullbuffer(SourceDataPCM.GetData(), SourceDataPCM.Num(), DownsampledImportedData);
+
+		SourceDataPCM.Reset();
+		for (int32 FrameIndex = 0; FrameIndex < DownsampledImportedData.Num(); ++FrameIndex)
+		{
+			int16 SampleValue = TNumericLimits<int16>::Max() * DownsampledImportedData[FrameIndex];
+			SourceDataPCM.Add(SampleValue);
+		}
+
+		SourceSampleRate *= DownSampleFactor;
+		delete SRC;
 	}
 }
 
@@ -619,7 +640,25 @@ void UMotoSynthSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	RegisterSourceData();
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		bool bUpdated = false;
+		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+		{
+			const FName& Name = PropertyThatChanged->GetFName();
+			static FName DownSampleFactorName = GET_MEMBER_NAME_CHECKED(UMotoSynthSource, DownSampleFactor);
+			if (Name == DownSampleFactorName)
+			{
+				PerformGrainTableAnalysis();
+				bUpdated = true;
+			}
+		}
+
+		if (!bUpdated)
+		{
+			RegisterSourceData();
+		}
+	}
 }
 #endif // #if WITH_EDITOR
 

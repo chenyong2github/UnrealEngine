@@ -34,11 +34,22 @@ public:
 	~FMotoSynthAssetManager();
 };
 
+struct FGrainInitParams
+{
+	const Audio::FGrainEnvelope* GrainEnvelope = nullptr;
+	TArrayView<const uint8> GrainView;
+	uint8 NumBytesPerSample = 0;
+	int32 NumSamplesCrossfade = 0;
+	float GrainStartRPM = 0.0f;
+	float GrainEndRPM = 0.0f;
+	float StartingRPM = 0.0f;
+	float EnginePitchScale = 0.0f;
+};
 
 class FMotoSynthGrainRuntime
 {
 public:
-	void Init(const Audio::FGrainEnvelope* InGrainEnvelope, const TArrayView<const uint8>& InGrainView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM);
+	void Init(const FGrainInitParams& InInitParams);
 
 	// Generates a sample from the grain. Returns true if fading out
 	float GenerateSample();
@@ -59,6 +70,7 @@ private:
 	float FadeSamples = 0;
 	float FadeOutStartIndex = 0.0f;
 	float GrainPitchScale = 1.0f;
+	float EnginePitchScale = 1.0f;
 	float CurrentRuntimeRPM = 0.0f;
 	float GrainRPMStart = 0.0f;
 	float GrainRPMDelta = 0.0f;
@@ -105,6 +117,9 @@ public:
 	// Sets the RPM directly. Used if the engine is in ManualRPM mode. Will be ignored if we're in simulation mode.
 	void SetRPM(float InRPM, float InTimeSec = 0.0f);
 
+	// Sets a pitch scale on the moto synth to scale up or down the pitch of the output
+	void SetPitchScale(float InPitchScale);
+
 private:
 	void GenerateGranularEngine(float* OutAudio, int32 NumSamples);
 
@@ -122,6 +137,7 @@ private:
 	float StartingRPM = 0.0f;
 	float RPMFadeTime = 0.0f;
 	float CurrentRPMTime = 0.0f;
+	float PitchScale = 1.0f;
 
 	int32 CurrentAccelerationSourceDataIndex = 0;
 	int32 CurrentDecelerationSourceDataIndex = 0;
