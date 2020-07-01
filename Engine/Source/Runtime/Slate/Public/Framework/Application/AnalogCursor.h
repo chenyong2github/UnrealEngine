@@ -47,6 +47,8 @@ public:
 	virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
 	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+	virtual const TCHAR* GetDebugName() const override { return TEXT("AnalogCursor"); }
+
 
 	virtual int32 GetOwnerUserIndex() const { return 0; };
 
