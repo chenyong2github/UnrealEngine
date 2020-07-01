@@ -646,67 +646,80 @@ TSharedRef<INumericTypeInterface<double>> SAnimTimeline::GetNumericTypeInterface
 // FFrameRate::ComputeGridSpacing doesnt deal well with prime numbers, so we have a custom impl here
 static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx, float DesiredMajorTickPx)
 {
-	const int32 RoundedFPS = FMath::RoundToInt(InFrameRate.AsDecimal());
-
-	// Showing frames
-	TArray<int32, TInlineAllocator<10>> CommonBases;
-
-	// Divide the rounded frame rate by 2s, 3s or 5s recursively
+	// First try built-in spacing
+	bool bResult = InFrameRate.ComputeGridSpacing(PixelsPerSecond, OutMajorInterval, OutMinorDivisions, MinTickPx, DesiredMajorTickPx);
+	if(!bResult || OutMajorInterval == 1.0)
 	{
-		const int32 Denominators[] = { 2, 3, 5 };
-
-		int32 LowestBase = RoundedFPS;
-		for (;;)
+		if (PixelsPerSecond <= 0.f)
 		{
-			CommonBases.Add(LowestBase);
-	
-			if (LowestBase % 2 == 0)      { LowestBase = LowestBase / 2; }
-			else if (LowestBase % 3 == 0) { LowestBase = LowestBase / 3; }
-			else if (LowestBase % 5 == 0) { LowestBase = LowestBase / 5; }
-			else
-			{ 
-				int32 LowestResult = LowestBase;
-				for(int32 Denominator : Denominators)
+			return false;
+		}
+
+		const int32 RoundedFPS = FMath::RoundToInt(InFrameRate.AsDecimal());
+
+		if (RoundedFPS > 0)
+		{
+			// Showing frames
+			TArray<int32, TInlineAllocator<10>> CommonBases;
+
+			// Divide the rounded frame rate by 2s, 3s or 5s recursively
+			{
+				const int32 Denominators[] = { 2, 3, 5 };
+
+				int32 LowestBase = RoundedFPS;
+				for (;;)
 				{
-					int32 Result = LowestBase / Denominator;
-					if(Result > 0 && Result < LowestResult)
-					{
-						LowestResult = Result;
+					CommonBases.Add(LowestBase);
+	
+					if (LowestBase % 2 == 0)      { LowestBase = LowestBase / 2; }
+					else if (LowestBase % 3 == 0) { LowestBase = LowestBase / 3; }
+					else if (LowestBase % 5 == 0) { LowestBase = LowestBase / 5; }
+					else
+					{ 
+						int32 LowestResult = LowestBase;
+						for(int32 Denominator : Denominators)
+						{
+							int32 Result = LowestBase / Denominator;
+							if(Result > 0 && Result < LowestResult)
+							{
+								LowestResult = Result;
+							}
+						}
+
+						if(LowestResult < LowestBase)
+						{
+							LowestBase = LowestResult;
+						}
+						else
+						{
+							break;
+						}
 					}
 				}
-
-				if(LowestResult < LowestBase)
-				{
-					LowestBase = LowestResult;
-				}
-				else
-				{
-					break;
-				}
 			}
-		}
-	}
 
-	Algo::Reverse(CommonBases);
+			Algo::Reverse(CommonBases);
 
-	const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond * InFrameRate.AsDecimal());
-	const int32 BaseIndex = FMath::Min(Algo::LowerBound(CommonBases, Scale), CommonBases.Num()-1);
-	const int32 Base      = CommonBases[BaseIndex];
+			const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond * InFrameRate.AsDecimal());
+			const int32 BaseIndex = FMath::Min(Algo::LowerBound(CommonBases, Scale), CommonBases.Num()-1);
+			const int32 Base      = CommonBases[BaseIndex];
 
-	int32 MajorIntervalFrames = FMath::CeilToInt(Scale / float(Base)) * Base;
-	OutMajorInterval  = MajorIntervalFrames * InFrameRate.AsInterval();
+			int32 MajorIntervalFrames = FMath::CeilToInt(Scale / float(Base)) * Base;
+			OutMajorInterval  = MajorIntervalFrames * InFrameRate.AsInterval();
 
-	// Find the lowest number of divisions we can show that's larger than the minimum tick size
-	OutMinorDivisions = MajorIntervalFrames;
-	for (int32 DivIndex = 0; DivIndex < BaseIndex; ++DivIndex)
-	{
-		if (Base % CommonBases[DivIndex] == 0)
-		{
-			int32 MinorDivisions = MajorIntervalFrames/CommonBases[DivIndex];
-			if (OutMajorInterval / MinorDivisions * PixelsPerSecond >= MinTickPx)
+			// Find the lowest number of divisions we can show that's larger than the minimum tick size
+			OutMinorDivisions = 0;
+			for (int32 DivIndex = 0; DivIndex < BaseIndex; ++DivIndex)
 			{
-				OutMinorDivisions = MinorDivisions;
-				break;
+				if (Base % CommonBases[DivIndex] == 0)
+				{
+					int32 MinorDivisions = MajorIntervalFrames/CommonBases[DivIndex];
+					if (OutMajorInterval / MinorDivisions * PixelsPerSecond >= MinTickPx)
+					{
+						OutMinorDivisions = MinorDivisions;
+						break;
+					}
+				}
 			}
 		}
 	}
