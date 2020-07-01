@@ -38,6 +38,15 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultWorkingMaterial(UInteractiveToolManager* ToolManager);
 
+
+	/**
+	 * Get a black-and-white NxN checkerboard material
+	 * @param CheckerDensity Number of checks along row/column
+	 * @return default material to use for uv checkerboard visualizations
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetUVCheckerboardMaterial(double CheckerDensity = 20.0);
+
+
 	/**
 	 * @return default material to use for brush volume indicators
 	 */
