@@ -8,7 +8,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/MeshMerging.h"
 #include "GameFramework/Actor.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "UVMapSettings.h"
 
 #include "EditorStaticMeshLibrary.generated.h"
