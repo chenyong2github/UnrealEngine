@@ -139,6 +139,11 @@ void FTraceAuxiliaryImpl::ParseCommandLine(const TCHAR* CommandLine)
 		ChannelSet = *Parameter;
 	}
 
+	if (!bOk && ChannelSet == nullptr)
+	{
+		return;
+	}
+
 	FString Channels = GetChannels(ChannelSet);
 	ToggleChannels(*Channels);
 
