@@ -512,6 +512,12 @@ public:
 
 	void OnQualityLevelChanged();
 
+#if WITH_EDITORONLY_DATA
+	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
+	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
+	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+#endif
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -598,6 +604,9 @@ private:
 	FCriticalSection EstimationCriticalSection;
 
 	FNiagaraEmitterScalabilitySettings CurrentScalabilitySettings;
+
+#if WITH_EDITORONLY_DATA
+	/** Messages associated with the Emitter asset. */
+	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+#endif
 };
-
-

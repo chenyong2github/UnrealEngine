@@ -420,6 +420,13 @@ public:
 
 	const FString& GetCrashReporterTag()const;
 
+#if WITH_EDITORONLY_DATA
+	const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
+	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
+	void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	const FGuid& GetAssetGuid() const {return AssetGuid;};
+#endif
+
 private:
 #if WITH_EDITORONLY_DATA
 	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
@@ -557,6 +564,13 @@ protected:
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
 
 	mutable FString CrashReporterTag;
+
+#if WITH_EDITORONLY_DATA
+	/** Messages associated with the System asset. */
+	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+
+	FGuid AssetGuid;
+#endif
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;

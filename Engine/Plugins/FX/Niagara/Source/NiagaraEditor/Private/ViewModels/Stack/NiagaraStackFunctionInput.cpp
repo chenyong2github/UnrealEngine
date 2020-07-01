@@ -34,6 +34,8 @@
 #include "NiagaraClipboard.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
+#include "NiagaraMessageUtilities.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -168,6 +170,8 @@ void UNiagaraStackFunctionInput::Initialize(
 	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
 	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
 	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
+
+	MessageLogGuid = GetSystemViewModel()->GetMessageLogGuid();
 }
 
 void UNiagaraStackFunctionInput::FinalizeInternal()
@@ -184,10 +188,12 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 		SourceScript->GetSource()->OnChanged().RemoveAll(this);
 	}
 
-	if (MessageManagerRefreshHandle.IsValid())
+	if (MessageManagerRegistrationKey.IsValid())
 	{
-		FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
-		MessageManagerRefreshHandle.Reset();
+		FNiagaraMessageManager::Get()->Unsubscribe(
+			  DisplayName
+			, MessageLogGuid
+			, MessageManagerRegistrationKey);
 	}
 
 	Super::FinalizeInternal();
@@ -408,17 +414,21 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	if (InputValues.DynamicNode.IsValid())
 	{
-		if (MessageManagerRefreshHandle.IsValid() == false)
+		if (MessageManagerRegistrationKey.IsValid() == false)
 		{
-			MessageManagerRefreshHandle = FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
+			FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByObject(
+				  DisplayName
+				, MessageLogGuid
+				, FObjectKey(InputValues.DynamicNode.Get())
+				, MessageManagerRegistrationKey
+			).BindUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
 		}
 	}
 	else
 	{
-		if (MessageManagerRefreshHandle.IsValid())
+		if (MessageManagerRegistrationKey.IsValid())
 		{
-			FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
-			MessageManagerRefreshHandle.Reset();
+			FNiagaraMessageManager::Get()->Unsubscribe(DisplayName, MessageLogGuid, MessageManagerRegistrationKey);
 		}
 	}
 
@@ -584,15 +594,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}	
 	}
 
-	if (InputValues.DynamicNode.IsValid())
-	{
-		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
-			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(InputValues.DynamicNode.Get()));
-		for (TSharedRef<const INiagaraMessage> Message : Messages)
-		{
-			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
-		}
-	}
+	NewIssues.Append(MessageManagerIssues);
 }
 
 class UNiagaraStackFunctionInputUtilities
@@ -1523,13 +1525,14 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
 }
 
-void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages)
 {
-	if (InputValues.DynamicNode.IsValid() && GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	MessageManagerIssues.Reset();
+	if (InputValues.DynamicNode.IsValid())
 	{
-		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(InputValues.DynamicNode.Get())).Num() > 0)
+		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
-			RefreshChildren();
+			MessageManagerIssues.Add(FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey()));
 		}
 	}
 }
