@@ -85,9 +85,11 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 
 	if (SucceededPasses == TotalPasses)
 	{
-		// Transfer ownership from the map to here;
+		// Transfer ownership from the map to here; It's important that we use the manually looked up OutputFrame from PendingData
+		// as PendingData uses the equality operator. Some combinations of temporal sampling + slowmo tracks results in different
+		// original source frame numbers, which would cause the tmap lookup to fail and thus returning an empty frame.
 		FMoviePipelineMergerOutputFrame FinalFrame;
-		PendingData.RemoveAndCopyValue(InFrameData->OutputState, FinalFrame);
+		ensureMsgf(PendingData.RemoveAndCopyValue(OutputFrame->FrameOutputState, FinalFrame), TEXT("Could not find frame in pending data, output will be skipped!"));
 		FinishedFrames.Enqueue(MoveTemp(FinalFrame));
 	}
 }
