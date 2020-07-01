@@ -38,12 +38,7 @@ FMetalShaderResourceView::~FMetalShaderResourceView()
 		{
 			Surface->SRVs.Remove(this);
 		}
-		
-		if (TextureView->Texture)
-		{
-			TextureView->Texture = nil;
-			TextureView->MSAATexture = nil;
-		}
+
 		delete TextureView;
 		TextureView = nullptr;
 	}
