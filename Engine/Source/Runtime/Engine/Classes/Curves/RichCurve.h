@@ -286,7 +286,7 @@ public:
 	virtual void GetValueRange(float& MinValue, float& MaxValue) const final override;
 
 	/** Clear all keys. */
-	virtual void Reset() final override;
+	virtual void Reset(uint32 Slack = 0) final override;
 
 	/** Remap InTime based on pre and post infinity extrapolation values */
 	virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const final override;
@@ -301,7 +301,10 @@ public:
 	virtual void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime) final override;
 
 	/** Determine if two RichCurves are the same */
-	bool operator == (const FRichCurve& Curve) const;
+	bool operator==(const FRichCurve& Curve) const;
+
+	/** Determine if two RichCurves are different */
+	bool operator!=(const FRichCurve& Curve) const;
 
 	/** Bake curve given the sample rate */
 	virtual void BakeCurve(float SampleRate) final override;
