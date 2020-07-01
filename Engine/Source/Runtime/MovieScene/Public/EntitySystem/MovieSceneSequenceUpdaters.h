@@ -19,8 +19,6 @@ namespace UE
 namespace MovieScene
 {
 
-enum class ESequenceUpdateResult;
-
 struct FInstanceHandle;
 
 
@@ -69,9 +67,8 @@ public:
 	 * @param InInstanceHandle The instance handle for the top level sequence instance that this updater belongs to
 	 * @param InPlayer         The movie scene player instance playing this sequence
 	 * @param InContext        The root-level context for the current evaluation.
-	 * @return Enumeration specifying what changes have been made to the link environment
 	 */
-	virtual ESequenceUpdateResult Start(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
+	virtual void Start(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
 
 
 	/**
@@ -81,9 +78,8 @@ public:
 	 * @param InInstanceHandle The instance handle for the top level sequence instance that this updater belongs to
 	 * @param InPlayer         The movie scene player instance playing this sequence
 	 * @param InContext        The root-level context for the current evaluation.
-	 * @return Enumeration specifying what changes have been made to the link environment
 	 */
-	virtual ESequenceUpdateResult Update(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
+	virtual void Update(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
 
 
 	/**
@@ -92,9 +88,8 @@ public:
 	 * @param InLinker         The linker that is evaluating this sequence
 	 * @param InInstanceHandle The instance handle for the top level sequence instance that this updater belongs to
 	 * @param InPlayer         The movie scene player instance playing this sequence
-	 * @return Enumeration specifying what changes have been made to the link environment
 	 */
-	virtual ESequenceUpdateResult Finish(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer) = 0;
+	virtual void Finish(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer) = 0;
 
 
 	/**

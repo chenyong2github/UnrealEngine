@@ -149,7 +149,7 @@ void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, co
 	SequenceUpdater->DissectContext(Linker, Player, InContext, OutDissections);
 }
 
-ESequenceUpdateResult FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
+void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
 {
 	check(SequenceID == MovieSceneSequenceID::Root);
 
@@ -162,42 +162,39 @@ ESequenceUpdateResult FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Li
 		GlobalStateMarker = Linker->CaptureGlobalState();
 	}
 
-	return SequenceUpdater->Start(Linker, InstanceHandle, Player, InContext);
+	SequenceUpdater->Start(Linker, InstanceHandle, Player, InContext);
 }
 
-ESequenceUpdateResult FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
+void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceInstanceUpdate);
 
 	bHasEverUpdated = true;
 
-	ESequenceUpdateResult Result = ESequenceUpdateResult::NoChange;
 	if (bFinished)
 	{
-		Result |= Start(Linker, InContext);
+		Start(Linker, InContext);
 	}
 
 	Context = InContext;
-
-	Result |= SequenceUpdater->Update(Linker, InstanceHandle, GetPlayer(), InContext);
-	return Result;
+	SequenceUpdater->Update(Linker, InstanceHandle, GetPlayer(), InContext);
 }
 
-ESequenceUpdateResult FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
+void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 {
 	if (IsRootSequence() && !bHasEverUpdated)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	bFinished = true;
-	ESequenceUpdateResult Result = Ledger.UnlinkEverything(Linker);
+	Ledger.UnlinkEverything(Linker);
 
 	Ledger = FEntityLedger();
 
 	if (SequenceUpdater)
 	{
-		Result |= SequenceUpdater->Finish(Linker, InstanceHandle, GetPlayer());
+		SequenceUpdater->Finish(Linker, InstanceHandle, GetPlayer());
 	}
 
 	if (LegacyEvaluator)
@@ -208,14 +205,10 @@ ESequenceUpdateResult FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* L
 			LegacyEvaluator->Finish(*Player);
 		}
 	}
-
-	return Result;
 }
 
-ESequenceUpdateResult FSequenceInstance::PreEvaluation(UMovieSceneEntitySystemLinker* Linker)
+void FSequenceInstance::PreEvaluation(UMovieSceneEntitySystemLinker* Linker)
 {
-	ESequenceUpdateResult Result = ESequenceUpdateResult::NoChange;
-
 	if (IsRootSequence())
 	{
 		IMovieScenePlayer* Player = GetPlayer();
@@ -224,11 +217,9 @@ ESequenceUpdateResult FSequenceInstance::PreEvaluation(UMovieSceneEntitySystemLi
 			Player->PreEvaluation(Context);
 		}
 	}
-	
-	return Result;
 }
 
-ESequenceUpdateResult FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
+void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
 {
 	if (bFinished)
 	{
@@ -264,8 +255,6 @@ ESequenceUpdateResult FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemL
 			Player->PostEvaluation(Context);
 		}
 	}
-	
-	return ESequenceUpdateResult::NoChange;
 }
 
 void FSequenceInstance::DestroyImmediately(UMovieSceneEntitySystemLinker* Linker)

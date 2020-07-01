@@ -45,7 +45,7 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 } // namespace MovieScene
 } // namespace UE
 
-UE::MovieScene::ESequenceUpdateResult IMovieSceneEntityProvider::ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void IMovieSceneEntityProvider::ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
-	return ImportEntityImpl(EntityLinker, Params, OutImportedEntity);
+	ImportEntityImpl(EntityLinker, Params, OutImportedEntity);
 }

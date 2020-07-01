@@ -104,7 +104,7 @@ void UMovieSceneCameraCutSection::PostEditChangeProperty(FPropertyChangedEvent& 
 
 #endif
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneCameraCutSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneCameraCutSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -115,6 +115,4 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneCameraCutSection::ImportEntityI
 		.AddTag(FBuiltInComponentTypes::Get()->Tags.Master)
 		.Add(FBuiltInComponentTypes::Get()->TrackInstance, TrackInstance)
 	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }
