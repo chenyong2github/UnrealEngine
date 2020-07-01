@@ -971,7 +971,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		else
 		{
 			// GPU emitters must store the entire particle payload on GPU buffers, so get the maximum component count from the dataset.
-			MaxGPUBufferComponents = FMath::Max3(CompiledData->TotalFloatComponents, CompiledData->TotalInt32Components, CompiledData->TotalHalfComponents);
+			MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, FMath::Max3(CompiledData->TotalFloatComponents, CompiledData->TotalInt32Components, CompiledData->TotalHalfComponents));
 		}
 
 		// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
