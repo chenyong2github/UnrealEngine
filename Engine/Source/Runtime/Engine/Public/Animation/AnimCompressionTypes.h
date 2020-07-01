@@ -752,21 +752,21 @@ struct FRootMotionReset
 {
 
 	FRootMotionReset(bool bInEnableRootMotion, ERootMotionRootLock::Type InRootMotionRootLock, bool bInForceRootLock, FTransform InAnimFirstFrame, bool bInIsValidAdditive)
-		: bEnableRootMotion(bInEnableRootMotion)
+		: AnimFirstFrame(InAnimFirstFrame)
 		, RootMotionRootLock(InRootMotionRootLock)
+		, bEnableRootMotion(bInEnableRootMotion)
 		, bForceRootLock(bInForceRootLock)
-		, AnimFirstFrame(InAnimFirstFrame)
 		, bIsValidAdditive(bInIsValidAdditive)
 	{
 	}
 
-	bool bEnableRootMotion;
+	FTransform AnimFirstFrame;
 
 	ERootMotionRootLock::Type RootMotionRootLock;
 
-	bool bForceRootLock;
+	bool bEnableRootMotion;
 
-	FTransform AnimFirstFrame;
+	bool bForceRootLock;
 
 	bool bIsValidAdditive;
 
