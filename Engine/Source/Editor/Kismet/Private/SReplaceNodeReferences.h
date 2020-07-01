@@ -87,18 +87,6 @@ public:
 
 protected:
 
-	/** Callback for determining if the SourceReference is visible */
-	EVisibility GetSourceReferenceVisibility() const
-	{
-		return SourceProperty == nullptr? EVisibility::Collapsed : EVisibility::Visible;
-	}
-
-	/** Callback for determining if the message to inform the user a SourceReference is needed is visible */
-	EVisibility GetPickSourceReferenceVisibility() const
-	{
-		return SourceProperty == nullptr? EVisibility::Visible : EVisibility::Collapsed;
-	}
-
 	/* Called when a new row is being generated */
 	TSharedRef<ITableRow> OnGenerateRow(FTreeViewItem InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -106,10 +94,16 @@ protected:
 	void OnGetChildren( FTreeViewItem InItem, TArray< FTreeViewItem >& OutChildren );
 
 	/* Returns the menu content for the Target Reference drop down section of the combo button */
-	TSharedRef<SWidget>	GetMenuContent();
+	TSharedRef<SWidget>	GetTargetMenuContent();
+	
+	/* Returns the menu content for the Source Reference drop down section of the combo button */
+	TSharedRef<SWidget>	GetSourceMenuContent();
 
-	/** Callback when selection in the combo button has changed */
-	void OnSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo);
+	/** Callback when selection in the target combo button has changed */
+	void OnTargetSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo);
+	
+	/** Callback when selection in the target combo button has changed */
+	void OnSourceSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo);
 
 	/** 
 	 * Submits a search query and potentially does a mass replace on results
@@ -127,8 +121,13 @@ protected:
 	/** Callback when the search for "Find and Replace All" is complete so that the replacements can begin */
 	void FindAllReplacementsComplete(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList);
 
-	/** Recursively gathers all available Blueprint Variable references to replace with */
-	void GatherAllAvailableBlueprintVariables(UClass* InTargetClass);
+	/** 
+	 * Gathers all Blueprint Variable references from the Target Class
+	 * 
+	 * @param InTargetClass Class to gather variables from
+	 * @param bForTarget    TRUE if we need to check that the type is the same as the source and recurse parent classes, FALSE if picking a new source
+	 */
+	void GatherAllAvailableBlueprintVariables(UClass* InTargetClass, bool bForTarget);
 
 	/** Returns the display text for the target reference */
 	FText GetTargetDisplayText() const;
@@ -204,17 +203,26 @@ protected:
 	/** Combo box for selecting the target reference */
 	TSharedPtr< SComboButton > TargetReferencesComboBox;
 
-	/** Tree view for display available target references */
+	/** Tree view for displaying available target references */
 	TSharedPtr< SReplaceReferencesTreeViewType > AvailableTargetReferencesTreeView;
 
-	/** List of items used for the root of the tree */
-	TArray<FTreeViewItem> BlueprintVariableList;
+	/** List of items used for the root of the target picker tree */
+	TArray< FTreeViewItem > PossibleTargetVariableList;
+
+	/** Combo box for selecting the source reference */
+	TSharedPtr< SComboButton > SourceReferencesComboBox;
+
+	/** Tree view for displaying available source references */
+	TSharedPtr< SReplaceReferencesTreeViewType > AvailableSourceReferencesTreeView;
+
+	/** List of items used for the root of the source picker tree */
+	TArray< FTreeViewItem > PossibleSourceVariableList;
 
 	/** Target SKEL_ class that is being referenced by this window */
 	UClass* TargetClass;
 
 	/** Blueprint editor that owns this window */
-	TWeakPtr<FBlueprintEditor> BlueprintEditor;
+	TWeakPtr< FBlueprintEditor > BlueprintEditor;
 
 	/** Cached SourcePinType for the property the user wants to replace */
 	FEdGraphPinType SourcePinType;

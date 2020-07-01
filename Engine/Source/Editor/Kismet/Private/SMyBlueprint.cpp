@@ -1839,10 +1839,6 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			Options.bForceRefresh = true;
 
 			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty()->GetUPropertyWrapper(), Options);
-			if (InBlueprintEditor.IsValid())
-			{
-				InBlueprintEditor.Pin()->GetReplaceReferencesWidget()->SetSourceVariable(VarAction->GetProperty());
-			}
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 		{
@@ -2491,7 +2487,18 @@ bool SMyBlueprint::CanFindReference() const
 
 void SMyBlueprint::OnFindAndReplaceReference()
 {
-	BlueprintEditorPtr.Pin()->SummonFindAndReplaceUI();
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid())
+	{
+		if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+		{
+			PinnedEditor->SummonFindAndReplaceUI();
+			if (PinnedEditor->GetReplaceReferencesWidget().IsValid())
+			{
+				PinnedEditor->GetReplaceReferencesWidget()->SetSourceVariable(VarAction->GetProperty());
+			}
+		}
+	}
 }
 
 bool SMyBlueprint::CanFindAndReplaceReference() const
