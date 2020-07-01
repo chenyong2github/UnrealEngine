@@ -133,7 +133,7 @@ void FSearchSerializer::BeginIndexingObject(const UObject* InObject, const FText
 void FSearchSerializer::BeginIndexingObject(const UObject* InObject, const FString& InFriendlyName)
 {
 	ensure(CurrentObject == nullptr);
-	ensure(InObject->GetOutermost()->GetFName() == AssetData.PackageName || InObject->HasAnyFlags(RF_HasExternalPackage));
+	ensure(InObject->GetOutermost()->GetFName() == AssetData.PackageName);
 
 	CurrentObject = InObject;
 	CurrentObjectName = InFriendlyName;
