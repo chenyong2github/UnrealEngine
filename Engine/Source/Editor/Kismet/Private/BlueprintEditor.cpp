@@ -617,6 +617,13 @@ bool FBlueprintEditor::OnRequestClose()
 		FindResultsTab->RequestCloseTab();
 	}
 
+	// Close the Replace References Tab so it doesn't open the next time we do
+	TSharedPtr<SDockTab> ReplaceRefsTab = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::ReplaceNodeReferencesID);
+	if (ReplaceRefsTab.IsValid())
+	{
+		ReplaceRefsTab->RequestCloseTab();
+	}
+
 	bEditorMarkedAsClosed = true;
 	return FWorkflowCentricApplication::OnRequestClose();
 }
