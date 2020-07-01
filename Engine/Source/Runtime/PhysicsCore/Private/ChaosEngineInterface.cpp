@@ -1034,7 +1034,13 @@ void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConst
 
 void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InPosition)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearDrivePositionTarget(InPosition);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetDriveOrientation(const FPhysicsConstraintHandle& InConstraintRef,const FQuat& InOrientation)
@@ -1044,7 +1050,13 @@ void FChaosEngineInterface::SetDriveOrientation(const FPhysicsConstraintHandle& 
 
 void FChaosEngineInterface::SetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InLinVelocity)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearDriveVelocityTarget(InLinVelocity);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InAngVelocity)
@@ -1062,9 +1074,15 @@ void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InCons
 
 }
 
-void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLimit)
+void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLinearLimit)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearLimit(InLinearLimit);
+		}
+	}
 }
 
 bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstraintRef)
