@@ -3,11 +3,7 @@
 #include "SelfUnionMeshesTool.h"
 #include "CompositionOps/SelfUnionMeshesOp.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
-
 #include "ToolSetupUtil.h"
-
-#include "Selection/ToolSelectionUtil.h"
 
 #include "DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
@@ -22,83 +18,31 @@
 #define LOCTEXT_NAMESPACE "USelfUnionMeshesTool"
 
 
-/*
- * ToolBuilder
- */
 
-
-bool USelfUnionMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+void USelfUnionMeshesTool::SetupProperties()
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
-}
-
-UInteractiveTool* USelfUnionMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	USelfUnionMeshesTool* NewTool = NewObject<USelfUnionMeshesTool>(SceneState.ToolManager);
-
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
-}
-
-
-
-/*
- * Tool
- */
-USelfUnionMeshesTool::USelfUnionMeshesTool()
-{
-}
-
-void USelfUnionMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
-void USelfUnionMeshesTool::Setup()
-{
-	UInteractiveTool::Setup();
-
-	// hide input StaticMeshComponents
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
-	{
-		ComponentTarget->SetOwnerVisibility(false);
-	}
-
-
-	// initialize our properties
+	Super::SetupProperties();
 	Properties = NewObject<USelfUnionMeshesToolProperties>(this);
 	Properties->RestoreProperties(this);
 	AddToolPropertySource(Properties);
-	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
-	HandleSourcesProperties->RestoreProperties(this);
-	AddToolPropertySource(HandleSourcesProperties);
+}
 
 
-	// initialize the PreviewMesh+BackgroundCompute object
-	SetupPreview();
+void USelfUnionMeshesTool::SaveProperties()
+{
+	Super::SaveProperties();
+	Properties->SaveProperties(this);
+}
 
+
+void USelfUnionMeshesTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
+{
+	ConvertInputsAndSetPreviewMaterials(false); // have to redo the conversion because the transforms are all baked there
 	Preview->InvalidateResult();
 }
 
 
-
-void USelfUnionMeshesTool::ConfigurePreviewMaterials()
+void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 {
 	FComponentMaterialSet AllMaterialSet;
 	TMap<UMaterialInterface*, int> KnownMaterials;
@@ -161,7 +105,7 @@ void USelfUnionMeshesTool::ConfigurePreviewMaterials()
 			MaterialIDs->SetValue(TID, MaterialRemap[ComponentIdx][MaterialIDs->GetValue(TID)]);
 		}
 		// TODO: center the meshes
-		FTransform3d WorldTransform = (FTransform3d)ComponentTargets[ComponentIdx]->GetWorldTransform();
+		FTransform3d WorldTransform = (FTransform3d)TransformProxies[ComponentIdx]->GetTransform();
 		if (WorldTransform.GetDeterminant() < 0)
 		{
 			ComponentMesh.ReverseOrientation(false);
@@ -180,17 +124,16 @@ void USelfUnionMeshesTool::ConfigurePreviewMaterials()
 	}
 
 	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+
+	if (bSetPreviewMesh)
+	{
+		Preview->PreviewMesh->UpdatePreview(CombinedSourceMeshes.Get());
+	}
 }
 
 
-void USelfUnionMeshesTool::SetupPreview()
+void USelfUnionMeshesTool::SetPreviewCallbacks()
 {
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	Preview->Setup(this->TargetWorld, this);
-	ConfigurePreviewMaterials();
-
-	Preview->PreviewMesh->UpdatePreview(CombinedSourceMeshes.Get());
-	
 	DrawnLineSet = NewObject<ULineSetComponent>(Preview->PreviewMesh->GetRootComponent());
 	DrawnLineSet->SetupAttachment(Preview->PreviewMesh->GetRootComponent());
 	DrawnLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
@@ -234,40 +177,6 @@ void USelfUnionMeshesTool::UpdateVisualization()
 }
 
 
-void USelfUnionMeshesTool::Shutdown(EToolShutdownType ShutdownType)
-{
-	Properties->SaveProperties(this);
-	HandleSourcesProperties->SaveProperties(this);
-
-	FDynamicMeshOpResult Result = Preview->Shutdown();
-	// Restore (unhide) the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
-	{
-		ComponentTarget->SetOwnerVisibility(true);
-	}
-	if (ShutdownType == EToolShutdownType::Accept)
-	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("SelfUnionMeshes", "Merge Meshes"));
-
-		// Generate the result
-		GenerateAsset(Result);
-
-		TArray<AActor*> Actors;
-		for (auto& ComponentTarget : ComponentTargets)
-		{
-			Actors.Add(ComponentTarget->GetOwnerActor());
-		}
-		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
-
-		GetToolManager()->EndUndoTransaction();
-	}
-}
-
-void USelfUnionMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 TUniquePtr<FDynamicMeshOperator> USelfUnionMeshesTool::MakeNewOperator()
 {
 	TUniquePtr<FSelfUnionMeshesOp> Op = MakeUnique<FSelfUnionMeshesOp>();
@@ -283,29 +192,11 @@ TUniquePtr<FDynamicMeshOperator> USelfUnionMeshesTool::MakeNewOperator()
 }
 
 
-
-void USelfUnionMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
-void USelfUnionMeshesTool::OnTick(float DeltaTime)
-{
-	Preview->Tick(DeltaTime);
-}
-
-
-#if WITH_EDITOR
-void USelfUnionMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Preview->InvalidateResult();
-}
-#endif
-
 void USelfUnionMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USelfUnionMeshesToolProperties, bOnlyUseFirstMeshMaterials)))
 	{
-		ConfigurePreviewMaterials();
+		ConvertInputsAndSetPreviewMaterials(false);
 		Preview->InvalidateResult();
 	}
 	else if (PropertySet == HandleSourcesProperties)
@@ -319,38 +210,23 @@ void USelfUnionMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 	}
 	else
 	{
-		Preview->InvalidateResult();
+		Super::OnPropertyModified(PropertySet, Property);
 	}
 }
 
 
-bool USelfUnionMeshesTool::HasAccept() const
+FString USelfUnionMeshesTool::GetCreatedAssetName() const
 {
-	return true;
-}
-
-bool USelfUnionMeshesTool::CanAccept() const
-{
-	return Preview->HaveValidResult();
+	return TEXT("Merge");
 }
 
 
-void USelfUnionMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+FText USelfUnionMeshesTool::GetActionName() const
 {
-	check(Result.Mesh.Get() != nullptr);
-
-	FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-	MeshTransforms::Translate(*Result.Mesh, -Center);
-	FTransform3d CenteredTransform = Result.Transform;
-	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + Result.Transform.TransformVector(Center));
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("Merged Mesh"), Preview->StandardMaterials);
-	if (NewActor != nullptr)
-	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
-	}
+	return LOCTEXT("SelfUnionMeshes", "Merge Meshes");
 }
+
+
 
 
 
