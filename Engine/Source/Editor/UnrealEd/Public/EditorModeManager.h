@@ -27,7 +27,7 @@ class UEdMode;
 /**
  * A helper class to store the state of the various editor modes.
  */
-class UNREALED_API FEditorModeTools : public FGCObject, public FEditorUndoClient
+class UNREALED_API FEditorModeTools : public FGCObject, public FEditorUndoClient, public TSharedFromThis<FEditorModeTools>
 {
 public:
 	FEditorModeTools();
@@ -561,6 +561,8 @@ public:
 	* Sets the active Modes ToolBar Palette Tab to the named Palette
 	*/
 	void  InvokeToolPaletteTab(FEditorModeID InMode, FName InPaletteName);
+
+	void RemoveAllDelegateHandlers();
 
 protected:
 	/** 

@@ -44,10 +44,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogUnrealEd, Log, All);
 /**
  * Provides access to the FEditorModeTools for the level editor
  */
-class FEditorModeTools& GLevelEditorModeTools()
+FEditorModeTools& GLevelEditorModeTools()
 {
-	static FEditorModeTools* EditorModeToolsSingleton = new FEditorModeTools;
-	return *EditorModeToolsSingleton;
+	static TSharedRef<FEditorModeTools> EditorModeToolsSingleton = MakeShared<FEditorModeTools>();
+	return EditorModeToolsSingleton.Get();
 }
 
 FLevelEditorViewportClient* GCurrentLevelEditingViewportClient = NULL;
@@ -204,6 +204,7 @@ void EditorExit()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(EditorExit);
 
+	GLevelEditorModeTools().RemoveAllDelegateHandlers();
 	GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
 	GLevelEditorModeTools().DeactivateAllModes(); // this also activates the default mode
 

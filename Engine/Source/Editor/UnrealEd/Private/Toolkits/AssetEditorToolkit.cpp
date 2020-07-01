@@ -30,6 +30,7 @@
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Logging/LogMacros.h"
+#include "AssetEditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -271,6 +272,13 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		Toolbar = SNullWidget::NullWidget;
 	}
 
+	// Create our mode manager and set it's toolkit host
+	CreateEditorModeManager();
+	if (EditorModeManager.IsValid())
+	{
+		EditorModeManager->SetToolkitHost(ToolkitHost.Pin().ToSharedRef());
+	}
+
 	// NOTE: Currently, the AssetEditorManager will keep a hard reference to our object as we're editing it
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( EditingObjects, this );
 }
@@ -285,6 +293,10 @@ FAssetEditorToolkit::~FAssetEditorToolkit()
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed(this);
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	AssetEditorModeManager = nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -690,12 +702,24 @@ FLinearColor FAssetEditorToolkit::GetDefaultTabColor() const
 
 FAssetEditorModeManager* FAssetEditorToolkit::GetAssetEditorModeManager() const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return AssetEditorModeManager;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAssetEditorToolkit::SetAssetEditorModeManager(FAssetEditorModeManager* InModeManager)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AssetEditorModeManager = InModeManager;
+	if (AssetEditorModeManager && !AssetEditorModeManager->DoesSharedInstanceExist())
+	{
+		EditorModeManager = MakeShareable(AssetEditorModeManager);
+	}
+	else
+	{
+		EditorModeManager = AssetEditorModeManager->AsShared();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAssetEditorToolkit::RemoveEditingAsset(UObject* Asset)
@@ -713,7 +737,7 @@ void FAssetEditorToolkit::RemoveEditingAsset(UObject* Asset)
 
 void FAssetEditorToolkit::SwitchToStandaloneEditor_Execute( TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef )
 {
-	// NOTE: We're being very careful here with pointer handling because we need to make sure the tookit's
+	// NOTE: We're being very careful here with pointer handling because we need to make sure the toolkit's
 	// destructor is called when we call CloseToolkit, as it needs to be fully unregistered before we go
 	// and try to open a new asset editor for the same asset
 

@@ -97,7 +97,7 @@ void SAssetEditorViewport::BindCommands()
 
 void SAssetEditorViewport::Construct(const FArguments& InArgs)
 {
-	EditorViewportClient = InArgs._EditorViewportClient;
+	Client = InArgs._EditorViewportClient;
 	SEditorViewport::Construct(SEditorViewport::FArguments());
 }
 
@@ -240,6 +240,16 @@ void SAssetEditorViewport::GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const
 	}
 	MenuBuilder.EndSection();
 
+}
+
+TSharedRef<FEditorViewportClient> SAssetEditorViewport::MakeEditorViewportClient()
+{
+	if (!Client.IsValid())
+	{
+		Client = MakeShareable(new FEditorViewportClient(nullptr));
+	}
+
+	return Client.ToSharedRef();
 }
 
 #undef LOCTEXT_NAMESPACE

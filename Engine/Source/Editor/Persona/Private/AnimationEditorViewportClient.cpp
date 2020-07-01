@@ -73,17 +73,16 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	, OrbitRotation(FQuat::Identity)
 	, ViewportIndex(InViewportIndex)
 {
-	// we actually own the mode tools here, we just override its type in the FEditorViewportClient constructor above
-	bOwnsModeTools = true;
-
 	CachedDefaultCameraController = CameraController;
 
 	OnCameraControllerChanged();
 
 	InPreviewScene->RegisterOnCameraOverrideChanged(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::OnCameraControllerChanged));
 
-	// Let the asset editor toolkit know about the mode manager so it can be used outside of thew viewport
+	// Give ownership of the mode manager to the asset editor toolkit so it can be used outside of thew viewport
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	InAssetEditorToolkit->SetAssetEditorModeManager((FAssetEditorModeManager*)ModeTools);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Widget->SetUsesEditorModeTools(ModeTools);
 	((FAssetEditorModeManager*)ModeTools)->SetPreviewScene(&InPreviewScene.Get());
@@ -172,13 +171,6 @@ FAnimationViewportClient::~FAnimationViewportClient()
 		ScenePtr->UnregisterOnPreTick(this);
 		ScenePtr->UnregisterOnPostTick(this);
 	}
-
-	if (AssetEditorToolkitPtr.IsValid())
-	{
-		AssetEditorToolkitPtr.Pin()->SetAssetEditorModeManager(nullptr);
-	}
-
-	((FAssetEditorModeManager*)ModeTools)->SetPreviewScene(nullptr);
 
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
 }

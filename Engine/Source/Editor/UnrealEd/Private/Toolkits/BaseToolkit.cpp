@@ -24,6 +24,8 @@ FBaseToolkit::FBaseToolkit()
 
 FBaseToolkit::~FBaseToolkit()
 {
+
+	EditorModeManager.Reset();
 }
 
 
@@ -80,6 +82,9 @@ FLinearColor FBaseToolkit::GetTabColorScale() const
 	return IsWorldCentricAssetEditor() ? GetWorldCentricTabColorScale() : FLinearColor( 0, 0, 0, 0 );
 }
 
+void FBaseToolkit::CreateEditorModeManager()
+{
+}
 
 void FBaseToolkit::BringToolkitToFront()
 {
@@ -101,6 +106,17 @@ TSharedPtr<class SWidget> FBaseToolkit::GetInlineContent() const
 bool FBaseToolkit::IsBlueprintEditor() const
 {
 	return false;
+}
+
+FEditorModeTools& FBaseToolkit::GetEditorModeManager() const
+{
+	if (IsWorldCentricAssetEditor() && IsHosted())
+	{
+		return GetToolkitHost()->GetEditorModeManager();
+	}
+
+	check(EditorModeManager.IsValid());
+	return *EditorModeManager.Get();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -17,6 +17,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 class FAssetEditorModeManager;
+class FEditorModeTools;
 class FMenuBuilder;
 struct FToolMenuContext;
 struct FToolMenuSection;
@@ -248,9 +249,11 @@ public:
 	static FText GetToolTipTextForObject(const UObject* InObject);
 
 	/** Get the asset editor mode manager we are using */
+	UE_DEPRECATED(4.26, "Use GetEditorModeManager instead.")
 	class FAssetEditorModeManager* GetAssetEditorModeManager() const;
 
 	/** Set the asset editor mode manager we are using */
+	UE_DEPRECATED(4.26, "Override CreateEditorModeManager on the toolkit class instead.")
 	void SetAssetEditorModeManager(class FAssetEditorModeManager* InModeManager);
 
 protected:
@@ -374,6 +377,7 @@ protected:
 	bool bCheckDirtyOnAssetSave;
 
 	/** The asset editor mode manager */
+	UE_DEPRECATED(4.26, "Use EditorModeManager instead.")
 	FAssetEditorModeManager* AssetEditorModeManager;
 
 	/** Array of layout extenders */

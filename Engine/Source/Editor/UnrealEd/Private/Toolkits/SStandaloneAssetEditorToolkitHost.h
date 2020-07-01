@@ -82,6 +82,8 @@ public:
 	 */
 	void SetMenuOverlay( TSharedRef<SWidget> NewOverlay );
 
+	virtual FEditorModeTools& GetEditorModeManager() const override;
+
 private:
 	void OnTabClosed(TSharedRef<SDockTab> TabClosed) const;
 

@@ -216,6 +216,13 @@ void SStandaloneAssetEditorToolkitHost::SetMenuOverlay( TSharedRef<SWidget> NewO
 	MenuOverlayWidgetContent->SetContent(NewOverlay);
 }
 
+FEditorModeTools& SStandaloneAssetEditorToolkitHost::GetEditorModeManager() const
+{
+	check(HostedAssetEditorToolkit.IsValid());
+
+	return HostedAssetEditorToolkit->GetEditorModeManager();
+}
+
 SStandaloneAssetEditorToolkitHost::~SStandaloneAssetEditorToolkitHost()
 {
 	// Let the toolkit manager know that we're going away now

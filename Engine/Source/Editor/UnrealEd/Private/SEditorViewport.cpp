@@ -63,17 +63,16 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 		]
 	];
 
-	TSharedRef<FEditorViewportClient> ViewportClient = MakeEditorViewportClient();
+	Client = MakeEditorViewportClient();
 
-	if (!ViewportClient->VisibilityDelegate.IsBound())
+	if (!Client->VisibilityDelegate.IsBound())
 	{
-		ViewportClient->VisibilityDelegate.BindSP(this, &SEditorViewport::IsVisible);
+		Client->VisibilityDelegate.BindSP(this, &SEditorViewport::IsVisible);
 	}
 
-	SceneViewport = MakeShareable( new FSceneViewport( &ViewportClient.Get(), ViewportWidget ) );
-	ViewportClient->Viewport = SceneViewport.Get();
+	SceneViewport = MakeShareable( new FSceneViewport( Client.Get(), ViewportWidget ) );
+	Client->Viewport = SceneViewport.Get();
 	ViewportWidget->SetViewportInterface(SceneViewport.ToSharedRef());
-	Client = ViewportClient;
 
 	if ( Client->IsRealtime() )
 	{

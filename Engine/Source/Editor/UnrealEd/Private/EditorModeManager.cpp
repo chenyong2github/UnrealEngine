@@ -84,18 +84,10 @@ FEditorModeTools::FEditorModeTools()
 
 FEditorModeTools::~FEditorModeTools()
 {
-	if (GEditor)
-	{
-		GEditor->UnregisterForUndo(this);
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
-	}
+	RemoveAllDelegateHandlers();
 
 	DeactivateAllModes();
 	RecycledScriptableModes.Empty();
-
-	USelection::SelectionChangedEvent.RemoveAll(this);
-	USelection::SelectNoneEvent.RemoveAll(this);
-	USelection::SelectObjectEvent.RemoveAll(this);
 }
 
 void FEditorModeTools::LoadConfig(void)
@@ -752,6 +744,23 @@ void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPale
 			break;	
 		}
 	}	
+}
+
+void FEditorModeTools::RemoveAllDelegateHandlers()
+{
+	if (GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
+	}
+
+	USelection::SelectionChangedEvent.RemoveAll(this);
+	USelection::SelectNoneEvent.RemoveAll(this);
+	USelection::SelectObjectEvent.RemoveAll(this);
+
+	OnEditorModeIDChanged().Clear();
+	OnWidgetModeChanged().Clear();
+	OnCoordSystemChanged().Clear();
 }
 
 void FEditorModeTools::DeactivateMode( FEditorModeID InID )

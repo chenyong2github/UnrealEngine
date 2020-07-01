@@ -441,13 +441,16 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 
 FEditorViewportClient::~FEditorViewportClient()
 {
+	if (ModeTools)
+	{
+		ModeTools->OnEditorModeIDChanged().RemoveAll(this);
+	}
+
 	if (bOwnsModeTools)
 	{
 		ModeTools->SetDefaultMode(FBuiltinEditorModes::EM_Default);
 		ModeTools->DeactivateAllModes(); // this also activates the default mode
 	}
-
-	ModeTools->OnEditorModeIDChanged().RemoveAll(this);
 
 	delete Widget;
 	delete MouseDeltaTracker;
@@ -481,8 +484,9 @@ FEditorViewportClient::~FEditorViewportClient()
 	if (bOwnsModeTools)
 	{
 		delete ModeTools;
-		ModeTools = nullptr;
 	}
+
+	ModeTools = nullptr;
 }
 
 void FEditorViewportClient::SetRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)

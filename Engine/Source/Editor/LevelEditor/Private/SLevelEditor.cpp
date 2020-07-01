@@ -1701,3 +1701,7 @@ TSharedRef<SWidget> SLevelEditor::CreateToolBox()
 	return NewToolBox;
 }
 
+FEditorModeTools& SLevelEditor::GetEditorModeManager() const
+{
+	return GLevelEditorModeTools();
+}

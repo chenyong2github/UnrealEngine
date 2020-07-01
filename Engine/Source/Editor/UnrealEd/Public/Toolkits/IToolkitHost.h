@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Toolkits/IToolkit.h"
 
+class FEditorModeTools;
+
 /**
  * Base interface class for toolkit hosts
  */
@@ -31,5 +33,8 @@ public:
 
 	/** @return For world-centric toolkit hosts, gets the UWorld associated with this host */
 	virtual class UWorld* GetWorld() const = 0;
+
+	/** Returns the mode manager for this toolkit host. For standalone toolkits */
+	virtual FEditorModeTools& GetEditorModeManager() const = 0;
 };
 

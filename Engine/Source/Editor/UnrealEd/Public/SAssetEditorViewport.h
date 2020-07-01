@@ -39,19 +39,5 @@ public:
 protected:
 	virtual void BindCommands() override;
 
-	TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override 
-	{
-		if (!EditorViewportClient.IsValid())
-		{
-			EditorViewportClient = MakeShareable(new FEditorViewportClient(nullptr));
-		}
-		return EditorViewportClient.ToSharedRef();
-	};
-
-
-private:
-
-	// Viewport client
-	TSharedPtr<FEditorViewportClient> EditorViewportClient;
-
+	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 };

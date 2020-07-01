@@ -10,10 +10,9 @@
 // FPaperEditorViewportClient
 
 FPaperEditorViewportClient::FPaperEditorViewportClient(const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
-	: FEditorViewportClient(new FAssetEditorModeManager(), nullptr, InEditorViewportWidget)
+	: FEditorViewportClient(nullptr, nullptr, InEditorViewportWidget)
 	, CheckerboardTexture(nullptr)
 {
-	bOwnsModeTools = true;
 	ZoomPos = FVector2D::ZeroVector;
 	ZoomAmount = 1.0f;
 

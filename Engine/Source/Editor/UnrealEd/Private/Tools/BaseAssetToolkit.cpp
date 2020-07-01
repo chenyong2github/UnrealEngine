@@ -14,6 +14,7 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "Modules/ModuleManager.h"
 #include "Tools/UAssetEditor.h"
+#include "AssetEditorModeManager.h"
 
 
 #define LOCTEXT_NAMESPACE "BaseAssetToolkit"
@@ -134,7 +135,9 @@ TFunction<TSharedRef<SEditorViewport>(void)> FBaseAssetToolkit::GetViewportDeleg
 TSharedPtr<FEditorViewportClient> FBaseAssetToolkit::CreateEditorViewportClient() const
 {
 	FPreviewScene* PreviewScene = new FPreviewScene(FPreviewScene::ConstructionValues());
-	return MakeShared<FEditorViewportClient>(nullptr, PreviewScene);
+	StaticCastSharedPtr<FAssetEditorModeManager>(EditorModeManager)->SetPreviewScene(PreviewScene);
+
+	return MakeShared<FEditorViewportClient>(EditorModeManager.Get(), PreviewScene);
 }
 
 void FBaseAssetToolkit::CreateWidgets()
@@ -153,6 +156,11 @@ void FBaseAssetToolkit::CreateWidgets()
 void FBaseAssetToolkit::SetEditingObject(class UObject* InObject)
 {
 	DetailsView->SetObject(InObject);
+}
+
+void FBaseAssetToolkit::CreateEditorModeManager()
+{
+	EditorModeManager = MakeShared<FAssetEditorModeManager>();
 }
 
 #undef LOCTEXT_NAMESPACE

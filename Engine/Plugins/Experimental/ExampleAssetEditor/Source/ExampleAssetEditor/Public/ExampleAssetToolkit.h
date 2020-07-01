@@ -19,11 +19,14 @@ public:
 
 
 protected:
+	// Base Asset Toolkit overrides
 	virtual TFunction<TSharedRef<SEditorViewport>(void)> GetViewportDelegate() override;
 	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const override;
-	void OnAssetOpened(UObject* Asset, IAssetEditorInstance* AssetEditorInstance);
+	virtual void CreateEditorModeManager() override;
+	// End Base Asset Toolkit overrides
 
-	FDelegateHandle WindowOpenedDelegateHandle {};
+	void AddInputBehaviorsForEditorClientViewport(TSharedPtr<FEditorViewportClient>& InViewportClient) const;
+
 	UInteractiveToolsContext* ToolsContext;
 	TSharedPtr<FToolsContextQueriesImpl> ToolsContextQueries;
 	TSharedPtr<FToolsContextTransactionImpl> ToolsContextTransactions;

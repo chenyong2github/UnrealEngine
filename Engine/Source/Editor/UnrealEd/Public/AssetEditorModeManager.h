@@ -10,7 +10,7 @@ class FPreviewScene;
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
 
-class UNREALED_API FAssetEditorModeManager : public FEditorModeTools, public TSharedFromThis<FAssetEditorModeManager>
+class UNREALED_API FAssetEditorModeManager : public FEditorModeTools
 {
 public:
 	FAssetEditorModeManager();

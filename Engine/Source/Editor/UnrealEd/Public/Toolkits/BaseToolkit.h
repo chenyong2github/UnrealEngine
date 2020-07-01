@@ -43,6 +43,8 @@ public:
 	virtual bool IsBlueprintEditor() const override;
 	virtual TSharedRef<FWorkspaceItem> GetWorkspaceMenuCategory() const override { return WorkspaceMenuCategory.ToSharedRef(); }
 
+	virtual FEditorModeTools& GetEditorModeManager() const final;
+
 public:
 
 	/** @return	Returns true if this is a world-centric asset editor.  That is, the user is editing the asset inline in a Level Editor app. */
@@ -64,6 +66,9 @@ protected:
 	    make them more easy to distinguish compared to other tabs. */
 	FLinearColor GetTabColorScale() const;
 
+	// Creates the Editor mode manager for your class. Default is to create none, for legacy reasons.
+	virtual void CreateEditorModeManager();
+
 protected:
 
 	/** Asset editing mode, set at creation-time and never changes */
@@ -78,6 +83,8 @@ protected:
 
 	/** The workspace menu category of this toolkit */
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;
+
+	TSharedPtr<FEditorModeTools> EditorModeManager;
 };
 
 

@@ -9,6 +9,7 @@
 class FEdMode;
 class UEdMode;
 class IToolkitHost;
+class FEditorModeTools;
 
 /** Some toolkits can be spawned as either standalone tools or within an existing level editing UI */
 namespace EToolkitMode
@@ -118,6 +119,9 @@ public:
 
 	/** Call this function to bring all of this toolkit's tabs to the foreground in their respective stacks.  Also causes the toolkit's host window to be foregrounded, too! */
 	virtual void BringToolkitToFront() = 0;
+
+	/* Gets the mode manager for this toolkit */
+	virtual FEditorModeTools& GetEditorModeManager() const = 0;
 
 	/** @returns the editor mode this toolkit is used for, or null if not relevant. */
 	virtual FEdMode* GetEditorMode() const = 0;

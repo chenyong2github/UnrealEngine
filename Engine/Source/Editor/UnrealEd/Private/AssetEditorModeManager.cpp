@@ -28,6 +28,8 @@ FAssetEditorModeManager::FAssetEditorModeManager()
 
 FAssetEditorModeManager::~FAssetEditorModeManager()
 {
+	SetPreviewScene(nullptr);
+
 	ActorSet->RemoveFromRoot();
 	ActorSet = nullptr;
 	ObjectSet->RemoveFromRoot();

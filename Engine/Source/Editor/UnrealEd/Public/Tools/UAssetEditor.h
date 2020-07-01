@@ -49,5 +49,4 @@ public:
 
 protected:
 	FBaseAssetToolkit* ToolkitInstance;
-
 };

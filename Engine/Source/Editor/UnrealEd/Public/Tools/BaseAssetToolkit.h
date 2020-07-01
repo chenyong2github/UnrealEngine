@@ -46,6 +46,7 @@ public:
 	virtual const TSharedRef<FTabManager::FLayout> GetDefaultLayout() const;
 	void CreateWidgets();
 	void SetEditingObject(class UObject* InObject);
+	virtual void CreateEditorModeManager();
 
 public:
 	static const FName ViewportTabID;
