@@ -37,6 +37,7 @@
 
 float4 InstancingOffset;
 float4 InstancingFadeOutParams;
+uint InstanceOffset;
 #endif	// USE_INSTANCING
 
 #if USE_SPLINEDEFORM
@@ -80,7 +81,6 @@ float4 SplineParams[10];
 		Buffer<uint> VertexFetch_InstanceBoneMapBuffer;
 	#endif
 
-	uint InstanceOffset;
 
 #endif //! MANUAL_VERTEX_FETCH
 
@@ -502,7 +502,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PerInstanceParams = Intermediates.PerInstanceParams;
 
 	Result.InstanceId = GetInstanceId(Input.InstanceId); 
-	
+	Result.InstanceOffset = InstanceOffset;
+
 	#if USE_INSTANCING_BONEMAP
 		// when using geometry collections, we can correctly compute velocities because we pass along previous transforms
 		Result.PrevFrameLocalToWorld = mul(GetInstancePrevTransform(Intermediates), GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld);
