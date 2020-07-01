@@ -140,8 +140,6 @@ void UMovieSceneTrackInstanceInstantiator::OnLink()
 {
 	using namespace UE::MovieScene;
 
-	Linker->Events.TagGarbage.AddUObject(this, &UMovieSceneTrackInstanceInstantiator::TagGarbage);
-
 	ChildInitializerIndex = Linker->EntityManager.DefineInstancedChildInitializer(FTrackInstanceInputComponentInitializer(this));
 }
 
@@ -150,7 +148,7 @@ void UMovieSceneTrackInstanceInstantiator::OnUnlink()
 	Linker->EntityManager.DestroyInstancedChildInitializer(ChildInitializerIndex);
 }
 
-void UMovieSceneTrackInstanceInstantiator::TagGarbage(UMovieSceneEntitySystemLinker*)
+void UMovieSceneTrackInstanceInstantiator::OnTagGarbage()
 {
 	using namespace UE::MovieScene;
 
