@@ -41,21 +41,11 @@ void UMovieSceneNiagaraSystemTrack::PostCompile(FMovieSceneEvaluationTrack& OutT
 	}
 }
 
-struct FNiagaraSystemTrackSegmentBlender : public FMovieSceneTrackSegmentBlender
+bool UMovieSceneNiagaraSystemTrack::PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
 {
-	FNiagaraSystemTrackSegmentBlender()
-	{
-		bAllowEmptySegments = true;
-		bCanFillEmptySpace = true;
-	}
+	UMovieSceneNiagaraSystemTrack* This = const_cast<UMovieSceneNiagaraSystemTrack*>(this);
+	// We always just evaluate everything
+	OutData.Add(TRange<FFrameNumber>::All(), FMovieSceneTrackEvaluationData::FromTrack(This));
 
-	virtual TOptional<FMovieSceneSegment> InsertEmptySpace(const TRange<FFrameNumber>& Range, const FMovieSceneSegment* PreviousSegment, const FMovieSceneSegment* NextSegment) const override
-	{
-		return MovieSceneSegmentCompiler::EvaluateNearestSegment(Range, PreviousSegment, NextSegment);
-	}
-};
-
-FMovieSceneTrackSegmentBlenderPtr UMovieSceneNiagaraSystemTrack::GetTrackSegmentBlender() const
-{
-	return FNiagaraSystemTrackSegmentBlender();
+	return true;
 }
