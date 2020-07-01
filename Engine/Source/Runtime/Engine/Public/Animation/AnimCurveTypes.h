@@ -245,6 +245,49 @@ struct FTransformCurve: public FAnimCurveBase
 	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 };
 
+USTRUCT(BlueprintType)
+struct ENGINE_API FCachedFloatCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Curve Settings")
+		FName CurveName;
+
+private:
+	mutable USkeleton::AnimCurveUID CachedUID;
+
+public:
+	FCachedFloatCurve()
+		: CachedUID(SmartName::MaxUID)
+	{}
+
+	bool IsValid(UAnimSequenceBase* InAnimSequence) const;
+	float GetValueAtPosition(UAnimSequenceBase* InAnimSequence, const float& InPosition) const;
+	const FFloatCurve* GetFloatCurve(UAnimSequenceBase* InAnimSequence) const;
+
+protected:
+	USkeleton::AnimCurveUID GetAnimCurveUID(UAnimSequenceBase* InAnimSequence) const;
+};
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FDistanceCurve : public FCachedFloatCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	FDistanceCurve()
+		: Super()
+	{}
+
+	FDistanceCurve(const Super& Other)
+		: Super(Other)
+	{}
+
+	float GetDistanceRange(UAnimSequenceBase* InAnimSequence) const;
+	float GetAnimPositionFromDistance(UAnimSequenceBase* InAnimSequence, const float& InDistance);
+};
+
 /**
 * This is array of curves that run when collecting curves natively 
 */
