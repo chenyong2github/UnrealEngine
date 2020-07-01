@@ -283,7 +283,7 @@
 			</Do>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Win64" Label="Platforms/Win64" Requires="Compile UE4Game Win64"/>
+	<Aggregate Name="TargetPlatforms_Win64" Requires="Compile UE4Game Win64"/>
 
 	<Agent Name="Target Win32" Type="Win64_Licensee">
 		<Node Name="Compile UE4Game Win32" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Win32;#UE4Game Win32 Unstripped;#UE4Game Win32 Stripped;#UE4Game Win32 Unsigned;#UE4Game Win32 Signed">
@@ -337,7 +337,7 @@
 			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UE4Game Linux Unstripped" Tag="#UE4Game Linux Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Linux" Label="Platforms/Linux" Requires="Compile UE4Game Linux"/>
+	<Aggregate Name="TargetPlatforms_Linux" Requires="Compile UE4Game Linux"/>
 	
 	<Agent Name="Target LinuxAArch64" Type="Win64_Licensee">
 		<Node Name="Compile UE4Game LinuxAArch64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped">
@@ -420,7 +420,7 @@
 			</Do>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Mac" Label="Platforms/Mac" Requires="Compile UE4Game Mac"/>
+	<Aggregate Name="TargetPlatforms_Mac" Requires="Compile UE4Game Mac"/>
 
 	<Agent Name="Target IOS" Type="Mac_Licensee">
 		<Node Name="Compile UE4Game IOS" Requires="Compile UnrealHeaderTool Mac" Produces="#UE4Game IOS;#UE4Game IOS Unstripped;#UE4Game IOS Stripped">
