@@ -39,6 +39,8 @@
 #define SETTING_BROADCASTER FName(TEXT("BROADCASTER"))
 /** Setting defining if we are a party member spectator (value is bool) */
 #define SETTING_PARTYMEMBERSPECTATOR FName(TEXT("PARTYMEMBERSPECTATOR"))
+/** Setting describing the number of spectator slots in the session (value is int32) */
+#define SETTING_MAXSPECTATORS FName(TEXT("MAXSPECTATORS"))
 
 /** 8 user defined integer params to be used when filtering searches for sessions */
 #define SETTING_CUSTOMSEARCHINT1 FName(TEXT("CUSTOMSEARCHINT1"))
