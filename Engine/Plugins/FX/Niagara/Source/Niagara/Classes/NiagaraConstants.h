@@ -109,6 +109,7 @@
 #define SYS_PARAM_PARTICLES_LIGHT_ENABLED                INiagaraModule::GetVar_Particles_LightEnabled()
 #define SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING  INiagaraModule::GetVar_Particles_LightVolumetricScattering()
 #define SYS_PARAM_PARTICLES_VISIBILITY_TAG				 INiagaraModule::GetVar_Particles_VisibilityTag()
+#define SYS_PARAM_PARTICLES_COMPONENTS_ENABLED           INiagaraModule::GetVar_Particles_ComponentsEnabled()
 
 #define SYS_PARAM_PARTICLES_RIBBONID                     INiagaraModule::GetVar_Particles_RibbonID()
 #define SYS_PARAM_PARTICLES_RIBBONWIDTH                  INiagaraModule::GetVar_Particles_RibbonWidth()
