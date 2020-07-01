@@ -62,8 +62,8 @@ static FAutoConsoleVariableRef NavmeshVarSynchronous(TEXT("n.GNavmeshSynchronous
 
 #if RECAST_INTERNAL_DEBUG_DATA
 static int32 GNavmeshDisplayStep = 0;
-static int32 GNavmeshDebugTileX = 1;
-static int32 GNavmeshDebugTileY = 1;
+static int32 GNavmeshDebugTileX = MAX_int32;
+static int32 GNavmeshDebugTileY = MAX_int32;
 static FAutoConsoleVariableRef NavmeshVarDisplayStep(TEXT("n.GNavmeshDisplayStep"), GNavmeshDisplayStep, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileX(TEXT("n.GNavmeshDebugTileX"), GNavmeshDebugTileX, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY"), GNavmeshDebugTileY, TEXT(""), ECVF_Default);
@@ -2232,6 +2232,15 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
 {
 	bool bDumpGeometryData = false;
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (IsTileToDebug())
+	{
+		UE_LOG(LogNavigation, Log, TEXT("Gathering geometry for tile (%i,%i): %s."), TileX, TileY, *GetFullNameSafe(ElementData->GetOwner()));
+		UE_LOG(LogNavigation, Log, TEXT("                       bounds: %s"), *ElementData->Bounds.ToString());
+	}
+#endif
+
 	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->NeedAnyPendingLazyModifiersGathering())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyGeometryExport);
