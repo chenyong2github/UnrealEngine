@@ -57,6 +57,8 @@ FChaosScene::FChaosScene(
 #endif
 		);
 	check(SceneSolver);
+
+	Flush_AssumesLocked();	//make sure acceleration structure exists right away
 }
 
 FChaosScene::~FChaosScene()
@@ -139,6 +141,30 @@ void FChaosScene::CopySolverAccelerationStructure()
 		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
+}
+
+void FChaosScene::Flush_AssumesLocked()
+{
+	check(IsInGameThread());
+
+	Chaos::FPBDRigidsSolver* Solver = GetSolver();
+
+	if(Solver)
+	{
+		//Make sure any dirty proxy data is pushed
+		Solver->AdvanceAndDispatch_External(0);	//force commands through
+		Solver->WaitOnPendingTasks_External();
+
+		// Populate the spacial acceleration
+		Chaos::FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+
+		if(Evolution)
+		{
+			Evolution->FlushSpatialAcceleration();
+		}
+	}
+
+	CopySolverAccelerationStructure();
 }
 
 void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
