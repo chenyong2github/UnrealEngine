@@ -18,10 +18,6 @@ private:
 	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
 
 #if WITH_EDITORONLY_DATA
-	/** Component that enables Editor bounds copy functionality. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Transform, meta = (AllowPrivateAccess = "true"))
-	class UBoundsCopyComponent* BoundsCopyComponent;
-
 	/** Box for visualizing virtual texture extents. */
 	UPROPERTY(Transient)
 	class UBoxComponent* Box = nullptr;

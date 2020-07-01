@@ -11,6 +11,7 @@
 #include "Factories/Texture2dFactoryNew.h"
 #include "RuntimeVirtualTextureBuildMinMaxHeight.h"
 #include "RuntimeVirtualTextureBuildStreamingMips.h"
+#include "RuntimeVirtualTextureSetBounds.h"
 #include "ScopedTransaction.h"
 #include "SResetToDefaultMenu.h"
 #include "VirtualTextureBuilderFactory.h"
@@ -181,7 +182,7 @@ bool FRuntimeVirtualTextureComponentDetailsCustomization::IsMinMaxTextureEnabled
 
 void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Get and store the linked URuntimeVirtualTextureComponent
+	// Get and store the linked URuntimeVirtualTextureComponent.
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 	if (ObjectsBeingCustomized.Num() > 1)
@@ -194,6 +195,30 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		return;
 	}
 
+	// TransformFromBounds button.
+	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
+
+	BoundsCategory
+	.AddCustomRow(LOCTEXT("Button_SetBounds", "Set Bounds"))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
+		.ToolTipText(LOCTEXT("Button_SetBounds_Tooltip", "Set the rotation to match the Bounds Align Actor and expand bounds to include all primitives that write to this virtual texture."))
+	]
+	.ValueContent()
+	.MinDesiredWidth(125.f)
+	[
+		SNew(SButton)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
+		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds)
+	];
+
+	// VirtualTextureBuild buttons.
 	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTextureBuild", FText::GetEmpty());
 	
 	VirtualTextureCategory
@@ -203,6 +228,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"))
+		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -212,7 +238,6 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Build", "Build"))
-		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
 	];
 
@@ -223,6 +248,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"))
+		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -232,7 +258,6 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Build", "Build"))
-		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug)
 	];
 
@@ -243,6 +268,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildMinMaxTexture", "Build MinMax Texture"))
+		.ToolTipText(LOCTEXT("Button_BuildMinMaxTexture_Tooltip", "Build the min/max height texture"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -252,10 +278,16 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Build", "Build"))
-		.ToolTipText(LOCTEXT("Button_BuildMinMaxTexture_Tooltip", "Build the min/max height texture"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildMinMaxTexture)
 		.IsEnabled(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsMinMaxTextureEnabled)
 	];
+}
+
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
+{
+	const FScopedTransaction Transaction(LOCTEXT("Transaction_SetBounds", "Set RuntimeVirtualTextureComponent Bounds"));
+	RuntimeVirtualTexture::SetBounds(RuntimeVirtualTextureComponent);
+	return FReply::Handled();
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()
