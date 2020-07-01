@@ -475,6 +475,8 @@ namespace Chaos
 				{
 					Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 				}
+
+				Impulse *= CalculateRelaxationFactor(IterationParameters);
 				AccumulatedImpulse += Impulse;
 
 				if (bIsRigidDynamic0)
