@@ -679,13 +679,6 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 		{
 			// If we're recording and the caller didn't provide a name, generate one automatically
 			FinalDemoName = GetAutomaticDemoName();
-
-			// if there was a problem generating the file name then we shouldn't continue recording
-			if (FinalDemoName.IsEmpty())
-			{
-				Delegate.ExecuteIfBound(Result);
-				return;
-			}
 		}
 		else
 		{
@@ -719,7 +712,7 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 	const FString FullDemoFilename = GetDemoFullFilename(FinalDemoName);
 
 	// only record to valid replay file names
-	if (Params.bRecord && !FullDemoFilename.EndsWith(FNetworkReplayStreaming::GetReplayFileExtension()))
+	if (Params.bRecord && (FinalDemoName.IsEmpty() || !FullDemoFilename.EndsWith(FNetworkReplayStreaming::GetReplayFileExtension())))
 	{
 		UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::StartStreaming. Invalid replay file name for recording: %s"), *FullDemoFilename);
 		Delegate.ExecuteIfBound(Result);
