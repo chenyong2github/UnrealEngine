@@ -13,7 +13,7 @@ class UParticleSystem;
 //@todo(ng) figure out why this won't link
 // CASCADETONIAGARACONVERTER_API DECLARE_LOG_CATEGORY_EXTERN(LogFXConverter, Log, Verbose);
 
-static struct FNiagaraConverterMessageTopics
+struct FNiagaraConverterMessageTopics
 {
 	static const FName VerboseConversionEventTopicName;
 	static const FName ConversionEventTopicName;
