@@ -45,6 +45,10 @@ struct SYNTHESIS_API FMotoSynthRuntimeSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "bGranularEngineEnabled"))
 	float GranularEngineVolume = 1.0f;
 
+	// The pitch scale of the granular engine
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0.001", UIMin = "0.001", EditCondition = "bGranularEngineEnabled"))
+	float GranularEnginePitchScale = 1.0f;
+
 	// The volume of the granular engine
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0", UIMin = "0", EditCondition = "bGranularEngineEnabled"))
 	int32 NumSamplesToCrossfadeBetweenGrains = 10;
