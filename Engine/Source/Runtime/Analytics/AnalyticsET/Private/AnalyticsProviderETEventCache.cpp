@@ -504,7 +504,7 @@ void FAnalyticsProviderETEventCache::SetPreallocatedPayloadSize(int32 InPrealloc
 		PreallocatedPayloadSize = MaximumPayloadSize;
 	}
 	// if we are asking for a smaller buffer try to accommodate immediately.
-	if (PreallocatedPayloadSize < CachedEventUTF8Stream.GetAllocatedSize())
+	if (PreallocatedPayloadSize < (int32)CachedEventUTF8Stream.GetAllocatedSize())
 	{
 		FScopeLock ScopedLock(&CachedEventsCS);
 		TArray<uint8> NewPayload;
