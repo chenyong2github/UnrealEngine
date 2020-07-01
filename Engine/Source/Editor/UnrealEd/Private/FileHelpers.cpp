@@ -2898,7 +2898,9 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 
 	bool bShouldRetrySave = true;
 	UWorld*	AssociatedWorld	= UWorld::FindWorldInPackage(PackageToSave);
-	const bool	bIsMapPackage = AssociatedWorld != NULL;
+	// Redirector to world saves with file extension for maps
+	const bool bSavingRedirectorToWorld = !AssociatedWorld && UWorld::FollowWorldRedirectorInPackage(PackageToSave);
+	const bool bIsMapPackage = AssociatedWorld != NULL || bSavingRedirectorToWorld;
 
 	// The name of the package
 	const FString PackageName = PackageToSave->GetName();
@@ -3077,7 +3079,8 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 	while( bAttemptSave )
 	{
 		bool bWasSuccessful = false;
-		if ( bIsMapPackage )
+		// Note: Redirector to world uses SAVEPACKAGE instead of SaveMap
+		if (bIsMapPackage && !bSavingRedirectorToWorld)
 		{
 			// have a Helper attempt to save the map
 			SaveOutput.Log("LogFileHelpers", ELogVerbosity::Log, FString::Printf(TEXT("Saving Map: %s"), *PackageName));
