@@ -2771,7 +2771,8 @@ FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNi
 				NameParts.RemoveAt(0, NumberOfNamespaceModifiers - 1);
 			}
 		}
-		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None && NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)
+		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None &&
+			(NameParts.Num() == 1 || (NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)))
 		{
 			NameParts.Insert(NewNamespaceMetadata.RequiredNamespaceModifier, 0);
 		}
