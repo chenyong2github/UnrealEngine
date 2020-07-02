@@ -13,6 +13,7 @@
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
+#include "NiagaraSettings.h"
 
 static float GNiagaraComponentRenderComponentCountWarning = 50;
 static FAutoConsoleVariableRef CVarNiagaraComponentRenderComponentCountWarning(
@@ -240,6 +241,19 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 
 	if (InEmitter && TemplateComponent)
 	{
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		if (Settings)
+		{
+			for (const TPair<FString, FText>& Pair : Settings->ComponentRendererWarningsPerClass)
+			{
+				FString ClassName = TemplateComponent->GetClass()->GetName();
+				if (ClassName == Pair.Key)
+				{
+					OutWarnings.Add(Pair.Value);
+				}
+			}
+		}
+
 		bool IsWorldSpace = !InEmitter->bLocalSpace;
 		if (TemplateComponent->IsUsingAbsoluteLocation() != IsWorldSpace)
 		{
