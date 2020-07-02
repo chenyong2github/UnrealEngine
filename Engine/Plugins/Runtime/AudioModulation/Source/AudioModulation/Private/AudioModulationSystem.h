@@ -194,7 +194,6 @@ namespace AudioModulation
 		friend FModulationInputProxy;
 		friend FModulationPatchProxy;
 		friend FModulationPatchRefProxy;
-		friend FModulationSettingsProxy;
 		friend FModulatorBusMixChannelProxy;
 	};
 
