@@ -132,7 +132,7 @@ void FMovieSceneParticleSectionTemplate::Evaluate(const FMovieSceneEvaluationOpe
 		TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
 		TArrayView<const uint8>        Values = ChannelData.GetValues();
 
-		FFrameNumber ExclusiveEndFrame = MovieScene::DiscreteExclusiveUpper(PlaybackRange.GetUpperBound());
+		FFrameNumber ExclusiveEndFrame = UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange.GetUpperBound());
 
 		int32 LastKeyIndex = Algo::UpperBound(Times, ExclusiveEndFrame)-1;
 
