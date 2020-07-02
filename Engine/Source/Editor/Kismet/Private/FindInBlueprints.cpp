@@ -1711,4 +1711,14 @@ FReply SFindInBlueprints::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
 
+void SFindInBlueprints::ClearResults()
+{
+	ItemsFound.Empty();
+
+	if (TreeView.IsValid())
+	{
+		TreeView->RequestTreeRefresh();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

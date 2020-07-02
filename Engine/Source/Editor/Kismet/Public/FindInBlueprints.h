@@ -289,6 +289,9 @@ public:
 	/** SWidget overrides */
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
+	/** Clears the currently visible results */
+	void ClearResults();
+
 private:
 	/** Processes results of the ongoing async stream search */
 	EActiveTimerReturnType UpdateSearchResults( double InCurrentTime, float InDeltaTime );

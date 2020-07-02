@@ -370,6 +370,12 @@ void SReplaceNodeReferences::SetSourceVariable(FProperty* InProperty)
 	{
 		SourceProperty = nullptr;
 	}
+
+	// Reset the FindInBlueprints results
+	if (FindInBlueprints.IsValid())
+	{
+		FindInBlueprints->ClearResults();
+	}
 }
 
 SReplaceNodeReferences::~SReplaceNodeReferences()
