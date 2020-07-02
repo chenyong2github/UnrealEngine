@@ -19,6 +19,30 @@ int FMeshBoundaryLoops::GetMaxVerticesLoopIndex() const
 }
 
 
+
+int FMeshBoundaryLoops::GetLongestLoopIndex() const
+{
+	int32 LongestLoopIdx = -1;
+	double LongestLoopLen = 0;
+	for (int i = 0; i < Loops.Num(); ++i)
+	{
+		int32 LoopNum = Loops[i].Vertices.Num();
+		double LoopLen = 0;
+		for (int32 k = 0; k < LoopNum; ++k)
+		{
+			FVector3d NextPos = Mesh->GetVertex(Loops[i].Vertices[(k+1)%LoopNum]);
+			LoopLen += Mesh->GetVertex(Loops[i].Vertices[k]).Distance(NextPos);
+		}
+		if (LoopLen > LongestLoopLen)
+		{
+			LongestLoopLen = LoopLen;
+			LongestLoopIdx = i;
+		}
+	}
+	return LongestLoopIdx;
+}
+
+
 FIndex2i FMeshBoundaryLoops::FindVertexInLoop(int VertexID) const
 {
 	int N = Loops.Num();
