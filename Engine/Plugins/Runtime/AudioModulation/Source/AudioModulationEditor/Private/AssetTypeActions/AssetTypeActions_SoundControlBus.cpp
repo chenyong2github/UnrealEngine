@@ -6,54 +6,6 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-namespace SoundVolumeControlBusActionUtils
-{
-	static const TArray<FText> SubMenus
-	{
-		LOCTEXT("AssetSoundModulationSubMenu", "Modulation")
-	};
-} // namespace SoundVolumeControlBusActionUtils
-
-UClass* FAssetTypeActions_SoundVolumeControlBus::GetSupportedClass() const
-{
-	return USoundVolumeControlBus::StaticClass();
-}
-
-const TArray<FText>& FAssetTypeActions_SoundVolumeControlBus::GetSubMenus() const
-{
-	return SoundVolumeControlBusActionUtils::SubMenus;
-}
-
-UClass* FAssetTypeActions_SoundPitchControlBus::GetSupportedClass() const
-{
-	return USoundPitchControlBus::StaticClass();
-}
-
-const TArray<FText>& FAssetTypeActions_SoundPitchControlBus::GetSubMenus() const
-{
-	return SoundVolumeControlBusActionUtils::SubMenus;
-}
-
-UClass* FAssetTypeActions_SoundLPFControlBus::GetSupportedClass() const
-{
-	return USoundLPFControlBus::StaticClass();
-}
-
-const TArray<FText>& FAssetTypeActions_SoundLPFControlBus::GetSubMenus() const
-{
-	return SoundVolumeControlBusActionUtils::SubMenus;
-}
-
-UClass* FAssetTypeActions_SoundHPFControlBus::GetSupportedClass() const
-{
-	return USoundHPFControlBus::StaticClass();
-}
-
-const TArray<FText>& FAssetTypeActions_SoundHPFControlBus::GetSubMenus() const
-{
-	return SoundVolumeControlBusActionUtils::SubMenus;
-}
-
 UClass* FAssetTypeActions_SoundControlBus::GetSupportedClass() const
 {
 	return USoundControlBus::StaticClass();
@@ -61,6 +13,10 @@ UClass* FAssetTypeActions_SoundControlBus::GetSupportedClass() const
 
 const TArray<FText>& FAssetTypeActions_SoundControlBus::GetSubMenus() const
 {
-	return SoundVolumeControlBusActionUtils::SubMenus;
+	static const TArray<FText> SubMenus
+	{
+		LOCTEXT("AssetSoundModulationSubMenu", "Modulation")
+	};
+	return SubMenus;
 }
 #undef LOCTEXT_NAMESPACE

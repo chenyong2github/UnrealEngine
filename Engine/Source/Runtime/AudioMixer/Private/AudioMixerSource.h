@@ -104,9 +104,6 @@ namespace Audio
 		bool UseSpatializationPlugin() const;
 
 		/** Whether or not to use the occlusion plugin. */
-		bool UseModulationPlugin() const;
-
-		/** Whether or not to use the occlusion plugin. */
 		bool UseOcclusionPlugin() const;
 
 		/** Whether or not to use the reverb plugin. */

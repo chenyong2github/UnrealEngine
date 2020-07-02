@@ -58,6 +58,49 @@ namespace ModDestinationLayoutUtils
 		return FName();
 	}
 
+	bool IsParamMismatched(TSharedRef<IPropertyHandle> ModulatorHandle, TSharedRef<IPropertyHandle> StructPropertyHandle, FName* OutModParamName = nullptr, FName* OutDestParamName = nullptr)
+	{
+		if (OutModParamName)
+		{
+			*OutModParamName = FName();
+		}
+
+		if (OutDestParamName)
+		{
+			*OutDestParamName = FName();
+		}
+
+		UObject* ModObject = nullptr;
+		ModulatorHandle->GetValue(ModObject);
+
+		USoundModulatorBase* ModBase = Cast<USoundModulatorBase>(ModObject);
+		if (!ModBase)
+		{
+			return false;
+		}
+
+		if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
+		{
+			const FName ModParamName = ModBase->GetOutputParameterName();
+			const FName DestParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
+			if (ModParamName != FName() && DestParamName != FName() && ModParamName != DestParamName)
+			{
+				if (OutModParamName)
+				{
+					*OutModParamName = ModParamName;
+				}
+
+				if (OutDestParamName)
+				{
+					*OutDestParamName = DestParamName;
+				}
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	void CustomizeChildren_AddValueRow(
 		IDetailChildrenBuilder& ChildBuilder,
 		TSharedRef<IPropertyHandle> StructPropertyHandle,
@@ -66,28 +109,29 @@ namespace ModDestinationLayoutUtils
 		TSharedRef<IPropertyHandle> EnablementHandle)
 	{
 		FText UnitDisplayText;
+
+		bool bClampValuesSet = false;
+		float ClampMinValue = 0.0f;
+		float ClampMaxValue = 1.0f;
+		float UIMinValue = 0.0f;
+		float UIMaxValue = 1.0f;
+		if (StructPropertyHandle->HasMetaData("ClampMin"))
+		{
+			bClampValuesSet = true;
+			FString ParamString = StructPropertyHandle->GetMetaData("ClampMin");
+			ClampMinValue = FCString::Atof(*ParamString);
+		}
+
+		if (StructPropertyHandle->HasMetaData("ClampMax"))
+		{
+			FString ParamString = StructPropertyHandle->GetMetaData("ClampMax");
+			ClampMaxValue = FCString::Atof(*ParamString);
+			bClampValuesSet = true;
+		}
+
 		const FName ParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
 		if (ParamName != FName())
 		{
-			bool bClampValuesSet = false;
-			float ClampMinValue = 0.0f;
-			float ClampMaxValue = 1.0f;
-			float UIMinValue = 0.0f;
-			float UIMaxValue = 1.0f;
-			if (StructPropertyHandle->HasMetaData("ClampMin"))
-			{
-				bClampValuesSet = true;
-				FString ParamString = StructPropertyHandle->GetMetaData("ClampMin");
-				ClampMinValue = FCString::Atof(*ParamString);
-			}
-
-			if (StructPropertyHandle->HasMetaData("ClampMax"))
-			{
-				FString ParamString = StructPropertyHandle->GetMetaData("ClampMax");
-				ClampMaxValue = FCString::Atof(*ParamString);
-				bClampValuesSet = true;
-			}
-
 			// If parameter was provided, it overrides ClampMin/Max.  User data however overrides UIMin/Max if its
 			// in clamp range.
 			if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
@@ -97,7 +141,7 @@ namespace ModDestinationLayoutUtils
 				UIMaxValue = Parameter.MaxValue;
 				ClampMinValue = UIMinValue;
 				ClampMaxValue = UIMaxValue;
-
+				UnitDisplayText = Parameter.UnitDisplayName;
 				if (bClampValuesSet)
 				{
 					UE_LOG(LogAudioEditor, Warning, TEXT("ClampMin/Max overridden by AudioModulation plugin asset with ParamName '%s'."), *ParamName.ToString());
@@ -119,12 +163,12 @@ namespace ModDestinationLayoutUtils
 				NewMax = FCString::Atof(*ParamString);
 				UIMaxValue = FMath::Clamp(NewMax, ClampMinValue, ClampMaxValue);
 			}
-
-			ValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), ClampMinValue));
-			ValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), ClampMaxValue));
-			ValueHandle->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), UIMinValue));
-			ValueHandle->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), UIMaxValue));
 		}
+
+		ValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), ClampMinValue));
+		ValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), ClampMaxValue));
+		ValueHandle->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), UIMinValue));
+		ValueHandle->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), UIMaxValue));
 
 		const FText DisplayName = StructPropertyHandle->GetPropertyDisplayName();
 		ChildBuilder.AddCustomRow(DisplayName)
@@ -169,6 +213,47 @@ namespace ModDestinationLayoutUtils
 				.VAlign(VAlign_Center)
 				[
 					EnablementHandle->CreatePropertyNameWidget()
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SButton)
+					.ToolTipText(LOCTEXT("ResetToParameterDefaultToolTip", "Reset to parameter's default"))
+					.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
+					.ContentPadding(0.0f)
+					.Visibility(TAttribute<EVisibility>::Create([ParamName, ValueHandle]
+					{
+						float CurrentValue = 0.0f;
+						ValueHandle->GetValue(CurrentValue);
+
+						if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
+						{
+							Audio::FModulationParameter Parameter = ModulationInterface->GetParameter(ParamName);
+								
+							return Parameter.DefaultValue == CurrentValue
+								? EVisibility::Hidden
+								: EVisibility::Visible;
+						}
+
+						return EVisibility::Hidden;
+					}))
+					.OnClicked(FOnClicked::CreateLambda([ParamName, ValueHandle]()
+					{
+						if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
+						{
+							Audio::FModulationParameter Parameter = ModulationInterface->GetParameter(ParamName);
+							ValueHandle->SetValue(Parameter.DefaultValue);
+						}
+
+						return FReply::Handled();
+					}))
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					]
 				]
 		];
 
@@ -224,7 +309,7 @@ namespace ModDestinationLayoutUtils
 	void CustomizeChildren_AddModulatorRow(IDetailChildrenBuilder& ChildBuilder, TSharedRef<IPropertyHandle> StructPropertyHandle, TSharedRef<IPropertyHandle> ModulatorHandle, TSharedRef<IPropertyHandle> EnablementHandle)
 	{
 		const FText DisplayName = StructPropertyHandle->GetPropertyDisplayName();
-		FDetailWidgetRow& ModulatorRow = ChildBuilder.AddCustomRow(DisplayName)
+		ChildBuilder.AddCustomRow(DisplayName)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -243,12 +328,52 @@ namespace ModDestinationLayoutUtils
 				[
 					ModulatorHandle->CreatePropertyValueWidget()
 				]
-			];
-			ModulatorRow.Visibility(TAttribute<EVisibility>::Create([EnablementHandle]()
+			]
+			.Visibility(TAttribute<EVisibility>::Create([EnablementHandle]()
 			{
 				bool bModulationEnabled = false;
 				EnablementHandle->GetValue(bModulationEnabled);
 				return bModulationEnabled 
+					? EVisibility::Visible
+					: EVisibility::Hidden;
+			}));
+
+		ChildBuilder.AddCustomRow(LOCTEXT("SoundModulationDestinationLayout_UnitMismatchHeadingWarning", "Unit Mismatch Warning"))
+			.ValueContent()
+			.MinDesiredWidth(150.0f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.Padding(10.0f, 0.0f, 0.0f, 0.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						.Text(TAttribute<FText>::Create([ModulatorHandle, StructPropertyHandle]()
+						{
+							UObject* ModObject = nullptr;
+							ModulatorHandle->GetValue(ModObject);
+
+							UObject* DestObject = nullptr;
+							
+							FName ModName;
+							FName DestName;
+							if (ModDestinationLayoutUtils::IsParamMismatched(ModulatorHandle, StructPropertyHandle, &ModName, &DestName))
+							{
+								return FText::Format(LOCTEXT("ModulationDestinationLayout_UnitMismatchFormat", "Parameter Mismatch: Modulator Output = {0}, Destination Input = {1}"),
+									FText::FromName(ModName),
+									FText::FromName(DestName));
+							}
+
+							return FText::GetEmpty();
+
+						}))
+					]
+			]
+			.Visibility(TAttribute<EVisibility>::Create([ModulatorHandle, StructPropertyHandle]()
+			{
+				return ModDestinationLayoutUtils::IsParamMismatched(ModulatorHandle, StructPropertyHandle)
 					? EVisibility::Visible
 					: EVisibility::Hidden;
 			}));

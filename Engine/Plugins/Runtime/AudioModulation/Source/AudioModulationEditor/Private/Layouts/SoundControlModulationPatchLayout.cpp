@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundControlModulationPatchLayout.h"
 
-#include "AudioModulationSettings.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -93,39 +92,6 @@ TAttribute<EVisibility> FSoundModulationPatchLayoutCustomization::CustomizeContr
 	return VisibilityAttribute;
 }
 
-TAttribute<EVisibility> FSoundVolumeModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
-{
-	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-
-	TSharedRef<IPropertyHandle>ValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundVolumeModulationPatch, DefaultInputValue)).ToSharedRef();
-	ChildBuilder.AddProperty(ValueHandle)
-		.Visibility(VisibilityAttribute);
-
-	AddPatchProperties<FSoundVolumeModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
-	return VisibilityAttribute;
-}
-
-TAttribute<EVisibility> FSoundPitchModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
-{
-	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-	AddPatchProperties<FSoundPitchModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
-	return VisibilityAttribute;
-}
-
-TAttribute<EVisibility> FSoundHPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
-{
-	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-	AddPatchProperties<FSoundHPFModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
-	return VisibilityAttribute;
-}
-
-TAttribute<EVisibility> FSoundLPFModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
-{
-	TAttribute<EVisibility> VisibilityAttribute = FSoundModulationPatchLayoutCustomization::CustomizeControl(PropertyHandles, ChildBuilder);
-	AddPatchProperties<FSoundLPFModulationPatch>(VisibilityAttribute, PropertyHandles, ChildBuilder);
-	return VisibilityAttribute;
-}
-
 TAttribute<EVisibility> FSoundControlModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder)
 {
 	TSharedRef<IPropertyHandle>BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, bBypass)).ToSharedRef();
@@ -166,7 +132,7 @@ TAttribute<EVisibility> FSoundControlModulationPatchLayoutCustomization::Customi
 						if (USoundModulationParameter* Parameter = Cast<USoundModulationParameter>(Object))
 						{
 							return FText::Format(
-								LOCTEXT("ModulationPatchLayout_UnitMismatchHeading", "{0} bus(es) reference parameter with units that do not match patch input units."),
+								LOCTEXT("ModulationPatchLayout_UnitMismatchHeading", "{0} bus(es) with parameter mismatch"),
 								FText::AsNumber(AudioModulationEditorUtils::GetMismatchedBuses(InputsHandle, Parameter).Num())
 							);
 						}
