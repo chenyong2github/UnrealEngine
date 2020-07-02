@@ -8,14 +8,14 @@ void FSourceEffectChorus::Init(const FSoundEffectSourceInitData& InitData)
 
 	if (USourceEffectChorusPreset* ProcPreset = Cast<USourceEffectChorusPreset>(Preset.Get()))
 	{
-		const uint32 PresetId = ProcPreset->GetUniqueID();
-
-		DepthMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		FeedbackMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		FrequencyMod.Init(InitData.AudioDeviceId, PresetId, "FilterFrequency", true /* bInIsBuffered */);
-		WetMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		DryMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		SpreadMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
+		Audio::FDeviceId DeviceId = static_cast<Audio::FDeviceId>(InitData.AudioDeviceId);
+		const bool bIsBuffered = true;
+		DepthMod.Init(DeviceId, bIsBuffered);
+		FeedbackMod.Init(DeviceId, bIsBuffered);
+		FrequencyMod.Init(DeviceId, FName("FilterFrequency"), bIsBuffered);
+		WetMod.Init(DeviceId, bIsBuffered);
+		DryMod.Init(DeviceId, bIsBuffered);
+		SpreadMod.Init(DeviceId, bIsBuffered);
 	}
 
 	Chorus.Init(InitData.SampleRate, InitData.NumSourceChannels, 2.0f, 64);

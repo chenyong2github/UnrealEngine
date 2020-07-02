@@ -38,7 +38,7 @@ namespace AudioModulation
 		Patch,
 		Bus,
 		LFO,
-		
+
 		COUNT
 	};
 
@@ -60,87 +60,6 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
-		SourceSettings.AddDefaulted(InitializationParams.NumSources);
-	}
-
-#if WITH_EDITOR
-	void FAudioModulationSystem::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& InSettings)
-	{
-		
-		if (const USoundModulationSettings* ModSettings = Cast<USoundModulationSettings>(&InSettings))
-		{
-			RunCommandOnProcessingThread([this, Settings = FSoundModulationSettings(*ModSettings)]()
-			{
-				for (FModulationSettingsProxy& SourceSetting : SourceSettings)
-				{
-					if (SourceSetting.GetId() == Settings.GetId())
-					{
-						SourceSetting = FModulationSettingsProxy(Settings, *this);
-					}
-				}
-
-				for (TPair<uint32, FModulationSettingsProxy>& Pair : SoundSettings)
-				{
-					if (Pair.Value.GetId() == Settings.GetId())
-					{
-						Pair.Value = FModulationSettingsProxy(Settings, *this);
-					}
-				}
-			});
-		}
-	}
-#endif // WITH_EDITOR
-
-	void FAudioModulationSystem::OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& InSettings)
-	{
-		check(IsInAudioThread());
-
-		const uint32 SoundId = InSound.GetObjectId();
-		RunCommandOnProcessingThread([this, SoundId, SourceSettings = &InSettings]()
-		{
-			if (!SoundSettings.Contains(SoundId))
-			{
-				const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(SourceSettings);
-				SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings, *this));
-			}
-		});
-	}
-
-	void FAudioModulationSystem::OnInitSource(const uint32 InSourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& InSettings)
-	{
-		check(IsInProcessingThread());
-
-		if (const USoundModulationSettings* Settings = Cast<USoundModulationSettings>(&InSettings))
-		{
-			SourceSettings[InSourceId] = FModulationSettingsProxy(*Settings, *this);
-		}
-	}
-
-	void FAudioModulationSystem::OnReleaseSource(const uint32 InSourceId)
-	{
-		check(IsInProcessingThread());
-		SourceSettings[InSourceId] = FModulationSettingsProxy();
-	}
-
-	void FAudioModulationSystem::OnReleaseSound(ISoundModulatable& InSound)
-	{
-		check(IsInAudioThread());
-
-		if (InSound.GetPlayCount() == 0)
-		{
-			const uint32 SoundId = InSound.GetObjectId();
-			check(SoundId != INDEX_NONE);
-
-			if (InSound.IsPreviewSound())
-			{
-				DeactivateAllBusMixes();
-			}
-
-			RunCommandOnProcessingThread([this, SoundId]()
-			{
-				SoundSettings.Remove(SoundId);
-			});
-		}
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -276,7 +195,7 @@ namespace AudioModulation
 			{
 				// Direct access preferred vs through handles here as its impossible for proxies to be destroyed
 				// in look-up and speed is key as this is possibly being queried often in the audio render pass.
-				if (const FModulationPatchRefProxy* PatchProxy = RefProxies.Patches.Find(static_cast<FPatchId>(InModulatorHandle.GetId())))
+				if (const FModulationPatchRefProxy* PatchProxy = RefProxies.Patches.Find(static_cast<FPatchId>(InModulatorHandle.GetModulatorId())))
 				{
 					if (!PatchProxy->IsBypassed())
 					{
@@ -289,7 +208,7 @@ namespace AudioModulation
 
 			case EModulatorType::Bus:
 			{
-				if (const FControlBusProxy* BusProxy = RefProxies.Buses.Find(static_cast<FBusId>(InModulatorHandle.GetId())))
+				if (const FControlBusProxy* BusProxy = RefProxies.Buses.Find(static_cast<FBusId>(InModulatorHandle.GetModulatorId())))
 				{
 					if (!BusProxy->IsBypassed())
 					{
@@ -302,7 +221,7 @@ namespace AudioModulation
 
 			case EModulatorType::LFO:
 			{
-				if (const FModulatorLFOProxy* LFOProxy = RefProxies.LFOs.Find(static_cast<FLFOId>(InModulatorHandle.GetId())))
+				if (const FModulatorLFOProxy* LFOProxy = RefProxies.LFOs.Find(static_cast<FLFOId>(InModulatorHandle.GetModulatorId())))
 				{
 					if (!LFOProxy->IsBypassed())
 					{
@@ -357,51 +276,6 @@ namespace AudioModulation
 	bool FAudioModulationSystem::IsInProcessingThread() const
 	{
 		return ProcessingThreadId == FPlatformTLS::GetCurrentThreadId();
-	}
-
-	bool FAudioModulationSystem::ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls)
-	{
-		bool bControlsUpdated = false;
-
-		FModulationSettingsProxy& Settings = SourceSettings[InSourceId];
-
-		if (Settings.Volume.IsBypassed())
-		{
-			OutControls.Volume = 1.0f;
-		}
-		else
-		{
-			bControlsUpdated |= CalculateModulationValue(Settings.Volume, OutControls.Volume);
-		}
-
-		if (Settings.Pitch.IsBypassed())
-		{
-			OutControls.Pitch = 1.0f;
-		}
-		else
-		{
-			bControlsUpdated |= CalculateModulationValue(Settings.Pitch, OutControls.Pitch);
-		}
-
-		if (Settings.Highpass.IsBypassed())
-		{
-			OutControls.Highpass = MIN_FILTER_FREQUENCY;
-		}
-		else
-		{
-			bControlsUpdated |= CalculateModulationValue(Settings.Highpass, OutControls.Highpass);
-		}
-
-		if (Settings.Lowpass.IsBypassed())
-		{
-			OutControls.Lowpass = MAX_FILTER_FREQUENCY;
-		}
-		else
-		{
-			bControlsUpdated |= CalculateModulationValue(Settings.Lowpass, OutControls.Lowpass);
-		}
-
-		return bControlsUpdated;
 	}
 
 	void FAudioModulationSystem::ProcessModulators(const double InElapsed)
@@ -595,37 +469,44 @@ namespace AudioModulation
 		}
 	}
 
-	Audio::FModulatorTypeId FAudioModulationSystem::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter)
+	Audio::FModulatorTypeId FAudioModulationSystem::RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter)
 	{
-		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InParentId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap, OutParameter))
+		OutParameter = GetParameter(OutParameter.ParameterName);
+
+		if (!InModulatorBase)
+		{
+			return INDEX_NONE;
+		}
+
+		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InHandleId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Patch);
 		}
 			
-		if (RegisterModulator<FBusHandle, USoundControlBusBase, FControlBusSettings, FBusProxyMap>(InParentId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
+		if (RegisterModulator<FBusHandle, USoundControlBusBase, FControlBusSettings, FBusProxyMap>(InHandleId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Bus);
 		}
 
-		if (RegisterModulator<FLFOHandle, USoundBusModulatorLFO, FModulatorLFOSettings, FLFOProxyMap>(InParentId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
+		if (RegisterModulator<FLFOHandle, USoundBusModulatorLFO, FModulatorLFOSettings, FLFOProxyMap>(InHandleId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::LFO);
 		}
 
-		UE_LOG(LogAudioModulation, Warning, TEXT("Modulator type  of '%s' unsupported by generic control modulation."), *InModulatorBase.GetName());
-		return false;
+		UE_LOG(LogAudioModulation, Warning, TEXT("Modulator type  of '%s' unsupported by generic control modulation."), *InModulatorBase->GetName());
+		return INDEX_NONE;
 	}
 
-	void FAudioModulationSystem::RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId)
+	void FAudioModulationSystem::RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId)
 	{
-		RunCommandOnProcessingThread([this, InParentId, InModulatorId]()
+		RunCommandOnProcessingThread([this, InHandleId, InModulatorId]()
 		{
 			FPatchHandle PatchHandle = FPatchHandle::Get(static_cast<FPatchId>(InModulatorId), RefProxies.Patches);
 			if (PatchHandle.IsValid())
 			{
 				if (TArray<uint32>* RefObjectIds = RefModulators.PatchMap.Find(PatchHandle))
 				{
-					RefObjectIds->Add(InParentId);
+					RefObjectIds->Add(InHandleId);
 				}
 			}
 
@@ -634,7 +515,7 @@ namespace AudioModulation
 			{
 				if (TArray<uint32>* RefObjectIds = RefModulators.BusMap.Find(BusHandle))
 				{
-					RefObjectIds->Add(InParentId);
+					RefObjectIds->Add(InHandleId);
 				}
 			}
 
@@ -643,7 +524,7 @@ namespace AudioModulation
 			{
 				if (TArray<uint32>* RefObjectIds = RefModulators.LFOMap.Find(LFOHandle))
 				{
-					RefObjectIds->Add(InParentId);
+					RefObjectIds->Add(InHandleId);
 				}
 			}
 		});
@@ -675,22 +556,22 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::UnregisterModulator(const Audio::FModulatorHandle& InHandle)
 	{
-		RunCommandOnProcessingThread([this, ModId = InHandle.GetId(), ParentId = InHandle.GetParentId()]()
+		RunCommandOnProcessingThread([this, ModId = InHandle.GetModulatorId(), HandleId = InHandle.GetHandleId()]()
 		{
 			FPatchHandle PatchHandle = FPatchHandle::Get(static_cast<FPatchId>(ModId), RefProxies.Patches);
-			if (UnregisterModulator<FPatchHandle>(PatchHandle, RefModulators.PatchMap, ParentId))
+			if (UnregisterModulator<FPatchHandle>(PatchHandle, RefModulators.PatchMap, HandleId))
 			{
 				return;
 			}
 
 			FBusHandle BusHandle = FBusHandle::Get(static_cast<FBusId>(ModId), RefProxies.Buses);
-			if (UnregisterModulator<FBusHandle>(BusHandle, RefModulators.BusMap, ParentId))
+			if (UnregisterModulator<FBusHandle>(BusHandle, RefModulators.BusMap, HandleId))
 			{
 				return;
 			}
 
 			FLFOHandle LFOHandle = FLFOHandle::Get(static_cast<FLFOId>(ModId), RefProxies.LFOs);
-			if (UnregisterModulator<FLFOHandle>(LFOHandle, RefModulators.LFOMap, ParentId))
+			if (UnregisterModulator<FLFOHandle>(LFOHandle, RefModulators.LFOMap, HandleId))
 			{
 				return;
 			}

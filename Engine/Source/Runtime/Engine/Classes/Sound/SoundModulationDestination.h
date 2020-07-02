@@ -42,44 +42,68 @@ namespace Audio
 	{
 		public:
 			FModulationDestination() = default;
+			FModulationDestination(const FModulationDestination& InModulationDestination);
 
-			void Init(FDeviceId InDeviceId, uint32 InParentId, bool bInIsBuffered = false);
-			void Init(FDeviceId InDeviceId, uint32 InParentId, FName InParameterName, bool bInIsBuffered = false);
+			FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
+			FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
 
-			/* Processes output buffer by modulating the input buffer. Asserts if parameter is not set as buffered. */
-			void ProcessControl(const float* RESTRICT InBuffer, int32 InNumSamples);
+			/** Initializes the modulation destination
+			 * InDeviceId - DeviceId associated with modulation plugin instance
+			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
+			 * bInValueLinear - Whether or not to keep the output value in linear [0.0f, 1.0f] space
+			 */
+			void Init(FDeviceId InDeviceId, bool bInIsBuffered = false, bool bInValueLinear = false);
 
-			/* Updates internal target (or buffer if set to bIsBuffered) to new parameter control value as provided by modulation plugin.
+			/** Initializes the modulation destination
+			 * InDeviceId - DeviceId associated with modulation plugin instance
+			 * InParameterName - Name of parameter used to mix/convert destination value to/from unit space
+			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
+			 * bInValueLinear - Whether or not to keep the output value in linear [0.0f, 1.0f] space
+			 */
+			void Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered = false, bool bInValueLinear = false);
+
+			/** returns whether or not destination references an active modulator */
+			bool IsActive();
+
+			/* Processes output buffer by modulating the input buffer of base (i.e. carrier) values (in unit space). Asserts if parameter is not set as buffered. */
+			void ProcessControl(const float* RESTRICT InBufferUnitBase, int32 InNumSamples);
+
+			/* Updates internal value (or buffer if set to bIsBuffered) to current modulated result using the provided value as the base carrier value to modulate.
 			 * Returns true if value was updated.
 			 */
-			bool ProcessControl(float InValueBase, int32 InNumSamples = 0);
+			bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
 
 			void UpdateSettings(const FSoundModulationDestinationSettings& InSettings);
 
 		private:
 			FDeviceId DeviceId = INDEX_NONE;
-			uint32 ParentId = INDEX_NONE;
 
-			float ValueTarget = 0.0f;
-			bool bIsBuffered = false;
+			float ValueTarget = 1.0f;
+
+			uint8 bIsBuffered  = 0;
+			uint8 bValueLinear = 0;
+			uint8 bIsActive    = 0;
 
 			AlignedFloatBuffer OutputBuffer;
 			AlignedFloatBuffer TempBufferLinear;
 			FModulatorHandle Handle;
-			FName ParameterName;
 
+			FName ParameterName;
 			FModulationParameter Parameter;
 
 			FCriticalSection SettingsCritSection;
 
 		public:
+			/** Returns buffer of interpolated modulation values */
 			FORCEINLINE const AlignedFloatBuffer& GetBuffer() const
 			{
 				check(bIsBuffered);
 				return OutputBuffer;
 			}
 
-			/** Returns sample value last reported by modulator (in unit space) */
+			/** Returns sample value last reported by modulator. Returns value in unit space, unless 
+			 * 'ValueLinear' option is set on initialization.
+			 */
 			FORCEINLINE float GetValue() const
 			{
 				check(!bIsBuffered);

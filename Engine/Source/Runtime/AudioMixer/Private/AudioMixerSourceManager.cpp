@@ -8,6 +8,7 @@
 #include "AudioMixerSubmix.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
+#include "Sound/SoundModulationDestination.h"
 #include "SoundFieldRendering.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
@@ -85,6 +86,27 @@ FAutoConsoleVariableRef CVarCommandBufferFlushWaitTimeMs(
 	TEXT("How long to wait for the command buffer flush to complete.\n"),
 	ECVF_Default);
 
+// +/- 4 Octaves (default)
+static float MaxModulationPitchRangeFreqCVar = 16.0f;
+static float MinModulationPitchRangeFreqCVar = 0.0625f;
+static FAutoConsoleCommand GModulationSetMaxPitchRange(
+	TEXT("au.Modulation.SetPitchRange"),
+	TEXT("Sets max final modulation range of pitch (in semitones). Default: 96 semitones (+/- 4 octaves)"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 1)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Failed to set max modulation pitch range: Range not provided"));
+				return;
+			}
+
+			const float Range = FCString::Atof(*Args[0]);
+			MaxModulationPitchRangeFreqCVar = Audio::GetFrequencyMultiplier(Range * 0.5f);
+			MaxModulationPitchRangeFreqCVar = Audio::GetFrequencyMultiplier(Range * -0.5f);
+		}
+	)
+);
 
 #define ENVELOPE_TAIL_THRESHOLD (1.58489e-5f) // -96 dB
 
@@ -218,9 +240,7 @@ namespace Audio
 			SourceInfo.SourceEnvelopeValue = 0.0f;
 			SourceInfo.bEffectTailsDone = false;
 		
-			// Modulation volume is set to negative so it is initialized to what the system sets it to initially on first buffer lerp
-			SourceInfo.ModulationVolLast = -1.0f;
-			SourceInfo.bModUpdated = true;
+			SourceInfo.ResetModulators(MixerDevice->DeviceID);
 
 			SourceInfo.bIs3D = false;
 			SourceInfo.bIsCenterChannelOnly = false;
@@ -240,6 +260,7 @@ namespace Audio
 			SourceInfo.bIsBypassingLPF = false;
 			SourceInfo.bIsBypassingHPF = false;
 			SourceInfo.bHasPreDistanceAttenuationSend = false;
+			SourceInfo.bModFiltersUpdated = false;
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 			SourceInfo.bIsDebugMode = false;
@@ -493,11 +514,6 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
-		if (MixerDevice->ModulationInterface)
-		{
-			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
-		}
-
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -523,6 +539,8 @@ namespace Audio
 
 		SourceInfo.LowPassFreq = MAX_FILTER_FREQUENCY;
 		SourceInfo.HighPassFreq = MIN_FILTER_FREQUENCY;
+
+		SourceInfo.ResetModulators(MixerDevice->DeviceID);
 
 		SourceInfo.LowPassFilter.Reset();
 		SourceInfo.HighPassFilter.Reset();
@@ -556,6 +574,7 @@ namespace Audio
 		SourceInfo.bIsBypassingLPF = false;
 		SourceInfo.bIsBypassingHPF = false;
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
+		SourceInfo.bModFiltersUpdated = false;
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		SourceInfo.bIsDebugMode = false;
@@ -678,7 +697,23 @@ namespace Audio
 
 		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
 
-		AudioMixerThreadCommand([this, SourceId, InitParams]()
+		FModulationDestination VolumeModulation;
+		VolumeModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		VolumeModulation.UpdateSettings(InitParams.VolumeModulationSettings);
+
+		FModulationDestination PitchModulation;
+		PitchModulation.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
+		PitchModulation.UpdateSettings(InitParams.PitchModulationSettings);
+
+		FModulationDestination HighpassModulation;
+		HighpassModulation.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
+		HighpassModulation.UpdateSettings(InitParams.HighpassModulationSettings);
+
+		FModulationDestination LowpassModulation;
+		LowpassModulation.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
+		LowpassModulation.UpdateSettings(InitParams.LowpassModulationSettings);
+
+		AudioMixerThreadCommand([this, SourceId, InitParams, VolumeModulation, HighpassModulation, LowpassModulation, PitchModulation]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 			AUDIO_MIXER_CHECK(InitParams.SourceVoice != nullptr);
@@ -718,15 +753,10 @@ namespace Audio
 
 			SourceInfo.SourceEnvelopeFollower = Audio::FEnvelopeFollower(MixerDevice->SampleRate / NumOutputFrames, (float)InitParams.EnvelopeFollowerAttackTime, (float)InitParams.EnvelopeFollowerReleaseTime, Audio::EPeakMode::Peak);
 
-			// Modulation volume is set to negative so it is initialized to what the system sets it to initially on first buffer lerp
-			SourceInfo.ModulationVolLast = -1.0f;
-			SourceInfo.bModUpdated = true;
-
-			// Create the modulation plugin source effect (must be done prior to other plugins potentially using modulation)
-			if (InitParams.ModulationPluginSettings != nullptr)
-			{			
-				MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
-			}
+			SourceInfo.VolumeModulation = VolumeModulation;
+			SourceInfo.PitchModulation = PitchModulation;
+			SourceInfo.LowpassModulation = LowpassModulation;
+			SourceInfo.HighpassModulation = HighpassModulation;
 
 			// Create the spatialization plugin source effect
 			if (InitParams.bUseHRTFSpatialization)
@@ -1235,7 +1265,7 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// LowPassFreq is cached off as the version set by this setter as well as that internal to the LPF.
-			// There is a second cutoff frequency cached in SourceInfo.ModulationControls updated per buffer callback.
+			// There is a second cutoff frequency cached in SourceInfo.LowpassModulation updated per buffer callback.
 			// On callback, the client version may be overridden with the modulation LPF value depending on which is more aggressive.  
 			SourceInfo.LowPassFreq = InLPFFrequency;
 			SourceInfo.LowPassFilter.StartFrequencyInterpolation(InLPFFrequency, NumOutputFrames);
@@ -1254,11 +1284,73 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// HighPassFreq is cached off as the version set by this setter as well as that internal to the HPF.
-			// There is a second cutoff frequency cached in SourceInfo.ModulationControls updated per buffer callback.
+			// There is a second cutoff frequency cached in SourceInfo.HighpassModulation updated per buffer callback.
 			// On callback, the client version may be overridden with the modulation HPF value depending on which is more aggressive.  
 			SourceInfo.HighPassFreq = InHPFFrequency;
 			SourceInfo.HighPassFilter.StartFrequencyInterpolation(InHPFFrequency, NumOutputFrames);
 		});
+	}
+
+	void FMixerSourceManager::SetModLPFFrequency(const int32 SourceId, const float InLPFFrequency)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InLPFFrequency]()
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+			SourceInfo.LowpassModulationBase = InLPFFrequency;
+			SourceInfo.bModFiltersUpdated = true;
+		});
+	}
+
+	void FMixerSourceManager::SetModHPFFrequency(const int32 SourceId, const float InHPFFrequency)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InHPFFrequency]()
+			{
+				AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+				FSourceInfo& SourceInfo = SourceInfos[SourceId];
+				SourceInfo.HighpassModulationBase = InHPFFrequency;
+				SourceInfo.bModFiltersUpdated = true;
+			});
+	}
+
+	void FMixerSourceManager::SetModVolume(const int32 SourceId, const float InModVolume)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InModVolume]()
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+			SourceInfo.VolumeModulationBase = InModVolume;
+		});
+	}
+
+	void FMixerSourceManager::SetModPitch(const int32 SourceId, const float InModPitch)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InModPitch]()
+			{
+				AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+				FSourceInfo& SourceInfo = SourceInfos[SourceId];
+				SourceInfo.PitchModulationBase = InModPitch;
+			});
 	}
 
 	void FMixerSourceManager::SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& InSubmixSend)
@@ -1564,24 +1656,6 @@ namespace Audio
 
 			float* PreDistanceAttenBufferPtr = SourceInfo.PreDistanceAttenuationBuffer.GetData();
 
-			const bool bModEnabled = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
-			if (bModEnabled)
-			{
-				if (SourceInfo.ModulationVolLast >= 0.0f)
-				{
-					SourceInfo.ModulationVolLast = SourceInfo.ModulationControls.Volume;
-				}
-
-				MixerDevice->ModulationInterface->ProcessControls(SourceId, SourceInfo.ModulationControls);
-			}
-
-			// Prime to initial value provided by interface, or set to control default if process controls
-			// does not get called due to the interface not being valid/enabled.
-			if (SourceInfo.ModulationVolLast < 0.0f)
-			{
-				SourceInfo.ModulationVolLast = SourceInfo.ModulationControls.Volume;
-			}
-
 			// if this is a bus, we just want to copy the bus audio to this source's output audio
 			// Note we need to copy this since bus instances may have different audio via dynamic source effects, etc.
 			if (bIsSourceBus)
@@ -1642,12 +1716,19 @@ namespace Audio
 				// the PitchSourceParam's target is marshaled before processing by mult'ing in the modulation pitch,
 				// processing the buffer, and then resetting it back if modulation is active. 
 
-				const bool bPitchModulated = bModEnabled && !FMath::IsNearlyEqual(SourceInfo.ModulationControls.Pitch, 1.0f);
-				const float TargetPitch = SourceInfo.PitchSourceParam.GetTarget();
-				if (bPitchModulated)
+				const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
+				if (bModActive)
 				{
-					SourceInfo.PitchSourceParam.SetValue(TargetPitch * SourceInfo.ModulationControls.Pitch, NumOutputFrames);
+					SourceInfo.PitchModulation.ProcessControl(SourceInfo.PitchModulationBase);
 				}
+
+				const float TargetPitch = SourceInfo.PitchSourceParam.GetTarget();
+				// Convert from semitones to frequency multiplier
+				const float ModPitch = bModActive
+					? Audio::GetFrequencyMultiplier(SourceInfo.PitchModulation.GetValue())
+					: 1.0f;
+				const float FinalPitch = FMath::Clamp(TargetPitch * ModPitch, MinModulationPitchRangeFreqCVar, MaxModulationPitchRangeFreqCVar);
+				SourceInfo.PitchSourceParam.SetValue(FinalPitch, NumOutputFrames);
 
 				for (int32 Frame = StartFrame; Frame < NumOutputFrames; ++Frame)
 				{
@@ -1704,11 +1785,10 @@ namespace Audio
 				// After processing the frames, reset the pitch param
 				SourceInfo.PitchSourceParam.Reset();
 
-				// Reset target value should modulation have modified prior to processing
-				if (bPitchModulated)
-				{
-					SourceInfo.PitchSourceParam.SetValue(TargetPitch, NumOutputFrames);
-				}
+				// Reset target value as modulation may have modified prior to processing
+				// And source param should not store modulation value internally as its
+				// processed by the modulation plugin independently.
+				SourceInfo.PitchSourceParam.SetValue(TargetPitch, NumOutputFrames);
 			}
 		}
 	}
@@ -1952,9 +2032,15 @@ namespace Audio
 
 				const int32 NumFadeSamples = NumFadeFrames * SourceInfo.NumInputChannels;
 
-				const float VolumeStart = SourceInfo.VolumeSourceStart * SourceInfo.ModulationVolLast;
-				const float VolumeDestination = SourceInfo.VolumeSourceDestination * SourceInfo.ModulationControls.Volume;
-				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumFadeSamples, VolumeStart, VolumeDestination);
+				float VolumeStart = SourceInfo.VolumeSourceStart;
+				float VolumeDestination = SourceInfo.VolumeSourceDestination;
+				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+				{
+					VolumeStart *= SourceInfo.VolumeModulation.GetValue();
+					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
+					VolumeDestination *= SourceInfo.VolumeModulation.GetValue();
+				}
+				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumSamples, VolumeStart, VolumeDestination);
 
 				// Zero the rest of the buffer
 				if (NumFadeFrames < NumOutputFrames)
@@ -1965,8 +2051,14 @@ namespace Audio
 			}
 			else
 			{
-				const float VolumeStart = SourceInfo.VolumeSourceStart * SourceInfo.ModulationVolLast;
-				const float VolumeDestination = SourceInfo.VolumeSourceDestination * SourceInfo.ModulationControls.Volume;
+				float VolumeStart = SourceInfo.VolumeSourceStart;
+				float VolumeDestination = SourceInfo.VolumeSourceDestination;
+				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+				{
+					VolumeStart *= SourceInfo.VolumeModulation.GetValue();
+					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
+					VolumeDestination *= SourceInfo.VolumeModulation.GetValue();
+				}
 				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumSamples, VolumeStart, VolumeDestination);
 			}
 			SourceInfo.VolumeSourceStart = SourceInfo.VolumeSourceDestination;
@@ -1976,7 +2068,9 @@ namespace Audio
 			{
 				// Prepare this source's effect chain input data
 				SourceInfo.SourceEffectInputData.CurrentVolume = SourceInfo.VolumeSourceDestination;
-				SourceInfo.SourceEffectInputData.CurrentPitch = SourceInfo.PitchSourceParam.GetValue() * SourceInfo.ModulationControls.Pitch;
+
+				const float Pitch = Audio::GetFrequencyMultiplier(SourceInfo.PitchModulation.GetValue());
+				SourceInfo.SourceEffectInputData.CurrentPitch = SourceInfo.PitchSourceParam.GetValue() * Pitch;
 				SourceInfo.SourceEffectInputData.AudioClock = MixerDevice->GetAudioClock();
 				if (SourceInfo.NumInputFrames > 0)
 				{
@@ -2035,23 +2129,30 @@ namespace Audio
 				SourceInfo.SourceListener->OnEffectTailsDone();
 			}
 
-			if (!SourceInfo.bOutputToBusOnly || SourceInfo.bModUpdated)
+			const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
+			bool bUpdateModFilters = bModActive && (SourceInfo.bModFiltersUpdated || SourceInfo.LowpassModulation.IsActive() || SourceInfo.HighpassModulation.IsActive());
+			if (!SourceInfo.bOutputToBusOnly || bUpdateModFilters)
 			{
 				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
 				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
 
 				if (SourceInfo.bOutputToBusOnly)
 				{
-					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.ModulationControls.Lowpass, NumOutputFrames);
-					SourceInfo.HighPassFilter.StartFrequencyInterpolation(SourceInfo.ModulationControls.Highpass, NumOutputFrames);
-				}
-				else if (SourceInfo.bModUpdated)
-				{
-					const float Lowpass = FMath::Min(SourceInfo.LowPassFreq, SourceInfo.ModulationControls.Lowpass);
-					SourceInfo.LowPassFilter.StartFrequencyInterpolation(Lowpass, NumOutputFrames);
+					SourceInfo.LowpassModulation.ProcessControl(SourceInfo.LowpassModulationBase);
+					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.LowpassModulation.GetValue(), NumOutputFrames);
 
-					const float Highpass = FMath::Max(SourceInfo.HighPassFreq, SourceInfo.ModulationControls.Highpass);
-					SourceInfo.HighPassFilter.StartFrequencyInterpolation(Highpass, NumOutputFrames);
+					SourceInfo.HighpassModulation.ProcessControl(SourceInfo.HighpassModulationBase);
+					SourceInfo.HighPassFilter.StartFrequencyInterpolation(SourceInfo.HighpassModulation.GetValue(), NumOutputFrames);
+				}
+				else if (bUpdateModFilters)
+				{
+					const float LowpassFreq = FMath::Min(SourceInfo.LowpassModulationBase, SourceInfo.LowPassFreq);
+					SourceInfo.LowpassModulation.ProcessControl(LowpassFreq);
+					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.LowpassModulation.GetValue(), NumOutputFrames);
+
+					const float HighpassFreq = FMath::Max(SourceInfo.HighpassModulationBase, SourceInfo.HighPassFreq);
+					SourceInfo.HighpassModulation.ProcessControl(HighpassFreq);
+					SourceInfo.HighPassFilter.StartFrequencyInterpolation(SourceInfo.HighpassModulation.GetValue(), NumOutputFrames);
 				}
 
 				const bool BypassLPF = DisableFilteringCvar || (SourceInfo.LowPassFilter.GetCutoffFrequency() >= (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER));

@@ -37,33 +37,6 @@ namespace AudioModulation
 		ModSystem->Initialize(InitializationParams);
 	}
 
-#if WITH_EDITOR
-	void FAudioModulation::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings)
-	{
-		ModSystem->OnEditPluginSettings(Settings);
-	}
-#endif // WITH_EDITOR
-
-	void FAudioModulation::OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings)
-	{
-		ModSystem->OnInitSound(Sound, Settings);
-	}
-
-	void FAudioModulation::OnInitSource(const uint32 SourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings)
-	{
-		ModSystem->OnInitSource(SourceId, NumChannels, Settings);
-	}
-
-	void FAudioModulation::OnReleaseSound(ISoundModulatable& Sound)
-	{
-		ModSystem->OnReleaseSound(Sound);
-	}
-
-	void FAudioModulation::OnReleaseSource(const uint32 SourceId)
-	{
-		ModSystem->OnReleaseSource(SourceId);
-	}
-
 #if !UE_BUILD_SHIPPING
 	bool FAudioModulation::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
@@ -81,26 +54,20 @@ namespace AudioModulation
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	bool FAudioModulation::ProcessControls(const uint32 InSourceId, FSoundModulationControls& Controls)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioModulationProcessControls);
-		return ModSystem->ProcessControls(InSourceId, Controls);
-	}
-
 	void FAudioModulation::ProcessModulators(const double InElapsed)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioModulationProcessModulators);
 		ModSystem->ProcessModulators(InElapsed);
 	}
 
-	Audio::FModulatorTypeId FAudioModulation::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter)
+	Audio::FModulatorTypeId FAudioModulation::RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter)
 	{
-		return ModSystem->RegisterModulator(InParentId, InModulatorBase, OutParameter);
+		return ModSystem->RegisterModulator(InHandleId, InModulatorBase, OutParameter);
 	}
 
-	void FAudioModulation::RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId)
+	void FAudioModulation::RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId)
 	{
-		ModSystem->RegisterModulator(InParentId, InModulatorId);
+		ModSystem->RegisterModulator(InHandleId, InModulatorId);
 	}
 
 	bool FAudioModulation::GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const

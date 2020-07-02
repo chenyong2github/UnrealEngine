@@ -178,10 +178,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Post-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> BusSends;
 
-	/** Modulation for the sound */
-	UPROPERTY(EditAnywhere, Category = Modulation)
-	FSoundModulation Modulation;
-
 	/** This sound will send its audio output to this list of buses if there are bus instances playing before source effects are processed.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Pre-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;

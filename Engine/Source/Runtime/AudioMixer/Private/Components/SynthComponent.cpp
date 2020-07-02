@@ -298,7 +298,6 @@ void USynthComponent::CreateAudioComponent()
 		AudioComponent->bStopWhenOwnerDestroyed = true;
 		AudioComponent->bShouldRemainActiveIfDropped = true;
 		AudioComponent->Mobility = EComponentMobility::Movable;
-		AudioComponent->Modulation = Modulation;
 
 #if WITH_EDITORONLY_DATA
 		AudioComponent->bVisualizeComponent = false;

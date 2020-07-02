@@ -156,9 +156,6 @@ struct FSoundParseParameters
 	// What occlusion plugin source settings to use
 	UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings;
 
-	/** Instance of modulation source settings to use. */
-	USoundModulationPluginSourceSettingsBase* ModulationPluginSettings;
-
 	// What reverb plugin source settings to use
 	UReverbPluginSourceSettingsBase* ReverbPluginSettings;
 
@@ -229,7 +226,6 @@ struct FSoundParseParameters
 		, SpatializationMethod(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
 		, SpatializationPluginSettings(nullptr)
 		, OcclusionPluginSettings(nullptr)
-		, ModulationPluginSettings(nullptr)
 		, ReverbPluginSettings(nullptr)
 		, SourceEffectChain(nullptr)
 		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
@@ -275,8 +271,6 @@ private:
 	uint32 PlayOrder;
 
 public:
-	// ISoundModulatable Implementation
-	USoundModulationPluginSourceSettingsBase* FindModulationSettings() const override;
 	uint32 GetObjectId() const override { return Sound ? Sound->GetUniqueID() : INDEX_NONE; }
 	int32 GetPlayCount() const override;
 	uint32 GetPlayOrder() const { return PlayOrder; }
