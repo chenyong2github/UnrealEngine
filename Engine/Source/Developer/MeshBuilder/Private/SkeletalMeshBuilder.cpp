@@ -49,60 +49,6 @@ struct FSkeletalMeshVertInstanceIDAndZ
 	float Z;
 };
 
-//TODO: move that in a public header and use it everywhere we call FSkeletalMeshImportData::CopyLODImportData
-//or simply add parameter to FSkeletalMeshImportData::CopyLODImportData to do the job inside the function.
-namespace SkeletalMeshBuilderHelperNS
-{
-	//Base LOD (index 0), which is not using LODMaterialMap, we want to adjust the source face material index data to fit with the SkeletalMesh material list
-	void AdjustSourceFaceMaterialIndex(USkeletalMesh* SkeletalMesh, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces, int32 LODIndex)
-	{
-		if (RawMeshMaterials.Num() <= 1 || LODIndex > 0)
-		{
-			//Nothing to fix if we have 1 or less material
-			return;
-		}
-
-		//Fix the material for the faces
-		TArray<int32> MaterialRemap;
-		MaterialRemap.Reserve(RawMeshMaterials.Num());
-		//Optimization to avoid doing the remap if no material have to change
-		bool bNeedRemapping = false;
-		for (int32 MaterialIndex = 0; MaterialIndex < RawMeshMaterials.Num(); ++MaterialIndex)
-		{
-			MaterialRemap.Add(MaterialIndex);
-			FName MaterialImportName = *(RawMeshMaterials[MaterialIndex].MaterialImportName);
-			for (int32 MeshMaterialIndex = 0; MeshMaterialIndex < SkeletalMesh->Materials.Num(); ++MeshMaterialIndex)
-			{
-				FName MeshMaterialName = SkeletalMesh->Materials[MeshMaterialIndex].ImportedMaterialSlotName;
-				if (MaterialImportName == MeshMaterialName)
-				{
-					bNeedRemapping |= (MaterialRemap[MaterialIndex] != MeshMaterialIndex);
-					MaterialRemap[MaterialIndex] = MeshMaterialIndex;
-					break;
-				}
-			}
-		}
-		if (bNeedRemapping)
-		{
-			//Make sure the data is good before doing the change, We cannot do the remap if we
-			//have a bad synchronization between the face data and the Materials data.
-			for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
-			{
-				if (!MaterialRemap.IsValidIndex(LODFaces[FaceIndex].MeshMaterialIndex))
-				{
-					return;
-				}
-			}
-
-			//Update all the faces
-			for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
-			{
-				LODFaces[FaceIndex].MeshMaterialIndex = MaterialRemap[LODFaces[FaceIndex].MeshMaterialIndex];
-			}
-		}
-	}
-}
-
 FSkeletalMeshBuilder::FSkeletalMeshBuilder()
 {
 
@@ -150,11 +96,8 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		//Use the max because we need to have at least one texture coordinnate
 		NumTextCoord = FMath::Max<int32>(NumTextCoord, SkeletalMeshImportData.NumTexCoords);
 		
-		if (LODIndex == 0)
-		{
-			//BaseLOD should not use LODMaterialMap (except if user has change the material), so we have to make sure the source data fit with the skeletalmesh materials array
-			SkeletalMeshBuilderHelperNS::AdjustSourceFaceMaterialIndex(SkeletalMesh, SkeletalMeshImportData.Materials, LODFaces, LODIndex);
-		}
+		//BaseLOD need to make sure the source data fit with the skeletalmesh materials array before using meshutilities.BuildSkeletalMesh
+		FLODUtilities::AdjustImportDataFaceMaterialIndex(SkeletalMesh->Materials, SkeletalMeshImportData.Materials, LODFaces, LODIndex);
 
 		//Build the skeletalmesh using mesh utilities module
 		IMeshUtilities::MeshBuildOptions Options;
