@@ -1063,7 +1063,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 
 		if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
 		{
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts on or before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
 		}
 	}
 
@@ -1072,18 +1072,12 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 
 	TRange<FFrameTime> OriginalRangeOuter;
 	const FFrameNumber LowerInMasterTicks = (SectionRange.GetLowerBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
-	OriginalRangeOuter.SetLowerBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
-		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
-	));
+	FFrameTime OriginalRangeOuterLower = FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
+		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 
-	const FFrameNumber UpperInMasterTicks = (SectionRange.GetUpperBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
-	OriginalRangeOuter.SetUpperBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(UpperInMasterTicks, 0.0f),
-		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
-	));
-
-	if ((OriginalRangeOuter.GetLowerBoundValue().GetSubFrame() != 0.0f) || (OriginalRangeOuter.GetUpperBoundValue().GetSubFrame() != 0.0f))
+	if (OriginalRangeOuterLower.GetSubFrame() != 0.0f)
 	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a range that started on a sub-frame. Range time has been rounded down on %s in %s"), *InShot->InnerName, *InShot->OuterName)
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a camera cut that started on a sub-frame (%s%s starts on %f). Output frame numbers may not match original Sequencer frame numbers"), *InShot->InnerName, InShot->OuterName.IsEmpty() ? TEXT("") : *FString(" in " + InShot->OuterName), OriginalRangeOuterLower.AsDecimal());
 	}
 }
 
