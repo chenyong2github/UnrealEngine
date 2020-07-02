@@ -645,7 +645,7 @@ int32 UTexture2D::GetNumRequestedMips() const
 
 bool UTexture2D::IsDefaultTexture() const
 {
-	return bIsDefaultTexture || (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete());
+	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (GetResource() && GetResource()->IsProxy());
 }
 
 void UTexture2D::PostEditUndo()
@@ -1258,13 +1258,11 @@ FTextureResource* UTexture2D::CreateResource()
 
 		UnlinkStreaming();
 		bIsStreamable = false;
-		bIsDefaultTexture = true;
 		return new FTexture2DResource(this, (const FTexture2DResource*)GetDefaultTexture2D(this)->GetResource());
 	}
-	bIsDefaultTexture = false;
 #endif
-
-	if (IsCurrentlyVirtualTextured())
+	// We can't use IsCurrentlyVirtualTextured here because the call might get redirected to the placeholder texture
+	if (VirtualTextureStreaming && PrivatePlatformData && PrivatePlatformData->VTData)
 	{
 		UnlinkStreaming();
 		bIsStreamable = false;

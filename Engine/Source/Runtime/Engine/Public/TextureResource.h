@@ -82,6 +82,11 @@ public:
 	// used when updating mip map bias offset
 	virtual void RefreshSamplerStates() {}
 
+	/**
+	* Returns true if the resource is proxying another one.
+	*/
+	virtual bool IsProxy() const { return false; }
+
 #if STATS
 	/* The Stat_ FName corresponding to each TEXTUREGROUP */
 	static FName TextureGroupStatFNames[TEXTUREGROUP_MAX];
@@ -137,6 +142,7 @@ public:
 	}
 
 	virtual FString GetFriendlyName() const override;
+	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
 
 	//Returns the current first mip (always valid)
 	int32 GetCurrentFirstMip() const

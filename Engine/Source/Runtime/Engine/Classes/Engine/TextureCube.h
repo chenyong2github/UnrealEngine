@@ -18,12 +18,6 @@ class UTextureCube : public UTexture
 
 	/** The derived data for this texture on this platform. */
 	FTexturePlatformData* PrivatePlatformData;
-
-#if WITH_EDITOR
-	/** Whether the current texture is a default placeholder because compilation is still ongoing. */
-	bool bIsDefaultTexture = false;
-#endif
-
 public:
 	// The deprecation will be enabled further along the dev cycle and fixed accordingly.
 	// This is to avoid merge conflicts with other branches that fixing this deprecation might cause.

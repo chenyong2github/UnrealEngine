@@ -503,6 +503,8 @@ public:
 		return TextureCubeRHI;
 	}
 
+	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
+
 	const FTextureCubeResource* GetProxiedResource() const { return ProxiedResource; }
 private:
 	/** A reference to the texture's RHI resource as a cube-map texture. */
@@ -586,10 +588,8 @@ FTextureResource* UTextureCube::CreateResource()
 	{
 		FTextureCompilingManager::Get().AddTextures({ this });
 
-		bIsDefaultTexture = true;
 		return new FTextureCubeResource(this, (const FTextureCubeResource*)GetDefaultTextureCube(this)->GetResource());
 	}
-	bIsDefaultTexture = false;
 #endif
 
 	FTextureResource* NewResource = NULL;
@@ -619,7 +619,7 @@ void UTextureCube::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 #if WITH_EDITOR
 bool UTextureCube::IsDefaultTexture() const
 {
-	return bIsDefaultTexture || (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete());
+	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (GetResource() && GetResource()->IsProxy());
 }
 
 uint32 UTextureCube::GetMaximumDimension() const
