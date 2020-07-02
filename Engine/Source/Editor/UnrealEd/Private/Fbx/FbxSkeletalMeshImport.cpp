@@ -1790,7 +1790,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	if (!ProcessImportMeshSkeleton(ExistingSkeleton, SkeletalMesh->RefSkeleton, SkeletalDepth, *SkelMeshImportDataPtr))
 	{
 		SkeletalMesh->ClearFlags(RF_Standalone);
-		SkeletalMesh->Rename(NULL, GetTransientPackage());
+		SkeletalMesh->Rename(NULL, GetTransientPackage(), REN_DontCreateRedirectors);
 		return nullptr;
 	}
 	
