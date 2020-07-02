@@ -175,7 +175,7 @@ public:
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-		return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisions(StaticMesh, static_cast<EScriptCollisionShapeType>(ShapeType)) : INDEX_NONE;
+		return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisions(StaticMesh, ConvertCollisionShape(ShapeType)) : INDEX_NONE;
 	}
 
 	/**
@@ -435,8 +435,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
 	static bool GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size);
 
-	private:
-
 	// Converts the deprecated FEditorScriptingMeshReductionOptions to the new FStaticMeshReductionOptions
 	static FStaticMeshReductionOptions ConvertReductionOptions(const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions);
+
+	// Converts the deprecated EScriptingCollisionShapeType_Deprecated to the new EScriptCollisionShapeType
+	static EScriptCollisionShapeType ConvertCollisionShape(const EScriptingCollisionShapeType_Deprecated& CollisionShape);
+
 };

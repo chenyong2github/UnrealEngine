@@ -32,6 +32,7 @@
 #include "StaticMeshOperations.h"
 #include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
+#include "StaticMeshEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogDataprep);
 
@@ -382,6 +383,13 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 {
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	if (!StaticMeshEditorSubsystem)
+	{
+		return;
+	}
+
 	// Create LODs but do not commit changes
 	for (UStaticMesh* StaticMesh : SelectedMeshes)
 	{
@@ -389,7 +397,7 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			UEditorStaticMeshLibrary::SetLodsWithNotification(StaticMesh, ReductionOptions, false);
+			StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, UEditorStaticMeshLibrary::ConvertReductionOptions(ReductionOptions), false);
 
 			ModifiedObjects.Add( StaticMesh );
 		}
@@ -428,10 +436,17 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			// Remove existing simple collisions
-			UEditorStaticMeshLibrary::RemoveCollisionsWithNotification( StaticMesh, false );
+			UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-			UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification( StaticMesh, ShapeType, false );
+			if (!StaticMeshEditorSubsystem)
+			{
+				return;
+			}
+
+			// Remove existing simple collisions
+			StaticMeshEditorSubsystem->RemoveCollisionsWithNotification( StaticMesh, false );
+
+			StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification( StaticMesh, UEditorStaticMeshLibrary::ConvertCollisionShape(ShapeType), false );
 
 			ModifiedObjects.Add( StaticMesh );
 		}
@@ -451,7 +466,14 @@ void UDataprepOperationsLibrary::SetConvexDecompositionCollision(const TArray<UO
 	StaticMeshes.RemoveAll([](UStaticMesh* StaticMesh) { return StaticMesh == nullptr; });
 
 	// Build complex collision
-	UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, false);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();\
+
+	if (!StaticMeshEditorSubsystem)
+	{
+		return;
+	}
+
+	StaticMeshEditorSubsystem->BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, false);
 
 	for (UStaticMesh* StaticMesh : StaticMeshes)
 	{

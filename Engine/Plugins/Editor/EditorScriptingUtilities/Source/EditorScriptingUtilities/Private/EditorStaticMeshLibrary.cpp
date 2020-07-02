@@ -66,6 +66,48 @@ FStaticMeshReductionOptions UEditorStaticMeshLibrary::ConvertReductionOptions(co
 	return MeshReductionOptions;
 }
 
+// Converts the deprecated EScriptingCollisionShapeType_Deprecated to the new EScriptCollisionShapeType
+EScriptCollisionShapeType UEditorStaticMeshLibrary::ConvertCollisionShape(const EScriptingCollisionShapeType_Deprecated& CollisionShape)
+{
+	switch (CollisionShape)
+	{
+	case EScriptingCollisionShapeType_Deprecated::Box:
+	{
+		return EScriptCollisionShapeType::Box;
+	}
+	case EScriptingCollisionShapeType_Deprecated::Sphere:
+	{
+		return EScriptCollisionShapeType::Sphere;
+	}
+	case EScriptingCollisionShapeType_Deprecated::Capsule:
+	{
+		return EScriptCollisionShapeType::Capsule;
+	}
+	case EScriptingCollisionShapeType_Deprecated::NDOP10_X:
+	{
+		return EScriptCollisionShapeType::NDOP10_X;
+	}
+	case EScriptingCollisionShapeType_Deprecated::NDOP10_Y:
+	{
+		return EScriptCollisionShapeType::NDOP10_Y;
+	}
+	case EScriptingCollisionShapeType_Deprecated::NDOP10_Z:
+	{
+		return EScriptCollisionShapeType::NDOP10_Z;
+	}
+	case EScriptingCollisionShapeType_Deprecated::NDOP18:
+	{
+		return EScriptCollisionShapeType::NDOP18;
+	}
+	case EScriptingCollisionShapeType_Deprecated::NDOP26:
+	{
+		return EScriptCollisionShapeType::NDOP26;
+	}
+	default:
+		return EScriptCollisionShapeType::Box;
+	}
+}
+
 int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -106,7 +148,7 @@ int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh*
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification(StaticMesh, static_cast<EScriptCollisionShapeType>(ShapeType), bApplyChanges) : INDEX_NONE;
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification(StaticMesh, ConvertCollisionShape(ShapeType), bApplyChanges) : INDEX_NONE;
 }
 
 int32 UEditorStaticMeshLibrary::GetSimpleCollisionCount(UStaticMesh* StaticMesh)
