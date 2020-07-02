@@ -58,6 +58,16 @@ public:
 	virtual IDetailCategoryBuilder& HeaderContent(TSharedRef<SWidget> InHeaderContent) = 0;
 
 	/**
+	 * Gets the current sort order of the category
+	 */
+	virtual int32 GetSortOrder() const = 0;
+
+	/**
+	 * Sets the sort order of the category
+	 */
+	virtual void SetSortOrder(int32 InSortOrder) = 0;
+
+	/**
 	 * Adds a property, shown in the default way to the category
 	 *
 	 * @param Path						The path to the property.  Can be just a name of the property or a path in the format outer.outer.value[optional_index_for_static_arrays]

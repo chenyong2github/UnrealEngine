@@ -50,7 +50,7 @@ public:
 	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override;
 	virtual bool HasClassDefaultObject() const override;
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
-
+	virtual void SortCategories(const FOnCategorySortOrderFunction& SortFunction) override;
 	/**
 	 * Creates a default category. The SDetails view will generate widgets in default categories
 	 *
@@ -265,7 +265,9 @@ private:
 	/** A delegate which is called whenever a node owned by this layout builder has it's visibility forcibly changed. */
 	FSimpleMulticastDelegate OnNodeVisibilityChanged;
 
+	/** Optionally provided functions to sort categories, which allow caller to reconfigure sort order. */
+	TArray<FOnCategorySortOrderFunction> CategorySortOrderFunctions;
+
 	/** Local customizations for this detail layout only. Provides a way for IDetailCustomizations to override type customizations without polluting customizations for other instances. */
 	FCustomPropertyTypeLayoutMap InstancePropertyTypeExtensions;
 };
-

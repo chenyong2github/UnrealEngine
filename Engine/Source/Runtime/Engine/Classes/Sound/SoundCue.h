@@ -16,6 +16,10 @@
 #include "SoundCue.generated.h"
 
 
+// Forward Declarations
+#if WITH_EDITORONLY_DATA
+class UEdGraph;
+#endif // WITH_EDITORONLY_DATA
 
 class USoundCue;
 class USoundNode;
@@ -86,22 +90,22 @@ class ENGINE_API USoundCue : public USoundBase
 	GENERATED_UCLASS_BODY()
 
 	/* Makes this sound cue automatically load any sound waves it can play into the cache when it is loaded. */
-	UPROPERTY(EditAnywhere, Category = Caching)
+	UPROPERTY(EditAnywhere, Category = Memory)
 	uint32 bPrimeOnLoad : 1;
 
 	UPROPERTY()
 	USoundNode* FirstNode;
 
-	/* Volume multiplier for the Sound Cue */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Sound, AssetRegistrySearchable)
+	/* Base volume multiplier */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, AssetRegistrySearchable)
 	float VolumeMultiplier;
 
-	/* Pitch multiplier for the Sound Cue */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Sound, AssetRegistrySearchable)
+	/* Base pitch multiplier */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, AssetRegistrySearchable)
 	float PitchMultiplier;
 
 	/* Attenuation settings to use if Override Attenuation is set to true */
-	UPROPERTY(EditAnywhere, Category=AttenuationSettings, meta=(EditCondition="bOverrideAttenuation"))
+	UPROPERTY(EditAnywhere, Category = Attenuation)
 	FSoundAttenuationSettings AttenuationOverrides;
 
 #if WITH_EDITORONLY_DATA
@@ -109,24 +113,24 @@ class ENGINE_API USoundCue : public USoundBase
 	TArray<USoundNode*> AllNodes;
 
 	UPROPERTY()
-	class UEdGraph* SoundCueGraph;
+	UEdGraph* SoundCueGraph;
 #endif
 
 protected:
 	// NOTE: Use GetSubtitlePriority() to fetch this value for external use.
-	UPROPERTY(EditAnywhere, Category = Subtitles, Meta = (Tooltip = "The priority of the subtitle.  Defaults to 10000.  Higher values will play instead of lower values."))
+	UPROPERTY(EditAnywhere, Category = "Voice Management|Priority", Meta = (Tooltip = "The priority of the subtitle.  Defaults to 10000.  Higher values will play instead of lower values."))
 	float SubtitlePriority;
 
 private:
-	float MaxAudibleDistance;	
+	float MaxAudibleDistance;
 
 public:
 	/* Indicates whether attenuation should use the Attenuation Overrides or the Attenuation Settings asset */
-	UPROPERTY(EditAnywhere, Category=Attenuation)
+	UPROPERTY(EditAnywhere, Category = Attenuation)
 	uint8 bOverrideAttenuation : 1;
 
-	/* Makes this sound cue ignore per-platform random node culling for memory purposes */
-	UPROPERTY(EditAnywhere, Category=Culling)
+	/* Ignore per-platform random node culling for memory purposes */
+	UPROPERTY(EditAnywhere, Category = Memory, Meta = (DisplayName = "Disable Random Branch Culling"))
 	uint8 bExcludeFromRandomNodeBranchCulling : 1;
 
 private:
@@ -308,7 +312,7 @@ public:
 	void CompileSoundNodesFromGraphNodes();
 
 	/** Get the EdGraph of SoundNodes */
-	class UEdGraph* GetGraph();
+	UEdGraph* GetGraph();
 
 	/** Resets all graph data and nodes */
 	void ResetGraph();

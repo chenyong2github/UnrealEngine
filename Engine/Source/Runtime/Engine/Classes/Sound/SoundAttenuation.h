@@ -257,19 +257,19 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption)
 	FRuntimeFloatCurve CustomHighpassAirAbsorptionCurve;
 
-	/* The range of the cutoff frequency (in hz) of the lowpass absorption filter. */
+	/* The range of the cutoff frequency (in Hz) of the lowpass absorption filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "Low Pass Cutoff Frequency Min"))
 	float LPFFrequencyAtMin;
 
-	/* The range of the cutoff frequency (in hz) of the lowpass absorption filter. */
+	/* The range of the cutoff frequency (in Hz) of the lowpass absorption filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "Low Pass Cutoff Frequency Max"))
 	float LPFFrequencyAtMax;
 
-	/* The range of the cutoff frequency (in hz) of the highpass absorption filter. */
+	/* The range of the cutoff frequency (in Hz) of the highpass absorption filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "High Pass Cutoff Frequency Min"))
 	float HPFFrequencyAtMin;
 
-	/* The range of the cutoff frequency (in hz) of the highpass absorption filter. */
+	/* The range of the cutoff frequency (in Hz) of the highpass absorption filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAirAbsorption, meta = (DisplayName = "High Pass Cutoff Frequency Max"))
 	float HPFFrequencyAtMax;
 
@@ -313,7 +313,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationListenerFocus, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableFocusInterpolation"))
 	float FocusReleaseInterpSpeed;
 
-	/** The low pass filter frequency (in hertz) to apply if the sound playing in this audio component is occluded. This will override the frequency set in LowPassFilterFrequency. A frequency of 0.0 is the device sample rate and will bypass the filter. */
+	/** The low pass filter frequency (in Hz) to apply if the sound playing in this audio component is occluded. This will override the frequency set in LowPassFilterFrequency. A frequency of 0.0 is the device sample rate and will bypass the filter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationOcclusion, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableOcclusion"))
 	float OcclusionLowPassFilterFrequency;
 
