@@ -463,6 +463,7 @@ public:
 
 	virtual void Exit(void) override
 	{
+		FTaskTagScope Scope(ETaskTag::ERenderingThread);
 		// Release rendering context ownership on the current thread if we had acquired it
 		if (bAcquiredThreadOwnership)
 		{

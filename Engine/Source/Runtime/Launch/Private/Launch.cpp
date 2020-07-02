@@ -92,6 +92,8 @@ extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
  */
 int32 GuardedMain( const TCHAR* CmdLine )
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 #if !(UE_BUILD_SHIPPING)
 	if (FParse::Param(CmdLine, TEXT("waitforattach")))
 	{

@@ -599,6 +599,7 @@ struct FLandscapeRenderSystem
 
 		void AnyThreadTask()
 		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			RenderSystem.ComputeSectionPerViewParameters(
 				ViewPtrAsIdentifier, ViewLODOverride, ViewLODDistanceFactor, 
 				ViewEngineShowFlagCollisionPawn, ViewEngineShowFlagCollisionVisibility, 
@@ -637,6 +638,7 @@ struct FLandscapeRenderSystem
 
 		void AnyThreadTask()
 		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			RenderSystem.FetchHeightmapLODBiases();
 		}
 

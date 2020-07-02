@@ -2128,7 +2128,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		FMaterialResource const* MaterialResource = const_cast<UMaterialInterface const*>(SectionInfo.Material)->GetMaterial_Concurrent()->GetMaterialResource(FeatureLevel);
 		if(MaterialResource)
 		{
-			if (IsInGameThread())
+			if (IsInParallelGameThread() || IsInGameThread())
 			{
 				if (MaterialResource->MaterialModifiesMeshPosition_GameThread())
 				{

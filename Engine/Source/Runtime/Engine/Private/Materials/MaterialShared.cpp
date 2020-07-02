@@ -779,7 +779,7 @@ bool FMaterial::MaterialModifiesMeshPosition_RenderThread() const
 
 bool FMaterial::MaterialModifiesMeshPosition_GameThread() const
 {
-	check(IsInGameThread());
+	check(IsInParallelGameThread() || IsInGameThread());
 	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
 	bool bUsesWPO = ShaderMap ? ShaderMap->ModifiesMeshPosition() : false;
 

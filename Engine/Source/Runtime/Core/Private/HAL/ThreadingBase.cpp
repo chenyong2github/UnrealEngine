@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "HAL/ThreadingBase.h"
 #include "UObject/NameTypes.h"
 #include "Stats/Stats.h"
@@ -13,6 +12,8 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformStackWalk.h"
 #include "ProfilingDebugging/MiscTrace.h"
+
+#include <atomic>
 
 DEFINE_STAT( STAT_EventWaitWithId );
 DEFINE_STAT( STAT_EventTriggerWithId );
@@ -38,10 +39,111 @@ FQueuedThreadPool* GBackgroundPriorityThreadPool = nullptr;
 FQueuedThreadPool* GLargeThreadPool = nullptr;
 #endif
 
+thread_local ETaskTag FTaskTagScope::ActiveTaskTag = ETaskTag::ENone;
+static std::atomic_int ActiveNamedThreads = {};
+
+FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag), TagOnlyIfNone(InTagOnlyIfNone)
+{
+	checkf(Tag != ETaskTag::ENone, TEXT("None cannot be used as a Tag"));
+	checkf(Tag != ETaskTag::EParallelThread, TEXT("Parallel cannot be used on it's own"));
+
+	if (!EnumHasAllFlags(Tag, ETaskTag::EParallelThread))
+	{
+		ETaskTag NamedThreadBits = (Tag & ETaskTag::ENamedThreadBits);
+		static_assert(sizeof(ETaskTag) == sizeof(int32), "EnumSize must match interlockedOr");
+		ETaskTag OldTag = ETaskTag(ActiveNamedThreads.fetch_or(int32(NamedThreadBits)));
+		checkf((OldTag & NamedThreadBits) == ETaskTag::ENone, TEXT("Only Scopes tagged with ETaskTag::EParallelThread can be tagged multiple times. ActiveNamedThreads(%h) cannot be tagged multiple times in the same callstack you can use FOptionalTaskTagScope to avoid retagging check the ActiveNamedThreads(%h) with the current Tag(%h)"), OldTag, FTaskTagScope::GetCurrentTag(), Tag);
+	}
+	
+	ParentTag = ActiveTaskTag;
+	if (!TagOnlyIfNone || ActiveTaskTag == ETaskTag::ENone)
+	{
+		ActiveTaskTag = Tag;
+	}
+	else if (TagOnlyIfNone)
+	{
+		if (EnumHasAllFlags(Tag, ETaskTag::EParallelRenderingThread))
+		{
+			checkf(IsInRenderingThread(), TEXT("ETaskTag::EParallelRenderingThread can only be retagged if they are in a parallel for on the RenderingThread or not tagged check the ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+		}
+
+		if (EnumHasAllFlags(Tag, ETaskTag::EParallelGameThread))
+		{
+			checkf(IsInGameThread(), TEXT("ETaskTag::EParallelGameThread can only be retagged if they are in a parallel for on the GameThread or not tagged check the ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+		}
+	}
+}
+
+FTaskTagScope::~FTaskTagScope()
+{
+	checkf(TagOnlyIfNone || ActiveTaskTag == Tag, TEXT("ActiveTaskTag(%h) corrupted needs to be Tag(%h)"), FTaskTagScope::GetCurrentTag(), Tag);
+	if (!TagOnlyIfNone || ParentTag == ETaskTag::ENone)
+	{
+		ActiveTaskTag = ParentTag;
+	}
+
+	if (!EnumHasAllFlags(Tag, ETaskTag::EParallelThread))
+	{
+		ETaskTag NamedThreadBits = (Tag & ETaskTag::ENamedThreadBits);
+		static_assert(sizeof(ETaskTag) == sizeof(int32), "EnumSize must match interlockedAnd");
+		ETaskTag OldTag = ETaskTag(ActiveNamedThreads.fetch_and(int32(~NamedThreadBits)));
+		checkf((OldTag & NamedThreadBits) == (NamedThreadBits), TEXT("Currently active Threads(%h) got corrupted check the ActiveNamedThreads(%h)"), OldTag, FTaskTagScope::GetCurrentTag());
+	}
+
+	//prolong the scope of the GT for static variable destructors
+	if (Tag == ETaskTag::EGameThread && ActiveTaskTag == ETaskTag::ENone)
+	{
+		ActiveTaskTag = ETaskTag::EGameThread;
+	}
+}
+
+bool FTaskTagScope::HasCurrentTag(ETaskTag InTag)
+{
+	if (ActiveTaskTag != ETaskTag::ENone)
+	{
+		return EnumHasAllFlags(ActiveTaskTag, InTag);
+	}
+	else
+	{
+		return InTag == ETaskTag::ENone;
+	}
+}
+
+ETaskTag FTaskTagScope::GetCurrentTag()
+{
+	return ActiveTaskTag;
+}
+
+CORE_API bool IsInGameThread()
+{
+	if (GIsGameThreadIdInitialized)
+	{
+		bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::EGameThread);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+		const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+		bool oldValue = CurrentThreadId == GGameThreadId;
+		checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::EGameThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+		return newValue;
+	}
+
+	return true;
+}
+
+CORE_API bool IsInParallelGameThread()
+{
+	return FTaskTagScope::HasCurrentTag(ETaskTag::EParallelGameThread);
+}
+
 CORE_API bool IsInSlateThread()
 {
 	// If this explicitly is a slate thread, not just the main thread running slate
-	return GSlateLoadingThreadId != 0 && FPlatformTLS::GetCurrentThreadId() == GSlateLoadingThreadId;
+	bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::ESlateThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = GSlateLoadingThreadId != 0 && FPlatformTLS::GetCurrentThreadId() == GSlateLoadingThreadId;
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::ESlateThread) as as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 CORE_API FRunnableThread* GAudioThread = nullptr;
@@ -49,7 +151,14 @@ CORE_API FRunnableThread* GAudioThread = nullptr;
 CORE_API bool IsInAudioThread()
 {
 	// True if this is the audio thread or if there is no audio thread, then if it is the game thread
-	return FPlatformTLS::GetCurrentThreadId() == (GAudioThreadId ? GAudioThreadId : GGameThreadId);
+	bool newValue = GAudioThreadId
+		? FTaskTagScope::HasCurrentTag(ETaskTag::EAudioThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread)
+		: FTaskTagScope::HasCurrentTag(ETaskTag::EGameThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = FPlatformTLS::GetCurrentThreadId() == (GAudioThreadId ? GAudioThreadId : GGameThreadId);
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::EAudioThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 CORE_API TAtomic<int32> GIsRenderingThreadSuspended(0);
@@ -58,24 +167,55 @@ CORE_API FRunnableThread* GRenderingThread = nullptr;
 
 CORE_API bool IsInActualRenderingThread()
 {
-	return GRenderingThread && FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+	bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::ERenderingThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = GRenderingThread && FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 CORE_API bool IsInRenderingThread()
 {
-	return !GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed) || (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID());
+	bool newValue = !GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed)
+		? FTaskTagScope::HasCurrentTag(ETaskTag::EGameThread) || FTaskTagScope::HasCurrentTag(ETaskTag::ENone)
+		: FTaskTagScope::HasCurrentTag(ETaskTag::ERenderingThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread);
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = !GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed) || (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID());
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 CORE_API bool IsInParallelRenderingThread()
 {
+	bool newValue = false;
 	if (!GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 	{
-		return true;
+		newValue = FTaskTagScope::HasCurrentTag(ETaskTag::EParallelRenderingThread) || FTaskTagScope::HasCurrentTag(ETaskTag::EGameThread);
 	}
 	else
 	{
-		return FPlatformTLS::GetCurrentThreadId() != GGameThreadId;
+		newValue = FTaskTagScope::HasCurrentTag(ETaskTag::EParallelRenderingThread)
+			|| FTaskTagScope::HasCurrentTag(ETaskTag::ERenderingThread)
+			|| FTaskTagScope::HasCurrentTag(ETaskTag::ERhiThread); //TODO lots of RHI functions rely on our broken IsInParallelRenderingThread;
+			//|| FTaskTagScope::HasCurrentTag(ETaskTag::EParallelGameThread); // this is very broken indeed
 	}
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = false;
+	if (!GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+	{
+		oldValue = true;
+	}
+	else
+	{
+		oldValue = FPlatformTLS::GetCurrentThreadId() != GGameThreadId;
+	}
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::EParallelRenderingThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 CORE_API uint32 GRHIThreadId = 0;
@@ -83,7 +223,12 @@ CORE_API FRunnableThread* GRHIThread_InternalUseOnly = nullptr;
 
 CORE_API bool IsInRHIThread()
 {
-	return GRHIThreadId && FPlatformTLS::GetCurrentThreadId() == GRHIThreadId;
+	bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::ERhiThread);
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	bool oldValue = GRHIThreadId && FPlatformTLS::GetCurrentThreadId() == GRHIThreadId;	
+	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERhiThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
+#endif
+	return newValue;
 }
 
 // Fake threads

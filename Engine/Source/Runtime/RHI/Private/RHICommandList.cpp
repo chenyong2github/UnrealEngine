@@ -412,6 +412,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FTaskTagScope Scope(ETaskTag::ERhiThread);
 		SCOPE_CYCLE_COUNTER(STAT_RHIThreadExecute);
 		if (IsRunningRHIInTaskThread())
 		{
@@ -997,6 +998,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FTaskTagScope Scope(ETaskTag::ERhiThread | ETaskTag::EParallelThread);
 		SCOPE_CYCLE_COUNTER(STAT_ParallelChainTranslate);
 		SCOPED_NAMED_EVENT(FParallelTranslateCommandList_DoTask, FColor::Magenta);
 		check(ContextContainer && RHICmdLists);

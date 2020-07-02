@@ -21,9 +21,10 @@ UNiagaraDataInterface::~UNiagaraDataInterface()
 	if ( Proxy.IsValid() )
 	{
 		ENQUEUE_RENDER_COMMAND(FDeleteProxyRT) (
-			[RT_Proxy=MoveTemp(Proxy)](FRHICommandListImmediate& CmdList)
+			[RT_Proxy=MoveTemp(Proxy)](FRHICommandListImmediate& CmdList) mutable
 			{
 				// This will release RT_Proxy on the RT
+				RT_Proxy = nullptr;
 			}
 		);
 		check(Proxy.IsValid() == false);

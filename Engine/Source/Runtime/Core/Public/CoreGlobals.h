@@ -3,6 +3,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
 #include "HAL/PlatformTLS.h"
@@ -460,6 +461,68 @@ extern CORE_API bool GPumpingMessages;
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 extern CORE_API bool GEnableVREditorHacks;
 
+enum class ETaskTag : int32
+{
+	ENone						= 0 << 0,
+	EGameThread					= 1 << 1,
+	ESlateThread				= 1 << 2,
+	EAudioThread				= 1 << 3,
+	ERenderingThread			= 1 << 4,
+	ERhiThread					= 1 << 5,
+	EAsyncLoadingThread			= 1 << 6,
+
+	ENamedThreadBits			= (EAsyncLoadingThread << 1) - 1,
+	EParallelThread				= 1 << 7,										//This can be used when multipe threads or jobs are involved (usually a parallel for) It will avoid the check for uniqieness of the named thread tag.
+	EParallelRenderingThread	= ERenderingThread | EParallelThread,
+	EParallelGameThread			= EGameThread | EParallelThread,
+};
+
+ENUM_CLASS_FLAGS(ETaskTag);
+
+
+/**
+ * This class can be used to Tag an execution context aka Thead or Job and allows us to later querry the state when we are in the callstack
+ * It is usually used for the IsInRendering/GamethreadFunctions.
+ *
+ * @param CtorSignature InTag the Tag to use
+ */
+class FTaskTagScope
+{
+	static thread_local ETaskTag ActiveTaskTag;
+	ETaskTag ParentTag;
+	ETaskTag Tag;
+	bool TagOnlyIfNone;
+
+protected:
+	FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
+
+public:
+	CORE_API FTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(false, InTag)
+	{
+
+	}
+
+	CORE_API ~FTaskTagScope();
+
+	static ETaskTag GetCurrentTag();
+	static bool HasCurrentTag(ETaskTag InTag);
+};
+
+/**
+ * This class can be used to Tag an execution context but only in case it has not already been tagged
+ * It is usually used for the IsInRendering/GamethreadFunctions.
+ *
+ * @param CtorSignature InTag the Tag to use
+ */
+class FOptionalTaskTagScope : public FTaskTagScope
+{
+public:
+	CORE_API FOptionalTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(true, InTag)
+	{
+
+	}
+};
+
 /**
  * Ensures that current thread is during retrieval of vtable ptr of some
  * UClass.
@@ -470,16 +533,10 @@ extern CORE_API bool GEnableVREditorHacks;
 CORE_API void EnsureRetrievingVTablePtrDuringCtor(const TCHAR* CtorSignature);
 
 /** @return True if called from the game thread. */
-FORCEINLINE bool IsInGameThread()
-{
-	if(GIsGameThreadIdInitialized)
-	{
-		const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-		return CurrentThreadId == GGameThreadId;
-	}
+extern CORE_API bool IsInGameThread();
 
-	return true;
-}
+/** @return True if called from the game thread in a parallel for. */
+extern CORE_API bool IsInParallelGameThread();
 
 /** @return True if called from the audio thread, and not merely a thread calling audio functions. */
 extern CORE_API bool IsInAudioThread();

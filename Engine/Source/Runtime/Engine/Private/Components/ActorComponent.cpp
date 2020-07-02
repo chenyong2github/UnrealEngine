@@ -97,6 +97,7 @@ void FRegisterComponentContext::Process()
 	ParallelFor(AddPrimitiveBatches.Num(),
 		[&](int32 Index)
 		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 			if (!AddPrimitiveBatches[Index]->IsPendingKill())
 			{
 				Scene->AddPrimitive(AddPrimitiveBatches[Index]);

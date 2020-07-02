@@ -1292,7 +1292,7 @@ private: // ----------------------------------------------------
 			cvarCheckCode(ensure(!IsInActualRenderingThread()));
 			return 0;
 		}
-		return IsInGameThread() ? 0 : 1;
+		return IsInParallelGameThread() || IsInGameThread() ? 0 : 1;
 	}
 
 	// needed for FConsoleVariable and FConsoleVariableRef2, intentionally not public

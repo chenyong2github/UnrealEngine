@@ -770,6 +770,7 @@ public:
 
 	void AnyThreadTask()
 	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandPassSetupTask);
 		// Mobile base pass is a special case, as final lists is created from two mesh passes based on CSM visibility.
 		const bool bMobileShadingBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
@@ -1215,6 +1216,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DrawVisibleMeshCommandsAnyThreadTask);
 		checkSlow(RHICmdList.IsInsideRenderPass());
 

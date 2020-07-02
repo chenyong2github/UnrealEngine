@@ -1949,6 +1949,7 @@ struct FRelevancePacket
 
 	void AnyThreadTask()
 	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		ComputeRelevance();
 		MarkRelevant();
 	}

@@ -185,6 +185,7 @@ void FXGEControlWorker::InputThreadProc()
 
 int32 XGEController_GuardedMain(int32 ArgC, TCHAR* ArgV[])
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	GEngineLoop.PreInit(ArgC, ArgV, TEXT("-NOPACKAGECACHE -Multiprocess"));
 
 	if (ArgC != 3)

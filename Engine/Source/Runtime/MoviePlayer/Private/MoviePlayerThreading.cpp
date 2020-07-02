@@ -169,6 +169,8 @@ bool FSlateLoadingThreadTask::Init()
 
 uint32 FSlateLoadingThreadTask::Run()
 {
+	FTaskTagScope Scope(ETaskTag::ESlateThread);
+
 	check( GSlateLoadingThreadId == FPlatformTLS::GetCurrentThreadId() );
 
 	SyncMechanism->SlateThreadRunMainLoop();

@@ -264,6 +264,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 			if ((FPassProcessorManager::GetPassFlags(ShadingPath, PassType) & EMeshPassFlags::CachedMeshCommands) != EMeshPassFlags::None)
 			{
+				FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 				FCachedMeshDrawCommandInfo CommandInfo(PassType);
 
 				FCriticalSection& CachedMeshDrawCommandLock = Scene->CachedMeshDrawCommandLock[PassType];
@@ -501,6 +502,7 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	{
 		ParallelForTemplate(SceneInfos.Num(), [Scene, &SceneInfos](int32 Index)
 		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddStaticMeshes_DrawStaticElements, FColor::Magenta);
 			FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];
 			// Cache the primitive's static mesh elements.

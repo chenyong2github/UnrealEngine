@@ -9,6 +9,8 @@ IMPLEMENT_APPLICATION(UnrealPak, "UnrealPak");
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	// start up the main loop
 	GEngineLoop.PreInit(ArgC, ArgV);
 

@@ -30,6 +30,7 @@ bool GUHTErrorLogged = false;
  */
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	FString CmdLine;
 
 	for (int32 Arg = 0; Arg < ArgC; Arg++)

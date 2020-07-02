@@ -961,6 +961,7 @@ static int32 GuardedMain(int32 argc, TCHAR* argv[], bool bDirectMode)
 
 static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOutputFile, bool bDirectMode)
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	// We need to know whether we are using XGE now, in case an exception
 	// is thrown before we parse the command line inside GuardedMain.
 	if ((ArgC > 6) && FCString::Strcmp(ArgV[6], TEXT("-xge_int")) == 0)

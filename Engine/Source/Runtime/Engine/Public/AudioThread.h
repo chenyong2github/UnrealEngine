@@ -76,13 +76,13 @@ public:
 	static ENGINE_API void StopAudioThread();
 
 	/** Execute a command on the audio thread. If GIsAudioThreadRunning is false the command will execute immediately */
-	static ENGINE_API void RunCommandOnAudioThread(TFunction<void()> InFunction, const TStatId InStatId = TStatId());
+	static ENGINE_API void RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, const TStatId InStatId = TStatId());
 
 	/** Processes all enqueued audio thread commands. */
 	static ENGINE_API void ProcessAllCommands();
 
 	/** Execute a (presumably audio) command on the game thread. If GIsAudioThreadRunning is false the command will execute immediately */
-	static ENGINE_API void RunCommandOnGameThread(TFunction<void()> InFunction, const TStatId InStatId = TStatId());
+	static ENGINE_API void RunCommandOnGameThread(TUniqueFunction<void()> InFunction, const TStatId InStatId = TStatId());
 
 	static ENGINE_API void SetUseThreadedAudio(bool bInUseThreadedAudio);
 	static ENGINE_API bool IsUsingThreadedAudio() { return bUseThreadedAudio; }
