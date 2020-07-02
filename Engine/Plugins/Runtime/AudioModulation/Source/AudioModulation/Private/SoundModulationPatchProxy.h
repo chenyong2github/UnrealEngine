@@ -183,7 +183,6 @@ namespace AudioModulation
 		bool bBypass = true;
 
 		friend class FAudioModulationSystem;
-		friend class FModulationSettingsProxy;
 	};
 
 	class FModulationPatchRefProxy : public FModulationPatchProxy, public TModulatorProxyRefType<FPatchId, FModulationPatchRefProxy, FModulationPatchSettings>
