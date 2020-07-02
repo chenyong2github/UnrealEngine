@@ -72,7 +72,7 @@ namespace Chaos
 	float CollisionCullDistanceOverride = -1.0f;
 	FAutoConsoleVariableRef CVarDefaultCollisionCullDistance(TEXT("p.CollisionCullDistance"), CollisionCullDistanceOverride, TEXT("Collision culling distance override if >= 0"));
 
-	int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 1; // Experimental: This requires multiple contact points per iteration per pair, and making sure the contact points don't move too much in body space
+	int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 0; // Experimental: This requires multiple contact points per iteration per pair, and making sure the contact points don't move too much in body space
 	FAutoConsoleVariableRef CVarChaosCollisionOriginalSolve(TEXT("p.Chaos.Collision.UseAccumulatedImpulseClipSolve"), Chaos_Collision_UseAccumulatedImpulseClipSolve, TEXT("Use experimental Accumulated impulse clipped contact solve"));
 
 #if INTEL_ISPC
