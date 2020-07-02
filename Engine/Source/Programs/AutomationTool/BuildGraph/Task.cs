@@ -210,8 +210,8 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ITraceSpan Span, string Prefix)
 		{
-			Span.AddMetadata(Prefix + "file", SourceLocation.Item1.MakeRelativeTo(CommandUtils.RootDirectory));
-			Span.AddMetadata(Prefix + "line", SourceLocation.Item2.ToString());
+			Span.AddMetadata(Prefix + "source.file", SourceLocation.Item1.MakeRelativeTo(CommandUtils.RootDirectory));
+			Span.AddMetadata(Prefix + "source.line", SourceLocation.Item2.ToString());
 		}
 
 		/// <summary>

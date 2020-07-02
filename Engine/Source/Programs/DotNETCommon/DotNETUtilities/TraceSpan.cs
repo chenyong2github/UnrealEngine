@@ -36,13 +36,17 @@ namespace Tools.DotNETCommon
 		class TraceSpanImpl : ITraceSpan
 		{
 			public string Name;
+			public string Resource;
+			public string Service;
 			public DateTimeOffset StartTime;
 			public DateTimeOffset? FinishTime;
 			public Dictionary<string, string> Metadata = new Dictionary<string, string>();
 
-			public TraceSpanImpl(string Name)
+			public TraceSpanImpl(string Name, string Resource, string Service)
 			{
 				this.Name = Name;
+				this.Resource = Resource;
+				this.Service = Service;
 				this.StartTime = DateTimeOffset.Now;
 			}
 
@@ -68,9 +72,9 @@ namespace Tools.DotNETCommon
 		/// <summary>
 		/// Creates a scope using the current provider
 		/// </summary>
-		public static ITraceSpan Create(string Name)
+		public static ITraceSpan Create(string Name, string Resource = null, string Service = null)
 		{
-			TraceSpanImpl Span = new TraceSpanImpl(Name);
+			TraceSpanImpl Span = new TraceSpanImpl(Name, Resource, Service);
 			Spans.Add(Span);
 			return Span;
 		}
@@ -103,6 +107,14 @@ namespace Tools.DotNETCommon
 						{
 							Writer.WriteObjectStart();
 							Writer.WriteValue("Name", Span.Name);
+							if (Span.Resource != null)
+							{
+								Writer.WriteValue("Resource", Span.Resource);
+							}
+							if (Span.Service != null)
+							{
+								Writer.WriteValue("Service", Span.Service);
+							}
 							Writer.WriteValue("StartTime", Span.StartTime.ToString("o", CultureInfo.InvariantCulture));
 							Writer.WriteValue("FinishTime", Span.FinishTime.Value.ToString("o", CultureInfo.InvariantCulture));
 							Writer.WriteObjectStart("Metadata");

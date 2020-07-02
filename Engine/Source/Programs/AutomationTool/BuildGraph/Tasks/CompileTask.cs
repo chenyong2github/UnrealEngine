@@ -237,9 +237,14 @@ namespace AutomationTool
 		{
 			base.GetTraceMetadata(Span, Prefix);
 
-			Span.AddMetadata(Prefix + "target", Parameters.Target);
-			Span.AddMetadata(Prefix + "config", Parameters.Configuration.ToString());
-			Span.AddMetadata(Prefix + "platform", Parameters.Platform.ToString());
+			Span.AddMetadata(Prefix + "target.name", Parameters.Target);
+			Span.AddMetadata(Prefix + "target.config", Parameters.Configuration.ToString());
+			Span.AddMetadata(Prefix + "target.platform", Parameters.Platform.ToString());
+
+			if (Parameters.Project != null)
+			{
+				Span.AddMetadata(Prefix + "target.project", Parameters.Project);
+			}
 		}
 
 		/// <summary>
