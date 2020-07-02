@@ -478,44 +478,13 @@ namespace UnrealBuildTool
 		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo)
 		{
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
-			Type BaseRulesType = CompiledAssembly.GetType(TypeName);
-			if (BaseRulesType == null)
+			Type RulesType = CompiledAssembly.GetType(TypeName);
+			if (RulesType == null)
 			{
 				throw new BuildException("Expecting to find a type to be declared in a target rules named '{0}'.  This type must derive from the 'TargetRules' type defined by Unreal Build Tool.", TypeName);
 			}
 
-			// Look for platform/group rules that we will use instead of the basic rules
-			string PlatformRulesName = TargetInfo.Name + "_" + TargetInfo.Platform.ToString();
-			Type PlatformRulesType = CompiledAssembly.GetType(TypeName + "_" + TargetInfo.Platform.ToString());
-			if (PlatformRulesType == null)
-			{
-				foreach (UnrealPlatformGroup Group in UEBuildPlatform.GetPlatformGroups(TargetInfo.Platform))
-				{
-					// look to see if the group has an override
-					string GroupRulesName = TargetInfo.Name + "_" + Group.ToString();
-					Type GroupRulesObjectType = CompiledAssembly.GetType(TypeName + "_" + Group.ToString());
-
-					// we expect only one platform group to be found in the extensions
-					if (GroupRulesObjectType != null && PlatformRulesType != null)
-					{
-						throw new BuildException("Found multiple platform group overrides ({0} and {1}) for rules {2} without a platform specific override. Create a platform override with the class hierarchy as needed.", 
-							GroupRulesObjectType.Name, PlatformRulesType.Name, TypeName);
-					}
-					// remember the platform group if we found it, but keep searching to verify there isn't more than one
-					if (GroupRulesObjectType != null)
-					{
-						PlatformRulesName = GroupRulesName;
-						PlatformRulesType = GroupRulesObjectType;
-					}
-				}
-			}
-			if (PlatformRulesType != null && !PlatformRulesType.IsSubclassOf(BaseRulesType))
-			{
-				throw new BuildException("Expecting {0} to be a specialization of {1}", PlatformRulesType, BaseRulesType);
-			}
-
 			// Create an instance of the module's rules object, and set some defaults before calling the constructor.
-			Type RulesType = PlatformRulesType ?? BaseRulesType;
 			TargetRules Rules = (TargetRules)FormatterServices.GetUninitializedObject(RulesType);
 			if (DefaultBuildSettings.HasValue)
 			{
@@ -523,8 +492,7 @@ namespace UnrealBuildTool
 			}
 
 			// Return the target file name to the caller
-			string TargetInfoName = (PlatformRulesType != null) ? PlatformRulesName : TargetInfo.Name;
-			Rules.File = TargetNameToTargetFile[TargetInfoName];
+			Rules.File = TargetNameToTargetFile[TargetInfo.Name];
 
 			// Find the constructor
 			ConstructorInfo Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });
