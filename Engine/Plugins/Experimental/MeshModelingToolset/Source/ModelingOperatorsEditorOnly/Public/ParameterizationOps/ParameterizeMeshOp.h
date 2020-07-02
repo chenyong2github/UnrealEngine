@@ -13,7 +13,8 @@ struct FMeshDescription;
 enum class EParamOpUnwrapType
 {
 	MinStretch = 0,
-	ExpMap = 1
+	ExpMap = 1,
+	ConformalFreeBoundary = 2
 };
 
 
@@ -88,6 +89,7 @@ protected:
 
 	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter, const bool bUsePolygroups = false, float GlobalScale = 1.0f);
 	bool ComputeUVs_ExpMap(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
+	bool ComputeUVs_ConformalFreeBoundary(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
 
 	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
 };
