@@ -162,6 +162,12 @@ protected:
 	/** Returns whether the source property is a valid property to search for and replace */
 	bool HasValidSource() const;
 
+	/** Returns the text for the Find All button */
+	FText GetFindAllButtonText() const;
+
+	/** Returns the text for the Find and Replace All button */
+	FText GetFindAndReplaceAllButtonText() const;
+
 	/** Returns tool tip text for the "Find All" and "Find And Replace All" buttons */
 	FText GetFindAndReplaceToolTipText(bool bFindAndReplace) const;
 

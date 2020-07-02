@@ -278,7 +278,7 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.Text(FText::FromString(TEXT("Find All")))
+						.Text(this, &SReplaceNodeReferences::GetFindAllButtonText)
 						.ToolTipText(this, &SReplaceNodeReferences::GetFindAndReplaceToolTipText, false)
 						.OnClicked(this, &SReplaceNodeReferences::OnFindAll)
 						.IsEnabled(this, &SReplaceNodeReferences::CanBeginSearch, false)
@@ -290,7 +290,7 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.Text(FText::FromString(TEXT("Find and Replace All")))
+						.Text(this, &SReplaceNodeReferences::GetFindAndReplaceAllButtonText)
 						.ToolTipText(this, &SReplaceNodeReferences::GetFindAndReplaceToolTipText, true)
 						.OnClicked(this, &SReplaceNodeReferences::OnFindAndReplaceAll)
 						.IsEnabled(this, &SReplaceNodeReferences::CanBeginSearch, true)
@@ -721,6 +721,36 @@ bool SReplaceNodeReferences::HasValidSource() const
 	return (SourceProperty != nullptr);
 }
 
+FText SReplaceNodeReferences::GetFindAllButtonText() const
+{
+	if (bFindWithinBlueprint)
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BP"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::FromString(TEXT("<UNKNOWN>")));
+		return FText::Format(LOCTEXT("FindLocal", "Find References in {BP}"), Args);
+	}
+	else
+	{
+		return LOCTEXT("FindAll", "Find All References");
+	}
+}
+
+FText SReplaceNodeReferences::GetFindAndReplaceAllButtonText() const
+{
+	if (bFindWithinBlueprint)
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BP"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::FromString(TEXT("<UNKNOWN>")));
+		return FText::Format(LOCTEXT("ReplaceLocal", "Find and Replace References in {BP}"), Args);
+	}
+	else
+	{
+		return LOCTEXT("ReplaceAll", "Find and Replace All References");
+	}
+}
+
 FText SReplaceNodeReferences::GetFindAndReplaceToolTipText(bool bFindAndReplace) const
 {
 	if (CanBeginSearch(bFindAndReplace))
@@ -794,7 +824,7 @@ FText SReplaceNodeReferences::GetLocalCheckBoxLabelText() const
 
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("BlueprintClass"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::GetEmpty());
-		return FText::Format(LOCTEXT("OnlyLocal", "Only show results from {BlueprintClass} class?"), Args);
+		return FText::Format(LOCTEXT("OnlyLocal", "Only show and replace results from {BlueprintClass} class?"), Args);
 	}
 
 	return FText::GetEmpty();
