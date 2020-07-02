@@ -79,6 +79,11 @@ private:
 	UPROPERTY()
 	FIntPoint ImportedSize;
 
+#if WITH_EDITOR
+	/** Whether the current texture is a default placeholder because compilation is still ongoing. */
+	bool bIsDefaultTexture = false;
+#endif
+
 	/** The derived data for this texture on this platform. */
 	FTexturePlatformData* PrivatePlatformData;
 public:

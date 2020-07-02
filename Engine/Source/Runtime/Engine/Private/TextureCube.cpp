@@ -586,8 +586,10 @@ FTextureResource* UTextureCube::CreateResource()
 	{
 		FTextureCompilingManager::Get().AddTextures({ this });
 
+		bIsDefaultTexture = true;
 		return new FTextureCubeResource(this, (const FTextureCubeResource*)GetDefaultTextureCube(this)->GetResource());
 	}
+	bIsDefaultTexture = false;
 #endif
 
 	FTextureResource* NewResource = NULL;
@@ -617,8 +619,7 @@ void UTextureCube::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 #if WITH_EDITOR
 bool UTextureCube::IsDefaultTexture() const
 {
-	const FTextureCubeResource* TextureResource = (const FTextureCubeResource*)GetResource();
-	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (TextureResource && TextureResource->GetProxiedResource() != nullptr);
+	return bIsDefaultTexture || (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete());
 }
 
 uint32 UTextureCube::GetMaximumDimension() const

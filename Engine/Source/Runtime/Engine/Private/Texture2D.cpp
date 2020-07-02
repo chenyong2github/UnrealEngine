@@ -645,8 +645,7 @@ int32 UTexture2D::GetNumRequestedMips() const
 
 bool UTexture2D::IsDefaultTexture() const
 {
-	const FTexture2DResource* TextureResource = (const FTexture2DResource*)GetResource();
-	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (TextureResource && TextureResource->ProxiedResource != nullptr);
+	return bIsDefaultTexture || (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete());
 }
 
 void UTexture2D::PostEditUndo()
@@ -1259,8 +1258,10 @@ FTextureResource* UTexture2D::CreateResource()
 
 		UnlinkStreaming();
 		bIsStreamable = false;
+		bIsDefaultTexture = true;
 		return new FTexture2DResource(this, (const FTexture2DResource*)GetDefaultTexture2D(this)->GetResource());
 	}
+	bIsDefaultTexture = false;
 #endif
 
 	if (IsCurrentlyVirtualTextured())
