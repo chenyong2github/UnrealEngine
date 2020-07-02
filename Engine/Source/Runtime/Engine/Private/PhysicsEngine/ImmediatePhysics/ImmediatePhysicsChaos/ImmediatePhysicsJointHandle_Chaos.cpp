@@ -141,8 +141,8 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularDriveDamping = ChaosImmediate_AngularDriveDampingScale * Profile.AngularDrive.TwistDrive.Damping;
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
 
-		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? ChaosImmediate_LinearBreakScale * Profile.LinearBreakThreshold : 0.0f;
-		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? ChaosImmediate_AngularBreakScale * Profile.AngularBreakThreshold : 0.0f;
+		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? ChaosImmediate_LinearBreakScale * Profile.LinearBreakThreshold : FLT_MAX;
+		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? ChaosImmediate_AngularBreakScale * Profile.AngularBreakThreshold : FLT_MAX;
 
 		// UE Disables Soft Limits when the Limit is less than some threshold. This is not necessary in Chaos but for now we also do it for parity's sake (See FLinearConstraint::UpdateLinearLimit_AssumesLocked).
 		if (ConstraintSettings.LinearLimit < RB_MinSizeToLockDOF)

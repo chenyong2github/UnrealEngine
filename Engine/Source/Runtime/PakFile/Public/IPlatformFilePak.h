@@ -3072,8 +3072,9 @@ struct FPakSignatureFile
 			int32 BytesDecrypted = FRSA::DecryptPublic(EncryptedHash, Decrypted, InKey);
 			if (BytesDecrypted == UE_ARRAY_COUNT(FSHAHash::Hash))
 			{
+				FMemory::Memcpy(DecryptedHash.Hash, Decrypted.GetData(), Decrypted.Num());
 				FSHAHash CurrentHash = ComputeCurrentMasterHash();
-				if (FMemory::Memcmp(Decrypted.GetData(), CurrentHash.Hash, Decrypted.Num()) == 0)
+				if (DecryptedHash == CurrentHash)
 				{
 					return true;
 				}

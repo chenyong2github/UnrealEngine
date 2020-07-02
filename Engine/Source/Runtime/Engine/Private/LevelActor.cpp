@@ -368,17 +368,25 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because the given transform (%s) is invalid"), *(UserTransformPtr->ToString()));
 		return NULL;
 	}
+	
+#if WITH_EDITOR
+	if (SpawnParameters.OverridePackage && SpawnParameters.bCreateActorPackage)
+	{
+		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because both the OverridePackage and bCreateActorPackage are set"));
+		return nullptr;
+	}
+#endif
 
 	ULevel* LevelToSpawnIn = SpawnParameters.OverrideLevel;
 	if (LevelToSpawnIn == NULL)
 	{
-		// Spawn in the same level as the owner if we have one. @warning: this relies on the outer of an actor being the level.
-		LevelToSpawnIn = (SpawnParameters.Owner != NULL) ? CastChecked<ULevel>(SpawnParameters.Owner->GetOuter()) : CurrentLevel;
+		// Spawn in the same level as the owner if we have one.
+		LevelToSpawnIn = (SpawnParameters.Owner != NULL) ? SpawnParameters.Owner->GetLevel() : CurrentLevel;
 	}
 
 	FName NewActorName = SpawnParameters.Name;
 	AActor* Template = SpawnParameters.Template;
-
+		
 	if( !Template )
 	{
 		// Use class's default actor as a template.
@@ -468,9 +476,39 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		}
 	}
 
+	EObjectFlags ActorFlags = SpawnParameters.ObjectFlags;
+
+	UPackage* ExternalPackage = nullptr;
+#if WITH_EDITOR
+	// Generate the actor's Guid
+	FGuid ActorGuid;
+	if (SpawnParameters.OverrideActorGuid.IsValid())
+	{
+		ActorGuid = SpawnParameters.OverrideActorGuid;
+	}
+	else
+	{
+		ActorGuid = FGuid::NewGuid();
+	}
+
+	// Generate and set the actor's external package if needed
+	// Set actor's package
+	if (SpawnParameters.OverridePackage)
+	{
+		ExternalPackage = SpawnParameters.OverridePackage;
+	}
+	else if (LevelToSpawnIn->bUseExternalActors && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
+	{
+		// @todo FH: needs to handle mark package dirty and asset creation notification
+		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), ActorGuid);
+	}
+#endif
+
 	// actually make the actor object
-	AActor* const Actor = NewObject<AActor>(LevelToSpawnIn, Class, NewActorName, SpawnParameters.ObjectFlags, Template);
+	AActor* const Actor = NewObject<AActor>(LevelToSpawnIn, Class, NewActorName, ActorFlags, Template, false/*bCopyTransientsFromClassDefaults*/, nullptr/*InInstanceGraph*/, ExternalPackage);
+	
 	check(Actor);
+	check(Actor->GetLevel() == LevelToSpawnIn);
 
 #if ENABLE_SPAWNACTORTIMER
 	SpawnTimer.SetActorName(Actor->GetFName());
@@ -478,10 +516,24 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 
 #if WITH_EDITOR
 	Actor->ClearActorLabel(); // Clear label on newly spawned actors
+
+	// Set the actor's guid
+	FSetActorGuid SetActorGuid(Actor, ActorGuid);
+
+	if (SpawnParameters.OverrideParentComponent)
+	{
+		FActorParentComponentSetter::Set(Actor, SpawnParameters.OverrideParentComponent);
+	}
 #endif // WITH_EDITOR
 
 	if ( GUndo )
 	{
+		// if we are spawning an external actor, clear the dirty flag without capturing in the transaction beforehand
+		// This allows the transaction to capture the package as not being dirty when capturing its current state, which is what we need for proper external actor behavior
+		if (ExternalPackage)
+		{
+			LevelToSpawnIn->GetPackage()->ClearDirtyFlag();
+		}
 		ModifyLevel( LevelToSpawnIn );
 	}
 	LevelToSpawnIn->Actors.Add( Actor );
@@ -508,6 +560,12 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 
 	Actor->PostSpawnInitialize(UserTransform, SpawnParameters.Owner, SpawnParameters.Instigator, SpawnParameters.IsRemoteOwned(), SpawnParameters.bNoFail, SpawnParameters.bDeferConstruction);
 
+	// if we are spawning an external actor, clear the dirty flag after post spawn initialize which might have dirtied the level package through running construction scripts
+	if (ExternalPackage)
+	{
+		LevelToSpawnIn->GetPackage()->ClearDirtyFlag();
+	}
+
 	if (Actor->IsPendingKill() && !SpawnParameters.bNoFail)
 	{
 		UE_LOG(LogSpawn, Log, TEXT("SpawnActor failed because the spawned actor %s IsPendingKill"), *Actor->GetPathName());
@@ -532,7 +590,6 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	return Actor;
 }
 
-
 ABrush* UWorld::SpawnBrush()
 {
 	FActorSpawnParameters SpawnInfo;
@@ -552,7 +609,10 @@ bool UWorld::EditorDestroyActor( AActor* ThisActor, bool bShouldModifyLevel )
 	FNavigationSystem::OnActorUnregistered(*ThisActor);
 
 	bool bReturnValue = DestroyActor( ThisActor, false, bShouldModifyLevel );
-	ThisActor->GetWorld()->BroadcastLevelsChanged();
+	if (UWorld* World = ThisActor->GetWorld())
+	{
+		World->BroadcastLevelsChanged();
+	}
 	return bReturnValue;
 }
 
@@ -739,7 +799,7 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 		GEngine->BroadcastLevelActorDeleted(ThisActor);
 #endif
 	}
-		
+
 	// Clean up the actor's components.
 	ThisActor->UnregisterAllComponents();
 
@@ -1420,7 +1480,7 @@ void UWorld::RefreshStreamingLevels( const TArray<class ULevelStreaming*>& InLev
 		FlushLevelStreaming();
 
 		bIsRefreshingStreamingLevels = true;
-
+		bool bLevelRefreshed = false;
 		// Remove all currently visible levels.
 		for (ULevelStreaming* StreamingLevel : InLevelsToRefresh)
 		{
@@ -1431,11 +1491,15 @@ void UWorld::RefreshStreamingLevels( const TArray<class ULevelStreaming*>& InLev
 				RemoveFromWorld( LoadedLevel );
 				FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevel); // Sketchy way to get the CurrentState correctly set to LoadedNotVisible
 				StreamingLevelsToConsider.Add(StreamingLevel); // Need to ensure this level is reconsidered during the flush to get it made visible again
+				bLevelRefreshed = true;
 			}
 		}
 
-		// Load and associate levels if necessary.
-		FlushLevelStreaming();
+		if (bLevelRefreshed)
+		{
+			// Load and associate levels if necessary.
+			FlushLevelStreaming();
+		}
 
 		// Update the level browser so it always contains valid data
 		FEditorSupportDelegates::WorldChange.Broadcast();

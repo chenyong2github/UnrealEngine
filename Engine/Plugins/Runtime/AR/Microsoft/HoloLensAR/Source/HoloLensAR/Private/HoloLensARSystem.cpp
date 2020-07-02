@@ -250,12 +250,15 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 	SessionStatus.Status = EARSessionStatus::Running;
 
 #if WITH_EDITOR
-	UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
-	FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();
-	if (PIEViewport != nullptr && !PIEViewport->IsStereoRenderingAllowed())
+	UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine);
+	if (EditorEngine)
 	{
-		// Running the AR session on a non-stereo window will break spatial anchors.
-		SessionStatus.Status = EARSessionStatus::NotSupported;
+		FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();
+		if (PIEViewport != nullptr && !PIEViewport->IsStereoRenderingAllowed())
+		{
+			// Running the AR session on a non-stereo window will break spatial anchors.
+			SessionStatus.Status = EARSessionStatus::NotSupported;
+		}
 	}
 #endif
 

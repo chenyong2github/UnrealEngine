@@ -24,7 +24,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Launch",
 					"LocationServicesBPLibrary",
-					"LocationServicesAndroidImpl",
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

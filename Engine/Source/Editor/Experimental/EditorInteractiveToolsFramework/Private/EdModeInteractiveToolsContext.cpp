@@ -8,6 +8,8 @@
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "IAssetViewport.h"
+#include "Math/Rotator.h"
+#include "Misc/AssertionMacros.h"
 #include "SLevelViewport.h"
 
 #include "Modules/ModuleManager.h"
@@ -19,6 +21,7 @@
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 
+#include "ToolContextInterfaces.h"
 #include "Tools/EditorToolAssetAPI.h"
 #include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
@@ -130,23 +133,39 @@ public:
 		return (CoordSys == COORD_World) ? EToolContextCoordinateSystem::World : EToolContextCoordinateSystem::Local;
 	}
 
-	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override
+	bool ExecuteSceneSnapQueryRotation(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const
 	{
-		if (Request.RequestType != ESceneSnapQueryType::Position)
+		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
 		{
-			return false;		// not supported yet
-		}
+			FRotator Rotator ( Request.DeltaRotation );
+			FRotator RotGrid = Request.RotGridSize.Get(GEditor->GetRotGridSize());
+			Rotator = Rotator.GridSnap( RotGrid );
 
+			FSceneSnapQueryResult SnapResult;
+			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+			SnapResult.DeltaRotation = Rotator.Quaternion();
+			Results.Add(SnapResult);
+			return true;
+		}
+		return false;
+	}
+
+	bool ExecuteSceneSnapQueryPosition(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const
+	{
 		int FoundResultCount = 0;
 
 		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
 		{
 			FSceneSnapQueryResult SnapResult;
 			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+
 			float SnapSize = GEditor->GetGridSize();
-			SnapResult.Position.X = SnapToIncrement(Request.Position.X, SnapSize);
-			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, SnapSize);
-			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, SnapSize);
+			FVector GridSize = Request.GridSize.Get(FVector(SnapSize, SnapSize, SnapSize));
+
+			SnapResult.Position.X = SnapToIncrement(Request.Position.X, GridSize.X);
+			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, GridSize.Y);
+			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, GridSize.Z);
+
 			Results.Add(SnapResult);
 			FoundResultCount++;
 		}
@@ -258,6 +277,22 @@ public:
 		}
 
 		return (FoundResultCount > 0);
+	}
+
+	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override
+	{
+		switch (Request.RequestType)
+		{
+		case ESceneSnapQueryType::Position:
+			return ExecuteSceneSnapQueryPosition(Request, Results);
+			break;
+		case ESceneSnapQueryType::Rotation:
+			return ExecuteSceneSnapQueryRotation(Request, Results);
+			break;
+		default:
+			check(!"Only Position and Rotation Snap Queries are supported");
+		}
+		return false;
 	}
 
 	//@ todo this are mirrored from GeometryProcessing, which is still experimental...replace w/ direct calls once GP component is standardized

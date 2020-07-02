@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
@@ -20,7 +21,7 @@ namespace Chaos
 
 	#define NUM_SUS_AVERAGING 10
 
-	struct FSimpleSuspensionConfig
+	struct CHAOSVEHICLESCORE_API FSimpleSuspensionConfig
 	{
 		FSimpleSuspensionConfig()
 			: SuspensionForceOffset(FVector::ZeroVector)
@@ -33,7 +34,7 @@ namespace Chaos
 			, ReboundDamping(0.9f)
 			, Swaybar(0.5f)
 			, DampingRatio(0.3f)
-			, RaycastSafetyMargin(10.0f)
+			, RaycastSafetyMargin(0.0f)
 			, SuspensionSmoothing(6)
 		{
 			MaxLength = FMath::Abs(SuspensionMaxRaise) + FMath::Abs(SuspensionMaxDrop);
@@ -60,7 +61,7 @@ namespace Chaos
 	};
 
 	/** Suspension world ray/shape trace start and end positions */
-	struct FSuspensionTrace
+	struct CHAOSVEHICLESCORE_API FSuspensionTrace
 	{
 		FVector Start;
 		FVector End;
@@ -78,7 +79,7 @@ namespace Chaos
 		}
 	};
 
-	class FSimpleSuspensionSim : public TVehicleSystem<FSimpleSuspensionConfig>
+	class CHAOSVEHICLESCORE_API FSimpleSuspensionSim : public TVehicleSystem<FSimpleSuspensionConfig>
 	{
 	public:
 		FSimpleSuspensionSim(const FSimpleSuspensionConfig* SetupIn)
@@ -134,6 +135,7 @@ namespace Chaos
 		{
 			FVector LocalDirection(0.f, 0.f, -1.f);
 			FVector WorldLocation = BodyTransform.TransformPosition(GetLocalRestingPosition());
+			WorldLocation.Z += Setup().SuspensionMaxRaise;
 			FVector WorldDirection = BodyTransform.TransformVector(LocalDirection);
 
 			OutTrace.Start = WorldLocation - WorldDirection * Setup().RaycastSafetyMargin;
@@ -186,6 +188,11 @@ namespace Chaos
 		{
 			FVector LocalDirection(0.f, 0.f, 1.f);
 			return InTransform.TransformVector(LocalDirection) * SuspensionForce;
+		}
+
+		float GetSuspensionOffset()
+		{
+			return Setup().SuspensionMaxRaise + GetSpringLength();
 		}
 
 		const FVector& GetLocalRestingPosition() const

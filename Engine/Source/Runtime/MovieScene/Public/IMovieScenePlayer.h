@@ -20,8 +20,11 @@
 class UMovieSceneSequence;
 class FViewportClient;
 class IMovieScenePlaybackClient;
+class UMovieSceneEntitySystemLinker;
 struct FMovieSceneRootEvaluationTemplateInstance;
 class FMovieSceneSequenceInstance;
+class IMovieScenePlayer;
+
 
 struct EMovieSceneViewportParams
 {
@@ -75,12 +78,19 @@ struct EMovieSceneCameraCutParams
 class IMovieScenePlayer
 {
 public:
-	virtual ~IMovieScenePlayer() { }
+	MOVIESCENE_API IMovieScenePlayer();
+
+	MOVIESCENE_API virtual ~IMovieScenePlayer();
 
 	/**
 	 * Access the evaluation template that we are playing back
 	 */
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() = 0;
+
+	/**
+	 * Called to retrieve or construct an entity linker for the specified playback context
+	 */
+	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() { return nullptr; }
 
 	/**
 	 * Cast this player instance as a UObject if possible
@@ -183,11 +193,6 @@ public:
 	virtual UObject* GetPlaybackContext() const { return nullptr; }
 
 	/**
-	 * Access the global instance data object for this movie scene player
-	 */
-	virtual const UObject* GetInstanceData() const { return nullptr; }
-
-	/**
 	 * Access the event contexts for this movie scene player
 	 */
 	virtual TArray<UObject*> GetEventContexts() const { return TArray<UObject*>(); }
@@ -196,6 +201,16 @@ public:
 	 * Test whether this is a preview player or not. As such, playback range becomes insignificant for things like spawnables
 	 */
 	virtual bool IsPreview() const { return false; }
+
+	/**
+	 * Called by the evaluation system when evaluation has just started.
+	 **/
+	virtual void PreEvaluation(const FMovieSceneContext& Context) {}
+
+	/**
+	 * Called by the evaluation system after evaluation has occured
+	 */
+	virtual void PostEvaluation(const FMovieSceneContext& Context) {}
 
 public:
 
@@ -384,6 +399,13 @@ public:
 		PreAnimatedState.DiscardEntityTokens();
 	}
 
+	MOVIESCENE_API static IMovieScenePlayer* Get(uint16 InUniqueIndex);
+
+	uint16 GetUniqueIndex() const
+	{
+		return UniqueIndex;
+	}
+
 public:
 
 	/** Evaluation state that stores global state to do with the playback operation */
@@ -402,4 +424,7 @@ private:
 
 	/** Null register that asserts on use */
 	FNullMovieSceneSpawnRegister NullRegister;
+
+	/** This player's unique Index */
+	uint16 UniqueIndex;
 };

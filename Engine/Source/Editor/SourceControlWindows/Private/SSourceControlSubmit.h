@@ -45,11 +45,14 @@ public:
 	/** Constructor */
 	explicit FSubmitItem(const FSourceControlStateRef& InItem);
 
-	/** Returns the full path of the item in source control */
-	FString GetFilename() const { return Item->GetFilename(); }
+	/** Returns the asset name of the item */
+	FText GetAssetName() const { return AssetName; }
 
-	/** Returns the name of the item as displayed in the widget */
-	FText GetDisplayName() const { return DisplayName; }
+	/** Returns the package name of the item to display */
+	FText GetPackageName() const { return PackageName; }
+
+	/** Returns the file name of the item in source control */
+	FText GetFileName() const { return FileName; }
 
 	/** Returns the name of the icon to be used in the list item widget */
 	FName GetIconName() const { return Item->GetSmallIconName(); }
@@ -82,8 +85,14 @@ private:
 	/** Checkbox state */
 	ECheckBoxState CheckBoxState;
 
-	/** Cached name to display in the listview */
-	FText DisplayName;
+	/** Cached asset name to display in the listview */
+	FText AssetName;
+
+	/** Cached package name to display in the listview */
+	FText PackageName;
+
+	/** Cached file name on disk for source control */
+	FText FileName;
 };
 
 class SSourceControlSubmitWidget : public SCompoundWidget

@@ -3,19 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HAL/ThreadSafeCounter.h"
 
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
-#include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
-
-#include "Widgets/SVirtualWindow.h"
 
 #include "RHI.h"
 #include "RHIResources.h"
 
+class FEvent;
+class FRunnableThread;
+class FHittestGrid;
+class FSlateRenderer;
+class SVirtualWindow;
+class SWindow;
 
 /**
 * The Slate thread is simply run on a worker thread.
@@ -33,10 +34,12 @@ public:
     {
     }
 
-    /** FRunnable interface */
+    //~ Begin FRunnable interface
     virtual bool Init() override;
     virtual uint32 Run() override;
-    virtual void Stop() override;
+	virtual void Exit() override;
+	//~ End FRunnable interface
+
 private:
     /** Hold a handle to our parent sync mechanism which handles all of our threading locks */
     class FPreLoadScreenSlateSynchMechanism* SyncMechanism;
@@ -55,7 +58,7 @@ private:
     SWindow* MainWindow;
 
     /** Virtual window that we render to instead of the main slate window (for thread safety).  Shares only the same backbuffer as the main window */
-    TSharedRef<class SVirtualWindow> VirtualRenderWindow;
+    TSharedRef<SVirtualWindow> VirtualRenderWindow;
 
     TSharedPtr<FHittestGrid> HittestGrid;
 
@@ -66,14 +69,18 @@ private:
 
 
 /**
-* This class will handle all the nasty bits about running Slate on a separate thread
-* and then trying to sync it up with the game thread and the render thread simultaneously
-*/
+ * This class will handle all the nasty bits about running Slate on a separate thread
+ * and then trying to sync it up with the game thread and the render thread simultaneously
+ */
 class PRELOADSCREEN_API FPreLoadScreenSlateSynchMechanism
 {
 public:
     FPreLoadScreenSlateSynchMechanism(TSharedPtr<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer);
     ~FPreLoadScreenSlateSynchMechanism();
+
+	FPreLoadScreenSlateSynchMechanism() = delete;
+	FPreLoadScreenSlateSynchMechanism(const FPreLoadScreenSlateSynchMechanism&) = delete;
+	FPreLoadScreenSlateSynchMechanism& operator=(const FPreLoadScreenSlateSynchMechanism&) = delete;
 
     /** Sets up the locks in their proper initial state for running */
     void Initialize();
@@ -81,40 +88,25 @@ public:
     /** Cleans up the slate thread */
     void DestroySlateThread();
 
-    /** Handles the strict alternation of the slate drawing passes */
-    bool IsSlateDrawPassEnqueued();
-    void SetSlateDrawPassEnqueued();
-    void ResetSlateDrawPassEnqueued();
-
     /** Handles the counter to determine if the slate thread should keep running */
-    bool IsSlateMainLoopRunning();
-    void SetSlateMainLoopRunning();
-    void ResetSlateMainLoopRunning();
-
-    /** The main loop to be run from the Slate thread */
-    void SlateThreadRunMainLoop();
+    bool IsSlateMainLoopRunning_AnyThread() const;
 
 private:
-    volatile int8 MainLoopCounter;
+	/** The main loop to be run from the Slate thread */
+	void RunMainLoop_SlateThread();
 
-    /**
-    * This counter handles running the main loop of the slate thread
-    */
-    FThreadSafeCounter IsRunningSlateMainLoop;
-    /**
-    * This counter handles strict alternation between the slate thread and the render thread
-    * for passing Slate render draw passes between each other.
-    */
-    FThreadSafeCounter IsSlateDrawEnqueued;
+    /** This counter handles running the main loop of the slate thread */
+    TAtomic<bool> bIsRunningSlateMainLoop;
 
-    /**
-    * This counter is used to generate a unique id for each new instance of the loading thread
-    */
-    static FThreadSafeCounter LoadingThreadInstanceCounter;
+    /** This counter is used to generate a unique id for each new instance of the loading thread */
+    static TAtomic<int32> LoadingThreadInstanceCounter;
 
     /** The worker thread that will become the Slate thread */
     FRunnableThread* SlateLoadingThread;
     FRunnable* SlateRunnableTask;
+	FEvent* SleepEvent;
 
     TSharedPtr<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe> WidgetRenderer;
+
+	friend FPreLoadScreenSlateThreadTask;
 };

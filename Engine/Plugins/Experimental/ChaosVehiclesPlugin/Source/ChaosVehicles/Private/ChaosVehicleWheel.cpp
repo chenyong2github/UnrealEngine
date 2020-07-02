@@ -26,7 +26,8 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	WheelWidth = 10.0f;
 	bAutoAdjustCollisionSize = true;
 	WheelMass = 20.0f;
-	CheatFrictionForce = 2.0f;
+	CheatLongitudinalFrictionForce = 1.0f;
+	CheatLateralFrictionForce = 2.0f;
 	bAffectedByBrake = true;
 	bAffectedByHandbrake = false;
 	MaxSteerAngle = 50.0f;
@@ -71,7 +72,8 @@ float UChaosVehicleWheel::GetRotationAngle() const
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
 	check(VehicleSim && VehicleSim->PhysicsVehicle());
-	return VehicleSim->PhysicsVehicle()->Suspension[WheelIndex].GetSpringLength();
+	FSimpleSuspensionSim& SimSuspension = VehicleSim->PhysicsVehicle()->Suspension[WheelIndex];
+	return SimSuspension.GetSuspensionOffset();
 }
 
 bool UChaosVehicleWheel::IsInAir() const

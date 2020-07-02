@@ -77,6 +77,7 @@ public:
 	virtual bool PathExists(const FString& PathToTest) const override;
 	virtual bool PathExists(const FName PathToTest) const override;
 	virtual void SearchAllAssets(bool bSynchronousSearch) override;
+	virtual void WaitForCompletion() override;
 	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false) override;
 	virtual void ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan = false) override;
 	virtual void PrioritizeSearchPath(const FString& PathToPrioritize) override;
@@ -146,8 +147,8 @@ private:
 	void InitRedirectors();
 
 	/** Internal handler for ScanPathsSynchronous */
-	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode);
-	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths);
+	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode);
+	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths);
 
 	/** Called every tick to when data is retrieved by the background asset search. If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches */
 	void AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults);
@@ -238,7 +239,7 @@ private:
 	void GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TSet<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const;
 
 	/** Finds all class names of classes capable of generating new UClasses */
-	void CollectCodeGeneratorClasses();
+	void CollectCodeGeneratorClasses() const;
 
 	/** Updates TempCachedInheritanceMap from native classes */
 	void UpdateTemporaryCaches() const;
@@ -248,6 +249,9 @@ private:
 
 	/** This will always read the ini, public version may return cache */
 	void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const;
+
+	/** Initialize the scan filters from the ini */
+	void InitializeBlacklistScanFiltersFromIni();
 
 	bool ResolveRedirect(const FString& InPackageName, FString& OutPackageName);
 
@@ -277,6 +281,12 @@ private:
 	 *  - If the filter is empty, then the array will be untouched.
 	 */
 	void RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const;
+
+	/**
+	 * Add sub content blacklist filter for a new mount point
+	 * @param InMount The mount point
+	 */
+	void AddSubContentBlacklist(const FString& InMount);
 
 private:
 	
@@ -313,12 +323,19 @@ private:
 	    be invalidated whenever registered classes have changed.
 	*/
 	mutable uint64 TempCachingRegisteredClassesVersionNumber;
+	mutable uint64 ClassGeneratorNamesRegisteredClassesVersionNumber;
 
 	/** If true, will cache AssetData loaded from in memory assets back into the disk cache */
 	bool bUpdateDiskCacheAfterLoad;
 
 	/** The tree of known cached paths that assets may reside within */
 	FPathTree CachedPathTree;
+
+	/** Set of blacklist paths to filter during full asset scans. */
+	TArray<FString> BlacklistScanFilters;
+
+	/** List of sub content path to filter on every mount during full asset scans. */
+	TArray<FString> BlacklistContentSubPaths;
 
 	/** Async task that gathers asset information from disk */
 	TSharedPtr< class FAssetDataGatherer > BackgroundAssetSearch;
@@ -377,7 +394,7 @@ private:
 	TSet<FString> SynchronouslyScannedPathsAndFiles;
 
 	/** List of all class names derived from Blueprint (including Blueprint itself) */
-	TSet<FName> ClassGeneratorNames;
+	mutable TSet<FName> ClassGeneratorNames;
 
 	/** Handles to all registered OnDirectoryChanged delegates */
 	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;

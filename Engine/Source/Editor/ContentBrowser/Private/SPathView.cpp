@@ -33,14 +33,57 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+SPathView::FScopedSelectionChangedEvent::FScopedSelectionChangedEvent(const TSharedRef<SPathView>& InPathView, const bool InShouldEmitEvent)
+	: PathView(InPathView)
+	, bShouldEmitEvent(InShouldEmitEvent)
+{
+	PathView->PreventTreeItemChangedDelegateCount++;
+	InitialSelectionSet = GetSelectionSet();
+}
+
+SPathView::FScopedSelectionChangedEvent::~FScopedSelectionChangedEvent()
+{
+	check(PathView->PreventTreeItemChangedDelegateCount > 0);
+	PathView->PreventTreeItemChangedDelegateCount--;
+
+	if (bShouldEmitEvent)
+	{
+		const TSet<FName> FinalSelectionSet = GetSelectionSet();
+		const bool bHasSelectionChanges = InitialSelectionSet.Num() != FinalSelectionSet.Num() || InitialSelectionSet.Difference(FinalSelectionSet).Num() > 0;
+		if (bHasSelectionChanges)
+		{
+			const TArray<TSharedPtr<FTreeItem>> SelectedItems = PathView->TreeViewPtr->GetSelectedItems();
+			PathView->TreeSelectionChanged(SelectedItems.Num() > 0 ? SelectedItems[0] : nullptr, ESelectInfo::Direct);
+		}
+	}
+}
+
+TSet<FName> SPathView::FScopedSelectionChangedEvent::GetSelectionSet() const
+{
+	TSet<FName> SelectionSet;
+
+	const TArray<TSharedPtr<FTreeItem>> SelectedItems = PathView->TreeViewPtr->GetSelectedItems();
+	for (const TSharedPtr<FTreeItem>& Item : SelectedItems)
+	{
+		if (ensure(Item.IsValid()))
+		{
+			SelectionSet.Add(Item->GetItem().GetVirtualPath());
+		}
+	}
+
+	return SelectionSet;
+}
+
 SPathView::~SPathView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem();
-		ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
-		ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
-		ContentBrowserData->OnItemDataDiscoveryComplete().RemoveAll(this);
+		if (UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem())
+		{
+			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+			ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+			ContentBrowserData->OnItemDataDiscoveryComplete().RemoveAll(this);
+		}
 	}
 
 	SearchBoxFolderFilter->OnChanged().RemoveAll( this );
@@ -210,7 +253,7 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 			Path.ParseIntoArray(PathItemListStr, TEXT("/"), /*InCullEmpty=*/true);
 
 			PathItemList.Reserve(PathItemListStr.Num());
-			for (const FString PathItemName : PathItemListStr)
+			for (const FString& PathItemName : PathItemListStr)
 			{
 				PathItemList.Add(*PathItemName);
 			}
@@ -1040,8 +1083,11 @@ FText SPathView::GetHighlightText() const
 
 void SPathView::Populate()
 {
-	// Don't allow the selection changed delegate to be fired here
-	FScopedPreventTreeItemChangedDelegate DelegatePrevention( SharedThis(this) );
+	const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
+
+	// Batch the selection changed event
+	// Only emit events when the user isn't filtering, as the selection may be artificially limited by the filter
+	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this), !bFilteringByText);
 
 	// Clear all root items and clear selection
 	TreeRootItems.Empty();
@@ -1050,8 +1096,6 @@ void SPathView::Populate()
 	// Populate the view
 	{
 		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-
-		const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
 		const bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
 
 		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
@@ -1064,7 +1108,7 @@ void SPathView::Populate()
 			{
 				// Use the whole path so we deliberately include any children of matched parents in the filtered list
 				const FString PathStr = InItemData.GetVirtualPath().ToString();
-				bPassesFilter |= SearchBoxFolderFilter->PassesFilter(PathStr);
+				bPassesFilter &= SearchBoxFolderFilter->PassesFilter(PathStr);
 			}
 
 			if (bPassesFilter)
@@ -1391,14 +1435,15 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 		return;
 	}
 
-	// Don't allow the selection changed delegate to be fired here
-	FScopedPreventTreeItemChangedDelegate DelegatePrevention(SharedThis(this));
+	const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
+
+	// Batch the selection changed event
+	// Only emit events when the user isn't filtering, as the selection may be artificially limited by the filter
+	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this), !bFilteringByText);
 
 	const double HandleItemDataUpdatedStartTime = FPlatformTime::Seconds();
 
 	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-
-	const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
 	const bool bDisplayEmpty = ContentBrowserSettings->DisplayEmptyFolders;
 
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();

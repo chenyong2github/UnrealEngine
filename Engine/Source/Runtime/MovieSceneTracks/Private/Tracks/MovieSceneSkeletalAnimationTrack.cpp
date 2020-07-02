@@ -7,6 +7,7 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
+#include "Compilation/MovieSceneEvaluationTreePopulationRules.h"
 #include "MovieScene.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationTrack"
@@ -32,6 +33,11 @@ UMovieSceneSkeletalAnimationTrack::UMovieSceneSkeletalAnimationTrack(const FObje
 
 /* UMovieSceneSkeletalAnimationTrack interface
  *****************************************************************************/
+
+FMovieSceneEvalTemplatePtr UMovieSceneSkeletalAnimationTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	return FMovieSceneSkeletalAnimationSectionTemplate(*CastChecked<const UMovieSceneSkeletalAnimationSection>(&InSection));
+}
 
 UMovieSceneSection* UMovieSceneSkeletalAnimationTrack::AddNewAnimationOnRow(FFrameNumber KeyTime, UAnimSequenceBase* AnimSequence, int32 RowIndex)
 {
@@ -143,27 +149,32 @@ FText UMovieSceneSkeletalAnimationTrack::GetDefaultDisplayName() const
 
 #endif
 
-FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneSkeletalAnimationTrack::GetRowSegmentBlender() const
+bool UMovieSceneSkeletalAnimationTrack::PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const
 {
-	// Apply an upper bound exclusive blend
-	struct FSkeletalAnimationRowCompilerRules : FMovieSceneTrackRowSegmentBlender
+	using namespace UE::MovieScene;
+
+	if (!bUseLegacySectionIndexBlend)
 	{
-		bool bUseLegacySectionIndexBlend;
-		FSkeletalAnimationRowCompilerRules(bool bInUseLegacySectionIndexBlend) : bUseLegacySectionIndexBlend(bInUseLegacySectionIndexBlend) {}
-
-		virtual void Blend(FSegmentBlendData& BlendData) const override
+		FEvaluationTreePopulationRules::HighPassPerRow(AnimationSections, OutData);
+	}
+	else
+	{
+		// Use legacy blending... when there's overlapping, the section that makes it into the evaluation tree is
+		// the one that appears later in the container arary of section data.
+		//
+		auto SortByLatestInArrayAndRow = [](const FEvaluationTreePopulationRules::FSortedSection& A, const FEvaluationTreePopulationRules::FSortedSection& B)
 		{
-			// Run the default high pass filter for overlap priority
-			MovieSceneSegmentCompiler::FilterOutUnderlappingSections(BlendData);
-
-			if (bUseLegacySectionIndexBlend)
+			if (A.Row() == B.Row())
 			{
-				// Weed out based on array index (legacy behaviour)
-				MovieSceneSegmentCompiler::BlendSegmentLegacySectionOrder(BlendData);
+				return A.Index > B.Index;
 			}
-		}
-	};
-	return FSkeletalAnimationRowCompilerRules(bUseLegacySectionIndexBlend);
+			
+			return A.Row() < B.Row();
+		};
+
+		UE::MovieScene::FEvaluationTreePopulationRules::HighPassCustomPerRow(AnimationSections, OutData, SortByLatestInArrayAndRow);
+	}
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

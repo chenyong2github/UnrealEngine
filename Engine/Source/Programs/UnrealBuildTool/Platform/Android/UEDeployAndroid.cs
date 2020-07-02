@@ -3322,8 +3322,12 @@ namespace UnrealBuildTool
 				RequiredOBBFiles.Add(PatchFileLocation);
 			}
 
-			// Generate the OBBData.java file if out of date (can skip rewriting it if packaging inside Apk in some cases)
-			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk, Arches[0].Substring(1));
+			// If we are not skipping Gradle build this is done per architecture so store version may be different
+			if (bSkipGradleBuild)
+			{
+				// Generate the OBBData.java file if out of date (can skip rewriting it if packaging inside Apk in some cases)
+				WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk, Arches[0].Substring(1));
+			}
 
 			// Make sure any existing proguard file in project is NOT used (back it up)
 			string ProjectBuildProguardFile = Path.Combine(GameBuildFilesPath, "proguard-project.txt");
@@ -3628,7 +3632,8 @@ namespace UnrealBuildTool
 				XDocument AdditionalBuildPathFilesDoc = new XDocument(new XElement("files"));
 				UPL.ProcessPluginNode(NDKArch, "additionalBuildPathFiles", "", ref AdditionalBuildPathFilesDoc);
 
-				// Generate the OBBData.java file again in case architecture has different store version
+				// Generate the OBBData.java file since different architectures may have different store version
+				UE4OBBDataFileName = GetUE4JavaOBBDataFileName(Path.Combine(UE4BuildPath, "src", PackageName.Replace('.', Path.DirectorySeparatorChar)));
 				WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk, Arch);
 
 				// update GameActivity.java and GameApplication.java if out of date
@@ -3960,6 +3965,12 @@ namespace UnrealBuildTool
 							continue;
 						}
 
+						// ignore OBBData.java, we won't use it
+						if (Filename.EndsWith("OBBData.java"))
+						{
+							continue;
+						}
+
 						// deal with AndroidManifest.xml
 						if (Filename.EndsWith("AndroidManifest.xml"))
 						{
@@ -4015,6 +4026,43 @@ namespace UnrealBuildTool
 							break;
 						}
 
+						// deal with buildAdditions.gradle
+						if (Filename.EndsWith("buildAdditions.gradle"))
+						{
+							// allow store filepath to differ
+							string[] SourceProperties = File.ReadAllLines(Filename);
+							string[] DestProperties = File.ReadAllLines(DestFilename);
+
+							if (SourceProperties.Length == DestProperties.Length)
+							{
+								bool bDiffers = false;
+								for (int Index = 0; Index < SourceProperties.Length; Index++)
+								{
+									if (SourceProperties[Index] == DestProperties[Index])
+									{
+										continue;
+									}
+
+									if (SourceProperties[Index].Contains("storeFile file(") && DestProperties[Index].Contains("storeFile file("))
+									{
+										continue;
+									}
+
+									bDiffers = true;
+									break;
+								}
+								if (!bDiffers)
+								{
+									continue;
+								}
+							}
+
+							// differed too much
+							bCombinedBundleOK = false;
+							Log.TraceInformation("buildAdditions.gradle files differ too much to combine for single AAB: '{0}' != '{1}'", Filename, DestFilename);
+							break;
+						}
+
 						// deal with gradle.properties
 						if (Filename.EndsWith("gradle.properties"))
 						{
@@ -4034,6 +4082,11 @@ namespace UnrealBuildTool
 									}
 
 									if (SourceProperties[Index].StartsWith("STORE_VERSION=") && DestProperties[Index].StartsWith("STORE_VERSION="))
+									{
+										continue;
+									}
+
+									if (SourceProperties[Index].StartsWith("STORE_FILE=") && DestProperties[Index].StartsWith("STORE_FILE="))
 									{
 										continue;
 									}

@@ -86,8 +86,8 @@ TFrameValue<int32> SRetainerWidget::Shared_RetainerWorkThisFrame(0);
 SRetainerWidget::SRetainerWidget()
 	: EmptyChildSlot(this)
 	, VirtualWindow(SNew(SVirtualWindow))
+	, HittestGrid(MakeShared<FHittestGrid>())
 	, RenderingResources(new FRetainerWidgetRenderingResources)
-
 {
 	FSlateApplicationBase::Get().OnGlobalInvalidationToggled().AddRaw(this, &SRetainerWidget::OnGlobalInvalidationToggled);
 	if (FSlateApplication::IsInitialized())
@@ -98,7 +98,7 @@ SRetainerWidget::SRetainerWidget()
 	}
 	bHasCustomPrepass = true;
 	SetInvalidationRootWidget(*this);
-	SetInvalidationRootHittestGrid(HittestGrid);
+	SetInvalidationRootHittestGrid(HittestGrid.Get());
 	SetCanTick(false);
 }
 
@@ -479,12 +479,15 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		SCOPE_CYCLE_COUNTER(STAT_SlateRetainerWidgetPaint);
 
 		// Copy hit test grid settings from the root
-		const bool bHittestCleared = HittestGrid.SetHittestArea(Args.RootGrid.GetGridOrigin(), Args.RootGrid.GetGridSize(), Args.RootGrid.GetGridWindowOrigin());
+		const bool bHittestCleared = HittestGrid->SetHittestArea(Args.RootGrid.GetGridOrigin(), Args.RootGrid.GetGridSize(), Args.RootGrid.GetGridWindowOrigin());
 		if (bHittestCleared)
 		{
 			MutableThis->RequestRender();
 		}
-		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid);
+		HittestGrid->SetOwner(this);
+		HittestGrid->SetCullingRect(MyCullingRect);
+
+		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid.Get());
 
 		// Copy the current user index into the new grid since nested hittest grids should inherit their parents user id
 		NewArgs.GetHittestGrid().SetUserIndex(Args.RootGrid.GetUserIndex());
@@ -529,10 +532,9 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		}
 
 		// add our widgets to the root hit test grid
-		TSharedPtr<SWidget> Owner = MutableThis->AsShared();
-		Context.PaintArgs->RootGrid.AppendGrid(HittestGrid, Owner);
+		Args.GetHittestGrid().AddGrid(HittestGrid);
 
-		return Context.IncomingLayerId;
+		return GetCachedMaxLayerId();
 	}
 	else
 	{
@@ -556,7 +558,7 @@ void SRetainerWidget::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnable
 {
 	InvalidateRoot();
 
-	ClearAllFastPathData(false);
+	ClearAllFastPathData(true);
 }
 
 bool SRetainerWidget::CustomPrepass(float LayoutScaleMultiplier)
@@ -575,5 +577,13 @@ bool SRetainerWidget::CustomPrepass(float LayoutScaleMultiplier)
 
 int32 SRetainerWidget::PaintSlowPath(const FSlateInvalidationContext& Context)
 {
-	return SCompoundWidget::OnPaint(*Context.PaintArgs, GetPaintSpaceGeometry(), Context.CullingRect, *Context.WindowElementList, Context.IncomingLayerId, Context.WidgetStyle, Context.bParentEnabled);
+	FGeometry AllottedGeometry = GetPaintSpaceGeometry();
+	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
+	const FVector2D RenderSize = PaintGeometry.GetLocalSize() * PaintGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+	const uint32 RenderTargetWidth = FMath::RoundToInt(RenderSize.X);
+	const uint32 RenderTargetHeight = FMath::RoundToInt(RenderSize.Y);
+	const float Scale = AllottedGeometry.Scale;
+	const FVector2D DrawSize = FVector2D(RenderTargetWidth, RenderTargetHeight);
+	const FGeometry RetainedWindowGeometry = FGeometry::MakeRoot(DrawSize * (1 / Scale), FSlateLayoutTransform(Scale, PaintGeometry.DrawPosition));
+	return SCompoundWidget::OnPaint(*Context.PaintArgs, RetainedWindowGeometry, Context.CullingRect, *Context.WindowElementList, Context.IncomingLayerId, Context.WidgetStyle, Context.bParentEnabled);
 }

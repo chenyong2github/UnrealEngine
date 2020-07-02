@@ -11,26 +11,7 @@
 
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, DefaultGravityZ(-980.f)
-	, DefaultTerminalVelocity(4000.f)
-	, DefaultFluidFriction(0.3f)
-	, SimulateScratchMemorySize(262144)
-	, RagdollAggregateThreshold(4)
-	, TriangleMeshTriangleMinAreaThreshold(5.0f)
-	, bEnableShapeSharing(false)
-	, bEnablePCM(true)
-	, bEnableStabilization(false)
-	, bWarnMissingLocks(true)
-	, bEnable2DPhysics(false)
 	, LockedAxis_DEPRECATED(ESettingsLockedAxis::Invalid)
-	, BounceThresholdVelocity(200.f)
-	, MaxAngularVelocity(3600)	//10 revolutions per second
-	, ContactOffsetMultiplier(0.02f)
-	, MinContactOffset(2.f)
-	, MaxContactOffset(8.f)
-	, bSimulateSkeletalMeshOnDedicatedServer(true)
-	, DefaultShapeComplexity((ECollisionTraceFlag)-1)
-	, bDefaultHasComplexCollision_DEPRECATED(true)
 	, bSuppressFaceRemapTable(false)
 	, bDisableActiveActors(false)
 	, bEnableEnhancedDeterminism(false)
@@ -43,8 +24,8 @@ UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	, SyncSceneSmoothingFactor(0.0f)
 	, InitialAverageFrameRate(1.f / 60.f)
 	, PhysXTreeRebuildRate(10)
+	, MinDeltaVelocityForHitEvents(0.f)
 {
-	SectionName = TEXT("Physics");
 }
 
 void UPhysicsSettings::PostInitProperties()
@@ -79,11 +60,6 @@ void UPhysicsSettings::PostInitProperties()
 		}
 
 		LockedAxis_DEPRECATED = ESettingsLockedAxis::Invalid;
-	}
-
-	if(DefaultShapeComplexity == TEnumAsByte<ECollisionTraceFlag>(-1))
-	{
-		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
 
 	// Temporarily override dedicated thread to taskgraph. The enum selection for dedicated

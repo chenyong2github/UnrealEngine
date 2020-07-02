@@ -1585,10 +1585,6 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::BothWays"), TEXT("ENavLinkDirection::BothWays"));
 	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::OneWay"), TEXT("ENavLinkDirection::LeftToRight"));
 
-	FCoreRedirect& EPhysicsType = ENUM_REDIRECT("EPhysicsType", "EPhysicsType");
-	EPhysicsType.ValueChanges.Add(TEXT("PhysType_Fixed"), TEXT("PhysType_Kinematic"));
-	EPhysicsType.ValueChanges.Add(TEXT("PhysType_Unfixed"), TEXT("PhysType_Simulated"));
-
 	FCoreRedirect& ESceneTextureId = ENUM_REDIRECT("ESceneTextureId", "ESceneTextureId");
 	ESceneTextureId.ValueChanges.Add(TEXT("PPI_LightingModel"), TEXT("PPI_ShadingModelColor"));
 

@@ -44,6 +44,8 @@ struct FPSCTickData
  	uint8 bCanTickConcurrent : 1;
 	/** True if we've unregistered during this frame. Skips the tick this frame and will remove from the lists next frame. */
 	uint8 bPendingUnregister : 1;
+	/** True if we've been registered on the same frame we've just unregistered. These need to be immediately re-registered once they've been removed. */
+	uint8 bPendingReregister : 1;
 };
 
 USTRUCT()

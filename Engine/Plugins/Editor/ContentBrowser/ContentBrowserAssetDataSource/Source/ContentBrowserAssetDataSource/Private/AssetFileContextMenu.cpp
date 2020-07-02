@@ -135,6 +135,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 		GetSelectedAssetSourceFilePaths(ResolvedFilePaths, SourceFileLabels, ValidSelectedAssetCount);
 
 		FToolMenuSection& Section = Menu->AddSection("ImportedAssetActions", LOCTEXT("ImportedAssetActionsMenuHeading", "Imported Asset"));
+		Section.InsertPosition = FToolMenuInsert("CommonAssetActions", EToolMenuInsertType::Before);
 		{
 			auto CreateSubMenu = [this](UToolMenu* SubMenu, bool bReimportWithNewFile)
 			{
@@ -959,7 +960,7 @@ void FAssetFileContextMenu::ExecuteCreateLocalizedAsset(TSet<FName> InSelectedSo
 	TArray<UPackage*> PackagesToSave;
 	TArray<FAssetData> NewObjects;
 
-	for (const FName SourceAssetName : InSelectedSourceAssets)
+	for (const FName& SourceAssetName : InSelectedSourceAssets)
 	{
 		if (InLocalizedAssetsStateForCulture.CurrentAssets.Contains(SourceAssetName))
 		{

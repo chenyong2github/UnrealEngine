@@ -1,4 +1,4 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_ASSETS_DEFINE_H
@@ -30,6 +30,26 @@ enum EnumRailAssetOrigin {
     kRailAssetOriginDrop = 8,
 };
 
+struct RailAssetItem {
+    RailAssetItem() {
+        asset_id = 0;
+        quantity = 0;
+    };
+
+    RailAssetID asset_id;
+    uint32_t quantity;
+};
+
+struct RailGeneratedAssetItem {
+    RailGeneratedAssetItem() {
+        product_id = 0;
+        container_id = 0;
+    }
+    RailProductID product_id;
+    RailAssetItem asset;
+    uint64_t container_id;
+};
+
 struct RailAssetInfo {
     RailAssetInfo() {
         asset_id = 0;
@@ -40,8 +60,8 @@ struct RailAssetInfo {
         flag = kRailAssetFlagsNotSale;
         origin = kRailAssetOriginGenerate;
         expire_time = 0;
+        container_id = 0;
     }
-
     RailAssetID asset_id;
     RailProductID product_id;
     RailString product_name;  // defined here to prevent from querying too much
@@ -52,16 +72,7 @@ struct RailAssetInfo {
     uint32_t flag;    // refer to EnumRailAssetFlags.
     uint32_t origin;  // refer to EnumRailAssetOrigin.
     uint32_t expire_time;  // UTC time. If expire_time is zero, this is a permanent asset.
-};
-
-struct RailAssetItem {
-    RailAssetItem() {
-        asset_id = 0;
-        quantity = 0;
-    };
-
-    RailAssetID asset_id;
-    uint32_t quantity;
+    uint64_t container_id;
 };
 
 struct RailProductItem {
@@ -167,11 +178,10 @@ struct CompleteConsumeByExchangeAssetsToFinished
 };
 
 struct ExchangeAssetsFinished : public RailEvent<kRailEventAssetsExchangeAssetsFinished> {
-    ExchangeAssetsFinished() { new_asset_id = 0; }
+    ExchangeAssetsFinished() {}
 
     RailArray<RailAssetItem> old_assets;
-    RailProductItem to_product_info;
-    RailAssetID new_asset_id;
+    RailArray<RailGeneratedAssetItem> new_asset_item_list;
 };
 
 struct ExchangeAssetsToFinished : public RailEvent<kRailEventAssetsExchangeAssetsToFinished> {

@@ -5,6 +5,7 @@
 #include "Particles/Emitter.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Evaluation/MovieSceneEvaluation.h"
+#include "MovieSceneTimeHelpers.h"
 #include "IMovieScenePlayer.h"
 
 
@@ -131,7 +132,16 @@ void FMovieSceneParticleSectionTemplate::Evaluate(const FMovieSceneEvaluationOpe
 		TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
 		TArrayView<const uint8>        Values = ChannelData.GetValues();
 
-		const int32 LastKeyIndex = Algo::UpperBound(Times, PlaybackRange.GetUpperBoundValue())-1;
+		FFrameNumber ExclusiveEndFrame = UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange.GetUpperBound());
+
+		int32 LastKeyIndex = Algo::UpperBound(Times, ExclusiveEndFrame)-1;
+
+		// If Algo::UpperBound returns a value greater or equal to the exclusive upper bound of the range, use the index before it
+		if (LastKeyIndex >= 0 && Times[LastKeyIndex] >= ExclusiveEndFrame)
+		{
+			--LastKeyIndex;
+		}
+
 		if (LastKeyIndex >= 0)
 		{
 			EParticleKey ParticleKey((EParticleKey)Values[LastKeyIndex]);

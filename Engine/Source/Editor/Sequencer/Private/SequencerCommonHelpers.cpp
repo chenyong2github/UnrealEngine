@@ -3,12 +3,23 @@
 #include "SequencerCommonHelpers.h"
 #include "SequencerSelectedKey.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
+#include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
+#include "Sequencer.h"
 #include "SSequencer.h"
 #include "ISequencerHotspot.h"
+#include "SSequencerSection.h"
 #include "SSequencerTreeView.h"
 #include "VirtualTrackArea.h"
 #include "SequencerContextMenus.h"
+#include "IDetailsView.h"
+#include "IStructureDetailsView.h"
+#include "FrameNumberDetailsCustomization.h"
+#include "MovieSceneSectionDetailsCustomization.h"
+#include "MovieSceneSequence.h"
+#include "MovieScene.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 
 void SequencerHelpers::GetAllKeyAreas(TSharedPtr<FSequencerDisplayNode> DisplayNode, TSet<TSharedPtr<IKeyArea>>& KeyAreas)
 {
@@ -402,4 +413,92 @@ TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, c
 	}
 
 	return nullptr;
+}
+
+/** A widget which wraps the section details view which is an FNotifyHook which is used to forward
+	changes to the section to sequencer. */
+class SSectionDetailsNotifyHookWrapper : public SCompoundWidget, public FNotifyHook
+{
+public:
+	SLATE_BEGIN_ARGS(SSectionDetailsNotifyHookWrapper) {}
+	SLATE_END_ARGS();
+
+	void Construct(FArguments InArgs) { }
+
+	void SetDetailsAndSequencer(TSharedRef<SWidget> InDetailsPanel, TSharedRef<ISequencer> InSequencer)
+	{
+		ChildSlot
+		[
+			InDetailsPanel
+		];
+		Sequencer = InSequencer;
+	}
+
+	//~ FNotifyHook interface
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override
+	{
+		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+	}
+
+private:
+	TSharedPtr<ISequencer> Sequencer;
+};
+
+
+void SequencerHelpers::AddPropertiesMenu(FSequencer& Sequencer, FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& Sections)
+{
+	TSharedRef<SSectionDetailsNotifyHookWrapper> DetailsNotifyWrapper = SNew(SSectionDetailsNotifyHookWrapper);
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bCustomFilterAreaLocation = true;
+		DetailsViewArgs.bCustomNameAreaLocation = true;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.bShowOptions = false;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.NotifyHook = &DetailsNotifyWrapper.Get();
+		DetailsViewArgs.ColumnWidth = 0.45f;
+	}
+
+	// We pass the current scene to the UMovieSceneSection customization so we can get the overall bounds of the section when we change a section from infinite->bounded.
+	UMovieScene* CurrentScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	TSharedRef<INumericTypeInterface<double>> NumericTypeInterface = Sequencer.GetNumericTypeInterface();
+
+	TSharedRef<IDetailsView> DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
+	DetailsView->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {
+		return MakeShared<FFrameNumberDetailsCustomization>(NumericTypeInterface); }));
+	DetailsView->RegisterInstancedCustomPropertyLayout(UMovieSceneSection::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() {
+		return MakeShared<FMovieSceneSectionDetailsCustomization>(NumericTypeInterface, CurrentScene); }));
+
+	// Let section interfaces further customize the properties details view.
+	TSharedRef<FSequencerNodeTree> SequencerNodeTree = Sequencer.GetNodeTree();
+	for (TWeakObjectPtr<UObject> Section : Sections)
+	{
+		if (Section.IsValid())
+		{
+			TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Cast<UMovieSceneSection>(Section));
+			if (SectionHandle)
+			{
+				TSharedRef<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
+				FSequencerSectionPropertyDetailsViewCustomizationParams CustomizationDetails(
+					SectionInterface, Sequencer.AsShared(), SectionHandle->GetTrackNode()->GetTrackEditor());
+				TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
+				if (ParentObjectBindingNode.IsValid())
+				{
+					CustomizationDetails.ParentObjectBindingGuid = ParentObjectBindingNode->GetObjectBinding();
+				}
+				SectionInterface->CustomizePropertiesDetailsView(DetailsView, CustomizationDetails);
+			}
+		}
+	}
+
+	Sequencer.OnInitializeDetailsPanel().Broadcast(DetailsView, Sequencer.AsShared());
+	DetailsView->SetObjects(Sections);
+
+	DetailsNotifyWrapper->SetDetailsAndSequencer(DetailsView, Sequencer.AsShared());
+	MenuBuilder.AddWidget(DetailsNotifyWrapper, FText::GetEmpty(), true);
 }

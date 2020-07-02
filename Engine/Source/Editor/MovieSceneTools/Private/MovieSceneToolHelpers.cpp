@@ -15,6 +15,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "ScopedTransaction.h"
 #include "EditorStyleSet.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "EditorDirectories.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Tracks/MovieSceneFloatTrack.h"
@@ -1980,12 +1981,15 @@ bool MovieSceneToolHelpers::HasHiddenMobility(const UClass* ObjectClass)
 	return false;
 }
 
-FMovieSceneEvaluationTrack* MovieSceneToolHelpers::GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature)
+const FMovieSceneEvaluationTrack* MovieSceneToolHelpers::GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature)
 {
-	FMovieSceneEvaluationTemplate* Template = Sequencer->GetEvaluationTemplate().FindTemplate(Sequencer->GetFocusedTemplateID());
-	if (Template)
+	FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
+	FMovieSceneCompiledDataID SubDataID = Instance.GetCompiledDataManager()->GetSubDataID(Instance.GetCompiledDataID(), Sequencer->GetFocusedTemplateID());
+
 	{
-		if (FMovieSceneEvaluationTrack* EvalTrack = Template->FindTrack(TrackSignature))
+		const FMovieSceneEvaluationTemplate* Template  = SubDataID.IsValid() ? Instance.GetCompiledDataManager()->FindTrackTemplate(SubDataID) : nullptr;
+		const FMovieSceneEvaluationTrack*    EvalTrack = Template ? Template->FindTrack(TrackSignature) : nullptr;
+		if (EvalTrack)
 		{
 			return EvalTrack;
 		}
@@ -2110,12 +2114,21 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	RecordingSettings.bRecordInWorldSpace = true;
 	RecordingSettings.bRemoveRootAnimation = false;
 	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
+
+
+
 	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
 
 
 	//Begin records a frame so need to set things up first
 	AnimTrackAdapter.UpdateAnimation(LocalStartFrame );
-
+	SkelMeshComp->TickAnimation(0.03f, false);
+	SkelMeshComp->RefreshBoneTransforms();
+	SkelMeshComp->RefreshSlaveComponents();
+	SkelMeshComp->UpdateComponentToWorld();
+	SkelMeshComp->FinalizeBoneTransform();
+	SkelMeshComp->MarkRenderTransformDirty();
+	SkelMeshComp->MarkRenderDynamicDataDirty();
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);

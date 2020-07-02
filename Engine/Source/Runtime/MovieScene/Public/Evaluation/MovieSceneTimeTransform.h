@@ -53,6 +53,14 @@ struct FMovieSceneTimeTransform
 	}
 
 	/**
+	 * Returns whether this transform is an identity transform.
+	 */
+	bool IsIdentity() const
+	{
+		return Offset.FrameNumber.Value == 0 && FMath::IsNearlyZero(Offset.GetSubFrame()) && FMath::IsNearlyEqual(TimeScale, 1.f);
+	}
+
+	/**
 	 * Retrieve the inverse of this transform
 	 */
 	FMovieSceneTimeTransform Inverse() const

@@ -68,10 +68,14 @@ enum class ECookByTheBookOptions
 	NoDefaultMaps =						0x00000200, // don't include default cook maps (this cook will probably be missing content unless you know what you are doing)
 	NoSlatePackages =					0x00000400, // don't include slate content (this cook will probably be missing content unless you know what you are doing)
 	NoInputPackages =					0x00000800, // don't include slate content (this cook will probably be missing content unless you know what you are doing)
-	DisableUnsolicitedPackages =		0x00001000, // don't cook any packages which aren't in the files to cook list (this is really dangerious as if you request a file it will not cook all it's dependencies automatically)
-	FullLoadAndSave =					0x00002000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
-	PackageStore =						0x00004000, // Cook package header information into a global package store
-	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
+	SkipSoftReferences =				0x00001000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
+	SkipHardReferences =				0x00002000, // Don't follow hard references when cooking. Not viable for a real cook, only useful for debugging
+	FullLoadAndSave =					0x00004000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
+	PackageStore =						0x00008000, // Cook package header information into a global package store
+	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
+
+	// Deprecated flags
+	DisableUnsolicitedPackages UE_DEPRECATED(4.26, "Use SkipSoftReferences and/or SkipHardReferences instead") = SkipSoftReferences | SkipHardReferences,
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -669,10 +673,11 @@ private:
 	* Get all the packages which are listed in asset registry passed in.  
 	*
 	* @param AssetRegistryPath path of the assetregistry.bin file to read
+	* @param bVerifyPackagesExist whether or not we should verify the packages exist on disk.
 	* @param OutPackageNames out list of uncooked package filenames which were contained in the asset registry file
 	* @return true if successfully read false otherwise
 	*/
-	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const;
+	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const;
 
 	/**
 	* BuildMapDependencyGraph
@@ -915,6 +920,11 @@ private:
 	FString GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory = nullptr) const;
 
 	bool IsCookingDLC() const;
+
+	/**
+	* Returns true if we're cooking against a fixed release version
+	*/
+	bool IsCookingAgainstFixedBase() const;
 
 	/**
 	* GetBaseDirectoryForDLC

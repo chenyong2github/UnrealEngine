@@ -89,6 +89,7 @@ public:
 
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR

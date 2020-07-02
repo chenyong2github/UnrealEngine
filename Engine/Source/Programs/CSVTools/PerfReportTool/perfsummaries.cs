@@ -385,6 +385,9 @@ namespace PerfSummaries
 				engineHitchToNonHitchRatio = element.GetSafeAttibute<float>("engineHitchToNonHitchRatio", 1.5f);
 				engineMinTimeBetweenHitchesMs = element.GetSafeAttibute<float>("engineMinTimeBetweenHitchesMs", 200.0f);
 			}
+
+			bIgnoreHitchTimePercent = element.GetSafeAttibute<bool>("ignoreHitchTimePercent", false);
+			bIgnoreMVP = element.GetSafeAttibute<bool>("ignoreMVP", false);
 		}
 
 		float GetEngineHitchToNonHitchRatio()
@@ -504,15 +507,21 @@ namespace PerfSummaries
 			ColumnValues.Add(fpsChartData.HitchesPerMinute.ToString("0.00"));
 			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 
-			ColumnNames.Add("HitchTimePercent");
-			ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-			ColumnValues.Add(fpsChartData.HitchTimePercent.ToString("0.00"));
-			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+			if (!bIgnoreHitchTimePercent)
+			{
+				ColumnNames.Add("HitchTimePercent");
+				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
+				ColumnValues.Add(fpsChartData.HitchTimePercent.ToString("0.00"));
+				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+			}
 
-			ColumnNames.Add("MVP" + fps.ToString());
-			ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-            ColumnValues.Add(fpsChartData.MVP.ToString("0.00"));
-			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+			if (!bIgnoreMVP)
+			{
+				ColumnNames.Add("MVP" + fps.ToString());
+				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
+				ColumnValues.Add(fpsChartData.MVP.ToString("0.00"));
+				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+			}
 
 			foreach (string statName in stats)
             {
@@ -624,11 +633,17 @@ namespace PerfSummaries
                     ColumnValues.Add(captureFpsChartData.HitchesPerMinute.ToString("0.00"));
                     ColumnColors.Add(GetStatThresholdColour("Hitches/Min", captureFpsChartData.HitchesPerMinute));
 
-					ColumnValues.Add(captureFpsChartData.HitchTimePercent.ToString("0.00"));
-					ColumnColors.Add(GetStatThresholdColour("HitchTimePercent", captureFpsChartData.HitchTimePercent));
+					if (!bIgnoreHitchTimePercent)
+					{
+						ColumnValues.Add(captureFpsChartData.HitchTimePercent.ToString("0.00"));
+						ColumnColors.Add(GetStatThresholdColour("HitchTimePercent", captureFpsChartData.HitchTimePercent));
+					}
 
-					ColumnValues.Add(captureFpsChartData.MVP.ToString("0.00"));
-                    ColumnColors.Add(GetStatThresholdColour("MVP" + fps.ToString(), captureFpsChartData.MVP));
+					if (!bIgnoreMVP)
+					{
+						ColumnValues.Add(captureFpsChartData.MVP.ToString("0.00"));
+						ColumnColors.Add(GetStatThresholdColour("MVP" + fps.ToString(), captureFpsChartData.MVP));
+					}
 
                     foreach (string statName in stats)
                     {
@@ -701,6 +716,8 @@ namespace PerfSummaries
         int fps;
         float hitchThreshold;
 		bool bUseEngineHitchMetric;
+		bool bIgnoreHitchTimePercent;
+		bool bIgnoreMVP;
 		float engineHitchToNonHitchRatio;
 		float engineMinTimeBetweenHitchesMs;
 	};

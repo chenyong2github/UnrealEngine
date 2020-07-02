@@ -20,27 +20,6 @@ struct FImaginaryReflectionGBufferData
 	uint ValidSamples;
 };
 
-struct FSortedReflectionRay
-{
-	float3	Origin;
-	uint	PixelCoordinates;
-	float3	Direction;
-	uint	DebugSortKey;
-};
-
-uint PackPixelCoordinates(uint2 PixelCoordinates)
-{
-	return (PixelCoordinates.x & 0xFFFF)
-	     | (PixelCoordinates.y << 16);
-}
-
-uint2 UnpackPixelCoordinates(uint PixelCoordinates)
-{
-	return uint2(
-		PixelCoordinates & 0xFFFF,
-		PixelCoordinates >> 16);
-}
-
 float GetRoughnessFade(float Roughness, float MaxRoughness)
 {
 	float RoughnessMaskScale = -2.0 / MaxRoughness;

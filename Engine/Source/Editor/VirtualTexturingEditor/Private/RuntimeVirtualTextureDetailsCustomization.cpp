@@ -1,16 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RuntimeVirtualTextureDetailsCustomization.h"
 
+#include "AssetToolsModule.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "RuntimeVirtualTextureBuild.h"
+#include "Engine/Texture2D.h"
+#include "Factories/Texture2dFactoryNew.h"
+#include "RuntimeVirtualTextureBuildMinMaxHeight.h"
+#include "RuntimeVirtualTextureBuildStreamingMips.h"
+#include "RuntimeVirtualTextureSetBounds.h"
 #include "ScopedTransaction.h"
 #include "SResetToDefaultMenu.h"
+#include "VirtualTextureBuilderFactory.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "VT/VirtualTextureBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -169,9 +175,14 @@ TSharedRef<IDetailCustomization> FRuntimeVirtualTextureComponentDetailsCustomiza
 	return MakeShareable(new FRuntimeVirtualTextureComponentDetailsCustomization);
 }
 
+bool FRuntimeVirtualTextureComponentDetailsCustomization::IsMinMaxTextureEnabled() const
+{
+	return RuntimeVirtualTextureComponent->IsMinMaxTextureEnabled();
+}
+
 void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Get and store the linked URuntimeVirtualTextureComponent
+	// Get and store the linked URuntimeVirtualTextureComponent.
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 	if (ObjectsBeingCustomized.Num() > 1)
@@ -184,6 +195,30 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		return;
 	}
 
+	// TransformFromBounds button.
+	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
+
+	BoundsCategory
+	.AddCustomRow(LOCTEXT("Button_SetBounds", "Set Bounds"))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
+		.ToolTipText(LOCTEXT("Button_SetBounds_Tooltip", "Set the rotation to match the Bounds Align Actor and expand bounds to include all primitives that write to this virtual texture."))
+	]
+	.ValueContent()
+	.MinDesiredWidth(125.f)
+	[
+		SNew(SButton)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
+		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds)
+	];
+
+	// VirtualTextureBuild buttons.
 	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTextureBuild", FText::GetEmpty());
 	
 	VirtualTextureCategory
@@ -193,6 +228,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"))
+		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -202,7 +238,6 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Build", "Build"))
-		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
 	];
 
@@ -213,6 +248,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"))
+		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -222,20 +258,124 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_Build", "Build"))
-		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug)
 	];
+
+	VirtualTextureCategory
+	.AddCustomRow(LOCTEXT("Button_BuildMinMaxTexture", "Build MinMax Texture"), true)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Button_BuildMinMaxTexture", "Build MinMax Texture"))
+		.ToolTipText(LOCTEXT("Button_BuildMinMaxTexture_Tooltip", "Build the min/max height texture"))
+	]
+	.ValueContent()
+	.MaxDesiredWidth(125.f)
+	[
+		SNew(SButton)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.Text(LOCTEXT("Button_Build", "Build"))
+		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildMinMaxTexture)
+		.IsEnabled(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsMinMaxTextureEnabled)
+	];
+}
+
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
+{
+	const FScopedTransaction Transaction(LOCTEXT("Transaction_SetBounds", "Set RuntimeVirtualTextureComponent Bounds"));
+	RuntimeVirtualTexture::SetBounds(RuntimeVirtualTextureComponent);
+	return FReply::Handled();
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()
 {
-	bool bOK = RuntimeVirtualTexture::BuildStreamedMips(RuntimeVirtualTextureComponent, ERuntimeVirtualTextureDebugType::None);
-	return bOK ? FReply::Handled() : FReply::Unhandled();
+	return BuildStreamedMipsInternal(false);
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug()
 {
-	bool bOK = RuntimeVirtualTexture::BuildStreamedMips(RuntimeVirtualTextureComponent, ERuntimeVirtualTextureDebugType::Debug);
+	return BuildStreamedMipsInternal(true);
+}
+
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMipsInternal(bool bDebug)
+{
+	// Create a new asset if none is already bound
+	UVirtualTextureBuilder* CreatedTexture = nullptr;
+	if (RuntimeVirtualTextureComponent->GetStreamingTexture() == nullptr)
+	{
+		FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+
+		const FString DefaultPath = FPackageName::GetLongPackagePath(RuntimeVirtualTextureComponent->GetVirtualTexture()->GetPathName());
+		const FString DefaultName = FPackageName::GetShortName(RuntimeVirtualTextureComponent->GetVirtualTexture()->GetName() + TEXT("_SVT"));
+
+		UFactory* Factory = NewObject<UVirtualTextureBuilderFactory>();
+		UObject* Object = AssetToolsModule.Get().CreateAssetWithDialog(DefaultName, DefaultPath, UVirtualTextureBuilder::StaticClass(), Factory);
+		CreatedTexture = Cast<UVirtualTextureBuilder>(Object);
+	}
+
+	// Build the texture contents
+	bool bOK = false;
+	if (RuntimeVirtualTextureComponent->GetStreamingTexture() != nullptr || CreatedTexture != nullptr)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Transaction_BuildDebugStreamingMips", "Build Streaming Mips"));
+
+		if (CreatedTexture != nullptr)
+		{
+			RuntimeVirtualTextureComponent->Modify();
+			RuntimeVirtualTextureComponent->SetStreamingTexture(CreatedTexture);
+		}
+
+		RuntimeVirtualTextureComponent->GetStreamingTexture()->Modify();
+
+		const ERuntimeVirtualTextureDebugType DebugType = bDebug ? ERuntimeVirtualTextureDebugType::Debug : ERuntimeVirtualTextureDebugType::None;
+		if (RuntimeVirtualTexture::BuildStreamedMips(RuntimeVirtualTextureComponent, DebugType))
+		{
+			bOK = true;
+		}
+	}
+
+	return bOK ? FReply::Handled() : FReply::Unhandled();
+}
+
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildMinMaxTexture()
+{
+	// Create a new asset if none is already bound
+	UTexture2D* CreatedTexture = nullptr;
+	if (RuntimeVirtualTextureComponent->GetMinMaxTexture() == nullptr)
+	{
+		FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+
+		const FString DefaultPath = FPackageName::GetLongPackagePath(RuntimeVirtualTextureComponent->GetVirtualTexture()->GetPathName());
+		const FString DefaultName = FPackageName::GetShortName(RuntimeVirtualTextureComponent->GetVirtualTexture()->GetName() + TEXT("_MinMax"));
+
+		UFactory* Factory = NewObject<UTexture2DFactoryNew>();
+		UObject* Object = AssetToolsModule.Get().CreateAssetWithDialog(DefaultName, DefaultPath, UTexture2D::StaticClass(), Factory);
+		CreatedTexture = Cast<UTexture2D>(Object);
+	}
+
+	// Build the texture contents
+	bool bOK = false;
+	if (RuntimeVirtualTextureComponent->GetMinMaxTexture() != nullptr || CreatedTexture != nullptr)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Transaction_BuildMinMaxTexture", "Build MinMax Texture"));
+
+		if (CreatedTexture != nullptr)
+		{
+			RuntimeVirtualTextureComponent->Modify();
+			RuntimeVirtualTextureComponent->SetMinMaxTexture(CreatedTexture);
+		}
+
+		RuntimeVirtualTextureComponent->GetMinMaxTexture()->Modify();
+
+		if (RuntimeVirtualTexture::BuildMinMaxHeightTexture(RuntimeVirtualTextureComponent))
+		{
+			bOK = true;
+		}
+	}
+
 	return bOK ? FReply::Handled() : FReply::Unhandled();
 }
 

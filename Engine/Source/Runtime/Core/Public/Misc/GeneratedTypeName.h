@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Delegates/IntegerSequence.h"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 	#define SIG __FUNCSIG__
 	#define SIG_STARTCHAR '<'
 	#define SIG_ENDCHAR '>'

@@ -33,12 +33,12 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosCollisionContactMovementAllowance(TEXT("p.Chaos.Collision.AntiJitterContactMovementAllowance"), Chaos_Collision_ContactMovementAllowance, 
 			TEXT("If a contact is close to where it was during a previous iteration, we will assume it is the same contact that moved (to reduce jitter). Expressed as the fraction of movement distance and Centre of Mass distance to the contact point"));
 
-		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context)
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
-			UpdateManifold(Constraint, Transform0, Transform1, CullDistance, Context);
+			UpdateManifold(Constraint, Transform0, Transform1, CullDistance);
 		}
 
 		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance)
@@ -122,6 +122,17 @@ namespace Chaos
 			}
 		}
 
+		// The Relaxation factor has an effect of reducing overshoot in solutions, but it will decrease the rate of convergence
+		// Example: Without relaxation a cube falling directly on its face at high velocity will create an overly large impulse on the first few contacts
+		// causing it to roll off in a random direction.
+		// Todo: Relaxation may be removed when tracking individual contact point's accumulated impulses (e.g. manifolds), since the over-reaction will be corrected
+		FReal CalculateRelaxationFactor(const FContactIterationParameters& IterationParameters)
+		{
+			const FReal RelaxationNumerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
+			FReal RelaxationFactor = RelaxationNumerator / (FReal)IterationParameters.NumIterations;
+			return RelaxationFactor;
+		}
+
 		// Calculate velocity corrections due to the given contact
 		// This function uses AccumulatedImpulse Clipping, so 
 		// AccumulatedImpulse is both an input and an output
@@ -168,7 +179,7 @@ namespace Chaos
 			FVec3 AngularImpulse(0);
 
 			// Resting contact if very close to the surface
-			const bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * IterationParameters.Dt)) && bInApplyRestitution;
+			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
 			const FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 			const FReal Friction = bInApplyFriction ? Contact.Friction : (FReal)0; // Add friction even when pushing out
 			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumelated angular impulse clipping, todo: experiment with this later
@@ -180,14 +191,7 @@ namespace Chaos
 
 			if (bInApplyRelaxation)
 			{
-				// The Relaxation factor has an effect of reducing overshoot in solutions, but it will decrease the rate of convergence
-				// Example: Without relaxation a cube falling directly on its face at high velocity will create an overly large impulse on the first few contacts
-				// causing it to roll off in a random direction.
-				// Todo: Relaxation may be removed when tracking individual contact point's accumulated impulses (e.g. manifolds), since the over-reaction will be corrected
-
-				const FReal RelaxationNumerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
-				FReal RelaxationFactor = RelaxationNumerator / (FReal)IterationParameters.NumIterations;
-				Impulse = RelaxationFactor * Impulse;
+				Impulse *= CalculateRelaxationFactor(IterationParameters);
 			}
 
 			FReal RelativeScale;// Use this as a scale to avoid absolute distances
@@ -217,13 +221,7 @@ namespace Chaos
 				// non zero PenetrationBuffer avoids a small amount of jitter added by the ApplypushOut function.
 				const FReal PenetrationBuffer = 0;
 				if (NewAccImpNormalSize > 0 && (Contact.Phi <= PenetrationBuffer + ParticleParameters.ShapePadding))
-				{
-					if (Friction <= 0)
-					{
-						ClippedAccumulatedImpulse = NewAccImpNormalSize * Contact.Normal;
-					}
-					else
-					{
+				{					
 						const FVec3 ImpulseTangential = NewUnclippedAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
 						const FReal ImpulseTangentialSize = ImpulseTangential.Size();
 						const FReal MaximumImpulseTangential = Friction * NewAccImpNormalSize;
@@ -254,8 +252,28 @@ namespace Chaos
 						}
 						else
 						{
-							ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
+						// Projecting the impulse, like in the following commented out line, is a simplification that fails with fast sliding contacts:
+						// Because: The Factor matrix will change the direction of the vectors
+						// ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
+
+						//outside friction cone, solve for normal relative velocity and keep tangent at cone edge
+						FVec3 Tangent = ImpulseTangential.GetSafeNormal();
+						FVec3 DirectionalFactor = Factor * (Contact.Normal + Friction * Tangent);
+						FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, DirectionalFactor);
+						if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nDirectionalFactor:%s, ImpulseDenominator:%f"),
+							*Contact.ToString(),
+							*Particle0->ToString(),
+							*Particle1->ToString(),
+							*DirectionalFactor.ToString(), ImpulseDenominator))
+						{
+							ImpulseDenominator = (FReal)1;
 						}
+						FReal RelativeNormalVelocity = FVec3::DotProduct(VelocityChange, Contact.Normal);
+						const FReal ImpulseMag = (1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						ClippedAccumulatedImpulse = ImpulseMag * (Contact.Normal + Friction * Tangent) + AccImp;
+						// Clip to zero
+						if (FVec3::DotProduct(ClippedAccumulatedImpulse, Contact.Normal) <= (FReal)0)
+							ClippedAccumulatedImpulse = FVec3(0);
 					}
 				}
 				else
@@ -382,7 +400,7 @@ namespace Chaos
 				FVec3 AngularImpulse(0);
 
 				// Resting contact if very close to the surface
-				bool bApplyRestitution = (RelativeVelocity.Size() > (2 * 980 * IterationParameters.Dt));
+				bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
 				FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 				FReal Friction = Contact.Friction;
 				FReal AngularFriction = Contact.AngularFriction;
@@ -457,6 +475,8 @@ namespace Chaos
 				{
 					Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 				}
+
+				Impulse *= CalculateRelaxationFactor(IterationParameters);
 				AccumulatedImpulse += Impulse;
 
 				if (bIsRigidDynamic0)
@@ -504,51 +524,51 @@ namespace Chaos
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-#if INTEL_ISPC
-			if (bChaos_Collision_ISPC_Enabled)
-			{
-				FVec3 PActor0 = Particle0->P();
-				FRotation3 QActor0 = Particle0->Q();
-				FVec3 PActor1 = Particle1->P();
-				FRotation3 QActor1 = Particle1->Q();
-				const FReal InvM0 = Particle0->InvM();
-				const FVec3 InvI0 = Particle0->InvI().GetDiagonal();
-				const FVec3 PCoM0 = Particle0->CenterOfMass();
-				const FRotation3 QCoM0 = Particle0->RotationOfMass();
-				const FReal InvM1 = Particle1->InvM();
-				const FVec3 InvI1 = Particle1->InvI().GetDiagonal();
-				const FVec3 PCoM1 = Particle1->CenterOfMass();
-				const FRotation3 QCoM1 = Particle1->RotationOfMass();
-				ispc::ApplyContact2(
-					(ispc::FCollisionContact*)&Contact,
-					(ispc::FVector&)PActor0,
-					(ispc::FVector4&)QActor0,
-					(ispc::FVector&)PActor1,
-					(ispc::FVector4&)QActor1,
-					InvM0,
-					(const ispc::FVector&)InvI0,
-					(const ispc::FVector&)PCoM0,
-					(const ispc::FVector4&)QCoM0,
-					InvM1,
-					(const ispc::FVector&)InvI1,
-					(const ispc::FVector&)PCoM1,
-					(const ispc::FVector4&)QCoM1);
-
-				if (bIsRigidDynamic0)
-				{
-					PBDRigid0->SetP(PActor0);
-					PBDRigid0->SetQ(QActor0);
-				}
-				if (bIsRigidDynamic1)
-				{
-					PBDRigid1->SetP(PActor1);
-					PBDRigid1->SetQ(QActor1);
-				}
-
-				*IterationParameters.NeedsAnotherIteration = true;
-				return AccumulatedImpulse;
-			}
-#endif
+//#if INTEL_ISPC
+//			if (bChaos_Collision_ISPC_Enabled)
+//			{
+//				FVec3 PActor0 = Particle0->P();
+//				FRotation3 QActor0 = Particle0->Q();
+//				FVec3 PActor1 = Particle1->P();
+//				FRotation3 QActor1 = Particle1->Q();
+//				const FReal InvM0 = Particle0->InvM();
+//				const FVec3 InvI0 = Particle0->InvI().GetDiagonal();
+//				const FVec3 PCoM0 = Particle0->CenterOfMass();
+//				const FRotation3 QCoM0 = Particle0->RotationOfMass();
+//				const FReal InvM1 = Particle1->InvM();
+//				const FVec3 InvI1 = Particle1->InvI().GetDiagonal();
+//				const FVec3 PCoM1 = Particle1->CenterOfMass();
+//				const FRotation3 QCoM1 = Particle1->RotationOfMass();
+//				ispc::ApplyContact2(
+//					(ispc::FCollisionContact*) &Contact,
+//					(ispc::FVector&)PActor0,
+//					(ispc::FVector4&)QActor0,
+//					(ispc::FVector&)PActor1,
+//					(ispc::FVector4&)QActor1,
+//					InvM0,
+//					(const ispc::FVector&)InvI0,
+//					(const ispc::FVector&)PCoM0,
+//					(const ispc::FVector4&)QCoM0,
+//					InvM1,
+//					(const ispc::FVector&)InvI1,
+//					(const ispc::FVector&)PCoM1,
+//					(const ispc::FVector4&)QCoM1);
+//
+//				if (bIsRigidDynamic0)
+//				{
+//					PBDRigid0->SetP(PActor0);
+//					PBDRigid0->SetQ(QActor0);
+//				}
+//				if (bIsRigidDynamic1)
+//				{
+//					PBDRigid1->SetP(PActor1);
+//					PBDRigid1->SetQ(QActor1);
+//				}
+//
+//				*IterationParameters.NeedsAnotherIteration = true;
+//				return AccumulatedImpulse;
+//			}
+//#endif
 
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
@@ -560,6 +580,34 @@ namespace Chaos
 			if (Contact.Phi < 0)
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
+
+				bool bApplyResitution = (Contact.Restitution > 0.0f);
+				bool bHaveRestitutionPadding = (Contact.RestitutionPadding > 0.0f);
+				bool bApplyFriction = (Contact.Friction > 0);
+
+				// If we have restitution, padd the constraint by an amount that enforces the outgoing velocity constraint
+				// Really this should be per contact point, not per constraint.
+				// NOTE: once we have calculated a padding, it is locked in for the rest of the iterations, and automatically
+				// included in the Phi we get back from collision detection. The first time we calculate it, we must also
+				// add the padding to the Phi (since it was from pre-padded collision detection).
+				if (bApplyResitution && !bHaveRestitutionPadding)
+				{
+					FVec3 V0 = Particle0->V();
+					FVec3 W0 = Particle0->W();
+					FVec3 V1 = Particle1->V();
+					FVec3 W1 = Particle1->W();
+					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
+					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
+					FVec3 CV = CV0 - CV1;
+					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+
+					// No restitution below threshold normal velocity (CVNormal is negative here)
+					if (CVNormal < -ParticleParameters.RestitutionVelocityThreshold)
+					{
+						Contact.RestitutionPadding = -(1.0f + Contact.Restitution) * CVNormal * IterationParameters.Dt + Contact.Phi;
+						Contact.Phi -= Contact.RestitutionPadding;
+					}
+				}
 			
 				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
 				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
@@ -570,18 +618,16 @@ namespace Chaos
 					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
 
 				// Calculate the normal correction
-				// @todo(chaos): support restitution in this mode (requires a small-impact cutoff threshold)
-				FReal Restitution = 0.0f;//Contact.Restitution;
 				FVec3 NormalError = Contact.Phi * Contact.Normal;
 				FReal NormalImpulseDenominator = FVec3::DotProduct(Contact.Normal, ContactInvI * Contact.Normal);
-				FVec3 NormalImpulseNumerator = -(1.0f + Restitution) * NormalError;
+				FVec3 NormalImpulseNumerator = -NormalError;
 				FVec3 NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
 
-				// Calculate the lateral correction
+				// Calculate lateral correction, clamped to the friction cone. Kinda.
 				FVec3 LateralCorrection = FVec3(0);
-				if (Contact.Friction > 0)
+				if (bApplyFriction)
 				{
-					// Get contact velocity
+					// @todo(ccaulfield): use initial velocity (as for restitution) and accumulate friction force per contact point
 					FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
 					FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
 					FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
@@ -593,12 +639,10 @@ namespace Chaos
 					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
 					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
-
-					// Calculate lateral correction, clamped to the friction cone. Kinda.
-					FReal CVNormalMag = FVec3::DotProduct(CV, Contact.Normal);
-					if (CVNormalMag < 0.0f)
+					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+					if (CVNormal < 0.0f)
 					{
-						FVec3 CVLateral = CV - CVNormalMag * Contact.Normal;
+						FVec3 CVLateral = CV - CVNormal * Contact.Normal;
 						FReal CVLateralMag = CVLateral.Size();
 						if (CVLateralMag > KINDA_SMALL_NUMBER)
 						{
@@ -707,6 +751,7 @@ namespace Chaos
 		
 		void ApplySweptImpl(FRigidBodySweptPointContactConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
+			const FReal TimeOfImpactErrorMargin = 20.0f;  // Large error margin in cm, this is to ensure that 1) velocity is solved for at the time of impact, and  2) the contact is not disabled
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
 
@@ -721,17 +766,19 @@ namespace Chaos
 			// P may have changed due to other constraints, so at TOI our manifold needs updating.
 			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
-			const int32 FakeIteration = FMath::Max(IterationParameters.Iteration, 1); // Force Apply to update constraint, as other constraints could've changed P
-			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const int32 FakeIteration = IterationParameters.NumIterations / 2; // For iteration count dependent effects (like relaxation)
+			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.Collided};
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
-			ApplyImpl(Constraint, IterationParametersPartialDT, ParticleParameters);
+			ApplyImpl(Constraint, IterationParametersPartialDT, CCDParticleParamaters);
 
 			// Advance P to end of frame from TOI, and Apply
 			Particle0->P() = Particle0->P() + Particle0->V() * RemainingDT;
-			ApplyImpl(Constraint, IterationParametersRemainingDT, ParticleParameters);
+			ApplyImpl(Constraint, IterationParametersRemainingDT, CCDParticleParamaters);
 		}
 
 

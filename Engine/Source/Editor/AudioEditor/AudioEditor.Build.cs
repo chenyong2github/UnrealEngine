@@ -6,48 +6,70 @@ public class AudioEditor : ModuleRules
 {
 	public AudioEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
+		PrivateIncludePaths.AddRange
+		(
+			new string[]
+			{
 				"Editor/AudioEditor/Private",
 				"Editor/AudioEditor/Private/Factories",
 				"Editor/AudioEditor/Private/AssetTypeActions"
-			});
+			}
+		);
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
+		PrivateDependencyModuleNames.AddRange
+		(
+			new string[]
+			{
 				"AudioMixer",
+				"EditorSubsystem",
 				"ToolMenus",
+				"UMG",
+				"UMGEditor",
 				"AudioExtensions"
-			});
+			}
+		);
 
-		PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange
+		(
 			new string[]
 			{
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
 				"AudioMixer",
-                "InputCore",
-                "Engine",
-                "UnrealEd",
-                "Slate",
-                "SlateCore",
-                "EditorStyle",
-                "RenderCore",
-                "LevelEditor",
-                "Landscape",
-                "PropertyEditor",
-                "DetailCustomizations",
-                "ClassViewer",
-                "GraphEditor",
-                "ContentBrowser",
-            }
-        );
+				"InputCore",
+				"Engine",
+				"UnrealEd",
+				"Slate",
+				"SlateCore",
+				"EditorStyle",
+				"RenderCore",
+				"LevelEditor",
+				"Landscape",
+				"PropertyEditor",
+				"DetailCustomizations",
+				"ClassViewer",
+				"GraphEditor",
+				"ContentBrowser",
+			}
+		);
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
+		PrivateIncludePathModuleNames.AddRange
+		(
+			new string[]
+			{
 				"AssetTools"
-			});
+			}
+		);
+
+		// Circular references that need to be cleaned up
+		CircularlyReferencedDependentModules.AddRange
+		(
+			new string[]
+			{
+				"DetailCustomizations",
+			}
+		);
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{

@@ -322,29 +322,29 @@ public:
 	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
 	UObject* FastGetAsset(bool bLoad=false) const
 	{
-		if ( !IsValid() )
+		if ( !IsValid())
 		{
 			// Do not try to find the object if the objectpath is not set
-			return NULL;
+			return nullptr;
 		}
 
 		UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, PackageName);
-		if (FoundPackage == NULL)
+		if (FoundPackage == nullptr)
 		{
 			if (bLoad)
 			{
-				return LoadObject<UObject>(NULL, *ObjectPath.ToString());
+				return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
 			}
 			else
 			{
-				return NULL;
+				return nullptr;
 			}
 		}
 
 		UObject* Asset = FindObjectFast<UObject>(FoundPackage, AssetName);
-		if (Asset == NULL && bLoad)
+		if (Asset == nullptr && bLoad)
 		{
-			return LoadObject<UObject>(NULL, *ObjectPath.ToString());
+			return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
 		}
 
 		return Asset;
@@ -353,7 +353,7 @@ public:
 	/** Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result */
 	UObject* GetAsset() const
 	{
-		if ( !IsValid() )
+		if ( !IsValid())
 		{
 			// Dont even try to find the object if the objectpath isn't set
 			return nullptr;
@@ -366,6 +366,28 @@ public:
 		}
 
 		return Asset;
+	}
+
+	/**
+	 * Used to check whether the any of the passed flags are set in the cached asset package flags.
+	 * @param	FlagsToCheck  Package flags to check for
+	 * @return	true if any of the passed in flag are set, false otherwise
+	 * @see UPackage::HasAnyPackageFlags
+	 */
+	bool HasAnyPackageFlags(uint32 FlagsToCheck) const
+	{
+		return (PackageFlags & FlagsToCheck) != 0;
+	}
+
+	/**
+	 * Used to check whether all of the passed flags are set in the cached asset package flags.
+	 * @param FlagsToCheck	Package flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 * @see UPackage::HasAllPackagesFlags
+	 */
+	bool HasAllPackageFlags(uint32 FlagsToCheck) const
+	{
+		return ((PackageFlags & FlagsToCheck) == FlagsToCheck);
 	}
 
 	UPackage* GetPackage() const

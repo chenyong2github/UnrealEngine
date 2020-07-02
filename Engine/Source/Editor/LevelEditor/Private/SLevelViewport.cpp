@@ -1121,10 +1121,6 @@ TSharedRef< SWidget > SLevelViewport::BuildViewportDragDropContextMenu()
 
 void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 {
-	// If the level is being unloaded, disable input in the viewport. Since click actions are deferred,
-	// It's possible to get into a state where the selected actors have been cleaned up by the time the click message is handled
-	LevelViewportClient->bDisableInput = (MapChangeType == EMapChangeType::TearDownWorld);
-
 	if( World && ( ( World == GetWorld() ) || ( World->EditorViews[LevelViewportClient->ViewportType].CamUpdated ) ) )
 	{
 		if( MapChangeType == EMapChangeType::LoadMap )

@@ -1018,6 +1018,10 @@ bool UObject::ConditionalFinishDestroy()
 		DebugFinishDestroyed.Add(this);
 #endif
 		FinishDestroy();
+
+		// Make sure this object can't be found through any delete listeners (annotation maps etc) after it's been FinishDestroyed
+		GUObjectArray.RemoveObjectFromDeleteListeners(this);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if( DebugFinishDestroyed.Contains(this) )
 		{
@@ -1281,6 +1285,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		UClass *ObjClass = GetClass();
 		UObject* LoadOuter = GetOuter();
 		FName LoadName = GetFName();
+		UPackage* LoadPackage = GetExternalPackage();
 
 		// Make sure this object's class's data is loaded.
 		if(ObjClass->HasAnyFlags(RF_NeedLoad) )
@@ -1318,7 +1323,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			{
 				if (UnderlyingArchive.IsLoading())
 				{
-					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter) << SA_VALUE(TEXT("LoadPackage"), LoadPackage);
 
 					// If the name we loaded is different from the current one,
 					// unhash the object, change the name and hash it again.
@@ -1350,10 +1355,13 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 						
 						LowLevelRename(LoadName,LoadOuter);
 					}
+
+					// Set the package override
+					SetExternalPackage(LoadPackage);
 				}
 				else
 				{
-					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter) << SA_VALUE(TEXT("LoadPackage"), LoadPackage);
 				}
 			}
 		}

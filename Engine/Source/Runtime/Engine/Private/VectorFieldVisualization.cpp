@@ -120,16 +120,6 @@ void FVectorFieldVisualizationVertexFactory::InitRHI()
 }
 
 /**
- * Release render resources for this vertex factory.
- */
-void FVectorFieldVisualizationVertexFactory::ReleaseRHI()
-{
-	UniformBuffer.SafeRelease();
-	VectorFieldTextureRHI = nullptr;
-	FVertexFactory::ReleaseRHI();
-}
-
-/**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
 bool FVectorFieldVisualizationVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
@@ -148,16 +138,14 @@ void FVectorFieldVisualizationVertexFactory::ModifyCompilationEnvironment(const 
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
-/**
- * Set parameters for this vertex factory instance.
- */
-void FVectorFieldVisualizationVertexFactory::SetParameters(
-	const FVectorFieldVisualizationParameters& InUniformParameters,
-	FRHITexture3D* InVectorFieldTextureRHI )
+struct FVectorFieldVisualizationUserData : public FOneFrameResource
 {
-	UniformBuffer = FVectorFieldVisualizationBufferRef::CreateUniformBufferImmediate(InUniformParameters, UniformBuffer_SingleFrame);
-	VectorFieldTextureRHI = InVectorFieldTextureRHI;
-}
+	/** Uniform buffer. */
+	FVectorFieldVisualizationBufferRef UniformBuffer;
+
+	/** Texture containing the vector field. */
+	FTexture3DRHIRef VectorFieldTextureRHI;
+};
 
 void FVectorFieldVisualizationVertexFactoryShaderParameters::GetElementShaderBindings(
 	const FSceneInterface* Scene,
@@ -171,9 +159,13 @@ void FVectorFieldVisualizationVertexFactoryShaderParameters::GetElementShaderBin
 	FVertexInputStreamArray& VertexStreams) const
 {
 	FVectorFieldVisualizationVertexFactory* VertexFactory = (FVectorFieldVisualizationVertexFactory*)InVertexFactory;
-	FRHISamplerState* SamplerStatePoint = TStaticSamplerState<SF_Point>::GetRHI();
-	ShaderBindings.Add(Shader->GetUniformBufferParameter<FVectorFieldVisualizationParameters>(), VertexFactory->UniformBuffer);
-	ShaderBindings.AddTexture(VectorFieldTexture, VectorFieldTextureSampler, SamplerStatePoint, VertexFactory->VectorFieldTextureRHI);
+	const FVectorFieldVisualizationUserData* UserData = reinterpret_cast<const FVectorFieldVisualizationUserData*>(BatchElement.UserData);
+	if (UserData)
+	{
+		FRHISamplerState* SamplerStatePoint = TStaticSamplerState<SF_Point>::GetRHI();
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FVectorFieldVisualizationParameters>(), UserData->UniformBuffer);
+		ShaderBindings.AddTexture(VectorFieldTexture, VectorFieldTextureSampler, SamplerStatePoint, UserData->VectorFieldTextureRHI);
+	}
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FVectorFieldVisualizationVertexFactory, SF_Vertex, FVectorFieldVisualizationVertexFactoryShaderParameters);
@@ -238,20 +230,30 @@ void GetVectorFieldMesh(
 
 	if (Resource && IsValidRef(Resource->VolumeTextureRHI))
 	{
+		FColoredMaterialRenderProxy* VisualizationMaterial = new FColoredMaterialRenderProxy(
+			GEngine->LevelColorationUnlitMaterial->GetRenderProxy(),
+			FLinearColor::White
+		);
+
+		Collector.RegisterOneFrameMaterialProxy(VisualizationMaterial);
+
 		// Set up parameters.
 		FVectorFieldVisualizationParameters UniformParameters;
 		UniformParameters.VolumeToWorld = VectorFieldInstance->VolumeToWorld;
 		UniformParameters.VolumeToWorldNoScale = VectorFieldInstance->VolumeToWorldNoScale;
 		UniformParameters.VoxelSize = FVector( 1.0f / Resource->SizeX, 1.0f / Resource->SizeY, 1.0f / Resource->SizeZ );
 		UniformParameters.Scale = VectorFieldInstance->Intensity * Resource->Intensity;
-		VertexFactory->SetParameters(UniformParameters, Resource->VolumeTextureRHI);
+
+		FVectorFieldVisualizationUserData* UserData = &Collector.AllocateOneFrameResource<FVectorFieldVisualizationUserData>();
+		UserData->UniformBuffer = FVectorFieldVisualizationBufferRef::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleFrame);
+		UserData->VectorFieldTextureRHI = Resource->VolumeTextureRHI;
 
 		// Create a mesh batch for the visualization.
 		FMeshBatch& MeshBatch = Collector.AllocateMesh();
 		MeshBatch.CastShadow = false;
 		MeshBatch.bUseAsOccluder = false;
 		MeshBatch.VertexFactory = VertexFactory;
-		MeshBatch.MaterialRenderProxy = GEngine->LevelColorationUnlitMaterial->GetRenderProxy();
+		MeshBatch.MaterialRenderProxy = VisualizationMaterial;
 		MeshBatch.Type = PT_LineList;
 
 		// A single mesh element.
@@ -262,6 +264,7 @@ void GetVectorFieldMesh(
 		MeshElement.MinVertexIndex = 0;
 		MeshElement.MaxVertexIndex = 1;
 		MeshElement.PrimitiveUniformBuffer = GIdentityPrimitiveUniformBuffer.GetUniformBufferRHI();
+		MeshElement.UserData = UserData;
 
 		MeshBatch.bCanApplyViewModeOverrides = false;
 		Collector.AddMesh(ViewIndex, MeshBatch);

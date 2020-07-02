@@ -24,6 +24,16 @@ static FAutoConsoleVariableRef CVarNiagaraDumpParticleParameterStores(
 );
 #endif
 
+int32 GNiagaraAllowQuickSortedParameterOffetsCopy = 1;
+static FAutoConsoleVariableRef CVarNiagaraAllowQuickSortedParameterOffetsCopy(
+	TEXT("Niagara.AllowQuickSortedParameterOffsetsCopy"),
+	GNiagaraAllowQuickSortedParameterOffetsCopy,
+	TEXT("Whether to use memcpy to copy sortedparameteroffset arrays. (default=1)\n"),
+	ECVF_Scalability
+);
+
+//////////////////////////////////////////////////////////////////////////
+
 struct FNiagaraVariableSearch
 {
 	typedef int32(*VariableCompareFunction)(const FNiagaraVariableBase&, const FNiagaraVariableBase&);
@@ -97,14 +107,6 @@ struct FNiagaraVariableSearch
 
 //////////////////////////////////////////////////////////////////////////
 
-int32 GNiagaraAllowQuickSortedParameterOffetsCopy = 1;
-static FAutoConsoleVariableRef CVarNiagaraAllowQuickSortedParameterOffetsCopy(
-	TEXT("Niagara.AllowQuickSortedParameterOffsetsCopy"),
-	GNiagaraAllowQuickSortedParameterOffetsCopy,
-	TEXT("Whether to use memcpy to copy sortedparameteroffset arrays. (default=1)\n"),
-	ECVF_Scalability
-);
-
 void FNiagaraParameterStore::CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src)
 {
 	if (GNiagaraAllowQuickSortedParameterOffetsCopy)
@@ -153,9 +155,7 @@ FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParamete
 	ParameterOffsets = Other.ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 	CopySortedParameterOffsets(Other.ReadParameterVariables());
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
-	ParameterData = Other.ParameterData;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	AssignParameterData(Other.ParameterData);
 	DataInterfaces = Other.DataInterfaces;
 	UObjects = Other.UObjects;
 	++LayoutVersion;
@@ -176,7 +176,7 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters)
 {
 	check(DestStore);
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
+	//SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
 
 	if (!Algo::FindBy(Bindings, DestStore, &BindingPair::Key))
 	{
@@ -339,7 +339,7 @@ void FNiagaraParameterStore::UnbindAll()
 
 void FNiagaraParameterStore::Rebind()
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreRebind);
+	//SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreRebind);
 	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
 	{
 		Binding.Value.Initialize(Binding.Key, this);
@@ -609,14 +609,10 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 			}
 		}
 
-		DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
-
 		CopySortedParameterOffsets(MakeArrayView(NewOffsets));
-		ParameterData = NewData;
+		AssignParameterData(NewData);
 		DataInterfaces = NewInterfaces;
 		UObjects = NewUObjects;
-
-		INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 		OnLayoutChange();
 		return true;
@@ -832,9 +828,7 @@ void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore,
 
 void FNiagaraParameterStore::SetParameterDataArray(const TArray<uint8>& InParameterDataArray, bool bNotifyAsDirty)
 {
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
-	ParameterData = InParameterDataArray;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	AssignParameterData(InParameterDataArray);
 
 	if (bNotifyAsDirty)
 	{
@@ -874,9 +868,7 @@ void FNiagaraParameterStore::InitFromSource(const FNiagaraParameterStore* SrcSto
 	ParameterOffsets = SrcStore->ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 	CopySortedParameterOffsets(SrcStore->ReadParameterVariables());
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
-	ParameterData = SrcStore->ParameterData;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	AssignParameterData(SrcStore->ParameterData);
 
 	DataInterfaces = SrcStore->DataInterfaces;
 
@@ -909,7 +901,7 @@ void FNiagaraParameterStore::Empty(bool bClearBindings)
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Empty();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	DataInterfaces.Empty();
 
@@ -931,7 +923,7 @@ void FNiagaraParameterStore::Reset(bool bClearBindings)
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Reset();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	DataInterfaces.Reset();
 
@@ -945,11 +937,7 @@ void FNiagaraParameterStore::Reset(bool bClearBindings)
 
 void FNiagaraParameterStore::OnLayoutChange()
 {
-	// The VM require that the parameter data we send it in FNiagaraScriptExecutionContext::Execute
-	// is aligned to VECTOR_WIDTH_BYTES *and* is padded with an additional VECTOR_WIDTH_BYTES.
-	// This is due to possible unaligned reads, e.g. an integer might be stored in the very last byte
-	// of the aligned parameter data due to the packing, which will spill 3 bytes outside the bounds
-	int32 ExpectedSlack = Align(ParameterData.Num(), VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
+	const int32 ExpectedSlack = PaddedParameterSize(ParameterData.Num());
 	if (ParameterData.Max() < ExpectedSlack)
 	{
 		ParameterData.Reserve(ExpectedSlack);
@@ -1021,6 +1009,22 @@ void FNiagaraParameterStore::SortParameters()
 	{
 		return FNiagaraVariableSearch::Compare(Lhs, Rhs) < 0;
 	});
+}
+
+int32 FNiagaraParameterStore::PaddedParameterSize(int32 ParameterSize)
+{
+	// The VM require that the parameter data we send it in FNiagaraScriptExecutionContext::Execute
+	// is aligned to VECTOR_WIDTH_BYTES *and* is padded with an additional VECTOR_WIDTH_BYTES.
+	// This is due to possible unaligned reads
+	return Align(ParameterSize, VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
+}
+
+void FNiagaraParameterStore::AssignParameterData(TConstArrayView<uint8> SourceParameterData)
+{
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+	ParameterData.Reserve(PaddedParameterSize(SourceParameterData.Num()));
+	ParameterData = SourceParameterData;
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 }
 
 #if WITH_EDITOR

@@ -9,7 +9,7 @@ TSharedRef<ISequencerTrackEditor> FIntegerPropertyTrackEditor::CreateTrackEditor
 }
 
 
-void FIntegerPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FIntegerPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	const int32 KeyedValue = PropertyChangedParams.GetPropertyValue<int32>();
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneIntegerChannel>(0, KeyedValue, true));
@@ -17,10 +17,14 @@ void FIntegerPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FProper
 
 bool FIntegerPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
+	IMovieSceneTrackTemplateProducer* TrackTemplateProducer = Cast<IMovieSceneTrackTemplateProducer>(Track);
+	if (!TrackTemplateProducer)
+	{
+		return false;
+	}
 
 	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
-
+	FMovieSceneEvaluationTrack EvalTrack = TrackTemplateProducer->GenerateTrackTemplate(Track);
 	FMovieSceneInterrogationData InterrogationData;
 	GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
 

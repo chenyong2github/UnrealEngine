@@ -16,6 +16,7 @@
 #include "ISequencer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneObjectBindingIDPicker"
@@ -62,7 +63,7 @@ void FMovieSceneObjectBindingIDPicker::OnGetMenuContent(FMenuBuilder& MenuBuilde
 		);
 	}
 
-	for (const TSharedPtr<FSequenceBindingNode>& Child : Node->Children)
+	for (const TSharedPtr<FSequenceBindingNode> Child : Node->Children)
 	{
 		check(Child.IsValid())
 
@@ -228,7 +229,7 @@ FMovieSceneObjectBindingID FMovieSceneObjectBindingIDPicker::GetRemappedCurrentV
 	// If the ID is in local space, remap it to the root space as according to the LocalSequenceID we were created with
 	if (Sequencer.IsValid() && LocalSequenceID != MovieSceneSequenceID::Root && ID.IsValid() && ID.GetBindingSpace() == EMovieSceneObjectBindingSpace::Local)
 	{
-		ID = ID.ResolveLocalToRoot(LocalSequenceID, Sequencer->GetEvaluationTemplate().GetHierarchy());
+		ID = ID.ResolveLocalToRoot(LocalSequenceID, *Sequencer);
 	}
 
 	return ID;
@@ -243,31 +244,35 @@ void FMovieSceneObjectBindingIDPicker::SetRemappedCurrentValue(FMovieSceneObject
 	// and the binding will resolve correctly.
 	if (LocalSequenceID.IsValid() && Sequencer.IsValid() && InValue.GetGuid().IsValid() && InValue.GetBindingSpace() == EMovieSceneObjectBindingSpace::Root)
 	{
-		const FMovieSceneSequenceHierarchy& Hierarchy = Sequencer->GetEvaluationTemplate().GetHierarchy();
+		FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
 
-		FMovieSceneSequenceID NewLocalSequenceID = MovieSceneSequenceID::Root;
-		FMovieSceneSequenceID CurrentSequenceID = InValue.GetSequenceID();
-		
-		while (CurrentSequenceID.IsValid())
+		const FMovieSceneSequenceHierarchy* Hierarchy = Instance.GetCompiledDataManager()->FindHierarchy(Instance.GetCompiledDataID());
+		if (Hierarchy)
 		{
-			if (LocalSequenceID == CurrentSequenceID)
-			{
-				// Found it
-				InValue = FMovieSceneObjectBindingID(InValue.GetGuid(), NewLocalSequenceID, EMovieSceneObjectBindingSpace::Local);
-				break;
-			}
+			FMovieSceneSequenceID NewLocalSequenceID = MovieSceneSequenceID::Root;
+			FMovieSceneSequenceID CurrentSequenceID = InValue.GetSequenceID();
 
-			const FMovieSceneSequenceHierarchyNode* CurrentNode = Hierarchy.FindNode(CurrentSequenceID);
-			if (!ensureAlwaysMsgf(CurrentNode, TEXT("Malformed sequence hierarchy")))
+			while (CurrentSequenceID.IsValid())
 			{
-				break;
+				if (LocalSequenceID == CurrentSequenceID)
+				{
+					// Found it
+					InValue = FMovieSceneObjectBindingID(InValue.GetGuid(), NewLocalSequenceID, EMovieSceneObjectBindingSpace::Local);
+					break;
+				}
+
+				const FMovieSceneSequenceHierarchyNode* CurrentNode = Hierarchy->FindNode(CurrentSequenceID);
+				if (!ensureAlwaysMsgf(CurrentNode, TEXT("Malformed sequence hierarchy")))
+				{
+					break;
+				}
+				else if (const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(CurrentSequenceID))
+				{
+					NewLocalSequenceID = NewLocalSequenceID.AccumulateParentID(SubData->DeterministicSequenceID);
+				}
+				
+				CurrentSequenceID = CurrentNode->ParentID;
 			}
-			else if (const FMovieSceneSubSequenceData* SubData = Hierarchy.FindSubData(CurrentSequenceID))
-			{
-				NewLocalSequenceID = NewLocalSequenceID.AccumulateParentID(SubData->DeterministicSequenceID);
-			}
-			
-			CurrentSequenceID = CurrentNode->ParentID;
 		}
 	}
 

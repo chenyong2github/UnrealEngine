@@ -36,14 +36,14 @@ FAutoConsoleVariableRef CVarAlwaysInvalidate(
 
 SInvalidationPanel::SInvalidationPanel()
 	: EmptyChildSlot(this)
-	, HittestGrid()
+	, HittestGrid(MakeShared<FHittestGrid>())
 	, bCanCache(true)
 	, bPaintedSinceLastPrepass(true)
 	, bWasCachable(false)
 {
 	bHasCustomPrepass = true;
 	SetInvalidationRootWidget(*this);
-	SetInvalidationRootHittestGrid(HittestGrid);
+	SetInvalidationRootHittestGrid(HittestGrid.Get());
 	SetCanTick(false);
 
 	LastIncomingColorAndOpacity = FLinearColor::White;
@@ -103,7 +103,7 @@ void SInvalidationPanel::OnGlobalInvalidationToggled(bool bGlobalInvalidationEna
 {
 	InvalidateRoot();
 
-	ClearAllFastPathData(false);
+	ClearAllFastPathData(true);
 }
 
 bool SInvalidationPanel::UpdateCachePrequisites(FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, int32 LayerId, const FWidgetStyle& InWidgetStyle) const
@@ -198,9 +198,10 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 	if(bCanCacheThisFrame)
 	{
 		// Copy hit test grid settings from the root
-		const bool bHittestCleared = HittestGrid.SetHittestArea(Args.RootGrid.GetGridOrigin(), Args.RootGrid.GetGridSize(), Args.RootGrid.GetGridWindowOrigin());
-
-		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid);
+		const bool bHittestCleared = HittestGrid->SetHittestArea(Args.RootGrid.GetGridOrigin(), Args.RootGrid.GetGridSize(), Args.RootGrid.GetGridWindowOrigin());
+		HittestGrid->SetOwner(this);
+		HittestGrid->SetCullingRect(MyCullingRect);
+		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid.Get());
 
 		// Copy the current user index into the new grid since nested hit test grids should inherit their parents user id
 		NewArgs.GetHittestGrid().SetUserIndex(Args.RootGrid.GetUserIndex());
@@ -225,8 +226,7 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 		const FSlateInvalidationResult Result = MutableThis->PaintInvalidationRoot(Context);
 
 		// add our widgets to the root hit test grid
-		TSharedPtr<SWidget> Owner = MutableThis->AsShared();
-		Args.RootGrid.AppendGrid(HittestGrid, Owner);
+		Args.GetHittestGrid().AddGrid(HittestGrid);
 
 		return Result.MaxLayerIdPainted;
 	}

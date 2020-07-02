@@ -82,9 +82,11 @@ SAssetView::~SAssetView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem();
-		ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
-		ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+		if (UContentBrowserDataSubsystem* ContentBrowserData = ContentBrowserDataModule->GetSubsystem())
+		{
+			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
+			ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+		}
 	}
 
 	// Remove the listener for when view settings are changed
@@ -1748,7 +1750,7 @@ void SAssetView::RefreshSourceItems()
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
 			{
@@ -1992,7 +1994,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 			// Determine the columns by querying the reference item
 			if (MajorityAssetItem)
 			{
-				const FContentBrowserItemDataAttributeValues ItemAttributes = MajorityAssetItem->GetItem().GetItemAttributes();
+				const FContentBrowserItemDataAttributeValues ItemAttributes = MajorityAssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
 
 				// Add a column for every tag that isn't hidden or using a reserved name
 				for (const auto& TagPair : ItemAttributes)
@@ -4082,7 +4084,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			FContentBrowserDataCompiledFilter& CompiledDataFilter = CompiledDataFilters.AddDefaulted_GetRef();
 			ContentBrowserData->CompileFilter(DataSourcePath, DataFilter, CompiledDataFilter);

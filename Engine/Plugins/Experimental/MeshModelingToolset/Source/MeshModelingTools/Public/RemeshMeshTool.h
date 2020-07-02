@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "SingleSelectionTool.h"
+#include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
@@ -12,6 +12,7 @@
 #include "CleaningOps/RemeshMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "Properties/RemeshProperties.h"
+#include "UObject/UObjectGlobals.h"
 #include "RemeshMeshTool.generated.h"
 
 /**
@@ -25,7 +26,12 @@ class MESHMODELINGTOOLS_API URemeshMeshToolBuilder : public UInteractiveToolBuil
 public:
 	IToolsContextAssetAPI* AssetAPI = nullptr;
 
+	/** 
+	 * Return true if we have one object selected. URemeshMeshTool is a UMultiSelectionTool, however we currently 
+	 * only ever apply it to a single mesh. (See comment at URemeshMeshTool definition below.)
+	 */
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -84,14 +90,20 @@ public:
 
 /**
  * Simple Mesh Remeshing Tool
+ *
+ * Note this is a subclass of UMultiSelectionTool, however we currently only ever apply it to one mesh at a time. The
+ * function URemeshMeshToolBuilder::CanBuildTool will return true only when a single mesh is selected, and the tool will
+ * only be applied to the first mesh in the selection list. The reason we inherit from UMultiSelectionTool is so 
+ * that subclasses of this class can work with multiple meshes (see, for example, UProjectToTargetTool.)
  */
 UCLASS()
-class MESHMODELINGTOOLS_API URemeshMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API URemeshMeshTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
-	URemeshMeshTool();
+
+	URemeshMeshTool(const FObjectInitializer&);
 
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
@@ -120,7 +132,8 @@ public:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
-private:
+protected:
+
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 

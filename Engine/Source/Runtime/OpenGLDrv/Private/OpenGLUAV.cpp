@@ -208,9 +208,12 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 {
 	if (Resource && OwnsResource)
 	{
-		VERIFY_GL_SCOPE();
-		OpenGLRHI->InvalidateTextureResourceInCache(Resource);
-		FOpenGL::DeleteTextures(1, &Resource);
+		RunOnGLRenderContextThread([OpenGLRHI= OpenGLRHI, Resource = Resource]()
+		{
+			VERIFY_GL_SCOPE();
+			OpenGLRHI->InvalidateTextureResourceInCache(Resource);
+			FOpenGL::DeleteTextures(1, &Resource);
+		});
 	}
 }
 
@@ -298,8 +301,12 @@ FOpenGLVertexBufferUnorderedAccessView::~FOpenGLVertexBufferUnorderedAccessView(
 {
 	if (Resource)
 	{
-		OpenGLRHI->InvalidateTextureResourceInCache( Resource );
-		FOpenGL::DeleteTextures(1, &Resource);
+		RunOnGLRenderContextThread([OpenGLRHI= OpenGLRHI, Resource = Resource]()
+		{
+			VERIFY_GL_SCOPE();
+			OpenGLRHI->InvalidateTextureResourceInCache(Resource);
+			FOpenGL::DeleteTextures(1, &Resource);
+		});
 	}
 }
 
@@ -425,7 +432,11 @@ FOpenGLStructuredBufferUnorderedAccessView::~FOpenGLStructuredBufferUnorderedAcc
 {
 	if (Resource)
 	{
-		OpenGLRHI->InvalidateTextureResourceInCache( Resource );
-		FOpenGL::DeleteTextures(1, &Resource);
+		RunOnGLRenderContextThread([OpenGLRHI= OpenGLRHI, Resource = Resource]()
+		{
+			VERIFY_GL_SCOPE();
+			OpenGLRHI->InvalidateTextureResourceInCache(Resource);
+			FOpenGL::DeleteTextures(1, &Resource);
+		});
 	}
 }

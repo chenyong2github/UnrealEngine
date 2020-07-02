@@ -36,7 +36,7 @@ namespace Chaos
 /**
 * Wheel setup data that doesn't change during simulation
 */
-struct FSimpleWheelConfig
+struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 {
 	// #todo: use this
 	enum EWheelDamageStatus
@@ -65,9 +65,8 @@ struct FSimpleWheelConfig
 	FSimpleWheelConfig() 
 		: Offset(FVector(2.f, 1.f, 0.f))
 		, WheelMass(20.f) // [Kg]
-		, WheelRadius(30.f)
+		, WheelRadius(30.f) // [cm]
 		, WheelWidth(20.f)
-		, WheelInertia(20.0f/*VehicleUtility::CalculateInertia(WheelMass, WheelRadius)*/)
 		, MaxSteeringAngle(70)
 		, MaxBrakeTorque(2000.f)
 		, HandbrakeTorque(1000.f)
@@ -76,9 +75,11 @@ struct FSimpleWheelConfig
 		, HandbrakeEnabled(true)
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
-		, CheatFrictionForce(1.0f)
+		, TractionControlEnabled(false)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
-	//	, SingleWheel(false)
+		, CheatLateralFrictionMultiplier(1.0f)
+		, CheatLongitudinalFrictionMultiplier(1.0f)
+		, CheatSkidFactor(1.0f)
 	{
 
 	}
@@ -91,24 +92,27 @@ struct FSimpleWheelConfig
 	float WheelMass;			// Mass of wheel [Kg]
 	float WheelRadius;			// [cm]
 	float WheelWidth;			// [cm]
-	float WheelInertia;			// [Kg.m2] = 0.5f * Mass * Radius * Radius
 
 	int	 MaxSteeringAngle;		// Yaw angle of steering [Degrees]
 
 	// brakes
 	float MaxBrakeTorque;		// Braking Torque [Nm]
 	float HandbrakeTorque;		// Handbrake Torque [Nm]
-	bool ABSEnabled;					// Advanced braking system operational
+	bool ABSEnabled;			// Advanced braking system operational
 
 	// setup
 	bool BrakeEnabled;			// Regular brakes are enabled for this wheel
 	bool HandbrakeEnabled;		// Handbrake is operational on this wheel
 	bool SteeringEnabled;		// Steering is operational on this wheel
 	bool EngineEnabled;			// Wheel is driven by an engine
+	bool TractionControlEnabled;// Straight Line Traction Control
 
-	float CheatFrictionForce;
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
-	
+
+	float CheatLateralFrictionMultiplier;
+	float CheatLongitudinalFrictionMultiplier;
+	float CheatSkidFactor;
+
 	// #todo: simulated Damage
 	//EWheelDamageStatus DamageStatus;
 	//float BuckleAngle;
@@ -118,29 +122,11 @@ struct FSimpleWheelConfig
 /**
 * Wheel instance data changes during the simulation
 */
-class FSimpleWheelSim : public TVehicleSystem<FSimpleWheelConfig>
+class CHAOSVEHICLESCORE_API FSimpleWheelSim : public TVehicleSystem<FSimpleWheelConfig>
 {
 public:
 
-	FSimpleWheelSim(const FSimpleWheelConfig* SetupIn) 
-		: TVehicleSystem<FSimpleWheelConfig>(SetupIn)
-		, Re(0.3f)
-		, Omega(0.f)
-		, Sx(0.f)
-		, DriveTorque(0.f)
-		, BrakeTorque(0.f)
-		, ForceIntoSurface(0.f)
-		, GroundVelocityVector(FVector::ZeroVector)
-		, AngularPosition(0.f)
-		, SteeringAngle(0.f)
-		, SurfaceFriction(1.f)
-		, ForceFromFriction(FVector::ZeroVector)
-		, SlipVelocity(0.f)
-		, SlipAngle(0.f)
-		, bInContact(false)
-		, WheelIndex(0)
-	{
-	}
+	FSimpleWheelSim(const FSimpleWheelConfig* SetupIn);
 
 // Inputs
 
@@ -266,6 +252,11 @@ public:
 		return bInContact;
 	}
 
+	bool IsSpinning() const
+	{ 
+		return false;// (FMath::Abs(Spin) > 0.1f);
+	}
+
 	float GetSteeringAngle() const
 	{
 		return SteeringAngle;
@@ -334,181 +325,14 @@ public:
 	 *	#todo: lateral friction is currently not affected by longitudinal wheel slip
 	 *	#todo: wheel slip angle isn't being used
 	 */
-	void Simulate(float DeltaTime)
+	void Simulate(float DeltaTime);
+
+
+	void SetMassPerWheel(float VehicleMassPerWheel)
 	{
-		SlipAngle = FMath::Atan2(GroundVelocityVector.Y, GroundVelocityVector.X);
-
-		ForceFromFriction = FVector::ZeroVector;
-		float NormalizedFrictionFromSlip = 1.0f;// RealWorldConsts::DryRoadFriction();
-		Sx = 0.2f;
-		//if (FMath::Abs(DriveTorque) < SMALL_NUMBER && FMath::Abs(BrakeTorque) < SMALL_NUMBER)
-		//{
-		//	BrakeTorque = 10.0f; // loss in transmission system - until we hook one up.
-		//}
-
-		float FinalTorque = 0.f;
-		float AbsDriveTorque = FMath::Abs(DriveTorque);
-		if (BrakeTorque > AbsDriveTorque)
-		{
-			BrakeTorque = BrakeTorque - AbsDriveTorque;
-		}
-		else
-		{
-			//DriveTorque = DriveTorque;// -BrakeTorque;
-			BrakeTorque = 0.f;
-		}
-
-
-		//	if (bInContact)
-		{
-			float Direction = GroundVelocityVector.X > 0 ? -1.f : 1.f;
-			if (BrakeTorque > SMALL_NUMBER && FMath::Abs(GroundVelocityVector.X) > SMALL_NUMBER)
-			{
-				if (Omega >= 0.f)
-				{
-					// this is only correct for GroundVelocityVector.X >= 0
-					Omega -= (BrakeTorque * DeltaTime) / Setup().WheelMass;
-					if (Omega < 0.f)
-					{
-						Omega = 0.f;	// wheel has locked
-					}
-				}
-				else
-				{
-					// this is only correct for GroundVelocityVector.X < 0
-					Omega += (BrakeTorque * DeltaTime) / Setup().WheelMass;
-					if (Omega > 0.f)
-					{
-						Omega = 0.f;	// wheel has locked
-					}
-				}
-
-
-				float diff = GroundVelocityVector.X - Omega * Re;
-				Sx = FMath::Abs((GroundVelocityVector.X - Omega * Re) / GroundVelocityVector.X);
-				NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-
-				ForceFromFriction.X = Direction * NormalizedFrictionFromSlip * ForceIntoSurface;
-			}
-			else
-			{
-				if (DriveTorque > SMALL_NUMBER)
-				{
-					Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
-
-					Sx = 0.0f;
-					if (GroundVelocityVector.X > SMALL_NUMBER)
-					{
-						Sx = (Omega * Re - GroundVelocityVector.X) / GroundVelocityVector.X;
-					}
-					else
-					{
-						Sx = Omega * Re;
-					}
-					// FVehicleUtility::ClampNormalRange(Sx);
-
-					NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-					ForceFromFriction.X = NormalizedFrictionFromSlip * ForceIntoSurface;
-				}
-				else
-				{
-					if (DriveTorque < -SMALL_NUMBER)
-					{
-						Omega += (DriveTorque * DeltaTime) / Setup().WheelMass;
-
-						Sx = 0.0f;
-						if (FMath::Abs(GroundVelocityVector.X) > SMALL_NUMBER)
-						{
-							Sx = (Omega * Re + GroundVelocityVector.X) / GroundVelocityVector.X;
-						}
-						else
-						{
-							Sx = Omega * Re;
-						}
-						Sx = FMath::Abs(Sx);
-					//	FVehicleUtility::ClampNormalRange(Sx);
-
-						NormalizedFrictionFromSlip = GetNormalisedFrictionFromSlipAngle(Sx) * SurfaceFriction;
-						ForceFromFriction.X = -NormalizedFrictionFromSlip * ForceIntoSurface;
-					}
-					else
-					{
-						if (InContact())
-						{
-							// wheel rolling - just match the ground speed exactly
-							float GroundOmega = GroundVelocityVector.X / Re;
-							Omega += GroundOmega - Omega;
-						}
-						else
-						{
-							Omega *= 0.995f; // friction slowing wheel down
-						}
-					}
-				}
-
-			}
-		}
-
-
-		// lateral slip - cheat f = mass * v / dt;
-		// cancel out any lateral wheel movement
-		// this is not correct
-		static float QuarterMass = 1500.0f * 0.25f;
-		float KillSpeed = -0.25f * QuarterMass * GroundVelocityVector.Y / DeltaTime;
-
-		float SlipAngleEffect = 1.0f;
-		//SlipAngleEffect = (FMath::Abs(RadToDeg(SlipAngle)) > 20.f) ? 0.3f : 1.0f;
-
-		//float SlipAngleEffect = GetNormalisedFrictionFromSlipAngle(RadToDeg(SlipAngle) / 20.0f);
-		//float SlipAngleEffect = GetNormalisedFrictionFromSlipAngle(Sx);
-
-		float FrictionFromSlipSide = /*GetNormalisedFrictionFromSlipAngle(GetNormalizedLateralSlip()) * */ SurfaceFriction;
-		float ForceFromSideSlip = FrictionFromSlipSide * ForceIntoSurface;
-
-		//////////////////////////////////////////////////////////////////////////
-		//if (Handbrake)
-		//{
-		//	FVector KillSpeedForce = -0.5f * QuarterMass * GroundVelocityVector / DeltaTime;
-		//	float Length = KillSpeedForce.Size();
-		//	float ScaleBack = SurfaceFriction / Length;
-		//	KillSpeedForce *= ScaleBack;
-		//	ForceFromFriction = KillSpeedForce;
-		//}
-		//else
-		{
-
-			float F = 0.f;
-			if (KillSpeed > 0.f)
-			{
-				F = FMath::Min(ForceFromSideSlip, KillSpeed);
-			}
-			else
-			{
-				F = FMath::Max(-ForceFromSideSlip, KillSpeed);
-
-			}
-			ForceFromFriction.Y = F;
-		}
-		//////////////////////////////////////////////////////////////////////////
-
-	//	Omega = FMath::Clamp(Omega, -MaxOmega, MaxOmega);
-
-		AngularPosition += Omega * DeltaTime;
-
-		while (AngularPosition >= PI * 2.f)
-		{
-			AngularPosition -= PI * 2.f;
-		}
-		while (AngularPosition <= -PI * 2.f)
-		{
-			AngularPosition += PI * 2.f;
-		}
-
-		if (!bInContact)
-		{
-			ForceFromFriction = FVector::ZeroVector;
-		}
+		MassPerWheel = VehicleMassPerWheel;
 	}
+
 
 public:
 
@@ -526,19 +350,23 @@ public:
 	float MaxOmega;
 
 	FVector ForceFromFriction;
+	float MassPerWheel;
 
-	// Not sure about these here
-	//float BrakeInput;			// Normalised [0 to 1]
-	//float HandbrakeInput;		// Normalised [0 to 1]
-	//float SteeringInput;		// Normalised [0 to 1]
-
-//	float CurrentAngularVelocity;	// [radians/second]
 	// Wheel transform
 
 	float SlipVelocity;			// Relative velocity between tire patch and ground ?? vector ??
 	float SlipAngle;			// Angle between wheel forwards and velocity vector
 	bool bInContact;			// Is tire in contact with the ground or free in the air
-	uint32 WheelIndex;			// purely for debugging purpoese
+	uint32 WheelIndex;			// purely for debugging purposes
+
+	public:
+	// debug for now
+	float AppliedLinearDriveForce;
+	float AppliedLinearBrakeForce;
+	float LongitudinalAdhesiveLimit;
+	float LateralAdhesiveLimit;
+	float SideSlipModifier;
+	float Spin;
 };
 
 

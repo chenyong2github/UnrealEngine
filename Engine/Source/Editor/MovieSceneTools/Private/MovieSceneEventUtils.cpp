@@ -41,20 +41,8 @@ FMovieSceneEventEndpointParameters FMovieSceneEventEndpointParameters::Generate(
 	}
 
 	FMovieSceneEventEndpointParameters Params;
-
-	if (Track->EventReceivers.Num() != 0)
-	{
-		// By default for master tracks we create a pin (that receives the level blueprint for master event tracks, or the event receivers)
-		Params.BoundObjectPinClass = UObject::StaticClass();
-
-		Params.SanitizedObjectName = TEXT("Event Receiver");
-		Params.SanitizedEventName  = TEXT("SequenceEvent");
-	}
-	else
-	{
-		Params.SanitizedObjectName = TEXT("None");
-		Params.SanitizedEventName  = TEXT("SequenceEvent");
-	}
+	Params.SanitizedObjectName = TEXT("None");
+	Params.SanitizedEventName  = TEXT("SequenceEvent");
 
 	return Params;
 }

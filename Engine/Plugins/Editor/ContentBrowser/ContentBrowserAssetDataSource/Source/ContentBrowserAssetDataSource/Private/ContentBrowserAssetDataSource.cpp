@@ -38,7 +38,7 @@ bool PathPassesCompiledDataFilter(const FContentBrowserCompiledAssetDataFilter& 
 	};
 
 	const bool bPassesFilterBlacklist = PathPassesFilter(InFilter.PackagePathsToInclude, InFilter.bRecursivePackagePathsToInclude) && PathPassesFilter(InFilter.PackagePathsToExclude, InFilter.bRecursivePackagePathsToExclude);
-	const bool bPassesPathFilter = PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/false);
+	const bool bPassesPathFilter = PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/true);
 	const bool bPassesExcludedPathsFilter = !InFilter.ExcludedPackagePaths.Contains(InPath);
 
 	return bPassesFilterBlacklist && bPassesPathFilter && bPassesExcludedPathsFilter;
@@ -304,13 +304,13 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 		if (PackageFilter)
 		{
 			AssetDataFilter.bRecursivePackagePathsToInclude = PackageFilter->bRecursivePackagePathsToInclude;
-			for (const FName PackagePathToInclude : PackageFilter->PackagePathsToInclude)
+			for (const FName& PackagePathToInclude : PackageFilter->PackagePathsToInclude)
 			{
 				AssetDataFilter.PackagePathsToInclude.AddWhitelistItem(NAME_None, PackagePathToInclude);
 			}
 
 			AssetDataFilter.bRecursivePackagePathsToExclude = PackageFilter->bRecursivePackagePathsToExclude;
-			for (const FName PackagePathToExclude : PackageFilter->PackagePathsToExclude)
+			for (const FName& PackagePathToExclude : PackageFilter->PackagePathsToExclude)
 			{
 				AssetDataFilter.PackagePathsToExclude.AddBlacklistItem(NAME_None, PackagePathToExclude);
 			}
@@ -680,7 +680,7 @@ void UContentBrowserAssetDataSource::EnumerateItemsMatchingFilter(const FContent
 		}
 		else
 		{
-			for (const FName SubPath : AssetDataFilter->CachedSubPaths)
+			for (const FName& SubPath : AssetDataFilter->CachedSubPaths)
 			{
 				if (!InCallback(CreateAssetFolderItem(SubPath)))
 				{
@@ -1587,7 +1587,7 @@ void UContentBrowserAssetDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 
 	// Extract the internal asset paths that belong to this data source from the full list of selected paths given in the context
 	TArray<FName> SelectedAssetPaths;
-	for (const FName SelectedPath : ContextObject->SelectedPaths)
+	for (const FName& SelectedPath : ContextObject->SelectedPaths)
 	{
 		FName InternalPath;
 		if (TryConvertVirtualPathToInternal(SelectedPath, InternalPath) && IsKnownContentPath(InternalPath))

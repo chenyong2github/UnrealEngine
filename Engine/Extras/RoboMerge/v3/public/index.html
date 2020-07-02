@@ -13,6 +13,7 @@
 	<script src="/js/bootstrap.bundle.min.js"></script>
 
 	<script src="/js/boilerplate.js"></script>
+	<script src="/js/hpcc-wasm-index.min.js"></script>
 	<script src="/js/flow.js"></script>
 	<script src="/js/main.js"></script>
 	<script language="javascript">
@@ -81,10 +82,6 @@
 		$('body').one("branchListUpdated", function () {
 			gRefreshTimer = setInterval(refreshAll, 10 * 1000);
 
-			if (robomergeUser && robomergeUser.userName.toLowerCase() === 'dev') {
-				debug('Dev Mode detected, pausing refresh interval')
-				pauseAutoRefresh()
-			}
 		})
 	</script>
 

@@ -313,16 +313,13 @@ namespace GeometryCollectionTest
 				Solver->AddDirtyProxy(RBW->Particle->GetProxy());
 			}
 		}
-
-		Solver->PushPhysicsState();
 	}
 
 	template<typename Traits>
 	void TFramework<Traits>::Advance()
 	{
 		Solver->SyncEvents_GameThread();
-		Solver->PushPhysicsState();
-		Solver->AdvanceSolverBy(Dt);
+		Solver->AdvanceAndDispatch_External(Dt);
 
 		Solver->BufferPhysicsResults();
 		Solver->FlipBuffers();

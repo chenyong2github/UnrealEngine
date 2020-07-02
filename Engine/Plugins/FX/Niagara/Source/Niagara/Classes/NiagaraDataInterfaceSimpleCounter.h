@@ -41,10 +41,6 @@ public:
 	/** Destroys the per instence data for this interface. */
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance) {}
 
-	/** Ticks the per instance data for this interface, if it has any. */
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds);
-	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds);
-
 	virtual int32 PerInstanceDataSize()const { return sizeof(CounterInstanceData); }
 
 

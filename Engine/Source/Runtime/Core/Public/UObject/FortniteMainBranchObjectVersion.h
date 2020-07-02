@@ -123,6 +123,12 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// RuntimeVirtualTextureVolume fix transforms
 		FixupRuntimeVirtualTextureVolume,
 
+		// Retrieve water body collision components that were lost in cooked builds
+		FixUpRiverCollisionComponents,
+
+		// Fix duplicate spline mesh components on rivers
+		FixDuplicateRiverSplineMeshCollisionComponents,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

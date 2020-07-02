@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "MovieScene.h"
 #include "Components/PanelSlot.h"
+#include "IMovieScenePlayer.h"
 #include "UObject/SequencerObjectVersion.h"
 
 

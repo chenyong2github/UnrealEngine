@@ -180,8 +180,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererSprites::RayTracingDynamicVertexBuffer"));
-
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererSprites");
 		static int32 DebugNumber = 0;
@@ -663,6 +661,9 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 		RayTracingInstance.Materials.Add(MeshBatch);
 
+		// USe the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+		FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
 		// Update dynamic ray tracing geometry
 		Context.DynamicRayTracingGeometriesToUpdate.Add(
 			FRayTracingDynamicGeometryUpdateParams
@@ -673,7 +674,8 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
 				2 *  SourceParticleData->GetNumInstances(),
 				&RayTracingGeometry,
-				&RayTracingDynamicVertexBuffer
+				VertexBuffer,
+				true
 			}
 		);
 	}
@@ -694,8 +696,8 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraGenSpriteDynamicData);
 
-		FNiagaraDataSet& Data = Emitter->GetData();
-		if(SimTarget == ENiagaraSimTarget::GPUComputeSim || Data.GetCurrentDataChecked().GetNumInstances() > 0)
+		FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
+		if(SimTarget == ENiagaraSimTarget::GPUComputeSim || (DataToRender != nullptr && DataToRender->GetNumInstances() > 0))
 		{
 			DynamicData = new FNiagaraDynamicDataSprites(Emitter);
 

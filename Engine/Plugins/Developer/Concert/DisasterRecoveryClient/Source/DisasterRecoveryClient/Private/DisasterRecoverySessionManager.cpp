@@ -525,7 +525,7 @@ TFuture<bool> FDisasterRecoverySessionManager::HasRecoverableCandidates()
 	// 1 - List the possible candidates.
 	const bool bIgnoreDebuggerFlag = false;
 	TArray<TSharedPtr<FDisasterRecoverySession>> Candidates;
-	for (const TSharedPtr<FDisasterRecoverySession>& Candidate : SessionsCache)
+	for (const TSharedPtr<FDisasterRecoverySession> Candidate : SessionsCache)
 	{
 		if (Candidate->WasDebuggerAttached() && !bIgnoreDebuggerFlag)
 		{

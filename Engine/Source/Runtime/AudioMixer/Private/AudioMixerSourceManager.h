@@ -1,25 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-/* Public dependencies
-*****************************************************************************/
-
 #include "CoreMinimal.h"
+
 #include "AudioMixerBuffer.h"
-#include "AudioMixerSubmix.h"
 #include "AudioMixerBus.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceOutputBuffer.h"
-#include "DSP/InterpolatedOnePole.h"
+#include "AudioMixerSubmix.h"
+#include "Containers/Queue.h"
+#include "DSP/BufferVectorOperations.h"
+#include "DSP/EnvelopeFollower.h"
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
-#include "DSP/EnvelopeFollower.h"
 #include "DSP/ParamInterpolator.h"
-#include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "ISoundfieldFormat.h"
-#include "Containers/Queue.h"
+#include "Sound/SoundModulationDestination.h"
+
 
 namespace Audio
 {
@@ -106,7 +104,12 @@ namespace Audio
 		USpatializationPluginSourceSettingsBase* SpatializationPluginSettings = nullptr;
 		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings = nullptr;
 		UReverbPluginSourceSettingsBase* ReverbPluginSettings = nullptr;
-		USoundModulationPluginSourceSettingsBase* ModulationPluginSettings = nullptr;
+
+		FSoundModulationDestinationSettings VolumeModulationSettings;
+		FSoundModulationDestinationSettings PitchModulationSettings;
+		FSoundModulationDestinationSettings LowpassModulationSettings;
+		FSoundModulationDestinationSettings HighpassModulationSettings;
+
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;
 		bool bIs3D = false;
@@ -162,6 +165,13 @@ namespace Audio
 		void SetChannelMap(const int32 SourceId, const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
 		void SetLPFFrequency(const int32 SourceId, const float Frequency);
 		void SetHPFFrequency(const int32 SourceId, const float Frequency);
+
+		// Sets base (i.e. carrier) frequency of modulateable parameters
+		void SetModPitch(const int32 SourceId, const float InModPitch);
+		void SetModVolume(const int32 SourceId, const float InModVolume);
+		void SetModLPFFrequency(const int32 SourceId, const float InModFrequency);
+		void SetModHPFFrequency(const int32 SourceId, const float InModFrequency);
+
 
 		void SetListenerTransforms(const TArray<FTransform>& ListenerTransforms);
 		const TArray<FTransform>* GetListenerTransforms() const;
@@ -329,7 +339,7 @@ namespace Audio
 			float DistanceAttenuationSourceStart;
 			float DistanceAttenuationSourceDestination;
 
-			// Filter LFP & HPF frequency set directly (not by modulation) on source
+			// Legacy filter LFP & HPF frequency set directly (not by modulation) on source
 			float LowPassFreq;
 			float HighPassFreq;
 
@@ -350,13 +360,17 @@ namespace Audio
 			Audio::FEnvelopeFollower SourceEnvelopeFollower;
 			float SourceEnvelopeValue;
 
-			// Last volume set by modulation system (cached separately from value
-			// in ModulationControls to interpolate smoothly over buffer). Defaults
-			// to -1.0f until ProcessControls is given ability to be set on first call.
-			float ModulationVolLast;
+			// Modulation destinations
+			Audio::FModulationDestination VolumeModulation;
+			Audio::FModulationDestination PitchModulation;
+			Audio::FModulationDestination LowpassModulation;
+			Audio::FModulationDestination HighpassModulation;
 
-			// Modulation control state
-			FSoundModulationControls ModulationControls;
+			// Modulation Base (i.e. Carrier) Values
+			float VolumeModulationBase;
+			float PitchModulationBase;
+			float LowpassModulationBase;
+			float HighpassModulationBase;
 
 			FSpatializationParams SpatParams;
 			Audio::AlignedFloatBuffer ScratchChannelMap;
@@ -382,7 +396,7 @@ namespace Audio
 			uint8 bIsBypassingLPF:1;
 			uint8 bIsBypassingHPF:1;
 			uint8 bHasPreDistanceAttenuationSend:1;
-			uint8 bModUpdated : 1;
+			uint8 bModFiltersUpdated : 1;
 
 			// Source format info
 			int32 NumInputChannels;
@@ -391,6 +405,19 @@ namespace Audio
 
 			// ID for associated Audio Component if there is one, 0 otherwise
 			uint64 AudioComponentID;
+
+			FORCEINLINE void ResetModulators(const Audio::FDeviceId InDeviceId)
+			{
+				VolumeModulation.Init(InDeviceId, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+				PitchModulation.Init(InDeviceId, FName("Pitch"));
+				HighpassModulation.Init(InDeviceId, FName("HPFCutoffFrequency"));
+				LowpassModulation.Init(InDeviceId, FName("LPFCutoffFrequency"));
+
+				VolumeModulationBase = 0.0f;
+				PitchModulationBase = 0.0f;
+				HighpassModulationBase = MIN_FILTER_FREQUENCY;
+				LowpassModulationBase = MAX_FILTER_FREQUENCY;
+			}
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 			uint8 bIsDebugMode : 1;

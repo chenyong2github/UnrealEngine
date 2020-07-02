@@ -462,6 +462,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 				}
 			}
 		}
+
+		//// as with the emitter scripts above we need to be able to differentiate between identical scripts
+		//// belonging to different systems in order to ensure deterministic cooking
+		Id.AdditionalDefines.Add(System->GetFullName());
 	}
 
 	switch (SimTargetToBuild)
@@ -663,7 +667,7 @@ void UNiagaraScript::AsyncOptimizeByteCode()
 	// This has to be done game code side as we can not access anything in CachedScriptVM
 	TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
 	ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
-	for (const FVMExternalFunctionBindingInfo FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
+	for (const FVMExternalFunctionBindingInfo& FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
 	{
 		const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
 		ExternalFunctionRegisterCounts.Add(RegisterCount);
@@ -1717,6 +1721,11 @@ void UNiagaraScript::RaiseOnGPUCompilationComplete()
 #if WITH_EDITORONLY_DATA
 	OnGPUScriptCompiled().Broadcast(this);
 	FNiagaraSystemUpdateContext(this, true);
+
+	if (UNiagaraEmitter* EmitterOwner = Cast<UNiagaraEmitter>(GetOuter()) )
+	{
+		EmitterOwner->CacheFromShaderCompiled();
+	}
 #endif
 }
 

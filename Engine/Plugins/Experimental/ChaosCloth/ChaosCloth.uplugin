@@ -18,7 +18,7 @@
       {
         "Name": "ChaosCloth",
         "Type": "Runtime",
-        "LoadingPhase": "Default"
+        "LoadingPhase": "PostConfigInit"
       }
     ]
 }

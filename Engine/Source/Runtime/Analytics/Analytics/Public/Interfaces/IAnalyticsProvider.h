@@ -11,25 +11,16 @@ class Error;
  * Generic interface for an analytics provider. 
  * Other modules can define more and register them with this module. See FAnalytics for details.
  *
- * Many of these APIs come with move-aware versions that can also be overridden (take attributes array by rvalue-ref (&&).
- * Move-aware versions avoid expensive, unnecessary string copies when passing in arrays of attributes
- * when the calling code does not need ot use the attributes afterward. Move-aware APIs are selected by
- * overload resolution automatically by either passing an unnamed temporary or using MoveTemp() like so:
+ * Easiest way to use this is like so:
  *
  *   // MakeAnalyticsEventAttributeArray is a convenient way to efficiently make an array of attributes
  *   // Since it returns an unnamed temporary, the compiler automatically selects the move-aware version.
  *   AnalyticsProvider->RecordEvent(TEXT("MyEvent"), MakeAnalyticsEventAttributeArray("Attr1", "Value1", ... ));
- *
+ * or:
  *   TArray<FAnalyticEventAttribute> Attrs;
  *   Attrs.Add(...);
- *   // Use MoveTemp to convert Attrs to an rvalue-ref, so RecordEvent will move the array under the hood.
- *   AnalyticsProvider->RecordEvent(TEXT("MyEvent"), MoveTemp(Attrs));
- *   // WARNING: Attrs will be undefined (empty in practive) after this point!
+ *   AnalyticsProvider->RecordEvent(TEXT("MyEvent"), Attrs);
  * 
- * The base version is implemented in terms of the non move-aware version for legacy reasons.
- * Efficient implementations will need to override both versions and instead implement
- * the non move-aware version in terms of the move-aware versions.
- *
  * Several APIs build off the pure virtual ones. The following pure virtuals must be implemented by a derived class.
  * 
  * 	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes)
@@ -41,16 +32,8 @@ class Error;
  * 	virtual FString GetUserID() const
  *  virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
  *
- * However, if you want your implementation to take full advantage of the move-aware APIs, the following
- * methods should be implemented in your implementation, and the pure virtuals should be implemented in terms
- * of THESE to be efficient. See IAnalyticsProviderET for an example:
- * 
- * 	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
- *  virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
- * 
- * There are several other methods to record specific types of events. These APIs are not 
- * move-friendly, so cannot be implemented 100% efficiently.
- * The recommendation is to avoid these methods if you are using a move-friendly implementation.
+ * There are several other methods to record specific types of events. They were added for legacy reasons to support
+ * specific third party implementations. Derived classes generally do not have to worry about them.
  */
 class IAnalyticsProvider
 {
@@ -76,29 +59,13 @@ public:
 	 * @param Attributes attributes of the session. Arbitrary set of key/value pairs that will be sent
 	                     with the StartSession event that this should also trigger.
 	 */
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
 	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
-
-	/**
-	 * Starts a session. See parameterless-version for contract details.
-	 * Move-aware version (see class description).
-	 */
-	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
-	{
-		// implement this in terms of the non move-aware version for legacy reasons
-		// so we don't impose any new requirements on existing analytics providers.
-		// No efficient implementation will want to keep 
-		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return StartSession(Attributes);
-		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	/**
 	 * Overload for StartSession that takes a single attribute
 	 *
 	 * @param Attribute attribute name and value
 	 */
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
 	bool StartSession(const FAnalyticsEventAttribute& Attribute)
 	{
 		return StartSession(TArray<FAnalyticsEventAttribute> { Attribute });
@@ -110,7 +77,6 @@ public:
 	 * @param ParamName attribute name
 	 * @param ParamValue attribute value
 	 */
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated, Use other versions instead")
 	bool StartSession(const FString& ParamName, const FString& ParamValue)
 	{
 		return StartSession(TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(ParamName, ParamValue) });
@@ -194,25 +160,7 @@ public:
 	 * @param EventName name of the event
 	 * @param Attributes array of attribute name/value pairs
 	 */
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
-
-	/**
-	 * Records a named event with an array of attributes
-	 * Move-aware version (see class description).
-	 *
-	 * @param EventName name of the event
-	 * @param Attributes array of attribute name/value pairs
-	 */
-	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
-	{
-		// implement this in terms of the non move-aware version for legacy reasons
-		// so we don't impose any new requirements on existing analytics providers.
-		// No efficient implementation will want to keep 
-		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RecordEvent(EventName, Attributes);
-		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	/**
 	 * Overload for RecordEvent that takes no parameters
@@ -230,7 +178,6 @@ public:
 	 * @param EventName name of the event
 	 * @param Attribute attribute name and value
 	 */
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	void RecordEvent(const FString& EventName, const FAnalyticsEventAttribute& Attribute)
 	{
 		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> { Attribute });
@@ -243,7 +190,6 @@ public:
 	 * @param ParamName attribute name
 	 * @param ParamValue attribute value
 	 */
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated, Use other versions instead")
 	void RecordEvent(const FString& EventName, const FString& ParamName, const FString& ParamValue)
 	{
 		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> { FAnalyticsEventAttribute(ParamName, ParamValue) });
@@ -283,7 +229,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("ItemId"), ItemId));
 		Params.Add(FAnalyticsEventAttribute(TEXT("ItemQuantity"), ItemQuantity));
-		RecordEvent(TEXT("Item Purchase"), MoveTemp(Params));
+		RecordEvent(TEXT("Item Purchase"), Params);
 	}
 
 	/**
@@ -336,7 +282,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyType"), GameCurrencyType));
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyAmount"), GameCurrencyAmount));
-		RecordEvent(TEXT("Currency Purchase"), MoveTemp(Params));
+		RecordEvent(TEXT("Currency Purchase"), Params);
 	}
 
 	/**
@@ -382,7 +328,7 @@ public:
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyType"), GameCurrencyType));
 		Params.Add(FAnalyticsEventAttribute(TEXT("GameCurrencyAmount"), GameCurrencyAmount));
-		RecordEvent(TEXT("Currency Given"), MoveTemp(Params));
+		RecordEvent(TEXT("Currency Given"), Params);
 	}
 
 	/**
@@ -398,7 +344,7 @@ public:
 	{
 		TArray<FAnalyticsEventAttribute> Params(EventAttrs);
 		Params.Add(FAnalyticsEventAttribute(TEXT("Error"), *Error));
-		RecordEvent(TEXT("Game Error"), MoveTemp(Params));
+		RecordEvent(TEXT("Game Error"), Params);
 	}
 
 	/**
@@ -437,7 +383,7 @@ public:
 			}
 		}
 		Params.Add(FAnalyticsEventAttribute(TEXT("ProgressHierarchy"), *Hierarchy));
-		RecordEvent(TEXT("Progression"), MoveTemp(Params));
+		RecordEvent(TEXT("Progression"), Params);
 	}
 
 	/**

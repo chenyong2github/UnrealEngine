@@ -1553,7 +1553,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
 						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry,
-						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer,
+						nullptr,
 						false
 					};
 
@@ -1566,6 +1566,10 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 					);
 
 					DynamicGeometryCollection.DispatchUpdates(RHICmdList);
+
+					// We use FRayTracingDynamicGeometryCollection locally which holds all the VBs
+					// Flush them onto RHICmdList so that we can destroy the collection immediately
+					RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 				}
 			}
 		}

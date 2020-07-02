@@ -187,7 +187,7 @@ void FFCPXMLNode::GetXmlBuffer(const FString& Indent, FString& Output) const
 	else
 	{
 		Output += TEXT(">") LINE_TERMINATOR;
-		for (const TSharedPtr<FFCPXMLNode>& ChildNode : Children)
+		for (const TSharedPtr<FFCPXMLNode> ChildNode : Children)
 		{
 			ChildNode->GetXmlBuffer(Indent + TEXT("\t"), Output);
 		}

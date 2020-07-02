@@ -126,6 +126,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Cable")
 	bool bEnableStiffness;
 
+	/** When false, will still wait for SubstepTime to elapse before updating, but will only run the cable simulation once using all of accumulated simulation time */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Cable")
+	bool bUseSubstepping = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Cable")
+	bool bSkipCableUpdateWhenNotVisible = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Cable")
+	bool bSkipCableUpdateWhenNotOwnerRecentlyRendered = false;
+
 	/** 
 	 *	EXPERIMENTAL. Perform sweeps for each cable particle, each substep, to avoid collisions with the world. 
 	 *	Uses the Collision Preset on the component to determine what is collided with.

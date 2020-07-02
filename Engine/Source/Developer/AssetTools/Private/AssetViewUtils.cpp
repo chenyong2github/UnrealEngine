@@ -1481,7 +1481,7 @@ void GetOutOfDatePackageDependencies(const TArray<FString>& InPackagesThatWillBe
 			TArray<FName> PackageDependencies;
 			AssetRegistryModule.GetDependencies(PackageName, PackageDependencies, EAssetRegistryDependencyType::Packages);
 
-			for (const FName PackageDependency : PackageDependencies)
+			for (const FName& PackageDependency : PackageDependencies)
 			{
 				if (!AllPackages.Contains(PackageDependency))
 				{
@@ -1550,7 +1550,7 @@ void ShowSyncDependenciesDialog(const TArray<FString>& InDependencies, TArray<FS
 		for (const FString& DependencyName : InDependencies)
 		{
 			UPackage* Package = FindPackage(nullptr, *DependencyName);
-			PackagesDialogModule.AddPackageItem(Package, DependencyName, ECheckBoxState::Checked);
+			PackagesDialogModule.AddPackageItem(Package, ECheckBoxState::Checked);
 		}
 
 		const EDialogReturnType UserResponse = PackagesDialogModule.ShowPackagesDialog();

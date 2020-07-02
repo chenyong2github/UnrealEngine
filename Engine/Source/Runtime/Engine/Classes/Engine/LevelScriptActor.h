@@ -65,6 +65,10 @@ class ENGINE_API ALevelScriptActor : public AActor
 	//~ Begin AActor Interface
 	virtual void EnableInput(class APlayerController* PlayerController) override;
 	virtual void DisableInput(class APlayerController* PlayerController) override;
+
+#if WITH_EDITOR
+	virtual bool SupportsExternalPackaging() const override { return false; }
+#endif
 	//~ End AActor Interface
 
 	bool InputEnabled() const { return bInputEnabled; }

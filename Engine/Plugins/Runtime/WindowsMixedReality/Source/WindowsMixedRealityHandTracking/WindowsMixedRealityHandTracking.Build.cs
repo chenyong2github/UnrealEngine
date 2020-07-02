@@ -25,13 +25,13 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Slate",
 					"HeadMountedDisplay",
-					"WindowsMixedRealityHMD",
 					"SlateCore",
 	                "LiveLink",
-                    "LiveLinkInterface"
-                }
+                    "LiveLinkInterface",
+					"WindowsMixedRealityHMD"
+				}
 			);
-			
+
 			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
 			{
 				PrivateDependencyModuleNames.Add("WindowsMixedRealityInputSimulation");

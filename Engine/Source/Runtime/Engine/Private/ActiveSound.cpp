@@ -137,6 +137,14 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->ConcurrencyGroupData.Reset();
 	ActiveSound->WaveInstances.Reset();
 
+	FAudioThread::RunCommandOnGameThread([AudioComponentID = ActiveSound->GetAudioComponentID()]()
+	{
+		if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+		{
+			AudioComponent->SetIsVirtualized(true);
+		}
+	});
+
 	return ActiveSound;
 }
 
@@ -518,7 +526,28 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	ParseParams.Transform = Transform;
 	ParseParams.StartTime = RequestedStartTime;
 
-	ComponentVolumeFader.Update(DeltaTime);
+	// Report back to component if necessary once initial fade is complete
+	const bool bIsInitFade = PlaybackTimeNonVirtualized < ComponentVolumeFader.GetFadeDuration();
+	if (bIsInitFade)
+	{
+		bool bWasFading = ComponentVolumeFader.IsFadingIn();
+		ComponentVolumeFader.Update(DeltaTime);
+		const bool bIsFading = ComponentVolumeFader.IsFading();
+		if (bWasFading && !bIsFading)
+		{
+			FAudioThread::RunCommandOnGameThread([AudioComponentID = GetAudioComponentID()]()
+			{
+				if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+				{
+					AudioComponent->SetFadeInComplete();
+				}
+			});
+		}
+	}
+	else
+	{
+		ComponentVolumeFader.Update(DeltaTime);
+	}
 
 	ParseParams.VolumeMultiplier = GetVolume();
 
@@ -585,7 +614,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			}
 		}
 
-		ParseParams.ModulationPluginSettings = FindModulationSettings();
 		Sound->Parse(AudioDevice, 0, *this, ParseParams, ThisSoundsWaveInstances);
 
 		// Track this active sound's min pitch value. This is used to scale it's possible duration value.
@@ -721,49 +749,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	InWaveInstances.Append(ThisSoundsWaveInstances);
 }
 
-USoundModulationPluginSourceSettingsBase* FActiveSound::FindModulationSettings() const
-{
-	if (!AudioDevice->IsModulationPluginEnabled() || !AudioDevice->ModulationInterface.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (UClass* PluginClass = GetAudioPluginCustomSettingsClass(EAudioPlugin::MODULATION))
-	{
-		for (USoundModulationPluginSourceSettingsBase* Settings : Sound->Modulation.Settings)
-		{
-			if (Settings && Settings->IsA(PluginClass))
-			{
-				return Settings;
-			}
-		}
-
-		if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
-		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : AudioComponent->Modulation.Settings)
-			{
-				if (Settings && Settings->IsA(PluginClass))
-				{
-					return Settings;
-				}
-			}
-		}
-
-		if (USoundClass* SoundClass = Sound->GetSoundClass())
-		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : SoundClass->Modulation.Settings)
-			{
-				if (Settings && Settings->IsA(PluginClass))
-				{
-					return Settings;
-				}
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 {
 	check(AudioDevice);
@@ -780,11 +765,6 @@ void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 			{
 				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceID);
 			}
-		}
-
-		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = FindModulationSettings())
-		{
-			AudioDevice->ModulationInterface->OnReleaseSound(static_cast<ISoundModulatable&>(*this));
 		}
 	}
 

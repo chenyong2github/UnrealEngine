@@ -68,6 +68,7 @@ public class UMGEditor : ModuleRules
 				"GameProjectGeneration",
 				"PropertyPath",
 				"ToolMenus",
+				"DeveloperSettings"
 			}
 			);
 	}

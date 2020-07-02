@@ -241,7 +241,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class 
 			FKeyDataOptimizationParams Params;
 			for (FDMXFixtureFunctionChannel& FunctionChannel : FunctionChannels)
 			{
-				MovieScene::Optimize(&FunctionChannel.Channel, Params);
+				UE::MovieScene::Optimize(&FunctionChannel.Channel, Params);
 			}
 		}
 	);

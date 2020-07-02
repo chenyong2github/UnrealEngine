@@ -332,21 +332,21 @@ void FNavRegenTimeSliceManager::SetMinTimeSliceDuration(double NewMinTimeSliceDu
 {
 	MinTimeSliceDuration = NewMinTimeSliceDuration;
 
-	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MinTimeSliceDuration = %f"), MinTimeSliceDuration);
+	UE_LOG(LogNavigationDataBuild, Verbose, TEXT("Navigation System: MinTimeSliceDuration = %f"), MinTimeSliceDuration);
 }
 
 void FNavRegenTimeSliceManager::SetMaxTimeSliceDuration(double NewMaxTimeSliceDuration)
 {
 	MaxTimeSliceDuration = NewMaxTimeSliceDuration;
 
-	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MaxTimeSliceDuration = %f"), MaxTimeSliceDuration);
+	UE_LOG(LogNavigationDataBuild, Verbose, TEXT("Navigation System: MaxTimeSliceDuration = %f"), MaxTimeSliceDuration);
 }
 
 void FNavRegenTimeSliceManager::SetMaxDesiredTileRegenDuration(float NewMaxDesiredTileRegenDuration)
 {
 	MaxDesiredTileRegenDuration = NewMaxDesiredTileRegenDuration;
 
-	UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation System: MaxDesiredTileRegenDuration = %f"), MaxDesiredTileRegenDuration);
+	UE_LOG(LogNavigationDataBuild, Verbose, TEXT("Navigation System: MaxDesiredTileRegenDuration = %f"), MaxDesiredTileRegenDuration);
 }
 
 //----------------------------------------------------------------------//

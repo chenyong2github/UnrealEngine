@@ -4,6 +4,10 @@
 #include "Animation/Sequencer2DTransformSection.h"
 #include "Slate/WidgetTransform.h"
 #include "ISectionLayoutBuilder.h"
+#include "IKeyArea.h"
+
+#include "Animation/MovieSceneUMGComponentTypes.h"
+#include "Systems/MovieScenePropertyInstantiator.h"
 
 FName F2DTransformTrackEditor::TranslationName( "Translation" );
 FName F2DTransformTrackEditor::ScaleName( "Scale" );
@@ -24,7 +28,7 @@ TSharedRef<ISequencerSection> F2DTransformTrackEditor::MakeSectionInterface(UMov
 	return MakeShared<F2DTransformSection>(SectionObject, GetSequencer());
 }
 
-void F2DTransformTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void F2DTransformTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	FPropertyPath StructPath = PropertyChangedParams.StructPathToKey;
 
@@ -87,47 +91,109 @@ void F2DTransformTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyCh
 		}
 	}
 
-	FWidgetTransform Transform = PropertyChangedParams.GetPropertyValue<FWidgetTransform>();
+	FWidgetTransform CurrentTransform    = PropertyChangedParams.GetPropertyValue<FWidgetTransform>();
+	FWidgetTransform RecomposedTransform = RecomposeTransform(CurrentTransform, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
 
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, Transform.Translation.X, bKeyTranslationX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, Transform.Translation.Y, bKeyTranslationY));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, Transform.Angle,         bKeyAngle));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, Transform.Scale.X,       bKeyScaleX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, Transform.Scale.Y,       bKeyScaleY));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, Transform.Shear.X,       bKeyShearX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, Transform.Shear.Y,       bKeyShearY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, RecomposedTransform.Translation.X, bKeyTranslationX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, RecomposedTransform.Translation.Y, bKeyTranslationY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, RecomposedTransform.Angle,         bKeyAngle));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, RecomposedTransform.Scale.X,       bKeyScaleX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, RecomposedTransform.Scale.Y,       bKeyScaleY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, RecomposedTransform.Shear.X,       bKeyShearX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, RecomposedTransform.Shear.Y,       bKeyShearY));
 }
 
-bool F2DTransformTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
+FWidgetTransform F2DTransformTrackEditor::RecomposeTransform(const FWidgetTransform& InTransform, UObject* AnimatedObject, UMovieSceneSection* Section)
 {
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+	using namespace UE::MovieScene;
 
-	UMovieScene2DTransformTrack* TransformTrack = Cast<UMovieScene2DTransformTrack>(Track);
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+	const FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = GetSequencer()->GetEvaluationTemplate();
 
-	if (TransformTrack)
+	UMovieSceneEntitySystemLinker* EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
+	FMovieSceneEntityID EntityID = EvaluationTemplate.FindEntityFromOwner(Section, 0, GetSequencer()->GetFocusedTemplateID());
+
+	if (EntityLinker && EntityID)
 	{
-		FMovieSceneInterrogationData InterrogationData;
-		GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
-
-		FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-		EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-		FWidgetTransform Val;
-		for (const FWidgetTransform& InWidget : InterrogationData.Iterate<FWidgetTransform>(UMovieScene2DTransformSection::GetWidgetTransformInterrogationKey()))
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		if (System)
 		{
-			Val = InWidget;
-			break;
+			FDecompositionQuery Query;
+			Query.Entities = MakeArrayView(&EntityID, 1);
+			Query.Object   = AnimatedObject;
+
+			return System->RecomposeBlendFinal(FMovieSceneUMGComponentTypes::Get()->WidgetTransform, Query, InTransform).Values[0];
 		}
-		FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
-		GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Translation.X, Weight);
-		GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Translation.Y, Weight);
-		GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Angle, Weight);
-		GeneratedTotalKeys[3]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Scale.X, Weight);
-		GeneratedTotalKeys[4]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Scale.Y, Weight);
-		GeneratedTotalKeys[5]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Shear.X, Weight);
-		GeneratedTotalKeys[6]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Shear.Y, Weight);
-		return true;
 	}
-	return false;
+
+	return InTransform;
+}
+
+void F2DTransformTrackEditor::ProcessKeyOperation(FFrameNumber InKeyTime, const UE::Sequencer::FKeyOperation& Operation, ISequencer& InSequencer)
+{
+	using namespace UE::Sequencer;
+
+	auto Iterator = [this, InKeyTime, &Operation, &InSequencer](UMovieSceneTrack* Track, TArrayView<const UE::Sequencer::FKeySectionOperation> Operations)
+	{
+		FGuid ObjectBinding = Track->FindObjectBindingGuid();
+		if (ObjectBinding.IsValid())
+		{
+			for (TWeakObjectPtr<> WeakObject : InSequencer.FindBoundObjects(ObjectBinding, InSequencer.GetFocusedTemplateID()))
+			{
+				if (UObject* Object = WeakObject.Get())
+				{
+					this->ProcessKeyOperation(Object, Operations, InSequencer, InKeyTime);
+					return;
+				}
+			}
+		}
+
+		// Default behavior
+		FKeyOperation::ApplyOperations(InKeyTime, Operations, ObjectBinding, InSequencer);
+	};
+
+	Operation.IterateOperations(Iterator);
+}
+
+void F2DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayView<const UE::Sequencer::FKeySectionOperation> SectionsToKey, ISequencer& InSequencer, FFrameNumber KeyTime)
+{
+	using namespace UE::Sequencer;
+
+	for (const FKeySectionOperation& Operation : SectionsToKey)
+	{
+		UMovieScene2DTransformSection* SectionObject = Cast<UMovieScene2DTransformSection>(Operation.Section->GetSectionObject());
+		if (!SectionObject)
+		{
+			continue;
+		}
+
+		FWidgetTransform CurrentTransform    = SectionObject->GetCurrentValue(ObjectToKey);
+		FWidgetTransform RecomposedTransform = RecomposeTransform(CurrentTransform, ObjectToKey, SectionObject);
+
+		for (TSharedPtr<IKeyArea> KeyArea : Operation.KeyAreas)
+		{
+			FMovieSceneChannelHandle Handle  = KeyArea->GetChannel();
+			FMovieSceneChannel*      Channel = Handle.Get();
+
+			if (Channel)
+			{
+				float Value = 0.f;
+				switch ( Handle.GetChannelIndex() )
+				{
+				case 0: Value = RecomposedTransform.Translation.X;               break;
+				case 1: Value = RecomposedTransform.Translation.Y;               break;
+				case 2: Value = RecomposedTransform.Angle;                       break;
+				case 3: Value = RecomposedTransform.Scale.X;                     break;
+				case 4: Value = RecomposedTransform.Scale.Y;                     break;
+				case 5: Value = RecomposedTransform.Shear.X;                     break;
+				case 6: Value = RecomposedTransform.Shear.Y;                     break;
+				default: KeyArea->AddOrUpdateKey(KeyTime, FGuid(), InSequencer); continue;
+				}
+
+				if (Handle.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName())
+				{
+					AddKeyToChannel(static_cast<FMovieSceneFloatChannel*>(Channel), KeyTime, Value, InSequencer.GetKeyInterpolation());
+				}
+			}
+		}
+	}
 }

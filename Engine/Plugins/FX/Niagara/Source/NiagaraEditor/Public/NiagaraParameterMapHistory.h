@@ -17,13 +17,13 @@ class FCompileConstantResolver
 {
 public:
 	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr) {}
-	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
-	FCompileConstantResolver(FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
+	FCompileConstantResolver(const UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
+	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 private:
-	UNiagaraEmitter* Emitter;
-	FHlslNiagaraTranslator* Translator;
+	const UNiagaraEmitter* Emitter;
+	const FHlslNiagaraTranslator* Translator;
 };
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
@@ -178,6 +178,7 @@ public:
 	/** Called to determine if a given variable should be output from a script. It is not static as it requires the overall context to include emitter namespaces visited for system scripts.*/
 	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript, bool bAllowDataInterfaces = false) const;
 	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces = false) const;
+	static bool IsWrittenToScriptUsage(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces);
 
 	/** Are we required to export this variable as an external constant?*/
 	bool IsExportableExternalConstant(const FNiagaraVariable& InVar, const UNiagaraScript* InScript);

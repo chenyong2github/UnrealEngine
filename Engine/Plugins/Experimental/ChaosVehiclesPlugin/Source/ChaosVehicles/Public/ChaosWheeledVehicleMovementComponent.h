@@ -28,6 +28,8 @@ struct FWheeledVehicleDebugParams
 
 	float ThrottleOverride = 0.f;
 	float SteeringOverride = 0.f;
+
+	bool ResetPerformanceMeasurements = false;
 };
 
 /**
@@ -38,6 +40,8 @@ struct FWheeledVehicleDebugParams
 enum EDebugPages : uint8
 {
 	BasicPage = 0,
+	PerformancePage,
+	SteeringPage,
 	FrictionPage,
 	SuspensionPage,
 	TransmissionPage,
@@ -49,14 +53,12 @@ enum EDebugPages : uint8
 UENUM()
 enum class EVehicleDifferential : uint8
 {
-	LimitedSlip_4W,
-	LimitedSlip_FrontDrive,
-	LimitedSlip_RearDrive,
-	Open_4W,
-	Open_FrontDrive,
-	Open_RearDrive,
+	AllWheelDrive,
+	FrontWheelDrive,
+	RearWheelDrive,
 };
 
+// #todo: implement this or something like it
 USTRUCT()
 struct FVehicleDifferentialConfig
 {
@@ -89,6 +91,12 @@ struct FVehicleDifferentialConfig
 	///** Maximum allowed ratio of rear-left and rear-right wheel rotation speeds (range: 1..inf, works only with LimitedSlip_4W, LimitedSlip_FrontDrive) */
 	//UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "1.0", UIMin = "1.0"))
 	//float RearBias;
+
+	void InitDefaults()
+	{
+		DifferentialType = EVehicleDifferential::RearWheelDrive;
+		FrontRearSplit = 0.5f;
+	}
 };
 
 USTRUCT()
@@ -116,24 +124,16 @@ struct FVehicleEngineConfig
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.001", UIMin = "0.001"))
 	float EngineBrakeEffect;
 
-	///** Moment of inertia of the engine around the axis of rotation (Kgm^2). */
-	//UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
-	//float MOI;
+	/** Affects how fast the engine RPM speed up */
+	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float EngineRevUpMOI;
 
-	///** Damping rate of engine when full throttle is applied (Kgm^2/s) */
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float DampingRateFullThrottle;
-
-	///** Damping rate of engine in at zero throttle when the clutch is engaged (Kgm^2/s)*/
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float DampingRateZeroThrottleClutchEngaged;
-
-	///** Damping rate of engine in at zero throttle when the clutch is disengaged (in neutral gear) (Kgm^2/s)*/
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float DampingRateZeroThrottleClutchDisengaged;
+	/** Affects how fast the engine RPM slows down */
+	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float EngineRevDownRate;
 
 	/** Find the peak torque produced by the TorqueCurve */
-	float FindPeakTorque() const;
+	//float FindPeakTorque() const;
 
 	const Chaos::FSimpleEngineConfig& GetPhysicsEngineConfig()
 	{
@@ -141,20 +141,40 @@ struct FVehicleEngineConfig
 		return PEngineConfig;
 	}
 
+	void InitDefaults()
+	{
+		//TorqueCurve.GetRichCurve().AddKey(0.0f, 1.0f);
+		//TorqueCurve.GetRichCurve().AddKey(1.0f, 0.0f);
+		MaxTorque = 300.0f;
+		MaxRPM = 4500.0f;
+		EngineIdleRPM = 1200.0f;
+		EngineBrakeEffect = 0.001f;
+
+		EngineRevUpMOI = 5.0f;
+		EngineRevDownRate = 600.0f;
+	}
+
 private:
 
 	void FillEngineSetup()
 	{
 		// #todo: better Chaos torque curve representation
+
+		// The source curve does not need to be normalized, however we are normalizing it when it is passed on,
+		// since it's the MaxRPM and MaxTorque values that determine the range of RPM and Torque
 		PEngineConfig.TorqueCurve.Empty();
-		for (float X=0; X<1.1f; X+=0.1f)
+		float NumSamples = 20;
+		for (float X = 0; X <= this->MaxRPM; X+= (this->MaxRPM / NumSamples))
 		{ 
-			PEngineConfig.TorqueCurve.Add(this->TorqueCurve.GetRichCurveConst()->Eval(X));
+			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / this->MaxTorque;
+			PEngineConfig.TorqueCurve.Add(Y);
 		}
 		PEngineConfig.MaxTorque = this->MaxTorque;
 		PEngineConfig.MaxRPM = this->MaxRPM;
 		PEngineConfig.EngineIdleRPM = this->EngineIdleRPM;
 		PEngineConfig.EngineBrakeEffect = this->EngineBrakeEffect;
+		PEngineConfig.EngineRevUpMOI = this->EngineRevUpMOI;
+		PEngineConfig.EngineRevDownRate = this->EngineRevDownRate;
 	}
 
 	Chaos::FSimpleEngineConfig PEngineConfig;
@@ -173,10 +193,6 @@ struct FVehicleTransmissionConfig
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (DisplayName = "Automatic Reverse"))
 	bool bUseAutoReverse;
 
-	/** Time it takes to switch gears (seconds) */
-	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float GearChangeTime;
-
 	/** The final gear ratio multiplies the transmission gear ratios.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
 	float FinalRatio;
@@ -190,29 +206,53 @@ struct FVehicleTransmissionConfig
 	TArray<float> ReverseGearRatios;
 
 	/** Engine Revs at which gear up change ocurrs */
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"), Category = Setup)
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "50000.0", UIMax = "50000.0"), Category = Setup)
 	float ChangeUpRPM;
 
 	/** Engine Revs at which gear down change ocurrs */
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"), Category = Setup)
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "50000.0", UIMax = "50000.0"), Category = Setup)
 	float ChangeDownRPM;
+
+	/** Time it takes to switch gears (seconds) */
+	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float GearChangeTime;
+
+	/** Mechanical frictional losses mean transmission might operate at 0.94 (94% efficiency) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
+	float TransmissionEfficiency;
 
 	/** Value of engineRevs/maxEngineRevs that is high enough to increment gear*/
 	//UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	//float NeutralGearUpRatio;
 
-	///** Strength of clutch (Kgm^2/s)*/
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float ClutchStrength;
-
-	///** Loss of Power from mechanical friction in the transmission system (N.m) */
-	//UPROPERTY(EditAnywhere, Category = Setup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0"))
-	//float MechanicalFrictionLosses;
 
 	const Chaos::FSimpleTransmissionConfig& GetPhysicsTransmissionConfig()
 	{
 		FillTransmissionSetup();
 		return PTransmissionConfig;
+	}
+
+	void InitDefaults()
+	{
+		bUseAutomaticGears = true;
+		bUseAutoReverse = true;
+		FinalRatio = 3.08f;
+
+		ForwardGearRatios.Add(2.85f);
+		ForwardGearRatios.Add(2.02f);
+		ForwardGearRatios.Add(1.35f);
+		ForwardGearRatios.Add(1.0f);
+
+		ReverseGearRatios.Add(2.86f);
+
+		ChangeUpRPM = 4500.0f;
+		ChangeDownRPM = 2000.0f;
+		GearChangeTime = 0.4f;
+
+		TransmissionEfficiency = 0.9f;
+
+		// #todo: probably need something like this
+		// NeutralGearUpRatio
 	}
 
 private:
@@ -221,11 +261,12 @@ private:
 	{
 		PTransmissionConfig.TransmissionType = this->bUseAutomaticGears ? Chaos::ETransmissionType::Automatic : Chaos::ETransmissionType::Manual;
 		PTransmissionConfig.AutoReverse = this->bUseAutoReverse;
-		PTransmissionConfig.ChangeDownRPM = this->ChangeUpRPM;
-		PTransmissionConfig.ChangeUpRPM = this->ChangeDownRPM;
+		PTransmissionConfig.ChangeUpRPM = this->ChangeUpRPM;
+		PTransmissionConfig.ChangeDownRPM = this->ChangeDownRPM;
 		PTransmissionConfig.GearChangeTime = this->GearChangeTime;
 		PTransmissionConfig.FinalDriveRatio = this->FinalRatio;
 		PTransmissionConfig.ForwardRatios.Reset();
+		PTransmissionConfig.TransmissionEfficiency = this->TransmissionEfficiency;
 		for (float Ratio : this->ForwardGearRatios)
 		{
 			PTransmissionConfig.ForwardRatios.Add(Ratio);
@@ -241,6 +282,41 @@ private:
 	Chaos::FSimpleTransmissionConfig PTransmissionConfig;
 
 };
+
+USTRUCT()
+struct FVehicleSteeringConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Maximum steering versus forward speed (km/h) */
+	//UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	//FRuntimeFloatCurve SteeringCurve;
+
+	const Chaos::FSimpleSteeringConfig& GetPhysicsSteeringConfig(FVector2D WheelTrackDimensions)
+	{
+		FillSteeringSetup(WheelTrackDimensions);
+		return PSteeringConfig;
+	}
+
+	void InitDefaults()
+	{
+		// #todo: need to implement a Max steering Angle vs vehicle speed curve.
+		//SteeringCurve
+	}
+
+private:
+
+	void FillSteeringSetup(FVector2D WheelTrackDimensions)
+	{
+		PSteeringConfig.TrackWidth = WheelTrackDimensions.Y;
+		PSteeringConfig.WheelBase = WheelTrackDimensions.X;
+		PSteeringConfig.TrackEndRadius = 40.f;
+	}
+
+	Chaos::FSimpleSteeringConfig PSteeringConfig;
+
+};
+
 
 USTRUCT()
 struct CHAOSVEHICLES_API FChaosWheelSetup
@@ -287,7 +363,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	GENERATED_UCLASS_BODY()
 
 	/** Wheels to create */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
 
 	/** Engine */
@@ -295,57 +371,20 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	FVehicleEngineConfig EngineSetup;
 
 	/** Differential */
-	//UPROPERTY(EditAnywhere, Category = MechanicalSetup)
-	//FVehicleDifferentialConfig DifferentialSetup;
-
-	/** Accuracy of Ackermann steer calculation (range: 0..1) */
-	//UPROPERTY(EditAnywhere, Category = SteeringSetup, AdvancedDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	//float AckermannAccuracy;
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	FVehicleDifferentialConfig DifferentialSetup;
 
 	/** Transmission data */
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
 	FVehicleTransmissionConfig TransmissionSetup;
 
-	/** Maximum steering versus forward speed (km/h) */
+	/** Transmission data */
 	UPROPERTY(EditAnywhere, Category = SteeringSetup)
-	FRuntimeFloatCurve SteeringCurve;
+	FVehicleSteeringConfig SteeringSetup;
 
 	// Our instanced wheels
 	UPROPERTY(transient, duplicatetransient, BlueprintReadOnly, Category = Vehicle)
 	TArray<class UChaosVehicleWheel*> Wheels;
-
-	////////////////////////////////////////////////////////////////////////////
-		/** Set the user input for the vehicle throttle */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetThrottleInput(float Throttle);
-
-	///** Set the user input for the vehicle Brake */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetBrakeInput(float Brake);
-
-	///** Set the user input for the vehicle steering */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetSteeringInput(float Steering);
-
-	///** Set the user input for handbrake */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetHandbrakeInput(bool bNewHandbrake);
-
-	///** Set the user input for gear up */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetGearUp(bool bNewGearUp);
-
-	///** Set the user input for gear down */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetGearDown(bool bNewGearDown);
-
-	///** Set the user input for gear (-1 reverse, 0 neutral, 1+ forward)*/
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetTargetGear(int32 GearNum, bool bImmediate);
-
-	///** Set the flag that will be used to select auto-gears */
-	//UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
-	//	void SetUseAutoGears(bool bUseAuto);
 
 	/** Get current engine's rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
@@ -474,16 +513,29 @@ protected:
 	/** Draw 3D debug lines and things along side the 3D model */
 	virtual void DrawDebug3D() override;
 
-
 	/** Get distances between wheels - primarily a debug display helper */
-	FVector2D GetWheelLayoutDimensions();
+	const FVector2D& GetWheelLayoutDimensions() const
+	{
+		return WheelTrackDimensions;
+	}
 
 	private:
+
+	/** Get distances between wheels - primarily a debug display helper */
+	FVector2D CalculateWheelLayoutDimensions();
+	bool IsWheelSpinning() const;
+
+#if WITH_EDITOR
+	float CalcDialAngle(float CurrentValue, float MaxValue);
+	void DrawDial(UCanvas* Canvas, FVector2D Pos, float Radius, float CurrentValue, float MaxValue);
+#endif
 
 	static EDebugPages DebugPage;
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
 	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
+	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 
+	FPerformanceMeasure PerformanceMeasure;
 	bool MechanicalSimEnabled;
 	bool SuspensionEnabled;
 	bool WheelFrictionEnabled;

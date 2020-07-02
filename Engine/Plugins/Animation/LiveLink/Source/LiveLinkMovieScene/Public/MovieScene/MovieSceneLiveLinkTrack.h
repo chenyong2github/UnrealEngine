@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Tracks/MovieScenePropertyTrack.h"
-
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneLiveLinkTrack.generated.h"
 
 class ULiveLinkRole;
@@ -12,7 +12,7 @@ class ULiveLinkRole;
 * A track for animating FMoveSceneLiveLinkTrack properties.
 */
 UCLASS(MinimalAPI)
-class UMovieSceneLiveLinkTrack : public UMovieScenePropertyTrack
+class UMovieSceneLiveLinkTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

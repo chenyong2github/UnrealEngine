@@ -23,6 +23,7 @@
 #include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneInfo.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraDataSetAccessor.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -214,9 +215,10 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 		{
 			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
 			{
+				//We can skip creation of the renderer if the current quality level doesn't support it. If the quality level changes all systems are fully reinitialized.
 				RendererSortInfo.Emplace(Properties->SortOrderHint, EmitterRenderers.Num());
 				FNiagaraRenderer* NewRenderer = nullptr;
-				if (Properties->GetIsEnabled() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+				if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 				{
 					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
 					bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
@@ -983,17 +985,22 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	RegisterWithScalabilityManager();
 
+	// NOTE: This call can cause SystemInstance itself to get destroyed with auto destroy systems
 	SystemInstance->Activate(ResetMode);
-
-	if (SystemInstance->IsSolo())
+	
+	if (SystemInstance && SystemInstance->IsSolo())
 	{
 		const ETickingGroup SoloTickGroup = SystemInstance->CalculateTickGroup();
 		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
 		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
-	}
 
-	/** We only need to tick the component if we require solo mode. */
-	SetComponentTickEnabled(SystemInstance->IsSolo());
+		/** We only need to tick the component if we require solo mode. */
+		SetComponentTickEnabled(true);
+	}
+	else
+	{
+		SetComponentTickEnabled(false);
+	}
 }
 
 void UNiagaraComponent::Deactivate()
@@ -1171,7 +1178,7 @@ void UNiagaraComponent::OnSystemComplete()
 				if (GNiagaraComponentWarnAsleepCullReaction == 1)
 				{
 					//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
-					UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffctType.\nComponent:%s\nSystem:%s")
+					UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
 						, *GetFullName(), *GetAsset()->GetFullName());
 				}
 			}
@@ -1307,16 +1314,15 @@ void UNiagaraComponent::OnUnregister()
 
 		SystemInstance->Deactivate(true);
 
-		//TODO: Don't destroy the instance for pooled systems. This is removing half or more of the gains of pooling in the first place.
-		//if (PoolingMethod == ENCPoolMethod::None)
+		if (PoolingMethod == ENCPoolMethod::None)
 		{
 			// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 			// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
 			FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
 			check(SystemInstance.Get() == nullptr);
-	#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 			OnSystemInstanceChangedDelegate.Broadcast();
-	#endif
+#endif
 		}
 	}
 }
@@ -1430,7 +1436,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
 				FNiagaraDynamicDataBase* NewData = nullptr;
 				
-				if (Renderer)
+				if (Renderer && Properties->GetIsActive())
 				{
 					bool bRendererEditorEnabled = true;
 #if WITH_EDITORONLY_DATA
@@ -1778,24 +1784,16 @@ TArray<FVector> UNiagaraComponent::GetNiagaraParticleValueVec3_DebugOnly(const F
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Positions.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<FVector> PosData(Sim->GetData(), FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), *InValueName));
 
-				if (PosData.IsValidForRead())
-				{
-					for (int32 i = 0; i < NumParticles; ++i)
-					{
-						FVector Position;
-						PosData.Get(i, Position);
-						Positions[i] = Position;
-					}
-				}
-				else
+				const auto PosData = FNiagaraDataSetAccessor<FVector>::CreateReader(Sim->GetData(), *InValueName);
+				if (!PosData.IsValid())
 				{
 					UE_LOG(LogNiagara, Warning, TEXT("Unable to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
-					for (int32 i = 0; i < NumParticles; ++i)
-					{
-						Positions[i] = FVector::ZeroVector;
-					}
+				}
+
+				for (int32 i = 0; i < NumParticles; ++i)
+				{
+					Positions[i] = PosData.GetSafe(i, FVector::ZeroVector);
 				}
 			}
 		}
@@ -1817,12 +1815,11 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Values.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> ValueData(Sim->GetData(), *InValueName);
-				for (int32 i = 0; i < NumParticles; ++i)
+
+				const auto ValueData = FNiagaraDataSetAccessor<float>::CreateReader(Sim->GetData(), *InValueName);
+				for (int32 i=0; i < NumParticles; ++i)
 				{
-					float Value;
-					ValueData.Get(i, Value);
-					Values[i] = Value;
+					Values[i] = ValueData.GetSafe(i, 0.0f);
 				}
 			}
 		}
@@ -1929,6 +1926,96 @@ void UNiagaraComponent::PostLoad()
 		FixInvalidUserParameters(OverrideParameters);
 		
 		UpgradeDeprecatedParameterOverrides();
+
+#if WITH_EDITORONLY_DATA
+		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+		if (NiagaraVer < FNiagaraCustomVersion::ComponentsOnlyHaveUserVariables)
+		{
+			{
+				TArray<FNiagaraVariableBase> ToRemoveNonUser;
+				TArray<FNiagaraVariableBase> ToAddNonUser;
+
+				auto InstanceKeyIter = InstanceParameterOverrides.CreateConstIterator();
+				while (InstanceKeyIter)
+				{
+					FName KeyName = InstanceKeyIter.Key().GetName();
+					FNiagaraVariableBase VarBase = InstanceKeyIter.Key();
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(VarBase);
+					FName UserKeyName = VarBase.GetName();
+					if (KeyName != UserKeyName)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("InstanceParameterOverrides for %s has non-user keys in it! %s. Updating in PostLoad to User key."), *GetPathName(), *KeyName.ToString());
+						const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(VarBase);
+						if (FoundVar != nullptr)
+						{
+							UE_LOG(LogNiagara, Warning, TEXT("InstanceParameterOverrides for %s has values for both keys in it! %s and %s. PostLoad keeping User version."), *GetPathName(), *KeyName.ToString(), *UserKeyName.ToString());
+						}
+						else
+						{
+							ToAddNonUser.Add(InstanceKeyIter.Key());
+						}
+						ToRemoveNonUser.Add(InstanceKeyIter.Key());
+					}
+					++InstanceKeyIter;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToAddNonUser)
+				{
+					const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(Var);
+					FNiagaraVariableBase UserVar = Var;
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
+					InstanceParameterOverrides.Add(UserVar) = *FoundVar;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
+				{
+					InstanceParameterOverrides.Remove(Var);
+				}
+			}
+
+			{
+				TArray<FNiagaraVariableBase> ToRemoveNonUser;
+				TArray<FNiagaraVariableBase> ToAddNonUser;
+
+				auto TemplateKeyIter = TemplateParameterOverrides.CreateConstIterator();
+				while (TemplateKeyIter)
+				{
+					FName KeyName = TemplateKeyIter.Key().GetName();
+					FNiagaraVariableBase VarBase = TemplateKeyIter.Key();
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(VarBase);
+					FName UserKeyName = VarBase.GetName();
+					if (KeyName != UserKeyName)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("TemplateParameterOverrides for %s has non-user keys in it! %s. Updating in PostLoad to User key."), *GetPathName(), *KeyName.ToString());
+						const FNiagaraVariant* FoundVar = TemplateParameterOverrides.Find(VarBase);
+						if (FoundVar != nullptr)
+						{
+							UE_LOG(LogNiagara, Warning, TEXT("TemplateParameterOverrides for %s has values for both keys in it! %s and %s.  PostLoad keeping User version."), *GetPathName(), *KeyName.ToString(), *UserKeyName.ToString());
+						}
+						else
+						{
+							ToAddNonUser.Add(TemplateKeyIter.Key());
+						}
+						ToRemoveNonUser.Add(TemplateKeyIter.Key());
+					}
+					++TemplateKeyIter;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToAddNonUser)
+				{
+					const FNiagaraVariant* FoundVar = TemplateParameterOverrides.Find(Var);
+					FNiagaraVariableBase UserVar = Var;
+					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
+					TemplateParameterOverrides.Add(UserVar) = *FoundVar;
+				}
+
+				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
+				{
+					TemplateParameterOverrides.Remove(Var);
+				}
+			}
+		}
+#endif
 		SynchronizeWithSourceSystem();
 
 		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
@@ -2020,7 +2107,7 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 	InstanceParameterOverrides.Empty();
 #endif
 
-	OverrideParameters.Empty();
+	OverrideParameters.Empty(false);
 
 	if (Asset == nullptr)
 	{
@@ -2251,19 +2338,41 @@ FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableB
 		return FNiagaraVariant();
 	}
 
+	FNiagaraVariableBase RedirectedVar = Asset->GetExposedParameters().FindRedirection(InKey);
+
 	if (!IsTemplate())
 	{
-		const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
+		// Check both user and non-user keys
+		{
+			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
+			if (Value != nullptr)
+			{
+				return *Value;
+			}
+		}
+		{
+			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(RedirectedVar);
+			if (Value != nullptr)
+			{
+				return *Value;
+			}
+		}
+	}
+
+	// Check both user and non-user keys
+	{
+		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
 		if (Value != nullptr)
 		{
 			return *Value;
 		}
 	}
-
-	const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
-	if (Value != nullptr)
 	{
-		return *Value;
+		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(RedirectedVar);
+		if (Value != nullptr)
+		{
+			return *Value;
+		}
 	}
 
 	return FNiagaraVariant();
@@ -2477,8 +2586,18 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 	OverrideParameters.Rebind();
 #endif
 
+	bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
+
 	//Force a reinit.
 	DestroyInstance();
+
+	if (Asset && IsRegistered())
+	{
+		if (bAutoActivate || bWasActive)
+		{
+			Activate();
+		}
+	}
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 

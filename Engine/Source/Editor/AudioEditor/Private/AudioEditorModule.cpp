@@ -18,7 +18,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectPreset.h"
 #include "SoundCueEditor.h"
-#include "SoundModulationParameterLayout.h"
+#include "SoundModulationDestinationLayout.h"
 #include "SoundSubmixEditor.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueVoice.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
@@ -40,6 +40,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "SoundFileIO/SoundFileIO.h"
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
+#include "SubmixDetailsCustomization.h"
+#include "WidgetBlueprint.h"
 
 const FName AudioEditorAppIdentifier = FName(TEXT("AudioEditorApp"));
 
@@ -94,8 +96,25 @@ public:
 		UReimportSoundFactory::StaticClass();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationParameterSettings",
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationParameterLayoutCustomization::MakeInstance));
+		
+		// Custom Property Layouts
+		auto AddCustomProperty = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetPropertyTypeCustomizationInstance InstanceGetter)
+		{
+			InPropertyModule->RegisterCustomPropertyTypeLayout(Name, InstanceGetter);
+			CustomPropertyLayoutNames.Add(Name);
+		};
+		AddCustomProperty("SoundModulationDestinationSettings", 
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDestinationLayoutCustomization::MakeInstance));
+
+		// Custom Class Layouts
+		auto AddCustomClass = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetDetailCustomizationInstance InstanceGetter)
+		{
+			InPropertyModule->RegisterCustomClassLayout(Name, InstanceGetter);
+			CustomClassLayoutNames.Add(Name);
+		};
+		AddCustomClass("EndpointSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FEndpointSubmixDetailsCustomization::MakeInstance));
+		AddCustomClass("SoundfieldEndpointSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FSoundfieldEndpointSubmixDetailsCustomization::MakeInstance));
+		AddCustomClass("SoundfieldSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FSoundfieldSubmixDetailsCustomization::MakeInstance));
 
 		SetupIcons();
 #if WITH_SNDFILE_IO
@@ -124,6 +143,23 @@ public:
 		if (SoundSubmixGraphConnectionFactory.IsValid())
 		{
 			FEdGraphUtilities::UnregisterVisualPinConnectionFactory(SoundSubmixGraphConnectionFactory);
+		}
+
+		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			for (FName PropertyName : CustomPropertyLayoutNames)
+			{
+				PropertyModule.UnregisterCustomPropertyTypeLayout(PropertyName);
+			}
+			CustomPropertyLayoutNames.Reset();
+
+			for (FName ClassName : CustomClassLayoutNames)
+			{
+				PropertyModule.UnregisterCustomClassLayout(ClassName);
+			}
+			CustomClassLayoutNames.Reset();
 		}
 	}
 
@@ -250,6 +286,35 @@ public:
 		return SoundCueExtensibility.MenuExtensibilityManager;
 	}
 
+	virtual void RegisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass, UWidgetBlueprint* WidgetBlueprint) override
+	{
+		UnregisterSoundEffectPresetWidget(PresetClass);
+
+		if (PresetClass)
+		{
+			WidgetBlueprint->AddToRoot();
+			EffectPresetWidgets.Add(PresetClass, WidgetBlueprint);
+		}
+	}
+
+	/** Returns custom widget blueprint for a given SoundEffectPreset class (or null if unset). */
+	virtual UWidgetBlueprint* GetSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) override
+	{
+		return EffectPresetWidgets.FindRef(PresetClass);
+	}
+
+	virtual void UnregisterSoundEffectPresetWidget(TSubclassOf<USoundEffectPreset> PresetClass) override
+	{
+		if (PresetClass)
+		{
+			if (UWidgetBlueprint* WidgetBlueprint = EffectPresetWidgets.FindRef(PresetClass))
+			{
+				WidgetBlueprint->RemoveFromRoot();
+				EffectPresetWidgets.Remove(PresetClass);
+			}
+		}
+	}
+
 	virtual void ReplaceSoundNodesInGraph(USoundCue* SoundCue, UDialogueWave* DialogueWave, TArray<USoundNode*>& NodesToReplace, const FDialogueContextMapping& ContextMapping) override
 	{
 		// Replace any sound nodes in the graph.
@@ -339,6 +404,10 @@ private:
 			ToolBarExtensibilityManager.Reset();
 		}
 	};
+
+	TArray<FName> CustomClassLayoutNames;
+	TArray<FName> CustomPropertyLayoutNames;
+	TMap<TSubclassOf<USoundEffectPreset>, UWidgetBlueprint*> EffectPresetWidgets;
 
 	FExtensibilityManagers SoundCueExtensibility;
 	FExtensibilityManagers SoundClassExtensibility;

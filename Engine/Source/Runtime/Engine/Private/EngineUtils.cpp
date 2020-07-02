@@ -368,7 +368,7 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World )
 		FSubLevelStatus LevelStatus = {};
 		LevelStatus.PackageName = World->GetOutermost()->GetFName();
 		LevelStatus.StreamingStatus = LEVEL_Visible;
-		LevelStatus.LODIndex	= INDEX_NONE;
+		LevelStatus.LODIndex = INDEX_NONE;
 		Result.Add(LevelStatus);
 	}
 	

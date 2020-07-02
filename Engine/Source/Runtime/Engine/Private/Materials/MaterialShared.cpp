@@ -1030,13 +1030,15 @@ bool FMaterialResource::GetAllowDevelopmentShaderCompile()const
 
 void FMaterial::ReleaseShaderMap()
 {
+	UE_CLOG(IsOwnerBeginDestroyed(), LogMaterial, Error, TEXT("ReleaseShaderMap called on FMaterial %s, owner is BeginDestroyed"), *GetDebugName());
+
 	if (GameThreadShaderMap)
 	{
 		GameThreadShaderMap = nullptr;
 		
-		FMaterial* Material = this;
+		TRefCountPtr<FMaterial> Material = this;
 		ENQUEUE_RENDER_COMMAND(ReleaseShaderMap)(
-		[Material](FRHICommandList& RHICmdList)
+		[Material = MoveTemp(Material)](FRHICommandList& RHICmdList)
 		{
 			Material->RenderingThreadShaderMap = nullptr;
 		});
@@ -1541,11 +1543,34 @@ void FMaterialResource::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 	}
 }
 
+#if UE_CHECK_FMATERIAL_LIFETIME
+uint32 FMaterial::AddRef() const
+{
+	const int32 Refs = NumDebugRefs.Increment();
+	UE_CLOG(Refs <= 0, LogMaterial, Fatal, TEXT("FMaterial::AddRef, Invalid NumDebugRefs %d"), Refs);
+	UE_CLOG(Refs > 5000, LogMaterial, Warning, TEXT("FMaterial::AddRef, Suspicious NumDebugRefs %d"), Refs);
+	return uint32(Refs);
+}
+
+uint32 FMaterial::Release() const
+{
+	const int32 Refs = NumDebugRefs.Decrement();
+	UE_CLOG(Refs < 0, LogMaterial, Fatal, TEXT("FMaterial::Release, Invalid NumDebugRefs %d"), Refs);
+	UE_CLOG(Refs > 5000, LogMaterial, Warning, TEXT("FMaterial::Release, Suspicious NumDebugRefs %d"), Refs);
+	return uint32(Refs);
+}
+#endif // UE_CHECK_FMATERIAL_LIFETIME
+
 /**
  * Destructor
  */
 FMaterial::~FMaterial()
 {
+#if UE_CHECK_FMATERIAL_LIFETIME
+	const uint32 NumRemainingRefs = GetRefCount();
+	UE_CLOG(NumRemainingRefs > 0u, LogMaterial, Fatal, TEXT("%s Leaked %d refs"), *GetDebugName(), NumRemainingRefs);
+#endif // UE_CHECK_FMATERIAL_LIFETIME
+
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
@@ -3567,10 +3592,10 @@ FMaterialAttributeDefintion::FMaterialAttributeDefintion(
 		EMaterialValueType InValueType, const FVector4& InDefaultValue, EShaderFrequency InShaderFrequency,
 		int32 InTexCoordIndex /*= INDEX_NONE*/, bool bInIsHidden /*= false*/, MaterialAttributeBlendFunction InBlendFunction /*= nullptr*/)
 	: AttributeID(InAttributeID)
+	, DefaultValue(InDefaultValue)
 	, AttributeName(InAttributeName)
 	, Property(InProperty)
 	, ValueType(InValueType)
-	, DefaultValue(InDefaultValue)
 	, ShaderFrequency(InShaderFrequency)
 	, TexCoordIndex(InTexCoordIndex)
 	, BlendFunction(InBlendFunction)

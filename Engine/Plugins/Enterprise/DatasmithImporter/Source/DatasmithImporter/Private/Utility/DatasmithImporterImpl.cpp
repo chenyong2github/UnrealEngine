@@ -892,30 +892,9 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 		}
 	}
 	// Verify user has privileges to write in folder where asset file will be stored
-	else
+	else if (GUnrealEd != nullptr && !GUnrealEd->HasMountWritePersmissionForPackage(PackageName))
 	{
-		// We can't just check for the target content folders with IFileManager::Get().GetStatData here as those will
-		// only be created when UUnrealEdEngine::GetWarningStateForWritePermission is called to check for
-		// write permissions the first time, as the result is cached in GUnrealEd->PackagesCheckedForWritePermission.
-		// To check for permission, we need to first check this cache, and if the PackageName hasn't been
-		// checked yet, we need to replicate what UUnrealEdEngine::GetWarningStateForWritePermission does
-		EWriteDisallowedWarningState WarningState = EWriteDisallowedWarningState::WDWS_MAX;
-		if (GUnrealEd != nullptr && GUnrealEd->PackagesCheckedForWritePermission.Find(PackageName))
-		{
-			WarningState = (EWriteDisallowedWarningState)*GUnrealEd->PackagesCheckedForWritePermission.Find(PackageName);
-		}
-		else if (FFileHelper::SaveStringToFile(TEXT("Write Test"), *FakeAbsolutePathToAsset))
-		{
-			// We can successfully write to the folder containing the package.
-			// Delete the temp file.
-			IFileManager::Get().Delete(*FakeAbsolutePathToAsset);
-			WarningState = EWriteDisallowedWarningState::WDWS_WarningUnnecessary;
-		}
-
-		if(WarningState != EWriteDisallowedWarningState::WDWS_WarningUnnecessary)
-		{
-			OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName ));
-		}
+		OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName ));
 	}
 
 	// Check that package can be cooked

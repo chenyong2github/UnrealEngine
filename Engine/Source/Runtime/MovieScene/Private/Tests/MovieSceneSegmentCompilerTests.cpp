@@ -3,13 +3,19 @@
 #include "MovieSceneTestObjects.h"
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "Compilation/MovieSceneCompiler.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "UObject/Package.h"
 #include "MovieSceneTimeHelpers.h"
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TODO: Reimplement or remove segment blender automation tests
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+UE_MOVIESCENE_TODO(Reimplement or remove segment blender automation tests)
+
+#if 0
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -604,3 +610,4 @@ bool FMovieSceneCompilerTreeIteratorBoundsTest::RunTest(const FString& Parameter
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
+#endif // #if 0

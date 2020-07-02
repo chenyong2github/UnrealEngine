@@ -624,7 +624,7 @@ int32 SkeletalSimplifier::FMeshSimplifier::CountDegenerates() const
 }
 
 
-void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, bool bMergeCoincidentVertBones, TArray<int32>* LockedVerts)
+void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, bool bMergeCoincidentVertBones, bool bWeldVtxColorAttrs, TArray<int32>* LockedVerts)
 {
 
 	if (bMergeCoincidentVertBones)
@@ -637,22 +637,7 @@ void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32
 		MeshManager.GetCoincidentVertGroups(CoincidentVertGroups);
 
 		const int32 NumCoincidentVertGroups = CoincidentVertGroups.Num();
-
-#if 0
-		// Make sure all the sparse attrs are the same
-		for (int32 i = 0; i < NumCoincidentVertGroups; ++i)
-		{
-			SimpVertType* HeadVert = CoincidentVertGroups[i];
-			const auto& HeadSparseAttrs = HeadVert->vert.AdditionalAttributes;
-			SimpVertType* tmp = HeadVert->next;
-			while (tmp != HeadVert)
-			{
-				tmp->vert.AdditionalAttributes = HeadSparseAttrs;
-				tmp = tmp->next;
-			}
-
-		}
-#endif 
+ 
 
 		// Make sure all the bones are the same
 		for (int32 i = 0; i < NumCoincidentVertGroups; ++i)
@@ -669,6 +654,13 @@ void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32
 		}
 
 	}
+
+
+	if (bWeldVtxColorAttrs)
+	{
+		MeshManager.WeldNonSplitBasicAttributes(FSimplifierMeshManager::EVtxElementWeld::Color);
+	}
+
 	MeshManager.OutputMesh(verts, indexes, LockedVerts);
 
 }

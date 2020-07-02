@@ -481,7 +481,7 @@ void FAnimationSharedData::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFla
 	}
 
 #if WITH_EDITOR
-	for(const TSharedRef<FAnimNodesTrack> AnimNodesTrack : AnimNodesTracks)
+	for(const TSharedRef<FAnimNodesTrack>& AnimNodesTrack : AnimNodesTracks)
 	{
 		AnimNodesTrack->UpdateDebugData(MarkerFrame);
 	}
@@ -585,7 +585,7 @@ void FAnimationSharedData::DrawPoses(UWorld* InWorld)
 
 void FAnimationSharedData::GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
 {
-	for(const TSharedRef<FAnimNodesTrack> AnimNodesTrack : AnimNodesTracks)
+	for(const TSharedRef<FAnimNodesTrack>& AnimNodesTrack : AnimNodesTracks)
 	{
 		if(AnimNodesTrack->IsVisible())
 		{

@@ -10,6 +10,8 @@
 #include "SoundModulationTransform.h"
 
 
+#define LOCTEXT_NAMESPACE "SoundModulationPatch"
+
 namespace AudioModulation
 {
 	template <typename T>
@@ -33,12 +35,22 @@ USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectIni
 #if WITH_EDITOR
 void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (FProperty* Property = InPropertyChangedEvent.Property)
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
 	{
-		AudioModulation::OnEditModulator(InPropertyChangedEvent, *this);
-	}
+		OutModSystem.UpdateModulator(*this);
+	});
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
+}
+
+void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
+{
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.UpdateModulator(*this);
+	});
+
+	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
 }
 
 void FSoundModulationPatchBase::Clamp()
@@ -56,156 +68,21 @@ void FSoundModulationPatchBase::Clamp()
 		}
 	}
 }
-
-void FSoundVolumeModulationPatch::Clamp()
-{
-	FSoundModulationPatchBase::Clamp();
-
-	AudioModulation::ClampPatchInputs<FSoundVolumeModulationInput>(Inputs);
-	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, 0.0f, MAX_VOLUME);
-	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, 0.0f, MAX_VOLUME);
-}
-
-void FSoundPitchModulationPatch::Clamp()
-{
-	FSoundModulationPatchBase::Clamp();
-
-	AudioModulation::ClampPatchInputs<FSoundPitchModulationInput>(Inputs);
-	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_PITCH, MAX_PITCH);
-	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_PITCH, MAX_PITCH);
-}
-
-void FSoundLPFModulationPatch::Clamp()
-{
-	FSoundModulationPatchBase::Clamp();
-
-	AudioModulation::ClampPatchInputs<FSoundLPFModulationInput>(Inputs);
-	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
-	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
-}
-
-void FSoundHPFModulationPatch::Clamp()
-{
-	FSoundModulationPatchBase::Clamp();
-
-	AudioModulation::ClampPatchInputs<FSoundHPFModulationInput>(Inputs);
-	Output.Transform.OutputMin = FMath::Clamp(Output.Transform.OutputMin, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
-	Output.Transform.OutputMax = FMath::Clamp(Output.Transform.OutputMax, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
-}
 #endif // WITH_EDITOR
-
-TArray<const FSoundModulationInputBase*> FSoundVolumeModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundVolumeModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-TArray<const FSoundModulationInputBase*> FSoundPitchModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundPitchModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-TArray<const FSoundModulationInputBase*> FSoundLPFModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundLPFModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-TArray<const FSoundModulationInputBase*> FSoundHPFModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundHPFModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-TArray<const FSoundModulationInputBase*> FSoundControlModulationPatch::GetInputs() const
-{
-	TArray<const FSoundModulationInputBase*> OutInputs;
-	for (const FSoundControlModulationInput& Input : Inputs)
-	{
-		if (Input.Bus)
-		{
-			OutInputs.Add(static_cast<const FSoundModulationInputBase*>(&Input));
-		}
-	}
-
-	return OutInputs;
-}
-
-FSoundModulationOutput::FSoundModulationOutput()
-	: Operator(ESoundModulatorOperator::Multiply)
-{
-}
-
-FSoundModulationOutputFixedOperator::FSoundModulationOutputFixedOperator()
-	: Operator(ESoundModulatorOperator::Multiply)
-{
-}
 
 FSoundModulationInputBase::FSoundModulationInputBase()
 	: bSampleAndHold(0)
 {
 }
 
-FSoundVolumeModulationInput::FSoundVolumeModulationInput()
-	: Bus(nullptr)
+const USoundControlBusBase* FSoundControlModulationInput::GetBus() const
 {
-}
-
-FSoundPitchModulationInput::FSoundPitchModulationInput()
-	: Bus(nullptr)
-{
-}
-
-FSoundHPFModulationInput::FSoundHPFModulationInput()
-	: Bus(nullptr)
-{
-}
-
-FSoundControlModulationInput::FSoundControlModulationInput()
-	: Bus(nullptr)
-{
-}
-
-FSoundLPFModulationInput::FSoundLPFModulationInput()
-	: Bus(nullptr)
-{
+	return Cast<USoundControlBusBase>(Bus);
 }
 
 FSoundModulationPatchBase::FSoundModulationPatchBase()
-	: DefaultInputValue(1.0f)
-	, bBypass(1)
+	: bBypass(1)
 {
 }
+
+#undef LOCTEXT_NAMESPACE // SoundModulationPatch

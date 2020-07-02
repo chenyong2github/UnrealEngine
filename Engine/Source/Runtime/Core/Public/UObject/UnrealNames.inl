@@ -78,6 +78,7 @@ REGISTER_NAME(104,ObjectArchetype)
 REGISTER_NAME(105,Class)
 REGISTER_NAME(106,ScriptStruct)
 REGISTER_NAME(107,Function)
+REGISTER_NAME(108,Pawn)
 
 // Misc.
 REGISTER_NAME(200,State)
@@ -208,3 +209,4 @@ REGISTER_NAME(602,GameUserSettings)
 // Commonly multicased names - defined globally to prevent non-determinism in package name tables
 REGISTER_NAME(700,Filename)
 REGISTER_NAME(701,Lerp)
+REGISTER_NAME(702,Root)

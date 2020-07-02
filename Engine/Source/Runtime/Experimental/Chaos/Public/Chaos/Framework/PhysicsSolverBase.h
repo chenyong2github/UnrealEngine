@@ -291,6 +291,17 @@ namespace Chaos
 			}
 		}
 
+		//Need this until we have a better way to deal with pending commands that affect scene query structure
+		void FlushCommands_External()
+		{
+			WaitOnPendingTasks_External();
+			for(const auto& Command : CommandQueue)
+			{
+				Command();
+			}
+			CommandQueue.Empty();
+		}
+
 		const UObject* GetOwner() const
 		{ 
 			return Owner; 
@@ -320,6 +331,9 @@ namespace Chaos
 
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
+			//make sure any GT state is pushed into necessary buffer
+			PushPhysicsState();
+
 			//todo: handle dt etc..
 			if(ThreadingMode == EThreadingModeTemp::SingleThread)
 			{
@@ -393,6 +407,7 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
+		virtual void PushPhysicsState() = 0;
 
 
 		//NOTE: if you want to make this virtual, you need to make sure AddProxy is still inlinable since it gets called every time we do a write

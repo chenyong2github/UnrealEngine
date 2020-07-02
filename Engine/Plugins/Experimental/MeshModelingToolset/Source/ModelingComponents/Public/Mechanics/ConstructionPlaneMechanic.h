@@ -47,6 +47,13 @@ public:
 
 	void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal, bool bIgnoreNormal);
 
+	/** 
+	 * Sets the plane without broadcasting OnPlaneChanged. Useful when the user of the tool wants to change
+	 * the plane through some other means. Better than setting the Plane field directly because this function
+	 * properly deals with the gizmo.
+	 */
+	void SetPlaneWithoutBroadcast(const FFrame3d& Plane);
+
 	void SetEnableGridSnaping(bool bEnable);
 
 	void UpdateClickPriority(FInputCapturePriority NewPriority);

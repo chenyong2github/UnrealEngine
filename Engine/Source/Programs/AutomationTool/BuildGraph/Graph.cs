@@ -166,6 +166,11 @@ namespace AutomationTool
 		public List<Badge> Badges = new List<Badge>();
 
 		/// <summary>
+		/// List of labels that can be displayed for this build
+		/// </summary>
+		public List<Label> Labels = new List<Label>();
+
+		/// <summary>
 		/// Diagnostic messages for this graph
 		/// </summary>
 		public List<GraphDiagnostic> Diagnostics = new List<GraphDiagnostic>();
@@ -327,11 +332,18 @@ namespace AutomationTool
 			{
 				if (Aggregate.RequiredNodes.All(x => RetainNodes.Contains(x)))
 				{
-					Aggregate.IncludedNodes.RemoveWhere(x => !RetainNodes.Contains(x));
 					NewNameToAggregate[Aggregate.Name] = Aggregate;
 				}
 			}
 			NameToAggregate = NewNameToAggregate;
+
+			// Remove any labels that are no longer value
+			foreach (Label Label in Labels)
+			{
+				Label.RequiredNodes.RemoveWhere(x => !RetainNodes.Contains(x));
+				Label.IncludedNodes.RemoveWhere(x => !RetainNodes.Contains(x));
+			}
+			Labels.RemoveAll(x => x.RequiredNodes.Count == 0);
 
 			// Remove any badges which do not have all their dependencies
 			Badges.RemoveAll(x => x.Nodes.Any(y => !RetainNodes.Contains(y)));
@@ -412,25 +424,36 @@ namespace AutomationTool
 
 					Writer.WriteStartElement("Aggregate");
 					Writer.WriteAttributeString("Name", Aggregate.Name);
-					if (Aggregate.Label != null)
-					{
-						Writer.WriteAttributeString("Label", Aggregate.Label);
-					}
 					Writer.WriteAttributeString("Requires", String.Join(";", Aggregate.RequiredNodes.Select(x => x.Name)));
+					Writer.WriteEndElement();
+				}
 
-					if (Aggregate.IncludedNodes.Count > 0)
+				foreach(Label Label in Labels)
+				{
+					Writer.WriteStartElement("Label");
+					if (Label.Category != null)
 					{
-						Writer.WriteAttributeString("Include", String.Join(";", Aggregate.IncludedNodes.Select(x => x.Name)));
+						Writer.WriteAttributeString("Category", Label.Category);
+					}
+					Writer.WriteAttributeString("Name", Label.Name);
+					Writer.WriteAttributeString("Requires", String.Join(";", Label.RequiredNodes.Select(x => x.Name)));
+
+					HashSet<Node> IncludedNodes = new HashSet<Node>(Label.IncludedNodes);
+					IncludedNodes.ExceptWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
+					IncludedNodes.ExceptWith(Label.RequiredNodes);
+					if (IncludedNodes.Count > 0)
+					{
+						Writer.WriteAttributeString("Include", String.Join(";", IncludedNodes.Select(x => x.Name)));
 					}
 
-					HashSet<Node> ExcludedNodes = new HashSet<Node>(Aggregate.IncludedNodes.SelectMany(x => x.InputDependencies));
-					ExcludedNodes.ExceptWith(Aggregate.IncludedNodes);
-
+					HashSet<Node> ExcludedNodes = new HashSet<Node>(Label.IncludedNodes);
+					ExcludedNodes.UnionWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
+					ExcludedNodes.ExceptWith(Label.IncludedNodes);
+					ExcludedNodes.ExceptWith(ExcludedNodes.ToArray().SelectMany(x => x.InputDependencies));
 					if (ExcludedNodes.Count > 0)
 					{
 						Writer.WriteAttributeString("Exclude", String.Join(";", ExcludedNodes.Select(x => x.Name)));
 					}
-
 					Writer.WriteEndElement();
 				}
 
@@ -664,25 +687,37 @@ namespace AutomationTool
 				{
 					JsonWriter.WriteObjectStart();
 					JsonWriter.WriteValue("Name", Aggregate.Name);
-					if (Aggregate.Label != null)
-					{
-						JsonWriter.WriteValue("Label", Aggregate.Label);
-					}
-					JsonWriter.WriteArrayStart("RequiredNodes");
+					JsonWriter.WriteArrayStart("Nodes");
 					foreach (Node RequiredNode in Aggregate.RequiredNodes.OrderBy(x => x.Name))
 					{
 						JsonWriter.WriteValue(RequiredNode.Name);
 					}
 					JsonWriter.WriteArrayEnd();
-					if (Aggregate.IncludedNodes.Count > 0)
+					JsonWriter.WriteObjectEnd();
+				}
+				JsonWriter.WriteArrayEnd();
+
+				JsonWriter.WriteArrayStart("Labels");
+				foreach (Label Label in Labels)
+				{
+					JsonWriter.WriteObjectStart();
+					if (Label.Category != null)
 					{
-						JsonWriter.WriteArrayStart("IncludedNodes");
-						foreach (Node IncludedNode in Aggregate.IncludedNodes.OrderBy(x => x.Name))
-						{
-							JsonWriter.WriteValue(IncludedNode.Name);
-						}
-						JsonWriter.WriteArrayEnd();
+						JsonWriter.WriteValue("Category", Label.Category);
 					}
+					JsonWriter.WriteValue("Name", Label.Name);
+					JsonWriter.WriteArrayStart("RequiredNodes");
+					foreach (Node RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
+					{
+						JsonWriter.WriteValue(RequiredNode.Name);
+					}
+					JsonWriter.WriteArrayEnd();
+					JsonWriter.WriteArrayStart("IncludedNodes");
+					foreach (Node IncludedNode in Label.IncludedNodes.OrderBy(x => x.Name))
+					{
+						JsonWriter.WriteValue(IncludedNode.Name);
+					}
+					JsonWriter.WriteArrayEnd();
 					JsonWriter.WriteObjectEnd();
 				}
 				JsonWriter.WriteArrayEnd();

@@ -256,8 +256,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 					FRegexMatcher ErrorMatcher(ErrorPattern, *MonitorLog);
 					if (ErrorMatcher.FindNext())
 					{
-						constexpr int32 CrcErrorCode = /*CrashReporterError*/777007; // Added in 4.25.2 but to avoid breaking public API in a dot release wasn't added to ECrashExitCodes. Should be added to the enum in 4.26.
-						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrcErrorCode);
+						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), static_cast<int32>(ECrashExitCodes::OutOfProcessReporterCheckFailed));
 						MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
 					}
 				}
@@ -276,7 +275,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	// Sending the summary event of the current process analytic session?
 	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
 	{
-		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
+		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
 	}
 	else // The summary was created by another process/instance in a different session. (Ex: Editor sending a summary a prevoulsy crashed instance or CrashReportClientEditor sending it on behalf of the Editor)
 	{
@@ -293,7 +292,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		TempSummaryProvider->SetUserID(CopyTemp(Session.UserId));
 
 		// Send the summary.
-		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
+		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
 
 		// The temporary provider is about to be deleted (going out of scope), ensure it sents its report.
 		TempSummaryProvider->BlockUntilFlushed(2.0f);

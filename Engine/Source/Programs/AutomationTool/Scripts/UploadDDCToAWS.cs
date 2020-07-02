@@ -106,10 +106,15 @@ namespace AutomationTool
 				public string Key;
 			}
 
+			public string AccessKey;
+			public string SecretKey;
 			public List<Entry> Entries = new List<Entry>();
 
 			public void Read(JsonObject Object)
 			{
+				AccessKey = Object.GetStringField(nameof(AccessKey));
+				SecretKey = Object.GetStringField(nameof(SecretKey));
+
 				JsonObject[] ManifestObjects = Object.GetObjectArrayField(nameof(Entries));
 				foreach (JsonObject ManifestObject in ManifestObjects)
 				{
@@ -131,6 +136,8 @@ namespace AutomationTool
 			public void Write(JsonWriter Writer)
 			{
 				Writer.WriteObjectStart();
+				Writer.WriteValue(nameof(AccessKey), AccessKey);
+				Writer.WriteValue(nameof(SecretKey), SecretKey);
 				Writer.WriteArrayStart(nameof(Entries));
 				foreach (Entry Entry in Entries)
 				{
@@ -481,6 +488,8 @@ namespace AutomationTool
 
 							// Update the root manifest
 							RootManifest NewRootManifest = new RootManifest();
+							NewRootManifest.AccessKey = OldRootManifest.AccessKey;
+							NewRootManifest.SecretKey = OldRootManifest.SecretKey;
 							foreach (RootManifest.Entry Entry in OldRootManifest.Entries)
 							{
 								if (Entry.CreateTime >= RemoveBundleManifestsBefore)

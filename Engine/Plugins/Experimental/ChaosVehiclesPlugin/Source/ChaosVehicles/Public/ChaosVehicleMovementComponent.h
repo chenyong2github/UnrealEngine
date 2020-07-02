@@ -7,8 +7,11 @@
 #include "Templates/SubclassOf.h"
 #include "AI/Navigation/NavigationAvoidanceTypes.h"
 #include "AI/RVOAvoidanceInterface.h"
+#include "Curves/CurveFloat.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "ChaosVehicleWheel.h"
+#include "AerofoilSystem.h"
+#include "ThrustSystem.h"
 
 #include "SimpleVehicle.h" // #todo: move
 
@@ -25,6 +28,8 @@ struct FVehicleDebugParams
 {
 	bool ShowCOM = false;
 	bool ShowModelOrigin = false;
+	bool ShowAerofoilForces = false;
+	bool ShowAerofoilSurface = true;
 	bool DisableAirControl = false;
 	bool DisableGroundControl = false;
 	bool DisableAerodynamics = false;
@@ -39,7 +44,6 @@ struct FSolverSafeContactData
 	float VehicleFloorFriction;
 	float VehicleSideScrapeFriction;
 };
-
 
 struct FBodyInstance;
 
@@ -80,6 +84,15 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 	// state replication: target gear #todo: or current gear?
 	UPROPERTY()
 	int32 TargetGear;
+
+	// input replication: increase throttle
+	UPROPERTY()
+	float ThrottleUp;
+
+	// input replication: decrease throttle
+	UPROPERTY()
+	float ThrottleDown;
+
 };
 
 USTRUCT()
@@ -106,40 +119,15 @@ struct FVehicleAirControlConfig
 	/** Rotation damping */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RotationDamping;
-};
 
-USTRUCT()
-struct FVehicleGroundControlConfig
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Ground Control Enabled */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	bool Enabled;
-
-	/** Yaw Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float YawTorqueScaling;
-
-	/** Pitch/Wheelie Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float PitchTorqueScaling;
-
-	/** Roll/Lean Torque Scaling */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float RollTorqueScaling;
-
-	/** pitch rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float PitchDamping;
-
-	/** roll rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float RollDamping;
-
-	/** yaw rotation damping */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float YawDamping;
+	void InitDefaults()
+	{
+		Enabled = false;
+		YawTorqueScaling = 5.0f;
+		PitchTorqueScaling = 5.0f;
+		RollTorqueScaling = 5.0f;
+		RotationDamping = 0.02f;
+	}
 };
 
 
@@ -157,6 +145,7 @@ struct FVehicleState
 		, ForwardsAcceleration(0.f)
 		, PrevForwardSpeed(0.f)
 		, bVehicleInAir(false)
+		, bSleeping(false)
 	{
 
 	}
@@ -177,7 +166,7 @@ struct FVehicleState
 	float PrevForwardSpeed;
 
 	bool bVehicleInAir;
-
+	bool bSleeping;
 };
 
 USTRUCT()
@@ -211,6 +200,168 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 	}
 };
 
+
+UENUM()
+enum class FVehicleAerofoilType : uint8
+{
+	Fixed = 0,
+	Wing,
+	Rudder,
+	Elevator
+};
+
+USTRUCT()
+struct CHAOSVEHICLES_API FVehicleAerofoilConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVehicleAerofoilType AerofoilType;
+
+	// Bone name on mesh where aerofoil is centered
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FName BoneName;
+
+	// Additional offset to give the aerofoil.
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector Offset;
+
+	// Up Axis of aerofoil.
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector UpAxis;
+
+	// Area of aerofoil surface [Meters Squared] - larger value creates more lift but also more drag
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float Area;
+
+	// camber of wing - leave as zero for a rudder - can be used to trim/level elevator for level flight
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float Camber;
+
+	// The angle in degrees through which the control surface moves - leave at 0 if it is a fixed surface
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float MaxControlAngle;
+
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float StallAngle;
+
+	// cheat to control amount of lift independently from lift
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float LiftMultiplier;
+
+	// cheat to control amount of drag independently from lift, a value of zero will offer no drag
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float DragMultiplier;
+
+	const Chaos::FAerofoilConfig& GetPhysicsAerofoilConfig()
+	{
+		FillAerofoilSetup();
+		return PAerofoilConfig;
+	}
+
+	void InitDefaults()
+	{
+		AerofoilType = FVehicleAerofoilType::Fixed;
+		BoneName = NAME_None;
+		Offset = FVector::ZeroVector;
+		UpAxis = FVector(0.f, 0.f, -1.f);
+		Area = 1.f;
+		Camber = 3.f;
+		MaxControlAngle = 0.f;
+		StallAngle = 16.f;
+		LiftMultiplier = 1.0f;
+		DragMultiplier = 1.0f;
+	}
+
+private:
+
+	void FillAerofoilSetup()
+	{
+		// #todo: read position and axis from skeleton
+		//PAerofoilConfig.BoneName = this->BoneName;
+		PAerofoilConfig.Offset = this->Offset;
+		PAerofoilConfig.UpAxis = this->UpAxis;
+		PAerofoilConfig.Area = this->Area;
+		PAerofoilConfig.Camber = this->Camber;
+		PAerofoilConfig.MaxControlAngle = this->MaxControlAngle;
+		PAerofoilConfig.StallAngle = this->StallAngle;
+		PAerofoilConfig.Type = (Chaos::FAerofoilType)(this->AerofoilType);
+		PAerofoilConfig.LiftMultiplier = this->LiftMultiplier;
+		PAerofoilConfig.DragMultiplier = this->DragMultiplier;
+	}
+
+	Chaos::FAerofoilConfig PAerofoilConfig;
+};
+
+USTRUCT()
+struct FVehicleThrustConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Bone name on mesh where thrust is located */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FName BoneName;
+
+	/** Additional offset to give the location, or use in preference to the bone */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector Offset;
+
+	/** Up Axis of thrust. */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector ThrustAxis;
+
+	/** How the thrust is applied as the speed increases */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	FRuntimeFloatCurve ThrustCurve;
+
+	/** Maximum speed after which the thrust will cut off */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxSpeed;
+
+	/** Maximum thrust force */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxThrustForce;
+
+	/** The angle in degrees through which the control surface moves - leave at 0 if it is a fixed surface */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float MaxControlAngle;
+
+	// #todo:ControlAxes - X, Y, Z, or X & Y, etc
+	const Chaos::FSimpleThrustConfig& GetPhysicsThrusterConfig()
+	{
+		FillThrusterSetup();
+		return PThrusterConfig;
+	}
+
+	void InitDefaults()
+	{
+		BoneName = NAME_None;
+		Offset = FVector::ZeroVector;
+		ThrustAxis = FVector::ZeroVector;
+		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
+		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
+		MaxSpeed = 50;
+		MaxThrustForce = 100.0f;
+	}
+
+private:
+	void FillThrusterSetup()
+	{
+		// #todo: read position and axis from skeleton
+		//PThrusterConfig.BoneName = this->BoneName;
+		PThrusterConfig.Offset = this->Offset;
+		PThrusterConfig.Axis = this->ThrustAxis;
+		//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
+		PThrusterConfig.MaxSpeed = this->MaxSpeed;
+		PThrusterConfig.MaxThrustForce = this->MaxThrustForce;
+		PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
+
+	}
+
+	Chaos::FSimpleThrustConfig PThrusterConfig;
+
+};
 
 
 /**
@@ -259,7 +410,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	float DownforceCoefficient;
 
-	// Drag area in cm^2
+	// Drag area in Meters^2
 	UPROPERTY(transient)
 	float DragArea;
 
@@ -271,11 +422,17 @@ public:
 	UPROPERTY(EditAnywhere, Category=VehicleSetup, AdvancedDisplay)
 	FVector InertiaTensorScale;
 
+	/** Optional aerofoil setup - can be used for car spoilers or aircraft wings/elevator/rudder */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	TArray<FVehicleAerofoilConfig> Aerofoils;
+
+	/** Optional thruster setup, use one or more as your main engine or as supplementary booster */
+	UPROPERTY(EditAnywhere, Category = ThrusterSetup)
+	TArray<FVehicleThrustConfig> Thrusters;
+
+	/** Arcade style in air control of your vehicle, permits some leveling before landing */
 	UPROPERTY(EditAnywhere, Category = ArcadeControl)
 	FVehicleAirControlConfig AirControl;
-
-	UPROPERTY(EditAnywhere, Category = ArcadeControl)
-	FVehicleGroundControlConfig GroundControl;
 
 	// Used to recreate the physics if the blueprint changes.
 	uint32 VehicleSetupTag;
@@ -283,19 +440,19 @@ public:
 protected:
 	// True if the player is holding the handbrake
 	UPROPERTY(Transient)
-		uint8 bRawHandbrakeInput : 1;
+	uint8 bRawHandbrakeInput : 1;
 
 	// True if the player is holding gear up
 	UPROPERTY(Transient)
-		uint8 bRawGearUpInput : 1;
+	uint8 bRawGearUpInput : 1;
 
 	// True if the player is holding gear down
 	UPROPERTY(Transient)
-		uint8 bRawGearDownInput : 1;
+	uint8 bRawGearDownInput : 1;
 
 	/** Was avoidance updated in this frame? */
 	UPROPERTY(Transient)
-		uint32 bWasAvoidanceUpdated : 1;
+	uint32 bWasAvoidanceUpdated : 1;
 
 public:
 
@@ -344,27 +501,35 @@ public:
 	virtual void StopMovementImmediately() override;
 
 
-	/** Set the user input for the vehicle throttle */
+	/** Set the user input for the vehicle throttle [range 0 to 1] */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetThrottleInput(float Throttle);
 
-	/** Set the user input for the vehicle Brake */
+	/** Increase the vehicle throttle position [throttle range normalized 0 to 1] */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void IncreaseThrottleInput(float ThrottleDelta);
+
+	/** Decrease the vehicle throttle position  [throttle range normalized 0 to 1] */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void DecreaseThrottleInput(float ThrottleDelta);
+
+	/** Set the user input for the vehicle Brake [range 0 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetBrakeInput(float Brake);
 	
-	/** Set the user input for the vehicle steering */
+	/** Set the user input for the vehicle steering [range -1 to 1] */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetSteeringInput(float Steering);
 
-	/** Set the user input for the vehicle pitch */
+	/** Set the user input for the vehicle pitch [range -1 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetPitchInput(float Pitch);
 
-	/** Set the user input for the vehicle roll */
+	/** Set the user input for the vehicle roll [range -1 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetRollInput(float Roll);
 
-	/** Set the user input for the vehicle yaw */
+	/** Set the user input for the vehicle yaw [range -1 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetYawInput(float Yaw);
 
@@ -600,8 +765,10 @@ protected:
 	/** Compute yaw input */
 	float CalcYawInput();
 
-	/** Compute throttle input */
+	/** Compute throttle inputs */
 	virtual float CalcThrottleInput();
+	float CalcThrottleUpInput();
+	float CalcThrottleDownInput();
 
 	/**
 	* Clear all interpolated inputs to default values.
@@ -629,21 +796,31 @@ protected:
 	/** Advance the vehicle simulation */
 	virtual void UpdateSimulation(float DeltaTime);
 
+	/** Pass control Input to the vehicle systems */
+	virtual void ApplyInput(float DeltaTime);
+
 	/** Apply aerodynamic forces to vehicle body */
 	virtual void ApplyAerodynamics(float DeltaTime);
+
+	/** Apply Aerofoil forces to vehicle body */
+	virtual void ApplyAerofoilForces(float DeltaTime);
+
+	/** Apply Thruster forces to vehicle body */
+	virtual void ApplyThrustForces(float DeltaTime);
 
 	/** Apply in air control torque to vehicle body */
 	virtual void ApplyAirControl(float DeltaTime);
 
 	/** Apply on ground control torque to vehicle body */
-	virtual void ApplyGroundControl(float DeltaTime);
+	//virtual void ApplyGroundControl(float DeltaTime);
 
 	// #todo: use this properly
 	void CopyToSolverSafeContactStaticData();
 
 	/** Pass current state to server */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 TargetGear);
+	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput
+			, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput);
 
 #if WANT_RVO
 
@@ -672,7 +849,16 @@ protected:
 	AController* GetController() const;
 
 	/** Get the mesh this vehicle is tied to */
-	class USkinnedMeshComponent* GetMesh();
+	class UMeshComponent* GetMesh();
+
+	/** Get Mesh cast as USkeletalMeshComponent, may return null if cast fails */
+	USkeletalMeshComponent* GetSkeletalMesh();
+
+	/** Get Mesh cast as UStaticMeshComponent, may return null if cast fails */
+	UStaticMeshComponent* GetStaticMesh();
+
+	/** location local coordinates of named bone in skeletion, apply additional offset or just use offset if no bone located */
+	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset);
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();
@@ -717,7 +903,7 @@ protected:
 	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle;
 
 	/** Handle for delegate registered on mesh component */
-//FDelegateHandle MeshOnPhysicsStateChangeHandle;
+	FDelegateHandle MeshOnPhysicsStateChangeHandle;
 
 #if WANT_RVO
 	/** BEGIN IRVOAvoidanceInterface */

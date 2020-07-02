@@ -1,0 +1,82 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "RayTracingCommon.ush"
+#include "RayTracingReflectionsCommon.ush"
+
+#define REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE 32
+
+struct FSortedReflectionRay
+{
+	float3	Origin;
+	uint	PixelCoordinates;
+	float3	Direction;
+	uint	DebugSortKey;
+};
+
+uint PackPixelCoordinates(uint2 PixelCoordinates)
+{
+	return (PixelCoordinates.x & 0xFFFF)
+	     | (PixelCoordinates.y << 16);
+}
+
+uint2 UnpackPixelCoordinates(uint PixelCoordinates)
+{
+	return uint2(
+		PixelCoordinates & 0xFFFF,
+		PixelCoordinates >> 16);
+}
+
+FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, bool bGlossyReflections)
+{
+	const float2 ScreenPos       = ViewportUVToScreenPos((PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
+	const float2 UV              = PixelPos.xy * View.BufferSizeAndInvSize.zw;
+
+    // not 'const', may need to be modified below
+	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
+	float DeviceZ                = SceneDepthBuffer.Load(int3(PixelPos, 0)).r;
+
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
+	float3 V = -CameraDirection;
+
+#if GBUFFER_HAS_TANGENT
+	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
+#endif
+	
+	float2 E = Rand1SPPDenoiserInput(PixelPos);
+	
+	const bool bOutputForDenoiser = true; // #todo: pass this in via constants when denoiser is on
+	if (bOutputForDenoiser)
+	{
+		E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+	}
+	
+	float3x3 TangentBasis = GetTangentBasis(GBuffer.WorldNormal);
+	float3 TangentV       = mul(TangentBasis, V);
+
+	float3 L = (float3)0;
+
+	if (bGlossyReflections)
+	{
+		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBuffer.Roughness), TangentV).xyz, TangentBasis);
+		L = 2 * dot(V, H) * H - V;
+	}
+	else
+	{
+		L = reflect(-V, GBuffer.WorldNormal);
+	}
+
+	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
+
+	Ray.Origin = WorldPosition;
+	Ray.Direction = L;
+	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
+
+	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
+
+	return Ray;
+}

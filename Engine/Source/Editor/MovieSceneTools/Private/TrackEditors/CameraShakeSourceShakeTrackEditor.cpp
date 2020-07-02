@@ -92,7 +92,7 @@ public:
 
 		const ESlateDrawEffect DrawEffects = Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 		const TRange<FFrameNumber> SectionRange = SectionObject->GetRange();
-		const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+		const int32 SectionSize = UE::MovieScene::DiscreteSize(SectionRange);
 		const float SectionDuration = FFrameNumber(SectionSize) / TickResolution;
 
 		const float SectionStartTime = SectionObject->GetInclusiveStartFrame() / TickResolution;

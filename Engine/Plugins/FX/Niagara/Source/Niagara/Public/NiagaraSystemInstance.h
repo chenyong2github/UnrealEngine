@@ -112,9 +112,15 @@ public:
 	/** Initial phase of system instance tick. Must be executed on the game thread. */
 	void Tick_GameThread(float DeltaSeconds);
 	/** Secondary phase of the system instance tick that can be executed on any thread. */
-	void Tick_Concurrent();
-	/** Final phase of system instance tick. Must be executed on the game thread. */
-	void FinalizeTick_GameThread();
+	void Tick_Concurrent(bool bEnqueueGPUTickIfNeeded = true);
+	/** 
+		Final phase of system instance tick. Must be executed on the game thread. 
+		Returns whether the Finalize was actually done. It's possible for the finalize in a task to have already been done earlier on the GT by a WaitForAsyncAndFinalize call.
+	*/
+	bool FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
+
+	void GenerateAndSubmitGPUTick();
+	void InitGPUTick(FNiagaraGPUSystemTick& OutTick);
 
 	/**
 		Blocks until any async work for this system instance has completed, must be called on the GameThread.
@@ -168,6 +174,8 @@ public:
 
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
+	FORCEINLINE bool NeedsGPUTick()const{ return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
@@ -190,9 +198,9 @@ public:
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
 	{
-		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(MakeWeakObjectPtr(const_cast<UNiagaraDataInterface*>(Interface))))
+		if (auto* InstDataOffsetPair = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair){ return Pair.Key.Get() == Interface;}))
 		{
-			return &DataInterfaceInstanceData[*InstDataOffset];
+			return &DataInterfaceInstanceData[InstDataOffsetPair->Value];
 		}
 		return nullptr;
 	}
@@ -250,8 +258,6 @@ public:
 	/** Dumps information about the instances tick to the log */
 	void DumpTickInfo(FOutputDevice& Ar);
 
-	bool GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets);
-
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
 	static bool AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation);
@@ -289,6 +295,11 @@ public:
 	/** Calculates which tick group the instance should be in. */
 	ETickingGroup CalculateTickGroup() const;
 
+	bool EnqueueComponentUpdateTask(const FNiagaraComponentUpdateTask& Task)
+	{
+		return ComponentTasks.Enqueue(Task);
+	}
+
 private:
 	void DestroyDataInterfaceInstanceData();
 
@@ -300,7 +311,7 @@ private:
 	/** Resets for restart, assumes no change in emitter setup */
 	void ResetInternal(bool bResetSimulations);
 
-	/** Resets the parameter structrs */
+	/** Resets the parameter structs */
 	void ResetParameters();
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
@@ -308,6 +319,8 @@ private:
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
+
+	void ProcessComponentRendererTasks();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
@@ -352,9 +365,11 @@ private:
 	
 	/** Per instance data for any data interfaces requiring it. */
 	TArray<uint8, TAlignedHeapAllocator<16>> DataInterfaceInstanceData;
+	TArray<int32> PreTickDataInterfaces;
+	TArray<int32> PostTickDataInterfaces;
 
 	/** Map of data interfaces to their instance data. */
-	TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32> DataInterfaceInstanceDataOffsets;
+	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> DataInterfaceInstanceDataOffsets;
 
 	/** Per system instance parameters. These can be fed by the component and are placed into a dataset for execution for the system scripts. */
 	FNiagaraParameterStore InstanceParameters;
@@ -400,6 +415,9 @@ private:
 
 	uint32 bLODDistanceIsValid : 1;
 
+	/** If async work was running when we request an Activate we will store the reset mode and perform in finalize to avoid stalling the GameThread. */
+	EResetMode DeferredResetMode = EResetMode::None;
+
 	/** True if we have async work in flight. */
 	volatile bool bAsyncWorkInProgress;
 
@@ -425,6 +443,11 @@ private:
 
 	/** The feature level of for this component instance. */
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+
+	/** The component renderer can queue update tasks that are executed on the game thread on finalization. */
+	TQueue<FNiagaraComponentUpdateTask, EQueueMode::Mpsc> ComponentTasks;
+	FNiagaraComponentRenderPool ComponentRenderPool;
+	void ResetComponentRenderPool();
 
 public:
 

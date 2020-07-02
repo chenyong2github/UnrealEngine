@@ -575,6 +575,9 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 		return false;
 	}
 
+	const uint32 FilterWithoutPackageFlags = Filter.WithoutPackageFlags;
+	const uint32 FilterWithPackageFlags = Filter.WithPackageFlags;
+
 	// Form a set of assets matched by each filter
 	TArray<TSet<FAssetData*>> DiskFilterSets;
 
@@ -718,6 +721,16 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 			if (PackageNamesToSkip.Contains(AssetData->PackageName))
 			{
 				// Skip assets in passed in package list
+				continue;
+			}
+
+			if (AssetData->HasAnyPackageFlags(FilterWithoutPackageFlags))
+			{
+				continue;
+			}
+
+			if (!AssetData->HasAllPackageFlags(FilterWithPackageFlags))
+			{
 				continue;
 			}
 

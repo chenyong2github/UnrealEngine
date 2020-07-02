@@ -44,7 +44,7 @@ IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 	return Manager;
 }
 
-FInstallBundleRequestInfo IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags)
+TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags)
 {
 	return RequestUpdateContent(MakeArrayView(&BundleName, 1), Flags);
 }
@@ -59,7 +59,7 @@ void IInstallBundleManager::GetInstallState(FName BundleName, bool bAddDependenc
 	return GetInstallState(MakeArrayView(&BundleName, 1), bAddDependencies, MoveTemp(Callback), RequestTag);
 }
 
-TOptional<FInstallBundleCombinedInstallState> IInstallBundleManager::GetInstallStateSynchronous(FName BundleName, bool bAddDependencies) const
+TValueOrError<FInstallBundleCombinedInstallState, EInstallBundleResult> IInstallBundleManager::GetInstallStateSynchronous(FName BundleName, bool bAddDependencies) const
 {
 	return GetInstallStateSynchronous(MakeArrayView(&BundleName, 1), bAddDependencies);
 }

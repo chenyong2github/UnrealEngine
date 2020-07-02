@@ -10,7 +10,7 @@
 FDMXEntityReference::FDMXEntityReference()
 	: DMXLibrary(nullptr)
 	, bDisplayLibraryPicker(true)
-	, EntityId({ 0, 0, 0, 0 })
+	, EntityId(0, 0, 0, 0)
 {}
 
 FDMXEntityReference::FDMXEntityReference(UDMXEntity* InEntity)

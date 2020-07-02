@@ -1372,9 +1372,6 @@ FName UNiagaraGraph::MakeUniqueParameterName(const FName& InName)
 
  FName UNiagaraGraph::MakeUniqueParameterNameAcrossGraphs(const FName& InName, TArray<TWeakObjectPtr<UNiagaraGraph>>& InGraphs)
 {
-	 FName PinNameWithoutNamespace;
-	 TArray<FName> NamespacesInVar = FNiagaraEditorUtilities::DecomposeVariableNamespace(InName, PinNameWithoutNamespace);
-
 	 TSet<FName> Names;
 	 for (TWeakObjectPtr<UNiagaraGraph> Graph : InGraphs)
 	 {
@@ -1382,18 +1379,12 @@ FName UNiagaraGraph::MakeUniqueParameterName(const FName& InName)
 		 {
 			 for (const auto& ParameterElement : Graph->ParameterToReferencesMap)
 			 {
-				 FName GraphParamName = ParameterElement.Key.GetName();
-				 FName PinNameWithoutNamespaceGraph;
-				 FNiagaraEditorUtilities::DecomposeVariableNamespace(GraphParamName, PinNameWithoutNamespaceGraph);
-				 
-				 Names.Add(PinNameWithoutNamespaceGraph);
+				 Names.Add(ParameterElement.Key.GetName());
 			 }
 		 }
 	 }
-	 FName Final;
-	 FName NewNameLeaf = (FNiagaraUtilities::GetUniqueName(PinNameWithoutNamespace, Names));
-	 FNiagaraEditorUtilities::RecomposeVariableNamespace(NewNameLeaf, NamespacesInVar, Final);
-	 return Final;
+
+	 return FNiagaraUtilities::GetUniqueName(InName, Names);
 }
 
 
@@ -1933,6 +1924,14 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 #endif
 	InVisitor->UpdateString(TEXT("ForceRebuildId"), ForceRebuildId.ToString());
 
+	ENiagaraScriptUsage TraversalUsage = InTraversal.Num() > 0 && InTraversal.Last() && Cast<UNiagaraNodeOutput>(InTraversal.Last()) ? Cast<UNiagaraNodeOutput>(InTraversal.Last())->GetUsage() : ENiagaraScriptUsage::Module;
+
+	// Since we are using the parameter references below, make sure that they are up to date.
+	if (bParameterReferenceRefreshPending && TraversalUsage >= ENiagaraScriptUsage::EmitterSpawnScript)
+	{
+		RefreshParameterReferences();
+	}
+
 	// We need to sort the variables in a stable manner.
 	TArray<UNiagaraScriptVariable*> Values;
 	VariableToScriptVariable.GenerateValueArray(Values);
@@ -1944,7 +1943,6 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 
 		return AName.LexicalLess(BName);
 	});
-
 
 	// Write all the values of the local variables to the visitor as they could potentially influence compilation.
 	for (const UNiagaraScriptVariable* Var : Values)
@@ -1963,9 +1961,37 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 				}
 			}
 
+			// Sometimes variables exist outside the traversal that will still impact the compile. Include those here.
+			FString FoundDefaultValue;
 			if (!bFoundInTraversal)
 			{
-				continue;
+				bool bRelevantToTraversal = FNiagaraParameterMapHistory::IsWrittenToScriptUsage(Var->Variable, TraversalUsage, false);
+
+				if (!bRelevantToTraversal)
+					continue;
+
+				// Because we are outside the traversal, the default value won't be properly serialized into the key.
+				// Record the actual default value so that we can do that below..
+				if (Var->DefaultMode == ENiagaraDefaultMode::Value)
+				{
+					for (const FNiagaraGraphParameterReference& Ref : Collection->ParameterReferences)
+					{
+						UNiagaraNodeParameterMapGet* Node = Cast<UNiagaraNodeParameterMapGet>(Ref.Value.Get());
+						if (Node)
+						{
+							UEdGraphPin* Pin = Node->GetPinByPersistentGuid(Ref.Key);
+							if (Pin)
+							{
+								UEdGraphPin* DefaultPin = Node->GetDefaultPin(Pin);
+								if (DefaultPin && DefaultPin->DefaultValue.Len())
+								{
+									FoundDefaultValue = DefaultPin->DefaultValue;
+								}
+								break;
+							}
+						}
+					}
+				}
 			}
 
 		#if WITH_EDITORONLY_DATA
@@ -1973,6 +1999,13 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 			InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *Var->GetClass()->GetName(), *Var->Variable.GetName().ToString());
 		#endif
 			verify(Var->AppendCompileHash(InVisitor));
+			
+			// If we are not in the traversal, make sure to also captue the default value as it isn't 
+			// currently embedded in the UNiagaraScriptVariable.
+			if (FoundDefaultValue.Len())
+			{
+				InVisitor->UpdateString(TEXT("DefaultValue"), FoundDefaultValue);
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@
 #include "NiagaraRendererLights.h"
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraStats.h"
 #include "NiagaraVertexFactory.h"
 #include "Engine/Engine.h"
@@ -58,62 +59,44 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	//Bail if we don't have the required attributes to render this emitter.
 	const UNiagaraLightRendererProperties* Properties = CastChecked<const UNiagaraLightRendererProperties>(InProperties);
 	FNiagaraDataSet& Data = Emitter->GetData();
-	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
-	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
-	if (!Properties)
+	FNiagaraDataBuffer* DataToRender = Data.GetCurrentData();
+	if (DataToRender == nullptr)
 	{
-		return DynamicData;
+		return nullptr;
 	}
+
+	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
 
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
 	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
-	FNiagaraDataSetAccessor<FVector> PosAccessor(Data, Properties->PositionBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FLinearColor>> ColAccessor;
-	if (Data.HasVariable(Properties->ColorBinding.DataSetVariable.GetName()))
-	{
-		ColAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FLinearColor>>(Data, Properties->ColorBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> RadiusAccessor;
-	if (Data.HasVariable(Properties->RadiusBinding.DataSetVariable.GetName()))
-	{
-		RadiusAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RadiusBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> ExponentAccessor;
-	if (Data.HasVariable(Properties->LightExponentBinding.DataSetVariable.GetName()))
-	{
-		ExponentAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->LightExponentBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> ScatteringAccessor;
-	if (Data.HasVariable(Properties->VolumetricScatteringBinding.DataSetVariable.GetName()))
-	{
-		ScatteringAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->VolumetricScatteringBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<int32> EnabledAccessor;
-	if (Data.HasVariable(Properties->LightRenderingEnabledBinding.DataSetVariable.GetName()))
-	{
-		EnabledAccessor = FNiagaraDataSetAccessor<int32>(Data, Properties->LightRenderingEnabledBinding.DataSetVariable);
-	}
+	const auto PositionReader = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->PositionBinding.DataSetVariable.GetName());
+	const auto ColorReader = FNiagaraDataSetAccessor<FLinearColor>::CreateReader(Data, Properties->ColorBinding.DataSetVariable.GetName());
+	const auto RadiusReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RadiusBinding.DataSetVariable.GetName());
+	const auto ExponentReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->LightExponentBinding.DataSetVariable.GetName());
+	const auto ScatteringReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->VolumetricScatteringBinding.DataSetVariable.GetName());
+	const auto EnabledReader = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->LightRenderingEnabledBinding.DataSetVariable.GetName());
 
 	const FMatrix& LocalToWorldMatrix = Proxy->GetLocalToWorld();
-	FVector DefaultColor = FVector(Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>());
-	FVector DefaultPos = FVector4(LocalToWorldMatrix.GetOrigin());
-	float DefaultRadius = Properties->RadiusBinding.DefaultValueIfNonExistent.GetValue<float>();
-	float DefaultScattering = Properties->VolumetricScatteringBinding.DefaultValueIfNonExistent.GetValue<float>();
+	const FLinearColor DefaultColor = Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>();
+	const FVector DefaultPos = LocalToWorldMatrix.GetOrigin();
+	const float DefaultRadius = Properties->RadiusBinding.DefaultValueIfNonExistent.GetValue<float>();
+	const float DefaultScattering = Properties->VolumetricScatteringBinding.DefaultValueIfNonExistent.GetValue<float>();
+	const FNiagaraBool DefaultEnabled(true);
 
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
+	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 	{
-		bool ShouldRenderParticleLight = EnabledAccessor.GetSafe(ParticleIndex, true) != 0;
-		float LightRadius = RadiusAccessor.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
+		bool ShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
+		float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
 		if (ShouldRenderParticleLight && LightRadius > 0)
 		{
 			SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
 
 			LightData.LightEntry.Radius = LightRadius;
-			LightData.LightEntry.Color = FVector(ColAccessor.GetSafe(ParticleIndex, DefaultColor)) + Properties->ColorAdd;
-			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentAccessor.GetSafe(ParticleIndex, 1.0f);
+			LightData.LightEntry.Color = FVector(ColorReader.GetSafe(ParticleIndex, DefaultColor)) + Properties->ColorAdd;
+			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, 1.0f);
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
-			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringAccessor.GetSafe(ParticleIndex, DefaultScattering);
-			LightData.PerViewEntry.Position = PosAccessor.GetSafe(ParticleIndex, DefaultPos);
+			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
+			LightData.PerViewEntry.Position = PositionReader.GetSafe(ParticleIndex, DefaultPos);
 			if (bLocalSpace)
 			{
 				LightData.PerViewEntry.Position = LocalToWorldMatrix.TransformPosition(LightData.PerViewEntry.Position);

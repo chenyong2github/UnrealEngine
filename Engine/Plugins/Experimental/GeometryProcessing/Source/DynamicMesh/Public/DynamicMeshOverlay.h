@@ -129,7 +129,7 @@ public:
 		{
 			iLastE--;
 		}
-		while (iCurE < iLastE && ElementsRefCounts.IsValidUnsafe(iCurE) == false)
+		while (iCurE < iLastE && ElementsRefCounts.IsValidUnsafe(iCurE))
 		{
 			iCurE++;
 		}

@@ -547,7 +547,6 @@ bool FWidgetAnimation_DEPRECATED::SerializeFromMismatchedTag(struct FPropertyTag
 
 UWidgetBlueprint::UWidgetBlueprint(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, SupportDynamicCreation(EWidgetSupportsDynamicCreation::Default)
 	, TickFrequency(EWidgetTickFrequency::Auto)
 {
 }
@@ -960,17 +959,19 @@ bool UWidgetBlueprint::ValidateGeneratedClass(const UClass* InClass)
 		}
 	}
 
-	if ( !ensure(GeneratedClass->WidgetTree && ( GeneratedClass->WidgetTree->GetOuter() == GeneratedClass )) )
+	UWidgetTree* WidgetTree = GeneratedClass->GetWidgetTreeArchetype();
+
+	if ( !ensure(WidgetTree && (WidgetTree->GetOuter() == GeneratedClass )) )
 	{
 		return false;
 	}
 	else
 	{
-		TArray < UWidget* > AllWidgets;
-		GeneratedClass->WidgetTree->GetAllWidgets(AllWidgets);
+		TArray<UWidget*> AllWidgets;
+		WidgetTree->GetAllWidgets(AllWidgets);
 		for ( UWidget* Widget : AllWidgets )
 		{
-			if ( !ensure(Widget->GetOuter() == GeneratedClass->WidgetTree) )
+			if ( !ensure(Widget->GetOuter() == WidgetTree) )
 			{
 				return false;
 			}
@@ -1186,20 +1187,6 @@ void UWidgetBlueprint::UpdateTickabilityStats(bool& OutHasLatentActions, bool& O
 		OutHasLatentActions = bHasLatentActions;
 		OutHasAnimations = bHasAnimations;
 		OutClassRequiresNativeTick = bClassRequiresNativeTick;
-	}
-}
-
-bool UWidgetBlueprint::WidgetSupportsDynamicCreation() const
-{
-	switch (SupportDynamicCreation)
-	{
-	case EWidgetSupportsDynamicCreation::Yes:
-		return true;
-	case EWidgetSupportsDynamicCreation::No:
-		return false;
-	case EWidgetSupportsDynamicCreation::Default:
-	default:
-		return GetDefault<UUMGEditorProjectSettings>()->CompilerOption_SupportsDynamicCreation(this);
 	}
 }
 

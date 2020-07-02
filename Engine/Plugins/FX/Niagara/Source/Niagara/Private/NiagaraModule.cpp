@@ -15,6 +15,7 @@
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraComponentRendererProperties.h"
 #include "NiagaraRenderer.h"
 #include "Misc/CoreDelegates.h"
 #include "NiagaraShaderModule.h"
@@ -138,6 +139,7 @@ FNiagaraVariable INiagaraModule::Particles_RibbonTwist;
 FNiagaraVariable INiagaraModule::Particles_RibbonFacing;
 FNiagaraVariable INiagaraModule::Particles_RibbonLinkOrder;
 FNiagaraVariable INiagaraModule::Particles_VisibilityTag;
+FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
 FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::DataInstance_Alive;
 FNiagaraVariable INiagaraModule::Translator_BeginDefaults;
@@ -241,6 +243,7 @@ void INiagaraModule::StartupModule()
 	Particles_RibbonFacing = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.RibbonFacing"));
 	Particles_RibbonLinkOrder = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonLinkOrder"));
 	Particles_VisibilityTag = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particles.VisibilityTag"));
+	Particles_ComponentsEnabled = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Particles.ComponentsEnabled"));
 
 	ScriptUsage = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage"));
 	DataInstance_Alive = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive"));
@@ -252,8 +255,9 @@ void INiagaraModule::StartupModule()
 	UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup();
 
-	// Register the data interface CDO finder with teh shader module..
+	// Register the data interface CDO finder with the shader module..
 	INiagaraShaderModule& NiagaraShaderModule = FModuleManager::LoadModuleChecked<INiagaraShaderModule>("NiagaraShader");
 	NiagaraShaderModule.SetOnRequestDefaultDataInterfaceHandler(INiagaraShaderModule::FOnRequestDefaultDataInterface::CreateLambda([](const FString& DIClassName) -> UNiagaraDataInterfaceBase*
 	{
@@ -898,11 +902,13 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 		{
 			UnderlyingType = UT_Enum;
 			ClassStructOrEnum = Enum_DEPRECATED;
+			Enum_DEPRECATED = nullptr;
 		}
 		else if (Struct_DEPRECATED != nullptr)
 		{
 			UnderlyingType = Struct_DEPRECATED->IsA<UClass>() ? UT_Class : UT_Struct;
 			ClassStructOrEnum = Struct_DEPRECATED;
+			Struct_DEPRECATED = nullptr;
 		}
 		else
 		{

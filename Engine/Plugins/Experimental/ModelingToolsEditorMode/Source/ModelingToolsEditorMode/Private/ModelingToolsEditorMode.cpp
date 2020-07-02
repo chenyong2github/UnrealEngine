@@ -18,6 +18,7 @@
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
 #include "AddPatchTool.h"
+#include "RevolveBoundaryTool.h"
 #include "SmoothMeshTool.h"
 #include "OffsetMeshTool.h"
 #include "RemeshMeshTool.h"
@@ -26,6 +27,7 @@
 #include "WeldMeshEdgesTool.h"
 #include "DrawPolygonTool.h"
 #include "DrawPolyPathTool.h"
+#include "DrawAndRevolveTool.h"
 #include "ShapeSprayTool.h"
 #include "MergeMeshesTool.h"
 #include "VoxelCSGMeshesTool.h"
@@ -60,6 +62,7 @@
 #include "MeshAttributePaintTool.h"
 #include "ParameterizeMeshTool.h"
 #include "MeshTangentsTool.h"
+#include "ProjectToTargetTool.h"
 
 #include "EditorModeManager.h"
 
@@ -520,6 +523,10 @@ void FModelingToolsEditorMode::Enter()
 	AddPatchToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginAddPatchTool, TEXT("AddPatchTool"), AddPatchToolBuilder);
 
+	auto RevolveBoundaryToolBuilder = NewObject<URevolveBoundaryToolBuilder>();
+	RevolveBoundaryToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginRevolveBoundaryTool, TEXT("RevolveBoundaryTool"), RevolveBoundaryToolBuilder);
+
 	auto DrawPolygonToolBuilder = NewObject<UDrawPolygonToolBuilder>();
 	DrawPolygonToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawPolygonTool, TEXT("DrawPolygonTool"), DrawPolygonToolBuilder);
@@ -527,6 +534,10 @@ void FModelingToolsEditorMode::Enter()
 	auto DrawPolyPathToolBuilder = NewObject<UDrawPolyPathToolBuilder>();
 	DrawPolyPathToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawPolyPathTool, TEXT("DrawPolyPath"), DrawPolyPathToolBuilder);
+
+	auto DrawAndRevolveToolBuilder = NewObject<UDrawAndRevolveToolBuilder>();
+	DrawAndRevolveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginDrawAndRevolveTool, TEXT("RevolveTool"), DrawAndRevolveToolBuilder);
 
 	auto ShapeSprayToolBuilder = NewObject<UShapeSprayToolBuilder>();
 	ShapeSprayToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
@@ -575,6 +586,7 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginRemeshSculptMeshTool, TEXT("DynaSculptTool"), DynaSculptToolBuilder);
 
 	RegisterToolFunc(ToolManagerCommands.BeginRemeshMeshTool, TEXT("RemeshMeshTool"), NewObject<URemeshMeshToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginProjectToTargetTool, TEXT("ProjectToTargetTool"), NewObject<UProjectToTargetToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSimplifyMeshTool, TEXT("SimplifyMeshTool"), NewObject<USimplifyMeshToolBuilder>());
 
 

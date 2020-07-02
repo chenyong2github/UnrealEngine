@@ -125,7 +125,7 @@ void UEdGraph::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObjec
 
 	for (UEdGraphNode* GraphNode : Nodes)
 	{
-		if (!ObjectMapping.Contains(GraphNode))
+		if (GraphNode && !ObjectMapping.Contains(GraphNode))
 		{
 			UEdGraphNode* OtherGraphNode = FindMatchingNode(OtherGraph, GraphNode);
 			ObjectMapping.Emplace(GraphNode, OtherGraphNode);

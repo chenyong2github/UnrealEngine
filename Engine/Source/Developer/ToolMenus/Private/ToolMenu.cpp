@@ -424,7 +424,7 @@ FCustomizedToolMenuHierarchy UToolMenu::GetMenuCustomizationHierarchy() const
 	
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	TArray<FName> HierarchyNames = GetMenuHierarchyNames(true);
-	for (const FName ItName : HierarchyNames)
+	for (const FName& ItName : HierarchyNames)
 	{
 		if (FCustomizedToolMenu* Found = ToolMenus->FindMenuCustomization(ItName))
 		{

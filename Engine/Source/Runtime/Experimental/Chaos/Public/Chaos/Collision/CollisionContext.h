@@ -12,15 +12,11 @@ namespace Chaos
 	{
 	public:
 		FCollisionContext()
-			: SpaceTransform(FVec3(0), FRotation3::FromIdentity())
-			, bFilteringEnabled(true)
+			: bFilteringEnabled(true)
 			, bDeferUpdate(true)
 			, bAllowManifolds(false)
 		{
 		}
-
-		// The simulation space to world-space transform (e.g., Rigid Body nodes are often simulated relative to a component or bone)
-		FRigidTransform3 SpaceTransform;
 
 		// Whether to check the shape query flags (e.g., Rigid Body nodes have already performed filtering prior to collision detection) [default: true]
 		bool bFilteringEnabled;

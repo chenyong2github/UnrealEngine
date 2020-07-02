@@ -25,7 +25,7 @@ void FWarningMessageCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> S
 
 	// Check whether the selected actor has begun play
 	bool bHasBegunPlay = false;
-	for (const TWeakObjectPtr<UObject> SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
+	for (const TWeakObjectPtr<UObject>& SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
 	{
 		if (AGeometryCollectionDebugDrawActor* const Actor = Cast<AGeometryCollectionDebugDrawActor>(SelectedObject.Get()))
 		{

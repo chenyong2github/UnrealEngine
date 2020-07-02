@@ -3104,7 +3104,7 @@ bool UMaterialExpressionTextureProperty::MatchesSearchQuery(const TCHAR* SearchQ
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{
@@ -4392,7 +4392,7 @@ bool UMaterialExpressionTextureCoordinate::MatchesSearchQuery(const TCHAR* Searc
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{
@@ -12982,7 +12982,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 		if (LayerIndex == INDEX_NONE)
 		{
 			// Check to see if we have any layers with parents that haven't been initialized yet, that match this parent layer
-			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num(); ++CheckLayerIndex)
+			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num() && CheckLayerIndex < Parent.Layers.Num(); ++CheckLayerIndex)
 			{
 				if (Layers[CheckLayerIndex] == Parent.Layers[ParentLayerIndex] &&
 					Blends[CheckLayerIndex - 1] && Parent.Blends[CheckLayerIndex - 1] &&

@@ -1619,7 +1619,7 @@ public:
 	 * @param Skeleton	The skeleton that animation is import into
 	 * @param Filename	The FBX filename
 	 */
-	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename);
+	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions);
 
 
 	// Object management.
@@ -1960,6 +1960,12 @@ public:
 	 * Restore the selection state of the current level (its actors and components) from a previous state.
 	 */
 	void SetSelectionStateOfLevel(const FSelectionStateOfLevel& InSelectionStateOfLevel);
+
+	/**
+	 * Reset All Selection Sets (i.e. objects, actors, components)
+	 * @note each set is independent and a selected actor might not be in the object selection set.
+	 */
+	void ResetAllSelectionSets();
 
 	/**
 	 * Clears out the current map, if any, and creates a new blank map.

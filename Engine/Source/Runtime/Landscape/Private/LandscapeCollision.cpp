@@ -55,6 +55,7 @@
 #include "Chaos/Vector.h"
 #include "Chaos/Core.h"
 #include "Chaos/HeightField.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -516,8 +517,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				PhysScene->AddToComponentMaps(this, PhysHandle->GetProxy());
 				if (BodyInstance.bNotifyRigidBodyCollision)
 				{
-					FPhysScene_Chaos& Scene = PhysScene->GetScene();
-					Scene.RegisterForCollisionEvents(this);
+					PhysScene->RegisterForCollisionEvents(this);
 				}
 
 			}
@@ -542,7 +542,7 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 #endif
 
 #if WITH_CHAOS
-	if (FPhysScene_ChaosInterface* PhysScene = GetWorld()->GetPhysicsScene())
+	if (FPhysScene_Chaos* PhysScene = GetWorld()->GetPhysicsScene())
 	{
 		FPhysicsActorHandle& ActorHandle = BodyInstance.GetPhysicsActorHandle();
 		if (FPhysicsInterface::IsValid(ActorHandle))
@@ -551,8 +551,7 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 		}
 		if (BodyInstance.bNotifyRigidBodyCollision)
 		{
-			FPhysScene_Chaos& Scene = PhysScene->GetScene();
-			Scene.UnRegisterForCollisionEvents(this);
+			PhysScene->UnRegisterForCollisionEvents(this);
 		}
 	}
 #endif // WITH_CHAOS
@@ -1626,6 +1625,21 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 			CollisionHeightData.Unlock();
 
 			HeightfieldRef->EditorHeightfield->EditHeights(Samples, HeightfieldY1, HeightfieldX1, DstVertsY, DstVertsX);
+
+#if WITH_CHAOS
+			// Rebuild geometry to update local bounds, and update in acceleration structure.
+			const Chaos::FImplicitObjectUnion& Union = PhysActorHandle->Geometry()->GetObjectChecked<Chaos::FImplicitObjectUnion>();
+			TArray<TUniquePtr<Chaos::FImplicitObject>> NewGeometry;
+			for (const TUniquePtr<Chaos::FImplicitObject>& Object : Union.GetObjects())
+			{
+				const Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>& TransformedHeightField = Object->GetObjectChecked<Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>>();
+				NewGeometry.Emplace(MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>>(TransformedHeightField.Object(), TransformedHeightField.GetTransform()));
+			}
+			PhysActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
+
+			FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
+			PhysScene->UpdateActorInAccelerationStructure(PhysActorHandle);
+#endif
 #endif
 		});
 	}

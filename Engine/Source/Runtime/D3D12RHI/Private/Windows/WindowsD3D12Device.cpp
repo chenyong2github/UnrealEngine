@@ -47,14 +47,6 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
 	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
 	ECVF_ReadOnly
 );
-int32 GDX12NVAfterMathTrackResources = 0;
-static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
-	TEXT("r.DX12NVAfterMathTrackResources"),
-	GDX12NVAfterMathTrackResources,
-	TEXT("Enable NV Aftermath resource tracing in D3D12"),
-	ECVF_ReadOnly
-);
-int32 GDX12NVAfterMathMarkers = 0;
 #endif
 
 static inline int D3D12RHI_PreferAdapterVendor()
@@ -748,11 +740,6 @@ void FD3D12DynamicRHI::Init()
 	// - Suballocated ones are defer-deleted by their allocators
 	// - Standalones are added to the deferred deletion queue of its parent FD3D12Adapter
 	GRHIForceNoDeletionLatencyForStreamingTextures = !!PLATFORM_WINDOWS;
-
-#if D3D12_RHI_RAYTRACING
-	GRHISupportsRayTracing = GetAdapter().GetD3DDevice5() != nullptr;
-	GRHISupportsRayTracingMissShaderBindings = true;
-#endif
 
 	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
 	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());

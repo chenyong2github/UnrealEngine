@@ -70,8 +70,8 @@ bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSe
 			LevelSequenceCapture->Settings.bUseRelativeFrameNumbers = false;
 			TRange<FFrameNumber> Range = LevelSequence->GetMovieScene()->GetPlaybackRange();
 
-			FFrameNumber StartFrame = MovieScene::DiscreteInclusiveLower(Range);
-			FFrameNumber EndFrame = MovieScene::DiscreteExclusiveUpper(Range);
+			FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower(Range);
+			FFrameNumber EndFrame = UE::MovieScene::DiscreteExclusiveUpper(Range);
 
 			FFrameNumber RoundedStartFrame = FFrameRate::TransformTime(StartFrame, TickResolution, DisplayRate).CeilToFrame();
 			FFrameNumber RoundedEndFrame = FFrameRate::TransformTime(EndFrame, TickResolution, DisplayRate).CeilToFrame();
@@ -204,7 +204,7 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 		{
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			Player->Play();
-			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
+			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
 		}
 
 		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
@@ -263,12 +263,28 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	bool bResult = false;
-	USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
-	if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
+	FScopedTransaction ExportAnimSequenceTransaction(NSLOCTEXT("Sequencer", "ExportAnimSequence", "Export Anim Sequence"));
 	{
-		AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
-		bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
+ 
+		if (SpawnableRestoreState.bWasChanged)
+		{
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			Player->Play();
+			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
+		}
+ 
+		USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
+		if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
+		{
+			AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
+			bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+		}
 	}
+	
+	Player->Stop();
+	World->DestroyActor(OutActor);
+
 	return bResult;
 }
 
@@ -421,13 +437,27 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
+	
+	bool bResult = false;
+	FScopedTransaction ImportFBXTransaction(NSLOCTEXT("Sequencer", "ImportFBX", "Import FBX"));
+	{
+		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
+ 
+		if (SpawnableRestoreState.bWasChanged)
+		{
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			Player->Play();
+			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
+		}
 
-	ImportFBXCamera(FbxImporter, World, Sequence, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, bMatchByNameOnly,
-		ImportFBXSettings->bCreateCameras);
+		ImportFBXCamera(FbxImporter, World, Sequence, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, bMatchByNameOnly, ImportFBXSettings->bCreateCameras);
 
-	bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, ImportFBXSettings, InOutParams);
-
-	return bValid;
+		bResult = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, ImportFBXSettings, InOutParams);
+	}
+	
+	Player->Stop();
+	World->DestroyActor(OutActor);
+	return bResult;
 }
 
 

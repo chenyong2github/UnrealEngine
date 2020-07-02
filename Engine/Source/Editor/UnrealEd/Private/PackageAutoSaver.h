@@ -32,7 +32,7 @@ public:
 	virtual void ForceMinimumTimeTillAutoSave(const float TimeTillAutoSave = 10.0f) override;
 	virtual void AttemptAutoSave() override;
 	virtual void LoadRestoreFile() override;
-	virtual void UpdateRestoreFile(const bool bRestoreEnabled) const override;
+	virtual void UpdateRestoreFile(const bool bRestoreEnabled) override;
 	virtual bool HasPackagesToRestore() const override;
 	virtual void OfferToRestorePackages() override;
 	virtual void OnPackagesDeleted(const TArray<UPackage*>& DeletedPackages) override;
@@ -124,6 +124,9 @@ private:
 
 	/** Flag as true if recovery prompt is disabled. Should be true if another system is restoring, replacing the auto-saver recovery, like the Disaster Recovery plugin. */
 	bool bAutoDeclineRecovery = false;
+
+	/** Indicate that we need to update the restore file. */
+	bool bNeedRestoreFileUpdate = false;
 
 	/** Used to reference to the active auto-save warning notification */
 	TWeakPtr<SNotificationItem> AutoSaveNotificationPtr;

@@ -31,8 +31,8 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	SelectionRenderer.LineColor = LinearColors::Gold3f();
 	SelectionRenderer.LineThickness = 4.0f;
 
-	float HighlightedFaceDepthOffset = 2.0f;
-	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFaceDepthOffset);
+	float HighlightedFacePercentDepthOffset = 1.0f;
+	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFacePercentDepthOffset);
 	// The rest of the highlighting setup has to be done in Initialize(), since we need the world to set up our drawing component.
 }
 
@@ -71,7 +71,7 @@ void UPolygonSelectionMechanic::Initialize(
 			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
-			return Position1.DistanceSquared(Position2) < OrthoTolerance * OrthoTolerance;
+			return TargetTransform.TransformPosition(Position1).DistanceSquared(TargetTransform.TransformPosition(Position2)) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{
@@ -198,7 +198,8 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 	UpdateTopoSelector();
 
 	FVector3d LocalPosition, LocalNormal;
-	if (TopoSelector.FindSelectedElement(LocalRay, OutSelection, LocalPosition, LocalNormal) == false)
+	int32 EdgeSegmentId; // Only used if hit is an edge
+	if (TopoSelector.FindSelectedElement(LocalRay, OutSelection, LocalPosition, LocalNormal, &EdgeSegmentId) == false)
 	{
 		return false;
 	}
@@ -214,6 +215,7 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 		OutHit.FaceIndex = OutSelection.SelectedEdgeIDs[0];
 		OutHit.Distance = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)TargetTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
+		OutHit.Item = EdgeSegmentId;
 	}
 	else
 	{
@@ -301,13 +303,6 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	// See if we need to add any groups
 	if (!CurrentlyHighlightedGroups.Includes(NewlyHighlightedGroups))
 	{
-		// We'll need to add new triangles. For their normals, we may need to use the normal overlay.
-		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
-		if (Mesh->HasAttributes() && Mesh->Attributes()->NumNormalLayers() > 0)
-		{
-			NormalOverlay = Mesh->Attributes()->GetNormalLayer(0);
-		}
-
 		// Add triangles for each new group
 		for (int Gid : HilightSelection.SelectedGroupIDs)
 		{
@@ -315,28 +310,14 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 			{
 				for (int32 Tid : Topology->GetGroupTriangles(Gid))
 				{
+					// We use the triangle normals because the normal overlay isn't guaranteed to be valid as we edit the mesh
+					FVector3d TriangleNormal = Mesh->GetTriNormal(Tid);
+
 					FIndex3i VertIndices = Mesh->GetTriangle(Tid);
-
-					FVector3f NormalA;
-					FVector3f NormalB;
-					FVector3f NormalC;
-
-					if (NormalOverlay)
-					{
-						NormalOverlay->GetTriElements(Tid, NormalA, NormalB, NormalC);
-					}
-					else
-					{
-						NormalA = Mesh->GetVertexNormal(VertIndices.A);
-						NormalB = Mesh->GetVertexNormal(VertIndices.B);
-						NormalC = Mesh->GetVertexNormal(VertIndices.C);
-					}
-					// If the mesh had neither a normal overlay or vertex normals, then results are undefined.
-
 					DrawnTriangleSetComponent->AddTriangle(FRenderableTriangle(HighlightedFaceMaterial,
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)NormalA, (FColor)Mesh->GetVertexColor(VertIndices.A)),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)NormalB, (FColor)Mesh->GetVertexColor(VertIndices.B)),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)NormalC, (FColor)Mesh->GetVertexColor(VertIndices.C))));
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.A)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.B)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.C))));
 				}
 
 				CurrentlyHighlightedGroups.Add(Gid);

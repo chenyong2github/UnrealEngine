@@ -8,12 +8,18 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/MessageDialog.h"
 #include "GameFramework/Actor.h"
+#include "ScopedTransaction.h"
 #include "Editor.h"
 #include "Engine/Texture2D.h"
 
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "DetailCategoryBuilder.h"
 #include "GameModeInfoCustomizer.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "GameFramework/WorldSettings.h"
@@ -34,6 +40,8 @@ void FWorldSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilde
 	CustomizeGameInfoProperty("DefaultGameMode", DetailBuilder, Category);
 
 	AddLightmapCustomization(DetailBuilder);
+
+	AddLevelExternalActorsCustomization(DetailBuilder);
 
 	DetailBuilder.HideProperty(AActor::GetHiddenPropertyName(), AActor::StaticClass());
 }
@@ -67,7 +75,75 @@ void FWorldSettingsDetails::AddLightmapCustomization( IDetailLayoutBuilder& Deta
 	Category.AddCustomBuilder(LightMapGroupBuilder, bForAdvanced);
 }
 
+void FWorldSettingsDetails::AddLevelExternalActorsCustomization(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
+	DetailBuilder.GetObjectsBeingCustomized(CustomizedObjects);
+	ULevel* CustomizedLevel = nullptr;
+	if (CustomizedObjects.Num() > 0)
+	{
+		if (AActor* WorldSettings = Cast<AWorldSettings>(CustomizedObjects[0]))
+		{
+			CustomizedLevel = WorldSettings->GetLevel();
+		}
+	}
 
+	if (CustomizedLevel)
+	{
+		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
+		WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("LevelUseExternalActors", "Use External Actors"))
+			.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load."))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
+			.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
+		];
+	}
+}
+
+void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, ULevel* Level)
+{
+	if (Level != nullptr)
+	{
+		// Validate we have a saved map
+		UPackage* LevelPackage = Level->GetOutermost();
+		if (LevelPackage == GetTransientPackage()
+			|| LevelPackage->HasAnyFlags(RF_Transient)
+			|| !FPackageName::IsValidLongPackageName(LevelPackage->GetName()))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("UseExternalActorsSaveMap", "You need to save the level before enabling the `Use External Actors` option."));
+			return;
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("WorldUseExternalActors", "Change World Use External Actors"));
+
+		Level->Modify();
+		Level->bUseExternalActors = BoxState == ECheckBoxState::Checked;
+
+		FText MessageTitle(LOCTEXT("ConvertActorPackagingDialog", "Convert Actors Packaging"));
+		FText PackagingMode = Level->bUseExternalActors ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
+		FText Message = FText::Format(LOCTEXT("ConvertActorPackagingMsg", "Do you want to convert all actors to {0} packaging as well?"), PackagingMode);
+		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
+
+		// if the user accepts, convert all actors to what the new packaging mode will be
+		if (ConvertAnswer == EAppReturnType::Yes)
+		{
+			Level->ConvertAllActorsToPackaging(Level->bUseExternalActors);
+		}
+	}
+}
+
+ECheckBoxState FWorldSettingsDetails::IsUseExternalActorsChecked(ULevel* Level) const
+{
+	return Level->bUseExternalActors ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
 
 FLightmapCustomNodeBuilder::FLightmapCustomNodeBuilder(const TSharedPtr<FAssetThumbnailPool>& InThumbnailPool)
 {

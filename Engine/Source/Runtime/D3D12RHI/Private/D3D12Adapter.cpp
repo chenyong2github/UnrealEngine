@@ -7,6 +7,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "D3D12RHIPrivate.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
@@ -219,14 +220,6 @@ void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 }
 
 
-/** Callback function called when the GPU crashes, when Aftermath is enabled */
-static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const size_t InGPUCrashDumpSize, void* InUserData)
-{
-	// Forward to shared function which is also called when DEVICE_LOST return value is given
-	D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
-}
-
-
 void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 {
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
@@ -265,40 +258,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		}
 	}
 
-#if NV_AFTERMATH
-	if (IsRHIDeviceNVIDIA())
-	{
-		// GPUcrash dump handler must be attached prior to device creation
-		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
-		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
-		{
-			HANDLE CurrentThread = ::GetCurrentThread();
-
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
-				GFSDK_Aftermath_Version_API,
-				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				D3D12AftermathCrashCallback,
-				nullptr, //Shader debug callback
-				nullptr, // description callback
-				CurrentThread); // user data
-
-			if (Result == GFSDK_Aftermath_Result_Success)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
-
-				// enable core Aftermath to set the init flags
-				GDX12NVAfterMathEnabled = 1;
-			}
-			else
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
-
-				GDX12NVAfterMathEnabled = 0;
-			}
-		}
-	}
-#endif
-
 	bool bD3d12gpuvalidation = false;
 	if (bWithDebug)
 	{
@@ -313,6 +272,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				TRefCountPtr<ID3D12Debug1> DebugController1;
 				VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
 				DebugController1->SetEnableGPUBasedValidation(true);
+
+				SetEmitDrawEvents(true);
 				bD3d12gpuvalidation = true;
 			}
 		}
@@ -440,13 +401,16 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 
 #if D3D12_RHI_RAYTRACING
-	bool bRayTracingSupported = false;
 
 	{
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 Features5 = {};
 		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &Features5, sizeof(Features5))))
 		{
-			bRayTracingSupported = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0;
+			GRHISupportsRayTracing = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0 
+				&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform)
+				&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing"));
+
+			GRHISupportsRayTracingMissShaderBindings = true;
 			GRHISupportsRayTracingPSOAdditions = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
 
 			if (Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
@@ -467,7 +431,16 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		return CVar && CVar->GetInt() > 0;
 	};
 
- 	if (bRayTracingSupported && GetRayTracingCVarValue() && !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+	bool bHasRayTracingInGameSetting = false;
+	bool bRayTracingInGameSettingEnabled = false;
+	if (!GIsEditor && GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), bRayTracingInGameSettingEnabled, GGameUserSettingsIni))
+	{
+		bHasRayTracingInGameSetting = true;	
+	}
+
+	const bool bRayTracingEnabled = bHasRayTracingInGameSetting ? bRayTracingInGameSettingEnabled : GetRayTracingCVarValue();
+
+ 	if (GRHISupportsRayTracing && bRayTracingEnabled)
 	{
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference())); // DXR 1.0 (required)
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference())); // DXR 1.1 (optional)
@@ -476,15 +449,24 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		{
 			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing enabled."));
 
-			static auto CVarSkinCache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
-			if (CVarSkinCache->GetInt() <= 0)
+			// Raytracing assumes contents have been cooked with r.SkinCache.CompileShaders enabled. 
+			static auto CVarSkinCacheCompileShaders = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
+			if (CVarSkinCacheCompileShaders->GetInt() <= 0)
 			{
 				UE_LOG(LogD3D12RHI, Fatal, TEXT("D3D12 ray tracing requires skin cache to be enabled. Set r.SkinCache.CompileShaders=1."));
+			}
+
+			// Enable SC in runtime when ray tracing in game is enabled
+			static IConsoleVariable* CVarSkinCacheMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.skincache.mode"));
+			if (CVarSkinCacheMode)
+			{
+				int32 ScMode = 1;
+				CVarSkinCacheMode->Set(ScMode, ECVF_SetByConsole);
 			}
 		}
 		else
 		{
-			bRayTracingSupported = false;
+			GRHISupportsRayTracing = false;
 		}
 	}
 #endif // D3D12_RHI_RAYTRACING
@@ -505,44 +487,17 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
-			static IConsoleVariable* MarkersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Markers"));
-			static IConsoleVariable* CallstackCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Callstack"));
-			static IConsoleVariable* ResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"));
-			static IConsoleVariable* TrackAllCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"));
-
-			const bool bEnableMarkers = FParse::Param(FCommandLine::Get(), TEXT("aftermathmarkers")) || (MarkersCVar && MarkersCVar->GetInt());
-			const bool bEnableCallstack = FParse::Param(FCommandLine::Get(), TEXT("aftermathcallstack")) || (CallstackCVar && CallstackCVar->GetInt());
-			const bool bEnableResources = FParse::Param(FCommandLine::Get(), TEXT("aftermathresources")) || (ResourcesCVar && ResourcesCVar->GetInt());
-			const bool bEnableAll = FParse::Param(FCommandLine::Get(), TEXT("aftermathall")) || (TrackAllCVar && TrackAllCVar->GetInt());
-
-			uint32 Flags = GFSDK_Aftermath_FeatureFlags_Minimum;
-
-			Flags |= bEnableMarkers ? GFSDK_Aftermath_FeatureFlags_EnableMarkers : 0;
-			Flags |= bEnableCallstack ? GFSDK_Aftermath_FeatureFlags_CallStackCapturing : 0;
-			Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
-			Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
-
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, RootDevice);
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, GFSDK_Aftermath_FeatureFlags_Maximum, RootDevice);
 			if (Result == GFSDK_Aftermath_Result_Success)
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled and primed"));
+				SetEmitDrawEvents(true);
+				GDX12NVAfterMathEnabled = 1;
 			}
 			else
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled but failed to initialize (%x)"), Result);
 				GDX12NVAfterMathEnabled = 0;
-			}
-
-			if (GDX12NVAfterMathEnabled && (bEnableMarkers || bEnableAll))
-			{
-				SetEmitDrawEvents(true);
-				GDX12NVAfterMathMarkers = 1;
-			}
-
-			GDX12NVAfterMathTrackResources = bEnableResources || bEnableAll;
-			if (GDX12NVAfterMathEnabled && GDX12NVAfterMathTrackResources)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath resource tracking enabled"));
 			}
 		}
 		else
@@ -677,7 +632,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			};
 
 #if D3D12_RHI_RAYTRACING
-			if (bRayTracingSupported && !FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18363))
+			if (GRHISupportsRayTracing && !FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18363))
 			{
 				// Ignore a known false positive error due to a bug in validation layer in certain Windows versions on DXR-capable hardware.
 				DenyIds.Add(D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES);
@@ -891,7 +846,7 @@ void FD3D12Adapter::InitializeDevices()
 			UploadHeapAllocator[GPUIndex] = new FD3D12DynamicHeapAllocator(this,
 				Devices[GPUIndex],
 				Name,
-				kManualSubAllocationStrategy,
+				FD3D12BuddyAllocator::EAllocationStrategy::kManualSubAllocation,
 				DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT);
@@ -1123,7 +1078,8 @@ void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations();
+		uint64 FrameLag = 2;
+		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
 

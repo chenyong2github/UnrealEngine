@@ -427,7 +427,7 @@ void UEditableStaticMeshAdapter::InitializeFromEditableMesh( const UEditableMesh
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
 		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
-		for( const FTriangleID TriangleID : TriangleIDs )
+		for( const FTriangleID& TriangleID : TriangleIDs )
 		{
 			FMeshTriangle Triangle;
 			for( int32 TriIndex = 0; TriIndex < 3; ++TriIndex )
@@ -838,7 +838,7 @@ void UEditableStaticMeshAdapter::OnReindexElements( const UEditableMesh* Editabl
 		RenderingPolygonGroup.MaxTriangles = RenderingPolygonGroup.Triangles.GetArraySize();
 
 		// Fix up references in referencing polygons
-		for( const FPolygonID PolygonID : EditableMesh->GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID ) )
+		for( const FPolygonID& PolygonID : EditableMesh->GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID ) )
 		{
 			FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 			RenderingPolygon.PolygonGroupID = PolygonGroupID;
@@ -1082,7 +1082,7 @@ void UEditableStaticMeshAdapter::OnSetVertexAttribute( const UEditableMesh* Edit
 			const FVertexInstanceArray& VertexInstances = EditableMesh->GetMeshDescription()->VertexInstances();
 
 			// Set the vertex buffer position of all of the vertex instances for this editable vertex
-			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetVertexVertexInstances( VertexID ) )
+			for( const FVertexInstanceID& VertexInstanceID : MeshDescription->GetVertexVertexInstances( VertexID ) )
 			{
 				check( MeshDescription->IsVertexInstanceValid( VertexInstanceID ) );
 				StaticMeshLOD.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexInstanceID.GetValue() ) = NewVertexPosition;
@@ -1205,7 +1205,7 @@ void UEditableStaticMeshAdapter::OnCreateVertexInstances( const UEditableMesh* E
 		static TArray<FStaticMeshBuildVertex> RenderingVerticesToAppend;
 		RenderingVerticesToAppend.SetNumUninitialized( NumNewVertexBufferRenderingVertices, false );
 
-		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+		for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 		{
 			const FVertexID ReferencedVertexID = MeshDescription->GetVertexInstanceVertex( VertexInstanceID );
 
@@ -1277,7 +1277,7 @@ void UEditableStaticMeshAdapter::OnCreateEdges( const UEditableMesh* EditableMes
 void UEditableStaticMeshAdapter::OnCreatePolygons( const UEditableMesh* EditableMesh, const TArray<FPolygonID>& PolygonIDs )
 {
 	// Add mirror polygons for static mesh adapter
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		RenderingPolygons.Insert( PolygonID );
 		RenderingPolygons[ PolygonID ].PolygonGroupID = EditableMesh->GetGroupForPolygon( PolygonID );
@@ -1297,7 +1297,7 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 {
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		const FPolygonGroupID PolygonGroupID = RenderingPolygon.PolygonGroupID;
@@ -1483,7 +1483,7 @@ void UEditableStaticMeshAdapter::OnSetEdgesVertices( const UEditableMesh* Editab
 
 void UEditableStaticMeshAdapter::OnDeletePolygons( const UEditableMesh* EditableMesh, const TArray<FPolygonID>& PolygonIDs )
 {
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		// Removes all of a polygon's triangles (including rendering triangles from the index buffer.)
 		DeletePolygonTriangles( EditableMesh, PolygonID );
@@ -1522,7 +1522,7 @@ void UEditableStaticMeshAdapter::DeletePolygonTriangles( const UEditableMesh* Ed
 			const int32 MinVertexIndex = RenderingSection.MinVertexIndex;
 			const int32 MaxVertexIndex = RenderingSection.MaxVertexIndex;
 
-			for( const FTriangleID TriangleIDToRemove : Polygon.TriangulatedPolygonTriangleIndices )
+			for( const FTriangleID& TriangleIDToRemove : Polygon.TriangulatedPolygonTriangleIndices )
 			{
 				const FMeshTriangle& Triangle = RenderingPolygonGroup.Triangles[ TriangleIDToRemove ];
 
@@ -1546,7 +1546,7 @@ void UEditableStaticMeshAdapter::DeletePolygonTriangles( const UEditableMesh* Ed
 		// Remove all of the polygon's triangles from our editable mesh's triangle list.  While doing this, we'll keep
 		// track of all of the rendering mesh triangles that we'll need to remove later on.  We'll also figure out which
 		// vertex instances will need to be removed from their corresponding vertex
-		for( const FTriangleID TriangleIndexToRemove : Polygon.TriangulatedPolygonTriangleIndices )
+		for( const FTriangleID& TriangleIndexToRemove : Polygon.TriangulatedPolygonTriangleIndices )
 		{
 			// Remove this triangle from our editable mesh
 			RenderingPolygonGroup.Triangles.Remove( TriangleIndexToRemove );
@@ -1584,7 +1584,7 @@ void UEditableStaticMeshAdapter::DeletePolygonTriangles( const UEditableMesh* Ed
 
 			// @todo mesheditor urgent: What about other index buffers in the mesh (DepthOnlyIndexBuffer, Wireframe, etc.)  We need to remove our triangles from those too!
 
-			for( const FTriangleID SectionTriangleIDToRemove : Polygon.TriangulatedPolygonTriangleIndices )
+			for( const FTriangleID& SectionTriangleIDToRemove : Polygon.TriangulatedPolygonTriangleIndices )
 			{
 				const uint32 RenderingTriangleFirstVertexIndex = FRenderingPolygonGroup::TriangleIndexToRenderingTriangleFirstIndex( RenderingSection, SectionTriangleIDToRemove );
 
@@ -1628,7 +1628,7 @@ void UEditableStaticMeshAdapter::OnCreatePolygonGroups( const UEditableMesh* Edi
 	TPolygonGroupAttributesConstRef<bool> PolygonGroupCollision = MeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::EnableCollision );
 	TPolygonGroupAttributesConstRef<bool> PolygonGroupCastShadow = MeshDescription->PolygonGroupAttributes().GetAttributesRef<bool>( MeshAttribute::PolygonGroup::CastShadow );
 
-	for( const FPolygonGroupID PolygonGroupID : PolygonGroupIDs )
+	for( const FPolygonGroupID& PolygonGroupID : PolygonGroupIDs )
 	{
 		UMaterialInterface* Material = LoadObject<UMaterialInterface>( nullptr, *PolygonGroupMaterialAssetSlotNames[ PolygonGroupID ].ToString() );
 		const int32 MaterialIndex = StaticMesh->StaticMaterials.Emplace(
@@ -1742,7 +1742,7 @@ void UEditableStaticMeshAdapter::OnDeletePolygonGroups( const UEditableMesh* Edi
 {
 	TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = EditableMesh->GetMeshDescription()->PolygonGroupAttributes().GetAttributesRef<FName>( MeshAttribute::PolygonGroup::ImportedMaterialSlotName );
 
-	for( const FPolygonGroupID PolygonGroupID : PolygonGroupIDs )
+	for( const FPolygonGroupID& PolygonGroupID : PolygonGroupIDs )
 	{
 		FRenderingPolygonGroup& RenderingPolygonGroup = RenderingPolygonGroups[ PolygonGroupID ];
 

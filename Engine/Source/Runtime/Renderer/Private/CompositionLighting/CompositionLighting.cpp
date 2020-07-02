@@ -34,7 +34,7 @@ static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
 
 static TAutoConsoleVariable<int32> CVarGTAODownsample(
 	TEXT("r.GTAO.Downsample"),
-	1,
+	0,
 	TEXT("Perform GTAO at Halfres \n ")
 	TEXT("0: Off \n ")
 	TEXT("1: On (default)\n "),
@@ -256,8 +256,7 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOAllPasses(FRHICommandLi
 		FinalOutputPass = TemporalPass;
 	}
 	
-	// If downsampled then upsample the final result
-	if(DownsampleFactor > 1)
+	// Upsample the final result
 	{
 		FRenderingCompositePass* UpsamplePass;
 		UpsamplePass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(Context.View, DownsampleFactor, GTAOType));

@@ -99,6 +99,9 @@ private:
 	FString LODActorTag;
 
 	UPROPERTY()
+	FVector Location;
+
+	UPROPERTY()
 	TArray<TSoftObjectPtr<UHLODProxyDesc>> SubHLODDescs;
 #endif
 };

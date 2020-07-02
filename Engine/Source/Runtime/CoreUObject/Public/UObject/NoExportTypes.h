@@ -1133,6 +1133,7 @@ struct FFrameRate
 /** 
  * Represents a time by a context-free frame number, plus a sub frame value in the range [0:1). 
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Misc\FrameTime.h
+ * @note The 'SubFrame' field is private to match its C++ class declaration in the header above.
  */
 USTRUCT(noexport, BlueprintType)
 struct FFrameTime
@@ -1140,9 +1141,10 @@ struct FFrameTime
 	/** Count of frames from start of timing */
 	UPROPERTY(BlueprintReadWrite, Category=FrameTime)
 	FFrameNumber FrameNumber;
-
+	
+private:
 	/** Time within a frame, always between >= 0 and < 1 */
-	UPROPERTY(BlueprintReadWrite, Category=FrameTime)
+	UPROPERTY(BlueprintReadWrite, Category=FrameTime, meta=(AllowPrivateAccess="true"))
 	float SubFrame;
 };
 
@@ -1340,6 +1342,34 @@ struct FInt32Range
 	/** Holds the range's upper bound. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
 	FInt32RangeBound UpperBound;
+};
+
+/**
+ * Defines a single bound for a range of frame numbers.
+ * @note This is a mirror of TRangeBound<FFrameNumber>, defined in RangeBound.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FFrameNumberRangeBound
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	TEnumAsByte<ERangeBoundTypes::Type> Type;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumber Value;
+};
+
+/**
+ * A contiguous set of frame numbers described by lower and upper bound values.
+ * @note This is a mirror of TRange<FFrameNumber>, defined in Range.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FFrameNumberRange
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumberRangeBound LowerBound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumberRangeBound UpperBound;
 };
 
 /**

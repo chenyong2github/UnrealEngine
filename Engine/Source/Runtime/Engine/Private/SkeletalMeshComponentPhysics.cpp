@@ -808,7 +808,7 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 			// GetBoneTransform already accounts for component scale.
 			auto ScalePosition = [](const FBodyInstance* InBody, const float InScale, FVector& OutPosition)
 			{
-				const FBodyInstance& DefaultBody = InBody->BodySetup.Get()->DefaultInstance;
+				const FBodyInstance& DefaultBody = InBody->GetBodySetup()->DefaultInstance;
 				const FVector ScaledDefaultBodyScale = DefaultBody.Scale3D * InScale;
 				const FVector AdjustedBodyScale = InBody->Scale3D * ScaledDefaultBodyScale.Reciprocal();
 				OutPosition *= AdjustedBodyScale;
@@ -1161,7 +1161,7 @@ void USkeletalMeshComponent::ResetAllBodiesSimulatePhysics()
 			{
 				continue;
 			}
-			UBodySetup*	BodyInstSetup = BodyInst->BodySetup.Get();
+			UBodySetup*	BodyInstSetup = BodyInst->GetBodySetup();
 
 			// Set fixed on any bodies with bAlwaysFullAnimWeight set to true
 			if (BodyInstSetup && BodyInstSetup->PhysicsType != PhysType_Default)
@@ -1216,7 +1216,7 @@ void USkeletalMeshComponent::SetAllBodiesPhysicsBlendWeight(float PhysicsBlendWe
 		{
 			continue;
 		}
-		UBodySetup*	BodyInstSetup	= BodyInst->BodySetup.Get();
+		UBodySetup*	BodyInstSetup	= BodyInst->GetBodySetup();
 
 		// Set fixed on any bodies with bAlwaysFullAnimWeight set to true
 		if(BodyInstSetup && (!bSkipCustomPhysicsType || BodyInstSetup->PhysicsType == PhysType_Default) )

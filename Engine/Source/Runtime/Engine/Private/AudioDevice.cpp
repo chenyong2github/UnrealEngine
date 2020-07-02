@@ -788,11 +788,6 @@ void FAudioDevice::UpdateAudioPluginSettingsObjectCache()
 	{
 		PluginSettingsObjects.Add(*It);
 	}
-
-	for (TObjectIterator<USoundModulationPluginSourceSettingsBase> It; It; ++It)
-	{
-		PluginSettingsObjects.Add(*It);
-	}
 }
 
 void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
@@ -4678,11 +4673,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	}
 	(*PlayCount)++;
 
-	if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
-	{
-		ModulationInterface->OnInitSound(static_cast<ISoundModulatable&>(*ActiveSound), *ModulationSettings);
-	}
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -4946,9 +4936,20 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
 	if (!bAlreadyPending)
 	{
+		const bool bIsVirtual = VirtualLoops.Contains(SoundToStop);
+		if (bIsVirtual)
+		{
+			FAudioThread::RunCommandOnGameThread([AudioComponentID = SoundToStop->GetAudioComponentID()]()
+			{
+				if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+				{
+					AudioComponent->SetIsVirtualized(false);
+				}
+			});
+		}
 		UnlinkActiveSoundFromComponent(*SoundToStop);
 
-		if (VirtualLoops.Contains(SoundToStop))
+		if (bIsVirtual)
 		{
 			SoundToStop->bIsStopping = true;
 		}

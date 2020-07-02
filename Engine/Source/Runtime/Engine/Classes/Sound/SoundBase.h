@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
 #include "SoundConcurrency.h"
+#include "SoundModulationDestination.h"
 #include "SoundSourceBusSend.h"
 #include "SoundSubmixSend.h"
 #include "SoundGenerator.h"
@@ -83,6 +84,9 @@ public:
 	uint8 bHasConcatenatorNode : 1;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	uint8 bModulationEnabled : 1;
+
 	UPROPERTY()
 	uint8 bHasVirtualizeWhenSilent_DEPRECATED : 1;
 #endif // WITH_EDITORONLY_DATA
@@ -146,9 +150,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = Attenuation)
 	USoundAttenuation* AttenuationSettings;
 
-	/** Modulation for the sound */
-	UPROPERTY(EditAnywhere, Category = Modulation)
-	FSoundModulation Modulation;
+	/** Volume modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Volume", AudioParam = "Volume", EditCondition = "bModulationEnabled", EditConditionHides))
+	FSoundModulationDestinationSettings VolumeModulationDestination;
+
+	/** Pitch modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Pitch", AudioParam = "Pitch", EditCondition = "bModulationEnabled", EditConditionHides))
+	FSoundModulationDestinationSettings PitchModulationDestination;
+
+	/** Highpass modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Highpass", AudioParam = "HPFCutoffFrequency", EditCondition = "bModulationEnabled", EditConditionHides))
+	FSoundModulationDestinationSettings HighpassModulationDestination;
+
+	/** Lowpass modulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Lowpass", AudioParam = "LPFCutoffFrequency", EditCondition = "bModulationEnabled", EditConditionHides))
+	FSoundModulationDestinationSettings LowpassModulationDestination;
 
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
 	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */

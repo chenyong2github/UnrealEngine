@@ -33,10 +33,9 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return EInstallBundleManagerInitState::Succeeded;
 	}
 
-	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) override
+	virtual TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) override
 	{
-		FInstallBundleRequestInfo RetInfo;
-		return RetInfo;
+		return MakeValue(FInstallBundleRequestInfo());
 	}
 
 	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
@@ -55,9 +54,9 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		Callback.ExecuteIfBound(State);
 	}
 
-	virtual TOptional<FInstallBundleCombinedInstallState> GetInstallStateSynchronous(TArrayView<const FName> BundleNames, bool bAddDependencies) const override
+	virtual TValueOrError<FInstallBundleCombinedInstallState, EInstallBundleResult> GetInstallStateSynchronous(TArrayView<const FName> BundleNames, bool bAddDependencies) const override
 	{
-		return TOptional<FInstallBundleCombinedInstallState>();
+		return MakeValue(FInstallBundleCombinedInstallState());
 	}
 
 	virtual void CancelAllGetInstallStateRequestsForTag(FName RequestTag) override

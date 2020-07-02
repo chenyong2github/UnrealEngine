@@ -485,7 +485,12 @@ UMaterialFunction* FDatasmithImporter::ImportMaterialFunction(FDatasmithImportCo
 UMaterialFunction* FDatasmithImporter::FinalizeMaterialFunction(UObject* SourceMaterialFunction, const TCHAR* MaterialFunctionsFolderPath,
 	UMaterialFunction* ExistingMaterialFunction, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
-	return Cast< UMaterialFunction >(FDatasmithImporterImpl::FinalizeAsset(SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap));
+	UMaterialFunction* MaterialFunction = Cast< UMaterialFunction >( FDatasmithImporterImpl::FinalizeAsset( SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap ) );
+	
+	MaterialFunction->PreEditChange( nullptr );
+	MaterialFunction->PostEditChange();
+
+	return MaterialFunction;
 }
 
 UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext& ImportContext,

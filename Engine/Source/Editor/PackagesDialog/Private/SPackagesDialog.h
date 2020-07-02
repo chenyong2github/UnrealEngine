@@ -15,6 +15,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 
 class SCheckBox;
 
@@ -114,9 +116,11 @@ private:
 class FPackageItem : public TSharedFromThis<FPackageItem>
 {
 public:
-	FPackageItem(UPackage* InPackage, const FString& InEntryName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""))
+	FPackageItem(UPackage* InPackage, const FString& InAssetName, const FString& InFileName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""))
 		: Package(InPackage)
-		, EntryName(InEntryName)
+		, AssetName(InAssetName)
+		, PackageName(FPackageName::ObjectPathToPackageName(InPackage->GetName()))
+		, FileName(InFileName)
 		, State(InState)
 		, Disabled(InDisabled)
 		, IconName(InIconName)
@@ -203,11 +207,25 @@ public:
 	bool IsDisabled() const { return Disabled; }
 
 	/**
-	 * Gets the name of the checkbox item
+	 * Gets the name of the asset item
 	 *
-	 * @return the name of the checkbox item
+	 * @return the name of the asset item
 	 */
-	const FString& GetName() const { return EntryName; }
+	const FString& GetAssetName() const { return AssetName; }
+
+	/**
+	 * Gets the name of the package item
+	 *
+	 * @return the name of the package item
+	 */
+	const FString& GetPackageName() const { return PackageName; }
+
+	/**
+	 * Gets the name of the file item
+	 *
+	 * @return the name of the file item
+	 */
+	const FString& GetFileName() const { return FileName; }
 
 	/**
 	 * Gets the icon name of the checkbox item
@@ -295,13 +313,15 @@ public:
 
 private:
 	UPackage* Package; 						// The package associated with this entry
-	FString EntryName;						// Name of the checkbox
-	ECheckBoxState State;		// The state of the checkbox
+	FString AssetName;						// Name of the asset to display
+	FString PackageName;					// Name of the package to display
+	FString FileName;						// Name of the file
+	ECheckBoxState State;					// The state of the checkbox
 	bool Disabled; 							// if the entry is disabled
 	FString IconName; 						// Name of an icon to show next to the checkbox
 	FString IconToolTip;					// ToolTip to display for the icon
 	FSimpleDelegate RefreshButtonCallback;	// ToolTip to display for the icon
-	mutable TWeakObjectPtr<UObject> Object;			// Cached object associated with this entry.
+	mutable TWeakObjectPtr<UObject> Object;	// Cached object associated with this entry.
 };
 
 /**

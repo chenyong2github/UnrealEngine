@@ -62,8 +62,8 @@ static FAutoConsoleVariableRef NavmeshVarSynchronous(TEXT("n.GNavmeshSynchronous
 
 #if RECAST_INTERNAL_DEBUG_DATA
 static int32 GNavmeshDisplayStep = 0;
-static int32 GNavmeshDebugTileX = 1;
-static int32 GNavmeshDebugTileY = 1;
+static int32 GNavmeshDebugTileX = MAX_int32;
+static int32 GNavmeshDebugTileY = MAX_int32;
 static FAutoConsoleVariableRef NavmeshVarDisplayStep(TEXT("n.GNavmeshDisplayStep"), GNavmeshDisplayStep, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileX(TEXT("n.GNavmeshDebugTileX"), GNavmeshDebugTileX, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY"), GNavmeshDebugTileY, TEXT(""), ECVF_Default);
@@ -2232,6 +2232,15 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
 {
 	bool bDumpGeometryData = false;
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (IsTileToDebug())
+	{
+		UE_LOG(LogNavigation, Log, TEXT("Gathering geometry for tile (%i,%i): %s."), TileX, TileY, *GetFullNameSafe(ElementData->GetOwner()));
+		UE_LOG(LogNavigation, Log, TEXT("                       bounds: %s"), *ElementData->Bounds.ToString());
+	}
+#endif
+
 	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->NeedAnyPendingLazyModifiersGathering())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyGeometryExport);
@@ -4209,8 +4218,9 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 {
 	const float ExpandBy = TileConfig.AgentRadius;
 
-	// Expand by 1 cell height up and down to cover for voxel grid inaccuracy
-	const float OffsetZMax = TileConfig.ch;
+	// If requested, expand by 1 cell height
+	const bool bExpandTop = TileConfig.bUseExtraTopCellWhenMarkingAreas || Modifier.ShouldExpandTopByCellHeight();
+	const float OffsetZMax = (bExpandTop ? TileConfig.ch : 0.f);
 	const float OffsetZMin = TileConfig.ch + (Modifier.ShouldIncludeAgentHeight() ? TileConfig.AgentHeight : 0.0f);
 
 	// Check whether modifier affects this layer
@@ -4268,10 +4278,10 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			WorldBox.Min.Z -= OffsetZMin;
 			WorldBox.Max.Z += OffsetZMax;
 
-			FBox RacastBox = Unreal2RecastBox(WorldBox);
+			const FBox RecastBox = Unreal2RecastBox(WorldBox);
 			FVector RecastPos;
 			FVector RecastExtent;
-			RacastBox.GetCenterAndExtents(RecastPos, RecastExtent);
+			RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
 				
 			if (ReplaceIDPtr)
 			{
@@ -4479,6 +4489,7 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	OutConfig.maxSimplificationError = DestNavMesh->MaxSimplificationError;
 	OutConfig.bPerformVoxelFiltering = DestNavMesh->bPerformVoxelFiltering;
 	OutConfig.bMarkLowHeightAreas = DestNavMesh->bMarkLowHeightAreas;
+	OutConfig.bUseExtraTopCellWhenMarkingAreas = DestNavMesh->bUseExtraTopCellWhenMarkingAreas;
 	OutConfig.bFilterLowSpanSequences = DestNavMesh->bFilterLowSpanSequences;
 	OutConfig.bFilterLowSpanFromTileCache = DestNavMesh->bFilterLowSpanFromTileCache;
 	if (DestNavMesh->bMarkLowHeightAreas)

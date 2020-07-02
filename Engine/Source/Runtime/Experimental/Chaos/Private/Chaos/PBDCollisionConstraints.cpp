@@ -63,6 +63,15 @@ namespace Chaos
 	float DefaultCollisionRestitution = 0;
 	FAutoConsoleVariableRef CVarDefaultCollisionRestitution(TEXT("p.DefaultCollisionRestitution"), DefaultCollisionRestitution, TEXT("Collision restitution default value if no materials are found."));
 
+	float CollisionRestitutionThresholdOverride = -1.0f;
+	FAutoConsoleVariableRef CVarDefaultCollisionRestitutionThreshold(TEXT("p.CollisionRestitutionThreshold"), CollisionRestitutionThresholdOverride, TEXT("Collision restitution threshold override if >= 0 (units of acceleration)"));
+
+	float CollisionShapePaddingOverride = -1.0f;
+	FAutoConsoleVariableRef CVarDefaultCollisionShapePadding(TEXT("p.CollisionShapePadding"), CollisionShapePaddingOverride, TEXT("Collision shape padding override if >= 0"));
+
+	float CollisionCullDistanceOverride = -1.0f;
+	FAutoConsoleVariableRef CVarDefaultCollisionCullDistance(TEXT("p.CollisionCullDistance"), CollisionCullDistanceOverride, TEXT("Collision culling distance override if >= 0"));
+
 	int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 0; // Experimental: This requires multiple contact points per iteration per pair, and making sure the contact points don't move too much in body space
 	FAutoConsoleVariableRef CVarChaosCollisionOriginalSolve(TEXT("p.Chaos.Collision.UseAccumulatedImpulseClipSolve"), Chaos_Collision_UseAccumulatedImpulseClipSolve, TEXT("Use experimental Accumulated impulse clipped contact solve"));
 
@@ -89,8 +98,9 @@ namespace Chaos
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
-		const FReal CullDistance /*= (FReal)0*/,
-		const FReal ShapePadding /*= (FReal)0*/)
+		const FReal InCullDistance /*= (FReal)0*/,
+		const FReal InShapePadding /*= (FReal)0*/,
+		const FReal InRestitutionThreshold /*= (FReal)0*/)
 		: Particles(InParticles)
 		, NumActivePointConstraints(0)
 		, NumActiveSweptPointConstraints(0)
@@ -100,10 +110,12 @@ namespace Chaos
 		, MPerParticlePhysicsMaterials(InPerParticlePhysicsMaterials)
 		, MApplyPairIterations(InApplyPairIterations)
 		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
-		, MCullDistance(CullDistance)
-		, MShapePadding(ShapePadding)
+		, MCullDistance(InCullDistance)
+		, MShapePadding(InShapePadding)
+		, RestitutionThreshold(InRestitutionThreshold)	// @todo(chaos): expose as property
 		, bUseCCD(false)
 		, bEnableCollisions(true)
+		, bEnableRestitution(true)
 		, bHandlesEnabled(true)
 		, ApplyType(ECollisionApplyType::Velocity)
 		, LifespanCounter(0)
@@ -216,6 +228,11 @@ namespace Chaos
 			Contact.Friction = DefaultCollisionFriction;
 			Contact.AngularFriction = 0;
 			Contact.Restitution = DefaultCollisionRestitution;
+		}
+
+		if (!bEnableRestitution)
+		{
+			Contact.Restitution = 0.0f;
 		}
 
 		// Overrides for testing
@@ -521,16 +538,36 @@ namespace Chaos
 		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
-		FCollisionContext Context;
-
 		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance, Context);
+			Collisions::UpdateManifold(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
 			}
 		}
+	}
+
+	Collisions::FContactParticleParameters FPBDCollisionConstraints::GetContactParticleParameters(const FReal Dt)
+	{
+		return { 
+			(CollisionCullDistanceOverride >= 0.0f) ? CollisionCullDistanceOverride : MCullDistance,
+			(CollisionShapePaddingOverride >= 0.0f) ? CollisionShapePaddingOverride : MShapePadding,
+			(CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride * Dt : RestitutionThreshold * Dt,
+			&MCollided
+		};
+	}
+
+	Collisions::FContactIterationParameters FPBDCollisionConstraints::GetContactIterationParameters(const FReal Dt, const int32 Iteration, const int32 NumIterations, const int32 NumPairIterations, bool& bNeedsAnotherIteration)
+	{
+		return {
+			Dt, 
+			Iteration, 
+			NumIterations, 
+			NumPairIterations, 
+			ApplyType, 
+			&bNeedsAnotherIteration
+		};
 	}
 
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const int32 Iterations, const int32 NumIterations)
@@ -540,8 +577,8 @@ namespace Chaos
 		bool bNeedsAnotherIteration = false;
 		if (MApplyPairIterations > 0)
 		{
-			const Collisions::FContactParticleParameters ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-			const Collisions::FContactIterationParameters IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
+			const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
+			const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPairIterations, bNeedsAnotherIteration);
 
 			NumActivePointConstraints = 0;
 			for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
@@ -592,8 +629,8 @@ namespace Chaos
 		bool bNeedsAnotherIteration = false;
 		if (MApplyPushOutPairIterations > 0)
 		{
-			const Collisions::FContactParticleParameters ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-			const Collisions::FContactIterationParameters IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, ECollisionApplyType::None, &bNeedsAnotherIteration };
+			const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
+			const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPushOutPairIterations, bNeedsAnotherIteration);
 
 			for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
 			{
@@ -631,8 +668,24 @@ namespace Chaos
 	void FPBDCollisionConstraints::SortConstraints()
 	{
 		Constraints.SortConstraints();
-	}
 
+		if (bHandlesEnabled)
+		{
+			// After sorting, need to fix up handle indexes
+			for (int32 Idx = 0; Idx < Constraints.SinglePointConstraints.Num(); ++Idx)
+			{
+				Constraints.SinglePointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
+			}
+			for (int32 Idx = 0; Idx < Constraints.SinglePointSweptConstraints.Num(); ++Idx)
+			{
+				Constraints.SinglePointSweptConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
+			}
+			for (int32 Idx = 0; Idx < Constraints.MultiPointConstraints.Num(); ++Idx)
+			{
+				Constraints.MultiPointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
+			}
+		}
+	}
 
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
@@ -651,8 +704,8 @@ namespace Chaos
 
 				if (!ConstraintHandle->GetContact().GetDisabled())
 				{
-					Collisions::FContactParticleParameters ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-					Collisions::FContactIterationParameters IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
+					const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
+					const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPairIterations, bNeedsAnotherIteration);
 					Collisions::Apply(ConstraintHandle->GetContact(), IterationParameters, ParticleParameters);
 
 					if (bNeedsAnotherIteration)
@@ -687,8 +740,8 @@ namespace Chaos
 
 				if (!ConstraintHandle->GetContact().GetDisabled())
 				{
-					Collisions::FContactParticleParameters ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-					Collisions::FContactIterationParameters IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, ECollisionApplyType::None, &bNeedsAnotherIteration };
+					const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
+					const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iteration, NumIterations, MApplyPushOutPairIterations, bNeedsAnotherIteration);
 					Collisions::ApplyPushOut(ConstraintHandle->GetContact(), IsTemporarilyStatic, IterationParameters, ParticleParameters);
 				}
 

@@ -14,6 +14,15 @@ class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 
+enum class ENiagaraGPUTickHandlingMode
+{
+	None, /** No GPU Ticks needed. */
+	GameThread,/** Each system has to submit it's GPU tick individually on the game thread. */
+	Concurrent,/** Each system has to submit it's GPU tick individually during it's concurrent tick. */
+	GameThreadBatched,/** Systems can submit their GPU ticks in batches but it must be done on the game thread. */
+	ConcurrentBatched,/** Systems can submit their GPU ticks in batches during concurrent tick. */
+};
+
 //TODO: It would be good to have the batch size be variable per system to try to keep a good work/overhead ratio.
 //Can possibly adjust in future based on average batch execution time.
 #define NiagaraSystemTickBatchSize 4
@@ -182,28 +191,18 @@ struct FNiagaraParameterStoreToDataSetBinding
 	}
 };
 
-#if 1
 struct FNiagaraConstantBufferToDataSetBinding
 {
-	void Init(const FNiagaraSystemCompiledData& CompiledData);
-
-	void CopyToDataSets(const FNiagaraSystemInstance& SystemInstance, FNiagaraDataSet& SpawnDataSet, FNiagaraDataSet& UpdateDataSet, int32 DataSetInstanceIndex) const;
-	
+	static void CopyToDataSets(
+		const FNiagaraSystemCompiledData& CompiledData,
+		const FNiagaraSystemInstance& SystemInstance,
+		FNiagaraDataSet& SpawnDataSet,
+		FNiagaraDataSet& UpdateDataSet,
+		int32 DataSetInstanceIndex);
 
 protected:
-	void ApplyOffsets(const FNiagaraParameterDataSetBindingCollection& Offsets, const uint8* SourceData, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex) const;
-
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
-	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
-	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
-
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
-	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
-	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
+	static void ApplyOffsets(const FNiagaraParameterDataSetBindingCollection& Offsets, const uint8* SourceData, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex);
 };
-#endif
 
 struct FNiagaraSystemSimulationTickContext
 {
@@ -305,6 +304,10 @@ public:
 
 	ETickingGroup GetTickGroup() const { return SystemTickGroup; }
 
+	FORCEINLINE NiagaraEmitterInstanceBatcher* GetBatcher()const { return Batcher; }
+
+	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode()const;
+
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -366,8 +369,6 @@ protected:
 	/** Bindings that pull per component parameters into the update parameter dataset. */
 	FNiagaraParameterStoreToDataSetBinding UpdateInstanceParameterToDataSetBinding;
 
-	FNiagaraConstantBufferToDataSetBinding ConstantBufferToDataSetBinding;
-
 	/** Binding to push system attributes into each emitter spawn parameters. */
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterSpawnParameters;
 	/** Binding to push system attributes into each emitter update parameters. */
@@ -401,12 +402,7 @@ protected:
 	/** List of instances that are pending a tick group promotion. */
 	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
-	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
-
 	void InitParameterDataSetBindings(FNiagaraSystemInstance* SystemInst);
-
-	FNiagaraDataSetAccessor<int32> SystemExecutionStateAccessor;
-	TArray<FNiagaraDataSetAccessor<int32>> EmitterExecutionStateAccessors;
 
 	uint32 bCanExecute : 1;
 	uint32 bBindingsInitialized : 1;
@@ -425,4 +421,6 @@ protected:
 	FGraphEventRef SystemTickGraphEvent;
 
 	mutable FString CrashReporterTag;
+
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

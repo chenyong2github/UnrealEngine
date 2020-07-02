@@ -30,7 +30,7 @@ void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManage
 	ScreenShotManager = InScreenShotManager;
 	ComparisonRoot = FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir());
 	bReportsChanged = true;
-	bDisplayingSuccess = true;
+	bDisplayingSuccess = false;
 	bDisplayingError = true;
 	bDisplayingNew = true;
 	ReportFilterString = FString();
@@ -449,12 +449,7 @@ void SScreenShotBrowser::RebuildTree()
 
 bool SScreenShotBrowser::CanAddNewReportResult(const FImageComparisonResult& Comparison)
 {
-	bool bHasApprovedFile = !Comparison.ApprovedFilePath.IsEmpty();
-	FString ApprovedPath = FPaths::GetPath(Comparison.ApprovedFilePath);
-	FString IncomingPath = FPaths::GetPath(Comparison.IncomingFilePath);
-	bool bIsComparingAgainstPlatformFallback = bHasApprovedFile && ApprovedPath != IncomingPath;
-
-	return Comparison.IsNew() || bIsComparingAgainstPlatformFallback;
+	return Comparison.IsNew();
 }
 
 #undef LOCTEXT_NAMESPACE

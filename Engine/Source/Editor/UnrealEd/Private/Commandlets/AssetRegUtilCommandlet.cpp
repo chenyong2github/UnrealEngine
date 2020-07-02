@@ -192,180 +192,7 @@ struct FSortableDependencySort
 	}
 };
 
-enum class EEntryType
-{
-	Resource,
-	Package
-};
-
-struct FFOOEntry
-{
-	FFOOEntry() :
-		bFoundDep(false)
-	{
-	}
-
-	bool ParseEntry(FString& Line)
-	{
-		bool Succes = true;
-
-		int QuoteIndex;
-		Line.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
-		Line.ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
-		if (Line.FindLastChar('"', QuoteIndex))
-		{
-			FString ReadNum = Line.RightChop(QuoteIndex + 1);
-			ReadNum.TrimStartInline();
-			ReadNum.TrimEndInline();
-			if (ReadNum.IsNumeric())
-			{
-				Order = FCString::Atoi(*ReadNum);
-			}
-			else
-			{
-				Succes = false;
-			}
-
-			Line.LeftInline(QuoteIndex + 1, false);
-			Name = Line.TrimQuotes();
-
-			// If the file have an extension, its consider as a resource
-			FString FileExt = FPaths::GetExtension(Name);
-			if (!FileExt.IsEmpty())
-			{
-				Type = EEntryType::Resource;
-			}
-			else
-			{
-				Type = EEntryType::Package;
-			}
-		}
-
-		return Succes;
-	}
-
-	int Order;
-	bool bFoundDep;
-	EEntryType Type;
-	FString Name;
-	TArray<FString> Dependencies;
-
-
-	void Serialize(FArchive* OutArc, int32& InOutOrderIndex)
-	{
-		switch (Type)
-		{
-		case EEntryType::Package:
-		{
-			FString OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *Name, InOutOrderIndex);
-			OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
-
-			for (int i = 0; i < Dependencies.Num(); i++)
-			{
-				OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *(Dependencies[i]), InOutOrderIndex++);
-				OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
-			}
-			
-			break;
-		}
-		case EEntryType::Resource:
-		{
-			if (!bFoundDep)
-			{
-				FString OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *Name, InOutOrderIndex++);
-				OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
-			}
-			break;
-		}			
-		}
-	}
-};
-
-struct FPackageStack
-{
-	FPackageStack() 
-	{
-		ExtPriority.Add(TEXT("uasset"), 0);
-		ExtPriority.Add(TEXT("uexp"), 1);
-		ExtPriority.Add(TEXT("umap"), 2);
-		ExtPriority.Add(TEXT("uptnl"), 3);
-		ExtPriority.Add(TEXT("ubulk"), 3);
-	}
-	~FPackageStack() {}
-
-	void FindMatch(const TArray<FFOOEntry*>& Entries, FFOOEntry* Resource, bool bSort)
-	{
-		for (int32 i = Frames.Num() - 1; i >= 0; i--)
-		{
-			int32 index = Frames[i];
-			if (index < 0 && index >= Entries.Num())
-			{
-				UE_LOG(LogAssetRegUtil, Error, TEXT("Invalide package index %i"), index);
-			}
-
-			FFOOEntry* Package = Entries[index];
-			if (Package->Order <= Resource->Order)
-			{
-				Package->Dependencies.Add(Resource->Name);
-				if (bSort)
-				{
-					Package->Dependencies.Sort([&](const FString& A, const FString& B) -> bool
-						{
-							int* priorityA = ExtPriority.Find(FPaths::GetExtension(A));
-							int* priorityB = ExtPriority.Find(FPaths::GetExtension(B));
-
-							if (priorityA && priorityB)
-							{
-								return (priorityA < priorityB);
-							}
-							else
-							{
-								return false;
-							}
-						});
-				}
-				Resource->bFoundDep = true;
-				break;
-			}
-		}
-	}
-	TArray<int32> Frames;
-	TMap<FString, int32> ExtPriority;
-};
-
-
-struct FileOpenStats
-{
-	FileOpenStats()
-	{
-		ResourceMoved = 0;
-		PackageCount = 0;
-		OrphanResource = 0;
-	}
-	int32 ResourceMoved;
-	int32 PackageCount;
-	int32 OrphanResource;
-};
-
-struct FFileOpenOrder
-{
-	FFileOpenOrder() {}
-	~FFileOpenOrder()
-	{
-		for (FFOOEntry* Entry : Entries)
-		{
-			delete Entry;
-		}
-		Entries.Empty();
-	}
-
-
-	TArray<FFOOEntry*> Entries;
-	TMap<FString, FPackageStack> Packages;
-	FileOpenStats Stats;
-};
-
-UAssetRegUtilCommandlet::UAssetRegUtilCommandlet( const FObjectInitializer& ObjectInitializer )
+UAssetRegUtilCommandlet::UAssetRegUtilCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
@@ -419,44 +246,6 @@ void UAssetRegUtilCommandlet::RecursivelyGrabDependencies(TArray<FSortableDepend
 				RecursivelyGrabDependencies(OutSortableDependencies, DepSet, DepOrder, DepHierarchy + 1, ProcessedFiles, OriginalSet, DepPathFName, DepPackageName, FilterByClasses);
 			}
 		}
-	}
-}
-
-void UAssetRegUtilCommandlet::ReorderOrderFiles(FFileOpenOrder& FileOpenOrder, const FString& CmdLineParams)
-{
-	bool bSortByExtension = FParse::Param(*CmdLineParams, TEXT("SortByExtension"));
-
-	int EntryIndex = 0;
-	for (FFOOEntry* Entry : FileOpenOrder.Entries)
-	{
-		if (Entry->Type == EEntryType::Resource)
-		{
-			FString PackageName;
-			if (FPackageName::TryConvertFilenameToLongPackageName(Entry->Name, PackageName))
-			{
-				FPackageStack* PackageStack = FileOpenOrder.Packages.Find(PackageName);
-				if (PackageStack != nullptr)
-				{
-					PackageStack->FindMatch(FileOpenOrder.Entries, Entry, bSortByExtension);
-					FileOpenOrder.Stats.ResourceMoved++;
-				}
-				else
-				{
-					FileOpenOrder.Stats.OrphanResource++;
-				}
-			}
-		}
-		else if (Entry->Type == EEntryType::Package)
-		{
-			FPackageStack& PackageStack = FileOpenOrder.Packages.FindOrAdd(Entry->Name);
-			PackageStack.Frames.Add(EntryIndex);
-			FileOpenOrder.Stats.PackageCount++;
-		}
-		else
-		{
-			UE_LOG(LogAssetRegUtil, Error, TEXT("Could parse entry in the GameOpenFile, line %i"), EntryIndex);
-		}
-		EntryIndex++;
 	}
 }
 
@@ -591,16 +380,45 @@ void UAssetRegUtilCommandlet::ReorderOrderFile(const FString& OrderFilePath, con
 	}
 }
 
-bool UAssetRegUtilCommandlet::GenerateOrderFile(FFileOpenOrder& NewFileOpenOrder, const FString& ReorderFileOutPath)
+bool UAssetRegUtilCommandlet::MergeOrderFiles(TMap<FString, int64>& NewOrderMap, TMap<FString, int64>& PrevOrderMap)
 {
-	int NewOrderIndex = 0;
+	int64 PrevEntryCount = PrevOrderMap.Num() + 1;
+
+	UE_LOG(LogAssetRegUtil, Display, TEXT("Merge File Open Order intital count: %d."), PrevEntryCount);
+
+	NewOrderMap.ValueSort([](const uint64& A, const uint64& B) { return A < B; });
+
+	// check in the new file open order all the new resources
+	for (TMap<FString, int64>::TConstIterator It(NewOrderMap); It; ++It)
+	{
+		int64* match = PrevOrderMap.Find(It->Key);
+
+		// Only add resources if we dont find them in the previous FOO
+		if (match == nullptr)
+		{
+			PrevOrderMap.Add(It->Key, PrevEntryCount++);
+		}
+	}
+
+	UE_LOG(LogAssetRegUtil, Display, TEXT("Merge File Open Order final count: %d."), PrevEntryCount);
+
+	return true;
+}
+
+bool UAssetRegUtilCommandlet::GenerateOrderFile(TMap<FString, int64>& OutputOrderMap, const FString& ReorderFileOutPath)
+{
+	int NewOrderIndex = 1;
 	UE_LOG(LogAssetRegUtil, Display, TEXT("Writing output: %s"), *ReorderFileOutPath);
 	FArchive* OutArc = IFileManager::Get().CreateFileWriter(*ReorderFileOutPath);
 	if (OutArc)
 	{
-		for (int i = 0; i < NewFileOpenOrder.Entries.Num(); i++)
+		OutputOrderMap.ValueSort([](const uint64& A, const uint64& B) { return A < B; });
+
+		for (TMap<FString, int64>::TConstIterator It(OutputOrderMap); It; ++It)
 		{
-			NewFileOpenOrder.Entries[i]->Serialize(OutArc, NewOrderIndex);
+			FString OutputLine;
+			OutputLine = FString::Printf(TEXT("\"%s\" %llu\n"), *It->Key, NewOrderIndex++);
+			OutArc->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OutputLine).Get()), OutputLine.Len());
 		}
 
 		OutArc->Close();
@@ -614,7 +432,7 @@ bool UAssetRegUtilCommandlet::GenerateOrderFile(FFileOpenOrder& NewFileOpenOrder
 	}
 }
 
-bool UAssetRegUtilCommandlet::LoadOrderFiles(const FString& OrderFilePath, FFileOpenOrder& FileOpenOrder)
+bool UAssetRegUtilCommandlet::LoadOrderFile(const FString& OrderFilePath, TMap<FString, int64>& OrderMap)
 {
 	UE_LOG(LogAssetRegUtil, Display, TEXT("Parsing order package: %s"), *OrderFilePath);
 	FString Text;
@@ -627,16 +445,32 @@ bool UAssetRegUtilCommandlet::LoadOrderFiles(const FString& OrderFilePath, FFile
 	TArray<FString> Lines;
 	Text.ParseIntoArray(Lines, TEXT("\n"), true);
 
-	FileOpenOrder.Entries.Reserve(Lines.Num());
+	OrderMap.Reserve(Lines.Num());
 	for (int32 Index = 0; Index < Lines.Num(); ++Index)
 	{
-		FFOOEntry* Entry = new FFOOEntry();
-		FileOpenOrder.Entries.Add(Entry);
-		if (!Entry->ParseEntry(Lines[Index]))
+		int QuoteIndex;
+		Lines[Index].ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
+		Lines[Index].ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
+		if (Lines[Index].FindLastChar('"', QuoteIndex))
 		{
-			FileOpenOrder.Entries.Empty();
-			UE_LOG(LogAssetRegUtil, Error, TEXT("Could parse entry in the GameOpenFile %s"), *OrderFilePath);
-			return false;
+			FString ReadNum = Lines[Index].RightChop(QuoteIndex + 1);
+			ReadNum.TrimStartInline();
+			ReadNum.TrimEndInline();
+
+			int64 OrderNumber = Index;
+			if (ReadNum.IsNumeric())
+			{
+				OrderNumber = FCString::Atoi(*ReadNum);
+			}
+			else
+			{
+				return false;
+			}
+
+			Lines[Index].LeftInline(QuoteIndex + 1, false);
+			FString Name = Lines[Index].TrimQuotes();
+
+			OrderMap.Add(Name, OrderNumber);
 		}
 	}
 
@@ -767,48 +601,63 @@ bool UAssetRegUtilCommandlet::GeneratePartiallyUpdatedOrderFile(const FString& O
 
 int32 UAssetRegUtilCommandlet::Main(const FString& CmdLineParams)
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistry = &AssetRegistryModule.Get();
-	
-	UE_LOG(LogAssetRegUtil, Display, TEXT("Populating the Asset Registry."));
-	AssetRegistry->SearchAllAssets(true);
-
 	// New deterministic FOO flavor
-	bool bUsePackageFileOpenOrder = FParse::Param(*CmdLineParams, TEXT("FilePackageOrder"));
+	bool bMergeFileOpenOrder = FParse::Param(*CmdLineParams, TEXT("MergeFileOpenOrder"));
+	UE_LOG(LogAssetRegUtil, Display, TEXT("AssetRegUtil cmdLineParams: %s"),*CmdLineParams);
 
 	FString ReorderFile;
 	FString ReorderOutput;
 
-	if (bUsePackageFileOpenOrder)
+	if (bMergeFileOpenOrder)
 	{
 		if (!FParse::Value(*CmdLineParams, TEXT("ReorderFile="), ReorderFile, false))
 		{
-			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderFile"));
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderFile: %s"), *ReorderFile);
 			return 0;
 		}
 
-		if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
 		if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
 		{
-			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderOutput"));
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load ReorderOutput: %s"), *ReorderOutput);
 			return 0;
 		}
 
-		FFileOpenOrder NewOpenOrderFile;
+		FString PrevReorderFile;
+		if (!FParse::Value(*CmdLineParams, TEXT("PrevReorderFile="), PrevReorderFile, false))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load PrevReorderFile: %s"), *PrevReorderFile);
+			return 0;
+		}
 
-		if (!LoadOrderFiles(ReorderFile, NewOpenOrderFile))
+		// Load the new FOO
+		TMap<FString, int64> NewOrderMap;
+		if (!LoadOrderFile(ReorderFile, NewOrderMap))
 		{
 			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load specified order file."));
 			return 0;
 		}
 
-		ReorderOrderFiles(NewOpenOrderFile, CmdLineParams);
-		GenerateOrderFile(NewOpenOrderFile, ReorderOutput);
+		// Load the previous FOO
+		TMap<FString, int64> PrevOrderMap;
+		if (!LoadOrderFile(PrevReorderFile, PrevOrderMap))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not load specified order file."));
+			return 0;
+		}
+
+		MergeOrderFiles(NewOrderMap, PrevOrderMap);
+		GenerateOrderFile(PrevOrderMap, ReorderOutput);
 	}
 	else
 	{
 		if (FParse::Value(*CmdLineParams, TEXT("ReorderFile="), ReorderFile, false))
 		{
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			AssetRegistry = &AssetRegistryModule.Get();
+
+			UE_LOG(LogAssetRegUtil, Display, TEXT("Populating the Asset Registry."));
+			AssetRegistry->SearchAllAssets(true);
+
 			if (!FParse::Value(*CmdLineParams, TEXT("ReorderOutput="), ReorderOutput, false))
 			{
 				//if nothing specified, base it on the input name

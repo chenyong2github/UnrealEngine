@@ -127,7 +127,7 @@ void FNiagaraStackGraphUtilities::RelayoutGraph(UEdGraph& Graph)
 	{
 		float CurrentXOffset = 0;
 		float MaxYOffset = YOffset;
-		for (const TArray<UEdGraphNode*> TraversalLevel : TraversalStack)
+		for (const TArray<UEdGraphNode*>& TraversalLevel : TraversalStack)
 		{
 			float CurrentYOffset = YOffset;
 			for (UEdGraphNode* Node : TraversalLevel)
@@ -2564,62 +2564,6 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& Sy
 			}
 		}
 	}
-}
-
-UNiagaraStackEntry::FStackIssue FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey)
-{
-	TSharedRef<FTokenizedMessage> TokenizedMessage = InMessage->GenerateTokenizedMessage();
-	EStackIssueSeverity StackIssueSeverity;
-	switch (TokenizedMessage->GetSeverity())
-	{
-	case EMessageSeverity::CriticalError:
-	case EMessageSeverity::Error:
-		StackIssueSeverity = EStackIssueSeverity::Error;
-		break;
-	case EMessageSeverity::PerformanceWarning:
-	case EMessageSeverity::Warning:
-		StackIssueSeverity = EStackIssueSeverity::Warning;
-		break;
-	case EMessageSeverity::Info:
-		StackIssueSeverity = EStackIssueSeverity::Info;
-		break;
-	default:
-		StackIssueSeverity = EStackIssueSeverity::Info;
-		break;
-	}
-
-	FText ShortDescription;
-	switch (InMessage->GetMessageType())
-	{
-	case ENiagaraMessageType::CompileEventMessage:
-		ShortDescription = LOCTEXT("CompileErrorShortDescription", "Compile Error");
-		break;
-	default:
-		ShortDescription = LOCTEXT("UnspecifiedErrorShortDescription", "Unspecified Error");
-		break;
-	}
-
-	TArray<UNiagaraStackEntry::FStackIssueFix> FixLinks;
-	TArray<FText> LinkMessages;
-	TArray<FSimpleDelegate> LinkNavigateActions;
-	InMessage->GenerateLinks(LinkMessages, LinkNavigateActions);
-	for (int32 LinkIndex = 0; LinkIndex < LinkMessages.Num(); LinkIndex++)
-	{
-		const FText& LinkMessage = LinkMessages[LinkIndex];
-		const FSimpleDelegate& LinkNavigateAction = LinkNavigateActions[LinkIndex];
-		FixLinks.Add(UNiagaraStackEntry::FStackIssueFix(
-			LinkMessage,
-			UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([LinkNavigateAction]() { LinkNavigateAction.Execute(); }),
-			UNiagaraStackEntry::EStackIssueFixStyle::Link));
-	}
-
-	return UNiagaraStackEntry::FStackIssue(
-		StackIssueSeverity,
-		ShortDescription,
-		InMessage->GenerateMessageText(),
-		InStackEditorDataKey,
-		false,
-		FixLinks);
 }
 
 void FNiagaraStackGraphUtilities::GetNamespacesForNewReadParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters)

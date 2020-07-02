@@ -9,6 +9,7 @@
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Tracks/MovieSceneSubTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneTestObjects.generated.h"
 
 USTRUCT()
@@ -20,7 +21,7 @@ struct FTestMovieSceneEvalTemplate : public FMovieSceneEvalTemplate
 };
 
 UCLASS(MinimalAPI)
-class UTestMovieSceneTrack : public UMovieSceneTrack
+class UTestMovieSceneTrack : public UMovieSceneTrack, public IMovieSceneTrackTemplateProducer
 {
 public:
 
@@ -28,7 +29,6 @@ public:
 
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
-	virtual FMovieSceneTrackSegmentBlenderPtr GetTrackSegmentBlender() const override;
 
 	UPROPERTY()
 	bool bHighPassFilter;

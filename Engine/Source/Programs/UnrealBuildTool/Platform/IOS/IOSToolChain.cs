@@ -259,6 +259,14 @@ namespace UnrealBuildTool
 			Result += " -Wall -Werror";
 			Result += " -Wdelete-non-virtual-dtor";
 
+			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
+			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
+			// See also MacToolChain.cs
+			if (GetClangVersion().Major >= 12)
+			{
+				Result += " -Wno-range-loop-analysis";
+			}
+
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
 				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");

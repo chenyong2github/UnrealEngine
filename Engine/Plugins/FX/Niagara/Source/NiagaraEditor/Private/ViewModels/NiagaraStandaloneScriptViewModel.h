@@ -25,8 +25,8 @@ public:
 private:
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript) override;
 
-	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
-	void SendLastCompileMessageJobs(const UNiagaraScript* InScript);
+	/** Sends messages to FNiagaraMessageManager for all compile events from the last compile. */
+	void SendLastCompileMessages(const UNiagaraScript* InScript);
 
 	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	const UNiagaraScript* SourceScript;

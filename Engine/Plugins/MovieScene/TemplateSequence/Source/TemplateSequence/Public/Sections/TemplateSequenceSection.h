@@ -18,7 +18,6 @@ public:
 
 	// UMovieSceneSubSection interface
 	virtual FMovieSceneSubSequenceData GenerateSubSequenceData(const FSubSequenceInstanceDataParams& Params) const override;
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 
 	// UMovieSceneSection interface
 	virtual void OnDilated(float DilationFactor, FFrameNumber Origin) override;

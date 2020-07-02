@@ -234,7 +234,7 @@ TSharedRef<SWidget> STraceSourceFilteringWidget::OnGetOptionsMenu()
 						);
 
 						InMenuBuilder.AddMenuEntry(
-							LOCTEXT("DrawFilterPassingOnlyLabel","Only Actor(s) passing Filtering"), 
+							LOCTEXT("DrawFilterPassingOnlyLabel","Only Actor(s) Passing Filtering"), 
 							LOCTEXT("DrawFilterPassingOnlyTooltip", "Only draws the filtering state for Actors that passsed the filtering state."),
 							FSlateIcon(),
 							FUIAction(
@@ -257,7 +257,7 @@ TSharedRef<SWidget> STraceSourceFilteringWidget::OnGetOptionsMenu()
 						);
 
 						InMenuBuilder.AddMenuEntry(
-							LOCTEXT("DrawNonPassingFiltersLabel","Draw non passing Filters"), 
+							LOCTEXT("DrawNonPassingFiltersLabel","Draw Non Passing Filters"), 
 							LOCTEXT("DrawNonPassingFiltersTooltip", "Draws the Filters that caused an Actor to be filtered out."),
 							FSlateIcon(),
 							FUIAction(

@@ -1444,61 +1444,6 @@ void UUnrealEdEngine::ShowPackageNotification()
 	}
 }
 
-
-void UUnrealEdEngine::AttemptWarnAboutPackageEngineVersions()
-{
-	if ( bNeedWarningForPkgEngineVer )
-	{
-		const bool bCanPrompt = !IsUserInteracting() && !GIsSlowTask && !PlayWorld && (FSlateApplication::Get().GetMouseCaptureWindow() == NULL);
-
-		if ( bCanPrompt )
-		{
-			FString PackageNames;
-			for ( TMap<FString, uint8>::TIterator MapIter( PackagesCheckedForEngineVersion ); MapIter; ++MapIter )
-			{
-				if ( MapIter.Value() == WDWS_PendingWarn )
-				{
-					PackageNames += FString::Printf( TEXT("%s\n"), *MapIter.Key() );
-					MapIter.Value() = WDWS_Warned;
-				}
-			}
-			FFormatNamedArguments Args;
-			Args.Add( TEXT("PackageNames"), FText::FromString( PackageNames ) );
-			const FText Message = FText::Format( NSLOCTEXT("Core", "PackagesSavedWithNewerVersion", "The following assets have been saved with an engine version newer than the current and therefore will not be able to be saved:\n{PackageNames}"), Args );
-
-			FMessageDialog::Open( EAppMsgType::Ok, Message );
-			bNeedWarningForPkgEngineVer = false;
-		}
-	}
-}
-
-void UUnrealEdEngine::AttemptWarnAboutWritePermission()
-{
-	if ( bNeedWarningForWritePermission )
-	{
-		const bool bCanPrompt = !IsUserInteracting() && !GIsSlowTask && !PlayWorld && (FSlateApplication::Get().GetMouseCaptureWindow() == NULL);
-
-		if ( bCanPrompt )
-		{
-			FString PackageNames;
-			for ( TMap<FString, uint8>::TIterator MapIter( PackagesCheckedForWritePermission ); MapIter; ++MapIter )
-			{
-				if ( MapIter.Value() == WDWS_PendingWarn )
-				{
-					PackageNames += FString::Printf( TEXT("%s\n"), *MapIter.Key() );
-					MapIter.Value() = WDWS_Warned;
-				}
-			}
-			
-			const FText Message = FText::Format( LOCTEXT("WritePermissionFailure", "You do not have sufficient permission to save the following content to disk. Any changes you make to this content will only apply during the current editor session.\n\n{0}"), FText::FromString( PackageNames ) );
-			FMessageDialog::Open( EAppMsgType::Ok, Message );
-			
-			bNeedWarningForWritePermission = false;
-		}
-	}
-}
-
-
 void UUnrealEdEngine::PromptToCheckoutModifiedPackages( bool bPromptAll )
 {
 	TArray<UPackage*> PackagesToCheckout;

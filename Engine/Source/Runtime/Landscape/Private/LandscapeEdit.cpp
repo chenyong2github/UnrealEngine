@@ -3360,7 +3360,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 								// Insert a polygon into the mesh
 								TArray<FEdgeID> NewEdgeIDs;
 								const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(PolygonGroupID, PerimeterVertexInstances, &NewEdgeIDs);
-								for (const FEdgeID NewEdgeID : NewEdgeIDs)
+								for (const FEdgeID& NewEdgeID : NewEdgeIDs)
 								{
 									EdgeHardnesses[NewEdgeID] = false;
 									EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
@@ -4697,9 +4697,13 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		InvalidateLightingCache();
 	}
-	else if(PropertyName == FName(TEXT("bCastStaticShadow")) ||
-		PropertyName == FName(TEXT("bCastShadowAsTwoSided")) ||
+	else if(
+		PropertyName == FName(TEXT("CastShadow")) ||
+		PropertyName == FName(TEXT("bCastDynamicShadow")) ||
+		PropertyName == FName(TEXT("bCastStaticShadow")) ||
 		PropertyName == FName(TEXT("bCastFarShadow")) ||
+		PropertyName == FName(TEXT("bCastHiddenShadow")) ||
+		PropertyName == FName(TEXT("bCastShadowAsTwoSided")) ||
 		PropertyName == FName(TEXT("bAffectDistanceFieldLighting")) ||
 		PropertyName == FName(TEXT("bRenderCustomDepth")) ||
 		PropertyName == FName(TEXT("CustomDepthStencilValue")) ||

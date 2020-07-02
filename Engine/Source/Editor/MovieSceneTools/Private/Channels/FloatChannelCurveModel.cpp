@@ -59,6 +59,12 @@ FFloatChannelCurveModel::FFloatChannelCurveModel(TMovieSceneChannelHandle<FMovie
 	ChannelHandle = InChannel;
 	WeakSection = OwningSection;
 	WeakSequencer = InWeakSequencer;
+
+	if (FMovieSceneChannelProxy* ChannelProxy = InChannel.GetChannelProxy())
+	{
+		OnDestroyHandle = ChannelProxy->OnDestroy.AddRaw(this, &FFloatChannelCurveModel::FixupCurve);
+	}
+
 	if (UMovieSceneSection* Section = WeakSection.Get())
 	{
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -66,6 +72,24 @@ FFloatChannelCurveModel::FFloatChannelCurveModel(TMovieSceneChannelHandle<FMovie
 	}
 
 	SupportedViews = ECurveEditorViewID::Absolute | ECurveEditorViewID::Normalized | ECurveEditorViewID::Stacked;
+}
+
+FFloatChannelCurveModel::~FFloatChannelCurveModel()
+{
+	if (FMovieSceneChannelProxy* ChannelProxy = ChannelHandle.GetChannelProxy())
+	{
+		ChannelProxy->OnDestroy.Remove(OnDestroyHandle);
+	}
+}
+
+void FFloatChannelCurveModel::FixupCurve()
+{
+	if (UMovieSceneSection* Section = WeakSection.Get())
+	{
+		FMovieSceneChannelProxy* NewChannelProxy = &Section->GetChannelProxy();
+		ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneFloatChannel>(ChannelHandle.GetChannelIndex());
+		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FFloatChannelCurveModel::FixupCurve);
+	}
 }
 
 const void* FFloatChannelCurveModel::GetCurve() const

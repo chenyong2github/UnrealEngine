@@ -28,6 +28,7 @@
 #include "AutoReimport/AutoReimportUtilities.h"
 #include "AutoReimport/AutoReimportManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "UObject/ReferencerFinder.h"
 
 #define LOCTEXT_NAMESPACE "FAssetDeleteModel"
 
@@ -91,6 +92,9 @@ void FAssetDeleteModel::SetState( EState NewState )
 
 void FAssetDeleteModel::Tick( const float InDeltaTime )
 {
+	const double MaxTickSeconds   = 0.100;
+	double       StartTickSeconds = FPlatformTime::Seconds();
+
 	switch ( State )
 	{
 	case Waiting:
@@ -105,7 +109,7 @@ void FAssetDeleteModel::Tick( const float InDeltaTime )
 		SetState(Scanning);
 		break;
 	case Scanning:
-		if ( PendingDeleteIndex < PendingDeletes.Num() )
+		while (PendingDeleteIndex < PendingDeletes.Num() && (FPlatformTime::Seconds() - StartTickSeconds) < MaxTickSeconds)
 		{
 			TSharedPtr<FPendingDelete>& PendingDelete = PendingDeletes[PendingDeleteIndex];
 
@@ -142,7 +146,8 @@ void FAssetDeleteModel::Tick( const float InDeltaTime )
 
 			PendingDeleteIndex++;
 		}
-		else
+
+		if (PendingDeleteIndex >= PendingDeletes.Num())
 		{
 			SetState(UpdateActions);
 		}
@@ -658,69 +663,80 @@ bool FPendingDelete::IsAssetContained(const FName& PackageName) const
 	return false;
 }
 
+
 void FPendingDelete::CheckForReferences()
 {
-	if ( bReferencesChecked )
+	if (bReferencesChecked)
 	{
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPendingDelete::CheckForReferences)
 	bReferencesChecked = true;
 
 	// Load the asset registry module
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	AssetRegistryModule.Get().GetReferencers(Object->GetOutermost()->GetFName(), DiskReferences);
 
-	// Check and see whether we are referenced by any objects that won't be garbage collected (*including* the undo buffer)
-	FReferencerInformationList ReferencesIncludingUndo;
-	bool bReferencedInMemoryOrUndoStack = IsReferenced(Object, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesIncludingUndo);
-
-	// Determine the in-memory references, *excluding* the undo buffer
-	if (GEditor && GEditor->Trans)
+	IConsoleVariable* UseLegacyGetReferencersForDeletion = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.UseLegacyGetReferencersForDeletion"));
+	if (UseLegacyGetReferencersForDeletion == nullptr || !UseLegacyGetReferencersForDeletion->GetBool())
 	{
-		GEditor->Trans->DisableObjectSerialization();
+		// This new version uses the fast reference collector to gather referencers and handles transaction referencers in a single pass
+		ObjectTools::GatherObjectReferencersForDeletion(Object, bIsReferencedInMemoryByNonUndo, bIsReferencedInMemoryByUndo, &MemoryReferences);
 	}
-	bIsReferencedInMemoryByNonUndo = IsReferenced(Object, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &MemoryReferences);
-	if (GEditor && GEditor->Trans)
+	else
 	{
-		GEditor->Trans->EnableObjectSerialization();
-	}
+		// Check and see whether we are referenced by any objects that won't be garbage collected (*including* the undo buffer)
+		FReferencerInformationList ReferencesIncludingUndo;
+		bool bReferencedInMemoryOrUndoStack = IsReferenced(Object, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesIncludingUndo);
 
-	// see if this object is the transaction buffer - set a flag so we know we need to clear the undo stack
-	const int32 TotalReferenceCount = ReferencesIncludingUndo.ExternalReferences.Num() + ReferencesIncludingUndo.InternalReferences.Num();
-	const int32 NonUndoReferenceCount = MemoryReferences.ExternalReferences.Num() + MemoryReferences.InternalReferences.Num();
-
-	bIsReferencedInMemoryByUndo = TotalReferenceCount > NonUndoReferenceCount;
-
-	// If the object itself isn't in the transaction buffer, check to see if it's a Blueprint asset. We might have instances of the
-	// Blueprint in the transaction buffer, in which case we also want to both alert the user and clear it prior to deleting the asset.
-	if ( !bIsReferencedInMemoryByUndo )
-	{
-		UBlueprint* Blueprint = Cast<UBlueprint>( Object );
-		if ( Blueprint && Blueprint->GeneratedClass )
+		// Determine the in-memory references, *excluding* the undo buffer
+		if (GEditor && GEditor->Trans)
 		{
-			TArray<FReferencerInformation> ExternalMemoryReferences = MemoryReferences.ExternalReferences;
-			for ( auto RefIt = ExternalMemoryReferences.CreateIterator(); RefIt && !bIsReferencedInMemoryByUndo; ++RefIt )
-			{
-				FReferencerInformation& RefInfo = *RefIt;
-				if ( RefInfo.Referencer->IsA( Blueprint->GeneratedClass ) )
-				{
-					if (IsReferenced(RefInfo.Referencer, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesIncludingUndo))
-					{
-						if (GEditor && GEditor->Trans)
-						{
-							GEditor->Trans->DisableObjectSerialization();
-						}
+			GEditor->Trans->DisableObjectSerialization();
+		}
+		bIsReferencedInMemoryByNonUndo = IsReferenced(Object, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &MemoryReferences);
+		if (GEditor && GEditor->Trans)
+		{
+			GEditor->Trans->EnableObjectSerialization();
+		}
 
-						FReferencerInformationList ReferencesExcludingUndo;
-						if (IsReferenced(RefInfo.Referencer, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesExcludingUndo))
+		// see if this object is the transaction buffer - set a flag so we know we need to clear the undo stack
+		const int32 TotalReferenceCount = ReferencesIncludingUndo.ExternalReferences.Num() + ReferencesIncludingUndo.InternalReferences.Num();
+		const int32 NonUndoReferenceCount = MemoryReferences.ExternalReferences.Num() + MemoryReferences.InternalReferences.Num();
+
+		bIsReferencedInMemoryByUndo = TotalReferenceCount > NonUndoReferenceCount;
+
+		// If the object itself isn't in the transaction buffer, check to see if it's a Blueprint asset. We might have instances of the
+		// Blueprint in the transaction buffer, in which case we also want to both alert the user and clear it prior to deleting the asset.
+		if (!bIsReferencedInMemoryByUndo)
+		{
+			UBlueprint* Blueprint = Cast<UBlueprint>(Object);
+			if (Blueprint && Blueprint->GeneratedClass)
+			{
+				TArray<FReferencerInformation> ExternalMemoryReferences = MemoryReferences.ExternalReferences;
+				for (auto RefIt = ExternalMemoryReferences.CreateIterator(); RefIt && !bIsReferencedInMemoryByUndo; ++RefIt)
+				{
+					FReferencerInformation& RefInfo = *RefIt;
+					if (RefInfo.Referencer->IsA(Blueprint->GeneratedClass))
+					{
+						if (IsReferenced(RefInfo.Referencer, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesIncludingUndo))
 						{
-							bIsReferencedInMemoryByUndo = ( ReferencesIncludingUndo.InternalReferences.Num() + ReferencesIncludingUndo.ExternalReferences.Num() ) > ( ReferencesExcludingUndo.InternalReferences.Num() + ReferencesExcludingUndo.ExternalReferences.Num() );
-						}
-						if (GEditor && GEditor->Trans)
-						{
-							GEditor->Trans->EnableObjectSerialization();
+							if (GEditor && GEditor->Trans)
+							{
+								GEditor->Trans->DisableObjectSerialization();
+							}
+
+							FReferencerInformationList ReferencesExcludingUndo;
+							if (IsReferenced(RefInfo.Referencer, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesExcludingUndo))
+							{
+								bIsReferencedInMemoryByUndo = (ReferencesIncludingUndo.InternalReferences.Num() + ReferencesIncludingUndo.ExternalReferences.Num()) > (ReferencesExcludingUndo.InternalReferences.Num() + ReferencesExcludingUndo.ExternalReferences.Num());
+							}
+							if (GEditor && GEditor->Trans)
+							{
+								GEditor->Trans->EnableObjectSerialization();
+							}
 						}
 					}
 				}

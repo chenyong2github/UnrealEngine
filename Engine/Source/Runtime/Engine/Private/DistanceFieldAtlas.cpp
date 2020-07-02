@@ -26,6 +26,8 @@
 #include "MeshUtilities.h"
 #endif
 
+CSV_DEFINE_CATEGORY(DistanceField, false);
+
 #if ENABLE_COOK_STATS
 namespace DistanceFieldCookStats
 {
@@ -434,12 +436,12 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 
 	{
 		uint32 TotalSurface = BlockAllocator.GetMaxSizeX() * BlockAllocator.GetMaxSizeY() * BlockAllocator.GetMaxSizeZ();
-		CSV_CUSTOM_STAT_GLOBAL(DFAtlasPercentageUsage, float((float(AllocatedPixels) / float(TotalSurface))*100.0f), ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxX, float(MaxUsedAtlasX), ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxY, float(MaxUsedAtlasY), ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(DFAtlasMaxZ, float(MaxUsedAtlasZ), ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(DFAtlasFailedAllocatedMagaPixels, (float(FailedAllocatedPixels)/1024)/1024, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(DFPersistentCPUMemory, float(AllocatedCPUDataInBytes) / 1024, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFAtlasPercentageUsage, float((float(AllocatedPixels) / float(TotalSurface))*100.0f), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFAtlasMaxX, float(MaxUsedAtlasX), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFAtlasMaxY, float(MaxUsedAtlasY), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFAtlasMaxZ, float(MaxUsedAtlasZ), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFAtlasFailedAllocatedMagaPixels, (float(FailedAllocatedPixels)/1024)/1024, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, DFPersistentCPUMemory, float(AllocatedCPUDataInBytes) / 1024, ECsvCustomStatOp::Set);
 	}
 
 	static const auto CVarXY = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.AtlasSizeXY"));

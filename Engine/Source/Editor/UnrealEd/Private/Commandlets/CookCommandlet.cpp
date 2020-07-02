@@ -135,7 +135,7 @@ namespace DetailedCookStats
 							{
 								StatAttrs.Emplace(Attr.Key, Attr.Value);
 							}
-							CookAnalytics->RecordEvent(StatName, MoveTemp(StatAttrs));
+							CookAnalytics->RecordEvent(StatName, StatAttrs);
 						}
 						else
 						{
@@ -570,7 +570,9 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bSkipEditorContent = Switches.Contains(TEXT("SKIPEDITORCONTENT")); // This won't save out any packages in Engine/Content/Editor*
 	bErrorOnEngineContentUse = Switches.Contains(TEXT("ERRORONENGINECONTENTUSE"));
 	bUseSerializationForGeneratingPackageDependencies = Switches.Contains(TEXT("UseSerializationForGeneratingPackageDependencies"));
-	bCookSinglePackage = Switches.Contains(TEXT("cooksinglepackage"));
+	bCookSinglePackage = Switches.Contains(TEXT("cooksinglepackagenorefs"));
+	bKeepSinglePackageRefs = Switches.Contains(TEXT("cooksinglepackage")); // This is a legacy parameter; it's a minor misnomer since singlepackage implies norefs, but we want to avoiding changing the behavior
+	bCookSinglePackage = bCookSinglePackage || bKeepSinglePackageRefs;
 	bVerboseCookerWarnings = Switches.Contains(TEXT("verbosecookerwarnings"));
 	bPartialGC = Switches.Contains(TEXT("Partialgc"));
 	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY"));
@@ -617,9 +619,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	{
 		const TArray<ITargetPlatform*>& Platforms = TPM.GetActiveTargetPlatforms();
 
-		TArray<FString> FilesInPath;
-				
-		CookByTheBook(Platforms, FilesInPath);	
+		CookByTheBook(Platforms);
 		
 		if(GShaderCompilerStats)
 		{
@@ -639,7 +639,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	return 0;
 }
 
-bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath )
+bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 {
 	COOK_STAT(FScopedDurationTimer CookByTheBookTimer(DetailedCookStats::CookByTheBookTimeSec));
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
@@ -850,12 +850,19 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 	CookOptions |= Switches.Contains(TEXT("FullLoadAndSave")) ? ECookByTheBookOptions::FullLoadAndSave : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("PackageStore")) ? ECookByTheBookOptions::PackageStore : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoGameAlwaysCook")) ? ECookByTheBookOptions::NoGameAlwaysCookPackages : ECookByTheBookOptions::None;
-	CookOptions |= Switches.Contains(TEXT("DisableUnsolicitedPackages")) ? ECookByTheBookOptions::DisableUnsolicitedPackages : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("DisableUnsolicitedPackages")) ? (ECookByTheBookOptions::SkipHardReferences | ECookByTheBookOptions::SkipSoftReferences) : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoDefaultMaps")) ? ECookByTheBookOptions::NoDefaultMaps : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("SkipSoftReferences")) ? ECookByTheBookOptions::SkipSoftReferences : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("SkipHardReferences")) ? ECookByTheBookOptions::SkipHardReferences : ECookByTheBookOptions::None;
+	CookOptions |= Switches.Contains(TEXT("CookAgainstFixedBase")) ? ECookByTheBookOptions::CookAgainstFixedBase : ECookByTheBookOptions::None;
 
-	const ECookByTheBookOptions SinglePackageFlags = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::DisableUnsolicitedPackages | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
-	CookOptions |= bCookSinglePackage ? SinglePackageFlags : ECookByTheBookOptions::None;
+	if (bCookSinglePackage)
+	{
+		const ECookByTheBookOptions SinglePackageFlags = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages |
+			ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
+		CookOptions |= SinglePackageFlags;
+		CookOptions |= bKeepSinglePackageRefs ? ECookByTheBookOptions::None : ECookByTheBookOptions::SkipHardReferences;
+	}
 
 	UCookOnTheFlyServer::FCookByTheBookStartupOptions StartupOptions;
 
@@ -1061,7 +1068,8 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 	if (!bIterativeCooking && StartupOptions.DLCName.IsEmpty())
 	{
-		VerifyEDLCookInfo();
+		bool bFullReferencesExpected = !(CookOptions & ECookByTheBookOptions::SkipHardReferences);
+		VerifyEDLCookInfo(bFullReferencesExpected);
 	}
 
 	return true;

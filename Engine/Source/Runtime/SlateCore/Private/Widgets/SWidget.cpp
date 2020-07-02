@@ -164,6 +164,10 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 		}
 		FastPathProxyHandle.MarkWidgetUpdatedThisFrame();
 	}
+	else
+	{
+		ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
+	}
 }
 
 FName NAME_MouseButtonDown(TEXT("MouseButtonDown"));
@@ -226,9 +230,13 @@ SWidget::~SWidget()
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
 
-		if (FSlateInvalidationRoot* Root = FastPathProxyHandle.GetInvalidationRoot())
+		FSlateInvalidationRootHandle SlateInvalidationRootHandle = FastPathProxyHandle.GetInvalidationRootHandle();
+#if WITH_SLATE_DEBUGGING
+		ensure(!SlateInvalidationRootHandle.IsStale());
+#endif
+		if (FSlateInvalidationRoot* InvalidationRoot = SlateInvalidationRootHandle.GetInvalidationRoot())
 		{
-			Root->OnWidgetDestroyed(this);
+			InvalidationRoot->OnWidgetDestroyed(this);
 		}
 
 		// Reset handle
@@ -622,6 +630,10 @@ void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
 	{
 		SCOPED_NAMED_EVENT(SWidget_InvalidateChildRemovedFromTree, FColor::Red);
 		Child.UpdateFastPathVisibility(false, true, Child.FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid());
+	}
+	else
+	{
+		ensure(Child.FastPathProxyHandle.GetIndex() == INDEX_NONE);
 	}
 }
 
@@ -1104,6 +1116,10 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 		}
 
 		FastPathProxyHandle.MarkWidgetDirty(InvalidateReason);
+	}
+	else
+	{
+		ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
 	}
 }
 

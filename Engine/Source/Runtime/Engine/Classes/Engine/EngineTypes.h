@@ -660,10 +660,6 @@ enum class ENetworkSmoothingMode : uint8
 	Replay			UMETA(Hidden, DisplayName="Replay"),
 };
 
-/** This filter allows us to refine queries (channel, object) with an additional level of ignore by tagging entire classes of objects (e.g. "Red team", "Blue team")
-    If(QueryIgnoreMask & ShapeFilter != 0) filter out */
-typedef uint8 FMaskFilter;
-
 // Number of bits used currently from FMaskFilter.
 enum { NumExtraFilterBits = 6 };
 
@@ -1163,29 +1159,6 @@ private:
 	static FCollisionResponseContainer DefaultResponseContainer;
 
 	friend class UCollisionProfile;
-};
-
-/** Enum for controlling the falloff of strength of a radial impulse as a function of distance from Origin. */
-UENUM()
-enum ERadialImpulseFalloff
-{
-	/** Impulse is a constant strength, up to the limit of its range. */
-	RIF_Constant,
-	/** Impulse should get linearly weaker the further from origin. */
-	RIF_Linear,
-	RIF_MAX,
-};
-
-/** Presets of values used in considering when put this body to sleep. */
-UENUM()
-enum class ESleepFamily : uint8
-{
-	/** Engine defaults. */
-	Normal,
-	/** A family of values with a lower sleep threshold; good for slower pendulum-like physics. */
-	Sensitive,
-	/** Specify your own sleep threshold multiplier */
-	Custom,
 };
 
 /** Enum used to indicate what type of timeline signature a function matches. */
@@ -3610,76 +3583,6 @@ struct ENGINE_API FComponentReference
 	}
 };
 
-/** Types of surfaces in the game, used by Physical Materials */
-UENUM(BlueprintType)
-enum EPhysicalSurface
-{
-	SurfaceType_Default UMETA(DisplayName="Default"),
-	SurfaceType1 UMETA(Hidden),
-	SurfaceType2 UMETA(Hidden),
-	SurfaceType3 UMETA(Hidden),
-	SurfaceType4 UMETA(Hidden),
-	SurfaceType5 UMETA(Hidden),
-	SurfaceType6 UMETA(Hidden),
-	SurfaceType7 UMETA(Hidden),
-	SurfaceType8 UMETA(Hidden),
-	SurfaceType9 UMETA(Hidden),
-	SurfaceType10 UMETA(Hidden),
-	SurfaceType11 UMETA(Hidden),
-	SurfaceType12 UMETA(Hidden),
-	SurfaceType13 UMETA(Hidden),
-	SurfaceType14 UMETA(Hidden),
-	SurfaceType15 UMETA(Hidden),
-	SurfaceType16 UMETA(Hidden),
-	SurfaceType17 UMETA(Hidden),
-	SurfaceType18 UMETA(Hidden),
-	SurfaceType19 UMETA(Hidden),
-	SurfaceType20 UMETA(Hidden),
-	SurfaceType21 UMETA(Hidden),
-	SurfaceType22 UMETA(Hidden),
-	SurfaceType23 UMETA(Hidden),
-	SurfaceType24 UMETA(Hidden),
-	SurfaceType25 UMETA(Hidden),
-	SurfaceType26 UMETA(Hidden),
-	SurfaceType27 UMETA(Hidden),
-	SurfaceType28 UMETA(Hidden),
-	SurfaceType29 UMETA(Hidden),
-	SurfaceType30 UMETA(Hidden),
-	SurfaceType31 UMETA(Hidden),
-	SurfaceType32 UMETA(Hidden),
-	SurfaceType33 UMETA(Hidden),
-	SurfaceType34 UMETA(Hidden),
-	SurfaceType35 UMETA(Hidden),
-	SurfaceType36 UMETA(Hidden),
-	SurfaceType37 UMETA(Hidden),
-	SurfaceType38 UMETA(Hidden),
-	SurfaceType39 UMETA(Hidden),
-	SurfaceType40 UMETA(Hidden),
-	SurfaceType41 UMETA(Hidden),
-	SurfaceType42 UMETA(Hidden),
-	SurfaceType43 UMETA(Hidden),
-	SurfaceType44 UMETA(Hidden),
-	SurfaceType45 UMETA(Hidden),
-	SurfaceType46 UMETA(Hidden),
-	SurfaceType47 UMETA(Hidden),
-	SurfaceType48 UMETA(Hidden),
-	SurfaceType49 UMETA(Hidden),
-	SurfaceType50 UMETA(Hidden),
-	SurfaceType51 UMETA(Hidden),
-	SurfaceType52 UMETA(Hidden),
-	SurfaceType53 UMETA(Hidden),
-	SurfaceType54 UMETA(Hidden),
-	SurfaceType55 UMETA(Hidden),
-	SurfaceType56 UMETA(Hidden),
-	SurfaceType57 UMETA(Hidden),
-	SurfaceType58 UMETA(Hidden),
-	SurfaceType59 UMETA(Hidden),
-	SurfaceType60 UMETA(Hidden),
-	SurfaceType61 UMETA(Hidden),
-	SurfaceType62 UMETA(Hidden),
-	SurfaceType_Max UMETA(Hidden)
-};
-
 /** Types of valid physical material mask colors which may be associated with a physical material */
 UENUM(BlueprintType)
 namespace EPhysicalMaterialMaskColor
@@ -3791,31 +3694,6 @@ struct FComponentSocketDescription
 
 /** Dynamic delegate to use by components that want to route the broken-event into blueprints */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FConstraintBrokenSignature, int32, ConstraintIndex);
-
-/** Specifies angular degrees of freedom */
-UENUM()
-enum EAngularConstraintMotion
-{
-	/** No constraint against this axis. */ 
-	ACM_Free		UMETA(DisplayName="Free"),
-	/** Limited freedom along this axis. */ 
-	ACM_Limited		UMETA(DisplayName="Limited"),
-	/** Fully constraint against this axis. */
-	ACM_Locked		UMETA(DisplayName="Locked"),
-
-	ACM_MAX,
-};
-
-/** Enum to indicate which context frame we use for physical constraints */
-UENUM()
-namespace EConstraintFrame
-{
-	enum Type
-	{
-		Frame1,
-		Frame2
-	};
-}
 
 /** Structure for file paths that are displayed in the editor with a picker UI. */
 USTRUCT(BlueprintType)

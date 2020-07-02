@@ -1846,7 +1846,9 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(VarAction->GetVariableName()));
 
-			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty()->GetUPropertyWrapper(), Options);
+			FProperty* Prop = VarAction->GetProperty();
+			UPropertyWrapper* PropWrap = (Prop ? Prop->GetUPropertyWrapper() : nullptr);
+			Inspector->ShowDetailsForSingleObject(PropWrap, Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Enum::StaticGetTypeId())
 		{
@@ -2104,6 +2106,8 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 		MenuBuilder.EndSection();
 
 		FEdGraphSchemaAction_K2Var* Var = SelectionAsVar();
+		FEdGraphSchemaAction_K2Graph* Graph = SelectionAsGraph();
+		FEdGraphSchemaAction_K2Event* Event = SelectionAsEvent();
 
 		if ( Var && BlueprintEditorPtr.IsValid() && FBlueprintEditorUtils::DoesSupportEventGraphs(GetBlueprintObj()) )
 		{
@@ -2126,6 +2130,52 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 												FGetSelectedObjectsDelegate::CreateSP(this, &SMyBlueprint::GetSelectedItemsForContextMenu)));
 				}
 			}
+		}
+		// If this is a function graph than we should add the option to convert it to an event if possible
+		else if( Graph )
+		{
+			// The first function entry node will have all the information that the conversion needs
+			UK2Node_FunctionEntry* EntryNode = nullptr;
+			for(UEdGraphNode* Node : Graph->EdGraph->Nodes)
+			{
+				if (UK2Node_FunctionEntry* TypedNode = Cast<UK2Node_FunctionEntry>(Node))
+				{
+					EntryNode = TypedNode;
+					break;
+				}
+			}
+
+			TSharedPtr<FBlueprintEditor> BlueprintEditor(BlueprintEditorPtr.Pin());
+			if( EntryNode && BlueprintEditor.IsValid() &&
+				FBlueprintEditorUtils::IsFunctionConvertableToEvent(BlueprintEditor->GetBlueprintObj(), EntryNode->FindSignatureFunction()) )
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("MyBlueprint_Conversion_Func", "Convert function to event"), FText(), FSlateIcon(),
+					FExecuteAction::CreateLambda([BlueprintEditor, EntryNode]()
+					{
+						// ConvertFunctionIfValid handles any bad state, so no need for additional messaging
+						BlueprintEditor->ConvertFunctionIfValid(EntryNode);
+					})
+				);
+			}
+		}
+		// If this is an event, allow us to convert it to a function graph if possible
+		else if( Event )
+		{
+			TSharedPtr<FBlueprintEditor> BlueprintEditor(BlueprintEditorPtr.Pin());			
+			UK2Node_Event* EventNode = Cast<UK2Node_Event>(Event->NodeTemplate);
+			
+			if( BlueprintEditor.IsValid() && EventNode )
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("MyBlueprint_Conversion_Event", "Convert event to function"), FText(), FSlateIcon(),
+					FExecuteAction::CreateLambda([BlueprintEditor, EventNode]()
+					{
+						// The ConvertEventIfValid function handles all bad states, so there's no need for further validation
+						BlueprintEditor->ConvertEventIfValid(EventNode);
+					})
+				);
+			}			
 		}
 	}
 	else

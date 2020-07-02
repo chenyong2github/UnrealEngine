@@ -2,7 +2,6 @@
 
 #include "Tracks/MovieScene3DAttachTrack.h"
 #include "Sections/MovieScene3DAttachSection.h"
-#include "Evaluation/MovieScene3DAttachTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Templates/Casts.h"
 
@@ -13,11 +12,6 @@
 UMovieScene3DAttachTrack::UMovieScene3DAttachTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 { }
-
-FMovieSceneEvalTemplatePtr UMovieScene3DAttachTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieScene3DAttachSectionTemplate(*CastChecked<UMovieScene3DAttachSection>(&InSection));
-}
 
 void UMovieScene3DAttachTrack::AddConstraint(FFrameNumber KeyTime, int32 Duration, const FName SocketName, const FName ComponentName, const FMovieSceneObjectBindingID& ConstraintBindingID)
 {
@@ -43,12 +37,6 @@ UMovieSceneSection* UMovieScene3DAttachTrack::CreateNewSection()
 	ConstraintSections.Add(NewSection);
 
 	return NewSection;
-}
-
-void UMovieScene3DAttachTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	// Set the evaluation priority to be higher than transforms so that attachments always happen first
-	Track.SetEvaluationPriority(1100);
 }
 
 #if WITH_EDITORONLY_DATA

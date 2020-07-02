@@ -10,6 +10,7 @@
 #include "GameFramework/PlayerController.h"
 #include "MoviePipelineRenderPass.h"
 #include "EngineModule.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Engine/TextureRenderTarget.h"
 #include "MoviePipeline.h"
@@ -206,7 +207,63 @@ namespace MoviePipeline
 		{
 			return;
 		}
-		
+
+		// Draw letterboxing
+		APlayerCameraManager* PlayerCameraManager = GetPipeline()->GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+		if(PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
+		{
+			const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
+			UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+			check(OutputSettings);
+			
+			const FIntPoint FullOutputSize = OutputSettings->OutputResolution;
+			const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > 1.0f ?
+				FIntPoint(FullOutputSize.X, (1.0 / CameraCache.AspectRatio) * FullOutputSize.X) :
+				FIntPoint(CameraCache.AspectRatio * FullOutputSize.Y, FullOutputSize.Y);
+
+			const FIntPoint TileViewMin = InSampleState.OverlappedOffset;
+			const FIntPoint TileViewMax = TileViewMin + InSampleState.BackbufferSize;
+
+			// Camera ratio constrained rect, clipped by the tile rect
+			FIntPoint ConstrainedViewMin = (FullOutputSize - ConstrainedFullSize) / 2;
+			FIntPoint ConstrainedViewMax = ConstrainedViewMin + ConstrainedFullSize;
+			ConstrainedViewMin = FIntPoint(FMath::Clamp(ConstrainedViewMin.X, TileViewMin.X, TileViewMax.X),
+				FMath::Clamp(ConstrainedViewMin.Y, TileViewMin.Y, TileViewMax.Y));
+			ConstrainedViewMax = FIntPoint(FMath::Clamp(ConstrainedViewMax.X, TileViewMin.X, TileViewMax.X),
+				FMath::Clamp(ConstrainedViewMax.Y, TileViewMin.Y, TileViewMax.Y));
+
+			// Difference between the clipped constrained rect and the tile rect
+			const FIntPoint OffsetMin = ConstrainedViewMin - TileViewMin;
+			const FIntPoint OffsetMax = TileViewMax - ConstrainedViewMax;
+
+			// Clear left
+			if (OffsetMin.X > 0)
+			{
+				Canvas.DrawTile(0, 0, OffsetMin.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear right
+			if (OffsetMax.X > 0)
+			{
+				Canvas.DrawTile(InSampleState.BackbufferSize.X - OffsetMax.X, 0, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear top
+			if (OffsetMin.Y > 0)
+			{
+				Canvas.DrawTile(0, 0, InSampleState.BackbufferSize.X, OffsetMin.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+			// Clear bottom
+			if (OffsetMax.Y > 0)
+			{
+				Canvas.DrawTile(0, InSampleState.BackbufferSize.Y - OffsetMax.Y, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+					0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
+			}
+
+			Canvas.Flush_GameThread(true);
+		}
+
 		TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 		FRenderTarget* BackbufferRenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
@@ -259,17 +316,50 @@ namespace MoviePipeline
 			float XAxisMultiplier;
 			float YAxisMultiplier;
 
-			if (ViewInitOptions.GetViewRect().Width() > ViewInitOptions.GetViewRect().Height())
+			check(GetPipeline()->GetWorld());
+			check(GetPipeline()->GetWorld()->GetFirstPlayerController());
+			APlayerCameraManager* PlayerCameraManager = GetPipeline()->GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+			
+			// Stretch the fovs if the view is constrained to the camera's aspect ratio
+			if (PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
 			{
-				//if the viewport is wider than it is tall
-				XAxisMultiplier = 1.0f;
-				YAxisMultiplier = ViewInitOptions.GetViewRect().Width() / (float)ViewInitOptions.GetViewRect().Height();
+				const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
+				const float DestAspectRatio = ViewInitOptions.GetViewRect().Width() / ViewInitOptions.GetViewRect().Height();
+
+				// If the camera's aspect ratio has a thinner width, then stretch the horizontal fov more than usual to 
+				// account for the extra with of (before constraining - after constraining)
+				if (CameraCache.AspectRatio < DestAspectRatio)
+				{
+					const float ConstrainedWidth = ViewInitOptions.GetViewRect().Height() * CameraCache.AspectRatio;
+					XAxisMultiplier = ConstrainedWidth / (float)ViewInitOptions.GetViewRect().Width();
+					YAxisMultiplier = CameraCache.AspectRatio;
+				}
+				// Simplified some math here but effectively functions similarly to the above, the unsimplified code would look like:
+				// const float ConstrainedHeight = ViewInitOptions.GetViewRect().Width() / CameraCache.AspectRatio;
+				// YAxisMultiplier = (ConstrainedHeight / ViewInitOptions.GetViewRect.Height()) * CameraCache.AspectRatio;
+				else
+				{
+					XAxisMultiplier = 1.0f;
+					YAxisMultiplier = ViewInitOptions.GetViewRect().Width() / (float)ViewInitOptions.GetViewRect().Height();
+				}
 			}
 			else
 			{
-				//if the viewport is taller than it is wide
-				XAxisMultiplier = ViewInitOptions.GetViewRect().Height() / (float)ViewInitOptions.GetViewRect().Width();
-				YAxisMultiplier = 1.0f;
+				const int32 DestSizeX = ViewInitOptions.GetViewRect().Width();
+				const int32 DestSizeY = ViewInitOptions.GetViewRect().Height();
+				const EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULocalPlayer>()->AspectRatioAxisConstraint;
+				if (((DestSizeX > DestSizeY) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || (AspectRatioAxisConstraint == AspectRatio_MaintainXFOV))
+				{
+					//if the viewport is wider than it is tall
+					XAxisMultiplier = 1.0f;
+					YAxisMultiplier = ViewInitOptions.GetViewRect().Width() / (float)ViewInitOptions.GetViewRect().Height();
+				}
+				else
+				{
+					//if the viewport is taller than it is wide
+					XAxisMultiplier = ViewInitOptions.GetViewRect().Height() / (float)ViewInitOptions.GetViewRect().Width();
+					YAxisMultiplier = 1.0f;
+				}
 			}
 
 			const float MinZ = GNearClippingPlane;

@@ -277,6 +277,18 @@ bool UNavLinkDefinition::HasAdjustableLinks() const
 // FAreaNavModifier
 //----------------------------------------------------------------------//
 
+FAreaNavModifier::FAreaNavModifier() 
+: Cost(0.0f)
+, FixedCost(0.0f)
+, Bounds(ForceInitToZero)
+, ShapeType(ENavigationShapeType::Unknown)
+, ApplyMode(ENavigationAreaMode::Apply)
+, bExpandTopByCellHeight(false)
+, bIncludeAgentHeight(false)
+, bIsLowAreaModifier(false)
+{
+}
+
 FAreaNavModifier::FAreaNavModifier(float Radius, float Height, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
 {
 	Init(InAreaClass);
@@ -399,6 +411,7 @@ void FAreaNavModifier::GetPerInstanceConvex(const FTransform& InLocalToWorld, FC
 
 void FAreaNavModifier::Init(const TSubclassOf<UNavAreaBase> InAreaClass)
 {
+	bExpandTopByCellHeight = false;
 	bIncludeAgentHeight = false;
 	ApplyMode = ENavigationAreaMode::Apply;
 	Cost = 0.0f;

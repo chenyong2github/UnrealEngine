@@ -4,6 +4,7 @@
 #include "Analyzers/CpuProfilerTraceAnalysis.h"
 #include "Analyzers/GpuProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
+#include "Model/ThreadsPrivate.h"
 #include "Model/TimingProfilerPrivate.h"
 
 namespace Trace
@@ -22,9 +23,12 @@ void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 {
 	FAnalysisSession& Session = static_cast<FAnalysisSession&>(InSession);
 	
+	auto* ThreadProvider = Session.EditProvider<FThreadProvider>(FThreadProvider::ProviderName);
+	check(ThreadProvider != nullptr);
+
 	FTimingProfilerProvider* TimingProfilerProvider = new FTimingProfilerProvider(Session);
 	Session.AddProvider(TimingProfilerProviderName, TimingProfilerProvider);
-	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider));
+	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider, *ThreadProvider));
 	Session.AddAnalyzer(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
 }
 

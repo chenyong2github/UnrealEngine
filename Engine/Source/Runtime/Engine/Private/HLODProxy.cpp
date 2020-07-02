@@ -377,7 +377,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 }
 
 // Key that forms the basis of the HLOD proxy key. Bump this key (i.e. generate a new GUID) when you want to force a rebuild of ALL HLOD proxies
-#define HLOD_PROXY_BASE_KEY		TEXT("59BA5CF81C9B441FA0A546F223172411")
+#define HLOD_PROXY_BASE_KEY		TEXT("B5646FCCCB2846D8A82A3A8480C7C2DF")
 
 FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform)
 {
@@ -523,6 +523,14 @@ void UHLODProxy::SpawnLODActors(ULevel* InLevel)
 			LODActor->Proxy = this;
 		}
 	}
+}
+
+void UHLODProxy::PostLoad()
+{
+	Super::PostLoad();
+
+	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
+	GetOutermost()->SetPackageFlags(PKG_ContainsMapData);
 }
 
 #endif // #if WITH_EDITOR

@@ -9,6 +9,7 @@
 #include "Particles/ParticlePerfStats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
@@ -157,12 +158,7 @@ struct FNiagaraSystemCompileRequest
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraSystemCompileRequest()
-		: bIsValid(true)
-	{
-	}
-		
-	double StartTime;
+	double StartTime = 0.0;
 
 	UPROPERTY()
 	TArray<UObject*> RootObjects;
@@ -171,7 +167,9 @@ struct FNiagaraSystemCompileRequest
 	
 	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> > MappedData;
 
-	bool bIsValid;
+	bool bIsValid = true;
+
+	bool bForced = false;
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
@@ -206,8 +204,11 @@ public:
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
 
+private:
+	bool IsValidInternal() const;
+public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
-	bool IsValid()const;
+	bool IsValid() const { return FPlatformProperties::RequiresCookedData() ? bIsValidCached : IsValidInternal(); }
 
 #if WITH_EDITORONLY_DATA
 	/** Adds a new emitter handle to this System.  The new handle exposes an Instance value which is a copy of the
@@ -251,11 +252,15 @@ public:
 	UNiagaraScript* GetSystemSpawnScript();
 	UNiagaraScript* GetSystemUpdateScript();
 
+	TOptional<float> GetMaxDeltaTime() const { return MaxDeltaTime; }
+	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
+	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> GetEmitterExecutionStateAccessors() const { return MakeArrayView(EmitterExecutionStateAccessors); }
+	TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> GetEmitterSpawnInfoAccessors(int32 EmitterIndex) const { return MakeArrayView(EmitterSpawnInfoAccessors[EmitterIndex]);  }
+
 private:
 	bool IsReadyToRunInternal() const;
-	bool bIsReadyToRunCached = false;
 public:
-	bool IsReadyToRun() const;
+	bool IsReadyToRun() const { return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal(); }
 
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
@@ -370,6 +375,9 @@ public:
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
 
+	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
+	void CacheFromCompiledData();
+
 	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
@@ -389,7 +397,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bDumpDebugEmitterInfo;
 
+
+	/** When enabled, we follow the settings on the UNiagaraComponent for tick order. When this option is disabled, we ignore any dependencies from data interfaces or other variables and instead fire off the simulation as early in the frame as possible. This greatly
+	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bRequireCurrentFrameData = true;
+
 	bool HasSystemScriptDIsWithPerInstanceData() const;
+	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
+	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
@@ -417,6 +433,13 @@ public:
 
 	const FString& GetCrashReporterTag()const;
 
+#if WITH_EDITORONLY_DATA
+	const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
+	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
+	void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	const FGuid& GetAssetGuid() const {return AssetGuid;};
+#endif
+
 private:
 #if WITH_EDITORONLY_DATA
 	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
@@ -428,6 +451,8 @@ private:
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
 
 	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
+
+	bool CompilationResultsValid(const FNiagaraSystemCompileRequest& CompileRequest) const;
 
 	void InitEmitterCompiledData();
 
@@ -445,6 +470,8 @@ private:
 
 	void ResolveScalabilitySettings();
 	void UpdatePostCompileDIInfo();
+	void UpdateDITickFlags();
+	void UpdateHasGPUEmitters();
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "System")
@@ -538,6 +565,14 @@ protected:
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
 
+	uint32 bIsValidCached : 1;
+	uint32 bIsReadyToRunCached : 1;
+
+	TOptional<float> MaxDeltaTime;
+	FNiagaraDataSetAccessor<ENiagaraExecutionState> SystemExecutionStateAccessor;
+	TArray<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors;
+	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
+
 	void GenerateStatID()const;
 #if STATS
 	mutable TStatId StatID_GT;
@@ -552,6 +587,16 @@ protected:
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
 
 	mutable FString CrashReporterTag;
+
+	uint32 bHasDIsWithPostSimulateTick : 1;
+	uint32 bHasAnyGPUEmitters : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** Messages associated with the System asset. */
+	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+
+	FGuid AssetGuid;
+#endif
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;

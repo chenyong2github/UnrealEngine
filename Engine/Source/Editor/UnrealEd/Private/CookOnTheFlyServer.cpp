@@ -391,10 +391,11 @@ public:
 
 	/** error when detecting engine content being used in this cook */
 	bool							bErrorOnEngineContentUse = false;
-	bool							bDisableUnsolicitedPackages = false;
+	bool							bSkipHardReferences = false;
 	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
+	bool							bCookAgainstFixedBase = false;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -1008,6 +1009,11 @@ bool UCookOnTheFlyServer::IsCookingDLC() const
 	return false;
 }
 
+bool UCookOnTheFlyServer::IsCookingAgainstFixedBase() const
+{
+	return IsCookingDLC() && CookByTheBookOptions && CookByTheBookOptions->bCookAgainstFixedBase;
+}
+
 FString UCookOnTheFlyServer::GetBaseDirectoryForDLC() const
 {
 	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
@@ -1430,7 +1436,7 @@ void UCookOnTheFlyServer::ProcessRequest(UE::Cook::FPackageData& PackageData, UE
 	}
 
 
-	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages))
+	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
 	{
 		AddDependenciesToLoadQueue(PackageData);
 	}
@@ -1744,7 +1750,7 @@ void UCookOnTheFlyServer::FilterLoadedPackage(UPackage* Package, bool bUpdatePla
 	}
 	else
 	{
-		if (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages)
+		if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences)
 		{
 			// Send this unsolicited package into the LoadReadyQueue to fully load it and send it on to the SaveQueue
 			PackageData.SetRequestData(TargetPlatforms, bIsUrgent, UE::Cook::FCompletionCallback());
@@ -2104,7 +2110,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 
 		for (UPackage* Package : NewPackages)
 		{
-			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages)
+			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 			{
 				PostLoadPackageFixup(Package);
 			}
@@ -2932,12 +2938,12 @@ const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName
 
 			// all these packages referenced us apparently so fix them all up
 			const TArray<FName>& PackagesForFixup = CachedFullPackageDependencies.FindChecked(CircularReferenceArrayName);
-			for ( const FName FixupPackage : PackagesForFixup )
+			for ( const FName& FixupPackage : PackagesForFixup )
 			{
 				TArray<FName> &FixupList = CachedFullPackageDependencies.FindChecked(FixupPackage);
 				// check( FixupList.Contains( CircularReferenceArrayName) );
 				ensure( FixupList.Remove(CircularReferenceArrayName) == 1 );
-				for( const FName AdditionalDependency : Dependencies )
+				for( const FName& AdditionalDependency : Dependencies )
 				{
 					FixupList.AddUnique(AdditionalDependency);
 					if ( AdditionalDependency.GetComparisonIndex() == NAME_CircularReference.GetComparisonIndex() )
@@ -3334,12 +3340,12 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	FString Filename(PackageData.GetFileName().ToString());
 
 	// Also request any localized variants of this package
-	if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages && !FPackageName::IsLocalizedPackage(PackageName))
+	if (IsCookByTheBookMode() && !CookByTheBookOptions->bSkipSoftReferences && !FPackageName::IsLocalizedPackage(PackageName))
 	{
 		const TArray<FName>* LocalizedVariants = CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(Package->GetFName());
 		if (LocalizedVariants)
 		{
-			for (const FName LocalizedPackageName : *LocalizedVariants)
+			for (const FName& LocalizedPackageName : *LocalizedVariants)
 			{
 				UE::Cook::FPackageData* LocalizedPackageData = PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
 				if (LocalizedPackageData)
@@ -3373,7 +3379,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 			// Verify package actually exists
 
-			if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
+			if (IsCookByTheBookMode())
 			{
 				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 				if (SoftObjectPackageData)
@@ -3766,7 +3772,7 @@ bool UCookOnTheFlyServer::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputD
 			FName PackageFileFName = GetPackageNameCache().GetCachedStandardFileName(StandardPackageName);
 			StartupOptions.CookMaps.Add(StandardPackageName.ToString());
 		}
-		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::DisableUnsolicitedPackages | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
+		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 		
 		StartCookByTheBook(StartupOptions);
 	}
@@ -5233,8 +5239,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		}
 	}
 
-
-
 	const FString ExternalMountPointName(TEXT("/Game/"));
 	if (IsCookingDLC())
 	{
@@ -5244,6 +5248,14 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		TArray<FString> Files;
 		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
 		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
+
+		FString MountPoint = ExternalMountPointName;
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
+		if (Plugin.IsValid())
+		{
+			MountPoint = Plugin->GetMountedAssetPath();
+		}
+
 		for (int32 Index = 0; Index < Files.Num(); Index++)
 		{
 			FString StdFile = Files[Index];
@@ -5254,13 +5266,13 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			FString LongPackageName;
 			if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
 			{
-				FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
+				FPackageName::RegisterMountPoint(MountPoint, DLCPath);
 			}
 		}
 	}
 
 
-	if (!(FilesToCookFlags & ECookByTheBookOptions::DisableUnsolicitedPackages))
+	if (!(FilesToCookFlags & ECookByTheBookOptions::SkipSoftReferences))
 	{
 		for (const FString& CurrEntry : CookDirectories)
 		{
@@ -6487,11 +6499,18 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bGenerateStreamingInstallManifests = CookByTheBookStartupOptions.bGenerateStreamingInstallManifests;
 	CookByTheBookOptions->bGenerateDependenciesForMaps = CookByTheBookStartupOptions.bGenerateDependenciesForMaps;
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
-	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
+	CookByTheBookOptions->bSkipHardReferences = !!(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
+	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
+
+	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
+	{
+		UE_LOG(LogCook, Warning, TEXT("Setting bSkipSoftReferences to true since bSkipHardReferences is true and skipping hard references requires skipping soft references."));
+		CookByTheBookOptions->bSkipSoftReferences = true;
+	}
 
 	GenerateAssetRegistry();
 	if (!bHasRunCookByTheBookBefore)
@@ -6718,6 +6737,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			PackageNameCache.SetAssetRegistry(AssetRegistry);
 		}
 
+		// If we're cooking against a fixed base, we don't need to verify the packages exist on disk, we simply want to use the Release Data 
+		const bool bVerifyPackagesExist = !IsCookingAgainstFixedBase();
+
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
@@ -6729,11 +6751,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 			TArray<FName> PackageList;
 			// if this check fails probably because the asset registry can't be found or read
-			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 			if (!bSucceeded)
 			{
 				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString) / GetAssetRegistryFilename();
-				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 			}
 
 			if (!bSucceeded)
@@ -6745,7 +6767,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				for (const FPlatformInfo* PlatformFlaworInfo : VanillaPlatfromEntry.PlatformFlavors)
 				{
 					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlaworInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
-					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 					if (bSucceeded)
 					{
 						break;
@@ -6820,7 +6842,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 		}
 
-		if (!CookByTheBookOptions->bDisableUnsolicitedPackages)
+		if (!CookByTheBookOptions->bSkipSoftReferences)
 		{
 			AddFileToCook(FilesInPath, SoftObjectPackage.ToString());
 		}
@@ -6885,7 +6907,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				FString OriginalAssetRegistryPath = GetBasedOnReleaseVersionAssetRegistryPath( BasedOnReleaseVersion, TargetPlatform->PlatformName() ) / GetAssetRegistryFilename();
 
 				TArray<FName> PackageFiles;
-				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, PackageFiles) );
+				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, true, PackageFiles) );
 
 				TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestPlatforms;
 				RequestPlatforms.Add(TargetPlatform);
@@ -6911,7 +6933,7 @@ bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlat
 bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<FName>& TargetPlatformNames)
 {
 	bool bShadersRecompiled = false;
-	for (const FName TargetPlatformName : TargetPlatformNames)
+	for (const FName& TargetPlatformName : TargetPlatformNames)
 	{
 		bShadersRecompiled |= RecompileChangedShadersForPlatform(TargetPlatformName.ToString());
 	}
@@ -7246,7 +7268,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 		RecompileData.bCompileChangedShaders);
 }
 
-bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const
+bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const
 {
 	UE_SCOPED_COOKTIMER(GetAllPackageFilenamesFromAssetRegistry);
 	FArrayReader SerializedAssetData;
@@ -7275,7 +7297,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 		TArray<TTuple<FName, FString>> PackageToStandardFileNames;
 		PackageToStandardFileNames.SetNum(RegistryDataMap.Num());
 
-		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this](int32 AssetIndex)
+		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this, bVerifyPackagesExist](int32 AssetIndex)
 			{
 				if (!OutPackageFilenames[AssetIndex].IsNone())
 				{
@@ -7286,7 +7308,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 
 				FString StandardFilename;
 				FName StandardFileFName;
-				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, StandardFileFName))
+				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, StandardFileFName) && bVerifyPackagesExist)
 				{
 					UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
 				}

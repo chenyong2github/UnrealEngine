@@ -214,7 +214,7 @@ void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 #if WITH_CHAOS
 	if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
 	{
-		if (Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver())
+		if (Chaos::FPhysicsSolver* Solver = Scene->GetSolver())
 		{
 			Chaos::FEventManager* EventManager = Solver->GetEventManager();
 			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents);
@@ -233,7 +233,7 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 	{
 		if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
 		{
-			if (Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver())
+			if (Chaos::FPhysicsSolver* Solver = Scene->GetSolver())
 			{
 				Chaos::FEventManager* EventManager = Solver->GetEventManager();
 				EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
@@ -251,7 +251,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 #if INCLUDE_CHAOS
 
-	FPhysScene_Chaos& Scene = GetWorld()->GetPhysicsScene()->GetScene();
+	FPhysScene_Chaos& Scene = *(GetWorld()->GetPhysicsScene());
 
 	PendingChaosCollisionNotifies.Reset();
 	ContactPairToPendingNotifyMap.Reset();

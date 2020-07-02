@@ -29,6 +29,7 @@
 #include "Tree/SCurveEditorTreePin.h"
 #include "Tree/CurveEditorTreeFilter.h"
 #include "ScopedTransaction.h"
+#include "MovieSceneTrack.h"
 #include "SequencerKeyTimeCache.h"
 #include "SequencerNodeSortingMethods.h"
 #include "SequencerSelectionCurveFilter.h"

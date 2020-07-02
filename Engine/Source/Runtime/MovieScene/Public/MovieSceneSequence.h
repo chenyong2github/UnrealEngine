@@ -7,11 +7,13 @@
 #include "Misc/Guid.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneTrack.h"
-#include "Evaluation/MovieSceneEvaluationTemplate.h"
 #include "MovieSceneSequence.generated.h"
 
 class ITargetPlatform;
 class UMovieScene;
+class UMovieSceneCompiledData;
+class UMovieSceneEntitySystemLinker;
+
 struct FMovieScenePossessable;
 struct FMovieSceneObjectCache;
 
@@ -52,7 +54,7 @@ public:
 	/**
 	 * Locate all the objects that correspond to the specified object ID, using the specified context
 	 *
- * @param ObjectId				The unique identifier of the object.
+	 * @param ObjectId				The unique identifier of the object.
 	 * @param Context				Optional context to use to find the required object (for instance, a parent spawnable object)
 	 * @param OutObjects			Destination array to add found objects to
 	 */
@@ -195,20 +197,13 @@ public:
 
 	MOVIESCENE_API virtual void PostLoad() override;
 	MOVIESCENE_API virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
+	MOVIESCENE_API virtual void BeginDestroy() override;
 
 	MOVIESCENE_API virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITORONLY_DATA
 	MOVIESCENE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
-
-	UPROPERTY()
-	FMovieSceneEvaluationTemplate PrecompiledEvaluationTemplate;
-
-
-	/* The default completion mode for this movie scene when a section's completion mode is set to project default */
-	UPROPERTY(config)
-	EMovieSceneCompletionMode DefaultCompletionMode;
 
 public:
 
@@ -240,6 +235,34 @@ public:
 		Modify();
 		bPlayableDirectly = bInPlayableDirectly;
 	}
+	
+	/**
+	 * Access the flags that define this sequence's characteristics and behavior
+	 */
+	EMovieSceneSequenceFlags GetFlags() const
+	{
+		return SequenceFlags;
+	}
+
+	void SetSequenceFlags(EMovieSceneSequenceFlags InFlags)
+	{
+		SequenceFlags = InFlags;
+	}
+
+	UMovieSceneCompiledData* GetCompiledData() const;
+	UMovieSceneCompiledData* GetOrCreateCompiledData();
+
+private:
+
+	/** Serialized compiled data - should only be used through UMovieSceneCompiledDataManager */
+	UPROPERTY(Instanced)
+	UMovieSceneCompiledData* CompiledData;
+
+public:
+
+	/* The default completion mode for this movie scene when a section's completion mode is set to project default */
+	UPROPERTY(config)
+	EMovieSceneCompletionMode DefaultCompletionMode;
 
 protected:
 
@@ -256,6 +279,10 @@ protected:
 	 */
 	UPROPERTY()
 	bool bPlayableDirectly;
+
+	/** Flags used to define this sequence's behavior and characteristics */
+	UPROPERTY()
+	EMovieSceneSequenceFlags SequenceFlags;
 
 public:
 

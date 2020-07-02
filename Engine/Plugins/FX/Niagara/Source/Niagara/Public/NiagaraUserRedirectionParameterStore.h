@@ -32,8 +32,22 @@ public:
 	// ~ Begin FNiagaraParameterStore overrides
 	FORCEINLINE_DEBUGGABLE virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const override
 	{
-		const FNiagaraVariable* Redirection = UserParameterRedirects.Find(Parameter);
-		return FNiagaraParameterStore::FindParameterOffset(Redirection ? *Redirection : Parameter);
+		if (IgnoreType)
+		{
+			for (auto it = UserParameterRedirects.CreateConstIterator(); it; ++it)
+			{
+				if (it->Key.GetName() == Parameter.GetName())
+				{
+					return FNiagaraParameterStore::FindParameterOffset(it->Value);
+				}
+			}
+			return FNiagaraParameterStore::FindParameterOffset(Parameter, IgnoreType);
+		}
+		else
+		{
+			const FNiagaraVariable* Redirection = UserParameterRedirects.Find(Parameter);
+			return FNiagaraParameterStore::FindParameterOffset(Redirection ? *Redirection : Parameter);
+		}
 	}
 	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr) override;
 	virtual bool RemoveParameter(const FNiagaraVariableBase& InVar) override;
@@ -45,13 +59,15 @@ public:
 	/** Used to upgrade a serialized FNiagaraParameterStore property to our own struct */
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
+	/** Turn the input NiagaraVariable into the User namespaced version if needed, independent of whether or not it is in a redirection table.*/
+	static void MakeUserVariable(FNiagaraVariableBase& InVar);
 private:
 
 	/** Map from the variables with shortened display names to the original variables with the full namespace */
 	UPROPERTY()
 	TMap<FNiagaraVariable, FNiagaraVariable> UserParameterRedirects;
 
-	bool IsUserParameter(const FNiagaraVariable& InVar) const;
+	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
 
 	FNiagaraVariable GetUserRedirection(const FNiagaraVariable& InVar) const;
 };

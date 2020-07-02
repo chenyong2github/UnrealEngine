@@ -27,12 +27,6 @@ DECLARE_CYCLE_STAT(TEXT("Emitter Event CopyBuffer [CNC]"), STAT_NiagaraEvent_Cop
 DECLARE_CYCLE_STAT(TEXT("Emitter Error Check [CNC]"), STAT_NiagaraEmitterErrorCheck, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters [GT]"), STAT_NiagaraEmitterInit, STATGROUP_Niagara);
 
-DECLARE_CYCLE_STAT(TEXT("Init Emitters (DataSets) [GT]"), STAT_NiagaraEmitterInit_Datasets, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Init Emitters (ExecContexts) [GT]"), STAT_NiagaraEmitterInit_ExecContexts, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Init Emitters (DirectBindings) [GT]"), STAT_NiagaraEmitterInit_DirectBindings, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Init Emitters (Events) [GT]"), STAT_NiagaraEmitterInit_Events, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Init Emitters (DIDefaultsAndBoundCalcs) [GT]"), STAT_NiagaraEmitterInit_DIDefaultsAndBoundsCalcs, STATGROUP_Niagara);
-
 static int32 GbNiagaraAllowEventSpawnCombine = 1;
 static FAutoConsoleVariableRef CVarNiagaraAllowEventSpawnCombine(
 	TEXT("fx.Niagara.AllowEventSpawnCombine"),
@@ -90,14 +84,6 @@ static FAutoConsoleVariableRef CVarMaxNiagaraGPUParticlesSpawnPerFrame(
 	TEXT("fx.MaxNiagaraGPUParticlesSpawnPerFrame"),
 	GMaxNiagaraGPUParticlesSpawnPerFrame,
 	TEXT("The max number of GPU particles we expect to spawn in a single frame.\n"),
-	ECVF_Default
-);
-
-static int32 GDebugForcedMaxGPUBufferElements = 0;
-static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
-	TEXT("fx.NiagaraDebugForcedMaxGPUBufferElements"),
-	GDebugForcedMaxGPUBufferElements,
-	TEXT("Force the maximum buffer size supported by the GPU to this value, for debugging purposes."),
 	ECVF_Default
 );
 
@@ -242,7 +228,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit);
 	check(ParticleDataSet);
-	FNiagaraDataSet& Data = *ParticleDataSet;
 	EmitterIdx = InEmitterIdx;
 	OwnerSystemInstanceID = InSystemInstanceID;
 	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
@@ -290,10 +275,10 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	SpawnInfos.SetNum(CachedEmitterCompiledData->SpawnAttributes.Num());
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_Datasets);
-		Data.Init(&CachedEmitterCompiledData->DataSetCompiledData);
+		ParticleDataSet->Init(&CachedEmitterCompiledData->DataSetCompiledData);
 
-		ResetSimulation();
+		// We do not need to kill the existing particles as we will have none
+		ResetSimulation(false);
 
 		//Warn the user if there are any attributes used in the update script that are not initialized in the spawn script.
 		//TODO: We need some window in the System editor and possibly the graph editor for warnings and errors.
@@ -333,8 +318,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 		if (UpdateEventGeneratorCount || SpawnEventGeneratorCount || NumEvents)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_Events);
-			
 			EventInstanceData = MakeUnique<FEventInstanceData>();
 			EventInstanceData->UpdateScriptEventDataSets.Empty(UpdateEventGeneratorCount);
 			EventInstanceData->UpdateEventGeneratorIsSharedByIndex.SetNumZeroed(UpdateEventGeneratorCount);
@@ -379,8 +362,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_ExecContexts);
-
 		SpawnExecContext.Init(CachedEmitter->SpawnScriptProps.Script, CachedEmitter->SimTarget);
 		UpdateExecContext.Init(CachedEmitter->UpdateScriptProps.Script, CachedEmitter->SimTarget);
 
@@ -391,9 +372,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			const uint32 MaxUpdateIterations = CachedEmitter->bDeprecatedShaderStagesEnabled ? CachedEmitter->MaxUpdateIterations : 1;
 			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->DefaultShaderStageIndex, MaxUpdateIterations, CachedEmitter->SpawnStages);
 #if !UE_BUILD_SHIPPING
-			GPUExecContext->SetDebugName(CachedEmitter->GetFullName());
+			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
 #endif
-			GPUExecContext->MainDataSet = &Data;
+			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
 			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
@@ -404,14 +385,10 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
 			}
 		}
-
 	}
-
 
 	//Setup direct bindings for setting parameter values.
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_DirectBindings);
-
 		//Setup direct bindings for setting parameter values.
 		SpawnIntervalBinding.Init(SpawnExecContext.Parameters, CachedEmitterCompiledData->EmitterSpawnIntervalVar);
 		InterpSpawnStartBinding.Init(SpawnExecContext.Parameters, CachedEmitterCompiledData->EmitterInterpSpawnStartDTVar);
@@ -423,7 +400,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraEmitterInit_DIDefaultsAndBoundsCalcs);
 		// Collect script defined data interface parameters.
 		TArray<UNiagaraScript*, TInlineAllocator<8>> Scripts;
 		Scripts.Add(CachedEmitter->SpawnScriptProps.Script);
@@ -437,28 +413,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			Scripts.Add(SimStage->Script);
 		}
 		FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
-
-		// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
-		// generate the bounds from the readback in the tool.
-#if !WITH_EDITOR
-		bool bUseDynamicBounds = !CachedSystemFixedBounds.IsSet() && !CachedEmitter->bFixedBounds && CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim;
-		if (bUseDynamicBounds)
-#endif
-		{
-			BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
-			for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
-			{
-				if ((RendererProperties != nullptr) && RendererProperties->GetIsEnabled())
-				{
-					FNiagaraBoundsCalculator* BoundsCalculator = RendererProperties->CreateBoundsCalculator();
-					if (BoundsCalculator != nullptr)
-					{
-						BoundsCalculator->InitAccessors(*ParticleDataSet);
-						BoundsCalculators.Emplace(BoundsCalculator);
-					}
-				}
-			}
-		}
 
 		//Bind some stores and unbind immediately just to prime some data from those stores.
 		FNiagaraParameterStore& SystemScriptDefinedDataInterfaceParameters = ParentSystemInstance->GetSystemSimulation()->GetScriptDefinedDataInterfaceParameters();
@@ -496,37 +450,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		}
 	}	
 
-	// Prevent division by 0 in case there are no renderers.
-	uint32 MaxGPUBufferComponents = 1;
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim && GbEnableMinimalGPUBuffers)
-	{
-		// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
-		// among all the enabled renderers, since this will decide how many particles we can upload.
-		for (UNiagaraRendererProperties* RendererProperty : CachedEmitter->GetEnabledRenderers())
-		{
-			uint32 RendererMaxNumComponents = RendererProperty->ComputeMaxUsedComponents(*ParticleDataSet);
-			MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, RendererMaxNumComponents);
-		}
-	}
-	else
-	{
-		// GPU emitters must store the entire particle payload on GPU buffers, so get the maximum component count from the dataset.
-		MaxGPUBufferComponents = FMath::Max3(ParticleDataSet->GetNumFloatComponents(), ParticleDataSet->GetNumInt32Components(), ParticleDataSet->GetNumHalfComponents());
-	}
-
-	// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
-	uint64 MaxBufferElements = (GDebugForcedMaxGPUBufferElements > 0) ? (uint64)GDebugForcedMaxGPUBufferElements : GetMaxBufferDimension();
-	// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
-	MaxInstanceCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
-
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		// On GPU, the size of the allocated buffers must be a multiple of NIAGARA_COMPUTE_THREADGROUP_SIZE, so round down.
-		MaxInstanceCount = (MaxInstanceCount / NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
-		// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
-		MaxInstanceCount -= 1;
-	}
-
+	MaxInstanceCount = CachedEmitter->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
 
 	bCombineEventSpawn = GbNiagaraAllowEventSpawnCombine && (CachedEmitter->bCombineEventSpawn || (GbNiagaraAllowEventSpawnCombine == 2));
@@ -852,7 +776,13 @@ int FNiagaraEmitterInstance::GetTotalBytesUsed()
 
 FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount) const
 {
-	if (!ParticleCount || !BoundsCalculators.Num())
+	if (!ParticleCount || !CachedEmitter)
+	{
+		return FBox(ForceInit);
+	}
+
+	const auto BoundsCalculators = CachedEmitter->GetBoundsCalculators();
+	if (!BoundsCalculators.Num())
 	{
 		return FBox(ForceInit);
 	}
@@ -862,8 +792,7 @@ FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount
 
 	for (const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators)
 	{
-		BoundsCalculator->RefreshAccessors();
-		Ret += BoundsCalculator->CalculateBounds(ParticleCount);
+		Ret += BoundsCalculator->CalculateBounds(*ParticleDataSet, ParticleCount);
 	}
 
 	return Ret;

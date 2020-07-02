@@ -12,8 +12,11 @@
 #include "Particles/Lifetime/ParticleModuleLifetime.h"
 #include "Particles/Size/ParticleModuleSize.h"
 #include "Particles/Velocity/ParticleModuleVelocity.h"
+#include "Particles/Acceleration/ParticleModuleAccelerationConstant.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
+#include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
+#include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
 
 #include "Particles/ParticleLODLevel.h"
 #include "NiagaraScriptSource.h"
@@ -25,6 +28,9 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "NiagaraEmitterFactoryNew.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
+#include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraMeshRendererProperties.h"
+#include "NiagaraMessages.h"
 
 #include "Distributions/DistributionFloatConstant.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
@@ -37,6 +43,13 @@
 #include "Distributions/DistributionVectorUniform.h"
 #include "Distributions/DistributionVectorUniformCurve.h"
 #include "Distributions/DistributionVectorParticleParameter.h"
+#include "MessageLogModule.h"
+#include "IMessageLogListing.h"
+#include "EdGraph/EdGraphNode.h"
+#include "NiagaraNode.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "CascadeToNiagaraConverterModule.h"
+
 
 TMap<FGuid, TSharedPtr<FNiagaraEmitterHandleViewModel>> UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap;
 TMap<FGuid, TSharedPtr<FNiagaraSystemViewModel>> UFXConverterUtilitiesLibrary::GuidToNiagaraSystemViewModelMap;
@@ -62,16 +75,22 @@ UParticleLODLevel* UFXConverterUtilitiesLibrary::GetCascadeEmitterLodLevel(UPart
 
 TArray<UParticleModule*> UFXConverterUtilitiesLibrary::GetLodLevelModules(UParticleLODLevel* LodLevel)
 {
-	TArray<UParticleModule*> OutModules;
-	OutModules.Append(LodLevel->Modules);
-	OutModules.Add(LodLevel->RequiredModule);
-	OutModules.Add(LodLevel->SpawnModule);
-	UParticleModule* TypeDataModule = LodLevel->TypeDataModule;
-	if (TypeDataModule != nullptr)
+	return LodLevel->Modules;
+}
+
+UParticleModuleSpawn* UFXConverterUtilitiesLibrary::GetLodLevelSpawnModule(UParticleLODLevel* LodLevel)
+{
+	return LodLevel->SpawnModule;
+}
+
+UParticleModuleRequired* UFXConverterUtilitiesLibrary::GetLodLevelRequiredModule(UParticleLODLevel* LodLevel)
 	{
-		OutModules.Add(TypeDataModule);
+	return LodLevel->RequiredModule;
 	}
-	return OutModules;
+
+UParticleModuleTypeDataBase* UFXConverterUtilitiesLibrary::GetLodLevelTypeDataModule(UParticleLODLevel* LodLevel)
+{
+	return LodLevel->TypeDataModule;
 }
 
 FName UFXConverterUtilitiesLibrary::GetCascadeEmitterName(UParticleEmitter* Emitter)
@@ -125,47 +144,30 @@ FNiagaraScriptContextInput UFXConverterUtilitiesLibrary::CreateScriptInputDI(UNi
 	return FNiagaraScriptContextInput(NewInput, TargetTypeDef);
 }
 
-FGuid UFXConverterUtilitiesLibrary::CreateSystemViewModelForSystem(UNiagaraSystem* InSystem)
+UNiagaraRibbonRendererProperties* UFXConverterUtilitiesLibrary::CreateRibbonRendererProperties()
+{
+	return NewObject<UNiagaraRibbonRendererProperties>();
+}
+
+UNiagaraMeshRendererProperties* UFXConverterUtilitiesLibrary::CreateMeshRendererProperties()
+{
+	return NewObject<UNiagaraMeshRendererProperties>();
+}
+
+UNiagaraSystemConversionContext* UFXConverterUtilitiesLibrary::CreateSystemConversionContext(UNiagaraSystem* InSystem)
 {
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	FNiagaraSystemViewModelOptions SystemViewModelOptions = FNiagaraSystemViewModelOptions();
 	SystemViewModelOptions.bCanAutoCompile = false;
 	SystemViewModelOptions.bCanSimulate = false;
 	SystemViewModelOptions.EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
+	SystemViewModelOptions.MessageLogGuid = InSystem->GetAssetGuid();
 	SystemViewModel->Initialize(*InSystem, SystemViewModelOptions);
 	FGuid SystemViewModelGuid = FGuid::NewGuid();
 	GuidToNiagaraSystemViewModelMap.Add(SystemViewModelGuid, SystemViewModel);
-	return SystemViewModelGuid;
-}
-
-UNiagaraEmitterConversionContext* UFXConverterUtilitiesLibrary::AddEmptyEmitterToSystem(FGuid TargetSystemViewModelGuid, FString NewEmitterNameString)
-{
-	const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel = GuidToNiagaraSystemViewModelMap.FindChecked(TargetSystemViewModelGuid);
-
-	UNiagaraEmitterFactoryNew* Factory = NewObject<UNiagaraEmitterFactoryNew>();
-	UPackage* Pkg = CreatePackage(NULL, NULL);
-	FName NewEmitterName = FName(*NewEmitterNameString);
-	EObjectFlags Flags = RF_Public | RF_Standalone;
-	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(Factory->FactoryCreateNew(UNiagaraEmitter::StaticClass(), Pkg, NewEmitterName, Flags, NULL, GWarn));
-	TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter);
-
-	FGuid NiagaraEmitterHandleViewModelGuid = FGuid::NewGuid();
-	GuidToNiagaraEmitterHandleViewModelMap.Add(NiagaraEmitterHandleViewModelGuid, NewEmitterHandleViewModel);
-	UNiagaraEmitterConversionContext* EmitterConversionContext = NewObject<UNiagaraEmitterConversionContext>();
-	EmitterConversionContext->Init(NewEmitterHandleViewModel->GetEmitterHandle()->GetInstance(), NiagaraEmitterHandleViewModelGuid);
-	return EmitterConversionContext;
-}
-
-void UFXConverterUtilitiesLibrary::AddNiagaraEmitterStackMessage(UNiagaraEmitterConversionContext* EmitterContext, FString Message)
-{
-	//@todo(ng) impl
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-}
-
-void UFXConverterUtilitiesLibrary::AddNiagaraScriptStackMessage(UNiagaraScriptConversionContext* ScriptContext, FString Message)
-{
-	//@todo(ng) impl
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
+	UNiagaraSystemConversionContext* SystemConversionContext = NewObject<UNiagaraSystemConversionContext>();
+	SystemConversionContext->Init(InSystem, SystemViewModelGuid);
+	return SystemConversionContext;
 }
 
 UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSpawnClass()
@@ -201,6 +203,103 @@ UClass* UFXConverterUtilitiesLibrary::GetParticleModuleVelocityClass()
 UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataGPUClass()
 {
 	return UParticleModuleTypeDataGpu::StaticClass();
+}
+
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataMeshClass()
+{
+	return UParticleModuleTypeDataMesh::StaticClass();
+}
+
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleConstantAccelerationClass()
+{
+	return UParticleModuleAccelerationConstant::StaticClass();
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataMeshProps(
+	UParticleModuleTypeDataMesh* ParticleModule
+	, UStaticMesh*& OutMesh
+	, float& OutLODSizeScale
+	, bool& bOutUseStaticMeshLODs
+	, bool& bOutCastShadows
+	, bool& bOutDoCollisions
+	, TEnumAsByte<EMeshScreenAlignment>& OutMeshAlignment
+	, bool& bOutOverrideMaterial
+	, bool& bOutOverrideDefaultMotionBlurSettings
+	, bool& bOutEnableMotionBlur
+	, UDistribution*& OutRollPitchYawRange
+	, TEnumAsByte<EParticleAxisLock>& OutAxisLockOption
+	, bool& bOutCameraFacing
+	, TEnumAsByte<EMeshCameraFacingUpAxis>& OutCameraFacingUpAxisOption_DEPRECATED
+	, TEnumAsByte<EMeshCameraFacingOptions>& OutCameraFacingOption
+	, bool& bOutApplyParticleRotationAsSpin
+	, bool& bOutFacingCameraDirectionRatherThanPosition
+	, bool& bOutCollisionsConsiderParticleSize)
+{
+	OutMesh = ParticleModule->Mesh;
+	OutLODSizeScale = ParticleModule->LODSizeScale;
+	bOutUseStaticMeshLODs = ParticleModule->bUseStaticMeshLODs;
+	bOutCastShadows = ParticleModule->CastShadows;
+	bOutDoCollisions = ParticleModule->DoCollisions;
+	OutMeshAlignment = ParticleModule->MeshAlignment;
+	bOutOverrideMaterial = ParticleModule->bOverrideMaterial;
+	bOutOverrideDefaultMotionBlurSettings = ParticleModule->bOverrideDefaultMotionBlurSettings;
+	bOutEnableMotionBlur = ParticleModule->bEnableMotionBlur;
+	OutRollPitchYawRange = ParticleModule->RollPitchYawRange.Distribution;
+	OutAxisLockOption = ParticleModule->AxisLockOption;
+	bOutCameraFacing = ParticleModule->bCameraFacing;
+	OutCameraFacingUpAxisOption_DEPRECATED = ParticleModule->CameraFacingUpAxisOption_DEPRECATED;
+	OutCameraFacingOption = ParticleModule->CameraFacingOption;
+	bOutApplyParticleRotationAsSpin = ParticleModule->bApplyParticleRotationAsSpin;
+	bOutFacingCameraDirectionRatherThanPosition = ParticleModule->bFaceCameraDirectionRatherThanPosition;
+	bOutCollisionsConsiderParticleSize = ParticleModule->bCollisionsConsiderPartilceSize;
+}
+
+UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataRibbonClass()
+{
+	return UParticleModuleTypeDataRibbon::StaticClass();
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataRibbonProps(
+	UParticleModuleTypeDataRibbon* ParticleModule
+	, int32& OutMaxTessellationBetweenParticles
+	, int32& OutSheetsPerTrail
+	, int32& OutMaxTrailCount
+	, int32& OutMaxParticleInTrailCount
+	, bool& bOutDeadTrailsOnDeactivate
+	, bool& bOutClipSourceSegment
+	, bool& bOutEnablePreviousTangentRecalculation
+	, bool& bOutTangentRecalculationEveryFrame
+	, bool& bOutSpawnInitialParticle
+	, TEnumAsByte<ETrailsRenderAxisOption>& OutRenderAxis
+	, float& OutTangentSpawningScalar
+	, bool& bOutRenderGeometry
+	, bool& bOutRenderSpawnPoints
+	, bool& bOutRenderTangents
+	, bool& bOutRenderTessellation
+	, float& OutTilingDistance
+	, float& OutDistanceTessellationStepSize
+	, bool& bOutEnableTangentDiffInterpScale
+	, float& OutTangentTessellationScalar)
+{
+	OutMaxTessellationBetweenParticles = ParticleModule->MaxTessellationBetweenParticles;
+	OutSheetsPerTrail = ParticleModule->SheetsPerTrail;
+	OutMaxTrailCount = ParticleModule->MaxTrailCount;
+	OutMaxParticleInTrailCount = ParticleModule->MaxParticleInTrailCount;
+	bOutDeadTrailsOnDeactivate = ParticleModule->bDeadTrailsOnDeactivate;
+	bOutClipSourceSegment = ParticleModule->bClipSourceSegement;
+	bOutEnablePreviousTangentRecalculation = ParticleModule->bEnablePreviousTangentRecalculation;
+	bOutTangentRecalculationEveryFrame = ParticleModule->bTangentRecalculationEveryFrame;
+	bOutSpawnInitialParticle = ParticleModule->bSpawnInitialParticle;
+	OutRenderAxis = ParticleModule->RenderAxis;
+	OutTangentSpawningScalar = ParticleModule->TangentSpawningScalar;
+	bOutRenderGeometry = ParticleModule->bRenderGeometry;
+	bOutRenderSpawnPoints = ParticleModule->bRenderSpawnPoints;
+	bOutRenderTangents = ParticleModule->bRenderTangents;
+	bOutRenderTessellation = ParticleModule->bRenderTessellation;
+	OutTilingDistance = ParticleModule->TilingDistance;
+	OutDistanceTessellationStepSize = ParticleModule->DistanceTessellationStepSize;
+	bOutEnableTangentDiffInterpScale = ParticleModule->bEnableTangentDiffInterpScale;
+	OutTangentTessellationScalar = ParticleModule->TangentTessellationScalar;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleSpawnProps(
@@ -278,6 +377,11 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleVelocityProps(UParticleModul
 	OutStartVelocityRadial = ParticleModule->StartVelocityRadial.Distribution;
 	bOutInWorldSpace = ParticleModule->bInWorldSpace;
 	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
+}
+
+void UFXConverterUtilitiesLibrary::GetParticleModuleConstantAccelerationProps(UParticleModuleAccelerationConstant* ParticleModule, FVector& OutConstAcceleration)
+{
+	OutConstAcceleration = ParticleModule->Acceleration;
 }
 
 void UFXConverterUtilitiesLibrary::GetDistributionType(
@@ -389,6 +493,14 @@ void UFXConverterUtilitiesLibrary::GetFloatDistributionConstValues(UDistribution
 	}
 }
 
+void UFXConverterUtilitiesLibrary::GetVectorDistributionConstValues(UDistribution* Distribution, FText& OutStatus, FVector& OutConstVector)
+{
+	if (GetIsDistributionOfType(Distribution, EDistributionType::Const, EDistributionValueType::Vector, OutStatus))
+	{
+		OutConstVector = CastChecked<UDistributionVectorConstant>(Distribution)->GetValue();
+	}
+}
+
 void UFXConverterUtilitiesLibrary::GetFloatDistributionUniformValues(UDistribution* Distribution, FText& OutStatus, float& OutMin, float& OutMax)
 {
 	if (GetIsDistributionOfType(Distribution, EDistributionType::Uniform, EDistributionValueType::Float, OutStatus))
@@ -410,6 +522,27 @@ void UFXConverterUtilitiesLibrary::GetVectorDistributionUniformValues(UDistribut
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////	UNiagaraSystemConversionContext																			  /////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+UNiagaraEmitterConversionContext* UNiagaraSystemConversionContext::AddEmptyEmitter(FString NewEmitterNameString)
+{
+	const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraSystemViewModelMap.FindChecked(SystemViewModelGuid);
+
+	UNiagaraEmitterFactoryNew* Factory = NewObject<UNiagaraEmitterFactoryNew>();
+	UPackage* Pkg = CreatePackage(NULL, NULL);
+	FName NewEmitterName = FName(*NewEmitterNameString);
+	EObjectFlags Flags = RF_Public | RF_Standalone;
+	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(Factory->FactoryCreateNew(UNiagaraEmitter::StaticClass(), Pkg, NewEmitterName, Flags, NULL, GWarn));
+	TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*NewEmitter);
+
+	FGuid NiagaraEmitterHandleViewModelGuid = FGuid::NewGuid();
+	UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.Add(NiagaraEmitterHandleViewModelGuid, NewEmitterHandleViewModel);
+	UNiagaraEmitterConversionContext* EmitterConversionContext = NewObject<UNiagaraEmitterConversionContext>();
+	EmitterConversionContext->Init(NewEmitterHandleViewModel->GetEmitterHandle()->GetInstance(), NiagaraEmitterHandleViewModelGuid);
+	return EmitterConversionContext;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraEmitterConversionContext																		  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData)
@@ -426,37 +559,34 @@ UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddScri
 	return ScriptContext;
 }
 
-void UNiagaraEmitterConversionContext::AddRenderer(UNiagaraRendererProperties* NewRendererProperties)
+void UNiagaraEmitterConversionContext::AddRenderer(FString RendererNameString, UNiagaraRendererProperties* NewRendererProperties)
 {
-	const TSharedPtr<FNiagaraEmitterHandleViewModel>& TargetEmitterHandleViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.FindChecked(EmitterHandleViewModelGuid);
-
-	TArray<UNiagaraStackItemGroup*> StackItemGroups;
-	TargetEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
-	UNiagaraStackItemGroup* const* StackItemGroup = StackItemGroups.FindByPredicate([](const UNiagaraStackItemGroup* EmitterItemGroup) {
-		return EmitterItemGroup->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Render
-			&& EmitterItemGroup->GetExecutionSubcategoryName() == UNiagaraStackEntry::FExecutionSubcategoryNames::Render; });
-
-	if (StackItemGroup == nullptr)
-	{
-		return;
-	}
-
-	TArray<UNiagaraStackEntry*> TargetStackEntryArr;
-	TargetStackEntryArr.Add(*StackItemGroup);
-
-	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
-	ClipboardContent->Renderers.Add(NewRendererProperties);
-	FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
-	FText PasteWarning = FText();
-	FNiagaraStackClipboardUtilities::PasteSelection(TargetStackEntryArr, PasteWarning);
-	if (PasteWarning.IsEmpty() == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
-	}
+	RendererNameToStagedRendererPropertiesMap.Add(RendererNameString, NewRendererProperties);
 }
 
-void UNiagaraEmitterConversionContext::FinalizeAddedScripts()
+UNiagaraRendererProperties* UNiagaraEmitterConversionContext::FindRenderer(FString RendererNameString)
+	{
+	UNiagaraRendererProperties** PropsPtr = RendererNameToStagedRendererPropertiesMap.Find(RendererNameString);
+	if (PropsPtr == nullptr)
+	{
+		return nullptr;
+	}
+	return *PropsPtr;
+}
+
+void UNiagaraEmitterConversionContext::Log(FString Message, ENiagaraMessageSeverity Severity, bool bIsVerbose)
 {
+	EmitterMessages.Add(FGenericConverterMessage(Message, Severity, bIsVerbose));
+}
+
+void UNiagaraEmitterConversionContext::Finalize()
+{
+	const TSharedPtr<FNiagaraEmitterHandleViewModel>& TargetEmitterHandleViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.FindChecked(EmitterHandleViewModelGuid);
+	TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = TargetEmitterHandleViewModel->GetOwningSystemViewModel();
+	TArray<UNiagaraStackItemGroup*> StackItemGroups;
+	TargetEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
+
+	// Add the staged script conversion contexts
 	for (auto It = ScriptNameToStagedScriptMap.CreateIterator(); It; ++It)
 	{
 		UNiagaraScriptConversionContext* StagedScriptContext = It.Value();
@@ -484,10 +614,6 @@ void UNiagaraEmitterConversionContext::FinalizeAddedScripts()
 			return;
 		};
 
-		const TSharedPtr<FNiagaraEmitterHandleViewModel>& TargetEmitterHandleViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap.FindChecked(EmitterHandleViewModelGuid);
-
-		TArray<UNiagaraStackItemGroup*> StackItemGroups;
-		TargetEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
 		UNiagaraStackItemGroup* const* StackItemGroup = StackItemGroups.FindByPredicate([ExecutionCategoryName, ExecutionSubcategoryName](const UNiagaraStackItemGroup* EmitterItemGroup) {
 			return EmitterItemGroup->GetExecutionCategoryName() == ExecutionCategoryName && EmitterItemGroup->GetExecutionSubcategoryName() == ExecutionSubcategoryName; });
 
@@ -506,14 +632,67 @@ void UNiagaraEmitterConversionContext::FinalizeAddedScripts()
 		ClipboardFunction->Inputs = StagedScriptContext->GetClipboardFunctionInputs();
 		ClipboardContent->Functions.Add(ClipboardFunction);
 
+		ClipboardFunction->OnPastedFunctionCallNodeDelegate.BindDynamic(this, &UNiagaraEmitterConversionContext::SetPastedFunctionCallNode);
+
 		FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
 		FText PasteWarning = FText();
 		FNiagaraStackClipboardUtilities::PasteSelection(TargetStackEntryArr, PasteWarning);
+		ClipboardFunction->OnPastedFunctionCallNodeDelegate.Unbind();
+
+		if (PasteWarning.IsEmpty() == false)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
+		}
+		
+		if (PastedFunctionCallNode != nullptr)
+		{
+			for (const FGenericConverterMessage& Message : StagedScriptContext->GetStackMessages())
+			{
+				UNiagaraMessageDataText* NewMessageDataText = NewObject<UNiagaraMessageDataText>(PastedFunctionCallNode);
+				const FName TopicName = Message.bIsVerbose ? FNiagaraConverterMessageTopics::VerboseConversionEventTopicName : FNiagaraConverterMessageTopics::ConversionEventTopicName;
+				NewMessageDataText->Init(FText::FromString(Message.Message), Message.MessageSeverity, TopicName);
+				OwningSystemViewModel->AddStackMessage(NewMessageDataText, PastedFunctionCallNode, false);
+			}
+		}
+		else 
+		{
+			ensureAlwaysMsgf(false, TEXT("Expected to have a function call here from the paste event..."));
+		}
+		PastedFunctionCallNode = nullptr;
+	}
+
+	
+	UNiagaraStackItemGroup* const* RendererStackItemGroup = StackItemGroups.FindByPredicate([](const UNiagaraStackItemGroup* EmitterItemGroup) {
+		return EmitterItemGroup->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Render
+			&& EmitterItemGroup->GetExecutionSubcategoryName() == UNiagaraStackEntry::FExecutionSubcategoryNames::Render; });
+	TArray<UNiagaraStackEntry*> TargetRendererStackEntryArr;
+	TargetRendererStackEntryArr.Add(*RendererStackItemGroup);
+
+	// Add the staged renderer properties
+	for (auto It = RendererNameToStagedRendererPropertiesMap.CreateIterator(); It; ++It)
+	{	
+		UNiagaraRendererProperties* NewRendererProperties = It.Value();
+
+		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+		ClipboardContent->Renderers.Add(NewRendererProperties);
+		FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
+		FText PasteWarning = FText();
+		FNiagaraStackClipboardUtilities::PasteSelection(TargetRendererStackEntryArr, PasteWarning);
 		if (PasteWarning.IsEmpty() == false)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
 		}
 	}
+
+	// Push the messages
+	for (FGenericConverterMessage& Message : EmitterMessages)
+	{	
+		UNiagaraMessageDataText* NewMessageDataText = NewObject<UNiagaraMessageDataText>(Emitter);
+		const FName TopicName = Message.bIsVerbose ? FNiagaraConverterMessageTopics::VerboseConversionEventTopicName : FNiagaraConverterMessageTopics::ConversionEventTopicName;
+		NewMessageDataText->Init(FText::FromString(Message.Message), Message.MessageSeverity, TopicName);
+		//OwningSystemViewModel->AddMessage(NewMessageDataText, false); //@todo(ng) push system messages
+	}
+	OwningSystemViewModel->OnMessagesChanged();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -530,4 +709,9 @@ bool UNiagaraScriptConversionContext::SetParameter(FString ParameterName, FNiaga
 	ParameterInput.ClipboardFunctionInput->InputName = FName(*ParameterName);
 	FunctionInputs.Add(ParameterInput.ClipboardFunctionInput);
 	return true;
+}
+
+void UNiagaraScriptConversionContext::Log(FString Message, ENiagaraMessageSeverity Severity, bool bIsVerbose)
+{
+	StackMessages.Add(FGenericConverterMessage(Message, Severity, bIsVerbose));
 }

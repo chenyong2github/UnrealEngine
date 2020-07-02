@@ -9,6 +9,9 @@
 #include "HairStrandsMeshProjection.h"
 
 #include "GPUSkinCache.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "SkeletalRenderPublic.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
@@ -104,6 +107,7 @@ struct FHairStrandsManager
 		FTransform LocalToWorld;
 		FHairStrandsProjectionDebugInfo DebugProjectionInfo;
 		int32 FrameLODIndex = -1;
+		USkeletalMeshComponent* SkeletalMesh = nullptr;
 	};
 
 	// TODO change this array to a queue update, in order make processing/update thread safe.
@@ -122,6 +126,7 @@ FHairStrandsManager GHairManager;
 void RegisterHairStrands(
 	uint32 ComponentId,
 	uint32 SkeletalComponentId, 
+	USkeletalMeshComponent* SkeletalMesh,
 	EWorldType::Type WorldType,
 	const FHairStrandsInterpolationData& InterpolationData, 
 	const FHairStrandsProjectionHairData& RenProjectionDatas,
@@ -143,6 +148,7 @@ void RegisterHairStrands(
 	FHairStrandsManager::Element& E =  GHairManager.Elements.AddDefaulted_GetRef();
 	E.ComponentId = ComponentId;
 	E.SkeletalComponentId = SkeletalComponentId;
+	E.SkeletalMesh = SkeletalMesh;
 	E.WorldType = WorldType;
 	E.InterpolationData = InterpolationData;
 	E.RenProjectionHairDatas = RenProjectionDatas;
@@ -318,6 +324,92 @@ void RunProjection(
 	TransitBufferToReadable(RHICmdList, TransitionQueue);
 }
 
+
+void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, const FSkeletalMeshLODRenderData& LODData,
+	const uint32 LODIndex, TArray<uint32>& MatrixOffsets, TArray<FVector4>& BoneMatrices)
+{
+	TArray<FMatrix> BoneTransforms;
+	SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
+
+	MatrixOffsets.SetNum(LODData.GetNumVertices());
+	uint32 BonesOffset = 0;
+	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
+	{
+		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
+		for (uint32 SectionVertex = 0; SectionVertex < Section.NumVertices; ++SectionVertex)
+		{
+			MatrixOffsets[Section.BaseVertexIndex + SectionVertex] = BonesOffset;
+		}
+		BonesOffset += Section.BoneMap.Num();
+	}
+	BoneMatrices.SetNum(BonesOffset * 3);
+	BonesOffset = 0;
+	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
+	{
+		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
+		for (int32 BoneIdx = 0; BoneIdx < Section.BoneMap.Num(); ++BoneIdx, ++BonesOffset)
+		{
+			BoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&BoneMatrices[3 * BonesOffset].X);
+		}
+	}
+}
+
+void BuildCacheGeometry(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, USkeletalMeshComponent* SkeletalMeshComponent, FCachedGeometry& CachedGeometry)
+{
+	if (SkeletalMeshComponent)
+	{
+		FSkeletalMeshRenderData* RenderData = SkeletalMeshComponent->SkeletalMesh->GetResourceForRendering();
+
+		const uint32 LODIndex = SkeletalMeshComponent->PredictedLODLevel;// RenderData->PendingFirstLODIdx;
+		FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
+
+		TArray<uint32> MatrixOffsets;
+		TArray<FVector4> BoneMatrices;
+		BuildBoneMatrices(SkeletalMeshComponent, LODData, LODIndex, MatrixOffsets, BoneMatrices);
+
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		FRDGBufferRef DeformedPositionsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float),
+			LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("HairStrandsSkinnedDeformedPositions"));
+
+		FRDGBufferRef BoneMatricesBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(),
+			BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num());
+
+		FRDGBufferRef MatrixOffsetsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("HairStrandsSkinnedMatrixOffsets"), sizeof(uint32), MatrixOffsets.Num(),
+			MatrixOffsets.GetData(), sizeof(uint32) * MatrixOffsets.Num());
+
+		UpateSkin(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer);
+
+		TRefCountPtr<FPooledRDGBuffer> DummyBufferArg;
+		GraphBuilder.QueueBufferExtraction(DeformedPositionsBuffer, &DummyBufferArg, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+
+		GraphBuilder.Execute();
+
+		FShaderResourceViewRHIRef DeformedPositionsSRV = RHICreateShaderResourceView(DummyBufferArg->StructuredBuffer);
+
+		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
+		{
+			FCachedGeometry::Section CachedSection;
+			FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
+
+			CachedSection.PositionBuffer = DeformedPositionsSRV;
+			CachedSection.UVsBuffer = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+			CachedSection.TotalVertexCount = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+			CachedSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+			CachedSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+			CachedSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+			CachedSection.NumPrimitives = Section.NumTriangles;
+			CachedSection.IndexBaseIndex = Section.BaseIndex;
+			CachedSection.VertexBaseIndex = Section.BaseVertexIndex;
+			CachedSection.SectionIndex = SectionIdx;
+			CachedSection.LODIndex = LODIndex;
+			CachedSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
+
+			CachedGeometry.Sections.Add(CachedSection);
+		}
+	}
+}
+
 void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
@@ -344,6 +436,10 @@ void RunHairStrandsInterpolation(
 		if (SkinCache)
 		{
 			CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		}
+		else if (E.SkeletalMesh)
+		{
+			BuildCacheGeometry(RHICmdList, ShaderMap, E.SkeletalMesh, CachedGeometry);
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
@@ -442,6 +538,7 @@ void RunHairStrandsInterpolation(
 }
 
 void GetGroomInterpolationData(
+	FRHICommandListImmediate& RHICmdList,
 	const EWorldType::Type WorldType, 
 	const EHairStrandsProjectionMeshType MeshType,
 	const FGPUSkinCache* SkinCache,
@@ -452,7 +549,24 @@ void GetGroomInterpolationData(
 		if (E.WorldType != WorldType)
 			continue;
 
-		FCachedGeometry CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		FCachedGeometry CachedGeometry;
+		if (SkinCache)
+		{
+			CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+		}
+		else if (E.SkeletalMesh)
+		{
+			if (SkinCache)
+			{
+				CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+			}
+			else if (E.SkeletalMesh)
+			{
+				const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+				BuildCacheGeometry(RHICmdList, ShaderMap, E.SkeletalMesh, CachedGeometry);
+			}
+		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
 
@@ -501,10 +615,24 @@ void GetGroomInterpolationData(
 		if (E.WorldType != WorldType)
 			continue;
 
-		FCachedGeometry CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
-		if (CachedGeometry.Sections.Num() == 0)
+		int32 SectionCount = 0;
+		if (SkinCache)
+		{
+			FCachedGeometry CachedGeometry = SkinCache->GetCachedGeometry(E.SkeletalComponentId);
+			SectionCount = CachedGeometry.Sections.Num();
+		}
+		else
+		{
+			FSkeletalMeshRenderData* RenderData = E.SkeletalMesh->SkeletalMesh->GetResourceForRendering();
+
+			const uint32 LODIndex = E.SkeletalMesh->PredictedLODLevel;
+			FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
+			SectionCount = LODData.RenderSections.Num();
+		}
+		if (SectionCount == 0)
 			continue;
-		const bool bHasDynamicMesh = CachedGeometry.Sections.Num() > 0;
+		const bool bHasDynamicMesh = SectionCount > 0;
+
 		if (bHasDynamicMesh)
 		{
 			if (StrandsType == EHairStrandsInterpolationType::RenderStrands)

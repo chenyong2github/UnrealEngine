@@ -558,7 +558,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 	TArray<FString> StringArray;
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	UControlRig* ControlRig = nullptr;
-	TArray<IKeyArea> KeyAreas;
+	TArray<FMovieSceneChannelHandle> Channels;
 	if (CurveModel)
 	{
 		UMovieSceneControlRigParameterSection* MovieSection = Cast<UMovieSceneControlRigParameterSection>(CurveModel->GetOwningObject());
@@ -596,21 +596,20 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 				//Not great but it should always be the third name
 				FName ControlName(*StringArray[2]);
 				ControlRig->SelectControl(ControlName, bDisplayed);
-				const TMovieSceneChannelHandle<FMovieSceneFloatChannel>& ChannelHandle = FCurveModel->GetChannelHandle();
-				IKeyArea KeyArea(MovieSection, ChannelHandle);
-				KeyAreas.Add(KeyArea);
+
+				Channels.Add(FCurveModel->GetChannelHandle());
 			}
 			else
 			{
 				UE_LOG(LogControlRigEditor, Display, TEXT("Could not find Rig Control From FCurveModel::LongName"));
-			}	
+			}
 		}
-		if (KeyAreas.Num() > 0)
+		if (Channels.Num() > 0)
 		{
 			bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
 			GetSequencer()->SuspendSelectionBroadcast();
 			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
-			GetSequencer()->SelectByKeyAreas(MovieSection, KeyAreas, true, bDisplayed);
+			GetSequencer()->SelectByChannels(MovieSection, Channels, true, bDisplayed);
 			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
 			GetSequencer()->ResumeSelectionBroadcast();
 		}
@@ -704,7 +703,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		{
 			Pair.Key->ClearControlSelection();
 		}
-		for (const FName Name : Pair.Value)
+		for (const FName& Name : Pair.Value)
 		{
 			Pair.Key->SelectControl(Name, true);
 		}
@@ -1131,7 +1130,7 @@ void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent *InSceneCom
 bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(UObject *Object, IControlRigManipulatable* Manip, FName RigControlName, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
 	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+	FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneControlRigParameterTrack>(Track)->GenerateTrackTemplate(Track);
 
 	FMovieSceneInterrogationData InterrogationData;
 	GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());

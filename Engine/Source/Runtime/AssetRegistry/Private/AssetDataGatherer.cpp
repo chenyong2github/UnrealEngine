@@ -15,7 +15,7 @@
 
 namespace AssetDataGathererConstants
 {
-	static const int32 CacheSerializationVersion = 13;
+	static const int32 CacheSerializationVersion = 14;
 	static const int32 MaxFilesToDiscoverBeforeFlush = 2500;
 	static const int32 MaxFilesToGatherBeforeFlush = 250;
 	static const int32 MinSecondsToElapseBeforeCacheWrite = 60;
@@ -48,10 +48,25 @@ namespace
 	}
 }
 
+namespace AssetDataDiscoveryUtil
+{
+	bool PassesScanFilters(const TArray<FString>& InBlacklistFilters, const FString& InPath)
+	{
+		for (const FString& Filter : InBlacklistFilters)
+		{
+			if (InPath.StartsWith(Filter))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
 
-FAssetDataDiscovery::FAssetDataDiscovery(const TArray<FString>& InPaths, bool bInIsSynchronous)
+FAssetDataDiscovery::FAssetDataDiscovery(const TArray<FString>& InPaths, const TArray<FString>& InBlacklistScanFilters, bool bInIsSynchronous)
 	: bIsSynchronous(bInIsSynchronous)
-	, bIsDiscoveringFiles(false)
+	, bIsDiscoveringFiles(true)
+	, BlacklistScanFilters(InBlacklistScanFilters)
 	, StopTaskCounter(0)
 	, Thread(nullptr)
 {
@@ -112,6 +127,8 @@ uint32 FAssetDataDiscovery::Run()
 	TArray<FDiscoveredPackageFile> LocalPriorityFilesToSearch;
 	TArray<FDiscoveredPackageFile> LocalNonPriorityFilesToSearch;
 
+	TArray<FString> LocalBlacklistScanFilters;
+
 	// This set contains the folders that we should hide by default unless they contain assets
 	TSet<FString> PathsToHideIfEmpty;
 	PathsToHideIfEmpty.Add(TEXT("/Game/Collections"));
@@ -161,43 +178,43 @@ uint32 FAssetDataDiscovery::Run()
 		}
 
 		const FString PackageFilenameStr = InPackageFilename;
-
-		if (InPackageStatData.bIsDirectory)
+		FString PackagePath;
+		bool bIsLongPackagePath = ConvertToValidLongPackageName(PackageFilenameStr, PackagePath);
+		if (AssetDataDiscoveryUtil::PassesScanFilters(LocalBlacklistScanFilters, PackagePath))
 		{
-			LocalDiscoveredDirectories.Add(PackageFilenameStr / TEXT(""));
-
-			FString PackagePath;
-			if (FPackageName::TryConvertFilenameToLongPackageName(PackageFilenameStr, PackagePath) && !PathsToHideIfEmpty.Contains(PackagePath))
+			if (InPackageStatData.bIsDirectory)
 			{
-				LocalDiscoveredPathsSet.Add(PackagePath);
-			}
-		}
-		else if (FPackageName::IsPackageFilename(PackageFilenameStr))
-		{
-			FString LongPackageNameStr;
-			if (ConvertToValidLongPackageName(PackageFilenameStr, LongPackageNameStr))
-			{
-				if (IsPriorityFile(PackageFilenameStr))
+				LocalDiscoveredDirectories.Add(PackageFilenameStr / TEXT(""));
+				if (bIsLongPackagePath && !PathsToHideIfEmpty.Contains(PackagePath))
 				{
-					LocalPriorityFilesToSearch.Add(FDiscoveredPackageFile(PackageFilenameStr, InPackageStatData.ModificationTime));
-				}
-				else
-				{
-					LocalNonPriorityFilesToSearch.Add(FDiscoveredPackageFile(PackageFilenameStr, InPackageStatData.ModificationTime));
-				}
-
-				LocalDiscoveredPathsSet.Add(FPackageName::GetLongPackagePath(LongPackageNameStr));
-
-				++NumDiscoveredFiles;
-
-				// Flush the data if we've processed enough
-				if (!bIsSynchronous && (LocalPriorityFilesToSearch.Num() + LocalNonPriorityFilesToSearch.Num()) >= AssetDataGathererConstants::MaxFilesToDiscoverBeforeFlush)
-				{
-					FlushLocalResultsIfRequired();
+					LocalDiscoveredPathsSet.Add(PackagePath);
 				}
 			}
-		}
+			else if (FPackageName::IsPackageFilename(PackageFilenameStr))
+			{
+				if (bIsLongPackagePath)
+				{
+					if (IsPriorityFile(PackageFilenameStr))
+					{
+						LocalPriorityFilesToSearch.Add(FDiscoveredPackageFile(PackageFilenameStr, InPackageStatData.ModificationTime));
+					}
+					else
+					{
+						LocalNonPriorityFilesToSearch.Add(FDiscoveredPackageFile(PackageFilenameStr, InPackageStatData.ModificationTime));
+					}
 
+					LocalDiscoveredPathsSet.Add(FPackageName::GetLongPackagePath(PackagePath));
+
+					++NumDiscoveredFiles;
+
+					// Flush the data if we've processed enough
+					if (!bIsSynchronous && (LocalPriorityFilesToSearch.Num() + LocalNonPriorityFilesToSearch.Num()) >= AssetDataGathererConstants::MaxFilesToDiscoverBeforeFlush)
+					{
+						FlushLocalResultsIfRequired();
+					}
+				}
+			}
+		}
 		return true;
 	};
 
@@ -218,6 +235,11 @@ uint32 FAssetDataDiscovery::Run()
 				// Pop off the first path to search
 				LocalDirectoryToSearch = DirectoriesToSearch[0];
 				DirectoriesToSearch.RemoveAt(0, 1, false);
+			}
+
+			if (BlacklistScanFilters.Num() > 0)
+			{
+				LocalBlacklistScanFilters = MoveTemp(BlacklistScanFilters);
 			}
 		}
 
@@ -361,6 +383,12 @@ void FAssetDataDiscovery::PrioritizeSearchPath(const FString& PathToPrioritize)
 	}
 }
 
+void FAssetDataDiscovery::SetBlacklistScanFilters(const TArray<FString>& InBlacklistScanFilters)
+{
+	FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
+	BlacklistScanFilters = InBlacklistScanFilters;
+}
+
 void FAssetDataDiscovery::SortPathsByPriority(const int32 MaxNumToSort)
 {
 	FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
@@ -389,11 +417,12 @@ void FAssetDataDiscovery::SortPathsByPriority(const int32 MaxNumToSort)
 }
 
 
-FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, bool bInIsSynchronous, EAssetDataCacheMode AssetDataCacheMode)
+FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bInIsSynchronous, EAssetDataCacheMode AssetDataCacheMode)
 	: StopTaskCounter( 0 )
 	, bIsSynchronous( bInIsSynchronous )
 	, bIsDiscoveringFiles( false )
 	, SearchStartTime( 0 )
+	, BlacklistScanFilters(InBlacklistScanFilters)
 	, NumPathsToSearchAtLastSyncPoint( InPaths.Num() )
 	, bLoadAndSaveCache( false )
 	, bFinishedInitialDiscovery( false )
@@ -432,7 +461,6 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TAr
 
 	// Add any specific files before doing search
 	AddFilesToSearch(InSpecificFiles);
-
 	if (!bIsSynchronous && !FPlatformProcess::SupportsMultithreading())
 	{
 		bIsSynchronous = true;
@@ -442,14 +470,14 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TAr
 	if (bIsSynchronous)
 	{
 		// Run the package file discovery synchronously
-		FAssetDataDiscovery PackageFileDiscovery(InPaths, bIsSynchronous);
+		FAssetDataDiscovery PackageFileDiscovery(InPaths, BlacklistScanFilters, bIsSynchronous);
 		PackageFileDiscovery.GetAndTrimSearchResults(DiscoveredPaths, FilesToSearch, NumPathsToSearchAtLastSyncPoint);
 
 		Run();
 	}
 	else
 	{
-		BackgroundPackageFileDiscovery = MakeShareable(new FAssetDataDiscovery(InPaths, bIsSynchronous));
+		BackgroundPackageFileDiscovery = MakeShared<FAssetDataDiscovery>(InPaths, BlacklistScanFilters, bIsSynchronous);
 		Thread = FRunnableThread::Create(this, TEXT("FAssetDataGatherer"), 0, TPri_BelowNormal);
 		checkf(Thread, TEXT("Failed to create asset data gatherer thread"));
 	}
@@ -838,7 +866,8 @@ void FAssetDataGatherer::AddFilesToSearch(const TArray<FString>& Files)
 	for (const FString& Filename : Files)
 	{
 		LongPackageName.Reset();
-		if (ConvertToValidLongPackageName(Filename, LongPackageName))
+		if (ConvertToValidLongPackageName(Filename, LongPackageName)
+			&& AssetDataDiscoveryUtil::PassesScanFilters(BlacklistScanFilters, LongPackageName))
 		{
 			// Add the path to this asset into the list of discovered paths
 			FilesToAdd.Add(Filename);
@@ -848,7 +877,7 @@ void FAssetDataGatherer::AddFilesToSearch(const TArray<FString>& Files)
 	if (FilesToAdd.Num() > 0)
 	{
 		FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
-		FilesToSearch.Append(FilesToAdd);
+		FilesToSearch.Append(MoveTemp(FilesToAdd));
 	}
 }
 
@@ -866,6 +895,14 @@ void FAssetDataGatherer::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 		FilenamePathToPrioritize = LocalFilenamePathToPrioritize;
 		SortPathsByPriority(INDEX_NONE);
+	}
+}
+
+void FAssetDataGatherer::SetBlacklistScanFilters(const TArray<FString>& InBlacklistScanFilters)
+{
+	if (BackgroundPackageFileDiscovery.IsValid())
+	{
+		BackgroundPackageFileDiscovery->SetBlacklistScanFilters(InBlacklistScanFilters);
 	}
 }
 

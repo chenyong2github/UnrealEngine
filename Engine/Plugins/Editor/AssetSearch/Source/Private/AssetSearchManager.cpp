@@ -42,6 +42,7 @@
 #include "Indexers/CurveTableIndexer.h"
 #include "Indexers/DialogueWaveIndexer.h"
 #include "Indexers/LevelIndexer.h"
+#include "Indexers/ActorIndexer.h"
 #include "Indexers/SoundCueIndexer.h"
 #include "Providers/AssetRegistrySearchProvider.h"
 
@@ -209,6 +210,7 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWidgetBlueprint::StaticClass(), MakeUnique<FWidgetBlueprintIndexer>());
 	RegisterAssetIndexer(UDialogueWave::StaticClass(), MakeUnique<FDialogueWaveIndexer>());
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
+	RegisterAssetIndexer(AActor::StaticClass(), MakeUnique<FActorIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
 
 	RegisterSearchProvider(TEXT("AssetRegistry"), MakeUnique<FAssetRegistrySearchProvider>());
@@ -284,21 +286,32 @@ void FAssetSearchManager::TryConnectToDatabase()
 {
 	if (!bDatabaseOpen)
 	{
+		check(!IsInGameThread());
+
 		if ((FPlatformTime::Seconds() - LastConnectionAttempt) > 30)
 		{
 			LastConnectionAttempt = FPlatformTime::Seconds();
 
 			const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
 			
-			if (!FileInfoDatabase.Open(SessionPath))
+			if (!FileInfoDatabase.IsValid())
 			{
-				return;
+				FScopeLock ScopedLock(&FileInfoDatabaseCS);
+
+				if (!FileInfoDatabase.Open(SessionPath))
+				{
+					return;
+				}
 			}
 
-			if (!SearchDatabase.Open(SessionPath))
+			if (!SearchDatabase.IsValid())
 			{
-				FileInfoDatabase.Close();
-				return;
+				FScopeLock ScopedLock(&SearchDatabaseCS);
+
+				if (!SearchDatabase.Open(SessionPath))
+				{
+					return;
+				}
 			}
 
 			bDatabaseOpen = true;
@@ -421,7 +434,7 @@ void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UOb
 	{
 		TArray<UObject*> Objects;
 		const bool bIncludeNestedObjects = false;
-		GetObjectsWithOuter(Package, Objects, bIncludeNestedObjects);
+		GetObjectsWithPackage(Package, Objects, bIncludeNestedObjects);
 		for (UObject* Entry : Objects)
 		{
 			RequestIndexAsset(Entry);
@@ -676,8 +689,6 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 
 	UpdateScanningAssets();
 
-	TryConnectToDatabase();
-
 	ProcessGameThreadTasks();
 
 	const USearchUserSettings* UserSettings = GetDefault<USearchUserSettings>();
@@ -773,6 +784,7 @@ void FAssetSearchManager::Tick_DatabaseOperationThread()
 	{
 		if (!bDatabaseOpen)
 		{
+			TryConnectToDatabase();
 			FPlatformProcess::Sleep(1);
 			continue;
 		}

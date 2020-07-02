@@ -3,7 +3,7 @@
 #include "PreLoadScreenManager.h"
 
 #include "Engine/GameEngine.h"
-
+#include "Framework/Application/SlateApplication.h"
 #include "GlobalShader.h"
 #include "ShaderCompiler.h"
 
@@ -27,106 +27,183 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, PreLoadScreen);
 
 DEFINE_LOG_CATEGORY_STATIC(LogPreLoadScreenManager, Log, All);
 
-TSharedPtr<FPreLoadScreenManager> FPreLoadScreenManager::Instance;
+TUniquePtr<FPreLoadScreenManager, FPreLoadScreenManager::FPreLoadScreenManagerDelete> FPreLoadScreenManager::Instance;
+FCriticalSection FPreLoadScreenManager::AcquireCriticalSection;
+TAtomic<bool> FPreLoadScreenManager::bRenderingEnabled(true);
 
-FCriticalSection FPreLoadScreenManager::RenderingEnabledCriticalSection;
-bool FPreLoadScreenManager::bRenderingEnabled = true;
+FPreLoadScreenManager* FPreLoadScreenManager::Get()
+{
+	return Instance.Get();
+}
 
-FIsPreloadScreenResponsibleForRenderingMultiDelegate FPreLoadScreenManager::IsResponsibleForRenderingDelegate;
+void FPreLoadScreenManager::Create()
+{
+	check(IsInGameThread());
+
+	// Lock in case a user decide to create/detroy the manager multiple times
+	FScopeLock Lock(&AcquireCriticalSection);
+
+	if (!Instance.IsValid() && ArePreLoadScreensEnabled())
+	{
+		Instance = TUniquePtr<FPreLoadScreenManager, FPreLoadScreenManager::FPreLoadScreenManagerDelete>(new FPreLoadScreenManager);
+	}
+}
+
+void FPreLoadScreenManager::Destroy()
+{
+	check(IsInGameThread());
+
+	FScopeLock Lock(&AcquireCriticalSection); // Make sure the render thread is completed before cleaning up
+
+	if (Instance.IsValid())
+	{
+		Instance->CleanUpResources();
+		Instance.Reset();
+	}
+}
+
+FPreLoadScreenManager::FPreLoadScreenManager()
+	: ActivePreLoadScreenIndex(-1)
+	, LastTickTime(0.0)
+	, bInitialized(false)
+	, SyncMechanism(nullptr)
+	, bIsResponsibleForRendering(false)
+	, bHasRenderPreLoadScreenFrame_RenderThread(false)
+	, LastRenderTickTime(0.0)
+	, OriginalSlateSleepVariableValue(0.f)
+	, bIsEngineLoadingComplete(false)
+{}
 
 void FPreLoadScreenManager::Initialize(FSlateRenderer& InSlateRenderer)
 {
-    if (bInitialized || !ArePreLoadScreensEnabled())       
-    {
-        return;
-    }
+	check(IsInGameThread());
+
+	if (bInitialized || !ArePreLoadScreensEnabled())
+	{
+		return;
+	}
 
     bInitialized = true;
 
-    // Initialize shaders, because otherwise they might not be guaranteed to exist at this point
-    if (!FPlatformProperties::RequiresCookedData())
-    {
-        TArray<int32> ShaderMapIds;
-        ShaderMapIds.Add(GlobalShaderMapId);
-        GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
-    }
+	// Initialize shaders, because otherwise they might not be guaranteed to exist at this point
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		TArray<int32> ShaderMapIds;
+		ShaderMapIds.Add(GlobalShaderMapId);
+		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
+	}
 
-    if (FApp::CanEverRender())
-    {
-        // Make sure we haven't created a game window already, if so use that. If not make a new one
-        UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-        TSharedRef<SWindow> GameWindow = (GameEngine && GameEngine->GameViewportWindow.IsValid()) ? GameEngine->GameViewportWindow.Pin().ToSharedRef() : UGameEngine::CreateGameWindow();
+	if (FApp::CanEverRender())
+	{
+		// Make sure we haven't created a game window already, if so use that. If not make a new one
+		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
+		TSharedRef<SWindow> GameWindow = (GameEngine && GameEngine->GameViewportWindow.IsValid()) ? GameEngine->GameViewportWindow.Pin().ToSharedRef() : UGameEngine::CreateGameWindow();
 
-        VirtualRenderWindow =
-            SNew(SVirtualWindow)
-            .Size(GameWindow->GetClientSizeInScreen());
+		VirtualRenderWindow =
+			SNew(SVirtualWindow)
+			.Size(GameWindow->GetClientSizeInScreen());
 
-        MainWindow = GameWindow;
+		MainWindow = GameWindow;
 
-        WidgetRenderer = MakeShared<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe>(GameWindow, VirtualRenderWindow, &InSlateRenderer);
-    }
+		WidgetRenderer = MakeShared<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe>(GameWindow, VirtualRenderWindow, &InSlateRenderer);
+	}
 
-    LastRenderTickTime = FPlatformTime::Seconds();
-    LastTickTime = FPlatformTime::Seconds();
+	LastRenderTickTime = FPlatformTime::Seconds();
+	LastTickTime = FPlatformTime::Seconds();
 }
 
-void FPreLoadScreenManager::RegisterPreLoadScreen(TSharedPtr<IPreLoadScreen> PreLoadScreen)
+void FPreLoadScreenManager::RegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen)
 {
+	check(IsInGameThread());
+
     PreLoadScreens.Add(PreLoadScreen);
 }
 
-void FPreLoadScreenManager::UnRegisterPreLoadScreen(TSharedPtr<IPreLoadScreen> PreLoadScreen)
+void FPreLoadScreenManager::UnRegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen)
 {
-    if (PreLoadScreen.IsValid())
-    {
-        PreLoadScreen->CleanUp();
-        PreLoadScreens.Remove(PreLoadScreen);
-    }
-}
+	check(IsInGameThread());
 
-void FPreLoadScreenManager::PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay)
-{
-    for (int PreLoadScreenIndex = 0; PreLoadScreenIndex < PreLoadScreens.Num(); ++PreLoadScreenIndex)
-    {
-        if (PreLoadScreens[PreLoadScreenIndex]->GetPreLoadScreenType() == PreLoadScreenTypeToPlay)
-        {
-            PlayPreLoadScreenAtIndex(PreLoadScreenIndex);
-            break;
-        }
-    }
-}
-
-void FPreLoadScreenManager::PlayPreLoadScreenAtIndex(int Index)
-{
-    if (ArePreLoadScreensEnabled())
-    {
-        ActivePreLoadScreenIndex = Index;
-        if (ensureAlwaysMsgf(HasValidActivePreLoadScreen(), TEXT("Call to FPreLoadScreenManager::PlayPreLoadScreenAtIndex with an invalid index! Nothing will play!")))
-        {
-            IPreLoadScreen* ActiveScreen = GetActivePreLoadScreen();
-            if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::EarlyStartupScreen)
-            {
-                HandleEarlyStartupPlay();
-            }
-            else if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::EngineLoadingScreen)
-            {
-                HandleEngineLoadingPlay();
-            }
-			else if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::CustomSplashScreen)
+	FScopeLock Lock(&AcquireCriticalSection);
+	if (PreLoadScreen.IsValid())
+	{
+		const int32 IndexOf = PreLoadScreens.IndexOfByKey(PreLoadScreen);
+		if (PreLoadScreens.IsValidIndex(IndexOf))
+		{
+			if (IndexOf == ActivePreLoadScreenIndex)
 			{
-				HandleCustomSplashScreenPlay();
+				ensureMsgf(false, TEXT("Can't remove an active preloadscreen."));
+				return;
 			}
-            else
-            {
-                UE_LOG(LogPreLoadScreenManager, Fatal, TEXT("Attempting to play an Active PreLoadScreen type that hasn't been implemented inside of PreLoadScreenmanager!"));
-            }
-        }
+
+			TSharedPtr<IPreLoadScreen> PreviousActivePreLoadScreen = PreLoadScreens.IsValidIndex(ActivePreLoadScreenIndex)
+				? PreLoadScreens[ActivePreLoadScreenIndex] : nullptr;
+
+			PreLoadScreen->CleanUp();
+			PreLoadScreens.RemoveAtSwap(IndexOf);
+
+			if (PreviousActivePreLoadScreen)
+			{
+				ActivePreLoadScreenIndex = PreLoadScreens.IndexOfByKey(PreviousActivePreLoadScreen);
+			}
+		}
+	}
+}
+
+bool FPreLoadScreenManager::PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay)
+{
+	for (int32 PreLoadScreenIndex = 0; PreLoadScreenIndex < PreLoadScreens.Num(); ++PreLoadScreenIndex)
+	{
+		if (PreLoadScreens[PreLoadScreenIndex]->GetPreLoadScreenType() == PreLoadScreenTypeToPlay)
+		{
+			PlayPreLoadScreenAtIndex(PreLoadScreenIndex);
+			return true;
+		}
+	}
+	return false;
+}
+
+void FPreLoadScreenManager::PlayPreLoadScreenAtIndex(int32 Index)
+{
+	check(IsInGameThread());
+
+	if (ArePreLoadScreensEnabled())
+	{
+		FScopeLock Lock(&AcquireCriticalSection);
+
+		if (ensureAlwaysMsgf(!HasValidActivePreLoadScreen(), TEXT("Call to FPreLoadScreenManager::PlayPreLoadScreenAtIndex when something is already playing.")))
+		{
+			ActivePreLoadScreenIndex = Index;
+			if (ensureAlwaysMsgf(HasValidActivePreLoadScreen(), TEXT("Call to FPreLoadScreenManager::PlayPreLoadScreenAtIndex with an invalid index! Nothing will play!")))
+			{
+				IPreLoadScreen* ActiveScreen = GetActivePreLoadScreen();
+				if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::EarlyStartupScreen)
+				{
+					HandleEarlyStartupPlay();
+				}
+				else if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::EngineLoadingScreen)
+				{
+					HandleEngineLoadingPlay();
+				}
+				else if (ActiveScreen->GetPreLoadScreenType() == EPreLoadScreenTypes::CustomSplashScreen)
+				{
+					HandleCustomSplashScreenPlay();
+				}
+				else
+				{
+					UE_LOG(LogPreLoadScreenManager, Fatal, TEXT("Attempting to play an Active PreLoadScreen type that hasn't been implemented inside of PreLoadScreenmanager!"));
+				}
+			}
+			else
+			{
+				ActivePreLoadScreenIndex = INDEX_NONE;
+			}
+		}
     }
 }
 
 bool FPreLoadScreenManager::PlayPreLoadScreenWithTag(FName InTag)
 {
-	for (int PreLoadScreenIndex = 0; PreLoadScreenIndex < PreLoadScreens.Num(); ++PreLoadScreenIndex)
+	for (int32 PreLoadScreenIndex = 0; PreLoadScreenIndex < PreLoadScreens.Num(); ++PreLoadScreenIndex)
 	{
 		if (PreLoadScreens[PreLoadScreenIndex]->GetPreLoadScreenTag() == InTag)
 		{
@@ -139,18 +216,17 @@ bool FPreLoadScreenManager::PlayPreLoadScreenWithTag(FName InTag)
 
 void FPreLoadScreenManager::HandleEarlyStartupPlay()
 {
-    if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen), TEXT("Invalid Active PreLoadScreen!")))
-    {
-        IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
-        if (PreLoadScreen)
-        {
+	if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen), TEXT("Invalid Active PreLoadScreen!")))
+	{
+		IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
+		if (PreLoadScreen)
+		{
 			SCOPED_BOOT_TIMING("FPreLoadScreenManager::HandleEarlyStartupPlay()");
 
 			PreLoadScreen->OnPlay(MainWindow);
 
 			{
-				TSharedPtr<SWindow> MainWindowPtr = MainWindow.IsValid() ? MainWindow.Pin() : TSharedPtr<SWindow>();
-
+				TSharedPtr<SWindow> MainWindowPtr = MainWindow.Pin();
 				if (MainWindowPtr.IsValid() && PreLoadScreen->GetWidget().IsValid())
 				{
 					MainWindowPtr->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
@@ -175,41 +251,40 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 				}
 			}
 
-            if (bDidDisableScreensaver)
-            {
-                FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Enable);
-            }
+			if (bDidDisableScreensaver)
+			{
+				FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Enable);
+			}
 
-            StopPreLoadScreen();
-        }
-    }
+			StopPreLoadScreen();
+		}
+	}
 }
 
 void FPreLoadScreenManager::HandleEngineLoadingPlay()
 {
-    if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen), TEXT("Invalid Active PreLoadScreen!")))
-    {
-        IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
-        if (PreLoadScreen)
-        {
-            PreLoadScreen->OnPlay(MainWindow.Pin());
+	if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen), TEXT("Invalid Active PreLoadScreen!")))
+	{
+		IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
+		if (PreLoadScreen)
+		{
+			PreLoadScreen->OnPlay(MainWindow.Pin());
 
-            if (PreLoadScreen->GetWidget().IsValid() && VirtualRenderWindow.IsValid())
-            {
-                VirtualRenderWindow->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
-            }
-        }
+			if (PreLoadScreen->GetWidget().IsValid() && VirtualRenderWindow.IsValid())
+			{
+				VirtualRenderWindow->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
+			}
+		}
 
-        if (WidgetRenderer.IsValid())
-        {
-            FScopeLock SyncMechanismLock(&SyncMechanismCriticalSection);
-            if (SyncMechanism == nullptr)
-            {
-                SyncMechanism = new FPreLoadScreenSlateSynchMechanism(WidgetRenderer);
-                SyncMechanism->Initialize();
-            }
-        }
-    }
+		if (WidgetRenderer.IsValid())
+		{
+			if (ensure(SyncMechanism == nullptr))
+			{
+				SyncMechanism = new FPreLoadScreenSlateSynchMechanism(WidgetRenderer);
+				SyncMechanism->Initialize();
+			}
+		}
+	}
 }
 
 void FPreLoadScreenManager::HandleCustomSplashScreenPlay()
@@ -252,28 +327,39 @@ void FPreLoadScreenManager::HandleCustomSplashScreenPlay()
 	}
 }
 
-void FPreLoadScreenManager::RenderTick()
+void FPreLoadScreenManager::StaticRenderTick_RenderThread()
 {
-    //Calculate tick time
-    const double CurrentTime = FPlatformTime::Seconds();
-    double DeltaTime = CurrentTime - LastRenderTickTime;
-    LastRenderTickTime = CurrentTime;
+	check(IsInRenderingThread());
 
-    //Check if we have an active index before doing any work
-    if (HasValidActivePreLoadScreen())
-    {
-        IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
+	FScopeLock Lock(&AcquireCriticalSection);
+	if (ensure(FPreLoadScreenManager::Get())) // The manager should clear the slate render thread before closing
+	{
+		FPreLoadScreenManager::Get()->RenderTick_RenderThread();
+	}
+}
 
-        check(PreLoadScreen && IsInRenderingThread());
-        if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !PreLoadScreen->IsDone())
-        {                
-            GFrameNumberRenderThread++;
-            GRHICommandList.GetImmediateCommandList().BeginFrame();
-            PreLoadScreen->RenderTick(DeltaTime);
-            GRHICommandList.GetImmediateCommandList().EndFrame();
-            GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-        }
-    }
+void FPreLoadScreenManager::RenderTick_RenderThread()
+{
+	//Calculate tick time
+	const double CurrentTime = FPlatformTime::Seconds();
+	double DeltaTime = CurrentTime - LastRenderTickTime;
+	LastRenderTickTime = CurrentTime;
+
+	//Check if we have an active index before doing any work
+	if (HasValidActivePreLoadScreen() && bRenderingEnabled)
+	{
+		IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
+
+		check(PreLoadScreen && IsInRenderingThread());
+		if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !PreLoadScreen->IsDone())
+		{
+			GFrameNumberRenderThread++;
+			GRHICommandList.GetImmediateCommandList().BeginFrame();
+			PreLoadScreen->RenderTick(DeltaTime);
+			GRHICommandList.GetImmediateCommandList().EndFrame();
+			GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		}
+	}
 }
 
 bool FPreLoadScreenManager::HasRegisteredPreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const
@@ -301,7 +387,6 @@ bool FPreLoadScreenManager::HasValidActivePreLoadScreen() const
     return (PreLoadScreens.IsValidIndex(ActivePreLoadScreenIndex) && PreLoadScreens[ActivePreLoadScreenIndex].IsValid());
 }
 
-
 IPreLoadScreen* FPreLoadScreenManager::GetActivePreLoadScreen()
 {
     return HasValidActivePreLoadScreen() ? PreLoadScreens[ActivePreLoadScreenIndex].Get() : nullptr;
@@ -312,9 +397,14 @@ const IPreLoadScreen* FPreLoadScreenManager::GetActivePreLoadScreen() const
     return HasValidActivePreLoadScreen() ? PreLoadScreens[ActivePreLoadScreenIndex].Get() : nullptr;
 }
 
+bool FPreLoadScreenManager::HasActivePreLoadScreenTypeForEarlyStartup() const
+{
+	return HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen) || HasActivePreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen);
+}
+
 void FPreLoadScreenManager::EarlyPlayFrameTick()
 {
-    if (ensureAlwaysMsgf(HasActivePreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen) || HasActivePreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen), TEXT("EarlyPlayFrameTick called without a valid EarlyPreLoadScreen!")))
+    if (ensureAlwaysMsgf(HasActivePreLoadScreenTypeForEarlyStartup(), TEXT("EarlyPlayFrameTick called without a valid EarlyPreLoadScreen!")))
     {
         GameLogicFrameTick();
         EarlyPlayRenderFrameTick();
@@ -382,15 +472,9 @@ void FPreLoadScreenManager::PlatformSpecificGameLogicFrameTick()
 #endif // PLATFORM_XBOXONE
 }
 
-bool FPreLoadScreenManager::ShouldRender()
-{
-    FScopeLock ScopeLock(&RenderingEnabledCriticalSection);
-    return bRenderingEnabled;
-}
-
 void FPreLoadScreenManager::EnableRendering(bool bEnabled)
 {
-    FScopeLock ScopeLock(&RenderingEnabledCriticalSection);
+    FScopeLock ScopeLock(&AcquireCriticalSection);
     bRenderingEnabled = bEnabled;
 }
 
@@ -398,10 +482,15 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 {
 	bool bIsResponsibleForRendering_Local = true;
 
-	if (!ShouldRender())
+	if (!bRenderingEnabled)
 	{
 		// In this case FPreLoadScreenManager is responsible for rendering but choosing not to, probably because the
-		// app is not in the fourground.
+		// app is not in the foreground.
+		return;
+	}
+
+	if (!FSlateApplication::IsInitialized())
+	{
 		return;
 	}
 
@@ -425,64 +514,91 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 			float SlateDeltaTime = SlateApp.GetDeltaTime();
 
 			//Setup Slate Render Command
+			FPreLoadScreenManager* Self = this;
 			ENQUEUE_RENDER_COMMAND(BeginPreLoadScreenFrame)(
-				[ActivePreLoadScreen, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
+				[Self, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
 				{
-					if (FPreLoadScreenManager::ShouldRender())
+					FScopeLock Lock(&FPreLoadScreenManager::AcquireCriticalSection);
+					// Self is still valid because we do a FlushRenderingCommands in StopPreLoadScreen
+					if (Self->bRenderingEnabled && Self->HasActivePreLoadScreenTypeForEarlyStartup() && !Self->bHasRenderPreLoadScreenFrame_RenderThread)
 					{
 						GFrameNumberRenderThread++;
 						GRHICommandList.GetImmediateCommandList().BeginFrame();
 
+						Self->bHasRenderPreLoadScreenFrame_RenderThread = true;
+						IPreLoadScreen* ActivePreLoadScreen = Self->PreLoadScreens[Self->ActivePreLoadScreenIndex].Get();
 						ActivePreLoadScreen->RenderTick(SlateDeltaTime);
 					}
 				});
 
 			SlateApp.Tick();
 
+			AcquireCriticalSection.Unlock();
+
 			// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 			SlateApp.GetRenderer()->Sync();
 
-			ENQUEUE_RENDER_COMMAND(FinishPreLoadScreenFrame)(
-				[](FRHICommandListImmediate& RHICmdList)
-				{
-					if (FPreLoadScreenManager::ShouldRender())
-					{
-						GRHICommandList.GetImmediateCommandList().EndFrame();
-						GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-					}
-				});
+			AcquireCriticalSection.Lock();
 
-			//FlushRenderingCommands();
+			ENQUEUE_RENDER_COMMAND(FinishPreLoadScreenFrame)(
+				[Self](FRHICommandListImmediate& RHICmdList)
+				{
+					// Self is still valid because we do a FlushRenderingCommands in StopPreLoadScreen
+					Self->bHasRenderPreLoadScreenFrame_RenderThread = false;
+					GRHICommandList.GetImmediateCommandList().EndFrame();
+					GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+				});
 		}
 	}
 }
 
 void FPreLoadScreenManager::StopPreLoadScreen()
 {
-    if (HasValidActivePreLoadScreen())
-    {
-        PreLoadScreens[ActivePreLoadScreenIndex]->OnStop();
-    }
+	check(IsInGameThread());
 
-    ActivePreLoadScreenIndex = -1;
+	if (HasValidActivePreLoadScreen())
+	{
+		if (ensureMsgf(HasActivePreLoadScreenTypeForEarlyStartup(), TEXT("WaitForEngineLoadingScreenToFinish should be called when using an EngineLoadingScreen.")))
+		{
+			HandleStopPreLoadScreen();
+		}
 
-    //Clear our window content
-    if (MainWindow.IsValid())
-    {
-        MainWindow.Pin()->SetContent(SNullWidget::NullWidget);
-    }
-    if (VirtualRenderWindow.IsValid())
-    {
-        VirtualRenderWindow->SetContent(SNullWidget::NullWidget);
-    }
+		AcquireCriticalSection.Unlock();
+		FlushRenderingCommands();
+		AcquireCriticalSection.Lock();
+	}
+}
 
-    FlushRenderingCommands();
+void FPreLoadScreenManager::HandleStopPreLoadScreen()
+{
+	{
+		FScopeLock Lock(&AcquireCriticalSection); // prevent stop while we are rendering the preloadscreen
+
+		if (HasValidActivePreLoadScreen())
+		{
+			PreLoadScreens[ActivePreLoadScreenIndex]->OnStop();
+		}
+
+		ActivePreLoadScreenIndex = -1;
+
+		//Clear our window content
+		if (MainWindow.IsValid())
+		{
+			MainWindow.Pin()->SetContent(SNullWidget::NullWidget);
+		}
+		if (VirtualRenderWindow.IsValid())
+		{
+			VirtualRenderWindow->SetContent(SNullWidget::NullWidget);
+		}
+	}
 }
 
 void FPreLoadScreenManager::PassPreLoadScreenWindowBackToGame() const
 {
     if (IsUsingMainWindow())
     {
+		FScopeLock Lock(&AcquireCriticalSection); // wait until we finish with rendering before moving the context
+
         UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
         if (MainWindow.IsValid() && GameEngine)
         {
@@ -507,29 +623,30 @@ TSharedPtr<SWindow> FPreLoadScreenManager::GetRenderWindow()
 
 void FPreLoadScreenManager::WaitForEngineLoadingScreenToFinish()
 {
-    //Start just doing game logic ticks until the Screen is finished.
-    //Since this is a non-early screen, rendering happens separately still on the Slate rendering thread, so only need
-    //the game logic ticks
-    if (HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
-    {
-        IPreLoadScreen* ActivePreLoadScreen = GetActivePreLoadScreen();
-        while (ActivePreLoadScreen && !ActivePreLoadScreen->IsDone())
-        {
-            GameLogicFrameTick();
-        }
-    }
+	check(IsInGameThread());
 
-    //No longer need SyncMechanism now that the widget has finished rendering
-    FScopeLock SyncMechanismLock(&SyncMechanismCriticalSection);
-    if (SyncMechanism != nullptr)
-    {
-        SyncMechanism->DestroySlateThread();
+	//Start just doing game logic ticks until the Screen is finished.
+	//Since this is a non-early screen, rendering happens separately still on the Slate rendering thread, so only need
+	//the game logic ticks
+	if (HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
+	{
+		IPreLoadScreen* ActivePreLoadScreen = GetActivePreLoadScreen();
+		while (ActivePreLoadScreen && !ActivePreLoadScreen->IsDone())
+		{
+			GameLogicFrameTick();
+		}
+	}
 
-        delete SyncMechanism;
-        SyncMechanism = nullptr;
-    }
+	//No longer need SyncMechanism now that the widget has finished rendering
+	if (SyncMechanism != nullptr)
+	{
+		SyncMechanism->DestroySlateThread();
 
-    StopPreLoadScreen();
+		delete SyncMechanism;
+		SyncMechanism = nullptr;
+	}
+
+	HandleStopPreLoadScreen();
 }
 
 void FPreLoadScreenManager::SetEngineLoadingComplete(bool IsEngineLoadingFinished)
@@ -560,6 +677,18 @@ bool FPreLoadScreenManager::ArePreLoadScreensEnabled()
 
 void FPreLoadScreenManager::CleanUpResources()
 {
+	// Since we are on the game thread, the PreLoadScreen must be completed.
+	//But if we are in EngineLoadingScreen, then the thread may be still active if WaitForEngineLoadingScreenToFinish was not called.
+	bool bHasActiPreLoadScreen = HasValidActivePreLoadScreen();
+	ensureMsgf(!bHasActiPreLoadScreen, TEXT("StopPreLoadScreen or WaitForEngineLoadingScreenToFinish (if EngineLoadingScreen) should be called before we destroy the Screen Manager."));
+
+	if (SyncMechanism)
+	{
+		SyncMechanism->DestroySlateThread();
+		delete SyncMechanism;
+		SyncMechanism = nullptr;
+	}
+
     for (TSharedPtr<IPreLoadScreen>& PreLoadScreen : PreLoadScreens)
     {
         if (PreLoadScreen.IsValid())

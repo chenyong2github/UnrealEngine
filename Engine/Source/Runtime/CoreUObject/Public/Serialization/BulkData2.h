@@ -275,7 +275,7 @@ private:
 
 	LAYOUT_FIELD(FBulkDataOrId, Data);
 	LAYOUT_FIELD(FBulkDataAllocation, DataAllocation);
-	LAYOUT_FIELD_INITIALIZED(int64, BulkDataSize, INDEX_NONE);
+	LAYOUT_FIELD_INITIALIZED(int64, BulkDataSize, 0);
 	LAYOUT_FIELD_INITIALIZED(int64, BulkDataOffset, INDEX_NONE);
 	LAYOUT_FIELD_INITIALIZED(EBulkDataFlags, BulkDataFlags, EBulkDataFlags::BULKDATA_None);
 	LAYOUT_MUTABLE_FIELD_INITIALIZED(uint8, LockStatus, 0); // Mutable so that the read only lock can be const

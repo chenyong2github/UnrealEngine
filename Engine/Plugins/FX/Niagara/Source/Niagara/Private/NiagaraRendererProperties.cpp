@@ -3,6 +3,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #if WITH_EDITORONLY_DATA
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
@@ -29,7 +30,7 @@ const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 }
 #endif
 
-uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSet& DataSet) const
+uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const
 {
 	enum BaseType
 	{
@@ -39,49 +40,55 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 		BaseType_NUM
 	};
 
-	uint32 MaxNumComponents = 0;
-
 	TArray<int32, TInlineAllocator<32>> SeenOffsets[BaseType_NUM];
-	uint32 NumComponents[BaseType_NUM] = { 0, 0 };
+	uint32 NumComponents[BaseType_NUM] = { 0 };
+
+	auto AccumulateUniqueComponents = [&](BaseType Type, uint32 ComponentCount, int32 ComponentOffset)
+	{
+		if (!SeenOffsets[Type].Contains(ComponentOffset))
+		{
+			SeenOffsets[Type].Add(ComponentOffset);
+			NumComponents[Type] += ComponentCount;
+		}
+	};
+
 	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 	{
 		const FNiagaraVariable& Var = Binding->DataSetVariable;
 
-		int32 FloatOffset, IntOffset, HalfOffset;
-		DataSet.GetVariableComponentOffsets(Var, FloatOffset, IntOffset, HalfOffset);
+		const int32 VariableIndex = CompiledDataSetData->Variables.IndexOfByKey(Var);
+		if ( VariableIndex != INDEX_NONE )
+		{
+			const FNiagaraVariableLayoutInfo& DataSetVarLayout = CompiledDataSetData->VariableLayouts[VariableIndex];
 
-		int32 VarOffset, VarBaseSize;
-		BaseType VarBaseType;
-		if (FloatOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Float;
-			VarOffset = FloatOffset;
-			VarBaseSize = sizeof(float);
-		}
-		else if (IntOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Int;
-			VarOffset = IntOffset;
-			VarBaseSize = sizeof(int32);
-		}
-		else if (HalfOffset != INDEX_NONE)
-		{
-			VarBaseType = BaseType_Half;
-			VarOffset = HalfOffset;
-			VarBaseSize = sizeof(float) / 2;
-		}
-		else
-		{
-			continue;
-		}
+			if (const uint32 FloatCount = DataSetVarLayout.GetNumFloatComponents())
+			{
+				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout.FloatComponentStart);
+			}
 
-		if (!SeenOffsets[VarBaseType].Contains(VarOffset))
-		{
-			SeenOffsets[VarBaseType].Add(VarOffset);
-			NumComponents[VarBaseType] += Var.GetSizeInBytes() / VarBaseSize;
-			MaxNumComponents = FMath::Max(MaxNumComponents, NumComponents[VarBaseType]);
+			if (const uint32 IntCount = DataSetVarLayout.GetNumInt32Components())
+			{
+				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout.Int32ComponentStart);
+			}
+
+			if (const uint32 HalfCount = DataSetVarLayout.GetNumHalfComponents())
+			{
+				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout.HalfComponentStart);
+			}
 		}
 	}
 
+	uint32 MaxNumComponents = 0;
+
+	for (uint32 ComponentCount : NumComponents)
+	{
+		MaxNumComponents = FMath::Max(MaxNumComponents, ComponentCount);
+	}
+
 	return MaxNumComponents;
+}
+
+bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform)const
+{
+	return bIsEnabled && Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName());
 }

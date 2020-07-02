@@ -272,7 +272,8 @@ public:
 			FLoadPackageAsyncDelegate InCompletionDelegate,
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
-			int32 InPackagePriority) override;
+			int32 InPackagePriority,
+			const FLinkerInstancingContext* InstancingContext) override;
 
 	EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit) override;
 

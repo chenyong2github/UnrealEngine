@@ -259,7 +259,7 @@ bool FAnalyticsProviderSwrve::SendToSwrve(const FString& MethodName, const FStri
 	});
 
 	// Create/send Http request for an event
-	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->SetHeader(TEXT("Content-Type"),
 		Payload.IsEmpty() ? TEXT("text/plain") : TEXT("application/x-www-form-urlencoded; charset=utf-8"));
 	HttpRequest->SetURL(FString::Printf(TEXT("%s%s?api_key=%s&user=%s&app_version=%s%s%s"),
@@ -288,7 +288,7 @@ bool FAnalyticsProviderSwrve::StartSession(const TArray<FAnalyticsEventAttribute
 		RecordEvent(TEXT("SessionAttributes"), Attributes);
 
 		// Create/send Http request to load the AB test resources
-		TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 		HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("text/plain"));
 		HttpRequest->SetURL(FString::Printf(TEXT("https://abtest.swrve.com/api/1/user_resources_diff?api_key=%s&user=%s&app_version=%d"),
 			*APIKey, *UserID, *AppVersion));

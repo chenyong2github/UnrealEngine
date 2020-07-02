@@ -11,7 +11,7 @@ void RenderHairPrePass(
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
 	FHairStrandClusterData HairClusterData,
-	FHairStrandsDatas& OutHairDatas)
+	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
@@ -44,7 +44,7 @@ void RenderHairBasePass(
 	FSceneRenderTargets& SceneContext,
 	TArray<FViewInfo>& Views,
 	FHairStrandClusterData HairClusterData,
-	FHairStrandsDatas& OutHairDatas)
+	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;

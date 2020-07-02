@@ -25,14 +25,14 @@ namespace Chaos
 		Automatic
 	};
 
-	struct FSimpleTransmissionConfig
+	struct CHAOSVEHICLESCORE_API FSimpleTransmissionConfig
 	{
 		FSimpleTransmissionConfig()
 			: FinalDriveRatio(1.f)
 			, ChangeUpRPM(5000)
 			, ChangeDownRPM(2500)
 			, GearChangeTime(0.2f)
-		//	, TransmissionLoss(0)
+			, TransmissionEfficiency(1.f)
 			, TransmissionType(ETransmissionType::Automatic)
 			, AutoReverse(true)
 		{
@@ -46,24 +46,17 @@ namespace Chaos
 		uint32 ChangeDownRPM;			// [#todo: RPM or % max RPM?]
 		float GearChangeTime; 			// [sec]
 
-//		float TransmissionLoss;			// Loss from friction in the system
+		float TransmissionEfficiency;	// Loss from friction in the system mean we might run at around 0.94 Efficiency
 
 		ETransmissionType TransmissionType;	// Specify Automatic or Manual transmission
 		bool AutoReverse;					// Arcade handling - holding Brake switches into reverse after vehicle has stopped
 	};
 
 
-	class FSimpleTransmissionSim : public TVehicleSystem<FSimpleTransmissionConfig>
+	class CHAOSVEHICLESCORE_API FSimpleTransmissionSim : public TVehicleSystem<FSimpleTransmissionConfig>
 	{
 	public:
-		FSimpleTransmissionSim(const FSimpleTransmissionConfig* SetupIn)
-			: TVehicleSystem<FSimpleTransmissionConfig>(SetupIn)
-			, CurrentGear(0)
-			, TargetGear(0)
-			, CurrentGearChangeTime(0.f)
-			, EngineRPM(0)
-		{
-		}
+		FSimpleTransmissionSim(const FSimpleTransmissionConfig* SetupIn);
 
 		//////////////////////////////////////////////////////////////////////////
 		// Input functions
@@ -71,22 +64,7 @@ namespace Chaos
 		/** set the target gear number to change to, can change gear immediately if specified
 		 *  i.e. rather than waiting for the gear change time to elapse
 		 */
-		void SetGear(int32 InGear, bool Immediate = false)
-		{
-			CorrectGearInputRange(InGear);
-
-			TargetGear = InGear;
-
-			if (Immediate || Setup().GearChangeTime == 0.f)
-			{
-				CurrentGear = TargetGear;
-			}
-			else
-			{
-				CurrentGear = 0;	// go through neutral for GearChangeTime time period
-				CurrentGearChangeTime = Setup().GearChangeTime;
-			}
-		}
+		void SetGear(int32 InGear, bool Immediate = false);
 
 		/** set the target gear to one higher than current target, will clamp gear index within rage */
 		void ChangeUp()
@@ -104,6 +82,11 @@ namespace Chaos
 		void SetEngineRPM(float InRPM)
 		{
 			EngineRPM = InRPM;
+		}
+
+		void SetAllowedToChangeGear(bool OkToChangeIn)
+		{
+			AllowedToChangeGear = OkToChangeIn;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -127,24 +110,13 @@ namespace Chaos
 			return CurrentGear != TargetGear;
 		}
 
-		/** Get the final combined gear ratio for the specified gear (reverse gears < 0, neutral 0, forward gears > 0) */
-		float GetGearRatio(int32 InGear)
+		bool IsOutOfGear() const
 		{
-			CorrectGearInputRange(InGear);
-
-			if (InGear > 0) // a forwards gear
-			{
-				return Setup().ForwardRatios[InGear - 1] * Setup().FinalDriveRatio;
-			}
-			else if (InGear < 0) // a reverse gear
-			{
-				return -Setup().ReverseRatios[FMath::Abs(InGear) - 1] * Setup().FinalDriveRatio;
-			}
-			else
-			{
-				return 0.f; // neutral has no ratio
-			}
+			return (CurrentGear == 0) || IsCurrentlyChangingGear();
 		}
+
+		/** Get the final combined gear ratio for the specified gear (reverse gears < 0, neutral 0, forward gears > 0) */
+		float GetGearRatio(int32 InGear);
 
 		/** Get the transmission RPM, from the specified engine RPM and gear selection */
 		float GetTransmissionRPM(float InEngineRPM, int InGear)
@@ -158,10 +130,10 @@ namespace Chaos
 			return GetTransmissionRPM(EngineRPM, CurrentGear);
 		}
 
-		/** Given the engine torque return the transmission torque taking into account the gear ratios */
+		/** Given the engine torque return the transmission torque taking into account the gear ratios and transmission losses */
 		float GetTransmissionTorque(float InEngineTorque)
 		{
-			return InEngineTorque * GetGearRatio(GetCurrentGear()); // #todo: what about transmission frictional losses
+			return InEngineTorque * GetGearRatio(GetCurrentGear()) * Setup().TransmissionEfficiency;
 		}
 
 		///** Given the transmission torque return the engine torque after taking into account the gear ratios */
@@ -181,34 +153,7 @@ namespace Chaos
 		 * - changes gear when using automatic transmission
 		 * - implements gear change time, where gear goes through neutral
 		 */
-		void Simulate(float DeltaTime)
-		{
-			if (Setup().TransmissionType == ETransmissionType::Automatic)
-			{
-				// not currently changing gear
-				if (!IsCurrentlyChangingGear())
-				{
-					if (EngineRPM >= Setup().ChangeUpRPM)
-					{
-						ChangeUp();
-					}
-					else if (EngineRPM <= Setup().ChangeDownRPM && CurrentGear > 1) // don't change down to neutral
-					{
-						ChangeDown();
-					}
-				}
-			}
-
-			if (CurrentGear != TargetGear)
-			{
-				CurrentGearChangeTime -= DeltaTime;
-				if (CurrentGearChangeTime <= 0.f)
-				{
-					CurrentGearChangeTime = 0.f;
-					CurrentGear = TargetGear;
-				}
-			}
-		}
+		void Simulate(float DeltaTime);
 
 
 	private:
@@ -222,6 +167,8 @@ namespace Chaos
 		float CurrentGearChangeTime; // Time to change gear, no power transmitted to the wheels during change
 
 		float EngineRPM;	// Engine Revs Per Minute
+
+		bool AllowedToChangeGear; /** conditions are ok for an automatic gear change */
 
 	};
 

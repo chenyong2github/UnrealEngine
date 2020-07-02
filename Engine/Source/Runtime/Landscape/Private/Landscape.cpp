@@ -163,10 +163,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 {
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	SetGenerateOverlapEvents(false);
-	CastShadow = true;
-	// by default we want to see the Landscape shadows even in the far shadow cascades
-	bCastFarShadow = true;
-	bAffectDistanceFieldLighting = true;
+	
 	bUseAsOccluder = true;
 	bAllowCullDistanceVolume = false;
 	CollisionMipLevel = 0;
@@ -714,9 +711,12 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 {
 	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
 
+	CastShadow = LandscapeProxy->CastShadow;
+	bCastDynamicShadow = LandscapeProxy->bCastDynamicShadow;
 	bCastStaticShadow = LandscapeProxy->bCastStaticShadow;
-	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bCastFarShadow = LandscapeProxy->bCastFarShadow;
+	bCastHiddenShadow = LandscapeProxy->bCastHiddenShadow;
+	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
 	LDMaxDrawDistance = LandscapeProxy->LDMaxDrawDistance;
@@ -1051,8 +1051,13 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	SetHidden(false);
 	SetReplicatingMovement(false);
 	SetCanBeDamaged(false);
-	// by default we want to see the Landscape shadows even in the far shadow cascades
+	
+	CastShadow = true;
+	bCastDynamicShadow = true;
+	bCastStaticShadow = true;
 	bCastFarShadow = true;
+	bCastHiddenShadow = false;
+	bCastShadowAsTwoSided = false;
 	bAffectDistanceFieldLighting = true;
 
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent0"));
@@ -1078,7 +1083,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	LOD0DistributionSetting = 1.25f;
 	LODDistributionSetting = 3.0f;
 	bCastStaticShadow = true;
-	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
 	bFillCollisionUnderLandscapeForNavmesh = false;
 	CollisionThickness = 16;
@@ -2560,8 +2564,13 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 
 		//PrePivot = Landscape->PrePivot;
 		StaticLightingResolution = Landscape->StaticLightingResolution;
+		CastShadow = Landscape->CastShadow;
+		bCastDynamicShadow = Landscape->bCastDynamicShadow;
 		bCastStaticShadow = Landscape->bCastStaticShadow;
+		bCastFarShadow = Landscape->bCastFarShadow;
+		bCastHiddenShadow = Landscape->bCastHiddenShadow;
 		bCastShadowAsTwoSided = Landscape->bCastShadowAsTwoSided;
+		bAffectDistanceFieldLighting = Landscape->bAffectDistanceFieldLighting;
 		LightingChannels = Landscape->LightingChannels;
 		bRenderCustomDepth = Landscape->bRenderCustomDepth;
 		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;		

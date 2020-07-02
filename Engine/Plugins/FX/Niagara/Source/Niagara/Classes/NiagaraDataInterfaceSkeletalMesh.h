@@ -237,14 +237,22 @@ enum class ENDISkeletalMesh_SkinningMode : uint8
 {
 	Invalid = (uint8)-1 UMETA(Hidden),
 
-	/** No skinning. */
+	/**
+	No skinning, use for reference pose only.
+	- Bone and socket sampling will be calculated on demand.
+	- Triangle and vertex sampling will be calculated on demand.
+	*/
 	None = 0,
-	/** Skin vertex locations as you need them. Use if you have a high poly mesh or you are sampling the interface a small number of times. */
+	/**
+	Skin as required, use for bone or socket sampling or when reading a subset of triangles or vertices.
+	- Bone and socket sampling will be calculated up front.
+	- Triangle and vertex sampling will be calculated on demand (Note: CPU Access required).
+	*/
 	SkinOnTheFly,
 	/**
-	Pre skins the whole mesh. Makes access to location data on the mesh much faster but incurs a significant initial cost in cpu time and memory to skin the mesh.
-	Cost is proportional to vertex count in the mesh.
-	Use if you are sampling skinned data from the mesh many times and are able to provide a low poly LOD to sample from.
+	Pre-skin the whole mesh, can be more optimal when reading a lot of triangle or vertex data.
+	- Bone and socket sampling will be calculated up front.
+	- Triangle and vertex sampling will be calculated up front (Note: CPU Access required).
 	*/
 	PreSkin,
 };
@@ -291,7 +299,7 @@ public:
 
 	virtual ~FSkeletalMeshGpuSpawnStaticBuffers();
 
-	FORCEINLINE_DEBUGGABLE void Initialise(struct FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData,const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData);
+	FORCEINLINE_DEBUGGABLE void Initialise(struct FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData,const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData, FNiagaraSystemInstance* SystemInstance);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -579,6 +587,7 @@ public:
 	UPROPERTY(Transient)
 	USkeletalMeshComponent* SourceComponent;
 
+	/** Selects which skinning mode to use, for most cases Skin On The Fly will cover your requirements, see individual tooltips for more information. */
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	ENDISkeletalMesh_SkinningMode SkinningMode;
 
@@ -608,6 +617,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
 	uint8 bExcludeBone : 1;
 
+
+	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
+	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bRequireCurrentFrameData = true;
+
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
 
@@ -624,6 +639,7 @@ public:
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDISkeletalMesh_InstanceData); }
+	virtual bool HasPreSimulateTick() const override { return true; }
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)override;

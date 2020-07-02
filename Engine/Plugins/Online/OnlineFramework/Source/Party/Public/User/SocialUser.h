@@ -136,6 +136,10 @@ public:
 
 	FString ToDebugString() const;
 
+	void EstablishOssInfo(const TSharedRef<FOnlineFriend>& FriendInfo, ESocialSubsystem SubsystemType);
+	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
+	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
+
 PARTY_SCOPE:
 	void InitLocalUser();
 	void Initialize(const FUniqueNetIdRepl& PrimaryId);
@@ -144,10 +148,6 @@ PARTY_SCOPE:
 	void NotifyUserUnblocked(ESocialSubsystem SubsystemType);
 	void NotifyFriendInviteRemoved(ESocialSubsystem SubsystemType);
 	void NotifyUserUnfriended(ESocialSubsystem SubsystemType);
-
-	void EstablishOssInfo(const TSharedRef<FOnlineFriend>& FriendInfo, ESocialSubsystem SubsystemType);
-	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
-	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
 
 #if WITH_EDITOR
 	void Debug_RandomizePresence();

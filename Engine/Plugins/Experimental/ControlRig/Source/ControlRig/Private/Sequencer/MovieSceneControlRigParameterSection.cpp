@@ -3,13 +3,14 @@
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "Animation/AnimSequence.h"
 #include "Logging/MessageLog.h"
+#include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "MovieScene.h"
 #include "Sequencer/ControlRigSequence.h"
-#include "Sequencer/ControlRigBindingTemplate.h"
 #include "Sequencer/MovieSceneControlRigInstanceData.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/ControlRigSortedControls.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
@@ -64,7 +65,7 @@ struct FParameterFloatChannelEditorData
 
 		if (Track)
 		{
-			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneEvaluationTrack EvalTrack = CastChecked<IMovieSceneTrackTemplateProducer>(Track)->GenerateTrackTemplate(Track);
 			FMovieSceneInterrogationData InterrogationData;
 			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
 
@@ -214,7 +215,7 @@ struct FParameterVectorChannelEditorData
 
 		if (Track)
 		{
-			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneEvaluationTrack EvalTrack = CastChecked<IMovieSceneTrackTemplateProducer>(Track)->GenerateTrackTemplate(Track);
 			FMovieSceneInterrogationData InterrogationData;
 			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
 
@@ -585,7 +586,7 @@ struct FParameterTransformChannelEditorData
 		float& OutValue, float& OutWeight)
 	{
 		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-		FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+		FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneControlRigParameterTrack>(Track)->GenerateTrackTemplate(Track);
 		FMovieSceneInterrogationData InterrogationData;
 		RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
 

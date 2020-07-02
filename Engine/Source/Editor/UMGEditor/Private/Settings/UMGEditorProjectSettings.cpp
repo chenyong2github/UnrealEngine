@@ -16,10 +16,6 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 
 	bUseWidgetTemplateSelector = false;
 	DefaultRootWidget = UCanvasPanel::StaticClass();
-
-	// Deprecated
-	bCookSlowConstructionWidgetTree_DEPRECATED = true;
-	bWidgetSupportsDynamicCreation_DEPRECATED = true;
 }
 
 #if WITH_EDITOR
@@ -35,16 +31,6 @@ FText UUMGEditorProjectSettings::GetSectionDescription() const
 }
 
 #endif
-
-bool UUMGEditorProjectSettings::CompilerOption_SupportsDynamicCreation(const class UWidgetBlueprint* WidgetBlueprint) const
-{
-	return GetFirstCompilerOption(WidgetBlueprint, &FWidgetCompilerOptions::bWidgetSupportsDynamicCreation, true);
-}
-
-bool UUMGEditorProjectSettings::CompilerOption_CookSlowConstructionWidgetTree(const class UWidgetBlueprint* WidgetBlueprint) const
-{
-	return GetFirstCompilerOption(WidgetBlueprint, &FWidgetCompilerOptions::bCookSlowConstructionWidgetTree, true);
-}
 
 bool UUMGEditorProjectSettings::CompilerOption_AllowBlueprintTick(const class UWidgetBlueprint* WidgetBlueprint) const
 {
@@ -165,9 +151,4 @@ void UUMGEditorProjectSettings::PostInitProperties()
 
 void UUMGEditorProjectSettings::PerformUpgradeStepForVersion(int32 ForVersion)
 {
-	if (ForVersion == 1)
-	{
-		DefaultCompilerOptions.bCookSlowConstructionWidgetTree = bCookSlowConstructionWidgetTree_DEPRECATED;
-		DefaultCompilerOptions.bWidgetSupportsDynamicCreation = bWidgetSupportsDynamicCreation_DEPRECATED;
-	}
 }

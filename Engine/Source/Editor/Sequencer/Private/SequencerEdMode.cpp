@@ -11,12 +11,14 @@
 #include "Framework/Application/SlateApplication.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "SequencerCommonHelpers.h"
 #include "MovieSceneHitProxy.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Sections/MovieSceneAudioSection.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "SubtitleManager.h"
 #include "SequencerMeshTrail.h"
 #include "SequencerKeyActor.h"
@@ -183,7 +185,7 @@ void FSequencerEdMode::OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* K
 				Sequencer->GetSelection().EmptySelectedKeys();
 			}
 
-			for (const FTrajectoryKey::FData KeyData : KeyProxy->Key.KeyData)
+			for (const FTrajectoryKey::FData& KeyData : KeyProxy->Key.KeyData)
 			{
 				UMovieSceneSection* Section = KeyData.Section.Get();
 				TOptional<FSectionHandle> SectionHandle = Sequencer->GetNodeTree()->GetSectionHandle(Section);
@@ -315,7 +317,7 @@ bool FSequencerEdMode::GetParentTM(FTransform& CurrentRefTM, const TSharedPtr<FS
 		//we used to loop between sections here and only evaluate if we are in a section, this will give us wrong transfroms though
 		//when in between or outside of the section range. We still want to evaluate, though it is heavy.
 
-		FMovieSceneEvaluationTrack* EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), TransformTrack->GetSignature());
+		const FMovieSceneEvaluationTrack* EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), TransformTrack->GetSignature());
 		if (EvalTrack)
 		{
 			FVector ParentKeyPos;
@@ -377,20 +379,12 @@ FTransform FSequencerEdMode::GetRefFrameFromParents(const TSharedPtr<FSequencer>
 	return RefTM;
 }
 
-void FSequencerEdMode::GetLocationAtTime(FMovieSceneEvaluationTrack* Track, UObject* Object, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer)
+void FSequencerEdMode::GetLocationAtTime(const FMovieSceneEvaluationTrack* Track, UObject* Object, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer)
 {
-	FMovieSceneInterrogationData InterrogationData;
-	Sequencer->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
-
-	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, Sequencer->GetFocusedTickResolution()));
-	Track->Interrogate(Context, InterrogationData, Object);
-
-	for (const FTransformData& Transform : InterrogationData.Iterate<FTransformData>(UMovieScene3DTransformSection::GetInterrogationKey()))
-	{
-		KeyPos = Transform.Translation;
-		KeyRot = Transform.Rotation;
-		break;
-	}
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// TODO: Reimplement trajectory rendering
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	UE_MOVIESCENE_TODO(Reimplement trajectory rendering)
 }
 
 void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<FSequencer>& Sequencer, FPrimitiveDrawInterface* PDI,
@@ -434,7 +428,11 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<FSequencer>& Sequence
 	);
 	
 	FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-	FMovieSceneEvaluationTemplate* Template = Sequencer->GetEvaluationTemplate().FindTemplate(Sequencer->GetFocusedTemplateID());
+
+	FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
+	FMovieSceneCompiledDataID SubDataID = Instance.GetCompiledDataManager()->GetSubDataID(Instance.GetCompiledDataID(), Sequencer->GetFocusedTemplateID());
+	const FMovieSceneEvaluationTemplate* Template = SubDataID.IsValid() ? Instance.GetCompiledDataManager()->FindTrackTemplate(SubDataID) : nullptr;
+
 	if (!bShowTrajectory || !Template || !TransformTrack->GetAllSections().ContainsByPredicate([](UMovieSceneSection* In){ return In->IsActive(); }))
 	{
 		return;
@@ -442,7 +440,7 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<FSequencer>& Sequence
 
 	FLinearColor TrackColor = TransformTrack->GetColorTint();
 	// Draw one line per-track (should only really ever be one)
-	if (FMovieSceneEvaluationTrack * EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), TransformTrack->GetSignature()))
+	if (const FMovieSceneEvaluationTrack * EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), TransformTrack->GetSignature()))
 	{
 		TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
 		
@@ -744,7 +742,7 @@ void FSequencerEdMode::DrawAudioTracks(FPrimitiveDrawInterface* PDI)
 					if (AttachBindingID.GetSequenceID().IsValid())
 					{
 						// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-						FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Sequencer->GetEvaluationTemplate().GetHierarchy());
+						FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, *Sequencer);
 						SequenceID = RootBindingID.GetSequenceID();
 					}
 

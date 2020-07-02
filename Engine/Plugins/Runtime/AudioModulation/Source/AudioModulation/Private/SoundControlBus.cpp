@@ -6,6 +6,7 @@
 #include "AudioModulation.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
+#include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
 #include "SoundModulatorLFO.h"
@@ -13,9 +14,6 @@
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bBypass(false)
-	, DefaultValue(1.0f)
-	, Min(0.0f)
-	, Max(1.0f)
 #if WITH_EDITORONLY_DATA
 	, bOverrideAddress(false)
 #endif
@@ -42,15 +40,10 @@ void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& InPrope
 			Address = GetName();
 		}
 
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, DefaultValue)
-			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Min)
-			|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, Max))
+		AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem & OutModSystem)
 		{
-			Min = FMath::Min(Min, Max);
-			DefaultValue = FMath::Clamp(DefaultValue, Min, Max);
-		}
-
-		AudioModulation::OnEditModulator(InPropertyChangedEvent, *this);
+			OutModSystem.UpdateModulator(*this);
+		});
 	}
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
@@ -75,32 +68,6 @@ void USoundControlBusBase::PostRename(UObject* OldOuter, const FName OldName)
 }
 #endif // WITH_EDITOR
 
-USoundVolumeControlBus::USoundVolumeControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-USoundPitchControlBus::USoundPitchControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-USoundLPFControlBus::USoundLPFControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-USoundHPFControlBus::USoundHPFControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	DefaultValue = 0.0f;
-}
-
-USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 void USoundControlBusBase::BeginDestroy()
 {
 	Super::BeginDestroy();
@@ -119,3 +86,21 @@ void USoundControlBusBase::BeginDestroy()
 		}
 	}
 }
+
+const Audio::FModulationMixFunction& USoundControlBusBase::GetMixFunction() const
+{
+	return Audio::FModulationParameter::GetDefaultMixFunction();
+}
+
+USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, Parameter(nullptr)
+{
+}
+
+#if WITH_EDITOR
+void USoundControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(InPropertyChangedEvent);
+}
+#endif // WITH_EDITOR

@@ -7,129 +7,37 @@
 #include "AnalyticsET.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
-/** ET specific analytics provider instance. Exposes additional APIs to support Json-based events, using move-semantics, and allowing events to be disabled (generally via hotfixing). */
+/** ET specific analytics provider instance. Exposes additional APIs to support Json-based events, default attributes, and allowing events to be disabled (generally via hotfixing). */
 class IAnalyticsProviderET : public IAnalyticsProvider
 {
 public:
+	using IAnalyticsProvider::StartSession;
+	using IAnalyticsProvider::RecordEvent;
+
 	////////////////////////////////////////////////////////////////////////////////////
-	// Start IAnalyticsProvider overrides for deprecation.
-	bool StartSession()
-	{
-		return StartSession(TArray<FAnalyticsEventAttribute>());
-	}
+	// IAnalyticsProvider overrides
 
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated")
-	bool StartSession(const FAnalyticsEventAttribute& Attribute)
-	{
-		return StartSession(TArray<FAnalyticsEventAttribute> {Attribute});
-	}
-
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated")
-	bool StartSession(const FString& ParamName, const FString& ParamValue)
-	{
-		return StartSession(TArray<FAnalyticsEventAttribute> {FAnalyticsEventAttribute(ParamName, ParamValue)});
-	}
-
-	//UE_DEPRECATED(4.25, "This version of StartSession has been deprecated")
-	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override
-	{
-		return StartSession(CopyTemp(Attributes));
-	}
-
-	void RecordEvent(const FString& EventName)
-	{
-		RecordEvent(EventName, TArray<FAnalyticsEventAttribute>());
-	}
-
-	void RecordEvent(FString&& EventName)
-	{
-		RecordEvent(MoveTemp(EventName), TArray<FAnalyticsEventAttribute>());
-	}
-
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated")
-	void RecordEvent(const FString& EventName, const FAnalyticsEventAttribute& Attribute)
-	{
-		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> {Attribute});
-	}
-
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated")
-	void RecordEvent(const FString& EventName, const FString& ParamName, const FString& ParamValue)
-	{
-		RecordEvent(EventName, TArray<FAnalyticsEventAttribute> {FAnalyticsEventAttribute(ParamName, ParamValue)});
-	}
-
-	//UE_DEPRECATED(4.25, "This version of RecordEvent has been deprecated")
+	/**
+	 * This class augments RecordEvent with a version that takes the EventName by rvalue reference to save a string copy. Implement the base version in terms of this one.
+	 */
 	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override
 	{
-		RecordEvent(EventName, CopyTemp(Attributes));
-	}
-
-	// End IAnalyticsProvider overrides for deprecation.
-	////////////////////////////////////////////////////////////////////////////////////
-
-	////////////////////////////////////////////////////////////////////////////////////
-	// Start IAnalyticsProviderET interface using old attribute type
-
-	/**
-	* Sends an event where each attribute value is expected to be a string-ified Json value.
-	* Meaning, each attribute value can be an integer, float, bool, string,
-	* arbitrarily complex Json array, or arbitrarily complex Json object.
-	*
-	* The main thing to remember is that if you pass a Json string as an attribute value, it is up to you to
-	* quote the string, as the string you pass is expected to be able to be pasted directly into a Json value. ie:
-	*
-	* {
-	*     "EventName": "MyStringEvent",
-	*     "IntAttr": 42                 <--- You simply pass this in as "42"
-	*     "StringAttr": "SomeString"    <--- You must pass SomeString as "\"SomeString\""
-	* }
-	*
-	* @param EventName			The name of the event.
-	* @param AttributesJson	array of key/value attribute pairs where each value is a Json value (pure Json strings mustbe quoted by the caller).
-	*/
-	UE_DEPRECATED(4.25, "RecordEventJson has been deprecated, Use RecordEvent with FJsonFragment instead")
-	void RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson)
-	{
-		// call deprecated functions here, so turn off warnings.
-		for (FAnalyticsEventAttribute& Attr : AttributesJson)
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Attr.SwitchToJsonFragment();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		RecordEvent(MoveTemp(EventName), MoveTemp(AttributesJson));
+		return RecordEvent(CopyTemp(EventName), Attributes);
 	}
 
 	/**
-	* Helper for RecordEventJson when the array is not an rvalue reference.
-	*
-	* @param EventName			The name of the event.
-	* @param AttributesJson	array of key/value attribute pairs where each value is a Json value (pure Json strings mustbe quoted by the caller).
-	*/
-	UE_DEPRECATED(4.25, "RecordEventJson has been deprecated, Use RecordEvent with FJsonFragment instead")
-	void RecordEventJson(FString EventName, const TArray<FAnalyticsEventAttribute>& AttributesJson)
+	 * This class augments StartSession with a version that takes the SessionID instead of always generating it. Implement the base version in terms of this one.
+	 */
+	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		// make a copy of the array if it's not an rvalue reference
-		RecordEventJson(MoveTemp(EventName), CopyTemp(AttributesJson));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FGuid SessionGUID;
+		FPlatformMisc::CreateGuid(SessionGUID);
+		return StartSession(SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces), Attributes);
 	}
 
-	/**
-	* returns the current set of default event attributes set on the provider.
-	*
-	* @param Attributes array of attributes that should be appended to every event.
-	*/
-	UE_DEPRECATED(4.25, "This version of GetDefaultEventAttributes has been deprecated, Use GetDefaultEventAttributesSafe instead")
-	const TArray<FAnalyticsEventAttribute>& GetDefaultEventAttributes() const
-	{
-		// Support the old (unsafe) API by copying the values being returned. 
-		UnsafeDefaultAttributes = GetDefaultEventAttributesSafe();
-		return UnsafeDefaultAttributes;
-	}
-
-	// End IAnalyticsProviderET interface using old attribute type
+	// IAnalyticsProvider overrides
 	////////////////////////////////////////////////////////////////////////////////////
+
 
 	/**
 	 * Special setter to set the AppID, something that is not normally allowed for third party analytics providers.
@@ -138,7 +46,6 @@ public:
 	 */
 	virtual void SetAppID(FString&& AppID) = 0;
 
-	
 	/**
 	 * Method to get the AppID (APIKey)
 	 *
@@ -160,22 +67,10 @@ public:
 	*/
 	const FString& GetAppVersion() const { return GetConfig().AppVersionET; }
 
-	bool StartSession(FString InSessionID)
-	{
-		return StartSession(MoveTemp(InSessionID), TArray<FAnalyticsEventAttribute>());
-	}
-
-	bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
-	{
-		FGuid SessionGUID;
-		FPlatformMisc::CreateGuid(SessionGUID);
-		return StartSession(SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces), MoveTemp(Attributes));
-	}
-
 	/**
 	 * Primary StartSession API. Allow move semantics to capture the attributes.
 	 */
-	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) = 0;
+	virtual bool StartSession(FString InSessionID, const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
 
 	/**
 	* Allows higher level code to abort logic to set up for a RecordEvent call by checking the filter that will be used to send the event first.
@@ -188,8 +83,7 @@ public:
 	/**
 	 * Primary RecordEvent API. Allow move semantics to capture the attributes.
 	 */
-	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) = 0;
-
+	virtual void RecordEvent(FString&& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) = 0;
 
 	/**
 	 * Sets an array of attributes that will automatically be appended to any event that is sent.

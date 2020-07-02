@@ -9,6 +9,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/PackageName.h"
 #include "Templates/SharedPointer.h"
 
 template< typename InterfaceType >
@@ -299,7 +300,11 @@ class FDatasmithMaterialIDElementImpl : public FDatasmithElementImpl< IDatasmith
 {
 public:
 	explicit FDatasmithMaterialIDElementImpl(const TCHAR* InName);
-
+	virtual void SetName(const TCHAR* InName) override
+	{
+		FString Unsanitized = InName;
+		Name = FPackageName::IsValidObjectPath(Unsanitized) ? Unsanitized : FDatasmithUtils::SanitizeObjectName(Unsanitized);
+	}
 	virtual int32 GetId() const override { return Id; }
 	virtual void SetId(int32 InId) override { Id = InId; }
 

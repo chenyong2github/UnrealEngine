@@ -1034,6 +1034,7 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 
 	PlayInEditorSessionInfo = FPlayInEditorSessionInfo();
 	PlayInEditorSessionInfo->PlayRequestStartTime = FPlatformTime::Seconds();
+	PlayInEditorSessionInfo->PlayRequestStartTime_StudioAnalytics = FStudioAnalytics::GetAnalyticSeconds();
 
 	// Keep a copy of their original request settings for any late
 	// joiners or async processes that need access to the settings after launch.
@@ -1647,9 +1648,9 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 	else
 	{
 		FPieLoginStruct PIELoginInfo;
-		PIELoginInfo.PIEStartTime = FPlatformTime::Seconds();
 
 		FGameInstancePIEParameters GameInstancePIEParameters;
+		GameInstancePIEParameters.PIEStartTime = PlayInEditorSessionInfo->PlayRequestStartTime_StudioAnalytics;
 		GameInstancePIEParameters.bAnyBlueprintErrors = PlayInEditorSessionInfo->bAnyBlueprintErrors;
 		// If they require a server and one hasn't been launched then it is dedicated. If they're a client or listen server
 		// then it doesn't count as a dedicated server so this can be false (NetMode will handle ListenServer).
@@ -2112,17 +2113,8 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 		GWorld = NULL;
 
 		// Duplicate the editor world to create the PIE world
-		NewPIEWorld = CastChecked<UWorld>( StaticDuplicateObject(
-			InWorld,				// Source root
-			PlayWorldPackage,		// Destination root
-			InWorld->GetFName(),	// Name for new object
-			RF_AllFlags,			// FlagMask
-			NULL,					// DestClass
-			EDuplicateMode::PIE
-			) );
+		NewPIEWorld = UWorld::GetDuplicatedWorldForPIE(InWorld, PlayWorldPackage, WorldContext.PIEInstance);
 
-		// Store prefix we used to rename this world and streaming levels package names
-		NewPIEWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(WorldContext.PIEInstance);
 		// Fixup model components. The index buffers have been created for the components in the source world and the order
 		// in which components were post-loaded matters. So don't try to guarantee a particular order here, just copy the
 		// elements over.

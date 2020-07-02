@@ -29,6 +29,7 @@ enum class EInstallBundleManagerInitResult : int
 {
 	OK,
 	BuildMetaDataNotFound,
+	RemoteBuildMetaDataNotFound,
 	BuildMetaDataDownloadError,
 	BuildMetaDataParsingError,
 	DistributionRootParseError,
@@ -39,6 +40,7 @@ enum class EInstallBundleManagerInitResult : int
 	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
 	ConfigurationError,
+	ClientPatchRequiredError,
 	Count
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
@@ -99,7 +101,6 @@ enum class EInstallBundleRequestInfoFlags : int32
 	SkippedInvalidBundles = (1 << 4), // Bundle can't be used with this build
 	SkippedUnusableLanguageBundles = (1 << 5), // Can't enqueue language bundles because of current system settings
 	SkippedBundlesDueToBundleSource = (1 << 6), // A bundle source rejected a bundle for some reason
-	InitializationError = (1 << 7), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -114,6 +115,7 @@ enum class EInstallBundleResult : int
 	ManifestArchiveError,
 	UserCancelledError,
 	InitializationError,
+	InitializationPending,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleResult Result);

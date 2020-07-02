@@ -50,11 +50,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
 #if NV_AFTERMATH
 #define GFSDK_Aftermath_WITH_DX12 1
 #include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_GpuCrashdump.h"
 #undef GFSDK_Aftermath_WITH_DX12
 extern int32 GDX12NVAfterMathEnabled;
-extern int32 GDX12NVAfterMathTrackResources;
-extern int32 GDX12NVAfterMathMarkers;
 #endif
 
 #include "D3D12Residency.h"
@@ -94,12 +91,12 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
 #if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
 #if D3D12_RHI_RAYTRACING
   // #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
-  #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (8 * 1024 * 1024)
-  #define DEFAULT_BUFFER_POOL_SIZE (16 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
 #else
   // On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
   #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024)
-  #define DEFAULT_BUFFER_POOL_SIZE (8 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
 #endif //D3D12_RHI_RAYTRACING
 #endif //DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE
 

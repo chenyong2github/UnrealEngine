@@ -26,5 +26,17 @@ public:
 	 */
 	virtual bool SaveGeneratedTexture2D(
 		UTexture2D* GeneratedTexture,
-		FString ObjectBaseName) override;
+		FString ObjectBaseName,
+		const UObject* RelativeToAsset) override;
+
+	/**
+	 * Determines path and name for a new Actor/Asset based on current mode settings, etc
+	 */
+	virtual bool GetNewActorPackagePath(
+		UWorld* TargetWorld,
+		FString ObjectBaseName,
+		const FGeneratedStaticMeshAssetConfig& AssetConfig,
+		FString& PackageFolderPathOut,
+		FString& ObjectBaseNameOut
+		);
 };

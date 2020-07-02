@@ -55,7 +55,7 @@ public:
 	bool bSeparateUVIslands = true;
 
 	/** Expected resolution of output textures; controls spacing left between charts */
-	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "256", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = "bSeparateUVIslands"))
+	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = "bSeparateUVIslands"))
 	int TextureResolution = 1024;
 
 	UPROPERTY(EditAnywhere, Category = UVLayout)

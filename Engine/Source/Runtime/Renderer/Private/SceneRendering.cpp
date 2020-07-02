@@ -2080,6 +2080,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	ViewFamily(*InViewFamily)
 ,	MeshCollector(InViewFamily->GetFeatureLevel())
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel())
+,	bHasRequestedToggleFreeze(false)
 ,	bUsedPrecomputedVisibility(false)
 ,	InstancedStereoWidth(0)
 ,	RootMark(nullptr)
@@ -2195,8 +2196,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 	}
 
 	// copy off the requests
-	// (I apologize for the const_cast, but didn't seem worth refactoring just for the freezerendering command)
-	bHasRequestedToggleFreeze = const_cast<FRenderTarget*>(InViewFamily->RenderTarget)->HasToggleFreezeCommand();
+	if(ensure(InViewFamily->RenderTarget))
+	{
+		// (I apologize for the const_cast, but didn't seem worth refactoring just for the freezerendering command)
+		bHasRequestedToggleFreeze = const_cast<FRenderTarget*>(InViewFamily->RenderTarget)->HasToggleFreezeCommand();
+	}
 
 	FeatureLevel = Scene->GetFeatureLevel();
 	ShaderPlatform = Scene->GetShaderPlatform();
@@ -3477,12 +3481,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	if(SceneRenderer->ViewFamily.EngineShowFlags.OnScreenDebug)
 	{
 		GRenderTargetPool.SetEventRecordingActive(true);
-	}
-
-	if (UseVirtualTexturing(SceneRenderer->FeatureLevel))
-	{
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, SceneRenderer->FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
 	{

@@ -15,7 +15,7 @@
 // This should only be defined here. Modules who wish to use this category should contain the line
 // 		CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 //
-CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, true);
+CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, false);
 
 // Command to enable logging to display accurate audio render times
 static int32 LogRenderTimesCVar = 0;
@@ -24,6 +24,14 @@ FAutoConsoleVariableRef CVarLogRenderTimes(
 	LogRenderTimesCVar,
 	TEXT("Logs Audio Render Times.\n")
 	TEXT("0: Not Log, 1: Log"),
+	ECVF_Default);
+
+static float MinTimeBetweenUnderrunWarningsMs = 1000.f*10.f;
+FAutoConsoleVariableRef CVarMinTimeBetweenUnderrunWarningsMs(
+	TEXT("au.MinLogTimeBetweenUnderrunWarnings"),
+	MinTimeBetweenUnderrunWarningsMs,
+	TEXT("Min time between underrun warnings (globally) in MS\n")
+	TEXT("Set the time between each subsequent underrun log warning globaly (defaults to 10secs)"),
 	ECVF_Default);
 
 // Command for setting the audio render thread priority.
@@ -485,10 +493,10 @@ namespace Audio
 			DeviceSwapCriticalSection.Unlock();
 			return;
 		}
-
-		// If it's not ready, warn, and then wait here. This will cause underruns but is preferable than getting out-of-order buffer state.
+		
 		static int32 UnderrunCount = 0;
 		static int32 CurrentUnderrunCount = 0;
+		static uint64 TimeLastWarningCycles = 0;
 
 		int32 NumSamplesPopped = 0;
 		TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(NumSamplesPopped);
@@ -501,15 +509,23 @@ namespace Audio
 			CurrentUnderrunCount++;
 			
 			if (!bWarnedBufferUnderrun)
-			{						
-				UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun detected. Things to try: Increase # output buffers, ensure audio-render thread has time to run (affinity and priority), debug your mix and reduce # sounds playing."));
-				bWarnedBufferUnderrun = true;
+			{
+				float ElapsedTimeInMs = static_cast<float>(FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - TimeLastWarningCycles));
+				if( ElapsedTimeInMs > MinTimeBetweenUnderrunWarningsMs )
+				{
+					// Underrun/Starvation:
+					// Things to try: Increase # output buffers, ensure audio-render thread has time to run (affinity and priority), debug your mix and reduce # sounds playing.
+
+					UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun (starvation) detected."));
+					bWarnedBufferUnderrun = true;
+					TimeLastWarningCycles = FPlatformTime::Cycles64();
+				}
 			}
 		}
 		else
 		{
 			// As soon as a valid buffer goes through, allow more warning
-				if (bWarnedBufferUnderrun)
+			if (bWarnedBufferUnderrun)
 			{
 				UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio had %d underruns [Total: %d]."), CurrentUnderrunCount, UnderrunCount);
 			}

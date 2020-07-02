@@ -356,7 +356,13 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		// Notify any listeners of this change
 		if (SnapshotDeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
 		{
-			CurrentObject->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, SnapshotDeltaChange, ChangedObjectTransactionAnnotation, InitialSerializedObject.ObjectName, InitialSerializedObject.ObjectPathName, InitialSerializedObject.ObjectOuterPathName, InitialSerializedObject.ObjectClassPathName));
+			CurrentObject->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, SnapshotDeltaChange, ChangedObjectTransactionAnnotation
+				, InitialSerializedObject.ObjectPackageName
+				, InitialSerializedObject.ObjectName
+				, InitialSerializedObject.ObjectPathName
+				, InitialSerializedObject.ObjectOuterPathName
+				, InitialSerializedObject.ObjectExternalPackageName
+				, InitialSerializedObject.ObjectClassPathName));
 		}
 	}
 }
@@ -409,6 +415,7 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 	{
 		OutDeltaChange.bHasNameChange |= OldSerializedObject.ObjectName != NewSerializedObject.ObjectName;
 		OutDeltaChange.bHasOuterChange |= OldSerializedObject.ObjectOuterPathName != NewSerializedObject.ObjectOuterPathName;
+		OutDeltaChange.bHasExternalPackageChange |= OldSerializedObject.ObjectExternalPackageName != NewSerializedObject.ObjectExternalPackageName;
 		OutDeltaChange.bHasPendingKillChange |= OldSerializedObject.bIsPendingKill != NewSerializedObject.bIsPendingKill;
 
 		if (!AreObjectPointersIdentical(NAME_None))
@@ -961,7 +968,13 @@ void FTransaction::Apply()
 		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
 		{
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
-			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, ChangedObjectTransactionAnnotation, InitialSerializedObject.ObjectName, InitialSerializedObject.ObjectPathName, InitialSerializedObject.ObjectOuterPathName, InitialSerializedObject.ObjectClassPathName));
+			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, ChangedObjectTransactionAnnotation
+				, InitialSerializedObject.ObjectPackageName
+				, InitialSerializedObject.ObjectName
+				, InitialSerializedObject.ObjectPathName
+				, InitialSerializedObject.ObjectOuterPathName
+				, InitialSerializedObject.ObjectExternalPackageName
+				, InitialSerializedObject.ObjectClassPathName));
 		}
 	}
 
@@ -1022,7 +1035,13 @@ void FTransaction::Finalize()
 			UObject* ChangedObject = ChangedObjectIt.Key;
 			
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
-			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, DeltaChange, ChangedObjectTransactionAnnotation, InitialSerializedObject.ObjectName, InitialSerializedObject.ObjectPathName, InitialSerializedObject.ObjectOuterPathName, InitialSerializedObject.ObjectClassPathName));
+			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, DeltaChange, ChangedObjectTransactionAnnotation
+				, InitialSerializedObject.ObjectPackageName
+				, InitialSerializedObject.ObjectName
+				, InitialSerializedObject.ObjectPathName
+				, InitialSerializedObject.ObjectOuterPathName
+				, InitialSerializedObject.ObjectExternalPackageName
+				, InitialSerializedObject.ObjectClassPathName));
 		}
 	}
 	ChangedObjects.Reset();
@@ -1078,7 +1097,13 @@ FTransactionDiff FTransaction::GenerateDiff() const
 				{
 					// Since this transaction is not currently in an undo operation, generate a valid Guid.
 					FGuid Guid = FGuid::NewGuid();
-					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(this->GetId(), Guid, ETransactionObjectEventType::Finalized, RecordDeltaChange, ObjectRecord.SerializedObject.ObjectAnnotation, ObjectRecord.SerializedObject.ObjectName, ObjectRecord.SerializedObject.ObjectPathName, ObjectRecord.SerializedObject.ObjectOuterPathName, ObjectRecord.SerializedObject.ObjectClassPathName));
+					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(this->GetId(), Guid, ETransactionObjectEventType::Finalized, RecordDeltaChange, ObjectRecord.SerializedObject.ObjectAnnotation
+						, ObjectRecord.SerializedObject.ObjectPackageName
+						, ObjectRecord.SerializedObject.ObjectName
+						, ObjectRecord.SerializedObject.ObjectPathName
+						, ObjectRecord.SerializedObject.ObjectOuterPathName
+						, ObjectRecord.SerializedObject.ObjectExternalPackageName
+						, ObjectRecord.SerializedObject.ObjectClassPathName));
 				}
 			}
 		}

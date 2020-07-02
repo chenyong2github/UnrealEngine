@@ -12,11 +12,10 @@
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Evaluation/MovieSceneTrackImplementation.h"
-#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
 #include "MovieSceneEvaluationTrack.generated.h"
 
 struct FMovieSceneInterrogationData;
-struct FMovieSceneEvaluationTrackSegments;
 
 class UMovieSceneTrack;
 
@@ -29,90 +28,6 @@ enum class EEvaluationMethod : uint8
 
 	/** Evaluation from one frame to the next must consider the entire swept delta range on the track. Example: Events */
 	Swept,
-};
-
-/** Custom serialized tree of section evaluation data for a track */
-USTRUCT()
-struct FSectionEvaluationDataTree
-{
-	GENERATED_BODY()
-
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << Tree;
-		return true;
-	}
-
-	/** Only called for serialization. Returns false to always serialize. */
-	bool Identical(const FSectionEvaluationDataTree* Other, uint32 PortFlags) const
-	{
-		return Tree == Other->Tree;
-	}
-
-	TMovieSceneEvaluationTree<FSectionEvaluationData> Tree;
-};
-template<> struct TStructOpsTypeTraits<FSectionEvaluationDataTree> : public TStructOpsTypeTraitsBase2<FSectionEvaluationDataTree> { enum { WithSerializer = true, WithIdentical = true }; };
-
-/** Structure that references a sorted array of segments by indirect identifiers */
-USTRUCT()
-struct FMovieSceneEvaluationTrackSegments
-{
-	GENERATED_BODY()
-
-	/** Index operator that allows lookup by ID */
-	FORCEINLINE const FMovieSceneSegment& operator[](FMovieSceneSegmentIdentifier ID) const
-	{
-		return SortedSegments[SegmentIdentifierToIndex[ID.GetIndex()]];
-	}
-
-	/** Index operator that allows lookup by ID */
-	FORCEINLINE FMovieSceneSegment& operator[](FMovieSceneSegmentIdentifier ID)
-	{
-		return SortedSegments[SegmentIdentifierToIndex[ID.GetIndex()]];
-	}
-
-	/** Access the sorted index of the specified valid identifier */
-	FORCEINLINE int32 GetSortedIndex(FMovieSceneSegmentIdentifier ID) const
-	{
-		return SegmentIdentifierToIndex.IsValidIndex(ID.GetIndex()) ? SegmentIdentifierToIndex[ID.GetIndex()] : INDEX_NONE;
-	}
-
-	/** Access the sorted array of segments */
-	TArrayView<FMovieSceneSegment> GetSorted()
-	{
-		return SortedSegments;
-	}
-
-	/** Access the sorted array of segments */
-	TArrayView<const FMovieSceneSegment> GetSorted() const
-	{
-		return SortedSegments;
-	}
-
-	/** Reset this container, invalidating any previously produced identifiers */
-	void Reset(int32 ExpectedCapacity)
-	{
-		SegmentIdentifierToIndex.Reset(ExpectedCapacity);
-		SortedSegments.Reset(ExpectedCapacity);
-	}
-
-	/** Add a new segment to the container */
-	FMovieSceneSegmentIdentifier Add(FMovieSceneSegment&& In);
-
-	int32 Num() const
-	{
-		return SegmentIdentifierToIndex.Num();
-	}
-
-private:
-
-	/** Array of indices into SortedSegments where each FMovieSceneSegmentIdentifier represents and index into SegmentIdentifierToIndex. Never shuffled until the container is reset. */
-	UPROPERTY()
-	TArray<int32> SegmentIdentifierToIndex;
-
-	/** Array of segmented ranges contained within the track. */
-	UPROPERTY()
-	TArray<FMovieSceneSegment> SortedSegments;
 };
 
 /**
@@ -151,22 +66,6 @@ public:
 	}
 
 	/**
-	 * Get the segment from the given segment index
-	 */
-	FORCEINLINE const FMovieSceneSegment& GetSegment(FMovieSceneSegmentIdentifier ID) const
-	{
-		return Segments[ID];
-	}
-
-	/**
-	 * Get the segment from the given segment index
-	 */
-	FORCEINLINE TArrayView<const FMovieSceneSegment> GetSortedSegments() const
-	{
-		return Segments.GetSorted();
-	}
-
-	/**
 	 * Get this track's child templates
 	 * NOTE that this is intended for use during the compilation phase in-editor.
 	 * Beware of using this to modify templates afterwards as it will almost certainly break evaluation.
@@ -174,6 +73,14 @@ public:
 	FORCEINLINE TArrayView<FMovieSceneEvalTemplatePtr> GetChildTemplates()
 	{
 		return TArrayView<FMovieSceneEvalTemplatePtr>(ChildTemplates.GetData(), ChildTemplates.Num());
+	}
+
+	/**
+	 * Get this track's child templates
+	 */
+	FORCEINLINE TArrayView<const FMovieSceneEvalTemplatePtr> GetChildTemplates() const
+	{
+		return TArrayView<const FMovieSceneEvalTemplatePtr>(ChildTemplates.GetData(), ChildTemplates.Num());
 	}
 
 	/**
@@ -191,7 +98,7 @@ public:
 	{
 		return ChildTemplates.IsValidIndex(TemplateIndex) && ChildTemplates[TemplateIndex].IsValid();
 	}
-	
+
 public:
 
 	/**
@@ -316,7 +223,7 @@ public:
 	 * @param PersistentData		Persistent data store
 	 * @param Player				The player that is responsible for playing back this template
 	 */
-	void Initialize(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const;
+	void Initialize(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const;
 
 	/**
 	 * Called to evaluate the specified segment index
@@ -327,7 +234,7 @@ public:
 	 * @param PersistentData		Persistent data store
 	 * @param ExecutionTokens		Token stack on which to add tokens that will be executed later
 	 */
-	void Evaluate(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
+	void Evaluate(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
 
 	/**
 	 * Default implementation of initialization of child templates for the specified segment
@@ -338,7 +245,7 @@ public:
 	 * @param PersistentData		Persistent data store
 	 * @param Player				The player that is responsible for playing back this template
 	 */
-	MOVIESCENE_API void DefaultInitialize(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, FMovieSceneContext Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const;
+	MOVIESCENE_API void DefaultInitialize(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, FMovieSceneContext Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const;
 
 	/**
 	 * Default implementation of evaluation of child templates for the specified segment
@@ -349,7 +256,7 @@ public:
 	 * @param PersistentData		Persistent data store
 	 * @param ExecutionTokens		Token stack on which to add tokens that will be executed later
 	 */
-	MOVIESCENE_API void DefaultEvaluate(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
+	MOVIESCENE_API void DefaultEvaluate(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
 
 	/**
 	 * Interrogate this template for its output. Should not have any side effects.
@@ -358,19 +265,19 @@ public:
 	 * @param Container				Container to populate with the desired output from this track
 	 * @param BindingOverride		Optional binding to specify the object that is being animated by this track
 	 */
-	MOVIESCENE_API  void Interrogate(const FMovieSceneContext& Context, FMovieSceneInterrogationData& Container, UObject* BindingOverride = nullptr);
+	MOVIESCENE_API  void Interrogate(const FMovieSceneContext& Context, FMovieSceneInterrogationData& Container, UObject* BindingOverride = nullptr) const;
 
 private:
 
 	/**
 	 * Implementation function for static evaluation
 	 */
-	void EvaluateStatic(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, FMovieSceneContext Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
+	void EvaluateStatic(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, FMovieSceneContext Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
 
 	/**
 	 * Implementation function for swept evaluation
 	 */
-	void EvaluateSwept(FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
+	void EvaluateSwept(TArrayView<const FMovieSceneFieldEntry_ChildTemplate> Children, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const;
 
 public:
 
@@ -390,41 +297,9 @@ public:
 	MOVIESCENE_API int32 AddChildTemplate(FMovieSceneEvalTemplatePtr&& InTemplate);
 
 	/**
-	 * Find the first segment that overlaps the specified range
-	 *
-	 * @param InLocalRange 			The range in this track's space to overlap
-	 * @return A (potentially invalid) segment identifier for the first segment whose range overlaps the specified range
-	 */
-	FMovieSceneSegmentIdentifier FindFirstSegment(TRange<FFrameNumber> InLocalRange);
-
-	/**
-	 * Find or compile a segment for the specified time
-	 *
-	 * @param InTime 				The time to lookup or compile for
-	 * @return A (potentially invalid) segment identifier for the segment whose range overlaps the specified time
-	 */
-	FMovieSceneSegmentIdentifier GetSegmentFromTime(FFrameNumber InTime);
-
-	/**
-	 * Find or compile a segment for the specified iterator
-	 *
-	 * @param Iterator 				An iterator that should be used to find or compile time ranges. The iterator's current range is used to lookup segments
-	 * @return A (potentially invalid) segment identifier for the segment whose range overlaps the specified iterator's time range
-	 */
-	FMovieSceneSegmentIdentifier GetSegmentFromIterator(FMovieSceneEvaluationTreeRangeIterator Iterator);
-
-	/**
-	 * Find or compile all segments that overlap the specified range
-	 *
-	 * @param InLocalRange 			The range in this track's space to overlap
-	 * @return An (potentially empty) array of segment identifiers that overlap the specified range
-	 */
-	TArray<FMovieSceneSegmentIdentifier> GetSegmentsInRange(TRange<FFrameNumber> InLocalRange);
-
-	/**
 	 * Set the source track from which this track originates
 	 */
-	void SetSourceTrack(const UMovieSceneTrack* InSourceTrack)
+	void SetSourceTrack(UMovieSceneTrack* InSourceTrack)
 	{
 		SourceTrack = InSourceTrack;
 	}
@@ -432,55 +307,9 @@ public:
 	/**
 	 * Get the source track from which this track originates
 	 */
-	const UMovieSceneTrack* GetSourceTrack() const
+	UMovieSceneTrack* GetSourceTrack() const
 	{
 		return SourceTrack;
-	}
-
-	/**
-	 * Add section evaluation data to the evaluation tree for this track
-	 *
-	 * @param Range 		The range that the specified section data should apply to
-	 * @param EvalData 		The actual evaluation data
-	 */
-	void AddTreeData(TRange<FFrameNumber> Range, FSectionEvaluationData EvalData)
-	{
-		EvaluationTree.Tree.Add(Range, EvalData);
-	}
-
-	/**
-	 * Add section evaluation data to the evaluation tree for this track, ensuring no duplciates
-	 *
-	 * @param Range 		The range that the specified section data should apply to
-	 * @param EvalData 		The actual evaluation data
-	 */
-	void AddUniqueTreeData(TRange<FFrameNumber> Range, FSectionEvaluationData EvalData)
-	{
-		EvaluationTree.Tree.AddUnique(Range, EvalData);
-	}
-
-	/**
-	 * Iterate all this track's unique time ranges
-	 */
-	FMovieSceneEvaluationTreeRangeIterator Iterate() const
-	{
-		return FMovieSceneEvaluationTreeRangeIterator(EvaluationTree.Tree);
-	}
-
-	/**
-	 * Iterate all this track's unique time ranges starting from the specified lower bound
-	 */
-	FMovieSceneEvaluationTreeRangeIterator IterateFrom(TRangeBound<FFrameNumber> LowerBound) const
-	{
-		return FMovieSceneEvaluationTreeRangeIterator(EvaluationTree.Tree, LowerBound);
-	}
-
-	/**
-	 * Retrieve the section evaluation data for the specified node in this track's evaluation tree
-	 */
-	TMovieSceneEvaluationTreeDataIterator<FSectionEvaluationData> GetData(FMovieSceneEvaluationTreeNodeHandle TreeNodeHandle) const
-	{
-		return EvaluationTree.Tree.GetAllData(TreeNodeHandle);
 	}
 
 	/**
@@ -506,21 +335,6 @@ public:
 	 * Post serialize function
 	 */
 	MOVIESCENE_API void PostSerialize(const FArchive& Ar);
-
-private:
-
-	/**
-	 * Validate the segment array and remove any invalid ptrs
-	 */
-	void ValidateSegments();
-
-	/**
-	 * Compile a segment for the specified iterator node
-	 *
-	 * @param iterator 			An iterator that should be used to compile segments.
-	 * @return A segment identifier for the newly created segment (or invalid if compilation was unsuccessful)
-	 */
-	FMovieSceneSegmentIdentifier CompileSegment(FMovieSceneEvaluationTreeRangeIterator Iterator);
 
 public:
 
@@ -568,17 +382,9 @@ private:
 	UPROPERTY()
 	EEvaluationMethod EvaluationMethod;
 
-	/** Array of segmented ranges contained within the track. */
-	UPROPERTY()
-	FMovieSceneEvaluationTrackSegments Segments;
-
 	/** The movie scene track that created this evaluation track. */
 	UPROPERTY()
-	const UMovieSceneTrack* SourceTrack;
-
-	/** Evaluation tree specifying what happens at any given time. */
-	UPROPERTY()
-	FSectionEvaluationDataTree EvaluationTree;
+	UMovieSceneTrack* SourceTrack;
 
 	/** Domain-specific evaluation templates (normally 1 per section) */
 	UPROPERTY()

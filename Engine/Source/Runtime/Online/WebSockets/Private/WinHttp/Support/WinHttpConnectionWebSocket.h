@@ -19,10 +19,7 @@ class FWinHttpConnectionWebSocket
 public:
 	static TSharedPtr<FWinHttpConnectionWebSocket, ESPMode::ThreadSafe> CreateWebSocketConnection(
 		FWinHttpSession& Session,
-		const bool bIsSecure,
-		const FString& Domain,
-		const TOptional<uint16> Port,
-		const FString& PathAndQuery,
+		const FString& RequestUrl,
 		const TArray<FString>& Protocols,
 		const TMap<FString, FString>& UpgradeHeaders);
 
@@ -73,6 +70,7 @@ public:
 protected:
 	FWinHttpConnectionWebSocket(
 		FWinHttpSession& Session,
+		const FString& RequestUrl,
 		const bool bIsSecure,
 		const FString& Domain,
 		const TOptional<uint16> Port,

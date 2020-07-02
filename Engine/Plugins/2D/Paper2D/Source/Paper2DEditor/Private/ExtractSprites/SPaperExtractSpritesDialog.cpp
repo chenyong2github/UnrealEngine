@@ -466,7 +466,7 @@ void SPaperExtractSpritesDialog::CreateExtractedSprites()
 	FScopedSlowTask Feedback(ExtractedSprites.Num(), NSLOCTEXT("Paper2D", "Paper2D_ExtractSpritesFromTexture", "Extracting Sprites From Texture"));
 	Feedback.MakeDialog(true);
 
-	for (const FPaperExtractedSprite ExtractedSprite : ExtractedSprites)
+	for (const FPaperExtractedSprite& ExtractedSprite : ExtractedSprites)
 	{
 		Feedback.EnterProgressFrame(1, NSLOCTEXT("Paper2D", "Paper2D_ExtractSpritesFromTexture", "Extracting Sprites From Texture"));
 

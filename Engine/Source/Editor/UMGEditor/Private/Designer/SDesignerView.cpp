@@ -140,7 +140,7 @@ public:
 
 			if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
 			{
-				for (const FDebugResolution Resolution : Settings->DebugResolutions)
+				for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 				{
 					if (((AreaSize - FVector2D(Resolution.Width, Resolution.Height)) * ZoomAmount).Size() < 10.0f)
 					{
@@ -2479,7 +2479,7 @@ void SDesignerView::OnPaintBackground(const FGeometry& AllottedGeometry, const F
 	{
 		if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
 		{
-			for (const FDebugResolution Resolution : Settings->DebugResolutions)
+			for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 			{
 				DrawResolution(Resolution, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 			}

@@ -5,7 +5,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+
 DECLARE_LOG_CATEGORY_EXTERN(LogSynthesisEditor, Log, All);
+
 
 class FSynthesisEditorModule : public IModuleInterface
 {

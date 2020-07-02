@@ -62,7 +62,7 @@ private:
 private:
 	FSimpleSlot EmptyChildSlot;
 
-	mutable FHittestGrid HittestGrid;
+	mutable TSharedRef<FHittestGrid> HittestGrid;
 
 	mutable TOptional<FSlateClippingState> LastClippingState;
 	mutable FGeometry LastAllottedGeometry;

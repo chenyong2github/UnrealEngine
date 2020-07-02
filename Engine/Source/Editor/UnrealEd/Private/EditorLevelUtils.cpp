@@ -49,6 +49,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "Dialogs/Dialogs.h"
 
 DEFINE_LOG_CATEGORY(LogLevelTools);
 
@@ -396,7 +397,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld_Internal(UWorld* InWorld, co
 		// Do nothing if the level already exists in the world.
 		const FString LevelName(LevelPackageName);
 		const FText MessageText = FText::Format(NSLOCTEXT("UnrealEd", "LevelAlreadyExistsInWorld", "A level with that name ({0}) already exists in the world."), FText::FromString(LevelName));
-		FMessageDialog::Open(EAppMsgType::Ok, MessageText);
+
+		FSuppressableWarningDialog::FSetupInfo Info(MessageText, LOCTEXT("AddLevelToWorld_Title", "Add Level"), "LevelAlreadyExistsInWorldWarning");
+		Info.ConfirmText = LOCTEXT("AlreadyExist_Ok", "Ok");
+		FSuppressableWarningDialog RemoveLevelWarning(Info);
+		RemoveLevelWarning.ShowModal();
 	}
 	else
 	{
@@ -567,7 +572,7 @@ bool UEditorLevelUtils::PrivateRemoveInvalidLevelFromWorld(ULevelStreaming* InLe
 		if (UWorld* OwningWorld = InLevelStreaming->GetWorld())
 		{
 			OwningWorld->RemoveStreamingLevel(InLevelStreaming);
-			OwningWorld->RefreshStreamingLevels();
+			OwningWorld->RefreshStreamingLevels({});
 			bRemovedLevelStreaming = true;
 		}
 	}
@@ -776,7 +781,7 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		ULevelStreaming* StreamingLevel = InLevel->OwningWorld->GetStreamingLevels()[StreamingLevelIndex];
 		StreamingLevel->MarkPendingKill();
 		InLevel->OwningWorld->RemoveStreamingLevel(StreamingLevel);
-		InLevel->OwningWorld->RefreshStreamingLevels();
+		InLevel->OwningWorld->RefreshStreamingLevels({});
 	}
 	else if (InLevel->bIsVisible)
 	{

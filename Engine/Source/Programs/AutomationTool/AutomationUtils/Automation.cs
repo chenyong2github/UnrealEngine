@@ -505,14 +505,22 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 				CommandUtils.InitDefaultP4Connection();
 			}
 
-			// Find and execute commands.
-			ExitCode Result = Execute(CommandsToExecute, ScriptCompiler.Commands);
-			if (TelemetryFile != null)
+			try
 			{
-				Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
-				CommandUtils.Telemetry.Write(TelemetryFile);
+				// Find and execute commands.
+				ExitCode Result = Execute(CommandsToExecute, ScriptCompiler.Commands);
+				if (TelemetryFile != null)
+				{
+					Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
+					CommandUtils.Telemetry.Write(TelemetryFile);
+				}
+				return Result;
 			}
-			return Result;
+			finally
+			{
+				// Flush any timing data
+				TraceSpan.Flush();
+			}
 		}
 
 		/// <summary>

@@ -150,9 +150,11 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
-	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
+	// Cache the pointer to prevent a race condition with FRenderAssetStreamingManager::RemoveStreamingRenderAsset() which could nullify the ptr.
+	UStreamableRenderAsset*	CachedRenderAsset = RenderAsset;
+	if (CachedRenderAsset && OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
 	{
-		if (RenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
+		if (CachedRenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
 		{
 			OptionalMipsState = EOptionalMipsState::OMS_HasOptionalMips;
 		}

@@ -23,6 +23,11 @@ public:
 	static TSharedRef<FQosInterface> Get();
 
 	/**
+	 * Re-initialize our FQosRegionManager instance
+	 */
+	bool Init();
+
+	/**
 	 * Start running the async QoS evaluation
 	 */
 	void BeginQosEvaluation(UWorld* World, const TSharedPtr<IAnalyticsProvider>& AnalyticsProvider, const FSimpleDelegate& OnComplete);
@@ -111,8 +116,6 @@ protected:
 
 	friend class FQosModule;
 	FQosInterface();
-	
-	bool Init();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

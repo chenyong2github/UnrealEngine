@@ -31,7 +31,9 @@ class TMeshSimplification : public FMeshRefinerBase
 {
 public:
 
-	typedef QuadricErrorType  FQuadricErrorType;
+	typedef QuadricErrorType                       FQuadricErrorType;
+	typedef typename FQuadricErrorType::ScalarType RealType;
+	typedef TQuadricError<RealType>                FSeamQuadricType;
 
 	/**
 	 * If true, we try to find position for collapsed vertices that minimizes quadric error.
@@ -43,14 +45,15 @@ public:
 	/** if true, we try to keep boundary vertices on boundary. You probably want this. */
 	bool bPreserveBoundaryShape = true;
 
-
+	/** if true, we allow UV and Normal seams to collapse during simplification.*/
+	bool bAllowSeamCollapse = true;
 
 	TMeshSimplification(FDynamicMesh3* m) : FMeshRefinerBase(m)
 	{
 		NormalOverlay = nullptr;
-		if (m->Attributes())
+		if (FDynamicMeshAttributeSet* Attributes = m->Attributes())
 		{
-			NormalOverlay = m->Attributes()->PrimaryNormals();
+			NormalOverlay = Attributes->PrimaryNormals();
 		}
 	}
 
@@ -148,10 +151,14 @@ protected:
 	}
 
 
-
+	
+	double SeamEdgeWeight = 256.;
 
 	TArray<FQuadricErrorType> vertQuadrics;
 	virtual void InitializeVertexQuadrics();
+
+	TMap<int, FSeamQuadricType> seamQuadrics;
+	virtual void InitializeSeamQuadrics();
 
 	TArray<double> triAreas;
 	TArray<FQuadricErrorType> triQuadrics;
@@ -211,7 +218,7 @@ protected:
 
 
 	// update queue weight for each edge in vertex one-ring
-	virtual void UpdateNeighbours(int vid, FIndex2i removedTris, FIndex2i opposingVerts);
+	virtual void UpdateNeighbours(const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo);
 
 
 	virtual void Reproject() 
@@ -245,7 +252,7 @@ protected:
 	 * Collapse given edge. 
 	 * @param RequireCollapseToVert if >= 0 and after constraints/etc the vertex we will collapse "to" cannot be this vertex, do not collapse
 	 */
-	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, int& collapseToV, int32 RequireKeepVert = -1);
+	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, FDynamicMesh3::FEdgeCollapseInfo& collapseInfo, int32 RequireKeepVert = -1);
 
 
 

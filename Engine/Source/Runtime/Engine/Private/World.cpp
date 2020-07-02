@@ -164,6 +164,10 @@ FActorSpawnParameters::FActorSpawnParameters()
 , Owner(NULL)
 , Instigator(NULL)
 , OverrideLevel(NULL)
+#if WITH_EDITOR
+, OverridePackage(nullptr)
+, OverrideParentComponent(nullptr)
+#endif
 , SpawnCollisionHandlingOverride(ESpawnActorCollisionHandlingMethod::Undefined)
 , bRemoteOwned(false)
 , bNoFail(false)
@@ -172,6 +176,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 #if WITH_EDITOR
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
+, bCreateActorPackage(false)
 #endif
 , NameMode(ESpawnActorNameMode::Required_Fatal)
 , ObjectFlags(RF_Transactional)
@@ -599,6 +604,21 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		}
 	}
 
+	if (!bTestRename)
+	{
+		// We also need to rename any external actor packages we have since the search for them is based on the world name
+		for (AActor* Actor : PersistentLevel->Actors)
+		{
+			if (Actor && Actor->IsPackageExternal())
+			{
+				// Instead of just renaming the package, re-embed and re-externalize the actor
+				// this will leave dirty empty actor packages being which will be cleaned up though SaveAll, although SaveCurrentLevel won't pick them up
+				Actor->SetPackageExternal(false);
+				Actor->SetPackageExternal(true);
+			}
+		}
+	}
+
 	// Rename the level script blueprint now, unless we are in PostLoad. ULevel::PostLoad should handle renaming this at load time.
 	if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
 	{
@@ -942,7 +962,7 @@ void UWorld::FinishDestroy()
 
 		bool bContainsAnotherWorld = false;
 		TArray<UObject*> PotentialWorlds;
-		GetObjectsWithOuter(WorldPackage, PotentialWorlds, false);
+		GetObjectsWithPackage(WorldPackage, PotentialWorlds, false);
 		for (UObject* PotentialWorld : PotentialWorlds)
 		{
 			UWorld* World = Cast<UWorld>(PotentialWorld);
@@ -1060,9 +1080,24 @@ void UWorld::PostLoad()
 	ResetAverageRequiredTexturePoolSize();
 }
 
+void UWorld::PreDuplicate(FObjectDuplicationParameters& DupParams)
+{
+	if (PersistentLevel)
+	{
+		PersistentLevel->PreDuplicate(DupParams);
+	}
+}
 
 bool UWorld::PreSaveRoot(const TCHAR* Filename)
 {
+#if WITH_EDITOR
+	// if we are cooking this world, convert its persistent level to internal actors before doing so
+	if (GIsCookerLoadingPackage)
+	{
+		PersistentLevel->DetachAttachAllActorsPackages(/*bReattach*/false);
+	}
+#endif
+
 	// Update components and keep track off whether we need to clean them up afterwards.
 	bool bCleanupIsRequired = false;
 	if(!PersistentLevel->bAreComponentsCurrentlyRegistered)
@@ -1080,6 +1115,15 @@ void UWorld::PostSaveRoot( bool bCleanupIsRequired )
 	{
 		PersistentLevel->ClearLevelComponents();
 	}
+
+#if WITH_EDITOR
+	// if we are cooking this world, convert its persistent level back its proper loading strategy if needed
+	// NOTE: can't use bCleanupIsRequired since we don't want to unregister component if they were registered...
+	if (GIsCookerLoadingPackage)
+	{
+		PersistentLevel->DetachAttachAllActorsPackages(/*bReattach*/true);
+	}
+#endif
 }
 
 UWorld* UWorld::GetWorld() const
@@ -2444,12 +2488,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		bool bRerunConstructionScript = !FPlatformProperties::RequiresCookedData();
 		if (bRerunConstructionScript)
 		{
-		// Config bool that allows disabling all construction scripts during PIE level streaming.
-		bool bRerunConstructionDuringEditorStreaming = true;
-		GConfig->GetBool(TEXT("Kismet"), TEXT("bRerunConstructionDuringEditorStreaming"), /*out*/ bRerunConstructionDuringEditorStreaming, GEngineIni);
+			// Config bool that allows disabling all construction scripts during PIE level streaming.
+			bool bRerunConstructionDuringEditorStreaming = true;
+			GConfig->GetBool(TEXT("Kismet"), TEXT("bRerunConstructionDuringEditorStreaming"), /*out*/ bRerunConstructionDuringEditorStreaming, GEngineIni);
 
-		// We don't need to rerun construction scripts if we have cooked data or we are playing in editor unless the PIE world was loaded
-		// from disk rather than duplicated
+			// We don't need to rerun construction scripts if we have cooked data or we are playing in editor unless the PIE world was loaded
+			// from disk rather than duplicated
 			bRerunConstructionScript = !(IsGameWorld() && (Level->bHasRerunConstructionScripts || !bRerunConstructionDuringEditorStreaming));
 		}
 		
@@ -2834,13 +2878,21 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 			// Make sure that this package has been unloaded after GC pass.
 			LevelPackageNames.Add( LevelPackage->GetFName() );
 
+			Level->CleanupLevel();
+
 			// Mark world and all other package subobjects as pending kill
 			// This will destroy metadata objects and any other objects left behind
-			auto MarkObjectPendingKill = [](UObject* Object)
+			TSet<UPackage*> Packages;
+			ForEachObjectWithOuter(Level->GetOutermostObject(), [&Packages](UObject* Object)
 			{
-				Object->MarkPendingKill();
-			};
-			ForEachObjectWithOuter(Level->GetOutermost(), MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+				bool bIsAlreadyInSet = false;
+				UPackage* Package = Object->GetPackage();
+				Packages.Add(Package, &bIsAlreadyInSet);
+				if (!bIsAlreadyInSet)
+				{
+					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkPendingKill(); return true; }, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+				}
+			}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 		}
 	}
 
@@ -2974,6 +3026,25 @@ bool UWorld::RemapCompiledScriptActor(FString& Str) const
 	return false;
 }
 
+UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld, UPackage* InPIEackage, int32 PIEInstanceID)
+{
+	check(PIEInstanceID != INDEX_NONE);
+
+	UPackage* InPackage = InWorld->GetOutermost();
+	
+	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
+	Parameters.DestName = InWorld->GetFName();
+	Parameters.DestClass = InWorld->GetClass();
+	Parameters.DuplicateMode = EDuplicateMode::PIE;
+	Parameters.PortFlags = PPF_DuplicateForPIE;
+
+	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
+
+	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
+
+	return DuplicatedWorld;
+}
+
 /**
  * Simple archive for updating lazy pointer GUIDs when a sub-level gets duplicated for PIE
  */
@@ -3016,29 +3087,22 @@ public:
 		}
 		return *this;
 	}
-
-	virtual FArchive& operator<<(FSoftObjectPtr& Value) override
-	{
-		// Explicitly do nothing, we don't want to accidentally do PIE fixups
-		return *this;
-	}
-
-	virtual FArchive& operator<<(FSoftObjectPath& Value) override
-	{
-		// Explicitly do nothing, we don't want to accidentally do PIE fixups
-		return *this;
-	}
 };
 
 UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningWorld)
 {
+#if WITH_EDITOR
 	QUICK_SCOPE_CYCLE_COUNTER(UWorld_DuplicateWorldForPIE);
 	FScopeCycleCounterUObject Context(OwningWorld);
 
+	FName PackageFName(*PackageName);
+
 	// Find the original (non-PIE) level package
-	UPackage* EditorLevelPackage = FindObjectFast<UPackage>( NULL, FName(*PackageName));
-	if( !EditorLevelPackage )
-		return NULL;
+	UPackage* EditorLevelPackage = FindObjectFast<UPackage>(nullptr, PackageFName);
+	if (!EditorLevelPackage)
+	{
+		return nullptr;
+	}
 
 	// Find world object and use its PersistentLevel pointer.
 	UWorld* EditorLevelWorld = UWorld::FindWorldInPackage(EditorLevelPackage);
@@ -3053,8 +3117,10 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 		}
 	}
 
-	if( !EditorLevelWorld )
-		return NULL;
+	if (!EditorLevelWorld)
+	{
+		return nullptr;
+	}
 	
 	int32 PIEInstanceID = -1;
 
@@ -3081,11 +3147,13 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	UPackage* PIELevelPackage = CreatePackage(nullptr,*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
+	PIELevelPackage->FileName = PackageFName;
 	PIELevelPackage->SetGuid( EditorLevelPackage->GetGuid() );
 	PIELevelPackage->MarkAsFullyLoaded();
 
 	ULevel::StreamedLevelsOwningWorld.Add(PIELevelPackage->GetFName(), OwningWorld);
-	UWorld* PIELevelWorld = CastChecked<UWorld>(StaticDuplicateObject(EditorLevelWorld, PIELevelPackage, EditorLevelWorld->GetFName(), RF_AllFlags, nullptr, EDuplicateMode::PIE));
+
+	UWorld* PIELevelWorld = GetDuplicatedWorldForPIE(EditorLevelWorld, PIELevelPackage, PIEInstanceID);
 
 	{
 		// The owning world may contain lazy pointers to actors in the sub-level we just duplicated so make sure they are fixed up with the PIE GUIDs
@@ -3146,6 +3214,9 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 		OwningWorld ? *OwningWorld->GetPathName() : TEXT("<null>"));
 
 	return PIELevelWorld;
+#else
+	return nullptr;
+#endif
 }
 
 void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, bool bGuaranteedNotInContainer)
@@ -3652,7 +3723,7 @@ bool UWorld::AreAlwaysLoadedLevelsLoaded() const
 	for (ULevelStreaming* LevelStreaming : StreamingLevels)
 	{
 		// See whether there's a level with a pending request.
-		if (LevelStreaming && LevelStreaming->ShouldBeAlwaysLoaded())
+		if (LevelStreaming && LevelStreaming->ShouldBeAlwaysLoaded() && LevelStreaming->GetCurrentState() != ULevelStreaming::ECurrentState::FailedToLoad)
 		{	
 			const ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
 
@@ -4329,12 +4400,13 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	if( GIsEditor && !IsTemplate() && bCleanupResources && this != NewWorld )
 	{
 		// Iterate over all objects to find ones that reside in the same package as the world.
-		ForEachObjectWithOuter(GetOutermost(), [this](UObject* CurrentObject)
+		ForEachObjectWithPackage(GetOutermost(), [this](UObject* CurrentObject)
 		{
 			if ( CurrentObject != this )
 			{
 				CurrentObject->ClearFlags( RF_Standalone );
 			}
+			return true;
 		});
 
 		if (WorldType != EWorldType::PIE)
@@ -4345,13 +4417,30 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 				// Iterate over all objects to find ones that reside in the same package as the MapBuildData.
 				// Specifically the PackageMetaData
-				ForEachObjectWithOuter(PersistentLevel->MapBuildData->GetOutermost(), [this](UObject* CurrentObject)
+				ForEachObjectWithPackage(PersistentLevel->MapBuildData->GetOutermost(), [this](UObject* CurrentObject)
 				{
 					if (CurrentObject != this)
 					{
 						CurrentObject->ClearFlags(RF_Standalone);
 					}
+					return true;
 				});
+			}
+		}
+				
+		// Cleanup Persistent level outside of following loop because unitialized worlds don't have a valid Levels array
+		// StreamingLevels are not initialized.
+		if (PersistentLevel)
+		{
+			PersistentLevel->CleanupLevel();
+		}
+
+		if (GetNumLevels() > 1)
+		{
+			check(GetLevel(0) == PersistentLevel);
+			for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
+			{
+				GetLevel(LevelIndex)->CleanupLevel();
 			}
 		}
 	}
@@ -4616,6 +4705,16 @@ void UWorld::RemoveOnActorSpawnedHandler( FDelegateHandle InHandle )
 	OnActorSpawned.Remove(InHandle);
 }
 
+FDelegateHandle UWorld::AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler)
+{
+	return MovieSceneSequenceTick.Add(InHandler);
+}
+
+void UWorld::RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle)
+{
+	MovieSceneSequenceTick.Remove(InHandle);
+}
+
 ABrush* UWorld::GetDefaultBrush() const
 {
 	check(PersistentLevel);
@@ -4636,9 +4735,9 @@ void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
 #if CHAOS_CHECKED
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
-	FPhysScene* NewScene = new FPhysScene(Settings, PhysicsName);
+	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
-	FPhysScene* NewScene = new FPhysScene(Settings);
+	FPhysScene* NewScene = new FPhysScene(nullptr);
 #endif
 	SetPhysicsScene(NewScene);
 }
@@ -6783,7 +6882,7 @@ UWorld* UWorld::FindWorldInPackage(UPackage* Package)
 {
 	UWorld* RetVal = nullptr;
 	TArray<UObject*> PotentialWorlds;
-	GetObjectsWithOuter(Package, PotentialWorlds, false);
+	GetObjectsWithPackage(Package, PotentialWorlds, false);
 	for ( auto ObjIt = PotentialWorlds.CreateConstIterator(); ObjIt; ++ObjIt )
 	{
 		RetVal = Cast<UWorld>(*ObjIt);
@@ -6800,7 +6899,7 @@ UWorld* UWorld::FollowWorldRedirectorInPackage(UPackage* Package, UObjectRedirec
 {
 	UWorld* RetVal = nullptr;
 	TArray<UObject*> PotentialRedirectors;
-	GetObjectsWithOuter(Package, PotentialRedirectors, false);
+	GetObjectsWithPackage(Package, PotentialRedirectors, false);
 	for (auto ObjIt = PotentialRedirectors.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
 		UObjectRedirector* Redirector = Cast<UObjectRedirector>(*ObjIt);
@@ -7341,8 +7440,6 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 		
 	Parameters.DestName			= InLevel->GetFName();
 	Parameters.DestClass		= InLevel->GetClass();
-	Parameters.FlagMask			= RF_AllFlags;
-	Parameters.InternalFlagMask = EInternalObjectFlags::AllFlags;
 	Parameters.PortFlags		= PPF_DuplicateForPIE;
 	Parameters.DuplicateMode	= EDuplicateMode::PIE;
 

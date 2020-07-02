@@ -937,12 +937,19 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertClientSe
 		FTransactionObjectDeltaChange DeltaChange;
 		Algo::Transform(ExportedObject.PropertyDatas, DeltaChange.ChangedProperties, [](const FConcertSerializedPropertyData& PropertyData) { return PropertyData.PropertyName; });
 
-		DeltaChange.bHasNameChange = ExportedObject.ObjectData.NewOuterPathName != FName();
+		DeltaChange.bHasNameChange = ExportedObject.ObjectData.NewName != FName();
 		DeltaChange.bHasOuterChange = ExportedObject.ObjectData.NewOuterPathName != FName();
+		DeltaChange.bHasExternalPackageChange = ExportedObject.ObjectData.NewExternalPackageName != FName();
 		DeltaChange.bHasPendingKillChange = ExportedObject.ObjectData.bIsPendingKill;
 
 		FString ObjectPathName = ExportedObject.ObjectId.ObjectOuterPathName.ToString() + TEXT(".") + ExportedObject.ObjectId.ObjectName.ToString();
-		TSharedPtr<FTransactionObjectEvent> Event = MakeShared<FTransactionObjectEvent>(InTransaction.TransactionId, InTransaction.OperationId, ETransactionObjectEventType::Finalized, MoveTemp(DeltaChange), nullptr, ExportedObject.ObjectId.ObjectName, FName(*MoveTemp(ObjectPathName)), ExportedObject.ObjectId.ObjectOuterPathName, ExportedObject.ObjectId.ObjectClassPathName);
+		TSharedPtr<FTransactionObjectEvent> Event = MakeShared<FTransactionObjectEvent>(InTransaction.TransactionId, InTransaction.OperationId, ETransactionObjectEventType::Finalized, MoveTemp(DeltaChange), nullptr
+			, ExportedObject.ObjectId.ObjectPackageName
+			, ExportedObject.ObjectId.ObjectName
+			, FName(*MoveTemp(ObjectPathName))
+			, ExportedObject.ObjectId.ObjectOuterPathName
+			, ExportedObject.ObjectId.ObjectExternalPackageName
+			, ExportedObject.ObjectId.ObjectClassPathName);
 
 		TransactionDiff.DiffMap.Emplace(FName(*ObjectPathName), MoveTemp(Event));
 	}

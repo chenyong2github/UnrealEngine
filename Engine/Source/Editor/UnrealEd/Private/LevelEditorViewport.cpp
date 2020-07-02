@@ -877,7 +877,13 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 
 
 		UModel* Model = ModelHitProxy->GetModel();
-	
+		
+		// If our model doesn't exist or is part of a level that is being destroyed
+		if( !Model || (Model && Model->GetOuter()->IsPendingKillOrUnreachable()))
+		{
+			return false;
+		}
+
 		TArray<uint32> SelectedSurfaces;
 
 		bool bDropedOntoSelectedSurface = false;
@@ -1463,7 +1469,7 @@ bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 Mo
 				TargetMaterialSlot = -1;
 			}
 
-			if (TargetActor != NULL)
+			if (TargetActor != nullptr && !TargetActor->GetWorld()->IsPendingKillOrUnreachable())
 			{
 				FNavigationLockContext LockNavigationUpdates(TargetActor->GetWorld(), ENavigationLockReason::SpawnOnDragEnter, bCreateDropPreview);
 
@@ -1818,6 +1824,8 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 
 	// Sign up for notifications about users changing settings.
 	GetMutableDefault<ULevelEditorViewportSettings>()->OnSettingChanged().AddRaw(this, &FLevelEditorViewportClient::HandleViewportSettingChanged);
+
+	FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor").OnMapChanged().AddRaw(this, &FLevelEditorViewportClient::OnMapChanged);
 }
 
 //
@@ -1829,6 +1837,8 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 	// Unregister for all global callbacks to this object
 	FEditorSupportDelegates::CleanseEditor.RemoveAll(this);
 	FEditorDelegates::PreBeginPIE.RemoveAll(this);
+
+	FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor").OnMapChanged().RemoveAll(this);
 
 	if(GEngine)
 	{
@@ -3249,6 +3259,16 @@ void FLevelEditorViewportClient::HandleViewportSettingChanged(FName PropertyName
 	{
 		EngineShowFlags.SetSelectionOutline(GetDefault<ULevelEditorViewportSettings>()->bUseSelectionOutline);
 	}
+}
+
+void FLevelEditorViewportClient::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
+{
+	if (InWorld != GetWorld())
+	{
+		return;
+	}
+
+	bDisableInput = (MapChangeType == EMapChangeType::TearDownWorld);
 }
 
 void FLevelEditorViewportClient::OnActorMoved(AActor* InActor)

@@ -76,6 +76,9 @@ template <class ElementType> class TLinkedList;
 
 #define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
 
+// Adds various checks to track FMaterial lifetime, may add some overhead
+#define UE_CHECK_FMATERIAL_LIFETIME PLATFORM_WINDOWS
+
 DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
 
 /** Creates a string that represents the given quality level. */
@@ -1442,6 +1445,17 @@ extern ENGINE_API bool CanConnectMaterialValueTypes(const uint32 InputType, cons
 class FMaterial
 {
 public:
+#if UE_CHECK_FMATERIAL_LIFETIME
+	uint32 AddRef() const;
+	uint32 Release() const;
+	inline uint32 GetRefCount() const { return uint32(NumDebugRefs.GetValue()); }
+
+	mutable FThreadSafeCounter NumDebugRefs;
+#else
+	FORCEINLINE uint32 AddRef() const { return 0u; }
+	FORCEINLINE uint32 Release() const { return 0u; }
+	FORCEINLINE uint32 GetRefCount() const { return 0u; }
+#endif
 
 	/**
 	 * Minimal initialization constructor.
@@ -1461,6 +1475,9 @@ public:
 			CVarStencilDitheredLOD = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
 		}
 		bStencilDitheredLOD = (CVarStencilDitheredLOD->GetValueOnAnyThread() != 0);
+#if UE_CHECK_FMATERIAL_LIFETIME
+		bOwnerBeginDestroyed = false;
+#endif
 	}
 
 	/**
@@ -1737,11 +1754,12 @@ public:
 	void SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
+		UE_CLOG(IsOwnerBeginDestroyed(), LogMaterial, Error, TEXT("SetGameThreadShaderMap called on FMaterial %s, owner is BeginDestroyed"), *GetDebugName());
 		GameThreadShaderMap = InMaterialShaderMap;
 
 		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
-		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
+		TRefCountPtr<FMaterial> Material = this;
+		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material = MoveTemp(Material), ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
@@ -1750,13 +1768,14 @@ public:
 	void SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
+		UE_CLOG(IsOwnerBeginDestroyed(), LogMaterial, Error, TEXT("SetInlineShaderMap called on FMaterial %s, owner is BeginDestroyed"), *GetDebugName());
 		GameThreadShaderMap = InMaterialShaderMap;
 		bContainsInlineShaders = true;
 		bLoadedCookedShaderMapId = true;
 
 		TRefCountPtr<FMaterialShaderMap> ShaderMap = GameThreadShaderMap;
-		FMaterial* Material = this;
-		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material, ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
+		TRefCountPtr<FMaterial> Material = this;
+		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material = MoveTemp(Material), ShaderMap = MoveTemp(ShaderMap)](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			Material->RenderingThreadShaderMap = MoveTemp(ShaderMap);
 		});
@@ -1851,6 +1870,14 @@ public:
 	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() {};
 	ENGINE_API virtual void EndAllowCachingStaticParameterValues() {};
 #endif // WITH_EDITOR
+
+#if UE_CHECK_FMATERIAL_LIFETIME
+	void SetOwnerBeginDestroyed() { bOwnerBeginDestroyed = true; }
+	bool IsOwnerBeginDestroyed() const { return bOwnerBeginDestroyed; }
+#else
+	FORCEINLINE void SetOwnerBeginDestroyed() {}
+	FORCEINLINE bool IsOwnerBeginDestroyed() const { return false; }
+#endif
 
 protected:
 	
@@ -1973,6 +2000,11 @@ private:
 	 */
 	uint32 bContainsInlineShaders : 1;
 	uint32 bLoadedCookedShaderMapId : 1;
+
+#if UE_CHECK_FMATERIAL_LIFETIME
+	/** Set when the owner of this FMaterial (typically a UMaterial or UMaterialInstance) has had BeginDestroy() called */
+	uint32 bOwnerBeginDestroyed : 1;
+#endif // UE_CHECK_FMATERIAL_LIFETIME
 
 	/**
 	* Compiles this material for Platform, storing the result in OutShaderMap if the compile was synchronous
@@ -2298,7 +2330,7 @@ class FMaterialResource : public FMaterial
 public:
 
 	ENGINE_API FMaterialResource();
-	virtual ~FMaterialResource() {}
+	ENGINE_API virtual ~FMaterialResource();
 
 	void SetMaterial(UMaterial* InMaterial, EMaterialQualityLevel::Type InQualityLevel, bool bInQualityLevelHasDifferentNodes, ERHIFeatureLevel::Type InFeatureLevel, UMaterialInstance* InInstance = NULL)
 	{
@@ -2571,10 +2603,10 @@ public:
 	}
 
 	FGuid				AttributeID;
+	FVector4			DefaultValue;
 	FString				AttributeName;
 	EMaterialProperty	Property;	
 	EMaterialValueType	ValueType;
-	FVector4			DefaultValue;
 	EShaderFrequency	ShaderFrequency;
 	int32				TexCoordIndex;
 

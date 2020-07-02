@@ -151,7 +151,6 @@ public class UnrealEd : ModuleRules
 				"InternationalizationSettings",
 				"JsonUtilities",
 				"Landscape",
-				"HeadMountedDisplay",
 				"MeshPaint",
 				"MeshPaintMode",
 				"Foliage",
@@ -185,7 +184,8 @@ public class UnrealEd : ModuleRules
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
-            }
+				"DeveloperSettings"
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -265,13 +265,22 @@ public class UnrealEd : ModuleRules
 		}
 
 		CircularlyReferencedDependentModules.AddRange(
-			new string[]
-			{
+			new string[] {
+				"Documentation",
 				"GraphEditor",
 				"Kismet",
 				"AudioEditor",
 				"ViewportInteraction",
 				"VREditor",
+				"MeshPaint",
+				"MeshPaintMode",
+				"PropertyEditor",
+				"ToolMenusEditor",
+				"InputBindingEditor",
+				"ClothingSystemEditor",
+				"PluginWarden",
+				"PIEPreviewDeviceProfileSelector",
+				"EditorInteractiveToolsFramework"
 			}
 		);
 
@@ -325,10 +334,6 @@ public class UnrealEd : ModuleRules
 
 		SetupModulePhysicsSupport(Target);
 
-		if(Target.bCompileChaos && Target.bUseChaos)
-        {
-			PrivateDependencyModuleNames.Add("ChaosSolvers");
-        }
 
 		if (Target.bCompileRecast)
 		{

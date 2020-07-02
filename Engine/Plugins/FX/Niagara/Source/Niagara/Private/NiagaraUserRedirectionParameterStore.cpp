@@ -23,10 +23,22 @@ FNiagaraUserRedirectionParameterStore& FNiagaraUserRedirectionParameterStore::op
 	return *this;
 }
 
-bool FNiagaraUserRedirectionParameterStore::IsUserParameter(const FNiagaraVariable& InVar) const
+bool FNiagaraUserRedirectionParameterStore::IsUserParameter(const FNiagaraVariableBase& InVar) 
 {
 	return InVar.GetName().ToString().StartsWith(TEXT("User."));
 }
+
+void FNiagaraUserRedirectionParameterStore::MakeUserVariable(FNiagaraVariableBase& InVar)
+{
+	if (IsUserParameter(InVar))
+	{
+		return;
+	}
+	FName DisplayName(*(TEXT("User.") + InVar.GetName().ToString()));
+	InVar.SetName(DisplayName);
+	return;
+}
+
 
 FNiagaraVariable FNiagaraUserRedirectionParameterStore::GetUserRedirection(const FNiagaraVariable & InVar) const
 {
@@ -44,7 +56,7 @@ void FNiagaraUserRedirectionParameterStore::RecreateRedirections()
 {
 	UserParameterRedirects.Reset();
 
-	for (const FNiagaraVariable& Var : ReadParameterVariables())
+	for (const FNiagaraVariable Var : ReadParameterVariables())
 	{
 		if (IsUserParameter(Var))
 		{

@@ -21,7 +21,7 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Physics/PhysicsFiltering.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 #include "AI/NavigationSystemHelpers.h"
 
 #if WITH_EDITOR
@@ -422,6 +422,13 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Ev
 
 bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
+	if(!RestCollection)
+	{
+		// No geometry data so skip export - geometry collections don't have other geometry sources
+		// so return false here to skip non-custom export for this component as well.
+		return false;
+	}
+
 	TArray<FVector> OutVertexBuffer;
 	TArray<int32> OutIndexBuffer;
 
@@ -562,7 +569,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForCollisionEvents(this, this);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateCollisionData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateCollisionData(true);
 #endif
 		}
 
@@ -570,7 +577,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateBreakingData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateBreakingData(true);
 #endif
 		}
 	}
@@ -2100,11 +2107,10 @@ FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 #if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
-			FPhysScene_ChaosInterface* WorldPhysScene = GetOwner()->GetWorld()->GetPhysicsScene();
-			return &WorldPhysScene->GetScene();
+			return GetOwner()->GetWorld()->GetPhysicsScene();
 		}
 		check(GWorld);
-		return &GWorld->GetPhysicsScene()->GetScene();
+		return GWorld->GetPhysicsScene();
 #else
 		return nullptr;
 #endif

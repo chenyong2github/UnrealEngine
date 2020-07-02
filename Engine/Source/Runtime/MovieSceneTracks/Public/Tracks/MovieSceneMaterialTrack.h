@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "MovieSceneNameableTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneMaterialTrack.generated.h"
 
 /**
@@ -15,9 +16,11 @@ UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneMaterialTrack
 	: public UMovieSceneNameableTrack
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
+
+	UMovieSceneMaterialTrack(const FObjectInitializer& ObjectInitializer);
 
 	// UMovieSceneTrack interface
 
@@ -63,6 +66,7 @@ private:
 UCLASS(MinimalAPI)
 class UMovieSceneComponentMaterialTrack
 	: public UMovieSceneMaterialTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

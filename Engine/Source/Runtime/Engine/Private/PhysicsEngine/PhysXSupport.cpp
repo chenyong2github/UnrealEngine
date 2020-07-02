@@ -24,7 +24,6 @@ int32						GNumPhysXConvexMeshes = 0;
 TArray<PxConvexMesh*>	GPhysXPendingKillConvex;
 TArray<PxTriangleMesh*>	GPhysXPendingKillTriMesh;
 TArray<PxHeightField*>	GPhysXPendingKillHeightfield;
-TArray<PxMaterial*>		GPhysXPendingKillMaterial;
 ///////////////////// Utils /////////////////////
 
 

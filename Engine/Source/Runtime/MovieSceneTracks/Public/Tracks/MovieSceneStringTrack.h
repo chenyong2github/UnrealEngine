@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneStringTrack.generated.h"
 
 /**
@@ -13,6 +14,7 @@
 UCLASS(MinimalAPI)
 class UMovieSceneStringTrack
 	: public UMovieScenePropertyTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

@@ -202,13 +202,19 @@ bool bNeedSwapChain = true;
  */
 FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain, uint32 BackBufferIndex, TRefCountPtr<ID3D12Resource> BackBufferResourceOverride)
 {
+	verify(D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN || SwapChain == nullptr);
+
 	FD3D12Adapter* Adapter = Parent->GetParentAdapter();
 
 	// Grab the back buffer
 	TRefCountPtr<ID3D12Resource> BackBufferResource;
 	if (SwapChain)
 	{
+#if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 		VERIFYD3D12RESULT_EX(SwapChain->GetBuffer(BackBufferIndex, IID_PPV_ARGS(BackBufferResource.GetInitReference())), Parent->GetDevice());
+#else // #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
+		return nullptr;
+#endif // #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	}
 	else if (BackBufferResourceOverride.IsValid())
 	{
@@ -250,11 +256,11 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 			false,
 			FClearValueBinding());
 
-		const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+		const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;
 
 		if (Device->GetGPUIndex() == Parent->GetGPUIndex())
 		{
-			FD3D12Resource* NewResourceWrapper = new FD3D12Resource(Device, FRHIGPUMask::All(), BackBufferResource, State, BackBufferDesc);
+			FD3D12Resource* NewResourceWrapper = new FD3D12Resource(Device, FRHIGPUMask::All(), BackBufferResource, InitialState, BackBufferDesc);
 			NewResourceWrapper->AddRef();
 			NewResourceWrapper->StartTrackingForResidency();
 			NewTexture->ResourceLocation.AsStandAlone(NewResourceWrapper);
@@ -348,14 +354,14 @@ FD3D12Viewport::~FD3D12Viewport()
 {
 	check(IsInRenderingThread());
 
+#if !PLATFORM_HOLOLENS && D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
 	// DXGI throws an error otherwise.
-#if !PLATFORM_HOLOLENS
 	if (SwapChain1)
 	{
 		SwapChain1->SetFullscreenState(0, nullptr);
 	}
-#endif
+#endif // !PLATFORM_HOLOLENS && D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	GetParentAdapter()->GetViewports().Remove(this);
 
@@ -503,7 +509,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 		check(SizeX > 0);
 		check(SizeY > 0);
-
+#if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 		if (bNeedSwapChain)
 		{
 			if (bInIsFullscreen)
@@ -515,6 +521,7 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 				}
 			}
 		}
+#endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	}
 
 	if (bIsFullscreen != bInIsFullscreen)

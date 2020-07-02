@@ -2477,7 +2477,7 @@ bool FConcertSyncSessionDatabase::EnsurePackageNameId(const FName InPackageName,
 bool FConcertSyncSessionDatabase::MapResourceNamesForLock(const int64 InLockEventId, const TArray<FName>& InResourceNames)
 {
 	bool bResult = Statements->UnmapObjectNameIdsForLockEventId(InLockEventId);
-	for (const FName ResourceName : InResourceNames)
+	for (const FName& ResourceName : InResourceNames)
 	{
 		int64 ObjectNameId = 0;
 		bResult &= EnsureObjectNameId(ResourceName, ObjectNameId) && Statements->MapObjectNameIdToLockEventId(ObjectNameId, InLockEventId);
@@ -2488,7 +2488,7 @@ bool FConcertSyncSessionDatabase::MapResourceNamesForLock(const int64 InLockEven
 bool FConcertSyncSessionDatabase::MapPackageNamesForTransaction(const int64 InTransactionEventId, const FConcertTransactionFinalizedEvent& InTransactionEvent)
 {
 	bool bResult = Statements->UnmapPackageNameIdsForTransactionEventId(InTransactionEventId);
-	for (const FName PackageName : InTransactionEvent.ModifiedPackages)
+	for (const FName& PackageName : InTransactionEvent.ModifiedPackages)
 	{
 		int64 PackageNameId = 0;
 		bResult &= EnsurePackageNameId(PackageName, PackageNameId) && Statements->MapPackageNameIdToTransactionEventId(PackageNameId, InTransactionEventId);
@@ -2499,7 +2499,7 @@ bool FConcertSyncSessionDatabase::MapPackageNamesForTransaction(const int64 InTr
 bool FConcertSyncSessionDatabase::MapObjectNamesForTransaction(const int64 InTransactionEventId, const FConcertTransactionFinalizedEvent& InTransactionEvent)
 {
 	bool bResult = Statements->UnmapObjectNameIdsForTransactionEventId(InTransactionEventId);
-	for (const FConcertExportedObject Object : InTransactionEvent.ExportedObjects)
+	for (const FConcertExportedObject& Object : InTransactionEvent.ExportedObjects)
 	{
 		// TODO: This isn't always the correct way to build the object path (re: SUBOBJECT_DELIMITER)
 		const FName ObjectPathName = *FString::Printf(TEXT("%s.%s"), *Object.ObjectId.ObjectOuterPathName.ToString(), *Object.ObjectId.ObjectName.ToString());

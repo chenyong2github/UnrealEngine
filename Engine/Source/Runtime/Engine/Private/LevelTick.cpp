@@ -1372,13 +1372,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		}
 
 		// Tick level sequence actors first
-		for (int32 i = LevelSequenceActors.Num() - 1; i >= 0; --i)
-		{
-			if (LevelSequenceActors[i] != nullptr)
-			{
-				LevelSequenceActors[i]->Tick(DeltaSeconds);
-			}
-		}
+		MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 	}
 
 	for (int32 i = 0; i < LevelCollections.Num(); ++i)

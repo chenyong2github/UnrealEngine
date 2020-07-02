@@ -4,6 +4,7 @@
 #include "ParticleResources.h"
 #include "NiagaraRibbonVertexFactory.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraStats.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
@@ -240,7 +241,7 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
 	FNiagaraRenderer::ReleaseRenderThreadResources();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
-	{
+	{	
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();
 	}
@@ -254,8 +255,6 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstance
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererRibbons::RayTracingDynamicVertexBuffer"));
-
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererRibbons");
 		static int32 DebugNumber = 0;
@@ -409,7 +408,7 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 }
 
 void CalculateUVScaleAndOffsets(
-	const FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>& SortKeyData, const TArray<int32>& RibbonIndices,
+	const FNiagaraDataSetReaderFloat<float>& SortKeyReader, const TArray<int32>& RibbonIndices,
 	bool bSortKeyIsAge, int32 StartIndex, int32 EndIndex, int32 NumSegments,
 	float InUTilingDistance, float InUScale, float InUOffset, ENiagaraRibbonAgeOffsetMode InAgeOffsetMode,
 	float& OutUScale, float& OutUOffset)
@@ -426,10 +425,10 @@ void CalculateUVScaleAndOffsets(
 			// is removed.  We calculate the end offset when the end of the ribbon is within a single time step of 0 or 1
 			// which is then normalized to the range of a single segment.  We can then calculate how many segments we actually
 			// have to draw the scaled ribbon, and can offset the start by the correctly scaled offset.
-			float FirstAge = SortKeyData[RibbonIndices[StartIndex]];
-			float SecondAge = SortKeyData[RibbonIndices[StartIndex + 1]];
-			float SecondToLastAge = SortKeyData[RibbonIndices[EndIndex - 1]];
-			float LastAge = SortKeyData[RibbonIndices[EndIndex]];
+			float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
+			float SecondAge = SortKeyReader[RibbonIndices[StartIndex + 1]];
+			float SecondToLastAge = SortKeyReader[RibbonIndices[EndIndex - 1]];
+			float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
 
 			float StartTimeStep = SecondAge - FirstAge;
 			float StartTimeOffset = FirstAge < StartTimeStep ? StartTimeStep - FirstAge : 0;
@@ -445,8 +444,8 @@ void CalculateUVScaleAndOffsets(
 		}
 		else
 		{
-			float FirstAge = SortKeyData[RibbonIndices[StartIndex]];
-			float LastAge = SortKeyData[RibbonIndices[EndIndex]];
+			float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
+			float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
 
 			AgeUScale = LastAge - FirstAge;
 			AgeUOffset = FirstAge;
@@ -475,55 +474,28 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProperties);
 
 	bool bSortKeyIsAge = false;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SortKeyData;
-	if (Data.HasVariable(Properties->RibbonLinkOrderBinding.DataSetVariable.GetName()))
+	FNiagaraDataSetReaderFloat<float> SortKeyReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
+	if ( !SortKeyReader.IsValid() )
 	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
-	}
-	else
-	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
 		bSortKeyIsAge = true;
+		SortKeyReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
 	}
 
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> PosData(Data, Properties->PositionBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> TwistData;
-	if (Data.HasVariable(Properties->RibbonTwistBinding.DataSetVariable.GetName()))
-	{
-		TwistData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> FacingData;
-	if (Data.HasVariable(Properties->RibbonFacingBinding.DataSetVariable.GetName()))
-	{
-		FacingData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParamData;
-	if (Data.HasVariable(Properties->DynamicMaterialBinding.DataSetVariable.GetName()))
-	{
-		MaterialParamData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam1Data;
-	if (Data.HasVariable(Properties->DynamicMaterial1Binding.DataSetVariable.GetName()))
-	{
-		MaterialParam1Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam2Data;
-	if (Data.HasVariable(Properties->DynamicMaterial2Binding.DataSetVariable.GetName()))
-	{
-		MaterialParam2Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
-	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam3Data;
-	if (Data.HasVariable(Properties->DynamicMaterial3Binding.DataSetVariable.GetName()))
-	{
-		MaterialParam3Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
-	}
+	const auto PosData = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->PositionBinding.DataSetVariable.GetName());
+	const auto SizeData = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
+	const auto TwistData = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
+	const auto FacingData = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
 
-	FNiagaraDataSetAccessor<int32> RibbonIdData;
-	FNiagaraDataSetAccessor<FNiagaraID> RibbonFullIDData;
+	const auto MaterialParam0Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
+	const auto MaterialParam1Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
+	const auto MaterialParam2Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
+	const auto MaterialParam3Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
+
+	FNiagaraDataSetReaderInt32<int32> RibbonIdData;
+	FNiagaraDataSetReaderStruct<FNiagaraID> RibbonFullIDData;
 
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
-	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !PosData.IsValid() || !SortKeyData.IsValid())
+	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !PosData.IsValid() || !SortKeyReader.IsValid())
 	{
 		return nullptr;
 	}
@@ -548,13 +520,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 	if (Properties->RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
 	{
-		RibbonFullIDData.Create(&Data, Properties->RibbonIdBinding.DataSetVariable);
-		RibbonFullIDData.InitForAccess();
+		RibbonFullIDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(Data, Properties->RibbonIdBinding.DataSetVariable.GetName());
 	}
 	else
 	{
-		RibbonIdData.Create(&Data, Properties->RibbonIdBinding.DataSetVariable);
-		RibbonIdData.InitForAccess();
+		RibbonIdData = FNiagaraDataSetAccessor<int32>::CreateReader(Data, Properties->RibbonIdBinding.DataSetVariable.GetName());
 	}
 
 	bool bFullIDs = RibbonFullIDData.IsValid();
@@ -703,9 +673,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 			float U0Offset, U0Scale, U1Offset, U1Scale;
 
-			CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
+			CalculateUVScaleAndOffsets(SortKeyReader, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
 				Properties->UV0TilingDistance, Properties->UV0Scale.X, Properties->UV0Offset.X, Properties->UV0AgeOffsetMode, U0Scale, U0Offset);
-			CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
+			CalculateUVScaleAndOffsets(SortKeyReader, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
 				Properties->UV1TilingDistance, Properties->UV1Scale.X, Properties->UV1Offset.X, Properties->UV1AgeOffsetMode, U1Scale, U1Offset);
 
 			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U1Scale, U1Offset, NumSegments, StartIndex);
@@ -730,7 +700,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		}
 		DynamicData->MultiRibbonInfos.AddZeroed(1);
 
-		SortedIndices.Sort([&SortKeyData](const int32& A, const int32& B) {	return (SortKeyData[A] < SortKeyData[B]); });
+		SortedIndices.Sort([&SortKeyReader](const int32& A, const int32& B) {	return (SortKeyReader[A] < SortKeyReader[B]); });
 
 		AddRibbonVerts(SortedIndices, 0);
 	}
@@ -754,7 +724,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			for (TPair<FNiagaraID, TArray<int32>>& Pair : MultiRibbonSortedIndices)
 			{
 				TArray<int32>& SortedIndices = Pair.Value;
-				SortedIndices.Sort([&SortKeyData](const int32& A, const int32& B) {	return (SortKeyData[A] < SortKeyData[B]); });
+				SortedIndices.Sort([&SortKeyReader](const int32& A, const int32& B) {	return (SortKeyReader[A] < SortKeyReader[B]); });
 				AddRibbonVerts(SortedIndices, RibbonIndex);
 
 				RibbonIndex++;
@@ -781,7 +751,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			for (TPair<int32, TArray<int32>>& Pair : MultiRibbonSortedIndices)
 			{
 				TArray<int32>& SortedIndices = Pair.Value;
-				SortedIndices.Sort([&SortKeyData](const int32& A, const int32& B) {	return (SortKeyData[A] < SortKeyData[B]); });
+				SortedIndices.Sort([&SortKeyReader](const int32& A, const int32& B) {	return (SortKeyReader[A] < SortKeyReader[B]); });
 				AddRibbonVerts(SortedIndices, RibbonIndex);
 				RibbonIndex++;
 			};
@@ -1169,6 +1139,9 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 	RayTracingInstance.Materials.Add(MeshBatch);
 
+	// Use the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+	FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
 	const uint32 VertexCount = DynamicIndexAllocation.MaxUsedIndex;
 	Context.DynamicRayTracingGeometriesToUpdate.Add(
 		FRayTracingDynamicGeometryUpdateParams
@@ -1179,7 +1152,8 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			VertexCount * (uint32)sizeof(FVector),
 			MeshBatch.Elements[0].NumPrimitives,
 			&RayTracingGeometry,
-			&RayTracingDynamicVertexBuffer,
+			VertexBuffer,
+			true
 		}
 	);
 

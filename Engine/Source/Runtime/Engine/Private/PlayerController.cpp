@@ -4639,7 +4639,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 						const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
 						const float ForcedUpdateInterval = GameNetworkManager->MAXCLIENTUPDATEINTERVAL;
 						const float ForcedUpdateMaxDuration = FMath::Min(GameNetworkManager->MaxClientForcedUpdateDuration, 5.0f);
-						
+
 						// If currently resolving forced updates, and exceeded max duration, then wait for a valid update before enabling them again.
 						ServerData->bForcedUpdateDurationExceeded = false;
 						if (ServerData->bTriggeringForcedUpdates)
@@ -4654,8 +4654,16 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 								}
 								else
 								{
-									// Waiting for ServerTimeStamp to advance from a client move.
-									ServerData->bForcedUpdateDurationExceeded = true;
+									if (ServerData->bLastRequestNeedsForcedUpdates)
+									{
+										// No valid updates, don't reset anything but don't mark as exceeded either
+										// Keep forced updates going until new and valid move request is received
+									}
+									else
+									{
+										// Waiting for ServerTimeStamp to advance from a client move.
+										ServerData->bForcedUpdateDurationExceeded = true;
+									}
 								}
 							}
 						}

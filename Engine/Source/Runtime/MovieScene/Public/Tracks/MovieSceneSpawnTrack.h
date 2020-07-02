@@ -53,9 +53,6 @@ public:
 	virtual void RemoveAllAnimationData() override;
 	virtual bool IsEmpty() const override;
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
-	virtual void GenerateTemplate(const FMovieSceneTrackCompilerArgs& Args) const override;
-	virtual void PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 	//~ UObject interface
 	virtual void PostLoad() override;

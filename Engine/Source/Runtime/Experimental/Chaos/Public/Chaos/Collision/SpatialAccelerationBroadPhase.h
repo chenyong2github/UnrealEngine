@@ -18,6 +18,9 @@ namespace Chaos
 {
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::BroadPhase"), STAT_Collisions_SpatialBroadPhase, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Filtering"), STAT_Collisions_Filtering, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ComputeBoundsThickness"), STAT_Collisions_ComputeBoundsThickness, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::GenerateCollisions"), STAT_Collisions_GenerateCollisions, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ReceiveCollisions"), STAT_Collisions_ReceiveCollisions, STATGROUP_ChaosCollision, CHAOS_API);
 	
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
@@ -227,7 +230,7 @@ namespace Chaos
 
 					if (Particle1.HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions) )
 					{
-						if (IgnoreCollisionManager.IgnoresCollision(Particle1.ParticleID(), Particle2.ParticleID()))
+						if (IgnoreCollisionManager.IgnoresCollision(Particle1.UniqueIdx(), Particle2.UniqueIdx()))
 						{
 							continue;
 						}
@@ -258,7 +261,6 @@ namespace Chaos
 						continue;
 					}
 
-
 					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
 					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
@@ -283,12 +285,23 @@ namespace Chaos
 						}
 					}
 				
-					const FReal Box2Thickness = bIsParticle2Dynamic ? ComputeBoundsThickness(*Particle2.CastToRigidParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size()
-						: (bIsParticle2Kinematic ? ComputeBoundsThickness(*Particle2.CastToKinematicParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size() : (FReal)0);
+					FReal Box2Thickness;
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Collisions_ComputeBoundsThickness);
+						Box2Thickness = bIsParticle2Dynamic ? ComputeBoundsThickness(*Particle2.CastToRigidParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size()
+							: (bIsParticle2Kinematic ? ComputeBoundsThickness(*Particle2.CastToKinematicParticle(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size() : (FReal)0);
+					}
 
 					FCollisionConstraintsArray NewConstraints;
-					NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
-					Receiver.ReceiveCollisions(NewConstraints);
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
+					}
+
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Collisions_ReceiveCollisions);
+						Receiver.ReceiveCollisions(NewConstraints);
+					}
 				}
 			}
 

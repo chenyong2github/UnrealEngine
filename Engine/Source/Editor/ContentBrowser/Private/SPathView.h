@@ -284,6 +284,21 @@ protected:
 		TSharedRef<SPathView> PathView;
 	};
 
+	/** A helper class to scope a selection change notification so that it only emits if the selection has actually changed after the scope ends */
+	class FScopedSelectionChangedEvent
+	{
+	public:
+		FScopedSelectionChangedEvent(const TSharedRef<SPathView>& InPathView, const bool InShouldEmitEvent = true);
+		~FScopedSelectionChangedEvent();
+
+	private:
+		TSet<FName> GetSelectionSet() const;
+
+		TSharedRef<SPathView> PathView;
+		TSet<FName> InitialSelectionSet;
+		bool bShouldEmitEvent = true;
+	};
+
 	/** The tree view widget */
 	TSharedPtr< STreeView< TSharedPtr<FTreeItem>> > TreeViewPtr;
 

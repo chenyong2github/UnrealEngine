@@ -34,6 +34,7 @@ public class Landscape : ModuleRules
 				"RHI",
 				"Renderer",
 				"Foliage",
+				"DeveloperSettings"
 			}
 		);
 

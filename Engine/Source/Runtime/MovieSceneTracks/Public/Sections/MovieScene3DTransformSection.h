@@ -9,6 +9,7 @@
 #include "MovieSceneSection.h"
 #include "MovieSceneKeyStruct.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "TransformData.h"
 #include "MovieScene3DTransformSection.generated.h"
 
@@ -212,6 +213,7 @@ private:
 UCLASS(MinimalAPI)
 class UMovieScene3DTransformSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -246,13 +248,12 @@ public:
 
 protected:
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostEditImport() override;
 	virtual TSharedPtr<FStructOnScope> GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles) override;
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
-	virtual float GetTotalWeightValue(FFrameTime InTime) const override;
-	
-	void UpdateChannelProxy();
+	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
+
+private:
+
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 private:
 
@@ -275,18 +276,11 @@ private:
 	UPROPERTY()
 	FMovieSceneFloatChannel ManualWeight;
 
-	/** Unserialized mask that defines the mask of the current channel proxy so we don't needlessly re-create it on post-undo */
-	EMovieSceneTransformChannel ProxyChannels;
-
 	/** Whether to use a quaternion linear interpolation between keys. This finds the 'shortest' distance between keys */
 	UPROPERTY(EditAnywhere, DisplayName = "Use Quaternion Interpolation", Category = "Rotation")
 	bool bUseQuaternionInterpolation;
 
 public:
-	/**
-	 * Access the interrogation key for transform data - any interrgation data stored with this key is guaranteed to be of type 'FTransform'
-	 */
-	MOVIESCENETRACKS_API static FMovieSceneInterrogationKey GetInterrogationKey();
 
 #if WITH_EDITORONLY_DATA
 

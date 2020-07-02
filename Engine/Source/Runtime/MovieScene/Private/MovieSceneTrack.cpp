@@ -3,11 +3,13 @@
 #include "MovieSceneTrack.h"
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
+#include "Containers/SortedMap.h"
 
 #include "MovieSceneTimeHelpers.h"
 #include "Evaluation/MovieSceneSegment.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
+#include "Compilation/MovieSceneEvaluationTreePopulationRules.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 
 #include "Evaluation/MovieSceneEvaluationTrack.h"
@@ -23,6 +25,8 @@ UMovieSceneTrack::UMovieSceneTrack(const FObjectInitializer& InInitializer)
 	SortingOrder = -1;
 	bSupportsDefaultSections = true;
 #endif
+
+	BuiltInTreePopulationMode = ETreePopulationMode::HighPassPerRow;
 }
 
 void UMovieSceneTrack::PostInitProperties()
@@ -34,7 +38,7 @@ void UMovieSceneTrack::PostInitProperties()
 	{
 		SetFlags(GetOuter()->GetMaskedFlags(RF_PropagateToSubObjects));
 	}
-	
+
 	Super::PostInitProperties();
 }
 
@@ -149,19 +153,19 @@ void UMovieSceneTrack::UpdateEasing()
 				const bool bSectionRangeContainsOtherLowerBound = !OtherSectionRange.GetLowerBound().IsOpen() && !CurrentSectionRange.GetUpperBound().IsOpen() && CurrentSectionRange.Contains(OtherSectionRange.GetLowerBoundValue());
 				if (bSectionRangeContainsOtherUpperBound && !bSectionRangeContainsOtherLowerBound)
 				{
-					const int32 Difference = MovieScene::DiscreteSize(TRange<FFrameNumber>(CurrentSectionRange.GetLowerBound(), OtherSectionRange.GetUpperBound()));
+					const int32 Difference = UE::MovieScene::DiscreteSize(TRange<FFrameNumber>(CurrentSectionRange.GetLowerBound(), OtherSectionRange.GetUpperBound()));
 					MaxEaseIn = FMath::Max(MaxEaseIn, Difference);
 				}
 
 				if (bSectionRangeContainsOtherLowerBound &&!bSectionRangeContainsOtherUpperBound)
 				{
-					const int32 Difference = MovieScene::DiscreteSize(TRange<FFrameNumber>(OtherSectionRange.GetLowerBound(), CurrentSectionRange.GetUpperBound()));
+					const int32 Difference = UE::MovieScene::DiscreteSize(TRange<FFrameNumber>(OtherSectionRange.GetLowerBound(), CurrentSectionRange.GetUpperBound()));
 					MaxEaseOut = FMath::Max(MaxEaseOut, Difference);
 				}
 			}
 
 			const bool  bIsFinite = CurrentSectionRange.HasLowerBound() && CurrentSectionRange.HasUpperBound();
-			const int32 MaxSize   = bIsFinite ? MovieScene::DiscreteSize(CurrentSectionRange) : TNumericLimits<int32>::Max();
+			const int32 MaxSize   = bIsFinite ? UE::MovieScene::DiscreteSize(CurrentSectionRange) : TNumericLimits<int32>::Max();
 
 			if (MaxEaseOut == 0 && MaxEaseIn == 0 && bIsEntirelyUnderlapped)
 			{
@@ -200,103 +204,13 @@ FMovieSceneTrackSegmentBlenderPtr UMovieSceneTrack::GetTrackSegmentBlender() con
 	}
 }
 
-void UMovieSceneTrack::GenerateTemplate(const FMovieSceneTrackCompilerArgs& Args) const
-{
-	FMovieSceneEvaluationTrack NewTrackTemplate(Args.ObjectBindingId);
-
-	if (Compile(NewTrackTemplate, Args) != EMovieSceneCompileResult::Success)
-	{
-		return;
-	}
-
-	Args.Generator.AddOwnedTrack(MoveTemp(NewTrackTemplate), *this);
-}
-
-FMovieSceneEvaluationTrack UMovieSceneTrack::GenerateTrackTemplate() const
-{
-	FMovieSceneEvaluationTrack TrackTemplate = FMovieSceneEvaluationTrack(FGuid());
-
-	// For this path, we don't have a generator, so we just pass through a stub
-	struct FTemplateGeneratorStub : IMovieSceneTemplateGenerator
-	{
-		virtual void AddOwnedTrack(FMovieSceneEvaluationTrack&& InTrackTemplate, const UMovieSceneTrack& SourceTrack) override {}
-	} Generator;
-
-	FMovieSceneTrackCompilerArgs Args(Generator);
-	if (GetTypedOuter<UMovieSceneSequence>())
-	{
-		Args.DefaultCompletionMode = GetTypedOuter<UMovieSceneSequence>()->DefaultCompletionMode;
-	}
-
-	Compile(TrackTemplate, Args);
-
-	return TrackTemplate;
-}
-
-EMovieSceneCompileResult UMovieSceneTrack::Compile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	OutTrack.SetPreAndPostrollConditions(EvalOptions.bEvaluateInPreroll, EvalOptions.bEvaluateInPostroll);
-
-	EMovieSceneCompileResult Result = CustomCompile(OutTrack, Args);
-
-	if (Result == EMovieSceneCompileResult::Unimplemented)
-	{
-		for (const UMovieSceneSection* Section : GetAllSections())
-		{
-			const TRange<FFrameNumber> SectionRange = Section->GetTrueRange();
-			if (!Section->IsActive() || SectionRange.IsEmpty())
-			{
-				continue;
-			}
-
-			FMovieSceneEvalTemplatePtr NewTemplate = CreateTemplateForSection(*Section);
-			if (NewTemplate.IsValid())
-			{
-				NewTemplate->SetCompletionMode(Section->EvalOptions.CompletionMode == EMovieSceneCompletionMode::ProjectDefault ? Args.DefaultCompletionMode : Section->EvalOptions.CompletionMode);
-				NewTemplate->SetSourceSection(Section);
-
-				int32 TemplateIndex = OutTrack.AddChildTemplate(MoveTemp(NewTemplate));
-				OutTrack.AddTreeData(SectionRange, FSectionEvaluationData(TemplateIndex, ESectionEvaluationFlags::None));
-
-				if (!SectionRange.GetLowerBound().IsOpen() && Section->GetPreRollFrames() > 0)
-				{
-					TRange<FFrameNumber> PreRollRange = MovieScene::MakeDiscreteRangeFromUpper(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBoundValue()), Section->GetPreRollFrames());
-					OutTrack.AddTreeData(PreRollRange, FSectionEvaluationData(TemplateIndex, ESectionEvaluationFlags::PreRoll));
-				}
-
-				if (!SectionRange.GetUpperBound().IsOpen() && Section->GetPostRollFrames() > 0)
-				{
-					TRange<FFrameNumber> PostRollRange = MovieScene::MakeDiscreteRangeFromLower(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBoundValue()), Section->GetPostRollFrames());
-					OutTrack.AddTreeData(PostRollRange, FSectionEvaluationData(TemplateIndex, ESectionEvaluationFlags::PostRoll));
-				}
-			}
-		}
-		Result = EMovieSceneCompileResult::Success;
-	}
-
-	if (Result == EMovieSceneCompileResult::Success)
-	{
-		OutTrack.SetSourceTrack(this);
-		PostCompile(OutTrack, Args);
-	}
-
-	return Result;
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return InSection.GenerateTemplate();
-}
 
 int32 UMovieSceneTrack::GetMaxRowIndex() const
 {
 	int32 MaxRowIndex = 0;
 	for (UMovieSceneSection* Section : GetAllSections())
 	{
-		if (Section != nullptr)
-		{
-			MaxRowIndex = FMath::Max(MaxRowIndex, Section->GetRowIndex());
-		}
+		MaxRowIndex = FMath::Max(MaxRowIndex, Section->GetRowIndex());
 	}
 
 	return MaxRowIndex;
@@ -348,4 +262,173 @@ bool UMovieSceneTrack::FixRowIndices()
 		}
 	}
 	return bFixesMade;
+}
+
+FGuid UMovieSceneTrack::FindObjectBindingGuid() const
+{
+	const UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+
+	if (MovieScene)
+	{
+		for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
+		{
+			if (Binding.GetTracks().Contains(this))
+			{
+				return Binding.GetObjectGuid();
+			}
+		}
+	}
+
+	return FGuid();
+}
+
+void UMovieSceneTrack::AddSectionRangesToTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
+{
+	if (PopulateEvaluationTree(OutTree))
+	{
+		return;
+	}
+
+	ETreePopulationMode ModeToUse = BuiltInTreePopulationMode;
+	if (!ensureMsgf(ModeToUse != ETreePopulationMode::None, TEXT("No default tree population mode specified, and no PopulateEvaluationTree implemented - falling back to high-pass-per-row population.")))
+	{
+		ModeToUse = ETreePopulationMode::HighPassPerRow;
+	}
+
+	switch (ModeToUse)
+	{
+	case ETreePopulationMode::Blended:
+		UE::MovieScene::FEvaluationTreePopulationRules::Blended(Sections, OutTree);
+		break;
+
+	case ETreePopulationMode::HighPass:
+		UE::MovieScene::FEvaluationTreePopulationRules::HighPass(Sections, OutTree);
+		break;
+
+	case ETreePopulationMode::HighPassPerRow:
+		UE::MovieScene::FEvaluationTreePopulationRules::HighPassPerRow(Sections, OutTree);
+		break;
+	}
+}
+
+void UMovieSceneTrack::AddSectionPrePostRollRangesToTree(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
+{
+	// Always add pre and postroll ranges, regardless
+	for (UMovieSceneSection* Section : Sections)
+	{
+		if (Section && Section->IsActive())
+		{
+			const TRange<FFrameNumber> SectionRange = Section->GetRange();
+			if (!SectionRange.IsEmpty())
+			{
+				if (!SectionRange.GetLowerBound().IsOpen() && Section->GetPreRollFrames() > 0)
+				{
+					TRange<FFrameNumber> PreRollRange = UE::MovieScene::MakeDiscreteRangeFromUpper(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBoundValue()), Section->GetPreRollFrames());
+					OutTree.Add(PreRollRange, FMovieSceneTrackEvaluationData::FromSection(Section).SetFlags(ESectionEvaluationFlags::PreRoll));
+				}
+
+				if (!SectionRange.GetUpperBound().IsOpen() && Section->GetPostRollFrames() > 0)
+				{
+					TRange<FFrameNumber> PostRollRange = UE::MovieScene::MakeDiscreteRangeFromLower(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBoundValue()), Section->GetPostRollFrames());
+					OutTree.Add(PostRollRange, FMovieSceneTrackEvaluationData::FromSection(Section).SetFlags(ESectionEvaluationFlags::PostRoll));
+				}
+			}
+		}
+	}
+}
+
+const FMovieSceneTrackEvaluationField& UMovieSceneTrack::GetEvaluationField()
+{
+	if (EvaluationFieldGuid != GetSignature() 
+#if WITH_EDITORONLY_DATA
+			|| EvaluationFieldVersion != GetEvaluationFieldVersion()
+#endif
+			)
+	{
+		UpdateEvaluationTree();
+	}
+
+	return EvaluationField;
+}
+
+void UMovieSceneTrack::UpdateEvaluationTree()
+{
+	TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData> EvaluationTree;
+
+	TArray<UMovieSceneSection*> Sections = GetAllSections();
+
+	AddSectionRangesToTree(Sections, EvaluationTree);
+
+	if (EvalOptions.bCanEvaluateNearestSection && EvalOptions.bEvalNearestSection)
+	{
+		UE::MovieScene::FEvaluationTreePopulationRules::PopulateNearestSection(Sections, EvaluationTree);
+	}
+
+	AddSectionPrePostRollRangesToTree(Sections, EvaluationTree);
+
+
+	EvaluationField.Reset();
+
+	TMap<UMovieSceneSection*, TArray<FMovieSceneTrackEvaluationFieldEntry>> SectionToEntry;
+	for (FMovieSceneEvaluationTreeRangeIterator It(EvaluationTree); It; ++It)
+	{
+		TRange<FFrameNumber> Range = It.Range();
+
+		TMovieSceneEvaluationTreeDataIterator<FMovieSceneTrackEvaluationData> TrackDataIt = EvaluationTree.GetAllData(It.Node());
+		if (TrackDataIt)
+		{
+			for (const FMovieSceneTrackEvaluationData& TrackData : TrackDataIt)
+			{
+				UMovieSceneSection* Section = TrackData.Section.Get();
+				SectionToEntry.FindOrAdd(Section).Add(FMovieSceneTrackEvaluationFieldEntry{ Section, Range, TrackData.ForcedTime, TrackData.Flags, TrackData.SortOrder });
+			}
+		}
+		else
+		{
+			// Add an eplicit entry for null, signifying the track itself, even though there are no sections at this time
+			//SectionToEntry.FindOrAdd(nullptr).Add(FMovieSceneTrackEvaluationFieldEntry{ Range, ESectionEvaluationFlags::None, 0 });
+		}
+	}
+
+	for (TTuple<UMovieSceneSection*, TArray<FMovieSceneTrackEvaluationFieldEntry>>& Pair : SectionToEntry)
+	{
+		int32 NumEntries = Pair.Value.Num();
+		for (int32 Index = 0; Index < NumEntries; ++Index)
+		{
+			FMovieSceneTrackEvaluationFieldEntry* PredicateEntry = &Pair.Value[Index];
+
+			int32 StartIndex = Index;
+
+			while (Index < NumEntries-1)
+			{
+				const FMovieSceneTrackEvaluationFieldEntry& SubsequentEntry = Pair.Value[Index+1];
+				if (SubsequentEntry.Range.Adjoins(PredicateEntry->Range) && SubsequentEntry.Flags == PredicateEntry->Flags && SubsequentEntry.ForcedTime == PredicateEntry->ForcedTime)
+				{
+					PredicateEntry->Range.SetUpperBound(SubsequentEntry.Range.GetUpperBound());
+					++Index;
+					continue;
+				}
+
+				break;
+			}
+
+			int32 NumToConsolidate = Index - StartIndex;
+			if (NumToConsolidate > 0)
+			{
+				Pair.Value.RemoveAt(StartIndex + 1, NumToConsolidate, false);
+				NumEntries -= NumToConsolidate;
+			}
+		}
+
+		// @todo: Do we need to handle with empty track segments?
+		if (Pair.Value.Num() > 0)
+		{
+			EvaluationField.Entries.Append(Pair.Value);
+		}
+	}
+
+	EvaluationFieldGuid = GetSignature();
+#if WITH_EDITORONLY_DATA
+	EvaluationFieldVersion = GetEvaluationFieldVersion();
+#endif
 }

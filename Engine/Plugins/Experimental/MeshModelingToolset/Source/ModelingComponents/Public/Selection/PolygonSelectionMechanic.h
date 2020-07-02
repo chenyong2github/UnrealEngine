@@ -99,6 +99,14 @@ public:
 	 */
 	void NotifyMeshChanged(bool bTopologyModified);
 
+	/**
+	 * Perform a hit test on the topology using the current selection settings. In cases of hitting edges and
+	 * corners, OutHit contains the following:
+	 *   OutHit.FaceIndex: edge or corner id in the topology
+	 *   OutHit.ImpactPoint: closest point on the ray to the hit element (Note: not a point on the element!)
+	 *   OutHit.Distance: distance along the ray to ImpactPoint
+	 *   OutHit.Item: if hit item was an edge, index of the segment within the edge polyline. Otherwise undefined.
+	 */
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection);
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit);
 
@@ -194,7 +202,7 @@ protected:
 	FGroupTopologySelector TopoSelector;
 
 	/** 
-	 * Update the topology selecter given the current selection settings.
+	 * Update the topology selector given the current selection settings.
 	 *
 	 * @param bUseOrthoSettings If true, the topology selector will be configured to use ortho settings,
 	 *  which are generally different to allow for selection of projected elements, etc.
@@ -206,7 +214,7 @@ protected:
 	int32 SelectionTimestamp = 0;
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
 
-	/** The temporary actor we create internally to own the preview mesh component */
+	/** The actor we create internally to own the DrawnTriangleSetComponent */
 	UPROPERTY()
 	APreviewGeometryActor* PreviewGeometryActor;
 

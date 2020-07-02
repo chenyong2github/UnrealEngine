@@ -9,6 +9,8 @@
 #include "UObject/SoftObjectPath.h"
 #include "RHI.h"
 #include "NiagaraCore.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/WeakFieldPtr.h"
 #include "NiagaraCommon.generated.h"
 
 class UNiagaraSystem;
@@ -595,9 +597,47 @@ private:
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
+struct FComponentPropertyAddress
+{
+	TWeakFieldPtr<FProperty> Property;
+	void* Address;
 
+	FProperty* GetProperty() const
+	{
+		FProperty* PropertyPtr = Property.Get();
+		if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			return PropertyPtr;
+		}
+		return nullptr;
+	}
 
+	FComponentPropertyAddress() : Property(nullptr), Address(nullptr) {}
+};
 
+struct FNiagaraComponentRenderPoolEntry
+{
+	TWeakObjectPtr<USceneComponent> Component;
+	float InactiveTimeLeft = 0;
+	TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
+	int32 LastAssignedToParticleID = -1;
+};
+
+struct FNiagaraComponentUpdateTask
+{
+	TWeakObjectPtr<USceneComponent> TemplateObject;
+	TFunction<void(USceneComponent*, FNiagaraComponentRenderPoolEntry&)> UpdateCallback;
+	int32 ParticleID = -1;
+	int32 SmallestID = -1;
+#if WITH_EDITORONLY_DATA
+	bool bVisualizeComponents = true;
+#endif
+};
+
+struct FNiagaraComponentRenderPool
+{
+	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
+};
 
 /** Defines different usages for a niagara script. */
 UENUM()
@@ -779,7 +819,7 @@ namespace FNiagaraUtilities
 	 * @param ScriptToEmitterNameMap An array of scripts to the name of the emitter than owns them.  If this is a system script the name can be empty.  All scripts in the
 	 * scripts array must have an entry in this map.
 	 */
-	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
+	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, const UNiagaraEmitter*>& ScriptToEmitterNameMap);
 #endif
 
 	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);

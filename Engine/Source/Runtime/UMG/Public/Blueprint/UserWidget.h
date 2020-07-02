@@ -32,6 +32,7 @@ class FSlateWindowElementList;
 class UDragDropOperation;
 class UTexture2D;
 class UUMGSequencePlayer;
+class UUMGSequenceTickManager;
 class UWidgetAnimation;
 class UWidgetTree;
 class UNamedSlot;
@@ -209,15 +210,11 @@ public:
 
 	//UObject interface
 	virtual class UWorld* GetWorld() const override;
-	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
-
-	void TemplateInit();
-	bool VerifyTemplateIntegrity(TArray<FText>& OutErrors);
 
 	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree);
 
@@ -229,10 +226,6 @@ public:
 	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass() const;
 
 protected:
-	virtual void TemplateInitInner();
-
-	bool VerifyTemplateIntegrity(UUserWidget* TemplateRoot, TArray<FText>& OutErrors);
-
 	/** The function is implemented only in nativized widgets (automatically converted from BP to c++) */
 	virtual void InitializeNativeClassData() {}
 
@@ -1058,6 +1051,12 @@ public:
 	bool IsAnimationPlayingForward(const UWidgetAnimation* InAnimation);
 
 	/**
+	 * Flushes all animations on all widgets to guarantee that any queued updates are processed before this call returns
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
+	void FlushAnimations();
+
+	/**
 	 * Plays a sound through the UI
 	 *
 	 * @param The sound to play
@@ -1148,6 +1147,9 @@ public:
 	UPROPERTY(Transient)
 	TArray<UUMGSequencePlayer*> ActiveSequencePlayers;
 
+	UPROPERTY(Transient)
+	UUMGSequenceTickManager* AnimationTickManager;
+
 	/** List of sequence players to cache and clean up when safe */
 	UPROPERTY(Transient)
 	TArray<UUMGSequencePlayer*> StoppedSequencePlayers;
@@ -1159,7 +1161,7 @@ private:
 
 public:
 	/** The widget tree contained inside this user widget initialized by the blueprint */
-	UPROPERTY(Instanced, TextExportTransient)
+	UPROPERTY(Transient, TextExportTransient)
 	UWidgetTree* WidgetTree;
 
 public:
@@ -1206,6 +1208,7 @@ public:
 	/** If a widget has an implemented paint blueprint function */
 	UPROPERTY()
 	uint8 bHasScriptImplementedPaint : 1;
+
 protected:
 
 	/** Has this widget been initialized by its class yet? */
@@ -1213,14 +1216,6 @@ protected:
 
 	/** If we're stopping all animations, don't allow new animations to be created as side-effects. */
 	uint8 bStoppingAllAnimations : 1;
-
-public:
-	/**
-	 * If this user widget was created using a cooked widget tree.  If that's true, we want to skip a lot of the normal
-	 * initialization logic for widgets, because these widgets have already been initialized.
-	 */
-	UPROPERTY()
-	uint8 bCookedWidgetTree : 1;
 
 protected:
 
@@ -1302,17 +1297,19 @@ protected:
 	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent);
 
 protected:
-	bool ShouldSerializeWidgetTree(const class ITargetPlatform* TargetPlatform) const;
 
 	/**
 	 * Ticks the active sequences and latent actions that have been scheduled for this Widget.
 	 */
-	void TickActionsAndAnimation(const FGeometry& MyGeometry, float InDeltaTime);
+	void TickActionsAndAnimation(float InDeltaTime);
+	void PostTickActionsAndAnimation(float InDeltaTime);
 
 	void RemoveObsoleteBindings(const TArray<FName>& NamedSlots);
 
 	UUMGSequencePlayer* GetSequencePlayer(const UWidgetAnimation* InAnimation) const;
 	UUMGSequencePlayer* GetOrAddSequencePlayer(UWidgetAnimation* InAnimation);
+
+	void TearDownAnimations();
 
 	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
 	void Invalidate();
@@ -1421,6 +1418,8 @@ protected:
 	 * UserWidget of state transitions.
 	 */
 	friend UUMGSequencePlayer;
+
+	friend UUMGSequenceTickManager;
 
 	/** The compiler is a friend so that it can disable initialization from the widget tree */
 	friend class FWidgetBlueprintCompilerContext;

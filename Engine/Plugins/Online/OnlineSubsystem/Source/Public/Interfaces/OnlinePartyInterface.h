@@ -159,14 +159,9 @@ public:
 	 * @param AttrName - key for the attribute
 	 * @param AttrValue - value to set the attribute to
 	 */
-	void SetAttribute(const FString& AttrName, const FVariantData& AttrValue)
+	inline void SetAttribute(const FString& AttrName, const FVariantData& AttrValue)
 	{
-		FVariantData& NewAttrValue = KeyValAttrs.FindOrAdd(AttrName);
-		if (NewAttrValue != AttrValue)
-		{
-			NewAttrValue = AttrValue;
-			DirtyKeys.Emplace(AttrName);
-		}
+		SetAttribute(CopyTemp(AttrName), CopyTemp(AttrValue));
 	}
 
 	/**
@@ -175,7 +170,7 @@ public:
 	 * @param AttrName - key for the attribute
 	 * @param AttrValue - value to set the attribute to
 	 */
-	void SetAttribute(FString&& AttrName, FVariantData&& AttrValue)
+	virtual void SetAttribute(FString&& AttrName, FVariantData&& AttrValue)
 	{
 		FVariantData& NewAttrValue = KeyValAttrs.FindOrAdd(AttrName);
 		if (NewAttrValue != AttrValue)
@@ -190,7 +185,17 @@ public:
 	 *
 	 * @param AttrName - key for the attribute
 	 */
-	void RemoveAttribute(FString&& AttrName)
+	inline void RemoveAttribute(const FString& AttrName)
+	{
+		return RemoveAttribute(CopyTemp(AttrName));
+	}
+
+	/**
+	 * Remove an attribute from the party data
+	 *
+	 * @param AttrName - key for the attribute
+	 */
+	virtual void RemoveAttribute(FString&& AttrName)
 	{
 		if (KeyValAttrs.Remove(AttrName) > 0)
 		{
@@ -199,24 +204,11 @@ public:
 	}
 
 	/**
-	 * Remove an attribute from the party data
-	 *
-	 * @param AttrName - key for the attribute
-	 */
-	void RemoveAttribute(const FString& AttrName)
-	{
-		if (KeyValAttrs.Remove(AttrName) > 0)
-		{
-			DirtyKeys.Emplace(AttrName);
-		}
-	}
-
-	/**
 	 * Mark an attribute as dirty so it can be rebroadcasted
 	 *
 	 * @param AttrName - key for the attribute to mark dirty
 	 */
-	void MarkAttributeDirty(FString&& AttrName)
+	virtual void MarkAttributeDirty(FString&& AttrName)
 	{
 		DirtyKeys.Emplace(MoveTemp(AttrName));
 	}
@@ -242,7 +234,7 @@ public:
 	/**
 	 * Clear the attributes map
 	 */
-	void ClearAttributes()
+	virtual void ClearAttributes()
 	{
 		KeyValAttrs.Empty();
 		DirtyKeys.Empty();
@@ -251,7 +243,7 @@ public:
 	/** 
 	 * Clear the dirty keys set, called after successfully sending an update of the dirty elements
 	 */
-	void ClearDirty()
+	virtual void ClearDirty()
 	{
 		DirtyKeys.Empty();
 	}
@@ -328,7 +320,6 @@ private:
 
 	/** set of which fields are dirty and need to transmitted */
 	TSet<FString> DirtyKeys;
-
 };
 
 typedef TSharedRef<FOnlinePartyData> FOnlinePartyDataRef;

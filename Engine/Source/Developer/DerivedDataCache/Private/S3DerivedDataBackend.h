@@ -29,10 +29,8 @@ public:
 	 * @param  InRegion	            Name of the AWS region (eg. us-east-1)
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
 	 * @param  InCachePath          Path to cache the DDC files
-	 * @param  InAccessKey          The AWS access key
-	 * @param  InSecretKey          The AWS secret key
 	 */
-	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath, const TCHAR* InAccessKey, const TCHAR* InSecretKey);
+	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
 	~FS3DerivedDataBackend();
 
 	/**
@@ -65,6 +63,8 @@ private:
 	struct FBundleEntry;
 	struct FBundleDownload;
 
+	struct FRootManifest;
+
 	class FRequest;
 	class FRequestPool;
 
@@ -78,7 +78,7 @@ private:
 	FDerivedDataCacheUsageStats UsageStats;
 	bool bEnabled;
 
-	bool DownloadManifest(FFeedbackContext* Context);
+	bool DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context);
 	void RemoveUnusedBundles();
 	void ReadBundle(FBundle& Bundle);
 	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;

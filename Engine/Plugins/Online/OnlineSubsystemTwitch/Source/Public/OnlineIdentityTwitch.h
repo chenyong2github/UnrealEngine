@@ -7,7 +7,7 @@
 #include "Http.h"
 #include "Misc/Guid.h"
 
-typedef TSharedPtr<class IHttpRequest> FHttpRequestPtr;
+typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 class FUserOnlineAccountTwitch;
 class FOnlineSubsystemTwitch;

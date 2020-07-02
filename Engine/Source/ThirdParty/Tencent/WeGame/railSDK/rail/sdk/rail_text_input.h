@@ -1,8 +1,8 @@
-﻿// Copyright (c) 2016, Entropy Game Global Limited.
+﻿// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
-#ifndef RAIL_SDK_RAIL_TEXT_INPUT_HELPER_H
-#define RAIL_SDK_RAIL_TEXT_INPUT_HELPER_H
+#ifndef RAIL_SDK_RAIL_TEXT_INPUT_H
+#define RAIL_SDK_RAIL_TEXT_INPUT_H
 
 #include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_text_input_define.h"
@@ -22,4 +22,4 @@ class IRailTextInputHelper {
 #pragma pack(pop)
 }  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_UTILS_H
+#endif  // RAIL_SDK_RAIL_TEXT_INPUT_H

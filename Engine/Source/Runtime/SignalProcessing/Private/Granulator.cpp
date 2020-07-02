@@ -182,7 +182,7 @@ namespace Audio
 		}
 	}
 
-	float FGrainEnvelope::GetValue(const float Fraction)
+	float FGrainEnvelope::GetValue(const float Fraction) const
 	{
 		const int32 NumFrames = GrainEnvelope.Num() - 1;
 		const float Index = Fraction * (float)NumFrames;
@@ -190,7 +190,8 @@ namespace Audio
 		const int32 NextIndex = FMath::Min(NumFrames, PrevIndex + 1);
 		const float AlphaIndex = Index - (float)PrevIndex;
 
-		return FMath::Lerp(GrainEnvelope[PrevIndex], GrainEnvelope[NextIndex], AlphaIndex);
+		const float* GrainEnvelopePtr = GrainEnvelope.GetData();
+		return FMath::Lerp(GrainEnvelopePtr[PrevIndex], GrainEnvelopePtr[NextIndex], AlphaIndex);
 	}
 
 	FGrain::FGrain(const int32 InGrainId, FGranularSynth* InParent)

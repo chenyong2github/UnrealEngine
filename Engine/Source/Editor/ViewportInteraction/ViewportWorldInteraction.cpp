@@ -3478,12 +3478,12 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 		InitialGuideHelper.DrawAlpha = 1.0f;
 		InitialGuideHelper.GuideLength = 10000000.0f;
 
-		for (const FVector LocalCandidateSnapPoint : LocalCandidateSnapPoints)
+		for (const FVector& LocalCandidateSnapPoint : LocalCandidateSnapPoints)
 		{
 			FVector WorldCandidateSnapPoint = CandidateActor->ActorToWorld().TransformPosition(LocalCandidateSnapPoint);
 			FVector DesiredGizmoLocalCandidateSnapPoint = DesiredGizmoTransform.InverseTransformPosition(WorldCandidateSnapPoint);
 			// Check it against each moving snap point
-			for (const FVector DesiredGizmoLocalGizmoSnapPoint : DesiredGizmoLocalGizmoSnapPoints)
+			for (const FVector& DesiredGizmoLocalGizmoSnapPoint : DesiredGizmoLocalGizmoSnapPoints)
 			{
 				FVector WorldGizmoSnapPoint = DesiredGizmoTransform.TransformPosition(DesiredGizmoLocalGizmoSnapPoint);
 				int32 NumberOfMatchingAxes = 0;

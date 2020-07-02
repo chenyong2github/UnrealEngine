@@ -139,6 +139,11 @@ void FTraceAuxiliaryImpl::ParseCommandLine(const TCHAR* CommandLine)
 		ChannelSet = *Parameter;
 	}
 
+	if (!bOk && ChannelSet == nullptr)
+	{
+		return;
+	}
+
 	FString Channels = GetChannels(ChannelSet);
 	ToggleChannels(*Channels);
 
@@ -321,6 +326,7 @@ UE_TRACE_EVENT_END()
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
 #if UE_TRACE_ENABLED
+	// Initialize Trace
 	Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
 

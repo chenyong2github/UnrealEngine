@@ -152,7 +152,7 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			TArray<FColor> ScaledBitmap;
 			int32 ScaledWidth = 512;
 			int32 ScaledHeight = 512;
-			FImageUtils::ImageResize(SrcWidth, SrcHeight, OrigBitmap, ScaledWidth, ScaledHeight, ScaledBitmap, true);
+			FImageUtils::CropAndScaleImage(SrcWidth, SrcHeight, ScaledWidth, ScaledHeight, OrigBitmap, ScaledBitmap);
 
 			// Compress.
 			FCreateTexture2DParameters Params;
@@ -230,8 +230,13 @@ void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Compone
 		FName EmitterName = EmitterInstance->GetEmitterHandle().GetName();
 		int32 CurrentCount = EmitterInstance->GetNumParticles();
 		int32 MaxCount = EmitterInstance->GetEmitterHandle().GetInstance()->GetMaxParticleCountEstimate();
+		bool IsIsolated = EmitterInstance->GetEmitterHandle().IsIsolated();
+		bool IsEnabled = EmitterInstance->GetEmitterHandle().GetIsEnabled();
 		TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s]"), CurrentCount, MaxCount, *EmitterName.ToString()));
 		TextItem.Position = FVector2D(CurrentX, CurrentY);
+		TextItem.bOutlined = IsIsolated;
+		TextItem.OutlineColor = FLinearColor(0.7f, 0.0f, 0.0f);
+		TextItem.SetColor(IsEnabled ? FLinearColor::White : FLinearColor::Gray);
 		TextItem.Draw(Canvas);
 		CurrentY += FontHeight;
 	}
@@ -282,7 +287,7 @@ void FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(bool bInIsSimul
 
 void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 {
-	DrawFlags = 0;
+	DrawFlags = EDrawElements::ParticleCounts;
 	bShowBackground = false;
 	PreviewComponent = nullptr;
 	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));

@@ -30,7 +30,7 @@ public:
 	 * @param Time	The time to find a section at
 	 * @return The found section or null
 	 */
-	static UMovieSceneSection* FindSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time );
+	static UMovieSceneSection* FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time );
 
 	/**
 	 * Finds the nearest section to the given time
@@ -38,7 +38,7 @@ public:
 	 * @param Time	The time to find a section at
 	 * @return The found section or null
 	 */
-	static UMovieSceneSection* FindNearestSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time );
+	static UMovieSceneSection* FindNearestSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time );
 
 	/*
 	 * Fix up consecutive sections so that there are no gaps
@@ -138,7 +138,7 @@ public:
 class MOVIESCENE_API FTrackInstancePropertyBindings
 {
 public:
-	FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath, const FName& InFunctionName = FName(), const FName& InNotifyFunctionName = FName());
+	FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath);
 
 	/**
 	 * Calls the setter function for a specific runtime object or if the setter function does not exist, the property is set directly
@@ -197,10 +197,12 @@ public:
 	template <typename ValueType>
 	ValueType GetCurrentValue(const UObject& Object)
 	{
-		FPropertyAndFunction PropAndFunction = FindOrAdd(Object);
+		ValueType Value{};
 
-		const ValueType* Val = PropAndFunction.GetPropertyAddress<ValueType>();
-		return Val ? *Val : ValueType();
+		FPropertyAndFunction PropAndFunction = FindOrAdd(Object);
+		ResolvePropertyValue<ValueType>(PropAndFunction.PropertyAddress, Value);
+
+		return Value;
 	}
 
 	/**
@@ -212,10 +214,38 @@ public:
 	template <typename ValueType>
 	TOptional<ValueType> GetOptionalValue(const UObject& Object)
 	{
-		FPropertyAndFunction PropAndFunction = FindOrAdd(Object);
+		ValueType Value{};
 
-		const ValueType* Val = PropAndFunction.GetPropertyAddress<ValueType>();
-		return Val ? *Val : TOptional<ValueType>();
+		FPropertyAndFunction PropAndFunction = FindOrAdd(Object);
+		if (ResolvePropertyValue<ValueType>(PropAndFunction.PropertyAddress, Value))
+		{
+			return Value;
+		}
+
+		return TOptional<ValueType>();
+	}
+
+	/**
+	 * Static function for accessing a property value on an object without caching its address
+	 *
+	 * @param Object			The object to get the property from
+	 * @param InPropertyPath	The path to the property to retrieve
+	 * @return (Optional) The current value of the property on the object
+	 */
+	template <typename ValueType>
+	static TOptional<ValueType> StaticValue(const UObject* Object, const FString& InPropertyPath)
+	{
+		checkf(Object, TEXT("No object specified"));
+
+		FPropertyAddress Address = FindProperty(*Object, InPropertyPath);
+
+		ValueType Value;
+		if (ResolvePropertyValue<ValueType>(Address, Value))
+		{
+			return Value;
+		}
+
+		return TOptional<ValueType>();
 	}
 
 	/**
@@ -285,6 +315,13 @@ private:
 			return nullptr;
 		}
 
+		template<typename ValueType>
+		ValueType* GetPropertyAddress() const
+		{
+			FProperty* PropertyPtr = GetProperty();
+			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>(Address) : nullptr;
+		}
+
 		FPropertyAddress()
 			: Property(nullptr)
 			, Address(nullptr)
@@ -300,8 +337,7 @@ private:
 		template<typename ValueType>
 		ValueType* GetPropertyAddress() const
 		{
-			FProperty* PropertyPtr = PropertyAddress.GetProperty();
-			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>(PropertyAddress.Address) : nullptr;
+			return PropertyAddress.GetPropertyAddress<ValueType>();
 		}
 
 		FPropertyAndFunction()
@@ -310,6 +346,17 @@ private:
 			, NotifyFunction( nullptr )
 		{}
 	};
+
+	template <typename ValueType>
+	static bool ResolvePropertyValue(const FPropertyAddress& Address, ValueType& OutValue)
+	{
+		if (const ValueType* Value = Address.GetPropertyAddress<ValueType>())
+		{
+			OutValue = *Value;
+			return true;
+		}
+		return false;
+	}
 
 	static FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
 	static FPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
@@ -349,11 +396,11 @@ private:
 
 /** Explicit specializations for bools */
 template<> MOVIESCENE_API void FTrackInstancePropertyBindings::CallFunction<bool>(UObject& InRuntimeObject, TCallTraits<bool>::ParamType PropertyValue);
-template<> MOVIESCENE_API bool FTrackInstancePropertyBindings::GetCurrentValue<bool>(const UObject& Object);
+template<> MOVIESCENE_API bool FTrackInstancePropertyBindings::ResolvePropertyValue<bool>(const FPropertyAddress& Address, bool& OutValue);
 template<> MOVIESCENE_API void FTrackInstancePropertyBindings::SetCurrentValue<bool>(UObject& Object, TCallTraits<bool>::ParamType InValue);
 
 template<> MOVIESCENE_API void FTrackInstancePropertyBindings::CallFunction<UObject*>(UObject& InRuntimeObject, UObject* PropertyValue);
-template<> MOVIESCENE_API UObject* FTrackInstancePropertyBindings::GetCurrentValue<UObject*>(const UObject& InRuntimeObject);
+template<> MOVIESCENE_API bool FTrackInstancePropertyBindings::ResolvePropertyValue<UObject*>(const FPropertyAddress& Address, UObject*& OutValue);
 template<> MOVIESCENE_API void FTrackInstancePropertyBindings::SetCurrentValue<UObject*>(UObject& InRuntimeObject, UObject* InValue);
 
 

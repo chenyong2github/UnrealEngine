@@ -312,6 +312,7 @@
 		Engine/Build/BatchFiles/Mac/GenerateLLDBInit.sh
 		Engine/Build/BatchFiles/Mac/FixDependencyFiles.sh
 		Engine/Build/BatchFiles/Mac/GenerateProjectFiles.sh
+		Engine/Build/BatchFiles/Mac/SetupEnvironment.sh
 		Engine/Build/BatchFiles/Mac/SetupMono.sh
 		Engine/Build/BatchFiles/Mac/FixMonoFiles.sh
 		Engine/Build/BatchFiles/Mac/RunMono.sh
@@ -349,6 +350,7 @@
 		Engine/Build/BatchFiles/Linux/GenerateProjectFiles.sh
 		Engine/Build/BatchFiles/Linux/QASmokeManual.sh
 		Engine/Build/BatchFiles/Linux/Setup.sh
+		Engine/Build/BatchFiles/Linux/SetupEnvironment.sh
 		Engine/Build/BatchFiles/Linux/SetupMono.sh
 		Engine/Build/BatchFiles/Linux/FixMonoFiles.sh
 		Engine/Build/BatchFiles/Linux/RunMono.sh

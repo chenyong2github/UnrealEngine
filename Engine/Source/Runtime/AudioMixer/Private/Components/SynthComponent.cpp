@@ -52,6 +52,8 @@ void USynthSound::OnBeginGenerate()
 
 int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	OutAudio.Reset();
 
 	if (bAudioMixer)
@@ -296,7 +298,6 @@ void USynthComponent::CreateAudioComponent()
 		AudioComponent->bStopWhenOwnerDestroyed = true;
 		AudioComponent->bShouldRemainActiveIfDropped = true;
 		AudioComponent->Mobility = EComponentMobility::Movable;
-		AudioComponent->Modulation = Modulation;
 
 #if WITH_EDITORONLY_DATA
 		AudioComponent->bVisualizeComponent = false;
@@ -432,6 +433,8 @@ FAudioDevice* USynthComponent::GetAudioDevice() const
 
 int32 USynthComponent::OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples)
 {
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	PumpPendingMessages();
 
 	check(NumSamples > 0);
@@ -538,6 +541,22 @@ void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 	}
 }
 
+void USynthComponent::SetLowPassFilterEnabled(bool InLowPassFilterEnabled)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetLowPassFilterEnabled(InLowPassFilterEnabled);
+	}
+}
+
+void USynthComponent::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetLowPassFilterFrequency(InLowPassFilterFrequency);
+	}
+}
+
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {
 	if (SoundGenerator.IsValid())
@@ -552,5 +571,7 @@ void USynthComponent::SynthCommand(TFunction<void()> Command)
 
 ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(int32 InSampleRate, int32 InNumChannels)
 {	
+	LLM_SCOPE(ELLMTag::AudioSynthesis);
+
 	return SoundGenerator = CreateSoundGenerator(InSampleRate, InNumChannels);
 }

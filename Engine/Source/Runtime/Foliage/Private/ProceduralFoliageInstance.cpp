@@ -4,27 +4,27 @@
 #include "FoliageType_InstancedStaticMesh.h"
 
 FProceduralFoliageInstance::FProceduralFoliageInstance()
-: Location(ForceInit)
-, Rotation(ForceInit)
-, Normal(ForceInit)
+: Rotation(ForceInit)
+, Location(ForceInit)
 , Age(0)
+, Normal(ForceInit)
 , Scale(1)
 , Type(nullptr)
-, bBlocker(false)
 , BaseComponent(nullptr)
+, bBlocker(false)
 , bAlive(true)
 {
 }
 
 FProceduralFoliageInstance::FProceduralFoliageInstance(const FProceduralFoliageInstance& Other)
-: Location(Other.Location)
-, Rotation(Other.Rotation)
-, Normal(Other.Normal)
+: Rotation(Other.Rotation)
+, Location(Other.Location)
 , Age(Other.Age)
+, Normal(Other.Normal)
 , Scale(Other.Scale)
 , Type(Other.Type)
-, bBlocker(Other.bBlocker)
 , BaseComponent(Other.BaseComponent)
+, bBlocker(Other.bBlocker)
 , bAlive(Other.bAlive)
 {
 

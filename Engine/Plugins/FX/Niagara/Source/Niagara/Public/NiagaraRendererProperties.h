@@ -10,6 +10,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraMergeable.h"
 #include "NiagaraGPUSortInfo.h"
+#include "NiagaraPlatformSet.h"
 #include "NiagaraRendererProperties.generated.h"
 
 /**
@@ -25,7 +26,7 @@ class UMaterialInterface;
 class FNiagaraEmitterInstance;
 class SWidget;
 class FAssetThumbnailPool;
-class FNiagaraDataSet;
+struct FNiagaraDataSetCompiledData;
 
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
@@ -47,7 +48,9 @@ public:
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const { return false; };
 
 	const TArray<const FNiagaraVariableAttributeBinding*>& GetAttributeBindings() const { return AttributeBindings; }
-	uint32 ComputeMaxUsedComponents(const FNiagaraDataSet& DataSet) const;
+	uint32 ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const;
+
+	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
 
 #if WITH_EDITORONLY_DATA
 
@@ -74,9 +77,14 @@ public:
 	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
 	virtual uint32 GetNumIndicesPerInstance() const { return 0; }
 
+	virtual bool GetIsActive() const;
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
 	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
-	
+
+	/** Platforms on which this renderer is enabled. */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraPlatformSet Platforms;
+
 	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner. 
 	Materials of the same type (i.e. Transparent) will draw in order from lowest to highest within the system. The default value is 0.*/
 	UPROPERTY(EditAnywhere, Category = "Sort Order")

@@ -679,6 +679,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bSceneCaptureUsesRayTracing(false)
 	, bIsReflectionCapture(false)
 	, bIsPlanarReflection(false)
+	, bIsVirtualTexture(false)
 	, bIsOfflineRender(false)
 	, bRenderSceneTwoSided(false)
 	, bIsLocked(false)
@@ -1409,6 +1410,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(AmbientOcclusionMipBlend);
 		LERP_PP(AmbientOcclusionMipScale);
 		LERP_PP(AmbientOcclusionMipThreshold);
+		LERP_PP(AmbientOcclusionTemporalBlendWeight);
 		LERP_PP(IndirectLightingColor);
 		LERP_PP(IndirectLightingIntensity);
 		LERP_PP(DepthOfFieldFocalDistance);

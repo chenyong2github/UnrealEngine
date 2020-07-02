@@ -628,6 +628,16 @@ public:
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
 	FRayTracingGeometryInitializer Initializer;
 
+	/** When set to NonSharedVertexBuffers, then shared vertex buffers are not used  */
+	static constexpr int64 NonSharedVertexBuffers = -1;
+
+	/** 
+	Vertex buffers for dynamic geometries may be sub-allocated from a shared pool, which is periodically reset and its generation ID is incremented.
+	Geometries that use the shared buffer must be updated (rebuilt or refit) before they are used for rendering after the pool is reset.
+	This is validated by comparing the current shared pool generation ID against generation IDs stored in FRayTracingGeometry during latest update.
+	*/
+	int64 DynamicGeometrySharedBufferGenerationID = NonSharedVertexBuffers;
+
 	// FRenderResource interface.
 	virtual void ReleaseRHI() override
 	{

@@ -969,6 +969,7 @@ UObject* ULevelFactory::FactoryCreateText
 						SpawnInfo.Name = ActorUniqueName;
 						SpawnInfo.Template = Archetype;
 						SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						SpawnInfo.bCreateActorPackage = true;
 						AActor* NewActor = World->SpawnActor( TempClass, nullptr, nullptr, SpawnInfo );
 						
 						if( NewActor )
@@ -5888,6 +5889,7 @@ UReimportFbxStaticMeshFactory::UReimportFbxStaticMeshFactory(const FObjectInitia
 
 	bCreateNew = false;
 	bText = false;
+	bShowOption = true;
 
 	// Required to allow other StaticMesh re importers to do their CanReimport checks first, and if they fail the FBX will catch it
 	ImportPriority = DefaultImportPriority - 1;
@@ -6192,6 +6194,7 @@ UReimportFbxSkeletalMeshFactory::UReimportFbxSkeletalMeshFactory(const FObjectIn
 
 	bCreateNew = false;
 	bText = false;
+	bShowOption = true;
 }
 
 bool UReimportFbxSkeletalMeshFactory::FactoryCanImport(const FString& Filename)
@@ -6610,6 +6613,7 @@ UReimportFbxAnimSequenceFactory::UReimportFbxAnimSequenceFactory(const FObjectIn
 
 	bCreateNew = false;
 	bText = false;
+	bShowOption = true;
 }
 
 bool UReimportFbxAnimSequenceFactory::FactoryCanImport(const FString& Filename)
@@ -6723,11 +6727,15 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 		//Set the selected skeleton in the anim sequence
 		AnimSequence->SetSkeleton(Skeleton);
 	}
-
-	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename) )
+	bool bOutImportAll = false;
+	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption) )
 	{
+		if (bOutImportAll)
+		{
+			// If the user chose to import all, we don't show the dialog again and use the same settings for each object until importing another set of files
+			bShowOption = false;
+		}
 		UE_LOG(LogEditorFactories, Log, TEXT("-- imported successfully") );
-
 		// update the data in case the file source has changed
 		ImportData->Update(UFactory::CurrentFilename);
 		AnimSequence->ImportFileFramerate = Importer->GetOriginalFbxFramerate();
