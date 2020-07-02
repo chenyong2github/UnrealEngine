@@ -2348,6 +2348,44 @@ void FPersonaMeshDetails::OnPasteMaterialItem(int32 CurrentSlot)
 	}
 }
 
+void FPersonaMeshDetails::OnAttributePreChangePreventPostEditChange(const int32 LODIndex, const FName LODInfoPropertyName) const
+{
+	//Avoid PostEditChange call 
+	USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
+
+	if (Mesh == nullptr)
+	{
+		return;
+	}
+	Mesh->StackPostEditChange();
+}
+
+void FPersonaMeshDetails::OnAttributeChangedPreventPostEditChange(const int32 LODIndex, const FName LODInfoPropertyName, const bool bForceComponentRefresh) const
+{
+	USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
+
+	if (Mesh == nullptr)
+	{
+		return;
+	}
+	Mesh->UnStackPostEditChange();
+	if(bForceComponentRefresh)
+	{
+		const bool bCallPostEditChange = false;
+		const bool bReregisterComponents = true;
+		FScopedSkeletalMeshPostEditChange ScopedSkelMeshChange(Mesh, bCallPostEditChange, bReregisterComponents);
+	}
+}
+
+void FPersonaMeshDetails::PreventAttributePostEditChange(TSharedPtr<IPropertyHandle> AttributeHandle, const int32 LODIndex, const FName PropertyName, const bool bForceComponentRefresh) const
+{
+	AttributeHandle->SetOnPropertyValuePreChange(FSimpleDelegate::CreateSP(this, &FPersonaMeshDetails::OnAttributePreChangePreventPostEditChange, LODIndex, PropertyName));
+	AttributeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPersonaMeshDetails::OnAttributeChangedPreventPostEditChange, LODIndex, PropertyName, bForceComponentRefresh));
+	//In case we have some childs (array attribute)
+	AttributeHandle->SetOnChildPropertyValuePreChange(FSimpleDelegate::CreateSP(this, &FPersonaMeshDetails::OnAttributePreChangePreventPostEditChange, LODIndex, PropertyName));
+	AttributeHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPersonaMeshDetails::OnAttributeChangedPreventPostEditChange, LODIndex, PropertyName, bForceComponentRefresh));
+}
+
 void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& DetailLayout, ULODInfoUILayout* LODInfoUILayout, TSharedRef<IPropertyHandle> LODInfoProperty, IDetailCategoryBuilder& LODCategory)
 {
 	check(LODInfoUILayout);
@@ -2377,25 +2415,31 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 
 	TAttribute<bool> EnabledAttrib = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, LODIndex));
 
+	const bool bForceComponentRefreshTrue = true;
+	const bool bForceComponentRefreshFalse = false;
 	// enable/disable handler - because we want to make sure not editable if LOD sharing is on
 	TSharedPtr<IPropertyHandle> ScreenSizeHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, ScreenSize));
 	IDetailPropertyRow& ScreenSizeRow = LODInfoGroup.AddPropertyRow(ScreenSizeHandle->AsShared());
 	ScreenSizeRow.IsEnabled(EnabledAttrib);
+	PreventAttributePostEditChange(ScreenSizeHandle, LODIndex, ScreenSizeHandle->GetProperty()->GetFName(), bForceComponentRefreshTrue);
 	DetailLayout.HideProperty(ScreenSizeHandle);
 
 	TSharedPtr<IPropertyHandle> LODHysteresisHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, LODHysteresis));
 	IDetailPropertyRow& LODHysteresisRow = LODInfoGroup.AddPropertyRow(LODHysteresisHandle->AsShared());
 	LODHysteresisRow.IsEnabled(EnabledAttrib);
+	PreventAttributePostEditChange(LODHysteresisHandle, LODIndex, LODHysteresisHandle->GetProperty()->GetFName(), bForceComponentRefreshTrue);
 	DetailLayout.HideProperty(LODHysteresisHandle);
 
 	TSharedPtr<IPropertyHandle> BonesToPrioritizeHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BonesToPrioritize));
 	IDetailPropertyRow& BonesToPrioritizeRow = LODInfoGroup.AddPropertyRow(BonesToPrioritizeHandle->AsShared());
 	BonesToPrioritizeRow.IsEnabled(EnabledAttrib);
+	PreventAttributePostEditChange(BonesToPrioritizeHandle, LODIndex, BonesToPrioritizeHandle->GetProperty()->GetFName(), bForceComponentRefreshFalse);
 	DetailLayout.HideProperty(BonesToPrioritizeHandle);
 
 	TSharedPtr<IPropertyHandle> WeightToPriortizeHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, WeightOfPrioritization));
 	IDetailPropertyRow& WeightToPriortizeRow = LODInfoGroup.AddPropertyRow(WeightToPriortizeHandle->AsShared());
 	WeightToPriortizeRow.IsEnabled(EnabledAttrib);
+	PreventAttributePostEditChange(WeightToPriortizeHandle, LODIndex, WeightToPriortizeHandle->GetProperty()->GetFName(), bForceComponentRefreshFalse);
 	DetailLayout.HideProperty(WeightToPriortizeHandle);
 
 	const TArray<FName> HiddenProperties = { GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, ReductionSettings), GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BakePose), GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BakePoseOverride), GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BonesToRemove),
@@ -2406,6 +2450,13 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 		if (!HiddenProperties.Contains(LODInfoChildHandle->GetProperty()->GetFName()))
 		{
 			LODInfoGroup.AddPropertyRow(LODInfoChildHandle);
+
+			//Some property has to call post edit change, since they are not part of the DDC key, but they are use by directly by the skinned mesh component.
+			bool bShouldPreventPostEditChange = GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, SkinCacheUsage) != LODInfoChildHandle->GetProperty()->GetFName();
+			if(bShouldPreventPostEditChange)
+			{
+				PreventAttributePostEditChange(LODInfoChildHandle, LODIndex, LODInfoChildHandle->GetProperty()->GetFName(), bForceComponentRefreshFalse);
+			}
 		}
 	}
 
@@ -2448,6 +2499,7 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 	TSharedPtr<IPropertyHandle> RemovedBonesHandle = LODInfoChild->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, BonesToRemove));
 	IDetailPropertyRow& RemoveBonesRow = LODInfoGroup.AddPropertyRow(RemovedBonesHandle->AsShared());
 	RemoveBonesRow.IsEnabled(EnabledAttrib);
+	PreventAttributePostEditChange(RemovedBonesHandle, LODIndex, RemovedBonesHandle->GetProperty()->GetFName(), bForceComponentRefreshFalse);
 }
 
 void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayout)
