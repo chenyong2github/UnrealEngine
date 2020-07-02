@@ -167,6 +167,7 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 	if (IsRayTracingEnabled())
 	{
 		RayTracingGeometry.ReleaseResource();
+		RayTracingDynamicVertexBuffer.Release();
 	}
 #endif
 }
@@ -660,6 +661,9 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 		RayTracingInstance.Materials.Add(MeshBatch);
 
+		// USe the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+		FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
 		// Update dynamic ray tracing geometry
 		Context.DynamicRayTracingGeometriesToUpdate.Add(
 			FRayTracingDynamicGeometryUpdateParams
@@ -669,7 +673,8 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				6 *  SourceParticleData->GetNumInstances(),
 				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
 				2 *  SourceParticleData->GetNumInstances(),
-				&RayTracingGeometry
+				&RayTracingGeometry,
+				VertexBuffer
 			}
 		);
 	}

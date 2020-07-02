@@ -1711,6 +1711,7 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 		{
 			const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 			SectionRayTracingStates[SubSectionIdx].Geometry.ReleaseResource();
+			SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
 		}
 	}
 #endif
@@ -2745,6 +2746,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				{
 					bNeedsRayTracingGeometryUpdate = true;
 					SectionRayTracingStates[SubSectionIdx].CurrentLOD = CurrentLOD;
+					SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
 				}
 				if (SectionRayTracingStates[SubSectionIdx].HeightmapLODBias != RenderSystem.GetSectionLODBias(ComponentBase))
 				{
@@ -2790,6 +2792,9 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			if (bNeedsRayTracingGeometryUpdate)
 			{
+				// Use the internal managed vertex buffer because landscape dynamic RT geometries are not updated every frame
+				// which is a requirement for the shared vertex buffer usage
+
 				Context.DynamicRayTracingGeometriesToUpdate.Add(
 					FRayTracingDynamicGeometryUpdateParams
 					{
@@ -2798,7 +2803,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 						(uint32)FMath::Square(LodSubsectionSizeVerts),
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
-						&SectionRayTracingStates[SubSectionIdx].Geometry
+						&SectionRayTracingStates[SubSectionIdx].Geometry,
+						&SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer
 					}
 				);
 			}

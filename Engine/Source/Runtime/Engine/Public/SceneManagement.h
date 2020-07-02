@@ -2320,14 +2320,15 @@ struct FRayTracingDynamicGeometryUpdateParams
 {
 	TArray<FMeshBatch> MeshBatches;
 
-	bool bUsingIndirectDraw;
+	bool bUsingIndirectDraw = false;
 	// When bUsingIndirectDraw == false, NumVertices == the actual number of vertices to process
 	// When bUsingIndirectDraw == true, it is the maximum possible vertices that GPU can emit
-	uint32 NumVertices;
-	uint32 VertexBufferSize;
-	uint32 NumTriangles;
+	uint32 NumVertices = 0;
+	uint32 VertexBufferSize = 0;
+	uint32 NumTriangles = 0;
 
-	FRayTracingGeometry* Geometry;
+	FRayTracingGeometry* Geometry = nullptr;
+	FRWBuffer* Buffer = nullptr;
 
 	bool bApplyWorldPositionOffset = true;
 };

@@ -241,8 +241,9 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
 	FNiagaraRenderer::ReleaseRenderThreadResources();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
-	{
+	{	
 		RayTracingGeometry.ReleaseResource();
+		RayTracingDynamicVertexBuffer.Release();
 	}
 #endif
 }
@@ -1138,6 +1139,9 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 	RayTracingInstance.Materials.Add(MeshBatch);
 
+	// Use the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+	FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
 	const uint32 VertexCount = DynamicIndexAllocation.MaxUsedIndex;
 	Context.DynamicRayTracingGeometriesToUpdate.Add(
 		FRayTracingDynamicGeometryUpdateParams
@@ -1148,6 +1152,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			VertexCount * (uint32)sizeof(FVector),
 			MeshBatch.Elements[0].NumPrimitives,
 			&RayTracingGeometry,
+			VertexBuffer,
 		}
 	);
 
