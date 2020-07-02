@@ -58,7 +58,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Buffer Creation"), STAT_AudioResourceCreationTim
 
 class FAudioDevice;
 class USoundNode;
-struct FSoundModulationControls;
 class USoundWave;
 class USoundClass;
 class USoundSubmix;
@@ -299,9 +298,6 @@ public:
 
 	/** The occlusion plugin settings to use for the wave instance. */
 	UReverbPluginSourceSettingsBase* ReverbPluginSettings;
-
-	/** The modulation plugin settings to use for the wave instance. */
-	USoundModulationPluginSourceSettingsBase* ModulationPluginSettings;
 
 	/** Which output target the sound should play on. */
 	EAudioOutputTarget::Type OutputTarget;

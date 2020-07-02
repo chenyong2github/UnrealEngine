@@ -47,6 +47,12 @@ namespace Audio
 		bIsBus = false;
 		bOutputToBusOnly = false;
 		bStopFadedOut = false;
+
+		PitchModBase = TNumericLimits<float>::Max();
+		VolumeModBase = TNumericLimits<float>::Max();
+		LPFFrequencyModBase = TNumericLimits<float>::Max();
+		HPFFrequencyModBase = TNumericLimits<float>::Max();
+
 		SubmixSends.Reset();
 	}
 
@@ -138,6 +144,50 @@ namespace Audio
 		{
 			HPFFrequency = InHPFFrequency;
 			SourceManager->SetHPFFrequency(SourceId, HPFFrequency);
+		}
+	}
+
+	void FMixerSourceVoice::SetModVolume(const float InVolumeModBase)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (InVolumeModBase != VolumeModBase)
+		{
+			VolumeModBase = InVolumeModBase;
+			SourceManager->SetModVolume(SourceId, VolumeModBase);
+		}
+	}
+
+	void FMixerSourceVoice::SetModPitch(const float InPitchModBase)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (InPitchModBase != PitchModBase)
+		{
+			PitchModBase = InPitchModBase;
+			SourceManager->SetModPitch(SourceId, InPitchModBase);
+		}
+	}
+
+	void FMixerSourceVoice::SetModHPFFrequency(const float InHPFFrequencyModBase)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (InHPFFrequencyModBase != HPFFrequencyModBase)
+		{
+			HPFFrequencyModBase = InHPFFrequencyModBase;
+			SourceManager->SetModHPFFrequency(SourceId, InHPFFrequencyModBase);
+		}
+	}
+
+	void FMixerSourceVoice::SetModLPFFrequency(const float InLPFFrequencyModBase)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (InLPFFrequencyModBase != LPFFrequencyModBase)
+		{
+			LPFFrequencyModBase = InLPFFrequencyModBase;
+			SourceManager->SetModLPFFrequency(SourceId, InLPFFrequencyModBase);
 		}
 	}
 

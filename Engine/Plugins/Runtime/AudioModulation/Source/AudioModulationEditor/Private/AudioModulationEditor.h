@@ -19,8 +19,6 @@ public:
 
 	TSharedPtr<FExtensibilityManager> GetModulationPatchMenuExtensibilityManager();
 	TSharedPtr<FExtensibilityManager> GetModulationPatchToolbarExtensibilityManager();
-	TSharedPtr<FExtensibilityManager> GetModulationSettingsMenuExtensibilityManager();
-	TSharedPtr<FExtensibilityManager> GetModulationSettingsToolbarExtensibilityManager();
 
 	virtual void StartupModule() override;
 
@@ -35,8 +33,6 @@ private:
 
 	TSharedPtr<FExtensibilityManager> ModulationPatchMenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ModulationPatchToolBarExtensibilityManager;
-	TSharedPtr<FExtensibilityManager> ModulationSettingsMenuExtensibilityManager;
-	TSharedPtr<FExtensibilityManager> ModulationSettingsToolBarExtensibilityManager;
 
 	TSharedPtr<FSlateStyleSet> StyleSet;
 };

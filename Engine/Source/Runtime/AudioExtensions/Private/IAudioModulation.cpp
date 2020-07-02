@@ -6,6 +6,12 @@
 
 namespace Audio
 {
+	FModulatorHandleId CreateModulatorHandleId()
+	{
+		static FModulatorHandleId NextHandleId = INDEX_NONE;
+		return ++NextHandleId;
+	}
+
 	FModulationParameter::FModulationParameter()
 		: MixFunction(GetDefaultMixFunction())
 	{
@@ -30,34 +36,37 @@ namespace Audio
 
 		return DefaultMixFunction;
 	}
-	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, uint32 InParentId, const USoundModulatorBase& InModulatorBase, FName InParameterName)
+
+	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, const USoundModulatorBase* InModulatorBase, FName InParameterName)
 	{
+		HandleId = CreateModulatorHandleId();
+
 		Parameter.ParameterName = InParameterName;
-		ModulatorTypeId = InModulation.RegisterModulator(InParentId, InModulatorBase, Parameter);
+		ModulatorTypeId = InModulation.RegisterModulator(HandleId, InModulatorBase, Parameter);
 		if (ModulatorTypeId != INDEX_NONE)
 		{
-			ParentId = InParentId;
-			ModulatorId = static_cast<Audio::FModulatorId>(InModulatorBase.GetUniqueID());
-			Modulation = &InModulation;
+			ModulatorId		= static_cast<Audio::FModulatorId>(InModulatorBase->GetUniqueID());
+			Modulation		= &InModulation;
 		}
 	}
 
 	FModulatorHandle::FModulatorHandle(const FModulatorHandle& InOther)
 	{
+		HandleId = CreateModulatorHandleId();
+
 		if (InOther.Modulation)
 		{
-			InOther.Modulation->RegisterModulator(InOther.ParentId, InOther.ModulatorId);
-			Parameter = InOther.Parameter;
-			ParentId = InOther.ParentId;
-			ModulatorId = InOther.ModulatorId;
+			InOther.Modulation->RegisterModulator(HandleId, InOther.ModulatorId);
+			Parameter		= InOther.Parameter;
+			ModulatorId		= InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
-			Modulation = InOther.Modulation;
+			Modulation		= InOther.Modulation;
 		}
 	}
 
 	FModulatorHandle::FModulatorHandle(FModulatorHandle&& InOther)
 		: Parameter(InOther.Parameter)
-		, ParentId(InOther.ParentId)
+		, HandleId(InOther.HandleId)
 		, ModulatorTypeId(InOther.ModulatorTypeId)
 		, ModulatorId(InOther.ModulatorId)
 		, Modulation(InOther.Modulation)
@@ -66,11 +75,11 @@ namespace Audio
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
-		InOther.Parameter = FModulationParameter();
-		InOther.ParentId = INDEX_NONE;
+		InOther.Parameter		= FModulationParameter();
+		InOther.HandleId		= INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
-		InOther.ModulatorId = INDEX_NONE;
-		InOther.Modulation = nullptr;
+		InOther.ModulatorId		= INDEX_NONE;
+		InOther.Modulation		= nullptr;
 	}
 
 	FModulatorHandle::~FModulatorHandle()
@@ -83,22 +92,22 @@ namespace Audio
 
 	FModulatorHandle& FModulatorHandle::operator=(const FModulatorHandle& InOther)
 	{
+		HandleId = CreateModulatorHandleId();
+
 		if (InOther.Modulation)
 		{
-			InOther.Modulation->RegisterModulator(InOther.ParentId, InOther.ModulatorId);
-			Parameter = InOther.Parameter;
-			ParentId = InOther.ParentId;
-			ModulatorId = InOther.ModulatorId;
+			InOther.Modulation->RegisterModulator(InOther.HandleId, InOther.ModulatorId);
+			Parameter		= InOther.Parameter;
+			ModulatorId		= InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
-			Modulation = InOther.Modulation;
+			Modulation		= InOther.Modulation;
 		}
 		else
 		{
-			Parameter = FModulationParameter();
-			ParentId = INDEX_NONE;
-			ModulatorId = INDEX_NONE;
+			Parameter		= FModulationParameter();
+			ModulatorId		= INDEX_NONE;
 			ModulatorTypeId = INDEX_NONE;
-			Modulation = nullptr;
+			Modulation		= nullptr;
 		}
 
 		return *this;
@@ -110,22 +119,22 @@ namespace Audio
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
-		Parameter = InOther.Parameter;
-		ParentId = InOther.ParentId;
-		ModulatorId = InOther.ModulatorId;
+		Parameter		= InOther.Parameter;
+		HandleId		= InOther.HandleId;
+		ModulatorId		= InOther.ModulatorId;
 		ModulatorTypeId = InOther.ModulatorTypeId;
-		Modulation = InOther.Modulation;
+		Modulation		= InOther.Modulation;
 
-		InOther.Parameter = FModulationParameter();
-		InOther.ParentId	= INDEX_NONE;
-		InOther.ModulatorId = INDEX_NONE;
+		InOther.Parameter		= FModulationParameter();
+		InOther.HandleId		= INDEX_NONE;
+		InOther.ModulatorId		= INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
-		InOther.Modulation	= nullptr;
+		InOther.Modulation		= nullptr;
 
 		return *this;
 	}
 
-	FModulatorId FModulatorHandle::GetId() const
+	FModulatorId FModulatorHandle::GetModulatorId() const
 	{
 		return ModulatorId;
 	}
@@ -140,9 +149,9 @@ namespace Audio
 		return ModulatorTypeId;
 	}
 
-	uint32 FModulatorHandle::GetParentId() const
+	uint32 FModulatorHandle::GetHandleId() const
 	{
-		return ParentId;
+		return HandleId;
 	}
 
 	bool FModulatorHandle::GetValue(float& OutValue) const

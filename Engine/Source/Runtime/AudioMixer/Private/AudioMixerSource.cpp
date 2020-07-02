@@ -121,6 +121,21 @@ namespace Audio
 			InitParams.bIsExternalSend = MixerDevice->bSpatializationIsExternalSend;
 			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels == 4);
 
+			if (USoundBase* Sound = WaveInstance->ActiveSound->GetSound())
+			{
+				InitParams.VolumeModulationSettings		= Sound->VolumeModulationDestination;
+				InitParams.PitchModulationSettings		= Sound->PitchModulationDestination;
+				InitParams.HighpassModulationSettings	= Sound->HighpassModulationDestination;
+				InitParams.LowpassModulationSettings	= Sound->LowpassModulationDestination;
+			}
+			else
+			{
+				InitParams.VolumeModulationSettings		= WaveInstance->WaveData->VolumeModulationDestination;
+				InitParams.PitchModulationSettings		= WaveInstance->WaveData->PitchModulationDestination;
+				InitParams.HighpassModulationSettings	= WaveInstance->WaveData->HighpassModulationDestination;
+				InitParams.LowpassModulationSettings	= WaveInstance->WaveData->LowpassModulationDestination;
+			}
+
 			if (WaveInstance->bIsAmbisonics && (WaveInstance->WaveData->NumChannels != 4))
 			{
 				UE_LOG(LogAudioMixer, Warning, TEXT("Sound wave %s was flagged as being ambisonics but had a channel count of %d. Currently the audio engine only supports FOA sources that have four channels."), *InWaveInstance->GetName(), WaveInstance->WaveData->NumChannels);
@@ -266,9 +281,6 @@ namespace Audio
 
 			// Grab the source's reverb plugin settings
 			InitParams.ReverbPluginSettings = UseReverbPlugin() ? WaveInstance->ReverbPluginSettings : nullptr;
-
-			// Grab the source's modulation plugin settings
-			InitParams.ModulationPluginSettings = UseModulationPlugin() ? WaveInstance->ModulationPluginSettings : nullptr;
 
 			// We support reverb
 			SetReverbApplied(true);
@@ -884,6 +896,11 @@ namespace Audio
 
 			MixerSourceVoice->SetPitch(Pitch);
 		}
+
+		const float ModPitch = WaveInstance->ActiveSound->GetSound()
+			? WaveInstance->ActiveSound->GetSound()->PitchModulationDestination.Value
+			: WaveInstance->WaveData->PitchModulationDestination.Value;
+		MixerSourceVoice->SetModPitch(ModPitch);
 	}
 
 	void FMixerSource::UpdateVolume()
@@ -903,6 +920,11 @@ namespace Audio
 
 			// 3. Apply editor gain stage(s)
 			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
+
+			const float ModVolume = WaveInstance->ActiveSound->GetSound()
+				? WaveInstance->ActiveSound->GetSound()->VolumeModulationDestination.Value
+				: WaveInstance->WaveData->VolumeModulationDestination.Value;
+			MixerSourceVoice->SetModVolume(ModVolume);
 		}
 		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
@@ -931,6 +953,17 @@ namespace Audio
 		{
 			MixerSourceVoice->SetHPFFrequency(HPFFrequency);
 			LastHPFFrequency = HPFFrequency;
+		}
+
+		USoundBase* Sound = WaveInstance->ActiveSound->GetSound();
+		if (!Sound)
+		{
+			Sound = WaveInstance->WaveData;
+		}
+		if (Sound)
+		{
+			MixerSourceVoice->SetModHPFFrequency(Sound->HighpassModulationDestination.Value);
+			MixerSourceVoice->SetModLPFFrequency(Sound->LowpassModulationDestination.Value);
 		}
 
 		// If reverb is applied, figure out how of the source to "send" to the reverb.
@@ -1256,12 +1289,6 @@ namespace Audio
 		return (Buffer->NumChannels == 1 || Buffer->NumChannels == 2) &&
 			AudioDevice->IsOcclusionPluginEnabled() &&
 			WaveInstance->OcclusionPluginSettings != nullptr;
-	}
-
-	bool FMixerSource::UseModulationPlugin() const
-	{
-		return AudioDevice->IsModulationPluginEnabled() &&
-			WaveInstance->ModulationPluginSettings != nullptr;
 	}
 
 	bool FMixerSource::UseReverbPlugin() const
