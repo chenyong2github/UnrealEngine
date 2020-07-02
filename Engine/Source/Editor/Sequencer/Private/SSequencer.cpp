@@ -795,7 +795,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									})
 									.OnValueChanged(this, &SSequencer::SetPlayTimeClampedByWorkingRange)
 									.OnValueCommitted_Lambda([this](double InFrame, ETextCommit::Type) {
-										SetPlayTimeClampedByWorkingRange(InFrame);
+										SetPlayTime(InFrame);
 
 										// Refocus on the previously focused widget so that user can continue on after setting a time
 										PlayTimeDisplay->Refocus();
@@ -3803,6 +3803,48 @@ void SSequencer::SetPlayTimeClampedByWorkingRange(double Frame)
 		Frame = FMath::Clamp(Frame, (double)(StartInSeconds*PlayRate).GetFrame().Value, (double)(EndInSeconds*PlayRate).GetFrame().Value);
 
 		Sequencer->SetLocalTime(FFrameTime::FromDecimal(Frame));
+	}
+}
+
+void SSequencer::SetPlayTime(double Frame)
+{
+	if (SequencerPtr.IsValid())
+	{
+		FFrameTime NewFrame = FFrameTime::FromDecimal(Frame);
+
+		TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+		FFrameRate PlayRate = Sequencer->GetLocalTime().Rate;
+		double FrameInSeconds = PlayRate.AsSeconds(NewFrame);
+
+		TRange<double> NewWorkingRange = Sequencer->GetClampRange();
+		if (FrameInSeconds < NewWorkingRange.GetLowerBoundValue())
+		{
+			NewWorkingRange.SetLowerBoundValue(FrameInSeconds);
+			NewWorkingRange.SetLowerBoundValue(UE::MovieScene::ExpandRange(NewWorkingRange, NewWorkingRange.Size<double>() * 0.1f).GetLowerBoundValue());
+		}
+		if (FrameInSeconds > NewWorkingRange.GetUpperBoundValue())
+		{
+			NewWorkingRange.SetUpperBoundValue(FrameInSeconds);
+			NewWorkingRange.SetUpperBoundValue(UE::MovieScene::ExpandRange(NewWorkingRange, NewWorkingRange.Size<double>() * 0.1f).GetUpperBoundValue());
+		}
+
+		TRange<double> NewViewRange = Sequencer->GetViewRange();
+		if (FrameInSeconds < NewViewRange.GetLowerBoundValue())
+		{
+			NewViewRange.SetLowerBoundValue(FrameInSeconds);
+			NewViewRange.SetLowerBoundValue(UE::MovieScene::ExpandRange(NewViewRange, NewViewRange.Size<double>() * 0.1f).GetLowerBoundValue());
+		}
+		if (FrameInSeconds > NewViewRange.GetUpperBoundValue())
+		{
+			NewViewRange.SetUpperBoundValue(FrameInSeconds);
+			NewViewRange.SetUpperBoundValue(UE::MovieScene::ExpandRange(NewViewRange, NewViewRange.Size<double>() * 0.1f).GetUpperBoundValue());
+		}
+
+		Sequencer->SetClampRange(NewWorkingRange);
+		
+		Sequencer->SetViewRange(NewViewRange);
+		
+		Sequencer->SetLocalTime(NewFrame);
 	}
 }
 
