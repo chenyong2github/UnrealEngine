@@ -25,10 +25,12 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 		}
 	}
 
+	double DegreesOffset = RevolutionDegreesOffset;
 	double DegreesPerStep = RevolutionDegrees / Steps;
 	if (bClockwise)
 	{
 		DegreesPerStep *= -1;
+		DegreesOffset *= -1;
 	}
 
 	if (bProfileIsCrossSectionOfSide && DegreesPerStep != 0 && abs(DegreesPerStep) < 180)
@@ -38,10 +40,10 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 
 	// Generate the sweep curve
 	CurveSweepOpOut.bSweepCurveIsClosed = bWeldFullRevolution && RevolutionDegrees == 360;
-	int32 StepsAfterInitialFrame = CurveSweepOpOut.bSweepCurveIsClosed ? Steps - 1 : Steps; // If closed, last sweep frame is also first
-	CurveSweepOpOut.SweepCurve.Reserve(StepsAfterInitialFrame + 1);
-	RevolveUtil::GenerateSweepCurve(RevolutionAxisOrigin, RevolutionAxisDirection,
-		DegreesPerStep, StepsAfterInitialFrame, bWeldFullRevolution, CurveSweepOpOut.SweepCurve);
+	int32 NumSweepFrames = CurveSweepOpOut.bSweepCurveIsClosed ? Steps : Steps + 1; // If closed, last sweep frame is also first
+	CurveSweepOpOut.SweepCurve.Reserve(NumSweepFrames);
+	RevolveUtil::GenerateSweepCurve(RevolutionAxisOrigin, RevolutionAxisDirection, DegreesOffset,
+		DegreesPerStep, NumSweepFrames, bWeldFullRevolution, CurveSweepOpOut.SweepCurve);
 
 	// Weld any vertices that are on the axis
 	if (bWeldVertsOnAxis)
