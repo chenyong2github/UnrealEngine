@@ -674,7 +674,8 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
 				2 *  SourceParticleData->GetNumInstances(),
 				&RayTracingGeometry,
-				VertexBuffer
+				VertexBuffer,
+				true
 			}
 		);
 	}
