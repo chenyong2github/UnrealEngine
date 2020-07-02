@@ -514,6 +514,16 @@ void FDetailCategoryImpl::SetShowAdvanced(bool bShowAdvanced)
 	bUserShowAdvanced = bShowAdvanced;
 }
 
+int32 FDetailCategoryImpl::GetSortOrder() const
+{
+	return SortOrder;
+}
+
+void FDetailCategoryImpl::SetSortOrder(int32 InSortOrder)
+{
+	SortOrder = InSortOrder;
+}
+
 bool FDetailCategoryImpl::IsAdvancedDropdownEnabled() const
 {
 	return !bForceAdvanced;
