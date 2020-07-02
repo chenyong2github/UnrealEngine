@@ -751,6 +751,7 @@ namespace Chaos
 		
 		void ApplySweptImpl(FRigidBodySweptPointContactConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
+			const FReal TimeOfImpactErrorMargin = 20.0f;  // Large error margin in cm, this is to ensure that 1) velocity is solved for at the time of impact, and  2) the contact is not disabled
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
 
@@ -765,17 +766,19 @@ namespace Chaos
 			// P may have changed due to other constraints, so at TOI our manifold needs updating.
 			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
-			const int32 FakeIteration = FMath::Max(IterationParameters.Iteration, 1); // Force Apply to update constraint, as other constraints could've changed P
-			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const int32 FakeIteration = IterationParameters.NumIterations / 2; // For iteration count dependent effects (like relaxation)
+			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.Collided};
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
-			ApplyImpl(Constraint, IterationParametersPartialDT, ParticleParameters);
+			ApplyImpl(Constraint, IterationParametersPartialDT, CCDParticleParamaters);
 
 			// Advance P to end of frame from TOI, and Apply
 			Particle0->P() = Particle0->P() + Particle0->V() * RemainingDT;
-			ApplyImpl(Constraint, IterationParametersRemainingDT, ParticleParameters);
+			ApplyImpl(Constraint, IterationParametersRemainingDT, CCDParticleParamaters);
 		}
 
 
