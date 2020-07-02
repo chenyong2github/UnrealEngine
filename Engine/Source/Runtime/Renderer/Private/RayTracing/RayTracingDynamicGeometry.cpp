@@ -364,15 +364,28 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			}
 
 			TArray<FRHICommandList*> CommandLists;
-			TArray<int32> DummyNumDraws;
-			TArray<FGraphEventRef> DummyPrerequisites;
+			TArray<int32> CmdListNumDraws;
+			TArray<FGraphEventRef> CmdListPrerequisites;
 
-			{				
-				FRHIComputeCommandList& RHICmdList = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
-				RHICmdList.ExecuteStat = GET_STATID(STAT_CLM_RTDynGeomDispatch);
+			auto AllocateCommandList = [&ParentCmdList, &CommandLists, &CmdListNumDraws, &CmdListPrerequisites]
+			(uint32 ExpectedNumDraws, TStatId StatId)->FRHIComputeCommandList&
+			{
+				if (ParentCmdList.Bypass())
+				{
+					return ParentCmdList;
+				}
+				else
+				{
+					FRHIComputeCommandList& Result = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
+					Result.ExecuteStat = StatId;
+					CmdListNumDraws.Add(ExpectedNumDraws);
+					CmdListPrerequisites.AddDefaulted();
+					return Result;
+				}
+			};
 
-				DummyNumDraws.Add(1);
-				DummyPrerequisites.AddDefaulted();
+			{
+				FRHIComputeCommandList& RHICmdList = AllocateCommandList(DispatchCommands.Num(), GET_STATID(STAT_CLM_RTDynGeomDispatch));
 
 				FRHIComputeShader* CurrentShader = nullptr;
 				FRWBuffer* CurrentBuffer = nullptr;
@@ -413,11 +426,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			}
 
 			{
-				FRHIComputeCommandList& RHICmdList = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
-				RHICmdList.ExecuteStat = GET_STATID(STAT_CLM_RTDynGeomBuild);
-
-				DummyNumDraws.Add(1);
-				DummyPrerequisites.AddDefaulted();
+				FRHIComputeCommandList& RHICmdList = AllocateCommandList(1, GET_STATID(STAT_CLM_RTDynGeomBuild));
 
 				SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build);
 				RHICmdList.BuildAccelerationStructures(BuildParams);
@@ -427,10 +436,10 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			if (CommandLists.Num() > 0)
 			{
 				ParentCmdList.QueueParallelAsyncCommandListSubmit(
-					DummyPrerequisites.GetData(), // AnyThreadCompletionEvents
+					CmdListPrerequisites.GetData(), // AnyThreadCompletionEvents
 					false,  // bIsPrepass
 					CommandLists.GetData(), //CmdLists
-					DummyNumDraws.GetData(), // NumDrawsIfKnown
+					CmdListNumDraws.GetData(), // NumDrawsIfKnown
 					CommandLists.Num(), // Num
 					0, // MinDrawsPerTranslate
 					false // bSpewMerge
