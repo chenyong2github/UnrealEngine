@@ -941,17 +941,17 @@ FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InCon
 
 void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinForce,FVector& OutAngForce)
 {
-	// #todo : Implement
+	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
 }
 
 void FChaosEngineInterface::GetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinVelocity)
 {
-	// #todo : Implement
+	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
 }
 
 void FChaosEngineInterface::GetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutAngVelocity)
 {
-	// #todo : Implement
+	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
 }
 
 float FChaosEngineInterface::GetCurrentSwing1(const FPhysicsConstraintHandle& InConstraintRef)
@@ -971,7 +971,7 @@ float FChaosEngineInterface::GetCurrentTwist(const FPhysicsConstraintHandle& InC
 
 void FChaosEngineInterface::SetCanVisualize(const FPhysicsConstraintHandle& InConstraintRef,bool bInCanVisualize)
 {
-
+	// @todo(chaos) :  Joint Constraints : Debug Tools
 }
 
 void FChaosEngineInterface::SetCollisionEnabled(const FPhysicsConstraintHandle& InConstraintRef,bool bInCollisionEnabled)
@@ -993,7 +993,10 @@ void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsCon
 		{
 			Constraint->SetProjectionEnabled(bInProjectionEnabled);
 
-			// @todo(chaos) : Constraint tolerances are solver specific, so it needs to use the interface against the solver not the constraint handle. 
+			// @todo(chaos) : Solver Settings 
+			// ... Constraint tolerances are solver specific, so it needs to use the interface 
+			// ... against the solver not the constraint handle. 
+			//
 			//Constraint->SetSolverPositionTolerance(InLinearTolerance);
 			//Constraint->SetSolverAngularTolerance(InAngularToleranceDegrees);
 		}
@@ -1031,7 +1034,7 @@ void FChaosEngineInterface::SetBreakForces_AssumesLocked(const FPhysicsConstrain
 
 void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,const FTransform& InPose,EConstraintFrame::Type InFrame)
 {
-
+	// @todo(chaos) :  Joint Constraints : Motors
 }
 
 void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InPosition)
@@ -1047,7 +1050,13 @@ void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InC
 
 void FChaosEngineInterface::SetDriveOrientation(const FPhysicsConstraintHandle& InConstraintRef,const FQuat& InOrientation)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetAngularDrivePositionTarget(InOrientation);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InLinVelocity)
@@ -1063,17 +1072,39 @@ void FChaosEngineInterface::SetDriveLinearVelocity(const FPhysicsConstraintHandl
 
 void FChaosEngineInterface::SetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InAngVelocity)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetAngularDriveVelocityTarget(InAngVelocity);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetTwistLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLowerLimit,float InUpperLimit,float InContactDistance)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			// @todo(chaos) :  Joint Constraints : Limits
+			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
+			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InConstraintRef,float InYLimit,float InZLimit,float InContactDistance)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			// @todo(chaos) :  Joint Constraints : Limits
+			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
+			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InConstraintRef,float InLinearLimit)
@@ -1089,7 +1120,7 @@ void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InCon
 
 bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	// #todo : Implement
+	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
 	return true;
 }
 
