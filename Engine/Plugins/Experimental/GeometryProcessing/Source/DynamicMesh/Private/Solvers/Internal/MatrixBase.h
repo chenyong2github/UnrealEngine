@@ -66,10 +66,12 @@ class IMatrixSolverBase
 public:
 	typedef typename FSparseMatrixD::Scalar    ScalarType;
 	typedef typename FSOAPositions::VectorType VectorType;
+	typedef typename Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>  RealVectorType;
 
 	IMatrixSolverBase() {}
 	virtual ~IMatrixSolverBase() = 0;
 	virtual bool bIsIterative() const = 0;
+	virtual void Solve(const RealVectorType& BVector, RealVectorType& SolVector) const = 0;
 	virtual void Solve(const VectorType& BVector, VectorType& SolVector) const = 0;
 	virtual void Solve(const FSOAPositions& BVectors, FSOAPositions& SolVectors) const = 0;
 
@@ -88,7 +90,9 @@ public:
 	virtual ~IIterativeMatrixSolverBase() = 0;
 	virtual void SetIterations(int32 MaxIterations) = 0;
 	virtual void SetTolerance(double Tol) = 0;
+	virtual void SolveWithGuess(const RealVectorType& GuessVector, const RealVectorType& BVector, RealVectorType& SolVector)  const = 0;
 	virtual void SolveWithGuess(const VectorType& GuessVector, const VectorType& BVector, VectorType& SolVector)  const = 0;
 	virtual void SolveWithGuess(const FSOAPositions& GuessVector, const FSOAPositions& BVector, FSOAPositions& SolVector)  const = 0;
 
 };
+
