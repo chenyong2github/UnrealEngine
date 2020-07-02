@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineLinearExecutor.h"
+#include "Logging/MessageLog.h"
 #include "MoviePipelinePIEExecutor.generated.h"
 
 class UMoviePipeline;
@@ -48,4 +49,36 @@ private:
 	bool bPreviousUseFixedTimeStep;
 	double PreviousFixedTimeStepDelta;
 	TWeakPtr<class SWindow> WeakCustomWindow;
+
+	class FValidationMessageGatherer : public FOutputDevice
+	{
+	public:
+
+		FValidationMessageGatherer();
+
+		void StartGathering()
+		{
+			FString PageName = FString("High Quality Media Export: ") + FDateTime::Now().ToString();
+			ExecutorLog->NewPage(FText::FromString(PageName));
+			GLog->AddOutputDevice(this);
+		}
+
+		void StopGathering()
+		{
+			GLog->RemoveOutputDevice(this);
+		}
+
+		virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+
+		void OpenLog()
+		{
+			ExecutorLog->Open();
+		}
+
+	private:
+		TUniquePtr<FMessageLog> ExecutorLog;
+		const static TArray<FString> Whitelist;
+	};
+
+	FValidationMessageGatherer ValidationMessageGatherer;
 };
