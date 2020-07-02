@@ -1195,6 +1195,11 @@ public:
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 
+#ifdef DO_CHECK
+	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
+	TSet<const FRayTracingGeometry*> RayTracingGeometries;
+#endif
+
 	// Ray tracing scene specific to this view
 	FRayTracingScene RayTracingScene;
 

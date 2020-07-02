@@ -109,12 +109,15 @@ void FRayTracingDynamicGeometryCollection::BeginUpdate()
 	{
 		Buffer->UsedSize = 0;
 	}
+
+	// Increment generation ID used for validation
+	SharedBufferGenerationID++;
 }
 
 void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
-	const FScene* Scene, 
-	const FSceneView* View, 
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
+	const FScene* Scene,
+	const FSceneView* View,
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	FRayTracingDynamicGeometryUpdateParams UpdateParams,
 	uint32 PrimitiveId
 )
@@ -123,33 +126,44 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	bool bUsingIndirectDraw = UpdateParams.bUsingIndirectDraw;
 	uint32 NumMaxVertices = UpdateParams.NumVertices;
 
-	// Find an RWBuffer which can hold the vertex buffer size
-	FVertexPositionBuffer* VertexPositionBuffer = nullptr;
-	for (FVertexPositionBuffer* Buffer : VertexPositionBuffers)
+	FRWBuffer* RWBuffer = UpdateParams.Buffer;
+	uint32 VertexBufferOffset = 0;
+	bool bUseSharedVertexBuffer = false;
+
+	// If update params didn't provide a buffer then use a shared vertex position buffer
+	if (RWBuffer == nullptr)
 	{
-		if ((Buffer->RWBuffer.NumBytes - Buffer->UsedSize) >= UpdateParams.VertexBufferSize)
+		FVertexPositionBuffer* VertexPositionBuffer = nullptr;
+		for (FVertexPositionBuffer* Buffer : VertexPositionBuffers)
 		{
-			VertexPositionBuffer = Buffer;
-			break;
+			if ((Buffer->RWBuffer.NumBytes - Buffer->UsedSize) >= UpdateParams.VertexBufferSize)
+			{
+				VertexPositionBuffer = Buffer;
+				break;
+			}
 		}
+
+		// Allocate a new buffer?
+		if (VertexPositionBuffer == nullptr)
+		{
+			VertexPositionBuffer = new FVertexPositionBuffer;
+			VertexPositionBuffers.Add(VertexPositionBuffer);
+
+			static const uint32 VertexBufferCacheSize = 16 * 1024 * 1024;
+			uint32 AllocationSize = FMath::Max(VertexBufferCacheSize, UpdateParams.VertexBufferSize);
+
+			VertexPositionBuffer->RWBuffer.Initialize(sizeof(float), AllocationSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"));
+			VertexPositionBuffer->UsedSize = 0;
+		}
+
+		// Get the offset and update used size
+		VertexBufferOffset = VertexPositionBuffer->UsedSize;
+		VertexPositionBuffer->UsedSize += UpdateParams.VertexBufferSize;
+
+		bUseSharedVertexBuffer = true;
+		RWBuffer = &VertexPositionBuffer->RWBuffer;
 	}
 
-	// Allocate a new buffer?
-	if (VertexPositionBuffer == nullptr)
-	{
-		VertexPositionBuffer = new FVertexPositionBuffer;
-		VertexPositionBuffers.Add(VertexPositionBuffer);
-
-		static const uint32 VertexBufferCacheSize = 16 * 1024 * 1024;
-		uint32 AllocationSize = FMath::Max(VertexBufferCacheSize, UpdateParams.VertexBufferSize);
-
-		VertexPositionBuffer->RWBuffer.Initialize(sizeof(float), AllocationSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"));
-		VertexPositionBuffer->UsedSize = 0;
-	}
-
-	// Get the offset and update used size
-	uint32 VertexBufferOffset = VertexPositionBuffer->UsedSize;
-	VertexPositionBuffer->UsedSize += UpdateParams.VertexBufferSize;
 
 	for (const FMeshBatch& MeshBatch : UpdateParams.MeshBatches)
 	{
@@ -187,7 +201,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		FVertexInputStreamArray DummyArray;
 		FMeshMaterialShader::GetElementShaderBindings(Shader, Scene, View, MeshBatch.VertexFactory, EVertexInputStreamType::Default, Scene->GetFeatureLevel(), PrimitiveSceneProxy, MeshBatch, MeshBatch.Elements[0], ShaderElementData, SingleShaderBindings, DummyArray);
 
-		DispatchCmd.TargetBuffer = &VertexPositionBuffer->RWBuffer;
+		DispatchCmd.TargetBuffer = RWBuffer;
 		DispatchCmd.NumMaxVertices = UpdateParams.NumVertices;
 
 		// Setup the loose parameters directly on the binding
@@ -221,6 +235,14 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	}
 
 	bool bRefit = true;
+
+	// Optionally resize the buffer when not shared (could also be lazy allocated and still empty)
+	if (!bUseSharedVertexBuffer && RWBuffer->NumBytes != UpdateParams.VertexBufferSize)
+	{
+		RWBuffer->Initialize(sizeof(float), UpdateParams.VertexBufferSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"));
+		bRefit = false;
+	}
+
 	if (!Geometry.RayTracingGeometryRHI.IsValid())
 	{
 		bRefit = false;
@@ -246,7 +268,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 
 	for (FRayTracingGeometrySegment& Segment : Geometry.Initializer.Segments)
 	{
-		Segment.VertexBuffer = VertexPositionBuffer->RWBuffer.Buffer;
+		Segment.VertexBuffer = RWBuffer->Buffer;
 		Segment.VertexBufferOffset = VertexBufferOffset;
 	}
 
@@ -261,12 +283,24 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		? EAccelerationStructureBuildMode::Update
 		: EAccelerationStructureBuildMode::Build;
 
-	// Make render thread side temporary copy and move to rhi side allocation when command list is known
-	// Cache the count of segments so final views can be made when all segments are collected (Segments array could still be reallocated)
-	Segments.Append(Geometry.Initializer.Segments);
-	Params.Segments = MakeArrayView((FRayTracingGeometrySegment*)nullptr, Geometry.Initializer.Segments.Num());
+	if (bUseSharedVertexBuffer)
+	{
+		// Make render thread side temporary copy and move to rhi side allocation when command list is known
+		// Cache the count of segments so final views can be made when all segments are collected (Segments array could still be reallocated)
+		Segments.Append(Geometry.Initializer.Segments);
+		Params.Segments = MakeArrayView((FRayTracingGeometrySegment*)nullptr, Geometry.Initializer.Segments.Num());
+	}
 
 	BuildParams.Add(Params);
+	
+	if (bUseSharedVertexBuffer)
+	{
+		Geometry.DynamicGeometrySharedBufferGenerationID = SharedBufferGenerationID;
+	}
+	else
+	{
+		Geometry.DynamicGeometrySharedBufferGenerationID = FRayTracingGeometry::NonSharedVertexBuffers;
+	}
 }
 
 void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& ParentCmdList)
@@ -305,16 +339,28 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				for (FAccelerationStructureBuildParams& Param : BuildParams)
 				{
 					uint32 SegmentCount = Param.Segments.Num();
-					Param.Segments = MakeArrayView(SegmentData, SegmentCount);
-					SegmentData += SegmentCount;
+					if (SegmentCount > 0)
+					{
+						Param.Segments = MakeArrayView(SegmentData, SegmentCount);
+						SegmentData += SegmentCount;
+					}
 				}
 			}
 
+			TSet<FRHIUnorderedAccessView*> BuffersToTransitionSet;
+			BuffersToTransitionSet.Reserve(DispatchCommands.Num());
 			TArray<FRHIUnorderedAccessView*> BuffersToTransition;
-			BuffersToTransition.Reserve(VertexPositionBuffers.Num());
-			for (FVertexPositionBuffer* Buffer : VertexPositionBuffers)
+			BuffersToTransition.Reserve(DispatchCommands.Num());
+			for (FMeshComputeDispatchCommand& Cmd : DispatchCommands)
 			{
-				BuffersToTransition.Add(Buffer->RWBuffer.UAV.GetReference());
+				FRHIUnorderedAccessView* UAV = Cmd.TargetBuffer->UAV.GetReference();
+
+				bool bIsAlreadyInSet = false;
+				BuffersToTransitionSet.Add(UAV, &bIsAlreadyInSet);
+				if (!bIsAlreadyInSet)
+				{
+					BuffersToTransition.Add(UAV);
+				}
 			}
 
 			TArray<FRHICommandList*> CommandLists;

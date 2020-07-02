@@ -1011,6 +1011,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
 					}
 
+#if DO_CHECK
+					ReferenceView.RayTracingGeometries.Add(Instance.Geometry);
+					for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
+					{
+						Views[ViewIndex].RayTracingGeometries.Add(Instance.Geometry);
+					}
+#endif // DO_CHECK
+
 					if (GRayTracingParallelMeshBatchSetup && FApp::ShouldUseThreadingForPerformance())
 					{
 						ReferenceView.AddRayTracingMeshBatchData.Emplace(Instance.Materials, SceneProxy, InstanceIndex);
@@ -1187,6 +1195,15 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 	{
 		FViewInfo& View = Views[ViewIndex];
 		SET_DWORD_STAT(STAT_RayTracingInstances, View.RayTracingGeometryInstances.Num());
+
+#ifdef DO_CHECK
+		// Validate all the ray tracing geometries lifetimes
+		int64 SharedBufferGenerationID = (int64)Scene->GetRayTracingDynamicGeometryCollection()->GetSharedBufferGenerationID();
+		for (const FRayTracingGeometry* Geometry : View.RayTracingGeometries)
+		{
+			check(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers || Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID);
+		}
+#endif // DO_CHECK
 
 		FRayTracingSceneInitializer SceneInitializer;
 		SceneInitializer.Instances = View.RayTracingGeometryInstances;

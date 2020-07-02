@@ -5362,7 +5362,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 							LODData.GetNumVertices(),
 							LODData.GetNumVertices() * (uint32)sizeof(FVector),
 							MeshObject->GetRayTracingGeometry()->Initializer.TotalPrimitiveCount,
-							MeshObject->GetRayTracingGeometry()
+							MeshObject->GetRayTracingGeometry(),
+							MeshObject->GetRayTracingDynamicVertexBuffer()
 						}
 					);
 				}
