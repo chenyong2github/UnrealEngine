@@ -27,6 +27,7 @@ class FNiagaraEmitterInstance;
 class SWidget;
 class FAssetThumbnailPool;
 struct FNiagaraDataSetCompiledData;
+struct FSlateBrush;
 
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
