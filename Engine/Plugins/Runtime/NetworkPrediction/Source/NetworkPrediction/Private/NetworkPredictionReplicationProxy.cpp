@@ -1,6 +1,7 @@
+// Copyright Epic Games, Inc. All Rights Reserved
+
 #include "NetworkPredictionReplicationProxy.h"
 #include "NetworkPredictionProxy.h"
-//#include "Trace/NetworkPredictionTrace.h"
 #include "GameFramework/Actor.h"
 #include "Engine/NetConnection.h"
 

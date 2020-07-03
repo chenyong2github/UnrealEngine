@@ -6,6 +6,7 @@
 #include "NetworkPredictionStateView.h"
 #include "NetworkPredictionConfig.h"
 #include "PhysicsInterfaceDeclaresCore.h"
+#include "Engine/EngineTypes.h"
 #include "NetworkPredictionProxy.generated.h"
 
 // -------------------------------------------------------------------------------------------------

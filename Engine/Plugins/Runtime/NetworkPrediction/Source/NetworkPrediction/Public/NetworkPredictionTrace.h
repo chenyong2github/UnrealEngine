@@ -154,6 +154,7 @@
 UE_TRACE_CHANNEL_EXTERN(NetworkPredictionChannel, NETWORKPREDICTION_API);
 
 class AActor;
+class UGameInstance;
 
 template<typename Model>
 struct TNetworkedSimulationState;
