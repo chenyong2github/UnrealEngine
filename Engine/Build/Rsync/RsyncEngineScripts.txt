@@ -8,3 +8,4 @@ Build/BatchFiles/Mac/RunMono.sh
 Build/BatchFiles/Mac/FixMonoFiles.sh
 Build/BatchFiles/Mac/GenerateProjectFiles.sh
 Build/BatchFiles/Mac/SetupMono.sh
+Build/BatchFiles/Mac/SetupEnvironment.sh
