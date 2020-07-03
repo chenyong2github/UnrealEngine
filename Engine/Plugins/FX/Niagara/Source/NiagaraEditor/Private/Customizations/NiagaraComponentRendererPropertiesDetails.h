@@ -4,6 +4,7 @@
 
 #include "NiagaraComponentRendererProperties.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
