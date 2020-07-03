@@ -10,6 +10,7 @@
 #include "UnrealWidget.h"
 #include "EditorViewportClient.h"
 #include "UObject/ObjectKey.h"
+#include "UnrealEdMisc.h"
 
 struct FAssetData;
 struct FMinimalViewInfo;
@@ -567,6 +568,9 @@ protected:
 
 	/** Callback for when an editor user setting has changed */
 	void HandleViewportSettingChanged(FName PropertyName);
+
+	/** Callback for when a map is created or destroyed */
+	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType);
 
 	/** Delegate handler for ActorMoved events */
 	void OnActorMoved(AActor* InActor);
