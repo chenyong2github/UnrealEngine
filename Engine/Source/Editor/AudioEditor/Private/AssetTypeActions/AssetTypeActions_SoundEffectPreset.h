@@ -10,7 +10,11 @@
 #include "Developer/AssetTools/Public/IAssetTypeActions.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectSource.h"
+#include "UObject/StrongObjectPtr.h"
 
+
+// Forward Declarations
+class IToolkitHost;
 class USoundEffectPreset;
 
 
@@ -59,8 +63,9 @@ public:
 	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost) override;
 	//~ End FAssetTypeActions_Base
 
 private:
-	USoundEffectPreset* EffectPreset;
+	TStrongObjectPtr<USoundEffectPreset> EffectPreset;
 };
