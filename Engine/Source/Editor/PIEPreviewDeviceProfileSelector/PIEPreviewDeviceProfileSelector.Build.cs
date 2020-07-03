@@ -31,7 +31,14 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"EditorStyle"
                 }
-				);
+			);
+
+			CircularlyReferencedDependentModules.AddRange(
+				new string[]
+				{
+					"UnrealEd"
+				}
+			);
 		}
 	}
 }
