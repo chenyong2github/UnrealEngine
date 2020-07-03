@@ -107,9 +107,6 @@ private:
 	UPROPERTY()
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
 
-	UPROPERTY(Transient)
-	UUMGSequenceTickManager* TickManager;
-
 	/** The resolution at which all FFrameNumbers are stored */
 	FFrameRate AnimationResolution;
 

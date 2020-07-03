@@ -34,9 +34,6 @@ void UUMGSequencePlayer::InitSequencePlayer(UWidgetAnimation& InAnimation, UUser
 	Duration = UE::MovieScene::DiscreteSize(MovieScene->GetPlaybackRange());
 	AnimationResolution = MovieScene->GetTickResolution();
 	AbsolutePlaybackStart = UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange());
-
-	TickManager = UUMGSequenceTickManager::Get(this);
-	check(TickManager);
 }
 
 void UUMGSequencePlayer::Tick(float DeltaTime)
@@ -136,7 +133,13 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 
 			if (bIsRunningTickManager)
 			{
-				check(TickManager);
+				UUserWidget* Widget = UserWidget.Get();
+				UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+
+				if (!TickManager)
+				{
+					return;
+				}
 
 				if (!bIsSequenceBlocking)
 				{
@@ -209,8 +212,11 @@ void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int3
 
 	PlayerStatus = EMovieScenePlayerStatus::Playing;
 
+	UUserWidget* Widget = UserWidget.Get();
+	UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+
 	// Playback assumes the start frame has already been evaulated, so we also want to evaluate any events on the start frame here.
-	if (RootTemplateInstance.IsValid())
+	if (TickManager && RootTemplateInstance.IsValid())
 	{
 		const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + TimeCursorPosition, AnimationResolution), PlayerStatus);
 
@@ -261,8 +267,14 @@ void UUMGSequencePlayer::Pause()
 	const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + TimeCursorPosition, AnimationResolution), PlayerStatus);
 	if (RootTemplateInstance.HasEverUpdated())
 	{
-		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+		UUserWidget* Widget = UserWidget.Get();
+		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+
+		if (TickManager)
+		{
+			FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
+			Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+		}
 	}
 }
 
@@ -284,7 +296,10 @@ void UUMGSequencePlayer::Stop()
 
 	PlayerStatus = EMovieScenePlayerStatus::Stopped;
 
-	if (RootTemplateInstance.IsValid())
+	UUserWidget* Widget = UserWidget.Get();
+	UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+
+	if (TickManager && RootTemplateInstance.IsValid())
 	{
 		if (RootTemplateInstance.HasEverUpdated())
 		{
@@ -386,6 +401,9 @@ void UUMGSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelega
 {
 	if (CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
 	{
+		UUserWidget* Widget = UserWidget.Get();
+		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+
 		if (ensure(TickManager))
 		{
 			TickManager->AddLatentAction(Delegate);
@@ -401,7 +419,12 @@ void UUMGSequencePlayer::ApplyLatentActions()
 {
 	if (CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
 	{
-		TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
+		UUserWidget* Widget = UserWidget.Get();
+		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+		if (TickManager)
+		{
+			TickManager->RunLatentActions(this, RootTemplateInstance.GetEntitySystemRunner());
+		}
 	}
 	else
 	{
