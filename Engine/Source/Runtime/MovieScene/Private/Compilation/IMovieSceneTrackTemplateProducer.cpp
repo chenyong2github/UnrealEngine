@@ -70,8 +70,6 @@ void IMovieSceneTrackTemplateProducer::GenerateTemplate(const FMovieSceneTrackCo
 
 EMovieSceneCompileResult IMovieSceneTrackTemplateProducer::Compile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
 {
-	EMovieSceneCompileResult Result = EMovieSceneCompileResult::Failure;
-
 	for (const UMovieSceneSection* Section : Args.Track->GetAllSections())
 	{
 		const TRange<FFrameNumber> SectionRange = Section->GetTrueRange();
@@ -87,10 +85,8 @@ EMovieSceneCompileResult IMovieSceneTrackTemplateProducer::Compile(FMovieSceneEv
 			NewTemplate->SetSourceSection(Section);
 
 			OutTrack.AddChildTemplate(MoveTemp(NewTemplate));
-
-			Result = EMovieSceneCompileResult::Success;
 		}
 	}
 
-	return Result;
+	return EMovieSceneCompileResult::Success;
 }
