@@ -1978,7 +1978,7 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("ParentActions", "Parent Actions"));
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("UpdateParentEmitter", "Update Parent Emitter"),
+				LOCTEXT("UpdateParentEmitter", "Set New Parent Emitter"),
 				LOCTEXT("UpdateParentEmitterToolTip", "Change or add a parent emitter."),
 				FSlateIcon(),
 				FUIAction(
