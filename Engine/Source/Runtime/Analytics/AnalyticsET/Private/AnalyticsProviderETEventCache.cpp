@@ -276,21 +276,9 @@ FAnalyticsProviderETEventCache::FAnalyticsProviderETEventCache(int32 InMaximumPa
 	EventCacheStatic::InitializePayloadBuffer(CachedEventUTF8Stream, PreallocatedPayloadSize);
 }
 
-void FAnalyticsProviderETEventCache::AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes, bool bIsJsonEvent)
-{
-	// call deprecated functions here to convert these attributes into JsonFragments, so turn off warnings.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	for (FAnalyticsEventAttribute& Attr : Attributes)
-	{
-		Attr.SwitchToJsonFragment();
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	AddToCache(MoveTemp(EventName), MoveTemp(Attributes));
-}
-
 // We start with {"Events":[]}
 // We End with {"Events":[{"EventName":"<NAME>","DateOffset":"<OFFSET>",<DefaultAttrs>,<Attrs>}]}
-void FAnalyticsProviderETEventCache::AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+void FAnalyticsProviderETEventCache::AddToCache(FString EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
 

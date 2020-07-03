@@ -56,7 +56,7 @@ public:
 
 	// IAnalyticsProvider
 
-	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override;
+	virtual bool StartSession(FString InSessionID, const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual void EndSession() override;
 	virtual void FlushEvents() override;
 
@@ -69,7 +69,7 @@ public:
 	virtual bool SetSessionID(const FString& InSessionID) override;
 
 	virtual bool ShouldRecordEvent(const FString& EventName) const override;
-	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override;
+	virtual void RecordEvent(FString&& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual TArray<FAnalyticsEventAttribute> GetDefaultEventAttributesSafe() const override;
 	virtual int32 GetDefaultEventAttributeCount() const override;
@@ -268,7 +268,7 @@ FAnalyticsProviderET::~FAnalyticsProviderET()
 	EndSession();
 }
 
-bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes)
+bool FAnalyticsProviderET::StartSession(FString InSessionID, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	UE_LOG(LogAnalytics, Log, TEXT("[%s] AnalyticsET::StartSession"), *Config.APIKeyET);
 
@@ -279,9 +279,10 @@ bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEv
 	}
 	SessionID = MoveTemp(InSessionID);
 	// always ensure we send a few specific attributes on session start.
-	Attributes.Emplace(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
+	TArray<FAnalyticsEventAttribute> AttributesWithPlatform = Attributes;
+	AttributesWithPlatform.Emplace(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
 
-	RecordEvent(TEXT("SessionStart"), MoveTemp(Attributes));
+	RecordEvent(TEXT("SessionStart"), AttributesWithPlatform);
 	bSessionInProgress = true;
 	return bSessionInProgress;
 }
@@ -460,7 +461,7 @@ bool FAnalyticsProviderET::ShouldRecordEvent(const FString& EventName) const
 	return !ShouldRecordEventFunc || ShouldRecordEventFunc(*this, EventName);
 }
 
-void FAnalyticsProviderET::RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+void FAnalyticsProviderET::RecordEvent(FString&& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	// let higher level code filter the decision of whether to send the event
 	if (ShouldRecordEvent(EventName))
@@ -474,7 +475,7 @@ void FAnalyticsProviderET::RecordEvent(FString EventName, TArray<FAnalyticsEvent
 
 		if (!Config.UseLegacyProtocol)
 		{
-			EventCache.AddToCache(MoveTemp(EventName), MoveTemp(Attributes));
+			EventCache.AddToCache(MoveTemp(EventName), Attributes);
 			// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
 			if (!bShouldCacheEvents)
 			{
