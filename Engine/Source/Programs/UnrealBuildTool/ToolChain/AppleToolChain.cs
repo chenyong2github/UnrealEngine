@@ -7,6 +7,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Text;
 using Tools.DotNETCommon;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -182,6 +183,36 @@ namespace UnrealBuildTool
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
+		}
+
+		static Version ClangVersion = null;
+
+		protected Version GetClangVersion()
+		{	
+			if (ClangVersion == null)
+			{
+				FileReference ClangLocation = new FileReference("/usr/bin/clang");
+
+				string VersionString = Utils.RunLocalProcessAndReturnStdOut(ClangLocation.FullName, "--version");
+
+				Match M = Regex.Match(VersionString, @"version\s+(\d+)\.(\d+)\.(\d+)");
+
+				if (M.Success)
+				{
+					ClangVersion = new Version(
+						Convert.ToInt32(M.Groups[1].ToString()),
+						Convert.ToInt32(M.Groups[2].ToString()),
+						Convert.ToInt32(M.Groups[3].ToString())
+					);
+				}
+				else
+				{
+					Log.TraceError("Failed to detect clang version from output of {0} --version. Output={1}",
+						ClangLocation.FullName, VersionString);
+					ClangVersion = new Version(0, 0, 0);
+				}
+			}
+			return ClangVersion;
 		}
 		
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
