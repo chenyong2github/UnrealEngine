@@ -1,6 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosEngineInterface.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsSettingsCore.h"
+#include "PhysicsPublicCore.h"
+
+FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhysXMaterial;
 
 #if WITH_CHAOS
 #include "ChaosInterfaceWrapperCore.h"
@@ -158,6 +163,43 @@ void FChaosEngineInterface::ReleaseAggregate(FPhysicsAggregateReference_Chaos& I
 int32 FChaosEngineInterface::GetNumActorsInAggregate(const FPhysicsAggregateReference_Chaos& InAggregate) { return 0; }
 void FChaosEngineInterface::AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate,const FPhysicsActorHandle& InActor) {}
 
+Chaos::FChaosPhysicsMaterial::ECombineMode UToCCombineMode(EFrictionCombineMode::Type Mode)
+{
+	using namespace Chaos;
+	switch(Mode)
+	{
+	case EFrictionCombineMode::Average: return FChaosPhysicsMaterial::ECombineMode::Avg;
+	case EFrictionCombineMode::Min: return FChaosPhysicsMaterial::ECombineMode::Min;
+	case EFrictionCombineMode::Multiply: return FChaosPhysicsMaterial::ECombineMode::Multiply;
+	case EFrictionCombineMode::Max: return FChaosPhysicsMaterial::ECombineMode::Max;
+	default: ensure(false);
+	}
+
+	return FChaosPhysicsMaterial::ECombineMode::Avg;
+}
+
+FPhysicsMaterialHandle FChaosEngineInterface::CreateMaterial(const UPhysicalMaterial* InMaterial)
+{
+	Chaos::FMaterialHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().Create();
+
+	return NewHandle;
+}
+
+void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle& InHandle,UPhysicalMaterial* InMaterial)
+{
+	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
+	{
+		Material->Friction = InMaterial->Friction;
+		Material->FrictionCombineMode = UToCCombineMode(InMaterial->FrictionCombineMode);
+		Material->Restitution = InMaterial->Restitution;
+		Material->RestitutionCombineMode = UToCCombineMode(InMaterial->RestitutionCombineMode);
+		Material->SleepingLinearThreshold = InMaterial->SleepLinearVelocityThreshold;
+		Material->SleepingAngularThreshold = InMaterial->SleepAngularVelocityThreshold;
+		Material->SleepCounterThreshold = InMaterial->SleepCounterThreshold;
+	}
+
+	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
+}
 
 void FChaosEngineInterface::ReleaseMaterial(FPhysicsMaterialHandle& InHandle)
 {
@@ -1152,6 +1194,62 @@ int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandl
 int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorHandle,PhysicsInterfaceTypes::FInlineShapeArray& OutShapes)
 {
 	return GetAllShapesInternalImp_AssumedLocked(InActorHandle,OutShapes);
+}
+
+#elif WITH_ENGINE //temp physx code to make moving out of engine easier
+
+#include "PhysXSupportCore.h"
+
+FPhysicsMaterialHandle FChaosEngineInterface::CreateMaterial(const UPhysicalMaterial* InMaterial)
+{
+	check(GPhysXSDK);
+
+	FPhysicsMaterialHandle_PhysX NewRef;
+
+	const float Friction = InMaterial->Friction;
+	const float Restitution = InMaterial->Restitution;
+
+	NewRef.Material = GPhysXSDK->createMaterial(Friction,Friction,Restitution);
+
+	return NewRef;
+}
+
+void FChaosEngineInterface::ReleaseMaterial(FPhysicsMaterialHandle_PhysX& InHandle)
+{
+	if(InHandle.IsValid())
+	{
+		InHandle.Material->userData = nullptr;
+		GPhysXPendingKillMaterial.Add(InHandle.Material);
+		InHandle.Material = nullptr;
+	}
+}
+
+void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle_PhysX& InHandle,UPhysicalMaterial* InMaterial)
+{
+	if(InHandle.IsValid())
+	{
+		PxMaterial* PMaterial = InHandle.Material;
+
+		PMaterial->setStaticFriction(InMaterial->Friction);
+		PMaterial->setDynamicFriction(InMaterial->Friction);
+		PMaterial->setRestitution(InMaterial->Restitution);
+
+		const uint32 UseFrictionCombineMode = (InMaterial->bOverrideFrictionCombineMode ? InMaterial->FrictionCombineMode.GetValue() : UPhysicsSettingsCore::Get()->FrictionCombineMode.GetValue());
+		PMaterial->setFrictionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseFrictionCombineMode));
+
+		const uint32 UseRestitutionCombineMode = (InMaterial->bOverrideRestitutionCombineMode ? InMaterial->RestitutionCombineMode.GetValue() : UPhysicsSettingsCore::Get()->RestitutionCombineMode.GetValue());
+		PMaterial->setRestitutionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseRestitutionCombineMode));
+
+		FPhysicsDelegatesCore::OnUpdatePhysXMaterial.Broadcast(InMaterial);
+	}
+}
+
+void FChaosEngineInterface::SetUserData(FPhysicsMaterialHandle_PhysX& InHandle,void* InUserData)
+{
+	if(InHandle.IsValid())
+	{
+		InHandle.Material->userData = InUserData;
+	}
 }
 
 #endif

@@ -42,6 +42,7 @@ public class PhysicsAssetEditor : ModuleRules
                 "DetailCustomizations",
                 "PinnedCommandList",
 				"ToolMenus",
+				"PhysicsCore"
             }
         );
 

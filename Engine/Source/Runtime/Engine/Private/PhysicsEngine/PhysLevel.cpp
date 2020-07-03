@@ -33,7 +33,6 @@
 FPhysCommandHandler * GPhysCommandHandler = NULL;
 FDelegateHandle GPreGarbageCollectDelegateHandle;
 
-FPhysicsDelegates::FOnUpdatePhysXMaterial FPhysicsDelegates::OnUpdatePhysXMaterial;
 FPhysicsDelegates::FOnPhysicsAssetChanged FPhysicsDelegates::OnPhysicsAssetChanged;
 FPhysicsDelegates::FOnPhysSceneInit FPhysicsDelegates::OnPhysSceneInit;
 FPhysicsDelegates::FOnPhysSceneTerm FPhysicsDelegates::OnPhysSceneTerm;

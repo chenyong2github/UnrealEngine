@@ -268,46 +268,6 @@ void FPhysInterface_Chaos::ReleaseActor(FPhysicsActorHandle& Handle, FPhysScene*
 	Handle = nullptr;
 }
 
-FPhysicsMaterialHandle FPhysInterface_Chaos::CreateMaterial(const UPhysicalMaterial* InMaterial)
-{
-	Chaos::FMaterialHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().Create();
-
-	return NewHandle;
-}
-
-
-Chaos::FChaosPhysicsMaterial::ECombineMode UToCCombineMode(EFrictionCombineMode::Type Mode)
-{
-	using namespace Chaos;
-	switch(Mode)
-	{
-	case EFrictionCombineMode::Average: return FChaosPhysicsMaterial::ECombineMode::Avg;
-	case EFrictionCombineMode::Min: return FChaosPhysicsMaterial::ECombineMode::Min;
-	case EFrictionCombineMode::Multiply: return FChaosPhysicsMaterial::ECombineMode::Multiply;
-	case EFrictionCombineMode::Max: return FChaosPhysicsMaterial::ECombineMode::Max;
-	default: ensure(false);
-	}
-
-	return FChaosPhysicsMaterial::ECombineMode::Avg;
-}
-
-
-void FPhysInterface_Chaos::UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial)
-{
-	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
-	{
-		Material->Friction = InMaterial->Friction;
-		Material->FrictionCombineMode = UToCCombineMode(InMaterial->FrictionCombineMode);
-		Material->Restitution = InMaterial->Restitution;
-		Material->RestitutionCombineMode = UToCCombineMode(InMaterial->RestitutionCombineMode);
-		Material->SleepingLinearThreshold = InMaterial->SleepLinearVelocityThreshold;
-		Material->SleepingAngularThreshold = InMaterial->SleepAngularVelocityThreshold;
-		Material->SleepCounterThreshold = InMaterial->SleepCounterThreshold;
-	}
-
-	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
-}
-
 FPhysicsMaterialMaskHandle FPhysInterface_Chaos::CreateMaterialMask(const UPhysicalMaterialMask* InMaterialMask)
 {
 	Chaos::FMaterialMaskHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().CreateMask();

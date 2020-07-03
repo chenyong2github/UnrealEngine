@@ -17,6 +17,7 @@ class FChaosPhysicsMaterial;
 
 class AChaosSolverActor;
 class UChaosPhysicalMaterial;
+class FSkeletalMeshPhysicsProxy;
 
 /**
 *	USkeletalMeshSimulationComponent

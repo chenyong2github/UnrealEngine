@@ -60,9 +60,6 @@ extern ENGINE_API TArray<PxTriangleMesh*>	GPhysXPendingKillTriMesh;
 /** Array of PxHeightField objects which are awaiting cleaning up. */
 extern ENGINE_API TArray<PxHeightField*>	GPhysXPendingKillHeightfield;
 
-/** Array of PxMaterial objects which are awaiting cleaning up. */
-extern TArray<PxMaterial*>		GPhysXPendingKillMaterial;
-
 
 extern const physx::PxQuat U2PSphylBasis;
 extern const FQuat U2PSphylBasis_UE;

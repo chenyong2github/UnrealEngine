@@ -18,7 +18,7 @@
 #include "PhysicsSolver.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/ChaosSolverActor.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UStaticMeshSimulationComponentLogging, NoLogging, All);

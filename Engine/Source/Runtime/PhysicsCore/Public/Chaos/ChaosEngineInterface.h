@@ -11,6 +11,77 @@
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 
+
+/** Types of surfaces in the game, used by Physical Materials */
+UENUM(BlueprintType)
+enum EPhysicalSurface
+{
+	SurfaceType_Default UMETA(DisplayName="Default"),
+	SurfaceType1 UMETA(Hidden),
+	SurfaceType2 UMETA(Hidden),
+	SurfaceType3 UMETA(Hidden),
+	SurfaceType4 UMETA(Hidden),
+	SurfaceType5 UMETA(Hidden),
+	SurfaceType6 UMETA(Hidden),
+	SurfaceType7 UMETA(Hidden),
+	SurfaceType8 UMETA(Hidden),
+	SurfaceType9 UMETA(Hidden),
+	SurfaceType10 UMETA(Hidden),
+	SurfaceType11 UMETA(Hidden),
+	SurfaceType12 UMETA(Hidden),
+	SurfaceType13 UMETA(Hidden),
+	SurfaceType14 UMETA(Hidden),
+	SurfaceType15 UMETA(Hidden),
+	SurfaceType16 UMETA(Hidden),
+	SurfaceType17 UMETA(Hidden),
+	SurfaceType18 UMETA(Hidden),
+	SurfaceType19 UMETA(Hidden),
+	SurfaceType20 UMETA(Hidden),
+	SurfaceType21 UMETA(Hidden),
+	SurfaceType22 UMETA(Hidden),
+	SurfaceType23 UMETA(Hidden),
+	SurfaceType24 UMETA(Hidden),
+	SurfaceType25 UMETA(Hidden),
+	SurfaceType26 UMETA(Hidden),
+	SurfaceType27 UMETA(Hidden),
+	SurfaceType28 UMETA(Hidden),
+	SurfaceType29 UMETA(Hidden),
+	SurfaceType30 UMETA(Hidden),
+	SurfaceType31 UMETA(Hidden),
+	SurfaceType32 UMETA(Hidden),
+	SurfaceType33 UMETA(Hidden),
+	SurfaceType34 UMETA(Hidden),
+	SurfaceType35 UMETA(Hidden),
+	SurfaceType36 UMETA(Hidden),
+	SurfaceType37 UMETA(Hidden),
+	SurfaceType38 UMETA(Hidden),
+	SurfaceType39 UMETA(Hidden),
+	SurfaceType40 UMETA(Hidden),
+	SurfaceType41 UMETA(Hidden),
+	SurfaceType42 UMETA(Hidden),
+	SurfaceType43 UMETA(Hidden),
+	SurfaceType44 UMETA(Hidden),
+	SurfaceType45 UMETA(Hidden),
+	SurfaceType46 UMETA(Hidden),
+	SurfaceType47 UMETA(Hidden),
+	SurfaceType48 UMETA(Hidden),
+	SurfaceType49 UMETA(Hidden),
+	SurfaceType50 UMETA(Hidden),
+	SurfaceType51 UMETA(Hidden),
+	SurfaceType52 UMETA(Hidden),
+	SurfaceType53 UMETA(Hidden),
+	SurfaceType54 UMETA(Hidden),
+	SurfaceType55 UMETA(Hidden),
+	SurfaceType56 UMETA(Hidden),
+	SurfaceType57 UMETA(Hidden),
+	SurfaceType58 UMETA(Hidden),
+	SurfaceType59 UMETA(Hidden),
+	SurfaceType60 UMETA(Hidden),
+	SurfaceType61 UMETA(Hidden),
+	SurfaceType62 UMETA(Hidden),
+	SurfaceType_Max UMETA(Hidden)
+};
+
 /** Enum for controlling the falloff of strength of a radial impulse as a function of distance from Origin. */
 UENUM()
 enum ERadialImpulseFalloff
@@ -146,6 +217,7 @@ namespace Chaos
 }
 
 struct FCollisionShape;
+class UPhysicalMaterial;
 
 class PHYSICSCORE_API FPhysicsAggregateReference_Chaos
 {
@@ -258,6 +330,8 @@ public:
 	static void AddActorToSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);
 	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver);
 
+	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
+	static void UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial);
 	static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle);
 	static void SetUserData(FPhysicsMaterialHandle& InHandle,void* InUserData);
 
@@ -418,6 +492,37 @@ public:
 	static void SetIsQueryShape(const FPhysicsShapeHandle& InShape,bool bIsQueryShape);
 	static void SetGeometry(const FPhysicsShapeHandle& InShape,physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape,const FTransform& NewLocalTransform);
+};
+
+#elif WITH_ENGINE //temp physx code to make moving code out of Engine easier
+
+/**
+ * Wrapper for internal PhysX materials
+ */
+
+
+namespace physx
+{
+class PxMaterial;
+}
+
+struct PHYSICSCORE_API FPhysicsMaterialHandle_PhysX
+{
+	FPhysicsMaterialHandle_PhysX() : Material(nullptr) {}
+	explicit FPhysicsMaterialHandle_PhysX(physx::PxMaterial* InMaterial) : Material(InMaterial) {}
+
+	bool IsValid() const { return Material != nullptr; }
+
+	physx::PxMaterial* Material;
+};
+
+class FChaosEngineInterface
+{
+public:
+	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
+	static void UpdateMaterial(FPhysicsMaterialHandle_PhysX& InHandle,UPhysicalMaterial* InMaterial);
+	static void ReleaseMaterial(FPhysicsMaterialHandle_PhysX& InHandle);
+	static void SetUserData(FPhysicsMaterialHandle_PhysX& InHandle,void* InUserData);
 };
 
 #endif

@@ -5,12 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "EngineDefines.h"
-#include "PhysxUserData.h"
-#include "Vehicles/TireType.h"
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
-#include "Physics/PhysicsInterfaceCore.h"
 #include "ChaosPhysicalMaterial.generated.h"
 
 namespace Chaos
@@ -23,7 +17,7 @@ namespace Chaos
  * interacting dynamically with the world.
  */
 UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object)
-class ENGINE_API UChaosPhysicalMaterial : public UObject
+class PHYSICSCORE_API UChaosPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

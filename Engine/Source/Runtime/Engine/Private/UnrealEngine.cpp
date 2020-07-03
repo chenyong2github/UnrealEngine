@@ -2594,6 +2594,8 @@ void UEngine::InitializeObjectReferences()
 		}
 	}
 
+	UPhysicalMaterial::SetEngineDefaultPhysMaterial(DefaultPhysMaterial);
+
 	LoadEngineClass<UConsole>(ConsoleClassName, ConsoleClass);
 	LoadEngineClass<UGameViewportClient>(GameViewportClientClassName, GameViewportClientClass);
 	LoadEngineClass<ULocalPlayer>(LocalPlayerClassName, LocalPlayerClass);

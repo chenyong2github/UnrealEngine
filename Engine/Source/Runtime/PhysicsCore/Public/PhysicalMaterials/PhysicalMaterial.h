@@ -5,12 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "EngineDefines.h"
-#include "Vehicles/TireType.h"
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "PhysicsInterfaceDeclaresCore.h"
+#include "PhysicsSettingsEnums.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "PhysicalMaterial.generated.h"
 
 struct FPropertyChangedEvent;
@@ -22,33 +18,11 @@ namespace physx
 }
 #endif
 
-
-/** DEPRECATED Pairs desired tire friction scale with tire type */
-USTRUCT()
-struct FTireFrictionScalePair
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Tire type */
-	UPROPERTY()
-	class UTireType*				TireType;
-
-	/** Friction scale for this type of tire */
-	UPROPERTY()
-	float							FrictionScale;
-
-	FTireFrictionScalePair()
-		: TireType(NULL)
-		, FrictionScale(1.0f)
-	{
-	}
-};
-
 /**
  * Physical materials are used to define the response of a physical object when interacting dynamically with the world.
  */
 UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object)
-class ENGINE_API UPhysicalMaterial : public UObject
+class PHYSICSCORE_API UPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -114,22 +88,14 @@ class ENGINE_API UPhysicalMaterial : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Destruction)
 	float DestructibleDamageThresholdScale;
 
-	UPROPERTY(/*deprecated*/)
-	class UDEPRECATED_PhysicalMaterialPropertyBase* PhysicalMaterialProperty;
+	UPROPERTY()
+	class UDEPRECATED_PhysicalMaterialPropertyBase* PhysicalMaterialProperty_DEPRECATED;
 
 	/**
 	 * To edit surface type for your project, use ProjectSettings/Physics/PhysicalSurface section
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalProperties)
 	TEnumAsByte<EPhysicalSurface> SurfaceType;
-
-	/** DEPRECATED - Overall tire friction scalar for every type of tire. This value is multiplied against our parents' values. */
-	UPROPERTY(VisibleAnywhere, Category = Deprecated)
-	float TireFrictionScale;
-
-	/** DEPRECATED - Tire friction scales for specific types of tires. These values are multiplied against our parents' values. */
-	UPROPERTY(VisibleAnywhere, Category = Deprecated)
-	TArray<FTireFrictionScalePair> TireFrictionScales;
 
 public:
 
@@ -148,6 +114,8 @@ public:
 
 	/** Get the physics-interface derived version of this material */
 	FPhysicsMaterialHandle& GetPhysicsMaterial();
+
+	static void SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material);
 
 	/** Determine Material Type from input PhysicalMaterial **/
 	static EPhysicalSurface DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial);

@@ -574,7 +574,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunction.h"
-#include "PhysicsEngine/PhysicsSettingsEnums.h"
+#include "PhysicsSettingsEnums.h"
 #include "Sound/SoundAttenuation.h"
 #include "Engine/CurveTable.h"
 #include "Audio.h"
