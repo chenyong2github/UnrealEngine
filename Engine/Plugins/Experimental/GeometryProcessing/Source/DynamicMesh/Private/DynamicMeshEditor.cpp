@@ -1665,12 +1665,15 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		if (SourceMesh->HasTriangleGroups())
 		{
 			int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
-			NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
-			if (NewGroupID == IndexMaps.InvalidID())
+			if (SourceGroupID >= 0)
 			{
-				NewGroupID = Mesh->AllocateTriangleGroup();
-				IndexMaps.SetGroup(SourceGroupID, NewGroupID);
-				ResultOut.NewGroups.Add(NewGroupID);
+				NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
+				if (NewGroupID == IndexMaps.InvalidID())
+				{
+					NewGroupID = Mesh->AllocateTriangleGroup();
+					IndexMaps.SetGroup(SourceGroupID, NewGroupID);
+					ResultOut.NewGroups.Add(NewGroupID);
+				}
 			}
 		}
 
