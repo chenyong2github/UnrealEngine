@@ -66,7 +66,9 @@ enum class EUVUnwrapType
 	/**  */
 	MinStretch = 0,
 	/** */
-	ExpMap = 1
+	ExpMap = 1,
+	/** */
+	Conformal = 2
 };
 
 

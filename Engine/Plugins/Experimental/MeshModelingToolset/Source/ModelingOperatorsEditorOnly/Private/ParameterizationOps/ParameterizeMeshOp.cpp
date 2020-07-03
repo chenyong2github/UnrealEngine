@@ -8,6 +8,7 @@
 #include "Selections/MeshConnectedComponents.h"
 
 #include "Parameterization/MeshLocalParam.h"
+#include "Parameterization/DynamicMeshUVEditor.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshNormals.h"
 #include "DynamicSubmesh3.h"
@@ -263,50 +264,36 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 
 bool FParameterizeMeshOp::ComputeUVs_ExpMap(FDynamicMesh3& Mesh, TFunction<bool(float)>& Interrupter, float GlobalScale)
 {
-	FMeshNormals::QuickComputeVertexNormals(Mesh);
+	FDynamicMeshUVEditor UVEditor(&Mesh, 0, true);
 
-	FDynamicMeshAABBTree3 AABBTree(&Mesh, true);
-	double NearDistSqr;
-	int32 SeedTriangleID = AABBTree.FindNearestTriangle(Mesh.GetBounds().Center(), NearDistSqr);
-	FFrame3d SeedFrame = Mesh.GetTriFrame(SeedTriangleID);
-	FIndex3i SeedNbrs = Mesh.GetTriangle(SeedTriangleID);
-
-	// try to generate consistent frame alignment...
-	SeedFrame.ConstrainedAlignPerpAxes(0, 1, 2, FVector3d::UnitX(), FVector3d::UnitY(), 0.95 );
-
-	TMeshLocalParam<FDynamicMesh3> Param(&Mesh);
-	//Param.ParamMode = ELocalParamTypes::PlanarProjection;
-	//Param.ParamMode = ELocalParamTypes::ExponentialMap;
-	Param.ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
-	Param.ComputeToMaxDistance(FFrame3d(SeedFrame), SeedNbrs, TNumericLimits<float>::Max());
-
-	Mesh.EnableAttributes();
-	FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
-	FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
-	UVOverlay->ClearElements(); // delete existing UVs
-	checkSlow(UVOverlay->ElementCount() == 0);
-
-	FAxisAlignedBox2d Bounds = Param.GetUVBounds();
-	FVector2d Center = Bounds.Center();
-
-	for (int32 VertexID : Mesh.VertexIndicesItr())
+	TArray<int32> AllTriangles;
+	for (int32 tid : Mesh.TriangleIndicesItr())
 	{
-		check(Param.HasUV(VertexID));
-		FVector2d UV = Param.GetUV(VertexID) - Center;
-		int32 NewElemID = UVOverlay->AppendElement(FVector2f(UV));
-		check(NewElemID == VertexID);
+		AllTriangles.Add(tid);
 	}
 
-	for (int32 TriangleID : Mesh.TriangleIndicesItr())
-	{
-		FIndex3i Tri = Mesh.GetTriangle(TriangleID);
-		UVOverlay->SetTriangle(TriangleID, Tri);
-	}
+	UVEditor.SetTriangleUVsFromExpMap(AllTriangles);
 
 	return true;
 }
 
 
+
+
+bool FParameterizeMeshOp::ComputeUVs_ConformalFreeBoundary(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale)
+{
+	FDynamicMeshUVEditor UVEditor(&InOutMesh, 0, true);
+
+	TArray<int32> AllTriangles;
+	for (int32 tid : InOutMesh.TriangleIndicesItr())
+	{
+		AllTriangles.Add(tid);
+	}
+
+	UVEditor.SetTriangleUVsFromFreeBoundaryConformal(AllTriangles);
+
+	return true;
+}
 
 
 
@@ -437,9 +424,21 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 		FDynamicMesh3& ComponentMesh = ComponentSubmesh.GetSubmesh();
 		if (ComponentMesh.TriangleCount() > 0)
 		{
-			bool bComputedUVs = (UnwrapType == EParamOpUnwrapType::ExpMap) ? 
-				ComputeUVs_ExpMap(ComponentMesh, Iterrupter, AreaScaling) : 
-				ComputeUVs(ComponentMesh, Iterrupter, false, AreaScaling);
+			bool bComputedUVs = false;
+			switch (UnwrapType)
+			{
+			case EParamOpUnwrapType::ExpMap:
+				bComputedUVs = ComputeUVs_ExpMap(ComponentMesh, Iterrupter, AreaScaling);
+				break;
+
+			case EParamOpUnwrapType::ConformalFreeBoundary:
+				bComputedUVs = ComputeUVs_ConformalFreeBoundary(ComponentMesh, Iterrupter, AreaScaling);
+				break;
+
+			case EParamOpUnwrapType::MinStretch:
+				bComputedUVs = ComputeUVs(ComponentMesh, Iterrupter, false, AreaScaling);
+				break;
+			}
 
 			if (bComputedUVs) SuccessCount++;
 		}
