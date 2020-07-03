@@ -803,12 +803,16 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 	const FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = GetSequencer()->GetEvaluationTemplate();
 
 	UMovieSceneEntitySystemLinker* EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
+	if (!EntityLinker)
+	{
+		return InTransformData;
+	}
 
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
 
 	FMovieSceneEntityID EntityID = EvaluationTemplate.FindEntityFromOwner(Section, 0, GetSequencer()->GetFocusedTemplateID());
 
-	if (EntityLinker && EntityID)
+	if (EntityID)
 	{
 		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
 		if (System)

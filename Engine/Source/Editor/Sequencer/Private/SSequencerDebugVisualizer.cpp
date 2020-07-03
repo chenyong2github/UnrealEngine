@@ -468,12 +468,12 @@ bool SSequencerEntityComponentSystemDebugVisualizer::DoRefresh()
 
 	const FMovieSceneRootEvaluationTemplateInstance& RootEvalInstance = Sequencer->GetEvaluationTemplate();
 	UMovieSceneCompiledDataManager* CompiledDataManager = RootEvalInstance.GetCompiledDataManager();
-	FMovieSceneCompiledDataID CompiledDataID = CompiledDataManager->GetDataID(ActiveSequence);
 	if (!CompiledDataManager)
 	{
 		return false;
 	}
 
+	FMovieSceneCompiledDataID CompiledDataID = CompiledDataManager->GetDataID(ActiveSequence);
 	UMovieScene* ActiveMovieScene = ActiveSequence->GetMovieScene();
 	if (!ActiveMovieScene)
 	{

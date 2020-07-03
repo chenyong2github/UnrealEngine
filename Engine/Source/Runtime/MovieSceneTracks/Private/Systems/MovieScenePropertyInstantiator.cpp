@@ -282,8 +282,7 @@ void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(const FPropertyPa
 {
 	using namespace UE::MovieScene;
 
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetProperties()[Params.PropertyInfo->PropertyDefinitionIndex];
-	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
+	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*Params.PropertyDefinition);
 
 	FChannelMask EmptyChannels(true, Params.PropertyDefinition->CompositeSize);
 
