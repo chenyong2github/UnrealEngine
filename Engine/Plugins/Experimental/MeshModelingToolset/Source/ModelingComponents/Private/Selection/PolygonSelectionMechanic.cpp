@@ -71,7 +71,7 @@ void UPolygonSelectionMechanic::Initialize(
 			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
-			return Position1.DistanceSquared(Position2) < OrthoTolerance * OrthoTolerance;
+			return TargetTransform.TransformPosition(Position1).DistanceSquared(TargetTransform.TransformPosition(Position2)) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{
