@@ -170,7 +170,7 @@ static FAutoConsoleVariableRef CVarIgnoreExcludeBoxes(
 static int32 GGrassMaxCreatePerFrame = 1;
 static FAutoConsoleVariableRef CVarGrassMaxCreatePerFrame(
 	TEXT("grass.MaxCreatePerFrame"),
-	GIgnoreExcludeBoxes,
+	GGrassMaxCreatePerFrame,
 	TEXT("Maximum number of Grass components to create per frame"));
 
 DECLARE_CYCLE_STAT(TEXT("Grass Async Build Time"), STAT_FoliageGrassAsyncBuildTime, STATGROUP_Foliage);
