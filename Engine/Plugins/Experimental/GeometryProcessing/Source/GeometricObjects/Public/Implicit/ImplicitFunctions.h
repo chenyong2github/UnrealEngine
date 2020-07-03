@@ -5,6 +5,8 @@
 #pragma once
 
 #include "MathUtil.h"
+#include "SegmentTypes.h"
+#include "BoxTypes.h"
 
 template<typename RealType>
 struct TImplicitFunction3
@@ -18,6 +20,99 @@ struct TBoundedImplicitFunction3
 	TUniqueFunction<RealType(FVector3<RealType>)> Value();
 	TUniqueFunction<TAxisAlignedBox3<RealType>> Bounds();
 };
+
+
+
+/**
+ * Implicit Distance-Field Point Object/Primitive, surface shape at isovalue=0 (defined by Distance-Radius) is a sphere
+ */
+template<typename RealType>
+struct TImplicitPoint3
+{
+	FVector3<RealType> Position;
+	RealType Radius;
+
+	RealType Value(const FVector3<RealType>& Point) const
+	{
+		return Position.Distance(Point) - Radius;
+	}
+
+	TAxisAlignedBox3<RealType> Bounds() const
+	{
+		return  TAxisAlignedBox3<RealType>(Position, Radius);
+	}
+};
+typedef TImplicitPoint3<float> FImplicitPoint3f;
+typedef TImplicitPoint3<double> FImplicitPoint3d;
+
+
+
+/**
+ * Implicit Distance-Field Line Object/Primitive, surface shape at isovalue=0 (defined by Distance-Radius) is a capsule
+ */
+template<typename RealType>
+struct TImplicitLine3
+{
+	TSegment3<RealType> Segment;
+	RealType Radius;
+
+	RealType Value(const FVector3<RealType>& Point) const
+	{
+		RealType DistanceSqr = Segment.DistanceSquared(Point);
+		return TMathUtil<RealType>::Sqrt(DistanceSqr) - Radius;
+	}
+
+	TAxisAlignedBox3<RealType> Bounds() const
+	{
+		return Segment.GetBounds(Radius);
+	}
+};
+typedef TImplicitLine3<float> FImplicitLine3f;
+typedef TImplicitLine3<double> FImplicitLine3d;
+
+
+
+
+
+
+
+/**
+ * Skeletal implicit line primitive. Field value is 1 along line and 0 at
+ * distance=1 from the line. Scale factor is applied to distance.
+ */
+template<typename RealType>
+struct TSkeletalImplicitLine3
+{
+	TSegment3<RealType> Segment;
+	RealType Scale = 1.0;
+
+	void SetScaleFromRadius(double TargetRadius, double DefaultIsoValue = 0.5)
+	{
+		Scale = TargetRadius / DefaultIsoValue;
+	}
+
+	float GetRadius(double DefaultIsoValue = 0.5) const
+	{
+		return Scale * DefaultIsoValue;
+	}
+
+	RealType Value(const FVector3<RealType>& Point) const
+	{
+		RealType DistanceSqr = Segment.DistanceSquared(Point);
+		DistanceSqr /= (Scale * Scale);
+
+		RealType T = FMathd::Max(1.0 - DistanceSqr, 0.0);
+		return T*T*T; // (1-x^2)^3
+	}
+
+	TAxisAlignedBox3<RealType> Bounds(double DefaultIsoValue = 0.5) const
+	{
+		return Segment.GetBounds(GetRadius(DefaultIsoValue));
+	}
+};
+typedef TSkeletalImplicitLine3<float> FSkeletalImplicitLine3f;
+typedef TSkeletalImplicitLine3<double> FSkeletalImplicitLine3d;
+
 
 
 

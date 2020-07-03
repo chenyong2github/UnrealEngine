@@ -98,6 +98,9 @@ public:
 	/** @return index of loop with maximum number of vertices */
 	int GetMaxVerticesLoopIndex() const;
 
+	/** @return index of loop with longest arc length, or -1 if no loops */
+	int GetLongestLoopIndex() const;
+
 	/**
 	 * @return pair (LoopIndex,VertexIndexInLoop) of VertexID in EdgeLoops, or FIndex2i::Invalid if not found
 	 */

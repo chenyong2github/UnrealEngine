@@ -71,9 +71,9 @@ public:
 	 * Computes UVs outwards from seed frame/nbrs to all points that are less/equal to ComputeToMaxDistance from the seed.
 	 * @param SeedFrameIn 3D frame on surface of point set, parameterization is computed "in" this frame (eg will align u/v to x/y axes, at origin)
 	 * @param SeedNbrs 3 points that will be planar-projected into the SeedFrame, to initialize the region-growing (kind of triangle-mesh-specific)
-	 * @param ComputeToMaxDistance target radius for parameterization, will not set UVs on points with graph-distance larger than this
+	 * @param ComputeToMaxDistanceIn target radius for parameterization, will not set UVs on points with graph-distance larger than this
 	 */
-	void ComputeToMaxDistance(const FFrame3d& SeedFrameIn, const FIndex3i& SeedNbrs, double ComputeToMaxDistance)
+	void ComputeToMaxDistance(const FFrame3d& SeedFrameIn, const FIndex3i& SeedNbrs, double ComputeToMaxDistanceIn)
 	{
 		SeedFrame = SeedFrameIn;
 		MaxGraphDistance = 0.0f;
@@ -90,46 +90,33 @@ public:
 			Queue.Insert(NbrPointID, Node->GraphDistance);
 		}
 
-		while (Queue.GetCount() > 0) 
-		{
-			int32 NextID = Queue.Dequeue();
-			FGraphNode* Node = GetNodeForPointSetID(NextID, false);
-			check(Node != nullptr);
-
-			MaxGraphDistance = TMathUtil<double>::Max(Node->GraphDistance, MaxGraphDistance);
-			if (MaxGraphDistance > ComputeToMaxDistance)
-			{
-				return;
-			}
-
-			if (Node->ParentPointID >= 0)
-			{
-				switch (ParamMode) 
-				{
-				case ELocalParamTypes::ExponentialMap:
-					UpdateUVExpmap(*Node);
-					break;
-				case ELocalParamTypes::ExponentialMapUpwindAvg:
-					UpdateUVExpmapUpwind(*Node);
-					break;
-				case ELocalParamTypes::PlanarProjection:
-					UpdateUVPlanar(*Node);
-					break;
-				}
-			}
-
-			double UVDistSqr = Node->UV.SquaredLength();
-			if (UVDistSqr > MaxUVDistance)
-			{
-				MaxUVDistance = UVDistSqr;
-			}
-
-			Node->bFrozen = true;
-			UpdateNeighboursSparse(Node);
-		}
-
-		MaxUVDistance = TMathUtil<double>::Sqrt(MaxUVDistance);
+		ProcessQueueUntilTermination(ComputeToMaxDistanceIn);
 	}
+
+
+	/**
+	 * Computes UVs outwards from seed vertex to all points that are less/equal to ComputeToMaxDistance from the seed.
+	 * @param CenterPointVtxID ID of seed vertex
+	 * @param CenterPointFrame 3D frame on surface of point set, parameterization is computed "in" this frame (eg will align u/v to x/y axes, at origin)
+	 * @param ComputeToMaxDistanceIn target radius for parameterization, will not set UVs on points with graph-distance larger than this
+	 */
+	void ComputeToMaxDistance(int32 CenterPointVtxID, const FFrame3d& CenterPointFrame, double ComputeToMaxDistanceIn)
+	{
+		SeedFrame = CenterPointFrame;
+		MaxGraphDistance = 0.0f;
+		MaxUVDistance = 0.0f;
+
+		// center point 
+		FGraphNode* CenterNode = GetNodeForPointSetID(CenterPointVtxID, true);
+		CenterNode->UV = FVector2d::Zero();
+		CenterNode->GraphDistance = 0;
+		CenterNode->bFrozen = true;
+
+		Queue.Insert(CenterPointVtxID, 0);
+
+		ProcessQueueUntilTermination(ComputeToMaxDistanceIn);
+	}
+
 
 
 	/**
@@ -265,6 +252,54 @@ protected:
 	// max distances encountered during last compute
 	double MaxGraphDistance;
 	double MaxUVDistance;
+
+
+
+
+
+	void ProcessQueueUntilTermination(double MaxDistance)
+	{
+		while (Queue.GetCount() > 0)
+		{
+			int32 NextID = Queue.Dequeue();
+			FGraphNode* Node = GetNodeForPointSetID(NextID, false);
+			check(Node != nullptr);
+
+			MaxGraphDistance = TMathUtil<double>::Max(Node->GraphDistance, MaxGraphDistance);
+			if (MaxGraphDistance > MaxDistance)
+			{
+				return;
+			}
+
+			if (Node->ParentPointID >= 0)
+			{
+				switch (ParamMode)
+				{
+				case ELocalParamTypes::ExponentialMap:
+					UpdateUVExpmap(*Node);
+					break;
+				case ELocalParamTypes::ExponentialMapUpwindAvg:
+					UpdateUVExpmapUpwind(*Node);
+					break;
+				case ELocalParamTypes::PlanarProjection:
+					UpdateUVPlanar(*Node);
+					break;
+				}
+			}
+
+			double UVDistSqr = Node->UV.SquaredLength();
+			if (UVDistSqr > MaxUVDistance)
+			{
+				MaxUVDistance = UVDistSqr;
+			}
+
+			Node->bFrozen = true;
+			UpdateNeighboursSparse(Node);
+		}
+
+		MaxUVDistance = TMathUtil<double>::Sqrt(MaxUVDistance);
+	}
+
 
 
 	FVector2d ComputeLocalUV(const FFrame3d& Frame, FVector3d Position) const
