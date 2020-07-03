@@ -758,6 +758,14 @@ public:
 		return CachedSerial == 0 || StructureMutationSystemSerialNumber > CachedSerial;
 	}
 
+	/**
+	 * Called in order to mimic the entity structure changing, even if it has not
+	 */
+	void MimicStructureChanged()
+	{
+		OnStructureChanged();
+	}
+
 public:
 
 	/**

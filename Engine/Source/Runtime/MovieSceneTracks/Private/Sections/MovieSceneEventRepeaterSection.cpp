@@ -13,13 +13,13 @@
 #include "Evaluation/MovieSceneEvaluationField.h"
 
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	if (Event.Ptrs.Function == nullptr)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	UMovieSceneEventTrack*   EventTrack     = GetTypedOuter<UMovieSceneEventTrack>();
@@ -31,19 +31,19 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneEventRepeaterSection::ImportEnt
 	// all the events from the last playback position to the start of playback be fired.
 	if (Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 	else if (Context.GetDirection() == EPlayDirection::Forwards && !EventTrack->bFireEventsWhenForwards)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 	else if (Context.GetDirection() == EPlayDirection::Backwards && !EventTrack->bFireEventsWhenBackwards)
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 	else if (!GetRange().Contains(Context.GetTime().FrameNumber))
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	UMovieSceneEventSystem* EventSystem = nullptr;
@@ -69,7 +69,9 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneEventRepeaterSection::ImportEnt
 	};
 
 	EventSystem->AddEvent(ThisInstance.GetRootInstanceHandle(), TriggerData);
-	return ESequenceUpdateResult::EntitiesDirty;
+
+	// Mimic the structure changing in order to ensure that the instantiation phase runs
+	EntityLinker->EntityManager.MimicStructureChanged();
 }
 
 bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)

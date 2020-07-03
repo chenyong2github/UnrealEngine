@@ -20,6 +20,6 @@ class UMovieSceneSpawnSection
 
 	UMovieSceneSpawnSection(const FObjectInitializer& Init);
 
-	virtual ESequenceUpdateResult ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField) override;
 };

@@ -34,13 +34,13 @@ void UMovieScene3DAttachSection::SetAttachTargetID( const FMovieSceneObjectBindi
 	}
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	if (!ConstraintBindingID.GetGuid().IsValid() || !Params.ObjectBindingID.IsValid())
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	FBuiltInComponentTypes*          BuiltInComponentTypes = FBuiltInComponentTypes::Get();
@@ -58,6 +58,4 @@ UE::MovieScene::ESequenceUpdateResult UMovieScene3DAttachSection::ImportEntityIm
 		.Add(TrackComponents->AttachParentBinding, ConstraintBindingID)
 		.Add(TrackComponents->AttachComponent, AttachComponent)
 	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }

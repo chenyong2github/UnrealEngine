@@ -51,18 +51,16 @@ public:
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 * @param InContext  The context that this sequence instance is to be evaluated with
-	 * return A result mask specifying whether any entities were dirtied
 	 */
-	ESequenceUpdateResult Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
+	void Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
 
 
 	/**
 	 * Called when this instance has been queued for evaluation in order for it to do any pre-work setup.
 	 *
 	 * @param Linker     The linker that owns this sequence instance
-	 * @return           A result mask specifying whether any entities or systems were dirtied
 	 */
-	ESequenceUpdateResult PreEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	void PreEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 
 	/**
@@ -70,26 +68,23 @@ public:
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 * @param InContext  The (potentially dissected) context that this sequence instance is to be evaluated with
-	 * return A result mask specifying whether any entities or systems were dirtied
 	 */
-	ESequenceUpdateResult Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
+	void Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
 
 
 	/**
 	 * Mark this instance as finished, causing all its entities to be unlinked and the instance to become inactive at the end of the next update.
 	 *
 	 * @param Linker     The linker that owns this sequence instance
-	 * return A result mask specifying whether any entities or systems were dirtied
 	 */
-	ESequenceUpdateResult Finish(UMovieSceneEntitySystemLinker* Linker);
+	void Finish(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Called when this sequence instance has been evaluated in order for it to do any clean-up or other post-update work
 	 *
 	 * @param Linker     The linker that owns this sequence instance
-	 * return A result mask specifying whether any entities or systems were dirtied
 	 */
-	ESequenceUpdateResult PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	void PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 public:
 

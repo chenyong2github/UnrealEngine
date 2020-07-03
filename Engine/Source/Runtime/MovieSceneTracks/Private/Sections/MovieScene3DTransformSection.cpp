@@ -331,7 +331,7 @@ UMovieScene3DTransformSection::UMovieScene3DTransformSection(const FObjectInitia
 	Scale[2].SetDefault(1.f);
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -375,7 +375,7 @@ UE::MovieScene::ESequenceUpdateResult UMovieScene3DTransformSection::ImportEntit
 
 	if (!Algo::AnyOf(ActiveChannelsMask))
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	TComponentTypeID<FSourceFloatChannel> RotationChannel[3];
@@ -408,8 +408,6 @@ UE::MovieScene::ESequenceUpdateResult UMovieScene3DTransformSection::ImportEntit
 		.AddConditional(BuiltInComponentTypes->WeightChannel,   &ManualWeight,            EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData())
 		.AddTag(PropertyTag)
 	);
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }
 
 FMovieSceneTransformMask UMovieScene3DTransformSection::GetMask() const
