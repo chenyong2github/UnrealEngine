@@ -32,11 +32,27 @@ enum class ENP_NetRole: uint8
 	MAX,
 };
 
+// Must be kept in sync with 
+enum class ENP_TickingPolicy: uint8
+{
+	Independent,
+	Fixed
+};
+
+// Must be kept in sync with ENetworkPredictionTickingPolicy
+enum class ENP_NetworkLOD: uint8
+{
+	Interpolated,
+	SimExtrapolate,
+	ForwardPredict
+};
+
 enum class ENP_UserState: uint8
 {
 	Input,
 	Sync,
 	Aux,
+	Physics,
 	MAX
 };
 
@@ -70,12 +86,12 @@ const TCHAR* LexToString(ENetSerializeRecvStatus Status);
 // How we identify actors across network connection and PIE sessions
 struct FSimNetActorID
 {
-	uint32 NetGUID;
+	int32 SimID;
 	int32 PIESession;
 
 	bool operator==(const FSimNetActorID& Other) const
 	{
-		return NetGUID == Other.NetGUID && PIESession == Other.PIESession;
+		return SimID == Other.SimID && PIESession == Other.PIESession;
 	}
 };
 
@@ -322,8 +338,8 @@ private:
 // Holds all data we traced for a given simulation.
 struct FSimulationData
 {
-	FSimulationData(uint32 InSimulationId, Trace::ILinearAllocator& Allocator)
-		: SimulationId(InSimulationId)
+	FSimulationData(int32 InTraceID, Trace::ILinearAllocator& Allocator)
+		: TraceID(InTraceID)
 		, Ticks(Allocator, 1024)
 		, EOFState(Allocator, 1024)
 		, NetRecv(Allocator, 1024)
@@ -398,6 +414,10 @@ struct FSimulationData
 
 		uint64 EngineFrame;	// engine frame this data became valid
 		ENP_NetRole NetRole = ENP_NetRole::None;
+		bool bHasNetConnection = false;
+		ENP_TickingPolicy TickingPolicy = ENP_TickingPolicy::Independent;
+		ENP_NetworkLOD NetworkLOD = ENP_NetworkLOD::Interpolated;
+		int32 ServiceMask = 0;
 	};
 	
 	// Data that never changes about the simulation
@@ -511,7 +531,7 @@ struct FSimulationData
 	struct FUserData
 	{
 		FUserData(Trace::ILinearAllocator& Allocator)
-			: Store{Allocator, Allocator, Allocator}
+			: Store{Allocator, Allocator, Allocator, Allocator}
 		{ }
 
 		FUserStateStore Store[(int32)ENP_UserState::MAX];
@@ -546,7 +566,7 @@ struct FSimulationData
 		const FRestrictedUserStateView UserData;
 		const TSharedRef<const FSparse> SparseData;
 		const FConst& ConstData;
-		const uint32 SimulationId;
+		const int32 TraceID;
 	};
 
 	TSharedRef<FRestrictedView> MakeRestrictedView(uint64 MinEngineFrame, uint64 MaxEngineFrame) const
@@ -558,13 +578,13 @@ struct FSimulationData
 			{ EOFState, FindMinIndexPagedArray(EOFState, MinEngineFrame), FindMaxIndexPagedArray(EOFState, MaxEngineFrame) },
 			{ NetRecv, FindMinIndexPagedArray(NetRecv, MinEngineFrame), FindMaxIndexPagedArray(NetRecv, MaxEngineFrame) },
 			FRestrictedUserStateView(UserData, MaxEngineFrame),
-			SparseData.Read(MaxEngineFrame), ConstData, SimulationId
+			SparseData.Read(MaxEngineFrame), ConstData, TraceID
 		});
 	}
 
 	// -----------------------------------------------------------
 
-	uint32 SimulationId;
+	int32 TraceID;
 	
 	TPagedArray<FTick> Ticks;
 	TPagedArray<FEngineFrame> EOFState;
@@ -589,8 +609,7 @@ struct FSimulationData
 		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
 		TArray<FSystemFault> PendingSystemFaults;
-		const TCHAR* PendingOOBSyncStr = nullptr;
-		const TCHAR* PendingOOBAuxStr = nullptr;
+		const TCHAR* PendingOOBStr = nullptr;
 
 	} Analysis;
 };

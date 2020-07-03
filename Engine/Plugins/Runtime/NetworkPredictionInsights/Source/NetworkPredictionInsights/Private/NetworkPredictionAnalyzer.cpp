@@ -2,6 +2,7 @@
 
 #include "NetworkPredictionAnalyzer.h"
 #include "NetworkPredictionProvider.h"
+#include "Containers/StringView.h"
 
 
 FNetworkPredictionAnalyzer::FNetworkPredictionAnalyzer(Trace::IAnalysisSession& InSession, FNetworkPredictionProvider& InNetworkPredictionProvider)
@@ -14,25 +15,30 @@ void FNetworkPredictionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 {
 	auto& Builder = Context.InterfaceBuilder;
 	
-	Builder.RouteEvent(RouteId_GameInstanceRegister, "NetworkPrediction", "GameInstanceRegister");
+	Builder.RouteEvent(RouteId_SimulationScope, "NetworkPrediction", "SimulationScope");
 	Builder.RouteEvent(RouteId_SimulationCreated, "NetworkPrediction", "SimulationCreated");
-	Builder.RouteEvent(RouteId_SimulationNetRole, "NetworkPrediction", "SimulationNetRole");
-	Builder.RouteEvent(RouteId_SimulationNetGUID, "NetworkPrediction", "SimulationNetGUID");	
-	Builder.RouteEvent(RouteId_SimulationTick, "NetworkPrediction", "SimulationTick");
+	Builder.RouteEvent(RouteId_SimulationConfig, "NetworkPrediction", "SimulationConfig");
+
 	Builder.RouteEvent(RouteId_WorldFrameStart, "NetworkPrediction", "WorldFrameStart");
-	Builder.RouteEvent(RouteId_OOBStateMod, "NetworkPrediction", "OOBStateMod");
-	Builder.RouteEvent(RouteId_OOBStateModStrSync, "NetworkPrediction", "OOBStateModStrSync");
-	Builder.RouteEvent(RouteId_OOBStateModStrAux, "NetworkPrediction", "OOBStateModStrAux");
+	Builder.RouteEvent(RouteId_PieBegin, "NetworkPrediction", "PieBegin");
+	Builder.RouteEvent(RouteId_SystemFault, "NetworkPrediction", "SystemFault");
+
+	Builder.RouteEvent(RouteId_Tick, "NetworkPrediction", "Tick");
+	Builder.RouteEvent(RouteId_SimTick, "NetworkPrediction", "SimTick");
+
+	Builder.RouteEvent(RouteId_NetRecv, "NetworkPrediction", "NetRecv");
+	Builder.RouteEvent(RouteId_ShouldReconcile, "NetworkPrediction", "ShouldReconcile");
+	Builder.RouteEvent(RouteId_RollbackInject, "NetworkPrediction", "RollbackInject");
+	
+	Builder.RouteEvent(RouteId_PushInputFrame, "NetworkPrediction", "PushInputFrame");
 	Builder.RouteEvent(RouteId_ProduceInput, "NetworkPrediction", "ProduceInput");
-	Builder.RouteEvent(RouteId_SynthInput, "NetworkPrediction", "SynthInput");
-	Builder.RouteEvent(RouteId_SimulationEOF, "NetworkPrediction", "SimulationEOF");
-	Builder.RouteEvent(RouteId_NetSerializeRecv, "NetworkPrediction", "NetSerializeRecv");
-	Builder.RouteEvent(RouteId_NetSerializeCommit, "NetworkPrediction", "NetSerializeCommit");
+
+	Builder.RouteEvent(RouteId_OOBStateMod, "NetworkPrediction", "OOBStateMod");
+
 	Builder.RouteEvent(RouteId_InputCmd, "NetworkPrediction", "InputCmd");
 	Builder.RouteEvent(RouteId_SyncState, "NetworkPrediction", "SyncState");
 	Builder.RouteEvent(RouteId_AuxState, "NetworkPrediction", "AuxState");
-	Builder.RouteEvent(RouteId_PieBegin, "NetworkPrediction", "PieBegin");
-	Builder.RouteEvent(RouteId_SystemFault, "NetworkPrediction", "SystemFault");
+	Builder.RouteEvent(RouteId_PhysicsState, "NetworkPrediction", "PhysicsState");
 }
 
 void FNetworkPredictionAnalyzer::OnAnalysisEnd()
@@ -46,25 +52,42 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 
 	auto ParseUserState = [&EventData, this](ENP_UserState Type)
 	{
-		int32 SimulationId = EventData.GetValue<uint32>("SimulationId");			 
-		int32 Frame = EventData.GetValue<int32>("SimulationFrame");
-		uint64 EngineFrame = this->EngineFrameNumber;
-
-		NetworkPredictionProvider.WriteUserState(SimulationId, Frame, EngineFrame, Type, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+		// FIXME: we want to trace ANSI strings but are converting them to WIDE here to store them for analysis.
+		// Latest version of insights should have formal ANSI string support so this should be able to go away.
+		const ANSICHAR* AnsiStr = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+		NetworkPredictionProvider.WriteUserState(this->TraceID, this->PendingWriteFrame, this->EngineFrameNumber, Type, Session.StoreString(StringCast<TCHAR>(AnsiStr).Get()));
 	};
-	
-	
+
 	bool bUnhandled = false;
 	switch (RouteId)
 	{
-		case RouteId_GameInstanceRegister:
+		case RouteId_SimulationScope:
 		{
-			// Temp, just set version here until we are encoding it as the first piece of data
-			NetworkPredictionProvider.SetNetworkPredictionTraceVersion(1);
+			TraceID = EventData.GetValue<int32>("TraceID");
+			break;
+		}
 
-			// This is no longer doing anything since we are essentially all actor-role based now
-			// EventData.GetValue<uint32>("GameInstanceId"),
-			// EventData.GetValue<bool>("IsServer")
+		case RouteId_SimulationCreated:
+		{
+			TraceID = EventData.GetValue<int32>("TraceID");
+			FSimulationData::FConst& ConstData = NetworkPredictionProvider.WriteSimulationCreated(TraceID);
+			ConstData.DebugName = FString(EventData.GetAttachmentSize() / sizeof(TCHAR), reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+			ConstData.ID.SimID = EventData.GetValue<uint32>("SimulationID");
+			ConstData.GameInstanceId = EventData.GetValue<uint32>("GameInstanceID");
+			break;
+		}
+
+		case RouteId_SimulationConfig:
+		{
+			TraceID = EventData.GetValue<int32>("TraceID");
+
+			NetworkPredictionProvider.WriteSimulationConfig(TraceID,
+				EngineFrameNumber,
+				(ENP_NetRole)EventData.GetValue<uint8>("NetRole"),
+				(bool)EventData.GetValue<uint8>("bHasNetConnection"),
+				(ENP_TickingPolicy)EventData.GetValue<uint8>("TickingPolicy"),
+				(ENP_NetworkLOD)EventData.GetValue<uint8>("NetworkLOD"),
+				EventData.GetValue<int32>("ServiceMask"));
 			break;
 		}
 
@@ -72,107 +95,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		{
 			EngineFrameNumber = EventData.GetValue<uint64>("EngineFrameNumber");
 			DeltaTimeSeconds = EventData.GetValue<float>("DeltaTimeSeconds");
-			break;
-		}
-
-		case RouteId_SimulationCreated:
-		{
-			FSimulationData::FConst& ConstData = NetworkPredictionProvider.WriteSimulationCreated(EventData.GetValue<uint32>("SimulationId"));
-			ConstData.DebugName = FString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
-			ConstData.ID.NetGUID = EventData.GetValue<uint32>("NetGUID");
-			ConstData.GameInstanceId = EventData.GetValue<uint32>("GameInstanceId");
-			break;
-		}
-		case RouteId_SimulationNetRole:
-		{
-			NetworkPredictionProvider.WriteSimulationNetRole(	EventData.GetValue<uint32>("SimulationId"),
-																EngineFrameNumber,
-																(ENP_NetRole)EventData.GetValue<uint8>("NetRole"));
-			break;
-		}
-
-		case RouteId_SimulationNetGUID:
-		{
-			NetworkPredictionProvider.WriteSimulationNetGUID(EventData.GetValue<uint32>("SimulationId"), EventData.GetValue<uint32>("NetGUID"));																
-			break;
-		}
-
-		case RouteId_SimulationTick:
-		{
-			FSimulationData::FTick TickData;
-			TickData.EngineFrame = EngineFrameNumber;
-			TickData.StartMS = EventData.GetValue<int32>("StartMS");
-			TickData.EndMS = EventData.GetValue<int32>("EndMS");
-			TickData.OutputFrame = EventData.GetValue<int32>("OutputFrame");
-
-			NetworkPredictionProvider.WriteSimulationTick(EventData.GetValue<uint32>("SimulationId"), MoveTemp(TickData));
-			break;
-		}
-		case RouteId_SimulationEOF:
-		{
-			FSimulationData::FEngineFrame& FrameData = NetworkPredictionProvider.WriteSimulationEOF(EventData.GetValue<uint32>("SimulationId"));
-			FrameData.EngineFrame = EngineFrameNumber;
-			FrameData.EngineFrameDeltaTime = EventData.GetValue<float>("EngineFrameDeltaTime");
-			
-
-			FrameData.BufferSize = EventData.GetValue<int32>("BufferSize");
-			FrameData.PendingTickFrame = EventData.GetValue<int32>("PendingTickFrame");
-			FrameData.LatestInputFrame = EventData.GetValue<int32>("LatestInputFrame");
-			FrameData.TotalSimTime = EventData.GetValue<int32>("TotalSimTime");
-			FrameData.AllowedSimTime = EventData.GetValue<int32>("AllowedSimTime");	
-			break;
-		}
-
-		case RouteId_NetSerializeRecv:
-		{
-			FSimulationData::FNetSerializeRecv NetRecv;
-			NetRecv.EngineFrame = EngineFrameNumber;
-			NetRecv.SimTimeMS = EventData.GetValue<int32>("ReceivedSimTimeMS");
-			NetRecv.Frame = EventData.GetValue<int32>("ReceivedFrame");
-			
-			NetworkPredictionProvider.WriteNetRecv(EventData.GetValue<uint32>("SimulationId"), MoveTemp(NetRecv));
-			break;
-		}
-		
-		case RouteId_NetSerializeCommit:
-		{
-			NetworkPredictionProvider.WriteNetCommit(EventData.GetValue<uint32>("SimulationId"));
-			break;
-		}
-
-		case RouteId_OOBStateMod:
-		{
-			NetworkPredictionProvider.WriteOOBStateMod(EventData.GetValue<uint32>("SimulationId"));
-			break;
-		}
-
-		case RouteId_ProduceInput:
-		{
-			NetworkPredictionProvider.WriteProduceInput(EventData.GetValue<uint32>("SimulationId"));
-			break;
-		}
-		
-		case RouteId_SynthInput:
-		{
-			NetworkPredictionProvider.WriteSynthInput(EventData.GetValue<uint32>("SimulationId"));
-			break;
-		}
-
-		case RouteId_InputCmd:
-		{
-			ParseUserState(ENP_UserState::Input);
-			break;
-		}
-
-		case RouteId_SyncState:
-		{
-			ParseUserState(ENP_UserState::Sync);
-			break;
-		}
-
-		case RouteId_AuxState:
-		{
-			ParseUserState(ENP_UserState::Aux);
+			GameInstanceID = EventData.GetValue<uint32>("GameInstanceID");
 			break;
 		}
 
@@ -184,29 +107,121 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 
 		case RouteId_SystemFault:
 		{
+			const TCHAR* StoredString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+			ensureMsgf(TraceID > 0, TEXT("Invalid TraceID when analyzing SystemFault: %s"), StoredString);
+
 			NetworkPredictionProvider.WriteSystemFault(
-				EventData.GetValue<uint32>("SimulationId"),
+				EventData.GetValue<uint32>("SimulationID"),
 				EngineFrameNumber,
-				Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()))
-			);
+				StoredString);
 			break;
 		}
 
-		case RouteId_OOBStateModStrSync:
+		case RouteId_Tick:
 		{
-			NetworkPredictionProvider.WriteOOBStateModStrSync(EventData.GetValue<uint32>("SimulationId"),Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			TickStartMS = EventData.GetValue<int32>("StartMS");
+			TickDeltaMS = EventData.GetValue<int32>("DeltaMS");
+			TickOutputFrame = EventData.GetValue<int32>("OutputFrame");
 			break;
 		}
 
-		case RouteId_OOBStateModStrAux:
+		case RouteId_SimTick:
 		{
-			NetworkPredictionProvider.WriteOOBStateModStrAux(EventData.GetValue<uint32>("SimulationId"),Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			TraceID = EventData.GetValue<int32>("TraceID");
+
+			FSimulationData::FTick TickData;
+			TickData.EngineFrame = EngineFrameNumber;
+			TickData.StartMS = TickStartMS;
+			TickData.EndMS = TickStartMS + TickDeltaMS;
+			TickData.OutputFrame = TickOutputFrame;
+			NetworkPredictionProvider.WriteSimulationTick(TraceID, MoveTemp(TickData));
+
+			PendingWriteFrame = TickOutputFrame;
+			ensure(PendingWriteFrame >= 0);
 			break;
 		}
 
-		default:
-			bUnhandled = true;
+		case RouteId_InputCmd:
+		{
+			ParseUserState(ENP_UserState::Input);
 			break;
+		}
+		case RouteId_SyncState:
+		{
+			ParseUserState(ENP_UserState::Sync);
+			break;
+		}
+		case RouteId_AuxState:
+		{
+			ParseUserState(ENP_UserState::Aux);
+			break;
+		}
+
+		case RouteId_PhysicsState:
+		{
+			ParseUserState(ENP_UserState::Physics);
+			break;
+		}
+
+		case RouteId_NetRecv:
+		{
+			ensure(TraceID > 0);
+			PendingWriteFrame = EventData.GetValue<int32>("Frame");
+			ensure(PendingWriteFrame >= 0);
+
+			FSimulationData::FNetSerializeRecv NetRecv;
+			NetRecv.EngineFrame = EngineFrameNumber;
+			NetRecv.SimTimeMS = EventData.GetValue<int32>("TimeMS");
+			NetRecv.Frame = PendingWriteFrame;
+
+			NetworkPredictionProvider.WriteNetRecv(TraceID, MoveTemp(NetRecv));
+			break;
+		}
+
+		case RouteId_ShouldReconcile:
+		{
+			TraceID = EventData.GetValue<int32>("TraceID");
+			break;
+		}
+
+		case RouteId_RollbackInject:
+		{
+			// This isn't accurate anymore. We should remove "NetCommit" from the provider side and distinguish between "caused a rollback" and "participated in a rollback"
+			// (E.g, ShouldReconcile vs RollbackIbject)
+			TraceID = EventData.GetValue<int32>("TraceID");
+			NetworkPredictionProvider.WriteNetCommit(TraceID);
+			break;
+		}
+
+		case RouteId_PushInputFrame:
+		{
+			PendingWriteFrame = EventData.GetValue<int32>("Frame");
+			ensure(PendingWriteFrame >= 0);
+			break;
+		}
+
+		case RouteId_ProduceInput:
+		{
+			TraceID = EventData.GetValue<int32>("TraceID");
+			NetworkPredictionProvider.WriteProduceInput(TraceID);
+			break;
+		}
+
+		case RouteId_OOBStateMod:
+		{
+			TraceID = EventData.GetValue<int32>("TraceID");
+			PendingWriteFrame = EventData.GetValue<int32>("Frame");
+			ensure(PendingWriteFrame >= 0);
+
+			NetworkPredictionProvider.WriteOOBStateMod(TraceID);
+
+			// FIXME: ANSI to TCHAR conversion should be removable. See UserState comment above	
+			const ANSICHAR* AttachmentData = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+			int32 AttachmentSize = EventData.GetAttachmentSize();
+			
+			NetworkPredictionProvider.WriteOOBStateModStr(TraceID, Session.StoreString(StringCast<TCHAR>(AttachmentData, AttachmentSize).Get()));
+			break;
+		}
 	}
 
 	if (!bUnhandled)

@@ -428,8 +428,8 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	auto InitTrack = [&](FSimulationActorGroup& Group, const TSharedRef<FSimulationData::FRestrictedView>& View)
 	{
 		Group.SimulationTracks.Emplace( FSimulationTrack{View});
-		Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, View->EOFState.GetLast().AllowedSimTime);
-		Group.MaxEngineFrame = FMath::Max(Group.MaxEngineFrame, View->EOFState.GetLast().EngineFrame);
+		Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, View->Ticks.GetLast().EndMS); // EOFSTate
+		Group.MaxEngineFrame = FMath::Max(Group.MaxEngineFrame, View->Ticks.GetLast().EngineFrame); // EOFSTate
 
 		SimulationFrameView.HeadEngineFrame = FMath::Max(SimulationFrameView.HeadEngineFrame, Group.MaxEngineFrame);
 	};
@@ -441,7 +441,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 			const auto& SimView = FilteredDataCollection.Simulations[idx];
 			const auto& SparseData = SimView->SparseData;
 
-			// Find unused match on netguid and role
+			// Find unused match on SimID and role
 			if (SimView->ConstData.ID == Group.ID && SparseData->NetRole == SubTrackRole)
 			{
 				InitTrack(Group, SimView);
@@ -484,7 +484,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 		ScoreA += A.bHasAutoProxy ? 100 : 0;
 		ScoreB += B.bHasAutoProxy ? 100 : 0;
 		
-		ScoreA += A.ID.NetGUID < B.ID.NetGUID ? 1 : -1;
+		ScoreA += A.ID.SimID < B.ID.SimID ? 1 : -1;
 		return ScoreA > ScoreB;
 	});
 
@@ -557,11 +557,18 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	{
 		for (const FSimulationTrack& Track : Group.SimulationTracks)
 		{
+			/*
+			if (!PIESessionToAuthorityGameInstanceIDMap.Contains(Group.ID.PIESession))
+			{
+				continue;
+			}
+			*/
+
 			if (Track.View->ConstData.GameInstanceId == PIESessionToAuthorityGameInstanceIDMap.FindChecked(Group.ID.PIESession)) // We only care about the PresentableGameInstance simulation of this group
 			{
 				// Minus two is a fudge factor to avoid weirdness when processing live feeds where some sims may be ahead of others
-				const uint64 ThisTrackMin = Track.View->EOFState.GetFirst().EngineFrame;
-				const uint64 ThisTrackMax = Track.View->EOFState.GetLast().EngineFrame;
+				const uint64 ThisTrackMin = Track.View->Ticks.GetFirst().EngineFrame;		// EOFState
+				const uint64 ThisTrackMax = Track.View->Ticks.GetLast().EngineFrame;		// EOFState
 				FEngineFrameRange* PresentableRange = PresentableRanges.FindByPredicate([ThisTrackMin, ThisTrackMax](const FEngineFrameRange& R)
 				{
 					return !(R.Max < ThisTrackMin || R.Min > ThisTrackMax);
@@ -589,7 +596,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	});
 
 	// -------------------------------------------------------
-	//	Now within each range/island of time, caluclate each view within range's OffsetSimTimeMS
+	//	Now within each range/island of time, calculate each view within range's OffsetSimTimeMS
 	//	This is the mount of time to shift its simulation timeline so it is line with with the primary sim.
 	// -------------------------------------------------------
 	for (int32 RangeIdx=0; RangeIdx < PresentableRanges.Num(); ++RangeIdx)
@@ -611,12 +618,12 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 					continue;
 				}
 				
-				auto FindIdx = [](const TRestrictedPageArrayView<FSimulationData::FEngineFrame>& EOFStateView, uint64 EngineFrame)
+				auto FindIdx = [](const TRestrictedPageArrayView<FSimulationData::FTick>& TickStateView, uint64 EngineFrame) // EOFState
 				{
-					const FSimulationData::FEngineFrame* Found = nullptr;
-					for (auto It = EOFStateView.GetIteratorFromEnd(); It; --It)
+					const FSimulationData::FTick* Found = nullptr;
+					for (auto It = TickStateView.GetIteratorFromEnd(); It; --It)
 					{
-						if (It->EngineFrame == EngineFrame)
+						if (It->EngineFrame <= EngineFrame)
 						{
 							Found = &*It;
 							break;
@@ -628,14 +635,14 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 
 				// Find common EngineFrame data
 				const uint64 Max = FMath::Min(Current.ViewMax, Base.ViewMax);
-				const FSimulationData::FEngineFrame* BaseState = FindIdx(Base.View->EOFState, Max);
-				const FSimulationData::FEngineFrame* CurrentState = FindIdx(Current.View->EOFState, Max);
+				const FSimulationData::FTick* BaseState = FindIdx(Base.View->Ticks, Max);
+				const FSimulationData::FTick* CurrentState = FindIdx(Current.View->Ticks, Max);
 
 				check(BaseState && CurrentState);
 
 				// Compute difference in ProcessedSimulationTime at the end of this engine frame
-				const FSimTime BaseSimMS = BaseState->TotalSimTime;
-				const FSimTime CurrentSimMS = CurrentState->TotalSimTime;
+				const FSimTime BaseSimMS = BaseState->EndMS;
+				const FSimTime CurrentSimMS = CurrentState->EndMS;
 				const FSimTime Delta = BaseSimMS - CurrentSimMS;
 
 				// This is the final amount to offset this groups local sim time to align it properly with the primary simulation in this range
@@ -662,7 +669,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 			MinOffset = FMath::Min(MinOffset, View.Group.OffsetSimTimeMS);
 		}
 
-		PrevSimTime = Range.Views[0].View->EOFState.GetLast().TotalSimTime + 1000;
+		PrevSimTime = Range.Views[0].View->Ticks.GetLast().EndMS + 1000; // EOFState
 		if (MinOffset < 0)
 		{
 			PrevSimTime += -MinOffset;
@@ -674,7 +681,13 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	// Set presentable line, this is where the gray/light gray line is drawn
 	if (ActorGroups.Num() > 0)
 	{
-		SimulationFrameView.PresentableTimeMS = ActorGroups[0].OffsetSimTimeMS + ActorGroups[0].SimulationTracks[0].View->EOFState.GetLast().TotalSimTime;
+		FSimTime EndMS = 0;
+		if(ActorGroups[0].SimulationTracks.Num() > 0)
+		{
+			EndMS = ActorGroups[0].SimulationTracks[0].View->Ticks.GetLast().EndMS;
+		}
+
+		SimulationFrameView.PresentableTimeMS = ActorGroups[0].OffsetSimTimeMS + EndMS; // EOFState
 	}
 
 	// Calc ViewportMaxSimTimeMS
@@ -747,7 +760,7 @@ void SNPSimFrameView::BuildSimulationView_Tracks()
 			NetRecvSourceList.Emplace(FSimulationTrack::FSubTrack::FNetRecvSource{NetRecv, NetMS, bPulseNetRecv, bSelected, bSearchHighlighted});
 		};
 
-		Group.DisplayString = FString::Printf(TEXT("%s [NetGUID: %d] %s"), *Group.DebugName, Group.ID.NetGUID, *LexToString(Group.MaxAllowedSimTime));
+		Group.DisplayString = FString::Printf(TEXT("%s [SimID: %d] %s"), *Group.DebugName, Group.ID.SimID, *LexToString(Group.MaxAllowedSimTime));
 
 		for (FSimulationTrack& Track : Group.SimulationTracks)
 		{
@@ -1733,9 +1746,11 @@ bool SNPSimFrameView::PerformSearch(const FSimulationData::FTick& Tick, const FS
 
 	UserStates.Add(SimView.UserData.Get(ENP_UserState::Sync, InputFrame, EngineFrame, Mask));
 	UserStates.Add(SimView.UserData.Get(ENP_UserState::Aux, InputFrame, EngineFrame, Mask));
+	UserStates.Add(SimView.UserData.Get(ENP_UserState::Physics, InputFrame, EngineFrame, Mask));
 
 	UserStates.Add(SimView.UserData.Get(ENP_UserState::Sync, OutputFrame, EngineFrame, Mask));
 	UserStates.Add(SimView.UserData.Get(ENP_UserState::Aux, OutputFrame, EngineFrame, Mask));
+	UserStates.Add(SimView.UserData.Get(ENP_UserState::Physics, OutputFrame, EngineFrame, Mask));
 	
 	return PerformSearchInternal(UserStates);
 }

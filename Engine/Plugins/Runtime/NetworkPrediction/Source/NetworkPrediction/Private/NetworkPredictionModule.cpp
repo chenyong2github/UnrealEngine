@@ -5,16 +5,19 @@
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Internationalization.h"
 #include "Engine/World.h"
-#include "NetworkedSimulationModelCues.h"
+#include "NetworkPredictionCues.h"
 #include "Misc/CoreDelegates.h"
-#include "Trace/NetworkPredictionTrace.h"
+#include "NetworkPredictionTrace.h"
 #include "Trace/Trace.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "String/ParseTokens.h"
+#include "NetworkPredictionModelDefRegistry.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "ISettingsModule.h"
+#include "NetworkPredictionSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FNetworkPredictionModule"
@@ -45,6 +48,7 @@ void FNetworkPredictionModule::StartupModule()
 	FCoreDelegates::OnPostEngineInit.AddLambda([]()
 	{
 		FGlobalCueTypeTable::Get().FinalizeTypes();
+		FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
 	});
 
 #if WITH_EDITOR
@@ -52,6 +56,16 @@ void FNetworkPredictionModule::StartupModule()
 	{
 		UE_NP_TRACE_PIE_START();
 	});
+
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->RegisterSettings("Project", "Project", "Network Prediction",
+			LOCTEXT("NetworkPredictionSettingsName", "Network Prediction"),
+			LOCTEXT("NetworkPredictionSettingsDescription", "Settings for the Network Prediction runtime module."),
+			GetMutableDefault<UNetworkPredictionSettingsObject>()
+		);
+	}
 #endif
 }
 
@@ -60,6 +74,11 @@ void FNetworkPredictionModule::ShutdownModule()
 {
 #if WITH_EDITOR
 	FEditorDelegates::PreBeginPIE.Remove(PieHandle);
+
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Project", "Network Prediction");
+	}
 #endif
 }
 
