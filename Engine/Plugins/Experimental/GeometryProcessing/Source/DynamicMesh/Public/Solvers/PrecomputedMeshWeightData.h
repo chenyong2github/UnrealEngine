@@ -17,7 +17,7 @@ namespace UE
 		* The per-triangle data used in constructing the cotangent weighted laplacian.
 		*
 		*/
-		DYNAMICMESH_API class CotanTriangleData
+		class DYNAMICMESH_API CotanTriangleData
 		{
 		public:
 
@@ -118,7 +118,7 @@ namespace UE
 		* The per-triangle data used in constructing the mean-value weighted laplacian.
 		*
 		*/
-		DYNAMICMESH_API class MeanValueTriangleData
+		class DYNAMICMESH_API MeanValueTriangleData
 		{
 
 		public:
