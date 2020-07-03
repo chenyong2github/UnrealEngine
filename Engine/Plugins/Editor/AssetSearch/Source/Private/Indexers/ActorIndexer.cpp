@@ -2,6 +2,7 @@
 
 #include "ActorIndexer.h"
 #include "Utility/IndexerUtilities.h"
+#include "GameFramework/Actor.h"
 #include "SearchSerializer.h"
 
 enum class EActorIndexerVersion
