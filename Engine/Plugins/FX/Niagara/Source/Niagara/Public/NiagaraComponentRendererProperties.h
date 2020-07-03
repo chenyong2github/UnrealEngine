@@ -28,7 +28,11 @@ struct FNiagaraComponentPropertyBinding
 	UPROPERTY()
 	FNiagaraTypeDefinition PropertyType;
 
-	UFunction* SetterFunction;
+	/** (Optional) name of the property setter as defined in the metadata */
+	UPROPERTY()
+	FName MetadataSetterName;
+
+	UFunction* SetterFunction = nullptr;
 };
 
 UCLASS(editinlinenew, MinimalAPI, meta = (DisplayName = "Component Renderer"))

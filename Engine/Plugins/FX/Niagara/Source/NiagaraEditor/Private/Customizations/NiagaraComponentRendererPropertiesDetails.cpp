@@ -24,6 +24,7 @@ FNiagaraComponentPropertyBinding ToPropertyBinding(TSharedPtr<IPropertyHandle> P
 	FNiagaraComponentPropertyBinding Binding;
 	Binding.PropertyName = PropertyHandle->GetProperty()->GetFName();
 	Binding.PropertyType = UNiagaraComponentRendererProperties::ToNiagaraType(PropertyHandle->GetProperty());
+	Binding.MetadataSetterName = FName(PropertyHandle->GetProperty()->GetMetaData("BlueprintSetter"));
 
 	return Binding;
 }
