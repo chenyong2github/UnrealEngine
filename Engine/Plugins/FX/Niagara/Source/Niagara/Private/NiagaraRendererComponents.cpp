@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRendererComponents.h"
+#include "NiagaraConstants.h"
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
@@ -199,10 +200,18 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 	FNiagaraDataSet& Data = Emitter->GetData();
 	FNiagaraDataBuffer& ParticleData = Data.GetCurrentDataChecked();
 	FNiagaraDataSetReaderInt32<FNiagaraBool> EnabledAccessor = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->EnabledBinding.DataSetVariable.GetName());
+	FNiagaraDataSetReaderInt32<int32> IDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
 
 	int32 TaskLimitLeft = Properties->ComponentCountLimit;
+	int32 SmallestID = INT_MAX;
 	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
 	{
+		int32 ParticleID = -1;
+		if (Properties->bAssignComponentsOnParticleID)
+		{
+			ParticleID = IDAccessor.GetSafe(ParticleIndex, -1);
+			SmallestID = FMath::Min<int32>(ParticleID, SmallestID);
+		}
 		if (TaskLimitLeft <= 0)
 		{
 			break;
@@ -215,6 +224,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 		TArray<FNiagaraComponentPropertyBinding> BindingsCopy = Properties->PropertyBindings;
 		for (FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
 		{
+			PropertyBinding.SetterFunction = SetterFunctionMapping[PropertyBinding.PropertyName].Function;
+
 			FNiagaraVariable& DataVariable = PropertyBinding.AttributeBinding.DataSetVariable;
 			DataVariable.ClearData();
 			if (!DataVariable.IsValid() || !Data.HasVariable(DataVariable))
@@ -235,8 +246,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 #if WITH_EDITORONLY_DATA
 		UpdateTask.bVisualizeComponents = Properties->bVisualizeComponents;
 #endif
-		UpdateTask.bEnableComponentPooling = Properties->bEnableComponentPooling;
-		UpdateTask.UpdateCallback = [BindingsCopy, this](USceneComponent* SceneComponent, FNiagaraComponentRenderPoolEntry& PoolEntry)
+		UpdateTask.ParticleID = ParticleID;
+		UpdateTask.SmallestID = SmallestID;
+		UpdateTask.UpdateCallback = [BindingsCopy](USceneComponent* SceneComponent, FNiagaraComponentRenderPoolEntry& PoolEntry)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererUpdate);
 
@@ -248,7 +260,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 					continue;
 				}
 				
-				UFunction* SetterFunction = SetterFunctionMapping[PropertyBinding.PropertyName].Function;
+				UFunction* SetterFunction = PropertyBinding.SetterFunction;
 				if (SetterFunction && SetterFunction->NumParms >= 1)
 				{
 					// if we have a setter function we invoke it instead of setting the property directly, because then the object gets a chance to react to the new value
@@ -271,6 +283,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 				}
 			}
 		};
+
 		SystemInstance->EnqueueComponentUpdateTask(UpdateTask);
 		TaskLimitLeft--;
 	}
