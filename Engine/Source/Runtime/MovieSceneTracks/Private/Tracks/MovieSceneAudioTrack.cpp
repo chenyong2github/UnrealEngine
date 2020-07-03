@@ -10,7 +10,6 @@
 #include "AudioDecompress.h"
 #include "Evaluation/MovieSceneSegment.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
-#include "Compilation/MovieSceneCompilerRules.h"
 #include "MovieSceneCommonHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneAudioTrack"
@@ -117,19 +116,6 @@ bool UMovieSceneAudioTrack::IsAMasterTrack() const
 	return MovieScene ? MovieScene->IsAMasterTrack(*this) : false;
 }
 
-
-FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneAudioTrack::GetRowSegmentBlender() const
-{
-	struct FBlender : FMovieSceneTrackRowSegmentBlender
-	{
-		virtual void Blend(FSegmentBlendData& BlendData) const override
-		{
-			// Run the default high pass filter for overlap priority
-			MovieSceneSegmentCompiler::FilterOutUnderlappingSections(BlendData);
-		}
-	};
-	return FBlender();
-}
 
 UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 {

@@ -44,12 +44,6 @@ FMovieSceneEvalTemplatePtr UMovieSceneCameraAnimTrack::CreateTemplateForSection(
 	return FMovieSceneEvalTemplatePtr();
 }
 
-FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraAnimTrack::GetTrackSegmentBlender() const
-{
-	return FMovieSceneAdditiveCameraTrackBlender();
-}
-
-
 const TArray<UMovieSceneSection*>& UMovieSceneCameraAnimTrack::GetAllSections() const
 {
 	return CameraAnimSections;

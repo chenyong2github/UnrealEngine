@@ -30,11 +30,6 @@ UMovieSceneSection* UMovieSceneCameraShakeTrack::AddNewCameraShake(FFrameNumber 
 	return NewSection;
 }
 
-FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraShakeTrack::GetTrackSegmentBlender() const
-{
-	return FMovieSceneAdditiveCameraTrackBlender();
-}
-
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneCameraShakeTrack::GetDisplayName() const
 {
