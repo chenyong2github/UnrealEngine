@@ -962,6 +962,7 @@ FEntityAllocation* FEntityManager::CreateEntityAllocation(const FComponentMask& 
 {
 	CheckCanChangeStructure();
 
+	check(!(EntityComponentMask.Contains(FBuiltInComponentTypes::Get()->Tags.NeedsLink) && EntityComponentMask.Contains(FBuiltInComponentTypes::Get()->Tags.NeedsUnlink)));
 	check(InitialCapacity <= MaxCapacity && MaxCapacity < MAX_uint16);
 
 	const int32 NumComponents = EntityComponentMask.NumComponents();
