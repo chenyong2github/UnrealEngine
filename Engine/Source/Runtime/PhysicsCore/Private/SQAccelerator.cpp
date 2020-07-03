@@ -10,7 +10,7 @@
 #endif
 
 #if WITH_CHAOS
-#include "Experimental/SceneQueryChaosImp.h"
+#include "SceneQueryChaosImp.h"
 #endif
 
 #include "ChaosInterfaceWrapperCore.h"

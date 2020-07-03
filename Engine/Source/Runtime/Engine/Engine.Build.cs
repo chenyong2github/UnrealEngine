@@ -375,12 +375,6 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-		PublicDependencyModuleNames.AddRange(
-			new string[] {
-				"PhysicsSQ"
-			}
-		);
-
 		// Engine public headers need to know about some types (enums etc.)
 		PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
 		PublicDependencyModuleNames.Add("ClothingSystemRuntimeInterface");

@@ -24,8 +24,7 @@ namespace UnrealBuildTool.Rules
                     "GeometryCollectionCore", 
                     "GeometryCollectionSimulationCore",
 	                "ChaosSolverEngine",
-                    "IntelISPC",
-					"PhysicsSQ"
+                    "IntelISPC"
                 }
                 );
 
