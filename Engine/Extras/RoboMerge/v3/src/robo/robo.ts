@@ -454,7 +454,7 @@ if (!args.noIPC) {
 else {
 	const sendMessage = (name: string, args?: any[]) => ipc.handle({name:name, args:args}).catch(err => console.log('IPC error! ' + err.toString()));
 
-	const ws = new RoboServer(VersionReader.toString(), args.externalUrl, sendMessage, () => roboStartupLogger.getLogTail(),
+	const ws = new RoboServer(args.externalUrl, sendMessage, () => roboStartupLogger.getLogTail(),
 		() => roboStartupLogger.info('Received: getLastCrash'),
 		() => roboStartupLogger.info('Received: stopBot'),
 		() => roboStartupLogger.info('Received: startBot'));
