@@ -48,32 +48,6 @@ void UNiagaraEffectType::Serialize(FArchive& Ar)
 void UNiagaraEffectType::PostLoad()
 {
 	Super::PostLoad();
-
-	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
-	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
-	{
-		for (int32 DL=0; DL < DetailLevelScalabilitySettings_DEPRECATED.Num(); ++DL)
-		{
-			//Transfer system settings to new platform structure.
-			FNiagaraSystemScalabilitySettings& DLSettings = DetailLevelScalabilitySettings_DEPRECATED[DL];
-			FNiagaraSystemScalabilitySettings& NewSettigns = SystemScalabilitySettings.Settings.AddDefaulted_GetRef();
-			NewSettigns = DLSettings;
-			NewSettigns.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(DL));
-		}
-
-		//Ensure all types replicate the former global spawn count scales
-		float LegacySpawnCountScales[5] = { 0.125f, 0.25f, 0.5f, 1.0f, 1.0f };
-		for (int32 DL = 0; DL < 5; ++DL)
-		{
-			if (LegacySpawnCountScales[DL] != 1.0f)//Don't bother adding one for levels with 1.0 as we'll fallback to no scaling.
-			{
-				FNiagaraEmitterScalabilitySettings& EmitterSettings = EmitterScalabilitySettings.Settings.AddDefaulted_GetRef();
-				EmitterSettings.bScaleSpawnCount = true;
-				EmitterSettings.SpawnCountScale = LegacySpawnCountScales[DL];
-				EmitterSettings.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(DL));
-			}
-		}
-	}
 }
 
 const FNiagaraSystemScalabilitySettings& UNiagaraEffectType::GetActiveSystemScalabilitySettings()const
