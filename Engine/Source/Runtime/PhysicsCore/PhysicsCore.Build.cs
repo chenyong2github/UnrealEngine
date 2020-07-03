@@ -15,9 +15,16 @@ public class PhysicsCore: ModuleRules
 			}
 		);
 
-		SetupModulePhysicsSupport(Target);
+		PublicDependencyModuleNames.AddRange(
+		   new string[] {
+				"DeveloperSettings"
+		   }
+	   );
 
-        if (Target.bCompileChaos == false && Target.bUseChaos == false)
+		SetupModulePhysicsSupport(Target);
+		
+
+		if (Target.bCompileChaos == false && Target.bUseChaos == false)
         {
             if (Target.bCompilePhysX)
             {

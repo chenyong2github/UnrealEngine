@@ -31,6 +31,7 @@ public class SettingsEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"SourceControl",
+				"DeveloperSettings"
             }
         );
 

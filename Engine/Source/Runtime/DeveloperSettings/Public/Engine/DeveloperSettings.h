@@ -14,7 +14,7 @@ class SWidget;
  * The base class of any auto discovered settings object.
  */
 UCLASS(Abstract)
-class ENGINE_API UDeveloperSettings : public UObject
+class DEVELOPERSETTINGS_API UDeveloperSettings : public UObject
 {
 	GENERATED_BODY()
 

@@ -52,8 +52,9 @@ public class MovieRenderPipelineEditor : ModuleRules
                 "UnrealEd",
                 "WorkspaceMenuStructure",
 				"EditorStyle",
-				"LevelSequenceEditor"
-            }
+				"LevelSequenceEditor",
+				"DeveloperSettings"
+			}
         );
 
 		DynamicallyLoadedModuleNames.AddRange(

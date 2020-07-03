@@ -37,6 +37,7 @@ public class AssetSearch : ModuleRules
 				"UMG",
 				"UMGEditor",
 				"BlueprintGraph",
+				"DeveloperSettings"
 			}
 		);
 	}

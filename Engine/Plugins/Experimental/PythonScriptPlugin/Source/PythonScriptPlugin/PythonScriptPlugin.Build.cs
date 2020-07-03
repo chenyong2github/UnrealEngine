@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"Sockets",
 					"Networking",
 					"Json",
+					"DeveloperSettings"
 				}
 			);
 

@@ -27,8 +27,9 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "SlateCore",
-                    "Slate"
-                }
+                    "Slate",
+					"DeveloperSettings"
+				}
                 );
             }
         }

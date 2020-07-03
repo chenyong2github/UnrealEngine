@@ -185,7 +185,8 @@ public class UnrealEd : ModuleRules
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
-            }
+				"DeveloperSettings"
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
