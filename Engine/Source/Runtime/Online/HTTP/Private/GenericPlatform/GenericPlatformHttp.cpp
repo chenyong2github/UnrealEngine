@@ -94,6 +94,7 @@ public:
 	virtual void SetVerb(const FString& Verb) override {}
 	virtual void SetURL(const FString& URL) override {}
 	virtual void SetContent(const TArray<uint8>& ContentPayload) override {}
+	virtual void SetContent(TArray<uint8>&& ContentPayload) override {}
 	virtual void SetContentAsString(const FString& ContentString) override {}
 	virtual bool SetContentAsStreamedFile(const FString& Filename) override { return false; }
 	virtual bool SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream) override { return false; }

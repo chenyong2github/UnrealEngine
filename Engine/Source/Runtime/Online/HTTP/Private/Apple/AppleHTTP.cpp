@@ -193,6 +193,12 @@ void FAppleHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 	bIsPayloadFile = false;
 }
 
+void FAppleHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
+{
+	SetContent(ContentPayload);
+	// honor standard APIs that take ownership of the payload and empty it out.
+	ContentPayload.Empty();
+}
 
 FString FAppleHttpRequest::GetContentType() const
 {

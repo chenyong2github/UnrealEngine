@@ -72,6 +72,11 @@ void FNullHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 	Payload = ContentPayload;
 }
 
+void FNullHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
+{
+	Payload = MoveTemp(ContentPayload);
+}
+
 void FNullHttpRequest::SetContentAsString(const FString& ContentString)
 {
 	int32 Utf8Length = FTCHARToUTF8_Convert::ConvertedLength(*ContentString, ContentString.Len());
