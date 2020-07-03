@@ -108,7 +108,8 @@ class FVirtualHeightfieldMeshRendererExtension : public IPersistentViewUniformBu
 {
 public:
 	FVirtualHeightfieldMeshRendererExtension()
-		: DiscardId(0)
+		: bInFrame(false)
+		, DiscardId(0)
 	{}
 
 	virtual ~FVirtualHeightfieldMeshRendererExtension()
@@ -129,6 +130,9 @@ protected:
 	//~ End IPersistentViewUniformBufferExtension Interface
 
 private:
+	/** Flag for frame validation. */
+	bool bInFrame;
+
 	/** Buffers to fill. Resources can persist between frames to reduce allocation cost, but contents don't persist. */
 	TArray<VirtualHeightfieldMesh::FDrawInstanceBuffers> Buffers;
 	/** Per buffer frame time stamp of last usage. */
@@ -185,6 +189,13 @@ void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 
 VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExtension::AddWork(FVirtualHeightfieldMeshSceneProxy const* InProxy, FSceneView const* InMainView, FSceneView const* InCullView)
 {
+	// If we hit this then BegineFrame()/EndFrame() logic needs fixing in the Scene Renderer.
+	if (!ensure(!bInFrame))
+	{
+		EndFrame();
+	}
+
+	// Create workload
 	FWorkDesc WorkDesc;
 	WorkDesc.ProxyIndex = SceneProxies.AddUnique(InProxy);
 	WorkDesc.MainViewIndex = MainViews.AddUnique(InMainView);
@@ -230,6 +241,13 @@ VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExt
 
 void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 {
+	// If we hit this then BegineFrame()/EndFrame() logic needs fixing in the Scene Renderer.
+	if (!ensure(!bInFrame))
+	{
+		EndFrame();
+	}
+	bInFrame = true;
+
 	if (WorkDescs.Num() > 0)
 	{
 		SubmitWork(GetImmediateCommandList_ForRenderCommand());
@@ -238,6 +256,9 @@ void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 
 void FVirtualHeightfieldMeshRendererExtension::EndFrame()
 {
+	check(bInFrame);
+	bInFrame = false;
+
 	SceneProxies.Reset();
 	MainViews.Reset();
 	CullViews.Reset();

@@ -49,7 +49,7 @@ public:
 	/** */
 	TArray<FVector2D> const& GetOcclusionData() const { return BuiltOcclusionData; }
 	/** */
-	int32 GetNumOcclusionLods() const { return NumBuiltOcclusionLods; }
+	int32 GetNumOcclusionLods() const { return  NumBuiltOcclusionLods; }
 
 protected:
 #if WITH_EDITOR
@@ -68,6 +68,7 @@ protected:
 
 	//~ Begin UPrimitiveComponent Interface
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	virtual bool SupportsStaticLighting() const override { return true; }
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	//~ End UPrimitiveComponent Interface
 };
