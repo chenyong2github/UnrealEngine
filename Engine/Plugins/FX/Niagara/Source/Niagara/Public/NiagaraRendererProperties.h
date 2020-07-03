@@ -75,6 +75,9 @@ public:
 	// The icon to display in the niagara stack widget under the renderer section
 	virtual const FSlateBrush* GetStackIcon() const;
 
+	// The text to display in the niagara stack widget under the renderer section
+	virtual FText GetWidgetDisplayName() const;
+
 #endif // WITH_EDITORONLY_DATA
 
 

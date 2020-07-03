@@ -35,6 +35,11 @@ const FSlateBrush* UNiagaraRendererProperties::GetStackIcon() const
 	return FSlateIconFinder::FindIconBrushForClass(GetClass());
 }
 
+FText UNiagaraRendererProperties::GetWidgetDisplayName() const
+{
+	return GetClass()->GetDisplayNameText();
+}
+
 #endif
 
 uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const
