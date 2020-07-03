@@ -3,6 +3,7 @@
 
 #include "MoviePipelineLinearExecutor.h"
 #include "Logging/MessageLog.h"
+#include "Misc/OutputDevice.h"
 #include "MoviePipelinePIEExecutor.generated.h"
 
 class UMoviePipeline;
