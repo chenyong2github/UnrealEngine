@@ -26,6 +26,15 @@ static FAutoConsoleVariableRef CVarNiagaraRadixSortThreshold(
 	ECVF_Default
 );
 
+//////////////////////////////////////////////////////////////////////////
+
+bool UNiagaraRendererProperties::GetIsActive()const
+{
+	return GetIsEnabled() && Platforms.IsActive();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 class FNiagaraEmptyBufferSRV : public FRenderResource
 {
 public:

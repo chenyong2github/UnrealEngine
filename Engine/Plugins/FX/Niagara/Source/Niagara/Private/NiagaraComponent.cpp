@@ -215,9 +215,10 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 		{
 			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
 			{
+				//We can skip creation of the renderer if the current quality level doesn't support it. If the quality level changes all systems are fully reinitialized.
 				RendererSortInfo.Emplace(Properties->SortOrderHint, EmitterRenderers.Num());
 				FNiagaraRenderer* NewRenderer = nullptr;
-				if (Properties->GetIsEnabled() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+				if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 				{
 					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
 					bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
@@ -1435,7 +1436,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
 				FNiagaraDynamicDataBase* NewData = nullptr;
 				
-				if (Renderer)
+				if (Renderer && Properties->GetIsActive())
 				{
 					bool bRendererEditorEnabled = true;
 #if WITH_EDITORONLY_DATA

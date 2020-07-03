@@ -3,6 +3,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #if WITH_EDITORONLY_DATA
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
@@ -85,4 +86,9 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 	}
 
 	return MaxNumComponents;
+}
+
+bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform)const
+{
+	return bIsEnabled && Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName());
 }

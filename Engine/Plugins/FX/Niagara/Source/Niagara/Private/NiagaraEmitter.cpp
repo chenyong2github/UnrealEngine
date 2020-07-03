@@ -341,12 +341,16 @@ void UNiagaraEmitter::PostLoad()
 
 	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
 	{
+#if WITH_EDITOR
 		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
+#else
+		if(RendererProperties[RendererIndex] == nullptr)
+#endif
+		//In cooked builds these can be cooked out and null on purpose.
 		{
 			RendererProperties.RemoveAt(RendererIndex);
 		}
 	}
-
 
 	for (int32 SimulationStageIndex = SimulationStages.Num() - 1; SimulationStageIndex >= 0; --SimulationStageIndex)
 	{
