@@ -4,8 +4,7 @@
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionStateTypes.h"
 #include "NetworkPredictionDriver.h"
-
-class AActor;
+#include "GameFramework/Actor.h"
 
 struct FGenericKinematicActorSyncState
 {
