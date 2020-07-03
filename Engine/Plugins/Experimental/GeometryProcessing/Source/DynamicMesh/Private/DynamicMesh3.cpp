@@ -811,6 +811,18 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 		}
 	}
 
+	if (HasTriangleGroups())
+	{
+		const TDynamicVector<int>& Groups = TriangleGroups.GetValue();
+		// must have a group per triangle ID
+		CheckOrFailF(Groups.Num() == MaxTriangleID());
+		// group IDs must be non-negative
+		for (int TID : TriangleIndicesItr())
+		{
+			CheckOrFailF(Groups[TID] >= 0);
+		}
+	}
+
 
 	// edge verts/tris must exist
 	for (int eID : EdgeIndicesItr())
