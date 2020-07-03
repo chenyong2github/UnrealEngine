@@ -1737,7 +1737,8 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 					Geometry.Initializer.TotalPrimitiveCount,
 					&Geometry,
-					VertexBuffer
+					VertexBuffer,
+					true
 				}
 		);
 		}

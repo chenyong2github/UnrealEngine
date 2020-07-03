@@ -1553,6 +1553,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
 						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry,
+						nullptr,
 						false
 					};
 

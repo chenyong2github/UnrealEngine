@@ -203,6 +203,7 @@ public:
 	/** Retrieve ray tracing geometry from the underlying mesh object */
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return nullptr; }
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return nullptr; }
+	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return nullptr; }
 #endif // RHI_RAYTRACING
 
 	/** Called to notify clothing data that component transform has changed */

@@ -1153,6 +1153,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			MeshBatch.Elements[0].NumPrimitives,
 			&RayTracingGeometry,
 			VertexBuffer,
+			true
 		}
 	);
 
