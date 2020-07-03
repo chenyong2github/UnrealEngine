@@ -11,6 +11,7 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "ChaosVehicleWheel.h"
 #include "AerofoilSystem.h"
+#include "ThrustSystem.h"
 
 #include "SimpleVehicle.h" // #todo: move
 
@@ -126,40 +127,6 @@ struct FVehicleAirControlConfig
 		PitchTorqueScaling = 5.0f;
 		RollTorqueScaling = 5.0f;
 		RotationDamping = 0.02f;
-	}
-};
-
-USTRUCT()
-struct FVehicleThrustConfig
-{
-	GENERATED_USTRUCT_BODY()
-
-	// Bone name on mesh where aerofoil is centered
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
-	FName BoneName;
-
-	// Additional offset to give the aerofoil.
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
-	FVector Offset;
-
-	UPROPERTY(EditAnywhere, Category = Setup)
-	FRuntimeFloatCurve ThrustCurve;
-
-	/** Maximum speed after which the thrust will cut off */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float MaxSpeed;
-
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float MaxThrustForce;
-
-	void InitDefaults()
-	{
-		BoneName = NAME_None;
-		Offset = FVector::ZeroVector;
-		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
-		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
-		MaxSpeed = 50;
-		MaxThrustForce = 100.0f;
 	}
 };
 
@@ -326,6 +293,76 @@ private:
 
 	Chaos::FAerofoilConfig PAerofoilConfig;
 };
+
+USTRUCT()
+struct FVehicleThrustConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Bone name on mesh where thrust is located */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FName BoneName;
+
+	/** Additional offset to give the location, or use in preference to the bone */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector Offset;
+
+	/** Up Axis of thrust. */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	FVector ThrustAxis;
+
+	/** How the thrust is applied as the speed increases */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	FRuntimeFloatCurve ThrustCurve;
+
+	/** Maximum speed after which the thrust will cut off */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxSpeed;
+
+	/** Maximum thrust force */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxThrustForce;
+
+	/** The angle in degrees through which the control surface moves - leave at 0 if it is a fixed surface */
+	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	float MaxControlAngle;
+
+	// #todo:ControlAxes - X, Y, Z, or X & Y, etc
+	const Chaos::FSimpleThrustConfig& GetPhysicsThrusterConfig()
+	{
+		FillThrusterSetup();
+		return PThrusterConfig;
+	}
+
+	void InitDefaults()
+	{
+		BoneName = NAME_None;
+		Offset = FVector::ZeroVector;
+		ThrustAxis = FVector::ZeroVector;
+		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
+		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
+		MaxSpeed = 50;
+		MaxThrustForce = 100.0f;
+	}
+
+private:
+	void FillThrusterSetup()
+	{
+		// #todo: read position and axis from skeleton
+		//PThrusterConfig.BoneName = this->BoneName;
+		PThrusterConfig.Offset = this->Offset;
+		PThrusterConfig.Axis = this->ThrustAxis;
+		//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
+		PThrusterConfig.MaxSpeed = this->MaxSpeed;
+		PThrusterConfig.MaxThrustForce = this->MaxThrustForce;
+		PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
+
+	}
+
+	Chaos::FSimpleThrustConfig PThrusterConfig;
+
+};
+
 
 /**
  * Base component to handle the vehicle simulation for an actor.
@@ -768,6 +805,9 @@ protected:
 	/** Apply Aerofoil forces to vehicle body */
 	virtual void ApplyAerofoilForces(float DeltaTime);
 
+	/** Apply Thruster forces to vehicle body */
+	virtual void ApplyThrustForces(float DeltaTime);
+
 	/** Apply in air control torque to vehicle body */
 	virtual void ApplyAirControl(float DeltaTime);
 
@@ -816,6 +856,9 @@ protected:
 
 	/** Get Mesh cast as UStaticMeshComponent, may return null if cast fails */
 	UStaticMeshComponent* GetStaticMesh();
+
+	/** location local coordinates of named bone in skeletion, apply additional offset or just use offset if no bone located */
+	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset);
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();

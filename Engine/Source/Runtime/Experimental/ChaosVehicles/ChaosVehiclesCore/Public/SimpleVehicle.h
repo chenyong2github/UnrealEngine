@@ -10,6 +10,7 @@
 #include "SteeringSystem.h"
 #include "AerodynamicsSystem.h"
 #include "AerofoilSystem.h"
+#include "ThrustSystem.h"
 //#include "FuelSystem.h"
 //#include "BallastSystem.h"
 
@@ -99,6 +100,12 @@ public:
 		return Aerofoils[AerofoilIdx];
 	}
 
+	FSimpleThrustSim& GetThruster(int ThrusterIdx)
+	{
+		check(ThrusterIdx < Thrusters.Num());
+		return Thrusters[ThrusterIdx];
+	}
+
 	TArray<FSimpleEngineSim> Engine;
 	TArray<FSimpleTransmissionSim> Transmission;
 	TArray<FSimpleWheelSim> Wheels;
@@ -106,6 +113,7 @@ public:
 	TArray<FSimpleSteeringSim> Steering;
 	TArray<FSimpleAerodynamicsSim> Aerodynamics;
 	TArray<FAerofoil> Aerofoils;
+	TArray<FSimpleThrustSim> Thrusters;
 	//TArray<FSimpleFuelSim> Fuel;
 	//TArray<FSimpleBallastSim> Ballast;
 	// turbo

@@ -365,7 +365,7 @@ void UChaosVehicleMovementComponent::SetThrottleInput(float Throttle)
 
 void UChaosVehicleMovementComponent::IncreaseThrottleInput(float ThrottleDelta)
 {
-	RawThrottleInput = FMath::Clamp(RawThrottleInput+ThrottleDelta, 0.f, 1.0f);
+	RawThrottleInput = FMath::Clamp(RawThrottleInput + ThrottleDelta, 0.f, 1.0f);
 }
 
 void UChaosVehicleMovementComponent::DecreaseThrottleInput(float ThrottleDelta)
@@ -699,6 +699,7 @@ void UChaosVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 
 		ApplyAerodynamics(DeltaTime);
 		ApplyAerofoilForces(DeltaTime);
+		ApplyThrustForces(DeltaTime);
 		ApplyAirControl(DeltaTime);
 
 		// #todo: make this formal - use alt Parameter rather than AirControl
@@ -799,6 +800,33 @@ void UChaosVehicleMovementComponent::ApplyAerofoilForces(float DeltaTime)
 
 }
 
+// #todo: very much a work in progress, just trying things out
+void UChaosVehicleMovementComponent::ApplyThrustForces(float DeltaTime)
+{
+	for (int ThrusterIdx = 0; ThrusterIdx < PVehicle->Thrusters.Num(); ThrusterIdx++)
+	{
+		Chaos::FSimpleThrustSim& Thruster = PVehicle->GetThruster(ThrusterIdx);
+
+		
+
+		Thruster.SetPitch(PitchInput);
+		Thruster.SetRoll(RollInput);
+		Thruster.SetThrottle(ThrottleInput);
+		Thruster.SetAltitude(VehicleState.VehicleWorldTransform.GetLocation().Z);
+		Thruster.SetWorldVelocity(VehicleState.VehicleWorldVelocity);
+
+		Thruster.Simulate(DeltaTime);
+		FVector ThrustWorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(Thruster.GetThrustLocation());
+		FVector ThrustForce = VehicleState.VehicleWorldTransform.TransformPosition(Thruster.GetThrustForce());
+
+		DrawDebugLine(GetWorld(), ThrustWorldLocation, ThrustWorldLocation + ThrustForce * 150.0f, FColor::Blue, false, -1.f, 0, 10.f);
+
+		GetBodyInstance()->AddForceAtPosition(ThrustForce, ThrustWorldLocation);
+	}
+
+}
+
+
 void UChaosVehicleMovementComponent::ApplyAirControl(float DeltaTime)
 {
 	FBodyInstance* TargetInstance = GetBodyInstance();
@@ -816,7 +844,7 @@ void UChaosVehicleMovementComponent::ApplyAirControl(float DeltaTime)
 		FVector TotalWorldTorque = VehicleState.VehicleWorldTransform.TransformVector(LocalTorque) - DampingTorque;
 
 		// apply torque to physics body
-		TargetInstance->AddTorqueInRadians(TotalWorldTorque, /*bAllowSubstepping=*/false, /*bAccelChange=*/true);
+		TargetInstance->AddTorqueInRadians(TotalWorldTorque, /*bAllowSubstepping=*/true, /*bAccelChange=*/true);
 	}
 }
 
@@ -918,6 +946,30 @@ UStaticMeshComponent* UChaosVehicleMovementComponent::GetStaticMesh()
 	return Cast<UStaticMeshComponent>(UpdatedComponent);
 }
 
+FVector UChaosVehicleMovementComponent::LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset)
+{
+	FVector Offset = InExtraOffset;
+
+	if (InBoneName != NAME_None)
+	{
+		if (USkinnedMeshComponent* Mesh = Cast<USkinnedMeshComponent>(GetMesh()))
+		{
+			check(Mesh->SkeletalMesh);
+			const FVector BonePosition = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(InBoneName).GetOrigin() * Mesh->GetRelativeScale3D();
+			//BonePosition is local for the root BONE of the skeletal mesh - however, we are using the Root BODY which may have its own transform, so we need to return the position local to the root BODY
+			FMatrix RootBodyMTX = FMatrix::Identity;
+			// Body Instance is no longer valid at this point in the code
+			if (Mesh->GetBodyInstance())
+			{
+				RootBodyMTX = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
+			}
+			const FVector LocalBonePosition = RootBodyMTX.InverseTransformPosition(BonePosition);
+			Offset += LocalBonePosition;
+		}
+	}
+	return Offset;
+}
+
 void UChaosVehicleMovementComponent::CreateVehicle()
 {
 	ComputeConstants();
@@ -956,6 +1008,13 @@ void UChaosVehicleMovementComponent::SetupVehicle()
 		Chaos::FAerofoil AerofoilSim(&AerofoilSetup.GetPhysicsAerofoilConfig());
 		PVehicle->Aerofoils.Add(AerofoilSim);
 	}
+
+	for (FVehicleThrustConfig& ThrustSetup : Thrusters)
+	{
+		Chaos::FSimpleThrustSim ThrustSim(&ThrustSetup.GetPhysicsThrusterConfig());
+		PVehicle->Thrusters.Add(ThrustSim);
+	}
+
 }
 
 void UChaosVehicleMovementComponent::PostSetupVehicle()

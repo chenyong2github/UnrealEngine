@@ -88,6 +88,8 @@ namespace Chaos
 			float TractionControlAndABSScaling = 0.98f;	// how close to perfection is the system working
 
 			SideSlipModifier = 1.0f;
+			bool Locked = false;
+			bool Spinning = false;
 			
 			// we can only obtain as much accel/decel force as the friction will allow
 			if (FMath::Abs(FinalLongitudinalForce) > LongitudinalAdhesiveLimit)
@@ -107,8 +109,13 @@ namespace Chaos
 				{
 					if (!Braking)
 					{
+						Spinning = true;
 						Spin += 0.5f * DeltaTime;
 						Spin = FMath::Clamp(Spin, -2.f, 2.f);
+					}
+					else
+					{
+						Locked = true;
 					}
 					ForceFromFriction.X = LongitudinalAdhesiveLimit * DynamicFrictionLongitudialScaling;
 				}
@@ -123,7 +130,13 @@ namespace Chaos
 				ForceFromFriction.X = -ForceFromFriction.X;
 			}
 
+			SideSlipModifier = 1.0f- (FMath::Abs(SlipAngle)/10.0f);
+			SideSlipModifier = FMath::Clamp(SideSlipModifier, 0.25f, 1.0f);
 			float DynamicFrictionLateralScaling = 0.75f;
+			if (Locked || Spinning)
+			{
+				SideSlipModifier *= 0.25f;
+			}
 
 			// Lateral needs more grip to feel right!
 			LateralAdhesiveLimit *= 1.0f * SideSlipModifier;

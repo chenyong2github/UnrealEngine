@@ -67,7 +67,6 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, WheelMass(20.f) // [Kg]
 		, WheelRadius(30.f) // [cm]
 		, WheelWidth(20.f)
-		, WheelInertia(20.0f/*VehicleUtility::CalculateInertia(WheelMass, WheelRadius)*/)
 		, MaxSteeringAngle(70)
 		, MaxBrakeTorque(2000.f)
 		, HandbrakeTorque(1000.f)
@@ -81,7 +80,6 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, CheatLateralFrictionMultiplier(1.0f)
 		, CheatLongitudinalFrictionMultiplier(1.0f)
 		, CheatSkidFactor(1.0f)
-	//	, SingleWheel(false)
 	{
 
 	}
@@ -94,7 +92,6 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	float WheelMass;			// Mass of wheel [Kg]
 	float WheelRadius;			// [cm]
 	float WheelWidth;			// [cm]
-	float WheelInertia;			// [Kg.m2] = 0.5f * Mass * Radius * Radius
 
 	int	 MaxSteeringAngle;		// Yaw angle of steering [Degrees]
 
@@ -257,7 +254,7 @@ public:
 
 	bool IsSpinning() const
 	{ 
-		return (FMath::Abs(Spin) > 0.1f);
+		return false;// (FMath::Abs(Spin) > 0.1f);
 	}
 
 	float GetSteeringAngle() const
