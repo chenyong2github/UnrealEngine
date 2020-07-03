@@ -40,7 +40,7 @@ public:
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
 	virtual bool SupportsMultipleRows() const override;
-	virtual bool PopulateEvaluationTree(TArrayView<UMovieSceneSection* const> InSections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const override;
+	virtual bool PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const override;
 	virtual int8 GetEvaluationFieldVersion() const override;
 	
 #if WITH_EDITOR
