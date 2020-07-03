@@ -5495,6 +5495,13 @@ bool FSlateApplication::OnMouseMove()
 	bool Result = true;
 	const FVector2D CurrentCursorPosition = GetCursorPos();
 	const FVector2D LastCursorPosition = GetLastCursorPos();
+	
+	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
+	// cursor position has changed. This is done intentionally after getting the positions in order to avoid
+	// false positives. 
+
+	UsePlatformCursorForCursorUser(true);
+	
 	if ( LastCursorPosition != CurrentCursorPosition )
 	{
 		LastMouseMoveTime = GetCurrentTime();
@@ -5517,10 +5524,6 @@ bool FSlateApplication::OnMouseMove()
 
 		Result = ProcessMouseMoveEvent( MouseEvent );
 	}
-
-	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
-	// cursor position has changed.
-	UsePlatformCursorForCursorUser(true);
 
 	return Result;
 }
