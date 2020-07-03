@@ -108,7 +108,7 @@ public:
 	bool bConvertTo8Bit = false;
 
 	// Amount to scale down the sample rate of the source
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Memory")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Memory", meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float DownSampleFactor = 1.0f;
 
 	// A curve to define the RPM contour from the min and max estimated RPM 
