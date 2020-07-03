@@ -54,6 +54,13 @@ protected:
 #endif
 
 public:
+	/**
+	 * This function marks an area of the runtime virtual texture as dirty.
+	 * @param WorldBounds : The world space bounds of the pages to invalidate.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "VirtualTexture")
+	void Invalidate(FBoxSphereBounds const& WorldBounds);
+
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
