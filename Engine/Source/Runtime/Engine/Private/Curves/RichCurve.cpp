@@ -113,7 +113,7 @@ bool FRichCurveKey::Serialize(FArchive& Ar)
 }
 
 
-bool FRichCurveKey::operator==(const FRichCurveKey& Curve) const
+bool FRichCurveKey::operator==( const FRichCurveKey& Curve ) const
 {
 	return (Time == Curve.Time) && (Value == Curve.Value) && (InterpMode == Curve.InterpMode) &&
 		   (TangentMode == Curve.TangentMode) && (TangentWeightMode == Curve.TangentWeightMode) &&
@@ -194,25 +194,25 @@ FRichCurveKey* FRichCurve::GetFirstMatchingKey(const TArray<FKeyHandle>& KeyHand
 	return nullptr;
 }
 
-FKeyHandle FRichCurve::AddKey(const float InTime, const float InValue, const bool bUnwindRotation, FKeyHandle NewHandle)
+FKeyHandle FRichCurve::AddKey( const float InTime, const float InValue, const bool bUnwindRotation, FKeyHandle NewHandle )
 {
 	int32 Index = 0;
-	for (; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
+	for(; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
 	Keys.Insert(FRichCurveKey(InTime, InValue), Index);
 
 	// If we were asked to treat this curve as a rotation value and to unwindow the rotation, then
 	// we'll look at the previous key and modify the key's value to use a rotation angle that is
 	// continuous with the previous key while retaining the exact same rotation angle, if at all necessary
-	if (Index > 0 && bUnwindRotation)
+	if( Index > 0 && bUnwindRotation )
 	{
-		const float OldValue = Keys[Index - 1].Value;
-		float NewValue = Keys[Index].Value;
+		const float OldValue = Keys[ Index - 1 ].Value;
+		float NewValue = Keys[ Index ].Value;
 
-		while (NewValue - OldValue > 180.0f)
+		while( NewValue - OldValue > 180.0f )
 		{
 			NewValue -= 360.0f;
 		}
-		while (NewValue - OldValue < -180.0f)
+		while( NewValue - OldValue < -180.0f )
 		{
 			NewValue += 360.0f;
 		}
@@ -228,7 +228,7 @@ FKeyHandle FRichCurve::AddKey(const float InTime, const float InValue, const boo
 
 void FRichCurve::SetKeys(const TArray<FRichCurveKey>& InKeys)
 {
-	Reset(InKeys.Num());
+	Reset();
 
 	Keys.SetNum(InKeys.Num());
 	KeyHandlesToIndices.SetKeyHandles(InKeys.Num());
@@ -280,7 +280,7 @@ FKeyHandle FRichCurve::UpdateOrAddKey(float InTime, float InValue, const bool bU
 }
 
 
-void FRichCurve::SetKeyTime(FKeyHandle KeyHandle, float NewTime)
+void FRichCurve::SetKeyTime( FKeyHandle KeyHandle, float NewTime )
 {
 	if (IsKeyHandleValid(KeyHandle))
 	{
@@ -482,7 +482,7 @@ void FRichCurve::GetTimeRange(float& MinTime, float& MaxTime) const
 /*	 Finds min/max for cubic curves:
 	Looks for feature points in the signal(determined by change in direction of local tangent), these locations are then re-examined in closer detail recursively */
 template<class T>
-void FeaturePointMethod(T& Function, float StartTime, float EndTime, float StartValue, float Mu, int Depth, int MaxDepth, float& MaxV, float& MinVal)
+void FeaturePointMethod(T& Function , float StartTime,  float EndTime, float StartValue,float Mu, int Depth, int MaxDepth, float& MaxV, float& MinVal)
 {
 	if (Depth >= MaxDepth)
 	{
@@ -493,9 +493,9 @@ void FeaturePointMethod(T& Function, float StartTime, float EndTime, float Start
 	float PrevTangent = StartValue - Function.Eval(StartTime-Mu);
 	EndTime += Mu;
 
-	for (float f = StartTime + Mu; f < EndTime; f += Mu)
+	for (float f = StartTime + Mu;f < EndTime; f += Mu)
 	{
-		float Value = Function.Eval(f);
+		float Value		 = Function.Eval(f);
 
 		MaxV   = FMath::Max(Value, MaxV);
 		MinVal = FMath::Min(Value, MinVal);
@@ -524,7 +524,7 @@ void FRichCurve::GetValueRange(float& MinValue, float& MaxValue) const
 	}
 	else
 	{
-		int32 LastKeyIndex = Keys.Num() - 1;
+		int32 LastKeyIndex = Keys.Num()-1;
 		MinValue = MaxValue = Keys[0].Value;
 
 		for (int32 i = 0; i < Keys.Num(); i++)
@@ -546,17 +546,17 @@ void FRichCurve::GetValueRange(float& MinValue, float& MaxValue) const
 }
 
 
-void FRichCurve::Reset(uint32 Slack)
+void FRichCurve::Reset()
 {
-	Keys.Empty(Slack);
-	KeyHandlesToIndices.Empty(Slack);
+	Keys.Empty();
+	KeyHandlesToIndices.Empty();
 }
 
 
 void FRichCurve::AutoSetTangents(float Tension)
 {
 	// Iterate over all points in this InterpCurve
-	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); KeyIndex++)
+	for (int32 KeyIndex = 0; KeyIndex<Keys.Num(); KeyIndex++)
 	{
 		FRichCurveKey& Key = Keys[KeyIndex];
 		float ArriveTangent = Key.ArriveTangent;
@@ -564,7 +564,7 @@ void FRichCurve::AutoSetTangents(float Tension)
 
 		if (KeyIndex == 0)
 		{
-			if (KeyIndex < Keys.Num() - 1) // Start point
+			if (KeyIndex < Keys.Num()-1) // Start point
 			{
 				// If first section is not a curve, or is a curve and first point has manual tangent setting.
 				if (Key.TangentMode == RCTM_Auto)
@@ -575,21 +575,21 @@ void FRichCurve::AutoSetTangents(float Tension)
 		}
 		else
 		{
-
+			
 			if (KeyIndex < Keys.Num() - 1) // Inner point
 			{
-				FRichCurveKey& PrevKey = Keys[KeyIndex-1];
+				FRichCurveKey& PrevKey =  Keys[KeyIndex-1];
 
 				if (Key.InterpMode == RCIM_Cubic && (Key.TangentMode == RCTM_Auto))
 				{
 						FRichCurveKey& NextKey =  Keys[KeyIndex+1];
 						ComputeCurveTangent(
-							Keys[KeyIndex - 1].Time,		// Previous time
-							Keys[KeyIndex - 1].Value,	// Previous point
-							Keys[KeyIndex].Time,			// Current time
-							Keys[KeyIndex].Value,		// Current point
-							Keys[KeyIndex + 1].Time,		// Next time
-							Keys[KeyIndex + 1].Value,	// Next point
+							Keys[ KeyIndex - 1 ].Time,		// Previous time
+							Keys[ KeyIndex - 1 ].Value,	// Previous point
+							Keys[ KeyIndex ].Time,			// Current time
+							Keys[ KeyIndex ].Value,		// Current point
+							Keys[ KeyIndex + 1 ].Time,		// Next time
+							Keys[ KeyIndex + 1 ].Value,	// Next point
 							Tension,							// Tension
 							false,						// Want clamping?
 							ArriveTangent );					// Out
@@ -599,12 +599,12 @@ void FRichCurve::AutoSetTangents(float Tension)
 				}
 				else if ((PrevKey.InterpMode == RCIM_Constant) || (Key.InterpMode == RCIM_Constant))
 				{
-					if (Keys[KeyIndex - 1].InterpMode != RCIM_Cubic)
+					if (Keys[ KeyIndex - 1 ].InterpMode != RCIM_Cubic)
 					{
 						ArriveTangent = 0.0f;
 					}
 
-					LeaveTangent = 0.0f;
+					LeaveTangent  = 0.0f;
 				}
 				
 			}
@@ -631,7 +631,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 
 	if (bInsert)
 	{
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for(int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			float& CurrentTime = Keys[KeyIndex].Time;
 			if (CurrentTime >= OldStartTime)
@@ -648,7 +648,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 		float NewValue = 0.f;
 		TArray<int32> KeysToDelete;
 
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for(int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			float& CurrentTime = Keys[KeyIndex].Time;
 			// if this key exists between range of deleted
@@ -658,7 +658,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 			// But that means if there are multiple keys, 
 			// since we don't want multiple values in the same time
 			// the last one will override the value
-			if (CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
+			if( CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
 			{
 				// get new value and add new key on one of OldStartTime, OldEndTime;
 				// this is a bit complicated problem since we don't know if OldStartTime or OldEndTime is preferred. 
@@ -687,7 +687,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 			for (int32 KeyIndex = KeysToDelete.Num()-1; KeyIndex >= 0; --KeyIndex)
 			{
 				const FKeyHandle* KeyHandle = KeyHandlesToIndices.FindKey(KeysToDelete[KeyIndex]);
-				if (KeyHandle)
+				if(KeyHandle)
 				{
 					DeleteKey(*KeyHandle);
 				}
@@ -701,7 +701,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 	TArray<FRichCurveKey> NewKeys;
 	Exchange(NewKeys, Keys);
 
-	for (int32 KeyIndex = 0; KeyIndex < NewKeys.Num(); ++KeyIndex)
+	for(int32 KeyIndex=0; KeyIndex<NewKeys.Num(); ++KeyIndex)
 	{
 		UpdateOrAddKey(NewKeys[KeyIndex].Time, NewKeys[KeyIndex].Value);
 	}
@@ -710,7 +710,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 	float MinTime, MaxTime;
 	GetTimeRange(MinTime, MaxTime);
 
-	bool bNeedToDeleteKey = false;
+	bool bNeedToDeleteKey=false;
 
 	// if there is key below min time, just add key at new min range, 
 	if (MinTime < NewMinTimeRange)
@@ -722,7 +722,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 	}
 
 	// if there is key after max time, just add key at new max range, 
-	if (MaxTime > NewMaxTimeRange)
+	if(MaxTime > NewMaxTimeRange)
 	{
 		float NewValue = Eval(NewMaxTimeRange);
 		UpdateOrAddKey(NewMaxTimeRange, NewValue);
@@ -733,7 +733,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 	// delete the keys outside of range
 	if (bNeedToDeleteKey)
 	{
-		for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+		for (int32 KeyIndex=0; KeyIndex<Keys.Num(); ++KeyIndex)
 		{
 			if (Keys[KeyIndex].Time < NewMinTimeRange || Keys[KeyIndex].Time > NewMaxTimeRange)
 			{
@@ -781,7 +781,7 @@ void FRichCurve::BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTi
 		Time += SampleRate;
 	}
 
-	for (const TPair<float, float>& NewKey : BakedKeys)
+	for (const TPair<float,float>& NewKey : BakedKeys)
 	{
 		UpdateOrAddKey(NewKey.Key, NewKey.Value);
 	}
@@ -826,7 +826,7 @@ void FRichCurve::RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float 
 	}
 }
 
-/** Util to find float value on bezier defined by 4 control points */
+/** Util to find float value on bezier defined by 4 control points */ 
 FORCEINLINE_DEBUGGABLE static float BezierInterp(float P0, float P1, float P2, float P3, float Alpha)
 {
 	const float P01 = FMath::Lerp(P0, P1, Alpha);
@@ -856,8 +856,8 @@ float EvalForTwoKeys(const FRichCurveKey& Key1, const FRichCurveKey& Key2, const
 		else
 		{
 			const float OneThird = 1.0f / 3.0f;
-			const float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);
-			const float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);
+			const float P1 = P0 + (Key1.LeaveTangent * Diff*OneThird);
+			const float P2 = P3 - (Key2.ArriveTangent * Diff*OneThird);
 
 			return BezierInterp(P0, P1, P2, P3, Alpha);
 		}
@@ -911,7 +911,7 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 		NewKeys.Reserve(Keys.Num());
 
 		//Add all the keys we are keeping from the start
-		for (int32 StartKeepIndex = 0; StartKeepIndex <= ActualStartKeepKey; ++StartKeepIndex)
+		for(int32 StartKeepIndex = 0; StartKeepIndex <= ActualStartKeepKey; ++StartKeepIndex)
 		{
 			NewKeys.Add(Keys[StartKeepIndex]);
 			KeepHandles.Add(AllHandlesByIndex[StartKeepIndex]);
@@ -1106,14 +1106,14 @@ float FRichCurve::Eval(float InTime, float InDefaultValue) const
 
 bool FRichCurve::operator==(const FRichCurve& Curve) const
 {
-	if (Keys.Num() != Curve.Keys.Num())
+	if(Keys.Num() != Curve.Keys.Num())
 	{
 		return false;
 	}
 
-	for (int32 i = 0; i < Keys.Num(); ++i)
+	for(int32 i = 0;i<Keys.Num();++i)
 	{
-		if (!(Keys[i] == Curve.Keys[i]))
+		if(!(Keys[i] == Curve.Keys[i]))
 		{
 			return false;
 		}
@@ -1125,11 +1125,6 @@ bool FRichCurve::operator==(const FRichCurve& Curve) const
 	}
 
 	return true;
-}
-
-bool FRichCurve::operator!=(const FRichCurve& Curve) const
-{
-	return !(*this == Curve);
 }
 
 static ERichCurveCompressionFormat FindRichCurveCompressionFormat(const FRichCurve& Curve)
