@@ -43,7 +43,7 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneTrackRowSegmentBlenderPtr GetRowSegmentBlender() const override;
+	virtual bool PopulateEvaluationTree(TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutData) const override;
 	virtual bool SupportsMultipleRows() const override;
 
 	// ~IMovieSceneTrackTemplateProducer interface
