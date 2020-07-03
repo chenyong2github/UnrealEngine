@@ -1492,7 +1492,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 	int32 NumElements = AggGeom.GetElementCount();
 	if (NumElements == 0)
 	{
-		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
+		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoCollision", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
 		Result = EDataValidationResult::Invalid;
 	}
 
@@ -1513,7 +1513,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 		
 		if (NumMassContributors == 0)
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
+			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoMass", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
 			Result = EDataValidationResult::Invalid;
 		}
 	}
