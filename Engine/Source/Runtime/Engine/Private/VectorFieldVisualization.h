@@ -63,11 +63,6 @@ public:
 	virtual void InitRHI() override;
 
 	/**
-	 * Release render resources for this vertex factory.
-	 */
-	virtual void ReleaseRHI() override;
-
-	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
@@ -76,23 +71,6 @@ public:
 	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	 */
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-
-	/**
-	 * Set parameters for this vertex factory instance.
-	 */
-	void SetParameters(
-		const FVectorFieldVisualizationParameters& InUniformParameters,
-		FRHITexture3D* InVectorFieldTextureRHI );
-
-private:
-
-	/** Allow the shader parameters class access to private members. */
-	friend class FVectorFieldVisualizationVertexFactoryShaderParameters;
-
-	/** Uniform buffer. */
-	FUniformBufferRHIRef UniformBuffer;
-	/** Texture containing the vector field. */
-	FRHITexture3D* VectorFieldTextureRHI;
 };
 
 /*------------------------------------------------------------------------------
