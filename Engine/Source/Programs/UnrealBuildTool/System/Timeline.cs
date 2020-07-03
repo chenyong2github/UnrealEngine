@@ -47,6 +47,11 @@ namespace UnrealBuildTool
 			public TimeSpan? FinishTime;
 
 			/// <summary>
+			/// The trace span for external tracing
+			/// </summary>
+			public ITraceSpan Span;
+
+			/// <summary>
 			/// Constructor
 			/// </summary>
 			/// <param name="Name">Event name</param>
@@ -57,6 +62,7 @@ namespace UnrealBuildTool
 				this.Name = Name;
 				this.StartTime = StartTime;
 				this.FinishTime = FinishTime;
+				this.Span = TraceSpan.Create(Name);
 			}
 
 			/// <summary>
@@ -68,6 +74,7 @@ namespace UnrealBuildTool
 				{
 					FinishTime = Stopwatch.Elapsed;
 				}
+				Span.Dispose();
 			}
 
 			/// <summary>
