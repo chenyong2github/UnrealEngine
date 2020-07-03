@@ -9,6 +9,8 @@
 #include "UObject/SoftObjectPath.h"
 #include "RHI.h"
 #include "NiagaraCore.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/WeakFieldPtr.h"
 #include "NiagaraCommon.generated.h"
 
 class UNiagaraSystem;
@@ -595,9 +597,45 @@ private:
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
+struct FComponentPropertyAddress
+{
+	TWeakFieldPtr<FProperty> Property;
+	void* Address;
 
+	FProperty* GetProperty() const
+	{
+		FProperty* PropertyPtr = Property.Get();
+		if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			return PropertyPtr;
+		}
+		return nullptr;
+	}
 
+	FComponentPropertyAddress() : Property(nullptr), Address(nullptr) {}
+};
 
+struct FNiagaraComponentRenderPoolEntry
+{
+	TWeakObjectPtr<USceneComponent> Component;
+	float InactiveTimeLeft = 0;
+	TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
+};
+
+struct FNiagaraComponentUpdateTask
+{
+	TWeakObjectPtr<USceneComponent> TemplateObject;
+	TFunction<void(USceneComponent*, FNiagaraComponentRenderPoolEntry&)> UpdateCallback;
+	bool bEnableComponentPooling = true;
+#if WITH_EDITORONLY_DATA
+	bool bVisualizeComponents = true;
+#endif
+};
+
+struct FNiagaraComponentRenderPool
+{
+	TMap<UClass*, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
+};
 
 /** Defines different usages for a niagara script. */
 UENUM()

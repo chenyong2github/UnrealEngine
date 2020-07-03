@@ -295,6 +295,11 @@ public:
 	/** Calculates which tick group the instance should be in. */
 	ETickingGroup CalculateTickGroup() const;
 
+	bool EnqueueComponentUpdateTask(const FNiagaraComponentUpdateTask& Task)
+	{
+		return ComponentTasks.Enqueue(Task);
+	}
+
 private:
 	void DestroyDataInterfaceInstanceData();
 
@@ -306,7 +311,7 @@ private:
 	/** Resets for restart, assumes no change in emitter setup */
 	void ResetInternal(bool bResetSimulations);
 
-	/** Resets the parameter structrs */
+	/** Resets the parameter structs */
 	void ResetParameters();
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
@@ -314,6 +319,8 @@ private:
 	
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
+
+	void ProcessComponentRendererTasks();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
@@ -433,6 +440,11 @@ private:
 
 	/** The feature level of for this component instance. */
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+
+	/** The component renderer can queue update tasks that are executed on the game thread on finalization. */
+	TQueue<FNiagaraComponentUpdateTask, EQueueMode::Mpsc> ComponentTasks;
+	FNiagaraComponentRenderPool ComponentRenderPool;
+	void ResetComponentRenderPool();
 
 public:
 
