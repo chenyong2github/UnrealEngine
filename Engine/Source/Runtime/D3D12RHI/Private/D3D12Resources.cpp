@@ -220,7 +220,20 @@ int64 FD3D12Resource::NoStateTrackingResourceCount = 0;
 FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	FRHIGPUMask VisibleNodes,
 	ID3D12Resource* InResource,
-	D3D12_RESOURCE_STATES InitialState,
+	D3D12_RESOURCE_STATES InInitialState,
+	D3D12_RESOURCE_DESC const& InDesc,
+	FD3D12Heap* InHeap,
+	D3D12_HEAP_TYPE InHeapType) : 
+	FD3D12Resource(ParentDevice, VisibleNodes, InResource, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, InDesc, InHeap, InHeapType)
+{
+}
+
+FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
+	FRHIGPUMask VisibleNodes,
+	ID3D12Resource* InResource,
+	D3D12_RESOURCE_STATES InInitialState,
+	ED3D12ResourceStateMode InResourceStateMode,
+	D3D12_RESOURCE_STATES InDefaultResourceState,
 	D3D12_RESOURCE_DESC const& InDesc,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType)
@@ -253,7 +266,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 		GPUVirtualAddress = Resource->GetGPUVirtualAddress();
 	}
 
-	InitalizeResourceState(InitialState);
+	InitalizeResourceState(InInitialState, InResourceStateMode, InDefaultResourceState);
 }
 
 FD3D12Resource::~FD3D12Resource()
@@ -364,7 +377,8 @@ void FD3D12Heap::BeginTrackingResidency(uint64 Size)
 //	FD3D12 Adapter
 /////////////////////////////////////////////////////////////////////
 
-HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
+HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, D3D12_RESOURCE_STATES InInitialState,
+	ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InDefaultState, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)
 	{
@@ -385,7 +399,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		HeapFlags |= D3D12_HEAP_FLAG_SHARED;
 	}
 
-	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &InDesc, InitialUsage, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &InDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
 	if (bVerifyHResult)
 	{
 		VERIFYD3D12RESULT_EX(hr, RootDevice);
@@ -394,7 +408,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	if (SUCCEEDED(hr))
 	{
 		// Set the output pointer
-		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InitialUsage, InDesc, nullptr, HeapProps.Type);
+		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, nullptr, HeapProps.Type);
 		(*ppOutResource)->AddRef();
 
 		// Set a default name (can override later).
@@ -410,7 +424,8 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	return hr;
 }
 
-HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
+HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, D3D12_RESOURCE_STATES InInitialState, ED3D12ResourceStateMode InResourceStateMode, 
+	D3D12_RESOURCE_STATES InDefaultState, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)
 	{
@@ -420,7 +435,7 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 	ID3D12Heap* Heap = BackingHeap->GetHeap();
 
 	TRefCountPtr<ID3D12Resource> pResource;
-	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InitialUsage, nullptr, IID_PPV_ARGS(pResource.GetInitReference()));
+	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InInitialState, nullptr, IID_PPV_ARGS(pResource.GetInitReference()));
 
 	if (bVerifyHResult)
 	{
@@ -439,7 +454,9 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 		*ppOutResource = new FD3D12Resource(Device,
 			Device->GetVisibilityMask(),
 			pResource,
-			InitialUsage,
+			InInitialState,
+			InResourceStateMode,
+			InDefaultState,
 			InDesc,
 			BackingHeap,
 			HeapDesc.Properties.Type);
@@ -454,18 +471,20 @@ HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask Creati
 {
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, CreationNode.GetNative(), VisibleNodes.GetNative());
 	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProps.Type, &HeapProps);
-	return CreateBuffer(HeapProps, CreationNode, InitialState, HeapSize, ppOutResource, Name, Flags);
+	return CreateBuffer(HeapProps, CreationNode, InitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, HeapSize, ppOutResource, Name, Flags);
 }
 
 HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask CreationNode, FRHIGPUMask VisibleNodes, D3D12_RESOURCE_STATES InitialState, uint64 HeapSize, FD3D12Resource** ppOutResource, const TCHAR* Name, D3D12_RESOURCE_FLAGS Flags)
 {
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, CreationNode.GetNative(), VisibleNodes.GetNative());
-	return CreateBuffer(HeapProps, CreationNode, InitialState, HeapSize, ppOutResource, Name, Flags);
+	return CreateBuffer(HeapProps, CreationNode, InitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, HeapSize, ppOutResource, Name, Flags);
 }
 
 HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 	FRHIGPUMask CreationNode,
 	D3D12_RESOURCE_STATES InitialState,
+	ED3D12ResourceStateMode ResourceStateMode,
+	D3D12_RESOURCE_STATES InDefaultState,
 	uint64 HeapSize,
 	FD3D12Resource** ppOutResource,
 	const TCHAR* Name,
@@ -481,6 +500,8 @@ HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 		CreationNode,
 		HeapProps,
 		InitialState,
+		ResourceStateMode,
+		InDefaultState,
 		nullptr,
 		ppOutResource, Name);
 }

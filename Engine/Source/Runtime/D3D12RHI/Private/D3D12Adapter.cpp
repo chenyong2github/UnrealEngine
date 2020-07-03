@@ -271,6 +271,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				TRefCountPtr<ID3D12Debug1> DebugController1;
 				VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
 				DebugController1->SetEnableGPUBasedValidation(true);
+
+				SetEmitDrawEvents(true);
 				bD3d12gpuvalidation = true;
 			}
 		}
@@ -822,7 +824,7 @@ void FD3D12Adapter::InitializeDevices()
 			UploadHeapAllocator[GPUIndex] = new FD3D12DynamicHeapAllocator(this,
 				Devices[GPUIndex],
 				Name,
-				kManualSubAllocationStrategy,
+				FD3D12BuddyAllocator::EAllocationStrategy::kManualSubAllocation,
 				DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT);
@@ -1054,7 +1056,8 @@ void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations();
+		uint64 FrameLag = 2;
+		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
 

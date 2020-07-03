@@ -544,9 +544,14 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		}
 
 		Device->GetTextureAllocator().CleanUpAllocations();
-		Device->GetDefaultBufferAllocator().CleanupFreeBlocks();
 
-		Device->GetDefaultFastAllocator().CleanupPages(10);
+		// Only delete free blocks when not used in the last 2 frames, to make sure we are not allocating and releasing
+		// the same blocks every frame.
+		uint64 BufferPoolDeletionFrameLag = 2;
+		Device->GetDefaultBufferAllocator().CleanupFreeBlocks(BufferPoolDeletionFrameLag);
+
+		uint64 FastAllocatorDeletionFrameLag = 10;
+		Device->GetDefaultFastAllocator().CleanupPages(FastAllocatorDeletionFrameLag);
 	}
 
 	for (uint32 GPUIndex : GPUMask)
@@ -581,18 +586,21 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 	SET_MEMORY_STAT(STAT_D3D12AvailableVideoMemory, AvailableSpace);
 	SET_MEMORY_STAT(STAT_D3D12TotalVideoMemory, Budget);
 
-#if D3D12RHI_SEGREGATED_TEXTURE_ALLOC && D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
 	uint64 MaxTexAllocWastage = 0;
 	for (uint32 GPUIndex : GPUMask)
 	{
 		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
+
+#if D3D12RHI_SEGREGATED_TEXTURE_ALLOC && D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
 		uint64 TotalAllocated;
 		uint64 TotalUnused;
 		Device->GetTextureAllocator().GetMemoryStats(TotalAllocated, TotalUnused);
 		MaxTexAllocWastage = FMath::Max(MaxTexAllocWastage, TotalUnused);
-	}
-	SET_MEMORY_STAT(STAT_D3D12TextureAllocatorWastage, MaxTexAllocWastage);
+		SET_MEMORY_STAT(STAT_D3D12TextureAllocatorWastage, MaxTexAllocWastage);
 #endif
+
+		Device->GetDefaultBufferAllocator().UpdateMemoryStats();
+	}		
 #endif
 }
 

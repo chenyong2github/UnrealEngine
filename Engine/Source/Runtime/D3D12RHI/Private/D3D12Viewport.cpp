@@ -256,11 +256,11 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 			false,
 			FClearValueBinding());
 
-		const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+		const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;
 
 		if (Device->GetGPUIndex() == Parent->GetGPUIndex())
 		{
-			FD3D12Resource* NewResourceWrapper = new FD3D12Resource(Device, FRHIGPUMask::All(), BackBufferResource, State, BackBufferDesc);
+			FD3D12Resource* NewResourceWrapper = new FD3D12Resource(Device, FRHIGPUMask::All(), BackBufferResource, InitialState, BackBufferDesc);
 			NewResourceWrapper->AddRef();
 			NewResourceWrapper->StartTrackingForResidency();
 			NewTexture->ResourceLocation.AsStandAlone(NewResourceWrapper);

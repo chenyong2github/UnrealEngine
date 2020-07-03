@@ -91,12 +91,12 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
 #if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
 #if D3D12_RHI_RAYTRACING
   // #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
-  #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (8 * 1024 * 1024)
-  #define DEFAULT_BUFFER_POOL_SIZE (16 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
 #else
   // On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
   #define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024)
-  #define DEFAULT_BUFFER_POOL_SIZE (8 * 1024 * 1024)
+  #define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
 #endif //D3D12_RHI_RAYTRACING
 #endif //DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE
 
