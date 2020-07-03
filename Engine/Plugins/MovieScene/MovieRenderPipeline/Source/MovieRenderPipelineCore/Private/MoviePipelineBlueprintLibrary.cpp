@@ -4,6 +4,9 @@
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieSceneSequence.h"
+#include "MovieSceneSpawnable.h"
+#include "MovieScenePossessable.h"
+#include "MovieSceneBinding.h"
 #include "LevelSequence.h"
 #include "UObject/SoftObjectPath.h"
 #include "MoviePipelineQueue.h"
@@ -339,7 +342,18 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 				const FMovieSceneBinding* Binding = InMovieScene->FindBinding(CameraObjectBindingId.GetGuid());
 				if (Binding)
 				{
-					ExistingShot->InnerName = Binding->GetName();
+					if (FMovieSceneSpawnable* Spawnable = InMovieScene->FindSpawnable(Binding->GetObjectGuid()))
+					{
+						ExistingShot->InnerName = Spawnable->GetName();
+					}
+					else if (FMovieScenePossessable* Posssessable = InMovieScene->FindPossessable(Binding->GetObjectGuid()))
+					{
+						ExistingShot->InnerName = Posssessable->GetName();
+					}
+					else
+					{
+						ExistingShot->InnerName = Binding->GetName();
+					}
 				}
 			}
 
