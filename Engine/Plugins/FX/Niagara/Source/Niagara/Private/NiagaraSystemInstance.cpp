@@ -2042,7 +2042,6 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	}
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraProcessComponentRendererTasks);
 
-	ETickingGroup ComponentTickGroup = Component ? static_cast<ETickingGroup>(FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup) + 1) : ETickingGroup::TG_LastDemotable;
 	TMap<UClass*, TArray<FNiagaraComponentRenderPoolEntry>> NewRenderPool;
 	int32 AttachedComponentCount = 0;
 
@@ -2115,6 +2114,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 			{
 				SceneComponent->RegisterComponent();
 			}
+			SceneComponent->AddTickPrerequisiteComponent(Component);
 			NewEntry = FNiagaraComponentRenderPoolEntry();
 			NewEntry.Component = SceneComponent;
 		}
@@ -2122,8 +2122,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 		// call the update task which sets the values from the particle bindings
 		UpdateTask.UpdateCallback(SceneComponent, NewEntry);
 		
-		// set tick group and activate the component
-		SceneComponent->SetTickGroup(ComponentTickGroup);
+		// activate the component
 		if (!SceneComponent->IsActive())
 		{
 			SceneComponent->SetVisibility(true);
