@@ -43,7 +43,8 @@ public class ActorPalette : ModuleRules
 				"SlateCore",
 				"EditorStyle",
 				"ContentBrowser",
-				"WorkspaceMenuStructure"
+				"WorkspaceMenuStructure",
+				"DeveloperSettings"
 			}
 			);
 	}
