@@ -130,6 +130,7 @@ protected:
 		);
 
 		// region & language
+		FModuleManager::Get().LoadModuleChecked("InternationalizationSettings");
 		ISettingsSectionPtr RegionAndLanguageSettings = SettingsModule.RegisterSettings("Editor", "General", "Internationalization",
 			LOCTEXT("InternationalizationSettingsModelName", "Region & Language"),
 			LOCTEXT("InternationalizationSettingsModelDescription", "Configure the editor's behavior to use a language and fit a region's culture."),
