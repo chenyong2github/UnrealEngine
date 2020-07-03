@@ -401,13 +401,13 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 
 #if D3D12_RHI_RAYTRACING
-	bool bRayTracingSupported = false;
 
 	{
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 Features5 = {};
 		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &Features5, sizeof(Features5))))
 		{
-			bRayTracingSupported = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0;
+			GRHISupportsRayTracing = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0 && FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform);
+			GRHISupportsRayTracingMissShaderBindings = true;
 			GRHISupportsRayTracingPSOAdditions = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
 
 			if (Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
@@ -428,7 +428,27 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		return CVar && CVar->GetInt() > 0;
 	};
 
- 	if (bRayTracingSupported && GetRayTracingCVarValue() && !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+	bool bHasRayTracingInGameSetting = false;
+	bool bRayTracingInGameSettingEnabled = false;
+	if (!GIsEditor && GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), bRayTracingInGameSettingEnabled, GGameUserSettingsIni))
+	{
+		bHasRayTracingInGameSetting = true;
+
+		if (bRayTracingInGameSettingEnabled)
+		{
+			// Raytracing assumes contents have been cooked with r.SkinCache.CompileShaders enabled. Enable SC in runtime when ray tracing in game is enabled
+			static IConsoleVariable* CVarSkinCacheMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.skincache.mode"));
+			if (CVarSkinCacheMode)
+			{
+				int32 ScMode = 1;
+				CVarSkinCacheMode->Set(ScMode, ECVF_SetByGameSetting);
+			}
+		}	
+	}
+
+	const bool bRayTracingEnabled = bHasRayTracingInGameSetting ? bRayTracingInGameSettingEnabled : GetRayTracingCVarValue();
+
+ 	if (GRHISupportsRayTracing && bRayTracingEnabled && !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
 	{
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference())); // DXR 1.0 (required)
 		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference())); // DXR 1.1 (optional)
@@ -445,7 +465,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		}
 		else
 		{
-			bRayTracingSupported = false;
+			GRHISupportsRayTracing = false;
 		}
 	}
 #endif // D3D12_RHI_RAYTRACING
@@ -611,7 +631,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			};
 
 #if D3D12_RHI_RAYTRACING
-			if (bRayTracingSupported && !FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18363))
+			if (GRHISupportsRayTracing && !FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18363))
 			{
 				// Ignore a known false positive error due to a bug in validation layer in certain Windows versions on DXR-capable hardware.
 				DenyIds.Add(D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES);
