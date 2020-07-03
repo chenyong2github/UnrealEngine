@@ -636,7 +636,7 @@ struct FNiagaraComponentUpdateTask
 
 struct FNiagaraComponentRenderPool
 {
-	TMap<UClass*, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
+	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
 };
 
 /** Defines different usages for a niagara script. */

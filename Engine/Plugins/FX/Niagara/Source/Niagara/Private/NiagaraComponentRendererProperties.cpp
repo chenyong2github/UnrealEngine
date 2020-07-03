@@ -129,6 +129,20 @@ void UNiagaraComponentRendererProperties::PostInitProperties()
 	}
 }
 
+void UNiagaraComponentRendererProperties::PostDuplicate(bool bDuplicateForPIE)
+{
+	if (ComponentType)
+	{
+		// sharing the same template component would mean changes in one emitter would be reflected in the other emitter,
+		// so we create a new template object instead
+		CreateTemplateComponent();
+	}
+	else
+	{
+		TemplateComponent = nullptr;
+	}
+}
+
 void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraComponentRendererProperties* CDO = CastChecked<UNiagaraComponentRendererProperties>(UNiagaraComponentRendererProperties::StaticClass()->GetDefaultObject());
@@ -155,6 +169,18 @@ FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERH
 	return NewRenderer;
 }
 
+void UNiagaraComponentRendererProperties::CreateTemplateComponent()
+{
+	TemplateComponent = NewObject<USceneComponent>(this, ComponentType, NAME_None, RF_ArchetypeObject | RF_Public);
+	TemplateComponent->SetVisibility(false);
+	TemplateComponent->SetAutoActivate(false);
+	TemplateComponent->SetComponentTickEnabled(false);
+
+	// set some defaults on the component
+	bool IsWorldSpace = EmitterPtr ? !EmitterPtr->bLocalSpace : true;
+	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
+}
+
 #if WITH_EDITORONLY_DATA
 
 void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& e)
@@ -169,14 +195,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 		}
 		if (ComponentType)
 		{
-			TemplateComponent = NewObject<USceneComponent>(this, ComponentType, NAME_None, RF_ArchetypeObject | RF_Public);
-			TemplateComponent->SetVisibility(false);
-			TemplateComponent->SetAutoActivate(false);
-			TemplateComponent->SetComponentTickEnabled(false);
-			
-			// set some defaults on the component
-			bool IsWorldSpace = EmitterPtr ? !EmitterPtr->bLocalSpace : true;
-			TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
+			CreateTemplateComponent();
 
 			FNiagaraComponentPropertyBinding PositionBinding;
 			PositionBinding.AttributeBinding.BoundVariable = SYS_PARAM_PARTICLES_POSITION;
