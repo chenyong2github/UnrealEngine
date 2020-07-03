@@ -63,8 +63,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Class"), AssetRegistrySearchable)
 	USoundClass* SoundClassObject;
 
-	/** When "stat sounds -debug" has been specified, draw this sound's attenuation shape when the sound is audible. For debugging purpose only. */
-	UPROPERTY(EditAnywhere, Category = Debug)
+	/** When "au.debug.Sounds -debug" has been specified, draw this sound's attenuation shape when the sound is audible. For debugging purpose only. */
+	UPROPERTY(EditAnywhere, Category = Developer)
 	uint8 bDebug : 1;
 
 	/** Whether or not to override the sound concurrency object with local concurrency settings. */
@@ -128,15 +128,15 @@ public:
 #endif
 
 	/** Duration of sound in seconds. */
-	UPROPERTY(Category=Info, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = Developer, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float Duration;
 
 	/** The max distance of the asset, as determined by attenuation settings. */
-	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = Developer, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float MaxDistance;
 
 	/** Total number of samples (in the thousands). Useful as a metric to analyze the relative size of a given sound asset in content browser. */
-	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = Developer, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float TotalSamples;
 
 	/** Used to determine whether sound can play or remain active if channel limit is met, where higher value is higher priority

@@ -34,12 +34,12 @@ FDetailLayoutBuilderImpl::~FDetailLayoutBuilderImpl()
 	}
 }
 
-IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory( FName CategoryName, const FText& NewLocalizedDisplayName, ECategoryPriority::Type CategoryType )
+IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory(FName CategoryName, const FText& NewLocalizedDisplayName, ECategoryPriority::Type CategoryType)
 {
 	FText LocalizedDisplayName = NewLocalizedDisplayName;
 
 	// Use a generic name if one was not specified
-	if( CategoryName == NAME_None )
+	if (CategoryName == NAME_None)
 	{
 		static const FText GeneralString = NSLOCTEXT("DetailLayoutBuilderImpl", "General", "General");
 		static const FName GeneralName = TEXT("General");
@@ -50,33 +50,28 @@ IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory( FName CategoryNa
 
 	TSharedPtr<FDetailCategoryImpl> CategoryImpl;
 	// If the default category map had a category by the provided name, remove it from the map as it is now customized
-	if( !DefaultCategoryMap.RemoveAndCopyValue( CategoryName, CategoryImpl ) )
+	if (!DefaultCategoryMap.RemoveAndCopyValue(CategoryName, CategoryImpl))
 	{
 		// Default category map did not have a category by the requested name. Find or add it to the custom map
-		TSharedPtr<FDetailCategoryImpl>& NewCategoryImpl = CustomCategoryMap.FindOrAdd( CategoryName );
+		TSharedPtr<FDetailCategoryImpl>& NewCategoryImpl = CustomCategoryMap.FindOrAdd(CategoryName);
 
-		if( !NewCategoryImpl.IsValid() )
+		if (!NewCategoryImpl.IsValid())
 		{
-			NewCategoryImpl = MakeShareable( new FDetailCategoryImpl( CategoryName, SharedThis(this) ) );
-			
-			// We want categories within a type to display in the order they were added but sorting is unstable so we make unique numbers 
-			uint32 SortOrder = (uint32)CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
-			NewCategoryImpl->SetSortOrder( SortOrder );
+			NewCategoryImpl = MakeShareable(new FDetailCategoryImpl(CategoryName, SharedThis(this)));
 		}
 		CategoryImpl = NewCategoryImpl;
 	}
 	else
 	{
 		// Custom category should not exist yet as it was in the default category map
-		checkSlow( !CustomCategoryMap.Contains( CategoryName ) && CategoryImpl.IsValid() );
-		CustomCategoryMap.Add( CategoryName, CategoryImpl );
-
-		// We want categories within a type to display in the order they were added but sorting is unstable so we make unique numbers 
-		uint32 SortOrder = (uint32)CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
-		CategoryImpl->SetSortOrder( SortOrder );
+		checkSlow(!CustomCategoryMap.Contains(CategoryName) && CategoryImpl.IsValid());
+		CustomCategoryMap.Add(CategoryName, CategoryImpl);
 	}
 
-	CategoryImpl->SetDisplayName( CategoryName, LocalizedDisplayName );
+	// Categories within a type should display in the order they were added but sorting is unstable so numbers are made unique
+	const int32 SortOrder = CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
+	CategoryImpl->SetSortOrder(SortOrder);
+	CategoryImpl->SetDisplayName(CategoryName, LocalizedDisplayName);
 
 	return *CategoryImpl;
 }
@@ -265,16 +260,8 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 		}
 	};
 
-	// Merge the two category lists and sort them based on priority
-	//FCategoryMap AllCategories = CustomCategoryMap;
-	//AllCategories.Append( DefaultCategoryMap );
-
-	TArray< TSharedRef<FDetailCategoryImpl> > SimpleCategories;
-	TArray< TSharedRef<FDetailCategoryImpl> > AdvancedOnlyCategories;
-
-	//If there is a delimiter in the name it mean its a sub category, we dont show sub category at the root level
-	FString CategoryDelimiterString;
-	CategoryDelimiterString.AppendChar(FPropertyNodeConstants::CategoryDelimiterChar);
+	TArray<TSharedRef<FDetailCategoryImpl>> SimpleCategories;
+	TArray<TSharedRef<FDetailCategoryImpl>> AdvancedOnlyCategories;
 
 	SubCategoryMap.Empty();
 	for (FCategoryMap::TIterator It(DefaultCategoryMap); It; ++It)
@@ -310,20 +297,58 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 		BuildCategories(CustomCategoryMapCopy, SimpleCategories, AdvancedOnlyCategories);
 	}
 
-	SimpleCategories.Sort( FCompareFDetailCategoryImpl() );
-	AdvancedOnlyCategories.Sort( FCompareFDetailCategoryImpl() );
-
 	FDetailNodeList CategoryNodes;
 
-	// Merge the two category lists in sorted order
-	for (int32 CategoryIndex = 0; CategoryIndex < SimpleCategories.Num(); ++CategoryIndex)
-	{
-		CategoryNodes.AddUnique(SimpleCategories[CategoryIndex]);
-	}
+	// Run initial sort
+	SimpleCategories.Sort(FCompareFDetailCategoryImpl());
+	AdvancedOnlyCategories.Sort(FCompareFDetailCategoryImpl());
 
-	for (int32 CategoryIndex = 0; CategoryIndex < AdvancedOnlyCategories.Num(); ++CategoryIndex)
+	if (CategorySortOrderFunctions.Num() > 0)
 	{
-		CategoryNodes.AddUnique(AdvancedOnlyCategories[CategoryIndex]);
+		TMap<FName, IDetailCategoryBuilder*> AllCategoryMap;
+		TArray<TSharedRef<FDetailCategoryImpl>> AllCategories;
+
+		for (TSharedRef<FDetailCategoryImpl>& CategoryImpl : SimpleCategories)
+		{
+			const FName CategoryName = CategoryImpl->GetCategoryName();
+			AllCategories.Add(CategoryImpl);
+			IDetailCategoryBuilder* Builder = static_cast<IDetailCategoryBuilder*>(&CategoryImpl.Get());
+			AllCategoryMap.Add(CategoryName, Builder);
+		}
+
+		for (TSharedRef<FDetailCategoryImpl>& CategoryImpl : AdvancedOnlyCategories)
+		{
+			const FName CategoryName = CategoryImpl->GetCategoryName();
+			AllCategories.Add(CategoryImpl);
+			IDetailCategoryBuilder* Builder = static_cast<IDetailCategoryBuilder*>(&CategoryImpl.Get());
+			AllCategoryMap.Add(CategoryName, Builder);
+		}
+
+		// Run second override function sort
+		for (FOnCategorySortOrderFunction& SortFunction : CategorySortOrderFunctions)
+		{
+			SortFunction(AllCategoryMap);
+		}
+		AllCategories.Sort(FCompareFDetailCategoryImpl());
+
+		// Merge the two category lists in sorted order
+		for (int32 CategoryIndex = 0; CategoryIndex < AllCategories.Num(); ++CategoryIndex)
+		{
+			CategoryNodes.AddUnique(AllCategories[CategoryIndex]);
+		}
+	}
+	else
+	{
+		// Merge the two category lists in sorted order
+		for (int32 CategoryIndex = 0; CategoryIndex < SimpleCategories.Num(); ++CategoryIndex)
+		{
+			CategoryNodes.AddUnique(SimpleCategories[CategoryIndex]);
+		}
+
+		for (int32 CategoryIndex = 0; CategoryIndex < AdvancedOnlyCategories.Num(); ++CategoryIndex)
+		{
+			CategoryNodes.AddUnique(AdvancedOnlyCategories[CategoryIndex]);
+		}
 	}
 
 	TSharedPtr<FComplexPropertyNode> RootNodePinned = RootNode.Pin();
@@ -817,4 +842,9 @@ void FDetailLayoutBuilderImpl::RegisterInstancedCustomPropertyTypeLayout(FName P
 		NewLayoutCallbacks.Add(Callback);
 		InstancePropertyTypeExtensions.Add(PropertyTypeName, NewLayoutCallbacks);
 	}
+}
+
+void FDetailLayoutBuilderImpl::SortCategories(const FOnCategorySortOrderFunction& InSortFunction)
+{
+	CategorySortOrderFunctions.Add(InSortFunction);
 }
