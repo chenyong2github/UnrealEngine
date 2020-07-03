@@ -318,10 +318,43 @@ void FPhysInterface_Chaos::FlushScene(FPhysScene* InScene)
 	});
 }
 
+Chaos::EJointMotionType ConvertMotionType(ELinearConstraintMotion InEngineType)
+{
+	if (InEngineType == ELinearConstraintMotion::LCM_Free)
+		return Chaos::EJointMotionType::Free;
+	else if (InEngineType == ELinearConstraintMotion::LCM_Limited)
+		return Chaos::EJointMotionType::Limited;
+	else if (InEngineType == ELinearConstraintMotion::LCM_Locked)
+		return Chaos::EJointMotionType::Locked;
+	else
+		ensure(false);
+	return Chaos::EJointMotionType::Locked;
+};
 
 void FPhysInterface_Chaos::SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion)
 {
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			switch (InAxis)
+			{
+			case PhysicsInterfaceTypes::ELimitAxis::X:
+				Constraint->SetLinearMotionTypesX(ConvertMotionType(InMotion));
+				break;
 
+			case PhysicsInterfaceTypes::ELimitAxis::Y:
+				Constraint->SetLinearMotionTypesY(ConvertMotionType(InMotion));
+				break;
+
+			case PhysicsInterfaceTypes::ELimitAxis::Z:
+				Constraint->SetLinearMotionTypesZ(ConvertMotionType(InMotion));
+				break;
+			default:
+				ensure(false);
+			}
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion)
@@ -331,7 +364,13 @@ void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysic
 
 void FPhysInterface_Chaos::UpdateLinearLimitParams_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLimit, float InAverageMass, const FLinearConstraint& InParams)
 {
-
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearLimit(InLimit); 
+		}
+	}
 }
 
 void FPhysInterface_Chaos::UpdateConeLimitParams_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InAverageMass, const FConeConstraint& InParams)
@@ -346,7 +385,42 @@ void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsCo
 
 void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InDriveParams)
 {
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			Constraint->SetLinearPositionDriveXEnabled(false);
+			Constraint->SetLinearPositionDriveYEnabled(false);
+			Constraint->SetLinearPositionDriveZEnabled(false);
 
+			Constraint->SetLinearVelocityDriveXEnabled(false);
+			Constraint->SetLinearVelocityDriveYEnabled(false);
+			Constraint->SetLinearVelocityDriveZEnabled(false);
+
+			bool bPositionDriveEnabled = InDriveParams.IsPositionDriveEnabled();
+			if (bPositionDriveEnabled)
+			{
+				Constraint->SetLinearPositionDriveXEnabled(InDriveParams.XDrive.bEnablePositionDrive);
+				Constraint->SetLinearPositionDriveYEnabled(InDriveParams.YDrive.bEnablePositionDrive);
+				Constraint->SetLinearPositionDriveZEnabled(InDriveParams.ZDrive.bEnablePositionDrive);
+				Constraint->SetLinearDrivePositionTarget(InDriveParams.PositionTarget);
+			}
+
+			bool bVelocityDriveEnabled = InDriveParams.IsVelocityDriveEnabled();
+			if (bVelocityDriveEnabled)
+			{
+				Constraint->SetLinearVelocityDriveXEnabled(InDriveParams.XDrive.bEnableVelocityDrive);
+				Constraint->SetLinearVelocityDriveYEnabled(InDriveParams.YDrive.bEnableVelocityDrive);
+				Constraint->SetLinearVelocityDriveZEnabled(InDriveParams.ZDrive.bEnableVelocityDrive);
+				Constraint->SetLinearDriveVelocityTarget(InDriveParams.VelocityTarget);
+			}
+
+			Constraint->SetLinearDriveForceMode(Chaos::EJointForceMode::Acceleration);
+			// @todo(chaos) : support channel stiffness,damping
+			Constraint->SetLinearDriveStiffness(FMath::Max3(InDriveParams.XDrive.Stiffness, InDriveParams.YDrive.Stiffness, InDriveParams.ZDrive.Stiffness));
+			Constraint->SetLinearDriveDamping(FMath::Max3(InDriveParams.XDrive.Damping, InDriveParams.YDrive.Damping, InDriveParams.ZDrive.Damping));
+		}
+	}
 }
 
 void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FAngularDriveConstraint& InDriveParams)
