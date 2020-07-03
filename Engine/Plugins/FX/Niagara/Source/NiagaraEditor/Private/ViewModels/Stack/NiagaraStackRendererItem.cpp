@@ -325,7 +325,7 @@ const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const
 {
 	if (IsFinalized() == false && RendererProperties.IsValid())
 	{
-		return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
+		return RendererProperties->GetStackIcon();
 	}
 	else
 	{

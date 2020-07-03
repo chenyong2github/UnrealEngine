@@ -4,6 +4,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Styling/SlateIconFinder.h"
 
 #if WITH_EDITORONLY_DATA
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
@@ -28,6 +29,12 @@ const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 
 	return CurrentBoundAttributes;
 }
+
+const FSlateBrush* UNiagaraRendererProperties::GetStackIcon() const
+{
+	return FSlateIconFinder::FindIconBrushForClass(GetClass());
+}
+
 #endif
 
 uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const
