@@ -38,6 +38,7 @@
 #include "SubmixEffects/SubmixEffectFlexiverb.h"
 #include "SubmixEffects/SubmixEffectStereoDelay.h"
 #include "SubmixEffects/SubmixEffectTapDelay.h"
+#include "SynthesisEditorSettings.h"
 
 
 DEFINE_LOG_CATEGORY(LogSynthesisEditor);

@@ -37,22 +37,22 @@ public class AudioEditor : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"AudioMixer",
-                "InputCore",
-                "Engine",
-                "UnrealEd",
-                "Slate",
-                "SlateCore",
-                "EditorStyle",
-                "RenderCore",
-                "LevelEditor",
-                "Landscape",
-                "PropertyEditor",
-                "DetailCustomizations",
-                "ClassViewer",
-                "GraphEditor",
-                "ContentBrowser",
-            }
-        );
+				"InputCore",
+				"Engine",
+				"UnrealEd",
+				"Slate",
+				"SlateCore",
+				"EditorStyle",
+				"RenderCore",
+				"LevelEditor",
+				"Landscape",
+				"PropertyEditor",
+				"DetailCustomizations",
+				"ClassViewer",
+				"GraphEditor",
+				"ContentBrowser",
+			}
+		);
 
 		PrivateIncludePathModuleNames.AddRange
 		(
