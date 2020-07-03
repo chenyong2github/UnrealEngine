@@ -43,8 +43,6 @@ FString convertReceiptToString(const SKPaymentTransaction* transaction)
  */
 FString GetOriginalTransactionId(const SKPaymentTransaction* Transaction)
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId TransactionState=%d"), static_cast<int32>(Transaction.transactionState));
-
 	SKPaymentTransaction* OriginalTransaction = nullptr;
 	if (Transaction.originalTransaction && Transaction.transactionState == SKPaymentTransactionStateRestored)
 	{		
@@ -131,28 +129,23 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 				}
 				else
 				{
-					UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::completeTransaction"));
 					[self completeTransaction : transaction];
 				}
 				break;
 			case SKPaymentTransactionStateFailed:
-				UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::failedTransaction"));
 				[self failedTransaction : transaction];
 				break;
 			case SKPaymentTransactionStateRestored:
-				UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::restoreTransaction"));
 				[self restoreTransaction : transaction];
 				break;
 			case SKPaymentTransactionStatePurchasing:
-				UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::purchasingInProgress"));
 				[self purchaseInProgress : transaction];
 				continue;
 			case SKPaymentTransactionStateDeferred:
-				UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::purchaseDeferred"));
 				[self purchaseDeferred : transaction];
 				continue;
 			default:
-				UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::other: %d"), [transaction transactionState]);
+				UE_LOG_ONLINE_STORE(Warning, TEXT("FStoreKitHelper unhandled state: %d"), [transaction transactionState]);
 				break;
 		}
 	}
