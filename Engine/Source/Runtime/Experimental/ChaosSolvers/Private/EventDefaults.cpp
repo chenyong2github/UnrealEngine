@@ -12,6 +12,7 @@
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
+#include "ChaosSolversModule.h"
 
 namespace Chaos
 {
@@ -65,7 +66,7 @@ namespace Chaos
 				TArray<const Chaos::FPBDCollisionConstraintHandle*> ValidCollisionHandles;
 				ValidCollisionHandles.SetNumUninitialized(CollisionRule.NumConstraints());
 				int32 NumValidCollisions = 0;
-
+				const float MinDeltaVelocityForHitEvents = FChaosSolversModule::GetModule()->GetSettingsProvider().GetMinDeltaVelocityForHitEvents();
 				for (const Chaos::FPBDCollisionConstraintHandle * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
 					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint)
@@ -99,8 +100,14 @@ namespace Chaos
 										!Body0->W().ContainsNaN() &&
 										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-										NumValidCollisions++;
+										TPBDRigidParticleHandle<float, 3>* Rigid0 = Particle0->CastToRigidParticle();
+										TPBDRigidParticleHandle<float, 3>* Rigid1 = Particle1->CastToRigidParticle();
+										if ((Rigid0 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid0->V(), Rigid0->PreV(), MinDeltaVelocityForHitEvents)) ||
+											(Rigid1 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid1->V(), Rigid1->PreV(), MinDeltaVelocityForHitEvents)))
+										{
+											ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+											NumValidCollisions++;
+										}
 									}
 								}
 							}
@@ -139,8 +146,14 @@ namespace Chaos
 										!Body0->W().ContainsNaN() &&
 										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-										NumValidCollisions++;
+										TPBDRigidParticleHandle<float, 3>* Rigid0 = Particle0->CastToRigidParticle();
+										TPBDRigidParticleHandle<float, 3>* Rigid1 = Particle1->CastToRigidParticle();
+										if ((Rigid0 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid0->V(), Rigid0->PreV(), MinDeltaVelocityForHitEvents)) ||
+											(Rigid1 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid1->V(), Rigid1->PreV(), MinDeltaVelocityForHitEvents)))
+										{
+											ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+											NumValidCollisions++;
+										}
 									}
 								}
 							}

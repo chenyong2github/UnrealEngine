@@ -31,6 +31,10 @@ class IChaosSettingsProvider
 public:
 	virtual ~IChaosSettingsProvider() {}
 
+	virtual float GetMinDeltaVelocityForHitEvents() const
+	{
+		return 0.f;
+	}
 }; 
 
 namespace Chaos
@@ -205,6 +209,9 @@ public:
 		SolverActorClassProvider = Provider;
 	};
 
+
+	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
+	const IChaosSettingsProvider& GetSettingsProvider() const;
 	void SetSettingsProvider(IChaosSettingsProvider* InProvider)
 	{
 		SettingsProvider = InProvider;
@@ -226,9 +233,6 @@ public:
 	void GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer);
 
 private:
-
-	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
-	const IChaosSettingsProvider& GetSettingsProvider() const;
 
 	/** Object that contains implementation of GetSolverActorClass() */
 	IChaosSolverActorClassProvider* SolverActorClassProvider;

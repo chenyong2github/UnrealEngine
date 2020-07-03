@@ -52,7 +52,10 @@ public:
 	{
 
 	}
-
+	virtual float GetMinDeltaVelocityForHitEvents() const override
+	{
+		return GetSettings()->MinDeltaVelocityForHitEvents;
+	}
 private:
 
 	const UPhysicsSettings* GetSettings() const

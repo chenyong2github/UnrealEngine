@@ -24,6 +24,7 @@ UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	, SyncSceneSmoothingFactor(0.0f)
 	, InitialAverageFrameRate(1.f / 60.f)
 	, PhysXTreeRebuildRate(10)
+	, MinDeltaVelocityForHitEvents(0.f)
 {
 }
 
