@@ -323,7 +323,7 @@ void FMovieSceneEntitySystemRunner::GameThread_SpawnPhase()
 
 	if (AllTasks.Num() != 0)
 	{
-		TGraphTask<FFunctionGraphTask>::CreateTask(&AllTasks, ENamedThreads::GameThread)
+		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
 			.ConstructAndDispatchWhenReady(MoveTemp(NextStep), TStatId(), GameThread);
 	}
 	else
@@ -345,7 +345,7 @@ void FMovieSceneEntitySystemRunner::GameThread_InstantiationPhase()
 
 	if (AllTasks.Num() != 0)
 	{
-		TGraphTask<FFunctionGraphTask>::CreateTask(&AllTasks, ENamedThreads::GameThread)
+		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
 		.ConstructAndDispatchWhenReady(
 			[this]
 			{
@@ -406,7 +406,7 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase()
 
 	if (AllTasks.Num() != 0)
 	{
-		TGraphTask<FFunctionGraphTask>::CreateTask(&AllTasks, ENamedThreads::GameThread)
+		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
 		.ConstructAndDispatchWhenReady(
 			[this]
 			{
