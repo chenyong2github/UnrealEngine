@@ -25,6 +25,11 @@
 			"Name" : "MetasoundGenerator",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
+		},
+		{
+			"Name" : "MetasoundFrontend",
+			"Type" : "Runtime",
+			"LoadingPhase" : "Default"
 		}
 	]
 }
