@@ -488,6 +488,8 @@ namespace AutomationTool
 
 							// Update the root manifest
 							RootManifest NewRootManifest = new RootManifest();
+							NewRootManifest.AccessKey = OldRootManifest.AccessKey;
+							NewRootManifest.SecretKey = OldRootManifest.SecretKey;
 							foreach (RootManifest.Entry Entry in OldRootManifest.Entries)
 							{
 								if (Entry.CreateTime >= RemoveBundleManifestsBefore)
