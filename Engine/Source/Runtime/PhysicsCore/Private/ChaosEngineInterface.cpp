@@ -21,6 +21,9 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 //#define USE_CHAOS_JOINT_CONSTRAINTS 
 //#endif
 
+bool bEnableChaosJointConstraints = false;
+FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.EnableChaosJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
+
 bool FPhysicsConstraintReference_Chaos::IsValid() const
 {
 	return Constraint!=nullptr ? Constraint->IsValid() : false;
@@ -823,8 +826,14 @@ SIZE_T FChaosEngineInterface::GetResourceSizeEx(const FPhysicsActorHandle& InAct
 // Constraints
 FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsActorHandle& InActorRef1,const FPhysicsActorHandle& InActorRef2,const FTransform& InLocalFrame1,const FTransform& InLocalFrame2)
 {
-	FPhysicsConstraintHandle ConstraintRef;
+	bool bEnableChaosJointConstraintsLocal = bEnableChaosJointConstraints;
 #ifdef USE_CHAOS_JOINT_CONSTRAINTS
+	bEnableChaosJointConstraintsLocal = true;
+#endif // USE_CHAOS_JOINT_CONSTRAINTS
+
+	FPhysicsConstraintHandle ConstraintRef;
+
+	if(bEnableChaosJointConstraintsLocal)
 	{
 		if(InActorRef1 != nullptr && InActorRef2 != nullptr)
 		{
@@ -844,7 +853,6 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 			}
 		}
 	}
-#endif // USE_CHAOS_JOINT_CONSTRAINTS
 	return ConstraintRef;
 }
 
@@ -861,22 +869,31 @@ void FChaosEngineInterface::SetConstraintUserData(const FPhysicsConstraintHandle
 
 void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstraintRef)
 {
+	bool bEnableChaosJointConstraintsLocal = bEnableChaosJointConstraints;
 #ifdef USE_CHAOS_JOINT_CONSTRAINTS
+	bEnableChaosJointConstraintsLocal = true;
+#endif // USE_CHAOS_JOINT_CONSTRAINTS
+
+	if (bEnableChaosJointConstraintsLocal)
 	{
 		LLM_SCOPE(ELLMTag::Chaos);
+		if (InConstraintRef.IsValid())
+		{
+			if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+			{
+				if (FJointConstraintPhysicsProxy* Proxy = Constraint->GetProxy<FJointConstraintPhysicsProxy>())
+				{
+					check(Proxy->GetSolver<Chaos::FPhysicsSolver>());
+					Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 
-		check(InConstraintRef.Constraint->GetProxy<FJointConstraintPhysicsProxy>());
-		FJointConstraintPhysicsProxy* Proxy = InConstraintRef.Constraint->GetProxy<FJointConstraintPhysicsProxy>();
+					Solver->UnregisterObject(InConstraintRef.Constraint);
 
-		check(Proxy->GetSolver<Chaos::FPhysicsSolver>());
-		Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
-
-		Solver->UnregisterObject(InConstraintRef.Constraint);
-
-		delete InConstraintRef.Constraint;
-		InConstraintRef.Constraint = nullptr;
+					delete InConstraintRef.Constraint;
+					InConstraintRef.Constraint = nullptr;
+				}
+			}
+		}
 	}
-#endif // USE_CHAOS_JOINT_CONSTRAINTS
 }
 
 FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,EConstraintFrame::Type InFrame)
