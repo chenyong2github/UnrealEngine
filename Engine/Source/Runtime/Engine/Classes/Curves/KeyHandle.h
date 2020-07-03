@@ -41,7 +41,7 @@ struct FKeyHandle
 		return GetTypeHash(Handle.Index);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar,FKeyHandle& Handle)
+	friend FArchive& operator<<(FArchive& Ar, FKeyHandle& Handle)
 	{
 		Ar << Handle.Index;
 		return Ar;
@@ -67,15 +67,15 @@ public:
 	FKeyHandleMap() {}
 
 	// This struct is not copyable.  This must be public or because derived classes are allowed to be copied
-	FKeyHandleMap( const FKeyHandleMap& Other ) {}
+	FKeyHandleMap(const FKeyHandleMap& Other) {}
 	void operator=(const FKeyHandleMap& Other) {}
 
 	/** TMap functionality */
-	void Add( const FKeyHandle& InHandle, int32 InIndex );
-	void Empty();
-	void Remove( const FKeyHandle& InHandle );
+	void Add(const FKeyHandle& InHandle, int32 InIndex);
+	void Empty(uint32 Slack = 0);
+	void Remove(const FKeyHandle& InHandle);
 	const int32* Find(const FKeyHandle& InHandle) const { return KeyHandlesToIndices.Find(InHandle); }
-	const FKeyHandle* FindKey( int32 KeyIndex ) const;
+	const FKeyHandle* FindKey(int32 KeyIndex) const;
 	int32 Num() const { return KeyHandlesToIndices.Num(); }
 	TArray<FKeyHandle>::TConstIterator CreateConstIterator() const { return KeyHandles.CreateConstIterator(); }
 	const TMap<FKeyHandle, int32>& GetMap() const { return KeyHandlesToIndices; }
@@ -85,9 +85,9 @@ public:
 	/** ICPPStructOps implementation */
 	bool Serialize(FArchive& Ar);
 	bool operator==(const FKeyHandleMap& Other) const { return KeyHandles == Other.KeyHandles; }
-	bool operator!=(const FKeyHandleMap& Other) const { return !(*this==Other); }
+	bool operator!=(const FKeyHandleMap& Other) const { return !(*this == Other); }
 
-	friend FArchive& operator<<(FArchive& Ar,FKeyHandleMap& P)
+	friend FArchive& operator<<(FArchive& Ar, FKeyHandleMap& P)
 	{
 		P.Serialize(Ar);
 		return Ar;

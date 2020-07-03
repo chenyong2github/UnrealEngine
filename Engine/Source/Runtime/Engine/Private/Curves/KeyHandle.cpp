@@ -23,7 +23,7 @@ FKeyHandle FKeyHandle::Invalid()
 /* FKeyHandleMap interface
  *****************************************************************************/
 
-void FKeyHandleMap::Add( const FKeyHandle& InHandle, int32 InIndex )
+void FKeyHandleMap::Add(const FKeyHandle& InHandle, int32 InIndex)
 {
 	for (auto It = KeyHandlesToIndices.CreateIterator(); It; ++It)
 	{
@@ -33,8 +33,8 @@ void FKeyHandleMap::Add( const FKeyHandle& InHandle, int32 InIndex )
 
 	if (InIndex > KeyHandles.Num())
 	{
-		KeyHandles.Reserve(InIndex+1);
-		for(int32 NewIndex = KeyHandles.Num(); NewIndex < InIndex; ++NewIndex)
+		KeyHandles.Reserve(InIndex + 1);
+		for (int32 NewIndex = KeyHandles.Num(); NewIndex < InIndex; ++NewIndex)
 		{
 			KeyHandles.AddDefaulted();
 			KeyHandlesToIndices.Add(KeyHandles.Last(), NewIndex);
@@ -61,14 +61,14 @@ void FKeyHandleMap::SetKeyHandles(int32 Num)
 }
 
 
-void FKeyHandleMap::Empty()
+void FKeyHandleMap::Empty(uint32 Slack)
 {
-	KeyHandlesToIndices.Empty();
-	KeyHandles.Empty();
+	KeyHandlesToIndices.Empty(Slack);
+	KeyHandles.Empty(Slack);
 }
 
 
-void FKeyHandleMap::Remove( const FKeyHandle& InHandle )
+void FKeyHandleMap::Remove(const FKeyHandle& InHandle)
 {
 	int32 Index = INDEX_NONE;
 	if (KeyHandlesToIndices.RemoveAndCopyValue(InHandle, Index))
@@ -84,7 +84,7 @@ void FKeyHandleMap::Remove( const FKeyHandle& InHandle )
 	}
 }
 
-const FKeyHandle* FKeyHandleMap::FindKey( int32 KeyIndex ) const
+const FKeyHandle* FKeyHandleMap::FindKey(int32 KeyIndex) const
 {
 	if (KeyIndex >= 0 && KeyIndex < KeyHandles.Num())
 	{
@@ -96,7 +96,7 @@ const FKeyHandle* FKeyHandleMap::FindKey( int32 KeyIndex ) const
 bool FKeyHandleMap::Serialize(FArchive& Ar)
 {
 	// only allow this map to be saved to the transaction buffer
-	if( Ar.IsTransacting() )
+	if (Ar.IsTransacting())
 	{
 		Ar << KeyHandlesToIndices;
 		Ar << KeyHandles;
