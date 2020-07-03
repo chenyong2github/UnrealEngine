@@ -12,7 +12,7 @@
 #include "Templates/Casts.h"
 #include "Engine/DeveloperSettings.h"
 #include "PhysicsSettingsEnums.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "GameFramework/WorldSettings.h"
 #include "PhysicsCoreTypes.h"
 #include "PhysicsSettingsCore.h"
@@ -120,17 +120,7 @@ class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 	/** Useful for constraining all objects in the world, for example if you are making a 2D game using 3D environments.*/
 	UPROPERTY(config, EditAnywhere, Category = Simulation)
 	TEnumAsByte<ESettingsDOF::Type> DefaultDegreesOfFreedom;
-
-	/**
-	*  Determines the default physics shape complexity. */
-	UPROPERTY(config, EditAnywhere, Category = Simulation)
-	TEnumAsByte<ECollisionTraceFlag> DefaultShapeComplexity;
 	
-	/**
-	*  If true, static meshes will use per poly collision as complex collision by default. If false the default behavior is the same as UseSimpleAsComplex. */
-	UPROPERTY(config)
-	bool bDefaultHasComplexCollision_DEPRECATED;
-
 	/**
 	*  If true, the internal physx face to UE face mapping will not be generated. This is a memory optimization available if you do not rely on face indices returned by scene queries. */
 	UPROPERTY(config, EditAnywhere, Category = Optimization)

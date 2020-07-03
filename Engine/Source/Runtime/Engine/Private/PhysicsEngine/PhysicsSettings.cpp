@@ -12,8 +12,6 @@
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LockedAxis_DEPRECATED(ESettingsLockedAxis::Invalid)
-	, DefaultShapeComplexity((ECollisionTraceFlag)-1)
-	, bDefaultHasComplexCollision_DEPRECATED(true)
 	, bSuppressFaceRemapTable(false)
 	, bDisableActiveActors(false)
 	, bEnableEnhancedDeterminism(false)
@@ -61,11 +59,6 @@ void UPhysicsSettings::PostInitProperties()
 		}
 
 		LockedAxis_DEPRECATED = ESettingsLockedAxis::Invalid;
-	}
-
-	if(DefaultShapeComplexity == TEnumAsByte<ECollisionTraceFlag>(-1))
-	{
-		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
 
 	// Temporarily override dedicated thread to taskgraph. The enum selection for dedicated

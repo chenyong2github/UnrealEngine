@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/DeveloperSettings.h"
 #include "PhysicsSettingsEnums.h"
+#include "BodySetupEnums.h"
 
 #include "PhysicsSettingsCore.generated.h"
 
@@ -62,6 +63,11 @@ class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
 	UPROPERTY(config,EditAnywhere,Category = Simulation)
 	bool bEnable2DPhysics;
 
+	/**
+	*  If true, static meshes will use per poly collision as complex collision by default. If false the default behavior is the same as UseSimpleAsComplex. */
+	UPROPERTY(config)
+	bool bDefaultHasComplexCollision_DEPRECATED;
+
 	
 	/** Minimum relative velocity required for an object to bounce. A typical value for simulation stability is about 0.2 * gravity*/
 	UPROPERTY(config, EditAnywhere, Category = Simulation, meta = (ClampMin = "0", UIMin = "0"))
@@ -102,5 +108,12 @@ class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Simulation)
 	bool bSimulateSkeletalMeshOnDedicatedServer;
 
+	/**
+	*  Determines the default physics shape complexity. */
+	UPROPERTY(config, EditAnywhere, Category = Simulation)
+	TEnumAsByte<ECollisionTraceFlag> DefaultShapeComplexity;
+
 	static UPhysicsSettingsCore* Get() { return CastChecked<UPhysicsSettingsCore>(UPhysicsSettingsCore::StaticClass()->GetDefaultObject()); }
+
+	virtual void PostInitProperties() override;
 };

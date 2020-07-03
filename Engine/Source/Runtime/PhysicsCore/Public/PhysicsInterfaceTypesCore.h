@@ -6,7 +6,7 @@
 #include "PhysicsInterfaceWrapperShared.h"
 #include "Chaos/CollisionFilterData.h"
 
-struct FBodyInstance;
+struct FBodyInstanceCore;
 struct FChaosQueryFlag;
 
 struct FActorCreationParams
@@ -22,7 +22,7 @@ struct FActorCreationParams
 	{}
 
 	FPhysScene* Scene;
-	FBodyInstance* BodyInstance;
+	FBodyInstanceCore* BodyInstance;
 	FTransform InitialTM;
 	bool bStatic;
 	bool bQueryOnly;

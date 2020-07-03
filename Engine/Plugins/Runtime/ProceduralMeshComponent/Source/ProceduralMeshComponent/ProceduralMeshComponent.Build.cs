@@ -18,7 +18,8 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"RenderCore",
 					"RHI",
-					"StaticMeshDescription"
+					"StaticMeshDescription",
+					"PhysicsCore"
 				}
 				);
 		}

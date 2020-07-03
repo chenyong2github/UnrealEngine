@@ -3278,7 +3278,7 @@ float USkeletalMeshComponent::CalculateMass(FName BoneName)
 	{
 		for (int32 i = 0; i < Bodies.Num(); ++i)
 		{
-			UBodySetup* BodySetupPtr = Bodies[i]->BodySetup.Get();
+			UBodySetup* BodySetupPtr = Bodies[i]->GetBodySetup();
 			//if bone name is not provided calculate entire mass - otherwise get mass for just the bone
 			if (BodySetupPtr && (BoneName == NAME_None || BoneName == BodySetupPtr->BoneName))
 			{

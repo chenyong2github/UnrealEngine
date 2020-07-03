@@ -336,13 +336,6 @@ FBodyInstance::FBodyInstance()
 	, bUseCCD(false)
 	, bIgnoreAnalyticCollisions(false)
 	, bNotifyRigidBodyCollision(false)
-	, bSimulatePhysics(false)
-	, bOverrideMass(false)
-	, bEnableGravity(true)
-	, bAutoWeld(false)
-	, bStartAwake(true)
-	, bGenerateWakeEvents(false)
-	, bUpdateMassWhenScaleChanges(false)
 	, bLockTranslation(true)
 	, bLockRotation(true)
 	, bLockXTranslation(false)
@@ -463,7 +456,7 @@ void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
-			BodySetup->UpdateTriMeshVertices(NewPositions);
+			GetBodySetup()->UpdateTriMeshVertices(NewPositions);
 
 			//after updating the vertices we must call setGeometry again to update any shapes referencing the mesh
 			TArray<FPhysicsShapeHandle> Shapes;
@@ -716,12 +709,12 @@ void FBodyInstance::SetShapeCollisionEnabled(const int32 ShapeIndex, ECollisionE
 			// If ShapeCollisionEnabled wasn't set up yet, copy values from BodySetup into it
 			if (!ShapeCollisionEnabled.IsSet())
 			{
-				const int32 ShapeCount = BodySetup->AggGeom.GetElementCount();
+				const int32 ShapeCount = GetBodySetup()->AggGeom.GetElementCount();
 				ShapeCollisionEnabled = TArray<TEnumAsByte<ECollisionEnabled::Type>>();
 				ShapeCollisionEnabled.GetValue().SetNum(ShapeCount);
 				for (int32 OptionalShapeIndex = 0; OptionalShapeIndex < ShapeCount; ++OptionalShapeIndex)
 				{
-					ShapeCollisionEnabled.GetValue()[OptionalShapeIndex] = BodySetup->AggGeom.GetElement(OptionalShapeIndex)->GetCollisionEnabled();
+					ShapeCollisionEnabled.GetValue()[OptionalShapeIndex] = GetBodySetup()->AggGeom.GetElement(OptionalShapeIndex)->GetCollisionEnabled();
 				}
 			}
 			ShapeCollisionEnabled.GetValue()[ShapeIndex] = NewType;
@@ -896,7 +889,7 @@ ECollisionEnabled::Type FBodyInstance::GetShapeCollisionEnabled(const int32 Shap
 		return ECollisionEnabled::NoCollision;
 	}	
 
-	FKShapeElem* Shape = BodySetup->AggGeom.GetElement(ShapeIndex);
+	FKShapeElem* Shape = GetBodySetup()->AggGeom.GetElement(ShapeIndex);
 	if (!ensure(Shape))
 	{
 		return ECollisionEnabled::NoCollision;
@@ -999,7 +992,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 			}
 
 			const bool bInstanceComplexAsSimple = BI->BodySetup.IsValid() ? (BI->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple) : false;
-			if (BI->BodySetup.IsValid() && SetupShapeIndex < BI->BodySetup->AggGeom.GetElementCount())
+			if (BI->BodySetup.IsValid() && SetupShapeIndex < BI->GetBodySetup()->AggGeom.GetElementCount())
 			{
 				// Get the shape's CollisionResponses
 				BI->BuildBodyFilterData(PerShapeCollisionData.CollisionFilterData, SetupShapeIndex);
@@ -1216,6 +1209,16 @@ bool FInitBodiesHelperBase::CreateShapes_AssumesLocked(FBodyInstance* Instance) 
 	bInitFail |= NumShapes == 0;
 
 	return bInitFail;
+}
+
+UBodySetup* FBodyInstance::GetBodySetup() const
+{
+	if(UBodySetupCore* BodySetupCore = BodySetup.Get())
+	{
+		return CastChecked<UBodySetup>(BodySetupCore);
+	}
+
+	return nullptr;
 }
 
 // Takes actor ref arrays.
@@ -1609,7 +1612,7 @@ bool FBodyInstance::Weld(FBodyInstance* TheirBody, const FTransform& TheirTM)
 		BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
 		BuildBodyCollisionFlags(BodyCollisionData.CollisionFlags, GetCollisionEnabled(), BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple);
 
-		TheirBody->BodySetup->AddShapesToRigidActor_AssumesLocked(this, Scale3D, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, RelativeTM, &PNewShapes);
+		TheirBody->GetBodySetup()->AddShapesToRigidActor_AssumesLocked(this, Scale3D, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, RelativeTM, &PNewShapes);
 
 		FPhysicsInterface::SetSendsSleepNotifies_AssumesLocked(Actor, TheirBody->bGenerateWakeEvents);
 
@@ -2413,12 +2416,6 @@ void FBodyInstance::ApplyWeldOnChildren()
 	
 }
 
-bool FBodyInstance::ShouldInstanceSimulatingPhysics() const
-{
-	return bSimulatePhysics && BodySetup.IsValid() && BodySetup->GetCollisionTraceFlag() != ECollisionTraceFlag::CTF_UseComplexAsSimple;
-}
-
-
 void FBodyInstance::SetInstanceSimulatePhysics(bool bSimulate, bool bMaintainPhysicsBlending)
 {
 	if (bSimulate)
@@ -2792,7 +2789,7 @@ const FWalkableSlopeOverride& FBodyInstance::GetWalkableSlopeOverride() const
 	}
 	else
 	{
-		return BodySetup->WalkableSlopeOverride;
+		return GetBodySetup()->WalkableSlopeOverride;
 	}
 }
 
@@ -2827,7 +2824,7 @@ void FBodyInstance::SetPhysMaterialOverride( UPhysicalMaterial* NewPhysMaterial 
 
 UPhysicalMaterial* FBodyInstance::GetSimplePhysicalMaterial() const
 {
-	return GetSimplePhysicalMaterial(this, OwnerComponent, BodySetup);
+	return GetSimplePhysicalMaterial(this, OwnerComponent, GetBodySetup());
 }
 
 UPhysicalMaterial* FBodyInstance::GetSimplePhysicalMaterial(const FBodyInstance* BodyInstance, TWeakObjectPtr<UPrimitiveComponent> OwnerComp, TWeakObjectPtr<UBodySetup> BodySetupPtr)

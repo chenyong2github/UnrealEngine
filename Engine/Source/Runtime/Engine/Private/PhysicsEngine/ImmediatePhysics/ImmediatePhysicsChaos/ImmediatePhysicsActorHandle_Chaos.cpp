@@ -126,7 +126,7 @@ namespace ImmediatePhysics_Chaos
 			return CloneGeometry(BodyInstance, ActorType, Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
-		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
+		UBodySetup* BodySetup = BodyInstance->GetBodySetup();
 
 		FBodyCollisionData BodyCollisionData;
 		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);

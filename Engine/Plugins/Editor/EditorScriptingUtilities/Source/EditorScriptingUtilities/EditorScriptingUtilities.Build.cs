@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
                     "SkeletalMeshUtilitiesCommon",
                     "LevelEditor",
+					"PhysicsCore"
                 }
             );
 		}
