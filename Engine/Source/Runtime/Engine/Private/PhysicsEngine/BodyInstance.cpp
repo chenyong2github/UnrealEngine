@@ -2761,12 +2761,12 @@ void FBodyInstance::CopyRuntimeBodyInstancePropertiesFrom(const FBodyInstance* F
 
 const FPhysScene* FBodyInstance::GetPhysicsScene() const
 {
-	return FPhysicsInterface::GetCurrentScene(ActorHandle);
+	return static_cast<const FPhysScene*>(FPhysicsInterface::GetCurrentScene(ActorHandle));
 }
 
 FPhysScene* FBodyInstance::GetPhysicsScene()
 {
-	return FPhysicsInterface::GetCurrentScene(ActorHandle);
+	return static_cast<FPhysScene*>(FPhysicsInterface::GetCurrentScene(ActorHandle));
 }
 
 FPhysicsActorHandle& FBodyInstance::GetPhysicsActorHandle()

@@ -227,23 +227,6 @@ bool FPhysInterface_Chaos::IsInScene(const FPhysicsActorHandle& InActorReference
 	return (GetCurrentScene(InActorReference) != nullptr);
 }
 
-FPhysScene* FPhysInterface_Chaos::GetCurrentScene(const FPhysicsActorHandle& InHandle)
-{
-	if(!InHandle)
-	{
-		UE_LOG(LogChaos, Warning, TEXT("Attempting to get the current scene for a null handle."));
-		CHAOS_ENSURE(false);
-		return nullptr;
-	}
-
-	if (IPhysicsProxyBase* Proxy = InHandle->GetProxy())
-	{
-		Chaos::FPBDRigidsSolver* Solver = Proxy->GetSolver<Chaos::FPBDRigidsSolver>();
-		return static_cast<FPhysScene*>(Solver ? Solver->PhysSceneHack : nullptr);
-	}
-	return nullptr;
-}
-
 void FPhysInterface_Chaos::FlushScene(FPhysScene* InScene)
 {
 	FPhysicsCommand::ExecuteWrite(InScene, [&]()
@@ -1158,23 +1141,6 @@ uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 Inter
 	}
 
 	return -1;
-}
-
-void FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake)
-{
-	InActorReference->SetX(InNewPose.GetLocation());
-	InActorReference->SetR(InNewPose.GetRotation());
-	InActorReference->UpdateShapeBounds();
-
-	FPhysScene* Scene = GetCurrentScene(InActorReference);
-	Scene->UpdateActorInAccelerationStructure(InActorReference);
-}
-
-void FPhysInterface_Chaos::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
-{
-	// #todo : Implement
-	//for now just use global pose
-	FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(InActorReference,InNewTarget);
 }
 
 void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float,3>& OutProperties,const TArray<FPhysicsShapeHandle>& InShapes,float InDensityKGPerCM)

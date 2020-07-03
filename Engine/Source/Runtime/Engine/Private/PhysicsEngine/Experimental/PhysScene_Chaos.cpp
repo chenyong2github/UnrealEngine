@@ -414,7 +414,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 	// Create replication manager
 	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
-	SceneSolver->PhysSceneHack = this;
 	SceneSolver->GetEvolution()->SetCollisionModifierCallback(CollisionModifierCallback);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);

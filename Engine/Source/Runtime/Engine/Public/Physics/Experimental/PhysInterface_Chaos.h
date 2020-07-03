@@ -48,11 +48,8 @@ public:
 
 	// Actor interface functions
 	
-	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
 	static void FlushScene(FPhysScene* InScene);
 	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
-	static void SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FTransform& InNewPose, bool bAutoWake = true);
-	static void SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FTransform& InNewTarget);
 
 	static void SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion);
 	static void SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion);

@@ -58,6 +58,8 @@ FChaosScene::FChaosScene(
 		);
 	check(SceneSolver);
 
+	SceneSolver->PhysSceneHack = this;
+
 	Flush_AssumesLocked();	//make sure acceleration structure exists right away
 }
 
