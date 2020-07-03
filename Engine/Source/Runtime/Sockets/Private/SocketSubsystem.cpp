@@ -411,7 +411,7 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out,
 		bCanBindAll = true;
 
 		TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
-		if (!GetLocalAdapterAddresses(AdapterAddresses))
+		if (!GetLocalAdapterAddresses(AdapterAddresses) || (AdapterAddresses.Num() == 0))
 		{
 			Out.Logf(TEXT("Could not fetch the local adapter addresses"));
 			HostAddr->SetAnyAddress();
