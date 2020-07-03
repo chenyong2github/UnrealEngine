@@ -22,6 +22,7 @@
 #include "ObjectBindingTagCache.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/SlateDelegates.h"
+#include "MovieSceneTrack.h"
 
 #define LOCTEXT_NAMESPACE "AnimationOutliner"
 
