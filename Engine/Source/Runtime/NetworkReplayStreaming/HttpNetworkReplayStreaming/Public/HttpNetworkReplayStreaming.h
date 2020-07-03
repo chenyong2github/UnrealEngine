@@ -279,10 +279,10 @@ public:
 	virtual void AddEvent( const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data ) override;
 	virtual void AddOrUpdateEvent( const FString& Name, const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data ) override;
 	void AddRequestToQueue( const EQueuedHttpRequestType::Type Type, TSharedPtr<class IHttpRequest, ESPMode::ThreadSafe> Request, const int32 InMaxRetries = 0, const float InRetryDelay = 0.0f );
-	void AddCustomRequestToQueue( TSharedPtr<FQueuedHttpRequest, ESPMode::ThreadSafe> Request );
+	void AddCustomRequestToQueue( TSharedPtr<FQueuedHttpRequest> Request );
 	void AddResponseToCache( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse );
 	void CleanupResponseCache();
-	bool RetryRequest( TSharedPtr<FQueuedHttpRequest, ESPMode::ThreadSafe> Request, FHttpResponsePtr HttpResponse, const bool bIgnoreResponseCode = false );
+	bool RetryRequest( TSharedPtr<FQueuedHttpRequest> Request, FHttpResponsePtr HttpResponse, const bool bIgnoreResponseCode = false );
 	void EnumerateCheckpoints();
 	void ConditionallyEnumerateCheckpoints();
 
@@ -369,8 +369,8 @@ public:
 
 	FReplayEventList					CheckpointList;
 
-	TArray< TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe > >	QueuedHttpRequests;
-	TSharedPtr< FQueuedHttpRequest, ESPMode::ThreadSafe >			InFlightHttpRequest;
+	TArray< TSharedPtr< FQueuedHttpRequest > >	QueuedHttpRequests;
+	TSharedPtr< FQueuedHttpRequest >			InFlightHttpRequest;
 
 	TSet< FString >						EventGroupSet;
 
