@@ -1372,9 +1372,6 @@ FName UNiagaraGraph::MakeUniqueParameterName(const FName& InName)
 
  FName UNiagaraGraph::MakeUniqueParameterNameAcrossGraphs(const FName& InName, TArray<TWeakObjectPtr<UNiagaraGraph>>& InGraphs)
 {
-	 FName PinNameWithoutNamespace;
-	 TArray<FName> NamespacesInVar = FNiagaraEditorUtilities::DecomposeVariableNamespace(InName, PinNameWithoutNamespace);
-
 	 TSet<FName> Names;
 	 for (TWeakObjectPtr<UNiagaraGraph> Graph : InGraphs)
 	 {
@@ -1382,18 +1379,12 @@ FName UNiagaraGraph::MakeUniqueParameterName(const FName& InName)
 		 {
 			 for (const auto& ParameterElement : Graph->ParameterToReferencesMap)
 			 {
-				 FName GraphParamName = ParameterElement.Key.GetName();
-				 FName PinNameWithoutNamespaceGraph;
-				 FNiagaraEditorUtilities::DecomposeVariableNamespace(GraphParamName, PinNameWithoutNamespaceGraph);
-				 
-				 Names.Add(PinNameWithoutNamespaceGraph);
+				 Names.Add(ParameterElement.Key.GetName());
 			 }
 		 }
 	 }
-	 FName Final;
-	 FName NewNameLeaf = (FNiagaraUtilities::GetUniqueName(PinNameWithoutNamespace, Names));
-	 FNiagaraEditorUtilities::RecomposeVariableNamespace(NewNameLeaf, NamespacesInVar, Final);
-	 return Final;
+
+	 return FNiagaraUtilities::GetUniqueName(InName, Names);
 }
 
 
