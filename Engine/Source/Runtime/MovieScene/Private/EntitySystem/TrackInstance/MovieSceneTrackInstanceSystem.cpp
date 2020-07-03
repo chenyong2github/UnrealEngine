@@ -161,6 +161,7 @@ void UMovieSceneTrackInstanceInstantiator::TagGarbage(UMovieSceneEntitySystemLin
 		if (FBuiltInComponentTypes::IsBoundObjectGarbage(InputComponent.Section))
 		{
 			Garbage.Add(EntityID);
+			this->InvalidatedOutputs.PadToNum(InputComponent.OutputIndex + 1, false);
 			this->InvalidatedOutputs[InputComponent.OutputIndex] = true;
 		}
 	};
