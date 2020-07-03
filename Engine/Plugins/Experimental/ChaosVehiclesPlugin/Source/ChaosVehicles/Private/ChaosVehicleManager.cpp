@@ -26,7 +26,7 @@ uint32 FChaosVehicleManager::VehicleSetupTag = 0;
 
 FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 #if WITH_CHAOS
-	: Scene(PhysScene->GetScene())
+	: Scene(*PhysScene)
 #endif
 {
 	// Set up delegates
