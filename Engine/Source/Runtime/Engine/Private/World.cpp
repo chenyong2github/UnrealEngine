@@ -4735,9 +4735,9 @@ void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
 #if CHAOS_CHECKED
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
-	FPhysScene* NewScene = new FPhysScene(Settings, PhysicsName);
+	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
-	FPhysScene* NewScene = new FPhysScene(Settings);
+	FPhysScene* NewScene = new FPhysScene(nullptr);
 #endif
 	SetPhysicsScene(NewScene);
 }

@@ -25,7 +25,7 @@ namespace ChaosInterface
 #if WITH_CHAOS
 struct FScopedSceneReadLock
 {
-	FScopedSceneReadLock(FPhysScene_ChaosInterface& SceneIn);
+	FScopedSceneReadLock(FPhysScene_Chaos& SceneIn);
 	~FScopedSceneReadLock();
 
 	FPhysScene_Chaos& Scene;

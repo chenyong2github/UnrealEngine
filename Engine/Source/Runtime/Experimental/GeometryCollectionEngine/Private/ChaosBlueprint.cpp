@@ -391,7 +391,7 @@ void UChaosDestructionListener::SortTrailingEvents(TArray<FChaosTrailingEventDat
 void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 {
 #if WITH_CHAOS
-	Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver();
+	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
 	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
@@ -402,7 +402,7 @@ void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 void UChaosDestructionListener::UnregisterChaosEvents(FPhysScene* Scene)
 {
 #if WITH_CHAOS
-	Chaos::FPhysicsSolver* Solver = Scene->GetScene().GetSolver();
+	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);

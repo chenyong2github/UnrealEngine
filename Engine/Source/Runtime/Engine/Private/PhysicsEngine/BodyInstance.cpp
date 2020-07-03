@@ -1046,7 +1046,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 		//If filtering changed we must update GT structure right away
 		if (FPhysScene* PhysScene = GetPhysicsScene())
 		{
-			PhysScene->GetScene().UpdateActorInAccelerationStructure(Actor);
+			PhysScene->UpdateActorInAccelerationStructure(Actor);
 		}
 #endif
 	});
@@ -1409,9 +1409,8 @@ void FInitBodiesHelperBase::InitBodies()
 					{
 						if (UPrimitiveComponent* PrimComp = BI->OwnerComponent.Get())
 						{
-							FPhysScene_ChaosInterface* LocalPhysScene = PrimComp->GetWorld()->GetPhysicsScene();
-							FPhysScene_Chaos& Scene = LocalPhysScene->GetScene();
-							Scene.RegisterForCollisionEvents(PrimComp);
+							FPhysScene_Chaos* LocalPhysScene = PrimComp->GetWorld()->GetPhysicsScene();
+							LocalPhysScene->RegisterForCollisionEvents(PrimComp);
 						}
 					}
 				}
@@ -1539,7 +1538,7 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 #if WITH_CHAOS
 	if (UPrimitiveComponent* PrimComp = OwnerComponent.Get())
 	{
-		if (FPhysScene_ChaosInterface* PhysScene = PrimComp->GetWorld()->GetPhysicsScene())
+		if (FPhysScene_Chaos* PhysScene = PrimComp->GetWorld()->GetPhysicsScene())
 		{
 			if (FPhysicsInterface::IsValid(ActorHandle))
 			{
@@ -1547,8 +1546,7 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 			}
 			if (bNotifyRigidBodyCollision)
 			{
-				FPhysScene_Chaos& Scene = PhysScene->GetScene();
-				Scene.UnRegisterForCollisionEvents(PrimComp);
+				PhysScene->UnRegisterForCollisionEvents(PrimComp);
 			}
 		}
 	}
@@ -2106,7 +2104,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 	{
 		Scale3D = UpdatedScale3D;
 
-		FPhysScene_Chaos& Scene = GetPhysicsScene()->GetScene();
+		FPhysScene_Chaos& Scene = *GetPhysicsScene();
 		Scene.UpdateActorInAccelerationStructure(ActorHandle);
 
 		// update mass if required
