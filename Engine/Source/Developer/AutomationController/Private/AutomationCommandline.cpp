@@ -197,28 +197,68 @@ public:
 			{
 				// old behavior of just string searching
 				ArgumentName = ArgumentName.TrimStart().Replace(TEXT(" "), TEXT(""));
-				Filters.Add(FAutomatedTestFilter(ArgumentName));
+
+				bool bMatchFromStart = false;
+				//bool bMatchFromEnd = false;
+
+				if (ArgumentName.StartsWith("^"))
+				{
+					bMatchFromStart = true;
+					ArgumentName.RightChopInline(1);
+				}
+
+				/*if (ArgumentName.EndsWith("$"))
+				{
+					bMatchFromEnd = true;
+					ArgumentName.LeftChopInline(1);
+				}*/
+
+				// #agrant todo: restore in 4.26 when headers can be changed
+				Filters.Add(FAutomatedTestFilter(ArgumentName, bMatchFromStart/*, bMatchFromEnd*/));
 			}
 		}
-
-		// #agrant temp
-		TArray<FString> AllTests = AllTestNames;
-		/*AllTests = AllTests.FilterByPredicate([](const FString E) {
-			return E.Contains(TEXT("Collision"));
-			});*/
 		
-		for (int32 TestIndex = 0; TestIndex < AllTests.Num(); ++TestIndex)
+		for (int32 TestIndex = 0; TestIndex < AllTestNames.Num(); ++TestIndex)
 		{
-			FString TestNamesNoWhiteSpaces = AllTests[TestIndex].Replace(TEXT(" "), TEXT(""));
+			FString TestNamesNoWhiteSpaces = AllTestNames[TestIndex].Replace(TEXT(" "), TEXT(""));
 
 			for (const FAutomatedTestFilter& Filter : Filters)
 			{
-				bool IsMatch = (Filter.MatchFromStart && TestNamesNoWhiteSpaces.StartsWith(Filter.Contains))
-					|| (Filter.MatchFromStart == false && TestNamesNoWhiteSpaces.Contains((Filter.Contains)));
-
-				if (IsMatch)
+				// #agrant todo: remove in 4.26 when headers can be changed and we store this during parsing
+				bool bMatchFromEnd = false;
+				FString FilterString = Filter.Contains;
+				if (FilterString.EndsWith("$"))
 				{
-					OutTestNames.Add(AllTests[TestIndex]);
+					bMatchFromEnd = true;
+					FilterString.LeftChopInline(1);
+				}
+
+				bool bNeedStartMatch = Filter.MatchFromStart;
+				bool bNeedEndMatch = bMatchFromEnd;
+				bool bMeetsMatch = true;	// assume true
+
+				// If we need to match at the start or end, 
+				if (bNeedStartMatch || bNeedEndMatch)
+				{
+					if (bNeedStartMatch)
+					{
+						bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
+					}
+
+					if (bNeedEndMatch && bMeetsMatch)
+					{
+						bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
+					}
+				}
+				else
+				{
+					// match anywhere
+					bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
+				}
+
+				if (bMeetsMatch)
+				{
+					OutTestNames.Add(AllTestNames[TestIndex]);
 					TestCount++;
 					break;
 				}
