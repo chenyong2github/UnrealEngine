@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Sections/MovieSceneParameterSection.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneDMXLibraryTrack.generated.h"
 
@@ -15,7 +16,7 @@ class UDMXLibrary;
  */
 UCLASS()
 class DMXRUNTIME_API UMovieSceneDMXLibraryTrack
-	: public UMovieSceneNameableTrack
+	: public UMovieSceneNameableTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 
