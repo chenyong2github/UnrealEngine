@@ -411,8 +411,6 @@ namespace Chaos
 			MultiPointConstraints.Empty();
 		}
 
-		void SortConstraints();
-
 
 		FRigidBodyPointContactConstraint* Add(const FRigidBodyPointContactConstraint& C)
 		{

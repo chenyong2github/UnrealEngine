@@ -33,14 +33,6 @@ namespace Chaos
 		return false;
 	}
 
-	void FCollisionConstraintsArray::SortConstraints()
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_SortConstraints);
-		SinglePointConstraints.Sort();
-		SinglePointSweptConstraints.Sort();
-		MultiPointConstraints.Sort();
-	}
-
 	void FRigidBodyMultiPointContactConstraint::InitManifoldTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal InPositionTolerance, const FReal InRotationTolerance)
 	{
 		InitialPositionSeparation = ParticleTransform1.GetTranslation() - ParticleTransform0.GetTranslation();
