@@ -4698,7 +4698,16 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 		{
 			FSoftObjectPath AssetRef = ObjectPathLocal;
 			UseDefaultValue.Empty();
-			UseDefaultObject = AssetRef.TryLoad();
+			// @todo: why are we resolving here? We should resolve explicitly 
+			// during load or not at all
+			if(!GCompilingBlueprint)
+			{
+				UseDefaultObject = AssetRef.TryLoad();
+			}
+			else
+			{
+				UseDefaultObject = AssetRef.ResolveObject();
+			}
 			UseDefaultText = FText::GetEmpty();
 		}
 		else
