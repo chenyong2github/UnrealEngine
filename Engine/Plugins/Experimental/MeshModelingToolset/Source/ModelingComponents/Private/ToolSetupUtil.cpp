@@ -47,6 +47,23 @@ UMaterialInterface* ToolSetupUtil::GetDefaultWorkingMaterial(UInteractiveToolMan
 }
 
 
+UMaterialInstanceDynamic* ToolSetupUtil::GetUVCheckerboardMaterial(double CheckerDensity)
+{
+	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
+	if (CheckerMaterialBase != nullptr)
+	{
+		UMaterialInstanceDynamic* CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
+		if (CheckerMaterial != nullptr)
+		{
+			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+			return CheckerMaterial;
+		}
+	}
+	return UMaterialInstanceDynamic::Create(GetDefaultMaterial(), NULL);
+}
+
+
+
 UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager)
 {
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BrushIndicatorMaterial"));
