@@ -141,14 +141,12 @@ public:
 	 * Get compiler rules to use when compiling sections that overlap on the same row.
 	 * These define how to deal with overlapping sections and empty space on a row
 	 */
-	UE_DEPRECATED(4.26, "Please use PopulateEvaluationTree instead")
 	MOVIESCENE_API virtual FMovieSceneTrackRowSegmentBlenderPtr GetRowSegmentBlender() const;
 
 	/** 
 	 * Get compiler rules to use when compiling sections that overlap on different rows.
 	 * These define how to deal with overlapping sections and empty space at the track level
 	 */
-	UE_DEPRECATED(4.26, "Please use PopulateEvaluationTree instead")
 	MOVIESCENE_API virtual FMovieSceneTrackSegmentBlenderPtr GetTrackSegmentBlender() const;
 
 	/**
