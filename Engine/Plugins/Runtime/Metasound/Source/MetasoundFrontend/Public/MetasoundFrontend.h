@@ -109,7 +109,7 @@ namespace Metasound
 			friend class FInputHandle;
 			friend class FNodeHandle;
 			friend class FGraphHandle;
-			friend class UMetasound;
+			friend class ::UMetasound;
 		};
 
 		class FOutputHandle : protected ITransactable
