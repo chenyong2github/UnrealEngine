@@ -124,5 +124,5 @@ private:
 	FMovieSceneEntitySystemEventTriggers EventTriggers;
 
 	ENamedThreads::Type GameThread;
-	TGraphTask<FFunctionGraphTask>* CompletionTask;
+	TGraphTask<FNullGraphTask>* CompletionTask;
 };
