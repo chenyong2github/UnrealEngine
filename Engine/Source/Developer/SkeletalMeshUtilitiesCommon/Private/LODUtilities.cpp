@@ -1615,10 +1615,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	}
 	FSkeletalMeshImportData ImportDataDest;
 	SkeletalMeshDest->LoadLODImportedData(LODIndexDest, ImportDataDest);
-	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest->GetName(), SkeletalMeshDest->RefSkeleton, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, SkeletalMeshDest->RefSkeleton, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, const FString SkeletalMeshName, FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
+bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
 {
 	//Ensure log message only once
 	bool bNoMatchMsgDone = false;
@@ -1629,7 +1629,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	if (!ImportDataDest.AlternateInfluenceProfileNames.Find(ProfileNameDest.ToString(), ProfileIndex))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshDest->GetName()));
 
 		FText Message = FText::Format(NSLOCTEXT("FLODUtilities_UpdateAlternateSkinWeights", "AlternateDataNotAvailable", "Asset {SkeletalMeshName} failed to import skin weight profile the alternate skinning imported source data is not available."), Args);
 		UE_LOG(LogLODUtilities, Warning, TEXT("%s"), *(Message.ToString()));
@@ -1646,7 +1646,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	if (PointNumberDest != PointNumberSrc)
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshDest->GetName()));
 		Args.Add(TEXT("PointNumberSrc"), PointNumberSrc);
 		Args.Add(TEXT("PointNumberDest"), PointNumberDest);
 
@@ -1932,6 +1932,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	TArray<FText> WarningMessages;
 	TArray<FName> WarningNames;
+
+	//BaseLOD need to make sure the source data fit with the skeletalmesh materials array before using meshutilities.BuildSkeletalMesh
+	AdjustImportDataFaceMaterialIndex(SkeletalMeshDest->Materials, ImportDataDest.Materials, LODFacesDest, LODIndexDest);
+
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
 	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
@@ -2764,6 +2768,53 @@ void FLODUtilities::RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArra
 	}
 }
 
+void FLODUtilities::AdjustImportDataFaceMaterialIndex(const TArray<FSkeletalMaterial>& Materials, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces, int32 LODIndex)
+{
+	if ((Materials.Num() <= 1 && RawMeshMaterials.Num() <= 1) || LODIndex != 0)
+	{
+		//Nothing to fix if we have 1 or less material or we are not adjusting the base LOD
+		return;
+	}
+
+	//Fix the material for the faces
+	TArray<int32> MaterialRemap;
+	MaterialRemap.Reserve(RawMeshMaterials.Num());
+	//Optimization to avoid doing the remap if no material have to change
+	bool bNeedRemapping = false;
+	for (int32 MaterialIndex = 0; MaterialIndex < RawMeshMaterials.Num(); ++MaterialIndex)
+	{
+		MaterialRemap.Add(MaterialIndex);
+		FName MaterialImportName = *(RawMeshMaterials[MaterialIndex].MaterialImportName);
+		for (int32 MeshMaterialIndex = 0; MeshMaterialIndex < Materials.Num(); ++MeshMaterialIndex)
+		{
+			FName MeshMaterialName = Materials[MeshMaterialIndex].ImportedMaterialSlotName;
+			if (MaterialImportName == MeshMaterialName)
+			{
+				bNeedRemapping |= (MaterialRemap[MaterialIndex] != MeshMaterialIndex);
+				MaterialRemap[MaterialIndex] = MeshMaterialIndex;
+				break;
+			}
+		}
+	}
+	if (bNeedRemapping)
+	{
+		//Make sure the data is good before doing the change, We cannot do the remap if we
+		//have a bad synchronization between the face data and the Materials data.
+		for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+		{
+			if (!MaterialRemap.IsValidIndex(LODFaces[FaceIndex].MeshMaterialIndex))
+			{
+				return;
+			}
+		}
+
+		//Update all the faces
+		for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+		{
+			LODFaces[FaceIndex].MeshMaterialIndex = MaterialRemap[LODFaces[FaceIndex].MeshMaterialIndex];
+		}
+	}
+}
 
 
 #undef LOCTEXT_NAMESPACE // "LODUtilities"
