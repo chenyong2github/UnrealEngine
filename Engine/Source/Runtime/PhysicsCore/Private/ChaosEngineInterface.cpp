@@ -17,12 +17,8 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/PBDJointConstraintData.h"
 #include "PBDRigidsSolver.h"
 
-//#ifndef USE_CHAOS_JOINT_CONSTRAINTS
-//#define USE_CHAOS_JOINT_CONSTRAINTS 
-//#endif
-
 bool bEnableChaosJointConstraints = false;
-FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.EnableChaosJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
+FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.ChaosSolverEnableJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
 
 bool FPhysicsConstraintReference_Chaos::IsValid() const
 {
@@ -826,14 +822,9 @@ SIZE_T FChaosEngineInterface::GetResourceSizeEx(const FPhysicsActorHandle& InAct
 // Constraints
 FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsActorHandle& InActorRef1,const FPhysicsActorHandle& InActorRef2,const FTransform& InLocalFrame1,const FTransform& InLocalFrame2)
 {
-	bool bEnableChaosJointConstraintsLocal = bEnableChaosJointConstraints;
-#ifdef USE_CHAOS_JOINT_CONSTRAINTS
-	bEnableChaosJointConstraintsLocal = true;
-#endif // USE_CHAOS_JOINT_CONSTRAINTS
-
 	FPhysicsConstraintHandle ConstraintRef;
 
-	if(bEnableChaosJointConstraintsLocal)
+	if(bEnableChaosJointConstraints)
 	{
 		if(InActorRef1 != nullptr && InActorRef2 != nullptr)
 		{
@@ -869,12 +860,7 @@ void FChaosEngineInterface::SetConstraintUserData(const FPhysicsConstraintHandle
 
 void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstraintRef)
 {
-	bool bEnableChaosJointConstraintsLocal = bEnableChaosJointConstraints;
-#ifdef USE_CHAOS_JOINT_CONSTRAINTS
-	bEnableChaosJointConstraintsLocal = true;
-#endif // USE_CHAOS_JOINT_CONSTRAINTS
-
-	if (bEnableChaosJointConstraintsLocal)
+	if (bEnableChaosJointConstraints)
 	{
 		LLM_SCOPE(ELLMTag::Chaos);
 		if (InConstraintRef.IsValid())
