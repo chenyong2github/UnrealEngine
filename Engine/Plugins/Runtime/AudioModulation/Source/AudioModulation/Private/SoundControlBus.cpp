@@ -92,56 +92,6 @@ const Audio::FModulationMixFunction& USoundControlBusBase::GetMixFunction() cons
 	return Audio::FModulationParameter::GetDefaultMixFunction();
 }
 
-
-USoundVolumeControlBus::USoundVolumeControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-#if WITH_EDITOR
-void USoundVolumeControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(InPropertyChangedEvent);
-}
-#endif // WITH_EDITOR
-
-USoundPitchControlBus::USoundPitchControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-#if WITH_EDITOR
-void USoundPitchControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(InPropertyChangedEvent);
-}
-#endif // WITH_EDITOR
-
-USoundLPFControlBus::USoundLPFControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-#if WITH_EDITOR
-void USoundLPFControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(InPropertyChangedEvent);
-}
-#endif // WITH_EDITOR
-
-USoundHPFControlBus::USoundHPFControlBus(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	DefaultValue = 0.0f;
-}
-
-#if WITH_EDITOR
-void USoundHPFControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(InPropertyChangedEvent);
-}
-#endif // WITH_EDITOR
-
 USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Parameter(nullptr)

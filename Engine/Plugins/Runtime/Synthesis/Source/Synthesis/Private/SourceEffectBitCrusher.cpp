@@ -9,9 +9,8 @@ void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 
 	if (USourceEffectBitCrusherPreset* ProcPreset = Cast<USourceEffectBitCrusherPreset>(Preset.Get()))
 	{
-		const uint32 PresetId = ProcPreset->GetUniqueID();
-		BitMod.Init(InitData.AudioDeviceId, PresetId, "BitDepth", false /* bInIsBuffered */);
-		SampleRateMod.Init(InitData.AudioDeviceId, PresetId, "SampleRate", false /* bInIsBuffered */);
+		BitMod.Init(InitData.AudioDeviceId, FName("BitDepth"), false /* bInIsBuffered */);
+		SampleRateMod.Init(InitData.AudioDeviceId, FName("SampleRate"), false /* bInIsBuffered */);
 
 		SetBitModulator(ProcPreset->Settings.BitModulation);
 		SetSampleRateModulator(ProcPreset->Settings.SampleRateModulation);

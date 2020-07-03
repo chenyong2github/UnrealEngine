@@ -104,34 +104,6 @@ static FAutoConsoleCommand GModulationLoadMixProfile(
 );
 
 
-namespace AudioModulation
-{
-	template <class T>
-	T* CreateBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
-	{
-		UWorld* World = UAudioModulationStatics::GetAudioWorld(WorldContextObject);
-		if (!World)
-		{
-			return nullptr;
-		}
-
-		T* NewBus = NewObject<T>(GetTransientPackage(), Name);
-		NewBus->DefaultValue = DefaultValue;
-		NewBus->Address = Name.ToString();
-
-		if (Activate)
-		{
-			if (FAudioModulationSystem* ModSystem = UAudioModulationStatics::GetModulationSystem(World))
-			{
-				ModSystem->ActivateBus(*NewBus);
-			}
-		}
-
-		return NewBus;
-	}
-} // namespace AudioModulation
-
-
 UAudioModulationStatics::UAudioModulationStatics(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -217,24 +189,27 @@ AudioModulation::FAudioModulationSystem* UAudioModulationStatics::GetModulationS
 	return nullptr;
 }
 
-USoundVolumeControlBus* UAudioModulationStatics::CreateVolumeBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
+USoundControlBus* UAudioModulationStatics::CreateBus(const UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate)
 {
-	return AudioModulation::CreateBus<USoundVolumeControlBus>(WorldContextObject, Name, DefaultValue, Activate);
-}
+	UWorld* World = UAudioModulationStatics::GetAudioWorld(WorldContextObject);
+	if (!World)
+	{
+		return nullptr;
+	}
 
-USoundPitchControlBus* UAudioModulationStatics::CreatePitchBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
-{
-	return AudioModulation::CreateBus<USoundPitchControlBus>(WorldContextObject, Name, DefaultValue, Activate);
-}
+	USoundControlBus* NewBus = NewObject<USoundControlBus>(GetTransientPackage(), Name);
+	NewBus->Parameter = Parameter;
+	NewBus->Address = Name.ToString();
 
-USoundLPFControlBus* UAudioModulationStatics::CreateLPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
-{
-	return AudioModulation::CreateBus<USoundLPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
-}
+	if (Activate)
+	{
+		if (AudioModulation::FAudioModulationSystem* ModSystem = UAudioModulationStatics::GetModulationSystem(World))
+		{
+			ModSystem->ActivateBus(*NewBus);
+		}
+	}
 
-USoundHPFControlBus* UAudioModulationStatics::CreateHPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate)
-{
-	return AudioModulation::CreateBus<USoundHPFControlBus>(WorldContextObject, Name, DefaultValue, Activate);
+	return NewBus;
 }
 
 USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)

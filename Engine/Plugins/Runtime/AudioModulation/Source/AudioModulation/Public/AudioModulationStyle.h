@@ -14,20 +14,17 @@ public:
 	GENERATED_BODY()
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetVolumeBusColor() { return FColor(33, 183, 0); }
+	static const FColor GetBusModulatorColor() { return FColor(204, 51, 153); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetPitchBusColor() { return FColor(181, 21, 0); }
+	static const FColor GetControlBusColor() { return FColor(255, 51, 153); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetLPFBusColor() { return FColor(0, 156, 183); }
+	static const FColor GetControlBusMixColor() { return FColor(255, 153, 153); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetHPFBusColor() { return FColor(94, 237, 183); }
+	static const FColor GetPatchColor() { return FColor(255, 204, 255); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetControlBusColor() { return FColor(215, 180, 210); }
-
-	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetParameterColor() { return FColor(65, 90, 245); }
+	static const FColor GetParameterColor() { return FColor(255, 102, 153); }
 };

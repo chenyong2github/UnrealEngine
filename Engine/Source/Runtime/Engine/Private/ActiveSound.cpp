@@ -614,7 +614,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			}
 		}
 
-		ParseParams.ModulationPluginSettings = FindModulationSettings();
 		Sound->Parse(AudioDevice, 0, *this, ParseParams, ThisSoundsWaveInstances);
 
 		// Track this active sound's min pitch value. This is used to scale it's possible duration value.
@@ -750,49 +749,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	InWaveInstances.Append(ThisSoundsWaveInstances);
 }
 
-USoundModulationPluginSourceSettingsBase* FActiveSound::FindModulationSettings() const
-{
-	if (!AudioDevice->IsModulationPluginEnabled() || !AudioDevice->ModulationInterface.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (UClass* PluginClass = GetAudioPluginCustomSettingsClass(EAudioPlugin::MODULATION))
-	{
-		for (USoundModulationPluginSourceSettingsBase* Settings : Sound->Modulation.Settings)
-		{
-			if (Settings && Settings->IsA(PluginClass))
-			{
-				return Settings;
-			}
-		}
-
-		if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
-		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : AudioComponent->Modulation.Settings)
-			{
-				if (Settings && Settings->IsA(PluginClass))
-				{
-					return Settings;
-				}
-			}
-		}
-
-		if (USoundClass* SoundClass = Sound->GetSoundClass())
-		{
-			for (USoundModulationPluginSourceSettingsBase* Settings : SoundClass->Modulation.Settings)
-			{
-				if (Settings && Settings->IsA(PluginClass))
-				{
-					return Settings;
-				}
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 {
 	check(AudioDevice);
@@ -809,11 +765,6 @@ void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 			{
 				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceID);
 			}
-		}
-
-		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = FindModulationSettings())
-		{
-			AudioDevice->ModulationInterface->OnReleaseSound(static_cast<ISoundModulatable&>(*this));
 		}
 	}
 

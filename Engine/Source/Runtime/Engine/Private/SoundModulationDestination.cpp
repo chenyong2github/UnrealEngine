@@ -10,30 +10,92 @@
 
 namespace Audio
 {
-	void FModulationDestination::Init(FDeviceId InDeviceId, uint32 InParentId, bool bInIsBuffered)
+	FModulationDestination::FModulationDestination(const FModulationDestination& InModulationDestination)
+		: DeviceId(InModulationDestination.DeviceId)
+		, ValueTarget(InModulationDestination.ValueTarget)
+		, bIsBuffered(InModulationDestination.bIsBuffered)
+		, bValueLinear(InModulationDestination.bValueLinear)
+		, OutputBuffer(InModulationDestination.OutputBuffer)
+		, TempBufferLinear(InModulationDestination.TempBufferLinear)
+		, Handle(InModulationDestination.Handle)
+		, ParameterName(InModulationDestination.ParameterName)
+		, Parameter(InModulationDestination.Parameter)
 	{
-		DeviceId = InDeviceId;
-		ParentId = InParentId;
-		bIsBuffered = bInIsBuffered;
 	}
 
-	void FModulationDestination::Init(FDeviceId InDeviceId, uint32 InParentId, FName InParameterName, bool bInIsBuffered)
+	FModulationDestination& FModulationDestination::operator=(const FModulationDestination& InModulationDestination)
 	{
-		Init(InDeviceId, InParentId, bInIsBuffered);
+		DeviceId			= InModulationDestination.DeviceId;
+		ValueTarget			= InModulationDestination.ValueTarget;
+		bIsBuffered			= InModulationDestination.bIsBuffered;
+		bValueLinear		= InModulationDestination.bValueLinear;
+		OutputBuffer		= InModulationDestination.OutputBuffer;
+		TempBufferLinear	= InModulationDestination.TempBufferLinear;
+		Handle				= InModulationDestination.Handle;
+		ParameterName		= InModulationDestination.ParameterName;
+		Parameter			= InModulationDestination.Parameter;
+
+		return *this;
+	}
+
+	FModulationDestination& FModulationDestination::operator=(FModulationDestination&& InModulationDestination)
+	{
+		DeviceId			= MoveTemp(InModulationDestination.DeviceId);
+		ValueTarget			= MoveTemp(InModulationDestination.ValueTarget);
+		bIsBuffered			= MoveTemp(InModulationDestination.bIsBuffered);
+		bValueLinear		= MoveTemp(InModulationDestination.bValueLinear);
+		OutputBuffer		= MoveTemp(InModulationDestination.OutputBuffer);
+		TempBufferLinear	= MoveTemp(InModulationDestination.TempBufferLinear);
+		Handle				= MoveTemp(InModulationDestination.Handle);
+		ParameterName		= MoveTemp(InModulationDestination.ParameterName);
+		Parameter			= MoveTemp(InModulationDestination.Parameter);
+
+		InModulationDestination.Init(static_cast<FDeviceId>(INDEX_NONE));
+
+		return *this;
+	}
+
+	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueLinear)
+	{
+		DeviceId = InDeviceId;
+		bIsBuffered = bInIsBuffered;
+		bValueLinear = bInValueLinear;
+
+		OutputBuffer.Reset();
+		TempBufferLinear.Reset();
+		ParameterName = FName();
+
+		FScopeLock Lock(&SettingsCritSection);
+		{
+			bIsActive = false;
+			Handle = FModulatorHandle();
+			Parameter = Handle.GetParameter();
+		}
+	}
+
+	bool FModulationDestination::IsActive()
+	{
+		FScopeLock Lock(&SettingsCritSection);
+		return bIsActive > 0;
+	}
+
+	void FModulationDestination::Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered, bool bInValueLinear)
+	{
+		Init(InDeviceId, bInIsBuffered, bInValueLinear);
 		ParameterName = InParameterName;
 	}
 
-	void FModulationDestination::ProcessControl(const float* RESTRICT InBuffer, int32 InNumSamples)
+	void FModulationDestination::ProcessControl(const float* RESTRICT InBufferUnitBase, int32 InNumSamples)
 	{
 		checkf(bIsBuffered, TEXT("Cannot call this 'ProcessControl' overload with 'bIsBuffered' set to 'false'."));
 
 		float LastTarget = ValueTarget;
-		bool bIsActive = false;
-
 		float NewTargetLinear = Parameter.DefaultValue;
+
 		FScopeLock Lock(&SettingsCritSection);
 		{
-			if (Handle.IsValid())
+			bIsActive = Handle.IsValid();
+			if (bIsActive)
 			{
 				Handle.GetValue(NewTargetLinear);
 			}
@@ -54,7 +116,7 @@ namespace Audio
 			TempBufferLinear.AddUninitialized(InNumSamples);
 		}
 
-		FMemory::Memcpy(TempBufferLinear.GetData(), InBuffer, sizeof(float) * InNumSamples);
+		FMemory::Memcpy(TempBufferLinear.GetData(), InBufferUnitBase, sizeof(float) * InNumSamples);
 
 		// Convert input buffer to linear space if necessary
 		if (Parameter.bRequiresConversion)
@@ -66,18 +128,17 @@ namespace Audio
 		Parameter.MixFunction(OutputBuffer.GetData(), TempBufferLinear.GetData(), InNumSamples);
 
 		// Convert result to unit space if necessary
-		if (Parameter.bRequiresConversion)
+		if (Parameter.bRequiresConversion && !bValueLinear)
 		{
 			Parameter.UnitFunction(OutputBuffer.GetData(), OutputBuffer.Num());
 		}
 	}
 
-	bool FModulationDestination::ProcessControl(float InValueBase, int32 InNumSamples)
+	bool FModulationDestination::ProcessControl(float InValueUnitBase, int32 InNumSamples)
 	{
 		float LastTarget = ValueTarget;
-		bool bIsActive = false;
-
 		float NewTargetLinear = Parameter.DefaultValue;
+
 		FScopeLock Lock(&SettingsCritSection);
 		{
 			bIsActive = Handle.IsValid();
@@ -87,8 +148,18 @@ namespace Audio
 			}
 		}
 
+		// If not active, ensure default value is converted
+		// that NewTargetLinear was set to is linearized
+		if (!bIsActive)
+		{
+			if (Parameter.bRequiresConversion)
+			{
+				Parameter.LinearFunction(&NewTargetLinear, 1);
+			}
+		}
+
 		// Convert base to linear space
-		float InValueBaseLinear = InValueBase;
+		float InValueBaseLinear = InValueUnitBase;
 		if (Parameter.bRequiresConversion)
 		{
 			Parameter.LinearFunction(&InValueBaseLinear, 1);
@@ -108,7 +179,7 @@ namespace Audio
 		ValueTarget = NewTargetLinear;
 
 		// Convert target to unit space if required
-		if (Parameter.bRequiresConversion)
+		if (Parameter.bRequiresConversion && !bValueLinear)
 		{
 			Parameter.UnitFunction(&ValueTarget, 1);
 		}
@@ -148,25 +219,26 @@ namespace Audio
 		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InSettings.Modulator);
 		auto UpdateHandleLambda = [this, ModPtr]()
 		{
-			if (ModPtr.IsValid())
+			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
 			{
-				if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
+				if (AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
 				{
-					if (AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
+					if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
 					{
-						if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
-						{
-							FScopeLock Lock(&SettingsCritSection);
-							Handle = FModulatorHandle(*Modulation, ParentId, *ModPtr.Get(), ParameterName);
-							Parameter = Handle.GetParameter();
-						}
-						return;
+						FScopeLock Lock(&SettingsCritSection);
+						Handle = FModulatorHandle(*Modulation, ModPtr.Get(), ParameterName);
+
+						// Cache parameter so copy isn't required to be created every process call
+						Parameter = Handle.GetParameter();
+						bIsActive = Handle.IsValid();
 					}
+					return;
 				}
 			}
 
 			FScopeLock Lock(&SettingsCritSection);
 			{
+				bIsActive = false;
 				Handle = FModulatorHandle();
 				Parameter = Handle.GetParameter();
 			}

@@ -7,7 +7,6 @@
 #include "IAudioModulation.h"
 #include "Modules/ModuleInterface.h"
 #include "SoundModulationPatch.h"
-#include "SoundModulationSettings.h"
 #include "Stats/Stats.h"
 
 
@@ -31,8 +30,6 @@ namespace AudioModulation
 		//~ Begin IAudioModulation implementation
 		virtual Audio::FModulationParameter GetParameter(FName InParamName);
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
-		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;
-		virtual void OnInitSource(const uint32 SourceId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
 
 #if !UE_BUILD_SHIPPING
 		virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
@@ -40,23 +37,16 @@ namespace AudioModulation
 		virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
 #endif // !UE_BUILD_SHIPPING
 
-		virtual void OnReleaseSound(ISoundModulatable& Sound) override;
-		virtual void OnReleaseSource(const uint32 SourceId) override;
-		virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
 		virtual void ProcessModulators(const double InElapsed) override;
 
 		virtual void UpdateModulator(const USoundModulatorBase& InModulator) override;
 		//~ End IAudioModulation implementation
 
-#if WITH_EDITOR
-		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
-#endif // WITH_EDITOR
-
 		FAudioModulationSystem* GetModulationSystem();
 
 	protected:
-		virtual Audio::FModulatorTypeId RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase, Audio::FModulationParameter& OutParameter) override;
-		virtual void RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) override;
+		virtual Audio::FModulatorTypeId RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter) override;
+		virtual void RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId) override;
 		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const override;
 		virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) override;
 
@@ -75,11 +65,6 @@ public:
 	}
 
 	virtual TAudioModulationPtr CreateNewModulationPlugin(FAudioDevice* OwningDevice) override;
-
-	virtual UClass* GetCustomModulationSettingsClass() const override
-	{
-		return USoundModulationSettings::StaticClass();
-	}
 };
 
 class FAudioModulationModule : public IModuleInterface
