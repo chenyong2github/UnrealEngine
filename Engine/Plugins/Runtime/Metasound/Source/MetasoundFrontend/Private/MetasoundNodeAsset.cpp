@@ -5,6 +5,7 @@
 
 #include "Backends/JsonStructSerializerBackend.h"
 #include "StructSerializer.h"
+#include "HAL/FileManager.h"
 
 UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

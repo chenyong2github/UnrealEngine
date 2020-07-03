@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontend.h"
+
 #include "Backends/JsonStructSerializerBackend.h"
 #include "StructSerializer.h"
+#include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
+#include "Modules/ModuleManager.h"
+
 #include "MetasoundNodeAsset.h"
 #include "MetasoundAudioFormats.h"
+
 
 static int32 MetasoundUndoRollLimitCvar = 128;
 FAutoConsoleVariableRef CVarMetasoundUndoRollLimit(
