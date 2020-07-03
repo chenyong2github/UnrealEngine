@@ -233,8 +233,6 @@ namespace UnrealBuildTool
 			if (Tokens.Length < 4 || Tokens[3].Contains(".") == false)
 			{
 				Log.TraceInformationOnce("Unable to parse dsymutil version out of: {0}", DsymutilVersionString);
-
-				bUseInstalledDsymutil = false;
 			}
 			else
 			{
@@ -251,10 +249,9 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceInformationOnce("Parsed dsymutil version as {0}.{1}.{2}", Major, Minor, Patch);
-
-						if (Major < 10 || (Minor == 0 && Patch == 0))
+						if (Major < 12)
 						{
+							Log.TraceInformationOnce("dsymutil version is {0}.{1}.{2}. Using bundled version.", Major, Minor, Patch);
 							bUseInstalledDsymutil = false;
 						}
 					}
