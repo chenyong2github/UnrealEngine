@@ -491,7 +491,7 @@ FSkeletalMeshGpuSpawnStaticBuffers::~FSkeletalMeshGpuSpawnStaticBuffers()
 	//ValidSections.Empty();
 }
 
-void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, const FSkeletalMeshSamplingLODBuiltData& MeshSamplingLODBuiltData)
+void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, const FSkeletalMeshSamplingLODBuiltData& MeshSamplingLODBuiltData, FNiagaraSystemInstance* SystemInstance)
 {
 	SkeletalMeshSamplingLODBuiltData = nullptr;
 	bUseGpuUniformlyDistributedSampling = false;
@@ -517,11 +517,11 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 
 		if (TriangleCount == 0)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Triangle count is invalid %d"), TriangleCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
+			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> TriangleCount(%d) is invalid for SkelMesh(%s) System(%s)"), TriangleCount, *GetFullNameSafe(InstData->Mesh), *GetFullNameSafe(SystemInstance->GetSystem()));
 		}
 		if (VertexCount == 0)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> Vertex count is invalid %d"), VertexCount, (InstData && InstData->Mesh) ? *InstData->Mesh->GetFullName() : TEXT("Unknown Mesh"));
+			UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> VertexCount(%d) is invalid for SkelMesh(%s) System(%s)"), VertexCount, *GetFullNameSafe(InstData->Mesh), *GetFullNameSafe(SystemInstance->GetSystem()));
 		}
 
 		if (bUseGpuUniformlyDistributedSampling)
@@ -529,7 +529,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 			const int32 NumAreaSamples = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler.GetNumEntries();
 			if (NumAreaSamples != TriangleCount)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> AreaWeighted Triangle Sampling Count (%d) does not match triangle count (%d), disabling uniform sampling"), NumAreaSamples, TriangleCount);
+				UE_LOG(LogNiagara, Warning, TEXT("FSkeletalMeshGpuSpawnStaticBuffers> AreaWeighted Triangle Sampling Count (%d) does not match triangle count (%d), disabling uniform sampling for SkelMesh(%s) System(%s)"), NumAreaSamples, TriangleCount, *GetFullNameSafe(InstData->Mesh), *GetFullNameSafe(SystemInstance->GetSystem()));
 				bUseGpuUniformlyDistributedSampling = false;
 			}
 		}
@@ -1498,7 +1498,19 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 	// Don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
 	if (!Mesh && !FoundSkelComp && PreviewMesh)
 	{
-		Mesh = PreviewMesh;
+		bool bUsePreviewMesh = true;
+		if (OwningComponent != nullptr)
+		{
+			if (UWorld* World = OwningComponent->GetWorld())
+			{
+				bUsePreviewMesh = !World->IsGameWorld();
+			}
+		}
+
+		if (bUsePreviewMesh)
+		{
+			Mesh = PreviewMesh;
+		}
 	}
 #endif
 
@@ -1678,7 +1690,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			}
 
 			//-TODO: If the DI does not use unfiltered bones we can skip adding them here...
-			TArray<FName, TInlineAllocator<16>> MissingBones;
+			TStringBuilder<256> MissingBones;
 
 			FilteredAndUnfilteredBones.Reserve(RefSkel.GetNum());
 
@@ -1688,7 +1700,11 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				const int32 Bone = RefSkel.FindBoneIndex(BoneName);
 				if (Bone == INDEX_NONE)
 				{
-					MissingBones.Add(BoneName);
+					if (MissingBones.Len() > 0)
+					{
+						MissingBones.Append(TEXT(", "));
+					}
+					MissingBones.Append(BoneName.ToString());
 				}
 				else
 				{
@@ -1723,13 +1739,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				}
 			}
 
-			if (MissingBones.Num() > 0)
+			if (MissingBones.Len() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from bones that don't exist in it's skeleton.\nMesh: %s\nBones: "), *Mesh->GetName());
-				for (FName BoneName : MissingBones)
-				{
-					UE_LOG(LogNiagara, Warning, TEXT("%s\n"), *BoneName.ToString());
-				}
+				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from bones that don't exist in it's skeleton. Mesh(%s) Bones(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingBones.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
 			}
 		}
 		else
@@ -1772,26 +1784,26 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				FilteredSocketTransforms[i].Append(FilteredSocketTransforms[0]);
 			}
 
-			TArray<FName, TInlineAllocator<16>> MissingSockets;
+			TStringBuilder<512> MissingSockets;
 			for (FName SocketName : FilteredSockets)
 			{
 				if (Mesh->FindSocket(SocketName) == nullptr)
 				{
-					MissingSockets.Add(SocketName);
+					if (MissingSockets.Len() != 0)
+					{
+						MissingSockets.Append(TEXT(", "));
+					}
+					MissingSockets.Append(SocketName.ToString());
 				}
 			}
 
-			if (MissingSockets.Num() > 0)
+			if (MissingSockets.Len() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from sockets that don't exist in it's skeleton.\nMesh: %s\nSockets: "), *Mesh->GetName());
-				for (FName SocketName : MissingSockets)
-				{
-					UE_LOG(LogNiagara, Warning, TEXT("%s\n"), *SocketName.ToString());
-				}
+				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from sockets that don't exist in it's skeleton. Mesh(%s) Sockets(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingSockets.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
 			}
 		}
 
-		//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket accross the system
+		//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket across the system
 		if (SystemInstance->HasGPUEmitters())
 		{
 			GPUSkinBoneInfluenceType BoneInfluenceType = SkinWeightBuffer->GetBoneInfluenceType();
@@ -1816,7 +1828,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 			const FSkeletalMeshSamplingInfo& SamplingInfo = Mesh->GetSamplingInfo();
 			MeshGpuSpawnStaticBuffers = new FSkeletalMeshGpuSpawnStaticBuffers();
-			MeshGpuSpawnStaticBuffers->Initialise(this, *CachedLODData, SamplingInfo.GetBuiltData().WholeMeshBuiltData[CachedLODIdx]);
+			MeshGpuSpawnStaticBuffers->Initialise(this, *CachedLODData, SamplingInfo.GetBuiltData().WholeMeshBuiltData[CachedLODIdx], SystemInstance);
 			BeginInitResource(MeshGpuSpawnStaticBuffers);
 
 			MeshGpuSpawnDynamicBuffers = new FSkeletalMeshGpuDynamicBufferProxy();
