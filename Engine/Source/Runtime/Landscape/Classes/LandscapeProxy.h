@@ -612,19 +612,32 @@ public:
 	UPROPERTY(EditAnywhere, Category=Lighting)
 	float StaticLightingResolution;
 
-	UPROPERTY(EditAnywhere, Category=Lighting, meta=(DisplayName = "Static Shadow"))
-	uint32 bCastStaticShadow:1;
+	/** Controls whether the primitive component should cast a shadow or not. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	uint8 CastShadow : 1;
 
-	/** Whether this primitive should cast dynamic shadows as if it were a two sided material. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Lighting, meta=(DisplayName = "Shadow Two Sided"))
-	uint32 bCastShadowAsTwoSided:1;
+	/** Controls whether the primitive should cast shadows in the case of non precomputed shadowing.  This flag is only used if CastShadow is true. **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Dynamic Shadow"))
+	uint8 bCastDynamicShadow : 1;
 
-	/** Whether this primitive should cast shadows in the far shadow cascades. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Lighting, meta=(DisplayName = "Far Shadow"))
-	uint32 bCastFarShadow:1;
-	
-	/** Controls whether the landscape should affect dynamic distance field lighting methods. **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting, AdvancedDisplay)
+	/** Whether the object should cast a static shadow from shadow casting lights.  This flag is only used if CastShadow is true. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Static Shadow"))
+	uint8 bCastStaticShadow : 1;
+
+	/** When enabled, the component will be rendering into the far shadow cascades(only for directional lights).  This flag is only used if CastShadow is true. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Far Shadow"))
+	uint32 bCastFarShadow : 1;
+
+	/** If true, the primitive will cast shadows even if bHidden is true.  Controls whether the primitive should cast shadows when hidden.  This flag is only used if CastShadow is true. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Hidden Shadow"))
+	uint8 bCastHiddenShadow : 1;
+
+	/** Whether this primitive should cast dynamic shadows as if it were a two sided material.  This flag is only used if CastShadow is true. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Shadow Two Sided"))
+	uint32 bCastShadowAsTwoSided : 1;
+
+	/** Controls whether the primitive should affect dynamic distance field lighting methods.  This flag is only used if CastShadow is true. **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow"))
 	uint8 bAffectDistanceFieldLighting:1;
 
 	/**
