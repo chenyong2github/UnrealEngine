@@ -34,7 +34,7 @@ class CHAOS_API FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 
 	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const FReal Stiffness = (FReal)1)
 	    : TPBDSpringConstraintsBase<FReal, 3>(InParticles, MoveTemp(Constraints), Stiffness) 
 	{
-		MConstraintsPerColor = FGraphColoring::ComputeGraphColoring(MConstraints, InParticles);
+		InitColor(InParticles);
 	}
 	FPBDSpringConstraints(const TRigidParticles<FReal, 3>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const FReal Stiffness = (FReal)1)
 	    : TPBDSpringConstraintsBase<FReal, 3>(InParticles, MoveTemp(Constraints), Stiffness) 
@@ -43,13 +43,13 @@ class CHAOS_API FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 
 	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const FReal Stiffness = (FReal)1)
 	    : TPBDSpringConstraintsBase<FReal, 3>(InParticles, Constraints, Stiffness) 
 	{
-		MConstraintsPerColor = FGraphColoring::ComputeGraphColoring(MConstraints, InParticles);
+		InitColor(InParticles);
 	}
 
 	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const FReal Stiffness = (FReal)1)
 	    : TPBDSpringConstraintsBase<FReal, 3>(InParticles, Constraints, Stiffness) 
 	{
-		MConstraintsPerColor = FGraphColoring::ComputeGraphColoring(MConstraints, InParticles);
+		InitColor(InParticles);
 	}
 
 	virtual ~FPBDSpringConstraints() {}
@@ -62,6 +62,8 @@ class CHAOS_API FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 
 	void Apply(T_PARTICLES& InParticles, const FReal Dt, const int32 InConstraintIndex) const;
 	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const;
 	void Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const;
+
+	void InitColor(const TDynamicParticles<FReal, 3>& InParticles);
 
 	TArray<TArray<int32>> MConstraintsPerColor;
 };
