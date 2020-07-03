@@ -415,6 +415,9 @@ private:
 
 	uint32 bLODDistanceIsValid : 1;
 
+	/** If async work was running when we request an Activate we will store the reset mode and perform in finalize to avoid stalling the GameThread. */
+	EResetMode DeferredResetMode = EResetMode::None;
+
 	/** True if we have async work in flight. */
 	volatile bool bAsyncWorkInProgress;
 
