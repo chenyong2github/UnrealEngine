@@ -190,6 +190,9 @@ public:
 	/** Removes a runtime virtual texture object from the scene. */
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
 
+	/** Invalidates pages in a runtime virtual texture object. */
+	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */
