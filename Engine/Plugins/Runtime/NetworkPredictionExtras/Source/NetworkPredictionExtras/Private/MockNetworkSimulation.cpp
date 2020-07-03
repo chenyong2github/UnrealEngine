@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
-#include "GameFramework/CharacterMovementComponent.h" // Temp
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/LocalPlayer.h"
@@ -22,7 +21,10 @@
 #include "Engine/Engine.h"
 #include "Debug/ReporterGraph.h"
 #include "EngineUtils.h"
-
+#include "NetworkPredictionProxyInit.h"
+#include "NetworkPredictionProxyWrite.h"
+#include "NetworkPredictionModelDef.h"
+#include "NetworkPredictionModelDefRegistry.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockNetworkSim, Log, All);
 
@@ -46,44 +48,90 @@ static int32 DoLocalInput = 0;
 static FAutoConsoleVariableRef CVarDoLocalInput(TEXT("mns.DoLocalInput"),
 	DoLocalInput, TEXT("Submit non 0 imput into the mock simulation"), ECVF_Default);
 
+static int32 RandomLocalInput = 0;
+static FAutoConsoleVariableRef CVarRandomLocalInput(TEXT("mns.RandomLocalInput"),
+	RandomLocalInput, TEXT("When submitting input to mock simulation, use random values (else will submit 1.f)"), ECVF_Default);
+
 static int32 RequestMispredict = 0;
 static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("mns.RequestMispredict"),
 	RequestMispredict, TEXT("Causes a misprediction by inserting random value into stream on authority side"), ECVF_Default);
 
+static int32 RequestOOBMod = 0;
+static FAutoConsoleVariableRef CVarRequestOOBMod(TEXT("mns.RequestOOBMod"),
+	RequestOOBMod, TEXT("Causes an OOB modification to sync state on the server (which will result in a correction)"), ECVF_Default);
+
 static int32 BindAutomatically = 1;
 static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically"),
 	BindAutomatically, TEXT("Binds local input and mispredict commands to 5 and 6 respectively"), ECVF_Default);
+
+static float MockSimTolerance = SMALL_NUMBER;
+static FAutoConsoleVariableRef CVarMockTolerance(TEXT("mns.Tolerance"),
+	MockSimTolerance, TEXT("Binds local input and mispredict commands to 5 and 6 respectively"), ECVF_Default);
 }
 
 // ============================================================================================
 
 static bool ForceMispredict = false;
-const FName FMockNetworkModelDef::GroupName(TEXT("Mock"));
+
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Networked Simulation Model Def
+// -------------------------------------------------------------------------------------------------------------------------------
+
+class FMockNetworkModelDef : public FNetworkPredictionModelDef
+{
+public:
+
+	NP_MODEL_BODY();
+
+	using Simulation = FMockNetworkSimulation;
+	using StateTypes = TMockNetworkSimulationBufferTypes;
+	using Driver = UMockNetworkSimulationComponent;
+
+	static const TCHAR* GetName() { return TEXT("MockNetSim"); }
+};
+
+NP_MODEL_REGISTER(FMockNetworkModelDef);
 
 NETSIMCUE_REGISTER(FMockCue, TEXT("MockCue"));
 NETSIMCUESET_REGISTER(UMockNetworkSimulationComponent, FMockCueSet);
 
+// -------------------------------------------------------------------------------------------------------------------------------
+//	Simulation
+// -------------------------------------------------------------------------------------------------------------------------------
+
 void FMockNetworkSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output)
 {
-	Output.Sync.Total = Input.Sync.Total + (Input.Cmd.InputValue * Input.Aux.Multiplier * TimeStep.StepMS.ToRealTimeSeconds());
+	Output.Sync->Total = Input.Sync->Total + (Input.Cmd->InputValue * Input.Aux->Multiplier * ((float)TimeStep.StepMS / 1000.f));
+
+	if (Input.Cmd->InputValue > 0.f)
+	{
+		UE_LOG(LogMockNetworkSim, Warning, TEXT("[%d] Output.Sync->Total: %f. Input.Cmd->InputValue: %f... %d"), TimeStep.Frame, Output.Sync->Total, Input.Cmd->InputValue, TimeStep.StepMS);
+	}
 
 	// Dev hack to force mispredict
 	if (ForceMispredict)
 	{
 		const float Fudge = FMath::FRand() * 100.f;
-		Output.Sync.Total += Fudge;
-		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, Output.Sync.Total);
+		Output.Sync->Total += Fudge;
+		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, Output.Sync->Total);
 		
 		ForceMispredict = false;
 	}
 	
-	if ((int32)(Input.Sync.Total/10.f) < (int32)(Output.Sync.Total/10.f))
+	if ((int32)(Input.Sync->Total/10.f) < (int32)(Output.Sync->Total/10.f))
 	{
 		// Emit a cue for crossing this threshold. Note this could mostly be accomplished with a state transition (by detecting this in FinalizeFrame)
 		// But to illustrate Cues, we are adding a random number to the cue's payload. The point being cues can transmit data that is not part of the sync/aux state.
 		Output.CueDispatch.Invoke<FMockCue>( FMath::Rand() % 1024 );
 	}
 }
+
+/*
+static void Interpolate(const TInterpolatorParameters<FMockSyncState, FMockAuxState>& Params)
+{
+	Params.Out.Sync.Total = Params.From.Sync.Total + ((Params.To.Sync.Total - Params.From.Sync.Total) * Params.InterpolationPCT);
+	Params.Out.Aux = Params.To.Aux;
+}*/
 
 // ===============================================================================================
 //
@@ -115,18 +163,6 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 	}
 }
 
-INetworkedSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkedSimulation()
-{
-	check(MockNetworkSimulation == nullptr);
-	MockNetworkSimulation = new FMockNetworkSimulation();
-
-	FMockSyncState InitialSyncState;
-	InitialSyncState.Total = MockValue;
-
-	auto* NewModel = new TNetworkedSimulationModel<FMockNetworkModelDef>(MockNetworkSimulation, this, InitialSyncState);
-	return NewModel;
-}
-
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -139,52 +175,58 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 		ForceMispredict = true;
 		MockNetworkSimCVars::RequestMispredict = 0;
 	}
+
+	if (OwnerRole == ROLE_Authority && MockNetworkSimCVars::RequestOOBMod)
+	{
+		NetworkPredictionProxy.WriteSyncState<FMockSyncState>([](FMockSyncState& Sync)
+		{
+			Sync.Total += 5000;
+		}, "123");
+
+		MockNetworkSimCVars::RequestOOBMod = 0;
+	}
 	
 	// Mock example of displaying
 	DrawDebugString( GetWorld(), GetOwner()->GetActorLocation() + FVector(0.f,0.f,100.f), *LexToString(MockValue), nullptr, FColor::White, 0.00001f );
 }
 
-void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd)
-{
-	if (MockNetworkSimCVars::DoLocalInput)
-	{
-		Cmd.InputValue = FMath::FRand() * 10.f;
-	}
-	else
-	{
-		Cmd.InputValue = 0.f;
-	}
-}
-
-void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState)
-{
-	MockValue = SyncState.Total;
-}
-
-FString UMockNetworkSimulationComponent::GetDebugName() const
-{
-	return FString::Printf(TEXT("MockSim. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
-}
-
-AActor* UMockNetworkSimulationComponent::GetVLogOwner() const
-{
-	return GetOwner();
-}
-
-void UMockNetworkSimulationComponent::VisualLog(const FMockInputCmd* Input, const FMockSyncState* Sync, const FMockAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
-{
-	FVisualLoggingParameters LocalParameters = SystemParameters;
-	AActor* Owner = GetOwner();
-	FTransform Transform = Owner->GetActorTransform();
-
-	LocalParameters.DebugString += FString::Printf(TEXT(" [%d] Total: %.4f"), SystemParameters.Frame, Sync->Total);
-
-	FVisualLoggingHelpers::VisualLogActor(Owner, Transform, LocalParameters);
-}
-
 void UMockNetworkSimulationComponent::HandleCue(const FMockCue& MockCue, const FNetSimCueSystemParamemters& SystemParameters)
 {
 	UE_LOG(LogMockNetworkSim, Display, TEXT("MockCue Handled! Value: %d"), MockCue.RandomData);
+}
+
+// --------------------------------------------------------------------------------------------------------------
+
+void UMockNetworkSimulationComponent::InitializeNetworkPredictionProxy()
+{
+	MockNetworkSimulation = MakeUnique<FMockNetworkSimulation>();
+	NetworkPredictionProxy.Init<FMockNetworkModelDef>(GetWorld(), GetReplicationProxies(), MockNetworkSimulation.Get(), this);
+}
+
+void UMockNetworkSimulationComponent::InitializeSimulationState(FMockSyncState* Sync, FMockAuxState* Aux)
+{
+	if (Sync)
+	{
+		Sync->Total = MockValue;
+	}
+}
+
+void UMockNetworkSimulationComponent::ProduceInput(const int32 DeltaTimeMS, FMockInputCmd* Cmd)
+{
+	if (MockNetworkSimCVars::DoLocalInput)
+	{
+		Cmd->InputValue = (MockNetworkSimCVars::RandomLocalInput > 0 ? FMath::FRand() * 10.f : 1.f);
+	}
+	else
+	{
+		Cmd->InputValue = 0.f;
+	}
+}
+
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState* Sync, const FMockAuxState* Aux)
+{
+	npCheckSlow(Sync);
+	MockValue = Sync->Total;
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -193,7 +235,7 @@ void UMockNetworkSimulationComponent::HandleCue(const FMockCue& MockCue, const F
 
 FAutoConsoleCommandWithWorldAndArgs MockNetworkSimulationSpawnCmd(TEXT("mns.Spawn"), TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& InArgs, UWorld* World) 
-{
+{	
 	bool bFoundWorld = false;
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
@@ -211,3 +253,5 @@ FAutoConsoleCommandWithWorldAndArgs MockNetworkSimulationSpawnCmd(TEXT("mns.Spaw
 		}
 	}
 }));
+
+

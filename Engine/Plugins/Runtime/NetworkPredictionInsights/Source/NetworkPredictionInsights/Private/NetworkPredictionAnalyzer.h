@@ -29,6 +29,26 @@ private:
 
 	enum : uint16
 	{
+		RouteId_SimulationScope,
+		RouteId_SimulationCreated,
+		RouteId_SimulationConfig,
+		RouteId_WorldFrameStart,
+		RouteId_PieBegin,
+		RouteId_SystemFault,
+		RouteId_Tick,
+		RouteId_SimTick,
+		RouteId_InputCmd,
+		RouteId_SyncState,
+		RouteId_AuxState,
+		RouteId_PhysicsState,
+		RouteId_NetRecv,
+		RouteId_ShouldReconcile,
+		RouteId_RollbackInject,
+		RouteId_PushInputFrame,
+		RouteId_ProduceInput,
+		RouteId_OOBStateMod
+
+		/*
 		RouteId_GameInstanceRegister,
 		RouteId_WorldFrameStart,
 		RouteId_SimulationCreated,
@@ -43,17 +63,25 @@ private:
 		RouteId_SimulationEOF,
 		RouteId_NetSerializeRecv,
 		RouteId_NetSerializeCommit,
-		RouteId_InputCmd,
-		RouteId_SyncState,
-		RouteId_AuxState,
+		
 		RouteId_PieBegin,
 		RouteId_SystemFault
+		*/
 	};
 
 
 	Trace::IAnalysisSession& Session;
 	FNetworkPredictionProvider& NetworkPredictionProvider;
 
+	// Current values
 	uint64 EngineFrameNumber;
 	float DeltaTimeSeconds;
+	uint32 GameInstanceID;
+	int32 TraceID=INDEX_NONE;
+
+	int32 TickStartMS;
+	int32 TickDeltaMS;
+	int32 TickOutputFrame;
+
+	int32 PendingWriteFrame;
 };
