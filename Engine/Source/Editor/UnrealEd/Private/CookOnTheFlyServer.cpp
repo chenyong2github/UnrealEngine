@@ -5239,8 +5239,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		}
 	}
 
-
-
 	const FString ExternalMountPointName(TEXT("/Game/"));
 	if (IsCookingDLC())
 	{
@@ -5250,6 +5248,14 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		TArray<FString> Files;
 		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
 		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
+
+		FString MountPoint = ExternalMountPointName;
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
+		if (Plugin.IsValid())
+		{
+			MountPoint = Plugin->GetMountedAssetPath();
+		}
+
 		for (int32 Index = 0; Index < Files.Num(); Index++)
 		{
 			FString StdFile = Files[Index];
@@ -5260,7 +5266,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			FString LongPackageName;
 			if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
 			{
-				FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
+				FPackageName::RegisterMountPoint(MountPoint, DLCPath);
 			}
 		}
 	}
