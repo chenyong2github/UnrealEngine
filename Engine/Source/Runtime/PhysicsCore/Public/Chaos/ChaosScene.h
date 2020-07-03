@@ -101,6 +101,12 @@ public:
 	 */
 	void CopySolverAccelerationStructure();
 
+	/**
+	 * Flushes all pending global, task and solver command queues and refreshes the spatial acceleration
+	 * for the scene. Required when querying against a currently non-running scene to ensure the scene
+	 * is correctly represented
+	 */
+	void Flush_AssumesLocked();
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
 #endif
