@@ -60,7 +60,7 @@ struct FMovieSceneSequenceCompilerMaskStruct
 
 	EMovieSceneSequenceCompilerMask AsEnum() const
 	{
-		EMovieSceneSequenceCompilerMask Enum;
+		EMovieSceneSequenceCompilerMask Enum = EMovieSceneSequenceCompilerMask::None;
 		Enum |= bHierarchy               ? EMovieSceneSequenceCompilerMask::Hierarchy               : EMovieSceneSequenceCompilerMask::None;
 		Enum |= bEvaluationTemplate      ? EMovieSceneSequenceCompilerMask::EvaluationTemplate      : EMovieSceneSequenceCompilerMask::None;
 		Enum |= bEvaluationTemplateField ? EMovieSceneSequenceCompilerMask::EvaluationTemplateField : EMovieSceneSequenceCompilerMask::None;

@@ -36,10 +36,11 @@ bool FMarginTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, 
 	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
 
 	UMovieSceneMarginTrack* MarginTrack = Cast<UMovieSceneMarginTrack>(Track);
-	FMovieSceneEvaluationTrack EvalTrack = MarginTrack->GenerateTrackTemplate(MarginTrack);
 
 	if (MarginTrack)
 	{
+		FMovieSceneEvaluationTrack EvalTrack = MarginTrack->GenerateTrackTemplate(MarginTrack);
+
 		FMovieSceneInterrogationData InterrogationData;
 		GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
 

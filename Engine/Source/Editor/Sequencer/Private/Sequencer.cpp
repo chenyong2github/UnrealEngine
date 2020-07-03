@@ -640,7 +640,7 @@ void FSequencer::Tick(float InDeltaTime)
 				UMovieSceneSequence* SuppressSequence = SuppressAutoEvalSignature->Get<0>().Get();
 				const FGuid& SuppressSignature = SuppressAutoEvalSignature->Get<1>();
 
-				if (!SuppressSequence && SuppressSequence->GetSignature() != SuppressSignature)
+				if (!SuppressSequence || SuppressSequence->GetSignature() != SuppressSignature)
 				{
 					bNeedsEvaluate = true;
 				}
