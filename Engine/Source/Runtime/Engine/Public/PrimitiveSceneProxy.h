@@ -759,6 +759,7 @@ private:
 	uint8 DrawInGame : 1;
 	uint8 DrawInEditor : 1;
 	uint8 bReceivesDecals : 1;
+	uint8 bOnlyVirtualTexture : 1;
 	uint8 bOnlyOwnerSee : 1;
 	uint8 bOwnerNoSee : 1;
 	uint8 bOftenMoving : 1;
