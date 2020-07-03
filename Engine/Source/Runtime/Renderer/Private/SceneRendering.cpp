@@ -2080,11 +2080,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	ViewFamily(*InViewFamily)
 ,	MeshCollector(InViewFamily->GetFeatureLevel())
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel())
+,	bHasRequestedToggleFreeze(false)
 ,	bUsedPrecomputedVisibility(false)
 ,	InstancedStereoWidth(0)
 ,	RootMark(nullptr)
 ,	FamilySize(0, 0)
-,	bHasRequestedToggleFreeze(false)
 {
 	check(Scene != NULL);
 
