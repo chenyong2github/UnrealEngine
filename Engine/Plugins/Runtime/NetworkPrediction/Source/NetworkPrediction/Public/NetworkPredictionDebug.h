@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Math/Box.h"
+#include "Math/Color.h"
+#include "HAL/Platform.h"
 
 // non ModelDef specific debug helpers
 namespace NetworkPredictionDebug
