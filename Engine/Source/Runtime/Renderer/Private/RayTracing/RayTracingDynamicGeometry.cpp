@@ -6,6 +6,9 @@
 
 #if RHI_RAYTRACING
 
+DECLARE_CYCLE_STAT(TEXT("RTDynGeomDispatch"), STAT_CLM_RTDynGeomDispatch, STATGROUP_ParallelCommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("RTDynGeomBuild"), STAT_CLM_RTDynGeomBuild, STATGROUP_ParallelCommandListMarkers);
+
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
 	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find))
@@ -83,7 +86,7 @@ public:
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDynamicGeometryConverterCS, TEXT("/Engine/Private/RayTracing/RayTracingDynamicMesh.usf"), TEXT("RayTracingDynamicGeometryConverterCS"), SF_Compute);
 
-FRayTracingDynamicGeometryCollection::FRayTracingDynamicGeometryCollection()
+FRayTracingDynamicGeometryCollection::FRayTracingDynamicGeometryCollection() 
 {
 }
 
@@ -196,7 +199,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		if (MeshBatch.Elements[0].MinVertexIndex < MeshBatch.Elements[0].MaxVertexIndex)
 		{
 			NumCPUVertices = MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
-		}
+		}		
 
 		SingleShaderBindings.Add(Shader->VertexBufferSize, UpdateParams.VertexBufferSize);
 		SingleShaderBindings.Add(Shader->NumVertices, NumCPUVertices);
@@ -262,17 +265,17 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	BuildParams.Add(Params);
 }
 
-void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& RHICmdList)
+void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& ParentCmdList)
 {
 #if WANTS_DRAW_MESH_EVENTS
-#define SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
+#define SCOPED_DRAW_OR_COMPUTE_EVENT(ParentCmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(ParentCmdList, FColor(0), TEXT(#Name));
 #else
 #define SCOPED_DRAW_OR_COMPUTE_EVENT(...)
 #endif
 
 	if (DispatchCommands.Num() > 0)
 	{
-		SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, RayTracingDynamicGeometryUpdate)
+		SCOPED_DRAW_OR_COMPUTE_EVENT(ParentCmdList, RayTracingDynamicGeometryUpdate)
 
 		{
 			{
@@ -290,16 +293,42 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					});
 			}
 
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(SetupSegmentData);
+
+				// Setup the array views on final allocated segments array
+				FRayTracingGeometrySegment* SegmentData = Segments.GetData();
+				for (FAccelerationStructureBuildParams& Param : BuildParams)
+				{
+					uint32 SegmentCount = Param.Segments.Num();
+					Param.Segments = MakeArrayView(SegmentData, SegmentCount);
+					SegmentData += SegmentCount;
+				}
+			}
+
 			TArray<FRHIUnorderedAccessView*> BuffersToTransition;
 			BuffersToTransition.Reserve(VertexPositionBuffers.Num());
 			for (FVertexPositionBuffer* Buffer : VertexPositionBuffers)
 			{
 				BuffersToTransition.Add(Buffer->RWBuffer.UAV.GetReference());
 			}
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, BuffersToTransition.GetData(), BuffersToTransition.Num());
+
+			TArray<FRHICommandList*> CommandLists;
+			TArray<int32> DummyNumDraws;
+			TArray<FGraphEventRef> DummyPrerequisites;
+
+			{				
+				FRHIComputeCommandList& RHICmdList = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
+				RHICmdList.ExecuteStat = GET_STATID(STAT_CLM_RTDynGeomDispatch);
+
+				DummyNumDraws.Add(1);
+				DummyPrerequisites.AddDefaulted();
 
 			FRHIComputeShader* CurrentShader = nullptr;
 			FRWBuffer* CurrentBuffer = nullptr;
+
+				// Transition to writeable for each cmd list
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, BuffersToTransition.GetData(), BuffersToTransition.Num());
 
 			// Cache the bound uniform buffers because a lot are the same between dispatches
 			FShaderBindingState ShaderBindingState;
@@ -326,29 +355,41 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				}
 
 				Cmd.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader, &ShaderBindingState);
-					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
+				RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
 			}
 
+				// Make sure buffers are readable again
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
-				}
-
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(SetupSegmentData);
-
-			// Setup the array views on final allocated segments array
-			FRayTracingGeometrySegment* SegmentData = Segments.GetData();
-			for (FAccelerationStructureBuildParams& Param : BuildParams)
-			{
-				uint32 SegmentCount = Param.Segments.Num();
-				Param.Segments = MakeArrayView(SegmentData, SegmentCount);
-				SegmentData += SegmentCount;
-			}
 		}
 
-		SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build);
-		RHICmdList.BuildAccelerationStructures(BuildParams);
-	}
+			{
+				FRHIComputeCommandList& RHICmdList = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
+				RHICmdList.ExecuteStat = GET_STATID(STAT_CLM_RTDynGeomBuild);
+
+				DummyNumDraws.Add(1);
+				DummyPrerequisites.AddDefaulted();
+
+				SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build);
+				RHICmdList.BuildAccelerationStructures(BuildParams);
+			}
+
+			// Need to kick parallel translate command lists?
+			if (CommandLists.Num() > 0)
+			{
+				ParentCmdList.QueueParallelAsyncCommandListSubmit(
+					DummyPrerequisites.GetData(), // AnyThreadCompletionEvents
+					false,  // bIsPrepass
+					CommandLists.GetData(), //CmdLists
+					DummyNumDraws.GetData(), // NumDrawsIfKnown
+					CommandLists.Num(), // Num
+					0, // MinDrawsPerTranslate
+					false // bSpewMerge
+				);
+			}
+			}
+		}
+		
+#undef SCOPED_DRAW_OR_COMPUTE_EVENT
 }
 
 void FRayTracingDynamicGeometryCollection::EndUpdate(FRHICommandListImmediate& RHICmdList)
