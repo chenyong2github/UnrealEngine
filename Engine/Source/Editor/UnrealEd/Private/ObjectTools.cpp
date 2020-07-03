@@ -92,8 +92,18 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/ReferencerFinder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
+
+static TAutoConsoleVariable<bool> CVarUseLegacyGetReferencersForDeletion(
+	TEXT("Editor.UseLegacyGetReferencersForDeletion"),
+	false,
+	TEXT("Choose the algorithm to be used when detecting referencers of any assets/objects being deleted.\n\n")
+	TEXT("0: Use the most optimized version (default)\n")
+	TEXT("1: Use the slower legacy version (for debug/comparison)"),
+	ECVF_Default
+	);
 
 // This function should ONLY be needed by ConsolidateObjects and ForceDeleteObjects
 // Use anywhere else could be dangerous as this involves a map transition and GC
@@ -161,6 +171,116 @@ namespace ObjectTools
 		}
 
 		return bIsSupported;
+	}
+	
+	void GatherObjectReferencersForDeletion(UObject* InObject, bool& bOutIsReferenced, bool& bOutIsReferencedInMemoryByUndo, FReferencerInformationList* OutMemoryReferences, bool bInRequireReferencingProperties)
+	{
+		if (OutMemoryReferences)
+		{
+			OutMemoryReferences->ExternalReferences.Reset();
+			OutMemoryReferences->InternalReferences.Reset();
+		}
+
+		FReferencerInformationList LocalReferences;
+		FReferencerInformationList& References = OutMemoryReferences ? *OutMemoryReferences : LocalReferences;
+
+		bOutIsReferenced = false;
+		bOutIsReferencedInMemoryByUndo = false;
+
+		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
+		{
+			const UTransactor* Transactor = GEditor ? GEditor->Trans : nullptr;
+
+			// Get the cluster of objects that are going to be deleted
+			TArray<UObject*> ObjectsToDelete;
+			GetObjectsWithOuter(InObject, ObjectsToDelete);
+			ObjectsToDelete.Add(InObject);
+
+			// If it's a blueprint, we also want to find anything with a reference to it's generated class
+			UBlueprint* Blueprint = Cast<UBlueprint>(InObject);
+			if (Blueprint && Blueprint->GeneratedClass)
+			{
+				ObjectsToDelete.Add(Blueprint->GeneratedClass);
+			}
+
+			// Check and see whether we are referenced by any objects that won't be garbage collected (*including* the undo buffer)
+			for (UObject* Referencer : FReferencerFinder::GetAllReferencers(ObjectsToDelete, nullptr))
+			{
+				if (Referencer->IsIn(InObject))
+				{
+					References.InternalReferences.Emplace(Referencer);
+				}
+				else
+				{
+					if (Transactor == Referencer)
+					{
+						bOutIsReferencedInMemoryByUndo = true;
+					}
+					else
+					{
+						References.ExternalReferences.Emplace(Referencer);
+						bOutIsReferenced = true;
+					}
+				}
+			}
+
+			// If the object itself isn't in the transaction buffer, check to see if it's a Blueprint asset. We might have instances of the
+			// Blueprint in the transaction buffer, in which case we also want to both alert the user and clear it prior to deleting the asset.
+			if (!bOutIsReferencedInMemoryByUndo)
+			{
+				if (Blueprint && Blueprint->GeneratedClass)
+				{
+					TArray<UObject*> Objects;
+					const TArray<FReferencerInformation>& ExternalMemoryReferences = References.ExternalReferences;
+					for (auto RefIt = ExternalMemoryReferences.CreateConstIterator(); RefIt; ++RefIt)
+					{
+						const FReferencerInformation& RefInfo = *RefIt;
+						if (RefInfo.Referencer->IsA(Blueprint->GeneratedClass))
+						{
+							Objects.Add(RefInfo.Referencer);
+						}
+					}
+
+					if (FReferencerFinder::GetAllReferencers(Objects, nullptr).Contains(Transactor))
+					{
+						bOutIsReferencedInMemoryByUndo = true;
+					}
+				}
+			}
+
+			// For now, only IsReferenced can output which Property refers to an object and it is required
+			// when showing the graph dialog of referencers. 
+			// Only called when required and only when references are found, effect of this slower path is expected to be mostly negligible.
+			// FReferencerFinder::GetAllReferencers could also be refactored a little bit to allow gathering of properties.
+			if (bOutIsReferenced && bInRequireReferencingProperties && OutMemoryReferences)
+			{
+				// determine whether the transaction buffer is the only thing holding a reference to the object
+				// and if so, offer the user the option to reset the transaction buffer.
+				GEditor->Trans->DisableObjectSerialization();
+				bOutIsReferenced = IsReferenced(InObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, OutMemoryReferences);
+				GEditor->Trans->EnableObjectSerialization();
+			}
+		}
+		// This is the old/slower behavior that is kept for debug/comparison and is going to be removed in a future release
+		else
+		{
+			bOutIsReferenced = IsReferenced(InObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, OutMemoryReferences);
+			if (bOutIsReferenced)
+			{
+				// determine whether the transaction buffer is the only thing holding a reference to the object
+				// and if so, offer the user the option to reset the transaction buffer.
+				GEditor->Trans->DisableObjectSerialization();
+				bOutIsReferenced = IsReferenced(InObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, OutMemoryReferences);
+				GEditor->Trans->EnableObjectSerialization();
+
+				// If object is referenced both in undo and non-undo, we can't determine which one it is but
+				// it doesn't matter since the undo stack is only cleared if objects are only referenced by it.
+				if (!bOutIsReferenced)
+				{
+					bOutIsReferencedInMemoryByUndo = true;
+				}
+			}
+		}
 	}
 
 	/**
@@ -1785,21 +1905,13 @@ namespace ObjectTools
 
 			if ( Package != nullptr && bPerformReferenceCheck )
 			{
-				FReferencerInformationList FoundReferences;
-				bIsReferenced = IsReferenced(Package, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags,  true, &FoundReferences);
-				if ( bIsReferenced )
-				{
-					// determine whether the transaction buffer is the only thing holding a reference to the object
-					// and if so, offer the user the option to reset the transaction buffer.
-					GEditor->Trans->DisableObjectSerialization();
-					bIsReferenced = IsReferenced(Package, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &FoundReferences);
-					GEditor->Trans->EnableObjectSerialization();
+				bool bIsReferencedByUndo = false;
+				GatherObjectReferencersForDeletion(Package, bIsReferenced, bIsReferencedByUndo);
 
-					// only ref to this object is the transaction buffer, clear the transaction buffer
-					if ( !bIsReferenced )
-					{
-						GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
-					}
+				// only ref to this object is the transaction buffer, clear the transaction buffer
+				if (!bIsReferenced && bIsReferencedByUndo)
+				{
+					GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
 				}
 			}
 
@@ -2375,22 +2487,16 @@ namespace ObjectTools
 		if ( bPerformReferenceCheck )
 		{
 			FReferencerInformationList Refs;
+			
+			bool bIsReferenced = false;
+			bool bIsReferencedByUndo = false;
+			const bool bRequireReferencedProperties = true;
+			GatherObjectReferencersForDeletion(ObjectToDelete, bIsReferenced, bIsReferencedByUndo, &Refs, bRequireReferencedProperties);
 
-			// Check and see whether we are referenced by any objects that won't be garbage collected.
-			bool bIsReferenced = IsReferenced(ObjectToDelete, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &Refs);
-			if ( bIsReferenced )
+			// only ref to this object is the transaction buffer, clear the transaction buffer
+			if (!bIsReferenced && bIsReferencedByUndo)
 			{
-				// determine whether the transaction buffer is the only thing holding a reference to the object
-				// and if so, offer the user the option to reset the transaction buffer.
-				GEditor->Trans->DisableObjectSerialization();
-				bIsReferenced = IsReferenced(ObjectToDelete, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &Refs);
-				GEditor->Trans->EnableObjectSerialization();
-
-				// only ref to this object is the transaction buffer, clear the transaction buffer
-				if ( !bIsReferenced )
-				{
-					GEditor->Trans->Reset( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
-				}
+				GEditor->Trans->Reset( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
 			}
 
 			if ( bIsReferenced )
@@ -2429,56 +2535,77 @@ namespace ObjectTools
 	 */
 	static void RecursiveRetrieveReferencers(const TArray<UObject*>& InInterestSet, TSet<FWeakObjectPtr>& OutReferencingObjects)
 	{
-		const int32 ExpectedArraySize = 100;
-		const int32 ExpectedReferencesPerObject = 5;
-		TArray<UObject*> InterestSetAdditions(InInterestSet, FMath::Max(0,ExpectedArraySize - InInterestSet.Num()));
-
-		TMap<UObject*, int32> References;
-		TArray<UObject*> InterestSet;
-		InterestSet.Reserve(InterestSetAdditions.Max()*2);
-		References.Reserve(ExpectedReferencesPerObject);
-
-		// It would be faster to run a single TObjectIterator+Serialize loop and capture the complete graph of object references, and then do operations
-		// on the resultant graph, but that would require memory equal to sizeof(pointer)*num objects*(average references per object+3) to hold the graph.
-		// The extra cost of the current solution is that the TObjectIterator will be executed a number of times equal to 
-		// the length of the maximum (minimum reference chain length) from any object to the original interest set
-		// TODO: Worth the memory cost?
-		while (InterestSetAdditions.Num() > 0)
+		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
 		{
-			InterestSet.Append(InterestSetAdditions);
-			Algo::Sort(InterestSet, TLess<UObject*>());
-			InterestSetAdditions.Reset();
+			// Use the fast reference collector to recursively find referencers until no more are found
+			TSet<UObject*> InterestSet;
+			InterestSet.Append(InInterestSet);
 
-			for (FObjectIterator It; It; ++It)
+			// Continue until we're not adding any more referencers to the set
+			for (int32 LastCount = 0; LastCount != InterestSet.Num(); )
 			{
-				UObject* Object = *It;
-				if (Algo::BinarySearch(InterestSet, Object, TLess<UObject*>()) != INDEX_NONE)
-				{
-					continue;
-				}
+				LastCount = InterestSet.Num();
+				InterestSet.Append(FReferencerFinder::GetAllReferencers(InterestSet, nullptr, EReferencerFinderFlags::SkipInnerReferences));
+			}
 
-				const bool bAlsoFindWeakReferences = false;
-				FFindReferencersArchive ArFind(Object, InterestSet, bAlsoFindWeakReferences);
-				ArFind.GetReferenceCounts(References);
-				if (References.Num() > 0)
-				{
-					// Ignore internal references; only add the searched object if it refers to a member of the interest set but is not inside that member
-					for (const TPair<UObject*,int32>& kvpair : References)
-					{
-						if (!Object->IsIn(kvpair.Key))
-						{
-							InterestSetAdditions.Add(Object);
-							break;
-						}
-					}
-					References.Reset();
-				}
+			for (UObject* Referencer : InterestSet)
+			{
+				OutReferencingObjects.Add(Referencer);
 			}
 		}
-
-		for (UObject* Referencer : InterestSet)
+		else
 		{
-			OutReferencingObjects.Add(Referencer);
+			const int32 ExpectedArraySize = 100;
+			const int32 ExpectedReferencesPerObject = 5;
+			TArray<UObject*> InterestSetAdditions(InInterestSet, FMath::Max(0, ExpectedArraySize - InInterestSet.Num()));
+
+			TMap<UObject*, int32> References;
+			TArray<UObject*> InterestSet;
+			InterestSet.Reserve(InterestSetAdditions.Max() * 2);
+			References.Reserve(ExpectedReferencesPerObject);
+
+			// It would be faster to run a single TObjectIterator+Serialize loop and capture the complete graph of object references, and then do operations
+			// on the resultant graph, but that would require memory equal to sizeof(pointer)*num objects*(average references per object+3) to hold the graph.
+			// The extra cost of the current solution is that the TObjectIterator will be executed a number of times equal to 
+			// the length of the maximum (minimum reference chain length) from any object to the original interest set
+			// TODO: Worth the memory cost?
+			while (InterestSetAdditions.Num() > 0)
+			{
+				InterestSet.Append(InterestSetAdditions);
+				Algo::Sort(InterestSet, TLess<UObject*>());
+				InterestSetAdditions.Reset();
+
+				for (FObjectIterator It; It; ++It)
+				{
+					UObject* Object = *It;
+					if (Algo::BinarySearch(InterestSet, Object, TLess<UObject*>()) != INDEX_NONE)
+					{
+						continue;
+					}
+
+					const bool bAlsoFindWeakReferences = false;
+					FFindReferencersArchive ArFind(Object, InterestSet, bAlsoFindWeakReferences);
+					ArFind.GetReferenceCounts(References);
+					if (References.Num() > 0)
+					{
+						// Ignore internal references; only add the searched object if it refers to a member of the interest set but is not inside that member
+						for (const TPair<UObject*, int32>& kvpair : References)
+						{
+							if (!Object->IsIn(kvpair.Key))
+							{
+								InterestSetAdditions.Add(Object);
+								break;
+							}
+						}
+						References.Reset();
+					}
+				}
+			}
+
+			for (UObject* Referencer : InterestSet)
+			{
+				OutReferencingObjects.Add(Referencer);
+			}
 		}
 	}
 
@@ -2503,7 +2630,7 @@ namespace ObjectTools
 		{
 			return 0;
 		}
-
+		
 		// Recursively find all references to objects being deleted
 		TSet<FWeakObjectPtr> ReferencingObjects;
 		RecursiveRetrieveReferencers(InObjectsToDelete, ReferencingObjects);

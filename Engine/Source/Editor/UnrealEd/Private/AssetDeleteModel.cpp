@@ -663,14 +663,6 @@ bool FPendingDelete::IsAssetContained(const FName& PackageName) const
 	return false;
 }
 
-static TAutoConsoleVariable<bool> CVarUseOptimizedCheckForReferences(
-	TEXT("Editor.UseOptimizedCheckForReferences"),
-	true,
-	TEXT("Choose the algorithm to be used when detecting referencers of any assets/objects being deleted.\n\n")
-	TEXT("0: Use the slower legacy version (for debug/comparison)\n")
-	TEXT("1: Use the most optimized version (default)"),
-	ECVF_Default
-	);
 
 void FPendingDelete::CheckForReferences()
 {
@@ -687,70 +679,11 @@ void FPendingDelete::CheckForReferences()
 
 	AssetRegistryModule.Get().GetReferencers(Object->GetOutermost()->GetFName(), DiskReferences);
 
-	// This new version uses the fast reference collector to gather referencers and handles transaction referencers in a single pass
-	if (CVarUseOptimizedCheckForReferences.GetValueOnAnyThread())
+	IConsoleVariable* UseLegacyGetReferencersForDeletion = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.UseLegacyGetReferencersForDeletion"));
+	if (UseLegacyGetReferencersForDeletion == nullptr || !UseLegacyGetReferencersForDeletion->GetBool())
 	{
-		MemoryReferences.ExternalReferences.Empty();
-		MemoryReferences.InternalReferences.Empty();
-
-		const UTransactor* Transactor = GEditor ? GEditor->Trans : nullptr;
-
-		// Get the cluster of objects that are going to be deleted
-		TArray<UObject*> ObjectsToDelete;
-		GetObjectsWithOuter(Object, ObjectsToDelete);
-		ObjectsToDelete.Add(Object);
-		
-		// If it's a blueprint, we also want to find anything with a reference to it's generated class
-		UBlueprint* Blueprint = Cast<UBlueprint>(Object);
-		if (Blueprint && Blueprint->GeneratedClass)
-		{
-			ObjectsToDelete.Add(Blueprint->GeneratedClass);
-		}
-
-		// Check and see whether we are referenced by any objects that won't be garbage collected (*including* the undo buffer)
-		for (UObject* Referencer : FReferencerFinder::GetAllReferencers(ObjectsToDelete, nullptr))
-		{
-			if (Referencer->IsIn(Object))
-			{
-				MemoryReferences.InternalReferences.Emplace(Referencer);
-			}
-			else
-			{
-				if (Transactor == Referencer)
-				{
-					bIsReferencedInMemoryByUndo = true;
-				}
-				else
-				{
-					MemoryReferences.ExternalReferences.Emplace(Referencer);
-					bIsReferencedInMemoryByNonUndo = true;
-				}
-			}
-		}
-
-		// If the object itself isn't in the transaction buffer, check to see if it's a Blueprint asset. We might have instances of the
-		// Blueprint in the transaction buffer, in which case we also want to both alert the user and clear it prior to deleting the asset.
-		if (!bIsReferencedInMemoryByUndo)
-		{
-			if (Blueprint && Blueprint->GeneratedClass)
-			{
-				TArray<UObject*> Objects;
-				const TArray<FReferencerInformation>& ExternalMemoryReferences = MemoryReferences.ExternalReferences;
-				for (auto RefIt = ExternalMemoryReferences.CreateConstIterator(); RefIt; ++RefIt)
-				{
-					const FReferencerInformation& RefInfo = *RefIt;
-					if (RefInfo.Referencer->IsA(Blueprint->GeneratedClass))
-					{
-						Objects.Add(RefInfo.Referencer);
-					}
-				}
-
-				if (FReferencerFinder::GetAllReferencers(Objects, nullptr).Contains(Transactor))
-				{
-					bIsReferencedInMemoryByUndo = true;
-				}
-			}
-		}
+		// This new version uses the fast reference collector to gather referencers and handles transaction referencers in a single pass
+		ObjectTools::GatherObjectReferencersForDeletion(Object, bIsReferencedInMemoryByNonUndo, bIsReferencedInMemoryByUndo, &MemoryReferences);
 	}
 	else
 	{

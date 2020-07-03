@@ -12,12 +12,14 @@ class FAllReferencesProcessor : public FSimpleReferenceProcessorBase
 	const TSet<UObject*>& PotentiallyReferencedObjects;
 	TSet<UObject*>& ReferencingObjects;
 	UObject* CurrentObject;
+	EReferencerFinderFlags Flags;
 
 public:
-	FAllReferencesProcessor(const TSet<UObject*>& InPotentiallyReferencedObjects, TSet<UObject*>& OutReferencingObjects)
+	FAllReferencesProcessor(const TSet<UObject*>& InPotentiallyReferencedObjects, EReferencerFinderFlags InFlags, TSet<UObject*>& OutReferencingObjects)
 		: PotentiallyReferencedObjects(InPotentiallyReferencedObjects)
 		, ReferencingObjects(OutReferencingObjects)
 		, CurrentObject(nullptr)
+		, Flags(InFlags)
 	{
 	}
 	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
@@ -30,6 +32,13 @@ public:
 		{
 			if (PotentiallyReferencedObjects.Contains(Object))
 			{
+				if ((Flags & EReferencerFinderFlags::SkipInnerReferences) != EReferencerFinderFlags::None)
+				{
+					if (ReferencingObject->IsIn(Object))
+					{
+						return;
+					}
+				}
 				ReferencingObjects.Add(ReferencingObject);
 			}
 		}
@@ -49,15 +58,15 @@ void FReferencerFinder::NotifyRegistrationComplete()
 	GUObjectRegistrationComplete = true;
 }
 
-TArray<UObject*> FReferencerFinder::GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore )
+TArray<UObject*> FReferencerFinder::GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore, EReferencerFinderFlags Flags)
 {
-	return GetAllReferencers(TSet<UObject*>(Referencees), ObjectsToIgnore);
+	return GetAllReferencers(TSet<UObject*>(Referencees), ObjectsToIgnore, Flags);
 }
 
 void LockUObjectHashTables();
 void UnlockUObjectHashTables();
 
-TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore )
+TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore, EReferencerFinderFlags Flags)
 {
 	TArray<UObject*> Ret;
 	if(Referencees.Num() > 0)
@@ -71,10 +80,10 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 		const int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 		const int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
 
-		ParallelFor(NumThreads, [&Referencees, ObjectsToIgnore, &ResultCritical, &Ret, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+		ParallelFor(NumThreads, [&Referencees, ObjectsToIgnore, &ResultCritical, &Ret, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects, Flags](int32 ThreadIndex)
 		{
 			TSet<UObject*> ThreadResult;
-			FAllReferencesProcessor Processor(Referencees, ThreadResult);
+			FAllReferencesProcessor Processor(Referencees, Flags, ThreadResult);
 			TFastReferenceCollector<false, FAllReferencesProcessor, FAllReferencesCollector, FGCArrayPool, true> ReferenceCollector(Processor, FGCArrayPool::Get());
 			FGCArrayStruct ArrayStruct;
 

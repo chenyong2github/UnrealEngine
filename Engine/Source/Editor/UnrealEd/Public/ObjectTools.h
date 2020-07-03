@@ -560,6 +560,17 @@ namespace ObjectTools
 	 * @return true if they are interchangeable otherwise false.
 	 */
 	UNREALED_API bool AreClassesInterchangeable( const UClass* ClassA, const UClass* ClassB );
+
+	/**
+	 * Find referencers of an object to be deleted.
+	 *
+	 * @param InObject                          The object to be deleted.
+	 * @param bOutIsReferenced	                Set if the object is currently referenced
+	 * @param bOutIsReferencedByUndo	        Set if the object is currently referenced by an undo transaction
+	 * @param OutMemoryReferences               Optional pointer if specific information is required about referencers
+	 * @param bInRequireReferencingProperties   Whether referencing properties information should be filled. (Opt-in only has it can degrade performance)
+	 */
+	UNREALED_API void GatherObjectReferencersForDeletion(UObject* InObject, bool& bOutIsReferenced, bool& bOutIsReferencedByUndo, FReferencerInformationList* OutMemoryReferences = nullptr, bool bInRequireReferencingProperties = false);
 }
 
 
