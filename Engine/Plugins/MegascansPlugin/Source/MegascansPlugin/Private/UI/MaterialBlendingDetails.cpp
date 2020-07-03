@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MaterialBlendingDetails.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"

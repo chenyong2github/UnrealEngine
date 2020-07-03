@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MaterialUtils.h"
 #include "Editor/UnrealEd/Classes/Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Runtime/Engine/Classes/Materials/MaterialInstanceConstant.h"

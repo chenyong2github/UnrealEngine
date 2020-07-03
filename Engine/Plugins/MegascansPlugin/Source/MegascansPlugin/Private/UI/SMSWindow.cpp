@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SMSWindow.h"
 #include "UI/MSSettings.h"

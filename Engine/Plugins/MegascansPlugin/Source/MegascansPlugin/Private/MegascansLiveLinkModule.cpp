@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IMegascansLiveLinkModule.h"
 #include "UI/QMSUIManager.h"

@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "AssetImportDataHandler.h"
 
 TSharedPtr<FAssetDataHandler> FAssetDataHandler::AssetDataHandlerInst;
