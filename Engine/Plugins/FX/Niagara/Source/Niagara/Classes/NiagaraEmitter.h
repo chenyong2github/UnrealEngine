@@ -374,6 +374,7 @@ public:
 	NIAGARA_API const UNiagaraScript* GetGPUComputeScript() const { return GPUComputeScript; }
 
 	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData);
+	void CacheFromShaderCompiled();
 
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */

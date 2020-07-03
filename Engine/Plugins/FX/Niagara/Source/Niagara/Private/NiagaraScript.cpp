@@ -1721,6 +1721,11 @@ void UNiagaraScript::RaiseOnGPUCompilationComplete()
 #if WITH_EDITORONLY_DATA
 	OnGPUScriptCompiled().Broadcast(this);
 	FNiagaraSystemUpdateContext(this, true);
+
+	if (UNiagaraEmitter* EmitterOwner = Cast<UNiagaraEmitter>(GetOuter()) )
+	{
+		EmitterOwner->CacheFromShaderCompiled();
+	}
 #endif
 }
 
