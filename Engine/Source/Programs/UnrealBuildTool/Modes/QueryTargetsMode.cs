@@ -102,6 +102,13 @@ namespace UnrealBuildTool
 				Writer.WriteArrayStart("Targets");
 				foreach (string TargetName in TargetNames)
 				{
+					// skip target rules that are platform extension or platform group specializations
+					string[] TargetPathSplit = TargetName.Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
+					if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+					{
+						continue;
+					}
+
 					// Construct the rules object
 					TargetRules TargetRules;
 					try
