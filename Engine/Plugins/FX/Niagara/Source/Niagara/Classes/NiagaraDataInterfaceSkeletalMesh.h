@@ -237,14 +237,22 @@ enum class ENDISkeletalMesh_SkinningMode : uint8
 {
 	Invalid = (uint8)-1 UMETA(Hidden),
 
-	/** No skinning. */
+	/**
+	No skinning, use for reference pose only.
+	- Bone and socket sampling will be calculated on demand.
+	- Triangle and vertex sampling will be calculated on demand.
+	*/
 	None = 0,
-	/** Skin vertex locations as you need them. Use if you have a high poly mesh or you are sampling the interface a small number of times. */
+	/**
+	Skin as required, use for bone or socket sampling or when reading a subset of triangles or vertices.
+	- Bone and socket sampling will be calculated up front.
+	- Triangle and vertex sampling will be calculated on demand (Note: CPU Access required).
+	*/
 	SkinOnTheFly,
 	/**
-	Pre skins the whole mesh. Makes access to location data on the mesh much faster but incurs a significant initial cost in cpu time and memory to skin the mesh.
-	Cost is proportional to vertex count in the mesh.
-	Use if you are sampling skinned data from the mesh many times and are able to provide a low poly LOD to sample from.
+	Pre-skin the whole mesh, can be more optimal when reading a lot of triangle or vertex data.
+	- Bone and socket sampling will be calculated up front.
+	- Triangle and vertex sampling will be calculated up front (Note: CPU Access required).
 	*/
 	PreSkin,
 };
@@ -579,6 +587,7 @@ public:
 	UPROPERTY(Transient)
 	USkeletalMeshComponent* SourceComponent;
 
+	/** Selects which skinning mode to use, for most cases Skin On The Fly will cover your requirements, see individual tooltips for more information. */
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	ENDISkeletalMesh_SkinningMode SkinningMode;
 
