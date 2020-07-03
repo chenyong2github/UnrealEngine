@@ -96,6 +96,19 @@ public:
 			}
 		}
 	}
+
+	template<typename EnumerableType>
+	void Select(const EnumerableType& Enumerable)
+	{
+		for (int32 tid : Enumerable)
+		{
+			if (Mesh->IsTriangle(tid))
+			{
+				add(tid);
+			}
+		}
+	}
+
 	void Select(TFunctionRef<bool(int)> SelectF)
 	{
 		int NT = Mesh->MaxTriangleID();
@@ -146,6 +159,15 @@ public:
 		for (int TID : Triangles)
 		{
 			remove(TID);
+		}
+	}
+
+	template<typename EnumerableType>
+	void Deselect(const EnumerableType& Enumerable)
+	{
+		for (int32 tid : Enumerable)
+		{
+			remove(tid);
 		}
 	}
 

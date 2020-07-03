@@ -261,9 +261,17 @@ public:
 		return sum;
 	}
 
+	/**
+	 * @return true if fast winding number at point P is greater than winding threshold (default 0.5)
+	 */
+	bool IsInside(const FVector3d& P, double WindingIsoThreshold = 0.5) const
+	{
+		return FastWindingNumber(P) > WindingIsoThreshold;
+	}
+
 private:
 	// evaluate winding number contribution for all Triangles below IBox
-	double branch_fast_winding_num(int IBox, FVector3d P)
+	double branch_fast_winding_num(int IBox, FVector3d P) const
 	{
 		double branch_sum = 0;
 
@@ -417,9 +425,9 @@ private:
 	}
 
 	// check if value is in cache and far enough away from Q that we can use cached value
-	bool can_use_fast_winding_cache(int IBox, const FVector3d& Q)
+	bool can_use_fast_winding_cache(int IBox, const FVector3d& Q) const
 	{
-		FWNInfo* cacheInfo = FastWindingCache.Find(IBox);
+		const FWNInfo* cacheInfo = FastWindingCache.Find(IBox);
 		if (!cacheInfo)
 		{
 			return false;
@@ -447,7 +455,7 @@ private:
 	}
 
 	// evaluate the FWN cache for IBox
-	double evaluate_box_fast_winding_cache(int IBox, const FVector3d& Q)
+	double evaluate_box_fast_winding_cache(int IBox, const FVector3d& Q) const
 	{
 		const FWNInfo& cacheInfo = FastWindingCache[IBox];
 
