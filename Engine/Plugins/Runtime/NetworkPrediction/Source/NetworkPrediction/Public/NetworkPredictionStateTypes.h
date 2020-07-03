@@ -2,6 +2,7 @@
 #pragma once
 #include "Misc/EnumClassFlags.h"
 #include "NetworkPredictionConditionalState.h"
+#include "HAL/Platform.h"
 
 // Enum to identify the state types
 enum class ENetworkPredictionStateType : uint8
