@@ -3,6 +3,7 @@
 
 #include "NetworkPredictionSettings.h"
 #include "NetworkPredictionWorldManager.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 void UNetworkPredictionSettingsObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
