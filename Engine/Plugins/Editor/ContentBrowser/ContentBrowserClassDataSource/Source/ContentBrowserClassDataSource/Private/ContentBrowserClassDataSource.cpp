@@ -112,7 +112,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	}
 
 	// Find the child class folders
-	if (bIncludeFolders)
+	if (bIncludeFolders && !ClassHierarchyFilter.IsEmpty())
 	{
 		TArray<FString> ChildClassFolders;
 		NativeClassHierarchy->GetMatchingFolders(ClassHierarchyFilter, ChildClassFolders);
@@ -133,7 +133,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	}
 
 	// Find the child class files
-	if (bIncludeFiles)
+	if (bIncludeFiles && !ClassHierarchyFilter.IsEmpty())
 	{
 		TArray<UClass*> ChildClassObjects;
 		NativeClassHierarchy->GetMatchingClasses(ClassHierarchyFilter, ChildClassObjects);
