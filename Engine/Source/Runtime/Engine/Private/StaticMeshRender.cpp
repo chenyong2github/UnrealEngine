@@ -364,6 +364,13 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 
 			DynamicRayTracingGeometries.Empty();
 
+			for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
+			{
+				Buffer.Release();
+			}
+
+			DynamicRayTracingGeometryVertexBuffers.Empty();
+
 			if (GetPrimitiveSceneInfo())
 			{
 				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
@@ -376,6 +383,11 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
 #if RHI_RAYTRACING
+	for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
+	{
+		Buffer.Release();
+	}
+
 	for (auto& Geometry: DynamicRayTracingGeometries)
 	{
 		Geometry.ReleaseResource();
@@ -1709,6 +1721,13 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		{
 			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
 	
+			// Use the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+			FRWBuffer* VertexBuffer = nullptr;
+			if (DynamicRayTracingGeometryVertexBuffers.Num() > (int32)LODIndex && DynamicRayTracingGeometryVertexBuffers[LODIndex].NumBytes > 0)
+			{
+				VertexBuffer = &DynamicRayTracingGeometryVertexBuffers[LODIndex];
+			}
+
 			Context.DynamicRayTracingGeometriesToUpdate.Add(
 				FRayTracingDynamicGeometryUpdateParams
 				{
@@ -1717,7 +1736,8 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					(uint32)LODModel.GetNumVertices(),
 					uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 					Geometry.Initializer.TotalPrimitiveCount,
-					&Geometry
+					&Geometry,
+					VertexBuffer
 				}
 		);
 		}

@@ -147,6 +147,7 @@ protected:
 	struct FNiagaraDynamicDataBase *DynamicDataRender;
 	
 #if RHI_RAYTRACING
+	FRWBuffer RayTracingDynamicVertexBuffer;
 	FRayTracingGeometry RayTracingGeometry;
 #endif
 
