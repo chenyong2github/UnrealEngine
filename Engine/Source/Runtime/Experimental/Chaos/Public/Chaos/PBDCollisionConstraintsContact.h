@@ -29,7 +29,7 @@ namespace Chaos
 		};
 
 		// Regenerate (one-shot or incremental) the manifold plane and points
-		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context);
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance);
 
 		// Update the constraint (re-runs collision detection for this contact)
 		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance);

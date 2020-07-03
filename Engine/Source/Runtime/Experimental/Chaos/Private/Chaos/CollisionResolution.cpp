@@ -45,13 +45,20 @@ FAutoConsoleVariableRef CVarCCDAllowedDepthBoundsScale(TEXT("p.Chaos.CCD.Allowed
 // We have observed bad normals coming from GJKPenetration when barely in contact.
 #define PHI_RESAMPLE_THRESHOLD 0.001
 
-bool bChaos_Collision_UseManifolds_Test = false;
-FAutoConsoleVariableRef CVarChaosCollisionUseManifoldsTest(TEXT("p.Chaos.Collision.UseManifoldsTest"), bChaos_Collision_UseManifolds_Test, TEXT("Enable/Disable use of manifoldes in collision."));
+bool bChaos_Collision_ManifoldTest = false;
+FAutoConsoleVariableRef CVarChaosCollisionUseManifoldsTest(TEXT("p.Chaos.Collision.UseManifoldsTest"), bChaos_Collision_ManifoldTest, TEXT("Enable/Disable use of manifoldes in collision."));
 
 float Chaos_Collision_ManifoldFaceAngle = 5.0f;
 float Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle));
 FConsoleVariableDelegate Chaos_Collision_ManifoldFaceDelegate = FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* CVar) { Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle)); });
 FAutoConsoleVariableRef CVarChaosCollisionManifoldFaceAngle(TEXT("p.Chaos.Collision.ManifoldFaceAngle"), Chaos_Collision_ManifoldFaceAngle, TEXT("Angle above which a face is rejected and we switch to point collision"), Chaos_Collision_ManifoldFaceDelegate);
+
+float Chaos_Collision_ManifoldPositionTolerance = 0.5f;
+float Chaos_Collision_ManifoldRotationTolerance = 0.05f;
+bool bChaos_Collision_ManifoldToleranceExceededRebuild = true;
+FAutoConsoleVariableRef CVarChaosCollisionManifoldPositionTolerance(TEXT("p.Chaos.Collision.ManifoldPositionTolerance"), Chaos_Collision_ManifoldPositionTolerance, TEXT(""));
+FAutoConsoleVariableRef CVarChaosCollisionManifoldRotationTolerance(TEXT("p.Chaos.Collision.ManifoldRotationTolerance"), Chaos_Collision_ManifoldRotationTolerance, TEXT(""));
+FAutoConsoleVariableRef CVarChaosCollisionManifoldToleranceExceededRebuild(TEXT("p.Chaos.Collision.ManifoldToleranceRebuild"), bChaos_Collision_ManifoldToleranceExceededRebuild, TEXT(""));
 
 namespace Chaos
 {
@@ -438,9 +445,11 @@ namespace Chaos
 			//
 			int32 FaceIndex = Constraint.Manifold.Implicit[0]->FindClosestFaceAndVertices(WorldTransform0.InverseTransformPosition(ContactPoint.Location), CollisionSamples, 1.f);
 
-			bool bNewManifold = (FaceIndex != Constraint.GetManifoldPlaneFaceIndex()) || (Constraint.NumManifoldPoints() == 0);
+			bool bNewManifold = !Constraint.IsManifoldCreated() || (FaceIndex != Constraint.GetManifoldPlaneFaceIndex()) || (Constraint.NumManifoldPoints() == 0);
 			if (bNewManifold)
 			{
+				Constraint.InitManifold();
+
 				const FVec3 PlaneNormal = WorldTransform1.InverseTransformVectorNoScale(ContactPoint.Normal);
 				const FVec3 PlanePos = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
 				Constraint.SetManifoldPlane(1, FaceIndex, PlaneNormal, PlanePos);
@@ -479,9 +488,10 @@ namespace Chaos
 			Constraint.Manifold.Normal = ContactPoint.Normal;
 			Constraint.Manifold.Location = ContactPoint.Location;
 
-			if (!ContactPoint.Normal.Equals(Constraint.GetManifoldPlaneNormal()) || !Constraint.NumManifoldPoints())
+			if (!Constraint.IsManifoldCreated() || !ContactPoint.Normal.Equals(Constraint.GetManifoldPlaneNormal()))
 			{
-				Constraint.ResetManifoldPoints();
+				Constraint.InitManifold();
+
 				FVec3 PlaneNormal = WorldTransform1.InverseTransformVectorNoScale(ContactPoint.Normal);
 				FVec3 PlanePosition = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
 				Constraint.SetManifoldPlane(1, INDEX_NONE, PlaneNormal, PlanePosition);
@@ -1231,9 +1241,16 @@ namespace Chaos
 		 * For box edge with capsule vertex collisions, only the single near point/plane is used in the manifold.
 		 * 
 		 */
-		void UpdateCapsuleBoxManifold(const TCapsule<FReal>& Capsule, const FRigidTransform3& CapsuleTM, const FAABB3& Box, const FRigidTransform3& BoxTM, const FReal CullDistance, const FCollisionContext& Context, FRigidBodyMultiPointContactConstraint& Constraint)
+		void UpdateCapsuleBoxManifold(const TCapsule<FReal>& Capsule, const FRigidTransform3& CapsuleTM, const FAABB3& Box, const FRigidTransform3& BoxTM, const FReal CullDistance, FRigidBodyMultiPointContactConstraint& Constraint)
 		{
-			Constraint.ResetManifoldPoints();
+			// Initialize with an empty manifold. If we early-out this leaves the manifold as created but not usable to
+			// support the fallback to geometry-based collision detection
+			Constraint.InitManifold();
+
+			// Capture the state required to invalidate the manifold if things move too much
+			const FReal ManifoldPositionTolerance = Chaos_Collision_ManifoldPositionTolerance;
+			const FReal ManifoldRotationTolerance = Chaos_Collision_ManifoldRotationTolerance;
+			Constraint.InitManifoldTolerance(CapsuleTM, BoxTM, ManifoldPositionTolerance, ManifoldRotationTolerance);
 
 			// Find the nearest points on the capsule and box
 			// Note: We flip the order for GJK so we get the normal in box space. This makes it easier to build the face-capsule manifold.
@@ -1345,9 +1362,9 @@ namespace Chaos
 				// Note: verts are in box space - need to be in capsule space
 				// @todo(ccaulfield): manifold point distance tolerance should be a per-solver or per object setting
 				const FReal DistanceToleranceSq = (0.1f * Capsule.GetHeight()) * (0.1f * Capsule.GetHeight());
-				bool bUserVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				bool bUseVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
 				bool bUseVert1 = ((CapsuleVert1 - CapsuleClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
-				if (bUserVert0)
+				if (bUseVert0)
 				{ 
 					Constraint.AddManifoldPoint(CapsuleToBoxTM.InverseTransformPosition(CapsuleVert0));
 				}
@@ -1398,9 +1415,9 @@ namespace Chaos
 				// Note: verts are in box space - need to be in capsule space
 				// @todo(ccaulfield): manifold point distance tolerance should be a per-solver or per object setting
 				const FReal DistanceToleranceSq = (0.1f * Capsule.GetHeight()) * (0.1f * Capsule.GetHeight());
-				bool bUserVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - BoxClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
+				bool bUseVert0 = ((CapsuleVert1 - CapsuleVert0).SizeSquared() > DistanceToleranceSq) && ((CapsuleVert0 - BoxClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
 				bool bUseVert1 = ((CapsuleVert1 - BoxClosestBoxSpace).SizeSquared() > DistanceToleranceSq);
-				if (bUserVert0)
+				if (bUseVert0)
 				{
 					Constraint.AddManifoldPoint(CapsuleVert0);
 				}
@@ -1426,25 +1443,32 @@ namespace Chaos
 				if (T_TRAITS::bAllowManifold)
 				{
 					FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox);
-					// @todo(ccaulfield): manifold creation should be deferrable same as non-manifold below (only Context is preventing this - Apply does not know about the context yet)
-					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
-					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
-					UpdateCapsuleBoxManifold(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, Context, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
-					return;
-				}
-
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox);
-				if (T_TRAITS::bImmediateUpdate)
-				{
-					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
-					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
-					UpdateCapsuleBoxConstraint(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, Constraint);
-					NewConstraints.TryAdd(CullDistance, Constraint);
+					if (T_TRAITS::bImmediateUpdate)
+					{
+						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
+						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
+						UpdateCapsuleBoxManifold(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, Constraint);
+						NewConstraints.TryAdd(CullDistance, Constraint);
+					}
+					else
+					{
+						NewConstraints.Add(Constraint);
+					}
 				}
 				else
 				{
-					NewConstraints.Add(Constraint);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox);
+					if (T_TRAITS::bImmediateUpdate)
+					{
+						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
+						FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
+						UpdateCapsuleBoxConstraint(*Object0, WorldTransform0, Object1->BoundingBox(), WorldTransform1, CullDistance, Constraint);
+						NewConstraints.TryAdd(CullDistance, Constraint);
+					}
+					else
+					{
+						NewConstraints.Add(Constraint);
+					}
 				}
 			}
 		}
@@ -2021,7 +2045,7 @@ namespace Chaos
 		//
 
 
-		void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal CullDistance, const FCollisionContext& Context)
+		void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal CullDistance)
 		{
 			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
@@ -2031,7 +2055,7 @@ namespace Chaos
 			switch (Constraint.Manifold.ShapesType)
 			{
 			case EContactShapesType::CapsuleBox:
-				UpdateCapsuleBoxManifold(*Implicit0.template GetObject<const TCapsule<FReal>>(), WorldTransform0, Implicit1.template GetObject<const TBox<FReal, 3>>()->GetAABB(), WorldTransform1, CullDistance, Context, Constraint);
+				UpdateCapsuleBoxManifold(*Implicit0.template GetObject<const TCapsule<FReal>>(), WorldTransform0, Implicit1.template GetObject<const TBox<FReal, 3>>()->GetAABB(), WorldTransform1, CullDistance, Constraint);
 				break;
 			case EContactShapesType::ConvexConvex:
 				UpdateConvexConvexManifold(Constraint, WorldTransform0, WorldTransform1, CullDistance);
@@ -2387,38 +2411,64 @@ namespace Chaos
 		{
 			const FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * ParticleTransform0;
 			const FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * ParticleTransform1;
-			const int32 NumPoints = Constraint.NumManifoldPoints();
 
-			// Fall back to full collision detection if we have no manifold (or for testing)
-			if ((NumPoints == 0) || bChaos_Collision_UseManifolds_Test)
+			// We need to (re)build the manifold if...
+			// - we have not built it yet
+			// - the particles moved too much (and we allow manifold rebuilding as opposed to just abandoning it)
+			const bool bWithinTolerance = Constraint.IsManifoldWithinTolerance(ParticleTransform0, ParticleTransform1);
+			const bool bBuildManifold = !Constraint.IsManifoldCreated() || (!bWithinTolerance && bChaos_Collision_ManifoldToleranceExceededRebuild);
+			if (bBuildManifold)
+			{
+				// Rebuild the manifold
+				UpdateManifold(Constraint, ParticleTransform0, ParticleTransform1, CullDistance);
+
+				// If we built a valid manifold, we have already selected the deepest point for use in the 
+				// collision solver so we can skip the loop below this time
+				if (Constraint.IsManifoldValid())
+				{
+					return;
+				}
+			}
+
+			// If we were out of tolerance and we do not support manifold rebuilding, abandon the manifold and 
+			// revert to geometry-based normal collision detection
+			const bool bResetManifold = (!bWithinTolerance && !bChaos_Collision_ManifoldToleranceExceededRebuild);
+			if (bResetManifold)
+			{
+				Constraint.InitManifold();
+			}
+
+			// Fall back to geometry-based collision detection if we have no manifold (or for testing manifold creation but not actually using them)
+			if (!Constraint.IsManifoldValid() || bChaos_Collision_ManifoldTest)
 			{
 				UpdateConstraintFromGeometryImpl<ECollisionUpdateType::Deepest>(Constraint, WorldTransform0, WorldTransform1, CullDistance);
 				return;
 			}
 
-			// Get the plane and point transforms (depends which body owns the plane)
+			// Get the manifold plane and point transforms (depends on which body owns the plane)
 			const FRigidTransform3& PlaneTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? WorldTransform0 : WorldTransform1;
 			const FRigidTransform3& PointsTransform = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? WorldTransform1 : WorldTransform0;
 			const FVec3 OriginalContactPositionLocal = PointsTransform.InverseTransformPosition(Constraint.Manifold.Location);
 
 			// World-space manifold plane
-			FVec3 PlaneNormal = PlaneTransform.TransformVectorNoScale(Constraint.GetManifoldPlaneNormal());
-			FVec3 PlanePos = PlaneTransform.TransformPosition(Constraint.GetManifoldPlanePosition());
+			const FVec3 PlaneNormal = PlaneTransform.TransformVectorNoScale(Constraint.GetManifoldPlaneNormal());
+			const FVec3 PlanePos = PlaneTransform.TransformPosition(Constraint.GetManifoldPlanePosition());
 			FReal ContactMoveSQRDistance = 0;
 
-			// Select the best manifold point
+			// Select the deepest manifold point
+			const int32 NumPoints = Constraint.NumManifoldPoints();
 			for (int32 PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
 			{
 				// World-space manifold point and distance to manifold plane
-				FVec3 PointPos = PointsTransform.TransformPosition(Constraint.GetManifoldPoint(PointIndex));
-				FReal PointDistance = FVec3::DotProduct(PointPos - PlanePos, PlaneNormal);
+				const FVec3 PointPos = PointsTransform.TransformPosition(Constraint.GetManifoldPoint(PointIndex));
+				const FReal PointDistance = FVec3::DotProduct(PointPos - PlanePos, PlaneNormal);
 
-				// If this is the deepest hit, select it
+				// If this is the deepest point, select it
 				if (PointDistance < Constraint.Manifold.Phi)
 				{
 					// @todo(chaos): Consider using average of plane and point positions for contact location
-					FVec3 ContactPos = PointPos - PointDistance * PlaneNormal;
-					FVec3 ContactNormal = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? -PlaneNormal : PlaneNormal;
+					const FVec3 ContactPos = PointPos - PointDistance * PlaneNormal;
+					const FVec3 ContactNormal = (Constraint.GetManifoldPlaneOwnerIndex() == 0) ? -PlaneNormal : PlaneNormal;
 					Constraint.Manifold.Phi = PointDistance;
 					Constraint.Manifold.Location = ContactPos;
 					Constraint.Manifold.Normal = ContactNormal;
