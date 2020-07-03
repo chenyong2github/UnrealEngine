@@ -3,24 +3,16 @@
 #include "Util/RevolveUtil.h"
 
 void RevolveUtil::GenerateSweepCurve(const FVector3d& RevolutionAxisOrigin, const FVector3d& RevolutionAxisDirection, 
-	double DegreesPerStep, int StepsAfterInitialFrame, bool bWeldFullRevolution, TArray<FFrame3d> &SweepCurveOut)
+	double DegreesOffset, double DegreesPerStep, int TotalNumFrames, bool bWeldFullRevolution, TArray<FFrame3d> &SweepCurveOut)
 {
 	// For a revolve, we need to sweep along a circular path around the axis of rotation. While we could pick
 	// any arbitrary frame to create the curve, we choose the standard world frame since that is what the 
 	// profile curve is specified in.
-
-	SweepCurveOut.Emplace(); // First frame is origin, aligned to axes.
-
-	if (DegreesPerStep == 0)
-	{
-		return;
-	}
-
-	// Rotate the subsequent frames around the axis.
 	FVector3d WorldOriginWrtAxisOrigin = -RevolutionAxisOrigin;
-	for (int i = 0; i < StepsAfterInitialFrame; ++i)
+	for (int i = 0; i < TotalNumFrames; ++i)
 	{
-		FQuaterniond Rotation(RevolutionAxisDirection, DegreesPerStep * (i + 1), true);
+		// Revolve the origin frame relative the axis
+		FQuaterniond Rotation(RevolutionAxisDirection, DegreesOffset + DegreesPerStep * i, true);
 		FVector3d NewOrigin = Rotation * WorldOriginWrtAxisOrigin + RevolutionAxisOrigin;
 		FFrame3d NewFrame(NewOrigin, Rotation);
 		SweepCurveOut.Add(NewFrame);
