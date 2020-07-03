@@ -1313,16 +1313,15 @@ void UNiagaraComponent::OnUnregister()
 
 		SystemInstance->Deactivate(true);
 
-		//TODO: Don't destroy the instance for pooled systems. This is removing half or more of the gains of pooling in the first place.
-		//if (PoolingMethod == ENCPoolMethod::None)
+		if (PoolingMethod == ENCPoolMethod::None)
 		{
 			// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 			// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
 			FNiagaraSystemInstance::DeallocateSystemInstance(SystemInstance); // System Instance will be nullptr after this.
 			check(SystemInstance.Get() == nullptr);
-	#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 			OnSystemInstanceChangedDelegate.Broadcast();
-	#endif
+#endif
 		}
 	}
 }
@@ -2107,7 +2106,7 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 	InstanceParameterOverrides.Empty();
 #endif
 
-	OverrideParameters.Empty();
+	OverrideParameters.Empty(false);
 
 	if (Asset == nullptr)
 	{

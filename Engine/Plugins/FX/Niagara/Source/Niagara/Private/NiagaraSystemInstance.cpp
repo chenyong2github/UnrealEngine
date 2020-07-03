@@ -595,7 +595,10 @@ void FNiagaraSystemInstance::Complete()
 
 	DestroyDataInterfaceInstanceData();
 
-	UnbindParameters(true);
+	if (!Component || Component->PoolingMethod == ENCPoolMethod::None)
+	{
+		UnbindParameters(true);
+	}
 
 	bPendingSpawn = false;
 
