@@ -168,8 +168,9 @@ void UControlRigBlueprint::PostLoad()
 		{
 			Controller->RepopulatePinsOnNode(Node);
 		}
-		Controller->ReattachLinksToPinObjects();
 	}
+
+	Controller->ReattachLinksToPinObjects();
 
 	RecompileVM();
 	RequestControlRigInit();
