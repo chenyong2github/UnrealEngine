@@ -405,7 +405,7 @@ namespace UnrealBuildTool
 			// type warning as we leverage the DelayLoad option to put third-party DLLs into a 
 			// non-standard location. This requires the module(s) that use said DLL to ensure that it 
 			// is loaded prior to using it.
-			Result += " /ignore:4199";
+			Arguments.Add("/ignore:4199");
 
 			// Suppress warnings about missing PDB files for statically linked libraries.  We often don't want to distribute
 			// PDB files for these libraries.
