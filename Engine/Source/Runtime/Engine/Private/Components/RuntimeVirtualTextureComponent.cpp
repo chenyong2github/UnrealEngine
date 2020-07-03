@@ -201,11 +201,18 @@ void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, ui
 
 bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty) const
 {
-	// Disable MinMaxTexture setting if not relevant.
 	bool bCanEdit = Super::CanEditChange(InProperty);
 	if (InProperty->GetFName() == TEXT("MinMaxTexture"))
 	{
 		bCanEdit &= IsMinMaxTextureEnabled();
+	}
+	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
+	{
+		bCanEdit &= NumStreamingMips() > 0 && GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
+	}
+	else if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
+	{
+		bCanEdit &= GetStreamingTexture() != nullptr && NumStreamingMips() > 0;
 	}
 	return bCanEdit;
 }
