@@ -109,6 +109,10 @@ public:
 
 	void ConditionalLinkSystem(UMovieSceneEntitySystemLinker* InLinker) const;
 
+	void TagGarbage();
+
+	void CleanTaggedGarbage();
+
 protected:
 
 	virtual bool IsReadyForFinishDestroy() override;
@@ -125,6 +129,10 @@ private:
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
 
 	virtual void ConditionalLinkSystemImpl(UMovieSceneEntitySystemLinker* InLinker) const;
+
+	virtual void OnTagGarbage() {}
+
+	virtual void OnCleanTaggedGarbage() {}
 
 protected:
 
