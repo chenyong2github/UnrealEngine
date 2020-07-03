@@ -54,6 +54,9 @@ public:
 
 	static FComponentRegistry* GetComponents();
 
+	static UMovieSceneEntitySystemLinker* FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name = TEXT("DefaultMovieSceneEntitySystemLinker"));
+	static UMovieSceneEntitySystemLinker* CreateLinker(UObject* PreferredOuter);
+
 	FInstanceRegistry* GetInstanceRegistry()
 	{
 		check(InstanceRegistry.IsValid());
@@ -151,24 +154,6 @@ private:
 	uint64 LastSystemLinkVersion;
 
 	TWeakPtr<bool> GlobalStateCaptureToken;
-};
-
-UCLASS()
-class UGlobalEntitySystemLinker : public UMovieSceneEntitySystemLinker
-{
-public:
-
-	UGlobalEntitySystemLinker(const FObjectInitializer& ObjInit);
-
-	GENERATED_BODY()
-
-	MOVIESCENE_API static UMovieSceneEntitySystemLinker* Get(UObject* PlaybackContext);
-
-private:
-
-	bool Tick(float);
-
-	FDelegateHandle TickerHandle;
 };
 
 /**

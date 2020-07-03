@@ -71,12 +71,6 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	// Now we execute all those "normal evaluation requests" we mentioned above. All running level sequences
 	// will therefore be evaluated in a gloriously parallelized way.
 	//
-	if (Linker == nullptr)
-	{
-		Linker = UGlobalEntitySystemLinker::Get(World);
-		check(Linker);
-		Runner.AttachToLinker(Linker);
-	}
 	if (ensure(Runner.IsAttachedToLinker()))
 	{
 		Runner.Flush();
@@ -108,6 +102,10 @@ UMovieSceneSequenceTickManager* UMovieSceneSequenceTickManager::Get(UObject* Pla
 	if (!TickManager)
 	{
 		TickManager = NewObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
+
+		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(World, TEXT("MovieSceneSequencePlayerEntityLinker"));
+		check(TickManager->Linker);
+		TickManager->Runner.AttachToLinker(TickManager->Linker);
 
 		FDelegateHandle Handle = World->AddMovieSceneSequenceTickHandler(
 				FOnMovieSceneSequenceTick::FDelegate::CreateUObject(TickManager, &UMovieSceneSequenceTickManager::TickSequenceActors));

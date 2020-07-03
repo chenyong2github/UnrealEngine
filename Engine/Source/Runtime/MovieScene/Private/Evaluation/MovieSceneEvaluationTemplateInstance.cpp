@@ -43,23 +43,14 @@ FMovieSceneRootEvaluationTemplateInstance::~FMovieSceneRootEvaluationTemplateIns
 
 UMovieSceneEntitySystemLinker* FMovieSceneRootEvaluationTemplateInstance::ConstructEntityLinker(IMovieScenePlayer& Player)
 {
-	UMovieSceneSequence* RootSequence = Player.GetEvaluationTemplate().GetRootSequence();
-	check(RootSequence);
-
-	UMovieSceneEntitySystemLinker* Linker = RootSequence->GetEntitySystemLinker(Player);
+	UMovieSceneEntitySystemLinker* Linker = Player.ConstructEntitySystemLinker();
 	if (Linker)
 	{
 		return Linker;
 	}
 
-	if (EnumHasAnyFlags(RootSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
-	{
-		Linker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
-		return Linker;
-	}
-
 	UObject* PlaybackContext = Player.GetPlaybackContext();
-	return UGlobalEntitySystemLinker::Get(PlaybackContext);
+	return UMovieSceneEntitySystemLinker::FindOrCreateLinker(PlaybackContext, TEXT("DefaultEntitySystemLinker"));
 }
 
 void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& InRootSequence, IMovieScenePlayer& Player, UMovieSceneCompiledDataManager* InCompiledDataManager)
