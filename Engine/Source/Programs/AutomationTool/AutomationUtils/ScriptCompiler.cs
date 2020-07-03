@@ -150,14 +150,19 @@ namespace AutomationTool
 		{
 			// Configure the rules compiler
 			// Get all game folders and convert them to build subfolders.
-			List<DirectoryReference> AllGameFolders;
+			List<DirectoryReference> AllGameFolders = new List<DirectoryReference>();
+
 			if (ScriptsForProjectFileName == null)
 			{
 				AllGameFolders = NativeProjects.EnumerateProjectFiles().Select(x => x.Directory).ToList();
 			}
 			else
 			{
-				AllGameFolders = new List<DirectoryReference> { new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName)) };
+				// Project automation scripts currently require source engine builds
+				if (!CommandUtils.IsEngineInstalled())
+				{
+					AllGameFolders = new List<DirectoryReference> { new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName)) };
+				}
 			}
 
 			List<DirectoryReference> AllAdditionalScriptFolders = AdditionalScriptsFolders.Select(x => new DirectoryReference(x)).ToList();
