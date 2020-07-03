@@ -47,6 +47,9 @@ public:
 	//Get current CombinedBundleStatus for everything setup to track
 	const FCombinedBundleStatus& GetCurrentCombinedState() const;
 	
+	//Useful for resolving tick order issue
+	void ForceTick() { Tick(0); }
+
 private:
 	bool Tick(float dt);
 	void UpdateBundleCache();
