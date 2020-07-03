@@ -26,6 +26,7 @@
 #include <set>
 #include <thread>
 #include <vector>
+#include <string>
 
 // This class is an implementation of the barycentric mapping algorithm
 // described in Section 5.3 of the book
