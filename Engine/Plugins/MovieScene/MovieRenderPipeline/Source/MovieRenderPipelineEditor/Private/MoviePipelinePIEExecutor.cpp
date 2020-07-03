@@ -15,13 +15,56 @@
 #include "MoviePipelinePIEExecutorSettings.h"
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/OutputDevice.h"
+#include "Modules/ModuleManager.h"
+#include "MessageLogModule.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
 
+const TArray<FString> UMoviePipelinePIEExecutor::FValidationMessageGatherer::Whitelist = { "LogMovieRenderPipeline", "LogMoviePipelineExecutor" };
+
+UMoviePipelinePIEExecutor::FValidationMessageGatherer::FValidationMessageGatherer()
+	: FOutputDevice()
+	, ExecutorLog()
+{
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	FMessageLogInitializationOptions MessageLogOptions;
+	MessageLogOptions.bShowPages = true;
+	MessageLogOptions.bAllowClear = true;
+	MessageLogOptions.MaxPageCount = 10;
+	MessageLogOptions.bShowFilters = true;
+	MessageLogModule.RegisterLogListing("MoviePipelinePIEExecutor", LOCTEXT("MoviePipelineExecutorLogLabel", "High Quality Media Export"));
+
+	ExecutorLog = MakeUnique<FMessageLog>("MoviePipelinePIEExecutor");
+}
+
+void UMoviePipelinePIEExecutor::FValidationMessageGatherer::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
+{
+	for (const FString& WhiteCategory : Whitelist)
+	{
+		if (Category.ToString().Equals(WhiteCategory))
+		{
+			if (Verbosity == ELogVerbosity::Warning)
+			{
+				ExecutorLog->Warning(FText::FromString(FString(V)));
+			}
+			else if (Verbosity == ELogVerbosity::Error)
+			{
+				ExecutorLog->Error(FText::FromString(FString(V)));
+			}
+			return;
+		}
+	}
+}
+
 void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
 	Super::Start(InJob);
+
+	// Start capturing logging messages
+	ValidationMessageGatherer.StartGathering();
 
 	// Check for unsaved maps. It's pretty rare that someone actually wants to execute on an unsaved map,
 	// and it catches the much more common case of adding the job to an unsaved map and then trying to render
@@ -212,6 +255,10 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 
 	// Delay for one frame so that PIE can finish shut down. It's not a huge fan of us starting up on the same frame.
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UMoviePipelinePIEExecutor::DelayedFinishNotification));
+
+	// Stop capturing logging messages
+	ValidationMessageGatherer.StopGathering();
+	ValidationMessageGatherer.OpenLog();
 }
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
