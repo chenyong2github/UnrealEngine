@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 echo
 echo Setting up Unreal Engine 4 project files...
@@ -19,7 +20,7 @@ if [ ! -d "$BASE_PATH/../../../Source" ]; then
  exit 1
 fi
 
-. "$BASE_PATH/SetupMono.sh" "$BASE_PATH"
+source "$BASE_PATH/SetupEnvironment.sh" -mono "$BASE_PATH"
 
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
 	xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591 |grep -i error

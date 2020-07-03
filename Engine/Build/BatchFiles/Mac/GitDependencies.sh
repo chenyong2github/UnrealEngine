@@ -15,7 +15,7 @@ if [ ! -f ../../../Binaries/DotNET/GitDependencies.exe ]; then
 	exit 1
 fi 
 
-source SetupMono.sh "`pwd`"
+source SetupEnvironment.sh -mono "`pwd`"
 
 cd ../../../..
 
