@@ -31,7 +31,7 @@ namespace MockPhysics
 		return false;
 	}
 		
-	FPhysScene* GetPhysicsScene(const FPhysicsActorHandle& ActorHandle)
+	FChaosScene* GetPhysicsScene(const FPhysicsActorHandle& ActorHandle)
 	{
 		return FPhysicsInterface::GetCurrentScene(ActorHandle);
 	}
@@ -80,7 +80,7 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	{
 		if(!MockPhysics::IsRigidBodyKinematic_AssumesLocked(Actor))
 		{
-			if(FPhysScene* PhysScene = MockPhysics::GetPhysicsScene(Actor))
+			if(FChaosScene* PhysScene = MockPhysics::GetPhysicsScene(Actor))
 			{
 				MockPhysics::AddForce_AssumesLocked(Actor, Force, bAllowSubstepping, bAccelChange);
 			}
@@ -95,7 +95,7 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		{
 			if(!MockPhysics::IsRigidBodyKinematic_AssumesLocked(Actor))
 			{
-				if(FPhysScene* PhysScene = MockPhysics::GetPhysicsScene(Actor))
+				if(FChaosScene* PhysScene = MockPhysics::GetPhysicsScene(Actor))
 				{
 					FVector JumpForce(0.f, 0.f, 100000.f);
 					MockPhysics::AddForce_AssumesLocked(Actor, JumpForce, bAllowSubstepping, bAccelChange);
