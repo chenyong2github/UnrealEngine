@@ -157,7 +157,7 @@ namespace GeometryCollectionTest
 
 			const FVector& CurrX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
 			EXPECT_NE(CurrX.Z, FirstX.Z); // moved since init
-			EXPECT_LE(CurrX.Z, PrevX.Z); // falling in -Z, or stopped
+			EXPECT_GE(PrevX.Z - CurrX.Z, -KINDA_SMALL_NUMBER); // falling in -Z, or stopped
 			EXPECT_LE(FMath::Abs(CurrX.X), KINDA_SMALL_NUMBER); // straight down
 			EXPECT_LE(FMath::Abs(CurrX.Y), KINDA_SMALL_NUMBER); // straight down
 			PrevX = CurrX;
