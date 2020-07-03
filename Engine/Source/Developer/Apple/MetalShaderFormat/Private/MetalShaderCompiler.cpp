@@ -330,10 +330,28 @@ bool RemoteFileExists(const FString& Path)
 static uint32 GetMaxArgLength()
 {
 #if PLATFORM_MAC && !UNIXLIKE_TO_MAC_REMOTE_BUILDING
-    return ARG_MAX;
+    static uint32 MaxLength = 0;
+    if (!MaxLength)
+    {
+        // It's dangerous to use "ARG_MAX" directly because it's a compile time constant and may not be compatible with the running OS.
+        // It's safer to get the number from "getconf ARG_MAX" and only use the constant as the fallback
+        FString StdOut, StdError;
+        if (ExecRemoteProcess(TEXT("/usr/bin/getconf"), TEXT("ARG_MAX"), nullptr, &StdOut, &StdError))
+        {
+            MaxLength = FCString::Atoi(*StdOut);
+            check(MaxLength > 0);
+            UE_LOG(LogMetalShaderCompiler, Display, TEXT("Set MaxArgLength to %d via getconf"), MaxLength);
+        }
+        else
+        {
+            MaxLength = FMath::Min(ARG_MAX, 256 * 1024);
+            UE_LOG(LogMetalShaderCompiler, Warning, TEXT("Failed to determine MaxArgLength via getconf: %s\nSet it to %d which is the lesser of MAX_ARG and the value from the 10.15 SDK"), *StdError, MaxLength);
+        }
+    }
+    return MaxLength;
 #else
     // Ask the remote machine via "getconf ARG_MAX"
-	return 1024;
+    return 1024;
 #endif
 }
 
