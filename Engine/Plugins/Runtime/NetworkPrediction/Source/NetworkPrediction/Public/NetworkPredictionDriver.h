@@ -7,7 +7,12 @@
 #include "NetworkPredictionSettings.h"
 #include "NetworkPredictionDebug.h"
 #include "NetworkPredictionReplicationProxy.h"
+#include "NetworkPredictionStateView.h"
 #include "Misc/StringBuilder.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Actor.h"
+
+
 
 namespace Chaos
 {
@@ -156,12 +161,12 @@ struct FNetworkPredictionDriverBase
 
 	static void GetDebugString(AActor* Actor, FStringBuilderBase& Builder)
 	{
-		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *Actor->GetPathName(), *LexToString(Actor->GetLocalRole()));
+		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *Actor->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Actor->GetLocalRole()));
 	}
 	
 	static void GetDebugString(UActorComponent* ActorComp, FStringBuilderBase& Builder)
 	{
-		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *ActorComp->GetPathName(), *LexToString(ActorComp->GetOwnerRole()));
+		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *ActorComp->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), ActorComp->GetOwnerRole()));
 	}
 
 	static void GetDebugString(void* NoDriver, FStringBuilderBase& Builder)
