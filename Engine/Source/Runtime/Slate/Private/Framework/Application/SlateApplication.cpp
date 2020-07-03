@@ -943,9 +943,14 @@ void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
 {
 	if (TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex))
 	{
-		if (PlatformApplication && PlatformApplication->Cursor)
+		bool bIsUsingPlatformCursor = SlateUser->GetCursor() == PlatformApplication->Cursor;
+
+		if (bIsUsingPlatformCursor != bUsePlatformCursor)
 		{
-			SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
+			if (PlatformApplication && PlatformApplication->Cursor)
+			{
+				SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
+			}
 		}
 	}
 }
@@ -5487,10 +5492,6 @@ bool FSlateApplication::OnMouseMove()
 		return false;
 	}
 
-	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
-	// cursor position has changed.
-	UsePlatformCursorForCursorUser(true);
-
 	bool Result = true;
 	const FVector2D CurrentCursorPosition = GetCursorPos();
 	const FVector2D LastCursorPosition = GetLastCursorPos();
@@ -5516,6 +5517,10 @@ bool FSlateApplication::OnMouseMove()
 
 		Result = ProcessMouseMoveEvent( MouseEvent );
 	}
+
+	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
+	// cursor position has changed.
+	UsePlatformCursorForCursorUser(true);
 
 	return Result;
 }
