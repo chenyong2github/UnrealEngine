@@ -141,21 +141,21 @@ public:
 		return (Node != nullptr && Node->bFrozen) ? Node->GraphDistance : InvalidValue();
 	}
 
+	
+	//bool GetInterpTriDistance(const FIndex3i Triangle, const FVector3d& BaryCoords, double& DistanceOut) const
+	//{
+	//	const FGraphNode* NodeA = GetNodeForPointSetID(Triangle.A);
+	//	const FGraphNode* NodeB = GetNodeForPointSetID(Triangle.B);
+	//	const FGraphNode* NodeC = GetNodeForPointSetID(Triangle.C);
+	//	if (NodeA == nullptr || NodeA.bFrozen == false || NodeB == nullptr || NodeB.bFrozen == false || NodeC == nullptr || NodeC.bFrozen == false)
+	//	{
+	//		DistanceOut = InvalidValue();
+	//		return false;
+	//	}
 
-	bool GetInterpTriDistance(const FIndex3i Triangle, const FVector3d& BaryCoords, double& DistanceOut) const
-	{
-		const FGraphNode* NodeA = GetNodeForPointSetID(Triangle.A);
-		const FGraphNode* NodeB = GetNodeForPointSetID(Triangle.B);
-		const FGraphNode* NodeC = GetNodeForPointSetID(Triangle.C);
-		if (NodeA == nullptr || NodeA.bFrozen == false || NodeB == nullptr || NodeB.bFrozen == false || NodeC == nullptr || NodeC.bFrozen == false)
-		{
-			DistanceOut = InvalidValue();
-			return false;
-		}
-
-		DistanceOut = BaryCoords.A*NodeA->GraphDistance + BaryCoords.B*NodeB->GraphDistance + BaryCoords.Cross*NodeC->GraphDistance;
-		return true;
-	}
+	//	DistanceOut = BaryCoords.X*NodeA->GraphDistance + BaryCoords.Y*NodeB->GraphDistance + BaryCoords.Z*NodeC->GraphDistance;
+	//	return true;
+	//}
 
 
 private:
