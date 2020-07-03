@@ -185,7 +185,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
-			int PolyID = Generator->TrianglePolygonIDs.Num() > 0 ? Generator->TrianglePolygonIDs[i] : i;
+			int PolyID = Generator->TrianglePolygonIDs.Num() > 0 ? Generator->TrianglePolygonIDs[i] : 0;
 			int tid = AppendTriangle(Generator->Triangles[i], PolyID);
 			check(tid == i);
 			UVOverlay->SetTriangle(tid, Generator->TriangleUVs[i]);
@@ -206,7 +206,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
-			int tid = AppendTriangle(Generator->Triangles[i], i);
+			int tid = AppendTriangle(Generator->Triangles[i], 0);
 			check(tid == i);
 		}
 	}
