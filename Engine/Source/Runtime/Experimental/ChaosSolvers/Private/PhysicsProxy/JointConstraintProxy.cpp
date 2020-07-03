@@ -146,8 +146,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 				if (ParticleHandle0 && ParticleHandle1)
 				{
 					Chaos::FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-					Chaos::FParticleID ID0 = ParticleHandle0->ParticleID();
-					Chaos::FParticleID ID1 = ParticleHandle1->ParticleID();
+					Chaos::FUniqueIdx ID0 = ParticleHandle0->UniqueIdx();
+					Chaos::FUniqueIdx ID1 = ParticleHandle1->UniqueIdx();
 
 					
 					if (JointSettingsBuffer.bCollisionEnabled)
@@ -166,8 +166,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 					}
 					else
 					{
-						// @todo(brice) : Make this a mask...
-						ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+						ParticleHandle0->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 						IgnoreCollisionManager.AddIgnoreCollisionsFor(ID0, ID1);
 
 						ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
