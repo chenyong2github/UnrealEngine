@@ -194,7 +194,7 @@ VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExt
 	// Check for an existing duplicate
 	for (FWorkDesc& It : WorkDescs)
 	{
-		if (It.ProxyIndex == WorkDesc.ProxyIndex && It.MainViewIndex == WorkDesc.MainViewIndex && It.CullViewIndex == WorkDesc.CullViewIndex && WorkDesc.BufferIndex != -1)
+		if (It.ProxyIndex == WorkDesc.ProxyIndex && It.MainViewIndex == WorkDesc.MainViewIndex && It.CullViewIndex == WorkDesc.CullViewIndex && It.BufferIndex != -1)
 		{
 			WorkDesc.BufferIndex = It.BufferIndex;
 			break;
