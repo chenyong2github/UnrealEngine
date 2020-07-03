@@ -33,6 +33,11 @@ TSharedPtr<SGraphPin> SGraphNodeCallParameterCollectionFunction::CreatePinWidget
 				const bool bVectorParameters = CallFunctionNode->FunctionReference.GetMemberName().ToString().Contains(TEXT("Vector"));
 				Collection->GetParameterNames(NameList, bVectorParameters);
 			}
+
+			NameList.Sort([](const FName& A, const FName& B)
+			{
+				return A.LexicalLess(B);
+			});
 		}
 
 		TArray<TSharedPtr<FName>> NamePtrList;

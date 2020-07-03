@@ -688,14 +688,18 @@ void FMaterialExpressionCollectionParameterDetails::PopulateParameters()
 
 	if (Collection)
 	{
-		for (int32 ParameterIndex = 0; ParameterIndex < Collection->ScalarParameters.Num(); ++ParameterIndex)
-		{
-			ParametersSource.Add(MakeShareable(new FString(Collection->ScalarParameters[ParameterIndex].ParameterName.ToString())));
-		}
+		TArray<FName> NameList;
+		Collection->GetParameterNames(NameList, false);
+		Collection->GetParameterNames(NameList, true);
 
-		for (int32 ParameterIndex = 0; ParameterIndex < Collection->VectorParameters.Num(); ++ParameterIndex)
+		NameList.Sort([](const FName& A, const FName& B) 
 		{
-			ParametersSource.Add(MakeShareable(new FString(Collection->VectorParameters[ParameterIndex].ParameterName.ToString())));
+			return A.LexicalLess(B);
+		});
+
+		for (const FName& Name : NameList)
+		{
+			ParametersSource.Add(MakeShareable(new FString(Name.ToString())));
 		}
 	}
 
