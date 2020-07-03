@@ -27,7 +27,7 @@ namespace UE
 		 */
 		DYNAMICMESH_API void RecenterScale(FDynamicMeshUVOverlay* UVOverlay, const TArray<int32>& UVElementIDs,
 			EIslandPositionType NewPosition, double UVScale);
-		]
+		
 		/**
 		 * Fit given UV element IDs inside the specified Box. 
 		 * @param bUniformScale if false, UVs will be non-uniformly scaled to maximally fill the box
