@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/Build.h"
+
 #ifndef NP_ENSURES_ALWAYS
 #define NP_ENSURES_ALWAYS 0 
 #endif

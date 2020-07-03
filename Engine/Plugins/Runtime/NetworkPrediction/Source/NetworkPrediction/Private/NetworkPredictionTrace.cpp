@@ -2,6 +2,7 @@
 
 
 #include "NetworkPredictionTrace.h"
+#include "Engine/GameInstance.h"
 #include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
 #include "UObject/ObjectKey.h"
@@ -313,19 +314,21 @@ void FNetworkPredictionTrace::TraceOOBStateMod(int32 TraceID, int32 Frame, const
 	; \
 \
 	SerializeFunc; \
-	FMemory::SystemFree(AllocatedBuffer);
+	/*FMemory::SystemFree(AllocatedBuffer);*/
 
 
 void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
 {
 	GROWABLE_LOGF( 
-		
+
 		check(Result >= 0 );
-		const uint16 AttachmentSize = (Result+1) * sizeof(TCHAR);
+	const uint16 AttachmentSize = (Result+1) * sizeof(TCHAR);
 
-		UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
-			<< SystemFault.Attachment(Buffer, AttachmentSize);
-
-		UE_LOG(LogNetworkPrediction, Warning, TEXT("SystemFault: %s"), Buffer);
+	UE_LOG(LogNetworkPrediction, Warning, TEXT("SystemFault: %s"), Buffer);
 	);
+
+	UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
+		<< SystemFault.Attachment(Buffer, AttachmentSize);
+
+	FMemory::SystemFree(AllocatedBuffer);
 }
