@@ -67,7 +67,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"Core",
 						"CoreUObject",
-                        "ApplicationCore",
+						"ApplicationCore",
 						"Engine",
 						"InputCore",
 						"RHI",
@@ -78,7 +78,16 @@ namespace UnrealBuildTool.Rules
 						"Slate",
 						"SlateCore",
 						"Projects",
+						"WindowsMixedRealityHandTracking",
 						"AugmentedReality",
+					}
+					);
+
+				// Circular references that need to be cleaned up
+				CircularlyReferencedDependentModules.AddRange(
+					new string[] 
+					{
+						"WindowsMixedRealityHandTracking"
 					}
 					);
 
