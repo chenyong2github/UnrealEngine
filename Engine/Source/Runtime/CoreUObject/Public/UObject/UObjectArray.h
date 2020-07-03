@@ -802,6 +802,13 @@ public:
 	void RemoveUObjectDeleteListener(FUObjectDeleteListener* Listener);
 
 	/**
+	 * Removes an object from delete listeners
+	 *
+	 * @param Object to remove from delete listeners
+	 */
+	void RemoveObjectFromDeleteListeners(UObjectBase* Object);
+
+	/**
 	 * Checks if a UObject pointer is valid
 	 *
 	 * @param	Object object to test for validity
