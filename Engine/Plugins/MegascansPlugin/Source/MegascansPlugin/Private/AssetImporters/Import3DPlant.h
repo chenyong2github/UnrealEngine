@@ -2,8 +2,9 @@
 #include "CoreMinimal.h"
 #include "AssetPreferencesData.h"
 
-
 class UMaterialInstanceConstant;
+struct FAssetTypeData;
+struct SurfaceImportParams;
 
 enum PlantImportType {
 	BILLBOARD_ONLY,

@@ -3,8 +3,12 @@
 
 #include "AssetPreferencesData.h"
 
+class UAssetImportTask;
 class UMaterialInstanceConstant;
 class UTexture;
+struct FAssetPackedTextures;
+struct FAssetTextureData;
+struct FAssetTypeData;
 
 struct TextureData
 {

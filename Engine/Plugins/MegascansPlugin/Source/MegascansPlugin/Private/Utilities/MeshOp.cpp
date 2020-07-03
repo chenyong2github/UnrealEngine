@@ -151,10 +151,10 @@ void FMeshOps::RemoveExtraMaterialSlot(UStaticMesh* SourceMesh)
 
 	for (int i = 1; i < SourceMesh->GetNumLODs(); i++)
 	{
-		FMeshSectionInfo MeshSectionInfo = SourceMesh->SectionInfoMap.Get(i, 0);
+		FMeshSectionInfo MeshSectionInfo = SourceMesh->GetSectionInfoMap().Get(i, 0);
 		//FMeshSectionInfo MeshSectionInfo = SourceMesh->GetSectionInfoMap().Get(i, 0);
 		MeshSectionInfo.MaterialIndex = 0;
-		SourceMesh->SectionInfoMap.Set(i, 0, MeshSectionInfo);
+		SourceMesh->GetSectionInfoMap().Set(i, 0, MeshSectionInfo);
 		//SourceMesh->GetSectionInfoMap().Set(i, 0, MeshSectionInfo);
 		
 	}

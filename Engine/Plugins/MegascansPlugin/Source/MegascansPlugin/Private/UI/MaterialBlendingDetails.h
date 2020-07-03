@@ -1,5 +1,6 @@
 #pragma once
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
 class BlendSettingsCustomization : public IDetailCustomization
 
