@@ -302,7 +302,14 @@ void UNiagaraStackRendererItem::ResetToBase()
 
 bool UNiagaraStackRendererItem::GetIsEnabled() const
 {
-	return RendererProperties->GetIsEnabled();
+	if (IsFinalized() == false && RendererProperties.IsValid())
+	{
+		return RendererProperties->GetIsEnabled();
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
@@ -316,7 +323,14 @@ void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 
 const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const
 {
-	return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
+	if (IsFinalized() == false && RendererProperties.IsValid())
+	{
+		return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
