@@ -526,6 +526,8 @@ public:
 	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 #endif
 
+	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
+
 	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
 
 	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
@@ -615,6 +617,9 @@ private:
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
 #endif
+
+	/** Indicates that the GPU script requires the view uniform buffer. */
+	uint32 bRequiresViewUniformBuffer : 1;
 
 	/** Maximum number of instances we can create for this emitter. */
 	uint32 MaxInstanceCount = 0;

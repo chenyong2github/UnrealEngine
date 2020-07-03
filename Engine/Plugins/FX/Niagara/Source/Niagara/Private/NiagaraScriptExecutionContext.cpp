@@ -329,6 +329,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	bRequiresDistanceFieldData = InSystemInstance->RequiresDistanceFieldData();
 	bRequiresDepthBuffer = InSystemInstance->RequiresDepthBuffer();
 	bRequiresEarlyViewData = InSystemInstance->RequiresEarlyViewData();
+	bRequiresViewUniformBuffer = false;
 	uint32 DataSizeForGPU = InSystemInstance->GPUDataInterfaceInstanceDataSize;
 
 	if (DataSizeForGPU > 0)
@@ -448,6 +449,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				ensure((EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Inactive) || (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::InactiveClear));
 				continue;
 			}
+
+			bRequiresViewUniformBuffer |= Emitter->RequiresViewUniformBuffer();
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;
