@@ -1,0 +1,46 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+/**
+ * Structures used by VirtualHeightfieldMesh.
+ * These all should be kept in sync with C++ definitions in VirtualHeightfieldMeshSceneProxy.cpp
+ */
+
+/** Structure used for tracking work queues in persistent wave style shaders. */
+struct WorkerQueueInfo
+{
+	uint Read;
+	uint Write;
+	int	NumActive;
+};
+
+/** Item description used when traversing the virtual page table quad tree. */
+struct QuadItem
+{
+	uint Address;
+	uint Level;
+};
+
+/** Description for items that are kept by the quad tree traversal stage. */
+struct QuadRenderItem
+{
+	uint Address;
+	uint Level;
+	float3 LocalToPhysicalUV;
+	float Lod;
+};
+
+/** Description of neighbor items. We fill 4 of these for each QuadRenderItem. */
+struct QuadNeighborItem
+{
+	float3 LocalToPhysicalUV;
+	float Lod;
+};
+
+/** Final render instance description used by the DrawInstancedIndirect(). */
+struct QuadRenderInstance
+{
+	QuadRenderItem Quad;
+	QuadNeighborItem Neighbor[4];
+};

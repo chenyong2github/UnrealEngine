@@ -1,0 +1,361 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/VertexFactoryCommon.ush"
+#include "/Engine/Private/MortonCode.ush"	
+#include "VirtualHeightfieldMesh.ush"	
+
+StructuredBuffer<QuadRenderInstance> InstanceBuffer;
+Texture2D<float> HeightTexture;
+//Texture2D<float4> NormalTexture;
+//Texture2D<float> DisplacementTexture;
+SamplerState HeightSampler;
+//SamplerState NormalSampler;
+//SamplerState DisplacementSampler;
+uint4 VTPackedUniform;
+float2 PageTableSize;
+float4x4 LocalToWorld;
+
+#define GRID_SIZE   (VirtualHeightfieldMeshVF.NumQuadsPerTileSide+1)
+//65
+
+struct FVertexFactoryInterpolantsVSToPS
+{
+#if NUM_TEX_COORD_INTERPOLATORS
+	float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2] : TEXCOORD0;
+#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
+#endif
+};
+
+/**
+ * Per-vertex inputs from bound vertex buffers
+ */
+struct FVertexFactoryInput
+{
+	uint InstanceId : SV_InstanceID;
+	uint VertexId : SV_VertexID;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	uint PrimitiveId : ATTRIBUTE13;
+#endif
+};
+
+/**
+ * Per-vertex inputs from bound vertex buffers.  Used by passes with a trimmed down position-only shader.
+ */
+struct FPositionOnlyVertexFactoryInput
+{
+	uint InstanceId : SV_InstanceID;
+	uint VertexId : SV_VertexID;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	uint PrimitiveId : ATTRIBUTE1;
+#endif
+};
+
+/**
+ * Per-vertex inputs from bound vertex buffers.  Used by passes with a trimmed down position-and-normal-only shader.
+ */
+struct FPositionAndNormalOnlyVertexFactoryInput
+{
+	uint InstanceId : SV_InstanceID;
+	uint VertexId : SV_VertexID;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	uint PrimitiveId : ATTRIBUTE1;
+#endif
+};
+
+/**
+ * Caches intermediates that would otherwise have to be computed multiple times.  Avoids relying on the compiler to optimize out redundant operations.
+ */
+struct FVertexFactoryIntermediates
+{
+	float2 LocalUV;
+	float3 LocalPos;
+//	float4 WorldPos;
+//	float4 WorldPosPreDisplacement;
+	float3 WorldNormal;
+//	float Displacement;
+
+	uint PrimitiveId;
+};
+
+uint GetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	return Interpolants.PrimitiveId;
+#else
+	return 0;
+#endif
+}
+
+void SetPrimitiveId(inout FVertexFactoryInterpolantsVSToPS Interpolants, uint PrimitiveId)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.PrimitiveId = PrimitiveId;
+#endif
+}
+
+#if NUM_TEX_COORD_INTERPOLATORS
+float2 GetUV(FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex)
+{
+	float4 UVVector = Interpolants.TexCoords[UVIndex / 2];
+	return UVIndex % 2 ? UVVector.zw : UVVector.xy;
+}
+
+void SetUV(inout FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex, float2 InValue)
+{
+	FLATTEN
+		if (UVIndex % 2)
+		{
+			Interpolants.TexCoords[UVIndex / 2].zw = InValue;
+		}
+		else
+		{
+			Interpolants.TexCoords[UVIndex / 2].xy = InValue;
+		}
+}
+#endif
+
+/** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
+FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
+{
+	// GetMaterialPixelParameters is responsible for fully initializing the result
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	UNROLL
+		for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+		{
+			Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
+		}
+#endif	//NUM_MATERIAL_TEXCOORDS
+
+	Result.TwoSidedSign = 0;
+	Result.PrimitiveId = GetPrimitiveId(Interpolants);
+
+	return Result;
+}
+
+/** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
+FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+
+	Result.WorldPosition = WorldPosition;
+
+	// needs fixing!
+	Result.TangentToWorld = mul(TangentToLocal, (float3x3)LocalToWorld);
+	Result.TangentToWorld[2] = Intermediates.WorldNormal;
+
+	Result.PreSkinnedPosition = WorldPosition;// Intermediates.WorldPosPreDisplacement.xyz;
+	Result.PreSkinnedNormal = float3(0, 0, 1);
+
+#if VIRTUAL_HEIGHTFIELD_MESH_FACTORY
+	//Result.Displacement = Intermediates.Displacement;
+#endif
+
+#if NUM_MATERIAL_TEXCOORDS_VERTEX
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
+	{
+		Result.TexCoords[CoordinateIndex] = Intermediates.LocalUV;
+	}
+#endif  //NUM_MATERIAL_TEXCOORDS_VERTEX
+
+	return Result;
+}
+
+float3 VirtualTextureUnpackNormal2(in float2 PackedXY, in float PackedSignZ)
+{
+	float2 NormalXY = PackedXY * 2.f - 1.f;
+	float SignZ = PackedSignZ * 2.f - 1.f;
+	float NormalZ = sqrt(saturate(1.0f - dot(NormalXY, NormalXY))) * SignZ;
+	return float3(NormalXY, NormalZ);
+}
+
+float VirtualTextureUnpackDisplacementR16(in float PackedValue)
+{
+	float Height = (PackedValue * 65535.f) / 256.f;
+	return Height;
+}
+
+float2 MorphVertex(float2 InLocalUV, float2 InGridDimensions, float InMorphFactor)
+{
+	float2 FracPart = frac(InLocalUV * InGridDimensions.x) * InGridDimensions.y;
+	return InLocalUV - FracPart * InMorphFactor;
+}
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates;
+
+	QuadRenderItem Item = InstanceBuffer[Input.InstanceId + 1].Quad;
+	uint Address = Item.Address;
+	uint Level = Item.Level;
+	float3 LocalToPhysicalUV = Item.LocalToPhysicalUV;
+
+	uint2 VertexCoord = uint2(Input.VertexId % GRID_SIZE, Input.VertexId / GRID_SIZE);
+	float2 LocalUV = (float2)VertexCoord / (float)(GRID_SIZE - 1);;
+
+	uint NeighborIndex = ((LocalUV.x + LocalUV.y) > 1) ?
+		(LocalUV.x < LocalUV.y ? 1 : 2) :
+		(LocalUV.x < LocalUV.y ? 0 : 3);
+	float NeighborWeight = ((LocalUV.x + LocalUV.y) > 1) ?
+		(LocalUV.x < LocalUV.y ? LocalUV.y - 0.5 : LocalUV.x - 0.5) :
+		(LocalUV.x < LocalUV.y ? 0.5 - LocalUV.x : 0.5 - LocalUV.y);
+	NeighborWeight *= 2;
+
+	QuadNeighborItem Neighbor = InstanceBuffer[Input.InstanceId + 1].Neighbor[NeighborIndex];
+
+	// Continuous Lod morph
+	float LodAtMaxMorph = max(ceil(Neighbor.Lod), (float)Level + 1);
+	float LodAtMinMorph = (float)Level;
+
+	float LocalMorphLod = (float)Level + Item.Lod;
+	float NeighborMorphLod = Neighbor.Lod;
+	
+	float LocalMorph = (LocalMorphLod - LodAtMinMorph) / (LodAtMaxMorph - LodAtMinMorph);
+	float NeighborMorph = (NeighborMorphLod - LodAtMinMorph) / (LodAtMaxMorph - LodAtMinMorph);
+	float Morph = lerp(LocalMorph, NeighborMorph, NeighborWeight);
+
+	int LodShift = (int)floor(LodAtMaxMorph - LodAtMinMorph);
+	float GridSize = (GRID_SIZE - 1) >> (LodShift);
+	float2 GridDimensions = float2(GridSize, 1.f / GridSize);
+
+	LocalUV = MorphVertex(LocalUV, GridDimensions, Morph);
+
+	// Normalized space within global mesh
+	uint2 BaseXY = uint2(ReverseMortonCode2(Address), ReverseMortonCode2(Address >> 1));
+	float2 XY = (BaseXY + LocalUV) * (1 << Level);
+	float2 NormalizedPos = (XY / PageTableSize);
+
+	// Physical Texture space
+	float2 LocalPhysicalUV = LocalToPhysicalUV.xy + LocalUV * LocalToPhysicalUV.z;
+	float2 NeighborPhysicalUV = Neighbor.LocalToPhysicalUV.xy + LocalUV * Neighbor.LocalToPhysicalUV.z;
+	
+	// Height
+	float LocalHeight = HeightTexture.SampleLevel(HeightSampler, LocalPhysicalUV, 0);
+	float NeighborHeight = HeightTexture.SampleLevel(HeightSampler, NeighborPhysicalUV, 0);
+	float Height = lerp(LocalHeight, NeighborHeight, NeighborWeight);
+
+	// Local space
+	Intermediates.LocalPos = float3(NormalizedPos, Height);
+	
+//	WorldPos = mul(LocalToWorld, float4(WorldPos, 0)).xyz;
+//	Intermediates.WorldPosPreDisplacement = float4(WorldPos + ResolvedView.PreViewTranslation.xyz, 1);
+
+	Intermediates.LocalUV = LocalUV;
+
+	Intermediates.WorldNormal = float3(0, 0, 1);
+//	Intermediates.WorldNormal = VirtualTextureUnpackNormal2(NormalTexture.SampleLevel(NormalSampler, PhysicalUV, 0).xy, 1);
+//	Intermediates.Displacement = VirtualTextureUnpackDisplacementR16(DisplacementTexture.SampleLevel(DisplacementSampler, PhysicalUV, 0));
+
+//	Intermediates.WorldPos = Intermediates.WorldPosPreDisplacement;
+//	Intermediates.WorldPos.xyz += Intermediates.WorldNormal * Intermediates.Displacement;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Intermediates.PrimitiveId = Input.PrimitiveId;
+#else
+	Intermediates.PrimitiveId = 0;
+#endif
+
+	return Intermediates;
+}
+
+/**
+* Get the 3x3 tangent basis vectors for this vertex factory
+* this vertex factory will calculate the binormal on-the-fly
+*
+* @param Input - vertex input stream structure
+* @return 3x3 matrix
+*/
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return half3x3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+}
+
+// @return translated world position
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	float3 RotatedPosition = LocalToWorld[0].xyz * Intermediates.LocalPos.xxx + LocalToWorld[1].xyz * Intermediates.LocalPos.yyy + LocalToWorld[2].xyz * Intermediates.LocalPos.zzz;
+	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1);
+}
+
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+
+	// Initialize the whole struct to 0
+	// Really only the last two components of the packed UVs have the opportunity to be uninitialized
+	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS];
+	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
+	GetCustomInterpolators(VertexParameters, CustomizedUVs);
+
+	UNROLL
+		for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+		{
+			SetUV(Interpolants, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+		}
+#endif
+
+	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
+
+	return Interpolants;
+}
+
+/** for depth-only pass */
+float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
+{
+	float3 LocalPos = float3(Input.VertexId % GRID_SIZE, Input.VertexId / GRID_SIZE, 0.0f);
+	float3 WorldPos = LocalPos * 10.f + float3(0, 0, 100);
+	return float4(WorldPos + ResolvedView.PreViewTranslation.xyz, 1);
+}
+
+// @return previous translated world position
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
+	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
+	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
+	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
+
+	return mul(float4(Intermediates.LocalPos, 1), PreviousLocalToWorldTranslated);
+}
+
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	float4 ObjectWorldPositionAndRadius = GetPrimitiveData(GetPrimitiveId(Interpolants)).ObjectWorldPositionAndRadius;
+	return float4(ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, ObjectWorldPositionAndRadius.w);
+}
+
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return GetPrimitiveId(Interpolants);
+}
+
+float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
+{
+	return float3(0.0f, 0.0f, 1.0f);
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.WorldNormal;
+}
