@@ -49,7 +49,7 @@ namespace Audio
 		~FGrainEnvelope();
 
 		void GenerateEnvelope(const EGrainEnvelopeType EnvelopeType, const int32 NumFrames);
-		float GetValue(const float Fraction);
+		float GetValue(const float Fraction) const;
 
 	private:
 		EGrainEnvelopeType CurrentType;

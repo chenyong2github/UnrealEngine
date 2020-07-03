@@ -86,6 +86,8 @@ void FMotoSynthEngine::Init(int32 InSampleRate)
 	DelayStereo.SetFilterEnabled(true);
 	DelayStereo.SetFilterSettings(Audio::EBiquadFilter::Lowpass, 4000.0f, 0.5f);
 
+	GrainEnvelope.GenerateEnvelope(Audio::EGrainEnvelopeType::Hanning, 512);
+
 	constexpr int32 GrainPoolSize = 10;
 	GrainPool.Init(FMotoSynthGrainRuntime(), GrainPoolSize);
 	for (int32 i = 0; i < GrainPoolSize; ++i)
@@ -256,14 +258,14 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const MotoSynthDataPtr& 
 					int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData->AudioSourceBitCrushed.Num());
 
 					TArrayView<const uint8> GrainArrayView = MakeArrayView(&SynthData->AudioSourceBitCrushed[StartIndex], EndIndex - StartIndex);
-					NewGrain.Init(GrainArrayView, 1, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
+					NewGrain.Init(&GrainEnvelope, GrainArrayView, 1, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
 				}
 				else
 				{
 					int32 EndIndex = FMath::Min(Entry->SampleIndex + GrainDuration + NewGrainCrossfadeSamples, SynthData->AudioSource.Num());
 					uint8* AudioSourceData = (uint8*)&SynthData->AudioSource[StartIndex];
 					TArrayView<const uint8> GrainArrayView = MakeArrayView(AudioSourceData, 2 * (EndIndex - StartIndex));
-					NewGrain.Init(GrainArrayView, 2, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
+					NewGrain.Init(&GrainEnvelope, GrainArrayView, 2, NewGrainCrossfadeSamples, Entry->RPM, EndingRPM, CurrentRPM);
 				}
 				NewGrain.SetRPM(CurrentRPM);
 
@@ -446,11 +448,12 @@ int32 FMotoSynthEngine::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	return NumSamples;
 }
 
-void FMotoSynthGrainRuntime::Init(const TArrayView<const uint8>& InGrainArrayView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM)
+void FMotoSynthGrainRuntime::Init(const Audio::FGrainEnvelope* InGrainEnvelope, const TArrayView<const uint8>& InGrainView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM)
 {
-	GrainArrayView = InGrainArrayView;
+	GrainEnvelope = InGrainEnvelope;
+	GrainArrayView = InGrainView;
 	NumBytesPerSample = InNumBytesPerSample;
-	NumSamples = InGrainArrayView.Num() / NumBytesPerSample;
+	NumSamples = InGrainView.Num() / NumBytesPerSample;
 
 	CurrentSampleIndex = 0.0f;
 	FadeSamples = (float)InNumSamplesCrossfade;
@@ -497,13 +500,17 @@ float FMotoSynthGrainRuntime::GenerateSample()
 		{
 			if (CurrentSampleIndex < FadeSamples)
 			{
-				SampleValueInterpolated *= (CurrentSampleIndex / FadeSamples);
+				float FadeScale = (CurrentSampleIndex / FadeSamples);
+				FadeScale = GrainEnvelope->GetValue(FadeScale * 0.5f);
+				SampleValueInterpolated *= FadeScale;
 			}
 			else if (CurrentSampleIndex >= FadeOutStartIndex)
 			{
-				float FadeOutScale = FMath::Clamp(1.0f - ((CurrentSampleIndex - FadeOutStartIndex) / FadeSamples), 0.0f, 1.0f);
-				SampleValueInterpolated *= FadeOutScale;
-			}
+				
+				float FadeScale = FMath::Clamp(1.0f - ((CurrentSampleIndex - FadeOutStartIndex) / FadeSamples), 0.0f, 1.0f);
+				FadeScale = GrainEnvelope->GetValue(0.5f * FadeScale);
+				SampleValueInterpolated *= FadeScale;
+			}		
 		}
 
 		// Update the pitch scale based on the progress through the grain and the starting and ending grain RPMs and the current runtime RPM

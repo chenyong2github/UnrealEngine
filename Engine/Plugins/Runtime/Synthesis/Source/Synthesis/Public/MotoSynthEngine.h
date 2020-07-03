@@ -15,6 +15,7 @@
 #include "DSP/Osc.h"
 #include "DSP/Filter.h"
 #include "DSP/DelayStereo.h"
+#include "DSP/Granulator.h"
 #include "MotoSynthPreset.h"
 #include "MotoSynthSourceAsset.h"
 #include "MotoSynthDataManager.h"
@@ -37,7 +38,7 @@ public:
 class FMotoSynthGrainRuntime
 {
 public:
-	void Init(const TArrayView<const uint8>& InGrainView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM);
+	void Init(const Audio::FGrainEnvelope* InGrainEnvelope, const TArrayView<const uint8>& InGrainView, uint8 InNumBytesPerSample, int32 InNumSamplesCrossfade, float InGrainStartRPM, float InGrainEndRPM, float InStartingRPM);
 
 	// Generates a sample from the grain. Returns true if fading out
 	float GenerateSample();
@@ -52,6 +53,7 @@ public:
 	void SetRPM(int32 InRPM);
 
 private:
+	const Audio::FGrainEnvelope* GrainEnvelope = nullptr;
 	TArrayView<const uint8> GrainArrayView;
 	float CurrentSampleIndex = 0.0f;
 	float FadeSamples = 0;
@@ -153,6 +155,9 @@ private:
 
 	// Stereo delay to "widen" the moto synth output
 	Audio::FDelayStereo DelayStereo;
+
+	// Grain Envelope buffer
+	Audio::FGrainEnvelope GrainEnvelope;
 
 	// Mono scratch buffer for engine generation
 	TArray<float> GrainEngineBuffer;
