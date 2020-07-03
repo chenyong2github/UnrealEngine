@@ -20,16 +20,16 @@ void FNetworkPredictionProvider::SetNetworkPredictionTraceVersion(uint32 Version
 
 // -----------------------------------------------------------------------------
 
-FSimulationData::FConst& FNetworkPredictionProvider::WriteSimulationCreated(uint32 SimulationId)
+FSimulationData::FConst& FNetworkPredictionProvider::WriteSimulationCreated(int32 TraceID)
 {
-	FSimulationData::FConst& SimulationConstData = FindOrAdd(SimulationId)->ConstData;
+	FSimulationData::FConst& SimulationConstData = FindOrAdd(TraceID)->ConstData;
 	SimulationConstData.ID.PIESession = PIESessionCounter;
 	return SimulationConstData;
 }
 
-void FNetworkPredictionProvider::WriteSimulationTick(uint32 SimulationId, FSimulationData::FTick&& InTick)
+void FNetworkPredictionProvider::WriteSimulationTick(int32 TraceID, FSimulationData::FTick&& InTick)
 {
-	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	FSimulationData& SimulationData = FindOrAdd(TraceID).Get();
 
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::SimTick;
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
@@ -135,9 +135,10 @@ FSimulationData::FEngineFrame& FNetworkPredictionProvider::WriteSimulationEOF(ui
 	return NewEOF;
 }
 
-void FNetworkPredictionProvider::WriteNetRecv(uint32 SimulationId, FSimulationData::FNetSerializeRecv&& InNetRecv)
+void FNetworkPredictionProvider::WriteNetRecv(int32 TraceID, FSimulationData::FNetSerializeRecv&& InNetRecv)
 {
-	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	ensure(TraceID > 0);
+	FSimulationData& SimulationData = FindOrAdd(TraceID).Get();
 
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::NetRecv;
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
@@ -262,15 +263,10 @@ void FNetworkPredictionProvider::WriteOOBStateMod(uint32 SimulationId)
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::OOB;
 }
 
-void FNetworkPredictionProvider::WriteOOBStateModStrSync(uint32 SimulationId, const TCHAR* Fmt)
+void FNetworkPredictionProvider::WriteOOBStateModStr(uint32 SimulationId, const TCHAR* Fmt)
 {
 	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
-	SimulationData.Analysis.PendingOOBSyncStr = Fmt;
-}
-void FNetworkPredictionProvider::WriteOOBStateModStrAux(uint32 SimulationId, const TCHAR* Fmt)
-{
-	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
-	SimulationData.Analysis.PendingOOBAuxStr = Fmt;
+	SimulationData.Analysis.PendingOOBStr = Fmt;
 }
 
 void FNetworkPredictionProvider::WriteProduceInput(uint32 SimulationId)
@@ -287,19 +283,21 @@ void FNetworkPredictionProvider::WriteSynthInput(uint32 SimulationId)
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::SynthInput;
 }
 
-void FNetworkPredictionProvider::WriteSimulationNetRole(uint32 SimulationId, uint64 EngineFrame, ENP_NetRole Role)
+void FNetworkPredictionProvider::WriteSimulationConfig(int32 TraceID, uint64 EngineFrame, ENP_NetRole NetRole, bool bHasNetConnection, ENP_TickingPolicy TickingPolicy, ENP_NetworkLOD NetworkLOD, int32 ServiceMask)
 {
-	FindOrAdd(SimulationId)->SparseData.Write(EngineFrame)->NetRole = Role;
+	auto& SparseData = FindOrAdd(TraceID)->SparseData.Write(EngineFrame);
+	SparseData->NetRole = NetRole;
+	SparseData->bHasNetConnection = bHasNetConnection;
+	SparseData->TickingPolicy = TickingPolicy;
+	SparseData->NetworkLOD = NetworkLOD;
+	SparseData->ServiceMask = ServiceMask;
 }
 
-void FNetworkPredictionProvider::WriteSimulationNetGUID(uint32 SimulationId, uint32 NetGUID)
+void FNetworkPredictionProvider::WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr)
 {
-	FindOrAdd(SimulationId)->ConstData.ID.NetGUID = NetGUID;
-}
+	ensure(Frame >= 0);
 
-void FNetworkPredictionProvider::WriteUserState(uint32 SimulationId, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr)
-{
-	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	FSimulationData& SimulationData = FindOrAdd(TraceID).Get();
 	ensure(SimulationData.Analysis.PendingUserStateSource != ENP_UserStateSource::Unknown);
 
 	FSimulationData::FUserState& NewUserState = SimulationData.UserData.Store[(int32)Type].Push(Frame, EngineFrame);
@@ -312,16 +310,8 @@ void FNetworkPredictionProvider::WriteUserState(uint32 SimulationId, int32 Frame
 	}
 	else if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::OOB)
 	{
-		if (Type == ENP_UserState::Sync)
-		{
-			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBSyncStr;
-			SimulationData.Analysis.PendingOOBSyncStr = nullptr;
-		}
-		else if (Type == ENP_UserState::Aux)
-		{
-			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBAuxStr;
-			SimulationData.Analysis.PendingOOBAuxStr = nullptr;
-		}
+		NewUserState.OOBStr = SimulationData.Analysis.PendingOOBStr;
+		SimulationData.Analysis.PendingOOBStr = nullptr;
 	}
 }
 
@@ -330,17 +320,17 @@ void FNetworkPredictionProvider::WritePIEStart()
 	PIESessionCounter++;
 }
 
-TSharedRef<FSimulationData>& FNetworkPredictionProvider::FindOrAdd(uint32 SimulationId)
+TSharedRef<FSimulationData>& FNetworkPredictionProvider::FindOrAdd(int32 TraceID)
 {
 	for (TSharedRef<FSimulationData>& Data : ProviderData)
 	{
-		if (Data->SimulationId == SimulationId)
+		if (Data->TraceID == TraceID)
 		{
 			return Data;
 		}
 	}
 
-	ProviderData.Add(MakeShareable(new FSimulationData(SimulationId, Session.GetLinearAllocator())));
+	ProviderData.Add(MakeShareable(new FSimulationData(TraceID, Session.GetLinearAllocator())));
 	return ProviderData.Last();
 }
 
@@ -381,6 +371,8 @@ const TCHAR* LexToString(ENP_UserState State)
 		return TEXT("Sync");
 	case ENP_UserState::Aux:
 		return TEXT("Aux");
+	case ENP_UserState::Physics:
+		return TEXT("Physics");
 	default:
 		return TEXT("Unknown");
 	}

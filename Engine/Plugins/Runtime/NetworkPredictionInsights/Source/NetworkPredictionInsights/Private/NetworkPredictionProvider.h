@@ -27,22 +27,20 @@ public:
 	//
 	// ------------------------------------------------------------------------------
 
-	FSimulationData::FConst& WriteSimulationCreated(uint32 SimulationId);
-	void WriteSimulationTick(uint32 SimulationId, FSimulationData::FTick&& InTick);
+	FSimulationData::FConst& WriteSimulationCreated(int32 TraceID);
+	void WriteSimulationTick(int32 TraceID, FSimulationData::FTick&& InTick);
 	FSimulationData::FEngineFrame& WriteSimulationEOF(uint32 SimulationId);
-	void WriteNetRecv(uint32 SimulationId, FSimulationData::FNetSerializeRecv&& InNetRecv);
+	void WriteNetRecv(int32 TraceID, FSimulationData::FNetSerializeRecv&& InNetRecv);
 	void WriteNetCommit(uint32 SimulationId);
 	void WriteSystemFault(uint32 SimulationId, uint64 EngineFrameNumber, const TCHAR* Fmt);
 	void WriteOOBStateMod(uint32 SimulationId);
-	void WriteOOBStateModStrSync(uint32 SimulationId, const TCHAR* Fmt);
-	void WriteOOBStateModStrAux(uint32 SimulationId, const TCHAR* Fmt);
+	void WriteOOBStateModStr(uint32 SimulationId, const TCHAR* Fmt);
 	void WriteProduceInput(uint32 SimulationId);
 	void WriteSynthInput(uint32 SimulationId);
-	void WriteUserState(uint32 SimulationId, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr);
+	void WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr);
 	void WritePIEStart();
-	
-	void WriteSimulationNetRole(uint32 SimulationId, uint64 EngineFrame, ENP_NetRole Role);
-	void WriteSimulationNetGUID(uint32 SimulationId, uint32 NetGUID);
+
+	void WriteSimulationConfig(int32 TraceID, uint64 EngineFrame, ENP_NetRole NetRole, bool bHasNetConnection, ENP_TickingPolicy TickingPolicy, ENP_NetworkLOD NetworkLOD, int32 ServiceMask);
 
 	virtual TArrayView<const TSharedRef<FSimulationData>> ReadSimulationData() const override
 	{
@@ -51,7 +49,7 @@ public:
 
 private:
 
-	TSharedRef<FSimulationData>& FindOrAdd(uint32 SimulationId);
+	TSharedRef<FSimulationData>& FindOrAdd(int32 TraceID);
 
 	// Array that stores all of our traced simulation data
 	TArray<TSharedRef<FSimulationData>> ProviderData;
