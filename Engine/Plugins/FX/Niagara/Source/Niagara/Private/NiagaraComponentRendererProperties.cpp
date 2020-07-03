@@ -280,6 +280,11 @@ const FSlateBrush* UNiagaraComponentRendererProperties::GetStackIcon() const
 	return FSlateIconFinder::FindIconBrushForClass(TemplateComponent ? TemplateComponent->GetClass() : GetClass());
 }
 
+FText UNiagaraComponentRendererProperties::GetWidgetDisplayName() const
+{
+	return TemplateComponent ? FText::Format(FText::FromString("{0} Renderer"), TemplateComponent->GetClass()->GetDisplayNameText()) : Super::GetWidgetDisplayName();
+}
+
 const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAttributes()
 {
 	CurrentBoundAttributes.Reset();

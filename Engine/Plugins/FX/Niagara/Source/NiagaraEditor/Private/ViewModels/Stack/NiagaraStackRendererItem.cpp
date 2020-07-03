@@ -139,7 +139,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if (RendererProperties != nullptr)
 	{
-		return RendererProperties->GetClass()->GetDisplayNameText();
+		return RendererProperties->GetWidgetDisplayName();
 	}
 	else
 	{
