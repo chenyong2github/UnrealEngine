@@ -3,6 +3,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "GameDelegates.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
@@ -18,6 +19,25 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 {
 	Mobility = EComponentMobility::Stationary;
 }
+
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureComponent::OnRegister()
+{
+	Super::OnRegister();
+	// PIE duplicate will take ownership of the URuntimeVirtualTexture, so we add a delegate to be called when PIE finishes allowing us to retake ownership.
+	PieEndDelegateHandle = FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &URuntimeVirtualTextureComponent::MarkRenderStateDirty);
+}
+
+void URuntimeVirtualTextureComponent::OnUnregister()
+{
+	FGameDelegates::Get().GetEndPlayMapDelegate().Remove(PieEndDelegateHandle);
+	PieEndDelegateHandle.Reset();
+
+	Super::OnUnregister();
+}
+
+#endif
 
 bool URuntimeVirtualTextureComponent::IsVisible() const
 {
