@@ -85,6 +85,19 @@ public:
 		return bIsFullscreen;
 	}
 
+	inline VkImage GetBackBufferImage(uint32 Index)
+	{
+		return BackBufferImages[Index];
+	}
+
+	inline FVulkanSwapChain* GetSwapChain()
+	{
+		return SwapChain;
+	}
+
+	VkSurfaceTransformFlagBitsKHR GetSwapchainQCOMRenderPassTransform() const;
+	VkFormat GetSwapchainImageFormat() const;
+
 protected:
 	// NUM_BUFFERS don't have to match exactly as the driver can require a minimum number larger than NUM_BUFFERS. Provide some slack
 	TArray<VkImage, TInlineAllocator<NUM_BUFFERS*2>> BackBufferImages;
