@@ -400,6 +400,13 @@ namespace UnrealBuildTool
 				Arguments.Add("/INCREMENTAL:NO");
 			}
 
+			// Disable 
+			//LINK : warning LNK4199: /DELAYLOAD:nvtt_64.dll ignored; no imports found from nvtt_64.dll
+			// type warning as we leverage the DelayLoad option to put third-party DLLs into a 
+			// non-standard location. This requires the module(s) that use said DLL to ensure that it 
+			// is loaded prior to using it.
+			Result += " /ignore:4199";
+
 			// Suppress warnings about missing PDB files for statically linked libraries.  We often don't want to distribute
 			// PDB files for these libraries.
 			Arguments.Add("/ignore:4099");    // warning LNK4099: PDB '<file>' was not found with '<file>'
