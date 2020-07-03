@@ -48,6 +48,11 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 				{
 					if (USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(Object))
 					{
+						if (!ensureMsgf(!FBuiltInComponentTypes::IsBoundObjectGarbage(SceneComponent), TEXT("Attempting to bind an object that is garbage or unreachable")))
+						{
+							continue;
+						}
+
 						// Make a child entity for this resolved binding
 						Add(InEntityIndex, SceneComponent);
 					}

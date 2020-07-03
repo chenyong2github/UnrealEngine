@@ -285,7 +285,7 @@ struct TOverlappingEntityTracker_BoundObject : TOverlappingEntityTracker<UObject
 			const uint16 OutputIndex = static_cast<uint16>(Index);
 
 			FOutput& Output = this->Outputs[Index];
-			if (Output.Key == nullptr || Output.Key->IsPendingKill())
+			if (FBuiltInComponentTypes::IsBoundObjectGarbage(Output.Key))
 			{
 				this->Outputs.RemoveAt(Index, 1);
 
@@ -300,7 +300,7 @@ struct TOverlappingEntityTracker_BoundObject : TOverlappingEntityTracker<UObject
 		for (auto It = this->KeyToOutput.CreateIterator(); It; ++It)
 		{
 			UObject* Key = It.Key();
-			if (Key == nullptr || Key->IsPendingKill())
+			if (FBuiltInComponentTypes::IsBoundObjectGarbage(Key))
 			{
 				It.RemoveCurrent();
 			}

@@ -43,6 +43,11 @@ void UMovieSceneGenericBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& 
 			{
 				if (UObject* Object = WeakObject.Get())
 				{
+					if (!ensureMsgf(!FBuiltInComponentTypes::IsBoundObjectGarbage(Object), TEXT("Attempting to bind an object that is garbage or unreachable")))
+					{
+						continue;
+					}
+
 					// Make a child entity for this resolved binding
 					Add(InEntityIndex, Object);
 				}

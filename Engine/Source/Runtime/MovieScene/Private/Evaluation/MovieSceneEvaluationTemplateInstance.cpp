@@ -27,7 +27,7 @@ FMovieSceneRootEvaluationTemplateInstance::FMovieSceneRootEvaluationTemplateInst
 
 void FMovieSceneRootEvaluationTemplateInstance::BeginDestroy()
 {
-	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKill() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
+	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKillOrUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
 		EntitySystemLinker->GetInstanceRegistry()->DestroyInstance(RootInstanceHandle);
 	}
@@ -237,7 +237,7 @@ UObject* FMovieSceneRootEvaluationTemplateInstance::GetOrCreateDirectorInstance(
 
 void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieScenePlayer& Player)
 {
-	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKill() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
+	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKillOrUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
 		EntitySystemLinker->CleanupInvalidBoundObjects();
 

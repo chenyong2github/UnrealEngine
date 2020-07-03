@@ -158,7 +158,7 @@ void UMovieSceneTrackInstanceInstantiator::TagGarbage(UMovieSceneEntitySystemLin
 
 	auto FindGarbage = [this, &Garbage](FMovieSceneEntityID EntityID, FTrackInstanceInputComponent InputComponent)
 	{
-		if (!InputComponent.Section || InputComponent.Section->IsPendingKill())
+		if (FBuiltInComponentTypes::IsBoundObjectGarbage(InputComponent.Section))
 		{
 			Garbage.Add(EntityID);
 			this->InvalidatedOutputs[InputComponent.OutputIndex] = true;
