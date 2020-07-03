@@ -69,17 +69,30 @@ namespace UE4TypeName_Private
 		}
 	};
 
-	// Gets the name of the type as a substring of a literal
-	template <typename T>
-	constexpr FSubstr GetTypeSubstr()
+	// Fallback impl for compilers that do not define function preprocessor macros as a constant expression
+	constexpr FSubstr GetTypeSubstrImpl(const void*)
 	{
-		return FSubstr{ SIG, sizeof(SIG) - 1 }
+		return FSubstr{ "Unknown", 7 };
+	}
+
+	// Implementation that retrieves the type substring of the specified function signature
+	template <uint32 N>
+	constexpr FSubstr GetTypeSubstrImpl(const char (&Sig)[N])
+	{
+		return FSubstr{ Sig, N - 1 }
 			.PopFrontAllNot(SIG_STARTCHAR)
 			.PopBackAllNot(SIG_ENDCHAR)
 			.PopFront()
 			.PopBack()
 			.PopFrontAll(' ')
 			.PopBackAll(' ');
+	}
+
+	// Gets the name of the type as a substring of a literal
+	template <typename T>
+	constexpr FSubstr GetTypeSubstr()
+	{
+		return GetTypeSubstrImpl(SIG);
 	}
 
 	template <uint32 NumChars>
@@ -106,6 +119,7 @@ namespace UE4TypeName_Private
  * - The strings are compiler-dependent and thus non-portable, and so shouldn't be saved or relied upon as a form of identity, e.g. the example above returns "class FString" on MSVC.
  * - Default template parameters are also handled differently by different compilers, sometimes ignored, sometimes not.
  * - Only the concrete type is known to the compiler, aliases are ignored, e.g. GetTypeName<TCHAR>() typically returns "wchar_t".
+ * - Some compilers do not provide the ability to retrieve a function signature as a constant expression. Such compilers will simply return "Unknown"
  */
 template <typename T>
 inline const TCHAR* GetGeneratedTypeName()
