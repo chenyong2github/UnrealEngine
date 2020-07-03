@@ -12,7 +12,8 @@ public class AdjustEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-                "Analytics",
+				"DeveloperSettings",
+				"Analytics",
                 "AnalyticsVisualEditing",
                 "Engine",
 				"Projects"

@@ -15,6 +15,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 
 class SCheckBox;
 
