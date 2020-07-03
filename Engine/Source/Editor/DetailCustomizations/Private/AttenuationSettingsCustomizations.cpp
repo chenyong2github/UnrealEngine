@@ -13,26 +13,106 @@
 #include "AudioDevice.h"
 #include "Sound/AudioSettings.h"
 
+#define LOCTEXT_NAMESPACE "AttenuationSettings"
+
+namespace AttenuationSettingsUtils
+{
+	bool GetValue(TSharedPtr<IPropertyHandle> InProp)
+	{
+		if (InProp.IsValid())
+		{
+			bool Val;
+			InProp->GetValue(Val);
+			return Val;
+		}
+		return true;
+	}
+
+	void SortCategories(const TMap<FName, IDetailCategoryBuilder*>& AllCategoryMap)
+	{
+		const IDetailCategoryBuilder* AttenuationBuilder = AllCategoryMap.FindRef("Attenuation");
+		if (!AttenuationBuilder)
+		{
+			return;
+		}
+
+		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
+		{
+			int32 SortOrder = AttenuationBuilder->GetSortOrder();
+			const FName CategoryName = Pair.Key;
+
+			// Early out if attenuation category
+			if (CategoryName == "Attenuation")
+			{
+				continue;
+			}
+
+			// Organize related categories
+			if (CategoryName == "AttenuationDistance")
+			{
+				SortOrder += 1;
+			}
+			else if (CategoryName == "AttenuationSpatialization")
+			{
+				SortOrder += 2;
+			}
+			else if (CategoryName == "AttenuationOcclusion")
+			{
+				SortOrder += 3;
+			}
+			else if (CategoryName == "AttenuationSubmixSend")
+			{
+				SortOrder += 4;
+			}
+			else if (CategoryName == "AttenuationReverbSend")
+			{
+				SortOrder += 5;
+			}
+			else if (CategoryName == "AttenuationListenerFocus")
+			{
+				SortOrder += 6;
+			}
+			else if (CategoryName == "AttenuationPriority")
+			{
+				SortOrder += 7;
+			}
+			else if (CategoryName == "AttenuationAirAbsorption")
+			{
+				SortOrder += 8;
+			}
+			else if (CategoryName == "AttenuationPluginSettings")
+			{
+				SortOrder += 9;
+			}
+
+			else
+			{
+				// Add space to any other categories interfering with space for attenuation-related categories
+				const int32 ValueSortOrder = Pair.Value->GetSortOrder();
+				if (ValueSortOrder>= SortOrder && ValueSortOrder <SortOrder + 10)
+				{
+					SortOrder += 10;
+				}
+				// Else, leave current sort order alone
+				else
+				{
+					continue;
+				}
+			}
+
+			Pair.Value->SetSortOrder(SortOrder);
+		}
+	}
+}
+
 TSharedRef<IPropertyTypeCustomization> FSoundAttenuationSettingsCustomization::MakeInstance() 
 {
-	return MakeShareable( new FSoundAttenuationSettingsCustomization );
+	return MakeShared<FSoundAttenuationSettingsCustomization>();
 }
 
 TSharedRef<IPropertyTypeCustomization> FForceFeedbackAttenuationSettingsCustomization::MakeInstance() 
 {
-	return MakeShareable( new FForceFeedbackAttenuationSettingsCustomization );
-}
-
-// Helper to return the bool value of a property
-static bool GetValue(TSharedPtr<IPropertyHandle> InProp)
-{
-	if (InProp.IsValid())
-	{
-		bool Val;
-		InProp->GetValue(Val);
-		return Val;
-	}
-	return true;
+	return MakeShared<FForceFeedbackAttenuationSettingsCustomization>();
 }
 
 void FBaseAttenuationSettingsCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -45,14 +125,14 @@ void FBaseAttenuationSettingsCustomization::CustomizeHeader(TSharedRef<class IPr
 	HeaderRow
 		.NameContent()
 		[
-			StructPropertyHandle->CreatePropertyNameWidget( DisplayNameOverride, DisplayToolTipOverride, bDisplayResetToDefault )
+			StructPropertyHandle->CreatePropertyNameWidget(DisplayNameOverride, DisplayToolTipOverride, bDisplayResetToDefault)
 		];
 }
 
 TSharedPtr<IPropertyHandle> FBaseAttenuationSettingsCustomization::GetOverrideAttenuationHandle(TSharedRef<IPropertyHandle> StructPropertyHandle)
 {
-	TSharedPtr< IPropertyHandle > ParentHandle = StructPropertyHandle->GetParentHandle();
-	if (TSharedPtr< IPropertyHandle > GrandParentHandle = ParentHandle->GetParentHandle())
+	TSharedPtr<IPropertyHandle> ParentHandle = StructPropertyHandle->GetParentHandle();
+	if (TSharedPtr<IPropertyHandle> GrandParentHandle = ParentHandle->GetParentHandle())
 	{
 		ParentHandle = GrandParentHandle;
 	}
@@ -62,16 +142,16 @@ TSharedPtr<IPropertyHandle> FBaseAttenuationSettingsCustomization::GetOverrideAt
 void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	uint32 NumChildren;
-	StructPropertyHandle->GetNumChildren( NumChildren );
+	StructPropertyHandle->GetNumChildren(NumChildren);
 
-	TMap<FName, TSharedPtr< IPropertyHandle > > PropertyHandles;
+	TMap<FName, TSharedPtr<IPropertyHandle>> PropertyHandles;
 	 
 	// Get the override attenuation handle, if it exists
 	bOverrideAttenuationHandle = GetOverrideAttenuationHandle(StructPropertyHandle);
 
-	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	for (uint32 ChildIndex = 0; ChildIndex <NumChildren; ++ChildIndex)
 	{
-		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle( ChildIndex ).ToSharedRef();
+		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
 
 		PropertyHandles.Add(PropertyName, ChildHandle);
@@ -83,15 +163,15 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 	TSharedRef<IPropertyHandle> AttenuationExtentsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, AttenuationShapeExtents)).ToSharedRef();
 
 	uint32 NumExtentChildren;
-	AttenuationExtentsHandle->GetNumChildren( NumExtentChildren );
+	AttenuationExtentsHandle->GetNumChildren(NumExtentChildren);
 
-	TSharedPtr< IPropertyHandle > ExtentXHandle;
-	TSharedPtr< IPropertyHandle > ExtentYHandle;
-	TSharedPtr< IPropertyHandle > ExtentZHandle;
+	TSharedPtr<IPropertyHandle> ExtentXHandle;
+	TSharedPtr<IPropertyHandle> ExtentYHandle;
+	TSharedPtr<IPropertyHandle> ExtentZHandle;
 
-	for( uint32 ExtentChildIndex = 0; ExtentChildIndex < NumExtentChildren; ++ExtentChildIndex )
+	for(uint32 ExtentChildIndex = 0; ExtentChildIndex <NumExtentChildren; ++ExtentChildIndex)
 	{
-		TSharedRef<IPropertyHandle> ChildHandle = AttenuationExtentsHandle->GetChildHandle( ExtentChildIndex ).ToSharedRef();
+		TSharedRef<IPropertyHandle> ChildHandle = AttenuationExtentsHandle->GetChildHandle(ExtentChildIndex).ToSharedRef();
 		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(FVector, X))
@@ -113,6 +193,7 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
 
 	LayoutBuilder.AddPropertyToCategory(DistanceAlgorithmHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, CustomAttenuationCurve)))
@@ -129,27 +210,26 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.EditCondition(GetIsFalloffModeEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(AttenuationShapeHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 	
 	LayoutBuilder.AddPropertyToCategory(AttenuationExtentsHandle)
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsBoxSelected))
-		.DisplayName(NSLOCTEXT("AttenuationSettings", "BoxExtentsLabel", "Extents"))
-		.ToolTip(NSLOCTEXT("AttenuationSettings", "BoxExtents", "The dimensions of the of the box."))
+		.DisplayName(LOCTEXT("BoxExtentsLabel", "Extents"))
+		.ToolTip(LOCTEXT("BoxExtents", "The dimensions of the of the box."))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 
 	// Get the attenuation category directly here otherwise our category is going to be incorrect for the following custom rows (e.g. "Vector" vs "Attenuation")
-	FText CategoryText = NSLOCTEXT("AttenuationSettings", "AttenuationDistanceLabel", "AttenuationDistance");
-	FName AttenuationCategoryFName(*CategoryText.ToString());
-	IDetailCategoryBuilder& AttenuationCategory = LayoutBuilder.EditCategory(AttenuationCategoryFName);
+	IDetailCategoryBuilder& AttenuationCategory = LayoutBuilder.EditCategory("AttenuationDistance");
 
-	const FText RadiusLabel(NSLOCTEXT("AttenuationSettings", "RadiusLabel", "Inner Radius"));
+	const FText RadiusLabel(LOCTEXT("RadiusLabel", "Inner Radius"));
 
 	AttenuationCategory.AddCustomRow(RadiusLabel)
 		.NameContent()
 		[
 			SNew(STextBlock)
 				.Text(RadiusLabel)
-				.ToolTipText(NSLOCTEXT("AttenuationSettings", "RadiusToolTip", "The radius that defines when sound attenuation begins (or when a custom attenuation curve begins). Sounds played at a distance less than this will not be attenuated."))
+				.ToolTipText(LOCTEXT("RadiusToolTip", "The radius that defines when sound attenuation begins (or when a custom attenuation curve begins). Sounds played at a distance less than this will not be attenuated."))
 				.Font(StructCustomizationUtils.GetRegularFont())
 				.IsEnabled(GetIsAttenuationEnabledAttribute())
 		]
@@ -160,12 +240,12 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsSphereSelected))
 		.IsEnabled(GetIsAttenuationEnabledAttribute());
 
-	AttenuationCategory.AddCustomRow(NSLOCTEXT("AttenuationSettings", "CapsuleHalfHeightLabel", "Capsule Half Height"))
+	AttenuationCategory.AddCustomRow(LOCTEXT("CapsuleHalfHeightLabel", "Capsule Half Height"))
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("AttenuationSettings", "CapsuleHalfHeightLabel", "Capsule Half Height"))
-			.ToolTipText(NSLOCTEXT("AttenuationSettings", "CapsuleHalfHeightToolTip", "The attenuation capsule's half height."))
+			.Text(LOCTEXT("CapsuleHalfHeightLabel", "Capsule Half Height"))
+			.ToolTipText(LOCTEXT("CapsuleHalfHeightToolTip", "The attenuation capsule's half height."))
 			.Font(StructCustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
@@ -175,12 +255,12 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsCapsuleSelected))
 		.IsEnabled(GetIsAttenuationEnabledAttribute());
 
-	AttenuationCategory.AddCustomRow(NSLOCTEXT("AttenuationSettings", "CapsuleRadiusLabel", "Capsule Radius"))
+	AttenuationCategory.AddCustomRow(LOCTEXT("CapsuleRadiusLabel", "Capsule Radius"))
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("AttenuationSettings", "CapsuleRadiusLabel", "Capsule Radius"))
-			.ToolTipText(NSLOCTEXT("AttenuationSettings", "CapsuleRadiusToolTip", "The attenuation capsule's radius."))
+			.Text(LOCTEXT("CapsuleRadiusLabel", "Capsule Radius"))
+			.ToolTipText(LOCTEXT("CapsuleRadiusToolTip", "The attenuation capsule's radius."))
 			.Font(StructCustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
@@ -190,12 +270,12 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsCapsuleSelected))
 		.IsEnabled(GetIsAttenuationEnabledAttribute());
 
-	AttenuationCategory.AddCustomRow(NSLOCTEXT("AttenuationSettings", "ConeRadiusLabel", "Cone Radius"))
+	AttenuationCategory.AddCustomRow(LOCTEXT("ConeRadiusLabel", "Cone Radius"))
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("AttenuationSettings", "ConeRadiusLabel", "Cone Radius"))
-			.ToolTipText(NSLOCTEXT("AttenuationSettings", "ConeRadiusToolTip", "The attenuation cone's radius."))
+			.Text(LOCTEXT("ConeRadiusLabel", "Cone Radius"))
+			.ToolTipText(LOCTEXT("ConeRadiusToolTip", "The attenuation cone's radius."))
 			.Font(StructCustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
@@ -205,12 +285,12 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsConeSelected))
 		.IsEnabled(GetIsAttenuationEnabledAttribute());
 
-	AttenuationCategory.AddCustomRow(NSLOCTEXT("AttenuationSettings", "ConeAngleLabel", "Cone Angle"))
+	AttenuationCategory.AddCustomRow(LOCTEXT("ConeAngleLabel", "Cone Angle"))
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("AttenuationSettings", "ConeAngleLabel", "Cone Angle"))
-			.ToolTipText(NSLOCTEXT("AttenuationSettings", "ConeAngleToolTip", "The angle of the inner edge of the attenuation cone's falloff. Inside this angle sounds will be at full volume."))
+			.Text(LOCTEXT("ConeAngleLabel", "Cone Angle"))
+			.ToolTipText(LOCTEXT("ConeAngleToolTip", "The angle of the inner edge of the attenuation cone's falloff. Inside this angle sounds will be at full volume."))
 			.Font(StructCustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
@@ -220,12 +300,12 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsConeSelected))
 		.IsEnabled(GetIsAttenuationEnabledAttribute());
 
-	AttenuationCategory.AddCustomRow(NSLOCTEXT("AttenuationSettings", "ConeFalloffAngleLabel", "Cone Falloff Angle"))
+	AttenuationCategory.AddCustomRow(LOCTEXT("ConeFalloffAngleLabel", "Cone Falloff Angle"))
 		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("AttenuationSettings", "ConeFalloffAngleLabel", "Cone Falloff Angle"))
-			.ToolTipText(NSLOCTEXT("AttenuationSettings", "ConeFalloffAngleToolTip", "The angle of the outer edge of the attenuation cone's falloff. Outside this angle sounds will be inaudible."))
+			.Text(LOCTEXT("ConeFalloffAngleLabel", "Cone Falloff Angle"))
+			.ToolTipText(LOCTEXT("ConeFalloffAngleToolTip", "The angle of the outer edge of the attenuation cone's falloff. Outside this angle sounds will be inaudible."))
 			.Font(StructCustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
@@ -240,20 +320,28 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);	
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, FalloffDistance)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 }
 
 TAttribute<bool> FBaseAttenuationSettingsCustomization::IsAttenuationOverriddenAttribute() const
 {
-	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
-	auto Lambda = [bOverrideAttenuationPropertyWeakPtr]()
-	{
-		TSharedPtr<IPropertyHandle> SharedPtrToHandle = bOverrideAttenuationPropertyWeakPtr.Pin();
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([bInOverrideAttenuationHandle = bOverrideAttenuationHandle]()
+		{
+			return AttenuationSettingsUtils::GetValue(bInOverrideAttenuationHandle);
+		}
+	));
+}
 
-		return GetValue(SharedPtrToHandle);
-	};
-
-	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+TAttribute<EVisibility> FBaseAttenuationSettingsCustomization::IsAttenuationOverriddenVisibleAttribute() const
+{
+	return TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([bInOverrideAttenuationHandle = bOverrideAttenuationHandle]()
+		{
+			return AttenuationSettingsUtils::GetValue(bInOverrideAttenuationHandle)
+				? EVisibility::Visible
+				: EVisibility::Hidden;
+		}
+	));
 }
 
 TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsAttenuationEnabledAttribute() const
@@ -266,8 +354,8 @@ TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsAttenuationEnabledA
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakHandle = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsAttenuatedPropertyWeakHandle = bIsAttenuatedPropertyWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationPropertyWeakHandle);
-		Value &= GetValue(bIsAttenuatedPropertyWeakHandle);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationPropertyWeakHandle);
+		Value &= AttenuationSettingsUtils::GetValue(bIsAttenuatedPropertyWeakHandle);
 		return Value;
 	};
 
@@ -292,9 +380,9 @@ TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsFalloffModeEnabledA
 			DbAttenuationAtMaxHandlePtr->GetValue(AttenuationValue);
 		}
 
-		bool Value = GetValue(bOverrideAttenuationPropertyPtr);
-		Value &= GetValue(bIsAttenuatedPropertyPtr);
-		Value &= AttenuationValue > -60.f;
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationPropertyPtr);
+		Value &= AttenuationSettingsUtils::GetValue(bIsAttenuatedPropertyPtr);
+		Value &= AttenuationValue> -60.f;
 		return Value;
 	};
 
@@ -309,17 +397,22 @@ void FSoundAttenuationSettingsCustomization::CustomizeHeader(TSharedRef<IPropert
 
 void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	// Get handle to layout builder to enable adding properties to categories
+	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
+
 	uint32 NumChildren;
-	StructPropertyHandle->GetNumChildren( NumChildren );
+	StructPropertyHandle->GetNumChildren(NumChildren);
 
-	TMap<FName, TSharedPtr< IPropertyHandle > > PropertyHandles;
-
-	for( uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex )
+	TMap<FName, TSharedPtr<IPropertyHandle>> PropertyHandles;
+	for(uint32 ChildIndex = 0; ChildIndex <NumChildren; ++ChildIndex)
 	{
-		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle( ChildIndex ).ToSharedRef();
+		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
 		PropertyHandles.Add(PropertyName, ChildHandle);
 	}
+
+	// Get the override attenuation handle, if it exists
+	bOverrideAttenuationHandle = GetOverrideAttenuationHandle(StructPropertyHandle);
 
 	bIsOcclusionEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableOcclusion)).ToSharedRef();
 	bIsSpatializedHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bSpatialize)).ToSharedRef();
@@ -336,66 +429,78 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	// Set protected member so FBaseAttenuationSettingsCustomization knows how to make attenuation settings editable
 	bIsAttenuatedHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuate)).ToSharedRef();
 
-	// Get handle to layout builder so we can add properties to categories
-	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
-
-	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuate)))
-		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(bIsAttenuatedHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute());
 
 	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
 	LayoutBuilder.AddPropertyToCategory(bIsSpatializedHandle)
-		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+		.Visibility(IsAttenuationOverriddenVisibleAttribute());
 
 	bool bIsAudioMixerEnabled = GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
 
 	// Check to see if a spatialization plugin is enabled
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, SpatializationAlgorithm)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSpatializationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, BinauralRadius)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSpatializationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, OmniRadius)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSpatializationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, StereoSpread)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSpatializationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bApplyNormalizationToStereoSounds)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSpatializationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuateWithLPF)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableListenerFocus)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, LPFRadiusMin)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, LPFRadiusMax)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, LPFFrequencyAtMin)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, LPFFrequencyAtMax)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	if (bIsAudioMixerEnabled)
 	{
 		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMin)))
+			.Visibility(IsAttenuationOverriddenVisibleAttribute())
 			.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMax)))
+			.Visibility(IsAttenuationOverriddenVisibleAttribute())
 			.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 	}
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableLogFrequencyScaling)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(AbsorptionMethodHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomLowpassAirAbsorptionCurve)))
@@ -410,9 +515,11 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 
 		// Add the reverb send enabled handle
 		LayoutBuilder.AddPropertyToCategory(bIsReverbSendEnabledHandle)
+			.Visibility(IsAttenuationOverriddenVisibleAttribute())
 			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 		LayoutBuilder.AddPropertyToCategory(ReverbSendMethodHandle)
+			.Visibility(IsAttenuationOverriddenVisibleAttribute())
 			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
 		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbWetLevelMin)))
@@ -441,61 +548,80 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	}
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusAzimuth)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, NonFocusAzimuth)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusDistanceScale)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, NonFocusDistanceScale)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusPriorityScale)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, NonFocusPriorityScale)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusVolumeAttenuation)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, NonFocusVolumeAttenuation)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableFocusInterpolation)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusAttackInterpSpeed)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusReleaseInterpSpeed)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsFocusEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(bIsOcclusionEnabledHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, OcclusionTraceChannel)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, OcclusionLowPassFilterFrequency)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, OcclusionVolumeAttenuation)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, OcclusionInterpolationTime)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bUseComplexCollisionForOcclusion)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
 	// Add the attenuation priority
 	LayoutBuilder.AddPropertyToCategory(bIsPriorityAttenuationEnabledHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PriorityAttenuationMethodHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationMin)))
@@ -524,16 +650,37 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 
 	// Add the submix send priority
 	LayoutBuilder.AddPropertyToCategory(bIsSubmixSendAttenuationEnabledHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, SubmixSendSettings)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsSubmixSendAttenuationEnabledAttribute(), nullptr);
 
 	if (bIsAudioMixerEnabled)
 	{
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PluginSettings)))
-			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+		TSharedPtr<IPropertyHandle> PluginProperty = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PluginSettings));
+		uint32 NumPluginChildren = 0;
+		PluginProperty->GetNumChildren(NumPluginChildren);
+		for (uint32 i = 0; i < NumPluginChildren; ++i)
+		{
+			LayoutBuilder.AddPropertyToCategory(PluginProperty->GetChildHandle(i))
+				.Visibility(IsAttenuationOverriddenVisibleAttribute())
+				.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+		}
 	}
+
+	// Set category display names
+	LayoutBuilder.EditCategory("AttenuationDistance", LOCTEXT("AttenuationVolume", "Attenuation (Volume)"));
+	LayoutBuilder.EditCategory("AttenuationSpatialization", LOCTEXT("AttenuationSpatialization", "Attenuation (Spatialization)"));
+	LayoutBuilder.EditCategory("AttenuationOcclusion", LOCTEXT("AttenuationOcclusion", "Attenuation (Occlusion)"));
+	LayoutBuilder.EditCategory("AttenuationSubmixSend", LOCTEXT("AttenuationSubmixSend", "Attenuation (Submix)"));
+	LayoutBuilder.EditCategory("AttenuationReverbSend", LOCTEXT("AttenuationReverbSend", "Attenuation (Reverb)"));
+	LayoutBuilder.EditCategory("AttenuationListenerFocus", LOCTEXT("AttenuationListenerFocus", "Attenuation (Focus)"));
+	LayoutBuilder.EditCategory("AttenuationPriority", LOCTEXT("AttenuationPriority", "Attenuation (Priority)"));
+	LayoutBuilder.EditCategory("AttenuationAirAbsorption", LOCTEXT("AttenuationAirAbsorption", "Attenuation (Air Absorption)"));
+	LayoutBuilder.EditCategory("AttenuationPluginSettings", LOCTEXT("AttenuationPluginSettings", "Attenuation (Plugin Settings)"));
+	LayoutBuilder.SortCategories(AttenuationSettingsUtils::SortCategories);
 
 	if (PropertyHandles.Num() != 63)
 	{
@@ -552,19 +699,19 @@ void FForceFeedbackAttenuationSettingsCustomization::CustomizeChildren(TSharedRe
 	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
 	uint32 NumChildren;
-	StructPropertyHandle->GetNumChildren( NumChildren );
+	StructPropertyHandle->GetNumChildren(NumChildren);
 
-	TMap<FName, TSharedPtr< IPropertyHandle > > PropertyHandles;
+	TMap<FName, TSharedPtr<IPropertyHandle>> PropertyHandles;
 
-	for( uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex )
+	for(uint32 ChildIndex = 0; ChildIndex <NumChildren; ++ChildIndex)
 	{
-		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle( ChildIndex ).ToSharedRef();
+		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 		const FName PropertyName = ChildHandle->GetProperty()->GetFName();
 
 		PropertyHandles.Add(PropertyName, ChildHandle);
 	}
 
-	TSharedPtr<FPropertyRestriction> EnumRestriction = MakeShareable(new FPropertyRestriction(NSLOCTEXT("AttenuationSettings", "NoNaturalSound", "Natural Sound is only available for Sound Attenuation")));
+	TSharedPtr<FPropertyRestriction> EnumRestriction = MakeShareable(new FPropertyRestriction(LOCTEXT("NoNaturalSound", "Natural Sound is only available for Sound Attenuation")));
 	const UEnum* const AttenuationDistanceModelEnum = StaticEnum<EAttenuationDistanceModel>();		
 	EnumRestriction->AddHiddenValue(AttenuationDistanceModelEnum->GetNameStringByValue((uint8)EAttenuationDistanceModel::NaturalSound));
 	DistanceAlgorithmHandle->AddRestriction(EnumRestriction.ToSharedRef());
@@ -591,8 +738,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsFocusEnabledAttrib
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsFocusedProperty = bIsFocusedPropertyWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsFocusedProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsFocusedProperty);
 		return Value;
 	};
 
@@ -609,8 +756,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsOcclusionEnabledAt
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bOcclusionProperty = bIsOcclusionPropertyWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bOcclusionProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bOcclusionProperty);
 		return Value;
 	};
 
@@ -627,8 +774,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsSpatializationEnab
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsSpatializedProperty = bIsSpatializedHandleWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsSpatializedProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsSpatializedProperty);
 		return Value;
 	};
 
@@ -645,8 +792,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsAirAbsorptionEnabl
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsAirAbsorptionProperty = bIsAirAbsorptionHandleWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsAirAbsorptionProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsAirAbsorptionProperty);
 		return Value;
 	};
 
@@ -663,8 +810,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsReverbSendEnabledA
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsReverbSendProperty = bIsReverbSendWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsReverbSendProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsReverbSendProperty);
 		return Value;
 	};
 
@@ -681,8 +828,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsPriorityAttenuatio
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsPriorityAttenuationEnabledProperty = bIsPriorityAttenuationEnabledWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsPriorityAttenuationEnabledProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsPriorityAttenuationEnabledProperty);
 		return Value;
 	};
 
@@ -699,8 +846,8 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsSubmixSendAttenuat
 		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
 		TSharedPtr<IPropertyHandle> bIsSubmixSendAttenuationEnabledProperty = bIsSubmixSendWeakPtr.Pin();
 
-		bool Value = GetValue(bOverrideAttenuationProperty);
-		Value &= GetValue(bIsSubmixSendAttenuationEnabledProperty);
+		bool Value = AttenuationSettingsUtils::GetValue(bOverrideAttenuationProperty);
+		Value &= AttenuationSettingsUtils::GetValue(bIsSubmixSendAttenuationEnabledProperty);
 		return Value;
 	};
 
@@ -709,6 +856,11 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsSubmixSendAttenuat
 
 EVisibility FSoundAttenuationSettingsCustomization::IsLinearMethodSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 SendMethodValue;
 	ReverbSendMethodHandle->GetValue(SendMethodValue);
 
@@ -719,6 +871,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsLinearMethodSelected() con
 
 EVisibility FSoundAttenuationSettingsCustomization::IsCustomReverbSendCurveSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 SendMethodValue;
 	ReverbSendMethodHandle->GetValue(SendMethodValue);
 
@@ -729,6 +886,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsCustomReverbSendCurveSelec
 
 EVisibility FSoundAttenuationSettingsCustomization::IsCustomAirAbsorptionCurveSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 MethodValue;
 	AbsorptionMethodHandle->GetValue(MethodValue);
 
@@ -739,6 +901,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsCustomAirAbsorptionCurveSe
 
 EVisibility FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethodSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 SendMethodValue;
 	ReverbSendMethodHandle->GetValue(SendMethodValue);
 
@@ -749,6 +916,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethod
 
 EVisibility FSoundAttenuationSettingsCustomization::IsManualReverbSendSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 SendMethodValue;
 	ReverbSendMethodHandle->GetValue(SendMethodValue);
 
@@ -759,6 +931,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsManualReverbSendSelected()
 
 EVisibility FSoundAttenuationSettingsCustomization::IsPriorityAttenuationLinearMethodSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 Value;
 	PriorityAttenuationMethodHandle->GetValue(Value);
 
@@ -769,6 +946,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsPriorityAttenuationLinearM
 
 EVisibility FSoundAttenuationSettingsCustomization::IsCustomPriorityAttenuationCurveSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 Value;
 	PriorityAttenuationMethodHandle->GetValue(Value);
 
@@ -779,6 +961,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsCustomPriorityAttenuationC
 
 EVisibility FSoundAttenuationSettingsCustomization::IsLinearOrCustomPriorityAttenuationSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 Value;
 	PriorityAttenuationMethodHandle->GetValue(Value);
 
@@ -789,6 +976,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsLinearOrCustomPriorityAtte
 
 EVisibility FSoundAttenuationSettingsCustomization::IsManualPriorityAttenuationSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 Value;
 	PriorityAttenuationMethodHandle->GetValue(Value);
 
@@ -799,6 +991,11 @@ EVisibility FSoundAttenuationSettingsCustomization::IsManualPriorityAttenuationS
 
 EVisibility FBaseAttenuationSettingsCustomization::IsConeSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 AttenuationShapeValue;
 	AttenuationShapeHandle->GetValue(AttenuationShapeValue);
 
@@ -809,6 +1006,11 @@ EVisibility FBaseAttenuationSettingsCustomization::IsConeSelected() const
 
 EVisibility FBaseAttenuationSettingsCustomization::IsSphereSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 AttenuationShapeValue;
 	AttenuationShapeHandle->GetValue(AttenuationShapeValue);
 
@@ -819,6 +1021,11 @@ EVisibility FBaseAttenuationSettingsCustomization::IsSphereSelected() const
 
 EVisibility FBaseAttenuationSettingsCustomization::IsBoxSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 AttenuationShapeValue;
 	AttenuationShapeHandle->GetValue(AttenuationShapeValue);
 
@@ -829,6 +1036,11 @@ EVisibility FBaseAttenuationSettingsCustomization::IsBoxSelected() const
 
 EVisibility FBaseAttenuationSettingsCustomization::IsCapsuleSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 AttenuationShapeValue;
 	AttenuationShapeHandle->GetValue(AttenuationShapeValue);
 
@@ -839,6 +1051,11 @@ EVisibility FBaseAttenuationSettingsCustomization::IsCapsuleSelected() const
 
 EVisibility FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 DistanceAlgorithmValue;
 	DistanceAlgorithmHandle->GetValue(DistanceAlgorithmValue);
 
@@ -849,6 +1066,11 @@ EVisibility FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected() cons
 
 EVisibility FBaseAttenuationSettingsCustomization::IsCustomCurveSelected() const
 {
+	if (!AttenuationSettingsUtils::GetValue(bOverrideAttenuationHandle))
+	{
+		return EVisibility::Hidden;
+	}
+
 	uint8 DistanceAlgorithmValue;
 	DistanceAlgorithmHandle->GetValue(DistanceAlgorithmValue);
 
@@ -856,3 +1078,5 @@ EVisibility FBaseAttenuationSettingsCustomization::IsCustomCurveSelected() const
 
 	return (DistanceAlgorithm == EAttenuationDistanceModel::Custom ? EVisibility::Visible : EVisibility::Hidden);
 }
+
+#undef LOCTEXT_NAMESPACE
