@@ -3,10 +3,10 @@
 
 
 #include "CoreMinimal.h"
+#include "Containers/Queue.h"
 #include <string>
 #include "Runtime/Sockets/Public/Sockets.h"
 #include "Runtime/Core/Public/Misc/DateTime.h"
-#include "Runtime/Networking/Public/Networking.h"
 #include "Runtime/Core/Public/Async/Async.h"
 
 #include "MSPythonBridge.h"
@@ -14,6 +14,9 @@
 #include "AssetsImportController.h"
 
 
+struct FIPv4Endpoint;
+class FSocket;
+class FTcpListener;
 
 class FTCPServer : public FRunnable
 {
@@ -42,7 +45,7 @@ public:
 
 	void RecvEncryptedData(FSocket *sock, TArray<uint8>& data, bool& success);
 
-	bool HandleListenerConnectionAccepted(class FSocket *ClientSocket, const FIPv4Endpoint& ClientEndpoint);
+	bool HandleListenerConnectionAccepted(FSocket *ClientSocket, const FIPv4Endpoint& ClientEndpoint);
 
 public:
 
@@ -55,17 +58,17 @@ public:
 	void ClearMessage();
 	int32 connectionTimeout;
 	bool ParseMessage(const FString& message, TArray<FString>& Tokens);
-	TArray<class FSocket*> Clients;
+	TArray<FSocket*> Clients;
 	bool SocketCheckPendingData(FSocket* Sock);
 
 private:	
-	TQueue<class FSocket*, EQueueMode::Mpsc> PendingClients;
+	TQueue<FSocket*, EQueueMode::Mpsc> PendingClients;
 	FString CreateClientID();
 	bool Stopping;
 
 	FRunnableThread* ClientThread = NULL;
 
-	class FTcpListener *Listener = NULL;
+	FTcpListener *Listener = NULL;
 
 	FString _LoginInfo;
 
