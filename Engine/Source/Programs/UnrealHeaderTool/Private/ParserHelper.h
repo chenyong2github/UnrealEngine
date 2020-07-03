@@ -1652,9 +1652,10 @@ public:
 			if (ExistingMetaData && ExistingMetaData->Num())
 			{
 				// Merge the existing metadata
-				TMap<FName, FString> MergedMetaData = MoveTemp(InMetaData);
-				MergedMetaData.Reserve(MergedMetaData.Num() + ExistingMetaData->Num());
+				TMap<FName, FString> MergedMetaData;
+				MergedMetaData.Reserve(InMetaData.Num() + ExistingMetaData->Num());
 				MergedMetaData.Append(*ExistingMetaData);
+				MergedMetaData.Append(InMetaData);
 				MetaData->SetObjectValues(Field, MoveTemp(MergedMetaData));
 			}
 			else
