@@ -70,7 +70,7 @@ public class ApplicationCore : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{
-			PrivateDependencyModuleNames.AddRange(
+			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Launch"
 				}

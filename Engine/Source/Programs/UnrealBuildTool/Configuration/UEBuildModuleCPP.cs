@@ -147,6 +147,7 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("UnrealEd", "ToolMenusEditor"),
 			new KeyValuePair<string, string>("UnrealEd", "ViewportInteraction"),
 			new KeyValuePair<string, string>("UnrealEd", "VREditor"),
+			new KeyValuePair<string, string>("WebBrowser", "WebBrowserTexture"),
 		};
 
 
