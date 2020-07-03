@@ -144,15 +144,35 @@ void FNiagaraRendererComponents::Initialize(const UNiagaraRendererProperties* In
 		if (!SetterFunctionMapping.Contains(PropertyBinding.PropertyName))
 		{
 			UFunction* SetterFunction = nullptr;
-			for (const FString& Prefix : FNiagaraRendererComponents::SetterPrefixes)
+
+			// we first check if the property has some metadata that explicitly mentions the setter to use
+			UClass* PropertyClass = Properties->TemplateComponent->GetClass();
+			FProperty* ComponentProperty = PropertyClass->FindPropertyByName(PropertyBinding.PropertyName);
+			if (ComponentProperty && ComponentProperty->HasMetaData("BlueprintSetter"))
 			{
-				FName SetterFunctionName = FName(Prefix + PropertyBinding.PropertyName.ToString());
+				FName SetterFunctionName = FName(ComponentProperty->GetMetaData("BlueprintSetter"));
 				SetterFunction = Properties->TemplateComponent->FindFunction(SetterFunctionName);
-				if (SetterFunction)
+			}
+
+			if (!SetterFunction)
+			{
+				// the setter was not specified, so we try to find one that fits the name
+				FString PropertyName = PropertyBinding.PropertyName.ToString();
+				if (PropertyBinding.PropertyType == FNiagaraTypeDefinition::GetBoolDef())
 				{
-					break;
+					PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
+				}
+				for (const FString& Prefix : FNiagaraRendererComponents::SetterPrefixes)
+				{
+					FName SetterFunctionName = FName(Prefix + PropertyName);
+					SetterFunction = Properties->TemplateComponent->FindFunction(SetterFunctionName);
+					if (SetterFunction)
+					{
+						break;
+					}
 				}
 			}
+
 			FNiagaraPropertySetter Setter;
 			Setter.Function = SetterFunction;
 
