@@ -40,6 +40,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "SoundFileIO/SoundFileIO.h"
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
+#include "SubmixDetailsCustomization.h"
 #include "WidgetBlueprint.h"
 
 const FName AudioEditorAppIdentifier = FName(TEXT("AudioEditorApp"));
@@ -95,8 +96,25 @@ public:
 		UReimportSoundFactory::StaticClass();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationDestinationSettings",
+		
+		// Custom Property Layouts
+		auto AddCustomProperty = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetPropertyTypeCustomizationInstance InstanceGetter)
+		{
+			InPropertyModule->RegisterCustomPropertyTypeLayout(Name, InstanceGetter);
+			CustomPropertyLayoutNames.Add(Name);
+		};
+		AddCustomProperty("SoundModulationDestinationSettings", 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSoundModulationDestinationLayoutCustomization::MakeInstance));
+
+		// Custom Class Layouts
+		auto AddCustomClass = [this, InPropertyModule = &PropertyModule](FName Name, FOnGetDetailCustomizationInstance InstanceGetter)
+		{
+			InPropertyModule->RegisterCustomClassLayout(Name, InstanceGetter);
+			CustomClassLayoutNames.Add(Name);
+		};
+		AddCustomClass("EndpointSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FEndpointSubmixDetailsCustomization::MakeInstance));
+		AddCustomClass("SoundfieldEndpointSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FSoundfieldEndpointSubmixDetailsCustomization::MakeInstance));
+		AddCustomClass("SoundfieldSubmix", FOnGetDetailCustomizationInstance::CreateStatic(&FSoundfieldSubmixDetailsCustomization::MakeInstance));
 
 		SetupIcons();
 #if WITH_SNDFILE_IO
@@ -125,6 +143,23 @@ public:
 		if (SoundSubmixGraphConnectionFactory.IsValid())
 		{
 			FEdGraphUtilities::UnregisterVisualPinConnectionFactory(SoundSubmixGraphConnectionFactory);
+		}
+
+		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			for (FName PropertyName : CustomPropertyLayoutNames)
+			{
+				PropertyModule.UnregisterCustomPropertyTypeLayout(PropertyName);
+			}
+			CustomPropertyLayoutNames.Reset();
+
+			for (FName ClassName : CustomClassLayoutNames)
+			{
+				PropertyModule.UnregisterCustomClassLayout(ClassName);
+			}
+			CustomClassLayoutNames.Reset();
 		}
 	}
 
@@ -370,6 +405,8 @@ private:
 		}
 	};
 
+	TArray<FName> CustomClassLayoutNames;
+	TArray<FName> CustomPropertyLayoutNames;
 	TMap<TSubclassOf<USoundEffectPreset>, UWidgetBlueprint*> EffectPresetWidgets;
 
 	FExtensibilityManagers SoundCueExtensibility;
