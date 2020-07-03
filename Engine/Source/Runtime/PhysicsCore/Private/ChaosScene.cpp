@@ -220,3 +220,32 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 	}
 #endif
 }
+
+void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate)
+{
+#if WITH_CHAOS
+	Chaos::FPhysicsSolver* Solver = GetSolver();
+	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* SpatialAcceleration = GetSpacialAcceleration();
+	for(FPhysicsActorHandle& Handle : InHandles)
+	{
+		FChaosEngineInterface::AddActorToSolver(Handle,Solver);
+
+		// Optionally add this to the game-thread acceleration structure immediately
+		if(bImmediate && SpatialAcceleration)
+		{
+			// Get the bounding box for the particle if it has one
+			bool bHasBounds = Handle->Geometry()->HasBoundingBox();
+			Chaos::TAABB<float,3> WorldBounds;
+			if(bHasBounds)
+			{
+				const Chaos::TAABB<float,3> LocalBounds = Handle->Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float,3>(Handle->X(),Handle->R()));
+			}
+
+			// Insert the particle
+			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Handle);
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Handle->SpatialIdx());
+		}
+	}
+#endif
+}
