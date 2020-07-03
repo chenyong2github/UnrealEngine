@@ -1301,7 +1301,7 @@ bool GetMaxHitWeight(const FVector& Location, UActorComponent* Component, const 
 	{
 		if (ULandscapeComponent* HitLandscape = HitLandscapeCollision->RenderComponent.Get())
 		{
-			for (const FName LandscapeLayerName : LandscapeLayersArray)
+			for (const FName& LandscapeLayerName : LandscapeLayersArray)
 			{
 				// Cache store mapping between component and weight data
 				TMap<ULandscapeComponent*, TArray<uint8> >* LandscapeLayerCache = &LandscapeLayerCaches->FindOrAdd(LandscapeLayerName);;

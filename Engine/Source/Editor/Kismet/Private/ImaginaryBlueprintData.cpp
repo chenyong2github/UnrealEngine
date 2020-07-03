@@ -326,7 +326,7 @@ bool FImaginaryFiBData::TestBasicStringExpression(const FTextFilterString& InVal
 		}
 	}
 	// Any children that are treated as a TagAndValue Category should be added for independent searching
-	for (const FImaginaryFiBDataSharedPtr Child : ParsedChildData)
+	for (const FImaginaryFiBDataSharedPtr& Child : ParsedChildData)
 	{
 		if (Child->IsTagAndValueCategory())
 		{
@@ -362,7 +362,7 @@ bool FImaginaryFiBData::TestComplexExpression(const FName& InKey, const FTextFil
 	}
 
 	// Any children that are treated as a TagAndValue Category should be added for independent searching
-	for (const FImaginaryFiBDataSharedPtr Child : ParsedChildData)
+	for (const FImaginaryFiBDataSharedPtr& Child : ParsedChildData)
 	{
 		if (Child->IsTagAndValueCategory())
 		{
@@ -400,7 +400,7 @@ void FImaginaryFiBData::DumpParsedObject(FArchive& Ar, int32 InTreeLevel) const
 	FString NewLine(TEXT("\n"));
 	Ar.Serialize(TCHAR_TO_ANSI(*NewLine), NewLine.Len());
 
-	for (const FImaginaryFiBDataSharedPtr Child : ParsedChildData)
+	for (const FImaginaryFiBDataSharedPtr& Child : ParsedChildData)
 	{
 		Child->DumpParsedObject(Ar, InTreeLevel + 1);
 	}

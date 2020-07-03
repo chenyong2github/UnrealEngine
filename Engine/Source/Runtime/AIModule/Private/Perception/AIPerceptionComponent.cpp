@@ -594,7 +594,7 @@ void UAIPerceptionComponent::ProcessStimuli()
 	}
 
 	// remove perceptual info related to stale actors
-	for (const TObjectKey<AActor> SourceKey : DataToRemove)
+	for (const TObjectKey<AActor>& SourceKey : DataToRemove)
 	{
 		PerceptualData.Remove(SourceKey);
 	}

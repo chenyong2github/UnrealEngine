@@ -2179,7 +2179,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			Landscape->ExportToRawMesh(LandscapeLOD, *LandscapeRawMesh);
 		
 			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-			for (const FVertexID& VertexID : LandscapeRawMesh->Vertices().GetElementIDs())
+			for (const FVertexID VertexID : LandscapeRawMesh->Vertices().GetElementIDs())
 			{
 				VertexPositions[VertexID] -= LandscapeWorldLocation;
 			}

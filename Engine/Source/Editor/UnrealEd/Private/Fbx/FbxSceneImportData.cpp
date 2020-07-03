@@ -320,7 +320,7 @@ FString UFbxSceneImportData::ToJson() const
 	{
 		Json += TEXT(", \"MeshInfo\" : [");
 		bool bFirstNode = true;
-		for (const TSharedPtr<FFbxMeshInfo> MeshInfo : SceneInfoSourceData->MeshInfo)
+		for (const TSharedPtr<FFbxMeshInfo>& MeshInfo : SceneInfoSourceData->MeshInfo)
 		{
 			if (!MeshInfo.IsValid())
 			{

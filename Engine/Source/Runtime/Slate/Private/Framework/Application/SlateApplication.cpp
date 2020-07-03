@@ -1815,9 +1815,9 @@ static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const F
 {
 	if (Viewports.Num() > 0)
 	{
-		for (const TWeakPtr<SWidget> FocusWidget : FocusPath.Widgets)
+		for (const TWeakPtr<SWidget>& FocusWidget : FocusPath.Widgets)
 		{
-			for (const TWeakPtr<SViewport> Viewport : Viewports)
+			for (const TWeakPtr<SViewport>& Viewport : Viewports)
 			{
 				if (FocusWidget == Viewport)
 				{

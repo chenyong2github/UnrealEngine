@@ -266,7 +266,7 @@ TSharedRef<SWidget> SSettingsEditor::MakeCategoryWidget( const ISettingsCategory
 	}
 
 	// list the sections
-	for (const ISettingsSectionPtr Section : InSections)
+	for (const ISettingsSectionPtr& Section : InSections)
 	{
 		SectionsBox->AddSlot()
 			.HAlign(HAlign_Left)
@@ -374,7 +374,7 @@ void SSettingsEditor::ReloadCategories()
 	TArray<TSharedPtr<ISettingsSection>> CategorySettingsSections;
 
 	TArray<UObject*> SettingsObjects;
-	for (const ISettingsCategoryPtr Category : Categories)
+	for (const ISettingsCategoryPtr& Category : Categories)
 	{
 		CategorySettingsSections.Reset();
 

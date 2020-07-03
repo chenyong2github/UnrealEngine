@@ -258,7 +258,7 @@ TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties)
 {
 	TArray<FName> RootProperties;
 	RootProperties.Reserve(InChangedProperties.Num());
-	for (const FName PropertyChainName : InChangedProperties)
+	for (const FName& PropertyChainName : InChangedProperties)
 	{
 		// Only care about the root property in the chain
 		TArray<FString> PropertyChainNames;
@@ -348,7 +348,7 @@ void HotReloadPackages(TArrayView<const FName> InPackageNames)
 	FlushAsyncLoading();
 	{
 		bool bRunGC = false;
-		for (const FName PackageName : InPackageNames)
+		for (const FName& PackageName : InPackageNames)
 		{
 			bRunGC |= FLinkerLoad::RemoveKnownMissingPackage(PackageName);
 		}
@@ -363,7 +363,7 @@ void HotReloadPackages(TArrayView<const FName> InPackageNames)
 	// Find the packages in-memory to content hot-reload
 	TArray<UPackage*> ExistingPackages;
 	ExistingPackages.Reserve(InPackageNames.Num());
-	for (const FName PackageName : InPackageNames)
+	for (const FName& PackageName : InPackageNames)
 	{
 		UPackage* ExistingPackage = FindPackage(nullptr, *PackageName.ToString());
 		if (ExistingPackage)
@@ -409,7 +409,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 	UPackage* EditedMapPackage = CurrentWorld ? CurrentWorld->GetOutermost(): nullptr;
 
 	// Collect any in-memory packages that should be purged and check if we are including the current map in the purge.
-	for (const FName PackageName : InPackageNames)
+	for (const FName& PackageName : InPackageNames)
 	{
 		UPackage* ExistingPackage = FindPackage(nullptr, *PackageName.ToString());
 		if (ExistingPackage)

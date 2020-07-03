@@ -1373,7 +1373,7 @@ void FPasteContextMenu::GatherPasteDestinationsForNode(FSequencerDisplayNode& In
 	}
 
 	// Add children
-	for (const TSharedPtr<FSequencerDisplayNode>& Child : InNode.GetChildNodes())
+	for (const TSharedPtr<FSequencerDisplayNode> Child : InNode.GetChildNodes())
 	{
 		GatherPasteDestinationsForNode(*Child, InSection, ThisScope, Map);
 	}

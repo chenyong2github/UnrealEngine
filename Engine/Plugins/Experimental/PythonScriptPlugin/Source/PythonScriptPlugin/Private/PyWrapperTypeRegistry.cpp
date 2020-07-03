@@ -2229,7 +2229,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		ModuleNames.Sort(FNameLexicalLess());
 
 		bool bExportedImports = false;
-		for (const FName ModuleName : ModuleNames)
+		for (const FName& ModuleName : ModuleNames)
 		{
 			const FString PythonBaseModuleName = PyGenUtil::GetModulePythonName(ModuleName, false);
 			const FString PythonModuleName = FString::Printf(TEXT("unreal_%s"), *PythonBaseModuleName);

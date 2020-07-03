@@ -392,7 +392,7 @@ TArray<FAssetData> UAssetTagsSubsystem::GetAssetsInCollection(const FName Name)
 			CollectionManager.GetAssetsInCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathNames);
 
 			Assets.Reserve(AssetPathNames.Num());
-			for (const FName AssetPathName : AssetPathNames)
+			for (const FName& AssetPathName : AssetPathNames)
 			{
 				FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPathName);
 				if (AssetData.IsValid())

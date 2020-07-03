@@ -354,7 +354,7 @@ UObject* UDatasmithSceneElement::GetOptions(UClass* OptionType)
 		}
 
 		// Additional options from specific translators
-		for(const TStrongObjectPtr<UObject>& AdditionalOption : ImportContextPtr->AdditionalImportOptions)
+		for(const auto& AdditionalOption : ImportContextPtr->AdditionalImportOptions)
 		{
 			if (AdditionalOption->GetClass()->IsChildOf(OptionType))
 			{

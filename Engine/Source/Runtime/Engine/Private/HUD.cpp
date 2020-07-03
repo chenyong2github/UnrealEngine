@@ -222,7 +222,7 @@ void AHUD::PostRender()
 		else if (HitBoxesOver.Num() > 0)
 		{
 			// We still need to dispatch any end cursor over messages even if we don't have any hitboxes anymore
-			for (const FName HitBoxName : HitBoxesOver)
+			for (const FName& HitBoxName : HitBoxesOver)
 			{
 				NotifyHitBoxEndCursorOver(HitBoxName);
 			}
@@ -1199,14 +1199,14 @@ void AHUD::UpdateHitBoxCandidates(TArray<FVector2D> InContactPoints)
 	}
 
 	// Dispatch the end cursor over messages
-	for (const FName HitBoxName : NotOverHitBoxes)
+	for (const FName& HitBoxName : NotOverHitBoxes)
 	{
 		NotifyHitBoxEndCursorOver(HitBoxName);
 		HitBoxesOver.Remove(HitBoxName);
 	}
 
 	// Dispatch the newly over hitbox messages
-	for (const FName HitBoxName : NewlyOverHitBoxes)
+	for (const FName& HitBoxName : NewlyOverHitBoxes)
 	{
 		NotifyHitBoxBeginCursorOver(HitBoxName);
 		HitBoxesOver.Add(HitBoxName);

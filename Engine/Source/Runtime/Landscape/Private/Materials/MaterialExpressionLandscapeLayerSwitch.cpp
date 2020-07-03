@@ -96,7 +96,7 @@ bool UMaterialExpressionLandscapeLayerSwitch::MatchesSearchQuery(const TCHAR* Se
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{

@@ -300,7 +300,7 @@ namespace Chaos
 				TMap<Key,TBox<T, d>> Tmp;
 				Ar << Tmp;
 
-				for (const auto Itr : Tmp)
+				for (const auto& Itr : Tmp)
 				{
 					AABBs.Add(Itr.Key, Itr.Value.AABB);
 				}

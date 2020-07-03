@@ -554,7 +554,7 @@ TSharedPtr<FFbxSceneInfo> UFbxSceneImportFactory::ConvertSceneInfo(void* VoidFbx
 
 	
 
-	for (const UnFbx::FbxMeshInfo MeshInfo : SceneInfo.MeshInfo)
+	for (const UnFbx::FbxMeshInfo& MeshInfo : SceneInfo.MeshInfo)
 	{
 		//Add the skeletal mesh if its a valid one
 		if (MeshInfo.bIsSkelMesh && !ValidSkeletalMesh.Contains(MeshInfo.UniqueId))

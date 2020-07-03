@@ -1218,7 +1218,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		for (const FName SelectedPackageName : AllSelectedPackageNames)
+		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
 			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
@@ -1230,7 +1230,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 			if (HardDependencies.Num() > 0)
 			{
 				ReferencedObjectsList += TEXT("  [HARD]\n");
-				for (const FName HardDependency : HardDependencies)
+				for (const FName& HardDependency : HardDependencies)
 				{
 					const FString PackageString = HardDependency.ToString();
 					ReferencedObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1239,7 +1239,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 			if (SoftDependencies.Num() > 0)
 			{
 				ReferencedObjectsList += TEXT("  [SOFT]\n");
-				for (const FName SoftDependency : SoftDependencies)
+				for (const FName& SoftDependency : SoftDependencies)
 				{
 					const FString PackageString = SoftDependency.ToString();
 					ReferencedObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1262,7 +1262,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		for (const FName SelectedPackageName : AllSelectedPackageNames)
+		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
 			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
@@ -1274,7 +1274,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 			if (HardDependencies.Num() > 0)
 			{
 				ReferencingObjectsList += TEXT("  [HARD]\n");
-				for (const FName HardDependency : HardDependencies)
+				for (const FName& HardDependency : HardDependencies)
 				{
 					const FString PackageString = HardDependency.ToString();
 					ReferencingObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1283,7 +1283,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 			if (SoftDependencies.Num() > 0)
 			{
 				ReferencingObjectsList += TEXT("  [SOFT]\n");
-				for (const FName SoftDependency : SoftDependencies)
+				for (const FName& SoftDependency : SoftDependencies)
 				{
 					const FString PackageString = SoftDependency.ToString();
 					ReferencingObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));

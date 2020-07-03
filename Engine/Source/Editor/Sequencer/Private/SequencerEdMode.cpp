@@ -183,7 +183,7 @@ void FSequencerEdMode::OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* K
 				Sequencer->GetSelection().EmptySelectedKeys();
 			}
 
-			for (const FTrajectoryKey::FData KeyData : KeyProxy->Key.KeyData)
+			for (const FTrajectoryKey::FData& KeyData : KeyProxy->Key.KeyData)
 			{
 				UMovieSceneSection* Section = KeyData.Section.Get();
 				TOptional<FSectionHandle> SectionHandle = Sequencer->GetNodeTree()->GetSectionHandle(Section);

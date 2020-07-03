@@ -1510,7 +1510,7 @@ void SVariantManager::AddFunctionCaller()
 		NumNewCallers
 	));
 
-	for (const TSharedPtr<FVariantManagerActorNode>& Node : SelectedActorNodes)
+	for (const TSharedPtr<FVariantManagerActorNode> Node : SelectedActorNodes)
 	{
 		UVariantObjectBinding* Binding = Node->GetObjectBinding().Get();
 		if (Binding)

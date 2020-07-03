@@ -248,7 +248,7 @@ void STimedDataMonitorBufferVisualizer::RebuiltListItemsSource()
 	}
 
 	// Add missing channel
-	for (const FTimedDataMonitorChannelIdentifier ChannelIdentifier : AllChannelIdentifiers)
+	for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : AllChannelIdentifiers)
 	{
 		TSharedPtr<FTimedDataMonitorBuffervisualizerItem> ItemPtr = MakeShared<FTimedDataMonitorBuffervisualizerItem>();
 		ItemPtr->ChannelIdentifier = ChannelIdentifier;

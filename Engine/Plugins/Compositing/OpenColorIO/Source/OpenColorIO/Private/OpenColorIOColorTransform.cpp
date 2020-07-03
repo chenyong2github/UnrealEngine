@@ -575,7 +575,7 @@ bool UOpenColorIOColorTransform::IsCachedCookedPlatformDataLoaded(const ITargetP
 
 	if (CachedColorTransformResourcesForPlatform != nullptr) // this should always succeed if BeginCacheForCookedPlatformData is called first
 	{
-		for (const FOpenColorIOTransformResource* const& TransformResource : *CachedColorTransformResourcesForPlatform)
+		for (const FOpenColorIOTransformResource* const TransformResource : *CachedColorTransformResourcesForPlatform)
 		{
 			if (TransformResource->IsCompilationFinished() == false)
 			{
@@ -594,7 +594,7 @@ void UOpenColorIOColorTransform::ClearCachedCookedPlatformData(const ITargetPlat
 	TArray<FOpenColorIOTransformResource*>* CachedColorTransformResourcesForPlatform = CachedColorTransformResourcesForCooking.Find(TargetPlatform);
 	if (CachedColorTransformResourcesForPlatform != nullptr)
 	{
-		for (const FOpenColorIOTransformResource* const& TransformResource : *CachedColorTransformResourcesForPlatform)
+		for (const FOpenColorIOTransformResource* const TransformResource : *CachedColorTransformResourcesForPlatform)
 		{
 			delete TransformResource;
 		}

@@ -111,7 +111,7 @@ void UUnifyNormalsCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMod
 
 					TArray<FEdgeID> PolygonEdges;
 					MeshDescription->GetPolygonPerimeterEdges(PolygonID, PolygonEdges);
-					for (const FEdgeID EdgeID : PolygonEdges)
+					for (const FEdgeID& EdgeID : PolygonEdges)
 					{
 						// For each edge of the polygon, check its direction and compare it with the edge direction of its neighbor polygon
 						int8 PolygonEdgeDirection = UnifyNormalsCommandUtils::GetPolygonEdgeDirection(MeshDescription, EdgeID, PolygonID);

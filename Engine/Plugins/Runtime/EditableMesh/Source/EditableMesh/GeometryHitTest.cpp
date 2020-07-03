@@ -59,7 +59,7 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	TPolygonAttributesConstRef<FVector> PolygonCenters = EditableMesh.GetMeshDescription()->PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center);
 
 	// Look for all the front-facing elements
-	for (const FPolygonID PolygonID : CandidatePolygons)
+	for (const FPolygonID& PolygonID : CandidatePolygons)
 	{
 		if (DesiredPolygonGroup >= 0 && EditableMesh.GetMeshDescription()->GetPolygonPolygonGroup(PolygonID).GetValue() != DesiredPolygonGroup)
 			continue;
@@ -92,9 +92,9 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
 	// Check polygons first; this is so we always impose a closest hit location at the poly before checking other elements, so anything behind is occluded
-	for (const FPolygonID PolygonID : FrontFacingPolygons)
+	for (const FPolygonID& PolygonID : FrontFacingPolygons)
 	{
-		for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
+		for (const FTriangleID& TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
 		{
 			FVector TriangleVertexPositions[3];
 			for (uint32 TriangleVertexNumber = 0; TriangleVertexNumber < 3; ++TriangleVertexNumber)
@@ -128,7 +128,7 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	// Check edges
 	if (OnlyElementType == EEditableMeshElementType::Invalid || OnlyElementType == EEditableMeshElementType::Edge)
 	{
-		for (const FEdgeID EdgeID : FrontFacingEdges)
+		for (const FEdgeID& EdgeID : FrontFacingEdges)
 		{
 			FVector EdgeVertexPositions[2];
 			EdgeVertexPositions[0] = VertexPositions[EditableMesh.GetEdgeVertex(EdgeID, 0)];
@@ -149,7 +149,7 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	// Check vertices
 	if (OnlyElementType == EEditableMeshElementType::Invalid || OnlyElementType == EEditableMeshElementType::Vertex)
 	{
-		for (const FVertexID VertexID : FrontFacingVertices)
+		for (const FVertexID& VertexID : FrontFacingVertices)
 		{
 			const FVector VertexPosition = VertexPositions[VertexID];
 			const bool bAlreadyHitVertex = (HitElementAddress.ElementType == EEditableMeshElementType::Vertex);

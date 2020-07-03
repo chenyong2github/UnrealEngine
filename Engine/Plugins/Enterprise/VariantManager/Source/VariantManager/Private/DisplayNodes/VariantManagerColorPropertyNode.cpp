@@ -29,7 +29,7 @@ namespace FVariantColorNodeImpl
 	{
 		// Find a PropertyValue that has valid recorded data
 		UPropertyValue* ValidPropVal = nullptr;
-		for (const TWeakObjectPtr<UPropertyValue> PropVal : PropertyValues)
+		for (const TWeakObjectPtr<UPropertyValue>& PropVal : PropertyValues)
 		{
 			UPropertyValue* PropertyValue = PropVal.Get();
 			if (!PropertyValue)
@@ -56,7 +56,7 @@ namespace FVariantColorNodeImpl
 
 		// Check if we have multiple values
 		const TArray<uint8>& FirstRecordedData = ValidPropVal->GetRecordedData();
-		for (const TWeakObjectPtr<UPropertyValue> PropVal : PropertyValues)
+		for (const TWeakObjectPtr<UPropertyValue>& PropVal : PropertyValues)
 		{
 			UPropertyValue* PropertyValue = PropVal.Get();
 			if (PropertyValue && (PropertyValue->GetRecordedData() != FirstRecordedData))
@@ -122,7 +122,7 @@ void FVariantManagerColorPropertyNode::OnSetColorFromColorPicker(FLinearColor Ne
 	CachedColor = NewColor;
 
 	UPropertyValue* ValidPropVal = nullptr;
-	for (const TWeakObjectPtr<UPropertyValue> PropVal : PropertyValues)
+	for (const TWeakObjectPtr<UPropertyValue>& PropVal : PropertyValues)
 	{
 		if (UPropertyValue* PropertyValue = PropVal.Get())
 		{
@@ -181,7 +181,7 @@ TSharedPtr<SWidget> FVariantManagerColorPropertyNode::GetPropertyValueWidget()
 	if (ColorResult == FVariantColorNodeImpl::EGetCommonColorResult::Failed)
 	{
 		UPropertyValue* ValidPropVal = nullptr;
-		for (const TWeakObjectPtr<UPropertyValue> PropVal : PropertyValues)
+		for (const TWeakObjectPtr<UPropertyValue>& PropVal : PropertyValues)
 		{
 			if (UPropertyValue* PropertyValue = PropVal.Get())
 			{

@@ -1422,7 +1422,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 						// Section index is a unique one so we need to map it to the mesh's equivalent(s)
 						TArray<TPair<uint32, uint32>> SectionToUniqueSectionIndices;
 						MeshSectionToUniqueSection.MultiFind(MeshIndex, SectionToUniqueSectionIndices);
-						for (const TPair<uint32, uint32> IndexPair : SectionToUniqueSectionIndices)
+						for (const TPair<uint32, uint32>& IndexPair : SectionToUniqueSectionIndices)
 						{
 							if (IndexPair.Value == SectionIndex)
 							{
@@ -1466,7 +1466,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 					{
 						TArray<TPair<uint32, uint32>> SectionToUniqueSectionIndices;
 						MeshSectionToUniqueSection.MultiFind(MeshIndex, SectionToUniqueSectionIndices);
-						for (const TPair<uint32, uint32> IndexPair : SectionToUniqueSectionIndices)
+						for (const TPair<uint32, uint32>& IndexPair : SectionToUniqueSectionIndices)
 						{
 							if (IndexPair.Value == SectionIndex)
 							{
@@ -1566,7 +1566,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 				}
 			
 				TMap<FPolygonGroupID, FPolygonGroupID> RemapPolygonGroup;
-				for (const FPolygonGroupID& PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+				for (const FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
 				{
 					checkf(Remap.IsValidIndex(PolygonGroupID.GetValue()), TEXT("Missing material bake output index entry for mesh(section)"));
 					int32 RemapID = Remap[PolygonGroupID.GetValue()];
@@ -2246,7 +2246,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					MeshDataIndex = DefaultMeshDataIndex;
 				}
 
-				for (const uint32& OriginalSectionIndex : SectionIndices)
+				for (const auto& OriginalSectionIndex : SectionIndices)
 				{
 					OutputMaterialsMap.Add(Key, MaterialRemapPair(OriginalSectionIndex, MeshDataIndex));
 				}

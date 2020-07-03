@@ -210,7 +210,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 	// Ensure we can modify assets at these paths
 	{
 		TArray<FString> SelectedAssetPathStrs;
-		for (const FName SelectedPath : InSelectedAssetPaths)
+		for (const FName& SelectedPath : InSelectedAssetPaths)
 		{
 			SelectedAssetPathStrs.Add(SelectedPath.ToString());
 		}

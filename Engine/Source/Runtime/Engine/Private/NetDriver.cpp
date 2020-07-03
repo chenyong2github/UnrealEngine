@@ -1615,7 +1615,7 @@ void UNetDriver::Shutdown()
 		{
 			TArray<FString> GuidStrings;
 			GuidStrings.Reserve(GuidsToLog.Num());
-			for (const FNetworkGUID GuidToLog : GuidsToLog)
+			for (const FNetworkGUID& GuidToLog : GuidsToLog)
 			{
 				FString FullNetGUIDPath = ClientPackageMap->GetFullNetGUIDPath(GuidToLog);
 				if (!FullNetGUIDPath.IsEmpty())

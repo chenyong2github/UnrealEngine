@@ -860,7 +860,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 			TmpAssetPathNames.Reset();
 			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPathNames);
 
-			for (const FName AssetPathName : TmpAssetPathNames)
+			for (const FName& AssetPathName : TmpAssetPathNames)
 			{
 				TArray<FName>& CollectionTagsForAsset = AssetPathNamesToCollectionTags.FindOrAdd(AssetPathName);
 				CollectionTagsForAsset.AddUnique(CollectionTagName);
@@ -878,7 +878,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 		if (AssetData)
 		{
 			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.GetMap();
-			for (const FName CollectionTagName : CollectionTagsForAsset)
+			for (const FName& CollectionTagName : CollectionTagsForAsset)
 			{
 				TagsAndValues.Add(CollectionTagName, FString()); // TODO: Does this need a value to avoid being trimmed?
 			}
@@ -1540,7 +1540,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 
 	const TMap<FName, const FAssetData*>& ObjectToDataMap = State.GetObjectPathToAssetDataMap();
 	TArray<const FAssetData*> AssetDataList;
-	for (const TPair<FName, const FAssetData*> Pair : ObjectToDataMap)
+	for (const TPair<FName, const FAssetData*>& Pair : ObjectToDataMap)
 	{
 		AssetDataList.Add(Pair.Value);
 	}
@@ -1697,7 +1697,7 @@ void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependency
 		}
 		
 		const auto& AssetSet = ModifiedAssetSet.Num() ? ModifiedAssetSet : BaseAssetSet;
-		for (const auto It : Node.ChildNodes)
+		for (const auto& It : Node.ChildNodes)
 		{
 			ResolveChunkDependencyGraph(It, AssetSet, OutPackagesMovedBetweenChunks);
 		}
@@ -1706,7 +1706,7 @@ void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependency
 
 bool FAssetRegistryGenerator::CheckChunkAssetsAreNotInChild(const FChunkDependencyTreeNode& Node)
 {
-	for (const auto It : Node.ChildNodes)
+	for (const auto& It : Node.ChildNodes)
 	{
 		if (!CheckChunkAssetsAreNotInChild(It))
 		{
@@ -1719,7 +1719,7 @@ bool FAssetRegistryGenerator::CheckChunkAssetsAreNotInChild(const FChunkDependen
 		return true;
 	}
 
-	for (const auto ChildIt : Node.ChildNodes)
+	for (const auto& ChildIt : Node.ChildNodes)
 	{
 		if(FinalChunkManifests.Num() > ChildIt.ChunkID && FinalChunkManifests[ChildIt.ChunkID])
 		{

@@ -1584,7 +1584,7 @@ bool FLocTextHelper::SaveManifestImpl(const TSharedRef<const FInternationalizati
 		}
 
 		bSavedAll &= SaveSingleManifest(PlatformAgnosticManifest, InManifestFilePath);
-		for (const auto PerPlatformManifestPair : PerPlatformManifests)
+		for (const auto& PerPlatformManifestPair : PerPlatformManifests)
 		{
 			const FString PlatformManifestFilePath = PlatformLocalizationPath / PerPlatformManifestPair.Key.ToString() / PlatformManifestName;
 			bSavedAll &= SaveSingleManifest(PerPlatformManifestPair.Value, PlatformManifestFilePath);
@@ -1765,7 +1765,7 @@ bool FLocTextHelper::SaveArchiveImpl(const TSharedRef<const FInternationalizatio
 		}
 
 		bSavedAll &= SaveSingleArchive(PlatformAgnosticArchive, InArchiveFilePath);
-		for (const auto PerPlatformArchivePair : PerPlatformArchives)
+		for (const auto& PerPlatformArchivePair : PerPlatformArchives)
 		{
 			const FString PlatformArchiveFilePath = PlatformLocalizationPath / PerPlatformArchivePair.Key.ToString() / PlatformArchiveCulture / PlatformArchiveName;
 			bSavedAll &= SaveSingleArchive(PerPlatformArchivePair.Value, PlatformArchiveFilePath);

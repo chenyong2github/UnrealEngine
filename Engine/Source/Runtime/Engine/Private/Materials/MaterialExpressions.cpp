@@ -3104,7 +3104,7 @@ bool UMaterialExpressionTextureProperty::MatchesSearchQuery(const TCHAR* SearchQ
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{
@@ -4392,7 +4392,7 @@ bool UMaterialExpressionTextureCoordinate::MatchesSearchQuery(const TCHAR* Searc
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{

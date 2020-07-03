@@ -267,7 +267,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 				ensure(BodyAnimData[OutputData.ParentBodyIndex].bBodyTransformInitialized);
 
 				FTransform BodyRelativeTransform = FTransform::Identity;
-				for (const FCompactPoseBoneIndex CompactBoneIndex : OutputData.BoneIndicesToParentBody)
+				for (const FCompactPoseBoneIndex& CompactBoneIndex : OutputData.BoneIndicesToParentBody)
 				{
 					const FTransform& LocalSpaceTM = Output.Pose.GetLocalSpaceTransform(CompactBoneIndex);
 					BodyRelativeTransform = BodyRelativeTransform * LocalSpaceTM;

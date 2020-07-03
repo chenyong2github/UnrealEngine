@@ -749,7 +749,7 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 			{								
 				TArray<FName> SlotNames;
 				NamedSlotHost->GetSlotNames(SlotNames);
-				for (const FName SlotName : SlotNames)
+				for (const FName& SlotName : SlotNames)
 				{
 					const FText SlotNameTxt = FText::FromString(SlotName.ToString());
 					if (UWidget* Content = NamedSlotHost->GetContentForSlot(SlotName))

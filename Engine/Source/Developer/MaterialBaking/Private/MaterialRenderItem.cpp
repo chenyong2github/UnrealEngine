@@ -223,7 +223,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	{
 		const FPolygonGroupID PolygonGroupID = RawMesh->GetPolygonPolygonGroup(PolygonID);
 		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
+		for (const FTriangleID& TriangleID : TriangleIDs)
 		{
 			if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))
 			{

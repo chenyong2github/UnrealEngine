@@ -829,7 +829,7 @@ bool FFeaturePackContentSource::LoadFeaturePackImageData()
  	}
 
 	// parse the screenshots field
-	for (const TSharedPtr<FJsonValue> ScreenshotFilename : ScreenshotFilenameArray)
+	for (const TSharedPtr<FJsonValue>& ScreenshotFilename : ScreenshotFilenameArray)
 	{
 		TSharedPtr<TArray<uint8>> SingleScreenshotData = MakeShareable(new TArray<uint8>);
  		if (FFileHelper::LoadFileToArray(*SingleScreenshotData.Get(), *FPaths::Combine(*MountPoint, TEXT("Media"), *ScreenshotFilename->AsString()) ))
@@ -860,7 +860,7 @@ bool FFeaturePackContentSource::LoadFeaturePackImageDataFromPackFile(FPakPlatfor
 	}
 
 	// parse the screenshots field
-	for (const TSharedPtr<FJsonValue> ScreenshotFilename : ScreenshotFilenameArray)
+	for (const TSharedPtr<FJsonValue>& ScreenshotFilename : ScreenshotFilenameArray)
 	{
 		TSharedPtr<TArray<uint8>> SingleScreenshotData = MakeShareable(new TArray<uint8>);
 		if (LoadPakFileToBuffer(PakPlatformFile, FPaths::Combine(*MountPoint, TEXT("Media"), *ScreenshotFilename->AsString()), *SingleScreenshotData))

@@ -491,7 +491,7 @@ TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(con
 		for (TFieldIterator<FObjectProperty> PropertyIt(Cls); PropertyIt; ++PropertyIt)
 		{
 			const UObject* Object = PropertyIt->GetPropertyValue(PropertyIt->ContainerPtrToValuePtr<UObject>(CDO));
-			for (const TWeakObjectPtr<UObject> Asset : LocalAssetsToRename)
+			for (const TWeakObjectPtr<UObject>& Asset : LocalAssetsToRename)
 			{
 				if (Object == Asset.Get())
 				{
@@ -1467,7 +1467,7 @@ int32 FAssetRenameManager::ReportFailures(const TArray<FAssetRenameDataWithRefer
 		}
 		else
 		{
-			for (const FText FailedRename : FailedRenames)
+			for (const FText& FailedRename : FailedRenames)
 			{
 				UE_LOG(LogAssetTools, Error, TEXT("%s"), *FailedRename.ToString());
 			}

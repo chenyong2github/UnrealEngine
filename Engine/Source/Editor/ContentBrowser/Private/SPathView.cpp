@@ -59,7 +59,7 @@ TSet<FName> SPathView::FScopedSelectionChangedEvent::GetSelectionSet() const
 	TSet<FName> SelectionSet;
 
 	const TArray<TSharedPtr<FTreeItem>> SelectedItems = PathView->TreeViewPtr->GetSelectedItems();
-	for (const TSharedPtr<FTreeItem> Item : SelectedItems)
+	for (const TSharedPtr<FTreeItem>& Item : SelectedItems)
 	{
 		if (ensure(Item.IsValid()))
 		{
@@ -249,7 +249,7 @@ void SPathView::SetSelectedPaths(const TArray<FString>& Paths)
 			Path.ParseIntoArray(PathItemListStr, TEXT("/"), /*InCullEmpty=*/true);
 
 			PathItemList.Reserve(PathItemListStr.Num());
-			for (const FString PathItemName : PathItemListStr)
+			for (const FString& PathItemName : PathItemListStr)
 			{
 				PathItemList.Add(*PathItemName);
 			}

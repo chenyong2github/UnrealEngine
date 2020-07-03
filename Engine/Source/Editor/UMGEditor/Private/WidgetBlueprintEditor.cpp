@@ -1397,7 +1397,7 @@ void FWidgetBlueprintEditor::AddWidgetsToTrack(const TArray<FWidgetReference> Wi
 		MovieScene->Modify();
 		WidgetAnimation->Modify();
 
-		for (const FWidgetReference Widget : WidgetsToAdd)
+		for (const FWidgetReference& Widget : WidgetsToAdd)
 		{
 			UWidget* PreviewWidget = Widget.GetPreview();
 			WidgetAnimation->BindPossessableObject(ObjectId, *PreviewWidget, GetAnimationPlaybackContext());

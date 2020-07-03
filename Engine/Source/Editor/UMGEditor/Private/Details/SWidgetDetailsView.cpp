@@ -291,7 +291,7 @@ void SWidgetDetailsView::OnPropertyViewObjectArrayChanged(const FString& InTitle
 		{
 			TMap<TWeakObjectPtr<UObject>, TWeakObjectPtr<UPackage>> ObjectToPackageMapping;
 
-			for (const TWeakObjectPtr<UObject>& Object : InObjects)
+			for (const TWeakObjectPtr<UObject> Object : InObjects)
 			{
 				ObjectToPackageMapping.Add(Object, UMGPackage);
 			}

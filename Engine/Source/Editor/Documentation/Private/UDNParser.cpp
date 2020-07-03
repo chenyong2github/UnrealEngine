@@ -653,7 +653,7 @@ FUDNLine FUDNParser::ParseLineIntoUDNContent(int32 LineNumber, const FString& Li
 					if (LineConfig.CalculatedExpectedContentStrings() == Contents.Num())
 					{
 						OutputLine.ContentType = LineConfig.OutputLineType;
-						for (const FString Content : Contents)
+						for (const FString& Content : Contents)
 						{
 							OutputLine.AdditionalContent.Add(Content);
 						}

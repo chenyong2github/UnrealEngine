@@ -67,7 +67,7 @@ FBox FMeshElementViewportTransformable::BuildBoundingBox( const FTransform& Boun
 						static TArray<FVertexID> PerimeterVertexIDs;
 						EditableMesh->GetPolygonPerimeterVertices( PolygonID, /* Out */ PerimeterVertexIDs );
 
-						for( const FVertexID VertexID : PerimeterVertexIDs )
+						for( const FVertexID& VertexID : PerimeterVertexIDs )
 						{
 							BoundingBox += ComponentToBoundingBox.TransformPosition( VertexPositions[ VertexID ] );
 						}

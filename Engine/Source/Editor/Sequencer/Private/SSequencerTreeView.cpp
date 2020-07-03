@@ -73,7 +73,7 @@ FReply SSequencerTreeViewRow::OnDragDetected( const FGeometry& InGeometry, const
 		if ( Sequencer.GetSelection().GetSelectedOutlinerNodes().Num() > 0 )
 		{
 			TArray<TSharedRef<FSequencerDisplayNode> > DraggableNodes;
-			for ( const TSharedRef<FSequencerDisplayNode> SelectedNode : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
+			for ( const TSharedRef<FSequencerDisplayNode>& SelectedNode : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
 			{
 				if ( SelectedNode->CanDrag() )
 				{

@@ -145,7 +145,7 @@ void FFbxImporter::ShowFbxSkeletonConflictWindow(USkeletalMesh* SkeletalMesh, US
 			AllDependencies += SoftDependencies;
 			if (AllDependencies.Num() > 0)
 			{
-				for (const FName AssetDependencyName : AllDependencies)
+				for (const FName& AssetDependencyName : AllDependencies)
 				{
 					const FString PackageString = AssetDependencyName.ToString();
 					const FString FullAssetPathName = FString::Printf(TEXT("%s.%s"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));

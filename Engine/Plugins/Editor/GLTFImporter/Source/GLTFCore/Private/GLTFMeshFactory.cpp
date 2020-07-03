@@ -388,7 +388,7 @@ namespace GLTF
 			TArray<FEdgeID> NewEdgeIDs;
 			const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs, &NewEdgeIDs);
 
-			for (const FEdgeID NewEdgeID : NewEdgeIDs)
+			for (const FEdgeID& NewEdgeID : NewEdgeIDs)
 			{
 				// Make all faces part of the same smoothing group, so Unreal will combine identical adjacent verts.
 				// (Is there a way to set auto-gen smoothing threshold? glTF spec says to generate flat normals if they're not specified.

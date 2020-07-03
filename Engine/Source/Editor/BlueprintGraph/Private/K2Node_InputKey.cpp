@@ -385,7 +385,7 @@ void UK2Node_InputKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionR
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
-		for (FKey const Key : AllKeys)
+		for (const FKey& Key : AllKeys)
 		{
 			// these will be handled by UK2Node_GetInputAxisKeyValue and UK2Node_GetInputVectorAxisValue respectively
 			if (!Key.IsBindableInBlueprints() || Key.IsAnalog())

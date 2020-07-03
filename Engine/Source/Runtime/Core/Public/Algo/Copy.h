@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Algo/Common.h"
 
 namespace Algo
 {
@@ -35,6 +36,22 @@ namespace Algo
 	FORCEINLINE void Copy(const InT& Input, OutT& Output)
 	{
 		for (const auto& Value : Input)
+		{
+			Output.Add(Value);
+		}
+	}
+
+	/**
+	 * Copies a range into a container.
+	 * Should be used if when the input iterator doesn't return a reference.
+	 *
+	 * @param  Input  Any iterable type
+	 * @param  Output  Container to hold the output
+	 */
+	template <typename InT, typename OutT>
+	FORCEINLINE void Copy(const InT& Input, OutT& Output, ENoRef NoRef)
+	{
+		for (const auto Value : Input)
 		{
 			Output.Add(Value);
 		}

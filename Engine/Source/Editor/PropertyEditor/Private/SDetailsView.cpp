@@ -597,7 +597,7 @@ void SDetailsView::SetObjectArrayPrivate(const TArray<UObject*>& InObjects)
 
 		FObjectPropertyNode* RootNode = RootPropertyNodes[RootIndex]->AsObjectNode();
 
-		for(const TWeakObjectPtr<UObject>& Object : Root.Objects)
+		for(const TWeakObjectPtr<UObject> Object : Root.Objects)
 		{
 			if (Object.IsValid())
 			{

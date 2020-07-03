@@ -234,7 +234,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 
 	// Test the conversion for all common frame rate
 	TArray<TFuture<bool>> Futures;
-	for (const FFrameRate FrameRate : CommonFrameRates)
+	for (const FFrameRate& FrameRate : CommonFrameRates)
 	{
 		Futures.Add(Async(EAsyncExecution::Thread, [FrameRate, &ConversionWithFrameRateTest](){ return ConversionWithFrameRateTest(FrameRate); }));
 	}

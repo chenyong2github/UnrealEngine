@@ -782,7 +782,7 @@ void FAssetEditorManager::HandlePackageReloaded(const EPackageReloadPhase InPack
 		TArray<UObject*> AssetsToClose;
 		const TMap<UObject*, UObject*>& RepointedMap = InPackageReloadedEvent->GetRepointedObjects();
 
-		for (const TPair<UObject*, UObject*> RepointPair : RepointedMap)
+		for (const TPair<UObject*, UObject*>& RepointPair : RepointedMap)
 		{
 			if (RepointPair.Key->IsAsset())
 			{
@@ -837,7 +837,7 @@ void FAssetEditorManager::OpenEditorsForAssets(const TArray<FString>& AssetsToOp
 
 void FAssetEditorManager::OpenEditorsForAssets(const TArray<FName>& AssetsToOpen)
 {
-	for (const FName AssetName : AssetsToOpen)
+	for (const FName& AssetName : AssetsToOpen)
 	{
 		OpenEditorForAsset(AssetName.ToString());
 	}

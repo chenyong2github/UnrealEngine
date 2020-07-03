@@ -667,7 +667,7 @@ void UNiagaraScript::AsyncOptimizeByteCode()
 	// This has to be done game code side as we can not access anything in CachedScriptVM
 	TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
 	ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
-	for (const FVMExternalFunctionBindingInfo FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
+	for (const FVMExternalFunctionBindingInfo& FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
 	{
 		const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
 		ExternalFunctionRegisterCounts.Add(RegisterCount);

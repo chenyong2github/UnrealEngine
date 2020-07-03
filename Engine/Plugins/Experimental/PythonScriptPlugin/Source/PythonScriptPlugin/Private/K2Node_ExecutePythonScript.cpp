@@ -63,7 +63,7 @@ void UK2Node_ExecutePythonScript::AllocateDefaultPins()
 	// Add user-defined pins
 	auto AddUserDefinedPins = [this](const TArray<FName>& InPinNames, EEdGraphPinDirection InPinDirection)
 	{
-		for (const FName PinName : InPinNames)
+		for (const FName& PinName : InPinNames)
 		{
 			UEdGraphPin* ArgPin = CreatePin(InPinDirection, UEdGraphSchema_K2::PC_Wildcard, PinName);
 			ArgPin->PinFriendlyName = FText::AsCultureInvariant(ExecutePythonScriptUtil::PythonizePinName(ArgPin));
@@ -79,7 +79,7 @@ void UK2Node_ExecutePythonScript::PostReconstructNode()
 
 	auto SynchronizeUserDefinedPins = [this](const TArray<FName>& InPinNames, EEdGraphPinDirection InPinDirection)
 	{
-		for (const FName PinName : InPinNames)
+		for (const FName& PinName : InPinNames)
 		{
 			UEdGraphPin* ArgPin = FindArgumentPinChecked(PinName, InPinDirection);
 			SynchronizeArgumentPinTypeImpl(ArgPin);
@@ -196,7 +196,7 @@ void UK2Node_ExecutePythonScript::EarlyValidation(FCompilerResultsLog& MessageLo
 	TSet<FString> AllPinNames;
 	auto ValidatePinArray = [this, &AllPinNames, &MessageLog](const TArray<FName>& InPinNames)
 	{
-		for (const FName PinName : InPinNames)
+		for (const FName& PinName : InPinNames)
 		{
 			const FString PythonizedPinName = ExecutePythonScriptUtil::PythonizePinName(PinName);
 
@@ -255,7 +255,7 @@ void UK2Node_ExecutePythonScript::ExpandNode(FKismetCompilerContext& CompilerCon
 
 		// For each argument we need to make a literal string node
 		int32 ArgIndex = 0;
-		for (const FName ArgName : ArgNames)
+		for (const FName& ArgName : ArgNames)
 		{
 			static const FName MakeLiteralStringFunctionName = GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, MakeLiteralString);
 

@@ -152,7 +152,7 @@ bool UExternalRpcRegistry::HttpListOpenRoutes(const FHttpServerRequest& Request,
 	RegisteredRoutes.GetKeys(OutRouteKeys);
 	TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&ResponseStr);
 	JsonWriter->WriteArrayStart();
-	for (const FName RouteKey : OutRouteKeys)
+	for (const FName& RouteKey : OutRouteKeys)
 	{
 		JsonWriter->WriteObjectStart();
 		JsonWriter->WriteValue(TEXT("name"), RouteKey.ToString());

@@ -222,7 +222,7 @@ void UCurveTable::Serialize(FArchive& Ar)
 			const size_t SizeOfDirectCurveAllocs = sizeof(FSimpleCurve) * RowMap.Num();
 			Ar.CountBytes(SizeOfDirectCurveAllocs, SizeOfDirectCurveAllocs);
 
-			for (const TPair<FName, FRealCurve*> CurveRow : RowMap)
+			for (const TPair<FName, FRealCurve*>& CurveRow : RowMap)
 			{
 				FSimpleCurve* Curve = (FSimpleCurve*)CurveRow.Value;
 				Curve->Keys.CountBytes(Ar);
@@ -233,7 +233,7 @@ void UCurveTable::Serialize(FArchive& Ar)
 			const size_t SizeOfDirectCurveAllocs = sizeof(FRichCurve) * RowMap.Num();
 			Ar.CountBytes(SizeOfDirectCurveAllocs, SizeOfDirectCurveAllocs);
 
-			for (const TPair<FName, FRealCurve*> CurveRow : RowMap)
+			for (const TPair<FName, FRealCurve*>& CurveRow : RowMap)
 			{
 				FRichCurve* Curve = (FRichCurve*)CurveRow.Value;
 				Curve->Keys.CountBytes(Ar);

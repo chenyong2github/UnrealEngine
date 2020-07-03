@@ -644,7 +644,7 @@ bool UAssetRegistryImpl::GetAssetsByClass(FName ClassName, TArray<FAssetData>& O
 bool UAssetRegistryImpl::GetAssetsByTags(const TArray<FName>& AssetTags, TArray<FAssetData>& OutAssetData) const
 {
 	FARFilter Filter;
-	for (const FName AssetTag : AssetTags)
+	for (const FName& AssetTag : AssetTags)
 	{
 		Filter.TagsAndValues.Add(AssetTag);
 	}
@@ -1278,7 +1278,7 @@ void UAssetRegistryImpl::CompileFilter(const FARFilter& InFilter, FARCompiledFil
 	if (InFilter.bRecursivePaths)
 	{
 		// Add the sub-paths of all the input paths to the expanded list
-		for (const FName PackagePath : InFilter.PackagePaths)
+		for (const FName& PackagePath : InFilter.PackagePaths)
 		{
 			CachedPathTree.GetSubPaths(PackagePath, OutCompiledFilter.PackagePaths);
 		}

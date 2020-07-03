@@ -681,7 +681,7 @@ void FModuleManager::UnloadModulesAtShutdown()
 
 	TArray<FModulePair> ModulesToUnload;
 
-	for (const auto ModuleIt : Modules)
+	for (const auto& ModuleIt : Modules)
 	{
 		ModuleInfoRef ModuleInfo( ModuleIt.Value );
 

@@ -1285,7 +1285,7 @@ void SOutputLog::MakeSelectCategoriesSubMenu(FMenuBuilder& MenuBuilder)
 			EUserInterfaceActionType::ToggleButton
 		);
 		
-		for (const FName Category : Filter.GetAvailableLogCategories())
+		for (const FName& Category : Filter.GetAvailableLogCategories())
 		{
 			MenuBuilder.AddMenuEntry(
 				FText::AsCultureInvariant(Category.ToString()),

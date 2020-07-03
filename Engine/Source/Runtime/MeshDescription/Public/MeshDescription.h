@@ -637,7 +637,7 @@ public:
 	void GetVertexConnectedTriangles(const FVertexID VertexID, TArray<FTriangleID, Alloc>& OutConnectedTriangleIDs) const
 	{
 		OutConnectedTriangleIDs.Reset(GetNumVertexConnectedTriangles(VertexID));
-		for (const FVertexInstanceID VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
+		for (const FVertexInstanceID& VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
 		{
 			OutConnectedTriangleIDs.Append(VertexInstanceArray[VertexInstanceID].ConnectedTriangles);
 		}
@@ -673,9 +673,9 @@ public:
 	void GetVertexConnectedPolygons(const FVertexID VertexID, TArray<FPolygonID, Alloc>& OutConnectedPolygonIDs) const
 	{
 		OutConnectedPolygonIDs.Reset();
-		for (const FVertexInstanceID VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
+		for (const FVertexInstanceID& VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
 		{
-			for (const FTriangleID TriangleID : VertexInstanceArray[VertexInstanceID].ConnectedTriangles)
+			for (const FTriangleID& TriangleID : VertexInstanceArray[VertexInstanceID].ConnectedTriangles)
 			{
 				OutConnectedPolygonIDs.AddUnique(TriangleArray[TriangleID].PolygonID);
 			}
@@ -713,7 +713,7 @@ public:
 		OutAdjacentVertexIDs.SetNumUninitialized(ConnectedEdgeIDs.Num());
 
 		int32 Index = 0;
-		for (const FEdgeID EdgeID : ConnectedEdgeIDs)
+		for (const FEdgeID& EdgeID : ConnectedEdgeIDs)
 		{
 			const FMeshEdge& Edge = EdgeArray[EdgeID];
 			OutAdjacentVertexIDs[Index] = (Edge.VertexIDs[0] == VertexID) ? Edge.VertexIDs[1] : Edge.VertexIDs[0];
@@ -768,7 +768,7 @@ public:
 	void GetVertexInstanceConnectedPolygons(const FVertexInstanceID VertexInstanceID, TArray<FPolygonID, Alloc>& OutPolygonIDs) const
 	{
 		OutPolygonIDs.Reset(VertexInstanceArray[VertexInstanceID].ConnectedTriangles.Num());
-		for (const FTriangleID TriangleID : VertexInstanceArray[VertexInstanceID].ConnectedTriangles)
+		for (const FTriangleID& TriangleID : VertexInstanceArray[VertexInstanceID].ConnectedTriangles)
 		{
 			OutPolygonIDs.AddUnique(TriangleArray[TriangleID].PolygonID);
 		}
@@ -834,7 +834,7 @@ public:
 	void GetEdgeConnectedPolygons(const FEdgeID EdgeID, TArray<FPolygonID, Alloc>& OutPolygonIDs) const
 	{
 		OutPolygonIDs.Reset(EdgeArray[EdgeID].ConnectedTriangles.Num());
-		for (const FTriangleID TriangleID : EdgeArray[EdgeID].ConnectedTriangles)
+		for (const FTriangleID& TriangleID : EdgeArray[EdgeID].ConnectedTriangles)
 		{
 			OutPolygonIDs.AddUnique(TriangleArray[TriangleID].PolygonID);
 		}
@@ -952,9 +952,9 @@ public:
 	void GetTriangleAdjacentTriangles(const FTriangleID TriangleID, TArray<FTriangleID, Alloc>& OutTriangleIDs) const
 	{
 		OutTriangleIDs.Reset();
-		for (const FEdgeID EdgeID : GetTriangleEdges(TriangleID))
+		for (const FEdgeID& EdgeID : GetTriangleEdges(TriangleID))
 		{
-			for (const FTriangleID OtherTriangleID : EdgeArray[EdgeID].ConnectedTriangles)
+			for (const FTriangleID& OtherTriangleID : EdgeArray[EdgeID].ConnectedTriangles)
 			{
 				if (OtherTriangleID != TriangleID)
 				{
@@ -1025,7 +1025,7 @@ public:
 	{
 		OutVertexIDs.SetNumUninitialized(GetNumPolygonVertices(PolygonID));
 		int32 Index = 0;
-		for (const FVertexInstanceID VertexInstanceID : GetPolygonVertexInstances(PolygonID))
+		for (const FVertexInstanceID& VertexInstanceID : GetPolygonVertexInstances(PolygonID))
 		{
 			OutVertexIDs[Index++] = GetVertexInstanceVertex(VertexInstanceID);
 		}
@@ -1088,9 +1088,9 @@ public:
 		OutEdgeIDs.Reset(GetNumPolygonVertices(PolygonID) - 3);
 		if (GetNumPolygonVertices(PolygonID) > 3)
 		{
-			for (const FVertexInstanceID VertexInstanceID : GetPolygonVertexInstances(PolygonID))
+			for (const FVertexInstanceID& VertexInstanceID : GetPolygonVertexInstances(PolygonID))
 			{
-				for (const FEdgeID EdgeID : GetVertexConnectedEdges(GetVertexInstanceVertex(VertexInstanceID)))
+				for (const FEdgeID& EdgeID : GetVertexConnectedEdges(GetVertexInstanceVertex(VertexInstanceID)))
 				{
 					if (!OutEdgeIDs.Contains(EdgeID) && IsEdgeInternalToPolygon(EdgeID, PolygonID))
 					{
@@ -1129,9 +1129,9 @@ public:
 	void GetPolygonAdjacentPolygons(const FPolygonID PolygonID, TArray<FPolygonID, Alloc>& OutPolygonIDs) const
 	{
 		OutPolygonIDs.Reset();
-		for (const FEdgeID EdgeID : GetPolygonPerimeterEdges<TInlineAllocator<16>>(PolygonID))
+		for (const FEdgeID& EdgeID : GetPolygonPerimeterEdges<TInlineAllocator<16>>(PolygonID))
 		{
-			for (const FPolygonID OtherPolygonID : GetEdgeConnectedPolygons<TInlineAllocator<8>>(EdgeID))
+			for (const FPolygonID& OtherPolygonID : GetEdgeConnectedPolygons<TInlineAllocator<8>>(EdgeID))
 			{
 				if (OtherPolygonID != PolygonID)
 				{

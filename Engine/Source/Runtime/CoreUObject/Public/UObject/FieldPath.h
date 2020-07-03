@@ -254,7 +254,7 @@ public:
 	FORCEINLINE friend uint32 GetTypeHash(const FFieldPath& InPropertyPath)
 	{
 		uint32 HashValue = 0;
-		for (const FName PathSegment : InPropertyPath.Path)
+		for (const FName& PathSegment : InPropertyPath.Path)
 		{
 			HashValue = HashCombine(HashValue, GetTypeHash(PathSegment));
 		}

@@ -351,7 +351,7 @@ template <template <typename...> class TContainer>
 void FMeshDescription::DeleteEdge_Internal(const FEdgeID EdgeID, TContainer<FVertexID>* InOutOrphanedVerticesPtr)
 {
 	FMeshEdge& Edge = EdgeArray[EdgeID];
-	for (const FVertexID EdgeVertexID : Edge.VertexIDs)
+	for (const FVertexID& EdgeVertexID : Edge.VertexIDs)
 	{
 		FMeshVertex& Vertex = VertexArray[EdgeVertexID];
 		verify(Vertex.ConnectedEdgeIDs.RemoveSingle(EdgeID) == 1);
@@ -568,7 +568,7 @@ void FMeshDescription::DeletePolygon_Internal(const FPolygonID PolygonID, TConta
 	FMeshPolygon& Polygon = PolygonArray[PolygonID];
 
 	// Remove constituent triangles
-	for (const FTriangleID TriangleID : Polygon.TriangleIDs)
+	for (const FTriangleID& TriangleID : Polygon.TriangleIDs)
 	{
 		const FMeshTriangle& Triangle = TriangleArray[TriangleID];
 
@@ -587,7 +587,7 @@ void FMeshDescription::DeletePolygon_Internal(const FPolygonID PolygonID, TConta
 				if (IsEdgeInternal(EdgeID))
 				{
 					// Remove internal edges
-					for (const FVertexID EdgeVertexID : EdgeArray[EdgeID].VertexIDs)
+					for (const FVertexID& EdgeVertexID : EdgeArray[EdgeID].VertexIDs)
 					{
 						verify(VertexArray[EdgeVertexID].ConnectedEdgeIDs.RemoveSingle(EdgeID) == 1);
 					}
@@ -665,7 +665,7 @@ void FMeshDescription::DeletePolygons(const TArray<FPolygonID>& Polygons)
 
 bool FMeshDescription::IsVertexOrphaned(const FVertexID VertexID) const
 {
-	for (const FVertexInstanceID VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
+	for (const FVertexInstanceID& VertexInstanceID : VertexArray[VertexID].VertexInstanceIDs)
 	{
 		if (VertexInstanceArray[VertexInstanceID].ConnectedTriangles.Num() > 0)
 		{
@@ -679,7 +679,7 @@ bool FMeshDescription::IsVertexOrphaned(const FVertexID VertexID) const
 
 FEdgeID FMeshDescription::GetVertexPairEdge(const FVertexID VertexID0, const FVertexID VertexID1) const
 {
-	for (const FEdgeID VertexConnectedEdgeID : VertexArray[VertexID0].ConnectedEdgeIDs)
+	for (const FEdgeID& VertexConnectedEdgeID : VertexArray[VertexID0].ConnectedEdgeIDs)
 	{
 		const FVertexID EdgeVertexID0 = EdgeArray[VertexConnectedEdgeID].VertexIDs[0];
 		const FVertexID EdgeVertexID1 = EdgeArray[VertexConnectedEdgeID].VertexIDs[1];
@@ -697,7 +697,7 @@ FEdgeID FMeshDescription::GetVertexInstancePairEdge(const FVertexInstanceID Vert
 {
 	const FVertexID VertexID0 = VertexInstanceArray[VertexInstanceID0].VertexID;
 	const FVertexID VertexID1 = VertexInstanceArray[VertexInstanceID1].VertexID;
-	for (const FEdgeID VertexConnectedEdgeID : VertexArray[VertexID0].ConnectedEdgeIDs)
+	for (const FEdgeID& VertexConnectedEdgeID : VertexArray[VertexID0].ConnectedEdgeIDs)
 	{
 		const FVertexID EdgeVertexID0 = EdgeArray[VertexConnectedEdgeID].VertexIDs[0];
 		const FVertexID EdgeVertexID1 = EdgeArray[VertexConnectedEdgeID].VertexIDs[1];
@@ -722,7 +722,7 @@ void FMeshDescription::SetPolygonVertexInstance(const FPolygonID PolygonID, cons
 	Polygon.VertexInstanceIDs[PerimeterIndex] = VertexInstanceID;
 
 	// Fix up triangle list
-	for (const FTriangleID TriangleID : Polygon.TriangleIDs)
+	for (const FTriangleID& TriangleID : Polygon.TriangleIDs)
 	{
 		FMeshTriangle& Triangle = TriangleArray[TriangleID];
 		for (int32 VertexIndex = 0; VertexIndex < 3; ++VertexIndex)
@@ -842,16 +842,16 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID)
 	}
 
 	// Remove currently configured triangles
-	for (const FTriangleID TriangleID : Polygon.TriangleIDs)
+	for (const FTriangleID& TriangleID : Polygon.TriangleIDs)
 	{
 		// Disconnect triangles from vertex instances
-		for (const FVertexInstanceID VertexInstanceID : GetTriangleVertexInstances(TriangleID))
+		for (const FVertexInstanceID& VertexInstanceID : GetTriangleVertexInstances(TriangleID))
 		{
 			verify(VertexInstanceArray[VertexInstanceID].ConnectedTriangles.RemoveSingle(TriangleID) == 1);
 		}
 
 		// Disconnect triangles from perimeter edges, and delete internal edges
-		for (const FEdgeID EdgeID : GetTriangleEdges(TriangleID))
+		for (const FEdgeID& EdgeID : GetTriangleEdges(TriangleID))
 		{
 			if (EdgeID != FEdgeID::Invalid)
 			{
@@ -860,7 +860,7 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID)
 				if (IsEdgeInternal(EdgeID))
 				{
 					// Remove internal edges completely (the first time they are seen)
-					for (const FVertexID VertexID : GetEdgeVertices(EdgeID))
+					for (const FVertexID& VertexID : GetEdgeVertices(EdgeID))
 					{
 						// Disconnect edge from vertices
 						verify(VertexArray[VertexID].ConnectedEdgeIDs.RemoveSingle(EdgeID) == 1);
@@ -1238,7 +1238,7 @@ void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGr
 	};
 
 	TMap<FPolygonGroupID, FOldPolygonGroupData> OldData;
-	for (const FPolygonGroupID& PolygonGroupID : PolygonGroups().GetElementIDs())
+	for (const FPolygonGroupID PolygonGroupID : PolygonGroups().GetElementIDs())
 	{
 		if (!Remap.Contains(PolygonGroupID) || PolygonGroupID == Remap[PolygonGroupID])
 		{

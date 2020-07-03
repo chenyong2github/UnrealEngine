@@ -732,7 +732,7 @@ TSharedRef<FExtender> FLevelEditorSequencerIntegration::GetLevelViewportExtender
 
 void FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu(FMenuBuilder& MenuBuilder, AActor* Actor, const TArray<TPair<FMovieSceneSequenceID, FSequencer*> > FoundInSequences)
 {
-	for (const TPair<FMovieSceneSequenceID, FSequencer*> Sequence : FoundInSequences)
+	for (const TPair<FMovieSceneSequenceID, FSequencer*>& Sequence : FoundInSequences)
 	{
 		UMovieSceneSequence* MovieSceneSequence = nullptr;
 		if (Sequence.Key == MovieSceneSequenceID::Root)

@@ -611,7 +611,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		}
 		FName InputName = *FString::Join(InputNames, TEXT("_")).Replace(TEXT("."), TEXT("_"));
 
-		for (const FName AvailableNamespace : AvailableNamespaces)
+		for (const FName& AvailableNamespace : AvailableNamespaces)
 		{
 			FNiagaraParameterHandle HandleToRead(AvailableNamespace, InputName);
 			bool bCanExecute = AvailableHandles.Contains(HandleToRead) == false;

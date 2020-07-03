@@ -852,7 +852,7 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 	NewSectionIndices.Reserve(GeneratedMenu->Sections.Num());
 
 	// Add sections with customized ordering first
-	for (const FName SectionName : CustomizedMenu.SectionOrder)
+	for (const FName& SectionName : CustomizedMenu.SectionOrder)
 	{
 		if (SectionName != NAME_None)
 		{
@@ -887,7 +887,7 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 		{
 			if (FCustomizedToolMenuNameArray* EntryOrder = CustomizedMenu.EntryOrder.Find(OriginalSection.Name))
 			{
-				for (const FName EntryName : EntryOrder->Names)
+				for (const FName& EntryName : EntryOrder->Names)
 				{
 					if (EntryName != NAME_None)
 					{
@@ -1608,7 +1608,7 @@ void UToolMenus::AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMult
 	{
 		TArray<const UObject*>& References = WidgetObjectReferences.FindOrAdd(InMultiBox);
 		References.AddUnique(InMenu);
-		for (const TWeakObjectPtr<UObject>& WeakObject : InMenu->Context.ContextObjects)
+		for (const TWeakObjectPtr<UObject> WeakObject : InMenu->Context.ContextObjects)
 		{
 			if (UObject* Object = WeakObject.Get())
 			{

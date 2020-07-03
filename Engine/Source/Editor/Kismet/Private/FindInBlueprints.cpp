@@ -1584,7 +1584,7 @@ void SFindInBlueprints::SelectAllItemsHelper(FSearchResult InItemToSelect)
 	// Iterates over all children and recursively selects all items in the results
 	TreeView->SetItemSelection(InItemToSelect, true);
 
-	for( const auto Child : InItemToSelect->Children )
+	for( const auto& Child : InItemToSelect->Children )
 	{
 		SelectAllItemsHelper(Child);
 	}
@@ -1592,7 +1592,7 @@ void SFindInBlueprints::SelectAllItemsHelper(FSearchResult InItemToSelect)
 
 void SFindInBlueprints::OnSelectAllAction()
 {
-	for( const auto Item : ItemsFound )
+	for( const auto& Item : ItemsFound )
 	{
 		SelectAllItemsHelper(Item);
 	}
@@ -1604,7 +1604,7 @@ void SFindInBlueprints::OnCopyAction()
 
 	FString SelectedText;
 
-	for( const auto SelectedItem : SelectedItems)
+	for( const auto& SelectedItem : SelectedItems)
 	{
 		// Add indents for each layer into the tree the item is
 		for(auto ParentItem = SelectedItem->Parent; ParentItem.IsValid(); ParentItem = ParentItem.Pin()->Parent)

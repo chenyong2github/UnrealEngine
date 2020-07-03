@@ -70,7 +70,7 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 	{
 		FPolygonGroupID PolygonGroupID = MeshDescription.GetTrianglePolygonGroup( TriangleID );
 		FMeshSectionAttributeData& SectionData = GroupedData.FindOrAdd(PolygonGroupID);
-		for ( const FVertexInstanceID VertexInstanceID : MeshDescription.GetTriangleVertexInstances( TriangleID ) )
+		for ( const FVertexInstanceID& VertexInstanceID : MeshDescription.GetTriangleVertexInstances( TriangleID ) )
 		{
 			auto* FoundVertexIndex = SectionData.IndexOfInstances.Find( VertexInstanceID );
 			if ( FoundVertexIndex ){

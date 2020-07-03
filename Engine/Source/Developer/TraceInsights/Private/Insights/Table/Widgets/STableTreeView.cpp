@@ -1126,7 +1126,7 @@ void STableTreeView::RebuildGroupingCrumbs()
 {
 	GroupingBreadcrumbTrail->ClearCrumbs();
 
-	for (const TSharedPtr<FTreeNodeGrouping> Grouping : CurrentGroupings)
+	for (const TSharedPtr<FTreeNodeGrouping>& Grouping : CurrentGroupings)
 	{
 		GroupingBreadcrumbTrail->PushCrumb(Grouping->GetShortName(), Grouping);
 	}

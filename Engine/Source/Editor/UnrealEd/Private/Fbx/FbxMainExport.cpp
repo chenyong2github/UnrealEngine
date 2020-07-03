@@ -1124,7 +1124,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 				// Insert a polygon into the mesh
 				TArray<FEdgeID> NewEdgeIDs;
 				const FPolygonID NewPolygonID = Mesh.CreatePolygon(CurrentPolygonGroupID, VertexInstanceIDs, &NewEdgeIDs);
-				for (const FEdgeID EdgeID : NewEdgeIDs)
+				for (const FEdgeID& EdgeID : NewEdgeIDs)
 				{
 					EdgeHardnesses[EdgeID] = false;
 					EdgeCreaseSharpnesses[EdgeID] = 0.0f;

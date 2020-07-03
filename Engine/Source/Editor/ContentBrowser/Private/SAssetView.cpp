@@ -1750,7 +1750,7 @@ void SAssetView::RefreshSourceItems()
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
 			{
@@ -4084,7 +4084,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			FContentBrowserDataCompiledFilter& CompiledDataFilter = CompiledDataFilters.AddDefaulted_GetRef();
 			ContentBrowserData->CompileFilter(DataSourcePath, DataFilter, CompiledDataFilter);

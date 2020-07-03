@@ -2060,7 +2060,7 @@ void FActiveGameplayEffectsContainer::ExecuteActiveEffectsFrom(FGameplayEffectSp
 	}
 
 	// Apply any conditional linked effects
-	for (const FGameplayEffectSpecHandle TargetSpec : ConditionalEffectSpecs)
+	for (const FGameplayEffectSpecHandle& TargetSpec : ConditionalEffectSpecs)
 	{
 		if (TargetSpec.IsValid())
 		{
