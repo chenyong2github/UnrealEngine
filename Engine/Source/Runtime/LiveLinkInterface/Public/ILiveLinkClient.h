@@ -229,6 +229,9 @@ public:
 	/** Whether a subject support a particular role, either directly or through a translator */
 	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const = 0;
 
+	/** Whether a subject support a particular role, either directly or through a translator */
+	virtual bool DoesSubjectSupportsRole(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> SupportedRole) const = 0;
+
 	/**
 	 * Get the time of all the frames for a specific source.
 	 * @note Use for debugging purposes.
