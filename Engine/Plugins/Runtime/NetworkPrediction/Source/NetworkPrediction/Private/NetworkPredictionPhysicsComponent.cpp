@@ -10,6 +10,8 @@
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionPhysics.h"
 #include "NetworkPredictionModelDefRegistry.h"
+#include "Components/PrimitiveComponent.h"
+#include "UObject/Object.h"
 
 NP_MODEL_REGISTER(FGenericPhysicsModelDef);
 

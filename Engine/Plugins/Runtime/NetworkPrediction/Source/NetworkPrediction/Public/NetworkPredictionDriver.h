@@ -7,7 +7,7 @@
 #include "NetworkPredictionSettings.h"
 #include "NetworkPredictionDebug.h"
 #include "NetworkPredictionReplicationProxy.h"
-#include "Containers/StringFwd.h"
+#include "Misc/StringBuilder.h"
 
 namespace Chaos
 {
