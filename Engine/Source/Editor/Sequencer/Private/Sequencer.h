@@ -526,10 +526,10 @@ public:
 	 * Attempts to paste from the clipboard
 	 * @return Whether the paste event was handled
 	 */
-	bool DoPaste();
-	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
+	bool DoPaste(bool bClearSelection = false);
+	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
-	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
+	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 
 	void ImportTracksFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableTrack*>& ImportedTracks);
 	void ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections);
