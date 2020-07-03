@@ -18,11 +18,11 @@ class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 
 protected:
 	/** The virtual texture object to use. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTexture)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
 	/** Texture object containing streamed low mips. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTextureBuild)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
@@ -38,7 +38,7 @@ protected:
 	bool bUseStreamingLowMipsInEditor = false;
 
 	/** Texture object containing min and max height. Only valid if the virtual texture contains a compatible height layer. This can be useful for ray marching against the height. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DuplicateTransient, Category = VirtualTextureBuild)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
 	UTexture2D* MinMaxTexture = nullptr;
 
 	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
@@ -48,6 +48,10 @@ protected:
 	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
 	bool bSnapBoundsToLandscape;
+
+#if WITH_EDITOR
+	FDelegateHandle PieEndDelegateHandle;
+#endif
 
 public:
 	/** Get the runtime virtual texture object on this component. */
@@ -95,7 +99,7 @@ public:
 protected:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ End UObject Interface
 
@@ -109,15 +113,19 @@ protected:
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
+#if WITH_EDITOR
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+#endif
 	virtual bool IsVisible() const override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
+protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
 	uint64 CalculateStreamingTextureSettingsHash() const;
 	/** Returns true if the StreamingTexure contents are valid for use. */
 	bool IsStreamingTextureValid() const;
-
 	/** Returns true if the MinMaxTexture contents are valid for use. */
 	bool IsMinMaxTextureValid() const;
 
