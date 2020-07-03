@@ -194,6 +194,27 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Gets the name of this task for tracing
+		/// </summary>
+		/// <returns>The trace name</returns>
+		public virtual string GetTraceName()
+		{
+			TaskElementAttribute TaskElement = GetType().GetCustomAttribute<TaskElementAttribute>();
+			return (TaskElement != null)? TaskElement.Name : "unknown";
+		}
+
+		/// <summary>
+		/// Get properties to include in tracing info
+		/// </summary>
+		/// <param name="Span">The scope to add properties to</param>
+		/// <param name="Prefix">Prefix for metadata entries</param>
+		public virtual void GetTraceMetadata(ITraceSpan Span, string Prefix)
+		{
+			Span.AddMetadata(Prefix + "file", SourceLocation.Item1.MakeRelativeTo(CommandUtils.RootDirectory));
+			Span.AddMetadata(Prefix + "line", SourceLocation.Item2.ToString());
+		}
+
+		/// <summary>
 		/// Find all the tags which are used as inputs to this task
 		/// </summary>
 		/// <returns>The tag names which are read by this task</returns>

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -709,10 +710,15 @@ namespace AutomationTool
 
 			// Read the manifests for all the input storage blocks
 			Dictionary<TempStorageBlock, TempStorageManifest> InputManifests = new Dictionary<TempStorageBlock, TempStorageManifest>();
-			foreach(TempStorageBlock InputStorageBlock in InputStorageBlocks)
+			using (ITraceSpan Span = TraceSpan.Create("tempstorage.get"))
 			{
-				TempStorageManifest Manifest = Storage.Retreive(InputStorageBlock.NodeName, InputStorageBlock.OutputName);
-				InputManifests[InputStorageBlock] = Manifest;
+				Span.AddMetadata("blocks", InputStorageBlocks.Count.ToString());
+				foreach (TempStorageBlock InputStorageBlock in InputStorageBlocks)
+				{
+					TempStorageManifest Manifest = Storage.Retreive(InputStorageBlock.NodeName, InputStorageBlock.OutputName);
+					InputManifests[InputStorageBlock] = Manifest;
+				}
+				Span.AddMetadata("size", string.Format("{0:n0}", InputManifests.Sum(x => x.Value.GetTotalSize())));
 			}
 
 			// Read all the input storage blocks, keeping track of which block each file came from
@@ -831,32 +837,35 @@ namespace AutomationTool
 			}
 
 			// Write all the storage blocks, and update the mapping from file to storage block
-			foreach(KeyValuePair<string, HashSet<FileReference>> Pair in OutputStorageBlockToFiles)
+			using (ITraceSpan Span = Tools.DotNETCommon.TraceSpan.Create("tempstorage.put"))
 			{
-				TempStorageBlock OutputBlock = new TempStorageBlock(Node.Name, Pair.Key);
-				foreach(FileReference File in Pair.Value)
+				foreach (KeyValuePair<string, HashSet<FileReference>> Pair in OutputStorageBlockToFiles)
 				{
-					FileToStorageBlock.Add(File, OutputBlock);
-				}
-				Storage.Archive(Node.Name, Pair.Key, Pair.Value.ToArray(), Pair.Value.Any(x => ReferencedOutputFiles.Contains(x)));
-			}
-
-			// Publish all the output tags
-			foreach(NodeOutput Output in Node.Outputs)
-			{
-				HashSet<FileReference> Files = TagNameToFileSet[Output.TagName];
-
-				HashSet<TempStorageBlock> StorageBlocks = new HashSet<TempStorageBlock>();
-				foreach(FileReference File in Files)
-				{
-					TempStorageBlock StorageBlock;
-					if(FileToStorageBlock.TryGetValue(File, out StorageBlock))
+					TempStorageBlock OutputBlock = new TempStorageBlock(Node.Name, Pair.Key);
+					foreach (FileReference File in Pair.Value)
 					{
-						StorageBlocks.Add(StorageBlock);
+						FileToStorageBlock.Add(File, OutputBlock);
 					}
+					Storage.Archive(Node.Name, Pair.Key, Pair.Value.ToArray(), Pair.Value.Any(x => ReferencedOutputFiles.Contains(x)));
 				}
 
-				Storage.WriteFileList(Node.Name, Output.TagName, Files, StorageBlocks.ToArray());
+				// Publish all the output tags
+				foreach (NodeOutput Output in Node.Outputs)
+				{
+					HashSet<FileReference> Files = TagNameToFileSet[Output.TagName];
+
+					HashSet<TempStorageBlock> StorageBlocks = new HashSet<TempStorageBlock>();
+					foreach (FileReference File in Files)
+					{
+						TempStorageBlock StorageBlock;
+						if (FileToStorageBlock.TryGetValue(File, out StorageBlock))
+						{
+							StorageBlocks.Add(StorageBlock);
+						}
+					}
+
+					Storage.WriteFileList(Node.Name, Output.TagName, Files, StorageBlocks.ToArray());
+				}
 			}
 
 			// Mark the node as succeeded
