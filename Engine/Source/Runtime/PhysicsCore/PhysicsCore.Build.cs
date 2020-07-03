@@ -24,6 +24,10 @@ public class PhysicsCore: ModuleRules
 		SetupModulePhysicsSupport(Target);
 		
 
+		// SetupModulePhysicsSupport adds a dependency on PhysicsCore, but we are PhysicsCore!
+		PublicIncludePathModuleNames.Remove("PhysicsCore");
+		PublicDependencyModuleNames.Remove("PhysicsCore");
+
 		if (Target.bCompileChaos == false && Target.bUseChaos == false)
         {
             if (Target.bCompilePhysX)

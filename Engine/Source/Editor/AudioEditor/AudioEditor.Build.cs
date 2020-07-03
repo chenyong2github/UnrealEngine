@@ -49,6 +49,13 @@ public class AudioEditor : ModuleRules
 				"AssetTools"
 			});
 
+		// Circular references that need to be cleaned up
+		CircularlyReferencedDependentModules.AddRange(
+			new string[] {
+				"DetailCustomizations",
+			}
+		);
+
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string PlatformName = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";

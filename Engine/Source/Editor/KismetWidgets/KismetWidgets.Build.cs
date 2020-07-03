@@ -36,5 +36,12 @@ public class KismetWidgets : ModuleRules
                 "AssetTools",
 			}
 		);
+
+		// Circular references that need to be cleaned up
+		CircularlyReferencedDependentModules.AddRange(
+			new string[] {
+				"BlueprintGraph",
+			}
+		);
 	}
 }

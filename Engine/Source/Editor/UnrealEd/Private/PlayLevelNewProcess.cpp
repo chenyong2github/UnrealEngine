@@ -177,7 +177,7 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 	if (InParams.SessionPreviewTypeOverride.Get(EPlaySessionPreviewType::NoPreview) == EPlaySessionPreviewType::VRPreview)
 	{
 		CommandLine += TEXT(" -nohmd");
-		UE_LOG(LogHMD, Warning, TEXT("Standalone Game VR not supported, please use VR Preview."));
+		GLog->CategorizedLogf(FName("LogHMD"), ELogVerbosity::Warning, TEXT("Standalone Game VR not supported, please use VR Preview."));
 	}
 
 	// Allow disabling the sound in the new clients.

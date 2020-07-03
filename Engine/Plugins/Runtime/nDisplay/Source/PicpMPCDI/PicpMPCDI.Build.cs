@@ -25,10 +25,16 @@ public class PicpMPCDI : ModuleRules
 			new string[]
 			{
 				"MPCDI",
-				"PicpProjection",
 				"Projects",				
 				"RenderCore",
                 "RHI"
+			}
+		);
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"PicpProjection"
 			}
 		);
 
