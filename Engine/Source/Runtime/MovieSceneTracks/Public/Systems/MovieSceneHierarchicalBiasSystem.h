@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 
 #include "MovieSceneHierarchicalBiasSystem.generated.h"
-
 
 UCLASS()
 class UMovieSceneHierarchicalBiasSystem : public UMovieSceneEntityInstantiatorSystem

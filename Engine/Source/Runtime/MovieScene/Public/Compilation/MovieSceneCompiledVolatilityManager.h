@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Containers/SortedMap.h"
-
-#pragma once
 
 namespace UE
 {
