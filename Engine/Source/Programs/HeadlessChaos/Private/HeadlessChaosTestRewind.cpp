@@ -1130,9 +1130,21 @@ namespace ChaosTest {
 
 			for(int Step = RewindStep; Step <= LastStep; ++Step)
 			{
-				//at the end of Step 7 we're at z=9, but it used to be z=10
-				FGeometryParticleState FutureState(*Dynamic);
-				EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step),Step <= 7 ? EFutureQueryResult::Ok : EFutureQueryResult::Desync);
+				//at the end of frame 6 a desync occurs because velocity is no longer clamped (kinematic moved)
+				//because of this desync will happen for any step after 6
+				if(Step <= 6)
+				{
+					FGeometryParticleState FutureState(*Dynamic);
+					EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step),EFutureQueryResult::Ok);
+				}
+				else if(Step >= 8)
+				{
+					//collision would have happened at frame 7, so anything after will desync. We skip a few frames because solver is fuzzy at that point
+					//that is we can choose to solve velocity in a few ways. Main thing we want to know is that a desync eventually happened
+					FGeometryParticleState FutureState(*Dynamic);
+					EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step),EFutureQueryResult::Desync);
+				}
+				
 
 				TickSolverHelper(Module,Solver);
 			}
@@ -1777,7 +1789,7 @@ namespace ChaosTest {
 				Xs.Add(Dynamic->X());
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+			EXPECT_GE(Dynamic->X()[2],10);
 
 			const int RewindStep = 8;
 
@@ -1820,8 +1832,6 @@ namespace ChaosTest {
 			EXPECT_EQ(DesyncedParticles.Num(),2);
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
 			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
-
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],0);
 
 			Module->DestroySolver(Solver);
 		}
