@@ -152,7 +152,7 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			TArray<FColor> ScaledBitmap;
 			int32 ScaledWidth = 512;
 			int32 ScaledHeight = 512;
-			FImageUtils::ImageResize(SrcWidth, SrcHeight, OrigBitmap, ScaledWidth, ScaledHeight, ScaledBitmap, true);
+			FImageUtils::CropAndScaleImage(SrcWidth, SrcHeight, ScaledWidth, ScaledHeight, OrigBitmap, ScaledBitmap);
 
 			// Compress.
 			FCreateTexture2DParameters Params;
