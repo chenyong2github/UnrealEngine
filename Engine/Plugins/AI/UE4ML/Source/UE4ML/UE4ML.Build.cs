@@ -35,6 +35,12 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
+            PrivateDependencyModuleNames.AddRange(
+                new string[] {
+                    "DeveloperSettings"
+                }
+            );
+
             // RPCLib disabled on other platforms at the moment
             if (Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.Win32)
