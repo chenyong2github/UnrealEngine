@@ -898,7 +898,7 @@ namespace UnrealBuildTool
 				if (string.IsNullOrEmpty(GuiltyModule))
 				{
 					string CycleChain = string.Join(" -> ", ReferenceStack);
-					Log.TraceError("Circular dependency on {0} detected.\n" +
+					Log.TraceInformation("Circular dependency on {0} detected.\n" +
 						"\tFull Route: {1}\n" +
 						"\tCycled Route: is {2}.\n" +
 						"Break this loop by moving dependencies into a separate module or using Private/PublicIncludePathModuleNames to reference declarations\n", 
