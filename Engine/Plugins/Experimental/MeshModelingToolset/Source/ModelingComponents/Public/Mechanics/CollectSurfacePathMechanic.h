@@ -95,8 +95,8 @@ protected:
 	ECollectSurfacePathDoneMode DoneMode = ECollectSurfacePathDoneMode::SnapDoubleClick;
 	int32 FixedPointTargetCount = 0;
 	bool bCurrentPreviewWillComplete = false;
-	bool bGeometricCloseOcurred = false;
-	bool CheckGeometricClosure(const FFrame3d& Point);
+	bool bGeometricCloseOccurred = false;
+	bool CheckGeometricClosure(const FFrame3d& Point, bool* bLoopWasClosedOut = nullptr);
 
 	bool bLoopWasClosed = false;
 };

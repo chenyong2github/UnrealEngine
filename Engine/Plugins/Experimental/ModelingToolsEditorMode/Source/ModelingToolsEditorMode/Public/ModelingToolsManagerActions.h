@@ -28,8 +28,10 @@ public:
 	TSharedPtr<FUICommandInfo> BeginAddSpherePrimitiveTool;
 
 	TSharedPtr<FUICommandInfo> BeginAddPatchTool;
+	TSharedPtr<FUICommandInfo> BeginRevolveBoundaryTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolygonTool;
 	TSharedPtr<FUICommandInfo> BeginDrawPolyPathTool;
+	TSharedPtr<FUICommandInfo> BeginDrawAndRevolveTool;
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;

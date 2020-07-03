@@ -46,18 +46,30 @@ void UCollectSurfacePathMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 		if (HitPath.Num() > 0)
 		{
-			const FLinearColor& DrawPathColor = (bCurrentPreviewWillComplete || bGeometricCloseOcurred) ? PathCompleteColor : PathColor;
+			const FLinearColor& DrawPathColor = (bCurrentPreviewWillComplete || bGeometricCloseOccurred) ? PathCompleteColor : PathColor;
 			int32 NumPoints = HitPath.Num() - 1;
 			for (int32 k = 0; k < NumPoints; ++k)
 			{
 				PathDrawer.DrawLine(HitPath[k].Origin, HitPath[k + 1].Origin, DrawPathColor);
 			}
 
-			const FLinearColor& DrawPreviewColor = (bCurrentPreviewWillComplete || bGeometricCloseOcurred) ? PathCompleteColor : PreviewColor;
-			PathDrawer.DrawLine(HitPath[NumPoints].Origin, PreviewPathPoint.Origin, DrawPreviewColor);
+			if (!bGeometricCloseOccurred)
+			{
+				// This draws the line to the current hover point as a preview
+				const FLinearColor& DrawPreviewColor = (bCurrentPreviewWillComplete || bGeometricCloseOccurred) ? PathCompleteColor : PreviewColor;
+				PathDrawer.DrawLine(HitPath[NumPoints].Origin, PreviewPathPoint.Origin, DrawPreviewColor);
+			}
+			else if (LoopWasClosed())
+			{
+				// Draw a line to the first point
+				PathDrawer.DrawLine(HitPath[0].Origin, HitPath[HitPath.Num() - 1].Origin, DrawPathColor);
+			}
 		}
 
-		PathDrawer.DrawPoint(PreviewPathPoint.Origin, PreviewColor, PathDrawer.PointSize, PathDrawer.bDepthTested);
+		if (!bGeometricCloseOccurred)
+		{
+			PathDrawer.DrawPoint(PreviewPathPoint.Origin, PreviewColor, PathDrawer.PointSize, PathDrawer.bDepthTested);
+		}
 
 		PathDrawer.EndFrame();
 	}
@@ -131,9 +143,9 @@ bool UCollectSurfacePathMechanic::TryAddPointFromRay(const FRay3d& Ray)
 		return false;
 	}
 
-	if (CheckGeometricClosure(NewPoint))
+	if (CheckGeometricClosure(NewPoint, &bLoopWasClosed)) // update bLoopWasClosed as we do this
 	{
-		bGeometricCloseOcurred = true;
+		bGeometricCloseOccurred = true;
 	}
 	else
 	{
@@ -147,7 +159,14 @@ bool UCollectSurfacePathMechanic::TryAddPointFromRay(const FRay3d& Ray)
 
 bool UCollectSurfacePathMechanic::PopLastPoint()
 {
-	if (HitPath.Num() > 0)
+	if (bGeometricCloseOccurred)
+	{
+		// Undoing the closure is effectively "popping" the results of the last TryAddPointFromRay call.
+		bGeometricCloseOccurred = false;
+		bLoopWasClosed = false;
+		return true;
+	} 
+	else if (HitPath.Num() > 0)
 	{
 		HitPath.RemoveAt(HitPath.Num() - 1);
 		return true;
@@ -243,15 +262,21 @@ bool UCollectSurfacePathMechanic::IsDone() const
 	}
 	else if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClick || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClickOrCloseLoop)
 	{
-		return bGeometricCloseOcurred;
+		return bGeometricCloseOccurred;
 	}
 	ensure(false);
 	return false;
 }
 
 
-bool UCollectSurfacePathMechanic::CheckGeometricClosure(const FFrame3d& Point)
+bool UCollectSurfacePathMechanic::CheckGeometricClosure(const FFrame3d& Point, bool* bLoopWasClosedOut)
 {
+	if (bLoopWasClosedOut != nullptr)
+	{
+		// There's multiple places we might return, and in most of them, the loop is not closed
+		*bLoopWasClosedOut = false; 
+	}
+
 	if (HitPath.Num() == 0)
 	{
 		return false;
@@ -261,10 +286,14 @@ bool UCollectSurfacePathMechanic::CheckGeometricClosure(const FFrame3d& Point)
 	{
 		if (HitPath.Num() > 2)
 		{
+			// See if we clicked on the first point
 			const FFrame3d& FirstPoint = HitPath[0];
 			if (SpatialSnapPointsFunc(Point.Origin, FirstPoint.Origin))
 			{
-				bLoopWasClosed = true;		// We finished by clicking on the first point
+				if (bLoopWasClosedOut != nullptr)
+				{
+					*bLoopWasClosedOut = true;
+				}
 				return true;
 			}
 		}

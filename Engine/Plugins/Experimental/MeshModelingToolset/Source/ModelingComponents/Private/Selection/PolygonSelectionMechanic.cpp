@@ -198,7 +198,8 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 	UpdateTopoSelector();
 
 	FVector3d LocalPosition, LocalNormal;
-	if (TopoSelector.FindSelectedElement(LocalRay, OutSelection, LocalPosition, LocalNormal) == false)
+	int32 EdgeSegmentId; // Only used if hit is an edge
+	if (TopoSelector.FindSelectedElement(LocalRay, OutSelection, LocalPosition, LocalNormal, &EdgeSegmentId) == false)
 	{
 		return false;
 	}
@@ -214,6 +215,7 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 		OutHit.FaceIndex = OutSelection.SelectedEdgeIDs[0];
 		OutHit.Distance = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)TargetTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
+		OutHit.Item = EdgeSegmentId;
 	}
 	else
 	{

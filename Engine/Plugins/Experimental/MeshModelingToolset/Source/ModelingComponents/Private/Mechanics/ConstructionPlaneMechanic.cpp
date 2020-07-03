@@ -94,12 +94,20 @@ void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Posit
 	OnPlaneChanged.Broadcast();
 }
 
+void UConstructionPlaneMechanic::SetPlaneWithoutBroadcast(const FFrame3d &PlaneIn)
+{
+	Plane = PlaneIn;
+	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
+	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
+}
+
 
 void UConstructionPlaneMechanic::Tick(float DeltaTime)
 {
 	if (PlaneTransformGizmo != nullptr)
 	{
 		PlaneTransformGizmo->bSnapToWorldGrid = bEnableSnapToWorldGrid;
+		PlaneTransformGizmo->SetVisibility(CanUpdatePlaneFunc());
 	}
 }
  
