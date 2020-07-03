@@ -4,33 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
-#include "InteractiveToolBuilder.h"
-#include "MeshOpPreviewHelpers.h"
-#include "BaseTools/SingleClickTool.h"
-#include "Properties/OnAcceptProperties.h"
-#include "Properties/VoxelProperties.h"
+#include "BaseTools/BaseVoxelTool.h"
 
 #include "VoxelBlendMeshesTool.generated.h"
-
-// predeclarations
-class FDynamicMesh3;
-class UTransformGizmo;
-class UTransformProxy;
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UVoxelBlendMeshesToolBuilder : public UInteractiveToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-};
-
 
 
 /**
@@ -41,14 +17,6 @@ class MESHMODELINGTOOLS_API UVoxelBlendMeshesToolProperties : public UInteractiv
 {
 	GENERATED_BODY()
 public:
-
-	/** Show UI to allow changing translation, rotation and scale of input meshes */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowTransformUI = true;
-
-	/** Snap the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping, meta = (EditCondition = "bShowTransformUI == true"))
-	bool bSnapToWorldGrid = false;
 
 	/** Blend power controls the shape of the blend between shapes */
 	UPROPERTY(EditAnywhere, Category = Blend, meta = (UIMin = "1", UIMax = "4", ClampMin = "1", ClampMax = "10"))
@@ -77,68 +45,42 @@ public:
  * Tool to smoothly blend meshes together
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UVoxelBlendMeshesTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UVoxelBlendMeshesTool : public UBaseVoxelTool
 {
 	GENERATED_BODY()
 
 public:
 
-	UVoxelBlendMeshesTool();
+	UVoxelBlendMeshesTool() {}
 
-	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+protected:
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetupProperties() override;
+	virtual void SaveProperties() override;
 
-	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
-	virtual bool CanAccept() const override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-#endif
-
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	virtual FString GetCreatedAssetName() const override;
+	virtual FText GetActionName() const override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
-protected:
-
-	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
-
 	UPROPERTY()
 	UVoxelBlendMeshesToolProperties* BlendProperties;
-
-	UPROPERTY()
-	UVoxelProperties* VoxProperties;
-
-	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
-
-	UPROPERTY()
-	TArray<UTransformProxy*> TransformProxies;
-
-	UPROPERTY()
-	TArray<UTransformGizmo*> TransformGizmos;
-
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
-
-	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
-
-	void SetupPreview();
-	void SetTransformGizmos();
-	void UpdateGizmoVisibility();
-
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
-
-	void UpdateVisualization();
 };
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UVoxelBlendMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
+{
+	GENERATED_BODY()
+
+public:
+	virtual int32 MinComponentsSupported() const override { return 2; }
+
+	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	{
+		return NewObject<UVoxelBlendMeshesTool>(Outer);
+	}
+};
+
+

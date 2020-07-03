@@ -8,7 +8,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
-#include "Properties/OnAcceptProperties.h"
+#include "PropertySets/OnAcceptProperties.h"
 #include "MergeMeshesTool.generated.h"
 
 

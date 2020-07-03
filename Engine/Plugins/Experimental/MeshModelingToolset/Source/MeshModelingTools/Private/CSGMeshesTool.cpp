@@ -2,106 +2,35 @@
 
 #include "CSGMeshesTool.h"
 #include "CompositionOps/BooleanMeshesOp.h"
-#include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 
 #include "ToolSetupUtil.h"
 
-#include "Selection/ToolSelectionUtil.h"
-
 #include "DynamicMesh3.h"
-#include "MeshTransforms.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
-
-#include "InteractiveGizmoManager.h"
-
-#include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
-
-#include "AssetGenerationUtil.h"
 
 
 #define LOCTEXT_NAMESPACE "UCSGMeshesTool"
 
 
-/*
- * ToolBuilder
- */
 
-
-bool UCSGMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+void UCSGMeshesTool::SetupProperties()
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 2;
-}
+	Super::SetupProperties();
 
-UInteractiveTool* UCSGMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UCSGMeshesTool* NewTool = NewObject<UCSGMeshesTool>(SceneState.ToolManager);
-
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
-}
-
-
-
-/*
- * Tool
- */
-UCSGMeshesTool::UCSGMeshesTool()
-{
-}
-
-void UCSGMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
-void UCSGMeshesTool::Setup()
-{
-	UInteractiveTool::Setup();
-
-	// hide input StaticMeshComponents
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
-	{
-		ComponentTarget->SetOwnerVisibility(false);
-	}
-
-
-	// initialize our properties
 	CSGProperties = NewObject<UCSGMeshesToolProperties>(this);
 	CSGProperties->RestoreProperties(this);
 	AddToolPropertySource(CSGProperties);
-	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
-	HandleSourcesProperties->RestoreProperties(this);
-	AddToolPropertySource(HandleSourcesProperties);
+}
 
-	// initialize the PreviewMesh+BackgroundCompute object
-	SetupPreview();
-
-	Preview->InvalidateResult();
+void UCSGMeshesTool::SaveProperties()
+{
+	Super::SaveProperties();
+	CSGProperties->SaveProperties(this);
 }
 
 
-
-void UCSGMeshesTool::ConfigurePreviewMaterials()
+void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 {
 	OriginalDynamicMeshes.SetNum(ComponentTargets.Num());
 	FComponentMaterialSet AllMaterialSet;
@@ -163,13 +92,8 @@ void UCSGMeshesTool::ConfigurePreviewMaterials()
 }
 
 
-void UCSGMeshesTool::SetupPreview()
-{
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	Preview->Setup(this->TargetWorld, this);
-
-	ConfigurePreviewMaterials();
-	
+void UCSGMeshesTool::SetPreviewCallbacks()
+{	
 	DrawnLineSet = NewObject<ULineSetComponent>(Preview->PreviewMesh->GetRootComponent());
 	DrawnLineSet->SetupAttachment(Preview->PreviewMesh->GetRootComponent());
 	DrawnLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
@@ -189,8 +113,8 @@ void UCSGMeshesTool::SetupPreview()
 			UpdateVisualization();
 		}
 	);
-	SetTransformGizmos();
 }
+
 
 void UCSGMeshesTool::UpdateVisualization()
 {
@@ -212,72 +136,6 @@ void UCSGMeshesTool::UpdateVisualization()
 	}
 }
 
-void UCSGMeshesTool::UpdateGizmoVisibility()
-{
-	for (UTransformGizmo* Gizmo : TransformGizmos)
-	{
-		Gizmo->SetVisibility(CSGProperties->bShowTransformUI);
-	}
-}
-
-void UCSGMeshesTool::SetTransformGizmos()
-{
-	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-
-	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
-	{
-		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[ComponentIdx];
-		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
-		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
-		Gizmo->SetActiveTarget(Proxy);
-		FTransform InitialTransform = Target->GetWorldTransform();
-		Gizmo->SetNewGizmoTransform(InitialTransform);
-		Proxy->OnTransformChanged.AddUObject(this, &UCSGMeshesTool::TransformChanged);
-	}
-	UpdateGizmoVisibility();
-}
-
-void UCSGMeshesTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
-{
-	Preview->InvalidateResult();
-}
-
-void UCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
-{
-	CSGProperties->SaveProperties(this);
-	HandleSourcesProperties->SaveProperties(this);
-
-	FDynamicMeshOpResult Result = Preview->Shutdown();
-	// Restore (unhide) the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
-	{
-		ComponentTarget->SetOwnerVisibility(true);
-	}
-	if (ShutdownType == EToolShutdownType::Accept)
-	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("BooleanMeshes", "Boolean Meshes"));
-
-		// Generate the result
-		GenerateAsset(Result);
-
-		TArray<AActor*> Actors;
-		for (auto& ComponentTarget : ComponentTargets)
-		{
-			Actors.Add(ComponentTarget->GetOwnerActor());
-		}
-		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
-		
-		GetToolManager()->EndUndoTransaction();
-	}
-
-	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
-	GizmoManager->DestroyAllGizmosByOwner(this);
-}
-
-void UCSGMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
 
 TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 {
@@ -301,46 +159,12 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 
 
 
-void UCSGMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-}
-
-void UCSGMeshesTool::OnTick(float DeltaTime)
-{
-	for (UTransformGizmo* Gizmo : TransformGizmos)
-	{
-		Gizmo->bSnapToWorldGrid = CSGProperties->bSnapToWorldGrid;
-	}
-
-	Preview->Tick(DeltaTime);
-}
-
-
-#if WITH_EDITOR
-void UCSGMeshesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Preview->InvalidateResult();
-	UpdateGizmoVisibility();
-}
-#endif
-
 void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bOnlyUseFirstMeshMaterials)))
 	{
-		ConfigurePreviewMaterials();
+		ConvertInputsAndSetPreviewMaterials(false);
 		Preview->InvalidateResult();
-	}
-	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bShowTransformUI)))
-	{
-		UpdateGizmoVisibility();
-	}
-	else if (Property && 
-		(  PropertySet == HandleSourcesProperties
-		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bSnapToWorldGrid)
-		))
-	{
-		// nothing
 	}
 	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCSGMeshesToolProperties, bShowNewBoundaryEdges)))
 	{
@@ -349,43 +173,24 @@ void UCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Propert
 	}
 	else
 	{
-		Preview->InvalidateResult();
+		Super::OnPropertyModified(PropertySet, Property);
 	}
 }
 
 
-bool UCSGMeshesTool::HasAccept() const
+FString UCSGMeshesTool::GetCreatedAssetName() const
 {
-	return true;
-}
-
-bool UCSGMeshesTool::CanAccept() const
-{
-	return Preview->HaveValidResult();
+	return TEXT("Boolean");
 }
 
 
-void UCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+FText UCSGMeshesTool::GetActionName() const
 {
-	check(Result.Mesh.Get() != nullptr);
-
-	FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-	double Rescale = Result.Transform.GetScale().X;
-	FTransform3d LocalTransform(-Center * Rescale);
-	LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
-	MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
-	FTransform3d CenteredTransform = Result.Transform;
-	CenteredTransform.SetScale(FVector3d::One());
-	CenteredTransform.SetTranslation(CenteredTransform.GetTranslation() + CenteredTransform.TransformVector(Center * Rescale));
-	
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), CenteredTransform, TEXT("CSGMesh"), Preview->StandardMaterials);
-	if (NewActor != nullptr)
-	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
-	}
+	return LOCTEXT("CSGMeshes", "Boolean Meshes");
 }
+
+
+
 
 
 

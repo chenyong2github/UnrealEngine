@@ -4,12 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "Drawing/LineSetComponent.h"
-#include "MeshOpPreviewHelpers.h"
-#include "BaseTools/SingleClickTool.h"
-#include "Properties/OnAcceptProperties.h"
+#include "BaseTools/BaseCreateFromSelectedTool.h"
 
 #include "CompositionOps/BooleanMeshesOp.h"
 
@@ -17,22 +14,6 @@
 
 // predeclarations
 class FDynamicMesh3;
-class UTransformGizmo;
-class UTransformProxy;
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UCSGMeshesToolBuilder : public UInteractiveToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-};
-
 
 
 /**
@@ -46,14 +27,6 @@ public:
 	/** The type of operation */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ECSGOperation Operation = ECSGOperation::Union;
-
-	/** Show UI to allow changing translation, rotation and scale of input meshes */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowTransformUI = true;
-
-	/** Snap the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping, meta = (EditCondition = "bShowTransformUI == true"))
-	bool bSnapToWorldGrid = false;
 
 	/** Show boundary edges created by the CSG operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -74,72 +47,72 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UCSGMeshesTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UCSGMeshesTool : public UBaseCreateFromSelectedTool
 {
 	GENERATED_BODY()
 
 public:
 
-	UCSGMeshesTool();
+	UCSGMeshesTool() {}
 
-	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
-
-	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
-	virtual bool CanAccept() const override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-#endif
+protected:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+
+	virtual void ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh = true) override;
+
+	virtual void SetupProperties() override;
+	virtual void SaveProperties() override;
+	virtual void SetPreviewCallbacks() override;
+
+	virtual FString GetCreatedAssetName() const;
+	virtual FText GetActionName() const;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 protected:
 
-	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	void UpdateVisualization();
 
 	UPROPERTY()
 	UCSGMeshesToolProperties* CSGProperties;
-
-	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
-
-	UPROPERTY()
-	TArray<UTransformProxy*> TransformProxies;
-
-	UPROPERTY()
-	TArray<UTransformGizmo*> TransformGizmos;
 
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
 	UPROPERTY()
 	ULineSetComponent* DrawnLineSet;
 
-	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
-
-	void SetupPreview();
-	void ConfigurePreviewMaterials();
-	void SetTransformGizmos();
-	void UpdateGizmoVisibility();
-
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
-
-	void UpdateVisualization();
-
 	// for visualization of any errors in the currently-previewed CSG operation
 	TArray<int> CreatedBoundaryEdges;
 };
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UCSGMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual TOptional<int32> MaxComponentsSupported() const override
+	{
+		return TOptional<int32>(2);
+	}
+
+
+	virtual int32 MinComponentsSupported() const override
+	{
+		return 2;
+	}
+
+	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	{
+		return NewObject<UCSGMeshesTool>(Outer);
+	}
+};
+
+
+
