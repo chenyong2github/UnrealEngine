@@ -287,6 +287,10 @@ bool FFCPXMLImportVisitor::VisitVideoClipItemNode(TSharedRef<FFCPXMLClipItemNode
 	{
 		NewStartOffset = OriginalStartOffset - ((1 + HandleFrames) - StartOffset);
 	}
+	else
+	{
+		NewStartOffset = StartOffset;
+	}
 
 	// Find actual section
 	TSharedPtr<FMovieSceneImportCinematicSectionData> SectionData = nullptr;
