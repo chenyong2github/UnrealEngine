@@ -42,13 +42,13 @@ EMovieSceneChannelProxyType UMovieSceneFloatSection::CacheChannelProxy()
 	return EMovieSceneChannelProxyType::Static;
 }
 
-UE::MovieScene::ESequenceUpdateResult UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	if (!FloatCurve.HasAnyData())
 	{
-		return ESequenceUpdateResult::NoChange;
+		return;
 	}
 
 	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
@@ -73,6 +73,4 @@ UE::MovieScene::ESequenceUpdateResult UMovieSceneFloatSection::ImportEntityImpl(
 			.AddTag(TracksComponents->Float.PropertyTag)
 		);
 	}
-
-	return ESequenceUpdateResult::EntitiesDirty;
 }
