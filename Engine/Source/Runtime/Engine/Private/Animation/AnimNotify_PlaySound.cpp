@@ -22,6 +22,7 @@ UAnimNotify_PlaySound::UAnimNotify_PlaySound()
 
 #if WITH_EDITORONLY_DATA
 	NotifyColor = FColor(196, 142, 255, 255);
+	bPreviewIgnoreAttenuation = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -36,12 +37,14 @@ void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class
 			return;
 		}
 
+#if WITH_EDITORONLY_DATA
 		UWorld* World = MeshComp->GetWorld();
-		if (World && World->WorldType == EWorldType::EditorPreview)
+		if (bPreviewIgnoreAttenuation && World && World->WorldType == EWorldType::EditorPreview)
 		{
 			UGameplayStatics::PlaySound2D(World, Sound, VolumeMultiplier, PitchMultiplier);
 		}
 		else
+#endif
 		{
 			if (bFollow)
 			{
