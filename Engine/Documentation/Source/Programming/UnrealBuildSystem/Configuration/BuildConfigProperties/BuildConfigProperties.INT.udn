@@ -150,6 +150,8 @@ $ bAllowHybridExecutor : Whether the hybrid executor will be used (a remote exec
 
 $ bAllowXGE : Whether XGE may be used.
 
+$ bAllowFASTBuild : Whether FASTBuild may be used.
+
 $ bAllowSNDBS : Whether SN-DBS may be used.
 
 $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching target data. Turning this on causes Unreal Build Tool to emit 'UBT Makefiles' for targets when they are built the first time. Subsequent builds will load these Makefiles and begin outdatedness checking and build invocation very quickly. The caveat is that if source files are added or removed to the project, UBT will need to gather information about those in order for your build to complete successfully. Currently, you must run the project file generator after adding/removing source files to tell UBT to re-gather this information. 
@@ -221,6 +223,16 @@ $ MasterProjectName : Name of the master project file -- for example, the base f
 $ bMasterProjectNameFromFolder : If true, sets the master project name according to the name of the folder it is in.
 
 $ bIncludeTestAndShippingConfigs : Whether we should include configurations for "Test" and "Shipping" in generated projects. Pass "-NoShippingConfigs" to disable this.
+
+### XboxOnePlatform
+
+$ Compiler : Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
+
+$ bOverrideUseFastPDBLinking : Override for fast PDB linking on xbox - seems a bit more stable on xbox one than PC so it's good to set them separately
+
+### PS4Platform
+
+$ bUseLiveCodeEdit : Enable support for edit and continue code modification on ps4
 
 ### LocalExecutor
 
@@ -597,4 +609,24 @@ $ bShowIncludes : Print out files that are included by each source file
 ### WindowsTargetRules
 
 $ ObjSrcMapFile : Whether we should export a file containing .obj to source file mappings.
+
+### PS4ProjectGenerator
+
+$ bUseApplicationDebugger : No documentation available.
+
+### PS5ProjectGenerator
+
+$ bUseApplicationDebugger : When enabled, generates project files that default to using the PS5 application debugger.
+
+$ bUseGP5File : When enabled, generates project files where the PS5 local debugger is set to use a .gp5 file from the StagedBuild directory. Otherwise, the StagedBuild directory itself is set as the working directory, and the title is launched without the help of a .gp5 file.
+
+### XboxOneGDKProjectGenerator
+
+### XboxOneProjectGenerator
+
+$ bRemoveExtraDeployFiles : No documnentation available.
+
+### XSXProjectGenerator
+
+### FASTBuild
 
