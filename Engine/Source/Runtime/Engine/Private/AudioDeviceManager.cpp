@@ -663,30 +663,39 @@ void FAudioDeviceManager::IncrementDevice(Audio::FDeviceId DeviceID)
 
 void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld)
 {
-	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+	FAudioDevice* DeviceToTearDown = nullptr;
 
-	// If there is an FAudioDeviceHandle out in the world
-	check(Devices.Contains(DeviceID));
-
-	FAudioDeviceContainer& Container = Devices[DeviceID];
-	check(Container.NumberOfHandlesToThisDevice > 0);
-	Container.NumberOfHandlesToThisDevice--;
-
-	// If there is no longer anyone using this device, shut it down.
-	if (!Container.NumberOfHandlesToThisDevice)
 	{
-		// If this is the active device and being destroyed, set the main device as the active device.
-		if (DeviceID == ActiveAudioDeviceID)
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+
+		// If there is an FAudioDeviceHandle out in the world
+		check(Devices.Contains(DeviceID));
+
+		FAudioDeviceContainer& Container = Devices[DeviceID];
+		check(Container.NumberOfHandlesToThisDevice > 0);
+		Container.NumberOfHandlesToThisDevice--;
+
+		// If there is no longer anyone using this device, shut it down.
+		if (!Container.NumberOfHandlesToThisDevice)
 		{
-			SetActiveDevice(MainAudioDeviceHandle.GetDeviceID());
+			// If this is the active device and being destroyed, set the main device as the active device.
+			if (DeviceID == ActiveAudioDeviceID)
+			{
+				SetActiveDevice(MainAudioDeviceHandle.GetDeviceID());
+			}
+
+			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
+			Swap(DeviceToTearDown, Container.Device);
+			UnregisterWorld(InWorld, DeviceID);
+			Devices.Remove(DeviceID);
 		}
+	}
 
-		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
-
-		UnregisterWorld(InWorld, DeviceID);
-
-		UE_LOG(LogAudio, Display, TEXT("Destroying Audio Device %d: All handles released."), DeviceID);
-		Devices.Remove(DeviceID);
+	if (DeviceToTearDown)
+	{
+		DeviceToTearDown->FadeOut();
+		DeviceToTearDown->Teardown();
+		delete DeviceToTearDown;
 	}
 }
 
