@@ -315,6 +315,7 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		if (ModifiedSegment.CameraSection.IsValid())
 		{
 			ModifiedSegment.CameraSection->SetIsActive(ModifiedSegment.bCameraSectionIsActive);
+			ModifiedSegment.CameraSection->MarkAsChanged();
 		}
 	}
 }
