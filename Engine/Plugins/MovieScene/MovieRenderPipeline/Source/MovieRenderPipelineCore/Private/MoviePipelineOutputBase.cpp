@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineOutputBase.h"
+#include "MovieRenderPipelineCoreModule.h"
 #include "Engine/RendererSettings.h"
 
 void UMoviePipelineOutputBase::ValidateStateImpl()
@@ -54,8 +55,9 @@ namespace MoviePipeline
 			// to "" if not needed.
 			if (FrameNumberIndex == INDEX_NONE)
 			{
-				// Automatically append {frame_number} so the files are uniquely identified.
-				InOutFilenameFormatString.Append(TEXT("{file_dup}.{frame_number}"));
+				// Previously, the frame number identifier would be inserted so that files would not be overwritten. However, users prefer to have exact control over the filename.
+				//InOutFilenameFormatString.Append(TEXT("{file_dup}.{frame_number}"));
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Frame number identifier not found. Files may be overwritten."));
 			}
 			else
 			{
