@@ -1455,7 +1455,7 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 	}
 
 	// This may be too strict, but we cannot know the VS signature.
-	auto IsInputLayoutCompatible = [](const FVertexDeclarationElementList& A, const FVertexDeclarationElementList& B, TMap<TTuple<EVertexElementType, EVertexElementType>, int32>& MismatchStats, int& TimesMismatchedNumElements) -> bool
+	auto IsInputLayoutCompatible = [](const FVertexDeclarationElementList& A, const FVertexDeclarationElementList& B, TMap<TTuple<EVertexElementType, EVertexElementType>, int32>& MismatchStats) -> bool
 	{
 		auto NumElements = [](EVertexElementType Type) -> int
 		{
@@ -1513,13 +1513,10 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 			return Type == VET_UShort2N || Type == VET_UShort4N;
 		};
 
-		if (A.Num() != B.Num())
-		{
-			++TimesMismatchedNumElements;
-			return false;
-		}
+		// it's Okay for this number to be zero, there's a separate check for empty vs non-empty mismatch
+		int32 NumElementsToCheck = FMath::Min(A.Num(), B.Num());
 
-		for (int32 Idx = 0, Num = A.Num(); Idx < Num; ++Idx)
+		for (int32 Idx = 0, Num = NumElementsToCheck; Idx < Num; ++Idx)
 		{
 			if (A[Idx].Type != B[Idx].Type)
 			{
@@ -1599,7 +1596,6 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 	TMap<FSHAHash, FVertexDeclarationElementList> VSToVertexDescriptor;
 	TSet<FSHAHash> SuspiciousVertexShaders;
 	TMap<TTuple<EVertexElementType, EVertexElementType>, int32> MismatchStats;
-	int32 TimesMismatchedNumElements = 0;
 
 	TSet<FStableShaderKeyAndValue> PossiblyIncorrectUsageWithEmptyDeclaration;
 	int32 NumPSOsFilteredDueToEmptyDecls = 0;
@@ -1616,7 +1612,7 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 		if (FVertexDeclarationElementList* Existing = VSToVertexDescriptor.Find(CurPSO.GraphicsDesc.VertexShader))
 		{
 			// check if current is the same or compatible
-			if (!IsInputLayoutCompatible(CurPSO.GraphicsDesc.VertexDescriptor, *Existing, MismatchStats, TimesMismatchedNumElements))
+			if (!IsInputLayoutCompatible(CurPSO.GraphicsDesc.VertexDescriptor, *Existing, MismatchStats))
 			{
 				SuspiciousVertexShaders.Add(CurPSO.GraphicsDesc.VertexShader);
 			}
@@ -1634,10 +1630,6 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 	{
 		// print what was not compatible
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("The following inconsistencies were noticed:"));
-		if (TimesMismatchedNumElements > 0)
-		{
-			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times PSOs used the same shader with vertex declarations with a different number of arguments"), TimesMismatchedNumElements);
-		}
 		for (const TTuple< TTuple<EVertexElementType, EVertexElementType>, int32>& Stat : MismatchStats)
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%d times one PSO used the vertex shader with %s (%d), another %s (%d) (we don't know VS signature so assume it needs the larger type)"), Stat.Value, VertexElementToString(Stat.Key.Key), Stat.Key.Key, VertexElementToString(Stat.Key.Value), Stat.Key.Value);
