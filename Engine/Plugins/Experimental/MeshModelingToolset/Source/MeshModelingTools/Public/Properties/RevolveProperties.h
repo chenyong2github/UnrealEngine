@@ -66,6 +66,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360"))
 	double RevolutionDegrees = 360;
 
+	/** The angle by which to shift the profile curve around the axis before beginning the revolve */
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-360", ClampMax = "360"), AdvancedDisplay)
+	double RevolutionDegreesOffset = 0;
+
 	/** Number of steps to take while revolving. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1"))
 	int Steps = 24;
@@ -112,12 +116,12 @@ public:
 	double AxisWeldTolerance = 0.1;
 
 	/** If true, normals are not averaged or shared between triangles with sufficient angle difference. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = RevolveSettings)
 	bool bSharpNormals = false;
 
 	/** When using sharp normals, the degree difference to accept between adjacent triangle normals to allow them to share
 	 normals at their vertices. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (ClampMin = "0.0", ClampMax = "90.0", EditCondition = "bSharpNormals"))
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (ClampMin = "0.0", ClampMax = "90.0", EditCondition = "bSharpNormals"))
 	double SharpNormalAngleTolerance = 0.1;
 
 	/** If true, UV coordinates will be flipped in the V direction. */
