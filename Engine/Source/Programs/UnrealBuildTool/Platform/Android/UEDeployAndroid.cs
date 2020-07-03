@@ -3965,6 +3965,12 @@ namespace UnrealBuildTool
 							continue;
 						}
 
+						// ignore OBBData.java, we won't use it
+						if (Filename.EndsWith("OBBData.java"))
+						{
+							continue;
+						}
+
 						// deal with AndroidManifest.xml
 						if (Filename.EndsWith("AndroidManifest.xml"))
 						{
@@ -4020,6 +4026,43 @@ namespace UnrealBuildTool
 							break;
 						}
 
+						// deal with buildAdditions.gradle
+						if (Filename.EndsWith("buildAdditions.gradle"))
+						{
+							// allow store filepath to differ
+							string[] SourceProperties = File.ReadAllLines(Filename);
+							string[] DestProperties = File.ReadAllLines(DestFilename);
+
+							if (SourceProperties.Length == DestProperties.Length)
+							{
+								bool bDiffers = false;
+								for (int Index = 0; Index < SourceProperties.Length; Index++)
+								{
+									if (SourceProperties[Index] == DestProperties[Index])
+									{
+										continue;
+									}
+
+									if (SourceProperties[Index].Contains("storeFile file(") && DestProperties[Index].Contains("storeFile file("))
+									{
+										continue;
+									}
+
+									bDiffers = true;
+									break;
+								}
+								if (!bDiffers)
+								{
+									continue;
+								}
+							}
+
+							// differed too much
+							bCombinedBundleOK = false;
+							Log.TraceInformation("buildAdditions.gradle files differ too much to combine for single AAB: '{0}' != '{1}'", Filename, DestFilename);
+							break;
+						}
+
 						// deal with gradle.properties
 						if (Filename.EndsWith("gradle.properties"))
 						{
@@ -4039,6 +4082,11 @@ namespace UnrealBuildTool
 									}
 
 									if (SourceProperties[Index].StartsWith("STORE_VERSION=") && DestProperties[Index].StartsWith("STORE_VERSION="))
+									{
+										continue;
+									}
+
+									if (SourceProperties[Index].StartsWith("STORE_FILE=") && DestProperties[Index].StartsWith("STORE_FILE="))
 									{
 										continue;
 									}
