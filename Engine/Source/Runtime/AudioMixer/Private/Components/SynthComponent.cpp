@@ -542,6 +542,22 @@ void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 	}
 }
 
+void USynthComponent::SetLowPassFilterEnabled(bool InLowPassFilterEnabled)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetLowPassFilterEnabled(InLowPassFilterEnabled);
+	}
+}
+
+void USynthComponent::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetLowPassFilterFrequency(InLowPassFilterFrequency);
+	}
+}
+
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {
 	if (SoundGenerator.IsValid())
