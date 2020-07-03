@@ -37,7 +37,8 @@ void FLevelIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& 
 
 		for (AActor* Actor : Level->Actors)
 		{
-			if (Actor)
+			// External actors are indexed through their own package file
+			if (Actor && !Actor->IsPackageExternal())
 			{
 				Serializer.BeginIndexingObject(Actor, Actor->GetActorLabel());
 				FIndexerUtilities::IterateIndexableProperties(Actor, [&Serializer](const FProperty* Property, const FString& Value) {
