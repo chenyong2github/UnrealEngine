@@ -426,12 +426,12 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 
 bool FVirtualHeightfieldMeshSceneProxy::HasSubprimitiveOcclusionQueries() const
 {
-	return !(CVarVHMOcclusion.GetValueOnAnyThread() == 0 || OcclusionVolumes.Num() == 0);
+	return CVarVHMOcclusion.GetValueOnAnyThread() != 0;
 }
 
 const TArray<FBoxSphereBounds>* FVirtualHeightfieldMeshSceneProxy::GetOcclusionQueries(const FSceneView* View) const
 {
-	return (CVarVHMOcclusion.GetValueOnAnyThread() == 0 || OcclusionVolumes.Num() == 0) ? nullptr : &OcclusionVolumes;
+	return (CVarVHMOcclusion.GetValueOnAnyThread() == 0 || OcclusionVolumes.Num() == 0) ? &DefaultOcclusionVolumes : &OcclusionVolumes;
 }
 
 void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes()
@@ -468,8 +468,8 @@ void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes()
 					Pos[6] = Transform.TransformPosition(FVector(MinMaxU.X, MinMaxV.Y, MinMaxZ.Y));
 					Pos[7] = Transform.TransformPosition(FVector(MinMaxU.Y, MinMaxV.Y, MinMaxZ.Y));
 
-					FBox Box(Pos, 8);
-					OcclusionVolumes.Add(FBoxSphereBounds(Box));
+					const float ExpandOcclusion = 3.f;
+					OcclusionVolumes.Add(FBoxSphereBounds(FBox(Pos, 8).ExpandBy(ExpandOcclusion)));
 				}
 			}
 
@@ -477,13 +477,18 @@ void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes()
 			SizeY = FMath::Max(SizeY / 2, 1);
 		}
 	}
+
+	// Setup a default occlusion volume array containing just the primitive bounds.
+	// We use this if disabling the full set of occlusion volumes.
+	DefaultOcclusionVolumes.Reset();
+	DefaultOcclusionVolumes.Add(GetBounds());
 }
 
 void FVirtualHeightfieldMeshSceneProxy::AcceptOcclusionResults(FSceneView const* View, TArray<bool>* Results, int32 ResultsStart, int32 NumResults)
 {
 	check(IsInRenderingThread());
 
-	if (Results != nullptr && NumResults > 0)
+	if (CVarVHMOcclusion.GetValueOnAnyThread() != 0 && Results != nullptr && NumResults > 0)
 	{
 		FOcclusionResults& OcclusionResults = GOcclusionResults.Emplace(FOcclusionResultsKey(this, View));
 		OcclusionResults.TextureSize = OcclusionGridSize;

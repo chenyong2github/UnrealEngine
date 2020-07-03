@@ -51,4 +51,5 @@ public:
 	int32 NumOcclusionLods;
 	FIntPoint OcclusionGridSize;
 	TArray<FBoxSphereBounds> OcclusionVolumes;
+	TArray<FBoxSphereBounds> DefaultOcclusionVolumes;
 };
