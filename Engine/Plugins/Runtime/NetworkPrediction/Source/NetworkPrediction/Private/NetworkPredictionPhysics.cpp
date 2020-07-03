@@ -3,6 +3,7 @@
 #include "NetworkPredictionPhysics.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Chaos/ParticleHandle.h"
+#include "Components/PrimitiveComponent.h"
 
 // -------------------------------------------------------------------------------------------------------------------------
 //	Interpolation related functions. These currently require calls to the UPrimitiveComponent. 
