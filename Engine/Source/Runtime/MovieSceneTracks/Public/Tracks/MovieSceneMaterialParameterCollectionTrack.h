@@ -15,6 +15,7 @@ class UMaterialParameterCollection;
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneMaterialParameterCollectionTrack
 	: public UMovieSceneMaterialTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 public:
 

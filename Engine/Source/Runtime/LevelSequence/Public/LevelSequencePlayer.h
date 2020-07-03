@@ -180,7 +180,7 @@ protected:
 	virtual bool CanPlay() const override;
 	virtual void OnStartedPlaying() override;
 	virtual void OnStopped() override;
-	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false) override;
+	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args) override;
 
 public:
 

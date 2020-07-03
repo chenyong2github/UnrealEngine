@@ -148,11 +148,11 @@ TOptional<FFrameNumber> FSectionEasingHandleHotspot::GetTime() const
 	{
 		if (HandleType == ESequencerEasingType::In && !ThisSection->GetEaseInRange().IsEmpty())
 		{
-			return MovieScene::DiscreteExclusiveUpper(ThisSection->GetEaseInRange());
+			return UE::MovieScene::DiscreteExclusiveUpper(ThisSection->GetEaseInRange());
 		}
 		else if (HandleType == ESequencerEasingType::Out && !ThisSection->GetEaseOutRange().IsEmpty())
 		{
-			return MovieScene::DiscreteInclusiveLower(ThisSection->GetEaseOutRange());
+			return UE::MovieScene::DiscreteInclusiveLower(ThisSection->GetEaseOutRange());
 		}
 	}
 	return TOptional<FFrameNumber>();

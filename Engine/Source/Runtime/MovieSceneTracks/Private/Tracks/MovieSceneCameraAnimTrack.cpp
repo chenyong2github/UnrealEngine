@@ -34,6 +34,15 @@ UMovieSceneSection* UMovieSceneCameraAnimTrack::AddNewCameraAnim(FFrameNumber Ke
 /* UMovieSceneTrack interface
 *****************************************************************************/
 
+FMovieSceneEvalTemplatePtr UMovieSceneCameraAnimTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	const UMovieSceneCameraAnimSection* CameraAnimSection = CastChecked<const UMovieSceneCameraAnimSection>(&InSection);
+	if (CameraAnimSection->AnimData.CameraAnim)
+	{
+		return FMovieSceneCameraAnimSectionTemplate(*CameraAnimSection);
+	}
+	return FMovieSceneEvalTemplatePtr();
+}
 
 FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraAnimTrack::GetTrackSegmentBlender() const
 {

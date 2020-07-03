@@ -34,7 +34,7 @@ namespace PropertyTemplate
 		MOVIESCENE_API FSectionData();
 
 		/** Initialize track data with the specified property name, path, optional setter function, and optional notify function */
-		MOVIESCENE_API void Initialize(FName InPropertyName, FString InPropertyPath, FName InFunctionName = NAME_None, FName InNotifyFunctionName = NAME_None);
+		MOVIESCENE_API void Initialize(FName InPropertyName, FString InPropertyPath);
 
 		/** Property bindings used to get and set the property */
 		TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings;
@@ -200,17 +200,11 @@ struct FMovieScenePropertySectionData
 	UPROPERTY()
 	FString PropertyPath;
 
-	UPROPERTY()
-	FName FunctionName;
-
-	UPROPERTY()
-	FName NotifyFunctionName;
-
 	FMovieScenePropertySectionData()
 	{}
 
-	FMovieScenePropertySectionData(FName InPropertyName, FString InPropertyPath, FName InFunctionName = NAME_None, FName InNotifyFunctionName = NAME_None)
-		: PropertyName(InPropertyName), PropertyPath(MoveTemp(InPropertyPath)), FunctionName(InFunctionName), NotifyFunctionName(InNotifyFunctionName)
+	FMovieScenePropertySectionData(FName InPropertyName, FString InPropertyPath)
+		: PropertyName(InPropertyName), PropertyPath(MoveTemp(InPropertyPath))
 	{}
 
 	/** Helper function to create FSectionData for a property section */
@@ -222,7 +216,7 @@ struct FMovieScenePropertySectionData
 	template<typename T>
 	void SetupTrack(FPersistentEvaluationData& PersistentData) const
 	{
-		PersistentData.AddSectionData<T>().Initialize(PropertyName, PropertyPath, FunctionName, NotifyFunctionName);
+		PersistentData.AddSectionData<T>().Initialize(PropertyName, PropertyPath);
 	}
 };
 
@@ -260,7 +254,7 @@ protected:
 		if (!Accumulator.FindActuator<PropertyType>(ActuatorTypeID))
 		{
 			PropertyTemplate::FSectionData SectionData;
-			SectionData.Initialize(PropertyData.PropertyName, PropertyData.PropertyPath, PropertyData.FunctionName, PropertyData.NotifyFunctionName);
+			SectionData.Initialize(PropertyData.PropertyName, PropertyData.PropertyPath);
 
 			Accumulator.DefineActuator(ActuatorTypeID, MakeShared<TPropertyActuator<PropertyType>>(SectionData));
 		}

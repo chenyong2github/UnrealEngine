@@ -2,7 +2,7 @@
 
 #include "MovieSceneToolsModule.h"
 
-#include "CoreMinimal.h"
+#include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "Curves/RichCurve.h"
 #include "ISequencerModule.h"
@@ -162,6 +162,37 @@ void FMovieSceneToolsModule::StartupModule()
 
 	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
+
+	auto OnObjectsReplaced = [](const TMap<UObject*, UObject*>& ReplacedObjects)
+	{
+		// If a movie scene signed object is reinstanced, it has to be marked as modified
+		// so that the data gets recompiled properly.
+		// @todo: this might cause cook non-determinism, but we need to verify that separately
+		for (const TTuple<UObject*, UObject*>& Pair : ReplacedObjects)
+		{
+			if (UMovieSceneSignedObject* SignedObject = Cast<UMovieSceneSignedObject>(Pair.Value))
+			{
+				SignedObject->MarkAsChanged();
+			}
+		}
+	};
+
+	if (GEditor)
+	{
+		this->OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda(OnObjectsReplaced);
+	}
+	else
+	{
+		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda(
+			[this, OnObjectsReplaced]
+			{
+				if (GEditor)
+				{
+					this->OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda(OnObjectsReplaced);
+				}
+			}
+		);
+	}
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
@@ -177,6 +208,11 @@ void FMovieSceneToolsModule::ShutdownModule()
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
 		SettingsModule->UnregisterSettings("Project", "Editor", "Level Sequences");
+	}
+
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle);
 	}
 
 	if (!FModuleManager::Get().IsModuleLoaded("Sequencer"))

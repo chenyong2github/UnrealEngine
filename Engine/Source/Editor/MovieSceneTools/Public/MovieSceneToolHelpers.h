@@ -366,7 +366,7 @@ public:
 	*@aram Track The movie scene track whose evaluation counterpart we want
 	*@return Returns the evaluation track for the given movie scene track. May do a re-compile if needed.
 	*/
-	static FMovieSceneEvaluationTrack* GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature);
+	static const FMovieSceneEvaluationTrack* GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature);
 
 	/*
 	 * Get the fbx cameras from the requested parent node

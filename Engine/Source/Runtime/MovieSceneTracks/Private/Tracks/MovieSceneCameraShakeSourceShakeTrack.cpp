@@ -4,6 +4,7 @@
 #include "Camera/CameraShakeSourceComponent.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Sections/MovieSceneCameraShakeSourceShakeSection.h"
+#include "Evaluation/MovieSceneCameraShakeSourceShakeTemplate.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeSourceShakeTrack"
 
@@ -105,6 +106,11 @@ void UMovieSceneCameraShakeSourceShakeTrack::RemoveSectionAt(int32 SectionIndex)
 bool UMovieSceneCameraShakeSourceShakeTrack::IsEmpty() const
 {
 	return CameraShakeSections.Num() == 0;
+}
+
+FMovieSceneEvalTemplatePtr UMovieSceneCameraShakeSourceShakeTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	return FMovieSceneCameraShakeSourceShakeSectionTemplate(*CastChecked<const UMovieSceneCameraShakeSourceShakeSection>(&InSection));
 }
 
 #undef LOCTEXT_NAMESPACE

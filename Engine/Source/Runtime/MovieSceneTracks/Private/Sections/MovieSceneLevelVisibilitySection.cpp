@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneLevelVisibilitySection.h"
+#include "MovieSceneTracksComponentTypes.h"
 #include "Evaluation/MovieSceneLevelVisibilityTemplate.h"
 
 
@@ -22,8 +23,16 @@ void UMovieSceneLevelVisibilitySection::SetVisibility( ELevelVisibility InVisibi
 	Visibility = InVisibility;
 }
 
-
-FMovieSceneEvalTemplatePtr UMovieSceneLevelVisibilitySection::GenerateTemplate() const
+UE::MovieScene::ESequenceUpdateResult UMovieSceneLevelVisibilitySection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
-	return FMovieSceneLevelVisibilitySectionTemplate(*this);
+	using namespace UE::MovieScene;
+
+	FLevelVisibilityComponentData LevelVisibilityData{ this };
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(FMovieSceneTracksComponentTypes::Get()->LevelVisibility, LevelVisibilityData)
+	);
+
+	return ESequenceUpdateResult::EntitiesDirty;
 }

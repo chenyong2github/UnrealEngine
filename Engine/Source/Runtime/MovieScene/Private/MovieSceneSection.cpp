@@ -2,14 +2,21 @@
 
 #include "MovieSceneSection.h"
 #include "MovieSceneTrack.h"
+#include "MovieSceneSequence.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
 #include "Generators/MovieSceneEasingCurves.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Containers/ArrayView.h"
 #include "Channels/MovieSceneChannel.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "Misc/FeedbackContext.h"
 
 UMovieSceneSection::UMovieSceneSection(const FObjectInitializer& ObjectInitializer)
 	: Super( ObjectInitializer )
@@ -37,6 +44,8 @@ UMovieSceneSection::UMovieSceneSection(const FObjectInitializer& ObjectInitializ
 	DefaultEaseOut->SetFlags(RF_Public); //@todo Need to be marked public. GLEO occurs when transform sections are added to actor sequence blueprints. Are these not being duplicated properly?
 	DefaultEaseOut->Type = EMovieSceneBuiltInEasing::CubicInOut;
 	Easing.EaseOut = DefaultEaseOut;
+
+	ChannelProxyType = EMovieSceneChannelProxyType::Static;
 }
 
 
@@ -51,12 +60,6 @@ void UMovieSceneSection::PostInitProperties()
 	}
 	
 	Super::PostInitProperties();
-
-	// Set up a default channel proxy if this class hasn't done so already
-	if (!HasAnyFlags(RF_ClassDefaultObject) && !ChannelProxy.IsValid())
-	{
-		ChannelProxy = MakeShared<FMovieSceneChannelProxy>();
-	}
 }
 
 bool UMovieSceneSection::IsPostLoadThreadSafe() const
@@ -64,8 +67,24 @@ bool UMovieSceneSection::IsPostLoadThreadSafe() const
 	return true;
 }
 
+void UMovieSceneSection::PostEditImport()
+{
+	if (ChannelProxyType == EMovieSceneChannelProxyType::Dynamic)
+	{
+		ChannelProxy = nullptr;
+	}
+	Super::PostEditImport();
+}
+
 void UMovieSceneSection::Serialize(FArchive& Ar)
 {
+	using namespace UE::MovieScene;
+
+	if (Ar.IsLoading() && ChannelProxyType == EMovieSceneChannelProxyType::Dynamic)
+	{
+		ChannelProxy = nullptr;
+	}
+
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
@@ -97,6 +116,26 @@ void UMovieSceneSection::Serialize(FArchive& Ar)
 		Easing.ManualEaseOutDuration = (Easing.ManualEaseOutTime_DEPRECATED * LegacyFrameRate).RoundToFrame().Value;
 #endif
 	}
+}
+
+void UMovieSceneSection::PostDuplicate(bool bDuplicateForPIE)
+{
+	if (ChannelProxyType == EMovieSceneChannelProxyType::Dynamic)
+	{
+		ChannelProxy = nullptr;
+	}
+
+	Super::PostDuplicate(bDuplicateForPIE);
+}
+
+void UMovieSceneSection::PostRename(UObject* OldOuter, const FName OldName)
+{
+	if (ChannelProxyType == EMovieSceneChannelProxyType::Dynamic)
+	{
+		ChannelProxy = nullptr;
+	}
+
+	Super::PostRename(OldOuter, OldName);
 }
 
 void UMovieSceneSection::SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame)
@@ -137,9 +176,20 @@ void UMovieSceneSection::SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame)
 
 FMovieSceneChannelProxy& UMovieSceneSection::GetChannelProxy() const
 {
+	if (!ChannelProxy.IsValid())
+	{
+		ChannelProxyType = const_cast<UMovieSceneSection*>(this)->CacheChannelProxy();
+	}
+
 	FMovieSceneChannelProxy* Proxy = ChannelProxy.Get();
 	check(Proxy);
 	return *Proxy;
+}
+
+EMovieSceneChannelProxyType UMovieSceneSection::CacheChannelProxy()
+{
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>();
+	return EMovieSceneChannelProxyType::Static;
 }
 
 TSharedPtr<FStructOnScope> UMovieSceneSection::GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles)
@@ -161,14 +211,11 @@ void UMovieSceneSection::MoveSection(FFrameNumber DeltaFrame)
 			SectionRange.Value.SetUpperBoundValue(SectionRange.Value.GetUpperBoundValue() + DeltaFrame);
 		}
 
-		if (ChannelProxy.IsValid())
+		for (const FMovieSceneChannelEntry& Entry : GetChannelProxy().GetAllEntries())
 		{
-			for (const FMovieSceneChannelEntry& Entry : ChannelProxy->GetAllEntries())
+			for (FMovieSceneChannel* Channel : Entry.GetChannels())
 			{
-				for (FMovieSceneChannel* Channel : Entry.GetChannels())
-				{
-					Channel->Offset(DeltaFrame);
-				}
+				Channel->Offset(DeltaFrame);
 			}
 		}
 	}
@@ -188,14 +235,11 @@ TRange<FFrameNumber> UMovieSceneSection::ComputeEffectiveRange() const
 
 	TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
 
-	if (ChannelProxy.IsValid())
+	for (const FMovieSceneChannelEntry& Entry : GetChannelProxy().GetAllEntries())
 	{
-		for (const FMovieSceneChannelEntry& Entry : ChannelProxy->GetAllEntries())
+		for (const FMovieSceneChannel* Channel : Entry.GetChannels())
 		{
-			for (const FMovieSceneChannel* Channel : Entry.GetChannels())
-			{
-				EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
-			}
+			EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 		}
 	}
 
@@ -205,22 +249,19 @@ TRange<FFrameNumber> UMovieSceneSection::ComputeEffectiveRange() const
 
 TOptional<TRange<FFrameNumber> > UMovieSceneSection::GetAutoSizeRange() const
 {
-	if (ChannelProxy.IsValid())
-	{
-		TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
+	TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
 	
-		for (const FMovieSceneChannelEntry& Entry : ChannelProxy->GetAllEntries())
+	for (const FMovieSceneChannelEntry& Entry : GetChannelProxy().GetAllEntries())
+	{
+		for (const FMovieSceneChannel* Channel : Entry.GetChannels())
 		{
-			for (const FMovieSceneChannel* Channel : Entry.GetChannels())
-			{
-				EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
-			}
+			EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 		}
+	}
 
-		if (!EffectiveRange.IsEmpty())
-		{
-			return EffectiveRange;
-		}
+	if (!EffectiveRange.IsEmpty())
+	{
+		return EffectiveRange;
 	}
 
 	return TOptional<TRange<FFrameNumber> >();
@@ -232,6 +273,45 @@ FMovieSceneBlendTypeField UMovieSceneSection::GetSupportedBlendTypes() const
 	return Track ? Track->GetSupportedBlendTypes() : FMovieSceneBlendTypeField::None();
 }
 
+void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+
+	FComponentTypeID BlendTag;
+	if (BlendType.IsValid())
+	{
+		if (BlendType.Get() == EMovieSceneBlendType::Absolute)
+		{
+			BlendTag = Components->Tags.AbsoluteBlend;
+		}
+		else if (BlendType.Get() == EMovieSceneBlendType::Relative)
+		{
+			BlendTag = Components->Tags.RelativeBlend;
+		}
+		else if (BlendType.Get() == EMovieSceneBlendType::Additive)
+		{
+			BlendTag = Components->Tags.AdditiveBlend;
+		}
+	}
+
+	const bool bHasEasing = (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0);
+
+	const bool bShouldRestoreState = (EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState) ||
+		( EvalOptions.CompletionMode == EMovieSceneCompletionMode::ProjectDefault && Params.Sequence.DefaultCompletionMode == EMovieSceneCompletionMode::RestoreState);
+
+	TComponentTypeID<FEasingComponentData> EasingComponentID = Components->Easing;
+	FComponentTypeID RestoreStateTag = Components->Tags.RestoreState;
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.AddConditional(Components->Easing,  FEasingComponentData{ this }, bHasEasing)
+		.AddConditional(Components->HierarchicalBias, Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
+		.AddTagConditional(Components->Tags.RestoreState, bShouldRestoreState)
+		.AddTagConditional(BlendTag, BlendTag != FComponentTypeID::Invalid())
+	);
+}
 
 bool UMovieSceneSection::TryModify(bool bAlwaysMarkDirty)
 {
@@ -449,7 +529,14 @@ UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTi
 		Track->AddSection(*NewSection);
 
 		TrimSection(SplitTime, false, bDeleteKeys);
+		Easing.AutoEaseOutDuration = 0;
+		Easing.bManualEaseOut = false;
+		Easing.ManualEaseOutDuration = 0;
+
 		NewSection->TrimSection(SplitTime, true, bDeleteKeys);
+		NewSection->Easing.AutoEaseInDuration = 0;
+		NewSection->Easing.bManualEaseIn = false;
+		NewSection->Easing.ManualEaseInDuration = 0;
 
 		return NewSection;
 	}
@@ -476,25 +563,16 @@ void UMovieSceneSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLef
 
 			if (bDeleteKeys)
 			{
-				if (ChannelProxy.IsValid())
+				for (const FMovieSceneChannelEntry& Entry : GetChannelProxy().GetAllEntries())
 				{
-					for (const FMovieSceneChannelEntry& Entry : ChannelProxy->GetAllEntries())
+					for (FMovieSceneChannel* Channel : Entry.GetChannels())
 					{
-						for (FMovieSceneChannel* Channel : Entry.GetChannels())
-						{
-							Channel->DeleteKeysFrom(TrimTime.Time.GetFrame(), bTrimLeft);
-						}
+						Channel->DeleteKeysFrom(TrimTime.Time.GetFrame(), bTrimLeft);
 					}
 				}
 			}
 		}
 	}
-}
-
-
-FMovieSceneEvalTemplatePtr UMovieSceneSection::GenerateTemplate() const
-{
-	return FMovieSceneEvalTemplatePtr();
 }
 
 
@@ -603,6 +681,12 @@ TRange<FFrameNumber> UMovieSceneSection::GetEaseOutRange() const
 	}
 
 	return TRange<FFrameNumber>::Empty();
+}
+
+
+bool UMovieSceneSection::ShouldUpgradeEntityData(FArchive& Ar, FMovieSceneEvaluationCustomVersion::Type UpgradeVersion) const
+{
+	return Ar.IsLoading() && !Ar.HasAnyPortFlags(PPF_Duplicate | PPF_DuplicateForPIE) && GetLinkerCustomVersion(FMovieSceneEvaluationCustomVersion::GUID) < UpgradeVersion;
 }
 
 #if WITH_EDITOR

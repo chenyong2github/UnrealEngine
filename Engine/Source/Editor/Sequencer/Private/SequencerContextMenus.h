@@ -35,9 +35,6 @@ private:
 	/** Add edit menu for trim and split */
 	void AddEditMenu(FMenuBuilder& MenuBuilder);
 
-	/** Add the Properties sub-menu. */
-	void AddPropertiesMenu(FMenuBuilder& MenuBuilder);
-
 	/** Add the Order sub-menu. */
 	void AddOrderMenu(FMenuBuilder& MenuBuilder);
 

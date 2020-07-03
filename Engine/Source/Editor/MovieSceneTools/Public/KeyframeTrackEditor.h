@@ -50,7 +50,7 @@ struct TAddKeyImpl : IImpl
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
 	{
 		bool bKeyCreated = false;
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
 		if (bAddKey && Channel)
@@ -79,14 +79,14 @@ struct TAddKeyImpl : IImpl
 
 	virtual void ApplyDefault(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy) const override
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0)
 		{
 			if (Section->TryModify())
 			{
-				using namespace MovieScene;
+				using namespace UE::MovieScene;
 				SetChannelDefault(Channel, ValueToSet);
 			}
 		}
@@ -110,7 +110,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
 	{
 		bool bKeyCreated = false;
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (bAddKey && Channel)
@@ -139,14 +139,14 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 
 	virtual void ApplyDefault(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy) const override
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0  && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
 			{
-				using namespace MovieScene;
+				using namespace UE::MovieScene;
 				SetChannelDefault(Channel, ValueToSet);
 			}
 		}
@@ -154,13 +154,13 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 
 	virtual bool ModifyByCurrentAndWeight(FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, void* VCurrentValue, float Weight) override
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 		float CurrentValue = *(float*)(VCurrentValue);
 		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (Channel)
 		{
 			float LocalValue;
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			if (!EvaluateChannel(Channel, InTime, LocalValue))
 			{
 				TOptional<float> OptFloat = Channel->GetDefault();
@@ -188,7 +188,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
 	{
 		bool bKeyCreated = false;
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (bAddKey && Channel)
@@ -217,14 +217,14 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 
 	virtual void ApplyDefault(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy) const override
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0)
 		{
 			if (Section->TryModify())
 			{
-				using namespace MovieScene;
+				using namespace UE::MovieScene;
 				SetChannelDefault(Channel, ValueToSet);
 			}
 		}
@@ -232,13 +232,13 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 
 	virtual bool ModifyByCurrentAndWeight(FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, void* VCurrentValue, float Weight) override
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 		int32 CurrentValue = *(int32*)(VCurrentValue);
 		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (Channel)
 		{
 			int32 LocalValue;
-			using namespace MovieScene;
+			using namespace UE::MovieScene;
 			if (!EvaluateChannel(Channel, InTime, LocalValue))
 			{
 				TOptional<int32> OptInt = Channel->GetDefault();
@@ -298,6 +298,9 @@ template<typename TrackType>
 class FKeyframeTrackEditor : public FMovieSceneTrackEditor
 {
 public:
+
+	using GenerateKeysCallback = TFunction<void(UMovieSceneSection*, FGeneratedTrackKeys&)>;
+
 	/**
 	* Constructor
 	*
@@ -345,9 +348,10 @@ protected:
 	 * @return Whether or not a handle guid or track was created. Note this does not return true if keys were added or modified.
 	 */
 	FKeyPropertyResult AddKeysToObjects(
-		TArrayView<UObject* const> ObjectsToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
+		TArrayView<UObject* const> ObjectsToKey, FFrameNumber KeyTime,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName,
-		TFunction<void(TrackType*)> OnInitializeNewTrack)
+		TFunction<void(TrackType*)> OnInitializeNewTrack,
+		const GenerateKeysCallback& OnGenerateKeys)
 	{
 		FKeyPropertyResult KeyPropertyResult;
 
@@ -371,7 +375,7 @@ protected:
 
 			if ( ObjectHandle.IsValid() )
 			{
-				KeyPropertyResult |= AddKeysToHandle( Object, ObjectHandle, KeyTime, GeneratedKeys, KeyMode, TrackClass, PropertyName, OnInitializeNewTrack );
+				KeyPropertyResult |= AddKeysToHandle( Object, ObjectHandle, KeyTime, KeyMode, TrackClass, PropertyName, OnInitializeNewTrack, OnGenerateKeys );
 			}
 		}
 		return KeyPropertyResult;
@@ -424,9 +428,10 @@ private:
 	 * @return Whether or not a track was created. Note this does not return true if keys were added or modified.
 	*/
 	FKeyPropertyResult AddKeysToHandle(UObject *Object,
-		FGuid ObjectHandle, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
+		FGuid ObjectHandle, FFrameNumber KeyTime,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName,
-		TFunction<void(TrackType*)> OnInitializeNewTrack)
+		TFunction<void(TrackType*)> OnInitializeNewTrack,
+		const GenerateKeysCallback& OnGenerateKeys)
 	{
 		bool bTrackCreated = false;
 
@@ -476,8 +481,11 @@ private:
 				}
 			}
 
-			if (SectionToKey && CanAutoKeySection(SectionToKey, KeyTime))
+			if (SectionToKey && CanAutoKeySection(SectionToKey, KeyTime) && OnGenerateKeys)
 			{
+				FGeneratedTrackKeys GeneratedKeys;
+				OnGenerateKeys(SectionToKey, GeneratedKeys);
+
 				if (!bTrackCreated)
 				{
 					ModifyGeneratedKeysByCurrentAndWeight(Object, Track, SectionToKey, KeyTime, GeneratedKeys, Weight);

@@ -141,10 +141,6 @@ const TSharedPtr<ISequencer> FMovieSceneTrackEditor::GetSequencer() const
 	return Sequencer.Pin();
 }
 
-void FMovieSceneTrackEditor::AddKey( const FGuid& ObjectGuid )
-{
-}
-
 UMovieSceneTrack* FMovieSceneTrackEditor::AddTrack(UMovieScene* FocusedMovieScene, const FGuid& ObjectHandle, TSubclassOf<class UMovieSceneTrack> TrackClass, FName UniqueTypeName)
 {
 	return FocusedMovieScene->AddTrack(TrackClass, ObjectHandle);

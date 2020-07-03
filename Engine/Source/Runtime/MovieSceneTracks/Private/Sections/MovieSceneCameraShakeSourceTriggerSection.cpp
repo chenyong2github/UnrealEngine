@@ -2,7 +2,6 @@
 
 #include "Sections/MovieSceneCameraShakeSourceTriggerSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Evaluation/MovieSceneCameraShakeSourceTriggerTemplate.h"
 
 UMovieSceneCameraShakeSourceTriggerSection::UMovieSceneCameraShakeSourceTriggerSection(const FObjectInitializer& Init)
 	: Super(Init)
@@ -12,10 +11,5 @@ UMovieSceneCameraShakeSourceTriggerSection::UMovieSceneCameraShakeSourceTriggerS
 #else
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(Channel);
 #endif
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneCameraShakeSourceTriggerSection::GenerateTemplate() const
-{
-	return FMovieSceneCameraShakeSourceTriggerSectionTemplate(*this);
 }
 

@@ -3,6 +3,9 @@
 #include "Sections/MovieScene3DAttachSection.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "MovieSceneTracksComponentTypes.h"
+
 
 UMovieScene3DAttachSection::UMovieScene3DAttachSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -31,3 +34,30 @@ void UMovieScene3DAttachSection::SetAttachTargetID( const FMovieSceneObjectBindi
 	}
 }
 
+UE::MovieScene::ESequenceUpdateResult UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (!ConstraintBindingID.GetGuid().IsValid() || !Params.ObjectBindingID.IsValid())
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	FBuiltInComponentTypes*          BuiltInComponentTypes = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TrackComponents       = FMovieSceneTracksComponentTypes::Get();
+
+	FAttachmentComponent AttachComponent = {
+		FComponentAttachParamsDestination { AttachSocketName, AttachComponentName },
+		FComponentAttachParams{ AttachmentLocationRule, AttachmentRotationRule, AttachmentScaleRule },
+		FComponentDetachParams{ DetachmentLocationRule, DetachmentRotationRule, DetachmentScaleRule }
+	};
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(BuiltInComponentTypes->SceneComponentBinding, Params.ObjectBindingID)
+		.Add(TrackComponents->AttachParentBinding, ConstraintBindingID)
+		.Add(TrackComponents->AttachComponent, AttachComponent)
+	);
+
+	return ESequenceUpdateResult::EntitiesDirty;
+}

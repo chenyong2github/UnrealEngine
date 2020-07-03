@@ -13,7 +13,7 @@
  */
 UCLASS(MinimalAPI)
 class UMovieSceneFadeSection
-	: public UMovieSceneFloatSection
+	: public UMovieSceneSection
 {
 	GENERATED_BODY()
 
@@ -21,6 +21,10 @@ class UMovieSceneFadeSection
 	UMovieSceneFadeSection();
 
 public:
+
+	/** Float data */
+	UPROPERTY()
+	FMovieSceneFloatChannel FloatCurve;
 
 	/** Fade color. */
 	UPROPERTY(EditAnywhere, Category="Fade", meta=(InlineColorPicker))

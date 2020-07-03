@@ -11,11 +11,9 @@
 #include "MovieSceneTrack.h"
 #include "MovieSceneFrameMigration.h"
 #include "Evaluation/MovieSceneTrackIdentifier.h"
-#include "Evaluation/MovieSceneEvaluationField.h"
 #include "Containers/ArrayView.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
-#include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneEvaluationTemplate.generated.h"
 
 class UMovieSceneSequence;
@@ -33,7 +31,7 @@ public:
 	/**
 	 * Lookup a track identifier by its originating signature
 	 */
-	MOVIESCENE_API FMovieSceneTrackIdentifier FindTrack(const FGuid& InSignature) const;
+	MOVIESCENE_API FMovieSceneTrackIdentifier FindTrackIdentifier(const FGuid& InSignature) const;
 
 	/**
 	 * Add a new track for the specified signature. Signature must not have already been used
@@ -62,28 +60,6 @@ public:
 	TMap<FGuid, FMovieSceneFrameRange> SubSectionRanges;
 };
 template<> struct TStructOpsTypeTraits<FMovieSceneTemplateGenerationLedger> : public TStructOpsTypeTraitsBase2<FMovieSceneTemplateGenerationLedger> { enum { WithCopy = true }; };
-
-/** Custom serialized track field data that allows efficient lookup of each track contained within this template for a given time */
-USTRUCT()
-struct FMovieSceneTrackFieldData
-{
-	GENERATED_BODY()
-
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << Field;
-		return true;
-	}
-
-	/** Only called for serialization. Returns false to always serialize. */
-	bool Identical(const FMovieSceneTrackFieldData* Other, uint32 PortFlags) const
-	{
-		return Field == Other->Field;
-	}
-
-	TMovieSceneEvaluationTree<FMovieSceneTrackIdentifier> Field;
-};
-template<> struct TStructOpsTypeTraits<FMovieSceneTrackFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneTrackFieldData> { enum { WithSerializer = true, WithIdentical = true }; };
 
 /** Data that represents a single sub-section */
 USTRUCT()
@@ -117,29 +93,6 @@ struct FMovieSceneSubSectionData
 	UPROPERTY()
 	ESectionEvaluationFlags Flags;
 };
-
-/** Custom serialized track field data that allows efficient lookup of each sub section contained within this template for a given time */
-USTRUCT()
-struct FMovieSceneSubSectionFieldData
-{
-	GENERATED_BODY()
-
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << Field;
-		return true;
-	}
-
-	/** Only called for serialization. Returns false to always serialize. */
-	bool Identical(const FMovieSceneSubSectionFieldData* Other, uint32 PortFlags) const
-	{
-		return Field == Other->Field;
-	}
-
-	TMovieSceneEvaluationTree<FMovieSceneSubSectionData> Field;
-};
-template<> struct TStructOpsTypeTraits<FMovieSceneSubSectionFieldData> : public TStructOpsTypeTraitsBase2<FMovieSceneSubSectionFieldData> { enum { WithSerializer = true, WithIdentical = true }; };
-
 
 /**
  * Sereal number used to identify evaluation template state that can only ever increase over its lifetime.
@@ -232,7 +185,7 @@ public:
 	 */
 	FMovieSceneEvaluationTrack* FindTrack(const FGuid& InSignature)
 	{
-		return FindTrack(TemplateLedger.FindTrack(InSignature));
+		return FindTrack(TemplateLedger.FindTrackIdentifier(InSignature));
 	}
 
 	/**
@@ -240,7 +193,7 @@ public:
 	 */
 	const FMovieSceneEvaluationTrack* FindTrack(const FGuid& InSignature) const
 	{
-		return FindTrack(TemplateLedger.FindTrack(InSignature));
+		return FindTrack(TemplateLedger.FindTrackIdentifier(InSignature));
 	}
 
 	/**
@@ -252,22 +205,9 @@ public:
 	}
 
 	/**
-	 * Add a new sub section
-	 */
-	MOVIESCENE_API void AddSubSectionRange(UMovieSceneSubSection& InSubSection, const FGuid& InObjectBindingId, const TRange<FFrameNumber>& InRange, ESectionEvaluationFlags InFlags);
-
-	/**
 	 * Add a new track for the specified identifier
 	 */
 	MOVIESCENE_API FMovieSceneTrackIdentifier AddTrack(const FGuid& InSignature, FMovieSceneEvaluationTrack&& InTrack);
-
-	/**
-	 * Define the structural lookup for the specified track identifier, optionally invalidating any overlapping areas in the evaluation field
-	 *
-	 * @param TrackIdentifier 				The identifier for the track
-	 * @param bInvalidateEvaluationField 	Whether to invalidate any overlapping sections of the cached evaluation field
-	 */
-	MOVIESCENE_API void DefineTrackStructure(FMovieSceneTrackIdentifier TrackIdentifier, bool bInvalidateEvaluationField);
 
 	/**
 	 * Remove any tracks that correspond to the specified signature
@@ -285,6 +225,11 @@ public:
 	 * Beware of using this to modify tracks afterwards as it will almost certainly break evaluation.
 	 */
 	MOVIESCENE_API TMap<FMovieSceneTrackIdentifier, FMovieSceneEvaluationTrack>& GetTracks();
+
+	/**
+	 * Access this template's stale tracks.
+	 */
+	MOVIESCENE_API const TMap<FMovieSceneTrackIdentifier, FMovieSceneEvaluationTrack>& GetStaleTracks() const;
 
 	/**
 	 * Called after this template has been serialized in some way
@@ -315,22 +260,6 @@ public:
 	 * Remove any data within this template that does not reside in the specified set of signatures
 	 */
 	void RemoveStaleData(const TSet<FGuid>& ActiveSignatures);
-
-	/**
-	 * Reset this template's field data and sub section cache (keeps tracks alive)
-	 */
-	void ResetFieldData();
-
-	/**
-	 * Access this template's track field
-	 */
-	const TMovieSceneEvaluationTree<FMovieSceneTrackIdentifier>& GetTrackField() const;
-
-	/**
-	 * Access this template's sub section field
-	 */
-	const TMovieSceneEvaluationTree<FMovieSceneSubSectionData>& GetSubSectionField() const;
-
 private:
 
 	/** Map of evaluation tracks from identifier to track */
@@ -341,14 +270,6 @@ private:
 	TMap<FMovieSceneTrackIdentifier, FMovieSceneEvaluationTrack> StaleTracks;
 
 public:
-
-	/** Evaluation field for efficient runtime evaluation */
-	UPROPERTY()
-	FMovieSceneEvaluationField EvaluationField;
-
-	/** Map of all sequences found in this template (recursively) */
-	UPROPERTY()
-	FMovieSceneSequenceHierarchy Hierarchy;
 
 	UPROPERTY()
 	FGuid SequenceSignature;
@@ -361,12 +282,6 @@ private:
 
 	UPROPERTY()
 	FMovieSceneTemplateGenerationLedger TemplateLedger;
-
-	UPROPERTY()
-	FMovieSceneTrackFieldData TrackFieldData;
-
-	UPROPERTY()
-	FMovieSceneSubSectionFieldData SubSectionFieldData;
 
 };
 #if WITH_EDITORONLY_DATA

@@ -101,7 +101,7 @@ struct FSlomoExecutionToken : IMovieSceneExecutionToken, FSlomoTrackToken
 };
 
 FMovieSceneSlomoSectionTemplate::FMovieSceneSlomoSectionTemplate(const UMovieSceneSlomoSection& Section)
-	: SlomoCurve(Section.GetChannel())
+	: SlomoCurve(Section.FloatCurve)
 {
 }
 

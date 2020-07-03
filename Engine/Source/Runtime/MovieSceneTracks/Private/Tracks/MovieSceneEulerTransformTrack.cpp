@@ -30,8 +30,3 @@ UMovieSceneSection* UMovieSceneEulerTransformTrack::CreateNewSection()
 	return NewObject<UMovieScene3DTransformSection>(this, NAME_None, RF_Transactional);
 }
 
-FMovieSceneEvalTemplatePtr UMovieSceneEulerTransformTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneEulerTransformPropertySectionTemplate(*CastChecked<UMovieScene3DTransformSection>(&InSection), *this);
-}
-

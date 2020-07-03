@@ -23,6 +23,8 @@
 #include "Modules/ModuleManager.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
 
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
@@ -99,7 +101,7 @@ FFrameTime FSequencerTimeSliderController::ComputeScrubTimeFromMouse(const FGeom
 
 	if (Sequencer->GetSequencerSettings()->ShouldKeepCursorInPlayRangeWhileScrubbing())
 	{
-		ScrubTime = MovieScene::ClampToDiscreteRange(ScrubTime, TimeSliderArgs.PlaybackRange.Get());
+		ScrubTime = UE::MovieScene::ClampToDiscreteRange(ScrubTime, TimeSliderArgs.PlaybackRange.Get());
 	}
 
 	return ScrubTime;
@@ -483,8 +485,20 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 		{
 			// Draw the current time next to the scrub handle
 			FString FrameString;
+			FLinearColor TextColor = Args.TickColor;
+			if (TimeSliderArgs.ScrubPositionText.IsSet())
+			{
+				FrameString = TimeSliderArgs.ScrubPositionText.Get();
+			}
+			else
+			{
+				FrameString = TimeSliderArgs.NumericTypeInterface->ToString(TimeSliderArgs.ScrubPosition.Get().GetFrame().Value);
+			}
 
-			FrameString = TimeSliderArgs.NumericTypeInterface->ToString(TimeSliderArgs.ScrubPosition.Get().GetFrame().Value);
+			if (TimeSliderArgs.ScrubPositionParent.Get() != MovieSceneSequenceID::Invalid)
+			{
+				TextColor = FLinearColor::Yellow;
+			}
 
 			FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
@@ -505,7 +519,7 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 				FrameString, 
 				SmallLayoutFont,
 				Args.DrawEffects,
-				Args.TickColor 
+				TextColor 
 			);
 		}
 		
@@ -1264,7 +1278,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetPlaybackRangeStart(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber < MovieScene::DiscreteExclusiveUpper(PlaybackRange); })
+				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange); })
 			)
 		);
 
@@ -1274,7 +1288,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetPlaybackRangeEnd(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber >= MovieScene::DiscreteInclusiveLower(PlaybackRange); })
+				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(PlaybackRange); })
 			)
 		);
 
@@ -1302,7 +1316,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetSelectionRangeStart(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < MovieScene::DiscreteExclusiveUpper(SelectionRange); })
+				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(SelectionRange); })
 			)
 		);
 
@@ -1312,7 +1326,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ SetSelectionRangeEnd(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= MovieScene::DiscreteInclusiveLower(SelectionRange); })
+				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange); })
 			)
 		);
 
@@ -1327,6 +1341,44 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 		);
 	}
 	MenuBuilder.EndSection(); // SequencerPlaybackRangeMenu
+
+	if (TimeSliderArgs.ScrubPositionParentChain.IsSet())
+	{
+		MenuBuilder.BeginSection("SequencerParentChainMenu");
+		{
+			UMovieSceneCompiledDataManager* CompiledDataManager = WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataManager();
+			const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(WeakSequencer.Pin()->GetEvaluationTemplate().GetCompiledDataID());
+
+			TArray<FMovieSceneSequenceID> ParentChain = TimeSliderArgs.ScrubPositionParentChain.Get();
+			for (FMovieSceneSequenceID ParentID : ParentChain)
+			{
+				FText ParentText = WeakSequencer.Pin()->GetRootMovieSceneSequence()->GetDisplayName();
+
+				for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+				{
+					if (Pair.Key == ParentID && Pair.Value.GetSequence())
+					{
+						ParentText = Pair.Value.GetSequence()->GetDisplayName();
+						break;
+					}
+				}
+
+				MenuBuilder.AddMenuEntry(
+					ParentText,
+					FText::Format(LOCTEXT("DisplayTimeSpace", "Display time in the space of {0}"), ParentText),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([=] { TimeSliderArgs.OnScrubPositionParentChanged.ExecuteIfBound(ParentID); }),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([=] { return TimeSliderArgs.ScrubPositionParent.Get() == MovieSceneSequenceID::Invalid ? ParentID == TimeSliderArgs.ScrubPositionParentChain.Get().Last() : TimeSliderArgs.ScrubPositionParent.Get() == ParentID; })
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
+			}
+		}
+		MenuBuilder.EndSection(); // Sequencer Parent Chain
+	}
 
 	MenuBuilder.BeginSection("SequencerMarkMenu", FText::Format(LOCTEXT("MarkTextFormat", "Mark ({0}):"), CurrentTimeText));
 	{
@@ -1604,7 +1656,7 @@ void FSequencerTimeSliderController::SetPlaybackRangeStart(FFrameNumber NewStart
 {
 	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 
-	if (NewStart <= MovieScene::DiscreteExclusiveUpper(PlaybackRange))
+	if (NewStart <= UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange))
 	{
 		TimeSliderArgs.OnPlaybackRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, PlaybackRange.GetUpperBound()));
 	}
@@ -1614,7 +1666,7 @@ void FSequencerTimeSliderController::SetPlaybackRangeEnd(FFrameNumber NewEnd)
 {
 	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 
-	if (NewEnd >= MovieScene::DiscreteInclusiveLower(PlaybackRange))
+	if (NewEnd >= UE::MovieScene::DiscreteInclusiveLower(PlaybackRange))
 	{
 		TimeSliderArgs.OnPlaybackRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(PlaybackRange.GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(NewEnd)));
 	}
@@ -1628,7 +1680,7 @@ void FSequencerTimeSliderController::SetSelectionRangeStart(FFrameNumber NewStar
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, NewStart + 1));
 	}
-	else if (NewStart <= MovieScene::DiscreteExclusiveUpper(SelectionRange))
+	else if (NewStart <= UE::MovieScene::DiscreteExclusiveUpper(SelectionRange))
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewStart, SelectionRange.GetUpperBound()));
 	}
@@ -1642,7 +1694,7 @@ void FSequencerTimeSliderController::SetSelectionRangeEnd(FFrameNumber NewEnd)
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(NewEnd - 1, NewEnd));
 	}
-	else if (NewEnd >= MovieScene::DiscreteInclusiveLower(SelectionRange))
+	else if (NewEnd >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange))
 	{
 		TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>(SelectionRange.GetLowerBound(), NewEnd));
 	}

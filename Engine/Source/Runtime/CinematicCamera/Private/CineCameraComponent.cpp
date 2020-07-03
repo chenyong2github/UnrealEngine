@@ -238,7 +238,7 @@ void UCineCameraComponent::SetFieldOfView(float InFieldOfView)
 	CurrentFocalLength = (Filmback.SensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(InFieldOfView / 2.f));
 }
 
-void UCineCameraComponent::SetCurrentFocalLength(const float& InFocalLength)
+void UCineCameraComponent::SetCurrentFocalLength(float InFocalLength)
 {
 	CurrentFocalLength = InFocalLength;
 	RecalcDerivedData();

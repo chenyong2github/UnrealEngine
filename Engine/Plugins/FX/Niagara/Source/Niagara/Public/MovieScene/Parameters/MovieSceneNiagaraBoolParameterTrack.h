@@ -3,11 +3,12 @@
 #pragma once
 
 #include "MovieScene/Parameters/MovieSceneNiagaraParameterTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNiagaraBoolParameterTrack.generated.h"
 
 /** A track for animating boolean niagara parameters. */
 UCLASS(MinimalAPI)
-class UMovieSceneNiagaraBoolParameterTrack : public UMovieSceneNiagaraParameterTrack
+class UMovieSceneNiagaraBoolParameterTrack : public UMovieSceneNiagaraParameterTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

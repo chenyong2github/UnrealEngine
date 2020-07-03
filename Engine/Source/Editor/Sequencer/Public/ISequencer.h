@@ -18,6 +18,7 @@
 
 struct FFrameTime;
 struct FQualifiedFrameTime;
+struct FMovieSceneChannelHandle;
 
 class UMovieSceneTrack;
 class AActor;
@@ -507,8 +508,8 @@ public:
 	/** Selects property tracks by property path */
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) = 0;
 
-	/** Selects nodes by key areas */
-	virtual void SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) = 0;
+	/** Selects the nodes that relate to the specified channels */
+	virtual void SelectByChannels(UMovieSceneSection* Section, TArrayView<const FMovieSceneChannelHandle> InChannels, bool bSelectParentInstead, bool bSelect) = 0;
 
 	/** Selects nodes by the nth category node under a section */
 	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) = 0;

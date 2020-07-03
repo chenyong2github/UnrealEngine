@@ -5,6 +5,7 @@
 #include "Misc/Guid.h"
 #include "MovieSceneNameableTrack.h"
 #include "UObject/ObjectMacros.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 
 #include "MovieSceneMediaTrack.generated.h"
 
@@ -17,6 +18,7 @@ class UMediaSource;
 UCLASS(MinimalAPI)
 class UMovieSceneMediaTrack
 	: public UMovieSceneNameableTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 public:
 

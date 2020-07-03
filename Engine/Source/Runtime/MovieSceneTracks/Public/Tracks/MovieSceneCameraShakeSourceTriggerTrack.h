@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneCameraShakeSourceTriggerTrack.generated.h"
 
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneCameraShakeSourceTriggerTrack
 	: public UMovieSceneTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 public:
 
@@ -28,6 +30,8 @@ public:
 	virtual bool IsEmpty() const override;
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual void PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
+
+	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDisplayName() const override;

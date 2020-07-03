@@ -6,7 +6,7 @@
 #include "IKeyArea.h"
 
 
-FSequencerSectionLayoutBuilder::FSequencerSectionLayoutBuilder(TSharedRef<FSequencerTrackNode> InRootTrackNode, UMovieSceneSection* InSection)
+FSequencerSectionLayoutBuilder::FSequencerSectionLayoutBuilder(TSharedRef<FSequencerTrackNode> InRootTrackNode, TSharedRef<ISequencerSection> InSection)
 	: RootNode(InRootTrackNode)
 	, CurrentNode(InRootTrackNode)
 	, Section(InSection)
@@ -153,7 +153,7 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 
 	KeyAreaNode->TreeSerialNumber = RootNode->TreeSerialNumber;
 
-	TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(Section);
+	TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(Section->GetSectionObject());
 	if (!KeyArea)
 	{
 		// No key area for this section exists - create a new one

@@ -1343,6 +1343,34 @@ struct FInt32Range
 };
 
 /**
+ * Defines a single bound for a range of frame numbers.
+ * @note This is a mirror of TRangeBound<FFrameNumber>, defined in RangeBound.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FFrameNumberRangeBound
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	TEnumAsByte<ERangeBoundTypes::Type> Type;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumber Value;
+};
+
+/**
+ * A contiguous set of frame numbers described by lower and upper bound values.
+ * @note This is a mirror of TRange<FFrameNumber>, defined in Range.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FFrameNumberRange
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumberRangeBound LowerBound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Range)
+	FFrameNumberRangeBound UpperBound;
+};
+
+/**
  * An interval of floats, defined by inclusive min and max values
  * @note This is a mirror of TInterval<float>, defined in Interval.h
  */

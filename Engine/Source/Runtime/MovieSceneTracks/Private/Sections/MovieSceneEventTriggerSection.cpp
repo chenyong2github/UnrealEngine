@@ -2,7 +2,14 @@
 
 #include "Sections/MovieSceneEventTriggerSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Engine/Blueprint.h"
+#include "Tracks/MovieSceneEventTrack.h"
+#include "Systems/MovieSceneEventSystems.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+
+#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "EntitySystem/MovieSceneInstanceRegistry.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
 
 UMovieSceneEventTriggerSection::UMovieSceneEventTriggerSection(const FObjectInitializer& ObjInit)
@@ -15,9 +22,84 @@ UMovieSceneEventTriggerSection::UMovieSceneEventTriggerSection(const FObjectInit
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(EventChannel, FMovieSceneChannelMetaData());
 
-#else
-
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(EventChannel);
-
 #endif
+}
+
+UE::MovieScene::ESequenceUpdateResult UMovieSceneEventTriggerSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	const int32 EventIndex = static_cast<int32>(Params.EntityID);
+
+	TArrayView<const FFrameNumber>     Times  = EventChannel.GetData().GetTimes();
+	TArrayView<const FMovieSceneEvent> Events = EventChannel.GetData().GetValues();
+	if (!ensureMsgf(Events.IsValidIndex(EventIndex), TEXT("Attempting to import an event entity for an invalid index (Index: %d, Num: %d)"), EventIndex, Events.Num()))
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	if (Events[EventIndex].Ptrs.Function == nullptr)
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	UMovieSceneEventTrack*   EventTrack     = GetTypedOuter<UMovieSceneEventTrack>();
+	const FSequenceInstance& ThisInstance   = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle);
+	FMovieSceneContext       Context        = ThisInstance.GetContext();
+
+	// Don't allow events to fire when playback is in a stopped state. This can occur when stopping 
+	// playback and returning the current position to the start of playback. It's not desireable to have 
+	// all the events from the last playback position to the start of playback be fired.
+	if (Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+	else if (Context.GetDirection() == EPlayDirection::Forwards && !EventTrack->bFireEventsWhenForwards)
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+	else if (Context.GetDirection() == EPlayDirection::Backwards && !EventTrack->bFireEventsWhenBackwards)
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	UMovieSceneEventSystem* EventSystem = nullptr;
+
+	if (EventTrack->EventPosition == EFireEventsAtPosition::AtStartOfEvaluation)
+	{
+		EventSystem = EntityLinker->LinkSystem<UMovieScenePreSpawnEventSystem>();
+	}
+	else if (EventTrack->EventPosition == EFireEventsAtPosition::AfterSpawn)
+	{
+		EventSystem = EntityLinker->LinkSystem<UMovieScenePostSpawnEventSystem>();
+	}
+	else
+	{
+		EventSystem = EntityLinker->LinkSystem<UMovieScenePostEvalEventSystem>();
+	}
+
+	FMovieSceneEventTriggerData TriggerData = {
+		Events[EventIndex].Ptrs,
+		Params.ObjectBindingID,
+		ThisInstance.GetSequenceID(),
+		Times[EventIndex] * Context.GetSequenceToRootTransform()
+	};
+
+	EventSystem->AddEvent(ThisInstance.GetRootInstanceHandle(), TriggerData);
+	return ESequenceUpdateResult::EntitiesDirty;
+}
+
+bool UMovieSceneEventTriggerSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+{
+	TArrayView<const FFrameNumber> Times = EventChannel.GetData().GetTimes();
+	for (int32 Index = 0; Index < Times.Num(); ++Index)
+	{
+		if (EffectiveRange.Contains(Times[Index]))
+		{
+			TRange<FFrameNumber> Range(Times[Index]);
+			OutField->OneShotEntities.Populate(Range, this, Index);
+		}
+	}
+
+	return true;
 }

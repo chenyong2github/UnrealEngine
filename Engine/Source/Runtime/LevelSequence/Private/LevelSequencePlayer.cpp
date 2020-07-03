@@ -148,10 +148,11 @@ void ULevelSequencePlayer::OnStopped()
 	LastViewTarget.Reset();
 }
 
-void ULevelSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped)
+void ULevelSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args)
 {
-	UMovieSceneSequencePlayer::UpdateMovieSceneInstance(InRange, PlayerStatus, bHasJumped);
+	UMovieSceneSequencePlayer::UpdateMovieSceneInstance(InRange, PlayerStatus, Args);
 
+	// TODO-ludovic: we should move this to a post-evaluation callback when the evaluation is asynchronous.
 	FLevelSequencePlayerSnapshot NewSnapshot;
 	TakeFrameSnapshot(NewSnapshot);
 
@@ -380,18 +381,6 @@ TArray<UObject*> ULevelSequencePlayer::GetEventContexts() const
 	if (World.IsValid())
 	{
 		GetEventContexts(*World, EventContexts);
-	}
-
-	ALevelSequenceActor* OwningActor = GetTypedOuter<ALevelSequenceActor>();
-	if (OwningActor)
-	{
-		for (AActor* Actor : OwningActor->AdditionalEventReceivers)
-		{
-			if (Actor)
-			{
-				EventContexts.Add(Actor);
-			}
-		}
 	}
 
 	return EventContexts;

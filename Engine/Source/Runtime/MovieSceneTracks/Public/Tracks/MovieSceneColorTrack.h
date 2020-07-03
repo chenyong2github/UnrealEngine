@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneColorTrack.generated.h"
 
 /**
  * Handles manipulation of float properties in a movie scene
  */
 UCLASS( MinimalAPI )
-class UMovieSceneColorTrack : public UMovieScenePropertyTrack
+class UMovieSceneColorTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

@@ -15,7 +15,7 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "MovieSceneTrack.h"
 
-UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time )
+UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time )
 {
 	for( int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex )
 	{
@@ -31,7 +31,7 @@ UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( const TArray<UMovieSce
 	return nullptr;
 }
 
-UMovieSceneSection* MovieSceneHelpers::FindNearestSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time )
+UMovieSceneSection* MovieSceneHelpers::FindNearestSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time )
 {
 	TArray<UMovieSceneSection*> OverlappingSections, NonOverlappingSections;
 	for (UMovieSceneSection* Section : Sections)
@@ -393,23 +393,14 @@ float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionT
 	return Weight;
 }
 
-FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath, const FName& InFunctionName, const FName& InNotifyFunctionName )
+FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath )
 	: PropertyPath( InPropertyPath )
-	, NotifyFunctionName(InNotifyFunctionName)
 	, PropertyName( InPropertyName )
 {
-	if (InFunctionName != FName())
-	{
-		FunctionName = InFunctionName;
-	}
-	else
-	{
-		static const FString Set(TEXT("Set"));
+	static const FString Set(TEXT("Set"));
+	const FString FunctionString = Set + PropertyName.ToString();
 
-		const FString FunctionString = Set + PropertyName.ToString();
-
-		FunctionName = FName(*FunctionString);
-	}
+	FunctionName = FName(*FunctionString);
 }
 
 struct FPropertyAndIndex
@@ -641,17 +632,17 @@ template<> void FTrackInstancePropertyBindings::CallFunction<bool>(UObject& InRu
 	}
 }
 
-template<> bool FTrackInstancePropertyBindings::GetCurrentValue<bool>(const UObject& Object)
+template<> bool FTrackInstancePropertyBindings::ResolvePropertyValue<bool>(const FPropertyAddress& Address, bool& OutValue)
 {
-	FPropertyAndFunction PropAndFunction = FindOrAdd(Object);
-	if (FProperty* Property = PropAndFunction.PropertyAddress.GetProperty())
+	if (FProperty* Property = Address.GetProperty())
 	{
 		if (Property->IsA(FBoolProperty::StaticClass()))
 		{
 			if (FBoolProperty* BoolProperty = CastFieldChecked<FBoolProperty>(Property))
 			{
-				const uint8* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(PropAndFunction.PropertyAddress.Address);
-				return BoolProperty->GetPropertyValue(ValuePtr);
+				const uint8* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(Address.Address);
+				OutValue = BoolProperty->GetPropertyValue(ValuePtr);
+				return true;
 			}
 		}
 		else
@@ -701,16 +692,16 @@ template<> void FTrackInstancePropertyBindings::CallFunction<UObject*>(UObject& 
 	}
 }
 
-template<> UObject* FTrackInstancePropertyBindings::GetCurrentValue<UObject*>(const UObject& InRuntimeObject)
+template<> bool FTrackInstancePropertyBindings::ResolvePropertyValue<UObject*>(const FPropertyAddress& Address, UObject*& OutValue)
 {
-	FPropertyAndFunction PropAndFunction = FindOrAdd(InRuntimeObject);
-	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropAndFunction.PropertyAddress.GetProperty()))
+	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Address.GetProperty()))
 	{
-		const uint8* ValuePtr = ObjectProperty->ContainerPtrToValuePtr<uint8>(PropAndFunction.PropertyAddress.Address);
-		return ObjectProperty->GetObjectPropertyValue(ValuePtr);
+		const uint8* ValuePtr = ObjectProperty->ContainerPtrToValuePtr<uint8>(Address.Address);
+		OutValue = ObjectProperty->GetObjectPropertyValue(ValuePtr);
+		return true;
 	}
 
-	return nullptr;
+	return false;
 }
 
 template<> void FTrackInstancePropertyBindings::SetCurrentValue<UObject*>(UObject& InRuntimeObject, UObject* InValue)

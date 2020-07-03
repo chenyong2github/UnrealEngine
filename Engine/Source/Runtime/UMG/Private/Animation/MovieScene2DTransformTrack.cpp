@@ -3,7 +3,6 @@
 #include "Animation/MovieScene2DTransformTrack.h"
 #include "Animation/MovieScene2DTransformSection.h"
 #include "MovieSceneCommonHelpers.h"
-#include "Animation/MovieScene2DTransformTemplate.h"
 
 UMovieScene2DTransformTrack::UMovieScene2DTransformTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -24,10 +23,4 @@ bool UMovieScene2DTransformTrack::SupportsType(TSubclassOf<UMovieSceneSection> S
 UMovieSceneSection* UMovieScene2DTransformTrack::CreateNewSection()
 {
 	return NewObject<UMovieScene2DTransformSection>(this, NAME_None, RF_Transactional);
-}
-
-
-FMovieSceneEvalTemplatePtr UMovieScene2DTransformTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieScene2DTransformSectionTemplate(*CastChecked<const UMovieScene2DTransformSection>(&InSection), *this);
 }

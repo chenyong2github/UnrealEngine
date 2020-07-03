@@ -12,6 +12,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Animation/UMGSequencePlayer.h"
+#include "Animation/UMGSequenceTickManager.h"
 #include "UObject/UnrealType.h"
 #include "Blueprint/WidgetNavigation.h"
 #include "Animation/WidgetAnimation.h"
@@ -23,12 +24,18 @@
 #include "UMGPrivate.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
-#include "Compilation/MovieSceneCompiler.h"
 #include "TimerManager.h"
 #include "UObject/Package.h"
 #include "Editor/WidgetCompilerLog.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
+
+TAutoConsoleVariable<bool> CVarUserWidgetUseParallelAnimation(
+	TEXT("Widget.UseParallelAnimation"),
+	true,
+	TEXT("Use multi-threaded evaluation for widget animations."),
+	ECVF_Default
+);
 
 uint32 UUserWidget::bInitializingFromWidgetTree = 0;
 
@@ -251,6 +258,12 @@ void UUserWidget::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	if (AnimationTickManager)
+	{
+		AnimationTickManager->UserWidgets.Remove(this);
+		AnimationTickManager = nullptr;
+	}
+
 	//TODO: Investigate why this would ever be called directly, RemoveFromParent isn't safe to call during GC,
 	// as the widget structure may be in a partially destroyed state.
 
@@ -427,6 +440,12 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 
 			NewPlayer->InitSequencePlayer(*InAnimation, *this);
 
+			if (!AnimationTickManager)
+			{
+				AnimationTickManager = UUMGSequenceTickManager::Get(this);
+				AnimationTickManager->UserWidgets.Add(this);
+			}
+
 			return NewPlayer;
 		}
 		else
@@ -544,8 +563,8 @@ void UUserWidget::StopAllAnimations()
 	{
 		if (FoundPlayer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
-		FoundPlayer->Stop();
-	}
+			FoundPlayer->Stop();
+		}
 	}
 	bStoppingAllAnimations = false;
 
@@ -1304,37 +1323,43 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	// If this ensure is hit it is likely UpdateCanTick as not called somewhere
 	if(ensureMsgf(TickFrequency != EWidgetTickFrequency::Never, TEXT("SObjectWidget and UUserWidget have mismatching tick states or UUserWidget::NativeTick was called manually (Never do this)")))
 	{
-	GInitRunaway();
+		GInitRunaway();
 
-	TickActionsAndAnimation(MyGeometry, InDeltaTime);
+#if WITH_EDITOR
+		const bool bTickAnimations = !IsDesignTime();
+#else
+		const bool bTickAnimations = true;
+#endif
+		if (bTickAnimations && !CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
+		{
+			TickActionsAndAnimation(InDeltaTime);
+			PostTickActionsAndAnimation(InDeltaTime);
+		}
+		// else: the TickManager object will tick all animations at once.
 
 		if (bHasScriptImplementedTick)
-	{
-		Tick(MyGeometry, InDeltaTime);
-	}
+		{
+			Tick(MyGeometry, InDeltaTime);
+		}
 	}
 }
 
-void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InDeltaTime)
+void UUserWidget::TickActionsAndAnimation(float InDeltaTime)
 {
-#if WITH_EDITOR
-	if ( IsDesignTime() )
-	{
-		return;
-	}
-#endif
-
 	// Update active movie scenes, none will be removed here, but new
 	// ones can be added during the tick, if a player ends and triggers
 	// starting another animation
-	for ( int32 Index = 0; Index < ActiveSequencePlayers.Num(); Index++ )
+	for (int32 Index = 0; Index < ActiveSequencePlayers.Num(); Index++)
 	{
 		UUMGSequencePlayer* Player = ActiveSequencePlayers[Index];
-		Player->Tick( InDeltaTime );
+		Player->Tick(InDeltaTime);
 	}
+}
 
+void UUserWidget::PostTickActionsAndAnimation(float InDeltaTime)
+{
 	const bool bWasPlayingAnimation = IsPlayingAnimation();
-	if(bWasPlayingAnimation)
+	if (bWasPlayingAnimation)
 	{ 
 		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
 		if (CachedWidget.IsValid())
@@ -1344,9 +1369,10 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 	}
 
 	// The process of ticking the players above can stop them so we remove them after all players have ticked
-	for ( UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers )
+	for (UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers)
 	{
 		ActiveSequencePlayers.RemoveSwap(StoppedPlayer);
+		StoppedPlayer->TearDown();
 	}
 
 	StoppedSequencePlayers.Empty();
@@ -1357,6 +1383,11 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 		// Update any latent actions we have for this actor
 		World->GetLatentActionManager().ProcessLatentActions(this, InDeltaTime);
 	}
+}
+
+void UUserWidget::FlushAnimations()
+{
+	UUMGSequenceTickManager::Get(this)->ForceFlush();
 }
 
 void UUserWidget::CancelLatentActions()

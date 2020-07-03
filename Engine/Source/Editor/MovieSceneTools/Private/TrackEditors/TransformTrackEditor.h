@@ -14,10 +14,13 @@
 #include "KeyframeTrackEditor.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "SequencerKeyParams.h"
 
 class AActor;
 struct FAssetData;
 class SHorizontalBox;
+
+namespace UE { namespace MovieScene { struct FIntermediate3DTransform; } }
 
 /**
  * Tools for animatable transforms
@@ -48,7 +51,7 @@ public:
 public:
 
 	// ISequencerTrackEditor interface
-
+	virtual void ProcessKeyOperation(FFrameNumber InKeyTime, const UE::Sequencer::FKeyOperation& Operation, ISequencer& InSequencer) override;
 	virtual void BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBox, const FGuid& ObjectBinding, const UClass* ObjectClass) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindinsg, const UClass* ObjectClass) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface( UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding ) override;
@@ -58,7 +61,10 @@ public:
 	virtual bool HasTransformKeyBindings() const override { return true; }
 	virtual bool CanAddTransformKeysForSelectedObjects() const override;
 	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel) override;
+
 private:
+
+	void ProcessKeyOperation(UObject* ObjectToKey, TArrayView<const UE::Sequencer::FKeySectionOperation> SectionsToKey, ISequencer& InSequencer, FFrameNumber KeyTime);
 
 	/** Returns whether or not a transform track can be added for an actor with a specific handle. */
 	bool CanAddTransformTrackForActorHandle(FGuid ActorHandle) const;
@@ -118,7 +124,7 @@ private:
 
 	/** Generates transform keys based on the last transform, the current transform, and other options. 
 		One transform key is generated for each individual key to be added to the section. */
-	void GetTransformKeys( const TOptional<FTransformData>& LastTransform, const FTransformData& CurrentTransform, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys );
+	void GetTransformKeys( const TOptional<FTransformData>& LastTransform, const FTransformData& CurrentTransform, EMovieSceneTransformChannel ChannelsToKey, UObject* Object, UMovieSceneSection* Section, FGeneratedTrackKeys& OutGeneratedKeys );
 
 
 
@@ -150,6 +156,8 @@ private:
 	*/
 	void AddTransformKeys( UObject* ObjectToKey, const TOptional<FTransformData>& LastTransform, const FTransformData& CurrentTransform, EMovieSceneTransformChannel ChannelsToKey, ESequencerKeyMode KeyMode );
 
+	FTransformData RecomposeTransform(const FTransformData& InTransformData, UObject* AnimatedObject, UMovieSceneSection* Section);
+
 private:
 
 	/** Import an animation sequence's root transforms into a transform section */
@@ -167,18 +175,5 @@ private:
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
 	TSharedPtr<FUICommandList> CommandBindings;
-
-private:
-	/** 
-	 * Modify the passed in Generated Keys by the current tracks values and weight at the passed in time.
-
-	 * @param Object The handle to the object modify
-	 * @param Track The track we are modifying
-	 * @param SectionToKey The Sections Channels we will be modifiying
-     * @param Time The Time at which to evaluate
-	 * @param InOutGeneratedTrackKeys The Keys we need to modify. We change these values.
-     * @param Weight The weight we need to modify the values by.
-	 */
-	virtual bool ModifyGeneratedKeysByCurrentAndWeight(UObject* Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber Time, FGeneratedTrackKeys& InOutGeneratedTotalKeys, float Weight) const override;
 
 };

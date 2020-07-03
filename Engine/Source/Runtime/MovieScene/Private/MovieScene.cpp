@@ -9,6 +9,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "CommonFrameRates.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "UObject/UObjectHash.h"
 
 #define LOCTEXT_NAMESPACE "MovieScene"
 
@@ -78,7 +80,27 @@ void UMovieScene::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
 
+	// Serialize the MovieScene
 	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	if (Ar.IsLoading())
+	{
+		UpgradeTimeRanges();
+		RemoveNullTracks();
+
+		for (FMovieSceneSpawnable& Spawnable : Spawnables)
+		{
+			if (UObject* Template = Spawnable.GetObjectTemplate())
+			{
+				// Spawnables are no longer marked archetype
+				Template->ClearFlags(RF_ArchetypeObject);
+				
+				FMovieSceneSpawnable::MarkSpawnableTemplate(*Template);
+			}
+		}
+	}
+#endif
 
 #if WITH_EDITORONLY_DATA
 	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::FloatToIntConversion)
@@ -175,7 +197,7 @@ bool UMovieScene::RemoveSpawnable( const FGuid& Guid )
 				RemoveBinding( Guid );
 
 				Spawnables.RemoveAt( SpawnableIter.GetIndex() );
-				
+
 				bAnythingRemoved = true;
 				break;
 			}
@@ -844,7 +866,6 @@ UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClas
 
 			CreatedType = NewObject<UMovieSceneTrack>(this, TrackClass, NAME_None, RF_Transactional);
 			check(CreatedType);
-			
 			Binding.AddTrack( *CreatedType );
 		}
 	}
@@ -855,6 +876,7 @@ UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClas
 bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack, const FGuid& ObjectGuid)
 {
 	check(ObjectGuid.IsValid());
+	check(InTrack);
 
 	Modify();
 	for (auto& Binding : ObjectBindings)
@@ -862,7 +884,6 @@ bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack, const FGuid& ObjectGu
 		if (Binding.GetObjectGuid() == ObjectGuid)
 		{
 			InTrack->Rename(nullptr, this);
-			check(InTrack);
 			Binding.AddTrack(*InTrack);
 			return true;
 		}
@@ -932,7 +953,6 @@ UMovieSceneTrack* UMovieScene::AddMasterTrack( TSubclassOf<UMovieSceneTrack> Tra
 
 	UMovieSceneTrack* CreatedType = NewObject<UMovieSceneTrack>(this, TrackClass, NAME_None, RF_Transactional);
 	MasterTracks.Add( CreatedType );
-	
 	return CreatedType;
 }
 
@@ -1112,10 +1132,9 @@ void UMovieScene::UpgradeTimeRanges()
 #endif
 }
 
-/* UObject interface
- *****************************************************************************/
+#if WITH_EDITOR
 
-void UMovieScene::PostLoad()
+void UMovieScene::RemoveNullTracks()
 {
 	// Remove any null tracks
 	for( int32 TrackIndex = 0; TrackIndex < MasterTracks.Num(); )
@@ -1159,19 +1178,6 @@ void UMovieScene::PostLoad()
 	}
 #endif
 
-	UpgradeTimeRanges();
-
-	for (FMovieSceneSpawnable& Spawnable : Spawnables)
-	{
-		if (UObject* Template = Spawnable.GetObjectTemplate())
-		{
-			// Spawnables are no longer marked archetype
-			Template->ClearFlags(RF_ArchetypeObject);
-			
-			FMovieSceneSpawnable::MarkSpawnableTemplate(*Template);
-		}
-	}
-
 #if WITH_EDITORONLY_DATA
 	for (FFrameNumber MarkedFrame : EditorData.MarkedFrames_DEPRECATED)
 	{
@@ -1183,9 +1189,12 @@ void UMovieScene::PostLoad()
 	// Clean any section groups which might refer to sections which were not serialized
 	CleanSectionGroups();
 #endif
-
-	Super::PostLoad();
 }
+
+#endif // WITH_EDITOR
+
+/* UObject interface
+ *****************************************************************************/
 
 
 void UMovieScene::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -1245,13 +1254,6 @@ void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, con
 		{
 			Binding.SetObjectGuid(NewGuid);
 			Binding.SetName(Name);
-
-			// Changing a binding guid invalidates any tracks contained within the binding
-			// Make sure they are written into the transaction buffer by calling modify
-			for (UMovieSceneTrack* Track : Binding.GetTracks())
-			{
-				Track->Modify();
-			}
 			break;
 		}
 	}

@@ -829,7 +829,7 @@ bool UActorRecording::StopRecording(ULevelSequence* OriginalSequence, float Curr
 		}
 
 		FFrameNumber RecordStartTime = OriginalSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
-		UMovieSceneSubSection* SubSection = SubTrack->AddSequence(CurrentSequence, RecordStartTime,  MovieScene::DiscreteSize(CurrentSequence->GetMovieScene()->GetPlaybackRange()));
+		UMovieSceneSubSection* SubSection = SubTrack->AddSequence(CurrentSequence, RecordStartTime,  UE::MovieScene::DiscreteSize(CurrentSequence->GetMovieScene()->GetPlaybackRange()));
 
 		if (SubSection->GetAutoSizeRange().IsSet())
 		{

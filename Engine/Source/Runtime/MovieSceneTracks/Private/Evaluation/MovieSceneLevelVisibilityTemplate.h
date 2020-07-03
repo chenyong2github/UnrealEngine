@@ -2,42 +2,74 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Evaluation/PersistentEvaluationData.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
+#include "Engine/LevelStreaming.h"
 #include "MovieSceneLevelVisibilityTemplate.generated.h"
 
-USTRUCT()
-struct FMovieSceneLevelVisibilitySectionTemplate
-	: public FMovieSceneEvalTemplate
-{
-	GENERATED_BODY()
-	
-	FMovieSceneLevelVisibilitySectionTemplate() : Visibility(ELevelVisibility::Visible) {}
-	FMovieSceneLevelVisibilitySectionTemplate(const UMovieSceneLevelVisibilitySection& Section);
+class UWorld;
 
-	static FSharedPersistentDataKey GetSharedDataKey();
+namespace UE
+{
+namespace MovieScene
+{
+	struct FMovieSceneLevelStreamingSharedData
+	{
+		bool HasAnythingToDo() const;
+		void AssignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID);
+		void UnassignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID);
+		void ApplyLevelVisibility(IMovieScenePlayer& Player);
+
+	private:
+		ULevelStreaming* GetLevel(FName SafeLevelName, UWorld& World);
+
+	private:
+		struct FVisibilityData
+		{
+			TOptional<bool> bPreviousState;
+
+			void Add(FMovieSceneEntityID EntityID, int32 Bias, ELevelVisibility Visibility);
+			void Remove(FMovieSceneEntityID EntityID);
+
+			/** Check whether this visibility data is empty */
+			bool IsEmpty() const;
+
+			/** Returns whether or not this level name should be visible or not */
+			TOptional<ELevelVisibility> CalculateVisibility() const;
+
+		private:
+			struct FVisibilityRequest
+			{
+				/** The entity that made the request */
+				FMovieSceneEntityID EntityID;
+				/** The bias of the entity */
+				int32 Bias;
+				/** The actual visibility requested */
+				ELevelVisibility Visibility;
+			};
+			TArray<FVisibilityRequest, TInlineAllocator<2>> Requests;
+		};
+		TMap<FName, FVisibilityData> VisibilityMap;
+
+		TMap<FName, TWeakObjectPtr<ULevelStreaming>> NameToLevelMap;
+	};
+}
+}
+
+UCLASS(MinimalAPI)
+class UMovieSceneLevelVisibilitySystem : public UMovieSceneEntitySystem
+{
+public:
+
+	GENERATED_BODY()
+
+	UMovieSceneLevelVisibilitySystem(const FObjectInitializer& ObjInit);
 
 private:
 
-	virtual UScriptStruct& GetScriptStructImpl() const override
-	{
-		return *StaticStruct();
-	}
-	virtual void SetupOverrides() override
-	{
-		EnableOverrides(RequiresSetupFlag | RequiresTearDownFlag);
-	}
+	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
-	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
-	virtual void Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
-	virtual void TearDown(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
-
-	UPROPERTY()
-	ELevelVisibility Visibility;
-
-	UPROPERTY()
-	TArray<FName> LevelNames;
+private:
+	UE::MovieScene::FMovieSceneLevelStreamingSharedData SharedData;
 };

@@ -17,6 +17,7 @@
 #include "TakeMetaData.h"
 #include "MovieSceneFolder.h"
 #include "Serializers/MovieSceneManifestSerialization.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "GameFramework/Actor.h"
@@ -35,7 +36,6 @@
 #include "TrackRecorders/MovieScenePropertyTrackRecorder.h"
 #include "TrackRecorders/MovieSceneTrackRecorderSettings.h"
 
-#include "Compilation/MovieSceneCompiler.h"
 DEFINE_LOG_CATEGORY(ActorSerialization);
 
 #define LOCTEXT_NAMESPACE "UTakeRecorderActorSource"
@@ -1514,15 +1514,20 @@ FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor*
 				{
 					if (!ActorSource->SequenceID.IsSet()) // only compile if it's not set yet this rcording.
 					{
-						FMovieSceneSequencePrecompiledTemplateStore TemplateStore;
-						FMovieSceneCompiler::Compile(*MasterLevelSequence, TemplateStore);
-						for (auto& Pair : TemplateStore.AccessTemplate(*MasterLevelSequence).Hierarchy.AllSubSequenceData())
-						{
-							if (Pair.Value.Sequence == ActorSource->TargetLevelSequence)
-							{
-								ActorSource->SequenceID = OutSequenceID = Pair.Key;
-								break;
+						UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterLevelSequence);
 
+						FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->GetDataID(MasterLevelSequence);
+						const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
+						if (Hierarchy)
+						{
+							for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+							{
+								if (Pair.Value.Sequence == ActorSource->TargetLevelSequence)
+								{
+									ActorSource->SequenceID = OutSequenceID = Pair.Key;
+									break;
+
+								}
 							}
 						}
 					}

@@ -149,6 +149,22 @@ struct FMovieSceneContext : FMovieSceneEvaluationRange
 	/**
 	 * Construction from an evaluation range, and a current status
 	 */
+	FMovieSceneContext()
+		: FMovieSceneEvaluationRange(TRange<FFrameTime>::Empty(), FFrameRate(60, 1), EPlayDirection::Forwards)
+		, Status(EMovieScenePlayerStatus::Stopped)
+		, PrePostRollStartEndTime(TNumericLimits<int32>::Lowest())
+		, HierarchicalBias(0)
+		, bHasJumped(false)
+		, bSilent(false)
+		, bSectionPreRoll(false)
+		, bSectionPostRoll(false)
+		, bHasPreRollEndTime(false)
+		, bHasPostRollStartTime(false)
+	{}
+
+	/**
+	 * Construction from an evaluation range, and a current status
+	 */
 	FMovieSceneContext(FMovieSceneEvaluationRange InRange)
 		: FMovieSceneEvaluationRange(InRange)
 		, Status(EMovieScenePlayerStatus::Stopped)
@@ -211,6 +227,22 @@ struct FMovieSceneContext : FMovieSceneEvaluationRange
 	}
 
 	/**
+	 * Get the current root to sequence warp counter for the current sub sequence
+	 */
+	FORCEINLINE const FMovieSceneWarpCounter& GetRootToSequenceWarpCounter() const
+	{
+		return RootToSequenceWarpCounter;
+	}
+
+	/**
+	 * Get the inverse transform of the current sub sequence, to transform local times back to root times.
+	 */
+	FORCEINLINE FMovieSceneTimeTransform GetSequenceToRootTransform() const
+	{
+		return RootToSequenceTransform.InverseFromWarp(RootToSequenceWarpCounter);
+	}
+
+	/**
 	 * Apply section pre and post roll based on whether we're in the leading (preroll), or trailing (postroll) region for the section, and the current play direction
 	 *
 	 * @param bInLeadingRegion			Whether we are considered to be in the section's leading (aka preroll) region
@@ -270,6 +302,13 @@ public:
 		NewContext.CurrentFrameRate = NewFrameRate;
 
 		NewContext.EvaluationRange = InTransform.TransformRangeUnwarped(EvaluationRange);
+
+		// Transform the current time so we get an idea in what loop(s) we are relative to the root sequence.
+		FFrameTime TransformedTime_Unused;
+		FMovieSceneWarpCounter WarpCounter;
+		NewContext.RootToSequenceTransform.TransformTime(GetTime(), TransformedTime_Unused, WarpCounter);
+		NewContext.RootToSequenceWarpCounter = WarpCounter;
+
 		if (InTransform.IsWarping())
 		{
 			// If we have some looping, the transformed range might extend past the end of a loop and into
@@ -419,6 +458,9 @@ protected:
 
 	/** The transform from the root sequence to the current sequence space */
 	FMovieSceneSequenceTransform RootToSequenceTransform;
+
+	/** The current warp count for any sub-sequence in the current sequence's hierarchy */
+	FMovieSceneWarpCounter RootToSequenceWarpCounter;
 
 	/** The current playback status */
 	EMovieScenePlayerStatus::Type Status;

@@ -11,6 +11,7 @@
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryImageWriter.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/EnumClassFlags.h"
 
 template<typename Allocator > class TBitArray;
 
@@ -50,6 +51,20 @@ class TConstDualSetBitIterator;
 template <typename AllocatorType, typename InDerivedType = void>
 class TScriptBitArray;
 
+/** Flag enumeration for control bitwise operator functionality */
+enum class EBitwiseOperatorFlags
+{
+	/** Specifies that the result should be sized Max(A.Num(), B.Num()) */
+	MaxSize = 1 << 0,
+	/** Specifies that the result should be sized Min(A.Num(), B.Num()) */
+	MinSize = 1 << 1,
+	/** Only valid for self-mutating bitwise operators - indicates that the size of the LHS operand should not be changed */
+	MaintainSize = 1 << 2,
+
+	/** When MaxSize or MaintainSize is specified and the operands are sized differently, any missing bits in the resulting bit array will be considered as 1, rather than 0 */
+	OneFillMissingBits = 1 << 4,
+};
+ENUM_CLASS_FLAGS(EBitwiseOperatorFlags)
 
 /**
  * Serializer (predefined for no friend injection in gcc 411)
@@ -301,7 +316,7 @@ public:
 		return false;
 	}
 
-	FORCEINLINE bool operator!=(const TBitArray<Allocator>& Other)
+	FORCEINLINE bool operator!=(const TBitArray<Allocator>& Other) const
 	{
 		return !(*this == Other);
 	}
@@ -357,6 +372,28 @@ private:
 	}
 
 public:
+
+	/**
+	 * Checks the invariants of this class
+	 */
+	void CheckInvariants() const
+	{
+#if DO_CHECK
+		checkf(NumBits <= MaxBits, TEXT("TBitArray::NumBits (%d) should never be greater than MaxBits (%d)"), NumBits, MaxBits);
+		checkf(NumBits >= 0 && MaxBits >= 0, TEXT("NumBits (%d) and MaxBits (%d) should always be >= 0"), NumBits, MaxBits);
+
+		const int32 UsedBits = (NumBits % NumBitsPerDWORD);
+		if (UsedBits != 0)
+		{
+			const int32  LastDWORDIndex = NumBits / NumBitsPerDWORD;
+			const uint32 SlackMask = ~0u << UsedBits;
+
+			uint32 LastDWORD = *(GetData() + LastDWORDIndex);
+			checkf((LastDWORD & SlackMask) == 0, TEXT("TBitArray slack bits are non-zero, this will result in undefined behavior."));
+		}
+#endif
+	}
+
 	/**
 	 * Serializer
 	 */
@@ -377,6 +414,11 @@ public:
 		// serialize the data as one big chunk
 		Ar.Serialize(BitArray.GetData(), BitArray.GetNumWords() * sizeof(uint32));
 
+		if (Ar.IsLoading() && !Ar.IsObjectReferenceCollector() && !Ar.IsCountingMemory())
+		{
+			// Clear slack bits incase they were serialized non-null
+			BitArray.ClearPartialSlackBits();
+		}
 		return Ar;
 	}
 
@@ -392,6 +434,10 @@ public:
 		++NumBits;
 		(*this)[Index] = Value;
 
+		if (Index % NumBitsPerDWORD == 0)
+		{
+			ClearPartialSlackBits();
+		}
 		return Index;
 	}
 
@@ -410,6 +456,11 @@ public:
 			for (int32 It = Index, End = It + NumToAdd; It != End; ++It)
 			{
 				(*this)[It] = Value;
+			}
+
+			if (NumToAdd >= NumBitsPerDWORD - (NumBits % NumBitsPerDWORD))
+			{
+				ClearPartialSlackBits();
 			}
 		}
 
@@ -521,6 +572,8 @@ public:
 
 			MaxBits = MaxDWORDs * NumBitsPerDWORD;
 		}
+
+		ClearPartialSlackBits();
 	}
 
 	/**
@@ -583,6 +636,8 @@ public:
 				*Data &= ~EndMask;
 			}
 		}
+
+		CheckInvariants();
 	}
 
 	/**
@@ -611,7 +666,11 @@ public:
 				}
 			}
 		}
+
 		NumBits -= NumBitsToRemove;
+
+		ClearPartialSlackBits();
+		CheckInvariants();
 	}
 
 	/* Removes bits from the array by swapping them with bits at the end of the array.
@@ -645,6 +704,9 @@ public:
 
 		// Remove the bits from the end of the array.
 		NumBits -= NumBitsToRemove;
+
+		ClearPartialSlackBits();
+		CheckInvariants();
 	}
 	
 
@@ -770,6 +832,7 @@ public:
 			if (LowestBitIndex < LocalNumBits)
 			{
 				DwordArray[DwordIndex] |= LowestBit;
+				CheckInvariants();
 				return LowestBitIndex;
 			}
 		}
@@ -813,8 +876,154 @@ public:
 		uint32 BitIndex = (NumBitsPerDWORD - 1) - FMath::CountLeadingZeros(Bits);
 		DwordArray[DwordIndex] |= 1u << BitIndex;
 
+		CheckInvariants();
+
 		int32 Result = BitIndex + (DwordIndex << NumBitsPerDWORDLogTwo);
 		return Result;
+	}
+
+
+	/**
+	 * Return the bitwise AND of two bit arrays. The resulting bit array will be sized according to InFlags.
+	 */
+	static TBitArray BitwiseAND(const TBitArray& A, const TBitArray& B, EBitwiseOperatorFlags InFlags)
+	{
+		TBitArray Result;
+		BitwiseBinaryOperatorImpl(A, B, Result, InFlags, [](uint32 InA, uint32 InB) { return InA & InB; });
+		return Result;
+	}
+
+	/**
+	 * Perform a bitwise AND on this bit array with another. This array receives the result and will be sized max(A.Num(), B.Num()).
+	 */
+	TBitArray& CombineWithBitwiseAND(const TBitArray& InOther, EBitwiseOperatorFlags InFlags)
+	{
+		BitwiseOperatorImpl(InOther, *this, InFlags, [](uint32 InA, uint32 InB) { return InA & InB; });
+		return *this;
+	}
+
+	/**
+	 * Return the bitwise OR of two bit arrays. The resulting bit array will be sized according to InFlags.
+	 */
+	static TBitArray BitwiseOR(const TBitArray& A, const TBitArray& B, EBitwiseOperatorFlags InFlags)
+	{
+		check(&A != &B);
+
+		TBitArray Result;
+		BitwiseBinaryOperatorImpl(A, B, Result, InFlags, [](uint32 InA, uint32 InB) { return InA | InB; });
+		return Result;
+	}
+
+	/**
+	 * Return the bitwise OR of two bit arrays. The resulting bit array will be sized according to InFlags.
+	 */
+	TBitArray& CombineWithBitwiseOR(const TBitArray& InOther, EBitwiseOperatorFlags InFlags)
+	{
+		BitwiseOperatorImpl(InOther, *this, InFlags, [](uint32 InA, uint32 InB) { return InA | InB; });
+		return *this;
+	}
+
+	/**
+	 * Return the bitwise XOR of two bit arrays. The resulting bit array will be sized according to InFlags.
+	 */
+	static TBitArray BitwiseXOR(const TBitArray& A, const TBitArray& B, EBitwiseOperatorFlags InFlags)
+	{
+		TBitArray Result;
+		BitwiseBinaryOperatorImpl(A, B, Result, InFlags, [](uint32 InA, uint32 InB) { return InA ^ InB; });
+		return Result;
+	}
+
+	/**
+	 * Return the bitwise XOR of two bit arrays. The resulting bit array will be sized according to InFlags.
+	 */
+	TBitArray& CombineWithBitwiseXOR(const TBitArray& InOther, EBitwiseOperatorFlags InFlags)
+	{
+		BitwiseOperatorImpl(InOther, *this, InFlags, [](uint32 InA, uint32 InB) { return InA ^ InB; });
+		return *this;
+	}
+
+	/**
+	 * Perform a bitwise NOT on all the bits in this array
+	 */
+	void BitwiseNOT()
+	{
+		for (FDWORDIterator It(*this); It; ++It)
+		{
+			It.SetDWORD(~It.GetDWORD());
+		}
+	}
+
+	/**
+	 * Count the number of set bits in this array  FromIndex <= bit < ToIndex
+	 */
+	int32 CountSetBits(int32 FromIndex = 0, int32 ToIndex = INDEX_NONE) const
+	{
+		if (ToIndex == INDEX_NONE)
+		{
+			ToIndex = NumBits;
+		}
+
+		checkSlow(FromIndex >= 0);
+		checkSlow(ToIndex >= FromIndex && ToIndex <= NumBits);
+
+		int32 NumSetBits = 0;
+		for (FConstDWORDIterator It(*this, FromIndex, ToIndex); It; ++It)
+		{
+			NumSetBits += FMath::CountBits(It.GetDWORD());
+		}
+		return NumSetBits;
+	}
+
+	/**
+	 * Returns true if Other contains all the same set bits as this, accounting for differences in length.
+	 * Similar to operator== but can handle different length arrays by zero or one-filling missing bits.
+	 *
+	 * @param Other The array to compare against
+	 * @param bMissingBitValue The value to use for missing bits when considering bits that are outside the range of either array
+	 * @return true if this array matches Other, including any missing bits, false otherwise
+	 */
+	bool CompareSetBits(const TBitArray& Other, const bool bMissingBitValue) const
+	{
+		const uint32 MissingBitsFill = bMissingBitValue ? ~0u : 0;
+
+		FConstDWORDIterator ThisIterator(*this);
+		FConstDWORDIterator OtherIterator(Other);
+
+		ThisIterator.FillMissingBits(MissingBitsFill);
+		OtherIterator.FillMissingBits(MissingBitsFill);
+
+		while (ThisIterator || OtherIterator)
+		{
+			const uint32 A = ThisIterator  ? ThisIterator.GetDWORD()  : MissingBitsFill;
+			const uint32 B = OtherIterator ? OtherIterator.GetDWORD() : MissingBitsFill;
+			if (A != B)
+			{
+				return false;
+			}
+
+			++ThisIterator;
+			++OtherIterator;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Pad this bit array with the specified value to ensure that it is at least the specified length. Does nothing if Num() >= DesiredNum.
+	 * 
+	 * @param DesiredNum The desired number of elements that should exist in the array.
+	 * @param bPadValue  The value to pad with (0 or 1)
+	 * @return The number of bits that were added to the array, or 0 if Num() >= DesiredNum.
+	 */
+	int32 PadToNum(int32 DesiredNum, bool bPadValue)
+	{
+		const int32 NumToAdd = DesiredNum - Num();
+		if (NumToAdd > 0)
+		{
+			Add(bPadValue, NumToAdd);
+			return NumToAdd;
+		}
+		return 0;
 	}
 
 	// Accessors.
@@ -994,6 +1203,236 @@ public:
 	}
 
 private:
+
+	template<typename ProjectionType>
+	static void BitwiseBinaryOperatorImpl(const TBitArray& InA, const TBitArray& InB, TBitArray& OutResult, EBitwiseOperatorFlags InFlags, ProjectionType&& InProjection)
+	{
+		check((&InA != &InB) && (&InA != &OutResult) && (&InB != &OutResult));
+
+		if (EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::MinSize))
+		{
+
+			const int32 MinNumBits = FMath::Min(InA.Num(), InB.Num());
+			if (MinNumBits > 0)
+			{
+				OutResult.Reserve(MinNumBits);
+				OutResult.NumBits = MinNumBits;
+
+				FConstDWORDIterator IteratorA(InA);
+				FConstDWORDIterator IteratorB(InB);
+
+				FDWORDIterator IteratorResult(OutResult);
+
+				for ( ; IteratorResult; ++IteratorResult, ++IteratorA, ++IteratorB)
+				{
+					const uint32 NewValue = Invoke(InProjection, IteratorA.GetDWORD(), IteratorB.GetDWORD());
+					IteratorResult.SetDWORD(NewValue);
+				}
+			}
+
+		}
+		else if (EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::MaxSize))
+		{
+
+			const int32 MaxNumBits = FMath::Max(InA.Num(), InB.Num());
+			const uint32 MissingBitsFill = EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::OneFillMissingBits) ? ~0u : 0;
+
+			if (MaxNumBits)
+			{
+				OutResult.Reserve(MaxNumBits);
+				OutResult.NumBits = MaxNumBits;
+
+				FConstDWORDIterator IteratorA(InA);
+				FConstDWORDIterator IteratorB(InB);
+
+				IteratorA.FillMissingBits(MissingBitsFill);
+				IteratorB.FillMissingBits(MissingBitsFill);
+
+				FDWORDIterator IteratorResult(OutResult);
+
+				for ( ; IteratorResult; ++IteratorResult, ++IteratorA, ++IteratorB)
+				{
+					uint32 A = IteratorA ? IteratorA.GetDWORD() : MissingBitsFill;
+					uint32 B = IteratorB ? IteratorB.GetDWORD() : MissingBitsFill;
+
+					IteratorResult.SetDWORD(Invoke(InProjection, A, B));
+				}
+			}
+
+		}
+		else
+		{
+			checkf(false, TEXT("Invalid size flag specified for binary bitwise AND"));
+		}
+
+		OutResult.CheckInvariants();
+	}
+
+
+	template<typename ProjectionType>
+	static void BitwiseOperatorImpl(const TBitArray& InOther, TBitArray& OutResult, EBitwiseOperatorFlags InFlags, ProjectionType&& InProjection)
+	{
+		check(&InOther != &OutResult);
+
+		int32 NewNumBits = OutResult.NumBits;
+		if (EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::MinSize))
+		{
+			NewNumBits = FMath::Min(InOther.Num(), OutResult.Num());
+		}
+		else if (EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::MaxSize))
+		{
+			NewNumBits = FMath::Max(InOther.Num(), OutResult.Num());
+		}
+
+		const int32 SizeDifference = NewNumBits - OutResult.NumBits;
+		if (SizeDifference < 0)
+		{
+			OutResult.NumBits = NewNumBits;
+			OutResult.ClearPartialSlackBits();
+		}
+		else if (SizeDifference > 0)
+		{
+			const bool bPadValue = EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::OneFillMissingBits);
+			OutResult.Add(bPadValue, SizeDifference);
+		}
+
+		const uint32 MissingBitsFill = EnumHasAnyFlags(InFlags, EBitwiseOperatorFlags::OneFillMissingBits) ? ~0u : 0;
+		if (OutResult.NumBits != 0)
+		{
+			FConstDWORDIterator IteratorOther(InOther);
+			IteratorOther.FillMissingBits(MissingBitsFill);
+
+			FDWORDIterator IteratorResult(OutResult);
+
+			for ( ; IteratorResult; ++IteratorResult, ++IteratorOther)
+			{
+				const uint32 OtherValue = IteratorOther ? IteratorOther.GetDWORD() : MissingBitsFill;
+				IteratorResult.SetDWORD(Invoke(InProjection, IteratorResult.GetDWORD(), OtherValue));
+			}
+		}
+
+		OutResult.CheckInvariants();
+	}
+
+
+	template<typename DWORDType>
+	struct TDWORDIteratorBase
+	{
+		explicit operator bool() const
+		{
+			return CurrentIndex < NumDWORDs;
+		}
+
+		int32 GetIndex() const
+		{
+			return CurrentIndex;
+		}
+
+		uint32 GetDWORD() const
+		{
+			checkSlow(CurrentIndex < NumDWORDs);
+
+			if (CurrentMask == ~0u)
+			{
+				return Data[CurrentIndex];
+			}
+			else if (MissingBitsFill == 0)
+			{
+				return Data[CurrentIndex] & CurrentMask;
+			}
+			else
+			{
+				return (Data[CurrentIndex] & CurrentMask) | (MissingBitsFill & ~CurrentMask);
+			}
+		}
+
+		void operator++()
+		{
+			++this->CurrentIndex;
+			if (this->CurrentIndex == NumDWORDs-1)
+			{
+				CurrentMask = FinalMask;
+			}
+			else
+			{
+				CurrentMask = ~0u;
+			}
+		}
+
+		void FillMissingBits(uint32 InMissingBitsFill)
+		{
+			MissingBitsFill = InMissingBitsFill;
+		}
+
+	protected:
+
+		explicit TDWORDIteratorBase(DWORDType* InData, int32 InStartBitIndex, int32 InEndBitIndex)
+			: Data(InData)
+			, CurrentIndex(InStartBitIndex / NumBitsPerDWORD)
+			, NumDWORDs(FMath::DivideAndRoundUp(InEndBitIndex, NumBitsPerDWORD))
+			, CurrentMask(~0u << (InStartBitIndex % NumBitsPerDWORD))
+			, FinalMask(~0u)
+			, MissingBitsFill(0)
+		{
+			const int32 Shift = NumBitsPerDWORD - (InEndBitIndex % NumBitsPerDWORD);
+			if (Shift < NumBitsPerDWORD)
+			{
+				FinalMask = ~0u >> Shift;
+			}
+
+			if (CurrentIndex == NumDWORDs - 1)
+			{
+				CurrentMask &= FinalMask;
+				FinalMask = CurrentMask;
+			}
+		}
+
+		DWORDType* RESTRICT Data;
+
+		int32 CurrentIndex;
+		int32 NumDWORDs;
+
+		uint32 CurrentMask;
+		uint32 FinalMask;
+		uint32 MissingBitsFill;
+	};
+
+	struct FConstDWORDIterator : TDWORDIteratorBase<const uint32>
+	{
+		explicit FConstDWORDIterator(const TBitArray<Allocator>& InArray)
+			: TDWORDIteratorBase<const uint32>(InArray.GetData(), 0, InArray.Num())
+		{}
+
+		explicit FConstDWORDIterator(const TBitArray<Allocator>& InArray, int32 InStartBitIndex, int32 InEndBitIndex)
+			: TDWORDIteratorBase<const uint32>(InArray.GetData(), InStartBitIndex, InEndBitIndex)
+		{
+			checkSlow(InStartBitIndex <= InEndBitIndex && InStartBitIndex <= InArray.Num() && InEndBitIndex <= InArray.Num());
+			checkSlow(InStartBitIndex >= 0 && InEndBitIndex >= 0);
+		}
+	};
+
+	struct FDWORDIterator : TDWORDIteratorBase<uint32>
+	{
+		explicit FDWORDIterator(TBitArray<Allocator>& InArray)
+			: TDWORDIteratorBase<uint32>(InArray.GetData(), 0, InArray.Num())
+		{}
+
+		void SetDWORD(uint32 InDWORD)
+		{
+			checkSlow(this->CurrentIndex < this->NumDWORDs);
+
+			if (this->CurrentIndex == this->NumDWORDs-1)
+			{
+				this->Data[this->CurrentIndex] = InDWORD & this->FinalMask;
+			}
+			else
+			{
+				this->Data[this->CurrentIndex] = InDWORD;
+			}
+		}
+	};
+
+private:
 	AllocatorType AllocatorInstance;
 	int32         NumBits;
 	int32         MaxBits;
@@ -1009,6 +1448,23 @@ private:
 		{
 			// Reset the newly allocated slack DWORDs.
 			FMemory::Memzero((uint32*)AllocatorInstance.GetAllocation() + PreviousNumDWORDs,(MaxDWORDs - PreviousNumDWORDs) * sizeof(uint32));
+		}
+	}
+
+
+	/**
+	 * Clears the slack bits within the final partially relevant DWORD
+	 */
+	void ClearPartialSlackBits()
+	{
+		const int32 UsedBits = NumBits % NumBitsPerDWORD;
+		if (UsedBits != 0)
+		{
+			const int32  LastDWORDIndex = NumBits / NumBitsPerDWORD;
+			const uint32 SlackMask = ~0u >> (NumBitsPerDWORD - UsedBits);
+
+			uint32* LastDWORD = (GetData() + LastDWORDIndex);
+			*LastDWORD = *LastDWORD & SlackMask;
 		}
 	}
 

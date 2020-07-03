@@ -3,11 +3,12 @@
 #pragma once
 
 #include "MovieScene/Parameters/MovieSceneNiagaraParameterTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNiagaraColorParameterTrack.generated.h"
 
 /** A track for animating color niagara parameters. */
 UCLASS(MinimalAPI)
-class UMovieSceneNiagaraColorParameterTrack : public UMovieSceneNiagaraParameterTrack
+class UMovieSceneNiagaraColorParameterTrack : public UMovieSceneNiagaraParameterTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

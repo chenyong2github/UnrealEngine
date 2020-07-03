@@ -37,11 +37,6 @@ TOptional<FFrameTime> UMovieSceneGeometryCollectionSection::GetOffsetTime() cons
 	return TOptional<FFrameTime>(Params.StartFrameOffset);
 }
 
-FMovieSceneEvalTemplatePtr UMovieSceneGeometryCollectionSection::GenerateTemplate() const
-{
-	return FMovieSceneGeometryCollectionSectionTemplate(*this);
-}
-
 FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneGeometryCollectionParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
 {
 	float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
@@ -154,7 +149,7 @@ void UMovieSceneGeometryCollectionSection::PostEditChangeProperty(FPropertyChang
 
 		if (!FMath::IsNearlyZero(NewPlayRate))
 		{
-			float CurrentDuration = MovieScene::DiscreteSize(GetRange());
+			float CurrentDuration = UE::MovieScene::DiscreteSize(GetRange());
 			float NewDuration = CurrentDuration * (PreviousPlayRate / NewPlayRate);
 			SetEndFrame( GetInclusiveStartFrame() + FMath::FloorToInt(NewDuration) );
 

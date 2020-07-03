@@ -176,7 +176,7 @@ void FComposurePostMoveSettingsPropertyTrackEditor::ImportCanceled()
 }
 
 
-void FComposurePostMoveSettingsPropertyTrackEditor::GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys)
+void FComposurePostMoveSettingsPropertyTrackEditor::GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys)
 {
 	FPropertyPath StructPath = PropertyChangedParams.StructPathToKey;
 	FName ChannelName = StructPath.GetNumProperties() != 0 ? StructPath.GetLeafMostProperty().Property->GetFName() : NAME_None;

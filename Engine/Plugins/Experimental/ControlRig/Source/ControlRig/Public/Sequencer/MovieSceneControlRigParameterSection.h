@@ -11,6 +11,7 @@
 #include "MovieSceneSequencePlayer.h"
 #include "Animation/AnimData/BoneMaskFilter.h"
 #include "MovieSceneObjectBindingID.h"
+#include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "MovieSceneControlRigParameterSection.generated.h"
 
 

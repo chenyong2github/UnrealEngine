@@ -2,94 +2,57 @@
 
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "Evaluation/MovieSceneSequenceTemplateStore.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
-#include "Compilation/MovieSceneCompiler.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Algo/Sort.h"
+#include "Algo/BinarySearch.h"
+
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
 
 #include "MovieSceneSequence.h"
 
-TRange<int32> FMovieSceneEvaluationField::ConditionallyCompileRange(const TRange<FFrameNumber>& InRange, UMovieSceneSequence* InSequence, IMovieSceneSequenceTemplateStore& TemplateStore)
+FArchive& operator<<(FArchive& Ar, FMovieSceneEvaluationFieldEntityPtr& Entity)
 {
-	check(InSequence);
+	return Ar << Entity.EntityOwner << Entity.EntityID;
+}
 
-	// First off, attempt to find the evaluation group in the existing evaluation field data from the template
-	TRange<int32> OverlappingFieldEntries = OverlapRange(InRange);
-	int32 EvalFieldStartIndex = OverlappingFieldEntries.GetLowerBoundValue();
-	int32 EvalFieldEndIndex   = OverlappingFieldEntries.GetUpperBoundValue();
+bool FMovieSceneEvaluationFieldEntityTree::IsEmpty() const
+{
+	return SerializedData.IsEmpty();
+}
 
-	bool bIsDirty = OverlappingFieldEntries.IsEmpty();
+void FMovieSceneEvaluationFieldEntityTree::Populate(const TRange<FFrameNumber>& EffectiveRange, UObject* Owner, uint32 EntityID)
+{
+	SerializedData.AddUnique(EffectiveRange, FMovieSceneEvaluationFieldEntityPtr{ Owner, EntityID });
+}
 
-	const FMovieSceneSequenceHierarchy& RootHierarchy = TemplateStore.AccessTemplate(*InSequence).Hierarchy;
+void FMovieSceneEvaluationFieldEntityTree::ExtractAtTime(FFrameNumber InTime, TRange<FFrameNumber>& OutRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const
+{
+	FMovieSceneEvaluationTreeRangeIterator Iterator = SerializedData.IterateFromTime(InTime);
+	check(Iterator);
 
-	TArray<TRange<FFrameNumber>, TInlineAllocator<8>> RangesToInvalidate;
-	for (int32 Index = EvalFieldStartIndex; Index < EvalFieldEndIndex; ++Index)
+	OutRange = Iterator.Range();
+	for (FMovieSceneEvaluationFieldEntityPtr Ptr : SerializedData.GetAllData(Iterator.Node()))
 	{
-		const TRange<FFrameNumber>& ThisRange = Ranges[Index].Value;
+		OutPtrs.Add(Ptr);
+	}
+}
 
-		// Check for gaps between the entries.
-		if (Index == EvalFieldStartIndex)
-		{
-			// If the first overlapping range starts after InRange's lower bound, there must be a gap before it
-			if (TRangeBound<FFrameNumber>::MinLower(ThisRange.GetLowerBound(), InRange.GetLowerBound()) != ThisRange.GetLowerBound())
-			{
-				bIsDirty = true;
-			}
-		}
-		if (Index == EvalFieldEndIndex - 1)
-		{
-			// If the last overlapping range ends before InRange's upper bound, there must be a gap after it
-			if (TRangeBound<FFrameNumber>::MaxUpper(ThisRange.GetUpperBound(), InRange.GetUpperBound()) != ThisRange.GetUpperBound())
-			{
-				bIsDirty = true;
-			}
-		}
+void FMovieSceneEvaluationFieldEntityTree::Sweep(const TRange<FFrameNumber>& InRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const
+{
+	FMovieSceneEvaluationTreeRangeIterator Iterator = SerializedData.IterateFromLowerBound(InRange.GetLowerBound());
+	check(Iterator);
 
-		// If adjacent ranges are not contiguous, we have a gap
-		if (Index > EvalFieldStartIndex && Ranges.IsValidIndex(Index-1) && !Ranges[Index-1].Value.Adjoins(ThisRange))
+	for ( ; Iterator && InRange.Overlaps(Iterator.Range()); ++Iterator )
+	{
+		for (FMovieSceneEvaluationFieldEntityPtr EntityHandle : SerializedData.GetAllData(Iterator.Node()))
 		{
-			bIsDirty = true;
-		}
-
-		// Verify that this field entry is still valid (all its cached signatures are still the same)
-		TRange<FFrameNumber> InvalidatedSubSequenceRange = TRange<FFrameNumber>::Empty();
-		if (MetaData[Index].IsDirty(RootHierarchy, TemplateStore, &InvalidatedSubSequenceRange))
-		{
-			bIsDirty = true;
-
-			if (!InvalidatedSubSequenceRange.IsEmpty())
-			{
-				// Invalidate this evaluation field
-				RangesToInvalidate.Add(InvalidatedSubSequenceRange);
-			}
+			OutPtrs.Add(EntityHandle);
 		}
 	}
-
-	// Invalidate any areas in the evaluation field that are now out of date
-	for (const TRange<FFrameNumber>& Range : RangesToInvalidate)
-	{
-		Invalidate(Range);
-	}
-
-	if (bIsDirty)
-	{
-		// We need to compile an entry in the evaluation field
-		static bool bFullCompile = false;
- 		if (bFullCompile)
-		{
-			FMovieSceneCompiler::Compile(*InSequence, TemplateStore);
-		}
-		else
-		{
-			FMovieSceneCompiler::CompileRange(InRange, *InSequence, TemplateStore);
-		}
-
-		return OverlapRange(InRange);
-	}
-
-	return OverlappingFieldEntries;
 }
 
 int32 FMovieSceneEvaluationField::GetSegmentFromTime(FFrameNumber Time) const
@@ -144,6 +107,11 @@ TRange<int32> FMovieSceneEvaluationField::OverlapRange(const TRange<FFrameNumber
 	}
 
 	return Length > 0 ? TRange<int32>(StartIndex, StartIndex + Length) : TRange<int32>::Empty();
+}
+
+bool FMovieSceneEntityComponentField::IsEmpty() const
+{
+	return Entities.IsEmpty() && OneShotEntities.IsEmpty();
 }
 
 void FMovieSceneEvaluationField::Invalidate(const TRange<FFrameNumber>& Range)
@@ -325,59 +293,4 @@ void FMovieSceneEvaluationMetaData::DiffEntities(const FMovieSceneEvaluationMeta
 
 		Algo::SortBy(*NewKeys, &FMovieSceneOrderedEvaluationKey::SetupIndex);
 	}
-}
-
-bool FMovieSceneEvaluationMetaData::IsDirty(const FMovieSceneSequenceHierarchy& RootHierarchy, IMovieSceneSequenceTemplateStore& TemplateStore, TRange<FFrameNumber>* OutSubRangeToInvalidate, TSet<UMovieSceneSequence*>* OutDirtySequences) const
-{
-	bool bDirty = false;
-
-	for (const TTuple<FMovieSceneSequenceID, uint32>& Pair : SubTemplateSerialNumbers)
-	{
-		// Sequence IDs at this point are relative to the root override template
-		const FMovieSceneSubSequenceData* SubData = RootHierarchy.FindSubData(Pair.Key);
-		UMovieSceneSequence* SubSequence = SubData ? SubData->GetSequence() : nullptr;
-
-		bool bThisSequenceIsDirty = true;
-		if (SubSequence)
-		{
-			FMovieSceneEvaluationTemplate& Template = TemplateStore.AccessTemplate(*SubSequence);
-
-			bThisSequenceIsDirty = Template.TemplateSerialNumber.GetValue() != Pair.Value || Template.SequenceSignature != SubSequence->GetSignature();
-
-			if (bThisSequenceIsDirty && OutDirtySequences)
-			{
-				OutDirtySequences->Add(SubSequence);
-			}
-		}
-
-		if (bThisSequenceIsDirty)
-		{
-			bDirty = true;
-
-			if (OutSubRangeToInvalidate)
-			{
-				if (SubData)
-				{
-					if (!SubData->RootToSequenceTransform.IsWarping())
-					{
-						TRange<FFrameNumber> FullSubPlayRange = TRange<FFrameNumber>::Hull(TRange<FFrameNumber>::Hull(SubData->PreRollRange.Value, SubData->PlayRange.Value), SubData->PostRollRange.Value);
-						TRange<FFrameNumber> DirtyRange = FullSubPlayRange * SubData->RootToSequenceTransform.InverseLinearOnly();
-						*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
-					}
-					else
-					{
-						TRange<FFrameNumber> DirtyRange = TRange<FFrameNumber>::All();
-						*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
-					}
-				}
-				else
-				{
-					TRange<FFrameNumber> DirtyRange = TRange<FFrameNumber>::All();
-					*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
-				}
-			}
-		}
-	}
-
-	return bDirty;
 }

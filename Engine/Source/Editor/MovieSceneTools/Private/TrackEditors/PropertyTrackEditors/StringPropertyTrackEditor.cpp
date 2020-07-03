@@ -9,7 +9,7 @@ TSharedRef<ISequencerTrackEditor> FStringPropertyTrackEditor::CreateTrackEditor(
 }
 
 
-void FStringPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FStringPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	void* CurrentObject = PropertyChangedParams.ObjectsThatChanged[0];
 	void* PropertyValue = nullptr;

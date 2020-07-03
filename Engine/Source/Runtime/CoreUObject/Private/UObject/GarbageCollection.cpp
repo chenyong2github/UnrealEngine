@@ -2282,6 +2282,10 @@ bool FStructProperty::ContainsObjectReference(TArray<const FStructProperty*>& En
 		{
 			UE_LOG(LogGarbage, Warning, TEXT("Broken FStructProperty does not have a UStruct: %s"), *GetFullName() );
 		}
+		else if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
+		{
+			return true;
+		}
 		else
 		{
 			EncounteredStructProps.Add(this);

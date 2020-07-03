@@ -10,6 +10,8 @@
 #include "Containers/ArrayView.h"
 #include "UObject/WeakObjectPtr.h"
 
+struct FMovieSceneObjectBindingID;
+
 class IMovieScenePlayer;
 class UMovieSceneSequence;
 
@@ -18,6 +20,11 @@ class UMovieSceneSequence;
  */
 struct FMovieSceneObjectCache
 {
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBindingInvalidated, const FGuid&);
+	/** Invoked when a binding is either explicitly invalidated (as a result of a spawnable being spawned, or a binding override being added)
+	 *  or when a previously resolved binding becomes invalid */
+	FOnBindingInvalidated OnBindingInvalidated;
+
 	/**
 	 * Find all objects that are bound to the specified binding ID
 	 * @note Will look up, and cache any objects if the cache has been invalidated
@@ -78,6 +85,13 @@ struct FMovieSceneObjectCache
 	MOVIESCENE_API void Invalidate(const FGuid& InGuid);
 
 	/**
+	 * Invalidate the object bindings for a specific object binding ID if they are not already invalidated
+	 *
+	 * @param InGuid			The object binding ID to invalidate bindings for
+	 */
+	MOVIESCENE_API void InvalidateIfValid(const FGuid& InGuid);
+
+	/**
 	 * Completely erase all knowledge of, anc caches for all object bindings
 	 */
 	void Clear(IMovieScenePlayer& Player);
@@ -86,6 +100,15 @@ struct FMovieSceneObjectCache
 	 * Get the sequence that this cache relates to
 	 */
 	UMovieSceneSequence* GetSequence() const { return WeakSequence.Get(); }
+
+	/**
+	 * Filter all the object bindings in this object cache that contain the specified predicate object
+	 *
+	 * @param PredicateObject		The object to filter by. Any bindings referencing this object will be added to the output array.
+	 * @param Player				The movie scene player that is playing back the sequence
+	 * @param OutBindings			(mandatory) Array to populate with bindings that relate to the object
+	 */
+	void FilterObjectBindings(UObject* PredicateObject, IMovieScenePlayer& Player, TArray<FMovieSceneObjectBindingID>* OutBindings);
 
 private:
 	/**
@@ -186,6 +209,15 @@ struct FMovieSceneEvaluationState
 	MOVIESCENE_API FGuid FindCachedObjectId(UObject& Object, FMovieSceneSequenceIDRef InSequenceID, IMovieScenePlayer& Player);
 
 	/**
+	 * Filter all the object bindings in this object cache that contain the specified predicate object
+	 *
+	 * @param PredicateObject		The object to filter by. Any bindings referencing this object will be added to the output array.
+	 * @param Player				The movie scene player that is playing back the sequence
+	 * @param OutBindings			(mandatory) Array to populate with bindings that relate to the object
+	 */
+	MOVIESCENE_API void FilterObjectBindings(UObject* PredicateObject, IMovieScenePlayer& Player, TArray<FMovieSceneObjectBindingID>* OutBindings);
+
+	/**
 	 * Find an object cache pertaining to the specified sequence
 	 *
 	 * @param InSequenceID		The sequence ID to lookup
@@ -208,16 +240,6 @@ struct FMovieSceneEvaluationState
 			Cache = &ObjectCaches.Add(SequenceID, FMovieSceneObjectCache());
 		}
 		return *Cache;
-	}
-
-	/**
-	 * Remove the object cache pertaining to the specified sequence
-	 *
-	 * @param InSequenceID		The sequence ID to remove
-	 */
-	FORCEINLINE void RemoveObjectCache(FMovieSceneSequenceIDRef SequenceID)
-	{
-		ObjectCaches.Remove(SequenceID);
 	}
 
 	/**

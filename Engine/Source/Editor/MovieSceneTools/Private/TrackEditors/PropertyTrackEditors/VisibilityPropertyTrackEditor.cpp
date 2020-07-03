@@ -16,7 +16,7 @@ TSharedRef<ISequencerSection> FVisibilityPropertyTrackEditor::MakeSectionInterfa
 }
 
 
-void FVisibilityPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FVisibilityPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	// Invert the property key since the underlying property is actually 'hidden'
 	bool KeyedValue = !PropertyChangedParams.GetPropertyValue<bool>();

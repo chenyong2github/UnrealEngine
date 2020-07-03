@@ -7,6 +7,7 @@
 #include "MovieSceneNameableTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "MovieSceneObjectBindingID.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneEventTrack.generated.h"
 
 struct FMovieSceneEvaluationTrack;
@@ -29,6 +30,7 @@ enum class EFireEventsAtPosition : uint8
 UCLASS(MinimalAPI)
 class UMovieSceneEventTrack
 	: public UMovieSceneNameableTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 
@@ -38,7 +40,7 @@ public:
 	UMovieSceneEventTrack()
 		: bFireEventsWhenForwards(true)
 		, bFireEventsWhenBackwards(true)
-		, EventPosition(EFireEventsAtPosition::AfterSpawn)
+		, EventPosition(EFireEventsAtPosition::AtEndOfEvaluation)
 	{
 #if WITH_EDITORONLY_DATA
 		TrackTint = FColor(41, 98, 41, 150);
@@ -58,10 +60,15 @@ public:
 	virtual void RemoveAllAnimationData() override;
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
+	virtual EMovieSceneCompileResult CustomCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 	virtual void PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
 	virtual bool SupportsMultipleRows() const override { return true; }
 	virtual FMovieSceneTrackSegmentBlenderPtr GetTrackSegmentBlender() const override;
+
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
+#endif
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;
@@ -80,10 +87,6 @@ public:
 	/** Defines where in the evaluation to trigger events */
 	UPROPERTY(EditAnywhere, Category=TrackEvent)
 	EFireEventsAtPosition EventPosition;
-
-	/** Defines a list of object bindings on which to trigger the events in this track. When empty, events will trigger in the default event contexts for the playback environment (such as the level blueprint, or widget). */
-	UPROPERTY(EditAnywhere, Category=TrackEvent)
-	TArray<FMovieSceneObjectBindingID> EventReceivers;
 
 private:
 	

@@ -421,7 +421,7 @@ void FMovieSceneTrackPropertyRecorder<float>::ReduceKeys(UMovieSceneSection* InS
 {
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
-	MovieScene::Optimize(InSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0), Params);
+	UE::MovieScene::Optimize(InSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0), Params);
 }
 
 template <>
@@ -586,10 +586,10 @@ void FMovieSceneTrackPropertyRecorder<FColor>::ReduceKeys(UMovieSceneSection* In
 
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
-	MovieScene::Optimize(FloatChannels[0], Params);
-	MovieScene::Optimize(FloatChannels[1], Params);
-	MovieScene::Optimize(FloatChannels[2], Params);
-	MovieScene::Optimize(FloatChannels[3], Params);
+	UE::MovieScene::Optimize(FloatChannels[0], Params);
+	UE::MovieScene::Optimize(FloatChannels[1], Params);
+	UE::MovieScene::Optimize(FloatChannels[2], Params);
+	UE::MovieScene::Optimize(FloatChannels[3], Params);
 }
 
 template <>
@@ -786,9 +786,9 @@ void FMovieSceneTrackPropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* I
 
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
-	MovieScene::Optimize(FloatChannels[0], Params);
-	MovieScene::Optimize(FloatChannels[1], Params);
-	MovieScene::Optimize(FloatChannels[2], Params);
+	UE::MovieScene::Optimize(FloatChannels[0], Params);
+	UE::MovieScene::Optimize(FloatChannels[1], Params);
+	UE::MovieScene::Optimize(FloatChannels[2], Params);
 }
 
 template <>

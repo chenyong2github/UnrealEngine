@@ -6,7 +6,6 @@
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneCameraCutSection.h"
-#include "Evaluation/MovieSceneCameraCutTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "IMovieSceneTracksModule.h"
@@ -27,12 +26,6 @@ UMovieSceneCameraCutTrack::UMovieSceneCameraCutTrack( const FObjectInitializer& 
 	EvalOptions.bEvaluateInPreroll = EvalOptions.bEvaluateInPostroll = false;
 
 	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
-}
-
-void UMovieSceneCameraCutTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	// Evaluate camera cuts in the same flush group as spawnables, this ensures cameras are set before anything else happens (so tracks can check whether a camera cut has happened)
-	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
 }
 
 UMovieSceneCameraCutSection* UMovieSceneCameraCutTrack::AddNewCameraCut(const FMovieSceneObjectBindingID& CameraBindingID, FFrameNumber StartTime)
@@ -63,7 +56,7 @@ UMovieSceneCameraCutSection* UMovieSceneCameraCutTrack::AddNewCameraCut(const FM
 		NewSection->SetRange(TRange<FFrameNumber>(StartTime, NewSectionEndTime));
 		NewSection->SetCameraBindingID(CameraBindingID);
 
-		Sections.Add(NewSection);
+		AddSection(*NewSection);
 	}
 
 	// When a new CameraCut is added, sort all CameraCuts to ensure they are in the correct order
@@ -88,9 +81,9 @@ UMovieSceneCameraCutSection* UMovieSceneCameraCutTrack::AddNewCameraCut(const FM
 
 void UMovieSceneCameraCutTrack::AddSection(UMovieSceneSection& Section)
 {
-	if (Section.IsA<UMovieSceneCameraCutSection>())
+	if (UMovieSceneCameraCutSection* CutSection = Cast<UMovieSceneCameraCutSection>(&Section))
 	{
-		Sections.Add(&Section);
+		Sections.Add(CutSection);
 	}
 }
 
@@ -231,7 +224,7 @@ FFrameNumber UMovieSceneCameraCutTrack::FindEndTimeForCameraCut( FFrameNumber St
 	UMovieScene* OwnerScene = GetTypedOuter<UMovieScene>();
 
 	// End time should default to end where the movie scene ends. Ensure it is at least the same as start time (this should only happen when the movie scene has an initial time range smaller than the start time)
-	FFrameNumber ExclusivePlayEnd = MovieScene::DiscreteExclusiveUpper(OwnerScene->GetPlaybackRange());
+	FFrameNumber ExclusivePlayEnd = UE::MovieScene::DiscreteExclusiveUpper(OwnerScene->GetPlaybackRange());
 	FFrameNumber ExclusiveEndTime = FMath::Max( ExclusivePlayEnd, StartTime );
 
 	for( UMovieSceneSection* Section : Sections )

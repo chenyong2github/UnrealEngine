@@ -8,6 +8,7 @@
 #include "Camera/CameraShake.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneNameableTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneCameraShakeSourceShakeTrack.generated.h"
 
 struct FMovieSceneEvaluationTrack;
@@ -18,7 +19,7 @@ class UCameraShakeSourceComponent;
  * 
  */
 UCLASS(MinimalAPI)
-class UMovieSceneCameraShakeSourceShakeTrack : public UMovieSceneNameableTrack
+class UMovieSceneCameraShakeSourceShakeTrack : public UMovieSceneNameableTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 
@@ -39,6 +40,8 @@ public:
 	virtual UMovieSceneSection* CreateNewSection() override;
 	virtual void RemoveAllAnimationData() override;
 	virtual FMovieSceneTrackSegmentBlenderPtr GetTrackSegmentBlender() const override;
+
+	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDisplayName() const override;

@@ -64,7 +64,6 @@ public:
 
 	UMovieSceneCameraAnimSection(const FObjectInitializer& ObjectInitializer);
 
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 	virtual void PostLoad() override;
 
 	UPROPERTY(EditAnywhere, Category="Camera Anim", meta=(ShowOnlyInnerProperties))

@@ -9,12 +9,31 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "IMovieSceneTracksModule.h"
+#include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneEventTrack"
 
 
 /* UMovieSceneTrack interface
  *****************************************************************************/
+
+#if WITH_EDITORONLY_DATA
+void UMovieSceneEventTrack::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FMovieSceneEvaluationCustomVersion::GUID) < FMovieSceneEvaluationCustomVersion::EntityManager)
+		{
+			// Default for legacy content was AfterSpawn
+			EventPosition = EFireEventsAtPosition::AfterSpawn;
+		}
+	}
+
+	Super::Serialize(Ar);
+}
+#endif// WITH_EDITOR
 
 void UMovieSceneEventTrack::AddSection(UMovieSceneSection& Section)
 {
@@ -67,24 +86,26 @@ void UMovieSceneEventTrack::RemoveSectionAt(int32 SectionIndex)
 	Sections.RemoveAt(SectionIndex);
 }
 
+EMovieSceneCompileResult UMovieSceneEventTrack::CustomCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const
+{
+	// Don't run the legacy track compile for tracks that don't contain contain legacy event sections
+	const bool bContainsLegacySections = Sections.ContainsByPredicate([](UMovieSceneSection* InSection){ return InSection && InSection->IsA<UMovieSceneEventSection>(); });
+	if (!bContainsLegacySections)
+	{
+		return EMovieSceneCompileResult::Failure;
+	}
+
+	return Compile(Track, Args);
+}
+
 FMovieSceneEvalTemplatePtr UMovieSceneEventTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	if (const UMovieSceneEventSection* LegacyEventSection = Cast<const UMovieSceneEventSection>(&InSection))
 	{
 		return FMovieSceneEventSectionTemplate(*LegacyEventSection, *this);
 	}
-	else if (const UMovieSceneEventTriggerSection* TriggerSection = Cast<const UMovieSceneEventTriggerSection>(&InSection))
-	{
-		return FMovieSceneEventTriggerTemplate(*TriggerSection, *this);
-	}
-	else if (const UMovieSceneEventRepeaterSection* RepeaterSection = Cast<const UMovieSceneEventRepeaterSection>(&InSection))
-	{
-		return FMovieSceneEventRepeaterTemplate(*RepeaterSection, *this);
-	}
-	else
-	{
-		return FMovieSceneEvalTemplatePtr();
-	}
+
+	return FMovieSceneEvalTemplatePtr();
 }
 
 void UMovieSceneEventTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const

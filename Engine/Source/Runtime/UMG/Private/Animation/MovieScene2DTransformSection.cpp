@@ -4,10 +4,19 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Slate/WidgetTransform.h"
-#include "Compilation/MovieSceneTemplateInterrogation.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "Evaluation/MovieScenePropertyTemplate.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneComponentRegistry.h"
+#include "Animation/MovieScene2DTransformPropertySystem.h"
+#include "Animation/MovieScene2DTransformTrack.h"
+#include "Animation/MovieSceneUMGComponentTypes.h"
+#include "Algo/AnyOf.h"
+
+#include "MovieScene.h"
+#include "MovieSceneTrack.h"
+
 
 #if WITH_EDITOR
 
@@ -62,73 +71,6 @@ struct F2DTransformSectionEditorData
 		ExternalValues[4].OnGetExternalValue = ExtractScaleY;
 		ExternalValues[5].OnGetExternalValue = ExtractShearX;
 		ExternalValues[6].OnGetExternalValue = ExtractShearY;
-
-
-		ExternalValues[0].OnGetCurrentValueAndWeight = GetTranslationXValueAndWeight;
-		ExternalValues[1].OnGetCurrentValueAndWeight = GetTranslationYValueAndWeight;
-		ExternalValues[2].OnGetCurrentValueAndWeight = GetRotationValueAndWeight;
-		ExternalValues[3].OnGetCurrentValueAndWeight = GetScaleXValueAndWeight;
-		ExternalValues[4].OnGetCurrentValueAndWeight = GetScaleYValueAndWeight;
-		ExternalValues[5].OnGetCurrentValueAndWeight = GetShearXValueAndWeight;
-		ExternalValues[6].OnGetCurrentValueAndWeight = GetShearYValueAndWeight;
-
-
-	}
-
-	static void GetValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, int32 Index, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-		FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
-		FMovieSceneInterrogationData InterrogationData;
-		RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
-
-		FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
-		EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-
-		FVector2D Translation;
-		FVector2D Scale;
-		FVector2D Shear;
-		float Angle = 0.0f;
-
-
-		for (const FWidgetTransform& Transform : InterrogationData.Iterate<FWidgetTransform>(UMovieScene2DTransformSection::GetWidgetTransformInterrogationKey()))
-		{
-			Translation = Transform.Translation;
-			Scale = Transform.Scale;
-			Shear = Transform.Shear;
-			Angle = Transform.Angle;
-			break;
-		}
-
-		switch (Index)
-		{
-		case 0:
-			OutValue = Translation.X;
-			break;
-		case 1:
-			OutValue = Translation.Y;
-			break;
-		case 2:
-			OutValue = Angle;
-			break;
-		case 3:
-			OutValue = Scale.X;
-			break;
-		case 4:
-			OutValue = Scale.Y;
-			break;
-		case 5:
-			OutValue = Shear.X;
-			break;
-		case 6:
-			OutValue = Shear.Y;
-			break;
-	
-
-		}
-		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
 	}
 
 	static TOptional<float> ExtractTranslationX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
@@ -163,43 +105,6 @@ struct F2DTransformSectionEditorData
 		return Bindings ? Bindings->GetCurrentValue<FWidgetTransform>(InObject).Shear.Y : TOptional<float>();
 	}
 
-
-	static void GetTranslationXValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 0, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetTranslationYValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 1, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetRotationValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 2, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetScaleXValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 3, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetScaleYValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 4, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetShearXValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 5, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetShearYValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 6, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-
 	FMovieSceneChannelMetaData      MetaData[7];
 	TMovieSceneExternalValue<float> ExternalValues[7];
 };
@@ -216,24 +121,26 @@ UMovieScene2DTransformSection::UMovieScene2DTransformSection(const FObjectInitia
 			EMovieSceneCompletionMode::RestoreState : 
 			EMovieSceneCompletionMode::ProjectDefault);
 
-	ProxyChannels = EMovieScene2DTransformChannel::None;
 	TransformMask = EMovieScene2DTransformChannel::AllTransform;
+
 	BlendType = EMovieSceneBlendType::Absolute;
 	bSupportsInfiniteRange = true;
-
-	UpdateChannelProxy();
 }
 
-void UMovieScene2DTransformSection::UpdateChannelProxy()
+FMovieScene2DTransformMask UMovieScene2DTransformSection::GetMask() const
 {
-	if (ProxyChannels == TransformMask.GetChannels())
-	{
-		return;
-	}
+	return TransformMask;
+}
+
+void UMovieScene2DTransformSection::SetMask(FMovieScene2DTransformMask NewMask)
+{
+	TransformMask = NewMask;
+	ChannelProxy = nullptr;
+}
+
+EMovieSceneChannelProxyType UMovieScene2DTransformSection::CacheChannelProxy()
+{
 	FMovieSceneChannelProxyData Channels;
-
-	ProxyChannels = TransformMask.GetChannels();
-
 
 #if WITH_EDITOR
 
@@ -260,35 +167,8 @@ void UMovieScene2DTransformSection::UpdateChannelProxy()
 #endif
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
-}
 
-void UMovieScene2DTransformSection::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	if (Ar.IsLoading())
-	{
-		UpdateChannelProxy();
-	}
-}
-
-void UMovieScene2DTransformSection::PostEditImport()
-{
-	Super::PostEditImport();
-
-	UpdateChannelProxy();
-}
-
-
-FMovieScene2DTransformMask UMovieScene2DTransformSection::GetMask() const
-{
-	return TransformMask;
-}
-
-void UMovieScene2DTransformSection::SetMask(FMovieScene2DTransformMask NewMask)
-{
-	TransformMask = NewMask;
-	UpdateChannelProxy();
+	return EMovieSceneChannelProxyType::Dynamic;
 }
 
 FMovieScene2DTransformMask UMovieScene2DTransformSection::GetMaskByName(const FName& InName) const
@@ -338,9 +218,51 @@ FMovieScene2DTransformMask UMovieScene2DTransformSection::GetMaskByName(const FN
 	return EMovieScene2DTransformChannel::AllTransform;
 }
 
-const FMovieSceneInterrogationKey UMovieScene2DTransformSection::GetWidgetTransformInterrogationKey()
+FWidgetTransform UMovieScene2DTransformSection::GetCurrentValue(const UObject* Object) const
 {
-	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
+	UMovieScene2DTransformTrack* Track = GetTypedOuter<UMovieScene2DTransformTrack>();
+	return Track->GetCurrentValue<FWidgetTransform>(Object).Get(FWidgetTransform{});
 }
 
+UE::MovieScene::ESequenceUpdateResult UMovieScene2DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	EMovieScene2DTransformChannel Channels      = (EMovieScene2DTransformChannel)TransformMask.GetChannels();
+	FBuiltInComponentTypes*       Components    = FBuiltInComponentTypes::Get();
+	FMovieSceneUMGComponentTypes* UMGComponents = FMovieSceneUMGComponentTypes::Get();
+
+	UMovieScene2DTransformTrack* Track = GetTypedOuter<UMovieScene2DTransformTrack>();
+
+	const bool ActiveChannelsMask[] = {
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::TranslationX) && Translation[0].HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::TranslationY) && Translation[1].HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::Rotation) && Rotation.HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::ScaleX) && Scale[0].HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::ScaleY) && Scale[1].HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::ShearX) && Shear[0].HasAnyData(),
+		EnumHasAnyFlags(Channels, EMovieScene2DTransformChannel::ShearY) && Shear[1].HasAnyData(),
+	};
+
+	if (!Algo::AnyOf(ActiveChannelsMask))
+	{
+		return ESequenceUpdateResult::NoChange;
+	}
+
+	// Create a new entity for this section
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(Components->PropertyBinding, Track->GetPropertyBinding())
+		.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+		.AddConditional(Components->FloatChannel[0],      &Translation[0], ActiveChannelsMask[0])
+		.AddConditional(Components->FloatChannel[1],      &Translation[1], ActiveChannelsMask[1])
+		.AddConditional(Components->FloatChannel[2],      &Rotation,       ActiveChannelsMask[2])
+		.AddConditional(Components->FloatChannel[3],      &Scale[0],       ActiveChannelsMask[3])
+		.AddConditional(Components->FloatChannel[4],      &Scale[1],       ActiveChannelsMask[4])
+		.AddConditional(Components->FloatChannel[5],      &Shear[0],       ActiveChannelsMask[5])
+		.AddConditional(Components->FloatChannel[6],      &Shear[1],       ActiveChannelsMask[6])
+		.AddTag(UMGComponents->WidgetTransform.PropertyTag)
+	);
+
+	return ESequenceUpdateResult::EntitiesDirty;
+}

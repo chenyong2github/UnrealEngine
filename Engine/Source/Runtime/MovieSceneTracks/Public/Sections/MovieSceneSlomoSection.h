@@ -13,10 +13,16 @@
  */
 UCLASS(MinimalAPI)
 class UMovieSceneSlomoSection
-	: public UMovieSceneFloatSection
+	: public UMovieSceneSection
 {
 	GENERATED_BODY()
 
 	/** Default constructor. */
 	UMovieSceneSlomoSection();
+
+public:
+
+	/** Float data */
+	UPROPERTY()
+	FMovieSceneFloatChannel FloatCurve;
 };

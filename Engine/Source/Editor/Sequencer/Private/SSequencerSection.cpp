@@ -448,8 +448,8 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 	void DrawEasingForSegment(const FSequencerOverlapRange& Segment, const FGeometry& InnerSectionGeometry, const FLinearColor& FinalTint)
 	{
 		// @todo: sequencer-timecode: Test that start offset is not required here
-		const float RangeStartPixel = TimeToPixelConverter.FrameToPixel(MovieScene::DiscreteInclusiveLower(Segment.Range));
-		const float RangeEndPixel = TimeToPixelConverter.FrameToPixel(MovieScene::DiscreteExclusiveUpper(Segment.Range));
+		const float RangeStartPixel = TimeToPixelConverter.FrameToPixel(UE::MovieScene::DiscreteInclusiveLower(Segment.Range));
+		const float RangeEndPixel = TimeToPixelConverter.FrameToPixel(UE::MovieScene::DiscreteExclusiveUpper(Segment.Range));
 		const float RangeSizePixel = RangeEndPixel - RangeStartPixel;
 
 		FGeometry RangeGeometry = InnerSectionGeometry.MakeChild(FVector2D(RangeSizePixel, InnerSectionGeometry.Size.Y), FSlateLayoutTransform(FVector2D(RangeStartPixel, 0.f)));
@@ -513,8 +513,8 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 			for (const FEasingCurvePoint& Point : CurvePoints)
 			{
-				float SegmentStartTime = MovieScene::DiscreteInclusiveLower(Segment.Range) / TimeToPixelConverter.GetTickResolution();
-				float U = (Point.Location.X - SegmentStartTime) / ( FFrameNumber(MovieScene::DiscreteSize(Segment.Range)) / TimeToPixelConverter.GetTickResolution() );
+				float SegmentStartTime = UE::MovieScene::DiscreteInclusiveLower(Segment.Range) / TimeToPixelConverter.GetTickResolution();
+				float U = (Point.Location.X - SegmentStartTime) / ( FFrameNumber(UE::MovieScene::DiscreteSize(Segment.Range)) / TimeToPixelConverter.GetTickResolution() );
 
 				// Add verts top->bottom
 				FVector2D UV(U, 0.f);
@@ -604,8 +604,8 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		{
 			const FSequencerOverlapRange& Segment = SectionWidget.UnderlappingSegments[SegmentIndex];
 
-			const float RangeStartPixel	= Segment.Range.GetLowerBound().IsOpen() ? 0.f							: TimeToPixelConverter.FrameToPixel(MovieScene::DiscreteInclusiveLower(Segment.Range));
-			const float RangeEndPixel	= Segment.Range.GetUpperBound().IsOpen() ? InnerSectionGeometry.Size.X	: TimeToPixelConverter.FrameToPixel(MovieScene::DiscreteExclusiveUpper(Segment.Range));
+			const float RangeStartPixel	= Segment.Range.GetLowerBound().IsOpen() ? 0.f							: TimeToPixelConverter.FrameToPixel(UE::MovieScene::DiscreteInclusiveLower(Segment.Range));
+			const float RangeEndPixel	= Segment.Range.GetUpperBound().IsOpen() ? InnerSectionGeometry.Size.X	: TimeToPixelConverter.FrameToPixel(UE::MovieScene::DiscreteExclusiveUpper(Segment.Range));
 			const float RangeSizePixel	= RangeEndPixel - RangeStartPixel;
 
 			FGeometry RangeGeometry = InnerSectionGeometry.MakeChild(FVector2D(RangeSizePixel, InnerSectionGeometry.Size.Y), FSlateLayoutTransform(FVector2D(RangeStartPixel - StartTimePixel, 0.f)));
@@ -1359,7 +1359,7 @@ void SSequencerSection::PaintKeys( FSequencerSectionPainter& InPainter, const FW
 			// Compute visible range taking into account a half-frame offset for keys, plus half a key width for keys that are partially offscreen
 			TRange<FFrameNumber> SectionRange   = SectionObject.GetRange();
 			const double         HalfKeyWidth   = 0.5f * (TimeToPixelConverter.PixelToSeconds(SequencerSectionConstants::KeySize.X) - TimeToPixelConverter.PixelToSeconds(0));
-			TRange<double>       VisibleRange   = MovieScene::DilateRange(GetSequencer().GetViewRange(), -HalfKeyWidth, HalfKeyWidth);
+			TRange<double>       VisibleRange   = UE::MovieScene::DilateRange(GetSequencer().GetViewRange(), -HalfKeyWidth, HalfKeyWidth);
 
 			PaddedViewRange = TRange<double>::Intersection(SectionRange / Sequencer.GetFocusedTickResolution(), VisibleRange);
 		}
@@ -1727,7 +1727,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 		{
 			TRange<FFrameNumber> EaseInRange = UnderlappingSectionObj->GetEaseInRange();
 			// Always draw handles if the section is highlighted, even if there is no range (to allow manual adjustment)
-			FFrameNumber HandleFrame = EaseInRange.IsEmpty() ? UnderlappingSectionObj->GetInclusiveStartFrame() : MovieScene::DiscreteExclusiveUpper(EaseInRange);
+			FFrameNumber HandleFrame = EaseInRange.IsEmpty() ? UnderlappingSectionObj->GetInclusiveStartFrame() : UE::MovieScene::DiscreteExclusiveUpper(EaseInRange);
 			FVector2D HandlePos(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
 			FSlateDrawElement::MakeBox(
 				InPainter.DrawElements,
@@ -1749,7 +1749,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 			TRange<FFrameNumber> EaseOutRange = UnderlappingSectionObj->GetEaseOutRange();
 
 			// Always draw handles if the section is highlighted, even if there is no range (to allow manual adjustment)
-			FFrameNumber HandleFrame = EaseOutRange.IsEmpty() ? UnderlappingSectionObj->GetExclusiveEndFrame() : MovieScene::DiscreteInclusiveLower(EaseOutRange);
+			FFrameNumber HandleFrame = EaseOutRange.IsEmpty() ? UnderlappingSectionObj->GetExclusiveEndFrame() : UE::MovieScene::DiscreteInclusiveLower(EaseOutRange);
 			FVector2D    HandlePos   = FVector2D(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
 
 			FSlateDrawElement::MakeBox(

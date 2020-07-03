@@ -7,6 +7,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "CurveModel.h"
 #include "IBufferedCurveModel.h"
+#include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelHandle.h"
 
@@ -19,6 +20,7 @@ class FFloatChannelCurveModel : public FCurveModel
 {
 public:
 	FFloatChannelCurveModel(TMovieSceneChannelHandle<FMovieSceneFloatChannel> InChannel, UMovieSceneSection* InOwningSection, TWeakPtr<ISequencer> InWeakSequencer);
+	~FFloatChannelCurveModel();
 
 	virtual const void* GetCurve() const override;
 
@@ -60,9 +62,12 @@ public:
 
 private:
 	void FeaturePointMethod(double StartTime, double EndTime, double StartValue, double Mu, int Depth, int MaxDepth, double& MaxV, double& MinVal) const;
+	void FixupCurve();
+
 private:
 
 	TMovieSceneChannelHandle<FMovieSceneFloatChannel> ChannelHandle;
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 	TWeakPtr<ISequencer> WeakSequencer;
+	FDelegateHandle OnDestroyHandle;
 };

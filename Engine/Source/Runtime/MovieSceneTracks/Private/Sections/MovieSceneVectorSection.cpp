@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneVectorSection.h"
+#include "Tracks/MovieSceneVectorTrack.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
@@ -102,7 +103,7 @@ struct FVectorSectionEditorData
 
 		if (Track)
 		{
-			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneVectorTrack>(Track)->GenerateTrackTemplate(Track);
 			FMovieSceneInterrogationData InterrogationData;
 			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
 

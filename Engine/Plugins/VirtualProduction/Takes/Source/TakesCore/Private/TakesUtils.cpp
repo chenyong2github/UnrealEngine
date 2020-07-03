@@ -75,7 +75,7 @@ void ClampPlaybackRangeToEncompassAllSections(UMovieScene* InMovieScene, bool bU
 	const double OutputViewSize = PlayRange.GetValue().Size<FFrameNumber>() / TickResolution;
 	const double OutputChange = OutputViewSize * 0.1;
 
-	TRange<double> NewRange = MovieScene::ExpandRange(PlayRange.GetValue() / TickResolution, OutputChange);
+	TRange<double> NewRange = UE::MovieScene::ExpandRange(PlayRange.GetValue() / TickResolution, OutputChange);
 	FMovieSceneEditorData& EditorData = InMovieScene->GetEditorData();
 	EditorData.ViewStart = EditorData.WorkStart = NewRange.GetLowerBoundValue();
 	EditorData.ViewEnd = EditorData.WorkEnd = NewRange.GetUpperBoundValue();

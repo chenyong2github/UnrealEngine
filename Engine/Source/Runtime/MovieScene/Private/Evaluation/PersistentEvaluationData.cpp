@@ -3,6 +3,7 @@
 #include "Evaluation/PersistentEvaluationData.h"
 #include "IMovieScenePlayer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 
 FPersistentEvaluationData::FPersistentEvaluationData(IMovieScenePlayer& InPlayer)
 	: Player(InPlayer)
@@ -12,6 +13,13 @@ FPersistentEvaluationData::FPersistentEvaluationData(IMovieScenePlayer& InPlayer
 
 const FMovieSceneSequenceInstanceData* FPersistentEvaluationData::GetInstanceData() const
 {
-	const FMovieSceneSubSequenceData* SubData = Player.GetEvaluationTemplate().GetHierarchy().FindSubData(TrackKey.SequenceID);
+	FMovieSceneRootEvaluationTemplateInstance& Instance  = Player.GetEvaluationTemplate();
+	const FMovieSceneSequenceHierarchy*        Hierarchy = Instance.GetCompiledDataManager()->FindHierarchy(Instance.GetCompiledDataID());
+	if (!Hierarchy)
+	{
+		return nullptr;
+	}
+
+	const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(TrackKey.SequenceID);
 	return SubData && SubData->InstanceData.IsValid() ? &SubData->InstanceData.GetValue() : nullptr;
 }

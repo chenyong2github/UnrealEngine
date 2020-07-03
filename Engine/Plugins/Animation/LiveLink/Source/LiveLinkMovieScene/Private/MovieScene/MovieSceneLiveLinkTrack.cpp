@@ -3,6 +3,7 @@
 #include "MovieScene/MovieSceneLiveLinkTrack.h"
 
 #include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "MovieScene/MovieSceneLiveLinkSection.h"
 #include "MovieSceneLiveLinkSectionTemplate.h"
 

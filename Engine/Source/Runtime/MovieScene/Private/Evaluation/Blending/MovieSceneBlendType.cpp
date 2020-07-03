@@ -3,9 +3,12 @@
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Misc/EnumClassFlags.h"
 
+namespace UE
+{
 namespace MovieScene
 {
 	ENUM_CLASS_FLAGS(EMovieSceneBlendType)
+}
 }
 
 FMovieSceneBlendTypeField::FMovieSceneBlendTypeField()
@@ -28,31 +31,31 @@ FMovieSceneBlendTypeField FMovieSceneBlendTypeField::None()
 
 void FMovieSceneBlendTypeField::Add(EMovieSceneBlendType Type)
 {
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	BlendTypeField |= Type;
 }
 
 void FMovieSceneBlendTypeField::Add(FMovieSceneBlendTypeField Field)
 {
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	BlendTypeField |= Field.BlendTypeField;
 }
 
 void FMovieSceneBlendTypeField::Remove(EMovieSceneBlendType Type)
 {
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	BlendTypeField |= Type;
 }
 
 void FMovieSceneBlendTypeField::Remove(FMovieSceneBlendTypeField Field)
 {
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	BlendTypeField &= ~Field.BlendTypeField;
 }
 
 FMovieSceneBlendTypeField FMovieSceneBlendTypeField::Invert() const
 {
-	using namespace MovieScene;
+	using namespace UE::MovieScene;
 	return FMovieSceneBlendTypeField(~BlendTypeField);
 }
 
