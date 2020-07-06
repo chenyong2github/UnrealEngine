@@ -75,6 +75,9 @@
 	// Kernel that does multiple passes of entire disks at different mip levels.
 	#define KERNEL_DENSITY_RECURSIVE_DISKS 4
 
+	// Kernel is constant, but with varying number of rings
+	#define KERNEL_DENSITY_CONSTANT_DYNAMIC_RING_COUNT 5
+
 
 /** Technic to use with mip level. */
 // non conservative with interleaved offset.
@@ -197,7 +200,7 @@
 #define CONFIG_SGPR_HINTS 1
 
 // Clamp the input buffers' UV to avoid sampling outside viewport.
-#define CONFIG_CLAMP_INPUT_BUFFER_UV (DIM_CLAMP_INPUT_UV)
+#define CONFIG_CLAMP_INPUT_BUFFER_UV 1
 
 // Whether the samples should be weighted according to their Coc.
 #ifndef CONFIG_GENERATE_SCATTER_OCCLUSION_BUFFER
@@ -222,13 +225,6 @@
 // Uses mirrored sampler when gathering outside viewport rect.
 #ifndef CONFIG_MIRRORED_SAMPLER
 	#define CONFIG_MIRRORED_SAMPLER 0
-#endif
-
-// D3D shader compiler is rediculously slow to compile this shader.
-#if SM5_PROFILE
-	#define CONFIG_UNROLL_GATHER 0
-#else
-	#define CONFIG_UNROLL_GATHER 1
 #endif
 
 // Substract the CocRadius error to the sample distance to fight against layering opacity issues caused by undersampling.

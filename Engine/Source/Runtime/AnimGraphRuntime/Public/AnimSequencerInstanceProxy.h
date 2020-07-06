@@ -93,6 +93,7 @@ public:
 
 	/** Construct and link the base part of the blend tree */
 	virtual void ConstructNodes();
+
 protected:
 	/** Find a player of a specified type */
 	template<typename Type>

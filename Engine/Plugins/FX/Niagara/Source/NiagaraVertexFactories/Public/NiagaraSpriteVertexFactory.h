@@ -130,7 +130,7 @@ public:
 	/**
 	 * Retrieve the uniform buffer for this vertex factory.
 	 */
-	FORCEINLINE FRHIUniformBuffer* GetSpriteUniformBuffer()
+	FORCEINLINE FRHIUniformBuffer* GetSpriteUniformBuffer() const
 	{
 		return SpriteUniformBuffer;
 	}
@@ -150,12 +150,12 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV() const
 	{
 		return SortedIndicesSRV;
 	}
 
-	FORCEINLINE int32 GetSortedIndicesOffset()
+	FORCEINLINE int32 GetSortedIndicesOffset() const
 	{
 		return SortedIndicesOffset;
 	}
@@ -165,7 +165,7 @@ public:
 		FacingMode = InMode;
 	}
 
-	uint32 GetFacingMode()
+	uint32 GetFacingMode() const
 	{
 		return FacingMode;
 	}
@@ -175,7 +175,7 @@ public:
 		AlignmentMode = InMode;
 	}
 
-	uint32 GetAlignmentMode()
+	uint32 GetAlignmentMode() const
 	{
 		return AlignmentMode;
 	}
@@ -184,7 +184,6 @@ public:
 	{
 		VertexBufferOverride = InVertexBufferOverride;
 	}
-
 	FUniformBufferRHIRef LooseParameterUniformBuffer;
 
 protected:

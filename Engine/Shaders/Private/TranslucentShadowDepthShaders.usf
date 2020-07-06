@@ -39,6 +39,7 @@ void SetShadowDepthOutputs(float4 WorldPosition, out float4 OutPosition, out flo
 	#endif
 }
 
+#if VERTEXSHADER
 /** Shared vertex shader which transforms and outputs parameters necessary to evaluate opacity. */
 void MainVS(
 	FVertexFactoryInput Input,
@@ -63,6 +64,7 @@ void MainVS(
 	OutParameters.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 	OutParameters.PixelPosition = WorldPos;
 }
+#endif // VERTEXSHADER
 
 float TranslucentShadowStartOffset;
 

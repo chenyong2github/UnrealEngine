@@ -13,7 +13,9 @@
 struct FAABBTreeCVars
 {
 	static int32 UpdateDirtyElementPayloadData;
+	static CHAOS_API int32 IgnoreDirtyElements;
 	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+	static FAutoConsoleVariableRef CVarIgnoreDirtyElements;
 };
 
 namespace Chaos
@@ -708,7 +710,7 @@ private:
 			}
 		}
 
-		if (bMutable)
+		if (bMutable && FAABBTreeCVars::IgnoreDirtyElements == 0)
 		{
 			//QUICK_SCOPE_CYCLE_COUNTER(QueryDirty);
 

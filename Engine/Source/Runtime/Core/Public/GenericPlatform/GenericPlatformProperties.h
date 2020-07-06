@@ -266,6 +266,11 @@ struct FGenericPlatformProperties
 		return false; // Currently VT is opt-in
 	}
 
+	static FORCEINLINE bool SupportsLumenGI()
+	{
+		return true;
+	}
+
 	/**
 	 * Gets whether user settings should override the resolution or not
 	 */

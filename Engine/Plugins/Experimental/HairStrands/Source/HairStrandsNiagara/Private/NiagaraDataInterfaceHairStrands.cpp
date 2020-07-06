@@ -793,6 +793,7 @@ void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanc
 void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
+	check(!SystemInstancesToProxyData.Contains(SystemInstance));
 
 	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
 	TargetData = &SystemInstancesToProxyData.Add(SystemInstance);

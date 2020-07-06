@@ -391,6 +391,9 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					SetupVertexFactory(VertexFactory, LODModel);
 				}
 
+				// Set common data on vertex factory
+				DynamicDataMesh->SetVertexFactoryData(*VertexFactory);
+
 				FNiagaraMeshCollectorResourcesMesh& CollectorResources = Collector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesMesh>();
 				CollectorResources.VertexFactory = VertexFactory;
 

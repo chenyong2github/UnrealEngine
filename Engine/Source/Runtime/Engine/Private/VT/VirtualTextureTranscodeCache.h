@@ -54,6 +54,15 @@ struct FVTTranscodeKey
 	uint16 Hash;
 };
 
+struct FVTTranscodeTileHandleAndStatus
+{
+	FVTTranscodeTileHandleAndStatus() : IsComplete(false) {}
+	FVTTranscodeTileHandleAndStatus(const FVTTranscodeTileHandle& InHandle, bool InComplete) : Handle(InHandle), IsComplete(InComplete) {}
+
+	FVTTranscodeTileHandle Handle;
+	bool IsComplete;
+};
+
 class FVirtualTextureTranscodeCache
 {
 public:
@@ -61,7 +70,7 @@ public:
 
 	static FVTTranscodeKey GetKey(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress);
 
-	FVTTranscodeTileHandle FindTask(const FVTTranscodeKey& InKey) const;
+	FVTTranscodeTileHandleAndStatus FindTask(const FVTTranscodeKey& InKey) const;
 
 	FVTTranscodeTileHandle SubmitTask(FVirtualTextureUploadCache& InUploadCache,
 		const FVTTranscodeKey& InKey,
@@ -71,6 +80,7 @@ public:
 	bool IsTaskFinished(FVTTranscodeTileHandle InHandle) const;
 	void WaitTaskFinished(FVTTranscodeTileHandle InHandle) const;
 	const FVTUploadTileHandle* AcquireTaskResult(FVTTranscodeTileHandle InHandle);
+	FGraphEventRef GetTaskEvent(FVTTranscodeTileHandle InHandle) const;
 
 	void WaitTasksFinished() const;
 

@@ -186,6 +186,9 @@ public:
 	/** Combines the two rectanges. */
 	void Union( const FIntRect& Other);
 
+	/** Returns true if the two rects have any overlap. */
+	bool Intersect(const FIntRect& Other) const;
+
 	/**
 	 * Test whether this rectangle contains a point.
 	 *
@@ -463,6 +466,11 @@ FORCEINLINE void FIntRect::Union( const FIntRect& R )
 	Min.Y = FMath::Min<int32>(Min.Y, R.Min.Y);
 	Max.X = FMath::Max<int32>(Max.X, R.Max.X);
 	Max.Y = FMath::Max<int32>(Max.Y, R.Max.Y);
+}
+
+FORCEINLINE bool FIntRect::Intersect(const FIntRect& Other) const
+{
+	return Other.Min.X < Max.X && Other.Max.X > Min.X && Other.Min.Y < Max.Y && Other.Max.Y > Min.Y;
 }
 
 FORCEINLINE bool FIntRect::Contains( FIntPoint P ) const

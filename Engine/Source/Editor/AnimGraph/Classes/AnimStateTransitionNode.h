@@ -56,6 +56,10 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	UPROPERTY(EditAnywhere, Category=Transition)
 	bool bAutomaticRuleBasedOnSequencePlayerInState;
 
+	// If SyncGroupName is specified, Transition will only be taken if the SyncGroup has valid markers (other transition rules still apply in addition to that).
+	UPROPERTY(EditAnywhere, Category = Transition)
+	FName SyncGroupNameToRequireValidMarkersRule;
+
 	// What transition logic to use
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Transition)
 	TEnumAsByte<ETransitionLogicType::Type> LogicType;

@@ -160,8 +160,8 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 			#else
 				GBufferData.PrecomputedShadowFactors.x = 1;
 			#endif
-			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPosition, GBufferData.Depth);
-
+			bool bUnused = false;
+			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPosition, GBufferData.Depth, bUnused);
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
 
@@ -263,7 +263,8 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 		#endif
 
 		float ShadowFactor = ComputeDirectionalLightStaticShadowing(WorldPosition);
-		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth);
+		bool bUnused = false;
+		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth, bUnused);
 
 		// No specular for vertex lighting
 		float3 DiffuseLighting = Diffuse_Lambert(DiffuseColor);

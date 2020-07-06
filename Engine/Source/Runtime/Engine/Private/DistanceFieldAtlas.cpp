@@ -20,6 +20,7 @@
 #include "DistanceFieldDownsampling.h"
 #include "GlobalShader.h"
 #include "RenderGraph.h"
+#include "MeshCardRepresentation.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -902,7 +903,7 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 
 #if WITH_EDITORONLY_DATA
 
-void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
+void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
 {
 	TArray<uint8> DerivedData;
 
@@ -912,6 +913,8 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 		COOK_STAT(Timer.AddHit(DerivedData.Num()));
 		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 		Ar << *this;
+
+		BeginCacheMeshCardRepresentation(Mesh, RenderData, InDDCKey);
 	}
 	else
 	{
@@ -925,6 +928,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 		NewTask->DistanceFieldResolutionScale = DistanceFieldResolutionScale;
 		NewTask->bGenerateDistanceFieldAsIfTwoSided = bGenerateDistanceFieldAsIfTwoSided;
 		NewTask->GeneratedVolumeData = new FDistanceFieldVolumeData();
+		NewTask->GeneratedVolumeData->bAsyncBuilding = true;
 
 		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->StaticMaterials.Num(); MaterialIndex++)
 		{
@@ -1253,6 +1257,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg FProperty or serialized)
 		if (Task->StaticMesh)
 		{
+			Task->GeneratedVolumeData->bAsyncBuilding = false;
 			Task->GeneratedVolumeData->VolumeTexture.Initialize(Task->StaticMesh);
 			FDistanceFieldVolumeData* OldVolumeData = Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData;
 
@@ -1284,6 +1289,8 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData, Task->StaticMesh->GetPathName());
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
+
+			BeginCacheMeshCardRepresentation(Task->StaticMesh, *Task->StaticMesh->RenderData, Task->DDCKey);
 		}
 
 		delete Task;

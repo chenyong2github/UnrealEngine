@@ -103,7 +103,7 @@ struct FVelocityVSToPS
 /*=============================================================================
  * Vertex Shader
  *============================================================================*/
-
+#if VERTEXSHADER
 void MainVertexShader(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
@@ -225,6 +225,7 @@ void MainVertexShader(
 	#endif
 #endif
 }
+#endif // VERTEXSHADER
 
 /*=============================================================================
  * Pixel Shader

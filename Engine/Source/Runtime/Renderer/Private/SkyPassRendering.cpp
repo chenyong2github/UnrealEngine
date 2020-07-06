@@ -64,10 +64,10 @@ void FSkyPassMeshProcessor::Process(
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		false,
-		SkyPassShaders.HullShader,
-		SkyPassShaders.DomainShader,
-		SkyPassShaders.VertexShader,
-		SkyPassShaders.PixelShader
+		&SkyPassShaders.HullShader,
+		&SkyPassShaders.DomainShader,
+		&SkyPassShaders.VertexShader,
+		&SkyPassShaders.PixelShader
 		);
 
 	TBasePassShaderElementData<LightMapPolicyType> ShaderElementData(nullptr);

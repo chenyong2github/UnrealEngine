@@ -904,6 +904,15 @@ public:
 	static FORCEINLINE float BoxPushOut(const FVector& Normal, const FVector& Size);
 
 	/**
+	 * Min, Max, Min3, Max3 like FMath
+	 */
+	static FORCEINLINE FVector Min( const FVector& A, const FVector& B );
+	static FORCEINLINE FVector Max( const FVector& A, const FVector& B );
+
+	static FORCEINLINE FVector Min3( const FVector& A, const FVector& B, const FVector& C );
+	static FORCEINLINE FVector Max3( const FVector& A, const FVector& B, const FVector& C );
+
+	/**
 	 * See if two normal vectors are nearly parallel, meaning the angle between them is close to 0 degrees.
 	 *
 	 * @param  Normal1 First normalized vector.
@@ -2002,6 +2011,42 @@ FORCEINLINE FVector ClampVector(const FVector& V, const FVector& Min, const FVec
 		FMath::Clamp(V.Y,Min.Y,Max.Y),
 		FMath::Clamp(V.Z,Min.Z,Max.Z)
 		);
+}
+
+FORCEINLINE FVector FVector::Min( const FVector& A, const FVector& B )
+{
+	return FVector(
+		FMath::Min( A.X, B.X ),
+		FMath::Min( A.Y, B.Y ),
+		FMath::Min( A.Z, B.Z )
+		); 
+}
+
+FORCEINLINE FVector FVector::Max( const FVector& A, const FVector& B )
+{
+	return FVector(
+		FMath::Max( A.X, B.X ),
+		FMath::Max( A.Y, B.Y ),
+		FMath::Max( A.Z, B.Z )
+		); 
+}
+
+FORCEINLINE FVector FVector::Min3( const FVector& A, const FVector& B, const FVector& C )
+{
+	return FVector(
+		FMath::Min3( A.X, B.X, C.X ),
+		FMath::Min3( A.Y, B.Y, C.Y ),
+		FMath::Min3( A.Z, B.Z, C.Z )
+		); 
+}
+
+FORCEINLINE FVector FVector::Max3( const FVector& A, const FVector& B, const FVector& C )
+{
+	return FVector(
+		FMath::Max3( A.X, B.X, C.X ),
+		FMath::Max3( A.Y, B.Y, C.Y ),
+		FMath::Max3( A.Z, B.Z, C.Z )
+		); 
 }
 
 template <> struct TIsPODType<FVector> { enum { Value = true }; };

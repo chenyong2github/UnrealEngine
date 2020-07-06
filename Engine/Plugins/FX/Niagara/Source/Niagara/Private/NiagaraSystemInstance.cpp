@@ -511,7 +511,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 
 		// If we have active GPU emitters make sure we remove any pending ticks from the RT
 		NiagaraEmitterInstanceBatcher* InstanceBatcher = SystemInstanceAllocation->GetBatcher();
-		if (SystemInstanceAllocation->bHasGPUEmitters)
+		if (SystemInstanceAllocation->bHasGPUEmitters && FNiagaraUtilities::AllowGPUParticles(InstanceBatcher->GetShaderPlatform()))
 		{
 			ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
 			(

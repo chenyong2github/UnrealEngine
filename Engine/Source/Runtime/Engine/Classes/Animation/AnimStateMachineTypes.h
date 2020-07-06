@@ -198,6 +198,10 @@ struct FBakedStateExitTransition
 	UPROPERTY()
 	bool bAutomaticRemainingTimeRule;
 	
+	// Additional rule around SyncGroup requiring Valid Markers
+	UPROPERTY()
+	FName SyncGroupNameToRequireValidMarkersRule;
+
 	UPROPERTY()
 	TArray<int32> PoseEvaluatorLinks;
 
@@ -207,6 +211,7 @@ struct FBakedStateExitTransition
 		, TransitionIndex(INDEX_NONE)
 		, bDesiredTransitionReturnValue(true)
 		, bAutomaticRemainingTimeRule(false)
+		, SyncGroupNameToRequireValidMarkersRule(NAME_None)
 	{
 	}
 };

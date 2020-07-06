@@ -20,5 +20,8 @@ public class QuadricMeshReduction : ModuleRules
                 "MeshReductionInterface",
              }
         );
+
+        PublicIncludePaths.Add("Developer/MeshSimplifier/Private");
+        //PrivateIncludePaths.Add("Developer/MeshSimplifier/Private");
     }
 }

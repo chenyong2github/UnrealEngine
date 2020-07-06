@@ -20,6 +20,8 @@
 #include "SSDCommon.ush"
 #include "SSDSignalCore.ush"
 
+#include "DenoisingCommon.ush"
+
 #include "../ColorSpace.ush"
 #include "../EyeAdaptationCommon.ush"
 #include "../LightShaderParameters.ush"
@@ -32,7 +34,7 @@
 #if !defined(CONFIG_SIGNAL_PROCESSING)
 	#error Missing CONFIG_SIGNAL_PROCESSING
 
-#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 	#include "SSDPublicHarmonics.ush"
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
@@ -47,6 +49,7 @@
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
 
 #else
 	#error Unknown CONFIG_SIGNAL_PROCESSING
@@ -362,7 +365,7 @@ float ComputeBluringOutOfFocusOfNormalizedSample(FSSDSignalFrequency SampleFrequ
 {
 	float DistanceCameraToPixel = length(View.TranslatedWorldCameraOrigin - GetTranslatedWorldPosition(SceneMetadata));
 
-	return SampleFrequency.ClosestHitDistance / (DistanceCameraToPixel + SampleFrequency.ClosestHitDistance);
+	return ComputeDenoisingCoc(DistanceCameraToPixel, SampleFrequency.ClosestHitDistance);
 }
 
 /** Project the specular lobe in screen space. Returns the major axis of the lobe anysotropy, and the inifinity bluring in ViewportUV.x space. */
@@ -388,38 +391,13 @@ void ProjectSpecularLobeToScreenSpace(
 	}
 
 	{
-		// Measure the angle that only truncate 10% of D_GGX's tale.
-		const float E = (1.0 - 0.5);
-		const float SqrtE = sqrt(E);
-
-		const float2 ArrayE[4] = {
-			float2( SqrtE, 0.0),
-			float2(-SqrtE, 0.0),
-			float2(0.0,  SqrtE),
-			float2(0.0, -SqrtE),
-		};
-		
-		float a2 = Pow4(SceneMetadata.Roughness);
-	
-		float3x3 TangentBasis = GetTangentBasis(N);
-		float3 TangentV = mul(TangentBasis, V);
-		
-		// TODO(Denoiser): optimise using lobe symetry along anisotropy major axis.
-		float3 TangentL[4];
-		UNROLL_N(4)
-		for (uint i = 0; i < 4; i++)
-		{
-			// TODO(Denoiser): optimise VALU here.
-			float3 TangentH = ImportanceSampleVisibleGGX(ArrayE[i], a2, TangentV).xyz;
-			TangentL[i] = 2 * dot(TangentV, TangentH) * TangentH - TangentV;
-		}
-	
-		float MajorRoughnessLobeAngle = acos(dot(TangentL[2], TangentL[3]));
-		float MinorRoughnessLobeAngle = acos(dot(TangentL[0], TangentL[1]));
+		float MajorRoughnessLobeAngle;
+		float MinorRoughnessLobeAngle;
+		ComputeSpecularLobeAngles(V, N, SceneMetadata.Roughness, /* out */ MajorRoughnessLobeAngle, /* out */ MinorRoughnessLobeAngle);
 	
 		/** Return the size of the bluring radius caused by the specular lobe in ViewportUV.x space. */
-		InifinityMajorViewportRadius = tan(0.5 * MajorRoughnessLobeAngle) * GetCotanHalfFieldOfView().x;
-		InifinityMinorViewportRadius = tan(0.5 * MinorRoughnessLobeAngle) * GetCotanHalfFieldOfView().x;
+		InifinityMajorViewportRadius = LobeAngleToViewportRadius(MajorRoughnessLobeAngle);
+		InifinityMinorViewportRadius = LobeAngleToViewportRadius(MinorRoughnessLobeAngle);
 	}
 }
 
@@ -535,11 +513,18 @@ float ComputeBilateralWeight(
 			AxesSimilarity = exp(-(Beta * (Ref.Sharpness * Neighbor.Sharpness) * InvSharpnessSum) * saturate(1 - dot(Ref.Axis, Neighbor.Axis)));
 	}
 
+	if (BilateralSettings & BILATERAL_SHADING_MODEL)
+	{
+		FLATTEN
+		if (RefSceneMetadata.ShadingModelID != NeighborSceneMetadata.ShadingModelID)
+			return 0.0;
+	}
+
 	return PositionBilateralWeight * NormalBilateralWeight * LobeSimilarity * AxesSimilarity;
 }
 
 float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampleSceneInfos SceneMetadata, uint BatchedSignalId)
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 {
 	if (SampleFrequency.ClosestHitDistance == DENOISER_INVALID_HIT_DISTANCE)
 	{
@@ -599,6 +584,11 @@ float GetSignalWorldBluringRadius(FSSDSignalFrequency SampleFrequency, FSSDSampl
 	return 0;
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
+{
+	// Not used by any pass.
+	return 0;
+}
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
 {
 	// Not used by any pass.
 	return 0;

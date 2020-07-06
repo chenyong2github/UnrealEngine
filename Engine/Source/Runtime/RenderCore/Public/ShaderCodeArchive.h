@@ -56,7 +56,9 @@ public:
 	FHashTable ShaderMapHashTable;
 	FHashTable ShaderHashTable;
 
-	FSerializedShaderArchive() : ShaderMapHashTable(0u), ShaderHashTable(0u) {}
+	FSerializedShaderArchive()
+	{
+	}
 
 	uint32 GetAllocatedSize() const
 	{

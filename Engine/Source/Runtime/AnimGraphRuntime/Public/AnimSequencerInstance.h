@@ -37,6 +37,7 @@ public:
 	virtual UAnimInstance* GetSourceAnimInstance() override { return this; }
 	virtual void SetSourceAnimInstance(UAnimInstance* SourceAnimInstance) {  /* nothing to do */ ensure(false); }
 	virtual bool DoesSupportDifferentSourceAnimInstance() const override { return false; }
+
 protected:
 	// UAnimInstance interface
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;

@@ -581,7 +581,7 @@ inline void FMatrix::SetOrigin( const FVector& NewOrigin )
 	M[3][2] = NewOrigin.Z;
 }
 
-inline void FMatrix::SetAxes(FVector* Axis0 /*= NULL*/, FVector* Axis1 /*= NULL*/, FVector* Axis2 /*= NULL*/, FVector* Origin /*= NULL*/)
+inline void FMatrix::SetAxes(const FVector* Axis0 /*= NULL*/, const FVector* Axis1 /*= NULL*/, const FVector* Axis2 /*= NULL*/, const FVector* Origin /*= NULL*/)
 {
 	if (Axis0 != NULL)
 	{
@@ -636,14 +636,14 @@ FORCEINLINE bool MakeFrustumPlane(float A,float B,float C,float D,FPlane& OutPla
 		return 0;
 }
 
-// Frustum plane extraction.
+// Frustum plane extraction. Assumes reverse Z. Near is depth == 1. Far is depth == 0.
 FORCEINLINE bool FMatrix::GetFrustumNearPlane(FPlane& OutPlane) const
 {
 	return MakeFrustumPlane(
-		M[0][2],
-		M[1][2],
-		M[2][2],
-		M[3][2],
+		M[0][3] - M[0][2],
+		M[1][3] - M[1][2],
+		M[2][3] - M[2][2],
+		M[3][3] - M[3][2],
 		OutPlane
 		);
 }
@@ -651,10 +651,10 @@ FORCEINLINE bool FMatrix::GetFrustumNearPlane(FPlane& OutPlane) const
 FORCEINLINE bool FMatrix::GetFrustumFarPlane(FPlane& OutPlane) const
 {
 	return MakeFrustumPlane(
-		M[0][3] - M[0][2],
-		M[1][3] - M[1][2],
-		M[2][3] - M[2][2],
-		M[3][3] - M[3][2],
+		M[0][2],
+		M[1][2],
+		M[2][2],
+		M[3][2],
 		OutPlane
 		);
 }
@@ -765,7 +765,7 @@ inline FMatrix FMatrix::ApplyScale(float Scale) const
 		FPlane(0.0f, 0.0f, Scale, 0.0f),
 		FPlane(0.0f, 0.0f, 0.0f, 1.0f)
 	);
-	return ScaleMatrix*(*this);
+	return ScaleMatrix * (*this);
 }
 
 // Serializer.

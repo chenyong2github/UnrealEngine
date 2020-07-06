@@ -224,8 +224,6 @@ void ProxyLOD::FQuadricMeshSimplifier::InitVert(SimpVertType* v)
 	{
 		if (v0 < v1)
 		{
-			checkSlow(v0->GetMaterialIndex() == v1->GetMaterialIndex());
-
 			// add edge
 			edges.AddDefaulted();
 			SimpEdgeType& edge = edges.Last();
@@ -574,7 +572,6 @@ FVector ProxyLOD::FQuadricMeshSimplifier::ComputeNewVertsPos(SimpEdgeType* edge,
 		checkSlow(e == FindEdge(e->v0, e->v1));
 		checkSlow(e->v0->adjTris.Num() > 0);
 		checkSlow(e->v1->adjTris.Num() > 0);
-		checkSlow(e->v0->GetMaterialIndex() == e->v1->GetMaterialIndex());
 
 		newVerts.Add(e->v0->vert);
 
@@ -824,7 +821,6 @@ void ProxyLOD::FQuadricMeshSimplifier::Collapse(SimpEdgeType* edge)
 	checkSlow(edge == FindEdge(u, v));
 	checkSlow(u->adjTris.Num() > 0);
 	checkSlow(v->adjTris.Num() > 0);
-	checkSlow(u->GetMaterialIndex() == v->GetMaterialIndex());
 	checkSlow(!u->TestFlags(SIMP_LOCKED) || !v->TestFlags(SIMP_LOCKED));
 
 

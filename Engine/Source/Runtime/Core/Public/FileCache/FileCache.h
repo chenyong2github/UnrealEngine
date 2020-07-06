@@ -34,14 +34,14 @@ public:
 	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the target file can not be accessed
 	 *			for any given reason.
 	 */
-	CORE_API static IFileCacheHandle* CreateFileCacheHandle(const TCHAR* InFileName);
+	CORE_API static IFileCacheHandle* CreateFileCacheHandle(const TCHAR* InFileName, int64 InBaseOffset = 0);
 
 	/**
 	 * Create a IFileCacheHandle from a IAsyncReadFileHandle.
 	 * @param	FileHandle			A valid IAsyncReadFileHandle that has already been created elsewhere.
 	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the FileHandle was not valid.
 	 */
-	CORE_API static IFileCacheHandle* CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle);
+	CORE_API static IFileCacheHandle* CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle, int64 InBaseOffset = 0);
 
 	virtual ~IFileCacheHandle() {};
 

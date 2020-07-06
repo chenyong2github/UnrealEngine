@@ -3,8 +3,8 @@
 #pragma once
 
 template <typename TScopeType>
-FRDGScopeStack<TScopeType>::FRDGScopeStack(
-	FRHICommandListImmediate& InRHICmdList,
+TRDGScopeStack<TScopeType>::TRDGScopeStack(
+	FRHIComputeCommandList& InRHICmdList,
 	FPushFunction InPushFunction,
 	FPopFunction InPopFunction)
 	: RHICmdList(InRHICmdList)
@@ -15,35 +15,35 @@ FRDGScopeStack<TScopeType>::FRDGScopeStack(
 {}
 
 template <typename TScopeType>
-FRDGScopeStack<TScopeType>::~FRDGScopeStack()
+TRDGScopeStack<TScopeType>::~TRDGScopeStack()
 {
 	ClearScopes();
 }
 
 template <typename TScopeType>
-template <typename... FScopeConstructArgs>
-void FRDGScopeStack<TScopeType>::BeginScope(FScopeConstructArgs... ScopeConstructArgs)
+template <typename... TScopeConstructArgs>
+void TRDGScopeStack<TScopeType>::BeginScope(TScopeConstructArgs... ScopeConstructArgs)
 {
-	auto Scope = new(MemStack) TScopeType(CurrentScope, Forward<FScopeConstructArgs>(ScopeConstructArgs)...);
+	auto Scope = new(MemStack) TScopeType(CurrentScope, Forward<TScopeConstructArgs>(ScopeConstructArgs)...);
 	Scopes.Add(Scope);
 	CurrentScope = Scope;
 }
 
 template <typename TScopeType>
-void FRDGScopeStack<TScopeType>::EndScope()
+void TRDGScopeStack<TScopeType>::EndScope()
 {
 	checkf(CurrentScope != nullptr, TEXT("Current scope is null."));
 	CurrentScope = CurrentScope->ParentScope;
 }
 
 template <typename TScopeType>
-void FRDGScopeStack<TScopeType>::BeginExecute()
+void TRDGScopeStack<TScopeType>::BeginExecute()
 {
 	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
 }
 
 template <typename TScopeType>
-void FRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
+void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 {
 	// Find out how many scopes needs to be popped.
 	TStaticArray<const TScopeType*, kScopeStackDepthMax> TraversedScopes;
@@ -95,7 +95,7 @@ void FRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 }
 
 template <typename TScopeType>
-void FRDGScopeStack<TScopeType>::EndExecute()
+void TRDGScopeStack<TScopeType>::EndExecute()
 {
 	for (uint32 ScopeIndex = 0; ScopeIndex < kScopeStackDepthMax; ++ScopeIndex)
 	{
@@ -110,7 +110,7 @@ void FRDGScopeStack<TScopeType>::EndExecute()
 }
 
 template <typename TScopeType>
-void FRDGScopeStack<TScopeType>::ClearScopes()
+void TRDGScopeStack<TScopeType>::ClearScopes()
 {
 	for (int32 Index = Scopes.Num() - 1; Index >= 0; --Index)
 	{
@@ -185,4 +185,115 @@ inline const TCHAR* FRDGEventName::GetTCHAR() const
 	// Render graph draw events have been completely compiled for CPU performance reasons.
 	return TEXT("!!!Unavailable RDG event name: need RDG_EVENTS>=0 and r.RDG.EmitWarnings=1 or -rdgdebug!!!");
 #endif
+}
+
+inline FRDGScopeStacks::FRDGScopeStacks(FRHIComputeCommandList& RHICmdList)
+	: Event(RHICmdList)
+	, Stat(RHICmdList)
+{}
+
+inline void FRDGScopeStacks::BeginExecute()
+{
+	Event.BeginExecute();
+	Stat.BeginExecute();
+}
+
+inline void FRDGScopeStacks::BeginExecutePass(const FRDGPass* Pass)
+{
+	Event.BeginExecutePass(Pass);
+	Stat.BeginExecutePass(Pass);
+}
+
+inline void FRDGScopeStacks::EndExecutePass()
+{
+	Event.EndExecutePass();
+}
+
+inline void FRDGScopeStacks::EndExecute()
+{
+	Event.EndExecute();
+	Stat.EndExecute();
+}
+
+inline FRDGScopes FRDGScopeStacks::GetCurrentScopes() const
+{
+	FRDGScopes Scopes;
+	Scopes.Event = Event.GetCurrentScope();
+	Scopes.Stat = Stat.GetCurrentScope();
+	return Scopes;
+}
+
+inline FRDGScopeStacksByPipeline::FRDGScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute)
+	: Graphics(RHICmdListGraphics)
+	, AsyncCompute(RHICmdListAsyncCompute)
+{}
+
+inline void FRDGScopeStacksByPipeline::BeginEventScope(FRDGEventName&& ScopeName)
+{
+	FRDGEventName ScopeNameCopy = ScopeName;
+	Graphics.Event.BeginScope(MoveTemp(ScopeNameCopy));
+	AsyncCompute.Event.BeginScope(MoveTemp(ScopeName));
+}
+
+inline void FRDGScopeStacksByPipeline::EndEventScope()
+{
+	Graphics.Event.EndScope();
+	AsyncCompute.Event.EndScope();
+}
+
+inline void FRDGScopeStacksByPipeline::BeginStatScope(const FName& Name, const FName& StatName)
+{
+	Graphics.Stat.BeginScope(Name, StatName);
+	AsyncCompute.Stat.BeginScope(Name, StatName);
+}
+
+inline void FRDGScopeStacksByPipeline::EndStatScope()
+{
+	Graphics.Stat.EndScope();
+	AsyncCompute.Stat.EndScope();
+}
+
+inline void FRDGScopeStacksByPipeline::BeginExecute()
+{
+	Graphics.BeginExecute();
+	AsyncCompute.BeginExecute();
+}
+
+inline void FRDGScopeStacksByPipeline::EndExecute()
+{
+	Graphics.EndExecute();
+	AsyncCompute.EndExecute();
+}
+
+inline const FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipeline Pipeline) const
+{
+	switch (Pipeline)
+	{
+	case ERDGPipeline::Graphics:
+		return Graphics;
+	case ERDGPipeline::AsyncCompute:
+		return AsyncCompute;
+	default:
+		checkNoEntry();
+		return Graphics;
+	}
+}
+
+inline FRDGScopeStacks& FRDGScopeStacksByPipeline::GetScopeStacks(ERDGPipeline Pipeline)
+{
+	switch (Pipeline)
+	{
+	case ERDGPipeline::Graphics:
+		return Graphics;
+	case ERDGPipeline::AsyncCompute:
+		return AsyncCompute;
+	default:
+		checkNoEntry();
+		return Graphics;
+	}
+}
+
+inline FRDGScopes FRDGScopeStacksByPipeline::GetCurrentScopes(ERDGPipeline Pipeline) const
+{
+	return GetScopeStacks(Pipeline).GetCurrentScopes();
 }

@@ -1,0 +1,1043 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+
+#define MAX_CLUSTER_TRIANGLES					128
+#define USE_IMPLICIT_TANGENT_SPACE				1														// must match define in NaniteBuilder.cpp
+#define USE_CONSTRAINED_CLUSTERS				1														// must match define in NaniteBuilder.h
+#define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
+
+#define CLUSTER_PAGE_SIZE_BITS					18														// must match define in NaniteResources.h
+#define CLUSTER_PAGE_SIZE						( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_GROUP_MASK				( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_GROUP					( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteResources.h
+#define MAX_HIERACHY_CHILDREN_BITS				6														// must match define in NaniteResources.h
+#define MAX_HIERACHY_CHILDREN					( 1 << MAX_HIERACHY_CHILDREN_BITS )						// must match define in NaniteResources.h
+#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS	12														// must match define in NaniteResources.h
+#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 )	// must match define in NaniteResources.h
+#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS		( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS )			// must match define in NaniteResources.h
+#define MAX_GPU_PAGES_BITS						13														// must match define in NaniteResources.h
+#define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
+#define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h
+#define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteResources.h
+#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
+#define MAX_RESOURCE_PAGES_BITS					20														// must match define in NaniteResources.h
+#define MAX_RESOURCE_PAGES						(1 << MAX_FILE_PAGES_BITS)								// must match define in NaniteResources.h
+#define MAX_GROUP_PARTS_BITS					3														// must match define in NaniteResources.h
+#define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS)									// must match define in NaniteResources.h
+
+#define MAX_STATE_BUCKET_ID						((1 << 14) - 1)											// must match FNaniteCommandInfo::MAX_STATE_BUCKET_ID
+
+#define CLUSTER_FLAG_LEAF						0x1
+
+#define CULLING_FLAG_TEST_LOD					0x1
+#define CULLING_FLAG_USE_HW						0x2
+#define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
+
+
+#define SUBPIXEL_BITS			8
+#define SUBPIXEL_SAMPLES		(1 << SUBPIXEL_BITS)
+#define SUBPIXEL_MASK			(SUBPIXEL_SAMPLES - 1)
+#define SUBPIXEL_DILATE			0	// To correct for mismatch with HW rasterizer
+
+#define POSITION_QUANTIZATION_BITS	10
+#define NORMAL_QUANTIZATION_BITS	12
+#define TEXCOORD_QUANTIZATION_BITS	10
+
+#define CULLING_PASS_NO_OCCLUSION		0
+#define CULLING_PASS_OCCLUSION_MAIN		1
+#define CULLING_PASS_OCCLUSION_POST		2
+
+#define RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA		0x1
+#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x2
+#define RENDER_FLAG_FORCE_HW_RASTER					0x4
+#define RENDER_FLAG_PRIMITIVE_SHADER				0x8
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
+
+// Only available with the DEBUG_FLAGS permutation active.
+#define DEBUG_FLAG_WRITE_STATS						0x1
+#define DEBUG_FLAG_CULL_HZB_BOX						0x2
+#define DEBUG_FLAG_CULL_HZB_SPHERE					0x4
+#define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
+#define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
+
+#ifndef DEBUG_FLAGS
+#define DEBUG_FLAGS 0
+#endif
+
+#define SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA			0	// Keep in sync with NaniteRender.ush
+
+uint GetHWClusterCounterIndex(uint InRenderFlags)
+{
+// Ensure rasterizer uses compile time constants.
+#ifdef NANITE_PRIM_SHADER
+	#if NANITE_PRIM_SHADER
+		return 4;
+	#else
+		return 5;
+	#endif
+#else
+	// Other passes use a uniform branch to minimize permutations.
+	return (InRenderFlags & RENDER_FLAG_PRIMITIVE_SHADER) ? 4 : 5;
+#endif
+}
+
+// Debug Visualization Modes (must match NaniteRender.cpp)
+// https://docs.google.com/document/d/1PeRxK_w49jgACYTiQUlCJYSzbT_BKZbhly_7i80j-BU/edit?usp=sharing
+#define VISUALIZE_TRIANGLES							1
+#define VISUALIZE_CLUSTERS							2
+#define VISUALIZE_PAGES								3
+#define VISUALIZE_PRIMITIVES						4
+#define VISUALIZE_HW_VS_SW							5
+#define VISUALIZE_OVERDRAW							6
+#define VISUALIZE_HIERARCHY_OFFSET					7
+#define VISUALIZE_SCN_HTILE_MINZ					8
+#define VISUALIZE_SCN_HTILE_MAXZ					9
+#define VISUALIZE_SCN_HTILE_DELTAZ					10
+#define VISUALIZE_SCN_HTILE_ZMASK					11
+#define VISUALIZE_MAT_HTILE_MINZ					12
+#define VISUALIZE_MAT_HTILE_MAXZ					13
+#define VISUALIZE_MAT_HTILE_DELTAZ					14
+#define VISUALIZE_MAT_HTILE_ZMASK					15
+#define VISUALIZE_MATERIAL_FAST_VS_SLOW				16
+#define VISUALIZE_MATERIAL_INDEX					17
+#define VISUALIZE_MATERIAL_ID						18
+#define VISUALIZE_HIT_PROXY_ID						19
+
+struct FStats
+{
+	uint NumTris;
+	uint NumVerts;
+	uint NumViews;
+	uint NumMainInstancesPreCull;
+	uint NumMainInstancesPostCull;
+	uint NumPostInstancesPreCull;
+	uint NumPostInstancesPostCull;
+	uint NumLargePageRectClusters;
+};
+
+struct FPersistentState
+{
+	uint	ReadOffset;
+	uint	WriteOffset;
+	int		NumActive;
+};
+
+struct FVisibleCluster
+{
+	uint	Flags;
+	uint	ViewId;
+	uint	InstanceId;
+	uint	PageIndex;
+	uint	ClusterIndex;
+	uint2	vPage;
+};
+
+struct FVisibleNode
+{
+	uint	Flags;
+	uint	ViewId;
+	uint	InstanceId;
+	uint	NodeIndex;
+	uint	EnabledBitmask[2];
+};
+
+struct FUVRange
+{
+	float2	Min;
+	float2	Scale;
+	uint2	GapStart;
+	uint2	GapLength;
+};
+
+struct FTriCluster
+{
+	uint	PageBaseAddress;
+
+	uint3	QuantizedPosStart;
+	uint	PositionOffset;
+
+	float3  MeshBoundsMin;		//TODO: move MeshBoundsMin/MeshBoundsDelta to primitive to save memory and so shading pass can sometimes read it as scalar
+	uint	IndexOffset;
+
+	float3	MeshBoundsDelta;
+	uint	AttributeOffset;
+
+	FUVRange	UVRanges[2];
+	
+	uint	NumVerts;
+	uint	NumTris;
+	uint	BitsPerIndex;
+	uint	BitsPerAttrib;
+	uint	QuantizedPosShift;
+	
+	float	EdgeLength;
+	float	LODError;
+	
+	float3	BoxBounds[2];
+	//float4	SphereBounds;
+	float4	LODBounds;
+	uint	Flags;
+	
+	float2	ConeStart;
+	float3	ConeAxis;
+	float	ConeCosAngle;
+
+	// Slow path
+	uint	MaterialTableOffset;
+	uint	MaterialTableLength;
+
+	// Fast path
+	uint	Material0Length;
+	uint	Material0Index;
+	uint 	Material1Length;
+	uint	Material1Index;
+	uint	Material2Index;
+};
+
+struct FHierarchyNodeSlice
+{
+	float4	Bounds;
+	float4	LODBounds;
+	float	MinLODError;
+	float	MaxLODError;
+	uint	ChildStartReference;	// Can be node (index) or cluster (page:cluster)
+	uint	NumChildren;
+	uint	StartPageIndex;
+	uint	NumPages;
+	bool	bEnabled;
+	bool	bLoaded;
+	bool	bLeaf;
+};
+
+struct FInstanceDynamicData
+{
+	float4x4	LocalToSubpixel;
+	float4x4	LocalToView;
+	float4x4	ClipToLocal;
+	float4x4 	PrevLocalToSubpixel;
+	float4x4	PrevLocalToView;
+	float4x4	PrevClipToLocal;
+	float3		ViewPosScaledLocal;
+	float3		ViewForwardScaledLocal;
+	bool		bHasMoved;
+};
+
+struct FNaniteView
+{
+	float4x4	TranslatedWorldToView;
+	float4x4	TranslatedWorldToClip;
+	float4x4	ViewToClip;
+	float4x4	ClipToWorld;
+	
+	float4x4	PrevTranslatedWorldToView;
+	float4x4	PrevTranslatedWorldToClip;
+	float4x4	PrevViewToClip;
+	float4x4	PrevClipToWorld;
+
+	int4		ViewRect;
+	float4		ViewSizeAndInvSize;
+	float4		ClipSpaceScaleOffset;
+	float3		PreViewTranslation;
+	float3		PrevPreViewTranslation;
+	float3		WorldCameraOrigin;
+	float3		ViewForward;
+	float		NearPlane;
+	float		LODScale;
+	float		LODScaleHW;
+	float		MinBoundsRadiusSq;
+	uint		StreamingPriorityCategory;
+	int			TargetLayerIndex;
+	int			TargetMipLevel;
+	int			TargetNumMipLevels;
+	int			TargetPrevLayerIndex;
+};
+
+struct FPackedNaniteView
+{
+	float4x4	TranslatedWorldToView;
+	float4x4	TranslatedWorldToClip;
+	float4x4	ViewToClip;
+	float4x4	ClipToWorld;
+	
+	float4x4	PrevTranslatedWorldToView;
+	float4x4	PrevTranslatedWorldToClip;
+	float4x4	PrevViewToClip;
+	float4x4	PrevClipToWorld;
+
+	int4		ViewRect;
+	float4		ViewSizeAndInvSize;
+	float4		ClipSpaceScaleOffset;
+	float4		PreViewTranslation;
+	float4		PrevPreViewTranslation;
+	float4		WorldCameraOrigin;
+	float4		ViewForwardAndNearPlane;
+	
+	float2		LODScales;
+	float		MinBoundsRadiusSq;
+	uint		StreamingPriorityCategory;
+
+	int4		TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ;
+};
+
+struct FInstanceDraw
+{
+	uint InstanceId;
+	uint ViewId;
+};
+
+#if NANITE_USE_UNIFORM_BUFFER
+	#define SOAStrides 				Nanite.SOAStrides
+	#define MaxNodes				Nanite.MaxNodes
+	#define MaxClusters				Nanite.MaxClusters
+	#define RenderFlags				Nanite.RenderFlags
+	#define DebugFlags				Nanite.DebugFlags
+	#define ClusterPageData			Nanite.ClusterPageData
+	#define ClusterPageHeaders		Nanite.ClusterPageHeaders
+#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
+	#define InstanceDynamicData		Nanite.InstanceDynamicData
+#endif
+	#define VisibleClustersSWHW		Nanite.VisibleClustersSWHW
+#else
+	uint4 							SOAStrides;
+	uint							MaxNodes;
+	uint							MaxClusters;
+	uint							RenderFlags;
+	uint							DebugFlags;
+	ByteAddressBuffer 				ClusterPageData;
+	ByteAddressBuffer 				ClusterPageHeaders;
+#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
+	ByteAddressBuffer 				InstanceDynamicData;
+#endif
+	ByteAddressBuffer				VisibleClustersSWHW;
+#endif
+
+RWByteAddressBuffer					OutInstanceDynamicData;
+
+struct FBitStreamState
+{
+	uint4 RawData;
+	uint Data;
+	int DataOffset;
+	int ReadOffset;
+	int CompileTimeNumBits;
+	int CompileTimeMaxRemainingBits;
+};
+
+FBitStreamState BitStreamCreate(ByteAddressBuffer Input, uint BaseAddressInBytes, uint BitOffset, uint CompileTimeMaxBits)
+{
+	FBitStreamState State;
+
+	uint ByteAddress = BaseAddressInBytes + ((BitOffset >> 5) << 2);
+
+	State.RawData = (CompileTimeMaxBits > 32 * 2 + 1) ? Input.Load4(ByteAddress) :
+					(CompileTimeMaxBits > 32 * 1 + 1) ? uint4(Input.Load3(ByteAddress), 0) :
+					(CompileTimeMaxBits > 1) ? uint4(Input.Load2(ByteAddress), 0, 0) :
+					(CompileTimeMaxBits > 0) ? uint4(Input.Load(ByteAddress), 0, 0, 0) :
+					0;
+
+	State.Data = 0;
+#if 1
+	State.DataOffset = BitOffset & 31;
+#else
+	State.DataOffset = 0;
+#endif
+	State.ReadOffset = BitOffset & 31;
+	State.CompileTimeNumBits = 0;
+	State.CompileTimeMaxRemainingBits = CompileTimeMaxBits;
+	return State;
+}
+
+uint BitStreamRead(inout FBitStreamState State, int NumBits, int CompileTimeMaxBits)
+{
+	if (State.CompileTimeNumBits < CompileTimeMaxBits)
+	{
+#if 1
+		State.RawData.x = BitAlignU32(State.RawData.y, State.RawData.x, State.DataOffset);
+		if (State.CompileTimeMaxRemainingBits > 1 * 32)	State.RawData.y = BitAlignU32(State.RawData.z, State.RawData.y, State.DataOffset);
+		if (State.CompileTimeMaxRemainingBits > 2 * 32)	State.RawData.z = BitAlignU32(State.RawData.w, State.RawData.z, State.DataOffset);
+		if (State.CompileTimeMaxRemainingBits > 3 * 32)	State.RawData.w = State.RawData.w >> State.DataOffset;
+		State.Data = State.RawData.x;
+#else
+		if (State.ReadOffset >= 32)
+		{
+			if (State.CompileTimeMaxRemainingBits > 0)			State.RawData.x = State.RawData.y;
+			if (State.CompileTimeMaxRemainingBits > 1)			State.RawData.y = State.RawData.z;
+			if (State.CompileTimeMaxRemainingBits > 1 * 32 + 1) State.RawData.z = State.RawData.w;
+			State.ReadOffset -= 32;
+		}
+		State.Data = BitAlignU32(State.RawData[0].y, State.RawData[0].x, State.ReadOffset);
+#endif
+		State.DataOffset = 0;
+		State.CompileTimeNumBits = 32;
+	}
+
+	uint Result = State.Data;
+	BitFieldExtractU32(State.Data, State.DataOffset, NumBits);	
+
+	State.DataOffset += NumBits;
+	State.ReadOffset += NumBits;
+	State.CompileTimeNumBits -= CompileTimeMaxBits;
+	State.CompileTimeMaxRemainingBits -= CompileTimeMaxBits;
+	return Result;
+}
+
+
+// Utility functions for packing bits into uints.
+// When Position and NumBits can be determined at compile time this should be just as fast as manual bit packing.
+// TODO: Verify on other compilers than wave.
+uint ReadBits( uint4 Data, inout uint Position, uint NumBits )
+{
+	uint DwordIndex = Position >> 5;
+	uint BitIndex = Position & 31;
+
+	uint Value = Data[ DwordIndex ] >> BitIndex;
+	if( BitIndex + NumBits > 32 )
+		Value |= Data[ DwordIndex + 1 ] << ( 32 - BitIndex );
+
+	Position += NumBits;
+
+	uint Mask = ( ( 1u << NumBits ) - 1u );
+	return Value & Mask;
+}
+
+void WriteBits( inout uint4 Data, inout uint Position, uint Value, uint NumBits )
+{
+	uint DwordIndex = Position >> 5;
+	uint BitIndex = Position & 31;
+
+	Data[ DwordIndex ] |= Value << BitIndex;
+	if( BitIndex + NumBits > 32 )
+		Data[ DwordIndex + 1 ] |= Value >> ( 32 - BitIndex );
+
+	Position += NumBits;
+}
+
+FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint ClusterIdx, bool bHasPageData = false )
+{
+	uint4 RawData;
+	if( bHasPageData )
+		RawData = uint4( VisibleClusters.Load3( ClusterIdx * 12 ), 0 );
+	else
+		RawData = uint4( VisibleClusters.Load2( ClusterIdx * 8 ), 0, 0 );
+
+	uint BitPos = 0;
+
+	FVisibleCluster VisibleCluster;
+	VisibleCluster.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
+	VisibleCluster.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
+	VisibleCluster.InstanceId	= ReadBits( RawData, BitPos, MAX_INSTANCES_BITS );
+	VisibleCluster.PageIndex	= ReadBits( RawData, BitPos, MAX_GPU_PAGES_BITS );
+	VisibleCluster.ClusterIndex	= ReadBits( RawData, BitPos, MAX_CLUSTERS_PER_PAGE_BITS );
+	if( bHasPageData )
+	{
+		VisibleCluster.vPage.x	= ReadBits( RawData, BitPos, 16 );
+		VisibleCluster.vPage.y	= ReadBits( RawData, BitPos, 16 );
+	}
+	else
+	{
+		VisibleCluster.vPage = 0;
+	}
+
+	return VisibleCluster;
+}
+
+FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData = false )
+{
+	return GetVisibleCluster( VisibleClustersSWHW, ClusterIdx, bHasPageData );
+}
+
+void StoreVisibleCluster( RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false )
+{
+	uint4 RawData = 0;
+	uint BitPos = 0;
+	WriteBits( RawData, BitPos, VisibleCluster.Flags,		NUM_CULLING_FLAG_BITS );
+	WriteBits( RawData, BitPos, VisibleCluster.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
+	WriteBits( RawData, BitPos, VisibleCluster.InstanceId,	MAX_INSTANCES_BITS );
+	WriteBits( RawData, BitPos, VisibleCluster.PageIndex,	MAX_GPU_PAGES_BITS );
+	WriteBits( RawData, BitPos, VisibleCluster.ClusterIndex,MAX_CLUSTERS_PER_PAGE_BITS );
+	if( bHasPageData )
+	{
+		WriteBits( RawData, BitPos, VisibleCluster.vPage.x,	16 );
+		WriteBits( RawData, BitPos, VisibleCluster.vPage.y,	16 );
+		VisibleClusters.Store3( ClusterIdx * 12, RawData.xyz );
+	}
+	else
+	{
+		VisibleClusters.Store2( ClusterIdx * 8, RawData.xy );
+	}
+}
+
+FVisibleNode GetVisibleNode( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
+{
+	uint4 RawData = bHasEnabledMask ? VisibleNodes.Load4( NodeIdx * 16 ) : uint4( VisibleNodes.Load2( NodeIdx * 8 ), 0, 0 );
+	uint BitPos = 0;
+
+	FVisibleNode Node;
+	Node.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
+	Node.InstanceId	= ReadBits( RawData, BitPos, MAX_INSTANCES_BITS );
+	Node.NodeIndex	= ReadBits( RawData, BitPos, MAX_NODES_PER_PRIMITIVE_BITS );
+	Node.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
+	if( bHasEnabledMask )
+	{
+		Node.EnabledBitmask[ 0 ] = RawData.z;
+		Node.EnabledBitmask[ 1 ] = RawData.w;
+	}
+	else
+	{
+		Node.EnabledBitmask[ 0 ] = 0xFFFFFFFFu;
+		Node.EnabledBitmask[ 1 ] = 0xFFFFFFFFu;
+	}
+	
+	return Node;
+}
+
+bool IsVisibleNodeReady( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
+{
+	const uint Stride = bHasEnabledMask ? 16 : 8;
+	return VisibleNodes.Load( NodeIdx * Stride ) != 0xFFFFFFFF;
+}
+
+void MarkVisibleNodeAsClear( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
+{
+	const uint Stride = bHasEnabledMask ? 16 : 8;
+	VisibleNodes.Store( NodeIdx * Stride, 0xFFFFFFFF );
+}
+
+uint4 PackVisibleNode( FVisibleNode Node )
+{
+	uint4 RawData = 0;
+	uint BitPos = 0;
+	WriteBits( RawData, BitPos, Node.Flags,			NUM_CULLING_FLAG_BITS );
+	WriteBits( RawData, BitPos, Node.InstanceId,	MAX_INSTANCES_BITS );
+	WriteBits( RawData, BitPos, Node.NodeIndex,		MAX_NODES_PER_PRIMITIVE_BITS );
+	WriteBits( RawData, BitPos, Node.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
+	RawData.z = Node.EnabledBitmask[ 0 ];
+	RawData.w = Node.EnabledBitmask[ 1 ];
+	return RawData;
+}
+
+void StoreVisibleNodeSync( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, FVisibleNode VisibleNode, bool bHasEnabledMask )
+{
+	const uint Stride = bHasEnabledMask ? 16 : 8;
+	uint4 RawData = PackVisibleNode( VisibleNode );
+	
+	if(bHasEnabledMask)
+		VisibleNodes.Store3( NodeIdx * Stride + 4, RawData.yzw );
+	else
+		VisibleNodes.Store( NodeIdx * Stride + 4, RawData.y );
+
+	DeviceMemoryBarrier();
+	VisibleNodes.Store( NodeIdx * Stride, RawData.x );
+}
+
+void StoreVisibleNode( RWByteAddressBuffer VisibleNodes, uint NodeIdx, FVisibleNode VisibleNode, bool bHasEnabledMask )
+{
+	uint4 RawData = PackVisibleNode( VisibleNode );
+	if(bHasEnabledMask)
+		VisibleNodes.Store4( NodeIdx * 16, RawData );
+	else
+		VisibleNodes.Store2( NodeIdx * 8, RawData.xy );
+}
+
+FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInstanceSceneData InstanceData )
+{
+	float4x4 LocalToWorld = InstanceData.LocalToWorld;
+	float4x4 WorldToLocal = InstanceData.WorldToLocal;
+
+	float4x4 LocalToTranslatedWorld = LocalToWorld;
+	LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+	
+	float4x4 LocalToView = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToView );
+	float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
+	float4x4 ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
+
+	// Apply Vert.xy = PointScreen.xy * float2(0.5, -0.5) * View.ViewSizeAndInvSize.xy + 0.5 * View.ViewSizeAndInvSize.xy + View.ViewRect.xy
+	float2 Scale = float2( 0.5, -0.5 ) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
+	float2 Bias = ( 0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy ) * SUBPIXEL_SAMPLES + 0.5f;
+
+	float4x4 LocalToSubpixel = LocalToClip;
+	LocalToSubpixel._m00_m10_m20_m30 = LocalToSubpixel._m00_m10_m20_m30 * Scale.x + LocalToSubpixel._m03_m13_m23_m33 * Bias.x;
+	LocalToSubpixel._m01_m11_m21_m31 = LocalToSubpixel._m01_m11_m21_m31 * Scale.y + LocalToSubpixel._m03_m13_m23_m33 * Bias.y;
+
+	float4x4 PrevLocalToTranslatedWorld = InstanceData.PrevLocalToWorld;
+	PrevLocalToTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
+
+	float4x4 PrevLocalToView = mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToView );
+	float4x4 PrevLocalToClip = mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
+	float4x4 PrevClipToLocal = mul( NaniteView.PrevClipToWorld, WorldToLocal );
+
+	float4x4 PrevLocalToSubpixel = PrevLocalToClip;
+	PrevLocalToSubpixel._m00_m10_m20_m30 = PrevLocalToSubpixel._m00_m10_m20_m30 * Scale.x + PrevLocalToSubpixel._m03_m13_m23_m33 * Bias.x;
+	PrevLocalToSubpixel._m01_m11_m21_m31 = PrevLocalToSubpixel._m01_m11_m21_m31 * Scale.y + PrevLocalToSubpixel._m03_m13_m23_m33 * Bias.y;
+
+	FInstanceDynamicData DynamicData;
+	DynamicData.LocalToSubpixel		= LocalToSubpixel;
+	DynamicData.LocalToView			= LocalToView;
+	DynamicData.ClipToLocal			= ClipToLocal;
+
+	DynamicData.PrevLocalToSubpixel	= PrevLocalToSubpixel;
+	DynamicData.PrevLocalToView		= PrevLocalToView;
+	DynamicData.PrevClipToLocal		= PrevClipToLocal;
+
+	DynamicData.ViewPosScaledLocal = mul( float4( NaniteView.WorldCameraOrigin.xyz, 1 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
+	DynamicData.ViewForwardScaledLocal = mul( float4( NaniteView.ViewForward.xyz, 0 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
+
+	DynamicData.bHasMoved = any(InstanceData.LocalToWorld[0] != InstanceData.PrevLocalToWorld[0])
+		|| any(InstanceData.LocalToWorld[1] != InstanceData.PrevLocalToWorld[1])
+		|| any(InstanceData.LocalToWorld[2] != InstanceData.PrevLocalToWorld[2])
+		|| any(InstanceData.LocalToWorld[3] != InstanceData.PrevLocalToWorld[3]);
+
+	return DynamicData;
+}
+
+#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
+FInstanceDynamicData GetInstanceDynamicData(uint InstanceId)
+{
+	uint InstanceDynamicDataStride = SOAStrides.y * 16;
+	uint BaseAddress = InstanceId * 16;
+
+	FInstanceDynamicData DynamicData;
+
+	DynamicData.LocalToSubpixel[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  0 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToSubpixel[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  1 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToSubpixel[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  2 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToSubpixel[3]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  3 * InstanceDynamicDataStride ) );
+
+	DynamicData.LocalToView[0]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  4 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToView[1]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  5 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToView[2]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  6 * InstanceDynamicDataStride ) );
+	DynamicData.LocalToView[3]			= float4( 0, 0, 0, 1 );
+
+	DynamicData.ClipToLocal[0]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  7 * InstanceDynamicDataStride ) );
+	DynamicData.ClipToLocal[1]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  8 * InstanceDynamicDataStride ) );
+	DynamicData.ClipToLocal[2]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  9 * InstanceDynamicDataStride ) );
+	DynamicData.ClipToLocal[3]			= asfloat( InstanceDynamicData.Load4( BaseAddress + 10 * InstanceDynamicDataStride ) );
+
+	DynamicData.PrevLocalToSubpixel[0]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 11 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToSubpixel[1]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 12 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToSubpixel[2]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 13 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToSubpixel[3]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 14 * InstanceDynamicDataStride ) );
+
+	DynamicData.PrevLocalToView[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 15 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToView[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 16 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToView[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 17 * InstanceDynamicDataStride ) );
+	DynamicData.PrevLocalToView[3]		= float4( 0, 0, 0, 1 );
+
+	DynamicData.PrevClipToLocal[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 18 * InstanceDynamicDataStride ) );
+	DynamicData.PrevClipToLocal[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 19 * InstanceDynamicDataStride ) );
+	DynamicData.PrevClipToLocal[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 20 * InstanceDynamicDataStride ) );
+	DynamicData.PrevClipToLocal[3]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 21 * InstanceDynamicDataStride ) );
+
+	DynamicData.ViewPosScaledLocal		= asfloat( InstanceDynamicData.Load3( BaseAddress + 22 * InstanceDynamicDataStride ) );
+	DynamicData.ViewForwardScaledLocal	= asfloat( InstanceDynamicData.Load3( BaseAddress + 23 * InstanceDynamicDataStride ));
+
+	DynamicData.LocalToView		= transpose( DynamicData.LocalToView );
+	DynamicData.PrevLocalToView = transpose( DynamicData.PrevLocalToView );
+
+	DynamicData.bHasMoved = false;
+	return DynamicData;
+}
+
+void StoreInstanceDynamicData(uint InstanceId, FInstanceDynamicData DynamicData)
+{
+	uint InstanceDynamicDataStride = SOAStrides.y * 16;
+	uint BaseAddress = InstanceId * 16;
+
+	DynamicData.LocalToView		= transpose( DynamicData.LocalToView );
+	DynamicData.PrevLocalToView = transpose( DynamicData.PrevLocalToView );
+
+	OutInstanceDynamicData.Store4( BaseAddress +  0 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  1 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  2 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[2] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  3 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[3] ) );
+								   
+	OutInstanceDynamicData.Store4( BaseAddress +  4 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  5 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  6 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[2] ) );
+								   
+	OutInstanceDynamicData.Store4( BaseAddress +  7 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  8 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress +  9 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[2] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 10 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[3] ) );
+
+	OutInstanceDynamicData.Store4( BaseAddress + 11 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 12 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 13 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[2] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 14 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[3] ) );
+								   
+	OutInstanceDynamicData.Store4( BaseAddress + 15 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 16 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 17 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[2] ) );
+
+	OutInstanceDynamicData.Store4( BaseAddress + 18 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[0] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 19 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[1] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 20 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[2] ) );
+	OutInstanceDynamicData.Store4( BaseAddress + 21 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[3] ) );
+
+	OutInstanceDynamicData.Store3( BaseAddress + 22 * InstanceDynamicDataStride, asuint( DynamicData.ViewPosScaledLocal ) );
+	OutInstanceDynamicData.Store3( BaseAddress + 23 * InstanceDynamicDataStride, asuint( DynamicData.ViewForwardScaledLocal ) );
+}
+#endif
+
+FInstanceSceneData GetInstanceData( uint InstanceId )
+{
+	return GetInstanceData( InstanceId, SOAStrides.x );
+}
+
+FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
+{
+	uint NumClusters = ClusterPageHeaders.Load( PageIndex * 4 );
+	uint ClusterSOAStride = ( NumClusters << 4 );
+
+	uint PageBaseAddress = ( PageIndex << CLUSTER_PAGE_SIZE_BITS );
+	uint ClusterBaseAddress = PageBaseAddress + ( ClusterIndex << 4 );
+	
+	uint4 ClusterData[8];
+	ClusterData[0] = ClusterPageData.Load4( ClusterBaseAddress + 0 * ClusterSOAStride );
+	ClusterData[1] = ClusterPageData.Load4( ClusterBaseAddress + 1 * ClusterSOAStride );
+	ClusterData[2] = ClusterPageData.Load4( ClusterBaseAddress + 2 * ClusterSOAStride );
+	ClusterData[3] = ClusterPageData.Load4( ClusterBaseAddress + 3 * ClusterSOAStride );
+	ClusterData[4] = ClusterPageData.Load4( ClusterBaseAddress + 4 * ClusterSOAStride );
+	ClusterData[5] = ClusterPageData.Load4( ClusterBaseAddress + 5 * ClusterSOAStride );
+	ClusterData[6] = ClusterPageData.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
+	ClusterData[7] = uint4( ClusterPageData.Load3( ClusterBaseAddress + 7 * ClusterSOAStride ), 0 );
+
+	FTriCluster Cluster;
+	Cluster.PageBaseAddress = PageBaseAddress;
+
+	Cluster.QuantizedPosStart	= ClusterData[0].xyz;
+	Cluster.PositionOffset		= ClusterData[0].w;
+
+	Cluster.MeshBoundsMin		= asfloat( ClusterData[1].xyz );
+	Cluster.IndexOffset			= ClusterData[1].w;
+
+	Cluster.MeshBoundsDelta		= asfloat( ClusterData[2].xyz );
+	Cluster.AttributeOffset		= ClusterData[2].w;
+
+	uint Tmp = ClusterData[3].x;	// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
+	Cluster.NumVerts			= BitFieldExtractU32(Tmp, 9, 0);
+	Cluster.NumTris				= BitFieldExtractU32(Tmp, 8, 9);
+	Cluster.BitsPerIndex		= BitFieldExtractU32(Tmp, 4, 9+8);
+	Cluster.QuantizedPosShift	= BitFieldExtractU32(Tmp, 6, 9+8+4);
+	Cluster.BitsPerAttrib		= ClusterData[3].y;
+
+	Cluster.LODBounds			= asfloat( ClusterData[4] );
+	
+	Cluster.BoxBounds[0]		= asfloat( ClusterData[5].xyz );
+	Cluster.BoxBounds[1]		= asfloat( ClusterData[6].xyz );
+	//Cluster.SphereBounds			= asfloat( ClusterData[5] );
+	//Cluster.Bounds			= f16tof32( uint4( ClusterData[7].y, ClusterData[7].y >> 16, ClusterData[7].z, ClusterData[7].z >> 16 ) ) + Cluster.LODBounds;
+
+	Cluster.LODError			= f16tof32( ClusterData[7].x );
+	Cluster.EdgeLength			= f16tof32( ClusterData[7].x >> 16 );
+
+	const uint MaterialEncoding = ClusterData[7].y;
+
+	// Material Table Range Encoding (32 bits)
+	// uint TriStart        :  8;  // max 128 triangles
+	// uint TriLength       :  8;  // max 128 triangles
+	// uint MaterialIndex   :  6;  // max  64 materials
+	// uint Padding         : 10;
+
+	// Material Packed Range - Fast Path (32 bits)
+	// uint Material0Length : 7;  // max 128 triangles (num minus one)
+	// uint Material0Index  : 6;  // max  64 materials (0:Material0Length)
+	// uint Material1Length : 7;  // max 128 triangles (num minus one)
+	// uint Material1Index  : 6;  // max  64 materials (Material0Length:Material1Length)
+	// uint Material2Index  : 6;  // max  64 materials (remainder)
+
+	// Material Packed Range - Slow Path (32 bits)
+	// uint Padding         : 7;  // always 0 in slow path
+	// uint BufferIndex     : 19; // 2^19 max value (tons, it's per prim)
+	// uint BufferLength    : 6;  // max 127 ranges (num)
+
+	Cluster.Material0Length = MaterialEncoding & 0x0000007F;
+	if (Cluster.Material0Length > 0)
+	{
+		// Fast inline path
+		Cluster.MaterialTableOffset	= 0;
+		Cluster.MaterialTableLength	= 0;
+		Cluster.Material0Index		= (MaterialEncoding & 0x00001F80) >> 7;
+		Cluster.Material1Length		= (MaterialEncoding & 0x000FE000) >> 13;
+		Cluster.Material1Index		= (MaterialEncoding & 0x03F00000) >> 20;
+		Cluster.Material2Index		= (MaterialEncoding & 0xFC000000) >> 26;
+
+		Cluster.Material0Length++;
+		if (Cluster.Material0Length < 128)
+		{
+			Cluster.Material1Length++;
+		}
+	}
+	else
+	{
+		// Slow global search path
+		Cluster.MaterialTableOffset	= (MaterialEncoding & 0x03FFFF80) >> 7;
+		Cluster.MaterialTableLength	= (MaterialEncoding & 0xFC000000) >> 26;
+		Cluster.Material0Length		= 0;
+		Cluster.Material0Index		= 0;
+		Cluster.Material1Length		= 0;
+		Cluster.Material1Index		= 0;
+		Cluster.Material2Index		= 0;
+	}
+	
+	Cluster.Flags				= ClusterData[7].z;
+
+	UNROLL
+	for( uint i = 0; i < 2; i++ )
+	{
+		uint4 RangeData[2];
+		RangeData[0] = ClusterPageData.Load4( ClusterBaseAddress + (8 + 2*i) * ClusterSOAStride );
+		RangeData[1] = ClusterPageData.Load4( ClusterBaseAddress + (9 + 2*i) * ClusterSOAStride );
+
+		Cluster.UVRanges[i].Min			= asfloat( RangeData[0].xy );
+		Cluster.UVRanges[i].Scale		= asfloat( RangeData[0].zw );
+		Cluster.UVRanges[i].GapStart	= RangeData[1].xy;
+		Cluster.UVRanges[i].GapLength	= RangeData[1].zw;
+	}
+
+	return Cluster;
+}
+
+uint3 ReadTriangleIndices(FTriCluster Cluster, uint TriIndex)
+{
+	const uint BitsPerIndex = Cluster.BitsPerIndex;
+	const uint BitPos = TriIndex * (Cluster.BitsPerIndex * 3);
+
+	const uint IndexMask = (1u << BitsPerIndex) - 1u;
+	const uint DwordPos = (BitPos >> 5);
+	const uint DwordBitPos = BitPos & 31;
+	uint2 Data = ClusterPageData.Load2(Cluster.PageBaseAddress + Cluster.IndexOffset + DwordPos * 4);
+
+#if COMPILER_SUPPORTS_ULONG_TYPES
+	uint VertIndices = (uint)((((UlongType)Data.y) << 32 | Data.x) >> DwordBitPos);
+#else
+	uint VertIndices = Data.x >> DwordBitPos;
+	VertIndices |= (Data.y << (31 - DwordBitPos)) << 1;	// Workaround for (x << 32) == x
+#endif
+	return uint3(VertIndices & IndexMask, ((VertIndices >> BitsPerIndex) & IndexMask), (VertIndices >> (BitsPerIndex * 2)) & IndexMask) & 0xFFFFFFu;	// "& 0xFFFFFFu" to help compiler range analysis and avoid 32bit multiplies
+}
+
+void UnpackVisPixel(
+	UlongType Pixel,
+	out uint DepthInt,
+	out uint VisibleClusterIndex, 
+	out uint TriIndex
+	)
+{
+	const uint2 Unpacked = UnpackUlongType(Pixel);
+	VisibleClusterIndex = Unpacked.x >> 7;
+	TriIndex = Unpacked.x & 0x7F;
+	DepthInt = Unpacked.y;
+
+	VisibleClusterIndex--;
+}
+
+void UnpackDbgPixel(
+	UlongType Pixel,
+	out uint DepthInt,
+	out uint DebugValue
+	)
+{
+	const uint2 Unpacked = UnpackUlongType(Pixel);
+	DebugValue = Unpacked.x;
+	DepthInt = Unpacked.y;
+}
+
+float3 UnpackPosition(uint Packed, FTriCluster Cluster, uint Bits)
+{
+	uint Mask = (1u << Bits) - 1u;
+	return (uint3(Packed & Mask, (Packed >> Bits) & Mask, (Packed >> (Bits * 2)) & Mask) + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
+}
+
+float2 UnpackTexCoord(uint Packed, FTriCluster Cluster, uint Bits, uint UVIndex)
+{
+	FUVRange UVRange = Cluster.UVRanges[ UVIndex ];
+	uint Mask = (1u << Bits) - 1u;
+	uint2 T = uint2(Packed & Mask, (Packed >> Bits) & Mask);
+	T += (T >= UVRange.GapStart) ? UVRange.GapLength : 0u;
+	return float2(T) * UVRange.Scale + UVRange.Min;
+}
+
+float3 UnpackNormal(uint Packed, uint Bits)
+{
+	uint Mask = (1u << Bits) - 1u;
+	float2 F = uint2(Packed & Mask, (Packed >> Bits) & Mask) * (2.0f / Mask) - 1.0f;
+	float3 N = float3(F.xy, 1.0 - abs(F.x) - abs(F.y));
+	float T = saturate(-N.z);
+	N.xy += N.xy >= 0.0 ? -T : T;
+	return N;
+}
+
+float3 UnpackTangent(uint Packed, uint Bits)
+{
+	uint Mask = (1u << Bits) - 1u;
+	return uint3(Packed & Mask, (Packed >> Bits) & Mask, (Packed >> (Bits * 2)) & Mask) * (2.0f / Mask) - 1.0f;
+}
+
+bool IsMaterialFastPath(FTriCluster InCluster)
+{
+	return (InCluster.Material0Length > 0);
+}
+
+uint GetRelativeMaterialIndex(FTriCluster InCluster, uint InTriIndex)
+{
+	uint MaterialIndex = 0xFFFFFFFF;
+
+	BRANCH
+	if (IsMaterialFastPath(InCluster))
+	{
+		if (InTriIndex < InCluster.Material0Length)
+		{
+			MaterialIndex = InCluster.Material0Index;
+		}
+		else if (InTriIndex < (InCluster.Material0Length + InCluster.Material1Length))
+		{
+			MaterialIndex = InCluster.Material1Index;
+		}
+		else
+		{
+			MaterialIndex = InCluster.Material2Index;
+		}
+	}
+	else
+	{
+		uint TableOffset = InCluster.PageBaseAddress + InCluster.MaterialTableOffset * 4;
+		for (uint TableEntry = 0; TableEntry < InCluster.MaterialTableLength; ++TableEntry)
+		{
+			uint EncodedRange = ClusterPageData.Load(TableOffset);
+			TableOffset += 4;
+
+			// uint32 TriStart      :  8; // max 128 triangles
+			// uint32 TriLength     :  8; // max 128 triangles
+			// uint32 MaterialIndex :  6; // max  64 materials
+			// uint32 Padding       : 10;
+
+			const uint TriStart = (EncodedRange & 0x000000FF);
+			const uint TriLength = (EncodedRange & 0x0000FF00) >> 8;
+			if (InTriIndex >= TriStart && InTriIndex < (TriStart + TriLength))
+			{
+				MaterialIndex = (EncodedRange & 0x003F0000) >> 16;
+				break;
+			}
+		}
+	}
+
+	return MaterialIndex;
+}
+
+uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
+{
+	// Remap local primitive material indices (i.e. 0...8) to global indices of all primitives in current scene
+	const uint MaxMaterials = 64;
+	const uint RemapOffset = (InPrimitiveIndex * MaxMaterials * 4) + (InMaterialIndex * 4);
+	const uint MaterialId = InMaterialTable.Load(RemapOffset);
+	return MaterialId;
+}
+
+uint GetMaterialDepthId(
+	FTriCluster InCluster,
+	uint InPrimitiveIndex,
+	uint InTriIndex,
+	ByteAddressBuffer InMaterialDepthTable)
+{
+	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
+	const uint MaterialDepthId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialDepthTable);
+	return MaterialDepthId;
+}
+
+uint GetMaterialHitProxyId(
+	FTriCluster InCluster,
+	uint InPrimitiveIndex,
+	uint InTriIndex,
+	ByteAddressBuffer InMaterialHitProxyTable)
+{
+	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
+	const uint MaterialHitProxyId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialHitProxyTable);
+	return MaterialHitProxyId;
+}
+
+uint GetMaterialBucketIdFromDepth(float Depth)
+{
+	return (uint)(Depth * MAX_STATE_BUCKET_ID);
+}
+
+StructuredBuffer< FPackedNaniteView > InViews;
+FNaniteView GetNaniteView( uint ViewIndex )
+{
+#if NANITE_USE_VIEW_UNIFORM_BUFFER
+	FNaniteView NaniteView;
+
+	NaniteView.TranslatedWorldToView		= View.TranslatedWorldToView;
+	NaniteView.TranslatedWorldToClip		= View.TranslatedWorldToClip;
+	NaniteView.ViewToClip					= View.ViewToClip;
+	NaniteView.ClipToWorld					= View.ClipToWorld;
+	
+	NaniteView.PrevTranslatedWorldToView	= View.PrevTranslatedWorldToView;
+	NaniteView.PrevTranslatedWorldToClip	= View.PrevTranslatedWorldToClip;
+	NaniteView.PrevViewToClip				= View.PrevViewToClip;
+	NaniteView.PrevClipToWorld				= View.PrevInvViewProj;
+
+	NaniteView.ViewSizeAndInvSize			= View.ViewSizeAndInvSize;
+	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.zy + 0.5f));
+	NaniteView.PreViewTranslation			= View.PreViewTranslation;
+	NaniteView.PrevPreViewTranslation		= View.PrevPreViewTranslation;
+	NaniteView.WorldCameraOrigin			= View.WorldCameraOrigin;
+	NaniteView.ViewForward					= View.ViewForward;
+	NaniteView.NearPlane					= View.NearPlane;
+	NaniteView.LODScale						= 1.0f;
+	NaniteView.LODScaleHW					= 1.0f;
+	NaniteView.MinBoundsRadiusSq			= 0;
+	NaniteView.StreamingPriorityCategory	= 3;
+	
+	NaniteView.TargetLayerIndex = 0;
+	NaniteView.TargetMipLevel = 0;
+	NaniteView.TargetNumMipLevels = 0;
+	NaniteView.TargetPrevLayerIndex	= 0;
+	#else // !NANITE_USE_VIEW_UNIFORM_BUFFER
+#if NANITE_MULTI_VIEW
+	FPackedNaniteView PackedView = InViews[ ViewIndex ];
+#else // !NANITE_MULTI_VIEW
+	FPackedNaniteView PackedView = InViews[0];
+#endif // NANITE_MULTI_VIEW
+
+	FNaniteView NaniteView;
+
+	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
+	NaniteView.TranslatedWorldToClip		= PackedView.TranslatedWorldToClip;
+	NaniteView.ViewToClip					= PackedView.ViewToClip;
+	NaniteView.ClipToWorld					= PackedView.ClipToWorld;
+	
+	NaniteView.PrevTranslatedWorldToView	= PackedView.PrevTranslatedWorldToView;
+	NaniteView.PrevTranslatedWorldToClip	= PackedView.PrevTranslatedWorldToClip;
+	NaniteView.PrevViewToClip				= PackedView.PrevViewToClip;
+	NaniteView.PrevClipToWorld				= PackedView.PrevClipToWorld;
+
+	NaniteView.ViewRect						= PackedView.ViewRect;
+	NaniteView.ViewSizeAndInvSize			= PackedView.ViewSizeAndInvSize;
+	NaniteView.ClipSpaceScaleOffset			= PackedView.ClipSpaceScaleOffset;
+	NaniteView.PreViewTranslation			= PackedView.PreViewTranslation.xyz;
+	NaniteView.PrevPreViewTranslation		= PackedView.PrevPreViewTranslation.xyz;
+	NaniteView.WorldCameraOrigin			= PackedView.WorldCameraOrigin.xyz;
+	NaniteView.ViewForward					= PackedView.ViewForwardAndNearPlane.xyz;
+	NaniteView.NearPlane					= PackedView.ViewForwardAndNearPlane.w;
+	NaniteView.LODScale						= PackedView.LODScales.x;
+	NaniteView.LODScaleHW					= PackedView.LODScales.y;
+	NaniteView.MinBoundsRadiusSq			= PackedView.MinBoundsRadiusSq;
+	NaniteView.StreamingPriorityCategory	= PackedView.StreamingPriorityCategory;
+	
+	NaniteView.TargetLayerIndex				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.x;
+	NaniteView.TargetMipLevel				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.y;
+	NaniteView.TargetNumMipLevels			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.z;
+	NaniteView.TargetPrevLayerIndex			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.w;
+
+#endif // NANITE_USE_VIEW_UNIFORM_BUFFER
+	return NaniteView;
+}

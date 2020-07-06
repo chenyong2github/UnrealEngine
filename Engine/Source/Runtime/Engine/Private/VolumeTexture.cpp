@@ -320,7 +320,7 @@ public:
 			{
 				if (MipData[MipIndex])
 				{
-					FMemory::Memcpy(CurrPos, MipData[MipIndex], MipSize[MipIndex]);
+					FMemory::ParallelMemcpy(CurrPos, MipData[MipIndex], MipSize[MipIndex], EMemcpyCachePolicy::StoreUncached);
 				}
 				CurrPos += MipSize[MipIndex];
 			}

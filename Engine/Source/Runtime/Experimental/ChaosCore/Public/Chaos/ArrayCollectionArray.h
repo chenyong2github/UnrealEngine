@@ -18,7 +18,9 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 	using TArray<T>::RemoveAtSwap;
 	using TArray<T>::Emplace;
 
-  public:
+public:
+	using TArray<T>::Num;
+
 	TArrayCollectionArray()
 	    : TArray<T>() {}
 	TArrayCollectionArray(const TArrayCollectionArray<T>& Other) = delete;

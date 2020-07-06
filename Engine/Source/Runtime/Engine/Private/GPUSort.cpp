@@ -189,7 +189,7 @@ public:
 	{
 		if (RHISupportsComputeShaders(GShaderPlatformForFeatureLevel[GetFeatureLevel()]))
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FRadixSortParametersBuffer"));
 			SortParametersBufferRHI = RHICreateVertexBuffer(
 				/*Size=*/ sizeof(FRadixSortParameters),
 				/*Usage=*/ BUF_Volatile | BUF_ShaderResource,

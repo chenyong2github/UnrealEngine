@@ -15,6 +15,7 @@ TranslucentRendering.cpp: Translucent rendering implementation.
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.inl"
+#include "Lumen/LumenTranslucencyVolumeLighting.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -710,6 +711,8 @@ void CreateTranslucentBasePassUniformBuffer(
 		BasePassParameters.TranslucencyLightingVolumeDirectionalInnerSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		BasePassParameters.TranslucencyLightingVolumeDirectionalOuterSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
+
+	BasePassParameters.LumenParameters = GetLumenTranslucencyLightingParameters(View.LumenTranslucencyGIVolume);
 
 	BasePassParameters.SceneTextures.SceneColorCopyTexture = SceneColorCopy ? SceneColorCopy->GetRenderTargetItem().ShaderResourceTexture : GBlackTexture->TextureRHI;
 

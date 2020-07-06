@@ -528,7 +528,11 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
 	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
 #endif
-	
+
+	GRHIMaxDispatchThreadGroupsPerDimension.X = MAX_uint16;
+	GRHIMaxDispatchThreadGroupsPerDimension.Y = MAX_uint16;
+	GRHIMaxDispatchThreadGroupsPerDimension.Z = MAX_uint16;
+
 	GMaxTextureMipCount = FPlatformMath::CeilLogTwo( GMaxTextureDimensions ) + 1;
 	GMaxTextureMipCount = FPlatformMath::Min<int32>( MAX_TEXTURE_MIP_COUNT, GMaxTextureMipCount );
 

@@ -4,9 +4,12 @@
 
 #include "RenderGraph.h"
 #include "ScreenSpaceDenoise.h"
+#include "IndirectLightRendering.h"
+#include "Lumen/LumenProbeHierarchy.h"
 
 class FViewInfo;
 class FSceneTextureParameters;
+
 
 enum class ESSRQuality
 {
@@ -30,11 +33,18 @@ struct FTiledScreenSpaceReflection
 	uint32 TileSize;
 };
 
+namespace ScreenSpaceRayTracing
+{
+
+BEGIN_SHADER_PARAMETER_STRUCT(FPrevSceneColorMip, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneAlpha)
+END_SHADER_PARAMETER_STRUCT()
+
 bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View);
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View);
 
-bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View);
 
 void ProcessForNextFrameScreenSpaceRayTracing(
 	FRDGBuilder& GraphBuilder,
@@ -46,6 +56,15 @@ void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScree
 
 bool IsSSRTemporalPassRequired(const FViewInfo& View);
 
+int32 GetSSGIRayCountPerTracingPixel();
+
+
+FPrevSceneColorMip ReducePrevSceneColorMip(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View);
+
+
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
@@ -56,10 +75,33 @@ void RenderScreenSpaceReflections(
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs,
 	FTiledScreenSpaceReflection* TiledScreenSpaceReflection = nullptr);
 
-void RenderScreenSpaceDiffuseIndirect(
+bool IsScreenSpaceDiffuseIndirectSupported(const FViewInfo& View);
+
+IScreenSpaceDenoiser::FDiffuseIndirectInputs CastStandaloneDiffuseIndirectRays(
 	FRDGBuilder& GraphBuilder, 
-	const FSceneTextureParameters& SceneTextures,
-	const FRDGTextureRef SceneColor,
+	const HybridIndirectLighting::FCommonParameters& CommonParameters,
+	const FPrevSceneColorMip& PrevSceneColor,
+	const FViewInfo& View);
+
+void CastDiffuseIndirectHybridRays(
+	FRDGBuilder& GraphBuilder,
+	const HybridIndirectLighting::FCommonParameters& CommonParameters,
+	const FPrevSceneColorMip& PrevSceneColor,
+	const FViewInfo& View);
+
+void TraceProbe(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig* OutRayTracingConfig,
-	IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
+	const FSceneTextureParameters& SceneTextures,
+	const FPrevSceneColorMip& PrevSceneColor,
+	const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
+	const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters);
+
+void TraceIndirectProbeOcclusion(
+	FRDGBuilder& GraphBuilder,
+	const HybridIndirectLighting::FCommonParameters& CommonParameters,
+	const FPrevSceneColorMip& PrevSceneColor,
+	const FViewInfo& View,
+	const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
+
+} // namespace ScreenSpaceRayTracing

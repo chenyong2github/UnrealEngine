@@ -237,7 +237,7 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FReadbackParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(, Texture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
 END_SHADER_PARAMETER_STRUCT()
 
 void AddDumpToPipePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, FImagePixelPipe* OutputPipe)

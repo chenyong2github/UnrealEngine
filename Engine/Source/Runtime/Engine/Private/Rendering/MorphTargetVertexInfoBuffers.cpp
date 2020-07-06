@@ -13,7 +13,7 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 		FRHIResourceCreateInfo CreateInfo;
 		void* VertexIndicesVBData = nullptr;
 		VertexIndicesVB = RHICreateAndLockVertexBuffer(VertexIndices.GetAllocatedSize(), BUF_Static | BUF_ShaderResource, CreateInfo, VertexIndicesVBData);
-		FMemory::Memcpy(VertexIndicesVBData, VertexIndices.GetData(), VertexIndices.GetAllocatedSize());
+		FMemory::ParallelMemcpy(VertexIndicesVBData, VertexIndices.GetData(), VertexIndices.GetAllocatedSize(), EMemcpyCachePolicy::StoreUncached);
 		RHIUnlockVertexBuffer(VertexIndicesVB);
 		VertexIndicesSRV = RHICreateShaderResourceView(VertexIndicesVB, 4, PF_R32_UINT);
 	}
@@ -21,7 +21,7 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 		FRHIResourceCreateInfo CreateInfo;
 		void* MorphDeltasVBData = nullptr;
 		MorphDeltasVB = RHICreateAndLockVertexBuffer(MorphDeltas.GetAllocatedSize(), BUF_Static | BUF_ShaderResource, CreateInfo, MorphDeltasVBData);
-		FMemory::Memcpy(MorphDeltasVBData, MorphDeltas.GetData(), MorphDeltas.GetAllocatedSize());
+		FMemory::ParallelMemcpy(MorphDeltasVBData, MorphDeltas.GetData(), MorphDeltas.GetAllocatedSize(), EMemcpyCachePolicy::StoreUncached);
 		RHIUnlockVertexBuffer(MorphDeltasVB);
 		MorphDeltasSRV = RHICreateShaderResourceView(MorphDeltasVB, 2, PF_R16F);
 	}
@@ -29,7 +29,7 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 		FRHIResourceCreateInfo CreateInfo;
 		void* MorphPermutationsVBData = nullptr;
 		MorphPermutationsVB = RHICreateAndLockVertexBuffer(MorphPermutations.GetAllocatedSize(), BUF_Static | BUF_ShaderResource, CreateInfo, MorphPermutationsVBData);
-		FMemory::Memcpy(MorphPermutationsVBData, MorphPermutations.GetData(), MorphPermutations.GetAllocatedSize());
+		FMemory::ParallelMemcpy(MorphPermutationsVBData, MorphPermutations.GetData(), MorphPermutations.GetAllocatedSize(), EMemcpyCachePolicy::StoreUncached);
 		RHIUnlockVertexBuffer(MorphPermutationsVB);
 		MorphPermutationsSRV = RHICreateShaderResourceView(MorphPermutationsVB, 4, PF_R32_UINT);
 	}

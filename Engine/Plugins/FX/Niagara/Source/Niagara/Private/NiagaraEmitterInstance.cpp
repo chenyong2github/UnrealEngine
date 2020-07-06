@@ -253,6 +253,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	ReallocationCount = 0;
 	MinOverallocation = -1;
 
+	bResetPending = false;
+
 	if (CachedEmitter == nullptr)
 	{
 		//@todo(message manager) Error bubbling here
@@ -1998,27 +2000,42 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 
 }
 
-bool FNiagaraEmitterInstance::FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const
+UObject* FNiagaraEmitterInstance::FindBinding(const FNiagaraVariable& InVariable) const
 {
+	if (!InVariable.IsValid())
+	{
+		return nullptr;
+	}
+
 	FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance();
 	if (SystemInstance)
 	{
 		UNiagaraComponent* Component = SystemInstance->GetComponent();
 		if (Component)
 		{
-			UObject* Obj = Component->GetOverrideParameters().GetUObject(InBinding.Parameter);
-			if (Obj)
-			{
-				UMaterialInterface* Material = Cast<UMaterialInterface>(Obj);
-				if (Material)
-				{
-					OutMaterials.Add(Material);
-					return true;
-				}
-			}
+			return Component->GetOverrideParameters().GetUObject(InVariable);
 		}
 	}
-	return false;
+	return nullptr;
+}
+
+UNiagaraDataInterface* FNiagaraEmitterInstance::FindDataInterface(const FNiagaraVariable& InVariable) const
+{
+	if (!InVariable.IsValid())
+	{
+		return nullptr;
+	}
+
+	FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance();
+	if (SystemInstance)
+	{
+		UNiagaraComponent* Component = SystemInstance->GetComponent();
+		if (Component)
+		{
+			return Component->GetOverrideParameters().GetDataInterface(InVariable);
+		}
+	}
+	return nullptr;
 }
 
 void FNiagaraEmitterInstance::BuildConstantBufferTable(

@@ -24,6 +24,12 @@ namespace Chaos
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
 	FAutoConsoleVariableRef CVarFixBadAccelerationStructureRemoval(TEXT("p.FixBadAccelerationStructureRemoval"), FixBadAccelerationStructureRemoval, TEXT(""));
 
+	CHAOS_API int32 ConstraintIterationsOverride = -1;
+	FAutoConsoleVariableRef CVarConstraintIterationsOverride(TEXT("p.ConstraintIterationsOverride"), ConstraintIterationsOverride, TEXT("Override for number of collision iterations."));
+
+	CHAOS_API int32 PushOutIterationsOverride = -1;
+	FAutoConsoleVariableRef CVarPushOutIterationsOverride(TEXT("p.PushOutIterationsOverride"), PushOutIterationsOverride, TEXT("Override for number of push out iterations."));
+	
 	struct FAccelerationConfig
 	{
 		int32 BroadphaseType;

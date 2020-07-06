@@ -907,6 +907,7 @@ void FViewInfo::Init()
 
 	PrimitiveSceneDataOverrideSRV = nullptr;
 	PrimitiveSceneDataTextureOverrideRHI = nullptr;
+	InstanceSceneDataOverrideSRV = nullptr;
 	LightmapSceneDataOverrideSRV = nullptr;
 
 	DitherFadeInUniformBuffer = nullptr;
@@ -1628,6 +1629,15 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(ViewPrimitiveShaderDataTexture.Buffer);
 		}
 		
+		if (InstanceSceneDataOverrideSRV)
+		{
+			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
+		}
+		else if (Scene && Scene->GPUScene.InstanceDataBuffer.SRV)
+		{
+			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceDataBuffer.SRV;
+		}
+
 		if (LightmapSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.LightmapSceneData = LightmapSceneDataOverrideSRV;
@@ -1643,6 +1653,13 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
+
+#if WITH_EDITOR
+	if( EditorSelectedBuffer.SRV )
+	{
+		ViewUniformShaderParameters.EditorSelectedHitProxyIds = EditorSelectedBuffer.SRV;
+	}
+#endif
 }
 
 void FViewInfo::InitRHIResources()
@@ -2714,6 +2731,8 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 		const bool bShowPointLightWarning = UsedWholeScenePointLightNames.Num() > 0 && !ReadOnlyCVARCache.bEnablePointLightShadows;
 		const bool bShowShadowedLightOverflowWarning = Scene->OverflowingDynamicShadowedLights.Num() > 0;
 
+		const bool bLumenEnabledButNoDistanceFieldsWarning = ShouldRenderLumenDiffuseGI(ShaderPlatform, ViewFamily) && !Scene->DistanceFieldSceneData.bTrackAllPrimitives;
+
 		// Mobile-specific warnings
 		const bool bMobile = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
 		const bool bShowMobileLowQualityLightmapWarning = bMobile && !ReadOnlyCVARCache.bEnableLowQualityLightmaps && ReadOnlyCVARCache.bAllowStaticLighting;
@@ -2734,7 +2753,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 		
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
-			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning;
+			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bLumenEnabledButNoDistanceFieldsWarning;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2884,6 +2903,13 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 						Y += 14;
 					}
 
+					if (bLumenEnabledButNoDistanceFieldsWarning)
+					{
+						static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", "Lumen is enabled but the project does not have 'Generate Mesh Distancefields' enabled.  Lumen will not operate correctly.");
+						Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+						Y += 14;
+					}
+
 					Canvas.Flush_RenderThread(RHICmdList);
 				}
 				
@@ -2932,7 +2958,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 #endif
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	// clear the commands
 	bHasRequestedToggleFreeze = false;
 
@@ -2950,7 +2976,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 			FVisualizeTexturePresent::PresentContent(RHICmdList, View);
 		}
 	}
-#endif
+#endif //SUPPORTS_VISUALIZE_TEXTURE
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderView);

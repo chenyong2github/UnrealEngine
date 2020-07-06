@@ -8,6 +8,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "EngineGlobals.h"
+#include "InstanceUniformShaderParameters.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "Engine/Engine.h"
 #include "Widgets/SWindow.h"
@@ -34,6 +35,7 @@ DECLARE_CYCLE_STAT(TEXT("StartFinalPostprocessSettings"), STAT_StartFinalPostpro
 DECLARE_CYCLE_STAT(TEXT("OverridePostProcessSettings"), STAT_OverridePostProcessSettings, STATGROUP_Engine);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters, "Primitive");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters, "PrimitiveInstance");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FViewUniformShaderParameters, "View");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedViewUniformShaderParameters, "InstancedView");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDirectionalLightShaderParameters, "MobileDirectionalLight");
@@ -620,9 +622,8 @@ static void SetupViewFrustum(FSceneView& View)
 	}
 
 	// Derive the view's near clipping distance and plane.
-	// The GetFrustumFarPlane() is the near plane because of reverse Z projection.
 	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Fix Near Clip distance!");
-	View.bHasNearClippingPlane = View.ViewMatrices.GetViewProjectionMatrix().GetFrustumFarPlane(View.NearClippingPlane);
+	View.bHasNearClippingPlane = View.ViewMatrices.GetViewProjectionMatrix().GetFrustumNearPlane(View.NearClippingPlane);
 	if (View.ViewMatrices.GetProjectionMatrix().M[2][3] > DELTA)
 	{
 		// Infinite projection with reversed Z.
@@ -1717,17 +1718,7 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 		{
 			FinalPostProcessSettings.AmbientOcclusionIntensity = 0;
 		}
-		if (!CVarDefaultAutoExposure.GetValueOnGameThread())
-		{
-			FinalPostProcessSettings.AutoExposureMinBrightness = 1;
-			FinalPostProcessSettings.AutoExposureMaxBrightness = 1;
-			if (CVarDefaultAutoExposureExtendDefaultLuminanceRange.GetValueOnGameThread())
-			{
-				FinalPostProcessSettings.AutoExposureMinBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMinBrightness);
-				FinalPostProcessSettings.AutoExposureMaxBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMaxBrightness);
-			}
-		}
-		else
+		if (CVarDefaultAutoExposure.GetValueOnGameThread())
 		{
 			int32 Value = CVarDefaultAutoExposureMethod.GetValueOnGameThread();
 			if (Value >= 0 && Value < AEM_MAX)
@@ -2212,6 +2203,21 @@ bool FSceneView::IsInstancedStereoPass() const
 	return bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*this) && IStereoRendering::IsAPrimaryView(*this);
 }
 
+FVector4 FSceneView::GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const
+{
+	const float InvBufferSizeX = 1.0f / BufferSize.X;
+	const float InvBufferSizeY = 1.0f / BufferSize.Y;
+
+	// to bring NDC (-1..1, 1..-1) into 0..1 UV for BufferSize textures
+	return FVector4(
+		ViewRect.Width() * InvBufferSizeX / +2.0f,
+		ViewRect.Height() * InvBufferSizeY / (-2.0f * GProjectionSignY),
+		// Warning: note legacy flipped Y and X
+		(ViewRect.Height() / 2.0f + ViewRect.Min.Y) * InvBufferSizeY,
+		(ViewRect.Width() / 2.0f + ViewRect.Min.X) * InvBufferSizeX
+		);
+}
+
 void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters,
 	const FIntPoint& BufferSize,
 	const FIntRect& EffectiveViewRect,
@@ -2227,14 +2233,8 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 	// Calculate the vector used by shaders to convert clip space coordinates to texture space.
 	const float InvBufferSizeX = 1.0f / BufferSize.X;
 	const float InvBufferSizeY = 1.0f / BufferSize.Y;
-	// to bring NDC (-1..1, 1..-1) into 0..1 UV for BufferSize textures
-	const FVector4 ScreenPositionScaleBias(
-		EffectiveViewRect.Width() * InvBufferSizeX / +2.0f,
-		EffectiveViewRect.Height() * InvBufferSizeY / (-2.0f * GProjectionSignY),
-		(EffectiveViewRect.Height() / 2.0f + EffectiveViewRect.Min.Y) * InvBufferSizeY,
-		(EffectiveViewRect.Width() / 2.0f + EffectiveViewRect.Min.X) * InvBufferSizeX);
 
-	ViewUniformShaderParameters.ScreenPositionScaleBias = ScreenPositionScaleBias;
+	ViewUniformShaderParameters.ScreenPositionScaleBias = GetScreenPositionScaleBias(BufferSize, EffectiveViewRect);
 
 	ViewUniformShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
 	ViewUniformShaderParameters.BufferBilinearUVMinMax = FVector4(
@@ -2364,8 +2364,8 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	// and we don't have EffectiveTranslatedViewMatrix for the previous frame to set up PrevTranslatedWorldToView
 	// but that is fine to set up PrevTranslatedWorldToView as same as PrevTranslatedWorldToCameraView
 	// since the shadow pass doesn't require previous frame computation.
-	ViewUniformShaderParameters.PrevTranslatedWorldToView = InPrevViewMatrices.GetTranslatedViewMatrix();
-	ViewUniformShaderParameters.PrevViewToTranslatedWorld = InPrevViewMatrices.GetInvTranslatedViewMatrix();
+	ViewUniformShaderParameters.PrevTranslatedWorldToView = InPrevViewMatrices.GetOverriddenTranslatedViewMatrix();
+	ViewUniformShaderParameters.PrevViewToTranslatedWorld = InPrevViewMatrices.GetOverriddenInvTranslatedViewMatrix();
 	ViewUniformShaderParameters.PrevTranslatedWorldToCameraView = InPrevViewMatrices.GetTranslatedViewMatrix();
 	ViewUniformShaderParameters.PrevCameraViewToTranslatedWorld = InPrevViewMatrices.GetInvTranslatedViewMatrix();
 	ViewUniformShaderParameters.PrevWorldCameraOrigin = InPrevViewMatrices.GetViewOrigin();
@@ -2387,7 +2387,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.PrevFrameRealTime = Family->CurrentRealTime  - Family->DeltaWorldTime;
 	ViewUniformShaderParameters.WorldCameraMovementSinceLastFrame = InViewMatrices.GetViewOrigin() - InPrevViewMatrices.GetViewOrigin();
 	ViewUniformShaderParameters.CullingSign = bReverseCulling ? -1.0f : 1.0f;
-	ViewUniformShaderParameters.NearPlane = GNearClippingPlane;
+	ViewUniformShaderParameters.NearPlane = InViewMatrices.ComputeNearPlane();
 	ViewUniformShaderParameters.MaterialTextureMipBias = 0.0f;
 	ViewUniformShaderParameters.MaterialTextureDerivativeMultiply = 1.0f;
 

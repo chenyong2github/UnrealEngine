@@ -26,7 +26,6 @@ class TSimpVert
 public:
 					TSimpVert();
 
-	uint32			GetMaterialIndex() const	{ return vert.GetMaterialIndex(); }
 	FVector&		GetPos()					{ return vert.GetPos(); }
 	const FVector&	GetPos() const				{ return vert.GetPos(); }
 	float*			GetAttributes()				{ return vert.GetAttributes(); }

@@ -459,7 +459,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIPixelShader* ComputeShaderRHI, uin
 		//check it's safe for r/w for this UAV
 		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
 		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
+		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *GetResourceTransitionAccessName(CurrentUAVAccess), (int32)UAVDirty);
 
 		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
 		UAV->Resource->SetDirty(true, PresentCounter);
@@ -484,7 +484,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 		//check it's safe for r/w for this UAV
 		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
 		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
+		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *GetResourceTransitionAccessName(CurrentUAVAccess), (int32)UAVDirty);
 
 		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
 		UAV->Resource->SetDirty(true, PresentCounter);
@@ -509,7 +509,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 		//check it's safe for r/w for this UAV
 		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
 		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
+		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *GetResourceTransitionAccessName(CurrentUAVAccess), (int32)UAVDirty);
 
 		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
 		UAV->Resource->SetDirty(true, PresentCounter);
@@ -935,7 +935,7 @@ void FD3D11DynamicRHI::CommitUAVs()
 						const EResourceTransitionAccess CurrentUAVAccess = RHIUAV->Resource->GetCurrentGPUAccess();
 						const bool UAVDirty = RHIUAV->Resource->IsDirty();
 						const bool bAccessPass = (CurrentUAVAccess == EResourceTransitionAccess::ERWBarrier && !UAVDirty) || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier);
-						ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessPass, TEXT("UAV: %i is in unsafe state for GPU R/W: %s"), i, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess]);
+						ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessPass, TEXT("UAV: %i is in unsafe state for GPU R/W: %s"), i, *GetResourceTransitionAccessName(CurrentUAVAccess));
 
 						//UAVs get set to dirty.  If the shader just wanted to read it should have used an SRV.
 						RHIUAV->Resource->SetDirty(true, PresentCounter);
@@ -2072,7 +2072,7 @@ void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess Transiti
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], NumTextures);
+	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *GetResourceTransitionAccessName(TransitionType), NumTextures);
 	for (int32 i = 0; i < NumTextures; ++i)
 	{				
 		FRHITexture* RenderTarget = InTextures[i];
@@ -2130,6 +2130,44 @@ void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess Transiti
 		WriteFence->WriteFence();
 	}
 }
+
+void FD3D11DynamicRHI::RHICreateResourceTransition(FRHITransition* Transition, EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags PipelineFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	FD3D11TransitionData* Data = new (Transition->GetPrivateData<FD3D11TransitionData>()) FD3D11TransitionData;
+	Data->Pipeline = Pipeline;
+}
+
+void FD3D11DynamicRHI::RHIReleaseResourceTransition(FRHITransition* Transition)
+{
+	Transition->GetPrivateData<FD3D11TransitionData>()->~FD3D11TransitionData();
+}
+
+void FD3D11DynamicRHI::RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D11TransitionData* Data = Transition->GetPrivateData<FD3D11TransitionData>();
+
+		ensureMsgf(Data->Pipeline == EResourceTransitionPipeline::Graphics_To_Graphics || Data->Pipeline == EResourceTransitionPipeline::Graphics_To_AsyncCompute,
+			TEXT("The current resource transition is not expected to be begun on the graphics pipeline. Check the choice of EResourceTransitionPipeline for this transition."));
+	}
+
+	// @todo: implementation
+}
+
+void FD3D11DynamicRHI::RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D11TransitionData* Data = Transition->GetPrivateData<FD3D11TransitionData>();
+
+		ensureMsgf(Data->Pipeline == EResourceTransitionPipeline::Graphics_To_Graphics || Data->Pipeline == EResourceTransitionPipeline::AsyncCompute_To_Graphics,
+			TEXT("The current resource transition is not expected to be ended on the graphics pipeline. Check the choice of EResourceTransitionPipeline for this transition."));
+	}
+
+	// @todo: implementation
+}
+
 
 static TAutoConsoleVariable<int32> CVarAllowUAVFlushExt(
 	TEXT("r.D3D11.AutoFlushUAV"),

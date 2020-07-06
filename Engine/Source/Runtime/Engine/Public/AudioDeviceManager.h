@@ -31,6 +31,8 @@ struct FSourceEffectChainEntry;
 
 namespace Audio
 {
+	class FMixerDevice;
+
 	/**
 	 * Typed identifier for Audio Device Id
 	 */
@@ -222,6 +224,9 @@ public:
 	FAudioDeviceHandle GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
 	FAudioDevice* GetMainAudioDeviceRaw() const { return MainAudioDeviceHandle.GetAudioDevice(); }
 	Audio::FDeviceId GetMainAudioDeviceID() const { return MainAudioDeviceHandle.GetDeviceID(); }
+
+	static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject);
+	static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject);
 
 	/** Returns true if we're currently using the audio mixer. */
 	bool IsUsingAudioMixer() const;

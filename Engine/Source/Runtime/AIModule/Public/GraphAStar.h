@@ -38,7 +38,7 @@ struct FGraphAStarDefaultNode
 
 	FGraphAStarDefaultNode(const FGraphNodeRef& InNodeRef)
 		: NodeRef(InNodeRef)
-		, ParentRef(INDEX_NONE)
+		, ParentRef(TIsPointer<FGraphNodeRef>::Value ? (FGraphNodeRef)NULL : (FGraphNodeRef)INDEX_NONE)
 		, TraversalCost(FLT_MAX)
 		, TotalCost(FLT_MAX)
 		, SearchNodeIndex(INDEX_NONE)

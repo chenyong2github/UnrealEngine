@@ -224,6 +224,11 @@ class UBodySetup : public UObject
 	uint8 bHasCookedCollisionData:1;
 
 	/** Indicates that we will never use convex or trimesh shapes. This is an optimization to skip checking for binary data. */
+	/** 
+	 * TODO Chaos this is to opt out of CreatePhysicsMeshes for certain meshes
+	 * Better long term mesh is to not call CreatePhysicsMeshes until it is known there is a mesh instance that needs it.
+	 */
+	UPROPERTY(EditAnywhere, Category = Collision)
 	uint8 bNeverNeedsCookedCollisionData:1;
 
 	/** Collision Type for this body. This eventually changes response to collision to others **/

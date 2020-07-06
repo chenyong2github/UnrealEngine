@@ -39,7 +39,7 @@ FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry()
 {
 }
 
-FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, FAnimationActiveTransitionEntry* ExistingTransitionForNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo)
+FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, FAnimationActiveTransitionEntry* ExistingTransitionForNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo, const FAnimationPotentialTransition& PotentialTransition)
 	: ElapsedTime(0.0f)
 	, Alpha(0.0f)
 	, NextState(NextStateID)
@@ -53,7 +53,7 @@ FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry(int32 NextState
 	, bActive(true)
 {
 	const float Scaler = 1.0f - ExistingWeightOfNextState;
-	CrossfadeDuration = (LogicType == ETransitionLogicType::TLT_Inertialization) ? 0.0f : ReferenceTransitionInfo.CrossfadeDuration * CalculateInverseAlpha(BlendOption, Scaler);
+	CrossfadeDuration = (LogicType == ETransitionLogicType::TLT_Inertialization) ? 0.0f : FMath::Max(ReferenceTransitionInfo.CrossfadeDuration - PotentialTransition.CrossfadeTimeAdjustment, 0.f) * CalculateInverseAlpha(BlendOption, Scaler);
 
 	Blend.SetBlendTime(CrossfadeDuration);
 	Blend.SetBlendOption(BlendOption);
@@ -183,6 +183,7 @@ bool FAnimationActiveTransitionEntry::Serialize(FArchive& Ar)
 
 FAnimationPotentialTransition::FAnimationPotentialTransition()
 : 	TargetState(INDEX_NONE)
+,	CrossfadeTimeAdjustment(0.f)
 ,	TransitionRule(NULL)
 {
 }
@@ -195,6 +196,7 @@ bool FAnimationPotentialTransition::IsValid() const
 void FAnimationPotentialTransition::Clear()
 {
 	TargetState = INDEX_NONE;
+	CrossfadeTimeAdjustment = 0.f;
 	TransitionRule = NULL;
 	SourceTransitionIndices.Reset();
 }
@@ -460,7 +462,7 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 
 			// Push the transition onto the stack
 			const FAnimationTransitionBetweenStates& ReferenceTransition = GetTransitionInfo(PotentialTransition.TransitionRule->TransitionIndex); //-V595
-			FAnimationActiveTransitionEntry* NewTransition = new (ActiveTransitionArray) FAnimationActiveTransitionEntry(NextState, ExistingWeightOfNextState, PreviousTransitionForNextState, PreviousState, ReferenceTransition);
+			FAnimationActiveTransitionEntry* NewTransition = new (ActiveTransitionArray) FAnimationActiveTransitionEntry(NextState, ExistingWeightOfNextState, PreviousTransitionForNextState, PreviousState, ReferenceTransition, PotentialTransition);
 			if (NewTransition && PotentialTransition.TransitionRule)
 			{
 				NewTransition->InitializeCustomGraphLinks(Context, *(PotentialTransition.TransitionRule));
@@ -661,8 +663,15 @@ bool FAnimNode_StateMachine::FindValidTransition(const FAnimationUpdateContext& 
 		}
 
 		FAnimNode_TransitionResult* ResultNode = GetNodeFromPropertyIndex<FAnimNode_TransitionResult>(Context.AnimInstanceProxy->GetAnimInstanceObject(), AnimBlueprintClass, TransitionRule.CanTakeDelegateIndex);
+		float CrossfadeTimeAdjustment = 0.f;
 
-		if (ResultNode->NativeTransitionDelegate.IsBound())
+		// If we require a valid sync group, check that first.
+		if ((TransitionRule.SyncGroupNameToRequireValidMarkersRule != NAME_None)
+			&& !Context.AnimInstanceProxy->IsSyncGroupValid(TransitionRule.SyncGroupNameToRequireValidMarkersRule))
+		{
+			ResultNode->bCanEnterTransition = false;
+		}
+		else if (ResultNode->NativeTransitionDelegate.IsBound())
 		{
 			// attempt to evaluate native rule
 			ResultNode->bCanEnterTransition = ResultNode->NativeTransitionDelegate.Execute();
@@ -676,7 +685,8 @@ bool FAnimNode_StateMachine::FindValidTransition(const FAnimationUpdateContext& 
 				{
 					const float AnimTimeRemaining = AnimAsset->GetMaxCurrentTime() - RelevantPlayer->GetAccumulatedTime();
 					const FAnimationTransitionBetweenStates& TransitionInfo = GetTransitionInfo(TransitionRule.TransitionIndex);
-					bCanEnterTransition = (AnimTimeRemaining <= TransitionInfo.CrossfadeDuration);
+					CrossfadeTimeAdjustment = TransitionInfo.CrossfadeDuration - AnimTimeRemaining;
+					bCanEnterTransition = (CrossfadeTimeAdjustment >= 0.f);
 				}
 			}
 			ResultNode->bCanEnterTransition = bCanEnterTransition;
@@ -711,7 +721,7 @@ bool FAnimNode_StateMachine::FindValidTransition(const FAnimationUpdateContext& 
 				// fill out the potential transition information
 				OutPotentialTransition.TransitionRule = &TransitionRule;
 				OutPotentialTransition.TargetState = NextState;
-
+				OutPotentialTransition.CrossfadeTimeAdjustment = CrossfadeTimeAdjustment;
 				OutPotentialTransition.SourceTransitionIndices.Add(TransitionRule.TransitionIndex);
 
 				return true;
@@ -731,8 +741,8 @@ void FAnimNode_StateMachine::UpdateTransitionStates(const FAnimationUpdateContex
 		case ETransitionLogicType::TLT_StandardBlend:
 			{
 				// update both states
-				UpdateState(Transition.PreviousState, Context.FractionalWeight(1.0f - Transition.Alpha));
-				UpdateState(Transition.NextState, Context.FractionalWeight(Transition.Alpha));
+				UpdateState(Transition.PreviousState, Context.FractionalWeight(GetStateWeight(Transition.PreviousState)));
+				UpdateState(Transition.NextState, Context.FractionalWeight(GetStateWeight(Transition.NextState)));
 			}
 			break;
 
@@ -987,7 +997,7 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 
 		// Clear any currently cached blend weights for asset player nodes.
 		// This stops any zero length blends holding on to old weights
-		for(const int32& PlayerIndex : GetStateInfo(CurrentState).PlayerNodeIndices)
+		for(int32 PlayerIndex : GetStateInfo(CurrentState).PlayerNodeIndices)
 		{
 			if(FAnimNode_AssetPlayerBase* Player = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIndex))
 			{

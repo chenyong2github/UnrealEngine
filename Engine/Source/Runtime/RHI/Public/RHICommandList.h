@@ -1496,6 +1496,30 @@ FRHICOMMAND_MACRO(FRHICommandResummarizeHTile)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandBeginResourceTransitions)
+{
+	TArrayView<const FRHITransition*> Transitions;
+
+	FRHICommandBeginResourceTransitions(TArrayView<const FRHITransition*> InTransitions)
+		: Transitions(InTransitions)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandEndResourceTransitions)
+{
+	TArrayView<const FRHITransition*> Transitions;
+
+	FRHICommandEndResourceTransitions(TArrayView<const FRHITransition*> InTransitions)
+		: Transitions(InTransitions)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandTransitionTexturesDepth)
 {
 	FExclusiveDepthStencil DepthStencilMode;
@@ -2504,6 +2528,58 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandClearUAVUint)(UnorderedAccessViewRHI, Values);
 	}
+	
+	FORCEINLINE_DEBUGGABLE void BeginResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIBeginResourceTransitions(Transitions);
+
+			for (const FRHITransition* Transition : Transitions)
+			{
+				Transition->MarkBegin();
+			}
+		}
+		else
+		{
+			// Copy the transition array into the command list
+			FRHITransition** DstTransitionArray = (FRHITransition**)Alloc(sizeof(FRHITransition*) * Transitions.Num(), alignof(FRHITransition*));
+			FMemory::Memcpy(DstTransitionArray, Transitions.GetData(), sizeof(FRHITransition*) * Transitions.Num());
+
+			ALLOC_COMMAND(FRHICommandBeginResourceTransitions)(MakeArrayView((const FRHITransition**)DstTransitionArray, Transitions.Num()));
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void EndResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIEndResourceTransitions(Transitions);
+
+			for (const FRHITransition* Transition : Transitions)
+			{
+				Transition->MarkEnd();
+			}
+		}
+		else
+		{
+			// Copy the transition array into the command list
+			FRHITransition** DstTransitionArray = (FRHITransition**)Alloc(sizeof(FRHITransition*) * Transitions.Num(), alignof(FRHITransition*));
+			FMemory::Memcpy(DstTransitionArray, Transitions.GetData(), sizeof(FRHITransition*) * Transitions.Num());
+
+			ALLOC_COMMAND(FRHICommandEndResourceTransitions)(MakeArrayView((const FRHITransition**)DstTransitionArray, Transitions.Num()));
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void BeginResourceTransition(const FRHITransition* Transition)
+	{
+		BeginResourceTransitions(MakeArrayView(&Transition, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void EndResourceTransition(const FRHITransition* Transition)
+	{
+		EndResourceTransitions(MakeArrayView(&Transition, 1));
+	}
 
 	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
 	{
@@ -2804,7 +2880,6 @@ public:
 
 	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout& Layout)
 	{
-		//check(IsOutsideRenderPass());
 		FLocalUniformBuffer Result;
 		if (Bypass())
 		{
@@ -2822,7 +2897,6 @@ public:
 	template <typename TRHIShader>
 	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(TRHIShader* Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
 	{
-		//check(IsOutsideRenderPass());
 		ValidateBoundShader(Shader);
 		if (Bypass())
 		{

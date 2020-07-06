@@ -10,166 +10,6 @@
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
 
-uint NumUploadOperations;
-Buffer<uint> UploadOperationIndices;
-Buffer<float4> UploadOperationData;
-
-// In float4's.  Must match equivalent C++ variables.
-#define UPLOAD_DATA_STRIDE (OBJECT_BOUNDS_STRIDE + OBJECT_DATA_STRIDE)
-
-void UploadBoundsFloat4(uint DestIndex, uint UploadIndex)
-{
-	float4 UploadVector = UploadOperationData[UploadIndex];
-	WriteFloat4(RWSceneObjectBounds, DestIndex, UploadVector);
-}
-
-void UploadDataFloat4(uint DestIndex, uint UploadIndex)
-{
-	float4 UploadVector = UploadOperationData[UploadIndex];
-	WriteFloat4(RWSceneObjectData, DestIndex, UploadVector);
-}
-
-[numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
-void UploadObjectsToBufferCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-    uint3 GroupThreadId : SV_GroupThreadID) 
-{
-	uint UploadOperationIndex = DispatchThreadId.x;
-
-	if (DispatchThreadId.x < NumUploadOperations)
-	{
-		uint DestIndex = UploadOperationIndices[UploadOperationIndex];
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
-			{
-				UploadBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + VectorIndex);
-			}
-		}
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; ++VectorIndex)
-			{
-				UploadDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, UploadOperationIndex * UPLOAD_DATA_STRIDE + OBJECT_BOUNDS_STRIDE + VectorIndex);
-			}
-		}
-	}
-}
-
-#if PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
-RWBuffer<float4> RWCopyObjectBounds;
-RWBuffer<float4> RWCopyObjectData;
-#else
-RWBuffer<float> RWCopyObjectBounds;
-RWBuffer<float> RWCopyObjectData;
-#endif
-
-void CopyBoundsFloat4(uint DestIndex, uint SourceIndex)
-{
-	WriteFloat4(RWCopyObjectBounds, DestIndex, LoadFloat4(SceneObjectBounds, SourceIndex));
-}
-
-void CopyDataFloat4(uint DestIndex, uint SourceIndex)
-{
-	WriteFloat4(RWCopyObjectData, DestIndex, LoadFloat4(SceneObjectData, SourceIndex));
-}
-
-[numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
-void CopyObjectBufferCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-    uint3 GroupThreadId : SV_GroupThreadID) 
-{
-	uint CopyOperationIndex = DispatchThreadId.x;
-
-	if (CopyOperationIndex < NumSceneObjects)
-	{
-		uint SourceIndex = CopyOperationIndex;
-		uint DestIndex = CopyOperationIndex;
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
-			{
-				CopyBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
-			}
-		}
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
-			{
-				CopyDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
-			}
-		}
-	}
-}
-
-uint NumRemoveOperations;
-Buffer<uint4> RemoveOperationIndices;
-
-#if REMOVE_FROM_SAME_BUFFER
-	#define RWBoundsRemoveSource RWSceneObjectBounds
-	#define RWDataRemoveSource RWSceneObjectData
-#else
-
-	#if PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
-		Buffer<float4> ObjectBounds2;
-		Buffer<float4> ObjectData2;
-	#else
-		Buffer<float> ObjectBounds2;
-		Buffer<float> ObjectData2;
-	#endif
-
-	#define RWBoundsRemoveSource ObjectBounds2
-	#define RWDataRemoveSource ObjectData2
-#endif
-
-void WriteBoundsFloat4(uint DestIndex, uint SourceIndex)
-{
-	WriteFloat4(RWSceneObjectBounds, DestIndex, LoadFloat4(RWBoundsRemoveSource, SourceIndex));
-}
-
-void WriteDataFloat4(uint DestIndex, uint SourceIndex)
-{
-	WriteFloat4(RWSceneObjectData, DestIndex, LoadFloat4(RWDataRemoveSource, SourceIndex));
-}
-
-[numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
-void RemoveObjectsFromBufferCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-    uint3 GroupThreadId : SV_GroupThreadID) 
-{
-	uint RemoveOperationIndex = DispatchThreadId.x;
-
-	if (RemoveOperationIndex < NumRemoveOperations)
-	{
-		// RemoveAtSwap
-		uint SourceIndex = RemoveOperationIndices[RemoveOperationIndex].y;
-		uint DestIndex = RemoveOperationIndices[RemoveOperationIndex].x;
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_BOUNDS_STRIDE; ++VectorIndex)
-			{
-				WriteBoundsFloat4(DestIndex * OBJECT_BOUNDS_STRIDE + VectorIndex, SourceIndex * OBJECT_BOUNDS_STRIDE + VectorIndex);
-			}
-		}
-
-		{
-			UNROLL
-			for (uint VectorIndex = 0; VectorIndex < OBJECT_DATA_STRIDE; VectorIndex++)
-			{
-				WriteDataFloat4(DestIndex * OBJECT_DATA_STRIDE + VectorIndex, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
-			}
-		}
-	}
-}
-
 uint ObjectBoundingGeometryIndexCount;
 
 groupshared uint NumGroupObjects;
@@ -179,12 +19,12 @@ groupshared uint GroupObjectIndices[UPDATEOBJECTS_THREADGROUP_SIZE];
 
 void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 {
-	RWCulledObjectBounds[DestIndex] = LoadFloat4(SceneObjectBounds, SourceIndex);
+	RWCulledObjectBounds[DestIndex] = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
 
 	UNROLL
 	for (uint VectorIndex = 0; VectorIndex < CULLED_OBJECT_DATA_STRIDE; VectorIndex++)
 	{
-		float4 Data = LoadFloat4(SceneObjectData, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+		float4 Data = SceneObjectData[SourceIndex * OBJECT_DATA_STRIDE + VectorIndex];
 
 		// Note: only copying the first CULLED_OBJECT_DATA_STRIDE of the original object data
 		RWCulledObjectData[DestIndex * CULLED_OBJECT_DATA_STRIDE + VectorIndex] = Data;
@@ -219,7 +59,7 @@ void CullObjectsForViewCS(
 	{
 		uint SourceIndex = ObjectIndex;
 
-		float4 ObjectBoundingSphere = LoadFloat4(SceneObjectBounds, SourceIndex);
+		float4 ObjectBoundingSphere = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
 		float DistanceToViewSq = dot(View.WorldCameraOrigin - ObjectBoundingSphere.xyz, View.WorldCameraOrigin - ObjectBoundingSphere.xyz);
 
 		if (DistanceToViewSq < Square(AOMaxViewDistance + ObjectBoundingSphere.w)

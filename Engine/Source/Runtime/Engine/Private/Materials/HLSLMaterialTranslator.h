@@ -20,6 +20,7 @@
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
 #include "EngineGlobals.h"
@@ -798,6 +799,9 @@ protected:
 
 	/**Experimental access to the EyeAdaptation RT for Post Process materials. Can be one frame behind depending on the value of BlendableLocation. */
 	virtual int32 EyeAdaptation() override;
+
+	/**Experimental access to the EyeAdaptation RT for applying an inverse. */
+	virtual int32 EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg) override;
 
 	// to only have one piece of code dealing with error handling if the Primitive constant buffer is not used.
 	// @param Name e.g. TEXT("ObjectWorldPositionAndRadius.w")

@@ -351,7 +351,7 @@ public:
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackVolumeTexture");
+			CreateInfo.DebugName = TEXT("BlackVolumeTexture3D");
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = Texture3D;	
 		}
@@ -360,6 +360,7 @@ public:
 			// Create a texture, even though it's not a volume texture
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+			CreateInfo.DebugName = TEXT("BlackVolumeTexture2D");
 			FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = Texture2D;
 		}
@@ -451,6 +452,7 @@ public:
 		// Create the texture RHI.
 		int32 TextureSize = 1 << (NumMips - 1);
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.DebugName = TEXT("FMipColorTexture");
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(TextureSize,TextureSize,PF_B8G8R8A8,NumMips,1,TexCreate_ShaderResource,CreateInfo);
 		TextureRHI = Texture2D;
 
@@ -864,7 +866,7 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 	if(SourceStride == DestStride || DestStride == 0)
 	{
 		// If the source and destination have the same stride, copy the data in one block.
-		FMemory::Memcpy(Dest,Source,NumBlocksY * SourceStride);
+		FMemory::ParallelMemcpy(Dest,Source,NumBlocksY * SourceStride, EMemcpyCachePolicy::StoreUncached);
 	}
 	else
 	{
@@ -872,11 +874,12 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 		const uint32 NumBytesPerRow = FMath::Min<uint32>(SourceStride, DestStride);
 		for(uint32 BlockY = 0;BlockY < NumBlocksY;++BlockY)
 		{
-			FMemory::Memcpy(
+			FMemory::ParallelMemcpy(
 				(uint8*)Dest   + DestStride   * BlockY,
 				(uint8*)Source + SourceStride * BlockY,
-				NumBytesPerRow
-				);
+				NumBytesPerRow,
+				EMemcpyCachePolicy::StoreUncached
+			);
 		}
 	}
 }
@@ -1101,6 +1104,12 @@ static FAutoConsoleVariableRef CVarForwardShading(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 	); 
 
+static TAutoConsoleVariable<int32> CVarGBufferDiffuseSampleOcclusion(
+	TEXT("r.GBufferDiffuseSampleOcclusion"), 0,
+	TEXT("Whether the gbuffer contain occlusion information for individual diffuse samples."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+	); 
+
 static TAutoConsoleVariable<int32> CVarDistanceFields(
 	TEXT("r.DistanceFields"),
 	1,
@@ -1290,6 +1299,7 @@ public:
 
 		// Create vertex buffer. Fill buffer with initial data upon creation
 		FRHIResourceCreateInfo CreateInfo(&Verts);
+		CreateInfo.DebugName = TEXT("FUnitCubeVertexBuffer");
 		VertexBufferRHI = RHICreateVertexBuffer(Size, BUF_Static, CreateInfo);
 	}
 };
@@ -1313,6 +1323,7 @@ public:
 
 		// Create index buffer. Fill buffer with initial data upon creation
 		FRHIResourceCreateInfo CreateInfo(&Indices);
+		CreateInfo.DebugName = TEXT("FUnitCubeIndexBuffer");
 		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 };

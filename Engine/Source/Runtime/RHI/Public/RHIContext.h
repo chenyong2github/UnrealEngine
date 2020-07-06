@@ -115,6 +115,10 @@ public:
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
+	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) {};
+
+	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) {};
+
 	/**
 	* Explicitly transition a UAV from readable -> writable by the GPU or vice versa.
 	* Also explicitly states which pipeline the UAV can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read

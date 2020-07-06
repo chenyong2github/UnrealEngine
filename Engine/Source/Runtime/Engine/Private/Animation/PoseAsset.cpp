@@ -667,23 +667,26 @@ bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& O
 				}
 			}
 
-			// collect curves
-			PoseCurves.AddDefaulted(TotalNumberOfValidPoses);
-			CurveWeights.AddUninitialized(TotalNumberOfValidPoses);
-			int32 PoseIndex = 0;
+			// Take the matching curve weights from the selected poses, and blend them using the
+			// weighting that we need from each pose. This is much faster than grabbing each
+			// blend curve and blending them in their entirety, especially when there are very
+			// few active curves for each pose and many curves for the entire pose asset.
 			for (const TPair<const FPoseData*, float>& ActivePosePair : IndexToWeightMap)
 			{
 				const FPoseData* Pose = ActivePosePair.Key;
 				const float Weight = ActivePosePair.Value;
 
-				CurveWeights[PoseIndex] = Weight;
-				PoseCurves[PoseIndex].InitFrom(OutCurve);
-				PoseContainer.GetPoseCurve(Pose, PoseCurves[PoseIndex]);
-				++PoseIndex;
-			}
+				const TArray<float>& CurveValues = Pose->CurveData;
+				checkSlow(CurveValues.Num() == PoseContainer.Curves.Num());
 
-			// blend curves
-			BlendCurves(PoseCurves, CurveWeights, OutCurve);
+				for (int32 CurveIndex = 0; CurveIndex < PoseContainer.Curves.Num(); ++CurveIndex)
+				{
+					const FAnimCurveBase& Curve = PoseContainer.Curves[CurveIndex];
+
+					// OutCurve starts as all zeros, so we don't need to pre-zero the values.
+					OutCurve.Set(Curve.Name.UID, CurveValues[CurveIndex] * Weight + OutCurve.Get(Curve.Name.UID));
+				}
+			}
 
 			for (int32 TrackIndex = 0; TrackIndex < TrackNum; ++TrackIndex)
 			{

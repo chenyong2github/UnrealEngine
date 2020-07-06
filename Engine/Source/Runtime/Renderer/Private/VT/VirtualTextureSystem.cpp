@@ -95,6 +95,13 @@ static TAutoConsoleVariable<int32> CVarVTPageUpdateFlushCount(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarVTProduceLockedTilesOnFlush(
+	TEXT("r.VT.ProduceLockedTilesOnFlush"),
+	1,
+	TEXT("Should locked tiles be (re)produced when flushing the cache"),
+	ECVF_RenderThreadSafe
+);
+
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
 	uint32 Page;
@@ -317,15 +324,20 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 				UE_LOG(LogConsoleResponse, Display, TEXT("  Layer %i=%s"), Layer, GPixelFormats[Desc.Format[Layer]].Name);
 			}
 
-			UE_LOG(LogConsoleResponse, Display, TEXT("  SizeInMegabyte= %f"), (float)TotalSizeInBytes / 1024.0f / 1024.0f);
-			UE_LOG(LogConsoleResponse, Display, TEXT("  Dimensions= %ix%i"), PhysicalSpace.GetTextureSize(), PhysicalSpace.GetTextureSize());
-			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles= %i"), PhysicalSpace.GetNumTiles());
-			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles Mapped= %i"), PagePool.GetNumMappedPages());
+			const int32 AllocatedTiles = PagePool.GetNumAllocatedPages();
+			const float AllocatedLoad = (float)AllocatedTiles / (float)PhysicalSpace.GetNumTiles();
+			const float AllocatedMemory = AllocatedLoad * TotalSizeInBytes / 1024.0f / 1024.0f;
 
 			const int32 LockedTiles = PagePool.GetNumLockedPages();
 			const float LockedLoad = (float)LockedTiles / (float)PhysicalSpace.GetNumTiles();
 			const float LockedMemory = LockedLoad * TotalSizeInBytes / 1024.0f / 1024.0f;
+
+			UE_LOG(LogConsoleResponse, Display, TEXT("  SizeInMegabyte= %f"), (float)TotalSizeInBytes / 1024.0f / 1024.0f);
+			UE_LOG(LogConsoleResponse, Display, TEXT("  Dimensions= %ix%i"), PhysicalSpace.GetTextureSize(), PhysicalSpace.GetTextureSize());
+			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles= %i"), PhysicalSpace.GetNumTiles());
+			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles Allocated= %i (%fMB)"), AllocatedTiles, AllocatedMemory);
 			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles Locked= %i (%fMB)"), LockedTiles, LockedMemory);
+			UE_LOG(LogConsoleResponse, Display, TEXT("  Tiles Mapped= %i"), PagePool.GetNumMappedPages());
 		}
 	}
 
@@ -724,8 +736,13 @@ void FVirtualTextureSystem::UnlockTile(const FVirtualTextureLocalTile& Tile, con
 	if (TileLocks.Unlock(Tile))
 	{
 		// Tile is no longer locked
-		TilesToLock.Remove(Tile);
-		UnlockTileInternal(Tile.GetProducerHandle(), Producer, Tile, Frame);
+		const int32 NumTilesRemoved = TilesToLock.Remove(Tile);
+		check(NumTilesRemoved <= 1);
+		// If tile was still in the 'TilesToLock' list, that means it was never actually locked, so we don't need to do the unlock here
+		if (NumTilesRemoved == 0)
+		{
+			UnlockTileInternal(Tile.GetProducerHandle(), Producer, Tile, Frame);
+		}
 	}
 }
 
@@ -738,8 +755,12 @@ void FVirtualTextureSystem::ForceUnlockAllTiles(const FVirtualTextureProducerHan
 
 	for (const FVirtualTextureLocalTile& Tile : TilesToUnlock)
 	{
-		TilesToLock.Remove(Tile);
-		UnlockTileInternal(ProducerHandle, Producer, Tile, Frame);
+		const int32 NumTilesRemoved = TilesToLock.Remove(Tile);
+		check(NumTilesRemoved <= 1);
+		if (NumTilesRemoved == 0)
+		{
+			UnlockTileInternal(ProducerHandle, Producer, Tile, Frame);
+		}
 	}
 }
 
@@ -904,8 +925,11 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 			FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 			if (PhysicalSpace)
 			{
-				// Collect locked pages to be produced again
-				PhysicalSpace->GetPagePool().GetAllLockedPages(this, MappedTilesToProduce);
+				if (CVarVTProduceLockedTilesOnFlush.GetValueOnRenderThread())
+				{
+					// Collect locked pages to be produced again
+					PhysicalSpace->GetPagePool().GetAllLockedPages(this, MappedTilesToProduce);
+				}
 				// Flush unlocked pages
 				PhysicalSpace->GetPagePool().EvictAllPages(this);
 			}
@@ -1099,6 +1123,11 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		// Are all pages equal? Should there be different limits on different types of pages?
 		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
 		const int32 MaxRequestUploads = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num(), 1);
+
+		if (MaxRequestUploads < (int32)MergedRequestList->GetNumLoadRequests())
+		{
+			UE_LOG(LogConsoleResponse, Display, TEXT("VT dropped %d load requests."), MergedRequestList->GetNumLoadRequests() - MaxRequestUploads);
+		}
 
 		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);
 	}
@@ -1374,7 +1403,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		for (uint32 LoadPageTableLayerIndex = 0u; LoadPageTableLayerIndex < NumPageTableLayersToLoad; ++LoadPageTableLayerIndex)
 		{
 			const uint32 PageTableLayerIndex = PageTableLayersToLoad[LoadPageTableLayerIndex];
-			const FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = AllocatedVT->GetPhysicalSpaceForPageTableLayer(PageTableLayerIndex);
 			const uint32 ProducerIndex = AllocatedVT->GetProducerIndexForPageTableLayer(PageTableLayerIndex);
 			check(ProducerIndex < NumUniqueProducers);
 			
@@ -1384,7 +1412,11 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			const uint32 ProducerPhysicalGroupIndex = AllocatedVT->GetProducerPhysicalGroupIndexForPageTableLayer(PageTableLayerIndex);
 			ProducerGroupMaskToLoad[ProducerIndex] |= 1 << ProducerPhysicalGroupIndex;
 
-			++PageUpdateBuffers[PhysicalSpace->GetID()].WorkingSetSize;
+			const FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = AllocatedVT->GetPhysicalSpaceForPageTableLayer(PageTableLayerIndex);
+			if (PhysicalSpace)
+			{
+				++PageUpdateBuffers[PhysicalSpace->GetID()].WorkingSetSize;
+			}
 		}
 
 		for (uint32 ProducerIndex = 0u; ProducerIndex < NumUniqueProducers; ++ProducerIndex)
@@ -1523,7 +1555,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					// page not resident...see if we want to prefetch a page with resolution incrementally larger than what's currently resident
 					// this means we'll ultimately load more data, but these lower resolution pages should load much faster than the requested high resolution page
 					// this should make popping less noticeable
-					const uint32 PrefetchLocal_vLevel = AllocatedLocal_vLevel - FMath::Min(2u, AllocatedLocal_vLevel);
+					uint32 PrefetchLocal_vLevel = AllocatedLocal_vLevel - FMath::Min(2u, AllocatedLocal_vLevel);
+					PrefetchLocal_vLevel = FMath::Min<uint32>(PrefetchLocal_vLevel, AllocatedVT->GetMaxLevel() - ProducerMipBias);
 					if (PrefetchLocal_vLevel > Local_vLevel)
 					{
 						ProducerPhysicalGroupMaskToPrefetchForLevel[PrefetchLocal_vLevel] |= (1u << ProducerGroupIndex);
@@ -1778,12 +1811,29 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Submit);
 
+		struct FProducePageDataPrepareTask
+		{
+			IVirtualTexture* VirtualTexture;
+			EVTProducePageFlags Flags;
+			FVirtualTextureProducerHandle ProducerHandle;
+			uint8 LayerMask;
+			uint8 vLevel;
+			uint32 vAddress;
+			uint64 RequestHandle;
+			FVTProduceTargetLayer ProduceTarget[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+		};
+
+		TArray<FProducePageDataPrepareTask> PrepareTasks;
+		PrepareTasks.Reserve(RequestList->GetNumLoadRequests());
+
+		const uint32 MaxPagesProduced = VirtualTextureScalability::GetMaxPagesProducedPerFrame();
 		uint32 NumStacksProduced = 0u;
+		uint32 NumPagesProduced = 0u;
 		for (uint32 RequestIndex = 0u; RequestIndex < RequestList->GetNumLoadRequests(); ++RequestIndex)
 		{
-			const FVirtualTextureLocalTile TileToLoad = RequestList->GetLoadRequest(RequestIndex);
 			const bool bLockTile = RequestList->IsLocked(RequestIndex);
-
+			const bool bForceProduceTile = (bLockTile || !bAsync);
+			const FVirtualTextureLocalTile TileToLoad = RequestList->GetLoadRequest(RequestIndex);
 			const FVirtualTextureProducerHandle ProducerHandle = TileToLoad.GetProducerHandle();
 			const FVirtualTextureProducer& Producer = Producers.GetProducer(ProducerHandle);
 
@@ -1799,11 +1849,17 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 			const EVTRequestPagePriority Priority = bLockTile ? EVTRequestPagePriority::High : EVTRequestPagePriority::Normal;
 			FVTRequestPageResult RequestPageResult = Producer.GetVirtualTexture()->RequestPageData(ProducerHandle, ProducerTextureLayerMask, TileToLoad.Local_vLevel, TileToLoad.Local_vAddress, Priority);
-			if (RequestPageResult.Status == EVTRequestPageStatus::Pending && (bLockTile || !bAsync))
+			if (RequestPageResult.Status == EVTRequestPageStatus::Pending && bForceProduceTile)
 			{
 				// If we're trying to lock this tile, we're OK producing data now (and possibly waiting) as long as data is pending
 				// If we render a frame without all locked tiles loaded, may render garbage VT data, as there won't be low mip fallback for unloaded tiles
 				RequestPageResult.Status = EVTRequestPageStatus::Available;
+			}
+
+			if (RequestPageResult.Status == EVTRequestPageStatus::Available && !bForceProduceTile && NumPagesProduced >= MaxPagesProduced)
+			{
+				// Don't produce non-locked pages yet, if we're over our limit
+				RequestPageResult.Status = EVTRequestPageStatus::Pending;
 			}
 
 			bool bTileLoaded = false;
@@ -1849,6 +1905,8 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 									Allocate_pAddress[ProducerPhysicalGroupIndex] = pAddress;
 								}
 							}
+
+							++NumPagesProduced;
 						}
 						else
 						{
@@ -1901,14 +1959,16 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 						}
 					}
 
-					IVirtualTextureFinalizer* VTFinalizer = Producer.GetVirtualTexture()->ProducePageData(RHICmdList, FeatureLevel,
-						EVTProducePageFlags::None,
-						ProducerHandle, ProducerTextureLayerMask, TileToLoad.Local_vLevel, TileToLoad.Local_vAddress,
-						RequestPageResult.Handle,
-						ProduceTarget);
-					if (VTFinalizer)
 					{
-						Finalizers.AddUnique(VTFinalizer); // we expect the number of unique finalizers to be very limited. if this changes, we might have to do something better then gathering them every update
+						FProducePageDataPrepareTask& Task = PrepareTasks.AddDefaulted_GetRef();
+						Task.VirtualTexture = Producer.GetVirtualTexture();
+						Task.Flags = EVTProducePageFlags::None;
+						Task.ProducerHandle = ProducerHandle;
+						Task.LayerMask = ProducerTextureLayerMask;
+						Task.vLevel = TileToLoad.Local_vLevel;
+						Task.vAddress = TileToLoad.Local_vAddress;
+						Task.RequestHandle = RequestPageResult.Handle;
+						FMemory::Memcpy(Task.ProduceTarget, ProduceTarget, sizeof(ProduceTarget));
 					}
 
 					bTileLoaded = true;
@@ -1934,6 +1994,38 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 			{
 				// Want to lock this tile, but didn't manage to load it this frame, add it back to the list to try the lock again next frame
 				TilesToLock.Add(TileToLoad);
+			}
+		}
+
+		if (PrepareTasks.Num())
+		{
+			FGraphEventArray ProducePageTasks;
+			ProducePageTasks.Reserve(PrepareTasks.Num());
+
+			for (FProducePageDataPrepareTask& Task : PrepareTasks)
+			{
+				Task.VirtualTexture->GatherProducePageDataTasks(Task.RequestHandle, ProducePageTasks);
+			}
+
+			static bool bWaitForTasks = true;
+			if (bWaitForTasks)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(ProcessRequests_Wait);
+				FTaskGraphInterface::Get().WaitUntilTasksComplete(ProducePageTasks, ENamedThreads::GetRenderThread_Local());
+			}
+
+			for (FProducePageDataPrepareTask& Task : PrepareTasks)
+			{
+				IVirtualTextureFinalizer* VTFinalizer = Task.VirtualTexture->ProducePageData(RHICmdList, FeatureLevel,
+					Task.Flags,
+					Task.ProducerHandle, Task.LayerMask, Task.vLevel, Task.vAddress,
+					Task.RequestHandle,
+					Task.ProduceTarget);
+
+				if (VTFinalizer)
+				{
+					Finalizers.AddUnique(VTFinalizer); // we expect the number of unique finalizers to be very limited. if this changes, we might have to do something better then gathering them every update
+				}
 			}
 		}
 

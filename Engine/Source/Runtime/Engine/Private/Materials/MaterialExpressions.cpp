@@ -92,6 +92,7 @@
 #include "Materials/MaterialExpressionCloudLayer.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionEyeAdaptation.h"
+#include "Materials/MaterialExpressionEyeAdaptationInverse.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionFloor.h"
 #include "Materials/MaterialExpressionFmod.h"
@@ -12516,7 +12517,7 @@ UMaterialInterface* UMaterialFunctionInstance::GetPreviewMaterial()
 	if (nullptr == PreviewMaterial)
 	{
 		PreviewMaterial = NewObject<UMaterialInstanceConstant>((UObject*)GetTransientPackage(), FName(TEXT("None")), RF_Transient);
-		PreviewMaterial->SetParentEditorOnly(Parent->GetPreviewMaterial());
+		PreviewMaterial->SetParentEditorOnly(Parent ? Parent->GetPreviewMaterial() : UMaterial::GetDefaultMaterial(MD_Surface));
 		OverrideMaterialInstanceParameterValues(PreviewMaterial);
 		PreviewMaterial->PreEditChange(nullptr);
 		PreviewMaterial->PostEditChange();
@@ -16692,6 +16693,47 @@ int32 UMaterialExpressionEyeAdaptation::Compile(class FMaterialCompiler* Compile
 void UMaterialExpressionEyeAdaptation::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(FString(TEXT("EyeAdaptation")));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionEyeAdaptationInverse
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionEyeAdaptationInverse::UMaterialExpressionEyeAdaptationInverse(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT( "Utility", "Utility" ))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("EyeAdaptationInverse")));
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionEyeAdaptationInverse::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{    
+	int32 LightValueArg = (LightValueInput.GetTracedInput().Expression ? LightValueInput.Compile(Compiler) : Compiler->Constant3(1.0f,1.0f,1.0f));
+	int32 AlphaArg = (AlphaInput.GetTracedInput().Expression ? AlphaInput.Compile(Compiler) : Compiler->Constant(1.0f));
+
+	return Compiler->EyeAdaptationInverse(LightValueArg,AlphaArg);
+}
+
+void UMaterialExpressionEyeAdaptationInverse::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("EyeAdaptationInverse")));
 }
 #endif // WITH_EDITOR
 

@@ -122,6 +122,7 @@ void FTexture2DStreamIn::DoCopySharedMips(const FContext& Context)
 // Async create the texture to the requested size.
 void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( "FTexture2DStreamIn::DoAsyncCreateWithNewMips" );
 	check(Context.CurrentThread == TT_Async);
 
 	if (!IsCancelled() && Context.Texture && Context.Resource)
@@ -133,7 +134,7 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 			const FTexture2DMipMap& RequestedMipMap = OwnerMips[PendingFirstMip];
 			ensure(!IntermediateTextureRHI);
 
-			const uint32 Flags = (Context.Texture->SRGB ? TexCreate_SRGB : 0) | TexCreate_DisableAutoDefrag;
+			const uint32 Flags = (Context.Texture->SRGB ? TexCreate_SRGB : 0);
 			const int32 ResidentMips = OwnerMips.Num() - Context.Resource->GetCurrentFirstMip();
 
 			IntermediateTextureRHI = RHIAsyncCreateTexture2D(

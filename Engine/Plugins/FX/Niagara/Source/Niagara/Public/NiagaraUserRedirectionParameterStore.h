@@ -40,6 +40,8 @@ public:
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty) override;
 	virtual void Empty(bool bClearBindings = true) override;
 	virtual void Reset(bool bClearBindings = true) override;
+
+	virtual void SanityCheckData(bool bInitInterfaces = true) override;
 	// ~ End FNiagaraParameterStore overrides
 
 	/** Used to upgrade a serialized FNiagaraParameterStore property to our own struct */

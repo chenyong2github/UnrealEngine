@@ -10,6 +10,12 @@
 #include "DOFCocTileCommon.ush"
 
 
+//------------------------------------------------------- SHADER_PARAMETER
+
+float MinGatherRadius;
+float SlightOutOfFocusRadiusBoundary;
+
+
 //------------------------------------------------------- FUNCTIONS
 
 struct FGatheringTileSuggestion
@@ -37,8 +43,7 @@ struct FGatheringTileSuggestion
 /** Infers the gather processing to do from coc tile buffer sample, for a given LayerProcessing. */
 FGatheringTileSuggestion InferGatherTileSuggestion(
 	in FCocTileSample CocTileInfos,
-	const uint LayerProcessing,
-	float MinGatherRadius)
+	const uint LayerProcessing)
 {
 	FGatheringTileSuggestion OutSuggestion;
 
@@ -123,10 +128,7 @@ FGatheringTileSuggestion InferGatherTileSuggestion(
 	}
 	else if (LayerProcessing == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS)
 	{
-		// Slight out of focus always have 3 rings.
-		const uint RingCount = 3; 
-
-		OutSuggestion.bCanEarlyReturn = (OutSuggestion.MinCocRadiusAbs > float(RingCount));
+		OutSuggestion.bCanEarlyReturn = (OutSuggestion.MinCocRadiusAbs > SlightOutOfFocusRadiusBoundary);
 	}
 	else
 	{

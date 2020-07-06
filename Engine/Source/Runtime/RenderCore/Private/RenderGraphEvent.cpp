@@ -2,7 +2,8 @@
 
 #include "RenderGraphEvent.h"
 #include "RenderGraphBuilder.h"
-
+#include "RenderGraphPrivate.h"
+#include "RenderGraphPass.h"
 
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
 
@@ -42,12 +43,12 @@ FRDGEventScopeGuard::~FRDGEventScopeGuard()
 	}
 }
 
-static void OnPushEvent(FRHICommandListImmediate& RHICmdList, const FRDGEventScope* Scope)
+static void OnPushEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope)
 {
 	RHICmdList.PushEvent(Scope->Name.GetTCHAR(), FColor(0));
 }
 
-static void OnPopEvent(FRHICommandListImmediate& RHICmdList)
+static void OnPopEvent(FRHIComputeCommandList& RHICmdList)
 {
 	RHICmdList.PopEvent();
 }
@@ -61,7 +62,7 @@ bool FRDGEventScopeStack::IsEnabled()
 #endif
 }
 
-FRDGEventScopeStack::FRDGEventScopeStack(FRHICommandListImmediate& InRHICmdList)
+FRDGEventScopeStack::FRDGEventScopeStack(FRHIComputeCommandList& InRHICmdList)
 	: ScopeStack(InRHICmdList, &OnPushEvent, &OnPopEvent)
 {}
 
@@ -93,7 +94,7 @@ void FRDGEventScopeStack::BeginExecutePass(const FRDGPass* Pass)
 {
 	if (IsEnabled())
 	{
-		ScopeStack.BeginExecutePass(Pass->GetEventScope());
+		ScopeStack.BeginExecutePass(Pass->GetScopes().Event);
 
 		FColor Color(255, 255, 255);
 		ScopeStack.RHICmdList.PushEvent(Pass->GetName(), Color);
@@ -127,17 +128,25 @@ FRDGStatScopeGuard::~FRDGStatScopeGuard()
 	GraphBuilder.EndStatScope();
 }
 
-static void OnPushStat(FRHICommandListImmediate& RHICmdList, const FRDGStatScope* Scope)
+static void OnPushStat(FRHIComputeCommandList& RHICmdList, const FRDGStatScope* Scope)
 {
 #if HAS_GPU_STATS
-	FRealtimeGPUProfiler::Get()->PushEvent(RHICmdList, Scope->Name, Scope->StatName);
+	// GPU stats are currently only supported on the immediate command list.
+	if (RHICmdList.IsImmediate())
+	{
+		FRealtimeGPUProfiler::Get()->PushEvent(static_cast<FRHICommandListImmediate&>(RHICmdList), Scope->Name, Scope->StatName);
+	}
 #endif
 }
 
-static void OnPopStat(FRHICommandListImmediate& RHICmdList)
+static void OnPopStat(FRHIComputeCommandList& RHICmdList)
 {
 #if HAS_GPU_STATS
-	FRealtimeGPUProfiler::Get()->PopEvent(RHICmdList);
+	// GPU stats are currently only supported on the immediate command list.
+	if (RHICmdList.IsImmediate())
+	{
+		FRealtimeGPUProfiler::Get()->PopEvent(static_cast<FRHICommandListImmediate&>(RHICmdList));
+	}
 #endif
 }
 
@@ -150,7 +159,7 @@ bool FRDGStatScopeStack::IsEnabled()
 #endif
 }
 
-FRDGStatScopeStack::FRDGStatScopeStack(FRHICommandListImmediate& InRHICmdList)
+FRDGStatScopeStack::FRDGStatScopeStack(FRHIComputeCommandList& InRHICmdList)
 	: ScopeStack(InRHICmdList, &OnPushStat, &OnPopStat)
 {}
 
@@ -182,7 +191,7 @@ void FRDGStatScopeStack::BeginExecutePass(const FRDGPass* Pass)
 {
 	if (IsEnabled())
 	{
-		ScopeStack.BeginExecutePass(Pass->GetStatScope());
+		ScopeStack.BeginExecutePass(Pass->GetScopes().Stat);
 	}
 }
 
@@ -192,4 +201,30 @@ void FRDGStatScopeStack::EndExecute()
 	{
 		ScopeStack.EndExecute();
 	}
+}
+
+void FRDGScopeStacksByPipeline::BeginExecutePass(const FRDGPass* Pass)
+{
+	ERDGPipeline Pipeline = Pass->GetPipeline();
+
+	/**TODO(RDG): This currently crashes certain platforms. */
+	if (GRDGAsyncCompute == RDG_ASYNC_COMPUTE_FORCE_ENABLED)
+	{
+		Pipeline = ERDGPipeline::Graphics;
+	}
+
+	GetScopeStacks(Pipeline).BeginExecutePass(Pass);
+}
+
+void FRDGScopeStacksByPipeline::EndExecutePass(const FRDGPass* Pass)
+{
+	ERDGPipeline Pipeline = Pass->GetPipeline();
+
+	/**TODO(RDG): This currently crashes certain platforms. */
+	if (GRDGAsyncCompute == RDG_ASYNC_COMPUTE_FORCE_ENABLED)
+	{
+		Pipeline = ERDGPipeline::Graphics;
+	}
+
+	GetScopeStacks(Pipeline).EndExecutePass();
 }

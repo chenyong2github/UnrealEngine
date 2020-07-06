@@ -7,6 +7,11 @@
 
 class FSceneTextureParameters;
 
+namespace Nanite
+{
+	struct FRasterResults;
+}
+
 enum class EPostProcessAAQuality : uint32
 {
 	Disabled,
@@ -53,9 +58,9 @@ struct FPostProcessingInputs
 	}
 };
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 
-void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 
 #if !(UE_BUILD_SHIPPING)
 

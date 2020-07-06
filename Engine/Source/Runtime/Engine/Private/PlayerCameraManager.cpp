@@ -1205,6 +1205,10 @@ void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDispl
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   Camera Style:%s main ViewTarget:%s"), *CameraStyle.ToString(), *ViewTarget.Target->GetName()));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   CamLoc:%s CamRot:%s FOV:%f"), *CurrentPOV.Location.ToCompactString(), *CurrentPOV.Rotation.ToCompactString(), CurrentPOV.FOV));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   AspectRatio: %1.3f"), CurrentPOV.AspectRatio));
+
+	const float DurationPct = BlendParams.BlendTime == 0.f ? 0.f : (BlendParams.BlendTime - BlendTimeToGo) / BlendParams.BlendTime;
+	const FString BlendStr = FString::Printf(TEXT("   ViewTarget Blend: From %s to %s, time remaining = %f, pct = %f"), *GetNameSafe(ViewTarget.Target), *GetNameSafe(PendingViewTarget.Target), BlendTimeToGo, DurationPct);
+	DisplayDebugManager.DrawString(BlendStr);
 }
 
 void APlayerCameraManager::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)

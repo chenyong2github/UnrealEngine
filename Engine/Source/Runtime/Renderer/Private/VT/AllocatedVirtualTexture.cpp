@@ -159,6 +159,9 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	// Physical pool needs to evict all pages that belong to this VT's space
 	//todo[vt]: Could improve this to only evict pages belonging to this VT
 	{
+		// Allocator always allocates square regions, need to update logic here if that changes
+		const uint32 BlockSize = FMath::Max(GetWidthInTiles(), GetHeightInTiles());
+
 		TArray<FVirtualTexturePhysicalSpace*> UniquePhysicalSpaces;
 		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
 		{
@@ -170,18 +173,18 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 
 		for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
 		{
-			PhysicalSpace->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID());
-
-			for (int32 PageTableLayerIndex = 0u; PageTableLayerIndex < UniquePageTableLayers.Num(); ++PageTableLayerIndex)
-			{
-				FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
-				PageMap.VerifyPhysicalSpaceUnmapped(PhysicalSpace->GetID());
-			}
+			PhysicalSpace->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID(), VirtualAddress, BlockSize, MaxLevel);
 		}
 
 		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
 		{
 			UniquePageTableLayers[PageTableIndex].PhysicalSpace.SafeRelease();
+		}
+
+		for (uint32 LayerIndex = 0; LayerIndex < Space->GetNumPageTableLayers(); ++LayerIndex)
+		{
+			const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(LayerIndex);
+			PageMap.VerifyAddressRangeUnmapped(VirtualAddress, BlockSize);
 		}
 	}
 
@@ -316,8 +319,8 @@ void FAllocatedVirtualTexture::GetPackedPageTableUniform(FUintVector4* OutUnifor
 	const uint32 HeightInPages = GetHeightInTiles();
 	const uint32 vPageTableMipBias = FMath::FloorLog2(vPageSize);
 
-	const uint32 MaxAnisotropy = FMath::Clamp<int32>(VirtualTextureScalability::GetMaxAnisotropy(), 1, PageBorderSize);
-	const uint32 MaxAnisotropyLog2 = FMath::FloorLog2(MaxAnisotropy);
+	const uint32 MaxAnisotropy = FMath::Min<int32>(VirtualTextureScalability::GetMaxAnisotropy(), PageBorderSize);
+	const uint32 MaxAnisotropyLog2 = (MaxAnisotropy > 0u) ? FMath::FloorLog2(MaxAnisotropy) : 0u;
 
 	// make sure everything fits in the allocated number of bits
 	checkSlow(vPageX < 4096u);

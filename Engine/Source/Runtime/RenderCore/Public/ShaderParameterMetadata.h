@@ -22,6 +22,13 @@ namespace EShaderPrecisionModifier
 	};
 };
 
+inline bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
+{
+	return (
+		Platform == SP_OPENGL_ES3_1_ANDROID ||
+		Platform == SP_METAL); // TODO: Not sure at all, need a Metal RHI guy.
+}
+
 /** Each entry in a resource table is provided to the shader compiler for creating mappings. */
 struct FResourceTableEntry
 {
@@ -32,6 +39,12 @@ struct FResourceTableEntry
 	/** The index of the resource in the table. */
 	uint16 ResourceIndex;
 };
+
+/** Parse the shader resource binding from the binding type used in shader code. */
+EShaderCodeResourceBindingType ParseShaderResourceBindingType(const TCHAR* ShaderType);
+
+const TCHAR* GetShaderCodeResourceBindingTypeName(EShaderCodeResourceBindingType BindingType);
+
 
 /** Simple class that registers a uniform buffer static slot in the constructor. */
 class RENDERCORE_API FUniformBufferStaticSlotRegistrar
@@ -102,7 +115,7 @@ public:
 	static constexpr const TCHAR* kRootUniformBufferBindingName = TEXT("_RootShaderParameters");
 	
 	/** A member of a shader parameter structure. */
-	class FMember
+	class RENDERCORE_API FMember
 	{
 	public:
 
@@ -110,6 +123,7 @@ public:
 		FMember(
 			const TCHAR* InName,
 			const TCHAR* InShaderType,
+			int32 InFileLine,
 			uint32 InOffset,
 			EUniformBufferBaseType InBaseType,
 			EShaderPrecisionModifier::Type InPrecision,
@@ -120,6 +134,7 @@ public:
 			)
 		:	Name(InName)
 		,	ShaderType(InShaderType)
+		,	FileLine(InFileLine)
 		,	Offset(InOffset)
 		,	BaseType(InBaseType)
 		,	Precision(InPrecision)
@@ -134,6 +149,9 @@ public:
 
 		/** Returns the string of the type. */
 		const TCHAR* GetShaderType() const { return ShaderType; }
+
+		/** Returns the C++ line number where the parameter is declared. */
+		int32 GetFileLine() const { return int32(FileLine); }
 
 		/** Returns the offset of the element in the shader parameter struct in bytes. */
 		uint32 GetOffset() const { return Offset; }
@@ -170,10 +188,13 @@ public:
 			return ElementSize;
 		}
 
+		void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
+
 	private:
 
 		const TCHAR* Name;
 		const TCHAR* ShaderType;
+		int32 FileLine;
 		uint32 Offset;
 		EUniformBufferBaseType BaseType;
 		EShaderPrecisionModifier::Type Precision;
@@ -190,6 +211,8 @@ public:
 		const TCHAR* InStructTypeName,
 		const TCHAR* InShaderVariableName,
 		const TCHAR* InStaticSlotName,
+		const ANSICHAR* InFileName,
+		const int32 InFileLine,
 		uint32 InSize,
 		const TArray<FMember>& InMembers);
 
@@ -205,6 +228,12 @@ public:
 	const TCHAR* GetStaticSlotName() const { return StaticSlotName; }
 
 	bool HasStaticSlot() const { return StaticSlotName != nullptr; }
+
+	/** Returns the C++ file name where the parameter structure is declared. */
+	const ANSICHAR* GetFileName() const { return FileName; }
+
+	/** Returns the C++ line number where the parameter structure is declared. */
+	const int32 GetFileLine() const { return FileLine; }
 
 	uint32 GetSize() const { return Size; }
 	EUseCase GetUseCase() const { return UseCase; }
@@ -251,6 +280,12 @@ private:
 	const TCHAR* const StaticSlotName;
 
 	FHashedName ShaderVariableHashedName;
+
+	/** Name of the C++ file where the parameter structure is declared. */
+	const ANSICHAR* const FileName;
+
+	/** Line in the C++ file where the parameter structure is declared. */
+	const int32 FileLine;
 
 	/** Size of the entire struct in bytes. */
 	const uint32 Size;

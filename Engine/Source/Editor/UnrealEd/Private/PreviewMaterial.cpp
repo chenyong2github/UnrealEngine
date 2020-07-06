@@ -214,6 +214,10 @@ public:
 			{
 				bShaderTypeMatches = true;
 			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("FLumenCard")))
+			{
+				bShaderTypeMatches = true;
+			}
 
 			return bShaderTypeMatches;
 		}

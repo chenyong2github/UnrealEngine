@@ -28,7 +28,8 @@ float ComputeLightSampleWorldBluringRadius(float3 TranslatedWorldPosition, uint 
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
 		// TODO(Denoiser): compute this on CPU.
-		return tan(asin(Light.SourceRadius)) * HitT;
+		//return tan(asin(Light.SourceRadius)) * HitT;
+		return Light.SourceRadius * rsqrt( 1 - Pow2( Light.SourceRadius ) ) * HitT;
 	}
 	else if (LightType == LIGHT_TYPE_POINT || LightType == LIGHT_TYPE_SPOT)
 	{

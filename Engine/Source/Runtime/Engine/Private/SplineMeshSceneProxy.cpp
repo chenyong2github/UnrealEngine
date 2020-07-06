@@ -31,6 +31,7 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 	FStaticMeshSceneProxy(InComponent, false)
 {
 	bSupportsDistanceFieldRepresentation = false;
+	bSupportsMeshCardRepresentation = false;
 	bVFRequiresPrimitiveUniformBuffer = true;
 
 	// make sure all the materials are okay to be rendered as a spline mesh

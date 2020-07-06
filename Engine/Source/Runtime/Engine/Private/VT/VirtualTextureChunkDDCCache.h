@@ -13,7 +13,7 @@ public:
 	void ShutDown();
 	void UpdateRequests();
 
-	bool MakeChunkAvailable(struct FVirtualTextureDataChunk* Chunk, FString& ChunkFileName, bool bAsync);
+	bool MakeChunkAvailable(struct FVirtualTextureDataChunk* Chunk, bool bAsync, FString& OutChunkFileName, int64& OutOffsetInFile);
 
 private:
 	TArray<struct FVirtualTextureDataChunk*> ActiveChunks;

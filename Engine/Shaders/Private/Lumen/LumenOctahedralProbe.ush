@@ -1,0 +1,53 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenOctahedralProbe.ush
+=============================================================================*/
+
+// Based on [Engelhardt et al. 2008, "Octahedron Environment Maps"]
+
+float2 DirectionToOctahedralMap(float3 V)
+{
+	V /= (abs(V.x) + abs(V.y) + abs(V.z));
+	V.xy = V.z >= 0.0f ? V.xy : ((1.0f - abs(V.yx)) * (V.xy >= 0.0f ? 1.0f : -1.0f));
+	V.xy = V.xy * 0.5f + 0.5f;
+	return V.xy;
+}
+
+float3 OctahedralMapToDirection(float2 UV)
+{
+	UV = UV * 2.0f - 1.0f;
+
+	float3 V = float3(UV.x, UV.y, 1.0 - abs(UV.x) - abs(UV.y));
+	float T = saturate(-V.z);
+	V.xy += V.xy >= 0.0 ? -T : T;
+
+	return normalize(V);
+}
+
+// Wrap around octahedral map for correct hardware bilinear filtering
+uint2 OctahedralMapWrapBorder(uint2 TexelCoord, uint Resolution)
+{
+	if (TexelCoord.x == 0)
+	{
+		TexelCoord.x = 1;
+		TexelCoord.y = Resolution - 1 - TexelCoord.y;
+	}
+	if (TexelCoord.x == Resolution - 1)
+	{
+		TexelCoord.x = Resolution - 2;
+		TexelCoord.y = Resolution - 1 - TexelCoord.y;
+	}
+	if (TexelCoord.y == 0)
+	{
+		TexelCoord.y = 1;
+		TexelCoord.x = Resolution - 1 - TexelCoord.x;
+	}
+	if (TexelCoord.y == Resolution - 1)
+	{
+		TexelCoord.y = Resolution - 2;
+		TexelCoord.x = Resolution - 1 - TexelCoord.x;
+	}
+
+	return TexelCoord - 1;
+}

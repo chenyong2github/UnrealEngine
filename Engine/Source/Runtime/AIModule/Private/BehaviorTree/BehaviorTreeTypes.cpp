@@ -473,6 +473,11 @@ FString UBehaviorTreeTypes::DescribeNodeHelper(const UBTNode* Node)
 
 FString UBehaviorTreeTypes::GetShortTypeName(const UObject* Ob)
 {
+	if ((Ob == nullptr) || (Ob->GetClass() == nullptr))
+	{
+		return TEXT("None");
+	}
+
 	if (Ob->GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
 	{
 		return Ob->GetClass()->GetName().LeftChop(2);

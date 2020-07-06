@@ -847,6 +847,10 @@ static void InitRHICapabilitiesForGL()
 	GHardwareHiddenSurfaceRemoval = FOpenGL::HasHardwareHiddenSurfaceRemoval();
 	GSupportsTimestampRenderQueries = FOpenGL::SupportsTimestampQueries();
 
+	GRHIMaxDispatchThreadGroupsPerDimension.X = MAX_uint16;
+	GRHIMaxDispatchThreadGroupsPerDimension.Y = MAX_uint16;
+	GRHIMaxDispatchThreadGroupsPerDimension.Z = MAX_uint16;
+
 	// It's not possible to create a framebuffer with the backbuffer as the color attachment and a custom renderbuffer as the depth/stencil surface.
 	GRHISupportsBackBufferWithCustomDepthStencil = false;
 

@@ -50,6 +50,41 @@ TMap<FHashedName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNam
 	return NameStructMap;
 }
 
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const
+{
+	switch (GetBaseType())
+	{
+	case UBMT_INT32:   Result = TEXT("int"); break;
+	case UBMT_UINT32:  Result = TEXT("uint"); break;
+	case UBMT_FLOAT32:
+		if (GetPrecision() == EShaderPrecisionModifier::Float || !SupportShaderPrecisionModifier(ShaderPlatform))
+		{
+			Result = TEXT("float");
+		}
+		else if (GetPrecision() == EShaderPrecisionModifier::Half)
+		{
+			Result = TEXT("half");
+		}
+		else if (GetPrecision() == EShaderPrecisionModifier::Fixed)
+		{
+			Result = TEXT("fixed");
+		}
+		break;
+	default:
+		UE_LOG(LogShaders, Fatal, TEXT("Unrecognized uniform buffer struct member base type."));
+	};
+
+	// Generate the type dimensions for vectors and matrices.
+	if (GetNumRows() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%ux%u"), *Result, GetNumRows(), GetNumColumns());
+	}
+	else if (GetNumColumns() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%u"), *Result, GetNumColumns());
+	}
+}
+
 FShaderParametersMetadata* FindUniformBufferStructByName(const TCHAR* StructName)
 {
 	return FindUniformBufferStructByFName(FName(StructName, FNAME_Find));
@@ -63,6 +98,158 @@ FShaderParametersMetadata* FindUniformBufferStructByFName(FName StructName)
 FShaderParametersMetadata* FindUniformBufferStructByLayoutHash(uint32 Hash)
 {
 	return GLayoutHashStructMap.FindRef(Hash);
+}
+
+const TCHAR* const kShaderParameterMacroNames[] = {
+	TEXT(""), // UBMT_INVALID,
+
+	// Invalid type when trying to use bool, to have explicit error message to programmer on why
+	// they shouldn't use bool in shader parameter structures.
+	TEXT("SHADER_PARAMETER"), // UBMT_BOOL,
+
+	// Parameter types.
+	TEXT("SHADER_PARAMETER"), // UBMT_INT32,
+	TEXT("SHADER_PARAMETER"), // UBMT_UINT32,
+	TEXT("SHADER_PARAMETER"), // UBMT_FLOAT32,
+
+	// RHI resources not tracked by render graph.
+	TEXT("SHADER_PARAMETER_TEXTURE"), // UBMT_TEXTURE,
+	TEXT("SHADER_PARAMETER_SRV"), // UBMT_SRV,
+	TEXT("SHADER_PARAMETER_UAV"), // UBMT_UAV,
+	TEXT("SHADER_PARAMETER_SAMPLER"), // UBMT_SAMPLER,
+
+	// Resources tracked by render graph.
+	TEXT("SHADER_PARAMETER_RDG_TEXTURE"), // UBMT_RDG_TEXTURE,
+	TEXT("SHADER_PARAMETER_RDG_TEXTURE_SRV"), // UBMT_RDG_TEXTURE_SRV,
+	TEXT("SHADER_PARAMETER_RDG_TEXTURE_UAV"), // UBMT_RDG_TEXTURE_UAV,
+	TEXT("SHADER_PARAMETER_RDG_TEXTURE_COPY_DEST"), // UBMT_RDG_TEXTURE_COPY_DEST,
+	TEXT("SHADER_PARAMETER_RDG_BUFFER"), // UBMT_RDG_BUFFER,
+	TEXT("SHADER_PARAMETER_RDG_BUFFER_SRV"), // UBMT_RDG_BUFFER_SRV,
+	TEXT("SHADER_PARAMETER_RDG_BUFFER_UAV"), // UBMT_RDG_BUFFER_UAV,
+	TEXT("SHADER_PARAMETER_RDG_BUFFER_COPY_DEST"), // UBMT_RDG_BUFFER_COPY_DEST,
+
+	// Nested structure.
+	TEXT("SHADER_PARAMETER_STRUCT"), // UBMT_NESTED_STRUCT,
+
+	// Structure that is nested on C++ side, but included on shader side.
+	TEXT("SHADER_PARAMETER_STRUCT_INCLUDE"), // UBMT_INCLUDED_STRUCT,
+
+	// GPU Indirection reference of struct, like is currently named Uniform buffer.
+	TEXT("SHADER_PARAMETER_STRUCT_REF"), // UBMT_REFERENCED_STRUCT,
+
+	// Structure dedicated to setup render targets for a rasterizer pass.
+	TEXT("RENDER_TARGET_BINDING_SLOTS"), // UBMT_RENDER_TARGET_BINDING_SLOTS,
+};
+
+static_assert(UE_ARRAY_COUNT(kShaderParameterMacroNames) == int32(EUniformBufferBaseType_Num), "TODO.");
+
+/** Returns the name of the macro that should be used for a given shader parameter base type. */
+const TCHAR* GetShaderParameterMacroName(EUniformBufferBaseType ShaderParameterBaseType)
+{
+	check(ShaderParameterBaseType != UBMT_INVALID);
+	return kShaderParameterMacroNames[int32(ShaderParameterBaseType)];
+}
+
+EShaderCodeResourceBindingType ParseShaderResourceBindingType(const TCHAR* ShaderType)
+{
+	bool bIsRWResource = FCString::Strncmp(ShaderType, TEXT("RW"), 2) == 0;
+	const TCHAR* ComparedShaderType = ShaderType + (bIsRWResource ? 2 : 0);
+
+	int32 ShaderTypeLength = 0;
+	while (TCHAR c = ComparedShaderType[ShaderTypeLength])
+	{
+		if (c == ' ' || c == '<')
+			break;
+		ShaderTypeLength++;
+	}
+
+	EShaderCodeResourceBindingType BindingType = EShaderCodeResourceBindingType::Invalid;
+	if (!bIsRWResource && ShaderTypeLength == 12 && FCString::Strncmp(ComparedShaderType, TEXT("SamplerState"), ShaderTypeLength) == 0)
+	{
+		BindingType = EShaderCodeResourceBindingType::SamplerState;
+	}
+	else if (!bIsRWResource && ShaderTypeLength == 22 && FCString::Strncmp(ComparedShaderType, TEXT("SamplerComparisonState"), ShaderTypeLength) == 0)
+	{
+		BindingType = EShaderCodeResourceBindingType::SamplerState;
+	}
+	else if (ShaderTypeLength == 9 && FCString::Strncmp(ComparedShaderType, TEXT("Texture2D"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture2D : EShaderCodeResourceBindingType::Texture2D;
+	}
+	else if (ShaderTypeLength == 14 && FCString::Strncmp(ComparedShaderType, TEXT("Texture2DArray"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture2DArray : EShaderCodeResourceBindingType::Texture2DArray;
+	}
+	else if (!bIsRWResource && ShaderTypeLength == 11 && FCString::Strncmp(ComparedShaderType, TEXT("Texture2DMS"), ShaderTypeLength) == 0)
+	{
+		BindingType = EShaderCodeResourceBindingType::Texture2DMS;
+	}
+	else if (ShaderTypeLength == 9 && FCString::Strncmp(ComparedShaderType, TEXT("Texture3D"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTexture3D : EShaderCodeResourceBindingType::Texture3D;
+	}
+	else if (ShaderTypeLength == 11 && FCString::Strncmp(ComparedShaderType, TEXT("TextureCube"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTextureCube : EShaderCodeResourceBindingType::TextureCube;
+	}
+	else if (!bIsRWResource && ShaderTypeLength == 16 && FCString::Strncmp(ComparedShaderType, TEXT("TextureCubeArray"), ShaderTypeLength) == 0)
+	{
+		BindingType = EShaderCodeResourceBindingType::TextureCubeArray;
+	}
+	else if (ShaderTypeLength == 15 && FCString::Strncmp(ComparedShaderType, TEXT("TextureMetadata"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWTextureMetadata : EShaderCodeResourceBindingType::TextureMetadata;
+	}
+	else if (ShaderTypeLength == 6 && FCString::Strncmp(ComparedShaderType, TEXT("Buffer"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWBuffer : EShaderCodeResourceBindingType::Buffer;
+	}
+	else if (ShaderTypeLength == 16 && FCString::Strncmp(ComparedShaderType, TEXT("StructuredBuffer"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWStructuredBuffer : EShaderCodeResourceBindingType::StructuredBuffer;
+	}
+	else if (ShaderTypeLength == 17 && FCString::Strncmp(ComparedShaderType, TEXT("ByteAddressBuffer"), ShaderTypeLength) == 0)
+	{
+		BindingType = bIsRWResource ? EShaderCodeResourceBindingType::RWByteAddressBuffer : EShaderCodeResourceBindingType::ByteAddressBuffer;
+	}
+	else if (!bIsRWResource && ShaderTypeLength == 31 && FCString::Strncmp(ComparedShaderType, TEXT("RaytracingAccelerationStructure"), ShaderTypeLength) == 0)
+	{
+		BindingType = EShaderCodeResourceBindingType::RaytracingAccelerationStructure;
+	}
+	return BindingType;
+}
+
+const TCHAR* const kShaderCodeResourceBindingTypeNames[] = {
+	TEXT("Invalid"),
+	TEXT("SamplerState"),
+	TEXT("Texture2D"),
+	TEXT("Texture2DArray"),
+	TEXT("Texture2DMS"),
+	TEXT("Texture3D"),
+	TEXT("TextureCube"),
+	TEXT("TextureCubeArray"),
+	TEXT("TextureMetadata"),
+	TEXT("Buffer"),
+	TEXT("StructuredBuffer"),
+	TEXT("ByteAddressBuffer"),
+	TEXT("RaytracingAccelerationStructure"),
+	TEXT("RWTexture2D"),
+	TEXT("RWTexture2DArray"),
+	TEXT("RWTexture3D"),
+	TEXT("RWTextureCube"),
+	TEXT("RWTextureMetadata"),
+	TEXT("RWBuffer"),
+	TEXT("RWStructuredBuffer"),
+	TEXT("RWByteAddressBuffer"),
+};
+
+static_assert(UE_ARRAY_COUNT(kShaderCodeResourceBindingTypeNames) == int32(EShaderCodeResourceBindingType::MAX), "TODO.");
+
+const TCHAR* GetShaderCodeResourceBindingTypeName(EShaderCodeResourceBindingType BindingType)
+{
+	check(BindingType != EShaderCodeResourceBindingType::Invalid);
+	check(int32(BindingType) < int32(EShaderCodeResourceBindingType::MAX));
+	return kShaderCodeResourceBindingTypeNames[int32(BindingType)];
 }
 
 class FUniformBufferMemberAndOffset
@@ -85,12 +272,16 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	const TCHAR* InStructTypeName,
 	const TCHAR* InShaderVariableName,
 	const TCHAR* InStaticSlotName,
+	const ANSICHAR* InFileName,
+	const int32 InFileLine,
 	uint32 InSize,
 	const TArray<FMember>& InMembers)
 	: StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
 	, StaticSlotName(InStaticSlotName)
 	, ShaderVariableHashedName(InShaderVariableName)
+	, FileName(InFileName)
+	, FileLine(InFileLine)
 	, Size(InSize)
 	, UseCase(InUseCase)
 	, Layout(InLayoutName)
@@ -231,6 +422,7 @@ void FShaderParametersMetadata::InitializeLayout()
 		EUniformBufferBaseType BaseType = CurrentMember.GetBaseType();
 		const uint32 ArraySize = CurrentMember.GetNumElements();
 		const FShaderParametersMetadata* ChildStruct = CurrentMember.GetStructMetadata();
+		const TCHAR* ShaderType = CurrentMember.GetShaderType();
 
 		const bool bIsArray = ArraySize > 0;
 		const bool bIsRHIResource = (
@@ -245,29 +437,37 @@ void FShaderParametersMetadata::InitializeLayout()
 
 		if (DO_CHECK)
 		{
-			const FString CppName = FString::Printf(TEXT("%s::%s"), CurrentStruct.GetStructTypeName(), CurrentMember.GetName());
+			auto GetMemberErrorPrefix = [&]()
+			{
+				return FString::Printf(
+					TEXT("%s(%i): Shader parameter %s::%s error:\n"),
+					ANSI_TO_TCHAR(CurrentStruct.GetFileName()),
+					CurrentMember.GetFileLine(),
+					CurrentStruct.GetStructTypeName(),
+					CurrentMember.GetName());
+			};
 
 			if (BaseType == UBMT_BOOL)
 			{
 				UE_LOG(LogRendererCore, Fatal,
-					TEXT("Shader parameter %s error: bool are actually illegal in shader parameter structure, ")
+					TEXT("%sbool are actually illegal in shader parameter structure, ")
 					TEXT("because bool type in HLSL means using scalar register to store binary information. ")
 					TEXT("Boolean information should always be packed explicitly in bitfield to reduce memory footprint, ")
-					TEXT("and use HLSL comparison operators to translate into clean SGPR, to have minimal VGPR footprint."), *CppName);
+					TEXT("and use HLSL comparison operators to translate into clean SGPR, to have minimal VGPR footprint."), *GetMemberErrorPrefix());
 			}
 
 			if (IsRDGResourceReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
 			{
 				if (!bAllowGraphResources)
 				{
-					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Graph resources are only allowed in shader parameter structs."), *CppName);
+					UE_LOG(LogRendererCore, Fatal, TEXT("%sGraph resources are only allowed in shader parameter structs."), *GetMemberErrorPrefix());
 				}
 			}
 			else if (BaseType == UBMT_REFERENCED_STRUCT)
 			{
 				if (!bAllowUniformBufferReferences)
 				{
-					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Shader parameter struct reference can only be done in shader parameter structs."), *CppName);
+					UE_LOG(LogRendererCore, Fatal, TEXT("%sShader parameter struct reference can only be done in shader parameter structs."), *GetMemberErrorPrefix());
 				}
 			}
 			else if (BaseType == UBMT_NESTED_STRUCT || BaseType == UBMT_INCLUDED_STRUCT)
@@ -276,18 +476,103 @@ void FShaderParametersMetadata::InitializeLayout()
 
 				if (!bAllowStructureInlining)
 				{
-					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Shader parameter struct is not known inline other structures."), *CppName);
+					UE_LOG(LogRendererCore, Fatal, TEXT("%sShader parameter struct is not known inline other structures."), *GetMemberErrorPrefix());
 				}
 				else if (ChildStruct->GetUseCase() != EUseCase::ShaderParameterStruct && UseCase == EUseCase::ShaderParameterStruct)
 				{
-					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: can only nests or include shader parameter struct define with BEGIN_SHADER_PARAMETER_STRUCT(), but %s is not."), *CppName, ChildStruct->GetStructTypeName());
+					UE_LOG(LogRendererCore, Fatal, TEXT("%sCan only nests or include shader parameter struct define with BEGIN_SHADER_PARAMETER_STRUCT(), but %s is not."), *GetMemberErrorPrefix(), ChildStruct->GetStructTypeName());
 				}
 			}
 
 			const bool bTypeCanBeArray = (bAllowResourceArrays && (bIsRHIResource || bIsRDGResource)) || bIsVariableNativeType || BaseType == UBMT_NESTED_STRUCT;
 			if (bIsArray && !bTypeCanBeArray)
 			{
-				UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Not allowed to be an array."), *CppName);
+				UE_LOG(LogRendererCore, Fatal, TEXT("%sNot allowed to be an array."), *GetMemberErrorPrefix());
+			}
+
+			// Validate the shader binding type.
+			if (bIsRHIResource || (bIsRDGResource && (BaseType != UBMT_RDG_BUFFER && BaseType != UBMT_RDG_TEXTURE_COPY_DEST && BaseType != UBMT_RDG_BUFFER_COPY_DEST)))
+			{
+				EShaderCodeResourceBindingType BindingType = ParseShaderResourceBindingType(ShaderType);
+
+				if (BindingType == EShaderCodeResourceBindingType::Invalid)
+				{
+					UE_LOG(LogRendererCore, Warning, TEXT("%sUnknown shader parameter type %s."), *GetMemberErrorPrefix(), ShaderType);
+				}
+
+				bool bIsValidBindingType = false;
+				if (BindingType == EShaderCodeResourceBindingType::SamplerState)
+				{
+					bIsValidBindingType = (BaseType == UBMT_SAMPLER);
+				}
+				else if (
+					BindingType == EShaderCodeResourceBindingType::Texture2D ||
+					BindingType == EShaderCodeResourceBindingType::Texture2DArray ||
+					BindingType == EShaderCodeResourceBindingType::Texture2DMS ||
+					BindingType == EShaderCodeResourceBindingType::Texture3D ||
+					BindingType == EShaderCodeResourceBindingType::TextureCube ||
+					BindingType == EShaderCodeResourceBindingType::TextureCubeArray)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_TEXTURE ||
+						BaseType == UBMT_SRV ||
+						BaseType == UBMT_RDG_TEXTURE ||
+						BaseType == UBMT_RDG_TEXTURE_SRV);
+				}
+				else if (BindingType == EShaderCodeResourceBindingType::TextureMetadata)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_SRV ||
+						BaseType == UBMT_RDG_TEXTURE_SRV);
+				}
+				else if (
+					BindingType == EShaderCodeResourceBindingType::Buffer ||
+					BindingType == EShaderCodeResourceBindingType::StructuredBuffer ||
+					BindingType == EShaderCodeResourceBindingType::ByteAddressBuffer)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_SRV ||
+						BaseType == UBMT_RDG_BUFFER_SRV);
+				}
+				else if (BindingType == EShaderCodeResourceBindingType::RaytracingAccelerationStructure)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_SRV ||
+						BaseType == UBMT_RDG_BUFFER_SRV);
+				}
+				else if (
+					BindingType == EShaderCodeResourceBindingType::RWTexture2D ||
+					BindingType == EShaderCodeResourceBindingType::RWTexture2DArray ||
+					BindingType == EShaderCodeResourceBindingType::RWTexture3D ||
+					BindingType == EShaderCodeResourceBindingType::RWTextureCube ||
+					BindingType == EShaderCodeResourceBindingType::RWTextureMetadata)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_UAV ||
+						BaseType == UBMT_RDG_TEXTURE_UAV);
+				}
+				else if (
+					BindingType == EShaderCodeResourceBindingType::RWBuffer ||
+					BindingType == EShaderCodeResourceBindingType::RWStructuredBuffer ||
+					BindingType == EShaderCodeResourceBindingType::RWByteAddressBuffer)
+				{
+					bIsValidBindingType = (
+						BaseType == UBMT_UAV ||
+						BaseType == UBMT_RDG_BUFFER_UAV);
+				}
+				else
+				{
+					//unimplemented();
+				}
+
+				if (!bIsValidBindingType)
+				{
+					const TCHAR* CurrentMacroName = GetShaderParameterMacroName(BaseType);
+					UE_LOG(
+						LogRendererCore, Warning,
+						TEXT("%sUnable to bind a shader parameter type %s with a %s."),
+						*GetMemberErrorPrefix(), ShaderType, CurrentMacroName);
+				}
 			}
 		}
 
@@ -297,7 +582,41 @@ void FShaderParametersMetadata::InitializeLayout()
 			{
 				const uint32 AbsoluteMemberOffset = CurrentMember.GetOffset() + MemberStack[i].StructOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
 				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferLayout::FResourceParameter::MemberOffset) * 8)));
-				Layout.Resources.Add(FRHIUniformBufferLayout::FResourceParameter{ uint16(AbsoluteMemberOffset), BaseType });
+				const FRHIUniformBufferLayout::FResourceParameter ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
+
+				Layout.Resources.Add(ResourceParameter);
+
+				if (IsRDGTextureReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
+				{
+					Layout.GraphResources.Add(ResourceParameter);
+					Layout.GraphTextures.Add(ResourceParameter);
+
+					if (BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
+					{
+						checkf(!Layout.HasRenderTargets(), TEXT("Shader parameter struct %s has multiple render target binding slots."), GetStructTypeName());
+						Layout.RenderTargetsOffset = ResourceParameter.MemberOffset;
+					}
+				}
+				else if (IsRDGBufferReferenceShaderParameterType(BaseType))
+				{
+					Layout.GraphResources.Add(ResourceParameter);
+					Layout.GraphBuffers.Add(ResourceParameter);
+				}
+			}
+		}
+
+		if (BaseType == UBMT_UAV)
+		{
+			Layout.bHasNonGraphOutputs = true;
+		}
+		else if (BaseType == UBMT_REFERENCED_STRUCT)
+		{
+			for (const FShaderParametersMetadata::FMember& Member : ChildStruct->GetMembers())
+			{
+				if (Member.GetBaseType() == UBMT_UAV)
+				{
+					Layout.bHasNonGraphOutputs = true;
+				}
 			}
 		}
 
@@ -316,26 +635,29 @@ void FShaderParametersMetadata::InitializeLayout()
 		}
 	} // for (int32 i = 0; i < MemberStack.Num(); ++i)
 
-	Layout.Resources.Sort([](
+	const auto ByMemberOffset = [](
 		const FRHIUniformBufferLayout::FResourceParameter& A,
 		const FRHIUniformBufferLayout::FResourceParameter& B)
 	{
-#if 0 // TODO(RDG)
-		/** Sort the resource on MemberType first to avoid CPU miss predictions when iterating over the resources. Then based on ascending offset
-		 * to still allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
-		 */
+		return A.MemberOffset < B.MemberOffset;
+	};
+
+	const auto ByTypeThenMemberOffset = [](
+		const FRHIUniformBufferLayout::FResourceParameter& A,
+		const FRHIUniformBufferLayout::FResourceParameter& B)
+	{
 		if (A.MemberType == B.MemberType)
 		{
 			return A.MemberOffset < B.MemberOffset;
 		}
 		return A.MemberType < B.MemberType;
-#else
-		// Sorts the resource based on MemberOffset to allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
-		return A.MemberOffset < B.MemberOffset;
-#endif
-	});
+	};
 
-	// Compute the hash of the RHI layout.
+	Layout.Resources.Sort(ByMemberOffset);
+	Layout.GraphResources.Sort(ByMemberOffset);
+	Layout.GraphTextures.Sort(ByTypeThenMemberOffset);
+	Layout.GraphBuffers.Sort(ByTypeThenMemberOffset);
+
 	Layout.ComputeHash();
 	
 	// Compute the hash about the entire layout of the structure.
@@ -355,6 +677,12 @@ void FShaderParametersMetadata::InitializeLayout()
 			MemberHash = HashCombine(MemberHash, GetTypeHash(CurrentMember.GetName()));
 			MemberHash = HashCombine(MemberHash, GetTypeHash(int32(CurrentMember.GetNumElements())));
 
+			const bool bIsRHIResource = (
+				BaseType == UBMT_TEXTURE ||
+				BaseType == UBMT_SRV ||
+				BaseType == UBMT_SAMPLER);
+			const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType);
+
 			if (BaseType == UBMT_INT32 ||
 				BaseType == UBMT_UINT32 ||
 				BaseType == UBMT_FLOAT32)
@@ -370,6 +698,10 @@ void FShaderParametersMetadata::InitializeLayout()
 				}
 
 				MemberHash = HashCombine(MemberHash, ChildStruct->GetLayoutHash());
+			}
+			else if (bIsRHIResource || bIsRDGResource)
+			{
+				MemberHash = HashCombine(MemberHash, GetTypeHash(CurrentMember.GetShaderType()));
 			}
 
 			RootStructureHash = HashCombine(RootStructureHash, MemberHash);

@@ -146,6 +146,264 @@ private:
 	static uint32 CurrentFrame;
 };
 
+class FExclusiveDepthStencil
+{
+public:
+	enum Type
+	{
+		// don't use those directly, use the combined versions below
+		// 4 bits are used for depth and 4 for stencil to make the hex value readable and non overlapping
+		DepthNop = 0x00,
+		DepthRead = 0x01,
+		DepthWrite = 0x02,
+		DepthMask = 0x0f,
+		StencilNop = 0x00,
+		StencilRead = 0x10,
+		StencilWrite = 0x20,
+		StencilMask = 0xf0,
+
+		// use those:
+		DepthNop_StencilNop = DepthNop + StencilNop,
+		DepthRead_StencilNop = DepthRead + StencilNop,
+		DepthWrite_StencilNop = DepthWrite + StencilNop,
+		DepthNop_StencilRead = DepthNop + StencilRead,
+		DepthRead_StencilRead = DepthRead + StencilRead,
+		DepthWrite_StencilRead = DepthWrite + StencilRead,
+		DepthNop_StencilWrite = DepthNop + StencilWrite,
+		DepthRead_StencilWrite = DepthRead + StencilWrite,
+		DepthWrite_StencilWrite = DepthWrite + StencilWrite,
+	};
+
+private:
+	Type Value;
+
+public:
+	// constructor
+	FExclusiveDepthStencil(Type InValue = DepthNop_StencilNop)
+		: Value(InValue)
+	{
+	}
+
+	inline bool IsUsingDepthStencil() const
+	{
+		return Value != DepthNop_StencilNop;
+	}
+	inline bool IsUsingDepth() const
+	{
+		return (ExtractDepth() != DepthNop);
+	}
+	inline bool IsUsingStencil() const
+	{
+		return (ExtractStencil() != StencilNop);
+	}
+	inline bool IsDepthWrite() const
+	{
+		return ExtractDepth() == DepthWrite;
+	}
+	inline bool IsDepthRead() const
+	{
+		return ExtractDepth() == DepthRead;
+	}
+	inline bool IsStencilWrite() const
+	{
+		return ExtractStencil() == StencilWrite;
+	}
+	inline bool IsStencilRead() const
+	{
+		return ExtractStencil() == StencilRead;
+	}
+
+	inline bool IsAnyWrite() const
+	{
+		return IsDepthWrite() || IsStencilWrite();
+	}
+
+	inline void SetDepthWrite()
+	{
+		Value = (Type)(ExtractStencil() | DepthWrite);
+	}
+	inline void SetStencilWrite()
+	{
+		Value = (Type)(ExtractDepth() | StencilWrite);
+	}
+	inline void SetDepthStencilWrite(bool bDepth, bool bStencil)
+	{
+		Value = DepthNop_StencilNop;
+
+		if (bDepth)
+		{
+			SetDepthWrite();
+		}
+		if (bStencil)
+		{
+			SetStencilWrite();
+		}
+	}
+	bool operator==(const FExclusiveDepthStencil& rhs) const
+	{
+		return Value == rhs.Value;
+	}
+
+	bool operator != (const FExclusiveDepthStencil& RHS) const
+	{
+		return Value != RHS.Value;
+	}
+
+	inline bool IsValid(FExclusiveDepthStencil& Current) const
+	{
+		Type Depth = ExtractDepth();
+
+		if (Depth != DepthNop && Depth != Current.ExtractDepth())
+		{
+			return false;
+		}
+
+		Type Stencil = ExtractStencil();
+
+		if (Stencil != StencilNop && Stencil != Current.ExtractStencil())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	inline void GetAccess(EResourceTransitionAccess& DepthAccess, EResourceTransitionAccess& StencilAccess) const
+	{
+		DepthAccess = EResourceTransitionAccess::None;
+
+		// SRV access is allowed whilst a depth stencil target is "readable".
+		constexpr EResourceTransitionAccess DSVReadOnlyMask =
+			EResourceTransitionAccess::DSVRead | 
+			EResourceTransitionAccess::SRVGraphics | 
+			EResourceTransitionAccess::SRVCompute;
+
+		// If write access is required, only the depth block can access the resource.
+		constexpr EResourceTransitionAccess DSVReadWriteMask =
+			EResourceTransitionAccess::DSVRead |
+			EResourceTransitionAccess::DSVWrite;
+
+		if (IsUsingDepth())
+		{
+			DepthAccess = IsDepthWrite() ? DSVReadWriteMask : DSVReadOnlyMask;
+		}
+
+		StencilAccess = EResourceTransitionAccess::None;
+
+		if (IsUsingStencil())
+		{
+			StencilAccess = IsStencilWrite() ? DSVReadWriteMask : DSVReadOnlyMask;
+		}
+	}
+
+	template <typename TFunction>
+	inline void EnumerateSubresources(TFunction Function) const
+	{
+		if (!IsUsingDepthStencil())
+		{
+			return;
+		}
+
+		EResourceTransitionAccess DepthAccess = EResourceTransitionAccess::None;
+		EResourceTransitionAccess StencilAccess = EResourceTransitionAccess::None;
+		GetAccess(DepthAccess, StencilAccess);
+
+		// Same depth / stencil state; single subresource.
+		if (DepthAccess == StencilAccess)
+		{
+			Function(DepthAccess, FRHITransitionInfo::kAllSubresources);
+		}
+		// Separate subresources for depth / stencil.
+		else
+		{
+			if (DepthAccess != EResourceTransitionAccess::None)
+			{
+				Function(DepthAccess, FRHITransitionInfo::kDepthPlaneSlice);
+			}
+			if (StencilAccess != EResourceTransitionAccess::None)
+			{
+				Function(StencilAccess, FRHITransitionInfo::kStencilPlaneSlice);
+			}
+		}
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetReadableTransition() const
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthWrite()
+			? FExclusiveDepthStencil::DepthRead
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilWrite()
+			? FExclusiveDepthStencil::StencilRead
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
+	}
+
+	/**
+	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
+	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
+	* to avoid unnecessary subresource transitions.
+	*/
+	inline FExclusiveDepthStencil GetWritableTransition() const
+	{
+		FExclusiveDepthStencil::Type NewDepthState = IsDepthRead()
+			? FExclusiveDepthStencil::DepthWrite
+			: FExclusiveDepthStencil::DepthNop;
+
+		FExclusiveDepthStencil::Type NewStencilState = IsStencilRead()
+			? FExclusiveDepthStencil::StencilWrite
+			: FExclusiveDepthStencil::StencilNop;
+
+		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
+	}
+
+	uint32 GetIndex() const
+	{
+		// Note: The array to index has views created in that specific order.
+
+		// we don't care about the Nop versions so less views are needed
+		// we combine Nop and Write
+		switch (Value)
+		{
+		case DepthWrite_StencilNop:
+		case DepthNop_StencilWrite:
+		case DepthWrite_StencilWrite:
+		case DepthNop_StencilNop:
+			return 0; // old DSAT_Writable
+
+		case DepthRead_StencilNop:
+		case DepthRead_StencilWrite:
+			return 1; // old DSAT_ReadOnlyDepth
+
+		case DepthNop_StencilRead:
+		case DepthWrite_StencilRead:
+			return 2; // old DSAT_ReadOnlyStencil
+
+		case DepthRead_StencilRead:
+			return 3; // old DSAT_ReadOnlyDepthAndStencil
+		}
+		// should never happen
+		check(0);
+		return -1;
+	}
+	static const uint32 MaxIndex = 4;
+
+private:
+	inline Type ExtractDepth() const
+	{
+		return (Type)(Value & DepthMask);
+	}
+	inline Type ExtractStencil() const
+	{
+		return (Type)(Value & StencilMask);
+	}
+};
 
 //
 // State blocks
@@ -277,7 +535,16 @@ private:
 // Pipeline States
 //
 
-class FRHIGraphicsPipelineState : public FRHIResource {};
+class FRHIGraphicsPipelineState : public FRHIResource
+{
+public:
+	inline void SetSortKey(uint64 InSortKey) { SortKey = InSortKey; }
+	inline uint64 GetSortKey() const { return SortKey; }
+
+private:
+	uint64 SortKey = 0;
+};
+
 class FRHIComputePipelineState : public FRHIResource {};
 class FRHIRayTracingPipelineState : public FRHIResource {};
 
@@ -296,6 +563,8 @@ class FRHIRayTracingPipelineState : public FRHIResource {};
 struct FRHIUniformBufferLayout
 {
 public:
+	static const uint16 kInvalidOffset = TNumericLimits<uint16>::Max();
+
 	/** Data structure to store information about resource parameter in a shader parameter structure. */
 	struct FResourceParameter
 	{
@@ -391,37 +660,63 @@ public:
 		Hash = Source.Hash;
 	}
 
-	const FMemoryImageString& GetDebugName() const { return Name; }
+	const FMemoryImageString& GetDebugName() const
+	{
+		return Name;
+	}
 
-	uint32 NumRenderTargets()	const { return 0; }
-	uint32 NumTextures()		const { return 0; }
-	uint32 NumUAVs()			const { return 0; }
+	bool HasRenderTargets() const
+	{
+		return RenderTargetsOffset != kInvalidOffset;
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayout& Ref)
 	{
-		Ar << Ref.Name;
 		Ar << Ref.ConstantBufferSize;
-		Ar << Ref.Hash;
+		Ar << Ref.StaticSlot;
+		Ar << Ref.RenderTargetsOffset;
+		Ar << Ref.bHasNonGraphOutputs;
 		Ar << Ref.Resources;
+		Ar << Ref.GraphResources;
+		Ar << Ref.GraphTextures;
+		Ar << Ref.GraphBuffers;
+		Ar << Ref.Name;
+		Ar << Ref.Hash;
 		return Ar;
 	}
 
 	/** The size of the constant buffer in bytes. */
-	LAYOUT_FIELD(uint32, ConstantBufferSize);
+	LAYOUT_FIELD_INITIALIZED(uint32, ConstantBufferSize, 0);
 
 	/** The static slot (if applicable). */
 	LAYOUT_FIELD_INITIALIZED(FUniformBufferStaticSlot, StaticSlot, MAX_UNIFORM_BUFFER_STATIC_SLOTS);
 
+	/** The render target binding slots offset, if it exists. */
+	LAYOUT_FIELD_INITIALIZED(uint16, RenderTargetsOffset, kInvalidOffset);
+
+	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
+	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
+
 	/** The list of all resource inlined into the shader parameter structure. */
 	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Resources);
+
+	/** The list of all RDG resource references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphResources);
+
+	/** The list of all RDG texture references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphTextures);
+
+	/** The list of all RDG buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphBuffers);
 
 	LAYOUT_MUTABLE_FIELD(int32, NumUsesForDebugging);
 
 private:
 	// for debugging / error message
 	LAYOUT_FIELD(FMemoryImageString, Name);
-	LAYOUT_FIELD(uint32, Hash);
+	LAYOUT_FIELD_INITIALIZED(uint32, Hash, 0);
 };
+
 
 /** Compare two uniform buffer layouts. */
 inline bool operator==(const FRHIUniformBufferLayout::FResourceParameter& A, const FRHIUniformBufferLayout::FResourceParameter& B)
@@ -1347,206 +1642,6 @@ public:
 	}
 };
 
-class FExclusiveDepthStencil
-{
-public:
-	enum Type
-	{
-		// don't use those directly, use the combined versions below
-		// 4 bits are used for depth and 4 for stencil to make the hex value readable and non overlapping
-		DepthNop =		0x00,
-		DepthRead =		0x01,
-		DepthWrite =	0x02,
-		DepthMask =		0x0f,
-		StencilNop =	0x00,
-		StencilRead =	0x10,
-		StencilWrite =	0x20,
-		StencilMask =	0xf0,
-
-		// use those:
-		DepthNop_StencilNop = DepthNop + StencilNop,
-		DepthRead_StencilNop = DepthRead + StencilNop,
-		DepthWrite_StencilNop = DepthWrite + StencilNop,
-		DepthNop_StencilRead = DepthNop + StencilRead,
-		DepthRead_StencilRead = DepthRead + StencilRead,
-		DepthWrite_StencilRead = DepthWrite + StencilRead,
-		DepthNop_StencilWrite = DepthNop + StencilWrite,
-		DepthRead_StencilWrite = DepthRead + StencilWrite,
-		DepthWrite_StencilWrite = DepthWrite + StencilWrite,
-	};
-
-private:
-	Type Value;
-
-public:
-	// constructor
-	FExclusiveDepthStencil(Type InValue = DepthNop_StencilNop)
-		: Value(InValue)
-	{
-	}
-
-	inline bool IsUsingDepthStencil() const
-	{
-		return Value != DepthNop_StencilNop;
-	}
-	inline bool IsUsingDepth() const
-	{
-		return (ExtractDepth() != DepthNop);
-	}
-	inline bool IsUsingStencil() const
-	{
-		return (ExtractStencil() != StencilNop);
-	}
-	inline bool IsDepthWrite() const
-	{
-		return ExtractDepth() == DepthWrite;
-	}
-	inline bool IsDepthRead() const
-	{
-		return ExtractDepth() == DepthRead;
-	}
-	inline bool IsStencilWrite() const
-	{
-		return ExtractStencil() == StencilWrite;
-	}
-	inline bool IsStencilRead() const
-	{
-		return ExtractStencil() == StencilRead;
-	}
-
-	inline bool IsAnyWrite() const
-	{
-		return IsDepthWrite() || IsStencilWrite();
-	}
-
-	inline void SetDepthWrite()
-	{
-		Value = (Type)(ExtractStencil() | DepthWrite);
-	}
-	inline void SetStencilWrite()
-	{
-		Value = (Type)(ExtractDepth() | StencilWrite);
-	}
-	inline void SetDepthStencilWrite(bool bDepth, bool bStencil)
-	{
-		Value = DepthNop_StencilNop;
-
-		if (bDepth)
-		{
-			SetDepthWrite();
-		}
-		if (bStencil)
-		{
-			SetStencilWrite();
-		}
-	}
-	bool operator==(const FExclusiveDepthStencil& rhs) const
-	{
-		return Value == rhs.Value;
-	}
-
-	bool operator != (const FExclusiveDepthStencil& RHS) const
-	{
-		return Value != RHS.Value;
-	}
-
-	inline bool IsValid(FExclusiveDepthStencil& Current) const
-	{
-		Type Depth = ExtractDepth();
-
-		if (Depth != DepthNop && Depth != Current.ExtractDepth())
-		{
-			return false;
-		}
-
-		Type Stencil = ExtractStencil();
-
-		if (Stencil != StencilNop && Stencil != Current.ExtractStencil())
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
-	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
-	* to avoid unnecessary subresource transitions.
-	*/
-	inline FExclusiveDepthStencil GetReadableTransition() const 
-	{
-		FExclusiveDepthStencil::Type NewDepthState = IsDepthWrite()
-			? FExclusiveDepthStencil::DepthRead
-			: FExclusiveDepthStencil::DepthNop;
-
-		FExclusiveDepthStencil::Type NewStencilState = IsStencilWrite()
-			? FExclusiveDepthStencil::StencilRead
-			: FExclusiveDepthStencil::StencilNop;
-
-		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
-	}
-
-	/**
-	* Returns a new FExclusiveDepthStencil to be used to transition a depth stencil resource to readable.
-	* If the depth or stencil is already in a readable state, that particular component is returned as Nop,
-	* to avoid unnecessary subresource transitions.
-	*/
-	inline FExclusiveDepthStencil GetWritableTransition() const
-	{
-		FExclusiveDepthStencil::Type NewDepthState = IsDepthRead()
-			? FExclusiveDepthStencil::DepthWrite
-			: FExclusiveDepthStencil::DepthNop;
-
-		FExclusiveDepthStencil::Type NewStencilState = IsStencilRead()
-			? FExclusiveDepthStencil::StencilWrite
-			: FExclusiveDepthStencil::StencilNop;
-
-		return (FExclusiveDepthStencil::Type)(NewDepthState | NewStencilState);
-	}
-
-	uint32 GetIndex() const
-	{
-		// Note: The array to index has views created in that specific order.
-
-		// we don't care about the Nop versions so less views are needed
-		// we combine Nop and Write
-		switch (Value)
-		{
-			case DepthWrite_StencilNop:
-			case DepthNop_StencilWrite:
-			case DepthWrite_StencilWrite:
-			case DepthNop_StencilNop:
-				return 0; // old DSAT_Writable
-		
-			case DepthRead_StencilNop:
-			case DepthRead_StencilWrite:
-				return 1; // old DSAT_ReadOnlyDepth
-
-			case DepthNop_StencilRead:
-			case DepthWrite_StencilRead:
-				return 2; // old DSAT_ReadOnlyStencil
-
-			case DepthRead_StencilRead:
-				return 3; // old DSAT_ReadOnlyDepthAndStencil
-		}
-		// should never happen
-		check(0);
-		return -1;
-	}
-	static const uint32 MaxIndex = 4;
-
-private:
-	inline Type ExtractDepth() const
-	{
-		return (Type)(Value & DepthMask);
-	}
-	inline Type ExtractStencil() const
-	{
-		return (Type)(Value & StencilMask);
-	}
-};
-
 class FRHIDepthRenderTargetView
 {
 public:
@@ -1947,6 +2042,12 @@ enum class ESubpassHint : uint8
 	DepthReadSubpass,
 };
 
+enum class EConservativeRasterization : uint8
+{
+	Disabled,
+	Overestimated,
+};
+
 class FGraphicsPipelineStateInitializer
 {
 public:
@@ -1970,6 +2071,7 @@ public:
 		, NumSamples(0)
 		, SubpassHint(ESubpassHint::None)
 		, SubpassIndex(0)
+		, ConservativeRasterization(EConservativeRasterization::Disabled)
 		, bDepthBounds(false)
 		, bMultiView(false)
 		, bHasFragmentDensityAttachment(false)
@@ -2000,6 +2102,7 @@ public:
 		uint32						InNumSamples,
 		ESubpassHint				InSubpassHint,
 		uint8						InSubpassIndex,
+		EConservativeRasterization	InConservativeRasterization,
 		uint16						InFlags,
 		bool						bInDepthBounds,
 		bool						bInMultiView,
@@ -2024,6 +2127,7 @@ public:
 		, NumSamples(InNumSamples)
 		, SubpassHint(InSubpassHint)
 		, SubpassIndex(InSubpassIndex)
+		, ConservativeRasterization(EConservativeRasterization::Disabled)
 		, bDepthBounds(bInDepthBounds)
 		, bMultiView(bInMultiView)
 		, bHasFragmentDensityAttachment(bHasFragmentDensityAttachment)
@@ -2064,7 +2168,8 @@ public:
 			DepthStencilAccess != rhs.DepthStencilAccess ||
 			NumSamples != rhs.NumSamples ||
 			SubpassHint != rhs.SubpassHint ||
-			SubpassIndex != rhs.SubpassIndex)
+			SubpassIndex != rhs.SubpassIndex ||
+			ConservativeRasterization != rhs.ConservativeRasterization)
 		{
 			return false;
 		}
@@ -2111,6 +2216,7 @@ public:
 	uint16							NumSamples;
 	ESubpassHint					SubpassHint;
 	uint8							SubpassIndex;
+	EConservativeRasterization		ConservativeRasterization;
 	bool							bDepthBounds;
 	bool							bMultiView;
 	bool							bHasFragmentDensityAttachment;

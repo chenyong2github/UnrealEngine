@@ -892,7 +892,7 @@ static FORCEINLINE NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC GetNVShaderExt
 	ShdExtensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
 	ShdExtensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
 	ShdExtensionDesc.uavSlot = UavSlot;
-	ShdExtensionDesc.registerSpace = 0;
+	ShdExtensionDesc.registerSpace = 0; // TODO: Should use the same special space as AMD to avoid driver pattern matching
 	return ShdExtensionDesc;
 }
 

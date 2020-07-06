@@ -350,6 +350,7 @@ public:
 	virtual int32 SpeedTree(int32 GeometryArg, int32 WindArg, int32 LODArg, float BillboardThreshold, bool bAccurateWindVelocities, bool bExtraBend, int32 ExtraBendArg) = 0;
 	virtual int32 TextureCoordinateOffset() = 0;
 	virtual int32 EyeAdaptation() = 0;
+	virtual int32 EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg) = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
 
@@ -746,6 +747,11 @@ public:
 	virtual int32 EyeAdaptation() override
 	{
 		return Compiler->EyeAdaptation();
+	}
+
+	virtual int32 EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg) override
+	{
+		return Compiler->EyeAdaptationInverse(LightValueArg, AlphaArg);
 	}
 
 	virtual bool IsDevelopmentFeatureEnabled(const FName& FeatureName) const override

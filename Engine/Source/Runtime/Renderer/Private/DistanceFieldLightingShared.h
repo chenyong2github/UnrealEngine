@@ -23,7 +23,7 @@ class FSceneRenderer;
 class FShaderParameterMap;
 class FViewInfo;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Warning, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Log, All);
 
 /** Tile sized used for most AO compute shaders. */
 extern int32 GDistanceFieldAOTileSizeX;
@@ -46,17 +46,14 @@ class TDistanceFieldObjectBuffers
 {
 public:
 
-	// In float4's
 	static int32 ObjectDataStride;
+	static int32 ObjectBoundsStride;
 
-	int32 MaxObjects;
-
-	FRWBuffer Bounds;
-	FRWBuffer Data;
+	FRWBufferStructured Bounds;
+	FRWBufferStructured Data;
 
 	TDistanceFieldObjectBuffers()
 	{
-		MaxObjects = 0;
 	}
 
 	void Initialize();

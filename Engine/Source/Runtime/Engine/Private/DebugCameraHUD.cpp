@@ -14,6 +14,7 @@
 #include "GameFramework/SpectatorPawn.h"
 #include "Engine/Canvas.h"
 #include "Engine/DebugCameraController.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarDebugCameraTraceComplex(
@@ -135,6 +136,7 @@ void ADebugCameraHUD::PostRender()
 #endif
 
 			FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), bTraceComplex, this);
+			TraceParams.bReturnPhysicalMaterial = true;
 			FHitResult Hit;
 			bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, CamRot.Vector() * 100000.f + CamLoc, ECC_Visibility, TraceParams);
 
@@ -156,6 +158,8 @@ void ADebugCameraHUD::PostRender()
 				Canvas->DrawText(RenderFont, FString::Printf(TEXT("HitActor Class: '%s'"), HitActor && HitActor->GetClass() ? *HitActor->GetClass()->GetName() : TEXT("<Not Found>") ), X, yl, 1.f, 1.f, FontRenderInfo);
 				yl += Y;
 				Canvas->DrawText(RenderFont, FString::Printf(TEXT("HitActorPath: '%s'"), HitActor ? *HitActor->GetPathName() : TEXT("<Not Found>")), X, yl, 1.f, 1.f, FontRenderInfo);
+				yl += Y;
+				Canvas->DrawText(RenderFont, FString::Printf(TEXT("HitPhysMat: '%s'"), Hit.PhysMaterial.Get() ? *Hit.PhysMaterial.Get()->GetPathName() : TEXT("<Not Found>")), X, yl, 1.f, 1.f, FontRenderInfo);
 				yl += Y;
 
 				bool bFoundMaterial = false;

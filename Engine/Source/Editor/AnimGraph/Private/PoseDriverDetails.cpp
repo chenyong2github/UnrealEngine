@@ -15,6 +15,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 #include "Widgets/Input/SButton.h"
 #include "SCurveEditor.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -23,8 +24,8 @@
 #define LOCTEXT_NAMESPACE "PoseDriverDetails"
 
 static const FName ColumnId_Target("Target");
-TArray< TSharedPtr<FName> > SPDD_TargetRow::DistanceMethodOptions;
-TArray< TSharedPtr<FName> > SPDD_TargetRow::FunctionTypeOptions;
+TArray< TSharedPtr<FString> > SPDD_TargetRow::DistanceMethodOptions;
+TArray< TSharedPtr<FString> > SPDD_TargetRow::FunctionTypeOptions;
 
 void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
@@ -36,7 +37,7 @@ void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFDistanceMethod"));
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 		{
-			DistanceMethodOptions.Add(MakeShareable(new FName(*Enum->GetDisplayNameTextByIndex(i).ToString())));
+			DistanceMethodOptions.Add(MakeShareable(new FString(Enum->GetDisplayNameTextByIndex(i).ToString())));
 		}
 	}
 
@@ -45,7 +46,7 @@ void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFFunctionType"));
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 		{
-			FunctionTypeOptions.Add(MakeShareable(new FName(*Enum->GetDisplayNameTextByIndex(i).ToString())));
+			FunctionTypeOptions.Add(MakeShareable(new FString(Enum->GetDisplayNameTextByIndex(i).ToString())));
 		}
 	}
 
@@ -192,7 +193,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
 						[
-							SNew( SComboBox<TSharedPtr<FName>>)
+							SNew(SSearchableComboBox)
 							.OptionsSource(&PoseDriverDetails->DrivenNameOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
 							.OnSelectionChanged(this, &SPDD_TargetRow::OnDrivenNameChanged)
@@ -253,7 +254,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.AutoWidth()
 						.Padding(FMargin(6, 0, 3, 0))
 						[
-							SNew(SComboBox<TSharedPtr<FName>>)
+							SNew(SSearchableComboBox)
 							.OptionsSource(&DistanceMethodOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
 							.OnSelectionChanged(this, &SPDD_TargetRow::OnDistanceMethodChanged)
@@ -270,7 +271,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.AutoWidth()
 						.Padding(FMargin(6, 0, 3, 0))
 						[
-							SNew(SComboBox<TSharedPtr<FName>>)
+							SNew(SSearchableComboBox)
 							.Visibility_Lambda([=]() { return IsCustomCurveEnabled() ? EVisibility::Collapsed : EVisibility::Visible;  })
 							.OptionsSource(&FunctionTypeOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
@@ -566,12 +567,12 @@ FText SPDD_TargetRow::GetDistanceMethodAsText() const
 	const FPoseDriverTarget* Target = GetTarget();
 	if (Target)
 	{
-		return FText::FromName(*DistanceMethodOptions[(int32)Target->DistanceMethod]);
+		return FText::FromString(*DistanceMethodOptions[(int32)Target->DistanceMethod]);
 	}
 	return FText();
 }
 
-void SPDD_TargetRow::OnDistanceMethodChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType)
+void SPDD_TargetRow::OnDistanceMethodChanged(TSharedPtr<FString> InItem, ESelectInfo::Type SelectionType)
 {
 	FPoseDriverTarget* Target = GetTarget();
 	if (Target)
@@ -593,12 +594,12 @@ FText SPDD_TargetRow::GetFunctionTypeAsText() const
 	const FPoseDriverTarget* Target = GetTarget();
 	if (Target)
 	{
-		return FText::FromName(*FunctionTypeOptions[(int32)Target->FunctionType]);
+		return FText::FromString(*FunctionTypeOptions[(int32)Target->FunctionType]);
 	}
 	return FText();
 }
 
-void SPDD_TargetRow::OnFunctionTypeChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType)
+void SPDD_TargetRow::OnFunctionTypeChanged(TSharedPtr<FString> InItem, ESelectInfo::Type SelectionType)
 {
 	FPoseDriverTarget* Target = GetTarget();
 	if (Target)
@@ -621,21 +622,21 @@ FText SPDD_TargetRow::GetDrivenNameText() const
 	return (Target) ? FText::FromName(Target->DrivenName) : FText::GetEmpty();
 }
 
-void SPDD_TargetRow::OnDrivenNameChanged(TSharedPtr<FName> NewName, ESelectInfo::Type SelectInfo)
+void SPDD_TargetRow::OnDrivenNameChanged(TSharedPtr<FString> NewName, ESelectInfo::Type SelectInfo)
 {
 	FPoseDriverTarget* Target = GetTarget();
 	if (Target && SelectInfo != ESelectInfo::Direct)
 	{
-		Target->DrivenName = *NewName.Get();
+		Target->DrivenName = FName(*NewName.Get());
 		NotifyTargetChanged();
 	}
 }
 
-TSharedRef<SWidget> SPDD_TargetRow::MakeDrivenNameWidget(TSharedPtr<FName> InItem)
+TSharedRef<SWidget> SPDD_TargetRow::MakeDrivenNameWidget(TSharedPtr<FString> InItem)
 {
 	return 
 		SNew(STextBlock)
-		.Text(FText::FromName(*InItem));
+		.Text(FText::FromString(*InItem));
 }
 
 FText SPDD_TargetRow::GetTargetTitleText() const
@@ -1067,7 +1068,7 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 	if (PoseDriver)
 	{
 		// None is always an option
-		DrivenNameOptions.Add(MakeShareable(new FName(NAME_None)));
+		DrivenNameOptions.Add(MakeShareable(new FString()));
 
 		// Compile list of all curves in Skeleton
 		if (PoseDriver->Node.DriveOutput == EPoseDriverOutput::DriveCurves)
@@ -1084,7 +1085,7 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 
 					for (FName CurveName : NameArray)
 					{
-						DrivenNameOptions.Add(MakeShareable(new FName(CurveName)));
+						DrivenNameOptions.Add(MakeShareable(new FString(CurveName.ToString())));
 					}
 				}
 			}
@@ -1097,7 +1098,7 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 				const TArray<FSmartName> PoseNames = PoseDriver->Node.PoseAsset->GetPoseNames();
 				for (const FSmartName& SmartName : PoseNames)
 				{
-					DrivenNameOptions.Add(MakeShareable(new FName(SmartName.DisplayName)));
+					DrivenNameOptions.Add(MakeShareable(new FString(SmartName.DisplayName.ToString())));
 				}
 			}
 		}

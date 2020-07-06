@@ -80,8 +80,7 @@ struct FPrivateKernelSharedScope
 {
 	// ------- compile time constant category.
 
-	// Gather input textures and sampler to use.
-	float2 GatherInputInvSize;
+	// sampler to use.
 	bool bBilinearSampleInput;
 
 	// Whether the kernel has enough samples enought sample to do the entire convolution (use by slight out of focus).
@@ -370,20 +369,36 @@ void GatherRingSamples(
 	}
 	#endif
 
-	// when the batch loop is not unroll, use successive rotation matrix to avoid doing cos & sin in inner loop.
-	#if !CONFIG_UNROLL_GATHER
-		// Generate at compile time sample rotation matrix.
-		const float2x2 SampleRotationMatrix = GetSampleRotationMatrix(RingSamplePairCount);
+	// Generate at compile time sample rotation matrix.
+	const float2x2 SampleRotationMatrix = GetSampleRotationMatrix(RingSamplePairCount);
 
-		// Generates at compile time first sample location on circle (radius = 1).
-		const float2 FirstCircleUnitPos = GetDiskSampleOnUnitCirle(RingId, RingSamplePairCount, /* BatchId = */ 0);
+	// Generates at compile time first sample location on circle (radius = 1).
+	const float2 FirstCircleUnitPos = GetDiskSampleOnUnitCirle(RingId, RingSamplePairCount, /* BatchId = */ 0);
 
-		// Position of the first sample on circle with radius according to KernelRadius.
-		float2 FirstCircleSamplePosOffset = FirstCircleUnitPos * RingRadius;
+	// Position of the first sample on circle with radius according to KernelRadius.
+	float2 FirstCircleSamplePosOffset = FirstCircleUnitPos * RingRadius;
 
-		// Setup iteratable SGPR
-		float2 CurrentCircleUnitPos = FirstCircleUnitPos;
-		float2 CurrentCircleSamplePosOffset = FirstCircleSamplePosOffset;
+	// Setup iteratable SGPR
+	float2 CurrentCircleUnitPos = FirstCircleUnitPos;
+	float2 CurrentCircleSamplePosOffset = FirstCircleSamplePosOffset;
+
+	#if CONFIG_SGPR_HINTS
+	{
+		CurrentCircleUnitPos = ToScalarMemory(CurrentCircleUnitPos);
+		CurrentCircleSamplePosOffset = ToScalarMemory(CurrentCircleSamplePosOffset);
+	}
+	#endif
+
+	// Iterate over the batch of samples.
+	LOOP
+	for (uint BatchId = 0; BatchId < BatchCount; BatchId++)
+	#if defined(WORKARROUND_UE_58394)
+		WORKARROUND_UE_58394 // TODO: nuke that guy once original issue is fixed.
+	#endif
+	{
+		// Rotate the samples position along the ring.
+		CurrentCircleUnitPos = mul(CurrentCircleUnitPos, SampleRotationMatrix);
+		CurrentCircleSamplePosOffset = mul(CurrentCircleSamplePosOffset, SampleRotationMatrix);
 
 		#if CONFIG_SGPR_HINTS
 		{
@@ -391,41 +406,9 @@ void GatherRingSamples(
 			CurrentCircleSamplePosOffset = ToScalarMemory(CurrentCircleSamplePosOffset);
 		}
 		#endif
-	#endif
 
-	// Iterate over the batch of samples.
-	#if CONFIG_UNROLL_GATHER
-		UNROLL
-	#else
-		LOOP
-	#endif
-	for (uint BatchId = 0; BatchId < BatchCount; BatchId++)
-	#if defined(WORKARROUND_UE_58394)
-		WORKARROUND_UE_58394 // TODO: nuke that guy once original issue is fixed.
-	#endif
-	{
-		#if CONFIG_UNROLL_GATHER
-			// Generates at compile time sample location on circle (radius = 1).
-			const float2 BatchCirleUnitPos = GetDiskSampleOnUnitCirle(RingId, RingSamplePairCount, BatchId);
-
-			// Position of sample on circle with radius according to KernelRadius.
-			// TODO: ALU could be optimised since SampleCountToSamplePosition has some constant part as well.
-			float2 BatchCircleSamplePosOffset = BatchCirleUnitPos * RingRadius;
-		#else
-			// Rotate the samples position along the ring.
-			CurrentCircleUnitPos = mul(CurrentCircleUnitPos, SampleRotationMatrix);
-			CurrentCircleSamplePosOffset = mul(CurrentCircleSamplePosOffset, SampleRotationMatrix);
-
-			#if CONFIG_SGPR_HINTS
-			{
-				CurrentCircleUnitPos = ToScalarMemory(CurrentCircleUnitPos);
-				CurrentCircleSamplePosOffset = ToScalarMemory(CurrentCircleSamplePosOffset);
-			}
-			#endif
-
-			float2 BatchCirleUnitPos = CurrentCircleUnitPos;
-			float2 BatchCircleSamplePosOffset = CurrentCircleSamplePosOffset;
-		#endif
+		float2 BatchCirleUnitPos = CurrentCircleUnitPos;
+		float2 BatchCircleSamplePosOffset = CurrentCircleSamplePosOffset;
 
 		// Generates at compile time sample location if square shaped ring in sample count distance from the kernel's center.
 		//
@@ -490,37 +473,6 @@ void GatherRingSamples(
 				
 				SampleDistance = RingRadius;
 			}
-			#elif 0 // TODO
-			{
-				// Linear interpolate between disk kernel and squared shape rings kernel.
-				float Blend = saturate((GatherParameters.KernelRadius - GatherParameters.MaxRingCount) * 0.2);
-				SamplePosOffset[0] = lerp(SquarePos, CircleSamplePosOffset, Blend);
-				SamplePosOffset[1] = -SamplePosOffset[0];
-				SampleDistance = length(SamplePosOffset[0]);
-			}
-			#elif 0
-			{
-				// To avoid counting a sample possibly more than once, we clip the circle position to square shaped ring
-				// position's coordinates, to naturally transform cirle shapped kernel to square shaped kernel that exactly
-				// sample individual samples once in the neighborhood of the kernel's center.
-				SamplePosOffset[0] = sign(SquarePos) * max(
-					abs(SquarePos),
-					abs(CircleSamplePosOffset));
-				
-				// If SquarePos.x == 0 or SquarePos.y == 0, we don't clip X and Y respectively to keep the non alignement of samples
-				// on X and Y axes for the disk shape kernel.
-				if (SquarePos.x == 0.0)
-				{
-					SamplePosOffset.x = CircleSamplePosOffset.x;
-				}
-				if (SquarePos.y == 0.0)
-				{
-					SamplePosOffset.y = CircleSamplePosOffset.y;
-				}
-				
-				SamplePosOffset[1] = -SamplePosOffset[0];
-				SampleDistance = length(SamplePosOffset[0]);
-			}	
 			#elif CONFIG_KERNEL_LAYOUT == KERNEL_LAYOUT_ALIGNED_SQUARE
 			{
 				// Do square shaped ring.
@@ -555,7 +507,7 @@ void GatherRingSamples(
 				const float SampleSign = (k == 0) ? 1.0 : -1.0;
 
 				// Compute sample's input buffer UV.
-				float2 SampleUV = KernelScope.KernelCenterUV + SamplePosOffset[k] * KernelScope.GatherInputInvSize;
+				float2 SampleUV = KernelScope.KernelCenterUV + SamplePosOffset[k] * GatherInputSize.zw;
 
 				// Sample input buffer.
 				Sample[k] = FetchGatherSample(KernelScope, SampleUV);
@@ -651,7 +603,6 @@ uint GatherSamplesAndResolve(
 
 	// Set up initial compile time stuf in the scope of the kernel.
 	{
-		KernelScope.GatherInputInvSize = GatherInputSize.zw;
 		KernelScope.bKenrelHasEnoughSamples = DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS;
 		KernelScope.bBilinearSampleInput = (
 			static_condition(GatherParameters.bFastGathering) &&
@@ -698,6 +649,28 @@ uint GatherSamplesAndResolve(
 			for (int RingId = GatherParameters.MaxRingCount - 1; RingId >= 0; RingId--)
 		#else
 			for (int RingId = 0; RingId < int(GatherParameters.MaxRingCount); RingId++)
+		#endif
+		{
+			GatherRing(
+				GatherParameters,
+				KernelScope,
+				uint(RingId),
+				bIsFirstRing,
+				/* inout */ Accumulator,
+				/* inout */ FastAccumulator);
+
+			bIsFirstRing = false;
+		} // for (int RingId)
+
+		GatherResolveInfos.SamplesCount = GetKernelSampleCount(GatherParameters.KernelSamplingDensityMode, GatherParameters.MaxRingCount);
+	}
+	else if (static_condition(GatherParameters.KernelSamplingDensityMode == KERNEL_DENSITY_CONSTANT_DYNAMIC_RING_COUNT))
+	{
+		LOOP
+		#if LARGEST_RINGS_FIRST
+			for (int RingId = GatherParameters.MaxRingCount - 1; RingId >= 0; RingId--)
+		#else
+			for (uint RingId = 0; RingId < uint(GatherParameters.MaxRingCount); RingId++)
 		#endif
 		{
 			GatherRing(

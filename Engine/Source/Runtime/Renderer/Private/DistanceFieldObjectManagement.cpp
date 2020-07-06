@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
+#include "Async/ParallelFor.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
@@ -18,6 +19,8 @@
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
+
+extern void LumenUpdateDFObjectIndex(FScene* Scene, int32 MappingIndex);
 
 float GAOMaxObjectBoundingRadius = 50000;
 FAutoConsoleVariableRef CVarAOMaxObjectBoundingRadius(
@@ -35,439 +38,70 @@ FAutoConsoleVariableRef CVarAOLogObjectBufferReallocation(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GDFParallelUpdate = 0;
+FAutoConsoleVariableRef CVarDFParallelUpdate(
+	TEXT("r.DF.ParallelUpdate"),
+	GDFParallelUpdate,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 // Must match equivalent shader defines
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 16;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = 2;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = 2;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 16;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
 template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
 
-// In float4's.  Must match corresponding usf definition
-int32 UploadObjectDataStride = 1 + FDistanceFieldObjectBuffers::ObjectDataStride;
-int32 UploadHeightFieldObjectDataStride = 2 + FHeightFieldObjectBuffers::ObjectDataStride;
-
 template <EDistanceFieldPrimitiveType PrimitiveType>
 void TDistanceFieldObjectBuffers<PrimitiveType>::Initialize()
 {
-	if (MaxObjects > 0)
-	{
-		const uint32 BufferFlags = BUF_ShaderResource;
-		
-		uint32 NumComponents = 4;
-		EPixelFormat BufferFormat = PF_R32_FLOAT;
-
-		if (RHISupports4ComponentUAVReadWrite(GMaxRHIShaderPlatform))
-		{
-			NumComponents = 1;
-			BufferFormat = PF_A32B32G32R32F;
-		}
-
-		uint32 BoundsNumElements;
-		const TCHAR* BoundsDebugName;
-		const TCHAR* DataDebugName;
-
-		if (PrimitiveType == DFPT_HeightField)
-		{
-			BoundsNumElements = NumComponents * 2 * MaxObjects;
-			BoundsDebugName = TEXT("FHeightFieldObjectBuffers_Bounds");
-			DataDebugName = TEXT("FHeightFieldObjectBuffers_Data");
-		}
-		else
-		{
-			check(PrimitiveType == DFPT_SignedDistanceField);
-			BoundsNumElements = NumComponents * MaxObjects;
-			BoundsDebugName = TEXT("FDistanceFieldObjectBuffers_Bounds");
-			DataDebugName = TEXT("FDistanceFieldObjectBuffers_Data");
-		}
-
-		Bounds.Initialize(GPixelFormats[BufferFormat].BlockBytes, BoundsNumElements, BufferFormat, 0, BoundsDebugName);
-		Data.Initialize(GPixelFormats[BufferFormat].BlockBytes, NumComponents * MaxObjects * ObjectDataStride, BufferFormat, 0, DataDebugName);
-	}
 }
-
-template <EDistanceFieldPrimitiveType PrimitiveType>
-class TDistanceFieldUploadDataResource : public FRenderResource
-{
-public:
-
-	FCPUUpdatedBuffer UploadData;
-
-	TDistanceFieldUploadDataResource()
-	{
-		// PS4 volatile only supports 8Mb, switch to dynamic once that is fixed.
-		// PS4 volatile only supports 8Mb, switch to volatile once that is fixed.
-		UploadData.bVolatile = false;
-
-		UploadData.Format = PF_A32B32G32R32F;
-		UploadData.Stride = PrimitiveType == DFPT_HeightField ? UploadHeightFieldObjectDataStride : UploadObjectDataStride;
-	}
-
-	virtual void InitDynamicRHI()  override
-	{
-		UploadData.Initialize();
-	}
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		UploadData.Release();
-	}
-};
-
-TGlobalResource<TDistanceFieldUploadDataResource<DFPT_SignedDistanceField>> GDistanceFieldUploadData;
-TGlobalResource<TDistanceFieldUploadDataResource<DFPT_HeightField>> GHeightFieldUploadData;
-
-class FDistanceFieldUploadIndicesResource : public FRenderResource
-{
-public:
-
-	FCPUUpdatedBuffer UploadIndices;
-
-	FDistanceFieldUploadIndicesResource()
-	{
-		// PS4 volatile only supports 8Mb, switch to volatile once that is fixed.
-		UploadIndices.bVolatile = false;
-
-		UploadIndices.Format = PF_R32_UINT;
-		UploadIndices.Stride = 1;
-	}
-
-	virtual void InitDynamicRHI()  override
-	{
-		UploadIndices.Initialize();
-	}
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		UploadIndices.Release();
-	}
-};
-
-TGlobalResource<FDistanceFieldUploadIndicesResource> GDistanceFieldUploadIndices;
-TGlobalResource<FDistanceFieldUploadIndicesResource> GHeightFieldUploadIndices;
-
-class FDistanceFieldRemoveIndicesResource : public FRenderResource
-{
-public:
-
-	FCPUUpdatedBuffer RemoveIndices;
-
-	FDistanceFieldRemoveIndicesResource()
-	{
-		RemoveIndices.Format = PF_R32G32B32A32_UINT;
-		RemoveIndices.Stride = 1;
-	}
-
-	virtual void InitDynamicRHI()  override
-	{
-		RemoveIndices.Initialize();
-	}
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		RemoveIndices.Release();
-	}
-};
-
-TGlobalResource<FDistanceFieldRemoveIndicesResource> GDistanceFieldRemoveIndices;
-TGlobalResource<FDistanceFieldRemoveIndicesResource> GHeightFieldRemoveIndices;
 
 const uint32 UpdateObjectsGroupSize = 64;
 
-template <EDistanceFieldPrimitiveType PrimitiveType>
-class TUploadObjectsToBufferCS : public FGlobalShader
+struct FParallelUpdateRange
 {
-	DECLARE_SHADER_TYPE(TUploadObjectsToBufferCS,Global)
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("UPDATEOBJECTS_THREADGROUP_SIZE"), UpdateObjectsGroupSize);
-		OutEnvironment.SetDefine(TEXT("DISTANCEFIELD_PRIMITIVE_TYPE"), (int32)PrimitiveType);
-	}
-
-	TUploadObjectsToBufferCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		NumUploadOperations.Bind(Initializer.ParameterMap, TEXT("NumUploadOperations"));
-		UploadOperationIndices.Bind(Initializer.ParameterMap, TEXT("UploadOperationIndices"));
-		UploadOperationData.Bind(Initializer.ParameterMap, TEXT("UploadOperationData"));
-		ObjectBufferParameters.Bind(Initializer.ParameterMap);
-	}
-
-	TUploadObjectsToBufferCS()
-	{
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FScene* Scene, uint32 NumUploadOperationsValue, FRHIShaderResourceView* InUploadOperationIndices, FRHIShaderResourceView* InUploadOperationData)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetShaderValue(RHICmdList, ShaderRHI, NumUploadOperations, NumUploadOperationsValue);
-
-		SetSRVParameter(RHICmdList, ShaderRHI, UploadOperationIndices, InUploadOperationIndices);
-		SetSRVParameter(RHICmdList, ShaderRHI, UploadOperationData, InUploadOperationData);
-
-		constexpr bool bIsHeightField = PrimitiveType == DFPT_HeightField;
-		const FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-		const auto& ObjectBuffers = TSelector<bIsHeightField>()(*SceneData.GetHeightFieldObjectBuffers(), *SceneData.GetCurrentObjectBuffers());
-		const uint32 NumObjectsInBuffer = bIsHeightField ? SceneData.NumHeightFieldObjectsInBuffer : SceneData.NumObjectsInBuffer;
-
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		if (bIsHeightField)
-		{
-			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
-			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
-			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
-			AtlasSizeZ = 1;
-		}
-		else
-		{
-			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-		}
-
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, ObjectBuffers, NumObjectsInBuffer, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ, true);
-	}
-
-	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
-	{
-		constexpr bool bIsHeightField = PrimitiveType == DFPT_HeightField;
-		const FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-		const auto& ObjectBuffers = TSelector<bIsHeightField>()(*SceneData.GetHeightFieldObjectBuffers(), *SceneData.GetCurrentObjectBuffers());
-
-		ObjectBufferParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader(), ObjectBuffers, true);
-	}
-
-private:
-
-	LAYOUT_FIELD(FShaderParameter, NumUploadOperations)
-	LAYOUT_FIELD(FShaderResourceParameter, UploadOperationIndices)
-	LAYOUT_FIELD(FShaderResourceParameter, UploadOperationData)
-
-	// clang is segfaulting with the templated IMPLEMENT_SHADER_TYPE below with this templated type directly in the LAYOUT_FIELD, so the uses of using like this in this file works around it
-	// (and also in DistanceFieldShadowing.cpp)
-	// a bugreport has been sent to Apple
-	using FDistanceFieldObjectBufferParametersType = TDistanceFieldObjectBufferParameters<PrimitiveType>;
-	LAYOUT_FIELD(FDistanceFieldObjectBufferParametersType, ObjectBufferParameters)
+	int32 ItemStart;
+	int32 ItemCount;
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, TUploadObjectsToBufferCS<DFPT_SignedDistanceField>, TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"), TEXT("UploadObjectsToBufferCS"), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, TUploadObjectsToBufferCS<DFPT_HeightField>, TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"), TEXT("UploadObjectsToBufferCS"), SF_Compute);
-
-template <EDistanceFieldPrimitiveType PrimitiveType>
-class TCopyObjectBufferCS : public FGlobalShader
+struct FParallelUpdateRanges
 {
-	DECLARE_SHADER_TYPE(TCopyObjectBufferCS, Global);
-
-public:
-	typedef typename TChooseClass<PrimitiveType == DFPT_HeightField, FHeightFieldObjectBuffers, FDistanceFieldObjectBuffers>::Result ObjectBuffersType;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("UPDATEOBJECTS_THREADGROUP_SIZE"), UpdateObjectsGroupSize);
-		OutEnvironment.SetDefine(TEXT("DISTANCEFIELD_PRIMITIVE_TYPE"), (int32)PrimitiveType);
-	}
-
-	TCopyObjectBufferCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		CopyObjectBounds.Bind(Initializer.ParameterMap, TEXT("CopyObjectBounds"));
-		CopyObjectData.Bind(Initializer.ParameterMap, TEXT("CopyObjectData"));
-		ObjectBufferParameters.Bind(Initializer.ParameterMap);
-	}
-
-	TCopyObjectBufferCS()
-	{
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, ObjectBuffersType& ObjectBuffersSource, ObjectBuffersType& ObjectBuffersDest, int32 NumObjectsValue)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		FRHIUnorderedAccessView* OutUAVs[2];
-		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
-		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
-
-		CopyObjectBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffersDest.Bounds);
-		CopyObjectData.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffersDest.Data);
-
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		if (PrimitiveType == DFPT_HeightField)
-		{
-			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
-			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
-			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
-			AtlasSizeZ = 1;
-		}
-		else
-		{
-			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-		}
-
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, ObjectBuffersSource, NumObjectsValue, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
-	}
-
-	void UnsetParameters(FRHICommandList& RHICmdList, ObjectBuffersType& ObjectBuffersDest)
-	{
-		ObjectBufferParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader(), ObjectBuffersDest);
-		CopyObjectBounds.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
-		CopyObjectData.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
-
-		FRHIUnorderedAccessView* OutUAVs[2];
-		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
-		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
-	}
-
-private:
-
-	LAYOUT_FIELD(FRWShaderParameter, CopyObjectBounds)
-	LAYOUT_FIELD(FRWShaderParameter, CopyObjectData)
-	using FDistanceFieldObjectBufferParametersType = TDistanceFieldObjectBufferParameters<PrimitiveType>;
-	LAYOUT_FIELD(FDistanceFieldObjectBufferParametersType, ObjectBufferParameters)
+	FParallelUpdateRange Range[4];
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, TCopyObjectBufferCS<DFPT_SignedDistanceField>, TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"), TEXT("CopyObjectBufferCS"), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, TCopyObjectBufferCS<DFPT_HeightField>, TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"), TEXT("CopyObjectBufferCS"), SF_Compute);
-
-
-template<bool bRemoveFromSameBuffer, EDistanceFieldPrimitiveType PrimitiveType>
-class TRemoveObjectsFromBufferCS : public FGlobalShader
+// TODO: Improve and move to shared utility location.
+static int32 PartitionUpdateRanges(FParallelUpdateRanges& Ranges, int32 ItemCount, bool bAllowParallel)
 {
-	DECLARE_SHADER_TYPE(TRemoveObjectsFromBufferCS,Global)
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	if (ItemCount < 256 || !bAllowParallel)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
+		Ranges.Range[0].ItemStart = 0;
+		Ranges.Range[0].ItemCount = ItemCount;
+		return 1;
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("UPDATEOBJECTS_THREADGROUP_SIZE"), UpdateObjectsGroupSize);
-		OutEnvironment.SetDefine(TEXT("REMOVE_FROM_SAME_BUFFER"), bRemoveFromSameBuffer);
-		OutEnvironment.SetDefine(TEXT("DISTANCEFIELD_PRIMITIVE_TYPE"), (int32)PrimitiveType);
-	}
+	const int32 RangeCount = Align(ItemCount, 4) >> 2;
 
-	TRemoveObjectsFromBufferCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		NumRemoveOperations.Bind(Initializer.ParameterMap, TEXT("NumRemoveOperations"));
-		RemoveOperationIndices.Bind(Initializer.ParameterMap, TEXT("RemoveOperationIndices"));
-		ObjectBufferParameters.Bind(Initializer.ParameterMap);
-		ObjectBounds2.Bind(Initializer.ParameterMap, TEXT("ObjectBounds2"));
-		ObjectData2.Bind(Initializer.ParameterMap, TEXT("ObjectData2"));
-	}
+	Ranges.Range[0].ItemCount = RangeCount;
+	Ranges.Range[1].ItemCount = RangeCount;
+	Ranges.Range[2].ItemCount = RangeCount;
 
-	TRemoveObjectsFromBufferCS()
-	{
-	}
+	Ranges.Range[0].ItemStart = 0;
+	Ranges.Range[1].ItemStart = RangeCount;
+	Ranges.Range[2].ItemStart = RangeCount * 2;
+	Ranges.Range[3].ItemStart = RangeCount * 3;
+	Ranges.Range[3].ItemCount = ItemCount - Ranges.Range[3].ItemStart;
 
-	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		const FScene* Scene, 
-		uint32 NumRemoveOperationsValue, 
-		FRHIShaderResourceView* InRemoveOperationIndices,
-		FRHIShaderResourceView* InObjectBounds2,
-		FRHIShaderResourceView* InObjectData2)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetShaderValue(RHICmdList, ShaderRHI, NumRemoveOperations, NumRemoveOperationsValue);
-		SetSRVParameter(RHICmdList, ShaderRHI, RemoveOperationIndices, InRemoveOperationIndices);
-
-		constexpr bool bIsHeightField = PrimitiveType == DFPT_HeightField;
-		const FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-		const auto& ObjectBuffers = TSelector<bIsHeightField>()(*SceneData.GetHeightFieldObjectBuffers(), *SceneData.GetCurrentObjectBuffers());
-		const uint32 NumObjectsInBuffer = bIsHeightField ? SceneData.NumHeightFieldObjectsInBuffer : SceneData.NumObjectsInBuffer;
-
-		FRHITexture* TextureAtlas;
-		int32 AtlasSizeX;
-		int32 AtlasSizeY;
-		int32 AtlasSizeZ;
-
-		if (PrimitiveType == DFPT_HeightField)
-		{
-			TextureAtlas = GHeightFieldTextureAtlas.GetAtlasTexture();
-			AtlasSizeX = GHeightFieldTextureAtlas.GetSizeX();
-			AtlasSizeY = GHeightFieldTextureAtlas.GetSizeY();
-			AtlasSizeZ = 1;
-		}
-		else
-		{
-			check(PrimitiveType == DFPT_SignedDistanceField);
-			TextureAtlas = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-			AtlasSizeX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-			AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-			AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-		}
-
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, ObjectBuffers, NumObjectsInBuffer, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ, true);
-
-		SetSRVParameter(RHICmdList, ShaderRHI, ObjectBounds2, InObjectBounds2);
-		SetSRVParameter(RHICmdList, ShaderRHI, ObjectData2, InObjectData2);
-	}
-
-	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
-	{
-		constexpr bool bIsHeightField = PrimitiveType == DFPT_HeightField;
-		const FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-		const auto& ObjectBuffers = TSelector<bIsHeightField>()(*SceneData.GetHeightFieldObjectBuffers(), *SceneData.GetCurrentObjectBuffers());
-
-		ObjectBufferParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader(), ObjectBuffers, true);
-	}
-
-private:
-
-	LAYOUT_FIELD(FShaderParameter, NumRemoveOperations)
-	LAYOUT_FIELD(FShaderResourceParameter, RemoveOperationIndices)
-	using FDistanceFieldObjectBufferParametersType = TDistanceFieldObjectBufferParameters<PrimitiveType>;
-	LAYOUT_FIELD(FDistanceFieldObjectBufferParametersType, ObjectBufferParameters)
-	LAYOUT_FIELD(FShaderResourceParameter, ObjectBounds2)
-	LAYOUT_FIELD(FShaderResourceParameter, ObjectData2)
-};
-
-#define IMPLEMENT_REMOVE_OBJECTS_FROM_BUFFER_SHADER_TYPE(bRemoveFromSameBuffer, PrimitiveType) \
-	typedef TRemoveObjectsFromBufferCS<bRemoveFromSameBuffer, PrimitiveType> FRemoveObjectsFromBufferCS##bRemoveFromSameBuffer##PrimitiveType; \
-	IMPLEMENT_SHADER_TYPE(template<>, FRemoveObjectsFromBufferCS##bRemoveFromSameBuffer##PrimitiveType, TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"), TEXT("RemoveObjectsFromBufferCS"), SF_Compute);
-
-IMPLEMENT_REMOVE_OBJECTS_FROM_BUFFER_SHADER_TYPE(true, DFPT_SignedDistanceField);
-IMPLEMENT_REMOVE_OBJECTS_FROM_BUFFER_SHADER_TYPE(false, DFPT_SignedDistanceField);
-IMPLEMENT_REMOVE_OBJECTS_FROM_BUFFER_SHADER_TYPE(true, DFPT_HeightField);
+	return Ranges.Range[3].ItemCount > 0 ? 4 : 3;
+}
 
 void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, FScene* Scene)
 {
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-
-	TArray<FIntRect> RemoveObjectIndices;
 
 	if (DistanceFieldSceneData.PendingRemoveOperations.Num() > 0)
 	{
@@ -487,7 +121,7 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 				if (InstanceIndex >= 0)
 				{
 					FGlobalDFCacheType CacheType = DistanceFieldSceneData.PendingRemoveOperations[RemoveIndex].bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-					DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].BoundingSphere);
+					DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].WorldBounds);
 					PendingRemoveOperations.Add(InstanceIndex);
 				}
 			}
@@ -499,159 +133,29 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 		{
 			check(DistanceFieldSceneData.NumObjectsInBuffer >= PendingRemoveOperations.Num());
 
-			// Sort from smallest to largest
-			PendingRemoveOperations.Sort();
+			// Sort from largest to smallest so we can safely RemoveAtSwap without invalidating indices in this array
+			PendingRemoveOperations.Sort(TGreater<int32>());
 
-			// We have multiple remove requests enqueued in PendingRemoveOperations, can only use the RemoveAtSwap version when there won't be collisions
-			const bool bUseRemoveAtSwap = PendingRemoveOperations.Last() < DistanceFieldSceneData.NumObjectsInBuffer - PendingRemoveOperations.Num();
-
-			FDistanceFieldObjectBuffers*& CurrentObjectBuffers = DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex];
-
-			if (bUseRemoveAtSwap)
+			for (int32 RemoveIndex : PendingRemoveOperations)
 			{
-				// Remove everything in parallel in the same buffer with a RemoveAtSwap algorithm
-				for (int32 RemovePrimitiveIndex = 0; RemovePrimitiveIndex < PendingRemoveOperations.Num(); RemovePrimitiveIndex++)
-				{
-					DistanceFieldSceneData.NumObjectsInBuffer--;
-					const int32 RemoveIndex = PendingRemoveOperations[RemovePrimitiveIndex];
-					const int32 MoveFromIndex = DistanceFieldSceneData.NumObjectsInBuffer;
-
-					check(RemoveIndex != MoveFromIndex);
-					// Queue a compute shader move
-					RemoveObjectIndices.Add(FIntRect(RemoveIndex, MoveFromIndex, 0, 0));
-
-					// Fixup indices of the primitive that is being moved
-					FPrimitiveAndInstance& PrimitiveAndInstanceBeingMoved = DistanceFieldSceneData.PrimitiveInstanceMapping[MoveFromIndex];
-					check(PrimitiveAndInstanceBeingMoved.Primitive && PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices.Num() > 0);
-					PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices[PrimitiveAndInstanceBeingMoved.InstanceIndex] = RemoveIndex;
-
-					DistanceFieldSceneData.PrimitiveInstanceMapping.RemoveAtSwap(RemoveIndex);
-				}
-			}
-			else
-			{
-				const double StartTime = FPlatformTime::Seconds();
-
-				TArray<FPrimitiveAndInstance> OriginalPrimitiveInstanceMapping;
-
-				// Have to copy the object data to allow parallel removing
-				int32 NextObjectBufferIndex = (DistanceFieldSceneData.ObjectBufferIndex + 1) & 1;
-				FDistanceFieldObjectBuffers*& NextObjectBuffers = DistanceFieldSceneData.ObjectBuffers[NextObjectBufferIndex];
-				
-				check(CurrentObjectBuffers != nullptr);
-
-				DistanceFieldSceneData.ObjectBufferIndex = NextObjectBufferIndex;
-
-				if (NextObjectBuffers != nullptr && NextObjectBuffers->MaxObjects < CurrentObjectBuffers->MaxObjects)
-				{
-					NextObjectBuffers->Release();
-					delete NextObjectBuffers;
-					NextObjectBuffers = nullptr;
-				}
-
-				if (NextObjectBuffers == nullptr)
-				{
-					NextObjectBuffers = new FDistanceFieldObjectBuffers();
-					NextObjectBuffers->MaxObjects = CurrentObjectBuffers->MaxObjects;
-					NextObjectBuffers->Initialize();
-				}
-
-				OriginalPrimitiveInstanceMapping = DistanceFieldSceneData.PrimitiveInstanceMapping;
-				DistanceFieldSceneData.PrimitiveInstanceMapping.Reset();
-
-				const int32 NumDestObjects = DistanceFieldSceneData.NumObjectsInBuffer - PendingRemoveOperations.Num();
-				int32 SourceIndex = 0;
-				int32 NextPendingRemoveIndex = 0;
-
-				for (int32 DestinationIndex = 0; DestinationIndex < NumDestObjects; DestinationIndex++)
-				{
-					while (NextPendingRemoveIndex < PendingRemoveOperations.Num()
-						&& PendingRemoveOperations[NextPendingRemoveIndex] == SourceIndex)
-					{
-						NextPendingRemoveIndex++;
-						SourceIndex++;
-					}
-
-					// Queue a compute shader move
-					RemoveObjectIndices.Add(FIntRect(DestinationIndex, SourceIndex, 0, 0));
-
-					// Fixup indices of the primitive that is being moved
-					FPrimitiveAndInstance& PrimitiveAndInstanceBeingMoved = OriginalPrimitiveInstanceMapping[SourceIndex];
-					check(PrimitiveAndInstanceBeingMoved.Primitive && PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices.Num() > 0);
-					PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices[PrimitiveAndInstanceBeingMoved.InstanceIndex] = DestinationIndex;
-
-					check(DistanceFieldSceneData.PrimitiveInstanceMapping.Num() == DestinationIndex);
-					DistanceFieldSceneData.PrimitiveInstanceMapping.Add(PrimitiveAndInstanceBeingMoved);
-
-					SourceIndex++;
-				}
-
-				DistanceFieldSceneData.NumObjectsInBuffer = NumDestObjects;
-
-				if (GAOLogObjectBufferReallocation)
-				{
-					const float ElapsedTime = (float)(FPlatformTime::Seconds() - StartTime);
-					UE_LOG(LogDistanceField,Warning,TEXT("Global object buffer realloc %.3fs"), ElapsedTime);
-				}
-
-				/*
-				// Have to remove one at a time while any entries to remove are at the end of the buffer
-				DistanceFieldSceneData.NumObjectsInBuffer--;
-				const int32 RemoveIndex = DistanceFieldSceneData.PendingRemoveOperations[ParallelConflictIndex];
+				--DistanceFieldSceneData.NumObjectsInBuffer;
 				const int32 MoveFromIndex = DistanceFieldSceneData.NumObjectsInBuffer;
 
-				if (RemoveIndex != MoveFromIndex)
+				FPrimitiveAndInstance& PrimitiveAndInstanceBeingMoved = DistanceFieldSceneData.PrimitiveInstanceMapping[MoveFromIndex];
+				if (RemoveIndex < DistanceFieldSceneData.NumObjectsInBuffer)
 				{
-					// Queue a compute shader move
-					RemoveObjectIndices.Add(FIntRect(RemoveIndex, MoveFromIndex, 0, 0));
-
 					// Fixup indices of the primitive that is being moved
-					FPrimitiveAndInstance& PrimitiveAndInstanceBeingMoved = DistanceFieldSceneData.PrimitiveInstanceMapping[MoveFromIndex];
 					check(PrimitiveAndInstanceBeingMoved.Primitive && PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices.Num() > 0);
 					PrimitiveAndInstanceBeingMoved.Primitive->DistanceFieldInstanceIndices[PrimitiveAndInstanceBeingMoved.InstanceIndex] = RemoveIndex;
 				}
 
-				DistanceFieldSceneData.PrimitiveInstanceMapping.RemoveAtSwap(RemoveIndex);
-				DistanceFieldSceneData.PendingRemoveOperations.RemoveAtSwap(ParallelConflictIndex);
-				*/
+				DistanceFieldSceneData.PrimitiveInstanceMapping.RemoveAtSwap(RemoveIndex, 1, false);
+
+				LumenUpdateDFObjectIndex(Scene, RemoveIndex);
+				DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Add(RemoveIndex);
 			}
 
 			PendingRemoveOperations.Reset();
-
-			if (RemoveObjectIndices.Num() > 0)
-			{
-				if (RemoveObjectIndices.Num() > GDistanceFieldRemoveIndices.RemoveIndices.MaxElements)
-				{
-					GDistanceFieldRemoveIndices.RemoveIndices.MaxElements = RemoveObjectIndices.Num() * 5 / 4;
-					GDistanceFieldRemoveIndices.RemoveIndices.Release();
-					GDistanceFieldRemoveIndices.RemoveIndices.Initialize();
-				}
-
-				void* LockedBuffer = RHILockVertexBuffer(GDistanceFieldRemoveIndices.RemoveIndices.Buffer, 0, GDistanceFieldRemoveIndices.RemoveIndices.Buffer->GetSize(), RLM_WriteOnly);
-				const uint32 MemcpySize = RemoveObjectIndices.GetTypeSize() * RemoveObjectIndices.Num();
-				check(GDistanceFieldRemoveIndices.RemoveIndices.Buffer->GetSize() >= MemcpySize);
-				FPlatformMemory::Memcpy(LockedBuffer, RemoveObjectIndices.GetData(), MemcpySize);
-				RHIUnlockVertexBuffer(GDistanceFieldRemoveIndices.RemoveIndices.Buffer);
-
-				if (bUseRemoveAtSwap)
-				{
-					TShaderMapRef<TRemoveObjectsFromBufferCS<true, DFPT_SignedDistanceField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, Scene, RemoveObjectIndices.Num(), GDistanceFieldRemoveIndices.RemoveIndices.BufferSRV, NULL, NULL);
-
-					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp<uint32>(RemoveObjectIndices.Num(), UpdateObjectsGroupSize), 1, 1);
-					ComputeShader->UnsetParameters(RHICmdList, Scene);
-				}
-				else
-				{
-					TShaderMapRef<TRemoveObjectsFromBufferCS<false, DFPT_SignedDistanceField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, Scene, RemoveObjectIndices.Num(), GDistanceFieldRemoveIndices.RemoveIndices.BufferSRV, CurrentObjectBuffers->Bounds.SRV, CurrentObjectBuffers->Data.SRV);
-
-					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp<uint32>(RemoveObjectIndices.Num(), UpdateObjectsGroupSize), 1, 1);
-					ComputeShader->UnsetParameters(RHICmdList, Scene);
-				}
-			}
 		}
 	}
 }
@@ -659,7 +163,6 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 void UpdateGlobalHeightFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, FScene* Scene)
 {
 	FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-	TArray<FIntRect> DstSrcIndices;
 
 	if (SceneData.PendingHeightFieldRemoveOps.Num())
 	{
@@ -674,7 +177,7 @@ void UpdateGlobalHeightFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, 
 			if (ObjectIdx >= 0)
 			{
 				const FGlobalDFCacheType CacheType = RemoveInfo.bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-				SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.SphereBound);
+				SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.WorldBounds);
 				PendingRemoveObjectIndices.Add(ObjectIdx);
 			}
 		}
@@ -686,56 +189,47 @@ void UpdateGlobalHeightFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, 
 			check(SceneData.NumHeightFieldObjectsInBuffer >= PendingRemoveObjectIndices.Num());
 			check(SceneData.NumHeightFieldObjectsInBuffer == SceneData.HeightfieldPrimitives.Num());
 
-			Algo::Sort(PendingRemoveObjectIndices);
+			// Sort from largest to smallest so we can safely RemoveAtSwap without invalidating indices in this array
+			PendingRemoveObjectIndices.Sort(TGreater<int32>());
 
-			for (int32 Idx = 0; Idx < PendingRemoveObjectIndices.Num(); ++Idx)
+			// Next RemoveAtSwap
+			for (int32 RemoveIndex : PendingRemoveObjectIndices)
 			{
-				const int32 LastIdx = PendingRemoveObjectIndices.Num() - 1;
-				const int32 RemoveIdx = PendingRemoveObjectIndices[Idx];
-				const int32 LastRemoveIdx = PendingRemoveObjectIndices[LastIdx];
-				const int32 LastObjectIdx = --SceneData.NumHeightFieldObjectsInBuffer;
+				--SceneData.NumHeightFieldObjectsInBuffer;
+				const int32 MoveFromIndex = SceneData.NumHeightFieldObjectsInBuffer;
 
-				if (LastRemoveIdx < LastObjectIdx)
+				FPrimitiveSceneInfo* PrimitiveBeingMoved = SceneData.HeightfieldPrimitives[MoveFromIndex];
+				if (RemoveIndex < SceneData.NumHeightFieldObjectsInBuffer)
 				{
-					DstSrcIndices.Add(FIntRect(RemoveIdx, LastObjectIdx, 0, 0));
-
-					FPrimitiveSceneInfo* Primitive = SceneData.HeightfieldPrimitives[LastObjectIdx];
-					check(Primitive && Primitive->DistanceFieldInstanceIndices.Num() == 1);
-					Primitive->DistanceFieldInstanceIndices[0] = RemoveIdx;
-					SceneData.HeightfieldPrimitives.RemoveAtSwap(RemoveIdx);
+					// Fixup indices of the primitive that is being moved
+					check(PrimitiveBeingMoved && PrimitiveBeingMoved->DistanceFieldInstanceIndices.Num() == 1);
+					PrimitiveBeingMoved->DistanceFieldInstanceIndices[0] = RemoveIndex;
 				}
-				else
-				{
-					check(LastRemoveIdx == LastObjectIdx);
-					SceneData.HeightfieldPrimitives.RemoveAt(LastObjectIdx);
-					PendingRemoveObjectIndices.RemoveAt(LastIdx, 1, false);
-					--Idx;
-				}
-			}
-		}
 
-		if (DstSrcIndices.Num())
-		{
-			FCPUUpdatedBuffer& RemoveIndices = GHeightFieldRemoveIndices.RemoveIndices;
-			if (DstSrcIndices.Num() > RemoveIndices.MaxElements)
-			{
-				RemoveIndices.MaxElements = DstSrcIndices.Num() * 5 / 4;
-				RemoveIndices.Release();
-				RemoveIndices.Initialize();
+				SceneData.HeightfieldPrimitives.RemoveAtSwap(RemoveIndex, 1, false);
+
+				SceneData.IndicesToUpdateInHeightFieldObjectBuffers.Add(RemoveIndex);
 			}
 
-			void* LockedBuffer = RHILockVertexBuffer(RemoveIndices.Buffer, 0, RemoveIndices.Buffer->GetSize(), RLM_WriteOnly);
-			const uint32 MemcpySize = DstSrcIndices.GetTypeSize() * DstSrcIndices.Num();
-			check(RemoveIndices.Buffer->GetSize() >= MemcpySize);
-			FMemory::Memcpy(LockedBuffer, DstSrcIndices.GetData(), MemcpySize);
-			RHIUnlockVertexBuffer(RemoveIndices.Buffer);
-
-			TShaderMapRef<TRemoveObjectsFromBufferCS<true, DFPT_HeightField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-			ComputeShader->SetParameters(RHICmdList, Scene, DstSrcIndices.Num(), RemoveIndices.BufferSRV, nullptr, nullptr);
-			DispatchComputeShader(RHICmdList, ComputeShader, FMath::DivideAndRoundUp<uint32>(DstSrcIndices.Num(), UpdateObjectsGroupSize), 1, 1);
-			ComputeShader->UnsetParameters(RHICmdList, Scene);
+			PendingRemoveObjectIndices.Reset();
 		}
+	}
+}
+
+void LogDistanceFieldUpdate(FPrimitiveSceneInfo const* PrimitiveSceneInfo, float BoundingRadius, bool bIsAddOperation)
+{
+	extern int32 GAOLogGlobalDistanceFieldModifiedPrimitives;
+
+	if (GAOLogGlobalDistanceFieldModifiedPrimitives == 1
+		|| (GAOLogGlobalDistanceFieldModifiedPrimitives == 2 && !PrimitiveSceneInfo->Proxy->IsOftenMoving()))
+	{
+		UE_LOG(LogDistanceField, Log,
+			TEXT("Global Distance Field %s primitive %s %s %s bounding radius %.1f"),
+			PrimitiveSceneInfo->Proxy->IsOftenMoving() ? TEXT("Movable") : TEXT("CACHED"),
+			(bIsAddOperation ? TEXT("add") : TEXT("update")),
+			*PrimitiveSceneInfo->Proxy->GetOwnerName().ToString(),
+			*PrimitiveSceneInfo->Proxy->GetResourceName().ToString(),
+			BoundingRadius);
 	}
 }
 
@@ -744,13 +238,9 @@ bool ProcessPrimitiveUpdate(
 	bool bIsAddOperation,
 	FRHICommandListImmediate& RHICmdList, 
 	FSceneRenderer& SceneRenderer, 
-	FPrimitiveSceneInfo* PrimitiveSceneInfo, 
-	int32 OriginalNumObjects,
-	FVector InvTextureDim,
-	bool bAnyViewEnabledDistanceCulling,
+	FPrimitiveSceneInfo* PrimitiveSceneInfo,
 	TArray<FMatrix>& ObjectLocalToWorldTransforms,
-	TArray<uint32>& UploadObjectIndices,
-	TArray<FVector4>& UploadObjectData)
+	TArray<int32>& IndicesToUpdateInObjectBuffers)
 {
 	FScene* Scene = SceneRenderer.Scene;
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
@@ -765,7 +255,8 @@ bool ProcessPrimitiveUpdate(
 	bool bMeshWasPlane;
 	float SelfShadowBias;
 	bool bThrottled;
-	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms, bThrottled);
+	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, bThrottled);
+	PrimitiveSceneInfo->Proxy->GetDistancefieldInstanceData(ObjectLocalToWorldTransforms);	
 
 	if (bThrottled)
 	{
@@ -791,7 +282,7 @@ bool ProcessPrimitiveUpdate(
 
 			for (int32 TransformIndex = 0; TransformIndex < ObjectLocalToWorldTransforms.Num(); TransformIndex++)
 			{
-				FMatrix LocalToWorld = ObjectLocalToWorldTransforms[TransformIndex];
+				const FMatrix& LocalToWorld = ObjectLocalToWorldTransforms[TransformIndex];
 				const float MaxScale = LocalToWorld.GetMaximumAxisScale();
 
 				// Skip degenerate primitives
@@ -801,118 +292,29 @@ bool ProcessPrimitiveUpdate(
 
 					if (bIsAddOperation)
 					{
-						UploadIndex = OriginalNumObjects + UploadObjectIndices.Num();
-						DistanceFieldSceneData.NumObjectsInBuffer++;
+						UploadIndex = DistanceFieldSceneData.NumObjectsInBuffer;
+						++DistanceFieldSceneData.NumObjectsInBuffer;
 					}
 					else
 					{
 						UploadIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices[TransformIndex];
 					}
 
-					UploadObjectIndices.Add(UploadIndex);
+					IndicesToUpdateInObjectBuffers.Add(UploadIndex);
 
-					if (bMeshWasPlane)
-					{
-						FVector LocalScales = LocalToWorld.GetScaleVector();
-						FVector AbsLocalScales(FMath::Abs(LocalScales.X), FMath::Abs(LocalScales.Y), FMath::Abs(LocalScales.Z));
-						float MidScale = FMath::Min(AbsLocalScales.X, AbsLocalScales.Y);
-						float ScaleAdjust = FMath::Sign(LocalScales.Z) * MidScale / AbsLocalScales.Z;
-						// The mesh was determined to be a plane flat in Z during the build process, so we can change the Z scale
-						// Helps in cases with modular ground pieces with scales of (10, 10, 1) and some triangles just above Z=0
-						LocalToWorld.SetAxis(2, LocalToWorld.GetScaledAxis(EAxis::Z) * ScaleAdjust);
-					}
+					const FBox WorldBounds = LocalVolumeBounds.TransformBy(LocalToWorld);
 
-					const FMatrix VolumeToWorld = FScaleMatrix(LocalVolumeBounds.GetExtent()) 
-						* FTranslationMatrix(LocalVolumeBounds.GetCenter())
-						* LocalToWorld;
-
-					const FVector4 ObjectBoundingSphere(VolumeToWorld.GetOrigin(), VolumeToWorld.GetScaleVector().Size());
-
-					UploadObjectData.Add(ObjectBoundingSphere);
-
-					const float MaxExtent = LocalVolumeBounds.GetExtent().GetMax();
-
-					const FMatrix UniformScaleVolumeToWorld = FScaleMatrix(MaxExtent) 
-						* FTranslationMatrix(LocalVolumeBounds.GetCenter())
-						* LocalToWorld;
-
-					const FVector InvBlockSize(1.0f / BlockSize.X, 1.0f / BlockSize.Y, 1.0f / BlockSize.Z);
-
-					//float3 VolumeUV = (VolumePosition / LocalPositionExtent * .5f * UVScale + .5f * UVScale + UVAdd;
-					const FVector LocalPositionExtent = LocalVolumeBounds.GetExtent() / FVector(MaxExtent);
-					const FVector UVScale = FVector(BlockSize) * InvTextureDim;
-					const float VolumeScale = UniformScaleVolumeToWorld.GetMaximumAxisScale();
-
-					const FMatrix WorldToVolumeT = UniformScaleVolumeToWorld.Inverse().GetTransposed();
-					// WorldToVolumeT
-					UploadObjectData.Add(*(FVector4*)&WorldToVolumeT.M[0]);
-					UploadObjectData.Add(*(FVector4*)&WorldToVolumeT.M[1]);
-					UploadObjectData.Add(*(FVector4*)&WorldToVolumeT.M[2]);
-
-					const float OftenMovingValue = CacheType == GDF_Full ? 1.0f : 0.0f;
-
-					// Clamp to texel center by subtracting a half texel in the [-1,1] position space
-					// LocalPositionExtent
-					UploadObjectData.Add(FVector4(LocalPositionExtent - InvBlockSize, OftenMovingValue));
-
-					// UVScale, VolumeScale and sign gives bGeneratedAsTwoSided
-					const float WSign = bBuiltAsIfTwoSided ? -1 : 1;
-					UploadObjectData.Add(FVector4(FVector(BlockSize) * InvTextureDim * .5f / LocalPositionExtent, WSign * VolumeScale));
-
-					// UVAdd
-					UploadObjectData.Add(FVector4(FVector(BlockMin) * InvTextureDim + .5f * UVScale, SelfShadowBias));
-
-					// xy - DistanceFieldMAD
-					// zw - MinDrawDistance^2, MaxDrawDistance^2
-					// [0, 1] -> [MinVolumeDistance, MaxVolumeDistance]
-					const int32 PrimIdx = PrimitiveSceneInfo->GetIndex();
-					const FPrimitiveBounds& PrimBounds = Scene->PrimitiveBounds[PrimIdx];
-					float MinDrawDist2 = PrimBounds.MinDrawDistanceSq;
-					// For IEEE compatible machines, float operations goes to inf if overflow
-					// In this case, it will effectively disable max draw distance culling
-					float MaxDrawDist = FMath::Max(PrimBounds.MaxCullDistance, 0.f) * GetCachedScalabilityCVars().ViewDistanceScale;
-#if WITH_EDITOR
-					if (!bAnyViewEnabledDistanceCulling)
-					{
-						MinDrawDist2 = 0.f;
-						MaxDrawDist = 0.f;
-					}
-#endif
-					// This is needed to bypass the check Nan/Inf behavior of FVector4.
-					// If the check is turned on, FVector4 constructor automatically converts
-					// the FVector4 being constructed to (0, 0, 0, 1) when any of inputs
-					// to the constructor contains Nan/Inf
-					UploadObjectData.AddUninitialized();
-					FVector4& TmpVec4 = UploadObjectData.Last();
-					TmpVec4.X = DistanceMinMax.Y - DistanceMinMax.X;
-					TmpVec4.Y = DistanceMinMax.X;
-					TmpVec4.Z = MinDrawDist2;
-					TmpVec4.W = MaxDrawDist * MaxDrawDist;
-
-					UploadObjectData.Add(*(FVector4*)&UniformScaleVolumeToWorld.M[0]);
-					UploadObjectData.Add(*(FVector4*)&UniformScaleVolumeToWorld.M[1]);
-					UploadObjectData.Add(*(FVector4*)&UniformScaleVolumeToWorld.M[2]);
-
-					FMatrix LocalToWorldT = LocalToWorld.GetTransposed();
-					UploadObjectData.Add(*(FVector4*)&LocalToWorldT.M[0]);
-					UploadObjectData.Add(*(FVector4*)&LocalToWorldT.M[1]);
-					UploadObjectData.Add(*(FVector4*)&LocalToWorldT.M[2]);
-
-					//Note: removed with Distance Field GI
-					UploadObjectData.Add(FVector4(0, 0, 0, 0));
-
-					FMatrix VolumeToWorldT = VolumeToWorld.GetTransposed();
-					UploadObjectData.Add(*(FVector4*)&VolumeToWorldT.M[0]);
-					UploadObjectData.Add(*(FVector4*)&VolumeToWorldT.M[1]);
-					UploadObjectData.Add(*(FVector4*)&VolumeToWorldT.M[2]);
-
-					checkSlow(UploadObjectData.Num() % UploadObjectDataStride == 0);
 
 					if (bIsAddOperation)
 					{
 						const int32 AddIndex = UploadIndex;
-						DistanceFieldSceneData.PrimitiveInstanceMapping.Add(FPrimitiveAndInstance(ObjectBoundingSphere, PrimitiveSceneInfo, TransformIndex));
+						const int32 MappingIndex = DistanceFieldSceneData.PrimitiveInstanceMapping.Add(FPrimitiveAndInstance(LocalToWorld, WorldBounds, PrimitiveSceneInfo, TransformIndex));
 						PrimitiveSceneInfo->DistanceFieldInstanceIndices[TransformIndex] = AddIndex;
+
+						LumenUpdateDFObjectIndex(Scene, MappingIndex);
+
+						DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(WorldBounds);
+						LogDistanceFieldUpdate(PrimitiveSceneInfo, BoundingRadius, bIsAddOperation);
 					}
 					else 
 					{
@@ -920,19 +322,30 @@ bool ProcessPrimitiveUpdate(
 						const int32 InstanceIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices[TransformIndex];
 						if (InstanceIndex >= 0)
 						{
-							// For an update transform we have to dirty the previous bounds and the new bounds, in case of large movement (teleport)
-							DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].BoundingSphere);
-							DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].BoundingSphere = ObjectBoundingSphere;
+							FPrimitiveAndInstance& Mapping = DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex];
+
+							// Filter out global distance field updates which were too small
+							if (!Mapping.WorldBounds.GetExtent().Equals(WorldBounds.GetExtent(), 0.01f)
+								|| !Mapping.LocalToWorld.Equals(LocalToWorld, 0.01f))
+							{
+								// decide if we want to make a single global distance field update or two updates for large movement (teleport) case
+								const FBox MergedBounds = Mapping.WorldBounds + WorldBounds;
+								const FVector MergedExtentIncrease = MergedBounds.GetExtent() - Mapping.WorldBounds.GetExtent() - WorldBounds.GetExtent();
+								if (MergedExtentIncrease.GetMax() < 100.0f)
+								{
+									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(MergedBounds);
+								}
+								else
+								{
+									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(Mapping.WorldBounds);
+									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(WorldBounds);
+								}
+								LogDistanceFieldUpdate(PrimitiveSceneInfo, BoundingRadius, bIsAddOperation);
+
+								Mapping.LocalToWorld = LocalToWorld;
+								Mapping.WorldBounds = WorldBounds;
+							}
 						}
-					}
-
-					DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(ObjectBoundingSphere);
-
-					extern int32 GAOLogGlobalDistanceFieldModifiedPrimitives;
-
-					if (GAOLogGlobalDistanceFieldModifiedPrimitives)
-					{
-						UE_LOG(LogDistanceField,Log,TEXT("Global Distance Field %s primitive %s %s %s bounding radius %.1f"), PrimitiveSceneInfo->Proxy->IsOftenMoving() ? TEXT("CACHED") : TEXT("Movable"), (bIsAddOperation ? TEXT("add") : TEXT("update")), *PrimitiveSceneInfo->Proxy->GetOwnerName().ToString(), *PrimitiveSceneInfo->Proxy->GetResourceName().ToString(), BoundingRadius);
 					}
 				}
 				else if (bIsAddOperation)
@@ -944,7 +357,7 @@ bool ProcessPrimitiveUpdate(
 		}
 		else
 		{
-			UE_LOG(LogDistanceField,Log,TEXT("Primitive %s %s excluded due to bounding radius %f"), *PrimitiveSceneInfo->Proxy->GetOwnerName().ToString(), *PrimitiveSceneInfo->Proxy->GetResourceName().ToString(), BoundingRadius);
+			UE_LOG(LogDistanceField,Verbose,TEXT("Primitive %s %s excluded due to huge bounding radius %f"), *PrimitiveSceneInfo->Proxy->GetOwnerName().ToString(), *PrimitiveSceneInfo->Proxy->GetResourceName().ToString(), BoundingRadius);
 		}
 	}
 	return true;
@@ -955,9 +368,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 	FRHICommandListImmediate& RHICmdList,
 	FScene* Scene,
 	FPrimitiveSceneInfo* PrimitiveSceneInfo,
-	int32 OriginalNumObjects,
-	TArray<uint32>& UploadObjectIndices,
-	TArray<FVector4>& UploadObjectData)
+	TArray<int32>& IndicesToUpdateInObjectBuffers)
 {
 	FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
 
@@ -976,14 +387,14 @@ bool ProcessHeightFieldPrimitiveUpdate(
 	uint32 UploadIdx;
 	if (bIsAddOperation)
 	{
+		UploadIdx = SceneData.NumHeightFieldObjectsInBuffer;
 		++SceneData.NumHeightFieldObjectsInBuffer;
 		SceneData.HeightfieldPrimitives.Add(PrimitiveSceneInfo);
 
 		const FGlobalDFCacheType CacheType = PrimitiveSceneInfo->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 		const FBoxSphereBounds Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
-		SceneData.PrimitiveModifiedBounds[CacheType].Add(FVector4(Bounds.Origin, Bounds.SphereRadius));
+		SceneData.PrimitiveModifiedBounds[CacheType].Add(Bounds.GetBox());
 
-		UploadIdx = OriginalNumObjects + UploadObjectIndices.Num();
 		PrimitiveSceneInfo->DistanceFieldInstanceIndices.Empty(1);
 		PrimitiveSceneInfo->DistanceFieldInstanceIndices.Add(UploadIdx);
 	}
@@ -992,49 +403,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 		UploadIdx = PrimitiveSceneInfo->DistanceFieldInstanceIndices[0];
 	}
 
-	UploadObjectIndices.Add(UploadIdx);
-
-	const FBoxSphereBounds& Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
-	const FBox BoxBound = Bounds.GetBox();
-	UploadObjectData.Add(FVector4(BoxBound.GetCenter(), Bounds.SphereRadius));
-	UploadObjectData.Add(FVector4(BoxBound.GetExtent(), 0.f));
-
-	const FMatrix& LocalToWorld = HeightFieldCompDesc.LocalToWorld;
-	check(LocalToWorld.GetMaximumAxisScale() > 0.f);
-	const FMatrix WorldToLocalT = LocalToWorld.Inverse().GetTransposed();
-	UploadObjectData.Add(*(const FVector4*)&WorldToLocalT.M[0]);
-	UploadObjectData.Add(*(const FVector4*)&WorldToLocalT.M[1]);
-	UploadObjectData.Add(*(const FVector4*)&WorldToLocalT.M[2]);
-
-	const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
-	const float WorldToLocalScale = FMath::Min3(
-		WorldToLocalT.GetColumn(0).Size(),
-		WorldToLocalT.GetColumn(1).Size(),
-		WorldToLocalT.GetColumn(2).Size());
-	UploadObjectData.Add(FVector4(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f));
-
-	const FVector4& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
-	check(HeightFieldScaleBias.Y >= 0.f && HeightFieldScaleBias.Z >= 0.f && HeightFieldScaleBias.W >= 0.f);
-	const FVector4 AllocationScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(Handle);
-	UploadObjectData.Add(FVector4(
-		FMath::Abs(HeightFieldScaleBias.X) * AllocationScaleBias.X,
-		HeightFieldScaleBias.Y * AllocationScaleBias.Y,
-		HeightFieldScaleBias.Z * AllocationScaleBias.X + AllocationScaleBias.Z,
-		HeightFieldScaleBias.W * AllocationScaleBias.Y + AllocationScaleBias.W));
-
-	FVector4 VisUVScaleBias(ForceInitToZero);
-	if (VisibilityTexture)
-	{
-		const uint32 VisHandle = GHFVisibilityTextureAtlas.GetAllocationHandle(VisibilityTexture);
-		if (VisHandle != INDEX_NONE)
-		{
-			const FVector4 ScaleBias = GHFVisibilityTextureAtlas.GetAllocationScaleBias(VisHandle);
-			VisUVScaleBias = FVector4(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
-		}
-	}
-	UploadObjectData.Add(VisUVScaleBias);
-
-	check(!(UploadObjectData.Num() % UploadHeightFieldObjectDataStride));
+	IndicesToUpdateInObjectBuffers.Add(UploadIdx);
 
 	return true;
 }
@@ -1043,6 +412,8 @@ bool bVerifySceneIntegrity = false;
 
 void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
 {
+	const bool bExecuteInParallel = GDFParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
+
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 	if (GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI
@@ -1056,9 +427,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneObjectData);
 
-		if (DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex] == nullptr)
+		if (DistanceFieldSceneData.ObjectBuffers == nullptr)
 		{
-			DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex] = new FDistanceFieldObjectBuffers();
+			DistanceFieldSceneData.ObjectBuffers = new FDistanceFieldObjectBuffers();
 		}
 
 		if (DistanceFieldSceneData.PendingAddOperations.Num() > 0)
@@ -1088,19 +459,12 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 			}
 		}
 
-		// Process removes before adds
+		// Process removes before adds, as the adds will overwrite primitive allocation info in DistanceFieldSceneData.SurfelAllocations
 		UpdateGlobalDistanceFieldObjectRemoves(RHICmdList, Scene);
-
-		TArray<uint32> UploadObjectIndices;
-		TArray<FVector4> UploadObjectData;
 
 		if (DistanceFieldSceneData.PendingAddOperations.Num() > 0 || DistanceFieldSceneData.PendingUpdateOperations.Num() > 0)
 		{
 			TArray<FMatrix> ObjectLocalToWorldTransforms;
-
-			const int32 NumUploadOperations = DistanceFieldSceneData.PendingAddOperations.Num() + DistanceFieldSceneData.PendingUpdateOperations.Num();
-			UploadObjectData.Empty(NumUploadOperations * UploadObjectDataStride);
-			UploadObjectIndices.Empty(NumUploadOperations);
 
 			const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
 			const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
@@ -1108,19 +472,6 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 			const FVector InvTextureDim(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
 
 			int32 OriginalNumObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-
-			bool bAnyViewEnabledDistanceCulling = !WITH_EDITOR;
-#if WITH_EDITOR
-			for (const FViewInfo& ViewInfo : Views)
-			{
-				if (!ViewInfo.Family->EngineShowFlags.DistanceCulledPrimitives)
-				{
-					bAnyViewEnabledDistanceCulling = true;
-					break;
-				}
-			}
-#endif
-
 			for (int32 UploadPrimitiveIndex = 0; UploadPrimitiveIndex < DistanceFieldSceneData.PendingAddOperations.Num(); UploadPrimitiveIndex++)
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = DistanceFieldSceneData.PendingAddOperations[UploadPrimitiveIndex];
@@ -1130,12 +481,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 					RHICmdList,
 					*this,
 					PrimitiveSceneInfo,
-					OriginalNumObjects,
-					InvTextureDim,
-					bAnyViewEnabledDistanceCulling,
 					ObjectLocalToWorldTransforms,
-					UploadObjectIndices,
-					UploadObjectData))
+					DistanceFieldSceneData.IndicesToUpdateInObjectBuffers))
 				{
 					DistanceFieldSceneData.PendingThrottledOperations.Add(PrimitiveSceneInfo);
 				}
@@ -1150,88 +497,235 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 					RHICmdList,
 					*this,
 					PrimitiveSceneInfo,
-					OriginalNumObjects,
-					InvTextureDim,
-					bAnyViewEnabledDistanceCulling,
 					ObjectLocalToWorldTransforms,
-					UploadObjectIndices,
-					UploadObjectData);
+					DistanceFieldSceneData.IndicesToUpdateInObjectBuffers);
 			}
 
 			DistanceFieldSceneData.PendingAddOperations.Reset();
-			DistanceFieldSceneData.PendingUpdateOperations.Empty();
+			DistanceFieldSceneData.PendingUpdateOperations.Reset();
 			if (DistanceFieldSceneData.PendingThrottledOperations.Num() == 0)
 			{
-				DistanceFieldSceneData.PendingThrottledOperations.Empty();
-			}
-
-			FDistanceFieldObjectBuffers*& ObjectBuffers = DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex];
-
-			if (ObjectBuffers->MaxObjects < DistanceFieldSceneData.NumObjectsInBuffer)
-			{
-				if (ObjectBuffers->MaxObjects > 0)
-				{
-					// Realloc
-					FDistanceFieldObjectBuffers* NewObjectBuffers = new FDistanceFieldObjectBuffers();
-					NewObjectBuffers->MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer * 5 / 4;
-					NewObjectBuffers->Initialize();
-
-					{
-						TShaderMapRef<TCopyObjectBufferCS<DFPT_SignedDistanceField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, *ObjectBuffers, *NewObjectBuffers, OriginalNumObjects);
-
-						DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp<uint32>(OriginalNumObjects, UpdateObjectsGroupSize), 1, 1);
-						ComputeShader->UnsetParameters(RHICmdList, *NewObjectBuffers);
-					}
-
-					ObjectBuffers->Release();
-					delete ObjectBuffers;
-					ObjectBuffers = NewObjectBuffers;
-				}
-				else
-				{
-					// First time allocate
-					ObjectBuffers->MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer * 5 / 4;
-					ObjectBuffers->Initialize();
-				}
+				DistanceFieldSceneData.PendingThrottledOperations.Reset();
 			}
 		}
 
-		if (UploadObjectIndices.Num() > 0)
+		// Upload buffer changes
+		if (DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Num() > 0)
 		{
-			if (UploadObjectIndices.Num() > GDistanceFieldUploadIndices.UploadIndices.MaxElements
-				// Shrink if very large
-				|| (GDistanceFieldUploadIndices.UploadIndices.MaxElements > 1000 && GDistanceFieldUploadIndices.UploadIndices.MaxElements > UploadObjectIndices.Num() * 2))
-			{
-				GDistanceFieldUploadIndices.UploadIndices.MaxElements = UploadObjectIndices.Num() * 5 / 4;
-				GDistanceFieldUploadIndices.UploadIndices.Release();
-				GDistanceFieldUploadIndices.UploadIndices.Initialize();
+			QUICK_SCOPE_CYCLE_COUNTER(UpdateDFObjectBuffers);
 
-				GDistanceFieldUploadData.UploadData.MaxElements = UploadObjectIndices.Num() * 5 / 4;
-				GDistanceFieldUploadData.UploadData.Release();
-				GDistanceFieldUploadData.UploadData.Initialize();
+			FDistanceFieldObjectBuffers* ObjectBuffers = DistanceFieldSceneData.ObjectBuffers;
+
+			const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+			const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+			const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+			const FVector InvTextureDim(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
+
+			bool bAnyViewEnabledDistanceCulling = !WITH_EDITOR;
+#if WITH_EDITOR
+			for (const FViewInfo& ViewInfo : Views)
+			{
+				if (!ViewInfo.Family->EngineShowFlags.DistanceCulledPrimitives)
+				{
+					bAnyViewEnabledDistanceCulling = true;
+					break;
+				}
 			}
+#endif
 
-			void* LockedBuffer = RHILockVertexBuffer(GDistanceFieldUploadIndices.UploadIndices.Buffer, 0, GDistanceFieldUploadIndices.UploadIndices.Buffer->GetSize(), RLM_WriteOnly);
-			const uint32 MemcpySize = UploadObjectIndices.GetTypeSize() * UploadObjectIndices.Num();
-			check(GDistanceFieldUploadIndices.UploadIndices.Buffer->GetSize() >= MemcpySize);
-			FPlatformMemory::Memcpy(LockedBuffer, UploadObjectIndices.GetData(), MemcpySize);
-			RHIUnlockVertexBuffer(GDistanceFieldUploadIndices.UploadIndices.Buffer);
-
-			LockedBuffer = RHILockVertexBuffer(GDistanceFieldUploadData.UploadData.Buffer, 0, GDistanceFieldUploadData.UploadData.Buffer->GetSize(), RLM_WriteOnly);
-			const uint32 MemcpySize2 = UploadObjectData.GetTypeSize() * UploadObjectData.Num();
-			check(GDistanceFieldUploadData.UploadData.Buffer->GetSize() >= MemcpySize2);
-			FPlatformMemory::Memcpy(LockedBuffer, UploadObjectData.GetData(), MemcpySize2);
-			RHIUnlockVertexBuffer(GDistanceFieldUploadData.UploadData.Buffer);
-
+			// Upload DF object data and bounds
 			{
-				TShaderMapRef<TUploadObjectsToBufferCS<DFPT_SignedDistanceField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-				ComputeShader->SetParameters(RHICmdList, Scene, UploadObjectIndices.Num(), GDistanceFieldUploadIndices.UploadIndices.BufferSRV, GDistanceFieldUploadData.UploadData.BufferSRV);
+				const uint32 NumDFObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 
-				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp<uint32>(UploadObjectIndices.Num(), UpdateObjectsGroupSize), 1, 1);
-				ComputeShader->UnsetParameters(RHICmdList, Scene);
+				const uint32 DFObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectDataStride);
+				const uint32 DFObjectDataNumBytes = DFObjectDataNumFloat4s * sizeof(FVector4);
+				const bool bResizedDFObjectData = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, DFObjectDataNumBytes, TEXT("DFObjectData"));
+
+				const uint32 DFObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectBoundsStride);
+				const uint32 DFObjectBoundsNumBytes = DFObjectBoundsNumFloat4s * sizeof(FVector4);
+				const bool bResizedDFObjectBounds = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, DFObjectBoundsNumBytes, TEXT("DFObjectBounds"));
+
+				const int32 NumDFObjectUploads = DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Num();
+
+				static FCriticalSection DFUpdateCS;
+
+				if (NumDFObjectUploads > 0)
+				{
+					DistanceFieldSceneData.UploadDataBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("DFObjectDataUploadBuffer"));
+					DistanceFieldSceneData.UploadBoundsBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("DFObjectBoundsUploadBuffer"));
+
+					const TArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
+
+					FParallelUpdateRanges ParallelRanges;
+
+					int32 RangeCount = PartitionUpdateRanges(ParallelRanges, DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Num(), bExecuteInParallel);
+
+					ParallelFor(RangeCount,
+						[&DistanceFieldSceneData, &ParallelRanges, PrimitiveBounds, InvTextureDim, bAnyViewEnabledDistanceCulling, RangeCount](int32 RangeIndex)
+						{
+							for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
+							{
+								const int32 Index = DistanceFieldSceneData.IndicesToUpdateInObjectBuffers[ItemIndex];
+								if (Index >= 0 && Index < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
+								{
+									const FPrimitiveAndInstance& PrimAndInst = DistanceFieldSceneData.PrimitiveInstanceMapping[Index];
+
+									if (RangeCount > 1)
+									{
+										DFUpdateCS.Lock();
+									}
+
+									FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadDataBuffer.Add_GetRef(Index);
+									FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadBoundsBuffer.Add_GetRef(Index);
+
+									if (RangeCount > 1)
+									{
+										DFUpdateCS.Unlock();
+									}
+
+									FBox LocalVolumeBounds;
+									FVector2D DistanceMinMax;
+									FIntVector BlockMin;
+									FIntVector BlockSize;
+									bool bBuiltAsIfTwoSided;
+									bool bMeshWasPlane;
+									float SelfShadowBias;
+									bool bThrottled;
+									PrimAndInst.Primitive->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, bThrottled);
+
+									FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
+									const float MaxScale = LocalToWorld.GetMaximumAxisScale();
+
+									if (bMeshWasPlane)
+									{
+										FVector LocalScales = LocalToWorld.GetScaleVector();
+										FVector AbsLocalScales(FMath::Abs(LocalScales.X), FMath::Abs(LocalScales.Y), FMath::Abs(LocalScales.Z));
+										float MidScale = FMath::Min(AbsLocalScales.X, AbsLocalScales.Y);
+										float ScaleAdjust = FMath::Sign(LocalScales.Z) * MidScale / AbsLocalScales.Z;
+										// The mesh was determined to be a plane flat in Z during the build process, so we can change the Z scale
+										// Helps in cases with modular ground pieces with scales of (10, 10, 1) and some triangles just above Z=0
+										LocalToWorld.SetAxis(2, LocalToWorld.GetScaledAxis(EAxis::Z) * ScaleAdjust);
+									}
+
+									const FMatrix VolumeToWorld = FScaleMatrix(LocalVolumeBounds.GetExtent())
+										* FTranslationMatrix(LocalVolumeBounds.GetCenter())
+										* LocalToWorld;
+
+									const FVector4 ObjectBoundingSphere(VolumeToWorld.GetOrigin(), VolumeToWorld.GetScaleVector().Size());
+									const FBox WorldSpaceVolumeBounds = LocalVolumeBounds.TransformBy(LocalToWorld);
+
+									UploadObjectBounds[0] = ObjectBoundingSphere;
+
+									const FGlobalDFCacheType CacheType = PrimAndInst.Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
+									const float OftenMovingValue = CacheType == GDF_Full ? 1.0f : 0.0f;
+
+									const FVector4 ObjectWorldExtent(WorldSpaceVolumeBounds.GetExtent(), OftenMovingValue);
+									UploadObjectBounds[1] = ObjectWorldExtent;
+
+									const float MaxExtent = LocalVolumeBounds.GetExtent().GetMax();
+
+									const FMatrix UniformScaleVolumeToWorld =
+										  FScaleMatrix(MaxExtent)
+										* FTranslationMatrix(LocalVolumeBounds.GetCenter())
+										* LocalToWorld;
+
+									const FVector InvBlockSize(1.0f / BlockSize.X, 1.0f / BlockSize.Y, 1.0f / BlockSize.Z);
+
+									//float3 VolumeUV = (VolumePosition / LocalPositionExtent * .5f * UVScale + .5f * UVScale + UVAdd;
+									const FVector LocalPositionExtent = LocalVolumeBounds.GetExtent() / FVector(MaxExtent);
+									const FVector UVScale = FVector(BlockSize) * InvTextureDim;
+									const float VolumeScale = UniformScaleVolumeToWorld.GetMaximumAxisScale();
+
+									const FMatrix WorldToVolumeT = UniformScaleVolumeToWorld.Inverse().GetTransposed();
+									// WorldToVolumeT
+									UploadObjectData[0] = (*(FVector4*)&WorldToVolumeT.M[0]);
+									UploadObjectData[1] = (*(FVector4*)&WorldToVolumeT.M[1]);
+									UploadObjectData[2] = (*(FVector4*)&WorldToVolumeT.M[2]);
+
+									// Minimal surface bias which guarantees that ray hit will a surface located between two texels
+									float SurfaceBias = 0.5f * (LocalVolumeBounds.GetExtent() * InvBlockSize).Size() / VolumeScale;
+									if (bBuiltAsIfTwoSided)
+									{
+										SurfaceBias *= 2.0f;
+									}
+
+									// Clamp to texel center by subtracting a half texel in the [-1,1] position space
+									// LocalPositionExtent
+									UploadObjectData[3] = FVector4(LocalPositionExtent - InvBlockSize, SurfaceBias);
+
+									// UVScale, VolumeScale and sign gives bGeneratedAsTwoSided
+									const float WSign = bBuiltAsIfTwoSided ? -1 : 1;
+									UploadObjectData[4] = FVector4(FVector(BlockSize) * InvTextureDim * .5f / LocalPositionExtent, WSign * VolumeScale);
+
+									// UVAdd
+									UploadObjectData[5] = FVector4(FVector(BlockMin) * InvTextureDim + .5f * UVScale, SelfShadowBias);
+
+									// xy - DistanceFieldMAD
+									// zw - MinDrawDistance^2, MaxDrawDistance^2
+									// [0, 1] -> [MinVolumeDistance, MaxVolumeDistance]
+									const int32 PrimIdx = PrimAndInst.Primitive->GetIndex();
+									const FPrimitiveBounds& PrimBounds = PrimitiveBounds[PrimIdx];
+									float MinDrawDist2 = PrimBounds.MinDrawDistanceSq;
+									// For IEEE compatible machines, float operations goes to inf if overflow
+									// In this case, it will effectively disable max draw distance culling
+									float MaxDrawDist = FMath::Max(PrimBounds.MaxCullDistance, 0.f) * GetCachedScalabilityCVars().ViewDistanceScale;
+
+								#if WITH_EDITOR
+									if (!bAnyViewEnabledDistanceCulling)
+									{
+										MinDrawDist2 = 0.f;
+										MaxDrawDist = 0.f;
+									}
+								#endif
+
+									// This is needed to bypass the check Nan/Inf behavior of FVector4.
+									// If the check is turned on, FVector4 constructor automatically converts
+									// the FVector4 being constructed to (0, 0, 0, 1) when any of inputs
+									// to the constructor contains Nan/Inf
+									FVector4& TmpVec4 = UploadObjectData[6];
+									TmpVec4.X = DistanceMinMax.Y - DistanceMinMax.X;
+									TmpVec4.Y = DistanceMinMax.X;
+									TmpVec4.Z = MinDrawDist2;
+									TmpVec4.W = MaxDrawDist * MaxDrawDist;
+
+									UploadObjectData[7] = *(FVector4*)&UniformScaleVolumeToWorld.M[0];
+									UploadObjectData[8] = *(FVector4*)&UniformScaleVolumeToWorld.M[1];
+									UploadObjectData[9] = *(FVector4*)&UniformScaleVolumeToWorld.M[2];
+
+									FMatrix LocalToWorldT = LocalToWorld.GetTransposed();
+									UploadObjectData[10] = *(FVector4*)&LocalToWorldT.M[0];
+									UploadObjectData[11] = *(FVector4*)&LocalToWorldT.M[1];
+									UploadObjectData[12] = *(FVector4*)&LocalToWorldT.M[2];
+
+									// DF Object bounds data
+									FMatrix VolumeToWorldT = UniformScaleVolumeToWorld.GetTransposed();
+									UploadObjectData[13] = *(FVector4*)&VolumeToWorldT.M[0];
+									UploadObjectData[14] = *(FVector4*)&VolumeToWorldT.M[1];
+									UploadObjectData[15] = *(FVector4*)&VolumeToWorldT.M[2];
+								}
+							}
+						},
+						RangeCount == 1
+					);
+
+					FRHIUnorderedAccessView* ObjectBufferUAVs[2];
+					ObjectBufferUAVs[0] = ObjectBuffers->Data.UAV;
+					ObjectBufferUAVs[1] = ObjectBuffers->Bounds.UAV;
+
+					if (bResizedDFObjectData || bResizedDFObjectBounds)
+					{
+						RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBufferUAVs, 2);
+					}
+					else
+					{
+						RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBufferUAVs, 2);
+					}
+
+					DistanceFieldSceneData.UploadDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
+					DistanceFieldSceneData.UploadBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
+
+					RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBufferUAVs, 2);
+				}
 			}
 		}
 
@@ -1243,6 +737,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 			DistanceFieldSceneData.VerifyIntegrity();
 		}
 	}
+
+	DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Reset();
 }
 
 void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
@@ -1298,22 +794,17 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 			const int32 NumUpdateOps = DistanceFieldSceneData.PendingHeightFieldUpdateOps.Num();
 			const int32 NumUploadOps = NumAddOps + NumUpdateOps;
 			const int32 OriginalNumObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer;
-			TArray<uint32> UploadHeightFieldObjectIndices;
-			TArray<FVector4> UploadHeightFieldObjectData;
-
-			UploadHeightFieldObjectIndices.Empty(NumUploadOps);
-			UploadHeightFieldObjectData.Empty(NumUploadOps * UploadHeightFieldObjectDataStride);
 
 			for (int32 Idx = 0; Idx < NumAddOps; ++Idx)
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = DistanceFieldSceneData.PendingHeightFieldAddOps[Idx];
-				ProcessHeightFieldPrimitiveUpdate(true, RHICmdList, Scene, PrimitiveSceneInfo, OriginalNumObjects, UploadHeightFieldObjectIndices, UploadHeightFieldObjectData);
+				ProcessHeightFieldPrimitiveUpdate(true, RHICmdList, Scene, PrimitiveSceneInfo, DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers);
 			}
 
 			for (int32 Idx = 0; Idx < NumUpdateOps; ++Idx)
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = DistanceFieldSceneData.PendingHeightFieldUpdateOps[Idx];
-				ProcessHeightFieldPrimitiveUpdate(false, RHICmdList, Scene, PrimitiveSceneInfo, OriginalNumObjects, UploadHeightFieldObjectIndices, UploadHeightFieldObjectData);
+				ProcessHeightFieldPrimitiveUpdate(false, RHICmdList, Scene, PrimitiveSceneInfo, DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers);
 			}
 
 			DistanceFieldSceneData.PendingHeightFieldAddOps.Reset();
@@ -1321,64 +812,108 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 			FHeightFieldObjectBuffers*& ObjectBuffers = DistanceFieldSceneData.HeightFieldObjectBuffers;
 
-			if (ObjectBuffers->MaxObjects < DistanceFieldSceneData.NumHeightFieldObjectsInBuffer)
+			// Upload height field object data and bounds
 			{
-				if (ObjectBuffers->MaxObjects > 0)
+				const uint32 NumHeightFieldObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer;
+
+				const uint32 HeighFieldObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectDataStride);
+				const uint32 HeighFieldObjectDataNumBytes = HeighFieldObjectDataNumFloat4s * sizeof(FVector4);
+				const bool bResizedHeighFieldObjectData = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, HeighFieldObjectDataNumBytes, TEXT("HeighFieldObjectData"));
+
+				const uint32 HeighFieldObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectBoundsStride);
+				const uint32 HeighFieldObjectBoundsNumBytes = HeighFieldObjectBoundsNumFloat4s * sizeof(FVector4);
+				const bool bResizedHeighFieldObjectBounds = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, HeighFieldObjectBoundsNumBytes, TEXT("HeighFieldObjectBounds"));
+
+				const int32 NumHeighFieldObjectUploads = DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers.Num();
+
+				if (NumHeighFieldObjectUploads > 0)
 				{
-					FHeightFieldObjectBuffers* NewObjectBuffers = new FHeightFieldObjectBuffers;
-					NewObjectBuffers->MaxObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer * 5 / 4;
-					NewObjectBuffers->Initialize();
+					DistanceFieldSceneData.UploadDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("HeighFieldObjectDataUploadBuffer"));
+					DistanceFieldSceneData.UploadBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
 
-					TShaderMapRef<TCopyObjectBufferCS<DFPT_HeightField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, *ObjectBuffers, *NewObjectBuffers, OriginalNumObjects);
-					DispatchComputeShader(RHICmdList, ComputeShader, FMath::DivideAndRoundUp<uint32>(OriginalNumObjects, UpdateObjectsGroupSize), 1, 1);
-					ComputeShader->UnsetParameters(RHICmdList, *NewObjectBuffers);
+					for (int32 Index : DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers)
+					{
+						if (Index >= 0 && Index < DistanceFieldSceneData.HeightfieldPrimitives.Num())
+						{
+							FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Index];
 
-					ObjectBuffers->Release();
-					delete ObjectBuffers;
-					ObjectBuffers = NewObjectBuffers;
+							FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadDataBuffer.Add_GetRef(Index);
+							FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadBoundsBuffer.Add_GetRef(Index);
+
+							UTexture2D* HeightNormalTexture;
+							UTexture2D* DiffuseColorTexture;
+							UTexture2D* VisibilityTexture;
+							FHeightfieldComponentDescription HeightFieldCompDesc(Primitive->Proxy->GetLocalToWorld());
+							Primitive->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
+
+							const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
+							const FBox BoxBound = Bounds.GetBox();
+							UploadObjectBounds[0] = FVector4(BoxBound.GetCenter(), Bounds.SphereRadius);
+							UploadObjectBounds[1] = FVector4(BoxBound.GetExtent(), 0.f);
+
+							const FMatrix& LocalToWorld = HeightFieldCompDesc.LocalToWorld;
+							check(LocalToWorld.GetMaximumAxisScale() > 0.f);
+							const FMatrix WorldToLocalT = LocalToWorld.Inverse().GetTransposed();
+							UploadObjectData[0] = *(const FVector4*)&WorldToLocalT.M[0];
+							UploadObjectData[1] = *(const FVector4*)&WorldToLocalT.M[1];
+							UploadObjectData[2] = *(const FVector4*)&WorldToLocalT.M[2];
+
+							const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
+							const float WorldToLocalScale = FMath::Min3(
+							WorldToLocalT.GetColumn(0).Size(),
+							WorldToLocalT.GetColumn(1).Size(),
+							WorldToLocalT.GetColumn(2).Size());
+							UploadObjectData[3] = FVector4(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
+
+							FVector4 HeightUVScaleBias(ForceInitToZero);
+							if (HeightNormalTexture)
+							{
+								const uint32 HeightNormalTextureHandle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
+								if (HeightNormalTextureHandle != INDEX_NONE)
+								{
+									const FVector4& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
+									check(HeightFieldScaleBias.Y >= 0.f && HeightFieldScaleBias.Z >= 0.f && HeightFieldScaleBias.W >= 0.f);
+
+									const FVector4 ScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(HeightNormalTextureHandle);
+									HeightUVScaleBias.Set(FMath::Abs(HeightFieldScaleBias.X) * ScaleBias.X,
+										HeightFieldScaleBias.Y * ScaleBias.Y,
+										HeightFieldScaleBias.Z * ScaleBias.X + ScaleBias.Z,
+										HeightFieldScaleBias.W * ScaleBias.Y + ScaleBias.W);
+								}
+							}
+							UploadObjectData[4] = HeightUVScaleBias;
+
+							FVector4 VisUVScaleBias(ForceInitToZero);
+							if (VisibilityTexture)
+							{
+								const uint32 VisHandle = GHFVisibilityTextureAtlas.GetAllocationHandle(VisibilityTexture);
+								if (VisHandle != INDEX_NONE)
+								{
+									const FVector4 ScaleBias = GHFVisibilityTextureAtlas.GetAllocationScaleBias(VisHandle);
+									VisUVScaleBias = FVector4(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
+								}
+							}
+							UploadObjectData[5] = VisUVScaleBias;
+						}
+					}
+
+					if (bResizedHeighFieldObjectData || bResizedHeighFieldObjectBounds)
+					{
+						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBuffers->Data.UAV);
+						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ObjectBuffers->Bounds.UAV);
+					}
+					else
+					{
+						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBuffers->Data.UAV);
+						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBuffers->Bounds.UAV);
+					}
+
+					DistanceFieldSceneData.UploadDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
+					DistanceFieldSceneData.UploadBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
+
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Data.UAV);
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Bounds.UAV);
 				}
-				else
-				{
-					ObjectBuffers->MaxObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer * 5 / 4;
-					ObjectBuffers->Initialize();
-				}
-			}
-
-			const int32 NumObjectsToUpload = UploadHeightFieldObjectIndices.Num();
-
-			if (NumObjectsToUpload)
-			{
-				if (NumObjectsToUpload > GHeightFieldUploadIndices.UploadIndices.MaxElements
-					|| (GHeightFieldUploadIndices.UploadIndices.MaxElements > 1000 && GHeightFieldUploadIndices.UploadIndices.MaxElements > NumObjectsToUpload * 2))
-				{
-					GHeightFieldUploadIndices.UploadIndices.MaxElements = NumObjectsToUpload * 5 / 4;
-					GHeightFieldUploadIndices.UploadIndices.Release();
-					GHeightFieldUploadIndices.UploadIndices.Initialize();
-
-					GHeightFieldUploadData.UploadData.MaxElements = NumObjectsToUpload * 5 / 4;
-					GHeightFieldUploadData.UploadData.Release();
-					GHeightFieldUploadData.UploadData.Initialize();
-				}
-
-				void* LockedBuffer = RHILockVertexBuffer(GHeightFieldUploadIndices.UploadIndices.Buffer, 0, GHeightFieldUploadIndices.UploadIndices.Buffer->GetSize(), RLM_WriteOnly);
-				uint32 MemcpySize = UploadHeightFieldObjectIndices.GetTypeSize() * NumObjectsToUpload;
-				check(GHeightFieldUploadIndices.UploadIndices.Buffer->GetSize() >= MemcpySize);
-				FMemory::Memcpy(LockedBuffer, UploadHeightFieldObjectIndices.GetData(), MemcpySize);
-				RHIUnlockVertexBuffer(GHeightFieldUploadIndices.UploadIndices.Buffer);
-
-				LockedBuffer = RHILockVertexBuffer(GHeightFieldUploadData.UploadData.Buffer, 0, GHeightFieldUploadData.UploadData.Buffer->GetSize(), RLM_WriteOnly);
-				MemcpySize = UploadHeightFieldObjectData.GetTypeSize() * UploadHeightFieldObjectData.Num();
-				check(GHeightFieldUploadData.UploadData.Buffer->GetSize() >= MemcpySize);
-				FMemory::Memcpy(LockedBuffer, UploadHeightFieldObjectData.GetData(), MemcpySize);
-				RHIUnlockVertexBuffer(GHeightFieldUploadData.UploadData.Buffer);
-
-				TShaderMapRef<TUploadObjectsToBufferCS<DFPT_HeightField>> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-				ComputeShader->SetParameters(RHICmdList, Scene, NumObjectsToUpload, GHeightFieldUploadIndices.UploadIndices.BufferSRV, GHeightFieldUploadData.UploadData.BufferSRV);
-				DispatchComputeShader(RHICmdList, ComputeShader, FMath::DivideAndRoundUp<uint32>(NumObjectsToUpload, UpdateObjectsGroupSize), 1, 1);
-				ComputeShader->UnsetParameters(RHICmdList, Scene);
 			}
 		}
 	}
@@ -1404,7 +939,7 @@ void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool b
 		check(RemoveInfo.DistanceFieldInstanceIndices.Num() == 1);
 		PendingRemoveIndices.Add(RemoveInfo.DistanceFieldInstanceIndices[0]);
 		const FGlobalDFCacheType CacheType = RemoveInfo.bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-		SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.SphereBound);
+		SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.WorldBounds);
 	}
 	SceneData.PendingHeightFieldRemoveOps.Reset();
 	Algo::Sort(PendingRemoveIndices);
@@ -1429,16 +964,10 @@ void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool b
 			Primitive->DistanceFieldInstanceIndices.Add(HFIdx);
 			const FGlobalDFCacheType CacheType = Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 			const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
-			SceneData.PrimitiveModifiedBounds[CacheType].Add(FVector4(Bounds.Origin, Bounds.SphereRadius));
+			SceneData.PrimitiveModifiedBounds[CacheType].Add(Bounds.GetBox());
 		}
 		SceneData.PendingHeightFieldAddOps.Reset();
 	}
 
 	SceneData.PendingHeightFieldUpdateOps.Empty();
-}
-
-FString GetObjectBufferMemoryString()
-{
-	return FString::Printf(TEXT("Temp object buffers %.3fMb"), 
-		(GDistanceFieldUploadIndices.UploadIndices.GetSizeBytes() + GDistanceFieldUploadData.UploadData.GetSizeBytes() + GDistanceFieldRemoveIndices.RemoveIndices.GetSizeBytes()) / 1024.0f / 1024.0f);
 }

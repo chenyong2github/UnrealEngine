@@ -132,6 +132,12 @@ static FAutoConsoleVariableRef CVarRHICmdTraceEvents(
 	TEXT("Enable tracing profiler events for every RHI command. (default = 0)")
 );
 
+static TAutoConsoleVariable<int32> CVarRHICmdMaxOutstandingMemoryBeforeFlush(
+	TEXT("r.RHICmdMaxOutstandingMemoryBeforeFlush"),
+	256,
+	TEXT("In kilobytes. The amount of outstanding memory before the RHI will force a flush. This should generally be set high enough that it doesn't happen on typical frames."));
+
+
 bool GUseRHIThread_InternalUseOnly = false;
 bool GUseRHITaskThreads_InternalUseOnly = false;
 bool GIsRunningRHIInSeparateThread_InternalUseOnly = false;
@@ -2108,7 +2114,7 @@ void FDynamicRHI::RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdLi
 			RHICmdList.RHIThreadFence(true);
 		}
 
-		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
+		if (GLockTracker.TotalMemoryOutstanding > uint32(CVarRHICmdMaxOutstandingMemoryBeforeFlush.GetValueOnRenderThread()) * 1024u)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
@@ -2268,7 +2274,7 @@ void FDynamicRHI::RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHIC
 			RHICmdList.RHIThreadFence(true);
 		}
 
-		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
+		if (GLockTracker.TotalMemoryOutstanding > uint32(CVarRHICmdMaxOutstandingMemoryBeforeFlush.GetValueOnRenderThread()) * 1024u)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going

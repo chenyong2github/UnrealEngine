@@ -50,7 +50,7 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 
 	// apply the vertex factory changes to the compile environment
 	check(VertexFactoryType);
-	VertexFactoryType->ModifyCompilationEnvironment(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType), ShaderEnvironment);
+	VertexFactoryType->ModifyCompilationEnvironment(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, this), ShaderEnvironment);
 
 	Material->SetupExtaCompilationSettings(Platform, NewJob->Input.ExtraSettings);
 
@@ -162,9 +162,9 @@ bool FMeshMaterialShaderType::ShouldCompilePermutation(EShaderPlatform Platform,
 	return FShaderType::ShouldCompilePermutation(FMeshMaterialShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, PermutationId));
 }
 
-bool FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(const FVertexFactoryType* VertexFactoryType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters)
+bool FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, const FShaderType* ShaderType)
 {
-	return VertexFactoryType->ShouldCache(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType));
+	return VertexFactoryType->ShouldCache(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, ShaderType));
 }
 
 bool FMeshMaterialShaderType::ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType)
@@ -178,6 +178,21 @@ bool FMeshMaterialShaderType::ShouldCompilePipeline(const FShaderPipelineType* S
 			return false;
 		}
 	}
+	return true;
+}
+
+bool FMeshMaterialShaderType::ShouldCompileVertexFactoryPipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType)
+{
+	for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
+	{
+		checkSlow(ShaderType->GetMeshMaterialShaderType());
+
+		if (!VertexFactoryType->ShouldCache(FVertexFactoryShaderPermutationParameters(Platform, MaterialParameters, VertexFactoryType, ShaderType)))
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 

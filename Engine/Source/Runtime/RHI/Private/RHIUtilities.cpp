@@ -39,7 +39,7 @@ void FDumpTransitionsHelper::DumpResourceTransition(const FName& ResourceName, c
 		ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
 
 		FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 2);
-		UE_LOG(LogRHI, Log, TEXT("%s transition to: %s"), *ResourceDumpName.ToString(), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType]);
+		UE_LOG(LogRHI, Log, TEXT("%s transition to: %s"), *ResourceDumpName.ToString(), *GetResourceTransitionAccessName(TransitionType));
 		UE_LOG(LogRHI, Log, TEXT("%s"), ANSI_TO_TCHAR(DumpCallstack));
 	}
 }

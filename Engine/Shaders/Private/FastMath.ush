@@ -97,7 +97,7 @@ float3 normalizeFast( float3 v )
 
 float4 fastClamp(float4 x, float4 Min, float4 Max)
 {
-#if PS4_PROFILE  
+#if COMPILER_PSSL
 	// Warning: only correct if Min is smaller than Max
 	return med3(x, Min, Max);
 #else
@@ -107,7 +107,7 @@ float4 fastClamp(float4 x, float4 Min, float4 Max)
 
 float3 fastClamp(float3 x, float3 Min, float3 Max)
 {
-#if PS4_PROFILE  
+#if COMPILER_PSSL
 	// Warning: only correct if Min is smaller than Max
 	return med3(x, Min, Max);
 #else
@@ -117,7 +117,7 @@ float3 fastClamp(float3 x, float3 Min, float3 Max)
 
 float2 fastClamp(float2 x, float2 Min, float2 Max)
 {
-#if PS4_PROFILE  
+#if COMPILER_PSSL
 	// Warning: only correct if Min is smaller than Max
 	return med3(x, Min, Max);
 #else
@@ -127,7 +127,7 @@ float2 fastClamp(float2 x, float2 Min, float2 Max)
 
 float fastClamp(float x, float Min, float Max)
 {
-#if PS4_PROFILE  
+#if COMPILER_PSSL
 	// Warning: only correct if Min is smaller than Max
 	return med3(x, Min, Max);
 #else

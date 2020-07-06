@@ -9,6 +9,7 @@
 #include "ShadingCommon.ush"
 #include "LightAccumulator.ush"
 #include "SceneTexturesCommon.ush"
+#include "MonteCarlo.ush"
 
 // TODO: for CustomGBufferResolvePS() MSAA_SAMPLE_COUNT is defined by C++ code as 2 or 4
 // bot not for any other shaders!
@@ -331,6 +332,8 @@ struct FGBufferData
 	float Anisotropy;
 	// 0..1 ambient occlusion  e.g.SSAO, wet surface mask, skylight mask, ...
 	float GBufferAO;
+	// Bit mask for occlusion of the diffuse indirect samples
+	uint DiffuseIndirectSampleOcclusion;
 	// 0..255 
 	uint ShadingModelID;
 	// 0..255 
@@ -382,6 +385,20 @@ void SetGBufferForUnlit(out float4 OutGBufferB)
 	OutGBufferB.a = EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_UNLIT, 0);
 }
 
+#define INDIRECT_SAMPLE_COUNT 8
+
+float4 ComputeIndirectLightingSampleE(uint2 TracingPixelCoord, uint TracingRayIndex, uint TracingRayCount)
+{
+	//  Shader compiler code is pretty good at moving this out of any for loops.
+	uint2 Seed0 = Rand3DPCG16(int3(TracingPixelCoord, View.StateFrameIndexMod8)).xy;
+	uint2 Seed1 = Rand3DPCG16(int3(TracingPixelCoord + 17, View.StateFrameIndexMod8)).xy;
+
+	return float4(
+		Hammersley16(TracingRayIndex, TracingRayCount, Seed0),
+		Hammersley16(TracingRayIndex, TracingRayCount, Seed1));
+}
+
+
 /** Populates OutGBufferA, B and C */
 void EncodeGBuffer(
 	FGBufferData GBuffer,
@@ -426,7 +443,9 @@ void EncodeGBuffer(
 
 		OutGBufferC.rgb = EncodeBaseColor( GBuffer.BaseColor );
 
-#if ALLOW_STATIC_LIGHTING
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+		OutGBufferC.a = float(GBuffer.DiffuseIndirectSampleOcclusion) * rcp(255) + (0.5 / 255.0);
+#elif ALLOW_STATIC_LIGHTING
 		// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
 		OutGBufferC.a = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
 #else
@@ -539,11 +558,17 @@ FGBufferData DecodeGBufferData(
 
 	GBuffer.BaseColor = DecodeBaseColor(InGBufferC.rgb);
 
-#if ALLOW_STATIC_LIGHTING
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+	GBuffer.DiffuseIndirectSampleOcclusion = 255 * InGBufferC.a;
+	GBuffer.GBufferAO = saturate(1.0 - float(countbits(GBuffer.DiffuseIndirectSampleOcclusion)) * rcp(float(INDIRECT_SAMPLE_COUNT)));
+	GBuffer.IndirectIrradiance = 1;
+#elif ALLOW_STATIC_LIGHTING
 	GBuffer.GBufferAO = 1;
+	GBuffer.DiffuseIndirectSampleOcclusion = 0x0;
 	GBuffer.IndirectIrradiance = DecodeIndirectIrradiance(InGBufferC.a);
 #else
 	GBuffer.GBufferAO = InGBufferC.a;
+	GBuffer.DiffuseIndirectSampleOcclusion = 0x0;
 	GBuffer.IndirectIrradiance = 1;
 #endif
 
@@ -749,3 +774,11 @@ FScreenSpaceData GetScreenSpaceData(float2 UV, bool bGetNormalizedNormal = true)
 	return Out;
 }
 
+// [ Jimenez et al. 2016, "Practical Realtime Strategies for Accurate Indirect Occlusion" ]
+float3 AOMultiBounce(float3 BaseColor, float AO)
+{
+	float3 a = 2.0404 * BaseColor - 0.3324;
+	float3 b = -4.7951 * BaseColor + 0.6417;
+	float3 c = 2.7552 * BaseColor + 0.6903;
+	return max(AO, ((AO * a + b) * AO + c) * AO);
+}

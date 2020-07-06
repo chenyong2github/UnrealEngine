@@ -115,6 +115,7 @@
 	#include "DerivedDataCacheInterface.h"
 	#include "ShaderCompiler.h"
 	#include "DistanceFieldAtlas.h"
+	#include "MeshCardRepresentation.h"
 	#include "GlobalShader.h"
 	#include "ShaderCodeLibrary.h"
 	#include "Materials/MaterialInterface.h"
@@ -1573,6 +1574,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif // !UE_BUILD_SHIPPING
 
+#if RHI_COMMAND_LIST_DEBUG_TRACES
+	// Enable command-list-only draw events if we haven't already got full draw events enabled.
+	if (!GetEmitDrawEvents())
+	{
+		EnableEmitDrawEventsOnlyOnCommandlist();
+	}
+#endif // RHI_COMMAND_LIST_DEBUG_TRACES
+
 	// Switch into executable's directory (may be required by some of the platform file overrides)
 	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
 
@@ -2531,10 +2540,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	});
 #endif	// USE_LOCALIZED_PACKAGE_CACHE
 
-#if RHI_COMMAND_LIST_DEBUG_TRACES
-	EnableEmitDrawEventsOnlyOnCommandlist();
-#endif
-
 	{
 		SCOPED_BOOT_TIMING("FUniformBufferStruct::InitializeStructs()");
 		FShaderParametersMetadata::InitializeAllUniformBufferStructs();
@@ -2590,6 +2595,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
+		check(!GCardRepresentationAsyncQueue);
+		GCardRepresentationAsyncQueue = new FCardRepresentationAsyncQueue();
+		
 		// Shader hash cache is required only for shader compilation.
 		InitializeShaderHashCache();
 	}
@@ -4162,6 +4170,12 @@ void FEngineLoop::Exit()
 		GDistanceFieldAsyncQueue->Shutdown();
 		delete GDistanceFieldAsyncQueue;
 	}
+
+	if (GCardRepresentationAsyncQueue)
+	{
+		GCardRepresentationAsyncQueue->Shutdown();
+		delete GCardRepresentationAsyncQueue;
+	}
 #endif // WITH_ENGINE
 
 	if ( GEngine != nullptr )
@@ -4870,7 +4884,12 @@ void FEngineLoop::Tick()
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
 			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
 		}
-
+		
+		if (GCardRepresentationAsyncQueue)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
+			GCardRepresentationAsyncQueue->ProcessAsyncTasks();
+		}
 #if !UE_SERVER
 		// tick media framework
 		if (MediaModule != nullptr)

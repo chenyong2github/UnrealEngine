@@ -43,6 +43,7 @@ FLightmapSceneData GetLightmapData(uint LightmapDataIndex)
 	LightmapData.LightmapVTPackedPageTableUniform[0] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 8]);
 	LightmapData.LightmapVTPackedPageTableUniform[1] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 9]);
 
+	UNROLL
 	for (uint i = 0u; i < 5u; ++i)
 	{
 		LightmapData.LightmapVTPackedUniform[i] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 10 + i]);

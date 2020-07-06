@@ -26,7 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogStreamingFileCache, Log, All);
 
 static const int CacheLineSize = 64 * 1024;
 
-static int32 GNumFileCacheBlocks = 256;
+static int32 GNumFileCacheBlocks = 2048;
 static FAutoConsoleVariableRef CVarNumFileCacheBlocks(
 	TEXT("fc.NumFileCacheBlocks"),
 	GNumFileCacheBlocks,
@@ -206,7 +206,7 @@ class FFileCacheHandle : public IFileCacheHandle
 {
 public:
 
-	FFileCacheHandle(IAsyncReadFileHandle* InHandle);
+	explicit FFileCacheHandle(IAsyncReadFileHandle* InHandle, int64 InBaseOffset);
 	virtual ~FFileCacheHandle() override;
 
 	//
@@ -267,6 +267,7 @@ private:
 	TArray<CacheSlotID> LineToSlot;
 	TArray<FPendingRequest> LineToRequest;
 
+	int64 BaseOffset;
 	int64 NumSlots;
 	int64 FileSize;
 	IAsyncReadFileHandle* InnerHandle;
@@ -421,8 +422,9 @@ FFileCacheHandle::~FFileCacheHandle()
 	}
 }
 
-FFileCacheHandle::FFileCacheHandle(IAsyncReadFileHandle* InHandle)
-	: NumSlots(0)
+FFileCacheHandle::FFileCacheHandle(IAsyncReadFileHandle* InHandle, int64 InBaseOffset)
+	: BaseOffset(InBaseOffset)
+	, NumSlots(0)
 	, FileSize(-1)
 	, InnerHandle(InHandle)
 {
@@ -625,11 +627,12 @@ CacheSlotID FFileCacheHandle::AcquireSlotAndReadLine(FFileCache& Cache, CacheLin
 	return SlotID;
 }
 
-IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
+IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionEvents, int64 InOffset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_ReadData);
 	SCOPED_LOADTIMER(FFileCacheHandle_ReadData);
 
+	const int64 Offset = BaseOffset + InOffset;
 	const CacheLineID StartLine = GetBlock<CacheLineID>(Offset);
 	const CacheLineID EndLine = GetBlock<CacheLineID>(Offset + BytesToRead - 1);
 
@@ -741,7 +744,7 @@ FGraphEventRef FFileCacheHandle::PreloadData(const FFileCachePreloadEntry* Prelo
 
 	{
 		const FFileCachePreloadEntry& LastEntry = PreloadEntries[NumEntries - 1];
-		const CacheLineID EndLine = GetBlock<CacheLineID>(LastEntry.Offset + LastEntry.Size - 1);
+		const CacheLineID EndLine = GetBlock<CacheLineID>(BaseOffset + LastEntry.Offset + LastEntry.Size - 1);
 		if (EndLine.Get() >= NumSlots)
 		{
 			// If we're still waiting on SizeRequest, may need to lazily allocate some slots to service this request
@@ -764,8 +767,9 @@ FGraphEventRef FFileCacheHandle::PreloadData(const FFileCachePreloadEntry* Prelo
 	for (int32 EntryIndex = 0; EntryIndex < NumEntries && Cache.NumFreeSlots > 0; ++EntryIndex)
 	{
 		const FFileCachePreloadEntry& Entry = PreloadEntries[EntryIndex];
-		const CacheLineID StartLine = GetBlock<CacheLineID>(Entry.Offset);
-		const CacheLineID EndLine = GetBlock<CacheLineID>(Entry.Offset + Entry.Size - 1);
+		const int64 EntryOffset = BaseOffset + Entry.Offset;
+		const CacheLineID StartLine = GetBlock<CacheLineID>(EntryOffset);
+		const CacheLineID EndLine = GetBlock<CacheLineID>(EntryOffset + Entry.Size - 1);
 
 		checkf(Entry.Offset > PrevOffset, TEXT("Preload entries must be sorted by Offset [%lld, %lld), %lld"),
 			Entry.Offset, Entry.Offset + Entry.Size, PrevOffset);
@@ -845,7 +849,7 @@ void IFileCacheHandle::EvictAll()
 	GetCache().EvictAll();
 }
 
-IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileName)
+IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileName, int64 InBaseOffset)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_CreateHandle);
 
@@ -855,16 +859,16 @@ IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileNam
 		return nullptr;
 	}
 
-	return new FFileCacheHandle(FileHandle);
+	return new FFileCacheHandle(FileHandle, InBaseOffset);
 }
 
-IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle)
+IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle, int64 InBaseOffset)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_CreateHandle);
 
 	if (FileHandle != nullptr)
 	{
-		return new FFileCacheHandle(FileHandle);
+		return new FFileCacheHandle(FileHandle, InBaseOffset);
 	}
 	else
 	{

@@ -8,6 +8,7 @@
 #include "Containers/BitArray.h"
 #include "Containers/List.h"
 #include "Templates/UniquePtr.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class FUploadingVirtualTexture;
 class IFileCacheHandle;
@@ -67,6 +68,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers) override;
+	virtual void GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const override;
 	virtual void DumpToConsole(bool verbose) override;
 	// End IVirtualTexture interface
 

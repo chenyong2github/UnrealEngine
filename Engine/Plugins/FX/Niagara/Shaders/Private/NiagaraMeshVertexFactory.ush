@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "/Engine/Private/VertexFactoryCommon.ush"
-#include "NiagaraVFParticleAccess.usf"
+#include "NiagaraVFCommon.usf"
 
 #define USE_PARTICLE_POSITION (NEEDS_PARTICLE_POSITION)
 #define USE_PARTICLE_VELOCITY (NEEDS_PARTICLE_VELOCITY)

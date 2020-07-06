@@ -404,10 +404,45 @@ public:
 		return ProjectionMatrix.M[3][3] < 1.0f;
 	}
 
-	inline void HackOverrideViewMatrixForShadows(const FMatrix& InViewMatrix)
+	inline void HackOverrideMatrixForShadows(
+		const FMatrix& InViewRotationMatrix,
+		const FMatrix& InProjectionMatrix,
+		const FVector& InViewOrigin
+		)
 	{
-		OverriddenTranslatedViewMatrix = ViewMatrix = InViewMatrix;
-		OverriddenInvTranslatedViewMatrix = InViewMatrix.Inverse();
+		ViewOrigin = InViewOrigin;
+
+		FMatrix ViewRotationMatrix = InViewRotationMatrix;
+		if (!ViewRotationMatrix.GetOrigin().IsNearlyZero(0.0f))
+		{
+			ViewOrigin += ViewRotationMatrix.InverseTransformPosition(FVector::ZeroVector);
+			ViewRotationMatrix = ViewRotationMatrix.RemoveTranslation();
+		}
+
+		ViewMatrix = FTranslationMatrix(-ViewOrigin) * ViewRotationMatrix;
+
+		ProjectionMatrix = InProjectionMatrix;
+		InvProjectionMatrix = InvertProjectionMatrix( ProjectionMatrix );
+
+		// For precision reasons the view matrix inverse is calculated independently.
+		InvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix( ViewOrigin );
+
+		// Translate world-space so its origin is at ViewOrigin for improved precision.
+		// Note that this isn't exactly right for orthogonal projections (See the above special case), but we still use ViewOrigin
+		// in that case so the same value may be used in shaders for both the world-space translation and the camera's world position.
+		PreViewTranslation = -FVector(ViewOrigin);
+
+		// Compute a transform from view origin centered world-space to clip space.
+		OverriddenTranslatedViewMatrix = ViewRotationMatrix;
+		OverriddenInvTranslatedViewMatrix = ViewRotationMatrix.GetTransposed();
+
+		// Compute the view projection matrix and its inverse.
+		ViewProjectionMatrix = GetViewMatrix() * GetProjectionMatrix();
+		InvViewProjectionMatrix = GetInvProjectionMatrix() * GetInvViewMatrix();
+
+		// Compute a transform from view origin centered world-space to clip space.
+		TranslatedViewProjectionMatrix = OverriddenTranslatedViewMatrix * GetProjectionMatrix();
+		InvTranslatedViewProjectionMatrix = GetInvProjectionMatrix() * OverriddenInvTranslatedViewMatrix;
 	}
 
 	void SaveProjectionNoAAMatrix()
@@ -477,6 +512,11 @@ public:
 		VRight.Normalize();
 
 		return FVector2D(FMath::Acos(VCenter | VRight), FMath::Acos(VCenter | VUp));
+	}
+
+	float ComputeNearPlane() const
+	{
+		return ( ProjectionMatrix.M[3][3] - ProjectionMatrix.M[3][2] ) / ( ProjectionMatrix.M[2][2] - ProjectionMatrix.M[2][3] );
 	}
 
 	void ApplyWorldOffset(const FVector& InOffset)
@@ -729,6 +769,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeDimension) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeTexelSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaxGlobalDistance) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, NumGlobalSDFClipmaps) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FIntPoint, CursorPosition) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, bCheckerboardSubsurfaceProfileRendering) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, VolumetricFogInvGridSize) \
@@ -802,6 +843,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler2)
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture3)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler3)
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture4)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler4)
 
 	SHADER_PARAMETER_TEXTURE(Texture2D, AtmosphereTransmittanceTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AtmosphereTransmittanceTextureSampler)
@@ -823,6 +866,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedBRDF)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedBRDFSampler)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, PrimitiveSceneData)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, InstanceSceneData)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, PrimitiveSceneDataTexture)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, LightmapSceneData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SkyIrradianceEnvironmentMap)
@@ -838,6 +882,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_UAV(RWTexture2D<uint>, QuadOverdraw)
+	SHADER_PARAMETER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -1309,6 +1354,8 @@ public:
 		const FIntRect& InEffectiveViewRect,
 		const FViewMatrices& InViewMatrices,
 		const FViewMatrices& InPrevViewMatrice) const;
+
+	FVector4 GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const;
 
 	/** 
 	 * Populates the uniform buffer prameters common to all scene view use cases

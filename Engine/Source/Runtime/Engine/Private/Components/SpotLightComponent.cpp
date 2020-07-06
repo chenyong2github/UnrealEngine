@@ -116,8 +116,7 @@ public:
 		FWholeSceneProjectedShadowInitializer& OutInitializer = *new(OutInitializers) FWholeSceneProjectedShadowInitializer;
 		OutInitializer.PreShadowTranslation = -GetLightToWorld().GetOrigin();
 		OutInitializer.WorldToLight = GetWorldToLight().RemoveTranslation();
-		OutInitializer.Scales = FVector(1.0f,InvTanOuterCone,InvTanOuterCone);
-		OutInitializer.FaceDirection = FVector(1,0,0);
+		OutInitializer.Scales = FVector2D(InvTanOuterCone,InvTanOuterCone);
 
 		const FSphere AbsoluteBoundingSphere = FSpotLightSceneProxy::GetBoundingSphere();
 		OutInitializer.SubjectBounds = FBoxSphereBounds(
@@ -144,17 +143,14 @@ public:
 
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const override
 	{
-		// Heuristic: use the radius of the inscribed sphere at the cone's end as the light's effective screen radius
+		// Heuristic: use the radius of the inscribed sphere at the closest point on the spotlight axis to the viewer as the light's effective screen radius
 		// We do so because we do not want to use the light's radius directly, which will make us overestimate the shadow map resolution greatly for a spot light
 
-		// In the correct form,
-		//   InscribedSpherePosition = GetOrigin() + GetDirection() * GetRadius() / CosOuterCone
-		//   InscribedSphereRadius = GetRadius() / SinOuterCone
-		// Do it incorrectly to avoid division which is more expensive and risks division by zero
-		const FVector InscribedSpherePosition = GetOrigin() + GetDirection() * GetRadius() * CosOuterCone;
-		const float InscribedSphereRadius = GetRadius() * SinOuterCone;
-
+		float ViewOriginProjectionOntoSpotlightAxis = FVector::DotProduct(ShadowViewMatrices.GetViewOrigin() - GetOrigin(), GetDirection());
+		ViewOriginProjectionOntoSpotlightAxis = FMath::Clamp(ViewOriginProjectionOntoSpotlightAxis, 0.0f, GetRadius());
+		const FVector InscribedSpherePosition = GetOrigin() + ViewOriginProjectionOntoSpotlightAxis * GetDirection();
 		const float SphereDistanceFromViewOrigin = (InscribedSpherePosition - ShadowViewMatrices.GetViewOrigin()).Size();
+		const float InscribedSphereRadius = FMath::Max(ViewOriginProjectionOntoSpotlightAxis, GetRadius() / 10.0f) / InvTanOuterCone;
 
 		return ShadowViewMatrices.GetScreenScale() * InscribedSphereRadius / FMath::Max(SphereDistanceFromViewOrigin, 1.0f);
 	}

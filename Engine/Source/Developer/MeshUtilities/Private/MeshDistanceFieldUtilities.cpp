@@ -288,8 +288,11 @@ void FMeshDistanceFieldAsyncTask::DoWork()
 
 			const float UnsignedDistance = MinDistance;
 
-			// Consider this voxel 'inside' an object if more than 50% of the rays hit back faces
-			MinDistance *= (Hit == 0 || HitBack < SampleDirections->Num() * .5f) ? 1 : -1;
+			// Consider this voxel 'inside' an object if more than 40% of the rays hit back faces
+			if (Hit > 0 && HitBack > SampleDirections->Num() * .4f)
+			{
+				MinDistance *= -1;
+			}
 
 			// If we are very close to a surface and nearly all of our rays hit backfaces, treat as inside
 			// This is important for one sided planes
@@ -606,6 +609,38 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				FAsyncTask<FMeshDistanceFieldAsyncTask>& Task = AsyncTasks[TaskIndex];
 				Task.EnsureCompletion(false);
 				bNegativeAtBorder = bNegativeAtBorder || Task.GetTask().WasNegativeAtBorder();
+			}
+
+			if (bNegativeAtBorder)
+			{
+				// Mesh distance fields which have negative values at the boundaries (unclosed meshes) are edited to have a virtual surface just behind the real surface, effectively closing them.
+
+				bNegativeAtBorder = false;
+				const float MinInteriorDistance = -.1f;
+
+				for (int32 Index = 0; Index < DistanceFieldVolume.Num(); Index++)
+				{
+					const float OriginalVolumeSpaceDistance = DistanceFieldVolume[Index];
+					float NewVolumeSpaceDistance = OriginalVolumeSpaceDistance;
+
+					if (OriginalVolumeSpaceDistance < MinInteriorDistance)
+					{
+						NewVolumeSpaceDistance = MinInteriorDistance - OriginalVolumeSpaceDistance;
+						DistanceFieldVolume[Index] = NewVolumeSpaceDistance;
+					}
+
+					const int32 XIndex = Index % VolumeDimensions.X;
+					const int32 ZIndex = Index / (VolumeDimensions.Y * VolumeDimensions.X);
+					const int32 YIndex = (Index - ZIndex * VolumeDimensions.Y * VolumeDimensions.X) / VolumeDimensions.X;
+
+					if (NewVolumeSpaceDistance < 0 &&
+						(XIndex == 0 || XIndex == VolumeDimensions.X - 1 ||
+						YIndex == 0 || YIndex == VolumeDimensions.Y - 1 ||
+						ZIndex == 0 || ZIndex == VolumeDimensions.Z - 1))
+					{
+						bNegativeAtBorder = true;
+					}
+				}
 			}
 
 			TArray<uint8> QuantizedDistanceFieldVolume;

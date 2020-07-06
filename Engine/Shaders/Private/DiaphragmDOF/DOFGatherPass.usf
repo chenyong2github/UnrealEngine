@@ -152,6 +152,8 @@ void GatherMainCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupId : SV_GroupID) 
 {
+	float4 Debug = 0;
+
 	// Get output's UVs.
 	float2 ViewportUV = (DispatchThreadId + 0.5) * ViewportSize.zw;
 	float2 InputBufferCenterUV = (DispatchThreadId + 0.5) * DispatchThreadIdToInputBufferUV;
@@ -227,9 +229,7 @@ void GatherMainCS(
 		#endif
 		const FCocTileSample CocTileInfos = LoadCocTile(COC_TILE_LAYOUT_FGD_SEP_BGD, TileClassification_Foreground, TileClassification_Background, int2(TilePos));
 
-		TileSuggestion = InferGatherTileSuggestion(CocTileInfos,
-			/* LayerProcessing = */ DIM_LAYER_PROCESSING,
-			/* MinGatherRadius = */ (GatherParameters.MaxRecombineAbsCocRadius - 1));
+		TileSuggestion = InferGatherTileSuggestion(CocTileInfos, /* LayerProcessing = */ DIM_LAYER_PROCESSING);
 	}
 	
 	// Setup first gathering's radius.
@@ -241,7 +241,18 @@ void GatherMainCS(
 
 		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS
 		{
-			GatherParameters.KernelRadius = GatherParameters.MaxRingCount;
+			// Dynamically control number rings.
+			GatherParameters.KernelSamplingDensityMode = KERNEL_DENSITY_CONSTANT_DYNAMIC_RING_COUNT;
+			GatherParameters.MaxRingCount = round(min(TileSuggestion.MaxCocRadiusAbs, SlightOutOfFocusRadiusBoundary)); // shader parameter for maximum number of rings
+		}
+		#endif
+		
+		#if CONFIG_SGPR_HINTS
+		{
+			GatherParameters.ClosestCocRadius = ToScalarMemory(GatherParameters.ClosestCocRadius);
+			GatherParameters.KernelRadius = ToScalarMemory(GatherParameters.KernelRadius);
+			GatherParameters.MinIntersectableCocRadiusAbs = ToScalarMemory(GatherParameters.MinIntersectableCocRadiusAbs);
+			GatherParameters.MaxRingCount = ToScalarMemory(GatherParameters.MaxRingCount);
 		}
 		#endif
 	}
@@ -277,6 +288,8 @@ void GatherMainCS(
 	BRANCH
 	if (bSkipGathering)
 	{	
+		uint2 OutputPixelPosition = DispatchThreadId;
+
 		FAccumulatorOutput AccumulatorOutput = CreateAccumulatorOutput();
 
 		// TODO: that is not fine for LARGEST_RING_FIRST == 0
@@ -284,7 +297,13 @@ void GatherMainCS(
 		AccumulatorOutput.BackgroundWeight = LargerConvolution.Weight;
 		AccumulatorOutput.BackgroundCocAvgAndSquareAvg = LargerConvolution.CocAvgAndSquareAvg;
 
-		StoreAccumulatorOutput(DispatchThreadId, AccumulatorOutput);
+		StoreAccumulatorOutput(OutputPixelPosition, AccumulatorOutput);
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[OutputPixelPosition] = Debug;
+		}
+		#endif
 	}
 
 	// Do fast gathering because all Coc in the neighborhood are same.
@@ -334,7 +353,15 @@ void GatherMainCS(
 			uint2 OutputPixelPosition = DispatchThreadId;
 		#endif
 
+		Debug = float4(0, 1, 0, 0);
+
 		StoreAccumulatorOutput(OutputPixelPosition, AccumulatorOutput);
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[OutputPixelPosition] = Debug;
+		}
+		#endif
 	}
 	#endif // ALLOW_FAST_ACCUMULATOR
 
@@ -393,6 +420,42 @@ void GatherMainCS(
 			uint2 OutputPixelPosition = DispatchThreadId;
 		#endif
 
+		#if 1
+		{
+			#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
+			{
+			}
+			#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_HOLE_FILLING
+			{
+			}
+			#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
+			{
+			}
+			#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS
+			{
+				Debug = float4(GatherParameters.MaxRingCount, 0, 0, 0);
+			}
+			#else
+				#error Unknown layer processing.
+
+			#endif
+		}
+		#elif 1
+		{
+			Debug = float4(GatherParameters.KernelRadius, 0, 0, 0);
+		}
+		#elif 0
+		{
+			Debug = float4(1, 0, 0, 0);
+		}
+		#endif
+
 		StoreAccumulatorOutput(OutputPixelPosition, AccumulatorOutput);
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[OutputPixelPosition] = Debug;
+		}
+		#endif
 	}
 }

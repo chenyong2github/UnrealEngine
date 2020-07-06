@@ -434,9 +434,9 @@ private:
 		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer7)
 
 		SHADER_PARAMETER_SRV(Buffer, RootTriangleIndex)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition0)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition1)
-		SHADER_PARAMETER_UAV(StructuredBuffer, OutRootTrianglePosition2)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer, OutRootTrianglePosition0)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer, OutRootTrianglePosition1)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer, OutRootTrianglePosition2)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1171,7 +1171,7 @@ void AddComputeMipsPass(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairStrandsComputeVoxelMip"),
 			Parameters,
-			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, TargetResolution](FRHICommandList& RHICmdList)
 		{
 			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntPoint(TargetResolution, TargetResolution), FIntPoint(8, 8));

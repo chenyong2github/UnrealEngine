@@ -329,8 +329,8 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		}
 	}
 
-	FNiagaraDataBuffer* SourceParticleData = DynamicDataSprites->GetParticleDataToRender();
-	check(SourceParticleData);//Can be null but should be checked before here.
+	// Set common data on vertex factory
+	DynamicDataSprites->SetVertexFactoryData(OutVertexFactory);
 
 	//Sort particles if needed.
 	{
@@ -340,6 +340,9 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		check(MaterialRenderProxy);
 		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
+
+		FNiagaraDataBuffer* SourceParticleData = DynamicDataSprites->GetParticleDataToRender(IsTranslucentBlendMode(BlendMode));
+		check(SourceParticleData);//Can be null but should be checked before here.
 
 		const int32 NumInstances = SourceParticleData->GetNumInstances();
 		FNiagaraGPUSortInfo SortInfo;

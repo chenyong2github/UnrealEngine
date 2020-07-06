@@ -6,7 +6,7 @@
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "EdGraph/EdGraphSchema.h"
-
+#include "NiagaraTypes.h"
 #include "NiagaraTypeCustomizations.generated.h"
 
 class FDetailWidgetRow;

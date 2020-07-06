@@ -14,6 +14,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light
@@ -108,13 +109,25 @@ static TAutoConsoleVariable<float> CVarRectLightShadowReceiverBias(
 static TAutoConsoleVariable<float> CVarSpotLightShadowDepthBias(
 	TEXT("r.Shadow.SpotLightDepthBias"),
 	3.0f,
-	TEXT("Depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
+	TEXT("Depth bias that is applied in the depth pass for whole-scene projected shadows from spot lights"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarSpotLightShadowSlopeScaleDepthBias(
 	TEXT("r.Shadow.SpotLightSlopeDepthBias"),
 	3.0f,
-	TEXT("Slope scale depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
+	TEXT("Slope scale depth bias that is applied in the depth pass for whole-scene projected shadows from spot lights"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarPerObjectSpotLightShadowDepthBias(
+	TEXT("r.Shadow.PerObjectSpotLightDepthBias"),
+	3.0f,
+	TEXT("Depth bias that is applied in the depth pass for per-object projected shadows from spot lights"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarPerObjectSpotLightShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.PerObjectSpotLightSlopeDepthBias"),
+	3.0f,
+	TEXT("Slope scale depth bias that is applied in the depth pass for per-object projected shadows from spot lights"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarSpotLightShadowTransitionScale(
@@ -146,6 +159,15 @@ static FAutoConsoleVariableRef CVarStencilOptimization(
 	ECVF_RenderThreadSafe
 	);
 
+
+static int GShadowStencilCulling = 1;
+static FAutoConsoleVariableRef CVarGShadowStencilCulling(
+	TEXT("r.Shadow.StencilCulling"),
+	GShadowStencilCulling,
+	TEXT("Whether to use stencil light culling during shadow projection (default) or only depth."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarFilterMethod(
 	TEXT("r.Shadow.FilterMethod"),
 	0,
@@ -165,6 +187,12 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	1.0f,
 	TEXT("Max Slope depth bias used for shadows for all lights\n")
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarVirtualSmDenoiser(
+	TEXT("r.Shadow.v.Denoiser"),
+	1,
+	TEXT("Apply denoiser on virtual shadow map masks."),
 	ECVF_RenderThreadSafe);
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
@@ -688,7 +716,7 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 						FVector4(
 							(vX ? -1.0f : 1.0f),
 							(vY ? -1.0f : 1.0f),
-							(vZ ?  0.0f : 1.0f),
+							(vZ ?  1.0f : 0.0f),
 							1.0f
 							)
 						);
@@ -900,7 +928,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		// Set the projection vertex shader parameters
 		VertexShader->SetParameters(RHICmdList, *View, this);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
@@ -957,7 +985,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum);
 
 	const bool bSubPixelSupport = HairVisibilityData != nullptr;
-	const bool bStencilTestEnabled = !bSubPixelSupport;
+	const bool bStencilTestEnabled = !bSubPixelSupport && GShadowStencilCulling;
 	const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0 && !bSubPixelSupport;
 	
 	if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
@@ -1003,9 +1031,8 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	}
 	else
 	{
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthFartherOrEqual>::GetRHI();
 	}
-
 
 	GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, bMobileModulatedProjections);
 
@@ -1061,7 +1088,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	}
 	else
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoFrustum"));
 		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
@@ -1236,6 +1263,21 @@ void FProjectedShadowInfo::RenderFrustumWireframe(FPrimitiveDrawInterface* PDI) 
 		);
 }
 
+FVector4 FProjectedShadowInfo::GetClipToShadowBufferUvScaleBias() const
+{
+	const FIntPoint ShadowBufferResolution = GetShadowBufferResolution();
+	const float InvBufferResolutionX = 1.0f / (float)ShadowBufferResolution.X;
+	const float ShadowResolutionFractionX = 0.5f * (float)ResolutionX * InvBufferResolutionX;
+	const float InvBufferResolutionY = 1.0f / (float)ShadowBufferResolution.Y;
+	const float ShadowResolutionFractionY = 0.5f * (float)ResolutionY * InvBufferResolutionY;
+	
+	return FVector4(ShadowResolutionFractionX,
+		-ShadowResolutionFractionY,
+		(X + BorderSize) * InvBufferResolutionX + ShadowResolutionFractionX,
+		(Y + BorderSize) * InvBufferResolutionY + ShadowResolutionFractionY);
+}
+
+
 FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, uint32 TileOffsetX, uint32 TileOffsetY, uint32 TileResolutionX, uint32 TileResolutionY) const
 {
 	const FIntPoint ShadowBufferResolution = GetShadowBufferResolution();
@@ -1381,7 +1423,7 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 	}
 	else
 	{
-		// per object shadows
+		// per object shadows (the whole-scene are taken care of above)
 		if(bDirectionalLight)
 		{
 			// we use CSMShadowDepthBias cvar but this is per object shadows, maybe we want to use different settings
@@ -1397,6 +1439,21 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 			SlopeScaleDepthBias = CVarPerObjectDirectionalShadowSlopeScaleDepthBias.GetValueOnRenderThread();
 			SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 		}
+		else // Only spot-lights left (both whole-scene and per-object), as point-lights dont have per-object shadowing
+		{
+			ensure(!bDirectionalLight);
+			ensure(!bOnePassPointLightShadow);
+			if (bPerObjectOpaqueShadow)
+			{
+				// spot lights (old code, might need to be improved)
+				const float LightTypeDepthBias = CVarPerObjectSpotLightShadowDepthBias.GetValueOnRenderThread();
+				DepthBias = LightTypeDepthBias * 512.0f / ((MaxSubjectZ - MinSubjectZ) * FMath::Max(ResolutionX, ResolutionY));
+				// * 2.0f to be compatible with the system we had before ShadowBias
+				DepthBias *= 2.0f * LightSceneInfo->Proxy->GetUserShadowBias();
+
+				SlopeScaleDepthBias = CVarPerObjectSpotLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+				SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
+			}
 		else
 		{
 			// spot lights (old code, might need to be improved)
@@ -1407,6 +1464,7 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 
 			SlopeScaleDepthBias = CVarSpotLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
 			SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
+		}
 		}
 
 		// Prevent a large depth bias due to low resolution from causing near plane clipping
@@ -1500,7 +1558,7 @@ bool FSceneRenderer::CheckForProjectedShadows( const FLightSceneInfo* LightScene
 
 	// Find the projected shadows cast by this light.
 	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-	for( int32 ShadowIndex=0; ShadowIndex<VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++ )
+	for( int32 ShadowIndex=0; ShadowIndex < VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++ )
 	{
 		const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.AllProjectedShadows[ShadowIndex];
 
@@ -1571,13 +1629,24 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 	// #todo-renderpasses How many ShadowsToProject do we have usually?
 	TArray<FProjectedShadowInfo*> DistanceFieldShadows;
 	TArray<FProjectedShadowInfo*> NormalShadows;
+	TArray<FProjectedShadowInfo*> VirtualShadowMaps;
 
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 	{
 		FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
+
+		if (!ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask)
+		{
+			continue;
+		}
+
 		if (ProjectedShadowInfo->bRayTracedDistanceField)
 		{
 			DistanceFieldShadows.Add(ProjectedShadowInfo);
+		}
+		else if (ProjectedShadowInfo->HasVirtualShadowMap())
+		{
+			VirtualShadowMaps.Add(ProjectedShadowInfo);
 		}
 		else
 		{
@@ -1684,6 +1753,134 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 			RHICmdList.EndRenderPass();
 		}
+	}
+
+	if (VirtualShadowMaps.Num() > 0 || VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
+	{
+		check(RHICmdList.IsOutsideRenderPass());
+		check(!bProjectingForForwardShading);		// Not yet implemented/tested
+		check(Views.Num() == 1);					// TODO: Test multiview
+
+		// Right now we should only see one or the other type of virtual shadow map projection
+		// And currently only 1 clipmap (if present). Multi-view stuff TBD.
+		check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() < 2);
+		//check(VirtualShadowMaps.Num() == 0 || VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 0);
+		
+		FRDGBuilder GraphBuilder(RHICmdList);
+		FRDGTextureRef RDGScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
+
+		if (VirtualShadowMapArray.PhysicalPagePool)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "Virtual Shadow Maps" );
+
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				FIntRect ScissorRect;
+				if (!LightSceneInfo->Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
+				{
+					ScissorRect = View.ViewRect;
+				}
+
+				if (ScissorRect.Area() > 0)
+				{
+					if (CVarVirtualSmDenoiser.GetValueOnRenderThread() != 0)
+					{
+						const IScreenSpaceDenoiser* Denoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
+
+						FSceneTextureParameters SceneTextures;
+						SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+
+						// Virtual SMs draw into a texture with R=Mask, G=OccluderDistance to feed into denoising, similar to ray traced shadows
+						FRDGTextureRef SignalTexture;
+						const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+						{
+							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+								SceneTextures.SceneDepthBuffer->Desc.Extent,
+								PF_FloatRGBA,
+								FClearValueBinding(ClearColor),
+								TexCreate_None,
+								TexCreate_ShaderResource | TexCreate_RenderTargetable,
+								/* bInForceSeparateTargetAndShaderResource = */ false);
+
+							SignalTexture = GraphBuilder.CreateTexture(Desc, TEXT("VirtualShadowMap_Signal"));
+						}
+
+						// Project virtual shadow maps
+						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
+						{
+							RenderVirtualShadowMapProjectionForDenoising(
+								VisibleLightInfo.VirtualShadowMapClipmaps[0],
+								GraphBuilder,
+								View,
+								VirtualShadowMapArray,
+								ScissorRect,
+								SignalTexture);
+						}
+						else
+						{
+							RenderVirtualShadowMapProjectionForDenoising(
+								VirtualShadowMaps.GetData(), VirtualShadowMaps.Num(),
+								GraphBuilder,
+								View,
+								VirtualShadowMapArray,
+								ScissorRect,
+								SignalTexture);
+						}
+
+						// Shadow filtering via denoiser
+						FSSDSignalTextures DenoisedSignal;
+						{
+							RDG_EVENT_SCOPE(GraphBuilder, "%s %dx%d",
+								Denoiser->GetDebugName(),
+								View.ViewRect.Width(), View.ViewRect.Height());
+
+							IScreenSpaceDenoiser::FVirtualShadowMapMaskInputs Inputs;
+							Inputs.Signal = SignalTexture;
+
+							DenoisedSignal = Denoiser->DenoiseVirtualShadowMapMask(
+								GraphBuilder,
+								View,
+								&View.PrevViewInfo,
+								SceneTextures,
+								LightSceneInfo,
+								ScissorRect,
+								Inputs);
+						}
+
+						// Composite into light's screen shadow mask
+						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, DenoisedSignal, RDGScreenShadowMaskTexture);
+					}
+					else
+					{
+						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
+						{
+							RenderVirtualShadowMapProjection(
+								VisibleLightInfo.VirtualShadowMapClipmaps[0],
+								GraphBuilder,
+								View,
+								VirtualShadowMapArray,
+								ScissorRect,
+								RDGScreenShadowMaskTexture,
+								bProjectingForForwardShading);
+						}
+						else
+						{
+							RenderVirtualShadowMapProjection(
+								VirtualShadowMaps.GetData(), VirtualShadowMaps.Num(),
+								GraphBuilder,
+								View,
+								VirtualShadowMapArray,
+								ScissorRect,
+								RDGScreenShadowMaskTexture,
+								bProjectingForForwardShading);
+						}
+					}
+				}
+			}
+		}
+
+		GraphBuilder.Execute();
 	}
 
 	if (DistanceFieldShadows.Num() > 0)

@@ -35,7 +35,9 @@ public class AnimGraph : ModuleRules
                 "ContentBrowser",
 				"KismetWidgets",
 				"ToolMenus",
-            }
+				"Persona",
+				"EditorWidgets",
+			}
 		);
 
         CircularlyReferencedDependentModules.AddRange(

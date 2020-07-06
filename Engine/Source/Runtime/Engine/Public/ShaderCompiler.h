@@ -41,12 +41,14 @@ public:
 	/** Output of the shader compile */
 	bool bSucceeded;
 	bool bOptimizeForLowLatency;
+	bool bErrorsAreLikelyToBeCode;
 
 	FShaderCommonCompileJob(uint32 InId) :
 		Id(InId),
 		bFinalized(false),
 		bSucceeded(false),
-		bOptimizeForLowLatency(false)
+		bOptimizeForLowLatency(false),
+		bErrorsAreLikelyToBeCode(true)
 	{
 	}
 

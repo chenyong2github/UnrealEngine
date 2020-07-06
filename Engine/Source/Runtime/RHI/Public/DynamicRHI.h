@@ -429,6 +429,15 @@ public:
 		return new FGenericRHIGPUFence(Name);
 	}
 
+	virtual void RHICreateResourceTransition(FRHITransition* Transition, EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags PipelineFlags, TArrayView<const FRHITransitionInfo> Infos)
+	{
+	}
+
+	virtual void RHIReleaseResourceTransition(FRHITransition* Transition)
+	{
+	}
+
+
 	/**
 	* Creates a staging buffer, which is memory visible to the cpu without any locking.
 	* @return The new staging-buffer.
@@ -1675,6 +1684,19 @@ FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int
 }
 
 RHI_API FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries = UINT32_MAX);
+
+FORCEINLINE const FRHITransition* RHICreateResourceTransition(EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags PipelineFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	FRHITransition* Transition = FRHITransition::Allocate();
+	GDynamicRHI->RHICreateResourceTransition(Transition, Pipeline, PipelineFlags, Infos);
+	return Transition;
+}
+
+FORCEINLINE void RHIReleaseResourceTransition(FRHITransition* Transition)
+{
+	GDynamicRHI->RHIReleaseResourceTransition(Transition);
+}
+
 
 #if RHI_RAYTRACING
 

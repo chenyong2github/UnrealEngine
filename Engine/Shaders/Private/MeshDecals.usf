@@ -9,6 +9,18 @@
 #include "/Engine/Generated/VertexFactory.ush"
 
 
+// If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
+		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	#elif !OUTPUT_PIXEL_DEPTH_OFFSET
+		// Otherwise we can only use early depth test if not modifying depth
+		// Modifying depth will trigger the slow path where we write feedback to UAV even where depth occluded!
+		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#endif
+#endif
+
 // Additional guard to remove all struct usage if empty to avoid platform conflicts.
 // This define can be removed if additional data is added to the interpolants struct
 #define NEED_MESH_DECAL_INTERPOLATORS	USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS

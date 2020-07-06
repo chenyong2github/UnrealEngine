@@ -69,6 +69,16 @@ static FAutoConsoleVariableRef CVarNiagaraGpuSubmitCommandHint(
 	ECVF_Default
 );
 
+//-TODO: FIX THIS POST MERGE
+int32 GNiagaraGpuLowLatencyTranslucencyEnabled = 0;
+static FAutoConsoleVariableRef CVarNiagaraGpuLowLatencyTranslucencyEnabled(
+	TEXT("fx.NiagaraGpuLowLatencyTranslucencyEnabled"),
+	GNiagaraGpuLowLatencyTranslucencyEnabled,
+	TEXT("When enabled we will create the final data buffer for translucent objects ahead of time\n")
+	TEXT("This can result in an additional data buffer being required but will reduce any latency when using view uniform buffer / depth buffer / distance fields / etc"),
+	ECVF_Default
+);
+
 const FName NiagaraEmitterInstanceBatcher::Name(TEXT("NiagaraEmitterInstanceBatcher"));
 
 FFXSystemInterface* NiagaraEmitterInstanceBatcher::GetInterface(const FName& InName)
@@ -397,6 +407,7 @@ void NiagaraEmitterInstanceBatcher::PostStageInterface(const FNiagaraGPUSystemTi
 		if (DIParam.Parameters.IsValid())
 		{
 			FNiagaraDataInterfaceSetArgs TmpContext;
+			TmpContext.ComputeInstanceData = Instance;
 			TmpContext.Shader = ComputeShader;
 			TmpContext.DataInterface = Interface;
 			TmpContext.SystemInstance = Tick.SystemInstanceID;
@@ -589,7 +600,11 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 
 			//The buffer containing current simulation state.
 			Instance.SimStageData[0].Source = Context->MainDataSet->GetCurrentData();
+
 			//The buffer we're going to write simulation results to.
+			//-TODO: FIX ME
+			//const bool bWritePreallocatedFinalData = bIsFinalTick && (Context->GetTranslucentDataToRender() != nullptr);
+			//Instance.DestinationData = bWritePreallocatedFinalData ?  Context->GetTranslucentDataToRender() : &Context->MainDataSet->BeginSimulate();
 			Instance.SimStageData[0].Destination = &Context->MainDataSet->BeginSimulate();
 
 			check(Instance.SimStageData[0].Source && Instance.SimStageData[0].Destination);
@@ -619,7 +634,17 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 				InstancesWithPersistentIDs.Add(&Instance);
 			}
 
+			//-TODO: FIX ME
+			//if (bWritePreallocatedFinalData)
+			//{
+			//	// Ensure the allocated size is big enough to fit what we expect in
+			//	ensureMsgf(DestinationData.GetNumInstancesAllocated() >= AllocatedInstances, TEXT("MaxInstance %d is less than calculate %d bNeedsReset %d Iterations %d Tick(%p) Instance(%p)"), DestinationData.GetNumInstancesAllocated(), AllocatedInstances, bNeedsReset, Context->MaxUpdateIterations, Tick, &Instance);
+			//}
+			//else
+			//{
+			//	ensureMsgf(Context->ScratchMaxInstances >= AllocatedInstances, TEXT("MaxInstance %d is less than calculate %d bNeedsReset %d Iterations %d Tick(%p) Instance(%p)"), Context->ScratchMaxInstances, AllocatedInstances, bNeedsReset, Context->MaxUpdateIterations, Tick, &Instance);
 			DestinationData->AllocateGPU(AllocatedInstances, GPUInstanceCounterManager, RHICmdList, FeatureLevel, Context->GetDebugSimName());
+			//}
 			DestinationData->SetNumInstances(RequiredInstances);
 			DestinationData->SetNumSpawnedInstances(AdjustedSpawnCount);
 
@@ -948,6 +973,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 			{
 				RelevantContexts.Add(SharedContext);
 			}
+
 			// Here scratch index represent the index of the last tick
 			SharedContext->ScratchIndex = RelevantTicks.Add(&Tick);
 
@@ -1171,6 +1197,73 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 				// Readback is only valid for one frame, so that any newly allocated instance count
 				// are guarantied to be in the next valid readback data.
 				GPUInstanceCounterManager.ReleaseGPUReadback();
+			}
+		}
+
+		// Determine low latency contexts
+		if ( GNiagaraGpuLowLatencyTranslucencyEnabled )
+		{
+			//FMemMark Mark(FMemStack::Get());
+			//-TODO: We shouldn't have a lot of these, could convert to a TArray perhaps?
+			TSet<FNiagaraComputeExecutionContext*> LowLatencyTranslucentContexts;
+			for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
+			{
+				const bool bTickInPostOpaqueRender = ShouldTickForStage(Tick, ETickStage::PostOpaqueRender);
+				if (!bTickInPostOpaqueRender)
+				{
+					continue;
+				}
+
+				FNiagaraComputeInstanceData* Instances = Tick.GetInstanceData();
+				for (uint32 InstanceIndex = 0; InstanceIndex < Tick.Count; ++InstanceIndex)
+				{
+					FNiagaraComputeExecutionContext* Context = Instances[InstanceIndex].Context;
+					if (Context == nullptr)
+					{
+						continue;
+					}
+					FNiagaraShaderRef ComputeShader = Context->GPUScript_RT->GetShader();
+					if (ComputeShader.IsNull())
+					{
+						continue;
+					}
+
+					// Grab low latency contexts & determine instance counts for them
+					//-TODO: Support shader stages
+					if (Context->MaxUpdateIterations == 1)
+					{
+						const FNiagaraGpuSpawnInfo& SpawnInfo = Instances[InstanceIndex].SpawnInfo;
+
+						uint32 PrevNumInstances = 0;
+						if (!LowLatencyTranslucentContexts.Contains(Context))
+						{
+							LowLatencyTranslucentContexts.Add(Context);
+							Context->ScratchMaxInstances = SpawnInfo.MaxParticleCount;
+							PrevNumInstances = Tick.bNeedsReset ? 0 : Context->MainDataSet->GetCurrentData()->GetNumInstances();
+						}
+						else
+						{
+							PrevNumInstances = Tick.bNeedsReset ? 0 : Context->ScratchNumInstances;
+						}
+						Context->ScratchNumInstances = SpawnInfo.SpawnRateInstances + SpawnInfo.EventSpawnTotal + PrevNumInstances;
+						Context->ScratchMaxInstances = FMath::Max(Context->ScratchMaxInstances, Context->ScratchNumInstances);
+					}
+				}
+			}
+
+			// For each low latency translucent context we need to allocate the final buffer ahead of time
+			for (FNiagaraComputeExecutionContext* ExecContext : LowLatencyTranslucentContexts)
+			{
+				if (ExecContext->MainDataSet->RequiresPersistentIDs())
+				{
+					ExecContext->MainDataSet->AllocateGPUFreeIDs(ExecContext->ScratchMaxInstances + 1, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
+				}
+
+				FNiagaraDataBuffer& FinalDataBuffer = ExecContext->MainDataSet->BeginSimulate();
+				FinalDataBuffer.AllocateGPU(ExecContext->ScratchMaxInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
+				FinalDataBuffer.SetNumInstances(0);
+				ExecContext->MainDataSet->EndSimulate(false);
+				ExecContext->SetTranslucentDataToRender(&FinalDataBuffer);
 			}
 		}
 

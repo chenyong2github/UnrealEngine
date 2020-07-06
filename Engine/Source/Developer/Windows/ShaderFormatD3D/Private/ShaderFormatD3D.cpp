@@ -5,6 +5,8 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/Paths.h"
 
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
@@ -75,9 +77,55 @@ static IShaderFormat* Singleton = NULL;
 
 class FShaderFormatD3DModule : public IShaderFormatModule
 {
+	void* DllHandleSC = nullptr;
+	void* DllHandleDXC = nullptr;
+	void* DllHandleDXIL = nullptr;
+
 public:
+	FShaderFormatD3DModule()
+	{
+		FString DllPath;
+		{
+#if PLATFORM_WINDOWS
+			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/ShaderConductor.dll");
+#endif
+			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
+			DllHandleSC = FPlatformProcess::GetDllHandle(*DllPath);
+		}
+		{
+#if PLATFORM_WINDOWS
+			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/dxcompiler.dll");
+#endif
+			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
+			DllHandleDXC = FPlatformProcess::GetDllHandle(*DllPath);
+		}
+		{
+#if PLATFORM_WINDOWS
+			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Windows/DirectX/x64/dxil.dll");
+#endif
+			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
+			DllHandleDXIL = FPlatformProcess::GetDllHandle(*DllPath);
+		}
+	}
+
 	virtual ~FShaderFormatD3DModule()
 	{
+		if (DllHandleDXC)
+		{
+			FPlatformProcess::FreeDllHandle(DllHandleDXC);
+			DllHandleDXC = nullptr;
+		}
+		if (DllHandleDXIL)
+		{
+			FPlatformProcess::FreeDllHandle(DllHandleDXIL);
+			DllHandleDXIL = nullptr;
+		}
+		if (DllHandleSC)
+		{
+			FPlatformProcess::FreeDllHandle(DllHandleSC);
+			DllHandleSC = nullptr;
+		}
+
 		delete Singleton;
 		Singleton = NULL;
 	}

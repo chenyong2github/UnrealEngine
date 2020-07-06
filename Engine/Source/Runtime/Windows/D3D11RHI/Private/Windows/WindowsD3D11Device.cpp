@@ -1815,8 +1815,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 			AGSDX11ExtensionParams AmdExtensionParams;
 			FMemory::Memzero(&AmdExtensionParams, sizeof(AmdExtensionParams));
-			// The AMD shader extensions are currently unused in UE4, but we have to set the associated UAV slot
-			// to something in the call below (default is 7, so just use that)
+			// Set the reserved UAV slot - matching the other vendor extensions.
 			AmdExtensionParams.uavSlot = 7;
 			// Disable old-style, "automatic" alternate-frame rendering (AFR) MGPU driver behavior
 			AmdExtensionParams.crossfireMode = AGS_CROSSFIRE_MODE_DISABLE;
@@ -1854,7 +1853,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				AmdAgsContext = NULL;
 				AmdSupportedExtensionFlags = 0;
 				FMemory::Memzero(&AmdInfo, sizeof(AmdInfo));
-				GRHIDeviceIsAMDPreGCNArchitecture = false;				
+				GRHIDeviceIsAMDPreGCNArchitecture = false;
 			}
 
 			GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
@@ -1984,7 +1983,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 		}
 #endif
-
 
 #if WITH_SLI
 

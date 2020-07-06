@@ -212,8 +212,6 @@ void SkeletalSimplifier::FSimplifierMeshManager::AppendConnectedEdges(const Simp
 	{
 		if (v0 < v1)
 		{
-			checkSlow(v0->GetMaterialIndex() == v1->GetMaterialIndex());
-
 			// add edge
 			Edges.AddDefaulted();
 			SimpEdgeType& edge = Edges.Last();
@@ -1034,7 +1032,6 @@ bool SkeletalSimplifier::FSimplifierMeshManager::CollapseEdge(SimpEdgeType * Edg
 
 	checkSlow(v0->adjTris.Num() > 0);
 	checkSlow(v1->adjTris.Num() > 0);
-	checkSlow(v0->GetMaterialIndex() == v1->GetMaterialIndex());
 
 	// Because another edge in the same edge group may share a vertex with this edge
 	// and it might have already been collapsed, we can't do this check

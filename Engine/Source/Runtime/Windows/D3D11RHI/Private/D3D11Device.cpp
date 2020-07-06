@@ -226,6 +226,13 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GRHISupportsResolveCubemapFaces = true;
 	GRHISupportsCopyToTextureMultipleMips = true;
 
+	GRHIMaxDispatchThreadGroupsPerDimension.X = D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+	GRHIMaxDispatchThreadGroupsPerDimension.Y = D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+	GRHIMaxDispatchThreadGroupsPerDimension.Z = D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+
+	GRHITransitionPrivateData_SizeInBytes = sizeof(FD3D11TransitionData);
+	GRHITransitionPrivateData_AlignInBytes = alignof(FD3D11TransitionData);
+
 	// Initialize the constant buffers.
 	InitConstantBuffers();
 

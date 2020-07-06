@@ -28,7 +28,7 @@ public:
 	 * @param CreateMode		The mode to use when creating a blueprint from the selected actors
 	 * @param ActorOverride		If set convert the specified actor, if null use the currently selected actor
 	 */
-	static KISMETWIDGETS_API void OpenDialog(ECreateBlueprintFromActorMode CreateMode, AActor* InActorOverride = nullptr);
+	static KISMETWIDGETS_API void OpenDialog(ECreateBlueprintFromActorMode CreateMode, AActor* InActorOverride = nullptr, bool bInReplaceActors = true);
 
 	UE_DEPRECATED(4.25, "Use version of OpenDialog that takes the CreateMode enum")
 	static KISMETWIDGETS_API void OpenDialog(bool bInHarvest, AActor* InActorOverride = nullptr)
@@ -50,5 +50,5 @@ private:
 	 * @param InAssetPath		Path of the asset to create
 	 * @param bInHarvest		The mode to use when creating a blueprint from the selected actors
 	 */
-	static void OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse);
+	static void OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse, bool bInReplaceActors);
 };

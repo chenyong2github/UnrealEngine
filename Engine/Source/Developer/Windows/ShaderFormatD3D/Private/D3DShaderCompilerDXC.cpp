@@ -24,6 +24,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogD3D12ShaderCompiler, Log, All);
 	#include <D3D11.h>
 	#include <D3Dcompiler.h>
 	#include <d3d11Shader.h>
+	#include "amd_ags.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #undef DrawText
 
@@ -383,7 +384,14 @@ static FString D3DCreateDXCCompileBatchFile(const FDxcArguments& Args, const FSt
 
 inline bool IsCompatibleBinding(const D3D12_SHADER_INPUT_BIND_DESC& BindDesc, uint32 BindingSpace)
 {
-	return BindDesc.Space == BindingSpace;
+	bool bIsCompatibleBinding = (BindDesc.Space == BindingSpace);
+	if (!bIsCompatibleBinding)
+	{
+		const bool bIsAMDExtensionDX12 = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdExtD3DShaderIntrinsicsUAV") == 0);
+		bIsCompatibleBinding = bIsAMDExtensionDX12 && (BindDesc.Space == AGS_DX12_SHADER_INSTRINSICS_SPACE_ID);
+	}
+
+	return bIsCompatibleBinding;
 }
 
 // Parses ray tracing shader entry point specification string in one of the following formats:

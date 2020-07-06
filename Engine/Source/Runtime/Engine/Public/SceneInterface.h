@@ -341,6 +341,10 @@ public:
 	 */
 	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const = 0;
 
+	virtual void AddLumenSceneCard(class ULumenSceneCardComponent* LumenSceneCardComponent) {};
+	virtual void UpdateLumenSceneCardTransform(class ULumenSceneCardComponent* LumenSceneCardComponent) {};
+	virtual void RemoveLumenSceneCard(class ULumenSceneCardComponent* LumenSceneCardComponent) {};
+
 	/**
 	 * Release this scene and remove it from the rendering thread
 	 */

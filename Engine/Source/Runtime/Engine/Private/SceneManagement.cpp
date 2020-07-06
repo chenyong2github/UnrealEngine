@@ -306,7 +306,27 @@ void FDynamicPrimitiveUniformBuffer::Set(
 {
 	check(IsInRenderingThread());
 	UniformBuffer.SetContents(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, bHasPrecomputedVolumetricLightmap, bDrawsVelocity, GetDefaultLightingChannelMask(), 1.0f, INDEX_NONE, INDEX_NONE, bOutputVelocity, nullptr));
+		GetPrimitiveUniformShaderParameters(
+			LocalToWorld,
+			PreviousLocalToWorld,
+			WorldBounds.Origin,
+			WorldBounds,
+			LocalBounds,
+			PreSkinnedLocalBounds,
+			bReceivesDecals,
+			false,
+			false,
+			false,
+			bHasPrecomputedVolumetricLightmap,
+			bDrawsVelocity,
+			GetDefaultLightingChannelMask(),
+			1.0f,
+			INDEX_NONE,
+			INDEX_NONE,
+			bOutputVelocity,
+			nullptr
+			)
+		);
 	UniformBuffer.InitResource();
 }
 
@@ -721,6 +741,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	GlobalDistanceFieldSampler2 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	GlobalDistanceFieldTexture3 = BlackVolume;
 	GlobalDistanceFieldSampler3 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	GlobalDistanceFieldTexture4 = BlackVolume;
+	GlobalDistanceFieldSampler4 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 	SharedPointWrappedSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	SharedPointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -746,6 +768,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	PrimitiveSceneDataTexture = OrBlack2DIfNull(GIdentityPrimitiveBuffer.PrimitiveSceneDataTextureRHI);
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	InstanceSceneData = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
@@ -755,12 +778,19 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	{
 		PrimitiveSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
 	}
+	if (!InstanceSceneData)
+	{
+		InstanceSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	}
 	if (!LightmapSceneData)
 	{
 		LightmapSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
 	}
 	VTFeedbackBuffer = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 	QuadOverdraw = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+//#if WITH_EDITOR
+	EditorSelectedHitProxyIds = GIdentityPrimitiveBuffer.EditorSelectedDataBufferSRV;
+//#endif
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

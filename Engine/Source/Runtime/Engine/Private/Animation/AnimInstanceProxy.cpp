@@ -726,6 +726,8 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 				// if it has leader score
 				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
 				FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
+				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
+				TickContext.RootMotionMovementParams.Clear();
 				GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, NotifyQueue, TickContext);
 
 				if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
@@ -972,6 +974,23 @@ FMarkerSyncAnimPosition FAnimInstanceProxy::GetSyncGroupPosition(FName InSyncGro
 
 	return FMarkerSyncAnimPosition();
 }
+
+bool FAnimInstanceProxy::IsSyncGroupValid(FName InSyncGroupName) const
+{
+	const int32 SyncGroupIndex = GetSyncGroupIndexFromName(InSyncGroupName);
+	const TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupReadIndex()];
+
+	if (SyncGroups.IsValidIndex(SyncGroupIndex))
+	{
+		const FAnimGroupInstance& SyncGroupInstance = SyncGroups[SyncGroupIndex];
+		// If we don't use Markers, we're always valid.
+		return (!SyncGroupInstance.bCanUseMarkerSync || SyncGroupInstance.MarkerTickContext.IsMarkerSyncEndValid());
+	}
+
+	// If we're querying a sync group that doesn't exist, treat this as invalid
+	return false;
+}
+
 
 void FAnimInstanceProxy::ReinitializeSlotNodes()
 {

@@ -479,7 +479,7 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 				FNiagaraEmitterHandle& EmitterHandle = System->GetEmitterHandle(EmitterIdx);
 				UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
 				bool bAddedAccessor = false;
-				if (Emitter)
+				if (Emitter && EmitterHandle.GetIsEnabled())
 				{
 					FString EmitterName = Emitter->GetUniqueEmitterName();
 					FNiagaraVariable ExecutionStateVar(EnumPtr, *(EmitterName + TEXT(".ExecutionState")));

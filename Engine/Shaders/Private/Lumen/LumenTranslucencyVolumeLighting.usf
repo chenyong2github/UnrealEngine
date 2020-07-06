@@ -1,0 +1,194 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenTranslucencyLighting.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../SHCommon.ush"
+#include "LumenCardCommon.ush"
+#define CARD_BVH 0
+#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
+#include "LumenTracingCommon.ush"
+
+RWTexture3D<float4> RWTranslucencyGI0;
+RWTexture3D<float4> RWTranslucencyGI1;
+RWTexture3D<float4> RWTranslucencyGINewHistory0;
+RWTexture3D<float4> RWTranslucencyGINewHistory1;
+
+uint3 TranslucencyGIGridSize;
+float3 TranslucencyGIGridZParams;
+uint TranslucencyGIGridPixelSizeShift;
+
+float HistoryWeight;
+float3 FrameJitterOffset; 
+float4x4 UnjitteredClipToTranslatedWorld;    
+float4x4 UnjitteredPrevWorldToClip;
+
+Texture3D TranslucencyGIHistory0;
+Texture3D TranslucencyGIHistory1;
+SamplerState TranslucencyGIHistorySampler;
+
+float ConeHalfAngle;
+float MaxTraceDistance;
+float MaxCardTraceDistance;
+uint NumCones;
+float4 ConeDirections[64];
+float StepFactor;
+float VoxelStepFactor;
+float SampleWeight;
+uint ShortRangeOcclusionFromGlobalSDF;
+float VoxelTraceStartDistanceScale;
+
+float ComputeDepthFromZSlice(float ZSlice)
+{
+	float SliceDepth = (exp2(ZSlice / TranslucencyGIGridZParams.z) - TranslucencyGIGridZParams.y) / TranslucencyGIGridZParams.x;
+	return SliceDepth;
+}
+
+float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
+{
+	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / TranslucencyGIGridSize.xy;
+	float2 VolumeNDC = (VolumeUV * 2 - 1) * float2(1, -1);
+
+	SceneDepth = ComputeDepthFromZSlice(GridCoordinate.z + CellOffset.z);
+
+	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
+	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
+	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
+}
+
+float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
+{
+	float Unused;
+	return ComputeCellWorldPosition(GridCoordinate, CellOffset, Unused);
+}
+
+float3 ComputeTranslucencyGIVolumeUV(float3 WorldPosition, float4x4 WorldToClip)
+{
+	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
+	NDCPosition.xy /= NDCPosition.w;
+	float NormalizedZSlice = log2(NDCPosition.w * TranslucencyGIGridZParams.x + TranslucencyGIGridZParams.y) * TranslucencyGIGridZParams.z / (float)TranslucencyGIGridSize.z;
+	return float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, NormalizedZSlice);
+}
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
+void TranslucencyLightingCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint3 GridCoordinate = DispatchThreadId;
+
+	if (all(GridCoordinate < TranslucencyGIGridSize))
+	{
+		float SceneDepth;
+		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz, SceneDepth);
+
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(WorldPosition, ConeHalfAngle, 0, MaxTraceDistance, MaxCardTraceDistance, false) * VoxelTraceStartDistanceScale;
+
+		FTwoBandSHVectorRGB Lighting = (FTwoBandSHVectorRGB)0;
+
+		for (uint ConeIndex = 0; ConeIndex < NumCones; ConeIndex++)
+		{
+			float3 WorldConeDirection = ConeDirections[ConeIndex].xyz;
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(WorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, MaxTraceDistance, StepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
+			TraceInput.SDFStepFactor = 1;
+
+			FConeTraceResult TraceResult;
+
+			bool bHitSDF = false;
+			
+// Reduces leaking from using only voxels for tracing
+#define SHORT_RANGE_OCCLUSION_FROM_GLOBAL_SDF 1
+#if SHORT_RANGE_OCCLUSION_FROM_GLOBAL_SDF
+
+			if (ShortRangeOcclusionFromGlobalSDF > 0)
+			{
+				uint ClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition);
+				float NextMaxRayTime;
+				float IntersectRayTime;
+				float Unused;
+
+				FGlobalSDFTraceInput SDFTraceInput;
+				float MinStepSizeScale = 1.0f / 8000.0f;
+				SDFTraceInput.Setup(WorldPosition, WorldConeDirection, VoxelTraceStartDistance * 2, TraceInput.SDFStepFactor, MinStepSizeScale);
+				RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, SDFTraceInput, 0, NextMaxRayTime, IntersectRayTime, Unused);
+				bHitSDF = IntersectRayTime < SDFTraceInput.TraceDistance;
+			}
+
+			if (bHitSDF)
+			{
+				TraceResult = (FConeTraceResult)0;
+				TraceResult.Transparency = 0;
+			}
+			else
+#endif
+			{
+				ConeTraceVoxels(TraceInput, TraceResult);
+			}
+
+			EvaluateSkyRadianceForCone(WorldConeDirection, TraceInput.TanConeAngle, TraceResult);
+
+			Lighting = AddSH(Lighting, MulSH(SHBasisFunction(WorldConeDirection), TraceResult.Lighting * SampleWeight));
+		}
+
+		//Lighting = MakePositiveFinite(Lighting);
+
+		FTwoBandSHVectorRGB NewHistoryLighting = Lighting;
+		
+	#if USE_TEMPORAL_REPROJECTION
+		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
+		float HistoryAlpha = HistoryWeight;
+
+		if (any(HistoryUV < 0) || any(HistoryUV > 1))
+		{
+			HistoryAlpha = 0;
+		}
+
+		if (HistoryAlpha > 0)
+		{
+			float3 AmbientLightingVector = Texture3DSampleLevel(TranslucencyGIHistory0, TranslucencyGIHistorySampler, HistoryUV, 0).xyz;
+			float3 DirectionalLightingVector = Texture3DSampleLevel(TranslucencyGIHistory1, TranslucencyGIHistorySampler, HistoryUV, 0).xyz;
+
+			FTwoBandSHVectorRGB HistoryLighting;
+			HistoryLighting.R.V.x = AmbientLightingVector.r;
+			HistoryLighting.G.V.x = AmbientLightingVector.g;
+			HistoryLighting.B.V.x = AmbientLightingVector.b;
+			float3 NormalizedAmbientColor = AmbientLightingVector.rgb / ( Luminance( AmbientLightingVector.rgb ) + 0.00001f );
+
+			HistoryLighting.R.V.yzw = DirectionalLightingVector.rgb * NormalizedAmbientColor.r;
+			HistoryLighting.G.V.yzw = DirectionalLightingVector.rgb * NormalizedAmbientColor.g;
+			HistoryLighting.B.V.yzw = DirectionalLightingVector.rgb * NormalizedAmbientColor.b;
+
+			NewHistoryLighting.R.V = lerp(Lighting.R.V, HistoryLighting.R.V, HistoryAlpha);
+			NewHistoryLighting.G.V = lerp(Lighting.G.V, HistoryLighting.G.V, HistoryAlpha);
+			NewHistoryLighting.B.V = lerp(Lighting.B.V, HistoryLighting.B.V, HistoryAlpha);
+		}
+	#endif
+	
+		{
+			RWTranslucencyGI0[GridCoordinate] = float4(Lighting.R.V.x, Lighting.G.V.x, Lighting.B.V.x, 0);
+
+			float3 LuminanceWeights = float3(.3, .59, .11);
+			float3 Coefficient0 = float3(Lighting.R.V.y, Lighting.G.V.y, Lighting.B.V.y);
+			float3 Coefficient1 = float3(Lighting.R.V.z, Lighting.G.V.z, Lighting.B.V.z);
+			float3 Coefficient2 = float3(Lighting.R.V.w, Lighting.G.V.w, Lighting.B.V.w);
+			RWTranslucencyGI1[GridCoordinate] = float4(dot(Coefficient0, LuminanceWeights), dot(Coefficient1, LuminanceWeights), dot(Coefficient2, LuminanceWeights), 0);
+		}
+
+		{
+			RWTranslucencyGINewHistory0[GridCoordinate] = float4(NewHistoryLighting.R.V.x, NewHistoryLighting.G.V.x, NewHistoryLighting.B.V.x, 0);
+
+			float3 LuminanceWeights = float3(.3, .59, .11);
+			float3 Coefficient0 = float3(NewHistoryLighting.R.V.y, NewHistoryLighting.G.V.y, NewHistoryLighting.B.V.y);
+			float3 Coefficient1 = float3(NewHistoryLighting.R.V.z, NewHistoryLighting.G.V.z, NewHistoryLighting.B.V.z);
+			float3 Coefficient2 = float3(NewHistoryLighting.R.V.w, NewHistoryLighting.G.V.w, NewHistoryLighting.B.V.w);
+			RWTranslucencyGINewHistory1[GridCoordinate] = float4(dot(Coefficient0, LuminanceWeights), dot(Coefficient1, LuminanceWeights), dot(Coefficient2, LuminanceWeights), 0);
+		}
+	}
+}

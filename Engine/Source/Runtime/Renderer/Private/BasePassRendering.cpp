@@ -394,55 +394,62 @@ void GetUniformBasePassShaders(
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
-	TShaderRef<FBaseHS>& HullShader,
-	TShaderRef<FBaseDS>& DomainShader,
-	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
-	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>& PixelShader
+	TShaderRef<FBaseHS>* HullShader,
+	TShaderRef<FBaseDS>* DomainShader,
+	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
+	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 	)
 {
 	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
 
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
+	const bool bNeedsHSDS = (DomainShader && HullShader)
+		&& RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
 		&& VertexFactoryType->SupportsTessellationShaders() 
 		&& MaterialTessellationMode != MTM_NoTessellation;
 
 	if (bNeedsHSDS)
 	{
-		DomainShader = Material.GetShader<TBasePassDS<TUniformLightMapPolicy<Policy> > >(VertexFactoryType);
-		
+		*DomainShader = Material.GetShader<TBasePassDS<TUniformLightMapPolicy<Policy> > >(VertexFactoryType);
+
 		// Metal requires matching permutations, but no other platform should worry about this complication.
-		if (bEnableAtmosphericFog && DomainShader.IsValid() && IsMetalPlatform(EShaderPlatform(DomainShader->GetTarget().Platform)))
+		if (bEnableAtmosphericFog && (*DomainShader).IsValid() && IsMetalPlatform(EShaderPlatform((*DomainShader)->GetTarget().Platform)))
 		{
-			HullShader = Material.GetShader<TBasePassHS<TUniformLightMapPolicy<Policy>, true > >(VertexFactoryType);
+			*HullShader = Material.GetShader<TBasePassHS<TUniformLightMapPolicy<Policy>, true>>(VertexFactoryType);
 		}
 		else
 		{
-			HullShader = Material.GetShader<TBasePassHS<TUniformLightMapPolicy<Policy>, false > >(VertexFactoryType);
+			*HullShader = Material.GetShader<TBasePassHS<TUniformLightMapPolicy<Policy>, false>>(VertexFactoryType);
 		}
 	}
 
-	if (bEnableAtmosphericFog)
+	if (VertexShader)
 	{
-		VertexShader = TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassVS<TUniformLightMapPolicy<Policy>, true> >(VertexFactoryType));
-	}
-	else
-	{
-		VertexShader = TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassVS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
-	}
-
-	if (bEnableSkyLight)
-	{
-		PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, true> >(VertexFactoryType));
-	}
-	else
-	{
-		if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP))
+		if (bEnableAtmosphericFog)
 		{
-			PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<F128BitRTBasePassPS>(VertexFactoryType));
+			*VertexShader = TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassVS<TUniformLightMapPolicy<Policy>, true> >(VertexFactoryType));
 		}
 		else
 		{
-			PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
+			*VertexShader = TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassVS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
+		}
+	}
+
+	if (PixelShader)
+	{
+		if (bEnableSkyLight)
+		{
+			*PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, true> >(VertexFactoryType));
+		}
+		else
+		{
+			if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP))
+			{
+				*PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<F128BitRTBasePassPS>(VertexFactoryType));
+			}
+			else
+			{
+				*PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
+			}
 		}
 	}
 }
@@ -455,11 +462,11 @@ void GetBasePassShaders<FUniformLightMapPolicy>(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
-	bool bUse128bitRT,
-	TShaderRef<FBaseHS>& HullShader,
-	TShaderRef<FBaseDS>& DomainShader,
-	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
-	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>& PixelShader
+    bool bUse128bitRT,
+	TShaderRef<FBaseHS>* HullShader,
+	TShaderRef<FBaseDS>* DomainShader,
+	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
+	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 	)
 {
 	switch (LightMapPolicy.GetIndirectPolicy())
@@ -1036,10 +1043,10 @@ void FBasePassMeshProcessor::Process(
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		Get128BitRequirement(),
-		BasePassShaders.HullShader,
-		BasePassShaders.DomainShader,
-		BasePassShaders.VertexShader,
-		BasePassShaders.PixelShader
+		&BasePassShaders.HullShader,
+		&BasePassShaders.DomainShader,
+		&BasePassShaders.VertexShader,
+		&BasePassShaders.PixelShader
 		);
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);

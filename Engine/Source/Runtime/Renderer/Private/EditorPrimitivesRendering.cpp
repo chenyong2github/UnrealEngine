@@ -68,10 +68,10 @@ void FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		false,
-		BasePassShaders.HullShader,
-		BasePassShaders.DomainShader,
-		BasePassShaders.VertexShader,
-		BasePassShaders.PixelShader
+		&BasePassShaders.HullShader,
+		&BasePassShaders.DomainShader,
+		&BasePassShaders.VertexShader,
+		&BasePassShaders.PixelShader
 		);
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);

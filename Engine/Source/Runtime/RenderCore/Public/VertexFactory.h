@@ -348,6 +348,7 @@ public:
 		bool bInSupportsPositionOnly,
 		bool bInSupportsCachingMeshDrawCommands,
 		bool bInSupportsPrimitiveIdStream,
+		bool bInSupportsNaniteRendering,
 		ConstructParametersType InConstructParameters,
 		GetParameterTypeLayoutType InGetParameterTypeLayout,
 		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
@@ -386,6 +387,7 @@ public:
 	bool SupportsPositionOnly() const { return bSupportsPositionOnly; }
 	bool SupportsCachingMeshDrawCommands() const { return bSupportsCachingMeshDrawCommands; }
 	bool SupportsPrimitiveIdStream() const { return bSupportsPrimitiveIdStream; }
+	bool SupportsNaniteRendering() const { return bSupportsNaniteRendering; }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
@@ -463,6 +465,7 @@ private:
 	uint32 bSupportsPositionOnly : 1;
 	uint32 bSupportsCachingMeshDrawCommands : 1;
 	uint32 bSupportsPrimitiveIdStream : 1;
+	uint32 bSupportsNaniteRendering : 1;
 	ConstructParametersType ConstructParameters;
 	GetParameterTypeLayoutType GetParameterTypeLayout;
 	GetParameterTypeElementShaderBindingsType GetParameterTypeElementShaderBindings;
@@ -503,6 +506,9 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	static FVertexFactoryType StaticType; \
 	virtual FVertexFactoryType* GetType() const override;
 
+#define NANITE_VAL(VAL) VAL,
+#define NANITE_VAL_FALSE false,
+
 #define IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 	&ConstructVertexFactoryParameters<FactoryClass>, \
 	&GetVertexFactoryParametersLayout<FactoryClass>, \
@@ -528,12 +534,13 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 		bSupportsPositionOnly, \
 		false, \
 		false, \
+		NANITE_VAL_FALSE \
 		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
 
 // @todo - need more extensible type properties - shouldn't have to change all IMPLEMENT_VERTEX_FACTORY_TYPE's when you add one new parameter
-#define IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream) \
+#define IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream,bSupportsNaniteRendering) \
 	FVertexFactoryType FactoryClass::StaticType( \
 		TEXT(#FactoryClass), \
 		TEXT(ShaderFilename), \
@@ -544,6 +551,7 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 		bSupportsPositionOnly, \
 		bSupportsCachingMeshDrawCommands, \
 		bSupportsPrimitiveIdStream, \
+		NANITE_VAL(bSupportsNaniteRendering) \
 		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }

@@ -54,8 +54,6 @@ enum ENiagaraVertexFactoryType
 	NVFT_MAX
 };
 
-
-
 /**
 * Base class for particle vertex factories.
 */
@@ -121,7 +119,6 @@ public:
 	}
 
 private:
-
 	/** Last state where we set this. We only need to setup these once per frame, so detemine same frame by number, time, and view family. */
 	mutable uint32 LastFrameSetup;
 	mutable const FSceneViewFamily *LastViewFamily;
@@ -133,4 +130,25 @@ private:
 
 	/** Whether the vertex factory is in use. */
 	bool bInUse;
+};
+
+/**
+* Base class for Niagara vertex factory shader parameters.
+*/
+class FNiagaraVertexFactoryShaderParametersBase : public FVertexFactoryShaderParameters
+{
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraVertexFactoryShaderParametersBase, NonVirtual);
+
+public:
+	void Bind(const FShaderParameterMap& ParameterMap);
+	void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType VertexStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const;
 };

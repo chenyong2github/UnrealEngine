@@ -446,6 +446,9 @@ public:
 	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
 	TArray<FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName);
 
+	/** Returns true if SyncGroupName is valid (exists, and if is based on markers, has valid markers) */
+	bool IsSyncGroupValid(FName InSyncGroupName) const;
+
 	UE_DEPRECATED(4.20, "Please use ResetDynamics with a ETeleportType argument")
 	void ResetDynamics();
 

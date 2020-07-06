@@ -29,6 +29,8 @@ extern RHI_API void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const 
 
 namespace PipelineStateCache
 {
+	extern RHI_API uint64					RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelineState* GraphicsPipelineState);
+
 	extern RHI_API FComputePipelineState*	GetAndOrCreateComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader);
 
 	extern RHI_API FGraphicsPipelineState*	GetAndOrCreateGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& OriginalInitializer, EApplyRendertargetOption ApplyFlags);

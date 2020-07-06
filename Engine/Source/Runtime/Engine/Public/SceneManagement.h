@@ -928,6 +928,10 @@ public:
 	/** Strength of depth bias across cascades. */
 	float CascadeBiasDistribution;
 	
+	// Near and far split as computed by the split distribution function without modifications for near and far planes.
+	float UnfadedSplitNear;
+	float UnfadedSplitFar;
+
 	FShadowCascadeSettings()
 		: SplitNear(0.0f)
 		, SplitFar(WORLD_MAX)
@@ -938,6 +942,8 @@ public:
 		, bFarShadowCascade(false)
 		, ShadowSplitIndex(INDEX_NONE)
 		, CascadeBiasDistribution(1)
+		, UnfadedSplitNear(0.0f)
+		, UnfadedSplitFar(WORLD_MAX)
 	{
 	}
 };
@@ -952,9 +958,8 @@ public:
 
 	FMatrix WorldToLight;
 	/** Non-uniform scale to be applied after WorldToLight. */
-	FVector Scales;
+	FVector2D Scales;
 
-	FVector FaceDirection;
 	FBoxSphereBounds SubjectBounds;
 	FVector4 WAxis;
 	float MinLightW;
@@ -969,7 +974,6 @@ public:
 		return PreShadowTranslation == CachedShadow.PreShadowTranslation
 			&& WorldToLight == CachedShadow.WorldToLight
 			&& Scales == CachedShadow.Scales
-			&& FaceDirection == CachedShadow.FaceDirection
 			&& SubjectBounds.Origin == CachedShadow.SubjectBounds.Origin
 			&& SubjectBounds.BoxExtent == CachedShadow.SubjectBounds.BoxExtent
 			&& SubjectBounds.SphereRadius == CachedShadow.SubjectBounds.SphereRadius
@@ -1392,8 +1396,7 @@ public:
 	inline int32 GetShadowMapChannel() const { return ShadowMapChannel; }
 	inline int32 GetPreviewShadowMapChannel() const { return PreviewShadowMapChannel; }
 
-	inline bool HasReflectiveShadowMap() const { return bHasReflectiveShadowMap; }
-	inline bool NeedsLPVInjection() const { return bAffectDynamicIndirectLighting; }
+	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
 	inline const class FStaticShadowDepthMap* GetStaticShadowDepthMap() const { return StaticShadowDepthMap; }
 
 	inline bool GetForceCachedShadowsForMovablePrimitives() const { return bForceCachedShadowsForMovablePrimitives; }
@@ -1558,7 +1561,6 @@ protected:
 
 	/** Does the light have dynamic GI? */
 	const uint8 bAffectDynamicIndirectLighting : 1;
-	const uint8 bHasReflectiveShadowMap : 1;
 
 	/** Whether to use ray traced distance field area shadows. */
 	const uint8 bUseRayTracedDistanceFieldShadows : 1;
@@ -2060,7 +2062,7 @@ private:
 	uint32 bRenderInMainPass : 1;
 
 public:
-	FMeshBatchAndRelevance(const FMeshBatch& InMesh, const FPrimitiveSceneProxy* InPrimitiveSceneProxy, ERHIFeatureLevel::Type FeatureLevel);
+	ENGINE_API FMeshBatchAndRelevance(const FMeshBatch& InMesh, const FPrimitiveSceneProxy* InPrimitiveSceneProxy, ERHIFeatureLevel::Type FeatureLevel);
 
 	bool GetHasOpaqueMaterial() const { return bHasOpaqueMaterial; }
 	bool GetHasMaskedMaterial() const { return bHasMaskedMaterial; }
@@ -2287,6 +2289,7 @@ protected:
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;
 	friend class FProjectedShadowInfo;
+	friend class FCardRenderData;
 };
 
 #if RHI_RAYTRACING

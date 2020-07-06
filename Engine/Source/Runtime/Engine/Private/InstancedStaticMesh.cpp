@@ -117,6 +117,8 @@ public:
 
 TGlobalResource<FDummyFloatBuffer> GDummyFloatBuffer;
 
+extern int32 GRenderNaniteMeshes;
+
 /** InstancedStaticMeshInstance hit proxy */
 void HInstancedStaticMeshInstance::AddReferencedObjects(FReferenceCollector& Collector)
 {
@@ -786,7 +788,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_Ve
 #if RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_RayHitGroup, FInstancedStaticMeshVertexFactoryShaderParameters);
 #endif
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false,false);
 
 void FInstancedStaticMeshRenderData::InitVertexFactories()
 {
@@ -1080,41 +1082,23 @@ bool FInstancedStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int
 	return false;
 }
 
-void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
+void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, bool& bOutThrottled) const
 {
-	FStaticMeshSceneProxy::GetDistancefieldAtlasData(LocalVolumeBounds, OutDistanceMinMax, OutBlockMin, OutBlockSize, bOutBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms, bOutThrottled);
+	FStaticMeshSceneProxy::GetDistancefieldAtlasData(LocalVolumeBounds, OutDistanceMinMax, OutBlockMin, OutBlockSize, bOutBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, bOutThrottled);
+}
 
+void FInstancedStaticMeshSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const
+{
 	ObjectLocalToWorldTransforms.Reset();
 
 	const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 	for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
 	{
 		FMatrix InstanceToLocal;
-		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);	
-		InstanceToLocal.M[3][3] = 1.0f;
-
-		ObjectLocalToWorldTransforms.Add(InstanceToLocal * GetLocalToWorld());
-	}
-}
-
-void FInstancedStaticMeshSceneProxy::GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const
-{
-	NumInstances = DistanceFieldData ? InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances() : 0;
-
-	if (NumInstances > 0)
-	{
-		FMatrix InstanceToLocal;
-		const int32 InstanceIndex = 0;
 		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);
 		InstanceToLocal.M[3][3] = 1.0f;
 
-		const FMatrix InstanceTransform = InstanceToLocal * GetLocalToWorld();
-		const FVector AxisScales = InstanceTransform.GetScaleVector();
-		const FVector BoxDimensions = RenderData->Bounds.BoxExtent * AxisScales * 2;
-
-		BoundsSurfaceArea = 2 * BoxDimensions.X * BoxDimensions.Y
-			+ 2 * BoxDimensions.Z * BoxDimensions.Y
-			+ 2 * BoxDimensions.X * BoxDimensions.Z;
+		ObjectLocalToWorldTransforms.Add(InstanceToLocal * GetLocalToWorld());
 	}
 }
 
@@ -1490,17 +1474,14 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
-	const bool bMeshIsValid = 
+	const bool bMeshIsValid =
 		// make sure we have instances
 		PerInstanceSMData.Num() > 0 &&
-		// make sure we have an actual staticmesh
+		// make sure we have an actual static mesh
 		GetStaticMesh() &&
-		GetStaticMesh()->HasValidRenderData() &&
-		// You really can't use hardware instancing on the consoles with multiple elements because they share the same index buffer. 
-		// @todo: Level error or something to let LDs know this
-		1;//GetStaticMesh()->LODModels(0).Elements.Num() == 1;
+		GetStaticMesh()->HasValidRenderData();
 
-	if(bMeshIsValid)
+	if (bMeshIsValid)
 	{
 		check(InstancingRandomSeed != 0);
 		
@@ -1512,11 +1493,19 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		}
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
-		return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->FeatureLevel);
+
+		if (GRenderNaniteMeshes != 0 && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		{
+			return ::new Nanite::FSceneProxy(this);
+		}
+		else
+		{
+			return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->FeatureLevel);
+		}
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
 }
 

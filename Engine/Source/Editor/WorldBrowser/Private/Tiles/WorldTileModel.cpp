@@ -21,6 +21,7 @@
 #include "LandscapeFileFormatInterface.h"
 #include "LandscapeStreamingProxy.h"
 #include "Landscape.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"

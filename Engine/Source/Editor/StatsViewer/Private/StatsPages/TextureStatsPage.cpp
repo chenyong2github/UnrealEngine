@@ -223,6 +223,8 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 				Entry->LastTimeRendered = (float)FMath::Max( FApp::GetLastTime() - Resource->LastRenderTime, 0.0 );
 			}
 
+			Entry->Virtual = InTexture->IsCurrentlyVirtualTextured() ? TEXT("YES") : TEXT("NO");
+
 			const UTexture2D* Texture2D = Cast<const UTexture2D>(InTexture);
 			if( Texture2D )
 			{

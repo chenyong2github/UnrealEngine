@@ -162,6 +162,64 @@ float GetLightFadeFactor(const FSceneView& View, const FLightSceneProxy* Proxy)
 	return SizeFade * DistanceFade;
 }
 
+void GetDeferredLightParameters(const FLightSceneInfo* LightSceneInfo, const FSceneView& View, FDeferredLightUniformStruct& DeferredLightUniforms)
+{
+	LightSceneInfo->Proxy->GetLightShaderParameters(DeferredLightUniforms.LightParameters);
+	
+	const FVector2D FadeParams = LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
+
+	// use MAD for efficiency in the shader
+	DeferredLightUniforms.DistanceFadeMAD = FVector2D(FadeParams.Y, -FadeParams.X * FadeParams.Y);
+
+	int32 ShadowMapChannel = LightSceneInfo->Proxy->GetShadowMapChannel();
+
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+
+	if (!bAllowStaticLighting)
+	{
+		ShadowMapChannel = INDEX_NONE;
+	}
+
+	DeferredLightUniforms.ShadowMapChannelMask = FVector4(
+		ShadowMapChannel == 0 ? 1 : 0,
+		ShadowMapChannel == 1 ? 1 : 0,
+		ShadowMapChannel == 2 ? 1 : 0,
+		ShadowMapChannel == 3 ? 1 : 0);
+
+	const bool bDynamicShadows = View.Family->EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
+	const bool bHasLightFunction = LightSceneInfo->Proxy->GetLightFunctionMaterial() != NULL;
+	DeferredLightUniforms.ShadowedBits  = LightSceneInfo->Proxy->CastsStaticShadow() || bHasLightFunction ? 1 : 0;
+	DeferredLightUniforms.ShadowedBits |= LightSceneInfo->Proxy->CastsDynamicShadow() && View.Family->EngineShowFlags.DynamicShadows ? 3 : 0;
+
+	DeferredLightUniforms.VolumetricScatteringIntensity = LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
+
+	static auto* ContactShadowsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows"));
+	DeferredLightUniforms.ContactShadowLength = 0;
+
+	if (ContactShadowsCVar && ContactShadowsCVar->GetValueOnRenderThread() != 0 && View.Family->EngineShowFlags.ContactShadows)
+	{
+		DeferredLightUniforms.ContactShadowLength = LightSceneInfo->Proxy->GetContactShadowLength();
+		// Sign indicates if contact shadow length is in world space or screen space.
+		// Multiply by 2 for screen space in order to preserve old values after introducing multiply by View.ClipToView[1][1] in shader.
+		DeferredLightUniforms.ContactShadowLength *= LightSceneInfo->Proxy->IsContactShadowLengthInWS() ? -1.0f : 2.0f;
+	}
+
+	// When rendering reflection captures, the direct lighting of the light is actually the indirect specular from the main view
+	if (View.bIsReflectionCapture)
+	{
+		DeferredLightUniforms.LightParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
+	}
+
+	const ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
+	if ((LightType == LightType_Point || LightType == LightType_Spot || LightType == LightType_Rect) && View.IsPerspectiveProjection())
+	{
+		DeferredLightUniforms.LightParameters.Color *= GetLightFadeFactor(View, LightSceneInfo->Proxy);
+	}
+
+	DeferredLightUniforms.LightingChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
+}
+
 void StencilingGeometry::DrawSphere(FRHICommandList& RHICmdList)
 {
 	RHICmdList.SetStreamSource(0, StencilingGeometry::GStencilSphereVertexBuffer.VertexBufferRHI, 0);
@@ -647,6 +705,31 @@ private:
 				DualScatteringRoughness);
 		}
 
+		if (CloudShadowmapTexture.IsBound())
+		{
+			if (RenderLightParams && RenderLightParams->Cloud_ShadowmapTexture)
+			{
+				SetTextureParameter(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapTexture,
+					CloudShadowmapSampler,
+					TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+					RenderLightParams->Cloud_ShadowmapTexture ? RenderLightParams->Cloud_ShadowmapTexture->GetRenderTargetItem().ShaderResourceTexture : GBlackVolumeTexture->TextureRHI);
+
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapFarDepthKm,
+					RenderLightParams->Cloud_ShadowmapFarDepthKm);
+
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					CloudShadowmapWorldToLightClipMatrix,
+					RenderLightParams->Cloud_WorldToLightClipShadowMatrix);
+			}
+		}
 		if (DummyRectLightTextureForCapsuleCompilerWarning.IsBound())
 		{
 			SetTextureParameter(
@@ -1220,9 +1303,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 				const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
 				// Render any reflective shadow maps (if necessary)
-				if ( LightSceneInfo.Proxy && LightSceneInfo.Proxy->NeedsLPVInjection() )
+				if ( LightSceneInfo.Proxy && LightSceneInfo.Proxy->AffectsDynamicIndirectLighting() )
 				{
-					if ( LightSceneInfo.Proxy->HasReflectiveShadowMap() )
+					if ( LightSceneInfo.Proxy->GetLightType() == LightType_Directional )
 					{
 						INC_DWORD_STAT(STAT_NumReflectiveShadowMapLights);
 						InjectReflectiveShadowMaps(RHICmdList, &LightSceneInfo);
@@ -1240,9 +1323,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
 
 					// Render any reflective shadow maps (if necessary)
-					if ( LightSceneInfo && LightSceneInfo->Proxy && LightSceneInfo->Proxy->NeedsLPVInjection() )
+					if ( LightSceneInfo && LightSceneInfo->Proxy && LightSceneInfo->Proxy->AffectsDynamicIndirectLighting() )
 					{
-						if ( !LightSceneInfo->Proxy->HasReflectiveShadowMap() )
+						if ( LightSceneInfo->Proxy->GetLightType() != LightType_Directional )
 						{
 							// Inject the light directly into all relevant LPVs
 							for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1986,13 +2069,8 @@ void FDeferredShadingSceneRenderer::RenderStationaryLightOverlap(FRHICommandList
 }
 
 /** Sets up rasterizer and depth state for rendering bounding geometry in a deferred pass. */
-void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FSphere& LightBounds)
+void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry)
 {
-	const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f)
-		// Always draw backfaces in ortho
-		//@todo - accurate ortho camera / light intersection
-		|| !View.IsPerspectiveProjection();
-
 	if (bCameraInsideLightGeometry)
 	{
 		// Render backfaces with depth tests disabled since the camera is inside (or close to inside) the light geometry
@@ -2092,8 +2170,10 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
-	const bool bTransmission = LightSceneInfo->Proxy->Transmission();
+	const FLightSceneProxy* RESTRICT LightProxy = LightSceneInfo->Proxy;
+
+	const FSphere LightBounds = LightProxy->GetBoundingSphere();
+	const bool bTransmission = LightProxy->Transmission();
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -2124,7 +2204,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 		{
 			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture;
 		}
-		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
+
+		if (LightProxy->GetLightType() == LightType_Directional)
 		{
 			// Turn DBT back off
 			GraphicsPSOInit.bDepthBounds = false;
@@ -2200,7 +2281,13 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 
 			TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
 
-			SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, LightBounds);
+			const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f)
+			//const bool bCameraInsideLightGeometry = LightProxy->AffectsBounds( FSphere( View.ViewMatrices.GetViewOrigin(), View.NearClippingDistance * 2.0f ) )
+				// Always draw backfaces in ortho
+				//@todo - accurate ortho camera / light intersection
+				|| !View.IsPerspectiveProjection();
+
+			SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
 
 			if (bRenderOverlap)
 			{
@@ -2215,10 +2302,10 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			else
 			{
 				FDeferredLightPS::FPermutationDomain PermutationVector;
-				PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >( LightSceneInfo->Proxy->IsRectLight() ? ELightSourceShape::Rect : ELightSourceShape::Capsule );
-				PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >( LightSceneInfo->Proxy->IsRectLight() && LightSceneInfo->Proxy->HasSourceTexture() );
+				PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >( LightProxy->IsRectLight() ? ELightSourceShape::Rect : ELightSourceShape::Capsule );
+				PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >( LightProxy->IsRectLight() && LightProxy->HasSourceTexture() );
 				PermutationVector.Set< FDeferredLightPS::FIESProfileDim >( bUseIESTexture );
-				PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >( LightSceneInfo->Proxy->IsInverseSquared() );
+				PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >( LightProxy->IsInverseSquared() );
 				PermutationVector.Set< FDeferredLightPS::FVisualizeCullingDim >( View.Family->EngineShowFlags.VisualizeLightCulling );
 				PermutationVector.Set< FDeferredLightPS::FLightingChannelsDim >( View.bUsesLightingChannels );
 				PermutationVector.Set< FDeferredLightPS::FTransmissionDim >( bTransmission );
@@ -2255,14 +2342,14 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				RHICmdList.SetDepthBounds(FarDepth, NearDepth);
 			}
 
-			if( LightSceneInfo->Proxy->GetLightType() == LightType_Point ||
-				LightSceneInfo->Proxy->GetLightType() == LightType_Rect )
+			if( LightProxy->GetLightType() == LightType_Point ||
+				LightProxy->GetLightType() == LightType_Rect )
 			{
 				// Apply the point or spot light with some approximate bounding geometry,
 				// So we can get speedups from depth testing and not processing pixels outside of the light's influence.
 				StencilingGeometry::DrawSphere(RHICmdList);
 			}
-			else if (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
+			else if (LightProxy->GetLightType() == LightType_Spot)
 			{
 				StencilingGeometry::DrawCone(RHICmdList);
 			}
@@ -2446,7 +2533,12 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHIComma
 
 			TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
 
-			SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, LightBounds);
+			const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f)
+				// Always draw backfaces in ortho
+				//@todo - accurate ortho camera / light intersection
+				|| !View.IsPerspectiveProjection();
+
+			SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
 
 			if (SimpleLight.Exponent == 0)
 			{

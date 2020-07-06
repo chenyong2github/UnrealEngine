@@ -133,8 +133,8 @@ public:
 
 	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
 
-	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
-
+	UObject* FindBinding(const FNiagaraVariable& InVariable) const;
+	UNiagaraDataInterface* FindDataInterface(const FNiagaraVariable& InVariable) const;
 
 	bool HasTicked() const { return TickCount > 0;  }
 

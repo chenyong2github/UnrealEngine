@@ -240,7 +240,8 @@ public:
 	void CreateLightPrimitiveInteraction(const FLightSceneInfoCompact& LightSceneInfoCompact, const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact);
 
 	/** Removes the light from the scene. */
-	void RemoveFromScene();
+	// HACK: Don't remove HZB info if we are doing remove+add to move the light. Fix for no HZB on mote in Reverb.
+	void RemoveFromScene(bool bRemoveHZB=true);
 
 	/** Detaches the light from the primitives it affects. */
 	void Detach();
@@ -252,7 +253,7 @@ public:
 		return FBoxCenterAndExtent(BoundingSphere.Center, FVector(BoundingSphere.W, BoundingSphere.W, BoundingSphere.W));
 	}
 
-	bool ShouldRenderLight(const FViewInfo& View) const;
+	bool ShouldRenderLight(const FViewInfo& View, bool bOffscreen = false) const;
 
 	/** Encapsulates all View-Independent reasons to have this light render. */
 	bool ShouldRenderLightViewIndependent() const

@@ -485,14 +485,14 @@ struct FDynamicReadBuffer : public FReadBuffer
 		Release();
 	}
 
-	virtual void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0)
+	virtual void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* DebugName = nullptr)
 	{
 		ensure(
 			AdditionalUsage & (BUF_Dynamic | BUF_Volatile | BUF_Static) &&								// buffer should be Dynamic or Volatile or Static
 			(AdditionalUsage & (BUF_Dynamic | BUF_Volatile)) ^ (BUF_Dynamic | BUF_Volatile) // buffer should not be both
 			);
 
-		FReadBuffer::Initialize(BytesPerElement, NumElements, Format, AdditionalUsage);
+		FReadBuffer::Initialize(BytesPerElement, NumElements, Format, AdditionalUsage, DebugName);
 	}
 
 	/**
@@ -921,6 +921,7 @@ inline uint32 GetVertexCountForPrimitiveCount(uint32 NumPrimitives, uint32 Primi
 	uint32 Offset = (PrimitiveType == PT_TriangleStrip)? 2 : 0;
 
 	return NumPrimitives * Factor + Offset;
+
 }
 
 inline uint32 ComputeAnisotropyRT(int32 InitializerMaxAnisotropy)

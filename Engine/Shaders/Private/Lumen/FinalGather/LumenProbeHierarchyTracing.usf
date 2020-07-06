@@ -1,0 +1,309 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#ifndef PROBE_HIERARCHY_ID
+#define PROBE_HIERARCHY_ID 0
+#endif
+
+#include "../../Common.ush"
+#include "../LumenCardCommon.ush"
+#define CARD_BVH 0
+#if CULLED_CARDS_GRID
+	#define CARD_CULLED_LIST 1
+#else
+	#define CARD_CULLED_LIST 0
+#endif
+// Depth weighted OIT doesn't cover enough depth range for ConeTraceLumenDistantScene
+// This has the side effect that card tracing for detail traces in this file don't get blended
+#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
+#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
+#include "../LumenTracingCommon.ush"
+#include "../ProbeHierarchy/LumenProbeTracing.ush"
+#include "../LumenRadianceCacheCommon.ush"
+#include "../../DeferredShadingCommon.ush"
+#include "../../BRDF.ush"
+#include "../../MonteCarlo.ush"
+#include "../../HybridIndirectLighting.ush"
+
+RWBuffer<uint> DispatchParametersOutput;
+
+[numthreads(PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH, 1, 1)]
+void SetupVoxelTraceProbeCS(uint GroupThreadIndex : SV_GroupIndex)
+{
+	if (GroupThreadIndex < PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH)
+	{
+		SetupDispatchParameters(PROBE_TRACING_INTERLEAVING, /* HierarchyId = */ GroupThreadIndex, /* out  */ DispatchParametersOutput);
+	}
+}
+
+float GetLumenLightingCorrection()
+{
+	float LightingCorrection = 1.0;
+
+#if USE_PREEXPOSURE
+	LightingCorrection *= View.PreExposure;
+#endif
+	
+	// Lumen equation:
+	//		SceneColor += Diffuse_Lambert(DiffuseColor) * Sum(TraceResult.Lighting * SampleWeight) * AO
+	//		SampleWeight = LumenDiffuseIntensity * 2.0f * PI / RayCountPerPixel
+					
+	//LightingCorrection *= 2.0 * PI;
+
+	// Because DiffuseIndirectMergeSamples.usf does /= RayCountPerPixel
+	//LightingCorrection *= RayCountPerPixel;
+					
+	// Because DiffuseIndirectComposite.usf doesn't do Diffuse_Lambert(DiffuseColor)
+	//LightingCorrection *= rcp(PI);
+	return LightingCorrection;
+}
+
+void QuantizeTraceResult(FProbeTracingCtx Ctx, FConeTraceResult TraceResult, out float3 Lighting, out bool bHit)
+{
+	uint2 ProbePixelPosition = GetProbePixelPos(Ctx.ProbeInfo, Ctx.HierarchyLevel.Id);
+
+	uint2 SuperDimensionalCoord = (
+		ProbePixelPosition * (Ctx.HierarchyLevel.Resolution * Ctx.HierarchyLevel.SuperSampling * uint2(2, 3)) +
+		uint2(Ctx.FaceIndex % 2, Ctx.FaceIndex / 2) * (Ctx.HierarchyLevel.Resolution * Ctx.HierarchyLevel.SuperSampling) +
+		Ctx.FaceTexelIndex);
+
+	float Test = InterleavedGradientNoise(SuperDimensionalCoord + 0.5, View.StateFrameIndexMod8);
+
+#if 1
+	bHit = TraceResult.Transparency < Test;
+	Lighting = TraceResult.Lighting * ((TraceResult.Transparency < 1.0 && bHit) ? rcp(1.0 - TraceResult.Transparency) : 0.0);
+#else
+	bHit = TraceResult.Transparency < 0.5;
+	Lighting = TraceResult.Lighting;
+#endif
+}
+
+float StepFactor;
+float VoxelStepFactor;
+float CardTraceEndDistanceFromCamera;
+float DiffuseConeHalfAngle;
+float TanDiffuseConeHalfAngle;
+float MinSampleRadius;
+float MinTraceDistance;
+float MaxTraceDistance;
+float MaxCardTraceDistance;
+float CardInterpolateInfluenceRadius;
+
+[numthreads(PROBE_TRACING_LANE_COUNT, 1, 1)]
+void CardTraceProbeCS(
+	uint3 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	FProbeTracingCtx ProbeTracingCtx;
+	InitProbeTracingContext(/* out */ ProbeTracingCtx, PROBE_TRACING_INTERLEAVING, GroupId, GroupThreadIndex, /* bIsFirstTracingPass = */ false);
+
+	BRANCH
+	if (ProbeTracingCtx.bEarlyReturn)
+	{
+		return;
+	}
+	
+	float SceneDepth = GetProbeDepth(ProbeTracingCtx.ProbeInfo);
+	float2 ScreenPos = GetProbeScreenCoord(ProbeTracingCtx.ProbeInfo);
+	uint2 FullResPixelPos = uint2(ScreenPosToViewportUV(ScreenPos) * View.ViewSizeAndInvSize.xy);
+	ProbeTracingCtx.bTraceRay = ProbeTracingCtx.bTraceRay && SceneDepth < CardTraceEndDistanceFromCamera;
+	
+	float3 Lighting;
+	bool bHit;
+	BRANCH
+	if (ProbeTracingCtx.bTraceRay)
+	{
+		float ProbeTMin;
+		float ProbeTMax;
+		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
+
+		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
+		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
+		
+		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
+		float FinalMaxTraceDistance = min(MaxTraceDistance, ProbeTMax);
+		float EffectiveStepFactor = StepFactor;// *= lerp(.8f, 1.2f, Noise);
+
+		FConeTraceInput TraceInput;
+		TraceInput.Setup(
+			SamplePosition, WorldConeDirection,
+			DiffuseConeHalfAngle, MinSampleRadius,
+			FinalMinTraceDistance, FinalMaxTraceDistance,
+			EffectiveStepFactor);
+		TraceInput.VoxelStepFactor = VoxelStepFactor;
+		TraceInput.VoxelTraceStartDistance = min(MaxCardTraceDistance, ProbeTMax);
+
+		uint CardGridCellIndex = ProbeTracingCtx.ProbeIndex;
+
+		#if CULLED_CARDS_GRID
+			uint NumOverlappingCards = CulledCardGridHeader[CardGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 0];
+			uint OverlappingCardsStartIndex = CulledCardGridHeader[CardGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 1];
+		#endif
+
+		#if CARD_TRACE_MESH_SDF
+			uint NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
+			uint MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
+		#endif
+
+		#if CARD_CULLED_LIST
+			TraceInput.NumOverlappingCards = NumOverlappingCards;
+			TraceInput.OverlappingCardsStartIndex = OverlappingCardsStartIndex;
+		#endif
+
+		#if CARD_TRACE_MESH_SDF
+			TraceInput.NumMeshSDFs = NumMeshSDFs;
+			TraceInput.MeshSDFStartOffset = MeshSDFStartOffset;
+			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
+			//@todo - derive from card texel size
+			TraceInput.CardInterpolateDepthVisibilityRadius = 10;
+		#endif
+			
+		FConeTraceResult TraceResult;
+		TraceResult = (FConeTraceResult)0;
+		TraceResult.Lighting = 0.0;
+		TraceResult.Transparency = 1.0;
+
+		ConeTraceLumenSceneCards(TraceInput, TraceResult);
+		
+		{
+			float DistanceFromViewpoint = length(View.WorldCameraOrigin - SamplePosition);
+			float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
+
+			TraceResult.Lighting *= 1 - DistanceFade;
+			TraceResult.Transparency = lerp(TraceResult.Transparency, 1, DistanceFade);
+		}
+		
+		QuantizeTraceResult(ProbeTracingCtx, TraceResult, /* out */ Lighting, /* out */ bHit);
+	}
+	else // if (!ProbeTracingCtx.bTraceRay)
+	{
+		Lighting = 0.0;
+		bHit = false;
+	}
+
+	Lighting *= GetLumenLightingCorrection();
+
+	OutputProbeRays(ProbeTracingCtx, Lighting, /* bFullyTraced = */ bHit, bHit);
+} // CardTraceProbeCS()
+
+[numthreads(PROBE_TRACING_LANE_COUNT, 1, 1)]
+void VoxelTraceProbeCS(
+	uint3 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	FProbeTracingCtx ProbeTracingCtx;
+	InitProbeTracingContext(/* out */ ProbeTracingCtx, PROBE_TRACING_INTERLEAVING, GroupId, GroupThreadIndex, /* bIsFirstTracingPass = */ false);
+
+	BRANCH
+	if (ProbeTracingCtx.bEarlyReturn)
+	{
+		return;
+	}
+	
+	float3 Lighting;
+	bool bHit;
+	BRANCH
+	if (ProbeTracingCtx.bTraceRay)
+	{
+		float ProbeTMin;
+		float ProbeTMax;
+		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
+
+		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
+		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
+
+		float RadianceProbeOcclusionDistance = MaxTraceDistance;
+		bool bCoveredByRadianceCache = false;
+
+		#if RADIANCE_CACHE
+			RadianceProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(SamplePosition, WorldConeDirection, bCoveredByRadianceCache);
+		#endif
+
+		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
+		float FinalMaxTraceDistance = min(min(MaxTraceDistance, ProbeTMax), RadianceProbeOcclusionDistance);
+		float EffectiveStepFactor = StepFactor;// *= lerp(.8f, 1.2f, Noise);
+
+		//float FinalMinSampleRadius = max(MinSampleRadius, tan(ProbeConeHalfAngle) * FinalMinTraceDistance);
+
+		FConeTraceInput TraceInput;
+		TraceInput.Setup(
+			SamplePosition, WorldConeDirection,
+			DiffuseConeHalfAngle, MinSampleRadius,
+			FinalMinTraceDistance, FinalMaxTraceDistance,
+			EffectiveStepFactor);
+		TraceInput.VoxelStepFactor = VoxelStepFactor;
+
+		bool bContinueCardTracing = (DIFFUSE_TRACE_CARDS != 0);
+
+		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
+			SamplePosition, TanDiffuseConeHalfAngle, FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+		
+		FConeTraceResult TraceResult;
+		TraceResult = (FConeTraceResult)0;
+		TraceResult.Lighting = 0.0;
+		TraceResult.Transparency = 1.0;
+
+		ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+#if RADIANCE_CACHE
+		if (bCoveredByRadianceCache)
+		{
+			SampleRadianceCacheAndApply(SamplePosition, WorldConeDirection, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			
+			Lighting = TraceResult.Lighting;
+			bHit = true;
+		}
+		else
+#endif
+		{
+#if PROBE_HIERARCHY_TRACE_DISTANT_SCENE
+			if (TraceResult.Transparency > .01f)
+			{
+				FConeTraceResult DistantTraceResult;
+				ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
+				TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
+				TraceResult.Transparency *= DistantTraceResult.Transparency;
+			}
+#endif
+
+#if ENABLE_DYNAMIC_SKY_LIGHT
+			if (ReflectionStruct.SkyLightParameters.y > 0)
+			{
+				float SkyAverageBrightness = 1.0f;
+				float Roughness = TanConeAngleToRoughness(TanDiffuseConeHalfAngle);
+
+				Lighting = TraceResult.Lighting + GetSkyLightReflection(WorldConeDirection, Roughness, SkyAverageBrightness) * TraceResult.Transparency;
+				bHit = true;
+			}
+			else
+#endif
+			{
+				QuantizeTraceResult(ProbeTracingCtx, TraceResult, /* out */ Lighting, /* out */ bHit);
+			}
+		}
+	}
+	else // if (!ProbeTracingCtx.bTraceRay)
+	{
+		Lighting = 0.0;
+		bHit = false;
+	}
+	
+	Lighting *= GetLumenLightingCorrection();
+
+	#if 0
+	{
+		Lighting = GetHierarchyLevelDebugColor(ProbeTracingCtx.HierarchyLevel.Id) * (bHit ? 1 : 0);
+	}
+	#endif
+
+	#if 0
+	{
+		float ProbeDepth = GetProbeDepth(ProbeTracingCtx.ProbeInfo);
+		float2 ViewportUV = GetProbeScreenCoord(ProbeTracingCtx.ProbeInfo) * 0.5 + 0.5;
+
+		Lighting = float3(ViewportUV, ProbeDepth);
+	}
+	#endif
+
+	OutputProbeRays(ProbeTracingCtx, Lighting, /* bFullyTraced = */ bHit, bHit);
+} // VoxelTraceProbeCS()
+

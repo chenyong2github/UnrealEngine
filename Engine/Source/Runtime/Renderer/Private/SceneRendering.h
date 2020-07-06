@@ -31,6 +31,9 @@
 #include "RenderGraph.h"
 #include "MeshDrawCommands.h"
 #include "GpuDebugRendering.h"
+#include "Nanite/NaniteRender.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "Lumen/LumenTranslucencyVolumeLighting.h"
 
 // Forward declarations.
 class FScene;
@@ -43,6 +46,7 @@ class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 struct FExposureBufferData;
 struct CloudRenderContext;
+class FVirtualShadowMapClipmap;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -120,6 +124,8 @@ public:
 
 	/** true if this light in the view frustum (dir/sky lights always are). */
 	uint32 bInViewFrustum : 1;
+	/** true if the light didn't get distance culled. */
+	uint32 bInDrawRange : 1;
 
 	/** List of CSM shadow casters. Used by mobile renderer for culling primitives receiving static + CSM shadows */
 	FMobileCSMSubjectPrimitives MobileCSMSubjectPrimitives;
@@ -127,6 +133,7 @@ public:
 	/** Initialization constructor. */
 	FVisibleLightViewInfo()
 	:	bInViewFrustum(false)
+	,	bInDrawRange(false)
 	{}
 };
 
@@ -135,7 +142,11 @@ class FVisibleLightInfo
 {
 public:
 
-	/** Projected shadows allocated on the scene rendering mem stack. */
+	/** 
+	 * Projected shadows allocated on the scene rendering mem stack. 
+	 * Note: this exists purely such that the destructor can be called as the memory is allocated from a pool.
+	 * Note #2: Much more elegant if the pool itself managed this!
+	 */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> MemStackProjectedShadows;
 
 	/** All visible projected shadows, output of shadow setup.  Not all of these will be rendered. */
@@ -151,6 +162,9 @@ public:
 
 	/** A list of per-object shadows that were occluded. We need to track these so we can issue occlusion queries for them. */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> OccludedPerObjectShadows;
+
+	/** Virtual shadow map clipmap shadows */
+	TArray<TSharedPtr<FVirtualShadowMapClipmap>,SceneRenderingAllocator> VirtualShadowMapClipmaps;
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)
@@ -504,6 +518,28 @@ public:
 	EVolumeUpdateType UpdateType;
 };
 
+class FClipmapUpdateBounds
+{
+public:
+	FClipmapUpdateBounds()
+		: Center(0.0f, 0.0f, 0.0f)
+		, bExpandByInfluenceRadius(false)
+		, Extent(0.0f, 0.0f, 0.0f)
+	{
+	}
+
+	FClipmapUpdateBounds(const FVector& InCenter, const FVector& InExtent, bool bInExpandByInfluenceRadius)
+		: Center(InCenter)
+		, bExpandByInfluenceRadius(bInExpandByInfluenceRadius)
+		, Extent(InExtent)
+	{
+	}
+
+	FVector Center;
+	bool bExpandByInfluenceRadius;
+	FVector Extent;
+};
+
 class FGlobalDistanceFieldClipmap
 {
 public:
@@ -513,8 +549,11 @@ public:
 	/** Offset applied to UVs so that only new or dirty areas of the volume texture have to be updated. */
 	FVector ScrollOffset;
 
-	/** Regions in the volume texture to update. */
+	/** Legacy regions in the volume texture to update. Used only by heighfield composition. */
 	TArray<FVolumeUpdateRegion, TInlineAllocator<3> > UpdateRegions;
+
+	// Bounds in the volume texture to update. This should replace UpdateRegions after rewriting heighfield composition
+	TArray<FClipmapUpdateBounds, TInlineAllocator<64>> UpdateBounds;
 
 	/** Volume texture for this clipmap. */
 	TRefCountPtr<IPooledRenderTarget> RenderTarget;
@@ -567,9 +606,9 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler) \
-	SHADER_PARAMETER_SRV(StrongTypedBuffer<float4>, ForwardLocalLightBuffer) \
-	SHADER_PARAMETER_SRV(StrongTypedBuffer<uint>, NumCulledLightsGrid) \
-	SHADER_PARAMETER_SRV(StrongTypedBuffer<uint>, CulledLightDataGrid) \
+	SHADER_PARAMETER_SRV(Buffer<float4>, ForwardLocalLightBuffer) \
+	SHADER_PARAMETER_SRV(Buffer<uint>, NumCulledLightsGrid) \
+	SHADER_PARAMETER_SRV(Buffer<uint>, CulledLightDataGrid) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DummyRectLightSourceTexture)
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData,)
@@ -584,6 +623,8 @@ public:
 	FDynamicReadBuffer ForwardLocalLightBuffer;
 	FRWBuffer NumCulledLightsGrid;
 	FRWBuffer CulledLightDataGrid;
+	// Index into FSceneRenderer::VisibleLightInfos for each light in the ForwardLocalLightBuffer (these are copied when the light grid is built)
+	TArray<int32> LocalLightVisibleLightInfosIndex;
 
 	void Release()
 	{
@@ -678,7 +719,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FTemporalAAHistory
 {
 	// Number of render target in the history.
-	static constexpr uint32 kRenderTargetCount = 2;
+	static constexpr uint32 kRenderTargetCount = 4;
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in RT[0].
@@ -791,10 +832,19 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionDepthBuffer;
 	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionGBufferA;
 
+	TRefCountPtr<IPooledRenderTarget> HZB;
+	TRefCountPtr<IPooledRenderTarget> NaniteHZB;
+
 	// Compressed scene textures for bandwidth efficient bilateral kernel rejection.
 	// DeviceZ as float16, and normal in view space.
 	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
 	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionCompressedDepthViewNormal;
+
+	// 16bit compressed depth buffer with opaque only.
+	TRefCountPtr<IPooledRenderTarget> CompressedOpaqueDepth;
+
+	// R8_UINT Shading model ID with opaque only.
+	TRefCountPtr<IPooledRenderTarget> CompressedOpaqueShadingModel;
 
 	// Bleed free scene color to use for screen space ray tracing.
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceRayTracingInput;
@@ -1184,12 +1234,14 @@ public:
 
 	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FShaderResourceViewRHIRef PrimitiveSceneDataOverrideSRV;
+	FShaderResourceViewRHIRef InstanceSceneDataOverrideSRV;
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FRWBufferStructured ShaderPrintValueBuffer;
 
 	FShaderDrawDebugData ShaderDrawData;
+	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
@@ -1212,6 +1264,11 @@ public:
 	FShaderResourceViewRHIRef						RayTracingLightingDataSRV;
 
 #endif // RHI_RAYTRACING
+
+#if WITH_EDITOR
+	TArray<uint32> EditorSelectedHitProxyIds;
+	FDynamicReadBuffer EditorSelectedBuffer;
+#endif
 
 	/** 
 	 * Initialization constructor. Passes all parameters to FSceneView constructor
@@ -1491,6 +1548,10 @@ struct FSortedShadowMaps
 
 	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> TranslucencyShadowMapAtlases;
 
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> VirtualShadowMapShadows;
+
+	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator> VirtualShadowMapClipmaps;
+
 	void Release();
 
 	int64 ComputeMemorySize() const
@@ -1552,6 +1613,8 @@ public:
 	TArray<FParallelMeshDrawCommandPass*, SceneRenderingAllocator> DispatchedShadowDepthPasses;
 
 	FSortedShadowMaps SortedShadowsForShadowDepthPass;
+
+	FVirtualShadowMapArray VirtualShadowMapArray;
 
 	/** If a freeze request has been made */
 	bool bHasRequestedToggleFreeze;
@@ -2082,7 +2145,6 @@ extern FFastVramConfig GFastVRamConfig;
 extern bool UseCachedMeshDrawCommands();
 extern bool UseCachedMeshDrawCommands_AnyThread();
 extern bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel);
-
 enum class EGPUSkinCacheTransition
 {
 	FrameSetup,

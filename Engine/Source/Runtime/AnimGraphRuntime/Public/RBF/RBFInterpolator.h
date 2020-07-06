@@ -181,7 +181,7 @@ public:
 		TArray<float, InAllocator>& OutWeights,
 		const U& Value,
 		bool bClip = true,
-		bool bNormalize = false)
+		bool bNormalize = false) const
 	{
 		int NumNodes = Nodes.Num();
 

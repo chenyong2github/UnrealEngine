@@ -10,7 +10,7 @@ public class ShaderFormatD3D : ModuleRules
 		PrivateIncludePathModuleNames.Add("D3D11RHI");
 		PrivateIncludePathModuleNames.Add("D3D12RHI");
 
-        PrivateIncludePaths.Add("../Shaders/Shared");
+		PrivateIncludePaths.Add("../Shaders/Shared");
 
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -21,9 +21,12 @@ public class ShaderFormatD3D : ModuleRules
 				}
 			);
 
-		//DXC
+		// DXC
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
+			string AmdAgsPath = Target.UEThirdPartySourceDirectory + "AMD/AMD_AGS/";
+			PublicSystemIncludePaths.Add(AmdAgsPath + "inc/");  // For amd_ags.h, to get AGS_DX12_SHADER_INSTRINSICS_SPACE_ID
+
             string DxDllsPath = "$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/";
 
             RuntimeDependencies.Add("$(TargetOutputDir)/dxil.dll", DxDllsPath + "dxil.dll");
@@ -35,7 +38,8 @@ public class ShaderFormatD3D : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"ShaderConductor"
 			);
-		}
+        }
+
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 	}
 }

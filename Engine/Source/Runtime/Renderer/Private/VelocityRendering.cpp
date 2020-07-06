@@ -186,7 +186,9 @@ static void BeginVelocityRendering(
 	check(RHICmdList.IsOutsideRenderPass());
 
 	FTextureRHIRef VelocityTexture = VelocityRT->GetRenderTargetItem().TargetableTexture;
-	FTexture2DRHIRef DepthTexture = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthTexture();	
+	FTexture2DRHIRef DepthTexture = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthTexture();
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, VelocityTexture);
 
 	FRHIRenderPassInfo RPInfo(VelocityTexture, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_Store, ERenderTargetActions::Load_Store);
@@ -202,7 +204,7 @@ static void BeginVelocityRendering(
 
 	if (!bPerformClear)
 	{
-		// some platforms need the clear color when rendertargets transition to SRVs.  We propagate here to allow parallel rendering to always
+		// some platforms need the clear color when render targets transition to SRVs.  We propagate here to allow parallel rendering to always
 		// have the proper mapping when the RT is transitioned.
 		RHICmdList.BindClearMRTValues(true, false, false);
 	}
@@ -389,12 +391,14 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		bool bMotionBlur = IsMotionBlurEnabled(View);
 		bool bDistanceFieldAO = ShouldPrepareForDistanceFieldAO();
 
-		bool bSSRTemporal = ShouldRenderScreenSpaceReflections(View) && IsSSRTemporalPassRequired(View);
+		bool bSSRTemporal = ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View) && ScreenSpaceRayTracing::IsSSRTemporalPassRequired(View);
 
 		bool bRayTracing = IsRayTracingEnabled();
 		bool bDenoise = bRayTracing;
 
-		bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
+		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+
+		bool bSSGI = ViewPipelineState.bEnableSSGI;
 		
 		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI;
 	}
@@ -411,6 +415,20 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
 	if (!ShouldRenderVelocities())
+	{
+		return;
+	}
+
+	const EMeshPass::Type MeshPass = GetMeshPassFromVelocityPass(VelocityPass);
+
+	bool bHasAnyDraw = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		bHasAnyDraw |= View.ParallelMeshDrawCommandPasses[MeshPass].HasAnyDraw();
+	}
+	if( !bHasAnyDraw )
 	{
 		return;
 	}
@@ -436,6 +454,13 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	BeginVelocityRendering(RHICmdList, VelocityRT, VelocityPass, bClearVelocityRT);
 
 	{
+		auto& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+		if (VelocityPass == EVelocityPass::Translucent)
+		{
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneDepthSurface());
+		}
+
 		if (IsParallelVelocity())
 		{
 			// This initial renderpass will just be a clear in the parallel case.
@@ -449,14 +474,12 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 			RenderVelocitiesInner(RHICmdList, VelocityRT, VelocityPass);
 			RHICmdList.EndRenderPass();
 		}
-		if(VelocityPass != EVelocityPass::Opaque)
+
+		if (VelocityPass == EVelocityPass::Translucent)
 		{
-			FTexture2DRHIRef DepthTexture = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthTexture();
-			if(DepthTexture)
-			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DepthTexture);
-			}
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
 		}
+
 		RHICmdList.CopyToResolveTarget(VelocityRT->GetRenderTargetItem().TargetableTexture, VelocityRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 

@@ -29,6 +29,7 @@ public:
 
 	bool		IsPresent( IndexType Index ) const;
 	KeyType		GetKey( IndexType Index ) const;
+	IndexType	Peek( IndexType Index ) const;
 
 	IndexType	Top() const;
 	void		Pop();
@@ -205,6 +206,13 @@ FORCEINLINE KeyType FBinaryHeap< KeyType, IndexType >::GetKey( IndexType Index )
 {
 	checkSlow( IsPresent( Index ) );
 	return Keys[ Index ];
+}
+
+template< typename KeyType, typename IndexType >
+FORCEINLINE IndexType FBinaryHeap< KeyType, IndexType >::Peek(IndexType Index) const
+{
+	checkSlow(Index < HeapNum);
+	return Heap[Index];
 }
 
 template< typename KeyType, typename IndexType >

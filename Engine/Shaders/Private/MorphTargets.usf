@@ -37,43 +37,32 @@ struct FMorphGPUSkinVertex
 
 float FindWeight(in uint DispatchIndex, out uint2 Offsets)
 {
-	uint Level = (GMorphTargetDispatchBatchSize / 2);
-	uint Index = (GMorphTargetDispatchBatchSize / 2) - 1;
-	
-	while (Level > 0)
+	uint Idx = 0;
+	uint Width = GMorphTargetDispatchBatchSize >> 1;
+
+	UNROLL
+	while (Width > 0)
 	{
-		Level /= 2;
-		if (DispatchIndex >= LocalThreadOffsets[Index + 1])
-		{
-			Index += Level;
-		}
-		else if (DispatchIndex < LocalThreadOffsets[Index])
-		{
-			Index -= Level;
-		}
-		else
-		{
-			break;
-		}
+		Idx += (DispatchIndex < LocalThreadOffsets[Idx + Width]) ? 0 : Width;
+		Width = Width >> 1;
 	}
 
-	Offsets = GlobalDispatchOffset + float2(0, LocalThreadOffsets[Index + 1]);
-	return LocalWeights[Index];
+	Offsets = GlobalDispatchOffset + float2(0, LocalThreadOffsets[Idx + 1]);
+	return LocalWeights[Idx];
 }
 
 void LoadLocalData(uint GroupIndex)
 {
-	for (uint i = 0; i < 2; i++)
+	if (GroupIndex < GMorphTargetDispatchBatchSize / 4)
 	{
-		uint LoadIndex = 2 * GroupIndex + i;
-		if (LoadIndex < GMorphTargetDispatchBatchSize)
+		uint GroupSharedIndex = GroupIndex * 4;
+		float4 Weight = MorphTargetWeight[GroupIndex];
+		uint4 Offset = ThreadOffsets[GroupIndex];
+
+		for (int i = 0; i < 4; ++i)
 		{
-			LocalWeights[LoadIndex] = MorphTargetWeight[LoadIndex >> 2][LoadIndex & 3];
-			//}
-			//else
-			//{
-			//	uint LoadIndex = GroupIndex & (GMorphTargetDispatchBatchSize - 1);
-			LocalThreadOffsets[LoadIndex] = ThreadOffsets[LoadIndex >> 2][LoadIndex & 3];
+			LocalWeights[GroupSharedIndex + i] = Weight[i];
+			LocalThreadOffsets[GroupSharedIndex + i] = Offset[i];
 		}
 	}
 	GroupMemoryBarrierWithGroupSync();

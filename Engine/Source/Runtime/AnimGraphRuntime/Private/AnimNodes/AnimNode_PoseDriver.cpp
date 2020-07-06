@@ -70,6 +70,7 @@ void FAnimNode_PoseDriver::RebuildPoseList(const FBoneContainer& InBoneContainer
 	}
 }
 
+
 void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
@@ -176,7 +177,7 @@ bool FAnimNode_PoseDriver::IsBoneDriven(FName BoneName) const
 
 void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 {
-	OutTargets.Empty();
+	OutTargets.Reset();
 	OutTargets.AddZeroed(PoseTargets.Num());
 
 	// Create entry for each target
@@ -236,8 +237,8 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 	// Get the index of the source bone
 	const FBoneContainer& BoneContainer = SourceData.Pose.GetBoneContainer();
 
-	FRBFEntry Input;
-
+	RBFInput.Values.Reset();
+	
 	SourceBoneTMs.Reset();
 	bool bFoundAnyBone = false;
 	for (const FBoneReference& SourceBoneRef : SourceBones)
@@ -272,11 +273,11 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		// Build RBFInput entry
 		if (DriveSource == EPoseDriverSource::Translation)
 		{
-			Input.AddFromVector(SourceBoneTM.GetTranslation());
+			RBFInput.AddFromVector(SourceBoneTM.GetTranslation());
 		}
 		else
 		{
-			Input.AddFromRotator(SourceBoneTM.Rotator());
+			RBFInput.AddFromRotator(SourceBoneTM.Rotator());
 		}
 
 		// Record this so we can use it for drawing in edit mode
@@ -290,15 +291,20 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
+
 	RBFParams.TargetDimensions = SourceBones.Num() * 3;
 
 	// Get target array as RBF types
-	TArray<FRBFTarget> RBFTargets;
 	GetRBFTargets(RBFTargets);
+
+	if (!SolverData.IsValid() || !FRBFSolver::IsSolverDataValid(*SolverData, RBFParams, RBFTargets))
+	{
+		SolverData = FRBFSolver::InitSolver(RBFParams, RBFTargets);
+	}		
 
 	// Run RBF solver
 	OutputWeights.Empty();
-	FRBFSolver::Solve(RBFParams, RBFTargets, Input, OutputWeights);
+	FRBFSolver::Solve(*SolverData, RBFParams, RBFTargets, RBFInput, OutputWeights);
 
 	// Track if we have filled Output with valid pose
 	bool bHaveValidPose = false;
@@ -307,9 +313,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 	if (OutputWeights.Num() > 0)
 	{
 		// If we want to drive poses, and PoseAsset is assigned and compatible
-		if (DriveOutput == EPoseDriverOutput::DrivePoses && 
-			CurrentPoseAsset.IsValid() && 
-			Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()) )
+		if (DriveOutput == EPoseDriverOutput::DrivePoses &&
+			CurrentPoseAsset.IsValid() &&
+			Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()))
 		{
 			FPoseContext CurrentPose(Output);
 

@@ -1,0 +1,61 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardVertexShader.usf
+=============================================================================*/
+
+#include "../Common.ush"
+
+// Reroute SceneTexturesStruct uniform buffer references to the appropriate pass uniform buffer
+#define SceneTexturesStruct LumenCardPass.SceneTextures
+
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+struct FLumenCardInterpolantsVSToPS
+{
+	
+};
+
+struct FLumenCardVSToPS
+{
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	FLumenCardInterpolantsVSToPS PassInterpolants;
+	float4 Position : SV_POSITION;
+};
+
+void Main(
+	FVertexFactoryInput Input,
+	OPTIONAL_VertexID
+	out FLumenCardVSToPS Output
+	)
+{	
+	uint EyeIndex = 0;
+	ResolvedView = ResolveView();
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float4 WorldPosition = WorldPositionExcludingWPO;
+	float4 ClipSpacePosition;
+
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+
+	ISOLATE
+	{
+		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
+		ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
+		Output.Position = INVARIANT(ClipSpacePosition);
+	}
+
+	bool bClampToNearPlane = false;// GetPrimitiveData(Input.PrimitiveId).ObjectWorldPositionAndRadius.w < .5f * max();
+
+	if (bClampToNearPlane && Output.Position.z < 0)
+	{
+		Output.Position.z = 0.01f;
+		Output.Position.w = 1.0f;
+	}
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+}

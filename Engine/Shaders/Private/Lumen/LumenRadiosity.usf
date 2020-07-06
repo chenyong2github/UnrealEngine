@@ -1,0 +1,504 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenRadiosity.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "LumenCardCommon.ush"
+#define CARD_BVH 0
+#include "LumenTracingCommon.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../BRDF.ush"
+#include "../MonteCarlo.ush"
+#include "LumenOctahedralProbe.ush"
+#include "../FastMath.ush"
+
+#ifndef THREADGROUP_SIZE 
+#define THREADGROUP_SIZE 0
+#endif
+
+// These must match LumenRadiosity.cpp
+#define RADIOSITY_PROBE_RESOLUTION 8
+#define RADIOSITY_COMPOSED_PROBE_RESOLUTION (RADIOSITY_PROBE_RESOLUTION + 2)
+
+Buffer<uint> QuadAllocator;
+RWBuffer<uint> RWIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void PlaceProbeIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	RWIndirectArgs[0] = (QuadAllocator[0] + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[1] = 1;
+	RWIndirectArgs[2] = 1;
+}
+
+StructuredBuffer<float4> CardBuffer;
+Buffer<uint> QuadData;
+
+RWStructuredBuffer<float4> RWRadiosityProbeData;
+float RadiosityProbeRadiusScale;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void PlaceProbesForRadiosityCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint QuadIndex = DispatchThreadId.x;
+
+	if (QuadIndex < QuadAllocator[0])
+	{
+		uint CardId = QuadData[QuadIndex];
+
+		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+
+		float CardRadius = length(CardData.LocalExtent);
+		float4 ProbeBounds = float4(CardData.Origin.xyz, CardRadius * RadiosityProbeRadiusScale);
+		
+		RWRadiosityProbeData[QuadIndex] = ProbeBounds;
+	}
+}
+
+Buffer<uint> ProbeAllocator;
+
+uint2 ProbeAtlasSizeInProbes;
+
+[numthreads(1, 1, 1)]
+void RadiosityProbeIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint NumProbes = ProbeAllocator[0];
+	uint NumProbesY = (NumProbes + ProbeAtlasSizeInProbes.x - 1) / ProbeAtlasSizeInProbes.x;
+
+	uint NumThreadsX = min(NumProbes, ProbeAtlasSizeInProbes.x) * RADIOSITY_PROBE_RESOLUTION;
+	uint NumThreadsY = NumProbesY * RADIOSITY_PROBE_RESOLUTION;
+
+	// Trace probe indirect args
+	RWIndirectArgs[0 + 0] = (NumThreadsX + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[0 + 1] = (NumThreadsY + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[0 + 2] = 1;
+
+	NumThreadsX = min(NumProbes, ProbeAtlasSizeInProbes.x) * RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+	NumThreadsY = NumProbesY * RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+
+	// Compose probe indirect args
+	RWIndirectArgs[3 + 0] = (NumThreadsX + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[3 + 1] = (NumThreadsY + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[3 + 2] = 1;
+}
+
+float StepFactor;
+float MaxTraceDistance;
+float VoxelStepFactor;
+float MinTraceDistance;
+float MaxCardTraceDistance;
+float TanConeAngle;
+float MinSampleRadius;
+float SurfaceBias;
+float DiffuseConeHalfAngle;
+float TanDiffuseConeHalfAngle;
+
+StructuredBuffer<float4> ProbeData;
+
+RWTexture2D<float4> RWProbeLighting;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void TraceProbeCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 AtlasCoord = DispatchThreadId.xy;
+	uint2 ProbeTexelCoord = GroupThreadId.xy;
+
+	uint2 ProbeCoord = AtlasCoord / RADIOSITY_PROBE_RESOLUTION;
+	uint ProbeIndex = ProbeCoord.y * ProbeAtlasSizeInProbes.x + ProbeCoord.x;
+
+	if (ProbeIndex < ProbeAllocator[0])
+	{
+		uint NumSamples = 1;
+		float3 Lighting = float3(0.0f, 0.0f, 0.0f);
+
+		for (uint SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+		{
+			float2 ProbeTexelCenter = float2(0.5, 0.5);
+
+			//uint2 RandomSeed = GetRadianceProbeRandomSeed(ProbeCoord);
+			//ProbeTexelCenter = Hammersley16(/* RayIndex = */ SampleIndex, /* NumRays = */ NumSamples, 1654);
+
+			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(RADIOSITY_PROBE_RESOLUTION);
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float4 ProbeSphere = ProbeData[ProbeIndex];
+			float3 ProbeWorldCenter = ProbeSphere.xyz;
+			float ProbeMinTraceDistance = ProbeSphere.w;
+			float ProbeMaxTraceDistance = MaxTraceDistance;
+			float EffectiveStepFactor = StepFactor;
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(
+				ProbeWorldCenter, WorldConeDirection,
+				DiffuseConeHalfAngle, MinSampleRadius,
+				ProbeMinTraceDistance, ProbeMaxTraceDistance,
+				EffectiveStepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+
+			bool bContinueCardTracing = false;
+
+			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
+				ProbeWorldCenter, TanDiffuseConeHalfAngle, ProbeMinTraceDistance, ProbeMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+
+			FConeTraceResult TraceResult;
+			TraceResult = (FConeTraceResult)0;
+			TraceResult.Lighting = 0.0;
+			TraceResult.Transparency = 1.0;
+
+			ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+#if ENABLE_DYNAMIC_SKY_LIGHT
+			if (ReflectionStruct.SkyLightParameters.y > 0)
+			{
+				float SkyAverageBrightness = 1.0f;
+				float Roughness = TanConeAngleToRoughness(TanDiffuseConeHalfAngle);
+
+				TraceResult.Lighting += GetSkyLightReflection(WorldConeDirection, Roughness, SkyAverageBrightness) * TraceResult.Transparency;
+				TraceResult.Transparency = 0.0;
+			}
+#endif
+
+			Lighting += TraceResult.Lighting;
+		}
+
+		Lighting /= NumSamples;
+
+		RWProbeLighting[AtlasCoord] = float4(Lighting, 0.0f);
+	}
+}
+
+RWTexture2D<float4> RWComposedProbeLighting;
+Texture2D<float4> ProbeLighting;
+uint2 ComposedProbeLightingAtlasSize;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ComposeRadiosityProbesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ComposedAtlasCoord = DispatchThreadId.xy;
+
+	uint2 ComposedProbeTexelCoord;
+	ComposedProbeTexelCoord.x = ComposedAtlasCoord.x % RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+	ComposedProbeTexelCoord.y = ComposedAtlasCoord.y % RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+
+	uint3 ProbeCoord;
+	ProbeCoord.x = (ComposedAtlasCoord.x / RADIOSITY_COMPOSED_PROBE_RESOLUTION) % ComposedProbeLightingAtlasSize.x;
+	ProbeCoord.y = (ComposedAtlasCoord.x / RADIOSITY_COMPOSED_PROBE_RESOLUTION) / ComposedProbeLightingAtlasSize.x;
+	ProbeCoord.z = ComposedAtlasCoord.y / RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+
+	uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ComposedProbeTexelCoord, RADIOSITY_COMPOSED_PROBE_RESOLUTION);
+
+	uint2 AtlasCoord;
+	AtlasCoord.x = (ProbeCoord.x + ProbeCoord.y * ComposedProbeLightingAtlasSize.x) * RADIOSITY_PROBE_RESOLUTION + ProbeTexelCoord.x;
+	AtlasCoord.y = ProbeCoord.z * RADIOSITY_PROBE_RESOLUTION + ProbeTexelCoord.y;
+
+	if (all(ProbeCoord < ComposedProbeLightingAtlasSize))
+	{
+		float3 Lighting = ProbeLighting.Load(uint3(AtlasCoord, 0)).xyz;
+
+		RWComposedProbeLighting[ComposedAtlasCoord] = float4(Lighting, 0.0f);
+	}
+}
+
+RWBuffer<uint> RWCardTraceBlockAllocator;
+RWBuffer<uint4> RWCardTraceBlockData;
+uint2 RadiosityAtlasSize;
+
+// CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE * THREADS_PER_RADIOSITY_TEXEL must be <= THREADGROUP_SIZE
+#define CARD_TRACE_BLOCK_SIZE 2
+#define THREADS_PER_RADIOSITY_TEXEL 8
+
+#if THREADGROUP_SIZE > 0
+
+groupshared uint NumBlocksShared[THREADGROUP_SIZE];
+groupshared uint GlobalBlockStartOffset[THREADGROUP_SIZE];
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void SetupCardTraceBlocksCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+#define DISTRIBUTE_TRACEBLOCK_WRITES 1
+#if DISTRIBUTE_TRACEBLOCK_WRITES
+
+	if (DispatchThreadId.x < QuadAllocator[0])
+	{
+		uint CardId = QuadData[DispatchThreadId.x];
+
+		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+
+		uint2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint NumBlocks = NumBlocksXY.x * NumBlocksXY.y;
+		NumBlocksShared[GroupThreadId.x] = NumBlocks;
+
+		uint BlockStartOffset;
+		InterlockedAdd(RWCardTraceBlockAllocator[0], NumBlocks, BlockStartOffset);
+		GlobalBlockStartOffset[GroupThreadId.x] = BlockStartOffset;
+	}
+	else
+	{
+		NumBlocksShared[GroupThreadId.x] = 0;
+		GlobalBlockStartOffset[GroupThreadId.x] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (uint GroupQuadIndex = 0; GroupQuadIndex < THREADGROUP_SIZE; GroupQuadIndex++)
+	{
+		uint NumBlocks = NumBlocksShared[GroupQuadIndex];
+		uint BlockStartOffset = GlobalBlockStartOffset[GroupQuadIndex];
+		uint QuadIndex = GroupQuadIndex + DispatchThreadId.x - GroupThreadId.x;
+		uint CardId = QuadData[QuadIndex];
+
+		for (uint BlockIndex = GroupThreadId.x; BlockIndex < NumBlocks; BlockIndex += THREADGROUP_SIZE)
+		{
+			uint4 BlockData = uint4(CardId, QuadIndex, BlockIndex, 0);
+			RWCardTraceBlockData[BlockStartOffset + BlockIndex] = BlockData;
+		}
+	}
+
+#else
+
+	uint QuadIndex = DispatchThreadId.x;
+
+	if (QuadIndex < QuadAllocator[0])
+	{
+		uint CardId = QuadData[QuadIndex];
+
+		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+
+		uint2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint NumBlocks = NumBlocksXY.x * NumBlocksXY.y;
+
+		uint BlockStartOffset;
+		InterlockedAdd(RWCardTraceBlockAllocator[0], NumBlocks, BlockStartOffset);
+
+		for (uint BlockIndex = 0; BlockIndex < NumBlocks; BlockIndex++)
+		{
+			uint4 BlockData = uint4(CardId, QuadIndex, BlockIndex, 0);
+			RWCardTraceBlockData[BlockStartOffset + BlockIndex] = BlockData;
+		}
+	}
+#endif
+}
+
+#endif
+
+Buffer<uint> CardTraceBlockAllocator;
+
+[numthreads(1, 1, 1)]
+void TraceBlocksIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	RWIndirectArgs[0] = (CardTraceBlockAllocator[0] * CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE * THREADS_PER_RADIOSITY_TEXEL + THREADGROUP_SIZE - 1) / THREADGROUP_SIZE;
+	RWIndirectArgs[1] = 1;
+	RWIndirectArgs[2] = 1;
+}
+
+float2 InvProbeAtlasResolution;
+
+float3 SampleProbe(uint ProbeIndex, float3 V)
+{
+	uint2 ProbeBaseCoord = uint2(ProbeIndex % ProbeAtlasSizeInProbes.x, ProbeIndex / ProbeAtlasSizeInProbes.x) * RADIOSITY_COMPOSED_PROBE_RESOLUTION;
+
+	float2 ProbeUV = DirectionToOctahedralMap(V);
+
+	float2 ProbeTexelCoord = ProbeUV * RADIOSITY_PROBE_RESOLUTION + 1;
+	float2 ProbeAtlasUV = (ProbeBaseCoord + ProbeTexelCoord) * InvProbeAtlasResolution;
+
+	return ProbeLighting.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, 0).xyz;
+}
+
+uint NumCones;
+float SampleWeight;
+float4 RadiosityConeDirections[32];
+
+Texture2D AlbedoAtlas;
+Texture2D NormalAtlas;
+Texture2D DepthBufferAtlas;
+Texture2D CurrentOpacityAtlas;
+
+float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex, FLumenCardData LumenCardData, uint ConeStartIndex, uint ConeEndIndex)
+{
+	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz;
+	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
+
+	float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+
+	float3 Lighting = 0;
+
+	if (Opacity > 0 && Luminance(DiffuseColor) > .1f)
+	{
+		float Depth = Texture2DSampleLevel(DepthBufferAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+
+		float3 LocalPosition;
+		LocalPosition.xy = (AtlasUV - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+		LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
+
+		float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+		float3 WorldNormal = normalize(Texture2DSampleLevel(NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz * 2 - 1);
+
+		//@todo - derive bias from texel world size
+		WorldPosition += WorldNormal * SurfaceBias;
+
+#if RADIOSITY_PROBES 
+		float4 ProbeSphere = ProbeData[ProbeIndex];
+#endif
+
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(WorldPosition, TanConeAngle, MinTraceDistance, MaxTraceDistance, MaxCardTraceDistance, false);
+
+		for (uint ConeIndex = ConeStartIndex; ConeIndex < ConeEndIndex; ConeIndex++)
+		{
+			//uint ConeIndex = ConeStartIndex;
+			float3x3 TangentBasis = GetTangentBasisFrisvad(WorldNormal);
+
+			#define PRECOMPUTED_SAMPLE_DIRECTIONS 1
+			#if PRECOMPUTED_SAMPLE_DIRECTIONS
+				float3 LocalConeDirection = RadiosityConeDirections[ConeIndex].xyz;
+				float3 WorldConeDirection = mul(LocalConeDirection, TangentBasis);
+			#else
+				uint2 Seed0 = Rand3DPCG16(int3(AtlasCoord + 17, 0)).xy;
+				float2 E = Hammersley16(ConeIndex, NumCones, Seed0);
+				float2 DiskE = UniformSampleDiskConcentric(E.xy);
+				float TangentZ = sqrt(1 - length2(DiskE));
+				float3 WorldConeDirection = mul(float3(DiskE, TangentZ), TangentBasis);
+			#endif
+
+			//@todo - derive bias from texel world size
+			float3 SamplePosition = WorldPosition + SurfaceBias * WorldConeDirection;
+
+#if RADIOSITY_PROBES
+
+			float TraceDistance = MaxTraceDistance;
+			float SphereIntersectionDistance = RayIntersectSphere(SamplePosition, WorldConeDirection, ProbeSphere).y;
+			TraceDistance = min(TraceDistance, SphereIntersectionDistance);
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(SamplePosition, WorldConeDirection, DiffuseConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
+			TraceInput.SDFStepFactor = 1;
+
+			FConeTraceResult TraceResult;
+			TraceResult = (FConeTraceResult)0;
+			TraceResult.Lighting = 0.0;
+			TraceResult.Transparency = 1.0;
+			ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+			if (SphereIntersectionDistance > 0)
+			{
+				TraceResult.Lighting += SampleProbe(ProbeIndex, WorldConeDirection) * TraceResult.Transparency;
+				TraceResult.Transparency = 0;
+			}
+
+#else
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(SamplePosition, WorldConeDirection, DiffuseConeHalfAngle, MinSampleRadius, MinTraceDistance, MaxTraceDistance, StepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
+			TraceInput.SDFStepFactor = 1;
+
+			FConeTraceResult TraceResult;
+			ConeTraceVoxels(TraceInput, TraceResult);
+
+			EvaluateSkyRadianceForCone(WorldConeDirection, TraceInput.TanConeAngle, TraceResult);
+#endif
+			Lighting += TraceResult.Lighting;
+		}
+	}
+
+	Lighting *= PI * Diffuse_Lambert(DiffuseColor) / (float)NumCones;
+	return Lighting;
+}
+
+Buffer<uint4> CardTraceBlockData;
+RWTexture2D<float4> RWRadiosityAtlas;
+
+#if THREADGROUP_SIZE > 0
+	
+groupshared float3 ThreadLighting[THREADGROUP_SIZE];
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void LumenCardRadiosityTraceBlocksCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	ThreadLighting[GroupThreadId.x] = 0;
+
+	uint ThreadIndex = DispatchThreadId.x;
+	uint GlobalBlockIndex = ThreadIndex / (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE * THREADS_PER_RADIOSITY_TEXEL);
+	int2 AtlasCoord = -1;
+
+	if (GlobalBlockIndex < CardTraceBlockAllocator[0])
+	{
+		uint TexelIndexInBlock = (ThreadIndex / THREADS_PER_RADIOSITY_TEXEL) % (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE);
+		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
+
+		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
+		uint CardId = TraceBlockData.x;
+		uint ProbeIndex = TraceBlockData.y;
+		uint BlockIndex = TraceBlockData.z;
+
+		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+
+		float2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
+		uint2 NumBlocksXY = ((uint2)CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
+		uint2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
+
+		if (all(TexelCoord < CardSizeTexels))
+		{
+			uint TraceThreadIndex = ThreadIndex % THREADS_PER_RADIOSITY_TEXEL;
+
+			float2 CardUV = (TexelCoord + .5f) / (float2)CardSizeTexels;
+			float2 CardUVToAtlasScale = GetCardUVToAtlasScale(CardData.LocalPositionToAtlasUVScale, CardData.LocalExtent);
+			float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, CardData.LocalPositionToAtlasUVBias);
+			float2 AtlasUV = CardUV * CardUVToAtlasScale + CardUVToAtlasBias;
+
+			uint NumTracesPerThread = NumCones / THREADS_PER_RADIOSITY_TEXEL;
+			uint ConeStartIndex = TraceThreadIndex * NumTracesPerThread;
+			AtlasCoord = int2(AtlasUV * RadiosityAtlasSize);
+			float3 Lighting = RadiosityTraceFromTexel(AtlasUV, AtlasCoord, ProbeIndex, CardData, ConeStartIndex, ConeStartIndex + NumTracesPerThread);
+			ThreadLighting[GroupThreadId.x] = Lighting;
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint TraceThreadIndex = ThreadIndex % THREADS_PER_RADIOSITY_TEXEL;
+
+	if (TraceThreadIndex == 0 && all(AtlasCoord >= 0))
+	{
+		float3 Lighting = 0;
+
+		for (uint OtherThreadIndex = GroupThreadId.x; OtherThreadIndex < GroupThreadId.x + THREADS_PER_RADIOSITY_TEXEL; OtherThreadIndex += 1)
+		{
+			Lighting += ThreadLighting[OtherThreadIndex];
+		}
+
+		RWRadiosityAtlas[AtlasCoord] = float4(Lighting, 0);
+	}
+}
+
+#endif
+
+void LumenCardRadiosityPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId, CardBuffer);
+
+	int2 AtlasCoord = int2(CardInterpolants.AtlasCoord * RadiosityAtlasSize);
+	float3 Lighting = RadiosityTraceFromTexel(CardInterpolants.AtlasCoord, AtlasCoord, CardInterpolants.QuadIndex, LumenCardData, 0, NumCones);
+
+	OutColor = float4(Lighting, 0);
+}

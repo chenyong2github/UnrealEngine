@@ -592,9 +592,11 @@ FRHIShaderResourceView* GetHeightfieldDescriptionsSRV()
 	return GHeightfieldDescriptions.Data.BufferSRV;
 }
 
-void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
+void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, 
+	FVector2D InvLightingAtlasSize, 
+	float InvDownsampleFactor,
+	TArray<FVector4, SceneRenderingAllocator>& HeightfieldDescriptionData)
 {
-	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
 	HeightfieldDescriptionData.Empty(HeightfieldDescriptions.Num() * GHeightfieldDescriptions.Data.Stride);
 
 	for (int32 DescriptionIndex = 0; DescriptionIndex < HeightfieldDescriptions.Num(); DescriptionIndex++)
@@ -621,7 +623,7 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 
 		HeightfieldDescriptionData.Add(LightingUVScaleBias);
 
-		HeightfieldDescriptionData.Add(FVector4(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f/Description.HeightfieldRect.Size().X, 1.f/Description.HeightfieldRect.Size().Y));
+		HeightfieldDescriptionData.Add(FVector4(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
 		HeightfieldDescriptionData.Add(FVector4(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
 
 		const FMatrix LocalToWorldT = Description.LocalToWorld.GetTransposed();
@@ -644,6 +646,16 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 	}
 
 	check(HeightfieldDescriptionData.Num() % GHeightfieldDescriptions.Data.Stride == 0);
+}
+
+void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
+{
+	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
+
+	FillHeightfieldDescriptionData(HeightfieldDescriptions,
+		InvLightingAtlasSize,
+		InvDownsampleFactor,
+		/*out*/ HeightfieldDescriptionData);
 
 	if (HeightfieldDescriptionData.Num() > GHeightfieldDescriptions.Data.MaxElements)
 	{
@@ -657,6 +669,48 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 	check(GHeightfieldDescriptions.Data.Buffer->GetSize() >= MemcpySize);
 	FPlatformMemory::Memcpy(LockedBuffer, HeightfieldDescriptionData.GetData(), MemcpySize);
 	RHIUnlockVertexBuffer(GHeightfieldDescriptions.Data.Buffer);
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FUploadHeightfieldDescriptionsParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<float4>, HeightfieldDescriptionsBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
+{
+	const uint32 BufferStride = GHeightfieldDescriptions.Data.Stride;
+
+	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
+
+	FillHeightfieldDescriptionData(HeightfieldDescriptions,
+		InvLightingAtlasSize,
+		InvDownsampleFactor,
+		/*out*/ HeightfieldDescriptionData);
+
+	FRDGBufferRef HeightfieldDescriptionsBuffer = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(HeightfieldDescriptionData.Num(), 1))),
+		TEXT("HeightfieldDescriptionsBuffer"));
+
+	FUploadHeightfieldDescriptionsParameters* PassParameters = GraphBuilder.AllocParameters<FUploadHeightfieldDescriptionsParameters>();
+	PassParameters->HeightfieldDescriptionsBuffer = HeightfieldDescriptionsBuffer;
+
+	const uint32 UploadBytes = HeightfieldDescriptionData.Num() * sizeof(FVector4);
+	const void* UploadPtr = HeightfieldDescriptionData.GetData();
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("Upload HeightfieldDescriptions"),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[PassParameters, UploadBytes, UploadPtr](FRHICommandListImmediate& RHICmdList)
+		{
+			if (UploadBytes > 0)
+			{
+				void* DestCardIdPtr = RHILockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHIVertexBuffer(), 0, UploadBytes, RLM_WriteOnly);
+				FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
+				RHIUnlockVertexBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHIVertexBuffer());
+			}
+		});
+
+	return HeightfieldDescriptionsBuffer;
 }
 
 class FGlobalHeightfieldParameters

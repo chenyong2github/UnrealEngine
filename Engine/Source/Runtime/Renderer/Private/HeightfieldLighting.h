@@ -13,6 +13,7 @@
 #include "RHIStaticStates.h"
 #include "RendererInterface.h"
 #include "PrimitiveSceneProxy.h"
+#include "RenderGraphResources.h"
 
 class FAOScreenGridResources;
 class FDistanceFieldAOParameters;
@@ -122,11 +123,12 @@ public:
 		const class FAOScreenGridResources& ScreenGridResources,
 		const class FDistanceFieldAOParameters& Parameters) const;
 
-	void CompositeHeightfieldsIntoGlobalDistanceField(
-		FRHICommandList& RHICmdList,
+	void ComposeHeightfieldsIntoGlobalDistanceField(
+		FRDGBuilder& GraphBuilder,
 		const FScene* Scene,
 		const FViewInfo& View,
-		float GlobalMaxSphereQueryRadius,
+		FRDGTextureRef GlobalDistanceFieldTexture,
+		float InfluenceRadius,
 		const class FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo,
 		const FGlobalDistanceFieldClipmap& Clipmap,
 		int32 ClipmapIndexValue,

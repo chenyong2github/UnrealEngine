@@ -90,7 +90,7 @@ public:
 	*/
 	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
 
-	void		VerifyPhysicalSpaceUnmapped(uint32 PhysicalSpaceID) const;
+	void		VerifyAddressRangeUnmapped(uint32 vAddress, uint32 Size) const;
 
 	void		RefreshEntirePageTable(FVirtualTextureSystem* System, TArray< FPageTableUpdate >* Output);
 	void		ExpandPageTableUpdatePainters(FVirtualTextureSystem* System, FPageTableUpdate Update, TArray< FPageTableUpdate >* Output);

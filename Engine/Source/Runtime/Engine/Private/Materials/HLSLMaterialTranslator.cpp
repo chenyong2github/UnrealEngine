@@ -7610,6 +7610,38 @@ int32 FHLSLMaterialTranslator::EyeAdaptation()
 	return AddInlinedCodeChunk(MCT_Float, TEXT("EyeAdaptationLookup()"));
 }
 
+/**Experimental access to the EyeAdaptation RT for applying an inverse. */
+int32 FHLSLMaterialTranslator::EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg)
+{
+	if( ShaderFrequency != SF_Pixel )
+	{
+		return NonPixelShaderExpressionError();
+	}
+
+	if (LightValueArg == INDEX_NONE || AlphaArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (GetParameterType(LightValueArg) != MCT_Float3)
+	{
+		Errorf(TEXT("EyeAdaptationInverse expects a float3 type for LightValue"));
+		return INDEX_NONE;
+	}
+	int32 LightValueName = LightValueArg;
+
+	if (GetParameterType(AlphaArg) != MCT_Float)
+	{
+		Errorf(TEXT("EyeAdaptationInverse expects a float type for Alpha"));
+		return INDEX_NONE;
+	}
+	int32 AlphaName = AlphaArg;
+
+	MaterialCompilationOutput.bUsesEyeAdaptation = true;
+
+	return AddInlinedCodeChunk(MCT_Float3, TEXT("EyeAdaptationInverseLookup(%s,%s)"), *GetParameterCode(LightValueName), *GetParameterCode(AlphaName));
+}
+
 // to only have one piece of code dealing with error handling if the Primitive constant buffer is not used.
 // @param Name e.g. TEXT("ObjectWorldPositionAndRadius.w")
 int32 FHLSLMaterialTranslator::GetPrimitiveProperty(EMaterialValueType Type, const TCHAR* ExpressionName, const TCHAR* HLSLName)

@@ -1,0 +1,184 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PageManagement.usf: 
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../SceneTexturesCommon.ush"
+//#include "../Nanite/DebugVisualize.ush"
+#include "PageAccessCommon.ush"
+
+uint DebugTargetWidth;
+uint DebugTargetHeight;
+uint BorderWidth;
+uint ZoomScaleFactor;
+uint DebugMethod;
+
+Texture2D< uint >			PhysicalPagePool;
+Texture2D< float >			HZBPhysical;
+
+float3 IntToColor(uint Index)
+{
+	const float3 ColorTable[9] = {
+		float3(0.0f, 0.0f, 0.0f),
+		float3(1.0f, 0.0f, 0.0f),
+		float3(0.0f, 1.0f, 0.0f),
+		float3(0.0f, 0.0f, 1.0f),
+
+		float3(1.0f, 1.0f, 0.0f),
+		float3(0.0f, 1.0f, 1.0f),
+		float3(1.0f, 0.0f, 1.0f),
+
+		float3(0.5f, 0.7f, 0.1f),
+		float3(1.0f, 1.0f, 1.0f)
+	};
+	return ColorTable[Index % 9];
+}
+
+RWTexture2D<float4>		DebugOutput;
+/**
+ * 
+ */
+[numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
+void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
+{
+	if (any(OutputPixel >= uint2(DebugTargetWidth, DebugTargetHeight)))
+	{
+		return;
+	}
+
+	if( DebugMethod > 5 )
+	{
+		float3 Color = 0;
+
+		uint ShadowMapID = 0;
+		uint2 Texel = OutputPixel * ( VSM_VIRTUAL_MAX_RESOLUTION_XY / 2048 );
+
+		float Depth = 0;
+		float HZBDepth = 0;
+
+		uint Level = 0;
+		for( ; Level < VSM_MAX_MIP_LEVELS; Level++ )
+		{
+			uint2 vAddress = Texel >> Level;
+			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
+			uint2 pPage = PageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
+
+			if( pPage.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			{
+				uint2 pAddress = pPage * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
+				Depth = asfloat( PhysicalPagePool[ pAddress ] );
+				break;
+			}
+		}
+
+		Level = DebugMethod - 6;
+		for( ; Level < VSM_MAX_MIP_LEVELS; Level++ )
+		{
+			uint2 vAddress = Texel >> Level;
+			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
+			//uint2 pPage = HZBPageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
+			uint2 pPage = PageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
+
+			if( pPage.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			{
+				vAddress >>= 1;
+
+				uint2 pAddress = pPage * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
+				HZBDepth = HZBPhysical[ pAddress ];
+				break;
+			}
+		}
+
+		//Color = Depth - HZBDepth;
+		//Color.r = Depth;
+		Color = Depth;
+		//Color = HZBDepth;
+
+		DebugOutput[OutputPixel] = float4(Color, 1.0f);
+		return;
+	}
+
+	uint2 InputPixel = OutputPixel / ZoomScaleFactor;
+
+	uint VirtualShadowMapId = max(0, int(InputPixel.y) - 2) / (CalcLevelDimsPages(0) + BorderWidth);
+	uint MipLevel = 0;
+	uint Offset = 0;
+
+	while (InputPixel.x >= Offset + CalcLevelDimsPages(MipLevel) + BorderWidth)
+	{
+		Offset += CalcLevelDimsPages(MipLevel) + BorderWidth;
+		MipLevel += 1;
+	}
+
+	uint2 PageAddress = uint2(InputPixel.x - Offset, InputPixel.y % (CalcLevelDimsPages(0) + BorderWidth));
+
+	if (all(PageAddress - BorderWidth < CalcLevelDimsPages(MipLevel)) && VirtualShadowMapId < NumShadowMaps)
+	{
+		PageAddress -= BorderWidth;
+		if (DebugMethod >= 1 && DebugMethod <= 2)
+		{
+			if (MipLevel == 0 && DebugMethod == 2)
+			{
+				int OverAlloc = 0;
+				//uint PageFlag = PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
+				for (uint Level = 0; Level < VSM_MAX_MIP_LEVELS; ++Level)
+				{
+					if (PageFlags[CalcPageOffset(VirtualShadowMapId, Level, PageAddress >> Level)])
+					{
+						OverAlloc += 1;
+					}
+				}
+				float3 Color = IntToColor(OverAlloc);
+				DebugOutput[OutputPixel] = float4(Color, 1.0f);
+			}
+			else
+			{
+				float3 Color = IntToColor(MipLevel + 1);
+				uint PageFlag = PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
+				DebugOutput[OutputPixel] = float4(PageFlag ? Color : float3(0.0f, 0.0f, 0.0f), 1.0f);
+			}
+		}
+		else
+		{
+#if HAS_CACHE_DATA
+			if (DebugMethod == 3)
+			{ 
+				uint PrevPageFlag = 0;
+
+				if (ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId != INDEX_NONE)// && MipLevel < VSM_MAX_MIP_LEVELS - 1)
+				{
+					int2 PrevPageAddress = int2(PageAddress) - (ShadowMapCacheData[VirtualShadowMapId].SmPageOffset >> MipLevel);
+					bool bCanCache = MipLevel < VSM_CACHE_ALIGNMENT_LEVEL || all(ShadowMapCacheData[VirtualShadowMapId].SmPageOffset == 0);
+					if (all(PrevPageAddress >= 0 && PrevPageAddress < CalcLevelDimsPages(MipLevel)) && bCanCache)
+					{
+						uint PrevOffset = CalcPageOffset(ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId, MipLevel, PrevPageAddress);
+						PrevPageFlag = PrevPageFlags[PrevOffset];
+					}
+				}
+
+				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
+				uint PageFlag = PageFlags[Offset];
+				
+				float3 Color = float3(!PrevPageFlag && PageFlag, PrevPageFlag && PageFlag, PrevPageFlag && !PageFlag);
+				DebugOutput[OutputPixel] = float4(Color, 1.0f);
+			}
+			else
+#endif // HAS_CACHE_DATA
+			{
+				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
+				uint PageFlag = PageFlags[Offset];
+				bool PageValid = PageTable[Offset].x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS;
+				float3 Color = float3(0, !PageValid && PageFlag, 0);
+				DebugOutput[OutputPixel] = float4(Color, 1.0f);
+			}
+		}
+	}
+	else
+	{
+		DebugOutput[OutputPixel] = float4(float3(0.1f, 0.1f, 0.1f), 1.0f);
+	}
+}
+
+

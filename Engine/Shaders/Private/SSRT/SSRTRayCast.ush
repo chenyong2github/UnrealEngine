@@ -5,6 +5,10 @@
 // Number of sample batched at same time.
 #define SSRT_SAMPLE_BATCH_SIZE 4
 
+#define SSRT_TILE_RES_DIVISOR_LOG2 3
+#define SSRT_TILE_RES_DIVISOR 8
+#define SSRT_DIRECTIONALITY_DIVISION 8
+
 #ifndef IS_SSGI_SHADER
 #define IS_SSGI_SHADER 0
 #endif
@@ -65,22 +69,44 @@ struct FSSRTRay
 FSSRTRay InitScreenSpaceRayFromWorldSpace(
 	float3 RayOriginTranslatedWorld,
 	float3 WorldRayDirection,
-	float SceneDepth)
+	float WorldTMax,
+	float SceneDepth,
+	const bool bExtendRayToScreenBorder,
+	out bool bRayWasClipped)
 {
-	float4 RayStartClip	= mul(float4(RayOriginTranslatedWorld, 1), View.TranslatedWorldToClip);
-	float4 RayEndClip = mul(float4(RayOriginTranslatedWorld + WorldRayDirection * SceneDepth, 1), View.TranslatedWorldToClip);
+	WorldTMax = min(WorldTMax, 1000000);
+
+	float3 ViewRayDirection = mul(float4(WorldRayDirection, 0.0), View.TranslatedWorldToView).xyz;
+
+	float RayEndWorldDistance = ViewRayDirection.z < 0.0 ? min(-0.95 * SceneDepth / ViewRayDirection.z, WorldTMax) : WorldTMax;
+
+	float3 RayEndWorld = RayOriginTranslatedWorld + WorldRayDirection * RayEndWorldDistance;
+
+	float4 RayStartClip = mul(float4(RayOriginTranslatedWorld, 1.0), View.TranslatedWorldToClip);
+	float4 RayEndClip = mul(float4(RayEndWorld, 1.0), View.TranslatedWorldToClip);
 
 	float3 RayStartScreen = RayStartClip.xyz * rcp(RayStartClip.w);
 	float3 RayEndScreen = RayEndClip.xyz * rcp(RayEndClip.w);
 
-	float4 RayDepthClip = RayStartClip + mul(float4(0, 0, SceneDepth, 0), View.ViewToClip);
+	float4 RayDepthClip = RayStartClip + mul(float4(0, 0, RayEndWorldDistance, 0), View.ViewToClip);
 	float3 RayDepthScreen = RayDepthClip.xyz * rcp(RayDepthClip.w);
 
 	FSSRTRay Ray;
 	Ray.RayStartScreen = RayStartScreen;
 	Ray.RayStepScreen = RayEndScreen - RayStartScreen;
-	
-	Ray.RayStepScreen *= GetStepScreenFactorToClipAtScreenEdge(RayStartScreen.xy, Ray.RayStepScreen.xy);
+
+	float ClipToScreenFactor = GetStepScreenFactorToClipAtScreenEdge(RayStartScreen.xy, Ray.RayStepScreen.xy);
+	if (!bExtendRayToScreenBorder)
+	{
+		bRayWasClipped = ClipToScreenFactor < 1.0 || RayEndWorldDistance != WorldTMax;
+		ClipToScreenFactor = min(ClipToScreenFactor, 1.0);
+	}
+	else
+	{
+		bRayWasClipped = true;
+	}
+
+	Ray.RayStepScreen *= ClipToScreenFactor;
 
 	// TODO
 	#if IS_SSGI_SHADER
@@ -139,19 +165,110 @@ FSSRTRay InitScreenSpaceRay(
 	return Ray;
 } // InitScreenSpaceRay()
 
+/** Information about tiles in SGPRs. */
+struct FSSRTTileInfos
+{
+	float Directionality[SSRT_DIRECTIONALITY_DIVISION];
+	float ClosestDeviceZ;
+	uint2 Coord;
+	float _Padding[5];
+};
+
+/** Casting. */
+struct FSSRTCastingSettings
+{
+	// (Compile time) whether should terminate the ray immediately if the ray become uncertain.
+	bool bStopWhenUncertain;
+
+	// (Compile time) whether should use tile informations
+	bool bUseTileInfo;
+
+	// (SGPRs) Information about the tile to speed up casting.
+	FSSRTTileInfos TileInfos;
+};
+
+
+FSSRTCastingSettings CreateDefaultCastSettings()
+{
+	FSSRTCastingSettings Settings;
+	Settings.bUseTileInfo = false;
+	Settings.bStopWhenUncertain = false;
+	Settings.TileInfos = (FSSRTTileInfos)0;
+	return Settings;
+};
+
+uint ComputeRayDirectionId(FSSRTRay Ray)
+{
+	float2 RayStepPixel = Ray.RayStepScreen.xy * View.ViewSizeAndInvSize.xy;
+
+	// Screen position is vertically flipped from 
+	RayStepPixel.y = -RayStepPixel.y;
+
+	// Compute screen ray direction in [0; 2 PI[
+	float RayDirection = atan2(-RayStepPixel.y, -RayStepPixel.x) + PI;
+
+	uint DirectionId;
+#if SSRT_DIRECTIONALITY_DIVISION == 8
+	FLATTEN
+	if (RayDirection < (0.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION) || RayDirection >(7.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 0;
+	}
+	else if (RayDirection < (1.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 1;
+	}
+	else if (RayDirection < (2.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 2;
+	}
+	else if (RayDirection < (3.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 3;
+	}
+	else if (RayDirection < (4.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 4;
+	}
+	else if (RayDirection < (5.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 5;
+	}
+	else if (RayDirection < (6.5 * 2 * PI / SSRT_DIRECTIONALITY_DIVISION))
+	{
+		DirectionId = 6;
+	}
+	else
+	{
+		DirectionId = 7;
+	}
+#else
+#error Need to update this code.
+#endif
+
+	return DirectionId;
+}
+
 /** Cast a screen space ray. */
-bool CastScreenSpaceRay(
+void CastScreenSpaceRay(
 	Texture2D Texture, SamplerState Sampler,
+	float StartMipLevel,
+	FSSRTCastingSettings CastSettings,
 	FSSRTRay Ray,
 	float Roughness,
 	uint NumSteps, float StepOffset,
 	float4 HZBUvFactorAndInvFactor, 
 	bool bDebugPrint,
+	out float3 DebugOutput,
 	out float3 OutHitUVz,
-	out float Level)
+	out float Level,
+	out bool bFoundHit,
+	out bool bUncertain)
 {
+	DebugOutput = 0;
+
 	const float3 RayStartScreen = Ray.RayStartScreen;
-	float3 RayStepScreen = Ray.RayStepScreen;
+	const float3 RayStepScreen = Ray.RayStepScreen;
 
 	float3 RayStartUVz = float3( (RayStartScreen.xy * float2( 0.5, -0.5 ) + 0.5) * HZBUvFactorAndInvFactor.xy, RayStartScreen.z );
 	float3 RayStepUVz  = float3(  RayStepScreen.xy  * float2( 0.5, -0.5 )		 * HZBUvFactorAndInvFactor.xy, RayStepScreen.z );
@@ -160,7 +277,7 @@ bool CastScreenSpaceRay(
 	float CompareTolerance = Ray.CompareTolerance * Step;
 	
 	float LastDiff = 0;
-	Level = 1;
+	Level = StartMipLevel;
 
 	//StepOffset = View.GeneralPurposeTweak;
 
@@ -179,7 +296,6 @@ bool CastScreenSpaceRay(
 	
 	float4 MultipleSampleDepthDiff;
 	bool4 bMultipleSampleHit; // TODO: Might consumes VGPRS if bug in compiler.
-	bool bFoundAnyHit = false;
 	
 	#if IS_SSGI_SHADER && SSGI_TRACE_CONE
 		const float ConeAngle = PI / 4;
@@ -194,10 +310,77 @@ bool CastScreenSpaceRay(
 		}
 	#endif
 
+	// Compute the maximum of iteration.
+	uint MaxIteration = NumSteps;
+	if (CastSettings.bUseTileInfo)
+	{
+		uint DirectionId = ComputeRayDirectionId(Ray);
+
+		float DirectionAndle = float(DirectionId) * (2 * PI * rcp(float(SSRT_DIRECTIONALITY_DIVISION)));
+
+		float2 RayPixelDirection = float2(cos(DirectionAndle), sin(DirectionAndle));
+
+		
+
+		float2 cr = ScreenPosToViewportUV(RayStartScreen.xy) * View.ViewSizeAndInvSize.xy;
+		float2 cre = ScreenPosToViewportUV(RayStartScreen.xy + RayStepScreen.xy) * View.ViewSizeAndInvSize.xy;
+
+		// Ray equation (x - xr) * ar + dr;
+		float xr = dot(cr, RayPixelDirection) * View.ViewSizeAndInvSize.z;
+		float xre = dot(cre, RayPixelDirection) * View.ViewSizeAndInvSize.z;
+		float dr = RayStartScreen.z;
+		float ar = RayStepScreen.z * View.ViewSizeAndInvSize.x / dot(RayStepScreen.xy * float2(0.5, -0.5) * View.ViewSizeAndInvSize.xy, RayPixelDirection);
+
+		float2 cc = CastSettings.TileInfos.Coord * SSRT_TILE_RES_DIVISOR + SSRT_TILE_RES_DIVISOR / 2;
+		float2 c0 = cc - sign(RayPixelDirection) * float(SSRT_TILE_RES_DIVISOR / 2);
+		float2 c1 = cc + sign(RayPixelDirection) * float(SSRT_TILE_RES_DIVISOR / 2);
+		float x0 = dot(c0, RayPixelDirection) * View.ViewSizeAndInvSize.z;
+		float x1 = dot(c1, RayPixelDirection) * View.ViewSizeAndInvSize.z;
+
+		// Horizon equation is (x - xf) * af + df
+		float af = CastSettings.TileInfos.Directionality[DirectionId];
+		float df = CastSettings.TileInfos.ClosestDeviceZ;
+		float xf = af > 0.0 ? x0 : x1;
+
+		// Resolve x intersection of horizon and ray
+		uint UsefulMaxIteration;
+		{
+			float adiff = ar - af;
+
+			// Intersection of the ray and horizong
+			FLATTEN
+			if (ar > af)
+			{
+				float x = (df - dr + xr * ar - xf * af) / adiff;
+
+				// Compute the final percentage of the ray that is underneath the horizon.
+				float UseFulPercent = saturate((x - xr) / (xre - xr));
+
+				UsefulMaxIteration = clamp(uint(NumSteps * UseFulPercent), 0, NumSteps);
+			}
+			else
+			{
+				UsefulMaxIteration = NumSteps;
+			}
+		}
+
+		// TODO: Get the biggest from the wave to avoid increasing VGPR pressure.
+		#if COMPILER_SUPPORTS_WAVE_MINMAX && 0
+			MaxIteration = ToScalarMemory(WaveAllMax(UsefulMaxIteration));
+		#else
+			MaxIteration = UsefulMaxIteration;
+		#endif
+
+		DebugOutput.x = float(MaxIteration) / float(NumSteps);
+	}
+
 	uint i;
 
+	bFoundHit = false;
+	bUncertain = false;
+
 	LOOP
-	for (i = 0; i < NumSteps; i += SSRT_SAMPLE_BATCH_SIZE)
+	for (i = 0; i < MaxIteration; i += SSRT_SAMPLE_BATCH_SIZE)
 	{
 		float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
 		float4 SamplesZ;
@@ -265,10 +448,21 @@ bool CastScreenSpaceRay(
 		// Evaluates the intersections.
 		MultipleSampleDepthDiff = SamplesZ - SampleDepth;
 		bMultipleSampleHit = abs(MultipleSampleDepthDiff + CompareTolerance) < CompareTolerance;
-		bFoundAnyHit = any(bMultipleSampleHit);
+
+		// Determines whether the ray is uncertain because might be going beind geometry.
+		{
+			bool4 bMultipleSampleUncertain = (MultipleSampleDepthDiff + CompareTolerance) < -CompareTolerance;
+
+			UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
+			{
+				bFoundHit = bFoundHit || bMultipleSampleHit[j];
+				bUncertain = (bUncertain || bMultipleSampleUncertain[i] && !bFoundHit);
+			}
+		}
 
 		BRANCH
-		if (bFoundAnyHit)
+		if (bFoundHit || (CastSettings.bStopWhenUncertain && bUncertain))
 		{
 			break;
 		}
@@ -282,7 +476,7 @@ bool CastScreenSpaceRay(
 	
 	// Compute the output coordinates.
 	BRANCH
-	if (bFoundAnyHit)
+	if (bFoundHit)
     {
 		#if IS_SSGI_SHADER && SSGI_TRACE_CONE
 		{
@@ -422,10 +616,8 @@ bool CastScreenSpaceRay(
     }
 	else
     {
-		OutHitUVz = float3(0, 0, 0);
+        OutHitUVz = RayUVz + RayStepUVz * NumSteps;
     }
-	
-	return bFoundAnyHit;
 } // CastScreenSpaceRay()
 
 
@@ -439,15 +631,31 @@ bool RayCast(
 	out float3 OutHitUVz,
 	out float Level)
 {
-	FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(RayOriginTranslatedWorld, RayDirection, SceneDepth);
+	bool bRayWasClipped;
+	FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
+		RayOriginTranslatedWorld, RayDirection,
+		/* WorldTMax = */ SceneDepth,
+		/* SceneDepth = */ SceneDepth,
+		/* bExtendRayToScreenBorder = */ true,
+		/* out */ bRayWasClipped);
 
-	return CastScreenSpaceRay(
+	bool bHit;
+	bool bUncertain;
+	float3 DebugOutput;
+	CastScreenSpaceRay(
 		Texture, Sampler,
+		/* StartMipLevel = */ 1.0,
+		CreateDefaultCastSettings(),
 		Ray,
 		Roughness, NumSteps, StepOffset,
 		HZBUvFactorAndInvFactor, bDebugPrint,
+		/* out */ DebugOutput,
 		/* out */ OutHitUVz,
-		/* out */ Level);
+		/* out */ Level,
+		/* out */ bHit,
+		/* out */ bUncertain);
+
+	return bHit;
 } // RayCast()
 
 float ComputeHitVignetteFromScreenPos(float2 ScreenPos)

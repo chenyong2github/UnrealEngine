@@ -147,7 +147,6 @@ FVector SkeletalSimplifier::FMeshSimplifier::ComputeEdgeCollapseVertsPos(SimpEdg
 		checkSlow(e == MeshManager.FindEdge(e->v0, e->v1));
 		checkSlow(e->v0->adjTris.Num() > 0);
 		checkSlow(e->v1->adjTris.Num() > 0);
-		checkSlow(e->v0->GetMaterialIndex() == e->v1->GetMaterialIndex());
 
 		EdgeAndNewVertArray.Emplace(e->v0, e->v1, e->v1->vert);
 

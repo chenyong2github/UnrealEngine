@@ -31,7 +31,6 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	OutShader.ShaderName = InShaderCode.FindOptionalData('n');
-
 	int32 UniformBufferTableSize = 0;
 	auto* UniformBufferData = InShaderCode.FindOptionalDataAndSize('u', UniformBufferTableSize);
 	if (UniformBufferData && UniformBufferTableSize > 0)
@@ -90,6 +89,7 @@ static void ResetVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 		const FShaderCodeVendorExtension& Extension = VendorExtensions[ExtensionIndex];
 		if (Extension.VendorId == 0x10DE)
 		{
+			// NVIDIA
 			if (Extension.Parameter.Type == EShaderParameterType::UAV)
 			{
 				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, ~uint32(0));

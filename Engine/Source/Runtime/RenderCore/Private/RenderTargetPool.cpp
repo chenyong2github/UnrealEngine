@@ -212,78 +212,20 @@ void FRenderTargetPool::WaitForTransitionFence()
 	DeferredDeleteArray.Reset();
 }
 
-bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& InputDesc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName, bool bDoWritableBarrier, ERenderTargetTransience TransienceHint, bool bDeferTextureAllocation)
+TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::AllocateElementForRDG(FRHICommandList& RHICmdList, const FRDGTextureDesc& Desc, const TCHAR* Name)
 {
-	check(IsInRenderingThread());
+	checkf(!Desc.AutoWritable, TEXT("Attempted to create texture %s for RDG with AutoWritable set to true. This will break resource state tracking and is not allowed."), Name);
+	return AllocateElementInternal(RHICmdList, Desc, Name, false, false);
+}
 
-	if (!InputDesc.IsValid())
-	{
-		// no need to do anything
-		return true;
-	}
-
-	// Querying a render target that have no mip levels makes no sens.
-	check(InputDesc.NumMips > 0);
-
-	// Make sure if requesting a depth format that the clear value is correct
-	ensure(!IsDepthOrStencilFormat(InputDesc.Format) || (InputDesc.ClearValue.ColorBinding == EClearBinding::ENoneBound || InputDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
-
-	// If we're doing aliasing, we may need to override Transient flags, depending on the input format and mode
-	FPooledRenderTargetDesc ModifiedDesc;
-	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc, TransienceHint);
-	if (bMakeTransient)
-	{
-		ModifiedDesc = InputDesc;
-		ModifiedDesc.Flags |= TexCreate_Transient;
-	}
-
-	// Override the descriptor if necessary
-	const FPooledRenderTargetDesc& Desc = bMakeTransient ? ModifiedDesc : InputDesc;
-
-	// if we can keep the current one, do that
-	if (Out)
-	{
-		FPooledRenderTarget* Current = (FPooledRenderTarget*)Out.GetReference();
-
-		check(!Current->IsSnapshot());
-
-		const bool bExactMatch = true;
-
-		if (Out->GetDesc().Compare(Desc, bExactMatch))
-		{
-			// we can reuse the same, but the debug name might have changed
-			Current->Desc.DebugName = InDebugName;
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Current->GetRenderTargetItem().TargetableTexture)
-			{
-				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
-			}
-#endif
-			check(!Out->IsFree());
-			return true;
-		}
-		else
-		{
-			// release old reference, it might free a RT we can use
-			Out = 0;
-
-			if (Current->IsFree())
-			{
-				AllocationLevelInKB -= ComputeSizeInKB(*Current);
-
-				int32 Index = FindIndex(Current);
-
-				check(Index >= 0);
-
-				// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
-				PooledRenderTargets[Index] = 0;
-
-				VerifyAllocationLevel();
-			}
-		}
-	}
-
-	int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
+TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::AllocateElementInternal(
+	FRHICommandList& RHICmdList,
+	const FPooledRenderTargetDesc& Desc,
+	const TCHAR* InDebugName,
+	bool bDoWritableBarrier,
+	bool bDeferTextureAllocation)
+{
+	const int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
 	FPooledRenderTarget* Found = 0;
 	uint32 FoundIndex = -1;
 	bool bReusingExistingTarget = false;
@@ -519,8 +461,7 @@ Done:
 		}
 
 		FoundIndex = PooledRenderTargets.Num() - 1;
-
-		Found->Desc.DebugName = InDebugName;
+		Found->State = FRDGTextureState(Desc);
 	}
 
 	check(Found->IsFree());
@@ -534,7 +475,7 @@ Done:
 	uint32 OriginalNumRefs = Found->GetRefCount();
 
 	// assign to the reference counted variable
-	Out = Found;
+	TRefCountPtr<IPooledRenderTarget> Result = Found;
 
 	check(!Found->IsFree());
 
@@ -553,7 +494,7 @@ Done:
 	}
 
 	// Transient RTs have to be targettable
-	check( ( Desc.Flags & TexCreate_Transient ) == 0 || Found->GetRenderTargetItem().TargetableTexture != nullptr );
+	check((Desc.Flags & TexCreate_Transient) == 0 || Found->GetRenderTargetItem().TargetableTexture != nullptr);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (Found->GetRenderTargetItem().TargetableTexture)
@@ -561,6 +502,86 @@ Done:
 		RHIBindDebugLabelName(Found->GetRenderTargetItem().TargetableTexture, InDebugName);
 	}
 #endif
+
+	return MoveTemp(Result);
+}
+
+bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& InputDesc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName, bool bDoWritableBarrier, ERenderTargetTransience TransienceHint, bool bDeferTextureAllocation)
+{
+	check(IsInRenderingThread());
+
+	if (!InputDesc.IsValid())
+	{
+		// no need to do anything
+		return true;
+	}
+
+	// Querying a render target that have no mip levels makes no sens.
+	check(InputDesc.NumMips > 0);
+
+	// Make sure if requesting a depth format that the clear value is correct
+	ensure(!IsDepthOrStencilFormat(InputDesc.Format) || (InputDesc.ClearValue.ColorBinding == EClearBinding::ENoneBound || InputDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
+
+	// If we're doing aliasing, we may need to override Transient flags, depending on the input format and mode
+	FPooledRenderTargetDesc ModifiedDesc;
+	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc, TransienceHint);
+	if (bMakeTransient)
+	{
+		ModifiedDesc = InputDesc;
+		ModifiedDesc.Flags |= TexCreate_Transient;
+	}
+
+	// Override the descriptor if necessary
+	const FPooledRenderTargetDesc& Desc = bMakeTransient ? ModifiedDesc : InputDesc;
+
+	// if we can keep the current one, do that
+	if (Out)
+	{
+		FPooledRenderTarget* Current = (FPooledRenderTarget*)Out.GetReference();
+
+		check(!Current->IsSnapshot());
+
+		const bool bExactMatch = true;
+
+		if (Out->GetDesc().Compare(Desc, bExactMatch))
+		{
+			// we can reuse the same, but the debug name might have changed
+			Current->Desc.DebugName = InDebugName;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (Current->GetRenderTargetItem().TargetableTexture)
+			{
+				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+			}
+#endif
+			check(!Out->IsFree());
+			return true;
+		}
+		else
+		{
+			// release old reference, it might free a RT we can use
+			Out = 0;
+
+			if (Current->IsFree())
+			{
+				AllocationLevelInKB -= ComputeSizeInKB(*Current);
+
+				int32 Index = FindIndex(Current);
+
+				check(Index >= 0);
+
+				// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
+				PooledRenderTargets[Index] = 0;
+
+				VerifyAllocationLevel();
+			}
+		}
+	}
+
+	Out = AllocateElementInternal(RHICmdList, Desc, InDebugName, bDoWritableBarrier, bDeferTextureAllocation);
+
+	auto Result = static_cast<FPooledRenderTarget*>(Out.GetReference());
+	check(Result);
+	Result->State.InitAsWholeResource({});
 
 	return false;
 }
@@ -575,6 +596,7 @@ void FRenderTargetPool::CreateUntrackedElement(const FPooledRenderTargetDesc& De
 	FPooledRenderTarget* Found = new FPooledRenderTarget(Desc, NULL);
 
 	Found->RenderTargetItem = Item;
+	Found->State = FRDGTextureState(Desc);
 	check(!Found->IsSnapshot());
 
 	// assign to the reference counted variable

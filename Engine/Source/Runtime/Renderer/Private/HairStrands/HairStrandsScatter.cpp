@@ -133,7 +133,7 @@ class FHairScatterPS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairLUTTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairEnergyLUTTexture)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutputColor)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisibilityNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, VisibilityNodeData)

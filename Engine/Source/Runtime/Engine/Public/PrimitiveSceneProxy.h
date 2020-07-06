@@ -236,6 +236,8 @@ public:
 	 */
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, class FMeshElementCollector& Collector) const {}
 
+	virtual const class FCardRepresentationData* GetMeshCardRepresentation() const { return nullptr; }
+
 	/** 
 	 * Gets the boxes for sub occlusion queries
 	 * @param View - the view the occlusion results are for
@@ -281,7 +283,7 @@ public:
 		bShadowMapped = false;
 	}
 
-	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
+	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, bool& bOutThrottled) const
 	{
 		LocalVolumeBounds = FBox(ForceInit);
 		OutDistanceMinMax = FVector2D(0, 0);
@@ -293,10 +295,8 @@ public:
 		bOutThrottled = false;
 	}
 
-	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const
+	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const
 	{
-		NumInstances = 0;
-		BoundsSurfaceArea = 0;
 	}
 
 	virtual bool HeightfieldHasPendingStreaming() const { return false; }
@@ -547,7 +547,9 @@ public:
 	inline bool HasValidSettingsForStaticLighting() const { return bHasValidSettingsForStaticLighting; }
 	inline bool AlwaysHasVelocity() const { return bAlwaysHasVelocity; }
 	inline bool SupportsDistanceFieldRepresentation() const { return bSupportsDistanceFieldRepresentation; }
+	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
+	inline bool SupportsInstanceDataBuffer() const { return bSupportsInstanceDataBuffer; }
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
@@ -592,6 +594,22 @@ public:
 	}
 
 	/**
+	* Returns whether this proxy is a Nanite mesh.
+	*/
+	virtual bool IsNaniteMesh() const
+	{
+		return false;
+	}
+
+	/**
+	* Returns whether this proxy is always visible.
+	*/
+	virtual bool IsAlwaysVisible() const
+	{
+		return false;
+	}
+
+	/**
 	 *	Returns whether the proxy utilizes custom occlusion bounds or not
 	 *
 	 *	@return	bool		true if custom occlusion bounds are used, false if not;
@@ -620,6 +638,16 @@ public:
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const
 	{
 		return false;
+	}
+
+	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
+	{
+		return nullptr;
+	}
+
+	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
+	{
+		return nullptr;
 	}
 
 	/** 
@@ -899,11 +927,17 @@ protected:
 	 */
 	uint8 bVFRequiresPrimitiveUniformBuffer : 1;
 
+	/** Whether the primitive supports the GPUScene instance data buffer. */
+	uint8 bSupportsInstanceDataBuffer : 1;
+
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;
 
 	/** Whether the primitive type supports a distance field representation.  Does not mean the primitive has a valid representation. */
 	uint8 bSupportsDistanceFieldRepresentation : 1;
+
+	/** Whether the primitive type supports a mesh card representation. */
+	uint8 bSupportsMeshCardRepresentation : 1;
 
 	/** Whether the primitive implements GetHeightfieldRepresentation() */
 	uint8 bSupportsHeightfieldRepresentation : 1;
@@ -1079,3 +1113,10 @@ ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBat
  * used for materials with external textures that need invalidating their PSOs.
  */
 ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel);
+
+/**
+ * Returns if specified mesh can be rendered via Nanite.
+ */
+ENGINE_API extern bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+
+ENGINE_API extern bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const class FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel);

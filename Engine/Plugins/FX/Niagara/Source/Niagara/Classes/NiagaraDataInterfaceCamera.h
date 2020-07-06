@@ -53,6 +53,7 @@ public:
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
 	void GetClipSpaceTransformsGPU(FVectorVMContext& Context);
 	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
+	void GetTAAJitter(FVectorVMContext& Context);
 	
 private:
 	static const FName GetViewPropertiesName;
@@ -60,6 +61,7 @@ private:
 	static const FName GetViewSpaceTransformsName;
 	static const FName GetCameraPropertiesName;
 	static const FName GetFieldOfViewName;
+	static const FName GetTAAJitterName;
 };
 
 struct FNiagaraDataIntefaceProxyCameraQuery : public FNiagaraDataInterfaceProxy

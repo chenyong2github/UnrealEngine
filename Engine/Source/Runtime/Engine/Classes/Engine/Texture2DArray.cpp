@@ -316,7 +316,7 @@ bool UTexture2DArray::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPl
 		return true;
 
 	default:
-		return false;
+		return FDataDrivenShaderPlatformInfo::GetSupportsArrayTextureCompression(ShaderPlatform);
 	}
 }
 

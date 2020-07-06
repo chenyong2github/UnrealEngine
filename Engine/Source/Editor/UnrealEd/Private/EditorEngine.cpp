@@ -182,6 +182,7 @@
 #include "Engine/CoreSettings.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 
 #include "PixelInspectorModule.h"
 
@@ -689,6 +690,9 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	extern void SetupDistanceFieldBuildNotification();
 	SetupDistanceFieldBuildNotification();
+
+	extern void SetupCardRepresentationBuildNotification();
+	SetupCardRepresentationBuildNotification();
 
 	// Update recents
 	UpdateRecentlyLoadedProjectFiles();
@@ -1261,6 +1265,9 @@ void UEditorEngine::FinishDestroy()
 
 		extern void TearDownDistanceFieldBuildNotification();
 		TearDownDistanceFieldBuildNotification();
+
+		extern void TearDownCardRepresentationBuildNotification();
+		TearDownCardRepresentationBuildNotification();
 
 		// Remove editor array from root.
 		UE_LOG(LogExit, Log, TEXT("Editor shut down") );

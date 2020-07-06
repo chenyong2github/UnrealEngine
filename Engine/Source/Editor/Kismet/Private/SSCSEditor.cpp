@@ -6889,62 +6889,13 @@ struct FRestoreSelectedInstanceComponent
 
 void SSCSEditor::OnApplyChangesToBlueprint() const
 {
-	int32 NumChangedProperties = 0;
-
 	AActor* Actor = GetActorContext();
-	UBlueprint* Blueprint = (Actor != nullptr) ? Cast<UBlueprint>(Actor->GetClass()->ClassGeneratedBy) : nullptr;
+	const UBlueprint* const Blueprint = (Actor != nullptr) ? Cast<UBlueprint>(Actor->GetClass()->ClassGeneratedBy) : nullptr;
 
 	if (Actor != NULL && Blueprint != NULL && Actor->GetClass()->ClassGeneratedBy == Blueprint)
 	{
-		// Cache the actor label as by the time we need it, it may be invalid
 		const FString ActorLabel = Actor->GetActorLabel();
-		FRestoreSelectedInstanceComponent RestoreSelectedInstanceComponent;
-		{
-			const FScopedTransaction Transaction(LOCTEXT("PushToBlueprintDefaults_Transaction", "Apply Changes to Blueprint"));
-
-			// The component selection state should be maintained
-			GEditor->GetSelectedActors()->Modify();
-			GEditor->GetSelectedComponents()->Modify();
-
-			Actor->Modify();
-
-			// Mark components that are either native or from the SCS as modified so they will be restored
-			for (UActorComponent* ActorComponent : Actor->GetComponents())
-			{
-				if (ActorComponent && (ActorComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript || ActorComponent->CreationMethod == EComponentCreationMethod::Native))
-				{
-					ActorComponent->Modify();
-				}
-			}
-
-			// Perform the actual copy
-			{
-				AActor* BlueprintCDO = Actor->GetClass()->GetDefaultObject<AActor>();
-				if (BlueprintCDO != NULL)
-				{
-					const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::PropagateChangesToArchetypeInstances | EditorUtilities::ECopyOptions::SkipInstanceOnlyProperties);
-					NumChangedProperties = EditorUtilities::CopyActorProperties(Actor, BlueprintCDO, CopyOptions);
-					if (Actor->GetInstanceComponents().Num() > 0)
-					{
-						RestoreSelectedInstanceComponent.Save(Actor);
-						FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, Actor->GetInstanceComponents());
-						NumChangedProperties += Actor->GetInstanceComponents().Num();
-						Actor->ClearInstanceComponents(true);
-					}
-					if (NumChangedProperties > 0)
-					{
-						Actor = nullptr; // It is unsafe to use Actor after this point as it may have been reinstanced, so set it to null to make this obvious
-					}
-				}
-			}
-
-			if (NumChangedProperties > 0)
-			{
-				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-				FKismetEditorUtilities::CompileBlueprint(Blueprint);
-				RestoreSelectedInstanceComponent.Restore();
-			}
-		}
+		int32 NumChangedProperties = FKismetEditorUtilities::ApplyInstanceChangesToBlueprint(Actor);
 
 		// Set up a notification record to indicate success/failure
 		FNotificationInfo NotificationInfo(FText::GetEmpty());

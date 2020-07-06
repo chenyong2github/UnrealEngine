@@ -8,6 +8,11 @@
 #include "OverridePassSequence.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
+namespace Nanite
+{
+	struct FRasterResults;
+}
+
 struct FSelectionOutlineInputs
 {
 	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
@@ -20,8 +25,8 @@ struct FSelectionOutlineInputs
 	FScreenPassTexture SceneDepth;
 };
 
-FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs);
+FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults);
 
-FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input);
+FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, const Nanite::FRasterResults *NaniteRasterResults);
 
 #endif

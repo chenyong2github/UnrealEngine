@@ -4598,47 +4598,64 @@ void UMaterial::CancelOutstandingCompilation()
 
 void UMaterial::UpdateMaterialShaders(TArray<const FShaderType*>& ShaderTypesToFlush, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& VFTypesToFlush, EShaderPlatform ShaderPlatform)
 {
-	// Create a material update context so we can safely update materials.
+	bool bAnyMaterialShaderTypes = VFTypesToFlush.Num() > 0 || ShaderPipelineTypesToFlush.Num() > 0;
+
+	if (!bAnyMaterialShaderTypes)
 	{
-		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::Default, ShaderPlatform);
-
-		int32 NumMaterials = 0;
-
-		for( TObjectIterator<UMaterial> It; It; ++It )
+		for (int32 TypeIndex = 0; TypeIndex < ShaderTypesToFlush.Num(); TypeIndex++)
 		{
-			NumMaterials++;
-		}
-
-		GWarn->StatusUpdate(0, NumMaterials, NSLOCTEXT("Material", "BeginAsyncMaterialShaderCompilesTask", "Kicking off async material shader compiles..."));
-
-		int32 UpdateStatusDivisor = FMath::Max<int32>(NumMaterials / 20, 1);
-		int32 MaterialIndex = 0;
-
-		// Reinitialize the material shader maps
-		for( TObjectIterator<UMaterial> It; It; ++It )
-		{
-			UMaterial* BaseMaterial = *It;
-			UpdateContext.AddMaterial(BaseMaterial);
-			BaseMaterial->CacheResourceShadersForRendering(false);
-
-			// Limit the frequency of progress updates
-			if (MaterialIndex % UpdateStatusDivisor == 0)
+			if (ShaderTypesToFlush[TypeIndex]->GetMaterialShaderType() || ShaderTypesToFlush[TypeIndex]->GetMeshMaterialShaderType())
 			{
-				GWarn->UpdateProgress(MaterialIndex, NumMaterials);
+				bAnyMaterialShaderTypes = true;
+				break;
 			}
-			MaterialIndex++;
 		}
-
-		// The material update context will safely update all dependent material instances when
-		// it leaves scope.
 	}
 
+	if (bAnyMaterialShaderTypes)
+	{
+		// Create a material update context so we can safely update materials.
+		{
+			FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::Default, ShaderPlatform);
+
+			int32 NumMaterials = 0;
+
+			for( TObjectIterator<UMaterial> It; It; ++It )
+			{
+				NumMaterials++;
+			}
+
+			GWarn->StatusUpdate(0, NumMaterials, NSLOCTEXT("Material", "BeginAsyncMaterialShaderCompilesTask", "Kicking off async material shader compiles..."));
+
+			int32 UpdateStatusDivisor = FMath::Max<int32>(NumMaterials / 20, 1);
+			int32 MaterialIndex = 0;
+
+			// Reinitialize the material shader maps
+			for( TObjectIterator<UMaterial> It; It; ++It )
+			{
+				UMaterial* BaseMaterial = *It;
+				UpdateContext.AddMaterial(BaseMaterial);
+				BaseMaterial->CacheResourceShadersForRendering(false);
+
+				// Limit the frequency of progress updates
+				if (MaterialIndex % UpdateStatusDivisor == 0)
+				{
+					GWarn->UpdateProgress(MaterialIndex, NumMaterials);
+				}
+				MaterialIndex++;
+			}
+
+			// The material update context will safely update all dependent material instances when
+			// it leaves scope.
+		}
+
 #if WITH_EDITOR
-	// Update any FMaterials not belonging to a UMaterialInterface, for example FExpressionPreviews
-	// If we did not do this, the editor would crash the next time it tried to render one of those previews
-	// And didn't find a shader that had been flushed for the preview's shader map.
-	FMaterial::UpdateEditorLoadedMaterialResources(ShaderPlatform);
+		// Update any FMaterials not belonging to a UMaterialInterface, for example FExpressionPreviews
+		// If we did not do this, the editor would crash the next time it tried to render one of those previews
+		// And didn't find a shader that had been flushed for the preview's shader map.
+		FMaterial::UpdateEditorLoadedMaterialResources(ShaderPlatform);
 #endif
+	}
 }
 
 void UMaterial::BackupMaterialShadersToMemory(TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData)

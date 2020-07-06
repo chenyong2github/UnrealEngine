@@ -31,6 +31,7 @@
 #include "Rendering/StaticMeshVertexBuffer.h"
 #include "Rendering/PositionVertexBuffer.h"
 #include "Rendering/StaticMeshVertexDataInterface.h"
+#include "Rendering/NaniteResources.h"
 #include "Templates/UniquePtr.h"
 #include "WeightedRandomSampler.h"
 #include "PerPlatformProperties.h"
@@ -192,6 +193,7 @@ struct FStaticMeshSection
 
 	/** If true, collision is enabled for this section. */
 	bool bEnableCollision;
+
 	/** If true, this section will cast a shadow. */
 	bool bCastShadow;
 	/** If true, this section will be considered opaque in ray tracing effects. */
@@ -199,7 +201,8 @@ struct FStaticMeshSection
 #if WITH_EDITORONLY_DATA
 	/** The UV channel density in LocalSpaceUnit / UV Unit. */
 	float UVDensities[MAX_STATIC_TEXCOORDS];
-	/** The weigths to apply to the UV density, based on the area. */
+
+	/** The weights to apply to the UV density, based on the area. */
 	float Weights[MAX_STATIC_TEXCOORDS];
 #endif
 
@@ -324,6 +327,27 @@ struct FAdditionalStaticMeshIndexBuffers
 	FRawStaticIndexBuffer AdjacencyIndexBuffer;
 };
 
+class FStaticMeshSectionArray : public TArray<FStaticMeshSection, TInlineAllocator<1>>
+{
+	using Super = TArray<FStaticMeshSection, TInlineAllocator<1>>;
+public:
+	using Super::Super;
+};
+
+template <>
+struct TIsZeroConstructType<FStaticMeshSectionArray> : TIsZeroConstructType<TArray<FStaticMeshSection, TInlineAllocator<1>>>
+{
+};
+template <>
+struct TContainerTraits<FStaticMeshSectionArray> : TContainerTraits<TArray<FStaticMeshSection, TInlineAllocator<1>>>
+{
+};
+template <>
+struct TIsContiguousContainer<FStaticMeshSectionArray> : TIsContiguousContainer<TArray<FStaticMeshSection, TInlineAllocator<1>>>
+{
+};
+//using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
+
 /** 
  * Rendering resources needed to render an individual static mesh LOD.
  * This structure is ref counted to allow the LOD streamer to evaluate the number of readers to it (readers that could access the CPU data).
@@ -334,11 +358,13 @@ struct FStaticMeshLODResources : public FRefCountBase
 public:
 
 	/** Sections for this LOD. */
-	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
 	FStaticMeshSectionArray Sections;
 
 	/** Distance field data associated with this mesh, null if not present.  */
 	class FDistanceFieldVolumeData* DistanceFieldData = nullptr; 
+
+	/** Card Representation data associated with this mesh, null if not present.  */
+	class FCardRepresentationData* CardRepresentationData;
 
 	/** The maximum distance by which this LOD deviates from the base from which it was generated. */
 	float MaxDeviation;
@@ -605,6 +631,8 @@ public:
 	/** Screen size to switch LODs */
 	FPerPlatformFloat ScreenSize[MAX_STATIC_MESH_LODS];
 
+	Nanite::FResources NaniteResources;
+
 	/** Bounds of the renderable mesh. */
 	FBoxSphereBounds Bounds;
 
@@ -650,6 +678,9 @@ public:
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked);
+
+	/** Serialize mesh build data which is inlined. */
+	void SerializeInlineDataRepresentations(FArchive& Ar, UStaticMesh* Owner);
 
 	/** Initialize the render resources. */
 	void InitResources(ERHIFeatureLevel::Type InFeatureLevel, UStaticMesh* Owner);
@@ -930,8 +961,8 @@ public:
 	virtual bool CanBeOccluded() const override;
 	virtual bool IsUsingDistanceCullFade() const override;
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
-	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const override;
-	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const override;
+	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, bool& bOutThrottled) const override;
+	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
 	virtual bool HasDistanceFieldRepresentation() const override;
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
@@ -940,6 +971,8 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+
+	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
 
 #if RHI_RAYTRACING
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
@@ -1036,6 +1069,7 @@ protected:
 	TArray<FLODInfo> LODs;
 
 	const FDistanceFieldVolumeData* DistanceFieldData;	
+	const FCardRepresentationData* CardRepresentationData;	
 
 #if RHI_RAYTRACING
 	bool bDynamicRayTracingGeometry;

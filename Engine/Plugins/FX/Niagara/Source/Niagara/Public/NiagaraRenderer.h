@@ -36,15 +36,20 @@ struct FNiagaraDynamicDataBase
 	FNiagaraDynamicDataBase(FNiagaraDynamicDataBase& Other) = delete;
 	FNiagaraDynamicDataBase& operator=(const FNiagaraDynamicDataBase& Other) = delete;
 
-	FNiagaraDataBuffer* GetParticleDataToRender()const;
-	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return SimTarget; }
-	FORCEINLINE FMaterialRelevance GetMaterialRelevance()const { return MaterialRelevance; }
+	FNiagaraDataBuffer* GetParticleDataToRender(bool bUseTranslucent = false) const;
+	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
+	FORCEINLINE FMaterialRelevance GetMaterialRelevance() const { return MaterialRelevance; }
 
 	FORCEINLINE void SetMaterialRelevance(FMaterialRelevance NewRelevance) { MaterialRelevance = NewRelevance; }
-protected:
 
+	FORCEINLINE FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
+
+	void SetVertexFactoryData(class FNiagaraVertexFactoryBase& VertexFactory);
+
+protected:
 	FMaterialRelevance MaterialRelevance;
 	ENiagaraSimTarget SimTarget;
+	FNiagaraSystemInstanceID SystemInstanceID;
 
 	union
 	{

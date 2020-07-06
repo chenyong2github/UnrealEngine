@@ -5,6 +5,7 @@
 #include "MeshUtilities.h"
 #include "MeshBuild.h"
 #include "MeshSimplify.h"
+#include "SimpVert.h"
 #include "OverlappingCorners.h"
 #include "Templates/UniquePtr.h"
 #include "Features/IModularFeatures.h"
@@ -35,138 +36,21 @@ public:
 DEFINE_LOG_CATEGORY_STATIC(LogQuadricSimplifier, Log, All);
 IMPLEMENT_MODULE(FQuadricSimplifierMeshReductionModule, QuadricMeshReduction);
 
-template< uint32 NumTexCoords >
-class TVertSimp
+void CorrectAttributes( float* Attributes )
 {
-	typedef TVertSimp< NumTexCoords > VertType;
-public:
-	uint32			MaterialIndex;
-	FVector			Position;
-	FVector			Normal;
-	FVector			Tangents[2];
-	FLinearColor	Color;
-	FVector2D		TexCoords[ NumTexCoords ];
+	FVector& Normal		= *reinterpret_cast< FVector* >( Attributes );
+	FVector& TangentX	= *reinterpret_cast< FVector* >( Attributes + 3 );
+	FVector& TangentY	= *reinterpret_cast< FVector* >( Attributes + 3 + 3 );
+	FLinearColor& Color	= *reinterpret_cast< FLinearColor* >( Attributes + 3 + 3 + 3 );
 
-	uint32			GetMaterialIndex() const	{ return MaterialIndex; }
-	FVector&		GetPos()					{ return Position; }
-	const FVector&	GetPos() const				{ return Position; }
-	float*			GetAttributes()				{ return (float*)&Normal; }
-	const float*	GetAttributes() const		{ return (const float*)&Normal; }
-
-	void		Correct()
-	{
-		Normal.Normalize();
-		Tangents[0] -= ( Tangents[0] * Normal ) * Normal;
-		Tangents[0].Normalize();
-		Tangents[1] -= ( Tangents[1] * Normal ) * Normal;
-		Tangents[1] -= ( Tangents[1] * Tangents[0] ) * Tangents[0];
-		Tangents[1].Normalize();
-		Color = Color.GetClamped();
-	}
-
-	bool		Equals(	const VertType& a ) const
-	{
-		if( MaterialIndex != a.MaterialIndex ||
-			!PointsEqual(  Position,	a.Position ) ||
-			!NormalsEqual( Tangents[0],	a.Tangents[0] ) ||
-			!NormalsEqual( Tangents[1],	a.Tangents[1] ) ||
-			!NormalsEqual( Normal,		a.Normal ) ||
-			!Color.Equals( a.Color ) )
-		{
-			return false;
-		}
-
-		// UVs
-		for( int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-		{
-			if( !UVsEqual( TexCoords[ UVIndex ], a.TexCoords[ UVIndex ] ) )
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	bool		operator==(	const VertType& a ) const
-	{
-		if( MaterialIndex	!= a.MaterialIndex ||
-			Position		!= a.Position ||
-			Normal			!= a.Normal ||
-			Tangents[0]		!= a.Tangents[0] ||
-			Tangents[1]		!= a.Tangents[1] ||
-			Color			!= a.Color )
-		{
-			return false;
-		}
-
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			if( TexCoords[i] != a.TexCoords[i] )
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	VertType	operator+( const VertType& a ) const
-	{
-		VertType v;
-		v.MaterialIndex	= MaterialIndex;
-		v.Position		= Position + a.Position;
-		v.Normal		= Normal + a.Normal;
-		v.Tangents[0]	= Tangents[0] + a.Tangents[0];
-		v.Tangents[1]	= Tangents[1] + a.Tangents[1];
-		v.Color			= Color + a.Color;
-
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.TexCoords[i] = TexCoords[i] + a.TexCoords[i];
-		}
-		return v;
-	}
-
-	VertType	operator-( const VertType& a ) const
-	{
-		VertType v;
-		v.MaterialIndex	= MaterialIndex;
-		v.Position		= Position - a.Position;
-		v.Normal		= Normal - a.Normal;
-		v.Tangents[0]	= Tangents[0] - a.Tangents[0];
-		v.Tangents[1]	= Tangents[1] - a.Tangents[1];
-		v.Color			= Color - a.Color;
-		
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.TexCoords[i] = TexCoords[i] - a.TexCoords[i];
-		}
-		return v;
-	}
-
-	VertType	operator*( const float a ) const
-	{
-		VertType v;
-		v.MaterialIndex	= MaterialIndex;
-		v.Position		= Position * a;
-		v.Normal		= Normal * a;
-		v.Tangents[0]	= Tangents[0] * a;
-		v.Tangents[1]	= Tangents[1] * a;
-		v.Color			= Color * a;
-		
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.TexCoords[i] = TexCoords[i] * a;
-		}
-		return v;
-	}
-
-	VertType	operator/( const float a ) const
-	{
-		float ia = 1.0f / a;
-		return (*this) * ia;
-	}
-};
+	Normal.Normalize();
+	TangentX -= ( TangentX | Normal ) * Normal;
+	TangentX.Normalize();
+	TangentY -= ( TangentY | Normal ) * Normal;
+	TangentY -= ( TangentY | TangentX ) * TangentX;
+	TangentY.Normalize();
+	Color = Color.GetClamped();
+}
 
 class FQuadricSimplifierMeshReduction : public IMeshReduction
 {
@@ -179,7 +63,7 @@ public:
 		// VersionString.ParseIntoArray(SplitVersionString, TEXT("_"), true);
 		// bool bUseQuadricSimplier = SplitVersionString[0].Equals("QuadricMeshReduction");
 
-		static FString Version = TEXT("QuadricMeshReduction_V1.0");
+		static FString Version = TEXT("QuadricMeshReduction_V2.0");
 		return Version;
 	}
 
@@ -206,6 +90,7 @@ public:
 
 		TArray< TVertSimp< NumTexCoords > >	Verts;
 		TArray< uint32 >					Indexes;
+		TArray< int32 >						MaterialIndexes;
 
 		TMap< int32, int32 > VertsMap;
 
@@ -221,6 +106,8 @@ public:
 		TPolygonGroupAttributesConstRef<FName> InPolygonGroupMaterialNames = InMeshAttribute.GetPolygonGroupMaterialSlotNames();
 
 		TPolygonGroupAttributesRef<FName> OutPolygonGroupMaterialNames = OutReducedMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+
+		float SurfaceArea = 0.0f;
 
 		int32 WedgeIndex = 0;
 		for (const FPolygonID& PolygonID : InMesh.Polygons().GetElementIDs())
@@ -258,13 +145,6 @@ public:
 					const FVector& VertexPosition = CornerPositions[TriVert];
 
 					TVertSimp< NumTexCoords > NewVert;
-
-					const TArray<FPolygonID>& VertexInstanceConnectedPolygons = InMesh.GetVertexInstanceConnectedPolygons( VertexInstanceID );
-					if (VertexInstanceConnectedPolygons.Num() > 0)
-					{
-						const FPolygonID ConnectedPolygonID = VertexInstanceConnectedPolygons[0];
-						NewVert.MaterialIndex = InMesh.GetPolygonPolygonGroup(ConnectedPolygonID).GetValue();
-					}
 
 					NewVert.Position = CornerPositions[TriVert];
 					NewVert.Tangents[0] = InVertexTangents[ VertexInstanceID ];
@@ -339,9 +219,20 @@ public:
 					continue;
 				}
 
+				{
+					FVector Edge01 = CornerPositions[1] - CornerPositions[0];
+					FVector Edge12 = CornerPositions[2] - CornerPositions[1];
+					FVector Edge20 = CornerPositions[0] - CornerPositions[2];
+
+					float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
+					SurfaceArea += TriArea;
+				}
+
 				Indexes.Add(VertexIndices[0]);
 				Indexes.Add(VertexIndices[1]);
 				Indexes.Add(VertexIndices[2]);
+
+				MaterialIndexes.Add( PolygonGroupID.GetValue() );
 			}
 		}
 
@@ -349,8 +240,9 @@ public:
 		uint32 NumIndexes = Indexes.Num();
 		uint32 NumTris = NumIndexes / 3;
 
+#if 0
 		static_assert(NumTexCoords == 8, "NumTexCoords changed, fix AttributeWeights");
-		const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(uint32) - sizeof(FVector)) / sizeof(float);
+		const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector)) / sizeof(float);
 		float AttributeWeights[] =
 		{
 			16.0f, 16.0f, 16.0f,	// Normal
@@ -427,6 +319,7 @@ public:
 		TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >* MeshSimp = new TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >(Verts.GetData(), NumVerts, Indexes.GetData(), NumIndexes);
 
 		MeshSimp->SetAttributeWeights(AttributeWeights);
+		MeshSimp->SetEdgeWeight( 256.0f );
 		//MeshSimp->SetBoundaryLocked();
 		MeshSimp->InitCosts();
 
@@ -442,9 +335,106 @@ public:
 		NumIndexes = NumTris * 3;
 
 		MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData());
+		MeshSimp->CompactFaceData( MaterialIndexes );
 		delete MeshSimp;
 
 		OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) / 8.0f;
+#else
+		using VertType = TVertSimp< NumTexCoords >;
+
+		float TriangleSize = FMath::Sqrt( SurfaceArea / NumTris );
+	
+		FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
+		FFloat32 DesiredSize( 0.25f );
+		FFloat32 Scale( 1.0f );
+
+		// Lossless scaling by only changing the float exponent.
+		int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
+		Scale.Components.Exponent = Exponent + 127;	//ExpBias
+		float PositionScale = Scale.FloatValue;
+
+
+		const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector ) ) / sizeof(float);
+		float AttributeWeights[ NumAttributes ] =
+		{
+			1.0f, 1.0f, 1.0f,		// Normal
+			0.006f, 0.006f, 0.006f,	// Tangent[0]
+			0.006f, 0.006f, 0.006f	// Tangent[1]
+		};
+		float* ColorWeights = AttributeWeights + 9;
+		float* UVWeights = ColorWeights + 4;
+
+		bool bHasColors = true;
+
+		// Set weights if they are used
+		if( bHasColors )
+		{
+			ColorWeights[0] = 0.0625f;
+			ColorWeights[1] = 0.0625f;
+			ColorWeights[2] = 0.0625f;
+			ColorWeights[3] = 0.0625f;
+		}
+
+		float UVWeight = 1.0f / ( 32.0f * InVertexUVs.GetNumChannels() );
+		for( int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++ )
+		{
+			// Normalize UVWeights using min/max UV range.
+
+			float MinUV = +FLT_MAX;
+			float MaxUV = -FLT_MAX;
+
+			for( int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++ )
+			{
+				MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
+				MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
+				MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
+				MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
+			}
+
+			UVWeights[ 2 * UVIndex + 0 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
+			UVWeights[ 2 * UVIndex + 1 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
+		}
+
+		for( auto& Vert : Verts )
+		{
+			Vert.Position *= PositionScale;
+		}
+
+		int32 TargetNumTris = FMath::CeilToInt(NumTris * ReductionSettings.PercentTriangles);
+		int32 TargetNumVerts = FMath::CeilToInt(NumVerts * ReductionSettings.PercentVertices);
+
+		// We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
+		TargetNumTris = FMath::Max( TargetNumTris, 2 );
+
+		FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
+
+		Simplifier.SetAttributeWeights( AttributeWeights );
+		Simplifier.SetCorrectAttributes( CorrectAttributes );
+		Simplifier.SetEdgeWeight( 4.0f );
+
+		float MaxErrorSqr = Simplifier.Simplify( TargetNumVerts, TargetNumTris );
+
+		check( Simplifier.GetRemainingNumVerts() > 0 );
+		check( Simplifier.GetRemainingNumTris() > 0 );
+		
+		Simplifier.Compact();
+	
+		Verts.SetNum( Simplifier.GetRemainingNumVerts() );
+		Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
+		MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
+
+		NumVerts = Simplifier.GetRemainingNumVerts();
+		NumTris = Simplifier.GetRemainingNumTris();
+		NumIndexes = NumTris * 3;
+
+		float InvScale = 1.0f / PositionScale;
+		for( auto& Vert : Verts )
+		{
+			Vert.Position *= InvScale;
+		}
+
+		OutMaxDeviation = FMath::Sqrt( MaxErrorSqr ) * InvScale;
+#endif
 
 		{
 			//Empty the destination mesh
@@ -514,7 +504,7 @@ public:
 				}
 				
 				// material index
-				int32 MaterialIndex = Verts[Indexes[3 * TriangleIndex]].MaterialIndex;
+				int32 MaterialIndex = MaterialIndexes[TriangleIndex];
 				FPolygonGroupID MaterialPolygonGroupID = INDEX_NONE;
 				if (!PolygonGroupMapping.Contains(MaterialIndex))
 				{

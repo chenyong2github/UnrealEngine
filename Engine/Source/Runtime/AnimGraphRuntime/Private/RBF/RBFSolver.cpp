@@ -5,8 +5,17 @@
 #include "RBF/RBFInterpolator.h"
 
 #include "EngineLogs.h"
-
 #include "Containers/Set.h"
+#include "Misc/MemStack.h"
+
+
+struct FRBFSolverData
+{
+	FRBFParams Params;
+	TArray<FRBFEntry> EntryTargets;
+	TRBFInterpolator<FRBFEntry> Rbf;
+};
+
 
 FRotator FRBFEntry::AsRotator(int32 Index) const
 {
@@ -58,7 +67,7 @@ void FRBFEntry::AddFromVector(const FVector& InVector)
 FRBFParams::FRBFParams()
 	: TargetDimensions(3)
 	, SolverType(ERBFSolverType::Additive)
-	, Radius(1.f)
+	, Radius(45.f)
 	, Function(ERBFFunctionType::Gaussian)
 	, DistanceMethod(ERBFDistanceMethod::Euclidean)
 	, TwistAxis(EBoneAxis::BA_X)
@@ -93,7 +102,7 @@ static float GetDistanceBetweenEntries(
 	const FRBFEntry& A,
 	const FRBFEntry& B,
 	ERBFDistanceMethod DistanceMetric,
-	const FVector &TwistAxis
+	const FVector& TwistAxis
 )
 {
 	check(A.GetDimensions() == B.GetDimensions());
@@ -142,8 +151,8 @@ float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry
 
 // Sigma controls the falloff width. The larger the value the narrower the falloff
 static float GetWeightedValue(
-	float Value, 
-	float Sigma, 
+	float Value,
+	float Sigma,
 	ERBFFunctionType FalloffFunctionType,
 	bool bBackCompFix = false
 )
@@ -196,7 +205,7 @@ static float GetWeightedValue(
 
 static auto InterpolativeWeightFunction(
 	const FRBFParams& Params
-	)
+)
 {
 	// This is fairly arbitrary, but is done to maintain a close relationship with how the radius 
 	// controls the falloff distance in the additive solver.
@@ -263,8 +272,8 @@ static void SolveAdditive(
 	const FRBFParams& Params,
 	const TArray<FRBFTarget>& Targets,
 	const FRBFEntry& Input,
-	TArray<float>& AllWeights
-	)
+	float* AllWeights
+)
 {
 	// Iterate over each pose, adding its contribution
 	for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
@@ -284,7 +293,7 @@ static void SolveAdditive(
 		// Apply custom curve if desired
 		if (Target.bApplyCustomCurve)
 		{
-			Weight = Target.CustomCurve.Eval(Weight, Weight); // default is un-mapped Weight
+			Weight = Target.CustomCurve.Eval(Weight, Weight); // default is unmapped Weight
 		}
 
 		// Add to array of all weights. Don't threshold yet, wait for normalization step.
@@ -292,60 +301,90 @@ static void SolveAdditive(
 	}
 }
 
-
-static void SolveInterpolative(
-	const FRBFParams& Params,
-	const TArray<FRBFTarget>& Targets,
-	const FRBFEntry& Input,
-	TArray<float> &AllWeights
-	)
+TSharedPtr<const FRBFSolverData> FRBFSolver::InitSolver(const FRBFParams& Params, const TArray<FRBFTarget>& Targets)
 {
-	check(Input.GetDimensions() == 3);
+	FRBFSolverData* InitData = new FRBFSolverData;
 
-	TArray<FRBFEntry> EntryTargets;
-	for (const auto& T : Targets)
-		EntryTargets.Add(T);
+	InitData->Params = Params;
 
-	// FIXME: We ought to be able to store the initial RBF interpolator matrix and re-use it between solves
-	// but that requires larger changes in the PoseDriver and how this code is wrapped.
-	TRBFInterpolator<FRBFEntry> Rbf(EntryTargets, InterpolativeWeightFunction(Params));
-
-	Rbf.Interpolate(AllWeights, Input);
-
-	// Scale the weight by the scale factor on the target.
-	for (int32 i = 0; i < Targets.Num(); i++)
+	if (Params.SolverType == ERBFSolverType::Interpolative)
 	{
-		AllWeights[i] *= Targets[i].ScaleFactor;
+		for (const FRBFTarget& T : Targets)
+			InitData->EntryTargets.Add(T);
+
+		InitData->Rbf = TRBFInterpolator<FRBFEntry>(InitData->EntryTargets, InterpolativeWeightFunction(Params));
 	}
 
+	return TSharedPtr<const FRBFSolverData>(InitData);
+}
+
+
+bool FRBFSolver::IsSolverDataValid(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets)
+{
+	if (SolverData.EntryTargets.Num() != Targets.Num())
+		return false;
+
+	for (int32 i = 0; i < Targets.Num(); i++)
+	{
+		const TArray<float>& ValuesA = Targets[i].Values;
+		const TArray<float>& ValuesB = SolverData.EntryTargets[i].Values;
+
+		if (ValuesA.Num() != ValuesB.Num())
+		{
+			return false;
+		}
+
+		for (int j = 0; j < ValuesA.Num(); j++)
+		{
+			if (!FMath::IsNearlyEqualByULP(ValuesA[j], ValuesB[j]))
+			{
+				return false;
+			}
+		}
+	}
+
+	return SolverData.Params.SolverType == Params.SolverType &&
+		FMath::IsNearlyEqualByULP(SolverData.Params.Radius, Params.Radius) &&
+		SolverData.Params.Function == Params.Function &&
+		SolverData.Params.DistanceMethod == Params.DistanceMethod &&
+		SolverData.Params.TwistAxis == Params.TwistAxis;
 }
 
 
 void FRBFSolver::Solve(
-	const FRBFParams& Params, 
-	const TArray<FRBFTarget>& Targets, 
-	const FRBFEntry& Input, 
+	const FRBFSolverData& SolverData,
+	const FRBFParams& Params,
+	const TArray<FRBFTarget>& Targets,
+	const FRBFEntry& Input,
 	TArray<FRBFOutputWeight>& OutputWeights
-	)
+)
 {
 	if (!ensure(Params.TargetDimensions == Input.GetDimensions()))
 	{
 		return;
 	}
 
-	TArray<float> AllWeights;
+	TArray<float, TMemStackAllocator<>> AllWeights;
 	AllWeights.AddZeroed(Targets.Num());
 
-	switch (Params.SolverType)
+	switch (SolverData.Params.SolverType)
 	{
 	case ERBFSolverType::Additive:
 	default:
-		SolveAdditive(Params, Targets, Input, AllWeights);
+		SolveAdditive(Params, Targets, Input, AllWeights.GetData());
 		break;
 
 	case ERBFSolverType::Interpolative:
-		SolveInterpolative(Params, Targets, Input, AllWeights);
+	{
+		SolverData.Rbf.Interpolate(AllWeights, Input);
+
+		// Scale the weight by the scale factor on the target.
+		for (int32 i = 0; i < Targets.Num(); i++)
+		{
+			AllWeights[i] *= Targets[i].ScaleFactor;
+		}
 		break;
+	}
 	}
 
 	float TotalWeight = 0.f; // Keep track of total weight generated, to normalize at the end
@@ -366,46 +405,46 @@ void FRBFSolver::Solve(
 		{
 			switch (Params.NormalizeMethod)
 			{
-				case ERBFNormalizeMethod::OnlyNormalizeAboveOne:
+			case ERBFNormalizeMethod::OnlyNormalizeAboveOne:
+			{
+				break;
+			}
+			case ERBFNormalizeMethod::AlwaysNormalize:
+			{
+				WeightScale = 1.f / TotalWeight;
+				break;
+			}
+			case ERBFNormalizeMethod::NormalizeWithinMedian:
+			{
+				if (Params.MedianMax < Params.MedianMin)
 				{
 					break;
 				}
-				case ERBFNormalizeMethod::AlwaysNormalize:
+
+				FRBFEntry MedianEntry;
+				while (Input.GetDimensions() > MedianEntry.GetDimensions())
+				{
+					MedianEntry.AddFromVector(Params.MedianReference);
+				}
+
+				float MedianDistance = FindDistanceBetweenEntries(Input, MedianEntry, Params);
+				if (MedianDistance > Params.MedianMax)
+				{
+					break;
+				}
+				if (MedianDistance <= Params.MedianMin)
 				{
 					WeightScale = 1.f / TotalWeight;
 					break;
 				}
-				case ERBFNormalizeMethod::NormalizeWithinMedian:
-				{
-					if (Params.MedianMax < Params.MedianMin)
-					{
-						break;
-					}
 
-					FRBFEntry MedianEntry;
-					while (Input.GetDimensions() > MedianEntry.GetDimensions())
-					{
-						MedianEntry.AddFromVector(Params.MedianReference);
-					}
-					
-					float MedianDistance = FindDistanceBetweenEntries(Input, MedianEntry, Params);
-					if (MedianDistance > Params.MedianMax)
-					{
-						break;
-					}
-					if (MedianDistance <= Params.MedianMin)
-					{
-						WeightScale = 1.f / TotalWeight;
-						break;
-					}
-
-					float Bias = FMath::Clamp<float>((MedianDistance - Params.MedianMin) / (Params.MedianMax - Params.MedianMin), 0.f, 1.f);
-					WeightScale = FMath::Lerp<float>(1.f / TotalWeight, 1.f, Bias);
-					break;
-				}
+				float Bias = FMath::Clamp<float>((MedianDistance - Params.MedianMin) / (Params.MedianMax - Params.MedianMin), 0.f, 1.f);
+				WeightScale = FMath::Lerp<float>(1.f / TotalWeight, 1.f, Bias);
+				break;
+			}
 			}
 		}
-		
+
 		/// TotalWeight : (Params.bNormalizeWeightsBelowSumOfOne ? 1.f / TotalWeight : 1.f);
 		for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
 		{

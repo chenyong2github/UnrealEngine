@@ -17,7 +17,7 @@ class FCompositionLighting
 public:
 	void ProcessBeforeBasePass(FRHICommandListImmediate& RHICmdList, FViewInfo& View, bool bDBuffer, uint32 SSAOLevels);
 
-	void ProcessAfterBasePass(FRHICommandListImmediate& RHICmdList,  FViewInfo& View);
+	void ProcessAfterBasePass(FRHICommandListImmediate& RHICmdList,  FViewInfo& View, bool bSSAO);
 
 	// only call if LPV is enabled
 	void ProcessLpvIndirect(FRHICommandListImmediate& RHICmdList, FViewInfo& View);

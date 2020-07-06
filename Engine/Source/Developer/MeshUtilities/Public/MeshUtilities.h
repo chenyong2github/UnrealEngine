@@ -213,6 +213,14 @@ public:
 		bool bGenerateAsIfTwoSided,
 		class FDistanceFieldVolumeData& OutData) = 0;
 
+	virtual bool GenerateCardRepresentationData(
+		FString MeshName,
+		const FStaticMeshLODResources& LODModel,
+		class FQueuedThreadPool& ThreadPool,
+		const FBoxSphereBounds& Bounds,
+		const class FDistanceFieldVolumeData* DistanceFieldVolumeData,
+		class FCardRepresentationData& OutData) = 0;
+
 	/** 
 	 * Down sample distance field volume. 
 	 * Method overwrites data of DistanceFieldData. 

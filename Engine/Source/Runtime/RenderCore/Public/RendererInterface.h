@@ -475,6 +475,7 @@ struct FSceneRenderTargetItem
 	/** only created if requested through meta data access flags */
 	FUnorderedAccessViewRHIRef HTileUAV;
 	FShaderResourceViewRHIRef  HTileSRV;
+	FUnorderedAccessViewRHIRef StencilUAV;
 };
 
 /**

@@ -44,8 +44,16 @@
 #include "RayTracingInstance.h"
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
+#include "GPUSortManager.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "GPUSortManager.h"
+#include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteStreamingManager.h"
+#include "SceneTextureReductions.h"
+#include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+
+extern int32 GNaniteDebugFlags;
+extern int32 GNaniteShowStats;
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("r.StencilForLODDither"),
@@ -203,6 +211,11 @@ static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	ECVF_RenderThreadSafe);
 #endif
 
+namespace Nanite
+{
+	extern bool IsStatFilterActive(const FString& FilterName);
+	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
+}
 
 DECLARE_CYCLE_STAT(TEXT("PostInitViews FlushDel"), STAT_PostInitViews_FlushDel, STATGROUP_InitViews);
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
@@ -420,8 +433,6 @@ void FDeferredShadingSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICm
 	FSceneRenderTargets::Get(RHICmdList).SetLightAttenuation(0);
 }
 
-void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View);
-
 /** 
 * Renders the view family. 
 */
@@ -483,37 +494,59 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 
 	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilRead, SceneContext.GetSceneDepthSurface());
 
-	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
-	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 
 		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 
-		FSceneViewState* ViewState = (FSceneViewState*)View.State;
+		FSceneViewState* ViewState = View.ViewState;
+		const FPerViewPipelineState& ViewPipelineState = *ViewPipelineStates[ViewIndex];
 
-		const bool bSSR  = ShouldRenderScreenSpaceReflections(View);
-		const bool bSSAO = ShouldRenderScreenSpaceAmbientOcclusion(View);
-		const bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
-		const bool bHair = DoesHairStrandsRequestHzb(Scene->GetShaderPlatform());
-
-		if (bSSAO || bHZBOcclusion || bSSR || bSSGI || bHair)
+		if (ViewPipelineState.bClosestHZB || ViewPipelineState.bFurthestHZB)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
+			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("BuildHZB(ViewId=%d)", ViewIndex));
 
 			FSceneTextureParameters SceneTextures;
 			SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
-				BuildHZB(GraphBuilder, SceneTextures, Views[ViewIndex]);
+
+				FRDGTextureRef ClosestHZBTexture = nullptr;
+				FRDGTextureRef FurthestHZBTexture = nullptr;
+
+				check(ViewPipelineState.bFurthestHZB == true);
+				BuildHZB(
+					GraphBuilder,
+					SceneTextures.SceneDepthBuffer,
+					/* VisBufferTexture = */ nullptr,
+					View,
+					/* OutClosestHZBTexture = */ ViewPipelineState.bClosestHZB ? &ClosestHZBTexture : nullptr,
+					/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
+
+				// Update the view.
+				{
+					View.HZBMipmap0Size = FurthestHZBTexture->Desc.Extent;
+
+					// Extract furthest HZB texture.
+					GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.HZB);
+					if (View.ViewState)
+					{
+						GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.ViewState->PrevFrameViewInfo.HZB);
+					}
+
+					// Extract closest HZB texture.
+					if (ViewPipelineState.bClosestHZB)
+					{
+						GraphBuilder.QueueTextureExtraction(ClosestHZBTexture, &View.ClosestHZB);
+					}
+				}
 			}
 			GraphBuilder.Execute();
 		}
 
-		if (bHZBOcclusion && ViewState && ViewState->HZBOcclusionTests.GetNum() != 0)
+		if (FamilyPipelineState->bHZBOcclusion && ViewState && ViewState->HZBOcclusionTests.GetNum() != 0)
 		{
 			check(ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
 
@@ -528,7 +561,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		GCompositionLighting.ProcessAsyncSSAO(RHICmdList, Views);
 	}
 
-	return bHZBOcclusion;
+	return FamilyPipelineState->bHZBOcclusion;
 }
 
 void FDeferredShadingSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList)
@@ -1391,6 +1424,57 @@ static TAutoConsoleVariable<float> CVarStallInitViews(
 	0.0f,
 	TEXT("Sleep for the given time after InitViews. Time is given in ms. This is a debug option used for critical path analysis and forcing a change in the critical path."));
 
+void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
+{
+	ViewPipelineStates.SetNum(Views.Num());
+
+	// Family pipeline state
+	{
+		// TODO
+		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, true);
+
+		static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
+		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion,
+			ICVarHZBOcc->GetInt() != 0);	
+	}
+
+	CommitIndirectLightingState();
+
+	// Views pipeline states
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+		TPipelineState<FPerViewPipelineState>& ViewPipelineState = ViewPipelineStates[ViewIndex];
+
+		// Commit HZB state
+		{
+			const bool bHasSSGI = ViewPipelineState[&FPerViewPipelineState::bEnableSSGI];
+
+			// Requires FurthestHZB
+			ViewPipelineState.Set(&FPerViewPipelineState::bFurthestHZB,
+				FamilyPipelineState[&FFamilyPipelineState::bHZBOcclusion] ||
+				FamilyPipelineState[&FFamilyPipelineState::bNanite] ||
+				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
+				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
+				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::HybridLumenSSR ||
+				bHasSSGI);
+
+			// SSGI requires ClosestHZB
+			ViewPipelineState.Set(&FPerViewPipelineState::bClosestHZB, 
+				bHasSSGI || ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy]);
+		}
+	}
+
+	// Commit all the pipeline states.
+	{
+		for (TPipelineState<FPerViewPipelineState>& ViewPipelineState : ViewPipelineStates)
+		{
+			ViewPipelineState.Commit();
+		}
+		FamilyPipelineState.Commit();
+	} 
+}
+
 void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
@@ -1399,6 +1483,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 
+	// Setups the final FViewInfo::ViewRect.
 	PrepareViewRectsForRendering();
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
@@ -1477,6 +1562,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 
+	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
+	const bool bShouldRenderNanite = ViewFamily.EngineShowFlags.NaniteMeshes && EnableNaniteCVar->GetInt() > 0;
+
+	// Nanite materials do not currently support most debug view modes.
+	const bool bShouldApplyNaniteMaterials
+		 = !ViewFamily.EngineShowFlags.ShaderComplexity
+		&& !ViewFamily.UseDebugViewPS()
+		&& !bIsWireframe
+		&& !ViewFamily.EngineShowFlags.LightMapDensity;
+
 	// Use readonly depth in the base pass if we have a full depth prepass
 	const bool bAllowReadonlyDepthBasePass = EarlyZPassMode == DDM_AllOpaque
 		&& !ViewFamily.EngineShowFlags.ShaderComplexity
@@ -1494,11 +1589,17 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Find the visible primitives.
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
+	Nanite::GStreamingManager.Update(RHICmdList);	// Must happen before Lumen / Probe, so newly loaded meshes have data
+
 	bool bDoInitViewAftersPrepass = false;
 	{
 		SCOPED_GPU_STAT(RHICmdList, VisibilityCommands);
 		bDoInitViewAftersPrepass = InitViews(RHICmdList, BasePassDepthStencilAccess, ILCTaskData);
 	}
+
+	// Compute & commit the final state of the entire dependency topology of the renderer.
+	CommitFinalPipelineState();
 
 #if !UE_BUILD_SHIPPING
 	if (CVarStallInitViews.GetValueOnRenderThread() > 0.0f)
@@ -1554,16 +1655,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, GPUSceneUpdate);
 
-		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
-		{
-			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
-			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-		}
-
-		UpdateGPUScene(RHICmdList, *Scene);
-
 		if (bUseVirtualTexturing)
 		{
 			SCOPED_GPU_STAT(RHICmdList, VirtualTextureFeedback);
@@ -1575,6 +1666,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToGfx, FeedbackUAV);
 		}
+
+		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
+		{
+			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
+			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		}
+
+		UpdateGPUScene(RHICmdList, *Scene);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -1606,7 +1707,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	static const auto ClearMethodCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ClearSceneMethod"));
 	bool bRequiresRHIClear = true;
 	bool bRequiresFarZQuadClear = false;
 
@@ -1619,24 +1719,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&& bUseGBuffer
 		&& bCanOverlayRayTracingOutput;
 
-	bool bComputeLightGrid = false;
-	// Simple forward shading doesn't support local lights. No need to compute light grid
-	if (!IsSimpleForwardShadingEnabled(ShaderPlatform))
-	{
-		if (bUseGBuffer)
-		{
-			bComputeLightGrid = bRenderDeferredLighting;
-		}
-		else
-		{
-			bComputeLightGrid = ViewFamily.EngineShowFlags.Lighting;
-		}
-
-		bComputeLightGrid |= (
-			ShouldRenderVolumetricFog() ||
-			ViewFamily.ViewMode != VMI_Lit);
-	}
-
+	static const auto ClearMethodCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ClearSceneMethod"));
 	if (ClearMethodCVar)
 	{
 		int32 ClearMethod = ClearMethodCVar->GetValueOnRenderThread();
@@ -1831,6 +1914,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	Nanite::ListStatFilters(this);
+
 	// The Z-prepass
 
 	// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
@@ -1860,11 +1945,127 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+	NaniteRasterResults.AddDefaulted(Views.Num());
+
+	if (bShouldRenderNanite && Views.Num() > 0)
+	{
+		LLM_SCOPE(ELLMTag::Nanite);
+		//TODO Brian - removing for link error.  renderer doesn't / probably shouldn't depend on engine module.
+		//SCOPED_GPU_STAT(RHICmdList, NaniteRaster);
+
+		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
+		const FIntPoint RasterTextureSize = SceneTargets.SceneDepthZ->GetDesc().Extent;
+
+		const FViewInfo& PrimaryViewRef = Views[0];
+		const FIntRect PrimaryViewRect = PrimaryViewRef.ViewRect;
+		
+		// Primary raster view
+		{
+			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("Nanite"));
+
+			Nanite::FRasterState RasterState;
+
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, PrimaryViewRect, RasterTextureSize);
+
+			const bool bTwoPassOcclusion = true;
+			const bool bUpdateStreaming = true;
+			const bool bSupportsMultiplePasses = false;
+			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				const FViewInfo& View = Views[ViewIndex];
+
+				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+					GraphBuilder,
+					*Scene,
+					EarlyZPassMode != DDM_AllOpaque ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
+					View.PrevViewInfo.ViewRect,
+					bTwoPassOcclusion,
+					bUpdateStreaming,
+					bSupportsMultiplePasses,
+					bForceHWRaster);
+
+				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
+				const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
+
+				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, RasterTextureSize, /*StreamingPriorityCategory*/ 3);
+
+				Nanite::CullRasterize(
+					GraphBuilder,
+					*Scene,
+					{ PackedView },
+					CullingContext,
+					RasterContext,
+					RasterState,
+					/*OptionalInstanceDraws*/ nullptr,
+					bExtractStats
+				);
+
+				if( EarlyZPassMode != DDM_AllOpaque && bTwoPassOcclusion && View.ViewState )
+				{
+					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
+					RDG_EVENT_SCOPE(GraphBuilder, "BuildNaniteHZB");
+
+					FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy );
+					FRDGTextureRef GraphHZB = nullptr;
+
+					BuildHZB(
+						GraphBuilder,
+						SceneDepth,
+						RasterContext.VisBuffer64,
+						RasterContext.ViewRect,
+						/* OutClosestHZBTexture = */ nullptr,
+						/* OutFurthestHZBTexture = */ &GraphHZB );
+					
+					GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );
+				}
+
+				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
+			}
+
+			GraphBuilder.Execute();
+		}
+
+		if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0)
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			Nanite::PrintStats(GraphBuilder, PrimaryViewRef);
+			GraphBuilder.Execute();
+		}
+	}
+
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
 	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
 
 	SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
+
+	// TODO: Move decision logic to separate function for readability
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+	bool bComputeLightGrid = false;
+	// Simple forward shading doesn't support local lights. No need to compute light grid
+	if (!IsSimpleForwardShadingEnabled(ShaderPlatform))
+	{
+		if (bUseGBuffer)
+		{
+			bComputeLightGrid = bRenderDeferredLighting;
+		}
+		else
+		{
+			bComputeLightGrid = ViewFamily.EngineShowFlags.Lighting;
+		}
+
+		extern int32 GAllowLumenScene;
+		bComputeLightGrid |= (
+			ShouldRenderVolumetricFog() ||
+			ViewFamily.ViewMode != VMI_Lit ||
+			GAllowLumenScene);
+
+
+		bComputeLightGrid = bComputeLightGrid || EnableVirtualSMCVar->GetValueOnRenderThread() != 0;
+	}
 
 	// NOTE: The ordering of the lights is used to select sub-sets for different purposes, e.g., those that support clustered deferred.
 	FSortedLightSetSceneInfo SortedLightSet;
@@ -1884,12 +2085,44 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
 		SceneContext.PreallocGBufferTargets(); // Even if !bShouldRenderVelocities, the velocity buffer must be bound because it's a compile time option for the shader.
 		SceneContext.AllocGBufferTargets(RHICmdList);
-	}	
+	}
 
+	// Local helper function to perform virtual shadow map allocation, which can occur early, or late.
+	auto AllocateVirtualShadowMaps = [
+		&RHICmdList,
+		&SortedLightSet, 
+		&NaniteRasterResults,
+		&VisibleLightInfos=VisibleLightInfos,
+		&VirtualShadowMapArray=VirtualShadowMapArray,
+		&Views= Views, 
+		VirtualShadowMapArrayCacheManager = Scene->VirtualShadowMapArrayCacheManager](bool bPostBasePass)
+	{
+		static const auto CVarEnableVirtualSM = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+
+		if (CVarEnableVirtualSM->GetValueOnRenderThread() != 0)
+		{
+			if (CVarEnableVirtualSM->GetValueOnRenderThread() > 1)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList);
+				VirtualShadowMapArray.GenerateIdentityPageTables(GraphBuilder, CVarEnableVirtualSM->GetValueOnRenderThread() - 2);
+				GraphBuilder.Execute();
+			}
+			else
+			{
+				// ensure(LightGridWasBuilt)
+				// ensure(ShadowMapSetupDone)
+				{
+					FRDGBuilder GraphBuilder(RHICmdList);
+					VirtualShadowMapArray.GeneratePageFlagsFromLightGrid(GraphBuilder, Views, SortedLightSet, VisibleLightInfos, NaniteRasterResults, bPostBasePass, VirtualShadowMapArrayCacheManager);
+					GraphBuilder.Execute();
+				}
+			}
+		}
+	};
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	// Early occlusion queries
-	const bool bOcclusionBeforeBasePass = (EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque);
+	const bool bOcclusionBeforeBasePass = !FamilyPipelineState->bNanite && ((EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));	//HACK: build HZB after Nanite like before
 
 	if (bOcclusionBeforeBasePass)
 	{
@@ -1920,6 +2153,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Early Shadow depth rendering
 	if (bOcclusionBeforeBasePass)
 	{
+		AllocateVirtualShadowMaps(false);
 		RenderShadowDepthMaps(RHICmdList);
 		ServiceLocalQueue();
 	}
@@ -1972,6 +2206,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bOcclusionBeforeBasePass)
 	{
+		{
+			LLM_SCOPE(ELLMTag::Lumen);
+			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneLighting"));
+			RenderLumenSceneLighting(GraphBuilder, Views[0]);
+			GraphBuilder.Execute();
+		}
+
 		ComputeVolumetricFog(RHICmdList);
 	}
 
@@ -2020,6 +2261,18 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			if (!IsForwardShadingEnabled(ShaderPlatform) || !View.HZB.IsValid() || FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels))
 			{
 				SSAOLevels = 0;
+			}
+
+			// Disable Nanite Pre Pass to prevent DBuffer decal rendering on Nanite meshes.
+			// Enable once all platforms support pre pass depth output.
+			if (bShouldRenderNanite && 0)
+			{
+				Nanite::DrawPrePass(
+					RHICmdList,
+					*Scene,
+					Views[ViewIndex],
+					NaniteRasterResults[ViewIndex]
+					);
 			}
 
 			GCompositionLighting.ProcessBeforeBasePass(RHICmdList, View, bDBuffer, SSAOLevels);
@@ -2195,12 +2448,22 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.FinishGBufferPassAndResolve(RHICmdList, BasePassDepthStencilAccess);
 	}
 
+	if (bShouldRenderNanite && bShouldApplyNaniteMaterials)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			Nanite::DrawBasePass(RHICmdList, *Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex]);
+		}
+	}
+
 	if (!bAllowReadonlyDepthBasePass)
 	{
 		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 	}
 
 	// BASE PASS ENDS HERE.
+
+	UpdateLumenScene(RHICmdList);
 
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling)
 	{
@@ -2260,14 +2523,45 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Shadow and fog after base pass
 	if (!bOcclusionBeforeBasePass)
 	{
+		AllocateVirtualShadowMaps(true);
 		RenderShadowDepthMaps(RHICmdList);
 
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
-		ComputeVolumetricFog(RHICmdList);
+		{
+			LLM_SCOPE(ELLMTag::Lumen);
+			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneLighting"));
+			RenderLumenSceneLighting(GraphBuilder, Views[0]);
+			GraphBuilder.Execute();
+		}
+		
 		ServiceLocalQueue();
 	}
 	// End shadow and fog after base pass
+
+	{
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("VolumetricFog_VSMStats_NaniteStreaming"));
+
+		if (!bOcclusionBeforeBasePass)
+		{
+			ComputeVolumetricFog(GraphBuilder);
+		}
+
+		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager);
+
+		if (Views.Num() > 0)
+		{
+			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
+		}
+
+		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
+		GraphBuilder.Execute();
+	}
+
+	if (Scene->VirtualShadowMapArrayCacheManager)
+	{
+		Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(VirtualShadowMapArray, RHICmdList);
+	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
@@ -2363,12 +2657,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			FViewInfo& View = Views[ViewIndex];
 
+			TPipelineState<FPerViewPipelineState>& ViewPipelineState = ViewPipelineStates[ViewIndex];
+
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
 
 			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
-			GCompositionLighting.ProcessAfterBasePass(RHICmdList, View);
+			bool bEnableSSAO = ViewPipelineState->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
+
+			GCompositionLighting.ProcessAfterBasePass(RHICmdList, View, bEnableSSAO);
 		}
 		ServiceLocalQueue();
 	}
@@ -2409,7 +2707,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		GRenderTargetPool.AddPhaseEvent(TEXT("Lighting"));
 
-		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList);
+		TRefCountPtr<IPooledRenderTarget> LumenRoughSpecularIndirect;
+		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* out */ LumenRoughSpecularIndirect, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		RenderIndirectCapsuleShadows(
@@ -2490,9 +2789,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
-		RenderDeferredReflectionsAndSkyLighting(RHICmdList, DynamicBentNormalAO, SceneContext.SceneVelocity, HairDatas);
+		RenderDeferredReflectionsAndSkyLighting(RHICmdList, DynamicBentNormalAO, SceneContext.SceneVelocity, HairDatas, LumenRoughSpecularIndirect);
 
 		DynamicBentNormalAO = NULL;
+		LumenRoughSpecularIndirect = nullptr;
 
 		// SSS need the SceneColor finalized as an SRV.
 		ResolveSceneColor(RHICmdList);
@@ -2872,6 +3172,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 	}
 
+	RenderLumenSceneVisualization(RHICmdList);
+	{
+		TRefCountPtr<IPooledRenderTarget> LumenRoughSpecularIndirect;
+		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* out */ LumenRoughSpecularIndirect, /* bIsVisualizePass = */ true);
+	}
+
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap &&
 		FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
@@ -2886,7 +3192,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		for (const FViewInfo& View : Views)
 		{
-			if (ShouldKeepBleedFreeSceneColor(View))
+			if (ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
 			{
 				FSceneViewState* ViewState = View.ViewState;
 				ViewState->PrevFrameViewInfo.DepthBuffer = SceneContext.SceneDepthZ;
@@ -2911,7 +3217,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		GRenderTargetPool.AddPhaseEvent(TEXT("PostProcessing"));
 
-		FRDGBuilder GraphBuilder(RHICmdList);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PostProcessing"));
 
 #if WITH_MGPU
 		static const FName NAME_PostProcessing(TEXT("PostProcessing"));
@@ -2940,40 +3246,23 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];
+   				const Nanite::FRasterResults* NaniteResults = bShouldRenderNanite ? &NaniteRasterResults[ViewIndex] : nullptr;
 
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
+				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
-		else 
+		else
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];
+				const Nanite::FRasterResults* NaniteResults = bShouldRenderNanite ? &NaniteRasterResults[ViewIndex] : nullptr;
 
-#if !(UE_BUILD_SHIPPING)
-
-				if (IsPostProcessVisualizeCalibrationMaterialEnabled(View))
-				{
-					const UMaterialInterface* DebugMaterialInterface = GetPostProcessVisualizeCalibrationMaterialInterface(View);
-					check(DebugMaterialInterface);
-
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-					AddVisualizeCalibrationMaterialPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, DebugMaterialInterface);
-
-				}
-				else
-				{
-#endif
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-					AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
-
-#if !(UE_BUILD_SHIPPING)
-				}
-#endif
+				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+				AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
 

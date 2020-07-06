@@ -83,6 +83,13 @@
 	/** Compress depth and view normal. */
 	#define METADATA_BUFFER_LAYOUT_DEPTH_VIEWNORMAL 2
 
+	/** Compress depth shading model id. */
+	#define METADATA_BUFFER_LAYOUT_FED_DEPTH_SHADINGMODEL 3
+
+	/** Uncompressed translated world position and shading model id. */
+	#define METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL 4
+
+
 
 
 /** Layouts of the signal buffer. */
@@ -155,6 +162,16 @@
 	#define SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10 0xD301
 
 
+	/** Buffer layouts for Lumen diffuse indirect. */
+	#define SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_INPUT 0xD400
+
+	#define SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_HISTORY 0xD401
+
+
+	/** Buffer layouts for Lumen diffuse indirect. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_INPUT 0xD500
+
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_HISTORY 0xD501
 
 
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
@@ -178,6 +195,12 @@
 
 	/** Diffuse indirect using spherical harmonic. */
 	#define SIGNAL_PROCESSING_SSGI 6
+
+	/** Diffuse indirect using spherical harmonic. */
+	#define SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY 7
+
+	/** Virtual shadow map mask */
+	#define SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK 8
 
 
 
@@ -228,6 +251,8 @@
 	#define SAMPLE_SET_DIRECTIONAL_RECT 14
 	#define SAMPLE_SET_DIRECTIONAL_ELLIPSE 15
 
+	#define SAMPLE_SET_RAW_EXPERIMENTAL_KERNEL 16
+
 
 /** Compression of signal for VGPR occupency. */
 	/** The signal is not being compressed. */
@@ -268,6 +293,7 @@
 	#define BILATERAL_TOKOYASHI_LOBE 0x0020
 	#define BILATERAL_TOKOYASHI_AXES 0x0040
 	#define BILATERAL_TOKOYASHI (BILATERAL_TOKOYASHI_LOBE | BILATERAL_TOKOYASHI_AXES)
+	#define BILATERAL_SHADING_MODEL 0x0080
 
 /** Bilateral settings presets for spatial kernels. */
 	// No bilateral settings.
@@ -285,6 +311,7 @@
 
 	#define BILATERAL_PRESET_SPHERICAL_HARMONIC 0x3001
 
+	#define BILATERAL_PRESET_PROBE_HIERARCHY 0xF000
 
 
 

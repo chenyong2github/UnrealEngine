@@ -52,6 +52,10 @@
 #define COMPILER_HLSL 0
 #endif
 
+#ifndef COMPILER_PSSL
+#define COMPILER_PSSL 0
+#endif
+
 #ifndef COMPILER_GLSL
 #define COMPILER_GLSL 0
 #endif
@@ -160,8 +164,10 @@
 #define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 0
 #endif
 
-#ifndef COMPILER_SUPPORTS_BITFIELD_INTRINSICS
-#define COMPILER_SUPPORTS_BITFIELD_INTRINSICS 0
+#ifndef PLATFORM_SUPPORTS_REAL_TYPES
+#define PLATFORM_SUPPORTS_REAL_TYPES 0
+#elif FORCE_FLOATS
+#error Collision between FORCE_FLOATS and PLATFORM_SUPPORTS_REAL_TYPES
 #endif
 
 #ifndef COMPILER_SUPPORTS_PACK_INTRINSICS
@@ -180,7 +186,7 @@
 #define FORCE_FLOATS 0
 #endif
 
-#if (!(ES3_1_PROFILE || METAL_PROFILE) || FORCE_FLOATS)
+#if ((!(ES3_1_PROFILE || METAL_PROFILE)) && !PLATFORM_SUPPORTS_REAL_TYPES) || FORCE_FLOATS
 	// Always use floats when using the ES3/METAL compiler, because platforms not optimized for lower precision, 
 	// And we don't want potential side effects on other platforms
 	#define half float
@@ -204,10 +210,7 @@
 // ---------------------------------------------------- Profile config
 
 
-#if PS4_PROFILE
-	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
-
-#elif SM5_PROFILE
+#if SM5_PROFILE
 	// SM5 = full dx11 features (high end UE4 rendering)
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 
@@ -346,7 +349,7 @@
 // Ideally this would just be enabled for all SM4 and above feature level platforms
 // @todo metal mrt: No reason this can't work with Metal, once cross compiler is fixed
 #ifndef SUPPORTS_INDEPENDENT_SAMPLERS
-#define SUPPORTS_INDEPENDENT_SAMPLERS (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
+#define SUPPORTS_INDEPENDENT_SAMPLERS (SM5_PROFILE || SM4_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
 #endif
 
 // Whether the platform supports a global clip plane through SV_ClipDistance
@@ -361,7 +364,7 @@
 // Must match C++ RHISupports4ComponentUAVReadWrite
 // D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
 #ifndef PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
-#define PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE (PS4_PROFILE || XBOXONE_PROFILE || COMPILER_METAL)
+#define PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE (XBOXONE_PROFILE || COMPILER_METAL)
 #endif
 
 
@@ -435,6 +438,22 @@
 // Support for depth test running both before and after pixel shader
 #ifndef COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 #define COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE 0
+#endif
+
+#ifndef COMPILER_SUPPORTS_SHADER_YIELD
+#define COMPILER_SUPPORTS_SHADER_YIELD 0
+void ShaderYield()
+{
+	// Do nothing
+}
+#endif
+
+#ifndef COMPILER_SUPPORTS_GATHER_LOD_RED
+#define COMPILER_SUPPORTS_GATHER_LOD_RED 0
+#endif
+
+#ifndef COMPILER_SUPPORTS_GATHER_UINT
+#define COMPILER_SUPPORTS_GATHER_UINT 0
 #endif
 
 // ---------------------------------------------------- Compiler attributes
@@ -513,10 +532,25 @@
 #define StrongTypedBuffer Buffer
 #endif
 
+#ifndef RWCoherentBuffer
+#define RWCoherentBuffer(TYPE) RWBuffer<TYPE>
+#endif
+
+#ifndef RWCoherentStructuredBuffer
+#define RWCoherentStructuredBuffer(TYPE) RWStructuredBuffer<TYPE>
+#endif
+
+#ifndef RWCoherentByteAddressBuffer
+#define RWCoherentByteAddressBuffer RWByteAddressBuffer
+#endif
+
 #ifndef ISOLATE
 #define ISOLATE
 #endif
 
+#ifndef HOIST_DESCRIPTORS
+#define HOIST_DESCRIPTORS
+#endif
 
 // ---------------------------------------------------- Interpolator attribute fallbacks
 
@@ -552,6 +586,9 @@
 #define COMPRESSED_8_UINT
 #endif
 
+#ifndef CUSTOM_INTERPOLATION
+#define CUSTOM_INTERPOLATION nointerpolation
+#endif
 
 // ---------------------------------------------------- Global uses
 
@@ -657,6 +694,25 @@ float4 max3( float4 a, float4 b, float4 c )
 
 #endif
 
+#if !defined(COMPILER_SUPPORTS_COND_MASK)
+
+float  CondMask(bool Cond, float  Src0, float  Src1) { return Cond ? Src0 : Src1; }
+float2 CondMask(bool Cond, float2 Src0, float2 Src1) { return Cond ? Src0 : Src1; }
+float3 CondMask(bool Cond, float3 Src0, float3 Src1) { return Cond ? Src0 : Src1; }
+float4 CondMask(bool Cond, float4 Src0, float4 Src1) { return Cond ? Src0 : Src1; }
+
+int  CondMask(bool Cond, int  Src0, int  Src1) { return Cond ? Src0 : Src1; }
+int2 CondMask(bool Cond, int2 Src0, int2 Src1) { return Cond ? Src0 : Src1; }
+int3 CondMask(bool Cond, int3 Src0, int3 Src1) { return Cond ? Src0 : Src1; }
+int4 CondMask(bool Cond, int4 Src0, int4 Src1) { return Cond ? Src0 : Src1; }
+
+uint  CondMask(bool Cond, uint  Src0, uint  Src1) { return Cond ? Src0 : Src1; }
+uint2 CondMask(bool Cond, uint2 Src0, uint2 Src1) { return Cond ? Src0 : Src1; }
+uint3 CondMask(bool Cond, uint3 Src0, uint3 Src1) { return Cond ? Src0 : Src1; }
+uint4 CondMask(bool Cond, uint4 Src0, uint4 Src1) { return Cond ? Src0 : Src1; }
+
+#endif
+
 #if !defined(COMPILER_SUPPORTS_UNPACKBYTEN)
 float UnpackByte0(uint v) { return float(v & 0xff); }
 float UnpackByte1(uint v) { return float((v >> 8) & 0xff); }
@@ -664,9 +720,84 @@ float UnpackByte2(uint v) { return float((v >> 16) & 0xff); }
 float UnpackByte3(uint v) { return float(v >> 24); }
 #endif // !COMPILER_SUPPORTS_UNPACKBYTEN
 
+#if !defined(COMPILER_SUPPORTS_BITFIELD_INTRINSICS)
+#define COMPILER_SUPPORTS_BITFIELD_INTRINSICS 0
+
+// Software emulation using SM5/GCN semantics.
+// Fast as long as shifts, sizes and offsets are compile-time constant.
+// TODO: Should we consider weaker semantics to allow for a more efficient implementation in the dynamic case?
+
+uint BitFieldInsertU32(uint Mask, uint Preserve, uint Enable)
+{
+	return (Preserve & Mask) | (Enable & ~Mask);
+}
+
+uint BitFieldExtractU32(uint Data, uint Size, uint Offset)
+{
+	Size &= 31u;
+	Offset &= 31u;
+
+	if (Size == 0u)
+		return 0u;
+	else if (Offset + Size < 32u)
+		return (Data << (32u - Size - Offset)) >> (32u - Size);
+	else
+		return Data >> Offset;
+}
+
+int BitFieldExtractI32(int Data, uint Size, uint Offset)
+{
+	Size &= 31u;
+	Offset &= 31u;
+
+	if (Size == 0u)
+		return 0;
+	else if (Offset + Size < 32u)
+		return (Data << (32u - Size - Offset)) >> (32u - Size);
+	else
+		return Data >> Offset;
+}
+
+uint BitFieldMaskU32(uint MaskWidth, uint MaskLocation)
+{
+	MaskWidth &= 31u;
+	MaskLocation &= 31u;
+
+	return ((1u << MaskWidth) - 1u) << MaskLocation;
+}
+#endif
+
+#if !defined(COMPILER_SUPPORTS_BITALIGN)
+#define COMPILER_SUPPORTS_BITALIGN 0
+uint BitAlignU32(uint High, uint Low, uint Shift)
+{
+	Shift &= 31u;
+
+	uint Result = Low >> Shift;
+	Result |= Shift > 0u ? (High << (32u - Shift)) : 0u;
+	return Result;
+}
+#endif
+
 #if COMPILER_HLSLCC
 #define ddx_fine(x) ddx(x)
 #define ddy_fine(y) ddy(y)
+#endif
+
+#ifndef COMPILER_SUPPORTS_ULONG_TYPES
+
+#define UlongType uint2
+
+UlongType PackUlongType(uint2 Value)
+{
+	return Value;
+}
+
+uint2 UnpackUlongType(UlongType Value)
+{
+	return Value;
+}
+
 #endif
 
 #if PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
@@ -690,7 +821,7 @@ float UnpackByte3(uint v) { return float(v >> 24); }
 #endif
 
 #ifndef SNORM
-#if COMPILER_HLSLCC || PS4_PROFILE
+#if COMPILER_HLSLCC
 	#define SNORM 
 	#define UNORM
 #else

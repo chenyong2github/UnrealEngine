@@ -495,7 +495,6 @@ public:
 	void ReleaseCompressedAudio();
 
 	bool IsRetainingAudio();
-
 	/**
 	 * If Stream Caching is enabled, this can be used to override the default loading behavior of this USoundWave.
 	 * This can even be called on USoundWaves that still have the RF_NeedLoad flag, and won't be stomped by serialization.

@@ -513,8 +513,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		RWIDToIndexTable[IDIndex] = InstanceIndex;
 	}
 
-#define USE_WAVE_INTRISICS (XBOXONE_PROFILE)
-#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
+#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32) && !USE_WAVE_INTRINSICS && !VULKAN_PROFILE_SM5 && !VULKAN_PROFILE)
 
 #if USE_GROUP_SHARED
 	#if THREADGROUP_SIZE == 64
@@ -542,20 +541,20 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
 
-		#if USE_WAVE_INTRISICS
+		#if USE_WAVE_INTRINSICS
 
 			uint NumCounters = WaveActiveCountBits(bDoAcquire);
 			uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
-			if(NumCounters)
+			if (NumCounters > 0)
 			{
-				if(WaveIsFirstLane())
+				if (WaveActiveOnce())
 				{
 					uint RetPrevIdx;
 					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
 					PrevIdx = (int)RetPrevIdx;
 				}
 
-				if(bDoAcquire)
+				if (bDoAcquire)
 				{
 					PrevIdx = WaveReadFirstLane(PrevIdx);
 					PrevIdx += PrefixCounts;
@@ -632,7 +631,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 			PrevIdx = GroupSharedIndex64 + GroupSharedIndex16[GGroupThreadId.x / 16] + GroupSharedIndex4[GGroupThreadId.x / 4] + GroupSharedIndex[GGroupThreadId.x];
 
-		#else // !USE_WAVE_INTRISICS && !USE_GROUP_SHARED
+		#else // !USE_WAVE_INTRINSICS && !USE_GROUP_SHARED
 
 			if(bDoAcquire == true)
 			{

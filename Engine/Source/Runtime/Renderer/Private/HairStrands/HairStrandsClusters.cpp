@@ -154,8 +154,8 @@ class FHairIndBufferClearCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FSetIndirectDraw>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_UAV(Buffer, DrawIndirectParameters)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
+		SHADER_PARAMETER_UAV(RWBuffer, DrawIndirectParameters)
 		SHADER_PARAMETER(uint32, VertexCountPerInstance)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -196,15 +196,15 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer, ClusterAABBBuffer)
 		SHADER_PARAMETER_SRV(Buffer, ClusterInfoBuffer)
 		SHADER_PARAMETER_SRV(Buffer, ClusterIndexRadiusScaleInfoBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, GlobalIndexStartBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, GlobalIndexCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, GlobalRadiusScaleBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, ClusterDebugAABBBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_UAV(Buffer, DrawIndirectParameters)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexStartBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalRadiusScaleBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ClusterDebugAABBBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
+		SHADER_PARAMETER_UAV(RWBuffer, DrawIndirectParameters)
 		SHADER_PARAMETER(FVector, HZBUvFactor)
 		SHADER_PARAMETER(FVector4, HZBSize)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2d<float>, HZBTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -228,9 +228,9 @@ class FMainClusterCullingPrepareIndirectDrawsCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount2D)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCountDiv512)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCountDiv512Div512)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount2D)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCountDiv512)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCountDiv512Div512)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -255,8 +255,8 @@ class FHairClusterCullingLocalBlockPreFixSumCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, DispatchIndirectParametersClusterCountDiv512)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, PerBlocklIndexCountPreFixSumBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, PerBlocklTotalIndexCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, PerBlocklIndexCountPreFixSumBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, PerBlocklTotalIndexCountBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -288,8 +288,8 @@ class FHairClusterCullingCompactVertexIdsLocalBlockCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalRadiusScaleBuffer)
 		SHADER_PARAMETER_SRV(Buffer, ClusterVertexIdBuffer)
-		SHADER_PARAMETER_UAV(Buffer, CulledCompactedIndexBuffer)
-		SHADER_PARAMETER_UAV(Buffer, CulledCompactedRadiusScaleBuffer)
+		SHADER_PARAMETER_UAV(RWBuffer, CulledCompactedIndexBuffer)
+		SHADER_PARAMETER_UAV(RWBuffer, CulledCompactedRadiusScaleBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -314,7 +314,7 @@ class FHairClusterCullingPreFixSumCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, DispatchIndirectParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, GlobalIndexCountPreFixSumBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexCountPreFixSumBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -545,11 +545,11 @@ static void AddClusterCullingPass(
 #if WITH_EDITOR
 	if (bClusterDebugAABBBuffer)
 	{
-		GraphBuilder.QueueBufferExtraction(ClusterDebugAABBBuffer, &ClusterData.ClusterDebugAABBBuffer,	FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
+		GraphBuilder.QueueBufferExtraction(ClusterDebugAABBBuffer, &ClusterData.ClusterDebugAABBBuffer);
 	}
 	if (bClusterDebug)
 	{
-		GraphBuilder.QueueBufferExtraction(DispatchIndirectParametersClusterCount, &ClusterData.CulledDispatchIndirectParametersClusterCount, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
+		GraphBuilder.QueueBufferExtraction(DispatchIndirectParametersClusterCount, &ClusterData.CulledDispatchIndirectParametersClusterCount);
 	}
 #endif
 }

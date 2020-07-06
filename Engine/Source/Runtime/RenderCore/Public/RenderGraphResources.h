@@ -14,12 +14,6 @@ using FRDGResourceRef = FRDGResource*;
 class FRDGParentResource;
 using FRDGParentResourceRef = FRDGParentResource*;
 
-UE_DEPRECATED(4.24, "FRDGTrackedResource typedef is deprecated; use FRDGParentResource instead.")
-typedef FRDGParentResource FRDGTrackedResource;
-
-UE_DEPRECATED(4.24, "FRDGTrackedResourceRef typedef is deprecated; use FRDGParentResourceRef instead.")
-typedef FRDGParentResource* FRDGTrackedResourceRef;
-
 class FRDGChildResource;
 using FRDGChildResourceRef = FRDGChildResource*;
 
@@ -28,6 +22,8 @@ using FRDGShaderResourceViewRef = FRDGShaderResourceView*;
 
 class FRDGUnorderedAccessView;
 using FRDGUnorderedAccessViewRef = FRDGUnorderedAccessView*;
+
+using FRDGPooledTexture = IPooledRenderTarget;
 
 class FRDGTexture;
 using FRDGTextureRef = FRDGTexture*;
@@ -47,70 +43,55 @@ using FRDGBufferSRVRef = FRDGBufferSRV*;
 class FRDGBufferUAV;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
-/** Used for tracking resource state during execution. */
-struct FRDGResourceState
+/** Used for tracking the state of an individual subresource during execution. */
+struct FRDGSubresourceState
 {
-	// The hardware pipeline the resource state is compatible with.
-	enum class EPipeline : uint8
-	{
-		Graphics,
-		Compute,
-		MAX
-	};
+	static bool IsTransitionRequired(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next);
 
-	// The access permissions the resource state is compatible with.
-	enum class EAccess : uint8
-	{
-		Read,
-		Write,
-		Unknown,
-		MAX = Unknown
-	};
+	FRDGSubresourceState() = default;
 
-	FRDGResourceState() = default;
-
-	FRDGResourceState(const FRDGPass* InPass, EPipeline InPipeline, EAccess InAccess)
-		: Pass(InPass)
+	FRDGSubresourceState(
+		FRDGPassHandle InPassHandle,
+		ERDGPipeline InPipeline,
+		EResourceTransitionAccess InAccess,
+		EResourceTransitionFlags InFlags = EResourceTransitionFlags::None,
+		FRDGResourceHandle InNoUAVBarrierHandle = FRDGResourceHandle::Null)
+		: PassHandle(InPassHandle)
+		, NoUAVBarrierFilter(InNoUAVBarrierHandle)
 		, Pipeline(InPipeline)
 		, Access(InAccess)
+		, Flags(InFlags)
 	{}
 
-	bool operator==(const FRDGResourceState& Other) const
-	{
-		return Pass == Other.Pass && Pipeline == Other.Pipeline && Access == Other.Access;
-	}
+	/** Assigns the pass / pipeline. */
+	void SetPass(FRDGPassHandle InPassHandle, ERDGPipeline InPipeline);
 
-	bool operator!=(const FRDGResourceState& Other) const
-	{
-		return !(*this == Other);
-	}
+	/** Merges pipeline / access info and clears everything else. */
+	void MergeSanitizedFrom(const FRDGSubresourceState& Other);
 
-	// The last pass the resource was used.
-	const FRDGPass* Pass = nullptr;
+	/** If the other subresource state has a valid access and is on a different pipeline, the merge succeeds but retains the existing pipeline. */
+	bool MergeCrossPipelineFrom(const FRDGSubresourceState& StateOther);
 
-	// The last used pass hardware pipeline.
-	EPipeline Pipeline = EPipeline::Graphics;
+	/** If the other subresource state has a valid access, the merge succeeds. */
+	bool MergeFrom(const FRDGSubresourceState& StateOther);
 
-	// The last used access on the pass.
-	EAccess Access = EAccess::Unknown;
-};
+	/** Sanitizes all transient graph state, leaving the access and pipeline members. */
+	void Sanitize();
 
-/** Render graph specific flags for resources. */
-enum class ERDGResourceFlags : uint8
-{
-	None = 0,
+	/** The last pass the resource was used. */
+	FRDGPassHandle PassHandle;
 
-	// Tag the resource to survive through frame, that is important for multi GPU alternate frame rendering.
-	MultiFrame = 1 << 1,
-};
+	/** The last no-UAV barrier to be used by this subresource. */
+	FRDGResourceUniqueFilter NoUAVBarrierFilter;
 
-ENUM_CLASS_FLAGS(ERDGResourceFlags);
+	/** The last used pass hardware pipeline. */
+	ERDGPipeline Pipeline = ERDGPipeline::Graphics;
 
-/** Used to specify a particular texture meta data plane instead of the default resource */
-enum class ERDGTextureMetaDataAccess : uint8
-{
-	None = 0,
-	HTile,
+	/** The last used access on the pass. */
+	EResourceTransitionAccess Access = EResourceTransitionAccess::Unknown;
+
+	/** The last used transition flags on the pass. */
+	EResourceTransitionFlags Flags = EResourceTransitionFlags::None;
 };
 
 /** Generic graph resource. */
@@ -118,6 +99,7 @@ class RENDERCORE_API FRDGResource
 {
 public:
 	FRDGResource(const FRDGResource&) = delete;
+	virtual ~FRDGResource() = default;
 
 	// Name of the resource for debugging purpose.
 	const TCHAR* const Name = nullptr;
@@ -129,12 +111,9 @@ public:
 	void MarkResourceAsUsed()
 	{
 		ValidateRHIAccess();
-
-		#if RDG_ENABLE_DEBUG
-		{
-			bIsActuallyUsedByPass = true;
-		}
-		#endif
+#if RDG_ENABLE_DEBUG
+		DebugData.bIsActuallyUsedByPass = true;
+#endif
 	}
 
 	FRHIResource* GetRHI() const
@@ -145,24 +124,24 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
+	FRDGResourceHandle GetHandle() const
+	{
+		return Handle;
+	}
+
 protected:
 	FRDGResource(const TCHAR* InName)
 		: Name(InName)
 	{}
 
-	// IMPORTANT: This is never actually called. RDG resources are allocated via MemStack. This is necessary to force a vtable.
-	virtual ~FRDGResource() = default;
-
 	/** Verify that the RHI resource can be accessed at a pass execution. */
 	void ValidateRHIAccess() const
 	{
 #if RDG_ENABLE_DEBUG
-		{
-			checkf(bAllowRHIAccess,
-				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
-				TEXT("that is due to this resource not being referenced in the parameters of your pass."),
-				Name);
-		}
+		checkf(DebugData.bAllowRHIAccess,
+			TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
+			TEXT("that is due to this resource not being referenced in the parameters of your pass."),
+			Name);
 #endif
 	}
 
@@ -171,19 +150,31 @@ protected:
 		return ResourceRHI;
 	}
 
-private:
 	FRHIResource* ResourceRHI = nullptr;
 
-#if RDG_ENABLE_DEBUG
-	/** Boolean to track at runtime whether a resource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
-	bool bIsActuallyUsedByPass = false;
+private:
+	FRDGResourceHandle Handle;
 
-	/** Boolean to track at pass execution whether the underlying RHI resource is allowed to be accessed. */
-	bool bAllowRHIAccess = false;
+#if RDG_ENABLE_DEBUG
+	class FDebugData
+	{
+	private:
+		/** Boolean to track at runtime whether a resource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
+		bool bIsActuallyUsedByPass = false;
+
+		/** Boolean to track at pass execution whether the underlying RHI resource is allowed to be accessed. */
+		bool bAllowRHIAccess = false;
+
+		friend class FRDGResource;
+		friend class FRDGUserValidation;
+	} DebugData;
 #endif
 
 	friend class FRDGBuilder;
 	friend class FRDGUserValidation;
+
+	template <typename TRHIResource, typename TRDGResource>
+	friend TRHIResource* GetRHIUnchecked(TRDGResource*);
 };
 
 /** A render graph resource with an allocation lifetime tracked by the graph. May have child resources which reference it (e.g. views). */
@@ -191,67 +182,67 @@ class RENDERCORE_API FRDGParentResource
 	: public FRDGResource
 {
 public:
+	/** The type of this resource; useful for casting between types. */
+	const ERDGParentResourceType Type;
+
 	/** Flags specific to this resource for render graph. */
-	const ERDGResourceFlags Flags;
+	const ERDGParentResourceFlags Flags;
+
+	/** Whether this is an externally registered resource. */
+	const bool bIsExternal = false;
 
 protected:
-	FRDGParentResource(const TCHAR* InName, const ERDGResourceFlags InFlags)
-		: FRDGResource(InName)
-		, Flags(InFlags)
-	{}
+	FRDGParentResource(
+		const TCHAR* InName,
+		ERDGParentResourceType InType,
+		ERDGParentResourceFlags InFlags,
+		bool bIsExternal);
 
 private:
 	/** Number of references in passes and deferred queries. */
 	int32 ReferenceCount = 0;
 
+	/** Number of passes yet to compile the resource. */
+	int32 CompilePassCount = 0;
+
+	/** The initial and final states of the resource assigned by the user, if known. */
+	EResourceTransitionAccess AccessInitial = EResourceTransitionAccess::Unknown;
+	EResourceTransitionAccess AccessFinal = EResourceTransitionAccess::Unknown;
+
+	/** The first state that this resource was used in on the graph. */
+	FRDGSubresourceState StateFirst;
+
+	/** The last no-barrier UAV used to write to this resource. */
+	FRDGUnorderedAccessView* LastNoBarrierUAV = nullptr;
+
+	/** The last pass that produced this resource. */
+	FRDGPassHandle LastProducer;
+
+	/** The last passes that consumed this resource since the last producer. */
+	FRDGPassHandleArray LastConsumers;
+
 #if RDG_ENABLE_DEBUG
-	void MarkAsProducedBy(const FRDGPass* Pass)
+	class FParentDebugData
 	{
-		if (!bHasBeenProduced)
-		{
-			bHasBeenProduced = true;
-			FirstProducer = Pass;
-		}
-	}
+	private:
+		/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
+		const FRDGPass* FirstProducer = nullptr;
 
-	void MarkAsExternal()
-	{
-		checkf(!FirstProducer, TEXT("Resource %s with producer pass marked as external."), Name);
-		bHasBeenProduced = true;
-		bIsExternal = true;
-	}
+		/** Count the number of times it has been used by a pass. */
+		int32 PassAccessCount = 0;
 
-	bool HasBeenProduced() const
-	{
-		return bHasBeenProduced;
-	}
+		/** Tracks at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
+		bool bHasBeenProduced = false;
 
-	bool IsExternal() const
-	{
-		return bIsExternal;
-	}
+		/** Tracks whether this resource was clobbered by the builder prior to use. */
+		bool bHasBeenClobbered = false;
 
-	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
-	const FRDGPass* FirstProducer = nullptr;
-
-	/** Count the number of times it has been used by a pass. */
-	int32 PassAccessCount = 0;
-
-	/** Tracks at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
-	bool bHasBeenProduced = false;
-
-	/** Tracks whether this resource was clobbered by the builder prior to use. */
-	bool bHasBeenClobbered = false;
-
-	/** Tracks whether this resource is an externally imported resource. */
-	bool bIsExternal = false;
+		friend class FRDGUserValidation;
+	} ParentDebugData;
 #endif
-
-	FRDGResourceState State;
 
 	friend class FRDGBuilder;
 	friend class FRDGUserValidation;
-	friend class FRDGBarrierBatcher;
 };
 
 /** A render graph resource (e.g. a view) which references a single parent resource (e.g. a texture / buffer). Provides an abstract way to access the parent resource. */
@@ -259,16 +250,179 @@ class FRDGChildResource
 	: public FRDGResource
 {
 public:
-	FRDGChildResource(const TCHAR* Name)
-		: FRDGResource(Name)
-	{}
+	/** The type of this child resource; useful for casting between types. */
+	const ERDGChildResourceType Type;
+
+	/** Flags associated with the child resource. */
+	const ERDGChildResourceFlags Flags;
 
 	/** Returns the referenced parent render graph resource. */
 	virtual FRDGParentResourceRef GetParent() const = 0;
+
+protected:
+	FRDGChildResource(const TCHAR* Name, ERDGChildResourceType InType, ERDGChildResourceFlags InFlags)
+		: FRDGResource(Name)
+		, Type(InType)
+		, Flags(InFlags)
+	{}
 };
 
 /** Descriptor of a graph tracked texture. */
 using FRDGTextureDesc = FPooledRenderTargetDesc;
+
+struct FRDGTextureSubresourceLayout
+{
+	FRDGTextureSubresourceLayout() = default;
+
+	FRDGTextureSubresourceLayout(uint32 InNumMips, uint32 InNumArraySlices, uint32 InNumPlaneSlices)
+		: NumMips(InNumMips)
+		, NumArraySlices(InNumArraySlices)
+		, NumPlaneSlices(InNumPlaneSlices)
+	{}
+
+	inline uint32 GetSubresourceCount() const
+	{
+		return NumMips * NumArraySlices * NumPlaneSlices;
+	}
+
+	inline uint32 GetSubresourceIndex(uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice) const
+	{
+		check(MipIndex < NumMips);
+		check(ArraySlice < NumArraySlices);
+		check(PlaneSlice < NumPlaneSlices);
+
+		return MipIndex + (ArraySlice * NumMips) + (PlaneSlice * NumMips * NumArraySlices);
+	}
+
+	inline bool operator == (FRDGTextureSubresourceLayout const& RHS) const
+	{
+		return NumMips == RHS.NumMips
+			&& NumArraySlices == RHS.NumArraySlices
+			&& NumPlaneSlices == RHS.NumPlaneSlices;
+	}
+
+	inline bool operator != (FRDGTextureSubresourceLayout const& RHS) const
+	{
+		return !(*this == RHS);
+	}
+
+	uint32 NumMips = 0;
+	uint32 NumArraySlices = 0;
+	uint32 NumPlaneSlices = 0;
+};
+
+struct FRDGTextureSubresourceRange : FRDGTextureSubresourceLayout
+{
+	FRDGTextureSubresourceRange() = default;
+
+	FRDGTextureSubresourceRange(FRDGTextureSubresourceLayout Layout)
+		: FRDGTextureSubresourceLayout(Layout)
+	{}
+
+	inline bool operator == (FRDGTextureSubresourceRange const& RHS) const
+	{
+		return MipIndex == RHS.MipIndex
+			&& ArraySlice == RHS.ArraySlice
+			&& PlaneSlice == RHS.PlaneSlice
+			&& FRDGTextureSubresourceLayout::operator==(RHS);
+	}
+
+	inline bool operator != (FRDGTextureSubresourceRange const& RHS) const
+	{
+		return !(*this == RHS);
+	}
+
+	template <typename TFunction>
+	inline void EnumerateSubresources(TFunction Function) const
+	{
+		const uint32 LastMip = MipIndex + NumMips;
+		const uint32 LastArraySlice = ArraySlice + NumArraySlices;
+		const uint32 LastPlaneSlice = PlaneSlice + NumPlaneSlices;
+
+		for (uint32 LocalPlaneSlice = PlaneSlice; LocalPlaneSlice < LastPlaneSlice; ++LocalPlaneSlice)
+		{
+			for (uint32 LocalArraySlice = ArraySlice; LocalArraySlice < LastArraySlice; ++LocalArraySlice)
+			{
+				for (uint32 LocalMipIndex = MipIndex; LocalMipIndex < LastMip; ++LocalMipIndex)
+				{
+					Function(LocalMipIndex, LocalArraySlice, LocalPlaneSlice);
+				}
+			}
+		}
+	}
+
+	uint32 MipIndex = 0;
+	uint32 ArraySlice = 0;
+	uint32 PlaneSlice = 0;
+};
+
+/** Used for tracking the state of a resource and its subresources during execution. */
+class FRDGTextureState
+{
+public:
+	FRDGTextureState() = default;
+	FRDGTextureState(const FRDGTextureDesc& Desc);
+
+	/** Initializes as a whole resource state. */
+	void InitAsWholeResource(FRDGSubresourceState InState);
+
+	/** Initializes as distinct subresources with the same initial state. */
+	void InitAsSubresources(FRDGSubresourceState InState);
+
+	/** Assigns a new pass / pipeline to all subresource states. */
+	void SetPass(FRDGPassHandle PassHandle, ERDGPipeline Pipeline);
+
+	/** Merges pipeline / access info and clears everything else. */
+	void MergeSanitizedFrom(const FRDGTextureState& Other);
+
+	/** Merges only those subresource states which have a known access and are on a different pipeline, keeping the current pipeline intact. */
+	void MergeCrossPipelineFrom(const FRDGTextureState& Other);
+
+	/** Merges only those subresource states which have a known access. */
+	void MergeFrom(const FRDGTextureState& Other);
+
+	/** Sanitizes transient graph state, leaving the pipeline and access members. */
+	void Sanitize();
+
+	inline const FRDGTextureSubresourceLayout& GetSubresourceLayout() const
+	{
+		return Layout;
+	}
+
+	inline bool IsWholeResourceState() const
+	{
+		return SubresourceStates.Num() == 0;
+	}
+
+	inline const FRDGSubresourceState& GetSubresourceState(uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice) const
+	{
+		check(!IsWholeResourceState());
+		return SubresourceStates[Layout.GetSubresourceIndex(MipIndex, ArraySlice, PlaneSlice)];
+	}
+
+	inline FRDGSubresourceState& GetSubresourceState(uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+	{
+		check(!IsWholeResourceState());
+		return SubresourceStates[Layout.GetSubresourceIndex(MipIndex, ArraySlice, PlaneSlice)];
+	}
+
+	inline const FRDGSubresourceState& GetWholeResourceState() const
+	{
+		check(IsWholeResourceState());
+		return WholeResourceState;
+	}
+
+	inline FRDGSubresourceState& GetWholeResourceState()
+	{
+		check(IsWholeResourceState());
+		return WholeResourceState;
+	}
+
+private:
+	FRDGTextureSubresourceLayout Layout;
+	FRDGSubresourceState WholeResourceState;
+	TArray<FRDGSubresourceState, TInlineAllocator<2>> SubresourceStates;
+};
 
 /** Render graph tracked Texture. */
 class RENDERCORE_API FRDGTexture final
@@ -285,8 +439,8 @@ public:
 	IPooledRenderTarget* GetPooledRenderTarget() const
 	{
 		ValidateRHIAccess();
-		check(PooledRenderTarget);
-		return PooledRenderTarget;
+		check(PooledTexture);
+		return PooledTexture;
 	}
 
 	/** Returns the allocated RHI texture. */
@@ -297,14 +451,24 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
+	const FRDGTextureSubresourceLayout& GetSubresourceLayout() const
+	{
+		return State.GetSubresourceLayout();
+	}
+
+	FRDGTextureSubresourceRange GetSubresourceRange() const
+	{
+		return FRDGTextureSubresourceRange(State.GetSubresourceLayout());
+	}
+
 private:
 	FRDGTexture(
 		const TCHAR* InName,
 		const FPooledRenderTargetDesc& InDesc,
-		ERDGResourceFlags InFlags)
-		: FRDGParentResource(InName, InFlags)
-		, Desc(InDesc)
-	{}
+		ERDGParentResourceFlags InFlags,
+		bool bIsExternal = false);
+
+	void Init(const TRefCountPtr<IPooledRenderTarget>& PooledTexture);
 
 	/** Returns the allocated RHI texture without access checks. */
 	FRHITexture* GetRHIUnchecked() const
@@ -312,22 +476,35 @@ private:
 		return static_cast<FRHITexture*>(FRDGResource::GetRHIUnchecked());
 	}
 
-	/** This is not a TRefCountPtr<> because FRDGTexture is allocated on the FMemStack
-	 *  FGraphBuilder::AllocatedTextures is actually keeping the reference.
-	 */
-	IPooledRenderTarget* PooledRenderTarget = nullptr;
+	TRefCountPtr<IPooledRenderTarget> PooledTexture;
+
+	FRDGTextureState State;
+	FRDGTextureState StatePending;
 
 #if RDG_ENABLE_DEBUG
-	/** Tracks whether a UAV has ever been allocated to catch when TexCreate_UAV was unneeded. */
-	bool bHasNeededUAV = false;
+	class FTextureDebugData
+	{
+	private:
+		/** Tracks whether a UAV has ever been allocated to catch when TexCreate_UAV was unneeded. */
+		bool bHasNeededUAV = false;
 
-	/** Tracks whether has ever been bound as a render target to catch when TexCreate_RenderTargetable was unneeded. */
-	bool bHasBeenBoundAsRenderTarget = false;
-#endif 
+		/** Tracks whether has ever been bound as a render target to catch when TexCreate_RenderTargetable was unneeded. */
+		bool bHasBeenBoundAsRenderTarget = false;
+
+		/** Tracks state changes in order of execution. */
+		TArray<TPair<const FRDGPass*, FRDGTextureState>, SceneRenderingAllocator> States;
+
+		friend class FRDGUserValidation;
+		friend class FRDGBarrierValidation;
+	} TextureDebugData;
+#endif
 
 	friend class FRDGBuilder;
 	friend class FRDGUserValidation;
-	friend class FRDGBarrierBatcher;
+	friend class FRDGBarrierValidation;
+
+	template <typename TRHIResource, typename TRDGResource>
+	friend TRHIResource* GetRHIUnchecked(TRDGResource*);
 };
 
 /** Render graph tracked SRV. */
@@ -342,8 +519,11 @@ public:
 	}
 
 protected:
-	FRDGShaderResourceView(const TCHAR* Name)
-		: FRDGChildResource(Name)
+	FRDGShaderResourceView(
+		const TCHAR* InName,
+		ERDGChildResourceType InType,
+		ERDGChildResourceFlags InFlags)
+		: FRDGChildResource(InName, InType, InFlags)
 	{}
 
 	/** Returns the allocated RHI SRV without access checks. */
@@ -365,8 +545,11 @@ public:
 	}
 
 protected:
-	FRDGUnorderedAccessView(const TCHAR* Name)
-		: FRDGChildResource(Name)
+	FRDGUnorderedAccessView(
+		const TCHAR* InName,
+		ERDGChildResourceType InType,
+		ERDGChildResourceFlags InFlags)
+		: FRDGChildResource(InName, InType, InFlags)
 	{}
 
 	/** Returns the allocated RHI UAV without access checks. */
@@ -442,11 +625,36 @@ public:
 		return Desc.Texture;
 	}
 
+	FRDGTextureSubresourceRange GetSubresourceRange() const
+	{
+		FRDGTextureSubresourceRange Range = GetParent()->GetSubresourceRange();
+		Range.MipIndex = Desc.MipLevel;
+		Range.PlaneSlice = GetResourceTransitionPlaneForMetadataAccess(Desc.MetaData);
+
+		if (Desc.NumMipLevels != 0)
+		{
+			Range.NumMips = Desc.NumMipLevels;
+		}
+
+		if (Desc.NumArraySlices != 0)
+		{
+			Range.NumArraySlices = Desc.NumArraySlices;
+		}
+
+		if (Desc.MetaData != ERDGTextureMetaDataAccess::None)
+		{
+			Range.NumPlaneSlices = 1;
+		}
+
+		return Range;
+	}
+
 private:
 	FRDGTextureSRV(
 		const TCHAR* InName,
-		const FRDGTextureSRVDesc& InDesc)
-		: FRDGShaderResourceView(InName)
+		const FRDGTextureSRVDesc& InDesc,
+		ERDGChildResourceFlags InFlags)
+		: FRDGShaderResourceView(InName, ERDGChildResourceType::TextureSRV, InFlags)
 		, Desc(InDesc)
 	{}
 
@@ -492,11 +700,27 @@ public:
 		return Desc.Texture;
 	}
 
+	FRDGTextureSubresourceRange GetSubresourceRange() const
+	{
+		FRDGTextureSubresourceRange Range = GetParent()->GetSubresourceRange();
+		Range.MipIndex = Desc.MipLevel;
+		Range.NumMips = 1;
+		Range.PlaneSlice = GetResourceTransitionPlaneForMetadataAccess(Desc.MetaData);
+
+		if (Desc.MetaData != ERDGTextureMetaDataAccess::None)
+		{
+			Range.NumPlaneSlices = 1;
+		}
+
+		return Range;
+	}
+
 private:
 	FRDGTextureUAV(
 		const TCHAR* InName,
-		const FRDGTextureUAVDesc& InDesc)
-		: FRDGUnorderedAccessView(InName)
+		const FRDGTextureUAVDesc& InDesc,
+		ERDGChildResourceFlags InFlags)
+		: FRDGUnorderedAccessView(InName, ERDGChildResourceType::TextureUAV, InFlags)
 		, Desc(InDesc)
 	{}
 
@@ -514,6 +738,17 @@ struct FRDGBufferDesc
 		IndexBuffer, // not implemented yet.
 		StructuredBuffer,
 	};
+
+	static inline FRHITransitionInfo::EType GetTransitionResourceType(EUnderlyingType Type)
+	{
+		switch (Type)
+		{
+		default: checkNoEntry();
+		case EUnderlyingType::VertexBuffer: return FRHITransitionInfo::EType::VertexBuffer;
+		case EUnderlyingType::IndexBuffer: return FRHITransitionInfo::EType::IndexBuffer;
+		case EUnderlyingType::StructuredBuffer: return FRHITransitionInfo::EType::StructuredBuffer;
+		}
+	}
 
 	/** Create the descriptor for an indirect RHI call.
 	 *
@@ -702,8 +937,6 @@ struct TMapRDGBufferUAVFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, 
 	}
 };
 
-/** Render graph tracked Buffer. Only as opose to vertex, index and structured buffer at RHI level, because there is already
- * plans to refactor them. */
 struct FPooledRDGBuffer
 {
 	FVertexBufferRHIRef VertexBuffer;
@@ -742,11 +975,14 @@ private:
 	uint32 RefCount = 0;
 	uint32 LastUsedFrame = 0;
 
+	FRDGSubresourceState State;
+
 	friend class FRenderGraphResourcePool;
+	friend class FRDGBuilder;
 };
 
 /** Render graph tracked buffers. */
-class FRDGBuffer final
+class RENDERCORE_API FRDGBuffer final
 	: public FRDGParentResource
 {
 public:
@@ -784,17 +1020,29 @@ private:
 	FRDGBuffer(
 		const TCHAR* InName,
 		const FRDGBufferDesc& InDesc,
-		ERDGResourceFlags InFlags)
-		: FRDGParentResource(InName, InFlags)
-		, Desc(InDesc)
-	{}
+		ERDGParentResourceFlags InFlags,
+		bool bIsExternal = false);
 
-	/** This is not a TRefCountPtr<> because FRDGBuffer is allocated on the FMemStack
-	 *  FGraphBuilder::AllocatedBuffers is actually keeping the reference.
-	 */
-	FPooledRDGBuffer* PooledBuffer = nullptr;
-	
+	void Init(const TRefCountPtr<FPooledRDGBuffer>& InPooledBuffer);
+
+	TRefCountPtr<FPooledRDGBuffer> PooledBuffer;
+
+	FRDGSubresourceState StatePending;
+	FRDGSubresourceState State;
+
+#if RDG_ENABLE_DEBUG
+	class FBufferDebugData
+	{
+	private:
+		/** Tracks state changes in order of execution. */
+		TArray<TPair<const FRDGPass*, FRDGSubresourceState>, SceneRenderingAllocator> States;
+
+		friend class FRDGBarrierValidation;
+	} BufferDebugData;
+#endif
+
 	friend class FRDGBuilder;
+	friend class FRDGBarrierValidation;
 };
 
 /** Render graph tracked buffer SRV. */
@@ -811,8 +1059,11 @@ public:
 	}
 
 private:
-	FRDGBufferSRV(const TCHAR* InName, const FRDGBufferSRVDesc& InDesc)
-		: FRDGShaderResourceView(InName)
+	FRDGBufferSRV(
+		const TCHAR* InName,
+		const FRDGBufferSRVDesc& InDesc,
+		ERDGChildResourceFlags InFlags)
+		: FRDGShaderResourceView(InName, ERDGChildResourceType::BufferSRV, InFlags)
 		, Desc(InDesc)
 	{}
 
@@ -833,8 +1084,11 @@ public:
 	}
 
 private:
-	FRDGBufferUAV(const TCHAR* InName, const FRDGBufferUAVDesc& InDesc)
-		: FRDGUnorderedAccessView(InName)
+	FRDGBufferUAV(
+		const TCHAR* InName,
+		const FRDGBufferUAVDesc& InDesc,
+		ERDGChildResourceFlags InFlags)
+		: FRDGUnorderedAccessView(InName, ERDGChildResourceType::BufferUAV, InFlags)
 		, Desc(InDesc)
 	{}
 

@@ -4,6 +4,8 @@
 #include "ClearQuad.h"
 #include "ClearReplacementShaders.h"
 #include "ShaderParameterUtils.h"
+#include "RenderTargetPool.h"
+#include "RenderGraphResourcePool.h"
 #include <initializer_list>
 #include "GlobalShader.h"
 #include "PixelShaderUtils.h"
@@ -51,10 +53,10 @@ void ClearUnusedGraphResourcesImpl(
 
 		if (bRDGResource)
 		{
-			for( FRDGResourceRef ExcludeResource : ExcludeList )
+			for (FRDGResourceRef ExcludeResource : ExcludeList)
 			{
 				auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
-				if( Resource == ExcludeResource )
+				if (Resource == ExcludeResource)
 				{
 					continue;
 				}
@@ -133,7 +135,7 @@ FRDGTextureRef RegisterExternalTextureWithFallback(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(, Input)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Input)
 	RDG_TEXTURE_COPY_DEST(Output)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -166,7 +168,7 @@ void AddCopyTexturePass(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyToResolveTargetParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(, Input)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Input)
 	RDG_TEXTURE_COPY_DEST(Output)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -211,6 +213,92 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint
 
 		RHICmdList.ClearUAVUint(BufferUAV->GetRHI(), FUintVector4(Value, Value, Value, Value));
 	});
+}
+
+class FClearStructuredBufferFloat4CS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearStructuredBufferFloat4CS)
+	SHADER_USE_PARAMETER_STRUCT(FClearStructuredBufferFloat4CS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, StructuredBufferFloat4)
+		SHADER_PARAMETER(uint32, ClearValue)
+		SHADER_PARAMETER(uint32, NumEntries)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FClearStructuredBufferFloat4CS, "/Engine/Private/Tools/ClearUAV.usf", "ClearStructuredBufferFloat4CS", SF_Compute);
+
+class FClearStructuredBufferUIntCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearStructuredBufferUIntCS)
+	SHADER_USE_PARAMETER_STRUCT(FClearStructuredBufferUIntCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, StructuredBufferUInt)
+		SHADER_PARAMETER(uint32, ClearValue)
+		SHADER_PARAMETER(uint32, NumEntries)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FClearStructuredBufferUIntCS, "/Engine/Private/Tools/ClearUAV.usf", "ClearStructuredBufferUIntCS", SF_Compute);
+
+void AddClearStructuredBufferUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value)
+{
+	check(BufferUAV->Desc.Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer);
+
+	if (BufferUAV->Desc.Format == PF_A32B32G32R32F)
+	{
+		FClearStructuredBufferFloat4CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStructuredBufferFloat4CS::FParameters>();
+		PassParameters->StructuredBufferFloat4 = BufferUAV;
+		PassParameters->ClearValue = Value;
+		PassParameters->NumEntries = BufferUAV->Desc.Buffer->Desc.NumElements;
+		check(PassParameters->NumEntries > 0);
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearStructuredBufferFloat4CS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ClearStructureBufferFloat4(%s % elements)", BufferUAV->GetParent()->Name, BufferUAV->Desc.Buffer->Desc.NumElements),
+			ComputeShader,
+			PassParameters,
+			FIntVector(FMath::DivideAndRoundUp<int32>(PassParameters->NumEntries, 64), 1, 1));
+	}
+	else if (BufferUAV->Desc.Format == PF_R32_UINT)
+	{
+		FClearStructuredBufferUIntCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStructuredBufferUIntCS::FParameters>();
+		PassParameters->StructuredBufferUInt = BufferUAV;
+		PassParameters->ClearValue = Value;
+		PassParameters->NumEntries = BufferUAV->Desc.Buffer->Desc.NumElements;
+		check(PassParameters->NumEntries > 0);
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearStructuredBufferUIntCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ClearStructureBufferUInt(%s % elements)", BufferUAV->GetParent()->Name, BufferUAV->Desc.Buffer->Desc.NumElements),
+			ComputeShader,
+			PassParameters,
+			FIntVector(FMath::DivideAndRoundUp<int32>(PassParameters->NumEntries, 64), 1, 1));
+	}
+	else
+	{
+		checkf(false, TEXT("%s structured buffer format isn't supported."), GetPixelFormatString(BufferUAV->Desc.Format));
+	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearTextureUAVParameters, )
@@ -425,6 +513,7 @@ void AddClearDepthStencilPass(
 		DrawClearQuad(RHICmdList, false, FLinearColor(), bClearDepth, Depth, bClearStencil, Stencil);
 	});
 }
+
 class FClearUAVUIntCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearUAVUIntCS)
@@ -462,7 +551,7 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 	FClearUAVUIntCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearUAVUIntCS::FParameters>();
 	PassParameters->UAV = UAV;
 	PassParameters->ClearValue = ClearValue;
-	check(UAV->Desc.Format == PF_R32_UINT);
+	check(UAV->Desc.Format == PF_R32_UINT || UAV->Desc.Format == PF_R32_SINT && ClearValue <= MAX_int32);
 	PassParameters->NumEntries = UAV->Desc.Buffer->Desc.NumElements;
 	check(PassParameters->NumEntries > 0);
 
@@ -606,4 +695,13 @@ FRDGBufferRef CreateVertexBuffer(
 	});
 
 	return Buffer;
+}
+
+void GetPooledFreeBuffer(
+	FRHICommandList& RHICmdList,
+	const FRDGBufferDesc& Desc,
+	TRefCountPtr<FPooledRDGBuffer>& Out,
+	const TCHAR* InDebugName)
+{
+	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, Out, InDebugName);
 }

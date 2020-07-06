@@ -121,6 +121,49 @@
 		// #define CONFIG_ACCUMULATOR_VGPR_COMPRESSION ACCUMULATOR_COMPRESSION_PENUMBRA_DRB
 	#endif
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
+	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
+	#define SIGNAL_ARRAY_SIZE CONFIG_SIGNAL_BATCH_SIZE
+
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
+
+	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+
+		#define CONFIG_INPUT_TEXTURE_COUNT ((CONFIG_SIGNAL_BATCH_SIZE + 1) / 2)
+		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
+		#define CONFIG_MAX_WITH_REF_DISTANCE 1
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+		#if DIM_SIGNAL_BATCH_SIZE > 1
+			#define CONFIG_CLAMP_UV_PER_SIGNAL 1
+		#endif
+
+	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+
+		#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
+
+		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
+		#define CONFIG_MAX_WITH_REF_DISTANCE 1
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+	#else
+		#error Unexpected stage.
+	#endif
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
 	// Denoise diffuse and specular harmonics at the same time.
 	#define MAX_SIGNAL_BATCH_SIZE 2
@@ -279,7 +322,7 @@
 		#error Unexpected stage.
 	#endif
 
-#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC && 0
 	#define MAX_SIGNAL_BATCH_SIZE 1
 	#define SIGNAL_ARRAY_SIZE 1
 
@@ -313,6 +356,33 @@
 		#error Unexpected stage.
 	#endif
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC && 1
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
+	#define COMPILE_SIGNAL_COLOR_SH 1
+
+	// Given it's a spherical harmonic that store directionality, only need position based rejection.
+	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_MIN_METADATA
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
+	//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
+	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 6.0
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
+
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_INPUT
+	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_HISTORY
+
+	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_RAW_EXPERIMENTAL_KERNEL
+
+	#else
+		#error Unexpected stage.
+	#endif
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
 	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -337,6 +407,36 @@
 
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_1X1
+
+	#else
+		#error Unexpected stage.
+	#endif
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
+	// Denoise diffuse and AO, but AO is FSSDSignalSample::MissCount.
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
+
+	#define COMPILE_SIGNAL_COLOR_ARRAY 2
+
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_PROBE_HIERARCHY
+	//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
+	
+	// SSGI doesn't have any bilateral distance computed from hitT, so allow to blur spatially by about the size of the kernel.
+	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 3.0
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
+
+	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_INPUT
+		//#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE   SIGNAL_TEXTURE_TYPE_UINT2
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_HISTORY
+
+		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_1X1
 
 	#else
 		#error Unexpected stage.
@@ -446,6 +546,8 @@
 	#define COMPILE_DISK_KERNEL 1
 #elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 	#define COMPILE_DIRECTIONAL_KERNEL 1
+#elif CONFIG_SAMPLE_SET == SAMPLE_SET_RAW_EXPERIMENTAL_KERNEL
+	#define COMPILE_RAW_EXPERIMENTAL_KERNEL 1
 #else
 	#define COMPILE_BOX_KERNEL 1
 #endif
@@ -605,7 +707,7 @@ void MainCS(
 	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, DenoiserBufferBilinearUVMinMax.xy, DenoiserBufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
@@ -723,8 +825,8 @@ void MainCS(
 		SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 		// SGPRs
-		KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
-		KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+		KernelConfig.BufferSizeAndInvSize = DenoiserBufferSizeAndInvSize;
+		KernelConfig.BufferBilinearUVMinMax = DenoiserBufferBilinearUVMinMax;
 		KernelConfig.KernelSpreadFactor = KernelSpreadFactor;
 		KernelConfig.HarmonicPeriode = HarmonicPeriode;
 
@@ -949,9 +1051,11 @@ void MainCS(
 			#endif
 		}
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_*
-		
+
 		FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
 		
+
+		// Performance: skip pixels/regions where the center sample is invalid (SampleCount = 0) for virtual shadow maps
 		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 		bool bRefHasSamples = false;
 		for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
@@ -1145,9 +1249,17 @@ void MainCS(
 	}
 	#endif // DIM_STAGE == STAGE_POST_FILTERING
 
+	#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC && 0
+		DebugOutput[DispatchThreadId] = float4(
+			OutputSamples.Array[0].ColorSH.R.V.x,
+			OutputSamples.Array[0].ColorSH.G.V.x,
+			OutputSamples.Array[0].ColorSH.B.V.x,
+			OutputSamples.Array[0].SampleCount);
+	#endif
+
 	// TODO(Denoiser):  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
 	uint2 OutputPixelPostion;
-	#if CONFIG_VGPR_OPTIMIZATION && !CONFIG_UPSCALE // TODO(Denoiser)
+	#if CONFIG_VGPR_OPTIMIZATION && 1 // TODO(Denoiser)
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
@@ -1171,7 +1283,7 @@ void MainCS(
 	if (all(OutputPixelPostion < ViewportMax))
 	{
 		// Output the multiplexed signal.
-		#if DIM_STAGE == STAGE_FINAL_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+		#if DIM_STAGE == STAGE_FINAL_OUTPUT && (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK)
 		{
 			UNROLL
 			for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)

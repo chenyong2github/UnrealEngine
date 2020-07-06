@@ -74,7 +74,7 @@ struct FSharedBasePassInterpolants
 #if !TESSELLATION_SUPPORTED
 	// Note: TEXCOORD8 is unused
 
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !VF_NANITE
 	float3 PixelPositionExcludingWPO : TEXCOORD9;
 	#endif
 #endif
@@ -99,7 +99,7 @@ struct FSharedBasePassInterpolants
 	#endif
 #endif
 
-#if WRITES_VELOCITY_TO_GBUFFER
+#if WRITES_VELOCITY_TO_GBUFFER && !VF_NANITE
 	// .xy is clip position, pre divide by w; .w is clip W; .z is 0 or 1 to mask out the velocity output
 	float4 VelocityPrevScreenPosition : VELOCITY_PREV_POS;
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
@@ -115,7 +115,7 @@ struct FBasePassInterpolantsVSToPS : FSharedBasePassInterpolants
 {
 	// Note: TEXCOORD8 is unused
 
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !VF_NANITE
 	float3 PixelPositionExcludingWPO : TEXCOORD9;
 	#endif
 };
@@ -123,7 +123,7 @@ struct FBasePassInterpolantsVSToPS : FSharedBasePassInterpolants
 /** Interpolants passed from the vertex shader to the domain shader. */
 struct FBasePassInterpolantsVSToDS : FSharedBasePassInterpolants
 {
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !VF_NANITE
 	float3 WorldPositionExcludingWPO : TEXCOORD9;
 	#endif
 };

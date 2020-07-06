@@ -18,7 +18,7 @@
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
 #include "PixelShaderUtils.h"
-
+#include "RenderGraphPrivate.h"
 
 FVisualizeTexture::FVisualizeTexture()
 {
@@ -167,7 +167,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 {
 	check(CaptureId >= 0);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	if (!SrcTexture || !SrcTexture->Desc.IsValid())
 	{
 		// todo: improve
@@ -355,12 +355,12 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 #endif
 
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // SUPPORTS_VISUALIZE_TEXTURE
 }
 
 int32 FVisualizeTexture::ShouldCapture(const TCHAR* DebugName)
 {
-#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !SUPPORTS_VISUALIZE_TEXTURE
 	return FVisualizeTexture::kInvalidCaptureId;
 #else
 	if (!bEnabled)
@@ -393,10 +393,10 @@ int32 FVisualizeTexture::ShouldCapture(const TCHAR* DebugName)
 	// only needed for VisualizeTexture (todo: optimize out when possible)
 	*UsageCountPtr = *UsageCountPtr + 1;
 	return FVisualizeTexture::kInvalidCaptureId;
-#endif
+#endif //SUPPORTS_VISUALIZE_TEXTURE
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 
 void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooledRenderTarget* PooledRenderTarget)
 {
@@ -448,7 +448,7 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooled
 	}
 }
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // SUPPORTS_VISUALIZE_TEXTURE
 
 void FVisualizeTexture::QueryInfo_GameThread(FQueryVisualizeTexureInfo& Out)
 {

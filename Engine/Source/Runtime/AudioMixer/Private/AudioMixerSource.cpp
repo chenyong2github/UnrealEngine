@@ -909,8 +909,10 @@ namespace Audio
 
 	void FMixerSource::UpdateSpatialization()
 	{
+		FQuat LastEmitterWorldRotation = SpatializationParams.EmitterWorldRotation;
 		SpatializationParams = GetSpatializationParams();
-		if (WaveInstance->GetUseSpatialization())
+		SpatializationParams.LastEmitterWorldRotation = LastEmitterWorldRotation;
+		if (WaveInstance->GetUseSpatialization() || WaveInstance->bIsAmbisonics)
 		{
 			MixerSourceVoice->SetSpatializationParams(SpatializationParams);
 		}

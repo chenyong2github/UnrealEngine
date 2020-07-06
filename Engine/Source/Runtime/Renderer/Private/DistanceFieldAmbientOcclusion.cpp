@@ -617,8 +617,6 @@ void ListDistanceFieldLightingMemory(const FViewInfo& View, FSceneRenderer& Scen
 	}
 	
 	UE_LOG(LogRenderer, Log, TEXT("   %s"), *GDistanceFieldVolumeTextureAtlas.GetSizeString());
-	extern FString GetObjectBufferMemoryString();
-	UE_LOG(LogRenderer, Log, TEXT("   %s"), *GetObjectBufferMemoryString());
 	UE_LOG(LogRenderer, Log, TEXT(""));
 	UE_LOG(LogRenderer, Log, TEXT("Distance Field AO"));
 	
@@ -659,9 +657,6 @@ void ListDistanceFieldLightingMemory(const FViewInfo& View, FSceneRenderer& Scen
 		}
 	}
 
-	extern void ListGlobalDistanceFieldMemory();
-	ListGlobalDistanceFieldMemory();
-
 #endif // !NO_LOGGING
 }
 
@@ -678,17 +673,23 @@ bool SupportsDistanceFieldAO(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatfor
 		&& IsUsingDistanceFields(ShaderPlatform);
 }
 
-bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+bool ShouldRenderDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
 	return Scene->SkyLight
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
-		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight) // Disable diffuse sky contribution if evaluated by RT Sky.
 		&& !Scene->SkyLight->bWantsStaticShadowing
 		&& !Scene->SkyLight->bHasStaticLighting
 		&& ViewFamily.EngineShowFlags.SkyLighting
 		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
 		&& !IsAnyForwardShadingEnabled(Scene->GetShaderPlatform())
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
+}
+
+bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+{
+	return ShouldRenderDynamicSkyLight(Scene, ViewFamily)
+		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight) // Disable diffuse sky contribution if evaluated by RT Sky.
+		&& !ShouldRenderLumenDiffuseGI(Scene->GetShaderPlatform(), ViewFamily);
 }
 
 bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const
@@ -733,6 +734,8 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 		&& (ShouldPrepareForDistanceFieldAO()
 			|| ((Views.Num() > 0) && Views[0].bUsesGlobalDistanceField)
 			|| ((Scene->FXSystem != nullptr) && Scene->FXSystem->UsesGlobalDistanceField()));
+
+	bShouldPrepareForAO = bShouldPrepareForAO || ShouldPrepareGlobalDistanceFieldForLumen(ShaderPlatform);
 
 	return bShouldPrepareForAO && UseGlobalDistanceField();
 }

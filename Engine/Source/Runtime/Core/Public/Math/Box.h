@@ -150,6 +150,16 @@ public:
 		return ComputeSquaredDistanceFromBoxToPoint(Min, Max, Point);
 	}
 
+	/**
+	 * Calculates squared distance between two boxes.
+	 */
+	FORCEINLINE float ComputeSquaredDistanceToBox(const FBox& Box) const
+	{
+		FVector AxisDistances = (Box.GetCenter() - Box.GetCenter()).GetAbs() - (GetExtent() + Box.GetExtent());
+		AxisDistances = FVector::Max(AxisDistances, FVector(0.0f, 0.0f, 0.0f));
+		return FVector::DotProduct(AxisDistances, AxisDistances);
+	}
+
 	/** 
 	 * Increases the box size.
 	 *

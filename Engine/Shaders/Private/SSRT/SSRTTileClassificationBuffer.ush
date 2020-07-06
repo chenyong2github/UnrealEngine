@@ -2,39 +2,39 @@
 
 #pragma once
 
-#include "../Common.ush"
+#include "SSRTRayCast.ush"
 
-
-#define TILE_RES_DIVISOR_LOG2 3
-#define TILE_RES_DIVISOR 8
-#define DIRECTIONALITY_DIVISION 8
 
 
 uint2 TileBufferExtent;
 uint ViewTileCount;
 uint MaxTileCount;
 
-StructuredBuffer<float> TileClassificationBuffer;
-
-
-/** Information about tiles in SGPRs. */
-struct FSSRTTileInfos
-{
-	float Directionality[DIRECTIONALITY_DIVISION];
-};
-
+StructuredBuffer<FSSRTTileInfos> TileClassificationBuffer;
 
 /** Load tile informations using scalar load. */
 FSSRTTileInfos LoadTileInfos(uint2 TileCoord)
 {
 	uint TileIndex = TileCoord.x + TileCoord.y * TileBufferExtent.x;
 
-	FSSRTTileInfos TileInfos;
-
-	UNROLL_N(DIRECTIONALITY_DIVISION)
-	for (uint i = 0; i < DIRECTIONALITY_DIVISION; i++)
-	{
-		TileInfos.Directionality[i] = TileClassificationBuffer[TileIndex * DIRECTIONALITY_DIVISION + i];
-	}
+	FSSRTTileInfos TileInfos = TileClassificationBuffer[TileIndex];
+	TileInfos.Coord = TileCoord;
 	return TileInfos;
 }
+
+
+/** Test whether a screen space ray can be discarded or not based on tile information. */
+bool TestRayEarlyReturn(FSSRTTileInfos TileInfos, FSSRTRay Ray)
+{
+	float2 RayStepPixel = Ray.RayStepScreen.xy * View.ViewSizeAndInvSize.xy;
+
+	float DeltaU = length(RayStepPixel) * (0.5 * View.ViewSizeAndInvSize.z);
+	float DeltaZ = Ray.RayStepScreen.z;
+	float RayTheta = atan2(DeltaU, -DeltaZ);
+
+	uint DirectionId =ComputeRayDirectionId(Ray);
+	bool bEarlyReturn = RayTheta > TileInfos.Directionality[DirectionId];
+
+	return bEarlyReturn;
+}
+

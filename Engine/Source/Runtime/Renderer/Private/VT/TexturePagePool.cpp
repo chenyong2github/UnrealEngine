@@ -9,6 +9,7 @@ FTexturePagePool::FTexturePagePool()
 	: PageHash(16u * 1024)
 	, NumPages(0u)
 	, NumPagesMapped(0u)
+	, NumPagesAllocated(0u)
 {
 }
 
@@ -18,7 +19,6 @@ FTexturePagePool::~FTexturePagePool()
 
 void FTexturePagePool::Initialize(uint32 InNumPages)
 {
-
 	NumPages = InNumPages;
 	Pages.AddZeroed(InNumPages);
 	PageHash.Resize(InNumPages);
@@ -43,7 +43,6 @@ void FTexturePagePool::Initialize(uint32 InNumPages)
 
 void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 {
-
 	TArray<uint16> PagesToEvict;
 	while (FreeHeap.Num() > 0u)
 	{
@@ -54,18 +53,28 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 
 	for (int32 i = 0; i < PagesToEvict.Num(); i++)
 	{
-		UnmapAllPages(System, PagesToEvict[i], false);
+		UnmapAllPages(System, PagesToEvict[i], true);
 		FreeHeap.Add(0, PagesToEvict[i]);
 	}
 }
 
-void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID)
+void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint32 Size, uint32 MaxLevel)
 {
+	check(Size > 0u);
+	checkf((Size >> MaxLevel) > 0u, TEXT("Size %d is too small for max level %d"), Size, MaxLevel);
+	checkf((vAddress & (0xffffffff << (MaxLevel * 2u))) == vAddress, TEXT("vAddress %08X is not aligned to max level %d"), vAddress, MaxLevel);
+
+	const uint32 vAddressMax = vAddress + FMath::Square(Size);
+
 	// walk through all of our current mapping entries, and unmap any that belong to the current space
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
-		struct FPageMapping& Mapping = PageMapping[MappingIndex];
-		if (Mapping.PageTableLayerIndex != 0xff && Mapping.SpaceID == SpaceID)
+		FPageMapping& Mapping = PageMapping[MappingIndex];
+		if (Mapping.PageTableLayerIndex != 0xff &&
+			Mapping.SpaceID == SpaceID &&
+			Mapping.vLogSize <= MaxLevel &&
+			Mapping.vAddress >= vAddress &&
+			Mapping.vAddress < vAddressMax)
 		{
 			// we're unmapping all pages for space, so don't try to map any ancestor pages...they'll be unmapped as well
 			UnmapPageMapping(System, MappingIndex, false);
@@ -221,12 +230,15 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 
 	// Grab the LRU free page
 	const uint16 pAddress = FreeHeap.Top();
+	FPageEntry& PageEntry = Pages[pAddress];
+
+	// If the LRU page is allocated, that means the pool must be 100% allocated
+	check(PageEntry.PackedProducerHandle == 0u || NumPagesAllocated == NumPages);
 
 	// Unmap any previous usage
 	UnmapAllPages(System, pAddress, true);
 
 	// Mark the page as used for the given producer
-	FPageEntry& PageEntry = Pages[pAddress];
 	PageEntry.PackedProducerHandle = ProducerHandle.PackedValue;
 	PageEntry.Local_vAddress = Local_vAddress;
 	PageEntry.Local_vLevel = Local_vLevel;
@@ -241,6 +253,9 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 	{
 		FreeHeap.Update((Frame << 4) + (Local_vLevel & 0xf), pAddress);
 	}
+
+	++NumPagesAllocated;
+	check(NumPagesAllocated <= NumPages);
 
 	return pAddress;
 }
@@ -341,6 +356,8 @@ void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddr
 	FPageEntry& PageEntry = Pages[pAddress];
 	if (PageEntry.PackedProducerHandle != 0u)
 	{
+		check(NumPagesAllocated > 0u);
+		--NumPagesAllocated;
 		PageHash.Remove(GetPageHash(PageEntry), pAddress);
 		PageEntry.PackedValue = 0u;
 	}

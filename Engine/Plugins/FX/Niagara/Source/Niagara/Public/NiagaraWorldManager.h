@@ -220,6 +220,8 @@ private:
 
 	UWorld* World;
 
+	int ActiveNiagaraTickGroup;
+
 	FNiagaraWorldManagerTickFunction TickFunctions[NiagaraNumTickGroups];
 
 	TMap<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> ParameterCollections;

@@ -33,6 +33,7 @@ FSSDSampleSceneInfos FetchCurrentSceneInfosFromGBuffer(float2 ScreenPosition, fl
 	Infos.WorldDepth = GBufferData.Depth;
 	Infos.WorldNormal = GBufferData.WorldNormal;
 	Infos.Roughness = GBufferData.Roughness;
+	Infos.ShadingModelID = GBufferData.ShadingModelID;
 	
 	// Compute translated world position.
 	{

@@ -1883,15 +1883,16 @@ private:
 
 		for (FVertexFactoryType* VertexFactoryType : FVertexFactoryType::GetSortedMaterialTypes())
 		{
-			if (!FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(VertexFactoryType, Platform, MaterialParameters))
-			{
-				continue;
-			}
-
 			FMeshMaterialShaderMapLayout* MeshLayout = nullptr;
 			for (FShaderType* BaseShaderType : SortedMeshMaterialShaderTypes)
 			{
 				FMeshMaterialShaderType* ShaderType = static_cast<FMeshMaterialShaderType*>(BaseShaderType);
+
+				if (!FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(Platform, MaterialParameters, VertexFactoryType, ShaderType))
+				{
+					continue;
+				}
+
 				const int32 PermutationCount = ShaderType->GetPermutationCount();
 				for (int32 PermutationId = 0; PermutationId < PermutationCount; ++PermutationId)
 				{
@@ -1914,6 +1915,11 @@ private:
 			{
 				for (FShaderPipelineType* ShaderPipelineType : SortedMeshMaterialPipelineTypes)
 				{
+					if (!FMeshMaterialShaderType::ShouldCompileVertexFactoryPipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType))
+					{
+						continue;
+					}
+
 					if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
 						FMeshMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType))
 					{
@@ -2250,7 +2256,7 @@ void FMaterialShaderMap::Register(EShaderPlatform InShaderPlatform)
 		// Items can possibly already be in the map because the GIdToMaterialShaderMapCS is not being locked between search & register lookups and new shader might be compiled
 		if (CachedMap == nullptr)
 		{
-			GIdToMaterialShaderMap[GetShaderPlatform()].Add(ShaderMapId, this);
+			GIdToMaterialShaderMap[GetShaderPlatform()].Add(ShaderMapId,this);
 			bRegistered = true;
 		}
 		else

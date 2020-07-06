@@ -141,8 +141,15 @@ void Main(
 	float4 ShadowPosition = mul(ScreenPosition, ScreenToShadowMatrix);
 	float3 WorldPosition = mul(ScreenPosition, View.ScreenToWorld).xyz;
 
-	float ShadowZ = ShadowPosition.z;
+	float ShadowZ = 1 - ShadowPosition.z;
 	ShadowPosition.xyz /= ShadowPosition.w;
+
+	if (any(ShadowPosition.xy > ShadowTileOffsetAndSize.xy+ShadowTileOffsetAndSize.zw) ||
+		any(ShadowPosition.xy < ShadowTileOffsetAndSize.xy))
+	{
+		OutColor = (float4)1;
+		return;
+	}
 
 #if MODULATED_SHADOWS
 	// UE-29083 : work around precision issues with ScreenToShadowMatrix on low end devices.

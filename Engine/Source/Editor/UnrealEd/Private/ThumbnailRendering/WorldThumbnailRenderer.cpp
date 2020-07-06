@@ -50,6 +50,7 @@ void UWorldThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Wid
 		ViewFamily.EngineShowFlags.SetLOD(true);
 		ViewFamily.EngineShowFlags.SetMaterials(true);
 		ViewFamily.EngineShowFlags.SetStaticMeshes(true);
+		ViewFamily.EngineShowFlags.SetNaniteMeshes(true);
 		ViewFamily.EngineShowFlags.SetLandscape(true);
 		ViewFamily.EngineShowFlags.SetGame(true);
 		ViewFamily.EngineShowFlags.SetBSP(true);

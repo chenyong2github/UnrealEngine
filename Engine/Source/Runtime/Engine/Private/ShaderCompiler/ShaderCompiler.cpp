@@ -100,7 +100,7 @@ uint32 FShaderCommonCompileJob::GetNextJobId()
 static float GRegularWorkerTimeToLive = 20.0f;
 static float GBuildWorkerTimeToLive = 600.0f;
 
-// Configuration to retry shader compile through wrokers after a worker has been abandoned
+// Configuration to retry shader compile through workers after a worker has been abandoned
 static constexpr int32 GSingleThreadedRunsIdle = -1;
 static constexpr int32 GSingleThreadedRunsDisabled = -2;
 static constexpr int32 GSingleThreadedRunsIncreaseFactor = 8;
@@ -2174,9 +2174,9 @@ bool FShaderCompilingManager::ShouldRecompileToDumpShaderDebugInfo(const FShader
 void FShaderCompilingManager::AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, const FString PermutationString, bool bSkipResultProcessing)
 {
 	check(!FPlatformProperties::RequiresCookedData());
-	// Lock CompileQueueSection so we can access the input and output queues
-	FScopeLock Lock(&CompileQueueSection);
 
+	FScopeLock Lock(&CompileQueueSection);
+	// Lock CompileQueueSection so we can access the input and output queues
 	check(GShaderCompilerStats)
 
 	if(NewJobs.Num())
@@ -2836,12 +2836,14 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 				FString ErrorString = FString::Printf(TEXT("%i Shader compiler errors compiling %s for platform %s:"), UniqueErrors.Num(), MaterialName, *TargetShaderPlatformString);
 				UE_LOG(LogShaderCompilers, Warning, TEXT("%s"), *ErrorString);
 				ErrorString += TEXT("\n");
+				bool bAnyErrorLikelyToBeCodeError = false;
 
 				for (int32 JobIndex = 0; JobIndex < CompleteJobs.Num(); JobIndex++)
 				{
 					const FShaderCommonCompileJob& CurrentJob = *CompleteJobs[JobIndex];
 					if (!CurrentJob.bSucceeded)
 					{
+						bAnyErrorLikelyToBeCodeError |= CurrentJob.bErrorsAreLikelyToBeCode;
 						const auto* SingleJob = CurrentJob.GetSingleShaderJob();
 						if (SingleJob)
 						{
@@ -2859,7 +2861,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 					}
 				}
 
-				if (UE_LOG_ACTIVE(LogShaders, Log) && bPromptToRetryFailedShaderCompiles)
+				if (UE_LOG_ACTIVE(LogShaders, Log) && bPromptToRetryFailedShaderCompiles && bAnyErrorLikelyToBeCodeError)
 				{
 #if UE_BUILD_DEBUG
 					// Use debug break in debug with the debugger attached, otherwise message box
@@ -3317,7 +3319,7 @@ void ValidateShaderFilePath(const FString& VirtualShaderFilePath, const FString&
 		*VirtualShaderFilePath);
 }
 
-static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, const FShaderParametersMetadata& ParametersMetadata, uint16 ByteOffset, const FString& Prefix)
+static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, EShaderPlatform ShaderPlatform, const FShaderParametersMetadata& ParametersMetadata, uint16 ByteOffset, const FString& Prefix)
 {
 	for (const FShaderParametersMetadata::FMember& Member : ParametersMetadata.GetMembers())
 	{
@@ -3328,19 +3330,19 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 		if (BaseType == UBMT_INCLUDED_STRUCT)
 		{
 			check(NumElements == 0);
-			PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, Prefix);
+			PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, Prefix);
 		}
 		else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
 		{
 			FString NewPrefix = FString::Printf(TEXT("%s%s_"), *Prefix, Member.GetName());
-			PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
+			PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
 		}
 		else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
 		{
 			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
 			{
 				FString NewPrefix = FString::Printf(TEXT("%s%s_%u_"), *Prefix, Member.GetName(), ArrayElementId);
-				PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
+				PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
 			}
 		}
 		else if (
@@ -3404,6 +3406,8 @@ void GlobalBeginCompileShader(
 	COOK_STAT(ShaderCompilerCookStats::GlobalBeginCompileShaderCalls++);
 	COOK_STAT(FScopedDurationTimer DurationTimer(ShaderCompilerCookStats::GlobalBeginCompileShaderTimeSec));
 
+	const EShaderPlatform ShaderPlatform = static_cast<EShaderPlatform>(Target.Platform);
+
 	TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> Job = StaticCastSharedRef<FShaderCompileJob>(NewJob);
 	FShaderCompilerInput& Input = Job->Input;
 	Input.Target = Target;
@@ -3421,7 +3425,7 @@ void GlobalBeginCompileShader(
 
 	if (ShaderType->GetRootParametersMetadata())
 	{
-		PullRootShaderParametersLayout(Input, *ShaderType->GetRootParametersMetadata(), /* ByteOffset = */ 0, FString());
+		PullRootShaderParametersLayout(Input, ShaderPlatform, *ShaderType->GetRootParametersMetadata(), /* ByteOffset = */ 0, FString());
 	}
 
 	// Verify FShaderCompilerInput's file paths are consistent. 
@@ -3576,8 +3580,6 @@ void GlobalBeginCompileShader(
 			(CVarMobileMultiView->GetValueOnGameThread() != 0 && CVarMobileHDR->GetValueOnGameThread() == 0) : false;
 		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
 
-		const EShaderPlatform ShaderPlatform = static_cast<EShaderPlatform>(Target.Platform);
-
 		bool bIsInstancedStereo = !bUsingMobileRenderer && bIsInstancedStereoCVar && RHISupportsInstancedStereo(ShaderPlatform);
 		bool bIsMobileMultiview = bUsingMobileRenderer && bIsMobileMultiViewCVar;
 		if (bIsMobileMultiview && !RHISupportsMobileMultiView(ShaderPlatform))
@@ -3600,11 +3602,11 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("ODS_CAPTURE"), bIsODSCapture);
 	}
 
-	ShaderType->AddReferencedUniformBufferIncludes(Input.Environment, Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
+	ShaderType->AddReferencedUniformBufferIncludes(Input.Environment, Input.SourceFilePrefix, ShaderPlatform);
 
 	if (VFType)
 	{
-		VFType->AddReferencedUniformBufferIncludes(Input.Environment, Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
+		VFType->AddReferencedUniformBufferIncludes(Input.Environment, Input.SourceFilePrefix, ShaderPlatform);
 	}
 
 	// Add generated instanced stereo code
@@ -3684,6 +3686,13 @@ void GlobalBeginCompileShader(
 		if (CVarD3DForceShaderConductorDXCRewrite.GetValueOnAnyThread() != 0)
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_D3D12ForceShaderConductorRewrite);
+		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.CheckedForTypedUAVs"));
+			if (CVar && CVar->GetInt() == 0)
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+			}
 		}
 	}
 
@@ -3851,6 +3860,11 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferDiffuseSampleOcclusion"));
+		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION"), CVar ? (CVar->GetValueOnGameThread() != 0) : 1);
+	}
+
+	{
 		Input.Environment.SetDefine(TEXT("SELECTIVE_BASEPASS_OUTPUTS"), IsUsingSelectiveBasePassOutputs((EShaderPlatform)Target.Platform) ? 1 : 0);
 	}
 
@@ -3953,6 +3967,10 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_FEEDBACK_FACTOR"), CVar ? FMath::Max(CVar->GetInt(), 1) : 1);
 	}
 
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VT.AnisotropicFiltering"));
+		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING"), CVar ? (CVar->GetInt() != 0) : 0);
+	}
 
 	if (IsMobilePlatform((EShaderPlatform)Target.Platform))
 	{
@@ -4481,8 +4499,8 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 		}
 
 		ensureMsgf(
-			PermutationCountToCompile < 397,	// ToneMapper today (2019-04-17) can go up to 396 permutations
-			TEXT("Global shader %s has %i permutation: probably more that it needs."),
+			PermutationCountToCompile <= 768,	// Nanite culling as of today (2020-01-25) can go up to 768 permutations
+			TEXT("Global shader %s has %i permutations: probably more than it needs."),
 			GlobalShaderType->GetName(), PermutationCountToCompile);
 
 		if (!bEmptyMap && PermutationCountToCompile > 0)
@@ -4619,7 +4637,7 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 		if (Section)
 		{
 			Section->FinalizeContent();
-	
+
 			SaveData.Reset();
 			FMemoryWriter Ar(SaveData, true);
 			Section->Serialize(Ar);
@@ -4786,9 +4804,24 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		{
 			SlowTask.EnterProgressFrame(50);
 
+			// Load from the override global shaders first, this allows us to hot reload in cooked / pak builds
+			TArray<uint8> GlobalShaderData;
+			const bool bAllowOverrideGlobalShaders = !WITH_EDITOR && !UE_BUILD_SHIPPING;
+			if (bAllowOverrideGlobalShaders)
+			{
+				FString OverrideGlobalShaderCacheFilename = GetGlobalShaderCacheOverrideFilename(Platform);
+				FPaths::MakeStandardFilename(OverrideGlobalShaderCacheFilename);
+				bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *OverrideGlobalShaderCacheFilename, FILEREAD_Silent);
+			}
+
 			// is the data already loaded?
-			int64 PreloadedSize;
-			void* PreloadedData = GGlobalShaderPreLoadFile.TakeOwnershipOfLoadedData(&PreloadedSize);
+			int64 PreloadedSize = 0;
+			void* PreloadedData = nullptr;
+			if (!bLoadedFromCacheFile)
+			{
+				PreloadedData = GGlobalShaderPreLoadFile.TakeOwnershipOfLoadedData(&PreloadedSize);
+			}
+
 			if (PreloadedData != nullptr)
 			{
 				FLargeMemoryReader MemoryReader((uint8*)PreloadedData, PreloadedSize, ELargeMemoryReaderFlags::TakeOwnership);
@@ -4796,16 +4829,6 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			}
 			else
 			{
-				TArray<uint8> GlobalShaderData;
-
-				// Load from the override global shaders first, this allows us to hot reload in cooked / pak builds
-				const bool bAllowOverrideGlobalShaders = !WITH_EDITOR && !UE_BUILD_SHIPPING;
-				if (bAllowOverrideGlobalShaders)
-				{
-					FString OverrideGlobalShaderCacheFilename = GetGlobalShaderCacheOverrideFilename(Platform);
-					FPaths::MakeStandardFilename(OverrideGlobalShaderCacheFilename);
-					bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *OverrideGlobalShaderCacheFilename, FILEREAD_Silent);
-				}
 
 				FString GlobalShaderCacheFilename = FPaths::GetRelativePathToRoot() / GetGlobalShaderCacheFilename(Platform);
 				FPaths::MakeStandardFilename(GlobalShaderCacheFilename);

@@ -10,6 +10,9 @@ namespace VirtualTextureScalability
 	ENGINE_API int32 GetMaxUploadsPerFrame();
 	/** Get max update rate of already mapped virtual texture pages. */
 	ENGINE_API int32 GetMaxContinuousUpdatesPerFrame();
+
+	ENGINE_API int32 GetMaxPagesProducedPerFrame();
+
 	/** Get scale factor for virtual texture physical pool sizes. */
 	ENGINE_API float GetPoolSizeScale();
 	/** Get resolution bias for runtime virtual textures. */

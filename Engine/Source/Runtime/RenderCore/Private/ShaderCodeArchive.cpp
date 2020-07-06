@@ -181,7 +181,7 @@ void FSerializedShaderArchive::Serialize(FArchive& Ar)
 	{
 		{
 			const uint32 HashSize = FMath::Min<uint32>(0x10000, 1u << FMath::CeilLogTwo(ShaderMapHashes.Num()));
-			ShaderMapHashTable.Initialize(HashSize, ShaderMapHashes.Num());
+			ShaderMapHashTable.Clear(HashSize, ShaderMapHashes.Num());
 			for (int32 Index = 0; Index < ShaderMapHashes.Num(); ++Index)
 			{
 				const uint32 Key = GetTypeHash(ShaderMapHashes[Index]);
@@ -190,7 +190,7 @@ void FSerializedShaderArchive::Serialize(FArchive& Ar)
 		}
 		{
 			const uint32 HashSize = FMath::Min<uint32>(0x10000, 1u << FMath::CeilLogTwo(ShaderHashes.Num()));
-			ShaderHashTable.Initialize(HashSize, ShaderHashes.Num());
+			ShaderHashTable.Clear(HashSize, ShaderHashes.Num());
 			for (int32 Index = 0; Index < ShaderHashes.Num(); ++Index)
 			{
 				const uint32 Key = GetTypeHash(ShaderHashes[Index]);

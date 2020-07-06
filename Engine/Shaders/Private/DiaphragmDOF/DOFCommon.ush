@@ -108,6 +108,9 @@
 /** Amount of error tolerated to quick fast gathering in. */
 #define FAST_GATHERING_COC_ERROR 0.05
 
+/** Whether to output a debug texture for passes. */
+#define DEBUG_OUTPUT 0
+
 
 //------------------------------------------------------- COMPILE TIME CONSTANTS.
 
@@ -141,6 +144,12 @@ static const int2 kOffsetsSquare3x3[9] = {
 	int2(+1, -1),
 };
 
+
+//------------------------------------------------------- DEBUG OUTPUT
+
+#if DEBUG_OUTPUT
+RWTexture2D<float4> DebugOutput;
+#endif
 
 
 //------------------------------------------------------- COMMON API.

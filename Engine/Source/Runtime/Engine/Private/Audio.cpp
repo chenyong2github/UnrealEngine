@@ -532,6 +532,9 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 {
 	FSpatializationParams Params;
 
+	// Put the audio time stamp on the spatialization params
+	Params.AudioClock = AudioDevice->GetAudioTime();
+
 	if (WaveInstance->GetUseSpatialization())
 	{
 		FVector EmitterPosition = AudioDevice->GetListenerTransformedDirection(WaveInstance->Location, &Params.Distance);

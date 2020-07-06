@@ -47,6 +47,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Features/IModularFeatures.h"
 #include "ISceneOutlinerTraversal.h"
+#include "UObject/PackageReload.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
 

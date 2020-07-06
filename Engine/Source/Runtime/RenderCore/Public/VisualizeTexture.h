@@ -75,10 +75,10 @@ public:
 	// -1:by index, 0:by name, 1:by size
 	int32 SortOrder;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	// [DebugName of the RT] = ReuseCount this frame
 	TMap<const TCHAR*, uint32> VisualizeTextureCheckpoints;
-#endif
+#endif //SUPPORTS_VISUALIZE_TEXTURE
 
 	// render target DebugName that is observed, "" if the feature is deactivated
 	FString ObservedDebugName;

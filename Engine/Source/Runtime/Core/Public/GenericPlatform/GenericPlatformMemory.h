@@ -50,6 +50,17 @@ inline const TCHAR* LexToString(EPlatformMemorySizeBucket Bucket)
 	return TEXT("Unknown");
 }
 
+enum class EMemcpyCachePolicy : uint8
+{
+	// Writes to destination memory are cache-visible (default).
+	// This should be used if copy results are immediately accessed by CPU.
+	StoreCached,
+
+	// Writes to destination memory bypass cache (avoiding pollution).
+	// Optimizes for large copies that aren't read from soon after.
+	StoreUncached,
+};
+
 /** 
  * Struct used to hold common memory constants for all platforms.
  * These values don't change over the entire life of the executable.
@@ -528,6 +539,13 @@ struct CORE_API FGenericPlatformMemory
 	/** On some platforms memcpy optimized for big blocks that avoid L2 cache pollution are available */
 	static FORCEINLINE void* StreamingMemcpy(void* Dest, const void* Src, SIZE_T Count)
 	{
+		return memcpy( Dest, Src, Count );
+	}
+
+	/** On some platforms memcpy can be distributed over multiple threads for throughput. */
+	static FORCEINLINE void* ParallelMemcpy(void* Dest, const void* Src, SIZE_T Count, EMemcpyCachePolicy Policy = EMemcpyCachePolicy::StoreCached)
+	{
+		(void)Policy;
 		return memcpy( Dest, Src, Count );
 	}
 

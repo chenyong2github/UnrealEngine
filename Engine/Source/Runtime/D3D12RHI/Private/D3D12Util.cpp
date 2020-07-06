@@ -793,6 +793,20 @@ void FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(const D3D12_RESOU
 	}
 }
 
+bool UsesVendorExtensionSpace(const FD3D12ShaderData& ShaderData)
+{
+	for (const FShaderCodeVendorExtension& Extension : ShaderData.VendorExtensions)
+	{
+		if (Extension.VendorId == 0x1002) // AMD
+		{
+			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void QuantizeBoundShaderState(
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
 	const FD3D12BoundShaderState* const BSS,
@@ -805,16 +819,35 @@ void QuantizeBoundShaderState(
 	FMemory::Memzero(&QBSS, sizeof(QBSS));
 	QBSS.bAllowIAInputLayout = BSS->GetVertexDeclaration() != nullptr;	// Does the root signature need access to vertex buffers?
 
-	const FD3D12VertexShader* const VertexShader = BSS->GetVertexShader();
-	const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader();
-	const FD3D12HullShader* const HullShader = BSS->GetHullShader();
-	const FD3D12DomainShader* const DomainShader = BSS->GetDomainShader();
-	const FD3D12GeometryShader* const GeometryShader = BSS->GetGeometryShader();
-	if (VertexShader) FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, VertexShader->ResourceCounts, QBSS.RegisterCounts[SV_Vertex]);
-	if (PixelShader) FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);
-	if (HullShader) FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, HullShader->ResourceCounts, QBSS.RegisterCounts[SV_Hull]);
-	if (DomainShader) FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, DomainShader->ResourceCounts, QBSS.RegisterCounts[SV_Domain]);
-	if (GeometryShader) FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, GeometryShader->ResourceCounts, QBSS.RegisterCounts[SV_Geometry]);
+	if (const FD3D12VertexShader* const VertexShader = BSS->GetVertexShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, VertexShader->ResourceCounts, QBSS.RegisterCounts[SV_Vertex]);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*VertexShader);
+	}
+
+	if (const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*PixelShader);
+	}
+
+	if (const FD3D12HullShader* const HullShader = BSS->GetHullShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, HullShader->ResourceCounts, QBSS.RegisterCounts[SV_Hull]);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*HullShader);
+	}
+
+	if (const FD3D12DomainShader* const DomainShader = BSS->GetDomainShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, DomainShader->ResourceCounts, QBSS.RegisterCounts[SV_Domain]);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*DomainShader);
+	}
+
+	if (const FD3D12GeometryShader* const GeometryShader = BSS->GetGeometryShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, GeometryShader->ResourceCounts, QBSS.RegisterCounts[SV_Geometry]);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*GeometryShader);
+	}
 }
 
 static void QuantizeBoundShaderStateCommon(
@@ -842,6 +875,7 @@ void QuantizeBoundShaderState(
 	const bool bAllosUAVs = true;
 	QuantizeBoundShaderStateCommon(ResourceBindingTier, ComputeShader->ResourceCounts, SV_All, bAllosUAVs, OutQBSS);
 	check(OutQBSS.bAllowIAInputLayout == false); // No access to vertex buffers needed
+	OutQBSS.bUseVendorExtension = (ComputeShader->VendorExtensions.Num() > 0);
 }
 
 #if D3D12_RHI_RAYTRACING

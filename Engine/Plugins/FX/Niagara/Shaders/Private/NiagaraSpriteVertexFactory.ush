@@ -7,7 +7,7 @@
 
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "/Engine/Private/ParticleVertexFactoryCommon.ush"
-#include "NiagaraVFParticleAccess.usf"
+#include "NiagaraVFCommon.usf"
 
 #define USE_PARTICLE_LIGHTING_OFFSET (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && !MATERIAL_SHADINGMODEL_UNLIT)
 #define USE_PARTICLE_POSITION (NEEDS_PARTICLE_POSITION || PASS_NEEDS_PRIMITIVE_VOLUME_BOUNDS)

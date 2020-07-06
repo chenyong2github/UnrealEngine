@@ -705,7 +705,8 @@ bool TraceClouds(
 			//
 			// B- sample shadow from opaque if enabled
 			//
-			const float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition, false, false);
+			bool bUnused;
+			const float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition, false, false, bUnused);
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
 			{

@@ -1502,6 +1502,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				}
 				else
 				{
+					// build view frustum with no near plane / no far plane in frustum (far plane culling is done later in the function) : 
+					const bool bViewFrustumUsesNearPlane = false;
+					const bool bViewFrustumUsesFarPlane = false;
+
 					// Instanced stereo needs to use the right plane from the right eye when constructing the frustum bounds to cull against.
 					// Otherwise we'll cull objects visible in the right eye, but not the left.
 					if ((Views[0]->IsInstancedStereoPass() || Views[0]->bIsMobileMultiViewEnabled) && ViewIndex == 0)
@@ -1512,50 +1516,48 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 						const FMatrix RightEyeLocalViewProjForCulling = GetLocalToWorld() * Views[1]->ViewMatrices.GetViewProjectionMatrix();
 
 						FConvexVolume LeftEyeBounds, RightEyeBounds;
-						GetViewFrustumBounds(LeftEyeBounds, LeftEyeLocalViewProjForCulling, false);
-						GetViewFrustumBounds(RightEyeBounds, RightEyeLocalViewProjForCulling, false);
+						GetViewFrustumBounds(LeftEyeBounds, LeftEyeLocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
+						GetViewFrustumBounds(RightEyeBounds, RightEyeLocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
 
-						// Invalid bounds retrieved, so skip render of this frame
-						if (LeftEyeBounds.Planes.Num() < 5 || RightEyeBounds.Planes.Num() < 5)
+						// Invalid bounds retrieved, so skip render of this frame :
+						if (LeftEyeBounds.Planes.Num() != 4 || RightEyeBounds.Planes.Num() != 4)
 						{
+							checkf(false, TEXT("Invalid frustum, skipping render"));
 							continue;
 						}
 						
-						InstanceParams.ViewFrustumLocal.Planes.Empty(5);
+						InstanceParams.ViewFrustumLocal.Planes.Empty(4);
 						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[0]);
 						InstanceParams.ViewFrustumLocal.Planes.Add(RightEyeBounds.Planes[1]);
 						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[2]);
 						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[3]);
-						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[4]);
 						InstanceParams.ViewFrustumLocal.Init();
 					}
 					else
 					{
 						const FMatrix LocalViewProjForCulling = GetLocalToWorld() * View->ViewMatrices.GetViewProjectionMatrix();
-						GetViewFrustumBounds(InstanceParams.ViewFrustumLocal, LocalViewProjForCulling, false);
+						GetViewFrustumBounds(InstanceParams.ViewFrustumLocal, LocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
 					}
 
 					if (View->ViewMatrices.IsPerspectiveProjection())
 					{
-						if (InstanceParams.ViewFrustumLocal.Planes.Num() == 5)
+						// Invalid bounds retrieved, so skip render of this frame :
+						if (InstanceParams.ViewFrustumLocal.Planes.Num() != 4)
 						{
-							InstanceParams.ViewFrustumLocal.Planes.Pop(false); // we don't want the far plane either
-							FMatrix ThreePlanes;
-							ThreePlanes.SetIdentity();
-							ThreePlanes.SetAxes(&InstanceParams.ViewFrustumLocal.Planes[0], &InstanceParams.ViewFrustumLocal.Planes[1], &InstanceParams.ViewFrustumLocal.Planes[2]);
-							FVector ProjectionOrigin = ThreePlanes.Inverse().GetTransposed().TransformVector(FVector(InstanceParams.ViewFrustumLocal.Planes[0].W, InstanceParams.ViewFrustumLocal.Planes[1].W, InstanceParams.ViewFrustumLocal.Planes[2].W));
-
-							for (int32 Index = 0; Index < InstanceParams.ViewFrustumLocal.Planes.Num(); Index++)
-							{
-								FPlane Src = InstanceParams.ViewFrustumLocal.Planes[Index];
-								FVector Normal = Src.GetSafeNormal();
-								InstanceParams.ViewFrustumLocal.Planes[Index] = FPlane(Normal, Normal | ProjectionOrigin);
-							}
-						}
-						else
-						{
-							 // zero scaling or something, cull everything
+							checkf(false, TEXT("Invalid frustum, skipping render"));
 							continue;
+						}
+
+						FMatrix ThreePlanes;
+						ThreePlanes.SetIdentity();
+						ThreePlanes.SetAxes(&InstanceParams.ViewFrustumLocal.Planes[0], &InstanceParams.ViewFrustumLocal.Planes[1], &InstanceParams.ViewFrustumLocal.Planes[2]);
+						FVector ProjectionOrigin = ThreePlanes.Inverse().GetTransposed().TransformVector(FVector(InstanceParams.ViewFrustumLocal.Planes[0].W, InstanceParams.ViewFrustumLocal.Planes[1].W, InstanceParams.ViewFrustumLocal.Planes[2].W));
+
+						for (int32 Index = 0; Index < InstanceParams.ViewFrustumLocal.Planes.Num(); Index++)
+						{
+							FPlane Src = InstanceParams.ViewFrustumLocal.Planes[Index];
+							FVector Normal = Src.GetSafeNormal();
+							InstanceParams.ViewFrustumLocal.Planes[Index] = FPlane(Normal, Normal | ProjectionOrigin);
 						}
 					}
 					else
@@ -3025,15 +3027,12 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
-	const bool bMeshIsValid = 
+	const bool bMeshIsValid =
 		// make sure we have instances		
 		(PerInstanceRenderData.IsValid()) &&
-		// make sure we have an actual staticmesh
+		// make sure we have an actual static mesh
 		GetStaticMesh() &&
-		GetStaticMesh()->HasValidRenderData(false) &&
-		// You really can't use hardware instancing on the consoles with multiple elements because they share the same index buffer. 
-		// @todo: Level error or something to let LDs know this
-		1;//GetStaticMesh()->LODModels(0).Elements.Num() == 1;
+		GetStaticMesh()->HasValidRenderData(false);
 
 	if (bMeshIsValid)
 	{
@@ -3050,8 +3049,17 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
 		
 		bool bIsGrass = !PerInstanceSMData.Num();
-		return ::new FHierarchicalStaticMeshSceneProxy(bIsGrass, this, GetWorld()->FeatureLevel);
+
+		if (GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		{
+			return ::new Nanite::FSceneProxy(this);
+		}
+		else
+		{
+			return ::new FHierarchicalStaticMeshSceneProxy(bIsGrass, this, GetWorld()->FeatureLevel);
+		}
 	}
+
 	return nullptr;
 }
 

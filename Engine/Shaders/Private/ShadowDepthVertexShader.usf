@@ -40,9 +40,9 @@ void SetShadowDepthOutputs(
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
 	// This has problems if some vertices of a triangle get clamped and others do not, also causes artifacts with non-ortho projections
-	if (PassStruct.bClampToNearPlane > 0 && OutPosition.z < 0)
+	if (PassStruct.bClampToNearPlane > 0 && OutPosition.z > OutPosition.w)
 	{
-		OutPosition.z = 0.000001f;
+		OutPosition.z = 0.999999f;
 		OutPosition.w = 1.0f;
 	}
 
@@ -74,8 +74,8 @@ void SetShadowDepthOutputs(
 	#else
 		// Output linear, normalized depth
 		const float InvMaxSubjectDepth = PassStruct.ShadowParams.w;
-		ShadowDepth = OutPosition.z * InvMaxSubjectDepth + DepthBias;
-		OutPosition.z = ShadowDepth * OutPosition.w;
+		ShadowDepth = ( 1 - OutPosition.z * InvMaxSubjectDepth ) + DepthBias;
+		OutPosition.z = ShadowDepth;
 	#endif
 }
 
@@ -499,4 +499,4 @@ void PositionOnlyMainForGS(
 
 #endif // IS_FOR_GEOMETRY_SHADER
 
-#endif
+#endif // POSITION_ONLY

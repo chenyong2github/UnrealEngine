@@ -438,7 +438,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			GraphBuilder.AddPass(
 				Forward<FRDGEventName>(RDG_EVENT_NAME("MipGen")),
 				PassParameters,
-				ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+				ERDGPassFlags::Compute,
 			[PassParameters, ComputeShader, NumGroups](FRHICommandList& RHICmdList)
 			{
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, NumGroups);

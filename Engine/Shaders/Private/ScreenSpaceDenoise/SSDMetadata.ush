@@ -10,7 +10,7 @@
 
 //------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
 
-#define MAX_COMPRESSED_METADATA_VGPRS 5
+#define MAX_COMPRESSED_METADATA_VGPRS 6
 
 
 //------------------------------------------------------- SHARED FUNCTION
@@ -92,6 +92,9 @@ struct FSSDSampleSceneInfos
 
 	/** Position of the pixel in the translated world frame to save VALU. */
 	float3 TranslatedWorldPosition;
+
+	/** Shading model of the scene pixel. */
+	uint ShadingModelID;
 };
 
 FSSDSampleSceneInfos CreateSampleSceneInfos()
@@ -103,6 +106,7 @@ FSSDSampleSceneInfos CreateSampleSceneInfos()
 	Infos.WorldNormal             = 0;
 	Infos.ViewNormal              = 0;
 	Infos.TranslatedWorldPosition = 0;
+	Infos.ShadingModelID          = SHADINGMODELID_DEFAULT_LIT;
 	return Infos;
 }
 
@@ -126,6 +130,7 @@ FSSDSampleSceneInfos UncompressSampleSceneInfo(
 		Infos.WorldNormal.y = asfloat(CompressedInfos.VGPR[2]);
 		Infos.WorldNormal.z = asfloat(CompressedInfos.VGPR[3]);
 		Infos.Roughness = asfloat(CompressedInfos.VGPR[4]);
+		Infos.ShadingModelID = CompressedInfos.VGPR[5];
 		
 		Infos.DeviceZ = ConvertToDeviceZ(Infos.WorldDepth);
 		Infos.ViewNormal = mul(float4(Infos.WorldNormal, 0), View.TranslatedWorldToView).xyz;
@@ -156,6 +161,31 @@ FSSDSampleSceneInfos UncompressSampleSceneInfo(
 			Infos.ViewNormal = DecodedViewNormal;
 			Infos.WorldNormal = mul(float4(Infos.ViewNormal, 0), View.ViewToTranslatedWorld).xyz;
 		}
+	}
+	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_FED_DEPTH_SHADINGMODEL)
+	{
+		Infos.DeviceZ = asfloat(CompressedInfos.VGPR[0]);
+		Infos.WorldDepth = ConvertFromDeviceZ(Infos.DeviceZ);
+		Infos.ShadingModelID = CompressedInfos.VGPR[1];
+	}
+	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL)
+	{
+		Infos.TranslatedWorldPosition.x = asfloat(CompressedInfos.VGPR[0]);
+		Infos.TranslatedWorldPosition.y = asfloat(CompressedInfos.VGPR[1]);
+		Infos.TranslatedWorldPosition.z = asfloat(CompressedInfos.VGPR[2]);
+		Infos.ShadingModelID = CompressedInfos.VGPR[3];
+
+		if (bIsPrevFrame)
+		{
+			Infos.WorldDepth = mul(float4(Infos.TranslatedWorldPosition, 1.0), View.TranslatedWorldToView).z;
+		}
+		else
+		{
+			Infos.WorldDepth = mul(float4(Infos.TranslatedWorldPosition, 1.0), View.PrevTranslatedWorldToView).z;
+		}
+		Infos.DeviceZ = ConvertToDeviceZ(Infos.WorldDepth);
+
+		return Infos;
 	}
 	else
 	{
@@ -192,6 +222,7 @@ FSSDCompressedSceneInfos CompressSampleSceneInfo(
 		CompressedInfos.VGPR[2] = asuint(Infos.WorldNormal.y);
 		CompressedInfos.VGPR[3] = asuint(Infos.WorldNormal.z);
 		CompressedInfos.VGPR[4] = asuint(Infos.Roughness);
+		CompressedInfos.VGPR[5] = asuint(Infos.ShadingModelID);
 	}
 	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_DEPTH_NORMAL)
 	{
@@ -200,6 +231,18 @@ FSSDCompressedSceneInfos CompressSampleSceneInfo(
 	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_DEPTH_VIEWNORMAL)
 	{
 		CompressedInfos.VGPR[0] = CompressDevizeZAndN(Infos.DeviceZ, Infos.ViewNormal);
+	}
+	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_FED_DEPTH_SHADINGMODEL)
+	{
+		CompressedInfos.VGPR[0] = asuint(Infos.DeviceZ);
+		CompressedInfos.VGPR[1] = Infos.ShadingModelID;
+	}
+	else if (CompressedLayout == METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL)
+	{
+		CompressedInfos.VGPR[0] = asuint(Infos.TranslatedWorldPosition.x);
+		CompressedInfos.VGPR[1] = asuint(Infos.TranslatedWorldPosition.y);
+		CompressedInfos.VGPR[2] = asuint(Infos.TranslatedWorldPosition.z);
+		CompressedInfos.VGPR[3] = Infos.ShadingModelID;
 	}
 	else
 	{

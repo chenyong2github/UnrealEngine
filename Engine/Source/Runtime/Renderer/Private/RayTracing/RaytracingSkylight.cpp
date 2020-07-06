@@ -296,7 +296,7 @@ void SetupSkyLightVisibilityRaysParameters(
 		AddClearUAVPass(DummyGraphBuilder, DummyRDGBufferUAV, 0);
 
 		// Set the Sky Light Visibility Ray pooled buffer to the extracted pooled dummy buffer
-		DummyGraphBuilder.QueueBufferExtraction(DummyRDGBuffer, &PooledSkyLightVisibilityRaysBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+		DummyGraphBuilder.QueueBufferExtraction(DummyRDGBuffer, &PooledSkyLightVisibilityRaysBuffer, EResourceTransitionAccess::EReadable);
 		DummyGraphBuilder.Execute();
 
 		// Set the Sky Light Visibility Ray Dimensions to a dummy value
@@ -632,7 +632,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			if (CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() == 1)
 			{
 				// Set the Sky Light Visibility Ray dimensions and its extracted pooled RDG buffer on the scene view state
-				GraphBuilder.QueueBufferExtraction(SkyLightVisibilityRaysBuffer, &SceneViewState->SkyLightVisibilityRaysBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+				GraphBuilder.QueueBufferExtraction(SkyLightVisibilityRaysBuffer, &SceneViewState->SkyLightVisibilityRaysBuffer, EResourceTransitionAccess::EReadable);
 				SceneViewState->SkyLightVisibilityRaysDimensions = SkyLightVisibilityRaysDimensions;
 			}
 			else

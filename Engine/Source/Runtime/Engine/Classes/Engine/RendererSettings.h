@@ -272,6 +272,13 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
 		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.AnisotropicFiltering", DisplayName = "Enable VT anisotropic filtering",
+		ToolTip = "When enabled, VTs will use potentially use anisotropic filtering. This adds a cost to all shaders using VT. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bVirtualTextureAnisotropicFiltering : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
 		ConsoleVariable = "r.VT.TileSize", DisplayName = "Tile size",
 		ToolTip = "Size in pixels for virtual texture tiles, will be rounded to next power-of-2. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))

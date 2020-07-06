@@ -221,7 +221,10 @@ namespace Chaos
 		 */
 		static TVector<float, 3> CalculateAngularVelocity1(const TRotation<float, 3>& InR0, const TRotation<float, 3>& InR1, const float InDt)
 		{
-			check(InDt > SMALL_NUMBER);
+			if (!ensure(InDt > SMALL_NUMBER))
+			{
+				return TVector<float, 3>(0);
+			}
 
 			const TRotation<float, 3>& R0 = InR0;
 			TRotation<float, 3> R1 = InR1;
@@ -244,7 +247,10 @@ namespace Chaos
 		{
 			// @todo(ccaulfield): ToAxisAndAngle starts to return increasingly random, non-normalized axes for very small angles. This 
 			// underestimates the angular velocity magnitude and randomizes direction.
-			check(InDt > SMALL_NUMBER);
+			if (!ensure(InDt > SMALL_NUMBER))
+			{
+				return TVector<float, 3>(0);
+			}
 
 			const TRotation<float, 3>& R0 = InR0;
 			TRotation<float, 3> R1 = InR1;

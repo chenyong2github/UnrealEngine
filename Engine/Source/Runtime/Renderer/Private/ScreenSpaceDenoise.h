@@ -3,12 +3,46 @@
 #pragma once
 
 #include "RenderGraph.h"
+#include "IndirectLightRendering.h"
 
 
 class FViewInfo;
 struct FPreviousViewInfo;
 class FLightSceneInfo;
 class FSceneTextureParameters;
+
+
+// TODO(Denoiser): namespace.
+
+/** The maximum number of buffers. */
+static const int32 kMaxDenoiserBufferProcessingCount = 4;
+
+
+namespace Denoiser
+{
+
+/** Public shader parameter structure to be able to execute bilateral kernel of the denoiser in external shaders. */
+BEGIN_SHADER_PARAMETER_STRUCT(FCommonShaderParameters, )
+	SHADER_PARAMETER(FVector4, DenoiserBufferSizeAndInvSize)
+	SHADER_PARAMETER(FVector4, DenoiserBufferBilinearUVMinMax)
+	SHADER_PARAMETER(FVector4, SceneBufferUVToScreenPosition) // TODO: move to view uniform buffer
+	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
+END_SHADER_PARAMETER_STRUCT()
+
+void SetupCommonShaderParameters(
+	const FViewInfo& View,
+	const FSceneTextureParameters& SceneTextures,
+	const FIntRect DenoiserFullResViewport,
+	float DenoisingResolutionFraction,
+	FCommonShaderParameters* OutPublicCommonParameters);
+
+} // namespace Denoiser
+
+
+/** Shader parameter structure use to bind all signal generically. */
+BEGIN_SHADER_PARAMETER_STRUCT(FSSDSignalTextures, )
+	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kMaxDenoiserBufferProcessingCount])
+END_SHADER_PARAMETER_STRUCT()
 
 
 /** Interface for denoiser to have all hook in the renderer. */
@@ -25,7 +59,21 @@ public:
 	static constexpr int32 kHarmonicBordersCount = kMultiPolychromaticPenumbraHarmonics + 1;
 
 	// Number of texture to store spherical harmonics.
-	static constexpr int32 kSphericalHarmonicTextureCount = 4;
+	static constexpr int32 kSphericalHarmonicTextureCount = 2;
+
+
+	/** Mode to run denoiser. */
+	enum class EMode
+	{
+		// Denoising is disabled.
+		Disabled,
+
+		// Using default denoiser of the renderer.
+		DefaultDenoiser,
+
+		// Using a denoiser from a third party.
+		ThirdPartyDenoiser,
+	};
 
 
 	/** All the inputs of the shadow denoiser. */
@@ -108,8 +156,16 @@ public:
 		
 	/** All the inputs and outputs for spherical harmonic denoising. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectHarmonic, )
-		// FloatR11G11B10
 		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, SphericalHarmonic, [kSphericalHarmonicTextureCount])
+	END_SHADER_PARAMETER_STRUCT()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectHarmonicUAVs, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, SphericalHarmonic, [kSphericalHarmonicTextureCount])
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** All the inputs of the virtual shadow map denoiser. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapMaskInputs, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Signal)
 	END_SHADER_PARAMETER_STRUCT()
 
 		
@@ -167,6 +223,7 @@ public:
 
 	static FHarmonicTextures CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName);
 	static FHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FHarmonicTextures& Textures);
+	static FDiffuseIndirectHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FDiffuseIndirectHarmonic& Textures);
 
 
 
@@ -228,7 +285,7 @@ public:
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const = 0;
 
 	/** Entry point to denoise diffuse indirect and AO. */
-	virtual FDiffuseIndirectOutputs DenoiseDiffuseIndirect(
+	virtual FSSDSignalTextures DenoiseDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -255,17 +312,17 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Entry point to denoise spherical harmonic for diffuse indirect. */
-	virtual FDiffuseIndirectHarmonic DenoiseDiffuseIndirectHarmonic(
+	virtual FSSDSignalTextures DenoiseDiffuseIndirectHarmonic(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectHarmonic& Inputs,
-		const FAmbientOcclusionRayTracingConfig Config) const = 0;
+		const HybridIndirectLighting::FCommonParameters& CommonDiffuseParameters) const = 0;
 
 	/** Entry point to denoise SSGI. */
 	virtual bool SupportsScreenSpaceDiffuseIndirectDenoiser(EShaderPlatform Platform) const = 0;
-	virtual FDiffuseIndirectOutputs DenoiseScreenSpaceDiffuseIndirect(
+	virtual FSSDSignalTextures DenoiseScreenSpaceDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -273,9 +330,31 @@ public:
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
+	/** Entry point to denoise diffuse indirect probe hierarchy. */
+	static FSSDSignalTextures DenoiseIndirectProbeHierarchy(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FSSDSignalTextures& InputSignal,
+		FRDGTextureRef CompressedDepthTexture,
+		FRDGTextureRef CompressedShadingModelTexture);
+
+	/** Entry point to denoise virtual shadow map mask. */
+	static FSSDSignalTextures DenoiseVirtualShadowMapMask(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FLightSceneInfo* LightSceneInfo,
+		FIntRect LightScissorRect,
+		const FVirtualShadowMapMaskInputs& InputParameters);
 
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();
+
+	/** Returns the denoising mode. */
+	static EMode GetDenoiserMode(const TAutoConsoleVariable<int32>& CVar);
 }; // class IScreenSpaceDenoiser
 
 

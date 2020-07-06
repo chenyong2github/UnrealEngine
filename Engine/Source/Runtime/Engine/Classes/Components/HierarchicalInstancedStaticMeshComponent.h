@@ -132,7 +132,7 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 
 	TSharedPtr<TArray<FClusterNode>, ESPMode::ThreadSafe> ClusterTreePtr;
 
-	// Table for remaping instances from cluster tree to PerInstanceSMData order
+	// Table for remapping instances from cluster tree to PerInstanceSMData order
 	UPROPERTY()
 	TArray<int32> SortedInstances;
 

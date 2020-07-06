@@ -1014,24 +1014,8 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 		// We're about to UpdateAnimation, this will potentially queue events that we'll need to dispatch.
 		bNeedsQueuedAnimEventsDispatched = true;
 
-		// We update linked instances first incase we're using either root motion or non-threaded update.
-		// This ensures that we go through the pre update process and initialize the proxies correctly.
-		for (UAnimInstance* LinkedInstance : LinkedInstances)
-		{
-			// Sub anim instances are always forced to do a parallel update 
-			LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
-		}
-
-		if (AnimScriptInstance != nullptr)
-		{
-			// Tick the animation
-			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
-		}
-
-		if(ShouldUpdatePostProcessInstance())
-		{
-			PostProcessAnimInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false);
-		}
+		// Tick all of our anim instances
+		TickAnimInstances(DeltaTime, bNeedsValidRootMotion);
 
 		/**
 			If we're called directly for autonomous proxies, TickComponent is not guaranteed to get called.
@@ -1041,6 +1025,28 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 		{
 			ConditionallyDispatchQueuedAnimEvents();
 		}
+	}
+}
+
+void USkeletalMeshComponent::TickAnimInstances(float DeltaTime, bool bNeedsValidRootMotion)
+{
+	// We update linked instances first incase we're using either root motion or non-threaded update.
+	// This ensures that we go through the pre update process and initialize the proxies correctly.
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		// Sub anim instances are always forced to do a parallel update 
+		LinkedInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+	}
+
+	if (AnimScriptInstance != nullptr)
+	{
+		// Tick the animation
+		AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
+	}
+
+	if(ShouldUpdatePostProcessInstance())
+	{
+		PostProcessAnimInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false);
 	}
 }
 
@@ -2455,6 +2461,7 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 			}
 		}
 
+
 #if WITH_EDITOR	
 		// If we have no physics to blend or in editor since there is no physics tick group, we are done
 		if (!ShouldBlendPhysicsBones() || GetWorld()->WorldType == EWorldType::Editor)
@@ -3491,6 +3498,7 @@ bool USkeletalMeshComponent::IsPlayingNetworkedRootMotionMontage() const
 			}
 		}
 	}
+
 	return false;
 }
 

@@ -2803,6 +2803,48 @@ struct FSkeletalMeshBuildSettings
 	}
 };
 
+/**
+ * Settings applied when building Nanite data.
+ */
+USTRUCT()
+struct FMeshNaniteSettings
+{
+	GENERATED_BODY()
+
+	/** If true, Nanite data will be generated. */
+	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	uint8 bEnabled : 1;
+
+	/** Percentage of triangles to keep from LOD0. 1.0 = no reduction, 0.0 = no triangles. */
+	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	float PercentTriangles;
+
+	/** Default settings. */
+	FMeshNaniteSettings()
+	: bEnabled(false)
+	, PercentTriangles(0.01f)
+	{
+	}
+
+	FMeshNaniteSettings(const FMeshNaniteSettings& Other)
+	: bEnabled(Other.bEnabled)
+	, PercentTriangles(Other.PercentTriangles)
+	{
+	}
+
+	/** Equality operator. */
+	bool operator==(const FMeshNaniteSettings& Other) const
+	{
+		return bEnabled == Other.bEnabled && PercentTriangles == Other.PercentTriangles;
+	}
+
+	/** Inequality operator. */
+	bool operator!=(const FMeshNaniteSettings& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
 /** Event used by AActor::TakeDamage and related functions */
 USTRUCT(BlueprintType)
 struct ENGINE_API FDamageEvent

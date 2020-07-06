@@ -891,7 +891,7 @@ public:
 
 	/** Sets the bGameCameraCutThisFrame flag to true (indicating we did a camera cut this frame; useful for game code to call, e.g., when performing a teleport that should be seamless) */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	void SetGameCameraCutThisFrame() { bGameCameraCutThisFrame = true; }
+	virtual void SetGameCameraCutThisFrame() { bGameCameraCutThisFrame = true; }
 
 protected:
 	/** Gets specified temporary CameraActor ready to update the specified Anim. */

@@ -31,7 +31,13 @@ void FRenderGraphResourcePool::FindFreeBuffer(
 			Out = PooledBuffer;
 			Out->LastUsedFrame = FrameCounter;
 			Out->Name = InDebugName;
-			// TODO(RDG): assign name on RHI.
+			
+			//@todo - rename other resources too
+			for (TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TMapRDGBufferUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>>::TIterator It(PooledBuffer->UAVs); It; ++It)
+			{
+				RHIBindDebugLabelName(It.Value(), InDebugName);
+			}
+
 			return;
 		}
 	}

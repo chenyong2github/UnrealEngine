@@ -9920,10 +9920,14 @@ void UEngine::SetAverageUnitTimes(float FrameTime, float RenderThreadTime, float
 
 FColor UEngine::GetFrameTimeDisplayColor(float FrameTimeMS) const
 {
+	FColor StatRed(233, 109, 99);		// (Salmon) Red that survives video compression
+	FColor StatGreen(127, 202, 159);	// (De York) Green that survives video compression
+	FColor StatOrange(244, 186, 112);	// Orange that survives video compression
+
 	const float UnacceptableTime = FEnginePerformanceTargets::GetUnacceptableFrameTimeThresholdMS();
 	const float TargetTime = FEnginePerformanceTargets::GetTargetFrameTimeThresholdMS();
 
-	return (FrameTimeMS > UnacceptableTime) ? FColor::Red : ((FrameTimeMS > TargetTime) ? FColor::Yellow : FColor::Green);
+	return (FrameTimeMS > UnacceptableTime) ? StatRed : ((FrameTimeMS > TargetTime) ? StatOrange : StatGreen);
 }
 
 bool UEngine::ShouldThrottleCPUUsage() const

@@ -16,6 +16,7 @@ class MESHBUILDER_API FStaticMeshBuilder : public FMeshBuilder
 {
 public:
 	FStaticMeshBuilder();
+	virtual ~FStaticMeshBuilder() {}
 
 	virtual bool Build(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup) override;
 
@@ -27,7 +28,13 @@ public:
 		return false;
 	}
 
-	virtual ~FStaticMeshBuilder() {}
+	virtual bool Build(
+		UStaticMesh* StaticMesh,
+		TArray< FStaticMeshBuildVertex >& Verts,
+		TArray< uint32 >& Indexes,
+		FStaticMeshSectionArray& Sections,
+		uint32& NumTexCoords,
+		bool& bHasColors ) override;
 
 private:
 

@@ -86,7 +86,7 @@ bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContex
 	// Step (1) : Create the texture on the async thread, having the new mip data as reference so that it can be initialized correctly.
 	if (!IntermediateTextureRHI)
 	{
-		const uint32 Flags = (Texture2D->SRGB ? TexCreate_SRGB : 0) | TexCreate_DisableAutoDefrag;
+		const uint32 Flags = (Texture2D->SRGB ? TexCreate_SRGB : 0);
 
 		// Create the intermediate texture.
 		IntermediateTextureRHI = RHIAsyncCreateTexture2D(FinalSizeX, FinalSizeY, FinalFormat, Context.NumRequestedMips, Flags, FinalMipData.GetData(), FinalMipData.Num());

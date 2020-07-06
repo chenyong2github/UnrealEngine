@@ -15,6 +15,8 @@ struct FVirtualTextureVSOutput
 	float4 Position : SV_POSITION;
 };
 
+#if VERTEXSHADER
+
 void MainVS(
 	FVertexFactoryInput Input,
 	out FVirtualTextureVSOutput Output
@@ -36,6 +38,8 @@ void MainVS(
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 }
+
+#endif // VERTEXSHADER
 
 // Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
 float3 PackNormal( in float3 N )

@@ -31,7 +31,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 		Dimensions.Z, 
 		Format,
 		1,
-		TexCreate_ShaderResource | TexCreate_DisableAutoDefrag | TexCreate_UAV,
+		TexCreate_ShaderResource | TexCreate_UAV,
 		CreateInfo);
 }
 
@@ -46,7 +46,7 @@ void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 		Dimensions.Z,
 		Format,
 		1,
-		TexCreate_ShaderResource | TexCreate_DisableAutoDefrag | TexCreate_UAV,
+		TexCreate_ShaderResource | TexCreate_UAV,
 		CreateInfo);
 }
 

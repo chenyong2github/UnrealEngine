@@ -839,8 +839,8 @@ struct FEditorShaderCodeArchive
 		Format = GetTargetPlatformManagerRef().FindShaderFormat(InFormat);
 		check(Format);
 
-		SerializedShaders.ShaderHashTable.Initialize(0x10000);
-		SerializedShaders.ShaderMapHashTable.Initialize(0x10000);
+		SerializedShaders.ShaderHashTable.Clear(0x10000);
+		SerializedShaders.ShaderMapHashTable.Clear(0x10000);
 	}
 
 	~FEditorShaderCodeArchive() {}

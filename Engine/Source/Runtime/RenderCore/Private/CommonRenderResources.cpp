@@ -44,13 +44,18 @@ void FScreenRectangleVertexBuffer::InitRHI()
 
 	// Create vertex buffer. Fill buffer with initial data upon creation
 	FRHIResourceCreateInfo CreateInfo(&Vertices);
+	CreateInfo.DebugName = TEXT("FScreenRectangleVertexBuffer");
 	VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
 }
 
 void FScreenRectangleIndexBuffer::InitRHI()
 {
-	// Indices 0 - 5 are used for rendering a quad. Indices 6 - 8 are used for triangle optimization.
-	const uint16 Indices[] = { 0, 1, 2, 2, 1, 3, 0, 4, 5 };
+	const uint16 Indices[] = 
+	{
+		0, 1, 2, 2, 1, 3,	// [0 .. 5]  Full screen quad with 2 triangles
+		0, 4, 5,			// [6 .. 8]  Full screen triangle
+		3, 2, 1				// [9 .. 11] Full screen rect defined with TL, TR, BL corners
+	};
 
 	TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
 	uint32 NumIndices = UE_ARRAY_COUNT(Indices);
@@ -59,5 +64,6 @@ void FScreenRectangleIndexBuffer::InitRHI()
 
 	// Create index buffer. Fill buffer with initial data upon creation
 	FRHIResourceCreateInfo CreateInfo(&IndexBuffer);
+	CreateInfo.DebugName = TEXT("FScreenRectangleIndexBuffer");
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfo);
 }

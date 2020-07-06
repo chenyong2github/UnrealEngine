@@ -729,6 +729,12 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				int32 EdgeStartVertexIndex = -1;
 				int32 EdgeEndVertexIndex = -1;
 				Mesh->GetMeshEdgeVertices(FbxEdgeIndex, EdgeStartVertexIndex, EdgeEndVertexIndex);
+				// Skip invalid edges, i.e. one of the ends is invalid, or degenerated ones
+				if(EdgeStartVertexIndex == -1 || EdgeEndVertexIndex == -1 || EdgeStartVertexIndex == EdgeEndVertexIndex)
+				{
+					UE_LOG(LogFbx, Warning, TEXT("Skipping invalid edge on mesh %s"), *FString(Mesh->GetName()));
+					continue;
+				}
 				FVertexID EdgeVertexStart(EdgeStartVertexIndex + VertexOffset);
 				check(MeshDescription->Vertices().IsValid(EdgeVertexStart));
 				FVertexID EdgeVertexEnd(EdgeEndVertexIndex + VertexOffset);
@@ -1933,6 +1939,9 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		SrcModel.BuildSettings.bRecomputeTangents = ImportOptions->NormalImportMethod != FBXNIM_ImportNormalsAndTangents;
 		SrcModel.BuildSettings.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
 		SrcModel.BuildSettings.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
+
+		StaticMesh->NaniteSettings.bEnabled = ImportOptions->bBuildNanite;
+
 		if (ImportOptions->bGenerateLightmapUVs)
 		{
 			SrcModel.BuildSettings.bGenerateLightmapUVs = true;

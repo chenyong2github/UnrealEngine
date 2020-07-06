@@ -33,6 +33,7 @@ public:
 	uint32 GetNumPages() const { return NumPages; }
 	uint32 GetNumLockedPages() const { return GetNumPages() - FreeHeap.Num(); }
 	uint32 GetNumMappedPages() const { return NumPagesMapped; }
+	uint32 GetNumAllocatedPages() const { return NumPagesAllocated; }
 
 	/**
 	 * Reset the page pool. This can be used to flush any caches. Mainly useful for debug and testing purposes.
@@ -53,7 +54,7 @@ public:
 	/**
 	* Unmap all pages from the given space...pages will remain resident in the pool, but no longer by mapped to any page table
 	*/
-	void UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID);
+	void UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint32 Size, uint32 MaxLevel);
 
 	/**
 	 * Get descriptions of the locked pages in this pool
@@ -233,4 +234,5 @@ private:
 
 	uint32 NumPages;
 	uint32 NumPagesMapped;
+	uint32 NumPagesAllocated;
 };

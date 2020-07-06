@@ -253,6 +253,7 @@ public:
 #if PIPELINESTATECACHE_VERIFYTHREADSAFE
 	FThreadSafeCounter InUseCount;
 #endif
+	uint64 SortKey = 0;
 };
 
 #if RHI_RAYTRACING
@@ -851,7 +852,11 @@ public:
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
 			GfxPipeline->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
 			
-			if(!GfxPipeline->RHIPipeline)
+			if (GfxPipeline->RHIPipeline)
+			{
+				GfxPipeline->SortKey = GfxPipeline->RHIPipeline->GetSortKey();
+			}
+			else
 			{
 				HandlePipelineCreationFailure(Initializer);
 			}
@@ -953,6 +958,11 @@ static bool IsAsyncCompilationAllowed(FRHICommandList& RHICmdList)
 	return !IsOpenGLPlatform(GMaxRHIShaderPlatform) &&  // The PSO cache is a waste of time on OpenGL and async compilation is a double waste of time.
 		!IsSwitchPlatform(GMaxRHIShaderPlatform) &&
 		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread()) && RHICmdList.AsyncPSOCompileAllowed();
+}
+
+uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelineState* GraphicsPipelineState)
+{
+	return GraphicsPipelineState != nullptr ? GraphicsPipelineState->SortKey : 0;
 }
 
 FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader)
@@ -1300,7 +1310,11 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 		else
 		{
 			OutCachedState->RHIPipeline = RHICreateGraphicsPipelineState(*Initializer);
-			if(!OutCachedState->RHIPipeline)
+			if (OutCachedState->RHIPipeline)
+			{
+				OutCachedState->SortKey = OutCachedState->RHIPipeline->GetSortKey();
+			}
+			else
 			{
 				HandlePipelineCreationFailure(*Initializer);
 			}

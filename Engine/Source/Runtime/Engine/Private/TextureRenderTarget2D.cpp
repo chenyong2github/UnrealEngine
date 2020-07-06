@@ -569,7 +569,6 @@ void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImme
  	// clear the target surface to green
 	if (bClearRenderTarget)
 	{
-		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)TargetSizeX, (float)TargetSizeY, 1.0f);
 		ensure(RenderTargetTextureRHI.IsValid() && (RenderTargetTextureRHI->GetClearColor() == ClearColor));
 
 		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);

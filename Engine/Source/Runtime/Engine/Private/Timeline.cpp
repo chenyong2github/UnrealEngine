@@ -9,6 +9,7 @@
 #include "UObject/Class.h"
 #include "UObject/CoreNet.h"
 #include "UObject/UnrealType.h"
+#include "Curves/CurveFloat.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveFloat.h"

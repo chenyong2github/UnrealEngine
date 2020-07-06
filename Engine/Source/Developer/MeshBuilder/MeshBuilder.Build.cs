@@ -2,33 +2,36 @@
 
 namespace UnrealBuildTool.Rules
 {
-    //MeshBuilder module is a editor module
+	//MeshBuilder module is a editor module
 	public class MeshBuilder : ModuleRules
 	{
 		public MeshBuilder(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"RHI",
 					"Core",
 					"CoreUObject",
-                    "Engine",
-                    "RenderCore",
-                    "MeshDescription",
+					"Engine",
+					"RenderCore",
+					"MeshDescription",
 					"StaticMeshDescription",
                     "MeshReductionInterface",
                     "RawMesh",
 					"MeshUtilities",
-                    "MeshUtilitiesCommon",
-                    "ClothingSystemRuntimeNv",
-                    "MeshBoneReduction",
-                    "SkeletalMeshUtilitiesCommon",
+					"MeshUtilitiesCommon",
+					"ClothingSystemRuntimeNv",
+					"MeshBoneReduction",
+					"SkeletalMeshUtilitiesCommon",
 					"MeshBuilderCommon",
-                }
+				}
 			);
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "QuadricMeshReduction");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "QuadricMeshReduction");
+
+			PrivateIncludePathModuleNames.Add("NaniteBuilder");
+			DynamicallyLoadedModuleNames.Add("NaniteBuilder");
        }
 	}
 }

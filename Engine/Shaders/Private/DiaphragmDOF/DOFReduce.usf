@@ -43,7 +43,7 @@
 
 
 // Configures the neighborhood analysis method to use for slight out of focus early out.
-#if COMPILER_SUPPORTS_WAVE_BIT_ORAND && (PS4_PROFILE || XBOXONE_PROFILE)
+#if COMPILER_SUPPORTS_WAVE_BIT_ORAND && (COMPILER_PSSL || XBOXONE_PROFILE)
 	// GCN only optimisation 
 	#define SCATTER_ALLOC_METHOD (SCATTER_ALLOC_METHOD_WAVE)
 	

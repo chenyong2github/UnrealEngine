@@ -1,0 +1,308 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PageAccessCommon.ush:
+=============================================================================*/
+#pragma once
+
+#include "../Common.ush"
+#include "../Nanite/HZBCull.ush"
+
+#ifndef HAS_CACHE_DATA
+#define HAS_CACHE_DATA 0
+#endif //HAS_CACHE_DATA
+
+// States of a physical page
+// Allocated but not cleared
+#define VSM_PHYSICAL_PAGE_STATE_INVALID 0
+// Cleared
+#define VSM_PHYSICAL_PAGE_STATE_CLEARED 1
+// Mapped (in page tables) during a call to render (not tracking whether any geo was drawn into the page)
+#define VSM_PHYSICAL_PAGE_STATE_RENDERED 2
+
+// Used in the PageFlags
+// Marks pages that are allocated
+#define VSM_ALLOCATED_FLAG (1)
+// Marks pages that are not cached
+#define VSM_INVALID_FLAG (2)
+
+struct FPhysicalPageMetaData
+{
+	uint State;
+	// Counter that is incremented each time a page is copied.
+	uint Age;
+};
+
+struct FShadowMapCacheData
+{
+	// XY offset in pages to the location of the previous frame's page table.
+	int2 SmPageOffset;
+	// ID of the corresponding virtual SM in the chached data 
+	int VirtualShadowMapId;
+	// Depth offset to add to SM texels when copying
+	float DepthOffset;
+};
+
+struct FCachedPageInfo
+{
+	uint2 PhysPageAddress;
+	float DepthOffset;
+	float Padding;
+};
+
+#if HAS_CACHE_DATA
+StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;
+StructuredBuffer<uint> PrevPageFlags;
+StructuredBuffer<uint2> PrevPageTable;
+StructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaData;
+StructuredBuffer<uint> PrevDynamicCasterPageFlags;
+#endif // HAS_CACHE_DATA
+
+
+
+// Set by common parameters
+uint LevelOffsets[VSM_MAX_MIP_LEVELS];
+uint HPageFlagLevelOffsets[VSM_MAX_MIP_LEVELS];
+
+// Size, in entries, of one page table (could be a constant?) Also probably better to stride this over Mip levels such that offsets are more POT(?)
+uint PageTableSize;
+uint HPageTableSize;
+
+uint NumShadowMaps;
+uint MaxPhysicalPages;
+uint PhysicalPageRowMask;
+uint PhysicalPageRowShift;
+
+
+//Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
+StructuredBuffer<uint> PageFlags;
+StructuredBuffer<uint> HPageFlags;
+StructuredBuffer<uint2> PageTable;
+// Rectangles bounding allocated pages for each mip level
+StructuredBuffer<uint4> PageRectBounds;
+
+uint CalcLog2LevelDimsPages(uint Level)
+{
+	return VSM_LOG2_LEVEL0_DIM_PAGES_XY - Level;	// log2( VSM_LEVEL0_DIM_PAGES_XY >> Level )
+}
+
+uint CalcLevelDimsPages(uint Level)
+{
+	return 1 << CalcLog2LevelDimsPages( Level );
+}
+
+uint CalcLevelDimsTexels(uint Level)
+{
+	return VSM_VIRTUAL_MAX_RESOLUTION_XY >> Level;
+}
+
+uint CalcLevelOffsets(uint Level)
+{
+	// return LevelOffsets[Level];
+#if 0
+	uint Offset = 0;
+	for( uint i = 0; i < Level; i++ )
+	{
+		uint LevelPageDim = VSM_LEVEL0_DIM_PAGES_XY >> i;
+		Offset += LevelPageDim * LevelPageDim;
+	}
+	return Offset;
+#else
+	// Faster version of the loop above.
+
+	// VSM_LEVEL0_DIM_PAGES_XY is a power of two, so the footprint of each mip level MipSize_i=(VSM_LEVEL0_DIM_PAGES_XY>>i)^2 is also a power of two.
+	// The binary representation of a mip size is just a single bit: 1 << log2(MipSize_i) = (1 << (2 * (VSM_LOG2_LEVEL0_DIM_PAGES_XY - i))).
+	
+	// To calculate the offset we need to calculate a sum of consecutive mip sizes, which is equivalent to producing a bit pattern with one bit per level starting out at 
+	// bitposition 2*VSM_LOG2_LEVEL0_DIM_PAGES_XY and going down by 2 for every level.
+	// E.g. VSM_LEVEL0_DIM_PAGES_XY=3
+	//   Level 0: 0000000
+	//   Level 1: 1000000
+	//   Level 2: 1010000
+	//   Level 3: 1010100
+	//   Level 4: 1010101
+
+	// To quickly produce a variable number of bits we just select a range of bits from the alternating bit sequence 0x55=0b01010101.
+	uint NumBits = Level << 1;
+	uint StartBit = (2 * VSM_LOG2_LEVEL0_DIM_PAGES_XY + 2) - NumBits;
+#if COMPILER_SUPPORTS_BITFIELD_INTRINSICS
+	uint Mask = BitFieldMaskU32(NumBits, StartBit);
+#else
+	uint Mask = ((1u << NumBits) - 1u) << StartBit;
+#endif
+
+	return 0x55555555u & Mask;
+#endif
+}
+
+/**
+ * Compute the offset for a mip level page table given a shadow map ID and a level.
+ */
+uint CalcPageTableLevelOffset(uint ShadowMapID, uint Level)
+{
+	// return ShadowMapID * PageTableSize + LevelOffsets[Level];
+	return ShadowMapID * PageTableSize + CalcLevelOffsets(Level);
+}
+
+/**
+ * Compute the offset for page within a level page table given a level and PageAddress.
+ */
+uint CalcPageOffsetInLevel(uint Level, uint2 PageAddress)
+{
+	// return PageAddress.x + PageAddress.y * LevelDimsPages[Level];
+	return PageAddress.x + ( PageAddress.y << CalcLog2LevelDimsPages(Level) );
+}
+
+uint CalcPageOffset(uint ShadowMapID, uint Level, uint2 PageAddress)
+{
+	return CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, PageAddress);
+}
+
+// Linearlize a physical page address to a linear offset
+uint PhysPageAddressToIndex(uint2 PhysicalPageAddress)
+{
+	return (PhysicalPageAddress.y << PhysicalPageRowShift) + PhysicalPageAddress.x;
+}
+
+bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
+{
+	uint VPageX = VirtualTexelAddress.x >> VSM_LOG2_PAGE_SIZE;
+	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
+
+	uint2 PhysicalPageEntry = PageTable[CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY))];
+	PhysicalTexelAddress = PhysicalPageEntry * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
+	if (PhysicalPageEntry.x == VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+// TODO: this surely needs some special handling of cases that contain the near plane etc.
+void TransformBoundingBox2D(float3 BoundsIn[2], float4x4 Transform, inout float2 BoundsOut[2])
+{
+	// Screen rect from bounds
+	UNROLL 
+	for (int i = 0; i < 8; ++i)
+	{
+		float3 PointSrc = float3(
+			BoundsIn[(i >> 0) & 1].x,
+			BoundsIn[(i >> 1) & 1].y,
+			BoundsIn[(i >> 2) & 1].z);
+
+		float4 TransformedPoint = mul(float4(PointSrc, 1.0f), Transform);
+		float3 PointScreen = TransformedPoint.xyz / TransformedPoint.w;
+
+		BoundsOut[0] = min(BoundsOut[0], PointScreen.xy);
+		BoundsOut[1] = max(BoundsOut[1], PointScreen.xy);
+	}
+}
+
+// Note: the pixel 'screen' rect in FScreenRect is calculated using only the viewport _size_ as HZB uses a zero-offset buffer.
+// However, the page table is with respect to the entire virtual SM so we need to offset here.
+bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin, FScreenRect Rect, bool bHasMoved )
+{
+	// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
+	uint FlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
+	uint4 RectPages = uint4( Rect.Pixels + ViewPortRectMin.xyxy ) >> VSM_LOG2_PAGE_SIZE;
+
+	uint HMipLevel = MipLevelForRect( RectPages, 2 );
+	
+	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
+
+	// Check the page flags directly as not needing h-page flag mip
+	if (HMipLevel == 0)
+	{
+		for( uint y = RectPages.y; y <= RectPages.w; y++ )
+		{
+			for( uint x = RectPages.x; x <= RectPages.z; x++ )
+			{
+				if ((PageFlags[PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y))] & FlagMask) != 0)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	else
+	{
+		RectPages >>= HMipLevel;
+
+		// Root level size in pages
+		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> (MipLevel + HMipLevel);
+		
+		int HPageFlagOffset = ShadowMapID * HPageTableSize + HPageFlagLevelOffsets[MipLevel];
+		HPageFlagOffset -= CalcLevelOffsets( MipLevel + 1U );
+
+		for( uint y = RectPages.y; y <= RectPages.w; y++ )
+		{
+			for( uint x = RectPages.x; x <= RectPages.z; x++ )
+			{
+				if( (HPageFlags[ HPageFlagOffset + CalcLevelOffsets(HMipLevel + MipLevel) + y * HLevelSizePages + x ] & FlagMask) != 0 )
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+static const uint HZB_PAGE_SIZE = VSM_PAGE_SIZE / 2;
+
+StructuredBuffer< uint2 >	HZBPageTable;
+
+bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
+{
+	// Don't have an HZB to test.
+	if( ShadowMapID == ~0u )
+		return true;
+
+	// Can't go past mip level of 4x4 for a 4x4 test without possibly covering more than 4 pages.
+	if( Rect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3 )
+	{
+		return true;
+
+		Rect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3;
+		Rect.HZBTexels = int4( Rect.Pixels.xy, max( Rect.Pixels.xy, Rect.Pixels.zw ) );	
+		Rect.HZBTexels >>= Rect.HZBLevel + 1;
+	}
+
+	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
+
+	uint4 RectPages = uint4( Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
+
+	for( uint y = RectPages.y; y <= RectPages.w; y++ )
+	{
+		for( uint x = RectPages.x; x <= RectPages.z; x++ )
+		{
+			uint2 vPage = uint2(x,y);
+			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
+			uint2 pPage = HZBPageTable[ PageOffset ];
+
+			if( pPage.x == VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			{
+				// If this is a new page we can't consider everything occluded the first time.
+				//if( PageFlags[ PageOffset ] != 0 )
+					return true;
+
+				// If the receiver points were projected into prev HZB space we could accurately ignore parts of the HZB that weren't relevent.
+			}
+			else
+			{
+				uint Shift = VSM_LOG2_PAGE_SIZE - 1 - Rect.HZBLevel;
+
+				FScreenRect ClippedRect = Rect;
+				ClippedRect.HZBTexels -= ( vPage << Shift ).xyxy;
+				ClippedRect.HZBTexels = clamp( ClippedRect.HZBTexels, 0, (int)HZB_PAGE_SIZE - 1 );
+				ClippedRect.HZBTexels += ( pPage << Shift ).xyxy;
+
+				if( IsVisibleHZB( ClippedRect, true ) )
+					return true;
+			}
+		}
+	}
+
+	return false;
+}

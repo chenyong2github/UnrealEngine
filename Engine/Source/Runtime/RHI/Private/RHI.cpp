@@ -71,18 +71,110 @@ static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
 	TEXT("  0: Adapter #0\n")
 	TEXT("  1: Adapter #1, ..."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+template<typename EnumType>
 
-
-const FString FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)EResourceTransitionAccess::EMaxAccess + 1] =
+inline FString BuildEnumNameBitList(EnumType Value, const TCHAR*(*GetEnumName)(EnumType))
 {
-	FString(TEXT("EReadable")),
-	FString(TEXT("EWritable")),	
-	FString(TEXT("ERWBarrier")),
-	FString(TEXT("ERWNoBarrier")),
-	FString(TEXT("ERWSubResBarrier")),
-	FString(TEXT("EMetaData")),
-	FString(TEXT("EMaxAccess")),
-};
+	if (Value == EnumType(0))
+	{
+		return GetEnumName(Value);
+	}
+
+	using T = __underlying_type(EnumType);
+	T StateValue = (T)Value;
+
+	FString Name;
+
+	int32 BitIndex = 0;
+	while (StateValue)
+	{
+		if (StateValue & 1)
+		{
+			if (Name.Len() > 0 && StateValue > 0)
+			{
+				Name += TEXT("|");
+			}
+
+			Name += GetEnumName(EnumType(T(1) << BitIndex));
+		}
+
+		BitIndex++;
+		StateValue >>= 1;
+	}
+
+	return MoveTemp(Name);
+}
+
+FString GetResourceTransitionAccessName(EResourceTransitionAccess Access)
+{
+	switch (Access)
+	{
+		// Cases for legacy resource state, to make the huge bit combinations easier to read...
+	case EResourceTransitionAccess::EReadable:  return TEXT("EReadable");
+	case EResourceTransitionAccess::EWritable:  return TEXT("EWritable");
+	case EResourceTransitionAccess::ERWBarrier: return TEXT("ERWBarrier");
+	case EResourceTransitionAccess::ERWNoBarrier: return TEXT("ERWNoBarrier");
+	case EResourceTransitionAccess::ERWSubResBarrier: return TEXT("ERWSubResBarrier");
+	case EResourceTransitionAccess::EMetaData: return TEXT("EMetaData");
+
+		// Special case when all resource bits are set. This represents the initial resource state when resources are created.
+	case EResourceTransitionAccess::InitialMask: return TEXT("Initial");
+
+		// All other states are built as a logic OR of state bits.
+	default:
+		return BuildEnumNameBitList<EResourceTransitionAccess>(Access, [](EResourceTransitionAccess AccessBit)
+		{
+			switch (AccessBit)
+			{
+			default: checkNoEntry(); // fall through
+			case EResourceTransitionAccess::Unknown:             return TEXT("Unknown");
+			case EResourceTransitionAccess::CPURead:             return TEXT("CPURead");
+			case EResourceTransitionAccess::Present:             return TEXT("Present");
+			case EResourceTransitionAccess::IndirectArgs:        return TEXT("IndirectArgs");
+			case EResourceTransitionAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
+			case EResourceTransitionAccess::SRVCompute:          return TEXT("SRVCompute");
+			case EResourceTransitionAccess::SRVGraphics:         return TEXT("SRVGraphics");
+			case EResourceTransitionAccess::CopySrc:             return TEXT("CopySrc");
+			case EResourceTransitionAccess::ResolveSrc:          return TEXT("ResolveSrc");
+			case EResourceTransitionAccess::DSVRead:		     return TEXT("DSVRead");
+			case EResourceTransitionAccess::UAVCompute:          return TEXT("UAVCompute");
+			case EResourceTransitionAccess::UAVGraphics:         return TEXT("UAVGraphics");
+			case EResourceTransitionAccess::RTV:                 return TEXT("RTV");
+			case EResourceTransitionAccess::CopyDest:            return TEXT("CopyDest");
+			case EResourceTransitionAccess::ResolveDst:          return TEXT("ResolveDst");
+			case EResourceTransitionAccess::DSVWrite:            return TEXT("DSVWrite");
+			}
+		});
+	}
+}
+
+FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags)
+{
+	return BuildEnumNameBitList<EResourceTransitionFlags>(Flags, [](EResourceTransitionFlags Value)
+	{
+		switch (Value)
+		{
+		default: checkNoEntry(); // fall through
+		case EResourceTransitionFlags::None:                return TEXT("None");
+		case EResourceTransitionFlags::MaintainCompression: return TEXT("MaintainCompression");
+		}
+	});
+}
+
+FString GetRHIPipelineName(ERHIPipeline Pipeline)
+{
+	return BuildEnumNameBitList<ERHIPipeline>(Pipeline, [](ERHIPipeline Value)
+	{
+		if (Value == ERHIPipeline(0)) { return TEXT("None"); }
+
+		switch (Value)
+		{
+		default: checkNoEntry(); // fall through
+		case ERHIPipeline::Graphics:     return TEXT("Graphics");
+		case ERHIPipeline::AsyncCompute: return TEXT("AsyncCompute");
+		}
+	});
+}
 
 #if STATS
 #include "Stats/StatsData.h"
@@ -683,6 +775,7 @@ bool GRHISupportsQuadTopology = false;
 bool GRHISupportsRectTopology = false;
 bool GRHISupportsPrimitiveShaders = false;
 bool GRHISupportsAtomicUInt64 = false;
+bool GRHISupportsPipelineStateSortKey = false;
 bool GRHISupportsResummarizeHTile = false;
 bool GRHISupportsExplicitHTile = false;
 bool GRHISupportsDepthUAV = false;
@@ -700,6 +793,7 @@ bool GSupportsImageExternal = false;
 bool GSupportsResourceView = true;
 bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
+bool GRHISupportsUpdateFromBufferTexture = false;
 TRHIGlobal<bool> GSupportsMultipleRenderTargets(true);
 bool GSupportsWideMRT = true;
 float GMinClipZ = 0.0f;
@@ -759,9 +853,12 @@ int32 GVariableRateShadingTier = 0;
 
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
+FIntVector GRHIMaxDispatchThreadGroupsPerDimension(0, 0, 0);
+
 uint64 GRHIPresentCounter = 1;
 
 bool GRHISupportsArrayIndexFromAnyShader = false;
+bool GRHISupportsConservativeRasterization = false;
 
 /** Whether we are profiling GPU hitches. */
 bool GTriggerGPUHitchProfile = false;
@@ -783,6 +880,9 @@ RHI_API int32 GNumDrawCallsRHI = 0;
 RHI_API int32* GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
 RHI_API int32 GCurrentNumPrimitivesDrawnRHI = 0;
 RHI_API int32 GNumPrimitivesDrawnRHI = 0;
+
+RHI_API uint64 GRHITransitionPrivateData_SizeInBytes = 0;
+RHI_API uint64 GRHITransitionPrivateData_AlignInBytes = 0;
 
 /** Called once per frame only from within an RHI. */
 void RHIPrivateBeginFrame()
@@ -1446,6 +1546,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bIsAndroidOpenGLES = GetSectionBool(Section, "bIsAndroidOpenGLES");
 	Info.bSupportsDrawIndirect = GetSectionBool(Section, "bSupportsDrawIndirect");
 	Info.bSupportsMobileMultiView = GetSectionBool(Section, "bSupportsMobileMultiView");
+	Info.bSupportsArrayTextureCompression = GetSectionBool(Section, "bSupportsArrayTextureCompression");
 	Info.bSupportsVolumeTextureCompression = GetSectionBool(Section, "bSupportsVolumeTextureCompression");
 	Info.bSupportsDistanceFields = GetSectionBool(Section, "bSupportsDistanceFields");
 	Info.bSupportsDiaphragmDOF = GetSectionBool(Section, "bSupportsDiaphragmDOF");
@@ -1466,8 +1567,12 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 	Info.bSupportsPrimitiveShaders = GetSectionBool(Section, "bSupportsPrimitiveShaders");
 	Info.bSupportsUInt64ImageAtomics = GetSectionBool(Section, "bSupportsUInt64ImageAtomics");
+	Info.bSupportsLumenGI = GetSectionBool(Section, "bSupportsLumenGI");
 	Info.bSupportsTemporalHistoryUpscale = GetSectionBool(Section, "bSupportsTemporalHistoryUpscale");
 	Info.bSupportsRTIndexFromVS = GetSectionBool(Section, "bSupportsRTIndexFromVS");
+	Info.bSupportsIntrinsicWaveOnce = GetSectionBool(Section, "bSupportsIntrinsicWaveOnce");
+	Info.bSupportsConservativeRasterization = GetSectionBool(Section, "bSupportsConservativeRasterization");
+	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 	Info.bSupportsWaveOperations = GetSectionBool(Section, "bSupportsWaveOperations");
 	Info.bRequiresExplicit128bitRT = GetSectionBool(Section, "bRequiresExplicit128bitRT");
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");

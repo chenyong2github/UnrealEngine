@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHIDefinitions.h"
 
 enum class ETextureLayoutAspectRatio
 {
@@ -33,9 +34,11 @@ public:
 	 * @param	bInForce2To1Aspect - True if the texture size must have a 2:1 aspect.
 	 * @param	bInAlignByFour - True if the texture size must be a multiple of 4..
 	 */
-	FTextureLayout(uint32 MinSizeX, uint32 MinSizeY, uint32 MaxSizeX, uint32 MaxSizeY, bool bInPowerOfTwoSize = false, ETextureLayoutAspectRatio InAspect = ETextureLayoutAspectRatio::None, bool bInAlignByFour = true):
-		SizeX(MinSizeX),
-		SizeY(MinSizeY),
+	FTextureLayout(uint32 InMinSizeX, uint32 InMinSizeY, uint32 MaxSizeX, uint32 MaxSizeY, bool bInPowerOfTwoSize = false, ETextureLayoutAspectRatio InAspect = ETextureLayoutAspectRatio::None, bool bInAlignByFour = true):
+		MinSizeX(InMinSizeX),
+		MinSizeY(InMinSizeY),
+		SizeX(InMinSizeX),
+		SizeY(InMinSizeY),
 		AspectRatio(InAspect),
 		bPowerOfTwoSize(bInPowerOfTwoSize),
 		bAlignByFour(bInAlignByFour)
@@ -85,33 +88,7 @@ public:
 			OutBaseX = Node.MinX;
 			OutBaseY = Node.MinY;
 
-			if (bPowerOfTwoSize)
-			{
-				SizeX = FMath::Max<uint32>(SizeX, FMath::RoundUpToPowerOfTwo(Node.MinX + ElementSizeX));
-				SizeY = FMath::Max<uint32>(SizeY, FMath::RoundUpToPowerOfTwo(Node.MinY + ElementSizeY));
-			
-				switch(AspectRatio)
-				{
-				case ETextureLayoutAspectRatio::None:
-					break;
-				case ETextureLayoutAspectRatio::ForceSquare:
-					SizeX = FMath::Max(SizeX, SizeY);
-					SizeY = SizeX;
-					break;
-				case ETextureLayoutAspectRatio::Force2To1:
-					SizeX = FMath::Max( SizeX, SizeY * 2 );
-					SizeY = FMath::Max( SizeY, SizeX / 2 );
-					break;
-				default:
-					checkNoEntry();
-					break;
-				}
-			}
-			else
-			{
-				SizeX = FMath::Max<uint32>(SizeX, Node.MinX + ElementSizeX);
-				SizeY = FMath::Max<uint32>(SizeY, Node.MinY + ElementSizeY);
-			}
+			UpdateSize(Node.MinX + ElementSizeX, Node.MinY + ElementSizeY);
 			return true;
 		}
 		else
@@ -175,6 +152,23 @@ public:
 			{
 				RemoveChildren(LastParentNodeIndex);
 			}
+
+			// Recalculate size
+			{
+				SizeX = MinSizeX;
+				SizeY = MinSizeY;
+
+				for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
+				{
+					const FTextureLayoutNode& Node = Nodes[NodeIndex];
+
+					if (Node.bUsed)
+					{
+						UpdateSize(Node.MinX + Node.SizeX, Node.MinY + Node.SizeY);
+					}
+				}
+			}
+
 			return true;
 		}
 
@@ -216,6 +210,8 @@ private:
 		{}
 	};
 
+	uint32 MinSizeX;
+	uint32 MinSizeY;
 	uint32 SizeX;
 	uint32 SizeY;
 	ETextureLayoutAspectRatio AspectRatio;
@@ -368,6 +364,37 @@ private:
 		}
 	}
 
+	void UpdateSize(uint32 ElementMaxX, uint32 ElementMaxY)
+	{
+		if (bPowerOfTwoSize)
+		{
+			SizeX = FMath::Max<uint32>(SizeX, FMath::RoundUpToPowerOfTwo(ElementMaxX));
+			SizeY = FMath::Max<uint32>(SizeY, FMath::RoundUpToPowerOfTwo(ElementMaxY));
+			
+			switch(AspectRatio)
+			{
+			case ETextureLayoutAspectRatio::None:
+				break;
+			case ETextureLayoutAspectRatio::ForceSquare:
+				SizeX = FMath::Max(SizeX, SizeY);
+				SizeY = SizeX;
+				break;
+			case ETextureLayoutAspectRatio::Force2To1:
+				SizeX = FMath::Max( SizeX, SizeY * 2 );
+				SizeY = FMath::Max( SizeY, SizeX / 2 );
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+		}
+		else
+		{
+			SizeX = FMath::Max<uint32>(SizeX, ElementMaxX);
+			SizeY = FMath::Max<uint32>(SizeY, ElementMaxY);
+		}
+	}
+
 	/** Returns the index into Nodes of the parent node of SearchNode. */
 	int32 FindParentNode(int32 SearchNodeIndex)
 	{
@@ -452,7 +479,60 @@ private:
 	}
 };
 
+/**
+ * A simple binned style atlas layout, which uses FTextureLayout as the bin allocator.
+ * Binning greatly reduces fragmentation over time with many allocations of different sizes and lifetimes, but ties up free memory in other bins.  
+ * Binning also greatly reduces the FTextureLayout tree depth, and therefore allocation cost.
+ * Best results when the number of unique allocation sizes are small.
+ */
+class FBinnedTextureLayout
+{
+public:
 
+	FBinnedTextureLayout(FIntPoint InMaxSize, int32 InBinSizeTexels) :
+		BinSizeTexels(InBinSizeTexels),
+		MaxSize(InMaxSize),
+		Layout(0, 0, InMaxSize.X, InMaxSize.Y, false, ETextureLayoutAspectRatio::None, false)
+	{}
+
+	/**
+	 * Allocates an element from the atlas layout.  Returns true if allocation succeeds.
+	 * Note: Sort allocations by descending size for best packing.
+	 */
+	ENGINE_API bool AddElement(FIntPoint ElementSize, FIntPoint& OutElementMin);
+
+	/** Removes an element which was previously added. */
+	ENGINE_API void RemoveElement(FIntRect Element);
+
+private:
+
+	class FBinAllocation
+	{
+	public:
+		FIntRect LayoutAllocation;
+		TArray<int32> FreeList;
+	};
+
+	class FBin
+	{
+	public:
+
+		FBin(FIntPoint InElementSize)
+		{
+			ElementSize = InElementSize;
+			bOutOfSpace = false;
+		}
+
+		FIntPoint ElementSize;
+		bool bOutOfSpace;
+		TArray<FBinAllocation, TInlineAllocator<1>> BinAllocations;
+	};
+
+	int32 BinSizeTexels;
+	FIntPoint MaxSize;
+	TArray<FBin> Bins;
+	FTextureLayout Layout;
+};
 
 namespace TextureLayoutTools
 {

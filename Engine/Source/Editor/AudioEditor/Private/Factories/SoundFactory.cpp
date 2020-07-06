@@ -456,23 +456,48 @@ UObject* USoundFactory::CreateObject
 			Sound->RawData.Lock(LOCK_READ_WRITE);
 
 			uint8* LockedData = (uint8*)Sound->RawData.Realloc(TotalSize);
+			int16* LockedDataInt16 = reinterpret_cast<int16*>(LockedData);
+
 			int32 RawDataOffset = 0;
 
 
 			if (bIsAmbiX || bIsFuMa)
 			{
 				check(ChannelCount == 4);
-
 				// Flag that this is an ambisonics file
 				Sound->bIsAmbisonics = true;
 			}
-			for (int32 Chan = 0; Chan < ChannelCount; ++Chan)
+			if (bIsFuMa)
 			{
-				const int32 ChannelSize = RawChannelWaveData[Chan].Num();
-				FMemory::Memcpy(LockedData + RawDataOffset, RawChannelWaveData[Chan].GetData(), ChannelSize);
-				RawDataOffset += ChannelSize;
-			}
+				int32 FuMaChannelIndices[4] = { 0, 2, 3, 1 };
+				const float ScalerPlus3dB = Audio::ConvertToLinear(3.0f);
 
+				for (int32 ChannelIndex : FuMaChannelIndices)
+				{
+					const int32 ChannelSize = RawChannelWaveData[ChannelIndex].Num();
+					FMemory::Memcpy(LockedData + RawDataOffset, RawChannelWaveData[ChannelIndex].GetData(), ChannelSize);
+					RawDataOffset += ChannelSize;
+
+//  TODO: make sure this isn't already being done somewhere else, conversion sounds wrong when gain is applied
+					// scale zeroth channel
+//					if (ChannelIndex == 0)
+//					{
+// 						for (int32 i = 0; i < ChannelSize; ++i)
+// 						{
+// 							LockedData[i] = static_cast<int16>(static_cast<float>(LockedData[i]) * ScalerPlus3dB);
+// 						}
+//					}
+				}
+			}
+			else
+			{
+				for (int32 Chan = 0; Chan < ChannelCount; ++Chan)
+				{
+					const int32 ChannelSize = RawChannelWaveData[Chan].Num();
+					FMemory::Memcpy(LockedData + RawDataOffset, RawChannelWaveData[Chan].GetData(), ChannelSize);
+					RawDataOffset += ChannelSize;
+				}
+			}
 			Sound->RawData.Unlock();
 		}
 		else

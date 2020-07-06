@@ -32,6 +32,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "MediaCapture.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "MediaFrameworkUtilities"
 

@@ -315,6 +315,13 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 {
 	static TArray<FPageTableUpdate> ExpandedUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS][16];
 
+	if (bNeedToAllocatePageTable)
+	{
+		// Defer updates until next frame if page table needs to be re-allocated
+		// We can't update page table at this point in frame, as RHIUpdateTextureReference can't be called during RHIBegin/EndScene
+		return;
+	}
+
 	// Multi-GPU support : May be ineffecient for AFR.
 	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 

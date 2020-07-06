@@ -4,6 +4,13 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 
+int32 GNiagaraWaveIntrinsics = 0; // TODO: Enable this
+FAutoConsoleVariableRef CVarGNiagaraWaveIntrinsics(
+	TEXT("Niagara.WaveIntrinsics"),
+	GNiagaraWaveIntrinsics,
+	TEXT("")
+);
+
 class FNiagaraInitFreeIDBufferCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraInitFreeIDBufferCS);
@@ -74,6 +81,9 @@ class NiagaraComputeFreeIDsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(NiagaraComputeFreeIDsCS);
 
+	class FWaveIntrinsicsDim : SHADER_PERMUTATION_BOOL("USE_WAVE_INTRINSICS");
+	using FPermutationDomain = TShaderPermutationDomain<FWaveIntrinsicsDim>;
+
 public:
 	NiagaraComputeFreeIDsCS() : FGlobalShader() {}
 
@@ -87,21 +97,31 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FWaveIntrinsicsDim>() && !FDataDrivenShaderPlatformInfo::GetSupportsIntrinsicWaveOnce(Parameters.Platform))
+		{
+			// Only some platforms support wave intrinsics.
+			return false;
+		}
+
 		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const bool bWithWaveIntrinsics = PermutationVector.Get<FWaveIntrinsicsDim>();
+
+		OutEnvironment.SetDefine(TEXT("USE_WAVE_INTRINSICS"), bWithWaveIntrinsics ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), bWithWaveIntrinsics ? 64 : 128);
 	}
 
-	void Execute(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHIComputeShader* ComputeShader, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
+	void Execute(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, uint32 ThreadCount, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
 	{
-		const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		const uint32 THREAD_COUNT = (Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4) ? 64 : 128;
-
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
-		check(NumIDs % THREAD_COUNT == 0);
+		check(NumIDs % ThreadCount == 0);
 
 		RHICmdList.SetComputeShader(ComputeShader);
 
@@ -110,7 +130,7 @@ public:
 		FreeIDListSizesParam.SetBuffer(RHICmdList, ComputeShader, FreeIDListSizes);
 		SetShaderValue(RHICmdList, ComputeShader, FreeIDListIndexParam, FreeIDListIndex);
 
-		DispatchComputeShader(RHICmdList, this, NumIDs / THREAD_COUNT, 1, 1);
+		DispatchComputeShader(RHICmdList, this, NumIDs / ThreadCount, 1, 1);
 
 		RHICmdList.SetShaderResourceViewParameter(ComputeShader, IDToIndexTableParam.GetBaseIndex(), nullptr);
 		RHICmdList.SetUAVParameter(ComputeShader, FreeIDListParam.GetUAVIndex(), nullptr);
@@ -128,9 +148,18 @@ IMPLEMENT_GLOBAL_SHADER(NiagaraComputeFreeIDsCS, "/Plugin/FX/Niagara/Private/Nia
 
 void NiagaraComputeGPUFreeIDs(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
 {
-	TShaderMapRef<NiagaraComputeFreeIDsCS> ComputeFreeIDsCS(GetGlobalShaderMap(FeatureLevel));
-	FRHIComputeShader* ComputeShader = ComputeFreeIDsCS.GetComputeShader();
-	ComputeFreeIDsCS->Execute(RHICmdList, FeatureLevel, ComputeShader, NumIDs, IDToIndexTable, FreeIDList, FreeIDListSizes, FreeIDListIndex);
+	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
+
+	const bool bUseWaveIntrinsics = FDataDrivenShaderPlatformInfo::GetSupportsIntrinsicWaveOnce(Platform) && GNiagaraWaveIntrinsics != 0;
+	const uint32 ThreadCount = bUseWaveIntrinsics ? 64 : 128;
+	
+	NiagaraComputeFreeIDsCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<NiagaraComputeFreeIDsCS::FWaveIntrinsicsDim>(bUseWaveIntrinsics);
+	
+	auto ComputeShaderEntry = ShaderMap->GetShader<NiagaraComputeFreeIDsCS>(PermutationVector);
+	FRHIComputeShader* ComputeShader = ComputeShaderEntry.GetComputeShader();
+	ComputeShaderEntry->Execute(RHICmdList, ComputeShader, ThreadCount, NumIDs, IDToIndexTable, FreeIDList, FreeIDListSizes, FreeIDListIndex);
 }
 
 class NiagaraFillIntBufferCS : public FGlobalShader
@@ -152,10 +181,10 @@ public:
 		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
-	void Execute(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, FRWBuffer& Buffer, int Value)
+	void Execute(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, FRWBuffer& Buffer, int32 Value)
 	{
 		const uint32 THREAD_COUNT = 64;
-		const uint32 NumInts = Buffer.NumBytes / sizeof(int);
+		const uint32 NumInts = Buffer.NumBytes / sizeof(int32);
 		const uint32 ThreadGroups = FMath::DivideAndRoundUp(NumInts, THREAD_COUNT);
 
 		RHICmdList.SetComputeShader(ComputeShader);
@@ -177,7 +206,7 @@ private:
 
 IMPLEMENT_GLOBAL_SHADER(NiagaraFillIntBufferCS, "/Plugin/FX/Niagara/Private/NiagaraFillIntBuffer.usf", "FillIntBuffer", SF_Compute);
 
-void NiagaraFillGPUIntBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRWBuffer& Buffer, int Value)
+void NiagaraFillGPUIntBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRWBuffer& Buffer, int32 Value)
 {
 	TShaderMapRef<NiagaraFillIntBufferCS> FillCS(GetGlobalShaderMap(FeatureLevel));
 	FRHIComputeShader* ComputeShader = FillCS.GetComputeShader();

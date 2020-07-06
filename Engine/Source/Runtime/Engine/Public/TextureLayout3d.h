@@ -24,10 +24,13 @@ public:
 	 * @param	MaxSizeY - The maximum height of the texture.
 	 * @param	InPowerOfTwoSize - True if the texture size must be a power of two.
 	 */
-	FTextureLayout3d(uint32 MinSizeX, uint32 MinSizeY, uint32 MinSizeZ, uint32 MaxSizeX, uint32 MaxSizeY, uint32 MaxSizeZ, bool bInPowerOfTwoSize = false, bool bInAlignByFour = true):
-		SizeX(MinSizeX),
-		SizeY(MinSizeY),
-		SizeZ(MinSizeZ),
+	FTextureLayout3d(uint32 InMinSizeX, uint32 InMinSizeY, uint32 InMinSizeZ, uint32 MaxSizeX, uint32 MaxSizeY, uint32 MaxSizeZ, bool bInPowerOfTwoSize = false, bool bInAlignByFour = true):
+		MinSizeX(InMinSizeX),
+		MinSizeY(InMinSizeY),
+		MinSizeZ(InMinSizeZ),
+		SizeX(InMinSizeX),
+		SizeY(InMinSizeY),
+		SizeZ(InMinSizeZ),
 		bPowerOfTwoSize(bInPowerOfTwoSize),
 		bAlignByFour(bInAlignByFour)
 	{
@@ -80,18 +83,7 @@ public:
 			OutBaseY = Node.MinY;
 			OutBaseZ = Node.MinZ;
 
-			if (bPowerOfTwoSize)
-			{
-				SizeX = FMath::Max<uint32>(SizeX, FMath::RoundUpToPowerOfTwo(Node.MinX + ElementSizeX));
-				SizeY = FMath::Max<uint32>(SizeY, FMath::RoundUpToPowerOfTwo(Node.MinY + ElementSizeY));
-				SizeZ = FMath::Max<uint32>(SizeZ, FMath::RoundUpToPowerOfTwo(Node.MinZ + ElementSizeZ));
-			}
-			else
-			{
-				SizeX = FMath::Max<uint32>(SizeX, Node.MinX + ElementSizeX);
-				SizeY = FMath::Max<uint32>(SizeY, Node.MinY + ElementSizeY);
-				SizeZ = FMath::Max<uint32>(SizeZ, Node.MinZ + ElementSizeZ);
-			}
+			UpdateSize(Node.MinX + ElementSizeX, Node.MinY + ElementSizeY, Node.MinZ + ElementSizeZ);
 			return true;
 		}
 		else
@@ -150,6 +142,24 @@ public:
 			{
 				RemoveChildren(LastParentNodeIndex);
 			}
+
+			// Recalculate size
+			{
+				SizeX = MinSizeX;
+				SizeY = MinSizeY;
+				SizeZ = MinSizeZ;
+
+				for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
+				{
+					const FTextureLayoutNode3d& Node = Nodes[NodeIndex];
+
+					if (Node.bUsed)
+					{
+						UpdateSize(Node.MinX + Node.SizeX, Node.MinY + Node.SizeY, Node.MinZ + Node.SizeZ);
+					}
+				}
+			}
+
 			return true;
 		}
 
@@ -214,6 +224,9 @@ private:
 		{}
 	};
 
+	uint32 MinSizeX;
+	uint32 MinSizeY;
+	uint32 MinSizeZ;
 	uint32 SizeX;
 	uint32 SizeY;
 	uint32 SizeZ;
@@ -396,6 +409,22 @@ private:
 
 			// Only traversing ChildA, since ChildA is always the newly created node that matches the element size
 			return AddSurfaceInner(Nodes[NodeIndex].ChildA, ElementSizeX, ElementSizeY, ElementSizeZ, bAllowTextureEnlargement);
+		}
+	}
+
+	void UpdateSize(uint32 ElementMaxX, uint32 ElementMaxY, uint32 ElementMaxZ)
+	{
+		if (bPowerOfTwoSize)
+		{
+			SizeX = FMath::Max<uint32>(SizeX, FMath::RoundUpToPowerOfTwo(ElementMaxX));
+			SizeY = FMath::Max<uint32>(SizeY, FMath::RoundUpToPowerOfTwo(ElementMaxY));
+			SizeZ = FMath::Max<uint32>(SizeZ, FMath::RoundUpToPowerOfTwo(ElementMaxZ));
+		}
+		else
+		{
+			SizeX = FMath::Max<uint32>(SizeX, ElementMaxX);
+			SizeY = FMath::Max<uint32>(SizeY, ElementMaxY);
+			SizeZ = FMath::Max<uint32>(SizeZ, ElementMaxZ);
 		}
 	}
 

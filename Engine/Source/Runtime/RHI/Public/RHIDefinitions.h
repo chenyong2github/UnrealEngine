@@ -314,6 +314,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 
 	uint32 bSupportsDrawIndirect: 1;
 	uint32 bSupportsMobileMultiView: 1;
+	uint32 bSupportsArrayTextureCompression : 1;
 	uint32 bSupportsVolumeTextureCompression: 1;
 	uint32 bSupportsDistanceFields: 1; // used for DFShadows and DFAO - since they had the same checks
 	uint32 bSupportsDiaphragmDOF: 1;
@@ -334,9 +335,12 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsByteBufferComputeShaders : 1;
 	uint32 bSupportsPrimitiveShaders : 1;
 	uint32 bSupportsUInt64ImageAtomics : 1;
+	uint32 bSupportsLumenGI : 1;
 	uint32 bSupportsTemporalHistoryUpscale : 1;
 	uint32 bSupportsRTIndexFromVS : 1;
 	uint32 bSupportsWaveOperations : 1; // Whether HLSL SM6 shader wave intrinsics are supported
+	uint32 bSupportsIntrinsicWaveOnce : 1;
+	uint32 bSupportsConservativeRasterization : 1;
 	uint32 bRequiresExplicit128bitRT : 1;
 
 	uint32 bTargetsTiledGPU: 1;
@@ -423,6 +427,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMobileMultiView(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsMobileMultiView;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsArrayTextureCompression(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsArrayTextureCompression;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVolumeTextureCompression(const FStaticShaderPlatform Platform)
@@ -538,6 +547,36 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetRequiresExplicit128bitRT(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bRequiresExplicit128bitRT;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPrimitiveShaders(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsPrimitiveShaders;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsUInt64ImageAtomics;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsLumenGI(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsLumenGI;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRTIndexFromVS(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsRTIndexFromVS;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsIntrinsicWaveOnce(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsIntrinsicWaveOnce;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsConservativeRasterization(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsConservativeRasterization;
 	}
 
 private:
@@ -854,7 +893,47 @@ enum class EUniformBufferValidation
 	ValidateResources
 };
 
-/** The base type of a value in a uniform buffer. */
+/** The USF binding type for a resource in a shader. */
+enum class EShaderCodeResourceBindingType : uint8
+{
+	Invalid,
+
+	SamplerState,
+
+	// Texture1D: not used in the renderer.
+	// Texture1DArray: not used in the renderer.
+	Texture2D,
+	Texture2DArray,
+	Texture2DMS,
+	Texture3D,
+	// Texture3DArray: not used in the renderer.
+	TextureCube,
+	TextureCubeArray,
+	TextureMetadata,
+
+	Buffer,
+	StructuredBuffer,
+	ByteAddressBuffer,
+	RaytracingAccelerationStructure,
+
+	// RWTexture1D: not used in the renderer.
+	// RWTexture1DArray: not used in the renderer.
+	RWTexture2D,
+	RWTexture2DArray,
+	RWTexture3D,
+	// RWTexture3DArray: not used in the renderer.
+	RWTextureCube,
+	// RWTextureCubeArray: not used in the renderer.
+	RWTextureMetadata,
+
+	RWBuffer,
+	RWStructuredBuffer,
+	RWByteAddressBuffer,
+
+	MAX
+};
+
+/** The base type of a value in a shader parameter structure. */
 enum EUniformBufferBaseType : uint8
 {
 	UBMT_INVALID,
@@ -876,13 +955,13 @@ enum EUniformBufferBaseType : uint8
 
 	// Resources tracked by render graph.
 	UBMT_RDG_TEXTURE,
+	UBMT_RDG_TEXTURE_COPY_DEST,
 	UBMT_RDG_TEXTURE_SRV,
 	UBMT_RDG_TEXTURE_UAV,
-	UBMT_RDG_TEXTURE_COPY_DEST,
 	UBMT_RDG_BUFFER,
+	UBMT_RDG_BUFFER_COPY_DEST,
 	UBMT_RDG_BUFFER_SRV,
 	UBMT_RDG_BUFFER_UAV,
-	UBMT_RDG_BUFFER_COPY_DEST,
 
 	// Nested structure.
 	UBMT_NESTED_STRUCT,
@@ -1236,9 +1315,9 @@ enum ETextureCreateFlags
 	// Texture that may be updated every frame
 	TexCreate_Dynamic				= 1<<8,
 	// Texture will be used as a render pass attachment that will be read from
-	TexCreate_InputAttachmentRead	= 1<<9,
-	// Disable automatic defragmentation if the initial texture memory allocation fails.
-	TexCreate_DisableAutoDefrag		= 1<<10,
+	TexCreate_InputAttachmentRead	= 1 << 9,
+	// Prefer 3D internal surface tiling mode for volume textures when possible
+	TexCreate_3DTiling				= 1 << 10,
 	// This texture has no GPU or CPU backing. It only exists in tile memory on TBDR GPUs (i.e., mobile).
 	TexCreate_Memoryless			= 1<<11,
 	// Create the texture with the flag that allows mip generation later, only applicable to D3D11
@@ -1667,18 +1746,29 @@ inline int32 GetFeatureLevelMaxNumberOfBones(const FStaticFeatureLevel FeatureLe
 	return 0;
 }
 
-/** Returns whether the shader parameter type is a reference onto a RDG resource. */
-inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+/** Returns whether the shader parameter type references an RDG texture. */
+inline bool IsRDGTextureReferenceShaderParameterType(EUniformBufferBaseType BaseType)
 {
 	return
 		BaseType == UBMT_RDG_TEXTURE ||
 		BaseType == UBMT_RDG_TEXTURE_SRV ||
 		BaseType == UBMT_RDG_TEXTURE_UAV ||
-		BaseType == UBMT_RDG_TEXTURE_COPY_DEST ||
+		BaseType == UBMT_RDG_TEXTURE_COPY_DEST;
+}
+/** Returns whether the shader parameter type references an RDG buffer. */
+inline bool IsRDGBufferReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+{
+	return
 		BaseType == UBMT_RDG_BUFFER ||
 		BaseType == UBMT_RDG_BUFFER_SRV ||
 		BaseType == UBMT_RDG_BUFFER_UAV ||
 		BaseType == UBMT_RDG_BUFFER_COPY_DEST;
+}
+
+/** Returns whether the shader parameter type is a reference onto a RDG resource. */
+inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+{
+	return IsRDGTextureReferenceShaderParameterType(BaseType) || IsRDGBufferReferenceShaderParameterType(BaseType);
 }
 
 /** Returns whether the shader parameter type needs to be passdown to RHI through FRHIUniformBufferLayout when creating an uniform buffer. */

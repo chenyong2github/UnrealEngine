@@ -857,6 +857,9 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	FNiagaraDataBuffer* SourceParticleData = DynamicDataRibbon->GetParticleDataToRender();
 	check(SourceParticleData); // if this is nullptr, should already be early out before entering this function
 
+	// Set common data on vertex factory
+	DynamicDataRibbon->SetVertexFactoryData(CollectorResources.VertexFactory);
+
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation = AllocateParticleDataIfCPUSim(DynamicDataRibbon, Collector.GetDynamicReadBuffer());
 	auto& ParticleData = CPUSimParticleDataAllocation.ParticleData;
 

@@ -682,6 +682,7 @@ void FVulkanDynamicRHI::InitInstance()
 		//bool bDeviceSupportsTessellation = Device->GetPhysicalFeatures().tessellationShader != 0;
 
 		const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();
+		const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
 
 		// Initialize the RHI capabilities.
 		GRHISupportsFirstInstance = true;
@@ -721,6 +722,10 @@ void FVulkanDynamicRHI::InitInstance()
 		GMaxTextureArrayLayers = Props.limits.maxImageArrayLayers;
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
+
+		GRHIMaxDispatchThreadGroupsPerDimension.X = Limits.maxComputeWorkGroupCount[0];
+		GRHIMaxDispatchThreadGroupsPerDimension.Y = Limits.maxComputeWorkGroupCount[1];
+		GRHIMaxDispatchThreadGroupsPerDimension.Z = Limits.maxComputeWorkGroupCount[2];
 
 		FVulkanPlatform::SetupFeatureLevels();
 

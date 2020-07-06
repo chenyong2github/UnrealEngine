@@ -1,0 +1,158 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// Generate vector truncation warnings to errors.
+#pragma warning(error: 3206)
+
+#include "../../Common.ush"
+#include "../../DeferredShadingCommon.ush"
+#include "../../SceneTextureParameters.ush"
+#include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
+
+
+uint2 AtomicTileExtent;
+
+RWTexture2D<uint> TileClassificationOutput;
+RWTexture2D<uint> AtomicTileCounterOutput;
+RWTexture2D<float> CompressedDepthBufferOutput;
+RWTexture2D<float> CompressedRoughnessOutput;
+RWTexture2D<uint> CompressedShadingModelOutput;
+
+
+groupshared uint TileBitmask[TRACING_CLASSIFICATION_TILE_SIZE * TRACING_CLASSIFICATION_TILE_SIZE];
+
+uint MergeBitmasks(uint BitmaskA, uint BitmaskB)
+{
+	return BitmaskA | BitmaskB;
+}
+
+[numthreads(TRACING_CLASSIFICATION_TILE_SIZE, TRACING_CLASSIFICATION_TILE_SIZE, 1)]
+void MainCS( 
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 PixelCoord = GroupId * TRACING_CLASSIFICATION_TILE_SIZE + GroupThreadId;
+
+	float2 BufferUV = (PixelCoord + View.ViewRectMin.xy + 0.5f) * View.BufferSizeAndInvSize.zw;
+
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+
+	uint PixelBitmask = 0;
+	if (all(PixelCoord < uint2(View.ViewSizeAndInvSize.xy)))
+	{
+		bool bAdditionalSpecularRay = RequiresAdditionalSpecularRay(GBuffer.Roughness, GBuffer.ShadingModelID);
+
+		bool bIsUnlit = GBuffer.ShadingModelID == SHADINGMODELID_UNLIT;
+		bool bIsDefaultLit = GBuffer.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;
+		bool bComplexShadingModel = GBuffer.ShadingModelID == SHADINGMODELID_HAIR;
+		bool bIsSimpleShadingModel = !bIsUnlit && !bIsDefaultLit && !bComplexShadingModel;
+
+		bool bHasBentNormal = false;
+		#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+			bHasBentNormal = GBuffer.DiffuseIndirectSampleOcclusion != 0;
+		#endif
+
+		PixelBitmask = (
+			(bIsUnlit              ? 0x01 : 0x0) |
+			(bIsDefaultLit         ? 0x02 : 0x0) |
+			(bComplexShadingModel  ? 0x04 : 0x0) |
+			(bIsSimpleShadingModel ? 0x08 : 0x0) |
+			(bAdditionalSpecularRay ? 0x10 : 0x0) |
+			(bHasBentNormal        ? 0x20 : 0x0));
+	}
+
+	const uint LinearIndex = GroupThreadId.y * TRACING_CLASSIFICATION_TILE_SIZE + GroupThreadId.x;
+
+	TileBitmask[LinearIndex] = PixelBitmask;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	#if TRACING_CLASSIFICATION_TILE_SIZE != 8
+		#error Reduction code assumes 8*8 pixel tiles
+	#endif
+
+	if (LinearIndex < 32)
+	{
+		TileBitmask[LinearIndex] = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 32]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 16)
+	{	
+		TileBitmask[LinearIndex] = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 16]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 8)
+	{
+		TileBitmask[LinearIndex] = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 8]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 4)
+	{
+		TileBitmask[LinearIndex] = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 4]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 2)
+	{
+		TileBitmask[LinearIndex] = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 2]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 1)
+	{
+		uint MergedBitmask = MergeBitmasks(TileBitmask[LinearIndex], TileBitmask[LinearIndex + 1]);
+
+		bool bIsUnlit =              (MergedBitmask & 0x01) != 0;
+		bool bIsDefaultLit =         (MergedBitmask & 0x02) != 0;
+		bool bComplexShadingModel =  (MergedBitmask & 0x04) != 0;
+		bool bIsSimpleShadingModel = (MergedBitmask & 0x08) != 0;
+		bool bCastSpecularRays =     (MergedBitmask & 0x10) != 0;
+		bool bHasBentNormal =        (MergedBitmask & 0x20) != 0;
+
+		uint ClassificationId;
+		FLATTEN
+		if (bComplexShadingModel)
+		{
+			ClassificationId = PROBE_OCCLUSION_COMPLEX_SHADING_BENT_NORMAL;
+		}
+		else if (bHasBentNormal)
+		{
+			ClassificationId = PROBE_OCCLUSION_SIMPLE_SHADING_BENT_NORMAL;
+		}
+		else if (bCastSpecularRays)
+		{
+			ClassificationId = PROBE_OCCLUSION_SIMPLE_SHADING_EXTRA_SPECULAR;
+		}
+		else if (bIsDefaultLit && !bIsUnlit && !bIsSimpleShadingModel)
+		{
+			ClassificationId = PROBE_OCCLUSION_LIT;
+		}
+		else if (bIsDefaultLit || bIsSimpleShadingModel)
+		{
+			ClassificationId = PROBE_OCCLUSION_SIMPLE_SHADING;
+		}
+		else
+		{
+			ClassificationId = PROBE_OCCLUSION_UNLIT;
+		}
+
+		{
+			uint2 AtomicCoord = GroupId / 8 + uint2(0, ClassificationId * AtomicTileExtent.y);
+
+			InterlockedAdd(AtomicTileCounterOutput[AtomicCoord], 1);
+		}
+
+		TileClassificationOutput[GroupId] = ClassificationId;
+	}
+
+	CompressedDepthBufferOutput[PixelCoord] = ConvertToDeviceZ(GBuffer.Depth);
+	CompressedRoughnessOutput[PixelCoord] = GBuffer.Roughness;
+	CompressedShadingModelOutput[PixelCoord] = GBuffer.ShadingModelID;
+}

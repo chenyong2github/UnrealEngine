@@ -89,16 +89,13 @@ FNiagaraBoundsCalculator* UNiagaraSpriteRendererProperties::CreateBoundsCalculat
 
 void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	bool bSet = false;
-	if (InEmitter != nullptr && MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	UMaterialInterface* MaterialInterface = nullptr;
+	if (InEmitter != nullptr)
 	{
-		bSet = true;
+		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialUserParamBinding.Parameter));
 	}
 
-	if (!bSet)
-	{
-		OutMaterials.Add(Material);
-	}
+	OutMaterials.Add(MaterialInterface ? MaterialInterface : Material);
 }
 
 void UNiagaraSpriteRendererProperties::PostLoad()
@@ -217,6 +214,7 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	if (bUseMaterialCutoutTexture || CutoutTexture || DerivedData.BoundingGeometry.Num())
 	{
 		const bool bUpdateCutoutDDC = 
+			PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSpriteRendererProperties, SubImageSize) ||
 			PropertyChangedEvent.GetPropertyName() == TEXT("bUseMaterialCutoutTexture") ||
 			PropertyChangedEvent.GetPropertyName() == TEXT("CutoutTexture") ||
 			PropertyChangedEvent.GetPropertyName() == TEXT("BoundingMode") ||

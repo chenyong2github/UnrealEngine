@@ -10,7 +10,7 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RendererInterface.h"
-
+#include "RenderGraphResources.h"
 
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
 struct RENDERCORE_API FPooledRenderTarget : public IPooledRenderTarget
@@ -94,6 +94,8 @@ private:
 	/** Pointer back to the pool for render targets which are actually pooled, otherwise NULL. */
 	FRenderTargetPool* RenderTargetPool;
 
+	FRDGTextureState State;
+
 	/** Keeps track of the last frame we unmapped physical memory for this resource. We can't map again in the same frame if we did that */
 	uint32 FrameNumberLastDiscard;
 
@@ -101,6 +103,7 @@ private:
 	bool OnFrameStart();
 
 	friend class FRenderTargetPool;
+	friend class FRDGBuilder;
 };
 
 enum ERenderTargetPoolEventType
@@ -228,7 +231,14 @@ public:
 	 * call from RenderThread only
 	 * @return true if the old element was still valid, false if a new one was assigned
 	 */
-	bool FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* InDebugName, bool bDoWritableBarrier = true, ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient, bool bDeferTextureAllocation = false);
+	bool FindFreeElement(
+		FRHICommandList& RHICmdList,
+		const FPooledRenderTargetDesc& Desc,
+		TRefCountPtr<IPooledRenderTarget>& Out,
+		const TCHAR* InDebugName,
+		bool bDoWritableBarrier = true,
+		ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient,
+		bool bDeferTextureAllocation = false);
 
 	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
 
@@ -283,6 +293,14 @@ public:
 	void UpdateElementSize(const TRefCountPtr<IPooledRenderTarget>& Element, const uint32 OldSize);
 
 private:
+	TRefCountPtr<IPooledRenderTarget> AllocateElementForRDG(FRHICommandList& RHICmdList, const FRDGTextureDesc& Desc, const TCHAR* Name);
+
+	TRefCountPtr<IPooledRenderTarget> AllocateElementInternal(
+		FRHICommandList& RHICmdList,
+		const FPooledRenderTargetDesc& InputDesc,
+		const TCHAR* InDebugName,
+		bool bDoWritableBarrier,
+		bool bDeferTextureAllocation);
 
 	bool DoesTargetNeedTransienceOverride(const FPooledRenderTargetDesc& InputDesc, ERenderTargetTransience TransienceHint) const;
 
@@ -363,6 +381,7 @@ private:
 	friend struct FPooledRenderTarget;
 	friend class FVisualizeTexture;
 	friend class FVisualizeTexturePresent;
+	friend class FRDGBuilder;
 };
 
 /** The global render targets for easy shading. */

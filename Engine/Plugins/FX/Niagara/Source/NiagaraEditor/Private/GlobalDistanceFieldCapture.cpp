@@ -11,59 +11,22 @@
 #include "LevelEditorViewport.h"
 #include "NiagaraEditorModule.h"
 
-FAutoConsoleCommand GCaptureDistanceFieldCommand(
-	TEXT("fx.CaptureGlobalDistanceField"),
-	TEXT("Creates a Volume Texture from the global distance field currently visible in the editor"),
-	FConsoleCommandWithArgsDelegate::CreateLambda(
-		[](const TArray<FString>& Args) {
-			if (Args.Num() < 3)
-			{
-				bool bRangeCompress = (Args.Num() > 0 && Args[0] == TEXT("RangeCompress"));
-				FGlobalDistanceFieldCapture::Request(bRangeCompress);
-			}
-			else
-			{
-				FVector CamPos;
-				CamPos.X = FCString::Atof(*Args[0]);
-				CamPos.Y = FCString::Atof(*Args[1]);
-				CamPos.Z = FCString::Atof(*Args[2]);
-				bool bRangeCompress = (Args.Num() > 3 && Args[3] == TEXT("RangeCompress"));
-				FGlobalDistanceFieldCapture::Request(bRangeCompress, CamPos);
-			}
-		})
-	);
+
 
 FGlobalDistanceFieldCapture* FGlobalDistanceFieldCapture::Singleton = nullptr;
 
-static UVolumeTexture* GetSelectedVolumeTexture()
+
+void FGlobalDistanceFieldCapture::Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, FOnDistanceFieldCaptureComplete& InCompletionDelegate)
 {
-	// Check to see if there's a volume texture selected in the content browser
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	IContentBrowserSingleton& Browser = ContentBrowserModule.Get();
-
-	TArray<FAssetData> SelectedAssets;
-	Browser.GetSelectedAssets(SelectedAssets);
-
-	if (SelectedAssets.Num() == 1 && SelectedAssets[0].GetClass()->IsChildOf<UVolumeTexture>())
-	{
-		// A volume texture is selected
-		return Cast<UVolumeTexture>(SelectedAssets[0].GetAsset());
-	}
-
-	return nullptr;
+	RequestCommon(VolumeTexture, bRangeCompress, false, FVector(), InCompletionDelegate);
 }
 
-void FGlobalDistanceFieldCapture::Request(bool bRangeCompress)
+void FGlobalDistanceFieldCapture::Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, const FVector& CamPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate)
 {
-	RequestCommon(bRangeCompress, false, FVector());
+	RequestCommon(VolumeTexture, bRangeCompress, true, CamPos, InCompletionDelegate);
 }
 
-void FGlobalDistanceFieldCapture::Request(bool bRangeCompress, const FVector& CamPos)
-{
-	RequestCommon(bRangeCompress, true, CamPos);
-}
-
-void FGlobalDistanceFieldCapture::RequestCommon(bool bRangeCompress, bool bSetCamPos, const FVector& CamPos)
+void FGlobalDistanceFieldCapture::RequestCommon(UVolumeTexture* VolumeTexture, bool bRangeCompress, bool bSetCamPos, const FVector& CamPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate)
 {
 	if (Singleton != nullptr)
 	{
@@ -71,22 +34,16 @@ void FGlobalDistanceFieldCapture::RequestCommon(bool bRangeCompress, bool bSetCa
 		return;
 	}
 
-	UVolumeTexture* VolumeTexture = GetSelectedVolumeTexture();
-	if (VolumeTexture == nullptr)
-	{
-		UE_LOG(LogConsoleResponse, Error, TEXT("No Volume Texture selected in the Content Browser. Select the Volume Texture you'd like to overwrite and try again."));
-		return;
-	}
-
-	Singleton = new FGlobalDistanceFieldCapture(VolumeTexture, bRangeCompress, bSetCamPos, CamPos);
+	Singleton = new FGlobalDistanceFieldCapture(VolumeTexture, bRangeCompress, bSetCamPos, CamPos, InCompletionDelegate);
 }
 
-FGlobalDistanceFieldCapture::FGlobalDistanceFieldCapture(UVolumeTexture* Tex, bool bCompress, bool bSetCamPos, const FVector& CamPos)
+FGlobalDistanceFieldCapture::FGlobalDistanceFieldCapture(UVolumeTexture* Tex, bool bCompress, bool bSetCamPos, const FVector& CamPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate)
 {
 	ensure(Tex != nullptr);
 	
 	VolumeTex = Tex;
 	bRangeCompress = bCompress;
+	CompletionDelegate = InCompletionDelegate;
 
 	if (bSetCamPos && GCurrentLevelEditingViewportClient != nullptr)
 	{
@@ -117,10 +74,7 @@ FGlobalDistanceFieldCapture::~FGlobalDistanceFieldCapture()
 
 void FGlobalDistanceFieldCapture::OnReadbackComplete()
 {
-	if (!ensureMsgf(Readback, TEXT("FGlobalDistanceFieldCapture::OnReadbackComplete called without a pending request!")))
-	{
-		return;
-	}
+	ensure(Readback);
 
 	float MaxDist = -MAX_FLT;
 	float MinDist = MAX_FLT;
@@ -142,7 +96,7 @@ void FGlobalDistanceFieldCapture::OnReadbackComplete()
 			CompressedData.Empty(Size.X * Size.Y * Size.Z * sizeof(uint16));
 			for (FFloat16Color Color : Readback->ReadbackData)
 			{
-				CompressedData.Add(uint16(65535.0f * FMath::GetRangePct(MinDist, MaxDist, (float)Color.R)));
+				CompressedData.Add(uint16(65535.0f * FMath::GetRangePct(MinDist, MaxDist, Color.R.GetFloat())));
 			}
 			PixelData = (const uint8*)CompressedData.GetData();
 			Format = TSF_G16;
@@ -160,6 +114,11 @@ void FGlobalDistanceFieldCapture::OnReadbackComplete()
 
 	UE_LOG(LogConsoleResponse, Display, TEXT("GLOBAL DISTANCE FIELD CAPTURE: Texture: %s, Position: (%g, %g, %g), Extents: (%g, %g, %g), Distance Range: (%g, %g)"),
 		*VolumeTex->GetName(), Center.X, Center.Y, Center.Z, Extents.X, Extents.Y, Extents.Z, MinDist, MaxDist);	
+
+	if (CompletionDelegate.IsBound())
+	{
+		CompletionDelegate.Execute(Extents, MinDist, MaxDist);
+	}
 
 	if (bRestoreCamera && GCurrentLevelEditingViewportClient != nullptr)
 	{

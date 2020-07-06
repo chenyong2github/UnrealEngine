@@ -54,6 +54,7 @@
 
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "AssetToolsModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -999,6 +1000,10 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			if (GDistanceFieldAsyncQueue)
 			{
 				GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+			}
+			if (GCardRepresentationAsyncQueue)
+			{
+				GCardRepresentationAsyncQueue->ProcessAsyncTasks();
 			}
 		}
 	}

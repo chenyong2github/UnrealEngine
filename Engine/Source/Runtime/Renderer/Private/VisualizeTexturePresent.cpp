@@ -192,7 +192,7 @@ void FVisualizeTexturePresent::OnStartRender(const FViewInfo& View)
 	GVisualizeTexture.FeatureLevel = View.GetFeatureLevel();
 	GVisualizeTexture.bEnabled = true;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	// VisualizeTexture observed render target is set each frame
 	GVisualizeTexture.VisualizeTextureContent.SafeRelease();
 	GVisualizeTexture.VisualizeTextureDesc = FPooledRenderTargetDesc();
@@ -210,7 +210,7 @@ void FVisualizeTexturePresent::OnStartRender(const FViewInfo& View)
 			Value = 0;
 		}
 	}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif //SUPPORTS_VISUALIZE_TEXTURE
 }
 
 // static
@@ -615,7 +615,7 @@ struct FSortedLines
 // static
 void FVisualizeTexturePresent::DebugLog(bool bExtended)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	{
 		TArray<FSortedLines> SortedLines;
 
@@ -833,5 +833,5 @@ void FVisualizeTexturePresent::DebugLog(bool bExtended)
 
 		UE_LOG(LogConsoleResponse, Log, TEXT("Pool: %d/%d MB (referenced/allocated)"), (UsedInKB + 1023) / 1024, (WholePoolInKB + 1023) / 1024);
 	}
-#endif
+#endif //SUPPORTS_VISUALIZE_TEXTURE
 }

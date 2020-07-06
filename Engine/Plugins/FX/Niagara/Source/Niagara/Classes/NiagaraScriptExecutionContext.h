@@ -231,7 +231,10 @@ struct FNiagaraComputeExecutionContext
 	void PostTick();
 
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
-	FNiagaraDataBuffer* GetDataToRender()const { return DataToRender; }
+	FNiagaraDataBuffer* GetDataToRender() const { return DataToRender; }
+
+	void SetTranslucentDataToRender(FNiagaraDataBuffer* InDataToRender);
+	FNiagaraDataBuffer* GetTranslucentDataToRender() const { return TranslucentDataToRender; }
 
 	struct 
 	{
@@ -277,8 +280,12 @@ public:
 
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 
-	//Most current buffer that can be used for rendering.
+	// Most current buffer that can be used for rendering.
 	FNiagaraDataBuffer* DataToRender;
+
+	// Buffer that will be optional set for translucent rendering.
+	// This is used to remove a frame of latency for effects that require depth buffer / view / distance fields
+	FNiagaraDataBuffer* TranslucentDataToRender;
 
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;

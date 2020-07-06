@@ -129,6 +129,19 @@ enum class ESubsurfaceMode : uint32
 	MAX
 };
 
+
+const TCHAR* GetEventName(ESubsurfaceMode SubsurfaceMode)
+{
+	static const TCHAR* const kEventNames[] = {
+		TEXT("FullRes"),
+		TEXT("HalfRes"),
+		TEXT("Bypass"),
+	};
+	static_assert(UE_ARRAY_COUNT(kEventNames) == int32(ESubsurfaceMode::MAX), "Fix me");
+	return kEventNames[int32(SubsurfaceMode)];
+}
+
+
 // Returns the [0, N] clamped value of the 'r.SSS.Scale' CVar.
 float GetSubsurfaceRadiusScale()
 {
@@ -548,6 +561,57 @@ public:
 		MAX
 	};
 
+	static const TCHAR* GetEventName(EDirection Direction)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("Horizontal"),
+			TEXT("Vertical"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(EDirection::MAX), "Fix me");
+		return kEventNames[int32(Direction)];
+	}
+
+	static const TCHAR* GetEventName(ESubsurfacePass SubsurfacePass)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("PassOne"),
+			TEXT("PassTwo"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(ESubsurfacePass::MAX), "Fix me");
+		return kEventNames[int32(SubsurfacePass)];
+	}
+
+	static const TCHAR* GetEventName(EQuality Quality)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("Low"),
+			TEXT("Medium"),
+			TEXT("High"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(EQuality::MAX), "Fix me");
+		return kEventNames[int32(Quality)];
+	}
+
+	static const TCHAR* GetEventName(ESubsurfaceSamplerType SamplerType)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("PointSampler"),
+			TEXT("NonPointSampler"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(ESubsurfaceSamplerType::MAX), "Fix me");
+		return kEventNames[int32(SamplerType)];
+	}
+
+	static const TCHAR* GetEventName(ESubsurfaceType SubsurfaceType)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("Burley"),
+			TEXT("Separable"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(ESubsurfaceType::MAX), "Fix me");
+		return kEventNames[int32(SubsurfaceType)];
+	}
+
 	class FSubsurfacePassFunction : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_PASS", ESubsurfacePass);
 	class FDimensionQuality : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_QUALITY", EQuality);
 	class FSubsurfaceSamplerType : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_SAMPLER_TYPE", ESubsurfaceSamplerType);
@@ -723,6 +787,16 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		High,
 		MAX
 	};
+
+	static const TCHAR* GetEventName(EQuality Quality)
+	{
+		static const TCHAR* const kEventNames[] = {
+			TEXT("Low"),
+			TEXT("High"),
+		};
+		static_assert(UE_ARRAY_COUNT(kEventNames) == int32(EQuality::MAX), "Fix me");
+		return kEventNames[int32(Quality)];
+	}
 
 	class FDimensionMode : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_RECOMBINE_MODE", ESubsurfaceMode);
 	class FDimensionQuality : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_RECOMBINE_QUALITY", EQuality);
@@ -900,9 +974,17 @@ void ComputeSubsurfaceForView(
 			ComputeShaderPermutationVector.Set<SHADER::FRunningInSeparable>(bForceRunningInSeparable);
 			TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
-			FIntPoint ComputeGroupCount = FIntPoint::DivideAndRoundUp(SubsurfaceViewport.Extent, kSubsurfaceGroupSize);
-
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceSetup"), ComputeShader, PassParameters, FIntVector(ComputeGroupCount.X, ComputeGroupCount.Y, 1));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SubsurfaceSetup(%s%s%s) %dx%d",
+					ComputeShaderPermutationVector.Get<SHADER::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
+					ComputeShaderPermutationVector.Get<SHADER::FDimensionCheckerboard>() ? TEXT(" Checkerboard") : TEXT(""),
+					ComputeShaderPermutationVector.Get<SHADER::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT(""),
+					SubsurfaceViewport.Extent.X,
+					SubsurfaceViewport.Extent.Y),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(SubsurfaceViewport.Extent, kSubsurfaceGroupSize));
 		}
 
 		// In half resolution, only Separable is used. We do not need this mipmap.
@@ -935,7 +1017,7 @@ void ComputeSubsurfaceForView(
 				PassParameters->GroupBuffer = GraphBuilder.CreateSRV(SubsurfaceBufferUsage[SubsurfaceTypeIndex], EPixelFormat::PF_R32_UINT);
 
 				TShaderMapRef<ARGSETUPSHADER> ComputeShader(View.ShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(SubsurfacePhaseName[SubsurfaceTypeIndex]), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(SubsurfacePhaseName[SubsurfaceTypeIndex]), ERDGPassFlags::AsyncCompute, ComputeShader, PassParameters, FIntVector(1, 1, 1));
 			}
 		}
 
@@ -1017,7 +1099,19 @@ void ComputeSubsurfaceForView(
 				ComputeShaderPermutationVector.Set<SHADER::FRunningInSeparable>(bForceRunningInSeparable);
 				TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
-				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(PassInfo.Name), ComputeShader, PassParameters, SubsurfaceBufferArgs[SubsurfaceTypeIndex], 0);
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("%s(%s %s %s %s%s%s)",
+						PassInfo.Name,
+						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfacePassFunction>()),
+						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FDimensionQuality>()),
+						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfaceSamplerType>()),
+						SHADER::GetEventName(ComputeShaderPermutationVector.Get<SHADER::FSubsurfaceType>()),
+						ComputeShaderPermutationVector.Get<SHADER::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
+						ComputeShaderPermutationVector.Get<SHADER::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT("")),
+					ComputeShader,
+					PassParameters,
+					SubsurfaceBufferArgs[SubsurfaceTypeIndex], 0);
 			}
 		}
 	}
@@ -1054,7 +1148,14 @@ void ComputeSubsurfaceForView(
 		 */
 		AddDrawScreenPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("SubsurfaceRecombine"),
+			RDG_EVENT_NAME("SubsurfaceRecombine(%s %s%s%s%s) %dx%d",
+				GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionMode>()),
+				FSubsurfaceRecombinePS::GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionQuality>()),
+				PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionCheckerboard>() ? TEXT(" Checkerboard") : TEXT(""),
+				PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
+				PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT(""),
+				View.ViewRect.Width(),
+				View.ViewRect.Height()),
 			View,
 			SceneViewport,
 			SceneViewport,
@@ -1065,7 +1166,7 @@ void ComputeSubsurfaceForView(
 
 	if (SubsurfaceMode != ESubsurfaceMode::Bypass && QualityHistoryState && !bForceRunningInSeparable)
 	{
-		GraphBuilder.QueueTextureExtraction(NewQualityHistoryTexture, QualityHistoryState, true);
+		GraphBuilder.QueueTextureExtraction(NewQualityHistoryTexture, QualityHistoryState);
 	}
 }
 
@@ -1211,15 +1312,18 @@ void ComputeSubsurfaceShim(FRHICommandListImmediate& RHICmdList, const TArray<FV
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 
-	FRDGBuilder GraphBuilder(RHICmdList);
+	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("Subsurface"));
 
-	FRDGTextureRef SceneTexture = GraphBuilder.RegisterExternalTexture(SceneRenderTargets.GetSceneColor(), TEXT("SceneColor"));
+	FRDGTextureRef SceneTexture = GraphBuilder.RegisterExternalTexture(
+		SceneRenderTargets.GetSceneColor(),
+		TEXT("SceneColor"),
+		EResourceTransitionAccess::Unknown);
 
 	FRDGTextureRef SceneTextureOutput = ComputeSubsurface(GraphBuilder, SceneTexture, Views);
 
 	// Extract the result texture out and re-assign it to the scene render targets blackboard.
 	TRefCountPtr<IPooledRenderTarget> SceneTarget;
-	GraphBuilder.QueueTextureExtraction(SceneTextureOutput, &SceneTarget, false);
+	GraphBuilder.QueueTextureExtraction(SceneTextureOutput, &SceneTarget, EResourceTransitionAccess::EWritable);
 	GraphBuilder.Execute();
 
 	SceneRenderTargets.SetSceneColor(SceneTarget);

@@ -154,6 +154,7 @@ FName FNiagaraWorldManagerTickFunction::DiagnosticContext(bool bDetailed)
 
 FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	: World(InWorld)
+	, ActiveNiagaraTickGroup(-1)
 	, CachedEffectsQuality(INDEX_NONE)
 	, bAppHasFocus(true)
 {
@@ -324,7 +325,12 @@ TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	const int32 ActualTickGroup = FNiagaraUtilities::GetNiagaraTickGroup(TickGroup);
+	int32 ActualTickGroup = FNiagaraUtilities::GetNiagaraTickGroup(TickGroup);
+	if (ActiveNiagaraTickGroup == ActualTickGroup)
+	{
+		int32 DemotedTickGroup = FNiagaraUtilities::GetNiagaraTickGroup((ETickingGroup)(TickGroup + 1));
+		ActualTickGroup = DemotedTickGroup == ActualTickGroup ? 0 : DemotedTickGroup;
+	}
 
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* SimPtr = SystemSimulations[ActualTickGroup].Find(System);
 	if (SimPtr != nullptr)
@@ -662,6 +668,11 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		{
 			CachedPlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
 		}
+		
+		if (CachedPlayerViewLocations.Num() == 0)
+		{
+			bCachedPlayerViewLocationsValid = false;
+		}
 
 		UpdateScalabilityManagers();
 
@@ -681,6 +692,8 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	// Now tick all system instances. 
 	const int ActualTickGroup = FNiagaraUtilities::GetNiagaraTickGroup(TickGroup);
 
+	ActiveNiagaraTickGroup = ActualTickGroup;
+
 	TArray<UNiagaraSystem*, TInlineAllocator<4>> DeadSystems;
 	for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[ActualTickGroup])
 	{
@@ -695,6 +708,8 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			DeadSystems.Add(SystemSim.Key);
 		}
 	}
+
+	ActiveNiagaraTickGroup = -1;
 
 	for (UNiagaraSystem* DeadSystem : DeadSystems)
 	{

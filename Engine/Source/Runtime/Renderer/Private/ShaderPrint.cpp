@@ -17,7 +17,7 @@ IMPLEMENT_TYPE_LAYOUT(ShaderPrint::FShaderParametersLegacy);
 namespace ShaderPrint
 {
 	// Console variables
-	static TAutoConsoleVariable<int32> CVarEnable(
+	TAutoConsoleVariable<int32> CVarEnable(
 		TEXT("r.ShaderPrintEnable"),
 		0,
 		TEXT("ShaderPrint debugging toggle.\n"),
@@ -296,6 +296,7 @@ namespace ShaderPrint
 
 	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( "ShaderPrint::BeginView" );
 		if (!IsSupported(View))
 		{
 			return;

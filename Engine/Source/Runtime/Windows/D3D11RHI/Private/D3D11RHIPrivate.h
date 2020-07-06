@@ -353,6 +353,11 @@ private:
 	TArray<uint32> PushPopStack;
 };
 
+struct FD3D11TransitionData
+{
+	EResourceTransitionPipeline Pipeline;
+};
+
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 
@@ -542,6 +547,10 @@ public:
 	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) final override;
 	virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
 	virtual void RHICopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override;
+	virtual void RHICreateResourceTransition(FRHITransition* Transition, EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags PipelineFlags, TArrayView<const FRHITransitionInfo> Infos) final override;
+	virtual void RHIReleaseResourceTransition(FRHITransition* Transition) final override;
+	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) override final;
+	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) override final;
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures) final override;
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence) final override;
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;

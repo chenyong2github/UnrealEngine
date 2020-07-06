@@ -35,7 +35,6 @@ struct FMeshDescription;
 struct FMeshDescriptionBulkData;
 struct FStaticMeshLODResources;
 
-
 /*-----------------------------------------------------------------------------
 	Legacy mesh optimization settings.
 -----------------------------------------------------------------------------*/
@@ -231,7 +230,7 @@ struct FStaticMeshSourceModel
 	FString SourceImportFilename;
 
 #if WITH_EDITORONLY_DATA
-	/** Weather this LOD was imported in the same file as the base mesh. */
+	/** Whether this LOD was imported in the same file as the base mesh. */
 	UPROPERTY()
 	bool bImportWithBaseMesh;
 #endif
@@ -579,6 +578,10 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/** Materials used by this static mesh. Individual sections index in to this array. */
 	UPROPERTY()
 	TArray<UMaterialInterface*> Materials_DEPRECATED;
+
+	/** Settings related to building Nanite data. */
+	UPROPERTY()
+	FMeshNaniteSettings NaniteSettings;
 
 #endif // #if WITH_EDITORONLY_DATA
 
@@ -970,6 +973,7 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override;
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void FinishDestroy() override;
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	ENGINE_API virtual FString GetDesc() override;
 	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;

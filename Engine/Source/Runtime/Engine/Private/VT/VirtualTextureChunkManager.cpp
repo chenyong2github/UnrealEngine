@@ -89,15 +89,16 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 
 	// tile is being transcoded/is done transcoding
 	const FVTTranscodeKey TranscodeKey = FVirtualTextureTranscodeCache::GetKey(ProducerHandle, LayerMask, vLevel, vAddress);
-	FVTTranscodeTileHandle TranscodeHandle = TranscodeCache.FindTask(TranscodeKey);
-	if (TranscodeHandle.IsValid())
+	const FVTTranscodeTileHandleAndStatus TranscodeTaskResult = TranscodeCache.FindTask(TranscodeKey);
+	if (TranscodeTaskResult.Handle.IsValid())
 	{
-		const EVTRequestPageStatus Status = TranscodeCache.IsTaskFinished(TranscodeHandle) ? EVTRequestPageStatus::Available : EVTRequestPageStatus::Pending;
-		return FVTRequestPageResult(Status, TranscodeHandle.PackedData);
+		const EVTRequestPageStatus Status = TranscodeTaskResult.IsComplete ? EVTRequestPageStatus::Available : EVTRequestPageStatus::Pending;
+		return FVTRequestPageResult(Status, TranscodeTaskResult.Handle.PackedData);
 	}
 
 	// we limit the number of pending upload tiles in order to limit the memory required to store all the staging buffers
-	if (UploadCache.GetNumPendingTiles() >= (uint32)NumTranscodeRequests)
+	// Never throttle high priority requests
+	if (UploadCache.GetNumPendingTiles() >= (uint32)NumTranscodeRequests && Priority != EVTRequestPagePriority::High)
 	{
 		INC_DWORD_STAT(STAT_VTP_NumTranscodeDropped);
 		return EVTRequestPageStatus::Saturated;
@@ -142,7 +143,7 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 	TranscodeParams.vLevel = vLevel;
 	TranscodeParams.LayerMask = LayerMask;
 	TranscodeParams.Codec = CodecResult.Codec;
-	TranscodeHandle = TranscodeCache.SubmitTask(UploadCache, TranscodeKey, TranscodeParams, &GraphCompletionEvents);
+	const FVTTranscodeTileHandle TranscodeHandle = TranscodeCache.SubmitTask(UploadCache, TranscodeKey, TranscodeParams, &GraphCompletionEvents);
 	return FVTRequestPageResult(EVTRequestPageStatus::Pending, TranscodeHandle.PackedData);
 }
 
@@ -161,6 +162,15 @@ IVirtualTextureFinalizer* FVirtualTextureChunkStreamingManager::ProduceTile(FRHI
 	}
 
 	return &UploadCache;
+}
+
+void FVirtualTextureChunkStreamingManager::GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const
+{
+	FGraphEventRef Event = TranscodeCache.GetTaskEvent(FVTTranscodeTileHandle(RequestHandle));
+	if (Event)
+	{
+		InOutTasks.Emplace(MoveTemp(Event));
+	}
 }
 
 void FVirtualTextureChunkStreamingManager::WaitTasksFinished() const

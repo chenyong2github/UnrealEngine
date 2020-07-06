@@ -26,8 +26,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(, EditorPrimitivesDepth)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(, EditorPrimitivesStencil)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, EditorPrimitivesStencil)
 		SHADER_PARAMETER(FVector, OutlineColor)
 		SHADER_PARAMETER(float, SelectionHighlightIntensity)
 		SHADER_PARAMETER(FVector, SubduedOutlineColor)
@@ -39,7 +39,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
 } //! namespace
 
-FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs)
+FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
@@ -84,28 +84,44 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("SelectionOutline"));
 		}
 
-		FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		FScene* Scene = View.Family->Scene->GetRenderScene();
+
+		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteSelectionOutlineParameters>();
+		Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
 			ERenderTargetLoadAction::EClear,
 			ERenderTargetLoadAction::EClear,
 			FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
-
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, SceneColorViewport](FRHICommandList& RHICmdList)
+			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
 
-			// Run selection pass on static elements
-			View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList);
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, EditorSelection);
+
+				// Run selection pass on static elements
+				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList);
+			}
+
+			// Render Nanite mesh outlines after regular mesh outline, but before borders
+			if (NaniteRasterResults)
+			{
+				Nanite::DrawEditorSelection(RHICmdList, View, SceneColorViewport.Rect, *PassParameters);
+			}
 
 			// to get an outline around the objects if it's partly outside of the screen
 			{
+				SCOPED_DRAW_EVENT(RHICmdList, DrawOutlineBorder);
+
 				FIntRect InnerRect = SceneColorViewport.Rect;
 
 				// 1 as we have an outline that is that thick
@@ -179,11 +195,11 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	return MoveTemp(Output);
 }
 
-FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input)
+FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, const Nanite::FRasterResults *NaniteRasterResults)
 {
 	FRenderingCompositePass* Pass = Graph.RegisterPass(
 		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+			[NaniteRasterResults](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
@@ -206,7 +222,7 @@ FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph&
 			Inputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 		}
 
-		FScreenPassTexture Outputs = AddSelectionOutlinePass(GraphBuilder, InContext.View, Inputs);
+		FScreenPassTexture Outputs = AddSelectionOutlinePass(GraphBuilder, InContext.View, Inputs, NaniteRasterResults);
 
 		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.Texture);
 

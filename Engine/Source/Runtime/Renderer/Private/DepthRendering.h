@@ -147,7 +147,6 @@ class FDepthOnlyPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FDepthOnlyPS,MeshMaterial);
 public:
-
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		if (IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode))

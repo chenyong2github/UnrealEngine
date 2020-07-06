@@ -364,7 +364,7 @@ public:
 	virtual void InitRHI() override
 	{
 		check(!IsValidRef(VertexBufferRHI));
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicVertexBuffer"));
 		VertexBufferRHI = RHICreateVertexBuffer(BufferSize, BUF_Volatile, CreateInfo);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;

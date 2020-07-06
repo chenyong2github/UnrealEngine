@@ -3,10 +3,82 @@
 /**
  * SceneData.ush
  */
+#ifndef SCENE_DATA_H
+#define SCENE_DATA_H
+
+#ifndef USE_GLOBAL_GPU_SCENE_DATA
+	#define USE_GLOBAL_GPU_SCENE_DATA 0
+#endif // !defined(USE_GLOBAL_GPU_SCENE_DATA)
+
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
+
+// Must match FInstanceUniformShaderParameters in C++
+struct FInstanceSceneData
+{
+	float4x4 LocalToWorld;
+	float4x4 PrevLocalToWorld;
+	float4x4 WorldToLocal;
+	float4   NonUniformScale;
+	float4   InvNonUniformScaleAndDeterminantSign;
+	float3   LocalBoundsMin;
+	uint     PrimitiveId;
+	float3   LocalBoundsMax;
+	uint     Unused1;
+	uint	 NaniteRuntimeResourceID;
+	int      NaniteHierarchyOffset;
+	uint     Unused2;
+	uint     Unused3;
+};
+
+// Stride of a single instance's data in float4's, must match C++
+#define INSTANCE_SCENE_DATA_STRIDE 14
+
+#if USE_GLOBAL_GPU_SCENE_DATA
+StructuredBuffer<float4> GPUSceneInstanceSceneData;
+StructuredBuffer<float4> GPUScenePrimitiveSceneData;
+#endif // USE_GLOBAL_GPU_SCENE_DATA
+
+float4 LoadInstanceDataElement( uint Index )
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneInstanceSceneData[ Index ];
+#else //!USE_GLOBAL_GPU_SCENE_DATA
+	return View.InstanceSceneData[ Index ];
+#endif //USE_GLOBAL_GPU_SCENE_DATA
+}
+
+// Fetch from scene primitive buffer
+FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride) 
+{
+	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
+	InstanceData.LocalToWorld =		transpose(float4x4(	LoadInstanceDataElement(0 * SOAStride + InstanceId),
+														LoadInstanceDataElement(1 * SOAStride + InstanceId),
+														LoadInstanceDataElement(2 * SOAStride + InstanceId),
+														float4(0,0,0,1)));
+	InstanceData.PrevLocalToWorld = transpose(float4x4(	LoadInstanceDataElement(3 * SOAStride + InstanceId),
+														LoadInstanceDataElement(4 * SOAStride + InstanceId),
+														LoadInstanceDataElement(5 * SOAStride + InstanceId),
+														float4(0,0,0,1)));
+
+	InstanceData.WorldToLocal =		transpose(float4x4(	LoadInstanceDataElement(6 * SOAStride + InstanceId),
+														LoadInstanceDataElement(7 * SOAStride + InstanceId),
+														LoadInstanceDataElement(8 * SOAStride + InstanceId),
+														float4(0,0,0,1)));
+
+	InstanceData.NonUniformScale						= LoadInstanceDataElement(9 * SOAStride + InstanceId);
+	InstanceData.InvNonUniformScaleAndDeterminantSign	= LoadInstanceDataElement(10 * SOAStride + InstanceId);
+	InstanceData.LocalBoundsMin							= LoadInstanceDataElement(11 * SOAStride + InstanceId).xyz;
+	InstanceData.PrimitiveId							= asuint(LoadInstanceDataElement(11 * SOAStride + InstanceId).w);
+	InstanceData.LocalBoundsMax							= LoadInstanceDataElement(12 * SOAStride + InstanceId).xyz;
+
+	InstanceData.NaniteRuntimeResourceID				= asuint(LoadInstanceDataElement(13 * SOAStride + InstanceId).x);
+	InstanceData.NaniteHierarchyOffset					= asint(LoadInstanceDataElement(13 * SOAStride + InstanceId).y);
+
+	return InstanceData;
+}
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 8 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
@@ -68,11 +140,15 @@ FPrimitiveIndex SetupPrimitiveIndexes(uint PrimitiveId)
 
 float4 LoadPrimitivePrimitiveSceneDataElement(FPrimitiveIndex PrimitiveIndex, uint ItemIndex)
 {
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUScenePrimitiveSceneData[PrimitiveIndex.BaseOffset + ItemIndex];
+#else //!USE_GLOBAL_GPU_SCENE_DATA
 #if VF_GPU_SCENE_TEXTURE
 	return View.PrimitiveSceneDataTexture.Load(int3(PrimitiveIndex.IndX + ItemIndex, PrimitiveIndex.IndY, 0));
 #else // !VF_GPU_SCENE_TEXTURE
 	return View.PrimitiveSceneData[PrimitiveIndex.BaseOffset + ItemIndex];
 #endif // VF_GPU_SCENE_TEXTURE
+#endif //USE_GLOBAL_GPU_SCENE_DATA
 }
 
 // Fetch from scene primitive buffer
@@ -147,4 +223,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 // Route to Primitive uniform buffer
 #define GetPrimitiveData(x) Primitive
 
-#endif
+// Route to Instance uniform buffer
+#define GetInstanceData(x,y) PrimitiveInstance
+
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+#endif // !SCENE_DATA_H

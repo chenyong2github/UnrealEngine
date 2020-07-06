@@ -251,6 +251,10 @@ struct FMaterialPixelParameters
 	/** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
 	float4 ScreenPosition;
 
+	#if VF_NANITE
+	float4 PrevScreenPosition;
+	#endif
+
 	half UnMirrored;
 
 	half TwoSidedSign;
@@ -1705,12 +1709,50 @@ float EyeAdaptationLookup()
 	return EyeAdaptationStruct.EyeAdaptationBuffer[0].x;
 #endif
 }
+
+// We have to duplicate this code from EyeAdaptationCommon.ush because we are using a different implementation
+// of EyeAdaptationLookup. TODO: Reorganize and remove duplication.
+float3 EyeAdaptationInverseLookup(float3 LightValue, float Alpha)
+{
+	float Adaptation = EyeAdaptationLookup();
+
+	// When Alpha=0.0, we want to multiply by 1.0. when Alpha = 1.0, we want to multiply by 1/Adaptation.
+	// So the lerped value is:
+	//     LerpLogScale = Lerp(log(1),log(1/Adaptaiton),T)
+	// Which is simplified as:
+	//     LerpLogScale = Lerp(0,-log(Adaptation),T)
+	//     LerpLogScale = -T * logAdaptation;
+
+	float LerpLogScale = -Alpha * log(Adaptation);
+	float Scale = exp(LerpLogScale);
+	return LightValue * Scale;
+}
+
 #endif
 
 //The post-process material needs to decode the scene color since it's encoded at PreTonemapMSAA if MSAA enabled on MetalMobilePlatorm 
 //The POST_PROCESS_MATERIAL_BEFORE_TONEMAP is 1 for both BL_BeforeTranslucency and BL_BeforeTonemapping post-process materials
 #if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1 && POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
 uint bMetalMSAAHDRDecode;
+
+// We have to duplicate this code from EyeAdaptationCommon.ush because we are using a different implementation
+// of EyeAdaptationLookup. TODO: Reorganize and remove duplication.
+float3 EyeAdaptationInverseLookup(float3 LightValue, float Alpha)
+{
+	float Adaptation = EyeAdaptationLookup();
+
+	// When Alpha=0.0, we want to multiply by 1.0. when Alpha = 1.0, we want to multiply by 1/Adaptation.
+	// So the lerped value is:
+	//     LerpLogScale = Lerp(log(1),log(1/Adaptaiton),T)
+	// Which is simplified as:
+	//     LerpLogScale = Lerp(0,-log(Adaptation),T)
+	//     LerpLogScale = -T * logAdaptation;
+
+	float LerpLogScale = -Alpha * log(Adaptation);
+	float Scale = exp(LerpLogScale);
+	return LightValue * Scale;
+}
+
 #endif
 
 #if NEEDS_SCENE_TEXTURES
@@ -2568,7 +2610,7 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 
 // Whether to use the hidden d3d11 feature that supports depth writes with ZCull by only pushing into the screen
 //@todo - use for other SM5 platforms
-#define SUPPORTS_CONSERVATIVE_DEPTH_WRITES ((COMPILER_HLSL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || (PS4_PROFILE) || (COMPILER_METAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || SWITCH_PROFILE || SWITCH_PROFILE_FORWARD)
+#define SUPPORTS_CONSERVATIVE_DEPTH_WRITES ((COMPILER_HLSL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || COMPILER_PSSL || (COMPILER_METAL && FEATURE_LEVEL >= FEATURE_LEVEL_SM5) || SWITCH_PROFILE || SWITCH_PROFILE_FORWARD)
 #define USE_CONSERVATIVE_DEPTH_WRITES (OUTPUT_PIXEL_DEPTH_OFFSET && SUPPORTS_CONSERVATIVE_DEPTH_WRITES) 
 
 #if USE_CONSERVATIVE_DEPTH_WRITES
@@ -2581,7 +2623,7 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 #elif COMPILER_METAL
 	#define INPUT_POSITION_QUALIFIERS 
 	#define DEPTH_WRITE_SEMANTIC SV_DepthLessEqual
-#elif PS4_PROFILE
+#elif COMPILER_PSSL
 	#define INPUT_POSITION_QUALIFIERS
 	#define DEPTH_WRITE_SEMANTIC S_DEPTH_LE_OUTPUT
 #elif SWITCH_PROFILE || SWITCH_PROFILE_FORWARD

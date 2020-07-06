@@ -265,45 +265,55 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 		check((NumBytes & 15) == 0);
 	}
 
-	typename ResourceTypeTraits<ResourceType>::FMemcypCS::FParameters Parameters;
-	Parameters.Common.Size = NumBytes / DivisorAlignment;
-	Parameters.Common.SrcOffset = SrcOffset / DivisorAlignment;
-	Parameters.Common.DstOffset = DstOffset / DivisorAlignment;
-	if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BYTEBUFFER)
-	{
-		Parameters.SrcByteAddressBuffer = SrcBuffer.SRV;
-		Parameters.Common.DstByteAddressBuffer = DstBuffer.UAV;
-	}
-	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BUFFER)
-	{
-		Parameters.SrcStructuredBuffer = SrcBuffer.SRV;
-		Parameters.Common.DstStructuredBuffer = DstBuffer.UAV;
-	}
-	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
-	{
-		Parameters.SrcTexture = SrcBuffer.SRV;
-		Parameters.Common.DstTexture = DstBuffer.UAV;
-	}
+	uint32 NumBytesProcessed = 0;
 
-	if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
+	while (NumBytesProcessed < NumBytes)
 	{
-		uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
-		Parameters.Common.Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
-	}
+		const uint32 NumWaves = FMath::Max(FMath::Min<uint32>(GRHIMaxDispatchThreadGroupsPerDimension.X, FMath::DivideAndRoundUp(NumBytes / 16, 64u)), 1u);
+		const uint32 NumBytesPerDispatch = FMath::Min(FMath::Max(NumWaves, 1u) * 16 * 64, NumBytes);
 
-	typename ResourceTypeTraits<ResourceType>::FMemcypCS::FPermutationDomain PermutationVector;
-	if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BYTEBUFFER)
-	{
-		PermutationVector.template Set<typename ResourceTypeTraits<ResourceType>::FMemcypCS::FFloat4BufferDim >(false);
-	}
-	else
-	{
-		PermutationVector.template Set<typename ResourceTypeTraits<ResourceType>::FMemcypCS::FFloat4BufferDim >(true);
-	}
+		typename ResourceTypeTraits<ResourceType>::FMemcypCS::FParameters Parameters;
+		Parameters.Common.Size = NumBytesPerDispatch / DivisorAlignment;
+		Parameters.Common.SrcOffset = (SrcOffset + NumBytesProcessed) / DivisorAlignment;
+		Parameters.Common.DstOffset = (DstOffset + NumBytesProcessed) / DivisorAlignment;
+		if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BYTEBUFFER)
+		{
+			Parameters.SrcByteAddressBuffer = SrcBuffer.SRV;
+			Parameters.Common.DstByteAddressBuffer = DstBuffer.UAV;
+		}
+		else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BUFFER)
+		{
+			Parameters.SrcStructuredBuffer = SrcBuffer.SRV;
+			Parameters.Common.DstStructuredBuffer = DstBuffer.UAV;
+		}
+		else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
+		{
+			Parameters.SrcTexture = SrcBuffer.SRV;
+			Parameters.Common.DstTexture = DstBuffer.UAV;
+		}
 
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<typename ResourceTypeTraits<ResourceType>::FMemcypCS >(PermutationVector);
+		if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
+		{
+			uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
+			Parameters.Common.Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
+		}
 
-	FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(FMath::DivideAndRoundUp(NumBytes / 16, 64u), 1, 1));
+		typename ResourceTypeTraits<ResourceType>::FMemcypCS::FPermutationDomain PermutationVector;
+		if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BYTEBUFFER)
+		{
+			PermutationVector.template Set<typename ResourceTypeTraits<ResourceType>::FMemcypCS::FFloat4BufferDim >(false);
+		}
+		else
+		{
+			PermutationVector.template Set<typename ResourceTypeTraits<ResourceType>::FMemcypCS::FFloat4BufferDim >(true);
+		}
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<typename ResourceTypeTraits<ResourceType>::FMemcypCS >(PermutationVector);
+
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(NumWaves, 1, 1));
+
+		NumBytesProcessed += NumBytesPerDispatch;
+	}
 }
 
 template<>
@@ -363,7 +373,8 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWBufferStructured>(FRHICommandList&
 template<>
 RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList& RHICmdList, FRWByteAddressBuffer& Buffer, uint32 NumBytes, const TCHAR* DebugName)
 {
-	check((NumBytes & 3) == 0);
+	// Needs to be aligned to 16 bytes to MemcpyResource to work correctly (otherwise it skips last unaligned elements of the buffer during resize)
+	check((NumBytes & 15) == 0);
 
 	if (Buffer.NumBytes == 0)
 	{
@@ -380,6 +391,39 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 		// Copy data to new buffer
 		uint32 CopyBytes = FMath::Min(NumBytes, Buffer.NumBytes);
 		MemcpyResource(RHICmdList, NewBuffer, Buffer, CopyBytes);
+
+		Buffer = NewBuffer;
+		return true;
+	}
+
+	return false;
+}
+
+template<>
+RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandList& RHICmdList, FRWBufferStructured& Buffer, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName)
+{
+	check((NumBytes & 15) == 0);
+	check(NumBytes % NumArrays == 0);
+	check(Buffer.NumBytes % NumArrays == 0);
+
+	if (Buffer.NumBytes == 0)
+	{
+		Buffer.Initialize(16, NumBytes / 16, 0, DebugName);
+	}
+	else if (NumBytes != Buffer.NumBytes)
+	{
+		FRWBufferStructured NewBuffer;
+		NewBuffer.Initialize(16, NumBytes / 16, 0, DebugName);
+
+		// Copy data to new buffer
+		uint32 OldArraySize = Buffer.NumBytes / NumArrays;
+		uint32 NewArraySize = NumBytes / NumArrays;
+		
+		uint32 CopyBytes = FMath::Min(NewArraySize, OldArraySize);
+		for( uint32 i = 0; i < NumArrays; i++ )
+		{
+			MemcpyResource( RHICmdList, NewBuffer, Buffer, CopyBytes, i * NewArraySize, i * OldArraySize );
+		}
 
 		Buffer = NewBuffer;
 		return true;

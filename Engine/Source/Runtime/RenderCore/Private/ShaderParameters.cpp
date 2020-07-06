@@ -71,7 +71,7 @@ void FShaderUniformBufferParameter::ModifyCompilationEnvironment(const TCHAR* Pa
 	const FString IncludeName = FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"),ParameterName);
 	// Add the uniform buffer declaration to the compilation environment as an include: UniformBuffers/<ParameterName>.usf
 	FString Declaration;
-	CreateUniformBufferShaderDeclaration(ParameterName, Struct, Declaration);
+	CreateUniformBufferShaderDeclaration(ParameterName, Struct, Platform, Declaration);
 	OutEnvironment.IncludeVirtualPathToContentsMap.Add(IncludeName, Declaration);
 
 	FString& GeneratedUniformBuffersInclude = OutEnvironment.IncludeVirtualPathToContentsMap.FindOrAdd("/Engine/Generated/GeneratedUniformBuffers.ush");
@@ -128,6 +128,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 	const FShaderParametersMetadata& UniformBufferStruct, 
 	const FString& NamePrefix, 
 	uint32 StructOffset, 
+	EShaderPlatform Platform,
 	FUniformBufferDecl& Decl, 
 	uint32& HLSLBaseOffset)
 {
@@ -149,13 +150,13 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 			checkf(Member.GetNumElements() == 0, TEXT("SHADER_PARAMETER_STRUCT_ARRAY() is not supported in uniform buffer yet."));
 			Decl.StructMembers += TEXT("struct {\r\n");
 			Decl.Initializer += TEXT("{");
-			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), FString::Printf(TEXT("%s%s_"), *NamePrefix, Member.GetName()), StructOffset + Member.GetOffset(), Decl, HLSLBaseOffset);
+			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), FString::Printf(TEXT("%s%s_"), *NamePrefix, Member.GetName()), StructOffset + Member.GetOffset(), Platform, Decl, HLSLBaseOffset);
 			Decl.Initializer += TEXT("},");
 			Decl.StructMembers += FString::Printf(TEXT("} %s%s;\r\n"),Member.GetName(),*ArrayDim);
 		}
 		else if (Member.GetBaseType() == UBMT_INCLUDED_STRUCT)
 		{
-			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), NamePrefix, StructOffset + Member.GetOffset(), Decl, HLSLBaseOffset);
+			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), NamePrefix, StructOffset + Member.GetOffset(), Platform, Decl, HLSLBaseOffset);
 		}
 		else if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
 		{
@@ -172,7 +173,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 			case UBMT_INT32:   BaseTypeName = TEXT("int"); break;
 			case UBMT_UINT32:  BaseTypeName = TEXT("uint"); break;
 			case UBMT_FLOAT32: 
-				if (Member.GetPrecision() == EShaderPrecisionModifier::Float)
+				if (Member.GetPrecision() == EShaderPrecisionModifier::Float || !SupportShaderPrecisionModifier(Platform))
 				{
 					BaseTypeName = TEXT("float"); 
 				}
@@ -263,7 +264,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 }
 
 /** Creates a HLSL declaration of a uniform buffer with the given structure. */
-static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct)
+static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct, EShaderPlatform Platform)
 {
 	// If the uniform buffer has no members, we don't want to write out anything.  Shader compilers throw errors when faced with empty cbuffers and structs.
 	if (UniformBufferStruct.GetMembers().Num() > 0)
@@ -271,7 +272,7 @@ static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShade
 		FString NamePrefix(FString(Name) + FString(TEXT("_")));
 		FUniformBufferDecl Decl;
 		uint32 HLSLBaseOffset = 0;
-		CreateHLSLUniformBufferStructMembersDeclaration(UniformBufferStruct, NamePrefix, 0, Decl, HLSLBaseOffset);
+		CreateHLSLUniformBufferStructMembersDeclaration(UniformBufferStruct, NamePrefix, 0, Platform, Decl, HLSLBaseOffset);
 
 		return FString::Printf(
 			TEXT("#ifndef __UniformBuffer_%s_Definition__\r\n")
@@ -300,12 +301,12 @@ static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShade
 	return FString(TEXT("\n"));
 }
 
-RENDERCORE_API void CreateUniformBufferShaderDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct, FString& OutDeclaration)
+RENDERCORE_API void CreateUniformBufferShaderDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct, EShaderPlatform Platform, FString& OutDeclaration)
 {
-	OutDeclaration = CreateHLSLUniformBufferDeclaration(Name, UniformBufferStruct);
+	OutDeclaration = CreateHLSLUniformBufferDeclaration(Name, UniformBufferStruct, Platform);
 }
 
-RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*,FCachedUniformBufferDeclaration>& Cache)
+RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*,FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform)
 {
 	for (TMap<const TCHAR*,FCachedUniformBufferDeclaration>::TIterator It(Cache); It; ++It)
 	{
@@ -317,7 +318,7 @@ RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*,FCachedUniformB
 			if (It.Key() == StructIt->GetShaderVariableName())
 			{
 				FString* NewDeclaration = new FString();
-				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, *NewDeclaration);
+				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, Platform, *NewDeclaration);
 				check(!NewDeclaration->IsEmpty());
 				BufferDeclaration.Declaration = MakeShareable(NewDeclaration);
 				break;
@@ -331,7 +332,7 @@ void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment&
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (!bCachedUniformBufferStructDeclarations)
 	{
-		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache);
+		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
 		bCachedUniformBufferStructDeclarations = true;
 	}
 
@@ -434,7 +435,7 @@ void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (!bCachedUniformBufferStructDeclarations)
 	{
-		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache);
+		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
 		bCachedUniformBufferStructDeclarations = true;
 	}
 

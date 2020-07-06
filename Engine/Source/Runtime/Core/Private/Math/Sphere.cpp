@@ -8,37 +8,102 @@
 #include "Math/Box.h"
 #include "Math/Transform.h"
 
-
-/* FSphere structors
- *****************************************************************************/
-
-FSphere::FSphere(const FVector* Pts, int32 Count)
-	: Center(0, 0, 0)
-	, W(0)
+// [ Ritter 1990, "An Efficient Bounding Sphere" ]
+FSphere::FSphere( const FVector* Points, int32 Num )
 {
-	if (Count)
+	check( Num > 0 );
+
+	// Min/max points of AABB
+	int32 MinIndex[3] = { 0, 0, 0 };
+	int32 MaxIndex[3] = { 0, 0, 0 };
+
+	for( int i = 0; i < Num; i++ )
 	{
-		const FBox Box(Pts, Count);
-
-		*this = FSphere((Box.Min + Box.Max) / 2, 0);
-
-		for (int32 i = 0; i < Count; i++)
+		for( int k = 0; k < 3; k++ )
 		{
-			const float Dist = FVector::DistSquared(Pts[i], Center);
-
-			if (Dist > W)
-			{
-				W = Dist;
-			}
+			MinIndex[k] = Points[i][k] < Points[ MinIndex[k] ][k] ? i : MinIndex[k];
+			MaxIndex[k] = Points[i][k] > Points[ MaxIndex[k] ][k] ? i : MaxIndex[k];
 		}
+	}
 
-		W = FMath::Sqrt(W) * 1.001f;
+	float LargestDistSqr = 0.0f;
+	int32 LargestAxis = 0;
+	for( int k = 0; k < 3; k++ )
+	{
+		FVector PointMin = Points[ MinIndex[k] ];
+		FVector PointMax = Points[ MaxIndex[k] ];
+
+		float DistSqr = ( PointMax - PointMin ).SizeSquared();
+		if( DistSqr > LargestDistSqr )
+		{
+			LargestDistSqr = DistSqr;
+			LargestAxis = k;
+		}
+	}
+
+	FVector PointMin = Points[ MinIndex[ LargestAxis ] ];
+	FVector PointMax = Points[ MaxIndex[ LargestAxis ] ];
+
+	Center = 0.5f * ( PointMin + PointMax );
+	W = 0.5f * FMath::Sqrt( LargestDistSqr );
+
+	// Adjust to fit all points
+	for( int i = 0; i < Num; i++ )
+	{
+		float DistSqr = ( Points[i] - Center ).SizeSquared();
+
+		if( DistSqr > W*W )
+		{
+			float Dist = FMath::Sqrt( DistSqr );
+			float t = 0.5f + 0.5f * ( W / Dist );
+
+			Center = FMath::LerpStable( Points[i], Center, t );
+			W = 0.5f * ( W + Dist );
+		}
 	}
 }
 
+FSphere::FSphere( const FSphere* Spheres, int32 Num )
+{
+	check( Num > 0 );
 
-/* FSphere interface
- *****************************************************************************/
+	// Min/max points of AABB
+	int32 MinIndex[3] = { 0, 0, 0 };
+	int32 MaxIndex[3] = { 0, 0, 0 };
+
+	for( int i = 0; i < Num; i++ )
+	{
+		for( int k = 0; k < 3; k++ )
+		{
+			MinIndex[k] = Spheres[i].Center[k] - Spheres[i].W < Spheres[ MinIndex[k] ].Center[k] - Spheres[ MinIndex[k] ].W ? i : MinIndex[k];
+			MaxIndex[k] = Spheres[i].Center[k] + Spheres[i].W > Spheres[ MaxIndex[k] ].Center[k] + Spheres[ MaxIndex[k] ].W ? i : MaxIndex[k];
+		}
+	}
+
+	float LargestDist = 0.0f;
+	int32 LargestAxis = 0;
+	for( int k = 0; k < 3; k++ )
+	{
+		FSphere SphereMin = Spheres[ MinIndex[k] ];
+		FSphere SphereMax = Spheres[ MaxIndex[k] ];
+
+		float Dist = ( SphereMax.Center - SphereMin.Center ).Size() + SphereMin.W + SphereMax.W;
+		if( Dist > LargestDist )
+		{
+			LargestDist = Dist;
+			LargestAxis = k;
+		}
+	}
+
+	*this  = Spheres[ MinIndex[ LargestAxis ] ];
+	*this += Spheres[ MaxIndex[ LargestAxis ] ];
+
+	// Adjust to fit all spheres
+	for( int i = 0; i < Num; i++ )
+	{
+		*this += Spheres[i];
+	}
+}
 
 FSphere FSphere::TransformBy(const FMatrix& M) const
 {
@@ -76,32 +141,32 @@ FSphere& FSphere::operator+=(const FSphere &Other)
 	if (W == 0.f)
 	{
 		*this = Other;
+		return *this;
 	}
-	else if (IsInside(Other))
+	
+	FVector ToOther = Other.Center - Center;
+	float DistSqr = ToOther.SizeSquared();
+
+	if( FMath::Square( W - Other.W ) + KINDA_SMALL_NUMBER >= DistSqr )
 	{
-		*this = Other;
-	}
-	else if (Other.IsInside(*this))
-	{
-		// no change		
+		// Pick the smaller
+		if( W < Other.W )
+		{
+			*this = Other;
+		}
 	}
 	else
 	{
+		float Dist = FMath::Sqrt( DistSqr );
+
 		FSphere NewSphere;
+		NewSphere.W = ( Dist + Other.W + W ) * 0.5f;
+		NewSphere.Center = Center;
 
-		FVector DirToOther = Other.Center - Center;
-		FVector UnitDirToOther = DirToOther;
-		UnitDirToOther.Normalize();
-
-		float NewRadius = (DirToOther.Size() + Other.W + W) * 0.5f;
-
-		// find end point
-		FVector End1 = Other.Center + UnitDirToOther*Other.W;
-		FVector End2 = Center - UnitDirToOther*W;
-		FVector NewCenter = (End1 + End2)*0.5f;
-
-		NewSphere.Center = NewCenter; 
-		NewSphere.W = NewRadius;
+		if( Dist > SMALL_NUMBER )
+		{
+			NewSphere.Center += ToOther * ( ( NewSphere.W - W ) / Dist );
+		}
 
 		// make sure both are inside afterwards
 		checkSlow (Other.IsInside(NewSphere, 1.f));

@@ -468,7 +468,7 @@ static FAutoConsoleVariableRef CVarFrustumCullNumWordsPerTask(
 
 
 template<bool UseCustomCulling, bool bAlsoUseSphereTest, bool bUseFastIntersect>
-static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
+static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FrustumCull);
 
@@ -499,6 +499,8 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 			float FadeRadius = GDisableLODFade ? 0.0f : GDistanceFadeMaxTravel;
 			uint8 CustomVisibilityFlags = EOcclusionFlags::CanBeOccluded | EOcclusionFlags::HasPrecomputedVisibility;
 
+			uint32 NumPrimitivesCulledForTask = 0;
+
 			// Primitives may be explicitly removed from stereo views when using mono
 			const int32 TaskWordOffset = TaskIndex * FrustumCullNumWordsPerTask;
 
@@ -510,7 +512,11 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 				for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
 				{
 					int32 Index = WordIndex * NumBitsPerDWORD + BitSubIndex;
-					const FPrimitiveBounds& Bounds = Scene->PrimitiveBounds[Index];
+
+					FPrimitiveSceneProxy* RESTRICT Proxy = Scene->Primitives[Index]->Proxy;
+					const bool bUsingDistanceCullFade = Proxy->IsUsingDistanceCullFade();
+
+					const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[Index];
 					float DistanceSquared = (Bounds.BoxSphereBounds.Origin - ViewOriginForDistanceCulling).SizeSquared();
 					int32 VisibilityId = INDEX_NONE;
 
@@ -525,8 +531,7 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 					float MinDrawDistanceSq = Bounds.MinDrawDistanceSq;
 
 					// If cull distance is disabled, always show the primitive (except foliage)
-					if (View.Family->EngineShowFlags.DistanceCulledPrimitives
-						&& !Scene->Primitives[Index]->Proxy->IsDetailMesh())
+					if (View.Family->EngineShowFlags.DistanceCulledPrimitives && !Proxy->IsDetailMesh())
 					{
 						MaxDrawDistance = FLT_MAX;
 					}
@@ -545,13 +550,22 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 						}
 					}
 
-					if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
+					// Handle primitives that are always visible.
+					if (Scene->PrimitivesAlwaysVisible[Index])
+					{
+						VisBits |= Mask;
+						if (bUsingDistanceCullFade && DistanceSquared > FMath::Square(MaxDrawDistance - FadeRadius))
+						{
+							FadingBits |= Mask;
+						}
+					}
+					else if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
 						(DistanceSquared < MinDrawDistanceSq) ||
 						(UseCustomCulling && !View.CustomVisibilityQuery->IsVisible(VisibilityId, FBoxSphereBounds(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, Bounds.BoxSphereBounds.SphereRadius))) ||
 						(bAlsoUseSphereTest && View.ViewFrustum.IntersectSphere(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius) == false) ||
 						(bUseFastIntersect ? IntersectBox8Plane(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, PermutedPlanePtr) : View.ViewFrustum.IntersectBox(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent)) == false)
 					{
-						STAT(NumCulledPrimitives.Increment());
+						STAT(++NumPrimitivesCulledForTask);
 					}
 					else
 					{
@@ -578,15 +592,17 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 				}
 				if (FadingBits)
 				{
-					check(!View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+					checkSlow(!View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
 					View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex] = FadingBits;
 				}
 				if (VisBits)
 				{
-					check(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
+					checkSlow(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
 					View.PrimitiveVisibilityMap.GetData()[WordIndex] = VisBits;
 				}
 			}
+
+			STAT(NumCulledPrimitives.Add(NumPrimitivesCulledForTask));
 		},
 		!FApp::ShouldUseThreadingForPerformance() || (UseCustomCulling && !View.CustomVisibilityQuery->IsThreadsafe()) || CVarParallelInitViews.GetValueOnRenderThread() == 0 || !IsInActualRenderingThread()
 	);
@@ -788,6 +804,8 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 	const bool bSubmitQueries		= Params.bSubmitQueries;
 	const bool bHZBOcclusion		= Params.bHZBOcclusion;
 
+	const TBitArray<>& PrimitivesAlwaysVisible = Scene->PrimitivesAlwaysVisible;
+
 	const float PrimitiveProbablyVisibleTime = GEngine->PrimitiveProbablyVisibleTime;
 
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
@@ -854,9 +872,10 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 #else
 	for (TBitArray<SceneRenderingBitArrayAllocator>::FIterator BitIt(View.PrimitiveVisibilityMap, StartIndex); BitIt && (NumProcessed < NumToProcess); ++BitIt, ++NumProcessed)
 #endif
-	{		
+	{
+		const bool bAlwaysVisible = PrimitivesAlwaysVisible[BitIt.GetIndex()];
 		uint8 OcclusionFlags = Scene->PrimitiveOcclusionFlags[BitIt.GetIndex()];
-		bool bCanBeOccluded = (OcclusionFlags & EOcclusionFlags::CanBeOccluded) != 0;
+		bool bCanBeOccluded = !bAlwaysVisible && (OcclusionFlags & EOcclusionFlags::CanBeOccluded) != 0;
 
 #if !BALANCE_LOAD		
 		if (!View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt))
@@ -885,7 +904,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 		check(Params.SubIsOccluded);
 		TArray<bool>& SubIsOccluded = *Params.SubIsOccluded;
 		int32 SubIsOccludedStart = SubIsOccluded.Num();
-		if ((OcclusionFlags & EOcclusionFlags::HasSubprimitiveQueries) && GAllowSubPrimitiveQueries && !View.bDisableQuerySubmissions)
+		if ((OcclusionFlags & EOcclusionFlags::HasSubprimitiveQueries) && GAllowSubPrimitiveQueries && !View.bDisableQuerySubmissions && !bAlwaysVisible)
 		{
 			FPrimitiveSceneProxy* Proxy = Scene->Primitives[BitIt.GetIndex()]->Proxy;
 			SubBounds = Proxy->GetOcclusionQueries(&View);
@@ -1648,6 +1667,7 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 		if (ViewState->SceneSoftwareOcclusion)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SoftwareOcclusionCull)
+			// TODO: Respect PrimitivesAlwaysVisible
 			NumOccludedPrimitives += ViewState->SceneSoftwareOcclusion->Process(RHICmdList, Scene, View);
 		}
 		else if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::ES3_1)
@@ -1876,6 +1896,9 @@ struct FRelevancePacket
 	FRelevancePrimSet<FPrimitiveSceneInfo*> LazyUpdatePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
+#if WITH_EDITOR
+	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorSelectedPrimitives;
+#endif
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
@@ -2006,6 +2029,13 @@ struct FRelevancePacket
 				NotDrawRelevant.AddPrim(BitIndex);
 				continue;
 			}
+
+		#if WITH_EDITOR
+			if (bEditorSelectionRelevance)
+			{
+				EditorSelectedPrimitives.AddPrim(PrimitiveSceneInfo);
+			}
+		#endif
 
 			if (bEditorRelevance)
 			{
@@ -2407,6 +2437,33 @@ struct FRelevancePacket
 		{
 			WriteView.PrimitiveVisibilityMap[NotDrawRelevant.Prims[Index]] = false;
 		}
+
+#if WITH_EDITOR
+		// Add hit proxies from selected Nanite primitives.
+		{
+			int32 TotalHitProxiesToAdd = 0;
+			for (int32 Idx = 0; Idx < EditorSelectedPrimitives.NumPrims; ++Idx)
+			{
+				if (EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num())
+				{
+					TotalHitProxiesToAdd += EditorSelectedPrimitives.Prims[Idx]->HitProxies.Num();
+				}
+			}
+
+			WriteView.EditorSelectedHitProxyIds.Reserve(WriteView.EditorSelectedHitProxyIds.Num() + TotalHitProxiesToAdd);
+
+			for (int32 Idx = 0; Idx < EditorSelectedPrimitives.NumPrims; ++Idx)
+			{
+				if (EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num())
+				{
+					for (HHitProxy* HitProxy : EditorSelectedPrimitives.Prims[Idx]->HitProxies)
+					{
+						WriteView.EditorSelectedHitProxyIds.Add(HitProxy->Id.GetColor().DWColor());
+					}
+				}
+			}
+		}
+#endif
 
 		WriteView.ShadingModelMaskInView |= CombinedShadingModelMask;
 		WriteView.bUsesGlobalDistanceField |= bUsesGlobalDistanceField;
@@ -3270,6 +3327,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		{
 			NewPrevViewInfo.ViewRect = View.ViewRect;
 			NewPrevViewInfo.ViewMatrices = View.ViewMatrices;
+			NewPrevViewInfo.ViewRect = View.ViewRect;
 		}
 
 		if ( ViewState )
@@ -3600,8 +3658,64 @@ void UpdateReflectionSceneData(FScene* Scene)
 	}
 }
 
-void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
-	FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer)
+#if WITH_EDITOR
+static void UpdateEditorSelectedHitProxyIds(
+	TArray<FViewInfo>& Views
+	)
+{
+	int32 ViewCount = Views.Num();
+	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
+	{
+		FViewInfo& View = Views[ViewIdx];
+
+		TArray<uint32>& EditorSelectedHitProxyIds = View.EditorSelectedHitProxyIds;
+		FDynamicReadBuffer& EditorSelectedBuffer = View.EditorSelectedBuffer;
+
+		Algo::Sort(EditorSelectedHitProxyIds);
+
+		// TODO: We should implement something akin to std::unique that removes
+		//       duplicate hit proxy IDs from EditorSelectedHitProxyIds so the
+		//       GPU based search in Nanite has less to search through. The list
+		//       is already sorted at this point, so a linear walk that copies unique
+		//       values over duplicates and trims array length when the walk finishes
+		//       should do the trick here.
+
+		uint32 EditorSelectedCount = EditorSelectedHitProxyIds.Num();
+		uint32 EditorSelectedBufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(EditorSelectedCount), 1u);
+	
+		if (EditorSelectedBuffer.NumBytes != EditorSelectedBufferCount)
+		{
+			EditorSelectedBuffer.Initialize(sizeof(uint32), EditorSelectedBufferCount, PF_R32_UINT, BUF_Dynamic);
+		}
+
+		EditorSelectedBuffer.Lock();
+		{
+			uint32* Data = reinterpret_cast<uint32*>(EditorSelectedBuffer.MappedBuffer);
+
+			for (uint32 i = 0; i < EditorSelectedCount; ++i)
+			{
+				Data[i] = EditorSelectedHitProxyIds[i];
+			}
+
+			uint32 FillValue = EditorSelectedCount == 0 ? 0 : EditorSelectedHitProxyIds.Last();
+
+			for (uint32 i = EditorSelectedCount; i < EditorSelectedBufferCount; ++i)
+			{
+				Data[i] = FillValue;
+			}
+		}
+		EditorSelectedBuffer.Unlock();
+	}
+}
+#endif
+
+void FSceneRenderer::ComputeViewVisibility(
+	FRHICommandListImmediate& RHICmdList,
+	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
+	FViewVisibleCommandsPerView& ViewCommandsPerView, 
+	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
+	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
+	FGlobalDynamicReadBuffer& DynamicReadBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime);
 	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeViewVisibility, FColor::Magenta);
@@ -3665,7 +3779,8 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 		// Allocate the view's visibility maps.
 		View.PrimitiveVisibilityMap.Init(false,Scene->Primitives.Num());
-		// we don't initialized as we overwrite the whole array (in GatherDynamicMeshElements)
+
+		// These are not initialized here, as we overwrite the whole array in GatherDynamicMeshElements().
 		View.DynamicMeshEndIndices.SetNumUninitialized(Scene->Primitives.Num());
 		View.PrimitiveDefinitelyUnoccludedMap.Init(false,Scene->Primitives.Num());
 		View.PotentiallyFadingPrimitiveMap.Init(false,Scene->Primitives.Num());
@@ -3696,7 +3811,7 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 			new(View.VisibleLightInfos) FVisibleLightViewInfo();
 		}
 
-		View.PrimitiveViewRelevanceMap.Empty(Scene->Primitives.Num());
+		View.PrimitiveViewRelevanceMap.Reset(Scene->Primitives.Num());
 		View.PrimitiveViewRelevanceMap.AddZeroed(Scene->Primitives.Num());
 
 		// If this is the visibility-parent of other views, reset its ParentPrimitives list.
@@ -3705,7 +3820,7 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		{
 			// PVS-Studio does not understand the validation of ViewState above, so we're disabling
 			// its warning that ViewState may be null:
-			ViewState->ParentPrimitives.Empty(); //-V595
+			ViewState->ParentPrimitives.Reset(); //-V595
 		}
 
 		if (ViewState)
@@ -3715,7 +3830,7 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		}
 		else
 		{
-			View.PrecomputedVisibilityData = NULL;
+			View.PrecomputedVisibilityData = nullptr;
 		}
 
 		if (View.PrecomputedVisibilityData)
@@ -3737,7 +3852,8 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 				bNeedsFrustumCulling = false;
 				for (FSceneBitArray::FIterator BitIt(View.PrimitiveVisibilityMap); BitIt; ++BitIt)
 				{
-					if (ViewParent->ParentPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]))
+					if (ViewParent->ParentPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]) ||
+						Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()])
 					{
 						BitIt.GetValue() = true;
 					}
@@ -3745,12 +3861,13 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 			}
 #endif
 			// For views with frozen visibility, check if the primitive is in the frozen visibility set.
-			if(ViewState->bIsFrozen)
+			if (ViewState->bIsFrozen)
 			{
 				bNeedsFrustumCulling = false;
 				for (FSceneBitArray::FIterator BitIt(View.PrimitiveVisibilityMap); BitIt; ++BitIt)
 				{
-					if (ViewState->FrozenPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]))
+					if (ViewState->FrozenPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]) ||
+						Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()])
 					{
 						BitIt.GetValue() = true;
 					}
@@ -3809,6 +3926,8 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 			{
 				if (View.HiddenPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]))
 				{
+					// Should respect this over the always visible bit set, since we want the editor
+					// to support hiding layers of primitives for various reasons.
 					View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt) = false;
 				}
 			}
@@ -3950,6 +4069,10 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, MeshCollector);
 	}
 
+#if WITH_EDITOR
+	UpdateEditorSelectedHitProxyIds(Views);
+#endif
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
@@ -4029,29 +4152,29 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 				Proxy->GetLightType() == LightType_Spot ||
 				Proxy->GetLightType() == LightType_Rect )
 			{
-				FSphere const& BoundingSphere = Proxy->GetBoundingSphere();
-				if (View.ViewFrustum.IntersectSphere(BoundingSphere.Center, BoundingSphere.W))
+				const FSphere& BoundingSphere = Proxy->GetBoundingSphere();
+				const bool bInViewFrustum = View.ViewFrustum.IntersectSphere(BoundingSphere.Center, BoundingSphere.W);
+
+				if (View.IsPerspectiveProjection())
 				{
-					if (View.IsPerspectiveProjection())
-					{
-						FSphere Bounds = Proxy->GetBoundingSphere();
-						float DistanceSquared = (Bounds.Center - View.ViewMatrices.GetViewOrigin()).SizeSquared();
-						float MaxDistSquared = Proxy->GetMaxDrawDistance() * Proxy->GetMaxDrawDistance() * GLightMaxDrawDistanceScale * GLightMaxDrawDistanceScale;
-						const bool bDrawLight = (FMath::Square(FMath::Min(0.0002f, GMinScreenRadiusForLights / Bounds.W) * View.LODDistanceFactor) * DistanceSquared < 1.0f)
-													&& (MaxDistSquared == 0 || DistanceSquared < MaxDistSquared);
+					const float DistanceSquared = (BoundingSphere.Center - View.ViewMatrices.GetViewOrigin()).SizeSquared();
+					const float MaxDistSquared = Proxy->GetMaxDrawDistance() * Proxy->GetMaxDrawDistance() * GLightMaxDrawDistanceScale * GLightMaxDrawDistanceScale;
+					const bool bDrawLight = (FMath::Square(FMath::Min(0.0002f, GMinScreenRadiusForLights / BoundingSphere.W) * View.LODDistanceFactor) * DistanceSquared < 1.0f)
+												&& (MaxDistSquared == 0 || DistanceSquared < MaxDistSquared);
 							
-						VisibleLightViewInfo.bInViewFrustum = bDrawLight;
-					}
-					else
-					{
-						VisibleLightViewInfo.bInViewFrustum = true;
-					}
+					VisibleLightViewInfo.bInViewFrustum = bDrawLight && bInViewFrustum;
+					VisibleLightViewInfo.bInDrawRange = bDrawLight;
+				}
+				else
+				{
+					VisibleLightViewInfo.bInViewFrustum = bInViewFrustum;
+					VisibleLightViewInfo.bInDrawRange = true;
 				}
 			}
 			else
 			{
 				VisibleLightViewInfo.bInViewFrustum = true;
-
+				VisibleLightViewInfo.bInDrawRange = true;
 				// Setup single sun-shaft from direction lights for mobile.
 				if(bCheckLightShafts && LightSceneInfo->bEnableLightShaftBloom)
 				{
@@ -4409,6 +4532,8 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRHICommandLis
 	UpdateTranslucencyTimersAndSeparateTranslucencyBufferSize(RHICmdList);
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
+
+	BeginUpdateLumenSceneTasks(RHICmdList);
 }
 
 /*------------------------------------------------------------------------------

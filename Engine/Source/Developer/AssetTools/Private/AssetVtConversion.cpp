@@ -275,15 +275,17 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 
 		for (auto ParamInfo : ParameterInfos)
 		{
-			UTexture *ParamValue;
-			ParentMaterial->GetTextureParameterValue(ParamInfo, ParamValue);
-			UTexture2D *ParamValue2D = Cast<UTexture2D>(ParamValue);
-			if (ParamValue2D != nullptr)
+			UTexture *ParamValue = nullptr;
+			if (ParentMaterial->GetTextureParameterValue(ParamInfo, ParamValue))
 			{
-				if (InAffectedTextures.Contains(ParamValue2D))
+				UTexture2D *ParamValue2D = Cast<UTexture2D>(ParamValue);
+				if (ParamValue2D != nullptr)
 				{
-					//UE_LOG(LogVirtualTextureConversion, Display, TEXT("Adding parameter %s because it references  %s on %s >> %s"), *ParamInfo.Name.ToString(), *ParamValue2D->GetPathName(), *ParentMaterial->GetMaterial()->GetPathName(), *ParentMaterial->GetPathName());
-					ParametersToVtIze.FindOrAdd(ParentMaterial->GetMaterial()).Add(ParamInfo);
+					if (InAffectedTextures.Contains(ParamValue2D))
+					{
+						//UE_LOG(LogVirtualTextureConversion, Display, TEXT("Adding parameter %s because it references  %s on %s >> %s"), *ParamInfo.Name.ToString(), *ParamValue2D->GetPathName(), *ParentMaterial->GetMaterial()->GetPathName(), *ParentMaterial->GetPathName());
+						ParametersToVtIze.FindOrAdd(ParentMaterial->GetMaterial()).Add(ParamInfo);
+					}
 				}
 			}
 		}
@@ -314,16 +316,18 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 		UMaterial *Mat = If->GetMaterial();
 		for (const FMaterialParameterInfo &Parameter : ParametersToVtIze.FindOrAdd(Mat))
 		{
-			UTexture *Tex;
-			If->GetTextureParameterValue(Parameter, Tex);
-			UTexture2D *Tex2D = Cast<UTexture2D>(Tex);
-			if (Tex2D && !Tex2D->VirtualTextureStreaming)
+			UTexture *Tex = nullptr;
+			if (If->GetTextureParameterValue(Parameter, Tex))
 			{
-				InAffectedTextures.AddUnique(Tex2D);
-				AuditTrail.Add(Tex2D, FAuditTrail(
-					Mat,
-					FString::Printf(TEXT("set on parameter %s in instance %s of material"), *Parameter.Name.ToString(), *If->GetName())
-				));
+				UTexture2D *Tex2D = Cast<UTexture2D>(Tex);
+				if (Tex2D && !Tex2D->VirtualTextureStreaming)
+				{
+					InAffectedTextures.AddUnique(Tex2D);
+					AuditTrail.Add(Tex2D, FAuditTrail(
+						Mat,
+						FString::Printf(TEXT("set on parameter %s in instance %s of material"), *Parameter.Name.ToString(), *If->GetName())
+					));
+				}
 			}
 		}
 	}

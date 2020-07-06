@@ -333,6 +333,8 @@ public:
 	/** Whether the mesh was a plane with very little extent in Z. */
 	bool bMeshWasPlane;
 
+	bool bAsyncBuilding;
+
 	FDistanceFieldVolumeTexture VolumeTexture;
 
 	FDistanceFieldVolumeData() :
@@ -342,6 +344,7 @@ public:
 		bMeshWasClosed(true),
 		bBuiltAsIfTwoSided(false),
 		bMeshWasPlane(false),
+		bAsyncBuilding(false),
 		VolumeTexture(*this)
 	{}
 
@@ -360,7 +363,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
+	void CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
 
 #endif
 

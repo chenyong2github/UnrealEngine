@@ -792,6 +792,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 			InstanceRenderStateRef->ActorPosition,
 			InstanceRenderStateRef->WorldBounds,
 			InstanceRenderStateRef->LocalBounds,
+			InstanceRenderStateRef->LocalBounds,
 			false,
 			false,
 			false,
@@ -802,7 +803,9 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 			1.0f,
 			0,
 			INDEX_NONE,
-			false);
+			false,
+			nullptr
+			);
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
@@ -1063,6 +1066,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 			InstanceRenderStateRef->ActorPosition,
 			InstanceRenderStateRef->WorldBounds,
 			InstanceRenderStateRef->LocalBounds,
+			InstanceRenderStateRef->LocalBounds,
 			false,
 			false,
 			false,
@@ -1073,7 +1077,8 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 			1.0f,
 			0,
 			INDEX_NONE,
-			false), UniformBuffer_MultiFrame);
+			false,
+			nullptr), UniformBuffer_MultiFrame);
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
@@ -1351,6 +1356,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			InstanceRenderStateRef->ActorPosition,
 			InstanceRenderStateRef->WorldBounds,
 			InstanceRenderStateRef->LocalBounds,
+			InstanceRenderStateRef->LocalBounds,
 			false,
 			false,
 			false,
@@ -1361,7 +1367,8 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			1.0f,
 			0,
 			INDEX_NONE,
-			false), UniformBuffer_MultiFrame);
+			false,
+			nullptr), UniformBuffer_MultiFrame);
 
 		int32 MaxLOD = 0;
 		InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters.AddDefaulted(MaxLOD + 1);
@@ -2780,3 +2787,6 @@ void FScene::RemoveAllComponents()
 }
 
 }
+
+
+#undef LOCTEXT_NAMESPACE

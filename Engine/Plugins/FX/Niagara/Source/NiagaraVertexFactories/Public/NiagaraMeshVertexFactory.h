@@ -116,12 +116,12 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV() const
 	{
 		return SortedIndicesSRV;
 	}
 
-	FORCEINLINE int32 GetSortedIndicesOffset()
+	FORCEINLINE int32 GetSortedIndicesOffset() const
 	{
 		return SortedIndicesOffset;
 	}
@@ -142,7 +142,7 @@ public:
 	/**
 	* Retrieve the uniform buffer for this vertex factory.
 	*/
-	FORCEINLINE FRHIUniformBuffer* GetUniformBuffer()
+	FORCEINLINE FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return MeshParticleUniformBuffer;
 	}

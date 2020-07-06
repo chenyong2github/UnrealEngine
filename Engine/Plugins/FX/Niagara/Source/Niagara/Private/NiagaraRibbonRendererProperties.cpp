@@ -85,17 +85,13 @@ FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculat
 
 void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-
-	bool bSet = false;
-	if (InEmitter != nullptr && MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	UMaterialInterface* MaterialInterface = nullptr;
+	if (InEmitter != nullptr)
 	{
-		bSet = true;
+		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialUserParamBinding.Parameter));
 	}
 
-	if (!bSet)
-	{
-		OutMaterials.Add(Material);
-	}
+	OutMaterials.Add(MaterialInterface ? MaterialInterface : Material);
 }
 
 void UNiagaraRibbonRendererProperties::PostInitProperties()

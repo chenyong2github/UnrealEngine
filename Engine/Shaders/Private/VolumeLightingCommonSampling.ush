@@ -39,9 +39,10 @@ float ComputeLight1VolumeShadowing(
 float ComputeVolumeShadowing(
 
 #endif
-	float3 WorldPositionForLighting, bool bPointLight, bool bSpotLight)
+	float3 WorldPositionForLighting, bool bPointLight, bool bSpotLight, inout bool bShadowFactorValid)
 {
 	float ShadowFactor = 1;
+	bShadowFactorValid = false;
 
 	BRANCH
 	if (VSSPREFIX(bStaticallyShadowed))
@@ -64,6 +65,7 @@ float ComputeVolumeShadowing(
 
 			float ShadowDepth = Texture2DSampleLevel(VSSPREFIX(StaticShadowDepthTexture), VSSPREFIX(StaticShadowDepthTextureSampler), UnwrappedUVs, 0).x;
 			ShadowFactor = DistanceToLight * VSSLIGHTINVRADIUS < ShadowDepth;
+			bShadowFactorValid = true;
 		}
 		else
 		{
@@ -88,6 +90,7 @@ float ComputeVolumeShadowing(
 				Settings.ProjectionDepthBiasParameters = float2(0, 0);
 
 				ShadowFactor = Manual1x1PCF(ShadowUVs, Settings);
+				bShadowFactorValid = true;
 
 				/*
 				// Sample the shadowmap depth and determine if this voxel is shadowed
@@ -105,6 +108,7 @@ float ComputeVolumeShadowing(
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	if (bUseCubemapShadowing)
 	{
+		bShadowFactorValid = true;
 		const float DepthBias = 0.03f * 512 * VSSPREFIX(InvShadowmapResolution);
 		const float SlopeDepthBias = 0;
 		const float MaxSlopeDepthBias = 0;
@@ -117,15 +121,18 @@ float ComputeVolumeShadowing(
 #endif	// FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	{
 		// Transform the world position into shadowmap space
+		// NOTE: Shadow space is reverse Z, but shadowmap is stored in "linear Z"
 		float4 HomogeneousShadowPosition = mul(float4(WorldPositionForLighting, 1), VSSPREFIX(WorldToShadowMatrix));
 		float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
+		float SceneDepth = 1.0f - HomogeneousShadowPosition.z;
 
 		// Treat as unshadowed if the voxel is outside of the shadow map
-		if (all(ShadowUVs >= VSSPREFIX(ShadowmapMinMax).xy && ShadowUVs <= VSSPREFIX(ShadowmapMinMax).zw))
+		if (all(ShadowUVs >= VSSPREFIX(ShadowmapMinMax).xy) && all(ShadowUVs <= VSSPREFIX(ShadowmapMinMax).zw))
 		{
+			bShadowFactorValid = true;
 			// Sample the shadowmap depth and determine if this voxel is shadowed
 			float ShadowDepth = Texture2DSampleLevel(VSSPREFIX(ShadowDepthTexture), VSSPREFIX(ShadowDepthTextureSampler), ShadowUVs, 0).x;
-			DynamicShadowFactor = HomogeneousShadowPosition.z < ShadowDepth - VSSPREFIX(DepthBiasParameters).x;
+			DynamicShadowFactor = SceneDepth < ShadowDepth - VSSPREFIX(DepthBiasParameters).x;
 
 #ifdef TREAT_MAXDEPTH_UNSHADOWED
 			DynamicShadowFactor = saturate(DynamicShadowFactor + (ShadowDepth == 1.0f));

@@ -63,6 +63,14 @@ public:
 	 */
 	CORE_API FSphere(const FVector* Pts, int32 Count);
 
+	/**
+	 * Constructor.
+	 *
+	 * @param Pts Pointer to list of points this sphere must contain.
+	 * @param Count How many points are in the list.
+	 */
+	CORE_API FSphere(const FSphere* Spheres, int32 Count);
+
 public:
 
 	/**

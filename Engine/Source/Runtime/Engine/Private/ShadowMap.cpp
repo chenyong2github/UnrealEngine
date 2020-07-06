@@ -12,6 +12,7 @@
 #include "LightMap.h"
 #include "UObject/Package.h"
 #include "Misc/FeedbackContext.h"
+#include "Modules/ModuleManager.h"
 #include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
@@ -39,6 +40,7 @@
 	extern ENGINE_API bool GAllowStreamingLightmaps;
 	extern ENGINE_API float GMaxLightmapRadius;
 #endif
+
 
 UShadowMapTexture2D::UShadowMapTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

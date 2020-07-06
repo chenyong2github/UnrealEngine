@@ -47,6 +47,10 @@ class UTextureStats : public UObject
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( ColumnWidth = "60" ) )
 	FString Type;
 
+	/** Is the texture virtual? Yes/No */
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Stats", meta = (ColumnWidth = "60"))
+	FString Virtual;
+
 	/** Max Dimension e.g. 256x256, not including the format */
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( DisplayName = "Max Dimension", ColumnWidth = "90" ) )
 	FVector2D MaxDim;

@@ -82,6 +82,7 @@ FVertexFactoryType::FVertexFactoryType(
 	bool bInSupportsPositionOnly,
 	bool bInSupportsCachingMeshDrawCommands,
 	bool bInSupportsPrimitiveIdStream,
+	bool bInSupportsNaniteRendering,
 	ConstructParametersType InConstructParameters,
 	GetParameterTypeLayoutType InGetParameterTypeLayout,
 	GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
@@ -101,6 +102,8 @@ FVertexFactoryType::FVertexFactoryType(
 	bSupportsPositionOnly(bInSupportsPositionOnly),
 	bSupportsCachingMeshDrawCommands(bInSupportsCachingMeshDrawCommands),
 	bSupportsPrimitiveIdStream(bInSupportsPrimitiveIdStream),
+	bSupportsNaniteRendering(bInSupportsNaniteRendering),
+
 	ConstructParameters(InConstructParameters),
 	GetParameterTypeLayout(InGetParameterTypeLayout),
 	GetParameterTypeElementShaderBindings(InGetParameterTypeElementShaderBindings),
@@ -322,8 +325,8 @@ void FVertexFactory::InitDeclaration(const FVertexDeclarationElementList& Elemen
 void FPrimitiveIdDummyBuffer::InitRHI() 
 {
 	// create a static vertex buffer
-	FRHIResourceCreateInfo CreateInfo;
-		
+	FRHIResourceCreateInfo CreateInfo(TEXT("FPrimitiveIdDummyBuffer"));
+
 	void* LockedData = nullptr;
 	VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo, LockedData);
 	uint32* Vertices = (uint32*)LockedData;

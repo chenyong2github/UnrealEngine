@@ -116,7 +116,7 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeCoord)
 		SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer, IndirectArgsBuffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutputColor)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowSampler)
 
@@ -566,14 +566,14 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	}
 
 	FHairStrandsTransmittanceMaskData OutTransmittanceMaskData;
-	GraphBuilder.QueueBufferExtraction(OutShadowMask, &OutTransmittanceMaskData.TransmittanceMask, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
+	GraphBuilder.QueueBufferExtraction(OutShadowMask, &OutTransmittanceMaskData.TransmittanceMask);
 
 	// #RDG_todo/#Hair_todo
 	// Keep an extra ref to keep the buffer alive until the .Execute() function. The issue arive by the fact the indirect buffer is never 
 	// explicitly referenced in the graph. So its reference count is never incremented, and this makes it culled during the graph dependency 
 	// walk.
 	TRefCountPtr<FPooledRDGBuffer> DummyNodeIndirectArg;
-	GraphBuilder.QueueBufferExtraction(NodeIndirectArgBuffer, &DummyNodeIndirectArg, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+	GraphBuilder.QueueBufferExtraction(NodeIndirectArgBuffer, &DummyNodeIndirectArg);
 
 	GraphBuilder.Execute();
 	OutTransmittanceMaskData.TransmittanceMaskSRV = RHICreateShaderResourceView(OutTransmittanceMaskData.TransmittanceMask->StructuredBuffer);

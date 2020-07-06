@@ -541,8 +541,8 @@ public:
 	virtual void InitRHI() override
 	{
 		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo;
-		
+		FRHIResourceCreateInfo CreateInfo(TEXT("FNullColorVertexBuffer"));
+
 		void* LockedData = nullptr;
 		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32) * 4, BUF_Static | BUF_ZeroStride | BUF_ShaderResource, CreateInfo, LockedData);
 		uint32* Vertices = (uint32*)LockedData;

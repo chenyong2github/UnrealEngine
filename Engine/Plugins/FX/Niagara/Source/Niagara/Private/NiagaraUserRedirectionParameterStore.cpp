@@ -79,12 +79,29 @@ bool FNiagaraUserRedirectionParameterStore::AddParameter(const FNiagaraVariable&
 	return Super::AddParameter(AddParam, bInitialize, bTriggerRebind, OutOffset);
 }
 
+void FNiagaraUserRedirectionParameterStore::SanityCheckData(bool bInitInterfaces)
+{
+	Super::SanityCheckData(bInitInterfaces);
+
+	TArray<FNiagaraVariable> Vars;
+	UserParameterRedirects.GenerateValueArray(Vars);
+	for (const FNiagaraVariable& Var : Vars)
+	{
+		int32 Offset = IndexOf(Var);
+		if (Offset == -1)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("User parameter redirect exists but no real value! Param: %s Owner:%s"), *Var.GetName().ToString(), GetOwner() != nullptr ? *GetOwner()->GetPathName() : TEXT("Unknown owner"));
+		}
+	}
+
+}
+
 bool FNiagaraUserRedirectionParameterStore::RemoveParameter(const FNiagaraVariableBase& InVar)
 {
 	const FNiagaraVariable* Redirection = UserParameterRedirects.Find(InVar);
 	const FNiagaraVariable& ToRemove = Redirection ? *Redirection : InVar;
 	bool Result = Super::RemoveParameter(ToRemove);
-	if (Result)
+	//if (Result)
 	{
 		UserParameterRedirects.Remove(GetUserRedirection(ToRemove));
 	}

@@ -126,8 +126,7 @@ bool FLocalLightSceneProxy::GetPerObjectProjectedShadowInitializer(const FBoxSph
 
 	OutInitializer.PreShadowTranslation = -LightPosition;
 	OutInitializer.WorldToLight = FInverseRotationMatrix((LightVector / LightDistance).Rotation());
-	OutInitializer.Scales = FVector(1.0f, 1.0f / SilhouetteRadius, 1.0f / SilhouetteRadius);
-	OutInitializer.FaceDirection = FVector(1, 0, 0);
+	OutInitializer.Scales = FVector2D(1.0f / SilhouetteRadius, 1.0f / SilhouetteRadius);
 	OutInitializer.SubjectBounds = FBoxSphereBounds(SubjectBounds.Origin - LightPosition, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
 	OutInitializer.WAxis = FVector4(0, 0, 1, 0);
 	OutInitializer.MinLightW = 0.1f;

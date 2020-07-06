@@ -1,0 +1,241 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardCommon.ush
+=============================================================================*/
+
+struct FLumenCardData
+{
+	float3x3 WorldToLocalRotation;
+	float3 Origin;
+	float3 LocalExtent;
+	float MaxMip;
+	bool bVisible;
+
+	float2 LocalPositionToAtlasUVScale;
+	float2 LocalPositionToAtlasUVBias;
+};
+
+// Stride of a single cards's data in float4's, must match C++
+#define PROXY_CARD_DATA_STRIDE 5
+
+void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> CardBuffer, inout FLumenCardData CardData)
+{
+	// Note: layout must match FLumenCardData in C++
+	// Relying on optimizer to remove unused loads
+
+	CardData = (FLumenCardData)0;
+
+	float4 Vector0 = CardBuffer[BaseOffset + 0];
+	float4 Vector1 = CardBuffer[BaseOffset + 1];
+	float4 Vector2 = CardBuffer[BaseOffset + 2];
+	float4 Vector3 = CardBuffer[BaseOffset + 3];
+	float4 Vector4 = CardBuffer[BaseOffset + 4];
+
+	CardData.WorldToLocalRotation[0] = Vector0.xyz;
+	CardData.WorldToLocalRotation[1] = Vector1.xyz;
+	CardData.WorldToLocalRotation[2] = Vector2.xyz;
+	CardData.Origin = float3(Vector0.w, Vector1.w, Vector2.w);
+	
+	CardData.LocalExtent = abs(Vector3.xyz);
+	CardData.MaxMip = abs(Vector3.w);
+	CardData.bVisible = Vector3.y > 0.0f;
+	
+	CardData.LocalPositionToAtlasUVScale = Vector4.xy;
+	CardData.LocalPositionToAtlasUVBias = Vector4.zw;
+}
+
+bool IsCardVisible(uint CardId)
+{
+	return LumenCardScene.CardData[CardId * PROXY_CARD_DATA_STRIDE + 3].y > 0.0f;
+}
+
+// Fetch from scene card buffer
+FLumenCardData GetLumenCardData(uint CardId) 
+{
+	FLumenCardData CardData;
+	uint BaseOffset = CardId * PROXY_CARD_DATA_STRIDE;
+	
+	GetLumenCardSharedDataInternal(BaseOffset, LumenCardScene.CardData, CardData);
+
+	return CardData;
+}
+
+FLumenCardData GetLumenCardData(uint CardId, StructuredBuffer<float4> CardBuffer) 
+{
+	FLumenCardData CardData;
+	uint BaseOffset = CardId * PROXY_CARD_DATA_STRIDE;
+	
+	GetLumenCardSharedDataInternal(BaseOffset, CardBuffer, CardData);
+
+	return CardData;
+}
+
+float2 GetCardUVToAtlasBias(float2 AtlasScale, float2 LocalPositionToAtlasUVBias)
+{
+	return LocalPositionToAtlasUVBias - .5f * AtlasScale;
+}
+
+float2 GetCardUVToAtlasScale(float2 LocalPositionToAtlasUVScale, float3 FaceLocalExtent)
+{
+	return LocalPositionToAtlasUVScale * 2 * float2(FaceLocalExtent.x, -FaceLocalExtent.y);
+}
+
+float3 TransformLocalToAxis(uint AxisIndex, float3 LocalPosition)
+{
+	// Local to Axis
+	// 0: xyz = x, y, z
+	// 1: xyz = z, y, -x
+	// 2: xyz = x, -z, y
+	// Note: must match C++ FCardRenderData::GetWorldToLocalRotation
+
+	float3 FacePosition = LocalPosition;
+
+	if (AxisIndex == 1)
+	{
+		FacePosition = float3(FacePosition.zy, -FacePosition.x);
+	}
+	else if (AxisIndex == 2)
+	{		
+		FacePosition = float3(FacePosition.x, -FacePosition.z, FacePosition.y);
+	}
+
+	return FacePosition;
+}
+
+float3 TransformFaceToLocal(uint FaceIndex, float3 FacePosition)
+{
+	if (FaceIndex & 1)
+	{
+		FacePosition.yz = -FacePosition.yz;
+	}
+
+	float3 LocalPosition = FacePosition;
+
+	// Axis to Local
+	// 0: xyz = x, y, z
+	// 1: xyz = -z, y, x
+	// 2: xyz = x, z, -y
+	// Note: must match C++ FCardRenderData::GetWorldToLocalRotation
+
+	uint AxisIndex = FaceIndex / 2;
+
+	if (AxisIndex == 1)
+	{
+		LocalPosition = float3(-FacePosition.z, FacePosition.y, FacePosition.x);
+	}
+	else if (AxisIndex == 2)
+	{		
+		LocalPosition = float3(FacePosition.x, FacePosition.z, -FacePosition.y);
+	}
+
+	return LocalPosition;
+}
+
+void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
+{
+#if 1
+	WorldCardCenter = LumenCardData.Origin;
+	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
+#else
+	float3 CubeCorners[8];
+	CubeCorners[0] = float3(-1, -1, -1);
+	CubeCorners[1] = float3(-1, -1, 1);
+	CubeCorners[2] = float3(-1, 1, -1);
+	CubeCorners[3] = float3(-1, 1, 1);
+	CubeCorners[4] = float3(1, -1, -1);
+	CubeCorners[5] = float3(1, -1, 1);
+	CubeCorners[6] = float3(1, 1, -1);
+	CubeCorners[7] = float3(1, 1, 1);
+
+	float3 CornerPosition0 = LumenCardData.Origin + mul(LumenCardData.WorldToLocalRotation, LumenCardData.LocalExtent * CubeCorners[0]);
+	float3 WorldCardMin = CornerPosition0;
+	float3 WorldCardMax = CornerPosition0;
+
+	for (uint i = 1; i < 8; i++)
+	{
+		float3 CornerPosition = LumenCardData.Origin + mul(LumenCardData.WorldToLocalRotation, LumenCardData.LocalExtent * CubeCorners[i]);
+		WorldCardMin = min(WorldCardMin, CornerPosition);
+		WorldCardMax = max(WorldCardMax, CornerPosition);
+	}
+	WorldCardCenter = .5f * (WorldCardMax + WorldCardMin);
+	WorldCardExtent = WorldCardMax - WorldCardCenter;
+#endif
+}
+
+struct FCardVSToPS
+{
+	float2 AtlasCoord : ATTRIBUTE0;
+	float2 CardUV : ATTRIBUTE1;
+	nointerpolation uint CardId : CARD_ID;
+	nointerpolation uint QuadIndex : QUAD_ID;
+};
+
+// Stride of culled card link lists and grids, must match C++
+#define	CULLED_CARD_LINK_STRIDE			2
+#define CULLED_CARD_GRID_HEADER_STRIDE	2
+
+// Stride of cube map tree data, must match C++
+#define LUMEN_CUBE_MAP_TREE_DATA_STRIDE 8
+
+struct FLumenCubeMapTreeData
+{
+	float4x4 WorldToLocal;
+	float4x4 WorldToLUTAtlasCoord;
+	uint3 MinCoordInLUTAtlas;
+	uint3 MaxCoordInLUTAtlas;
+	uint FirstCubeMapIndex;
+};
+
+// Note: layout must match FLumenCubeMapTreeData in C++
+FLumenCubeMapTreeData GetLumenCubeMapTreeData(uint CubeMapTreeId)
+{
+	uint BaseOffset = CubeMapTreeId * LUMEN_CUBE_MAP_TREE_DATA_STRIDE;
+
+	FLumenCubeMapTreeData CubeMapTree;
+
+	float4 M0 = LumenCardScene.CubeMapTreeData[BaseOffset + 0];
+	float4 M1 = LumenCardScene.CubeMapTreeData[BaseOffset + 1];
+	float4 M2 = LumenCardScene.CubeMapTreeData[BaseOffset + 2];
+
+	CubeMapTree.WorldToLocal = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	M0 = LumenCardScene.CubeMapTreeData[BaseOffset + 3];
+	M1 = LumenCardScene.CubeMapTreeData[BaseOffset + 4];
+	M2 = LumenCardScene.CubeMapTreeData[BaseOffset + 5];
+
+	CubeMapTree.WorldToLUTAtlasCoord = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	CubeMapTree.MinCoordInLUTAtlas = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 6].xyz);
+	CubeMapTree.FirstCubeMapIndex = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 6].w);
+	CubeMapTree.MaxCoordInLUTAtlas = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 7].xyz);
+
+	return CubeMapTree;
+}
+
+// Stride of tile tree cube map data, must match C++
+#define LUMEN_CUBE_MAP_DATA_STRIDE 2
+
+struct FLumenCubeMapData
+{
+	// -X, +X, -Y, +Y, -Z, +Z
+	uint FaceCardIndices[6];
+};
+
+// Fetch from scene cube map buffer
+// Note: layout must match FLumenCubeMapData in C++
+FLumenCubeMapData GetLumenCubeMapData(uint CubeMapTreeId)
+{
+	uint BaseOffset = CubeMapTreeId * LUMEN_CUBE_MAP_DATA_STRIDE;
+
+	FLumenCubeMapData CubeMapData;
+
+	CubeMapData.FaceCardIndices[0] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].x);
+	CubeMapData.FaceCardIndices[1] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].y);
+	CubeMapData.FaceCardIndices[2] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].z);
+	CubeMapData.FaceCardIndices[3] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].w);
+	CubeMapData.FaceCardIndices[4] = asuint(LumenCardScene.CubeMapData[BaseOffset + 1].x);
+	CubeMapData.FaceCardIndices[5] = asuint(LumenCardScene.CubeMapData[BaseOffset + 1].y);
+
+	return CubeMapData;
+}

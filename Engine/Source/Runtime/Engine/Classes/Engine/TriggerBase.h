@@ -23,7 +23,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Billboard used to see the trigger in the editor */
-	UPROPERTY()
+	UPROPERTY(Category = TriggerBase, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UBillboardComponent* SpriteComponent;
 #endif
 

@@ -674,7 +674,7 @@ protected:
 	void ForceBlockDetectionUpdate();
 
 	/** set move focus in AI owner */
-	void UpdateMoveFocus();
+	virtual void UpdateMoveFocus();
 
 	/** For given path finds a path node at which
 	 *	PathfollowingComponent should start doing 

@@ -697,4 +697,10 @@ void UKismetRenderingLibrary::SetCastInsetShadowForAllAttachments(UPrimitiveComp
 		FMessageLog("Blueprint").Warning(LOCTEXT("SetCastInsetShadowForAllAttachments_InvalidPrimitiveComponent", "SetCastInsetShadowForAllAttachments: PrimitiveComponent must be non-null."));
 	}
 }
+
+ENGINE_API FMatrix UKismetRenderingLibrary::CalculateProjectionMatrix(const FMinimalViewInfo& MinimalViewInfo)
+{
+	return MinimalViewInfo.CalculateProjectionMatrix();
+}
+
 #undef LOCTEXT_NAMESPACE

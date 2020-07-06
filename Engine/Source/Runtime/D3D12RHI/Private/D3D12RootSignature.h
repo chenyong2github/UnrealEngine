@@ -441,16 +441,19 @@ private:
 	TRefCountPtr<ID3D12RootSignature> RootSignature;
 	uint8 BindSlotMap[RPK_RootParameterKeyCount];	// This map uses an enum as a key to lookup the root parameter index
 	ShaderStage Stage[SF_NumFrequencies];
-	bool bHasUAVs;
-	bool bHasSRVs;
-	bool bHasCBVs;
-	bool bHasRDTCBVs;
-	bool bHasRDCBVs;
-	bool bHasSamplers;
 	TRefCountPtr<ID3DBlob> RootSignatureBlob;
 
 	uint8 BindSlotOffsetsInDWORDs[FD3D12RootSignatureDesc::MaxRootParameters] = {};
 	uint8 TotalRootSignatureSizeInDWORDs = 0;
+
+	uint8 bHasUAVs : 1;
+	uint8 bHasSRVs : 1;
+	uint8 bHasCBVs : 1;
+	uint8 bHasRDTCBVs : 1;
+	uint8 bHasRDCBVs : 1;
+	uint8 bHasSamplers : 1;
+	uint8 bHasVendorExtensionSpace : 1;
+	uint8 bUnused : 1;
 };
 
 class FD3D12RootSignatureManager : public FD3D12AdapterChild

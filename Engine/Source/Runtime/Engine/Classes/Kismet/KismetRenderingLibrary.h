@@ -8,6 +8,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Camera/CameraTypes.h"
 #include "KismetRenderingLibrary.generated.h"
 
 class UCanvas;
@@ -157,4 +158,8 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(Keywords="SetCastShadowForAllAttachments", UnsafeDuringActorConstruction="true"))
 	static ENGINE_API void SetCastInsetShadowForAllAttachments(UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup);
+
+	/** Calculates the projection matrix using this view info's aspect ratio (regardless of bConstrainAspectRatio) */
+	UFUNCTION(BlueprintPure, Category="Rendering", meta = (DisplayName = "Calculate Projection Matrix (Minimal View Info)", ScriptMethod = "CalculateProjectionMatrix"))
+	static ENGINE_API FMatrix CalculateProjectionMatrix(const FMinimalViewInfo& MinimalViewInfo);
 };

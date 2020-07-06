@@ -13,6 +13,7 @@
 float4 DispatchThreadIdToBufferUV;
 float2 InvSize;
 float2 InputViewportMaxBound;
+uint4 PixelViewPortMinMax;	// Max is inclusive
 
 Texture2D		ParentTextureMip;
 SamplerState	ParentTextureMipSampler;
@@ -58,8 +59,8 @@ RWTexture2D<float> ClosestHZBOutput_1;
 RWTexture2D<float> ClosestHZBOutput_2;
 RWTexture2D<float> ClosestHZBOutput_3;
 
-groupshared float SharedFurthestDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
-groupshared float SharedClosestDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
+groupshared float SharedMinDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
+groupshared float SharedMaxDeviceZ[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
 
 void OutputMipLevel(uint MipLevel, uint2 OutputPixelPos, float FurthestDeviceZ, float ClosestDeviceZ)
 {
@@ -98,6 +99,52 @@ void OutputMipLevel(uint MipLevel, uint2 OutputPixelPos, float FurthestDeviceZ, 
 	#endif
 }
 
+#if VIS_BUFFER_FORMAT == 1
+
+// 64b VisBuffer
+Texture2D<uint2> VisBufferTexture;
+float4 Gather4VisZ(float2 BufferUV, uint2 PixelCoord)
+{
+#if COMPILER_SUPPORTS_GATHER_UINT
+	float2 ClampedBufferUV = min( BufferUV + float2(-0.25f, -0.25f) * InvSize, InputViewportMaxBound - InvSize );
+	return asfloat(VisBufferTexture.GatherGreen(ParentTextureMipSampler, ClampedBufferUV, 0));
+#else
+	// Workaround for Gather not being support for R32G32_UINT on D3D11. We can't alias the texture with R3232_FLOAT as that isn't supported in Unreal.
+	uint2 ClampedPixelCoord = min(PixelCoord.xy, PixelViewPortMinMax.zw - 1);
+	uint4 ClampedPixelCoord4 = uint4(ClampedPixelCoord.xy, ClampedPixelCoord.xy + 1);
+	uint4 Out;
+	Out.x = VisBufferTexture[ClampedPixelCoord4.xw].g;	// (-, +)
+	Out.y = VisBufferTexture[ClampedPixelCoord4.zw].g;	// (+, +)
+	Out.z = VisBufferTexture[ClampedPixelCoord4.zy].g;	// (+, -)
+	Out.w = VisBufferTexture[ClampedPixelCoord4.xy].g;	// (-, -)
+	return asfloat(Out);
+#endif
+}
+
+#else
+
+// 32b depth only version
+Texture2D<uint> VisBufferTexture;
+
+float4 Gather4VisZ(float2 BufferUV, uint2 PixelCoord)
+{
+#if COMPILER_SUPPORTS_GATHER_UINT
+	float2 ClampedBufferUV = min( BufferUV + float2(-0.25f, -0.25f) * InvSize, InputViewportMaxBound - InvSize );
+	return asfloat(VisBufferTexture.Gather(ParentTextureMipSampler, ClampedBufferUV, 0));
+#else
+	uint2 ClampedPixelCoord = min(PixelCoord.xy, PixelViewPortMinMax.zw - 1);
+	uint4 ClampedPixelCoord4 = uint4(ClampedPixelCoord.xy, ClampedPixelCoord.xy + 1);
+	uint4 Out;
+	Out.x = VisBufferTexture[ClampedPixelCoord4.xw].r;	// (-, +)
+	Out.y = VisBufferTexture[ClampedPixelCoord4.zw].r;	// (+, +)
+	Out.z = VisBufferTexture[ClampedPixelCoord4.zy].r;	// (+, -)
+	Out.w = VisBufferTexture[ClampedPixelCoord4.xy].r;	// (-, -)
+	return asfloat(Out);
+#endif
+}
+
+#endif
+
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
 void HZBBuildCS(
 	uint2 GroupId : SV_GroupID,
@@ -114,17 +161,31 @@ void HZBBuildCS(
 	float2 BufferUV = (DispatchThreadId + 0.5) * DispatchThreadIdToBufferUV.xy + DispatchThreadIdToBufferUV.zw;
 	float4 DeviceZ = Gather4(ParentTextureMip, ParentTextureMipSampler, BufferUV);
 
-	float FurthestDeviceZ = min(min(DeviceZ.x, DeviceZ.y), min(DeviceZ.z, DeviceZ.w));
-	float ClosestDeviceZ = max(max(DeviceZ.x, DeviceZ.y), max(DeviceZ.z, DeviceZ.w));
+	uint2 SrcPixelCoord = (DispatchThreadId << 1) + PixelViewPortMinMax.xy;
+#if VIS_BUFFER_FORMAT == 1
+	// TODO: Combine with SceneDepth if complete prepass.
+	//DeviceZ = max(DeviceZ, Gather4VisZ(BufferUV, SrcPixelCoord));
+	DeviceZ = Gather4VisZ(BufferUV, SrcPixelCoord);
+#elif VIS_BUFFER_FORMAT == 2
+	DeviceZ = Gather4VisZ(BufferUV, SrcPixelCoord);
+#endif
+
+	float MinDeviceZ = min(min3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+	float MaxDeviceZ = max(max3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+
+	// NOTE: For 16-bit HZB buffers we should be careful about rounding in the right direction for Min/Max.
+	// fp32 -> fp16 rounds towards zero in DirectX so the "min" HZB will be conservative for positive values,
+	// which is the common case for culling. Special care would be needed here to ensure that this quantization
+	// is fully conservative for the "max" HZB and/or negative numbers, but this is not currently necessary.
 	
 	uint2 OutputPixelPos = DispatchThreadId;
 	
 	#if DIM_FURTHEST
-		FurthestHZBOutput_0[OutputPixelPos] = FurthestDeviceZ;
+		FurthestHZBOutput_0[OutputPixelPos] = MinDeviceZ;
 	#endif
 	
 	#if DIM_CLOSEST
-		ClosestHZBOutput_0[OutputPixelPos] = ClosestDeviceZ;
+		ClosestHZBOutput_0[OutputPixelPos] = MaxDeviceZ;
 	#endif
 
 	#if DIM_MIP_LEVEL_COUNT == 1
@@ -133,13 +194,13 @@ void HZBBuildCS(
 	}
 	#else
 	{
-		SharedFurthestDeviceZ[GroupThreadIndex] = FurthestDeviceZ;
-		SharedClosestDeviceZ[GroupThreadIndex] = ClosestDeviceZ;
+		SharedMinDeviceZ[GroupThreadIndex] = MinDeviceZ;
+		SharedMaxDeviceZ[GroupThreadIndex] = MaxDeviceZ;
 	
 		UNROLL
 		for (uint MipLevel = 1; MipLevel < DIM_MIP_LEVEL_COUNT; MipLevel++)
 		{
-			const uint TileSize = GROUP_TILE_SIZE / (1 << MipLevel);
+			const uint TileSize = GROUP_TILE_SIZE >> MipLevel;
 			const uint ReduceBankSize = TileSize * TileSize;
 			
 			// LDS has been written before.
@@ -149,29 +210,29 @@ void HZBBuildCS(
 			BRANCH
 			if (GroupThreadIndex < ReduceBankSize)
 			{
-				float4 ParentFurthestDeviceZ;
-				float4 ParentClosestDeviceZ;
-				ParentFurthestDeviceZ[0] = FurthestDeviceZ;
-				ParentClosestDeviceZ[0] = ClosestDeviceZ;
+				float4 ParentMinDeviceZ;
+				float4 ParentMaxDeviceZ;
+				ParentMinDeviceZ[0] = MinDeviceZ;
+				ParentMaxDeviceZ[0] = MaxDeviceZ;
 
 				UNROLL
 				for (uint i = 1; i < 4; i++)
 				{
 					uint LDSIndex = GroupThreadIndex + i * ReduceBankSize;
-					ParentFurthestDeviceZ[i] = SharedFurthestDeviceZ[LDSIndex];
-					ParentClosestDeviceZ[i] = SharedClosestDeviceZ[LDSIndex];
+					ParentMinDeviceZ[i] = SharedMinDeviceZ[LDSIndex];
+					ParentMaxDeviceZ[i] = SharedMaxDeviceZ[LDSIndex];
 				}
 				
-				FurthestDeviceZ = min(min(ParentFurthestDeviceZ.x, ParentFurthestDeviceZ.y), min(ParentFurthestDeviceZ.z, ParentFurthestDeviceZ.w));
-				ClosestDeviceZ =  max(max(ParentClosestDeviceZ.x,  ParentClosestDeviceZ.y),  max(ParentClosestDeviceZ.z,  ParentClosestDeviceZ.w));
+				MinDeviceZ = min(min3(ParentMinDeviceZ.x, ParentMinDeviceZ.y, ParentMinDeviceZ.z), ParentMinDeviceZ.w);
+				MaxDeviceZ = max(max3(ParentMaxDeviceZ.x, ParentMaxDeviceZ.y, ParentMaxDeviceZ.z), ParentMaxDeviceZ.w);
 	
 				OutputPixelPos = OutputPixelPos >> 1;
-				OutputMipLevel(MipLevel, OutputPixelPos, FurthestDeviceZ, ClosestDeviceZ);
+				OutputMipLevel(MipLevel, OutputPixelPos, MinDeviceZ, MaxDeviceZ);
 				
-				SharedFurthestDeviceZ[GroupThreadIndex] = FurthestDeviceZ;
-				SharedClosestDeviceZ[GroupThreadIndex] = ClosestDeviceZ;
+				SharedMinDeviceZ[GroupThreadIndex] = MinDeviceZ;
+				SharedMaxDeviceZ[GroupThreadIndex] = MaxDeviceZ;
 			}
-		} // for (uint MipLevel = 1; MipLevel < DIM_MIP_LEVEL_COUNT; MipLevel++)
+		}
 	}
 	#endif
 } // HZBBuildCS

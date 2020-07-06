@@ -89,7 +89,6 @@ static TAutoConsoleVariable<float> CVarRTDFDistanceScale(
 	TEXT("(1,10000]: larger distance.)"),
 	ECVF_RenderThreadSafe);
 
-
 /**
  * The scene info for a directional light.
  */
@@ -319,6 +318,8 @@ public:
 		const bool bRayTracedCascade = (InCascadeIndex == INDEX_NONE);
 
 		FSphere Bounds = FDirectionalLightSceneProxy::GetShadowSplitBounds(View, InCascadeIndex, bPrecomputedLightingIsValid, &OutInitializer.CascadeSettings);
+		// Round up to whole unit, to increase stability.
+		Bounds.W = FMath::CeilToFloat(Bounds.W);
 
 		uint32 NumNearCascades = GetNumShadowMappedCascades(View.MaxShadowCascades, bPrecomputedLightingIsValid);
 
@@ -329,14 +330,13 @@ public:
 		const FBoxSphereBounds SubjectBounds(Bounds.Center, FVector(ShadowExtent, ShadowExtent, ShadowExtent), Bounds.W);
 		OutInitializer.PreShadowTranslation = -Bounds.Center;
 		OutInitializer.WorldToLight = FInverseRotationMatrix(GetDirection().GetSafeNormal().Rotation());
-		OutInitializer.Scales = FVector(1.0f,1.0f / Bounds.W,1.0f / Bounds.W);
-		OutInitializer.FaceDirection = FVector(1,0,0);
+		OutInitializer.Scales = FVector2D(1.0f / Bounds.W,1.0f / Bounds.W);
 		OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector,SubjectBounds.BoxExtent,SubjectBounds.SphereRadius);
 		OutInitializer.WAxis = FVector4(0,0,0,1);
-		OutInitializer.MinLightW = -HALF_WORLD_MAX;
-		// Reduce casting distance on a directional light
-		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
-		OutInitializer.MaxDistanceToCastInLightW = HALF_WORLD_MAX / 32.0f;
+		// Use the minimum of half the world, things further away do not cast shadows,
+		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
+		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
+		OutInitializer.MaxDistanceToCastInLightW = SubjectBounds.SphereRadius;
 		OutInitializer.bRayTracedDistanceField = bRayTracedCascade;
 		OutInitializer.CascadeSettings.bFarShadowCascade = !bRayTracedCascade && OutInitializer.CascadeSettings.ShadowSplitIndex >= (int32)NumNearCascades;
 		return true;
@@ -352,14 +352,13 @@ public:
 
 		OutInitializer.PreShadowTranslation = -LightPropagationVolumeBounds.GetCenter();
 		OutInitializer.WorldToLight = FInverseRotationMatrix(GetDirection().GetSafeNormal().Rotation());
-		OutInitializer.Scales = FVector(1.0f,1.0f / LpvExtent,1.0f / LpvExtent);
-		OutInitializer.FaceDirection = FVector(1,0,0);
+		OutInitializer.Scales = FVector2D(1.0f / LpvExtent,1.0f / LpvExtent);
 		OutInitializer.SubjectBounds = FBoxSphereBounds( FVector::ZeroVector, LightPropagationVolumeBounds.GetExtent(), FMath::Sqrt( LpvExtent * LpvExtent * 3.0f ) );
 		OutInitializer.WAxis = FVector4(0,0,0,1);
-		OutInitializer.MinLightW = -HALF_WORLD_MAX;
-		// Reduce casting distance on a directional light
-		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
-		OutInitializer.MaxDistanceToCastInLightW = HALF_WORLD_MAX / 32.0f;
+		// Use the minimum of half the world, things further away do not cast shadows,
+		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
+		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -OutInitializer.SubjectBounds.SphereRadius);
+		OutInitializer.MaxDistanceToCastInLightW = OutInitializer.SubjectBounds.SphereRadius;
 
 		// Compute the RSM bounds
 		{
@@ -404,8 +403,7 @@ public:
 	{
 		OutInitializer.PreShadowTranslation = -SubjectBounds.Origin;
 		OutInitializer.WorldToLight = FInverseRotationMatrix(FVector(WorldToLight.M[0][0],WorldToLight.M[1][0],WorldToLight.M[2][0]).GetSafeNormal().Rotation());
-		OutInitializer.Scales = FVector(1.0f,1.0f / SubjectBounds.SphereRadius,1.0f / SubjectBounds.SphereRadius);
-		OutInitializer.FaceDirection = FVector(1,0,0);
+		OutInitializer.Scales = FVector2D(1.0f / SubjectBounds.SphereRadius,1.0f / SubjectBounds.SphereRadius);
 		OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector,SubjectBounds.BoxExtent,SubjectBounds.SphereRadius);
 		OutInitializer.WAxis = FVector4(0,0,0,1);
 		OutInitializer.MinLightW = -HALF_WORLD_MAX;
@@ -783,8 +781,11 @@ private:
 
 		// Determine start and end distances to the current cascade's split planes
 		// Presence of the ray traced cascade does not change depth ranges for the shadow-mapped cascades
-		float SplitNear = GetSplitDistance(View, ShadowSplitIndex, bPrecomputedLightingIsValid, bIsRayTracedCascade);
-		float SplitFar = GetSplitDistance(View, ShadowSplitIndex + 1, bPrecomputedLightingIsValid, bIsRayTracedCascade);
+		const float UnfadedSplitNear = GetSplitDistance(View, ShadowSplitIndex, bPrecomputedLightingIsValid, bIsRayTracedCascade);
+		const float UnfadedSplitFar = GetSplitDistance(View, ShadowSplitIndex + 1, bPrecomputedLightingIsValid, bIsRayTracedCascade);
+		float SplitNear = UnfadedSplitNear;
+		float SplitFar = UnfadedSplitFar;
+
 		float FadePlane = SplitFar;
 
 		float LocalCascadeTransitionFraction = CascadeTransitionFraction * GetShadowTransitionScale();
@@ -832,6 +833,8 @@ private:
 			OutCascadeSettings->FadePlaneLength = SplitFar - FadePlane;
 			OutCascadeSettings->CascadeBiasDistribution = ShadowCascadeBiasDistribution;
 			OutCascadeSettings->ShadowSplitIndex = (int32)ShadowSplitIndex;
+			OutCascadeSettings->UnfadedSplitNear = UnfadedSplitNear;
+			OutCascadeSettings->UnfadedSplitFar = UnfadedSplitFar;
 		}
 
 		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);
@@ -881,6 +884,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	CastTranslucentShadows = true;
 	bUseInsetShadowsForMovableObjects = true;
 	bCastVolumetricShadow = true;
+	bAffectDynamicIndirectLighting = true;
 
 	ModulatedShadowColor = FColor(128, 128, 128);
 	ShadowAmount = 1.0f;

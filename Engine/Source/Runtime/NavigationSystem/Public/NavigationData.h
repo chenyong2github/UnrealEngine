@@ -310,7 +310,7 @@ public:
 	template<typename PathClass>
 	FORCEINLINE const PathClass* CastPath() const
 	{
-		return PathType.IsA(PathClass::Type) ? static_cast<PathClass*>(this) : NULL;
+		return PathType.IsA(PathClass::Type) ? static_cast<const PathClass*>(this) : NULL;
 	}
 
 	template<typename PathClass>

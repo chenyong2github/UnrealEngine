@@ -21,6 +21,7 @@ struct FAssetData;
 class FAssetThumbnailPool;
 class FDetailWidgetRow;
 class FLevelOfDetailSettingsLayout;
+class FNaniteSettingsLayout;
 class FStaticMeshEditor;
 class IDetailCategoryBuilder;
 class IDetailChildrenBuilder;
@@ -42,8 +43,6 @@ enum ELimitModeChoice
 	Charts
 };
 
-class FLevelOfDetailSettingsLayout;
-
 class FStaticMeshDetails : public IDetailCustomization
 {
 public:
@@ -56,11 +55,16 @@ public:
 	/** @return true if settings have been changed and need to be applied to the static mesh */
 	bool IsApplyNeeded() const;
 
-	/** Applies level of detail changes to the static mesh */
+	/** Applies changes to the static mesh */
 	void ApplyChanges();
+
 private:
 	/** Level of detail settings for the details panel */
 	TSharedPtr<FLevelOfDetailSettingsLayout> LevelOfDetailSettings;
+
+	/** Nanite settings for the details panel. */
+	TSharedPtr<FNaniteSettingsLayout> NaniteSettings;
+
 	/** Static mesh editor */
 	class FStaticMeshEditor& StaticMeshEditor;
 
@@ -219,7 +223,6 @@ private:
 	void OnBuildScaleXChanged( float NewScaleX, ETextCommit::Type TextCommitType );
 	void OnBuildScaleYChanged( float NewScaleY, ETextCommit::Type TextCommitType );
 	void OnBuildScaleZChanged( float NewScaleZ, ETextCommit::Type TextCommitType );
-
 	void OnDistanceFieldResolutionScaleChanged(float NewValue);
 	void OnDistanceFieldResolutionScaleCommitted(float NewValue, ETextCommit::Type TextCommitType);
 	FString GetCurrentDistanceFieldReplacementMeshPath() const;
@@ -277,7 +280,6 @@ private:
 	void OnMaxDeviationCommitted(float NewValue, ETextCommit::Type TextCommitType);
 	void OnPixelErrorChanged(float NewValue);
 	void OnPixelErrorCommitted(float NewValue, ETextCommit::Type TextCommitType);
-	void OnReductionAmountChanged(float NewValue);
 	void OnRecalculateNormalsChanged(ECheckBoxState NewValue);
 
 	// used by native tool and simplygon
@@ -635,4 +637,41 @@ private:
 	IDetailCategoryBuilder* LodCustomCategory;
 
 	bool DetailDisplayLODs[MAX_STATIC_MESH_LODS];
+};
+
+/**
+ * Window for Nanite settings.
+ */
+class FNaniteSettingsLayout : public TSharedFromThis<FNaniteSettingsLayout>
+{
+public:
+	FNaniteSettingsLayout(FStaticMeshEditor& StaticMeshEditor);
+	virtual ~FNaniteSettingsLayout();
+
+	const FMeshNaniteSettings& GetSettings() const;
+	void UpdateSettings(const FMeshNaniteSettings& InSettings);
+
+	void AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilder);
+
+	/** Returns true if settings have been changed and an Apply is needed to update the asset. */
+	bool IsApplyNeeded() const;
+
+	/** Apply current Nanite settings to the mesh. */
+	void ApplyChanges();
+
+private:
+	FReply OnApply();
+
+	ECheckBoxState IsEnabledChecked() const;
+	void OnEnabledChanged(ECheckBoxState NewState);
+
+	float GetPercentTriangles() const;
+	void OnPercentTrianglesChanged(float NewValue);
+	void OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
+
+private:
+	/** The Static Mesh Editor this tool is associated with. */
+	FStaticMeshEditor& StaticMeshEditor;
+
+	FMeshNaniteSettings NaniteSettings;
 };

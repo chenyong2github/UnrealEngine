@@ -8,6 +8,10 @@ class UStaticMesh;
 class FStaticMeshRenderData;
 class FStaticMeshLODGroup;
 class USkeletalMesh;
+class FStaticMeshSectionArray;
+struct FStaticMeshBuildVertex;
+struct FStaticMeshSection;
+
 
 /**
  * Abstract class which is the base class of all builder.
@@ -22,6 +26,13 @@ public:
 	 * Build function should be override and is the starting point for static mesh builders
 	 */
 	virtual bool Build(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup) = 0;
+	virtual bool Build(
+		UStaticMesh* StaticMesh,
+		TArray< FStaticMeshBuildVertex >& Verts,
+		TArray< uint32 >& Indexes,
+		FStaticMeshSectionArray& Sections,
+		uint32& NumTexCoords,
+		bool& bHasColors ) = 0;
 
 	/**
 	 * Build function should be override and is the starting point for skeletal mesh builders

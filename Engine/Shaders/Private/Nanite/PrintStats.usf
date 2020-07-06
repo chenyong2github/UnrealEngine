@@ -1,0 +1,381 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../ShaderPrintCommon.ush"
+
+#include "NaniteDataDecode.ush"
+
+#ifndef VIRTUAL_TEXTURE_TARGET
+#define VIRTUAL_TEXTURE_TARGET 0
+#endif
+
+uint PackedTriClusterSize;
+
+StructuredBuffer<FPersistentState>	MainAndPostPassPersistentStates;
+Buffer<uint>						MainPassCandidateClustersArgs;
+Buffer<uint>						PostPassCandidateClustersArgs;
+Buffer<uint>						MainPassRasterizeArgsSWHW;
+Buffer<uint>						PostPassRasterizeArgsSWHW;
+
+StructuredBuffer<FStats>			 InStatsBuffer;
+RWStructuredBuffer<FStats>			OutStatsBuffer;
+
+RWBuffer<uint>						OutStatsArgs;
+
+float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
+{
+	int Len = 9;
+	
+	uint Tmp = Value;
+	while (Tmp >= 10)
+	{
+		Tmp /= 10;
+		Len--;
+	}
+
+	while (Len > 0)
+	{
+		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+		Len--;
+	}
+		
+
+	return ShaderPrint(ScreenPos, Value, SHADER_PRINT_TYPE_UINT);
+}
+
+[numthreads(1, 1, 1)]
+void PrintStats()
+{
+	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
+
+	float TopMargin = 0.05f;
+	float HeadlineX = 0.77f;
+	float ItemX = 0.78f;
+
+	float2 ScreenPos = float2(HeadlineX, TopMargin);
+
+	// Main Pass
+	ScreenPos.x = HeadlineX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _M_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _MINUS_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainInstancesPreCull);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _MINUS_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainInstancesPostCull);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassCandidateClustersArgs[3]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _W_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _H_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _W_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+	
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+#if TWO_PASS_CULLING
+	// Post Pass
+	ScreenPos.x = HeadlineX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _MINUS_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostInstancesPreCull);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _MINUS_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostInstancesPostCull);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassCandidateClustersArgs[3]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _W_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[0]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _H_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _W_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+#endif
+
+	// Total
+	ScreenPos.x = HeadlineX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _U_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+#if TWO_PASS_CULLING
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex] + PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+#else
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+#endif
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTris);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _V_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumVerts);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _L_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _G_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _MINUS_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _R_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumLargePageRectClusters);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+}
+
+[numthreads(1, 1, 1)]
+void CalculateStatsArgs()
+{
+	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
+	uint NumClusters = MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex];
+#if TWO_PASS_CULLING
+	NumClusters += PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex];
+#endif
+	
+	OutStatsArgs[0] = (NumClusters + 63) / 64;
+	OutStatsArgs[1] = 1;
+	OutStatsArgs[2] = 1;
+}
+
+groupshared uint GroupNumTris;
+groupshared uint GroupNumVerts;
+groupshared uint GroupIndexDataSize;
+groupshared uint GroupPositionDataSize;
+groupshared uint GroupAttribDataSize;
+
+[numthreads(64, 1, 1)]
+void CalculateStats(
+	uint DispatchThreadIndex : SV_DispatchThreadID,
+	uint GroupIndex : SV_GroupIndex
+	)
+{
+	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
+
+	if (GroupIndex == 0)
+	{
+		GroupNumTris = 0;
+		GroupNumVerts = 0;
+		GroupIndexDataSize = 0;
+		GroupPositionDataSize = 0;
+		GroupAttribDataSize = 0;
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	uint NumClustersSW = MainPassRasterizeArgsSWHW[0];
+	uint NumClustersHW = MainPassRasterizeArgsSWHW[HWClusterCounterIndex];
+
+#if TWO_PASS_CULLING
+	NumClustersSW += PostPassRasterizeArgsSWHW[0];
+	NumClustersHW += PostPassRasterizeArgsSWHW[HWClusterCounterIndex];
+#endif
+
+	if (DispatchThreadIndex < NumClustersSW + NumClustersHW)
+	{
+		FVisibleCluster VisCluster = GetVisibleCluster((DispatchThreadIndex < NumClustersSW) ? DispatchThreadIndex : ( (MaxClusters - 1) - (DispatchThreadIndex - NumClustersSW) ), VIRTUAL_TEXTURE_TARGET != 0);
+		
+		FTriCluster Cluster = GetCluster(VisCluster.PageIndex, VisCluster.ClusterIndex);
+
+		InterlockedAdd(GroupNumTris,  Cluster.NumTris);
+		InterlockedAdd(GroupNumVerts, Cluster.NumVerts);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupIndex == 0)
+	{
+		InterlockedAdd(OutStatsBuffer[0].NumTris,  GroupNumTris);
+		InterlockedAdd(OutStatsBuffer[0].NumVerts, GroupNumVerts);
+	}
+}

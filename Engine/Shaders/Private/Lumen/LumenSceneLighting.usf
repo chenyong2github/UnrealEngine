@@ -1,0 +1,469 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardSceneLighting.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "LumenCardCommon.ush"
+
+RWBuffer<uint> RWQuadAllocator;
+RWBuffer<uint> RWQuadData;
+
+float4 InfluenceSphere;
+float3 LightPosition;
+float3 LightDirection;
+float LightRadius;
+float CosConeAngle;
+float SinConeAngle;
+
+bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
+{
+	float3 U = ConeVertex - (SphereCenterAndRadius.w / ConeAngleSin) * ConeAxis;
+	float3 D = SphereCenterAndRadius.xyz - U;
+	float DSizeSq = dot(D, D);
+	float E = dot(ConeAxis, D);
+
+	if (E > 0 && E * E >= DSizeSq * ConeAngleCos * ConeAngleCos)
+	{
+		D = SphereCenterAndRadius.xyz - ConeVertex;
+		DSizeSq = dot(D, D);
+		E = -dot(ConeAxis, D);
+
+		if (E > 0 && E * E >= DSizeSq * ConeAngleSin * ConeAngleSin)
+		{
+			return DSizeSq <= SphereCenterAndRadius.w * SphereCenterAndRadius.w;
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool DoesLightAffectCard(FLumenCardData LumenCardData)
+{
+	float3 LocalLightInfluenceSphereCenter = mul(InfluenceSphere.xyz - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
+	float BoxDistanceSq = ComputeSquaredDistanceFromBoxToPoint(0, LumenCardData.LocalExtent, LocalLightInfluenceSphereCenter);
+
+	bool bCardAffectedByInfluenceSphere = BoxDistanceSq < InfluenceSphere.w * InfluenceSphere.w;
+
+	float3 WorldCardCenter;
+	float3 WorldCardExtent;
+	GetCardAABB(LumenCardData, WorldCardCenter, WorldCardExtent);
+
+	float WorldCardBoundingSphere = length(LumenCardData.LocalExtent);
+
+#if SHAPE_TYPE == 0
+	
+	return true;
+
+#elif SHAPE_TYPE == 1
+
+	// Point light
+	return bCardAffectedByInfluenceSphere;
+
+#elif SHAPE_TYPE == 2
+
+	float ConeAxisDistance = dot(WorldCardCenter - LightPosition, LightDirection);
+	float2 ConeAxisDistanceMinMax = float2(ConeAxisDistance + WorldCardBoundingSphere, ConeAxisDistance - WorldCardBoundingSphere);
+
+	// Spot light
+	return bCardAffectedByInfluenceSphere
+		&& SphereIntersectCone(float4(WorldCardCenter, WorldCardBoundingSphere), LightPosition, LightDirection, CosConeAngle, SinConeAngle)
+		&& ConeAxisDistanceMinMax.x > 0 && ConeAxisDistanceMinMax.y < LightRadius;
+
+#elif SHAPE_TYPE == 3
+
+	// Rect light
+	float4 BackPlane = float4(LightDirection, dot(LightPosition, LightDirection));
+	float DistanceFromBoxCenterToPlane = dot(BackPlane.xyz, WorldCardCenter) - BackPlane.w;
+	float MaxExtent = dot(WorldCardExtent, abs(BackPlane.xyz));
+	bool bInFrontOfPlane = DistanceFromBoxCenterToPlane + MaxExtent > 0.0f;
+	return bCardAffectedByInfluenceSphere && bInFrontOfPlane;
+
+#endif
+}
+
+uint NumCardsToRenderIndices;
+Buffer<uint> CardsToRenderIndices;
+Buffer<uint> CardsToRenderHashMap;
+uint FrameId;
+float CardLightingUpdateFrequencyScale;
+uint CardLightingUpdateMinFrequency;
+
+#define OPERATE_ON_CARDS_TO_RENDER 0
+#define OPERATE_ON_SCENE 1
+#define OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARDS_TO_RENDER 2
+
+bool ShouldUpdateCardLighting(uint CardId, FLumenCardData LumenCardData)
+{
+#if OPERATE_ON_CARDS_MODE == OPERATE_ON_CARDS_TO_RENDER
+	// Explicit list - update everything
+	return true;
+#else 
+
+#if OPERATE_ON_CARDS_MODE == OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARDS_TO_RENDER
+	// Operating on the whole scene - CardIds contains cards that must have their lighting updated this frame due to recapture
+
+	#if 1
+	{
+		uint HashMapBucketId = CardId % (NUM_CARDS_TO_RENDER_HASH_MAP_BUCKET_UINT32 * 32);
+		uint HashMapUInt32Id = HashMapBucketId / 32;
+		uint HashMapBitId = HashMapBucketId - HashMapUInt32Id * 32;
+
+		uint HashMapUInt32 = CardsToRenderHashMap[HashMapUInt32Id];
+
+		if (HashMapUInt32 & (1 << HashMapBitId))
+		{
+			return true;
+		}
+	}
+	#else
+	{
+		for (uint i = 0; i < NumCardsToRenderIndices; i++)
+		{
+			if (CardId == CardsToRenderIndices[i])
+			{
+				return true;
+			}
+		}
+	}
+	#endif
+#endif
+
+	float3 CardSpaceViewPosition = mul(View.WorldCameraOrigin - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
+	float DistanceFromViewerSq = ComputeSquaredDistanceFromBoxToPoint(0, LumenCardData.LocalExtent, CardSpaceViewPosition);
+	uint CardLightingUpdateFrequency = clamp((uint)pow(DistanceFromViewerSq * CardLightingUpdateFrequencyScale, .25f), CardLightingUpdateMinFrequency, 100);
+
+	//@todo - Better guarantees on even distribution of texels lit each frame
+	return CardId % CardLightingUpdateFrequency == FrameId % CardLightingUpdateFrequency;
+	
+#endif
+}
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 0
+#endif
+
+uint ScatterInstanceIndex;
+uint NumVisibleCardsIndices;
+uint MaxQuadsPerScatterInstance;
+Buffer<uint> VisibleCardsIndices;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void CullCardsToShapeCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint IndexInIndexBuffer = DispatchThreadId.x;
+
+#if OPERATE_ON_CARDS_MODE == OPERATE_ON_CARDS_TO_RENDER
+	if (IndexInIndexBuffer < NumCardsToRenderIndices)
+	{
+		uint CardIndex = CardsToRenderIndices[IndexInIndexBuffer];
+#else
+	if (IndexInIndexBuffer < NumVisibleCardsIndices)
+	{
+		uint CardIndex = VisibleCardsIndices[IndexInIndexBuffer];
+#endif
+		FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
+
+		if (LumenCardData.bVisible 
+			&& DoesLightAffectCard(LumenCardData)
+			&& ShouldUpdateCardLighting(CardIndex, LumenCardData))
+		{
+			uint QuadDataInsertIndex;
+			InterlockedAdd(RWQuadAllocator[ScatterInstanceIndex], 1, QuadDataInsertIndex);
+
+			QuadDataInsertIndex += MaxQuadsPerScatterInstance * ScatterInstanceIndex;
+
+			uint Packed = CardIndex;
+			RWQuadData[QuadDataInsertIndex] = Packed;
+		}
+	}
+}
+
+Buffer<uint> QuadAllocator;
+RWBuffer<uint> RWCardIndirectArgs;
+
+uint TilesPerInstance;
+uint MaxScatterInstanceCount;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitializeCardScatterIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint ScatterInstanceIndex = DispatchThreadId.x;
+
+	if (ScatterInstanceIndex < MaxScatterInstanceCount)
+	{
+		// sizeof(FRHIDrawIndexedIndirectParameters) / sizeof(uint32) == 5
+		uint ArgOffset = ScatterInstanceIndex * 5;
+		uint NumQuads = QuadAllocator[ScatterInstanceIndex];
+
+		#if RECT_LIST_TOPOLOGY
+		{
+			// VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation
+			RWCardIndirectArgs[0 + ArgOffset] = 4 * TilesPerInstance;
+			RWCardIndirectArgs[1 + ArgOffset] = (NumQuads + TilesPerInstance - 1) / TilesPerInstance;
+			RWCardIndirectArgs[2 + ArgOffset] = 0;
+			RWCardIndirectArgs[3 + ArgOffset] = 0;
+		}
+		#else
+		{
+			// IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance
+			RWCardIndirectArgs[0 + ArgOffset] = 6 * TilesPerInstance;
+			RWCardIndirectArgs[1 + ArgOffset] = (NumQuads + TilesPerInstance - 1) / TilesPerInstance;
+			RWCardIndirectArgs[2 + ArgOffset] = 0;
+			RWCardIndirectArgs[3 + ArgOffset] = 0;
+			RWCardIndirectArgs[4 + ArgOffset] = 0;
+		}
+		#endif
+	}
+}
+
+Buffer<uint> QuadData;
+float2 CardUVSamplingOffset;
+
+void RasterizeToCardsVS(
+	float2 TexCoord : ATTRIBUTE0,
+	uint VertexId : SV_VertexID,
+	uint InstanceId : SV_InstanceID, 
+	out FCardVSToPS CardInterpolants,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	// Compute the actual instance id for when multiple tiles are packed into the vertex buffer
+	uint EffectiveInstanceId = InstanceId * TilesPerInstance + VertexId / 4;
+
+	uint BaseQuadOffset = MaxQuadsPerScatterInstance * ScatterInstanceIndex;
+	uint NumQuads = QuadAllocator[ScatterInstanceIndex];
+
+	CardInterpolants = (FCardVSToPS)0;
+	OutPosition = 0;
+
+	if (EffectiveInstanceId < NumQuads)
+	{
+		uint QuadIndex = EffectiveInstanceId + BaseQuadOffset;
+		uint QuadInfo = QuadData[EffectiveInstanceId + BaseQuadOffset];
+		uint CardId = QuadInfo;
+
+		FLumenCardData LumenCardData = GetLumenCardData(CardId);
+
+		if (LumenCardData.bVisible)
+		{
+			float2 CardUVToAtlasScale = GetCardUVToAtlasScale(LumenCardData.LocalPositionToAtlasUVScale, LumenCardData.LocalExtent);
+			float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias);
+			float2 ScreenUV = TexCoord * CardUVToAtlasScale + CardUVToAtlasBias;
+#if CLAMP_TO_INFLUENCE_SPHERE
+			float3 LocalSphereOrigin = mul(InfluenceSphere.xyz - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
+			float2 SphereOriginAtlasUV = LocalSphereOrigin.xy * LumenCardData.LocalPositionToAtlasUVScale + LumenCardData.LocalPositionToAtlasUVBias;
+			float2 SphereRadiusInAtlasUV = abs(InfluenceSphere.w * LumenCardData.LocalPositionToAtlasUVScale);
+			ScreenUV = clamp(ScreenUV, SphereOriginAtlasUV - SphereRadiusInAtlasUV, SphereOriginAtlasUV + SphereRadiusInAtlasUV);
+#endif
+
+			float2 ScreenPosition = float2(2.0f, -2.0f) * ScreenUV + float2(-1.0f, 1.0f);
+
+			OutPosition = float4(ScreenPosition, 0, 1);
+
+			float2 QuadCorner = -2.0f * TexCoord + 1.0f;
+			CardInterpolants.AtlasCoord = ScreenUV + QuadCorner * CardUVSamplingOffset;
+			CardInterpolants.CardUV = TexCoord;
+			CardInterpolants.CardId = CardId;
+			CardInterpolants.QuadIndex = QuadIndex;
+		}
+	}
+}
+
+float SourceMip;
+Texture2D SourceAtlas;
+float4x4 ChannelSwizzle;
+
+void LumenCardCopyPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	float4 SourceValue = Texture2DSampleLevel(SourceAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, SourceMip);
+	OutColor = mul(SourceValue, ChannelSwizzle);
+}
+
+Texture2D SourceDepthAtlas;
+
+void LumenCardCopyDepthPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	float SourceDepth = Texture2DSampleLevel(SourceDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	// Undo inverted Z
+	OutColor = 1.0f - SourceDepth;
+}
+
+Texture2D ParentDepthAtlas;
+float2 InvSize;
+
+float2 CalculateParentUV(float2 AtlasCoord, float2 CardUVToAtlasScale, float2 LocalPositionToAtlasUVBias, float2 Offset)
+{
+	float2 ParentUV = AtlasCoord + Offset * InvSize;
+	float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, LocalPositionToAtlasUVBias);
+	float2 CardMinAtlasUV = float2(0, 0) * CardUVToAtlasScale + CardUVToAtlasBias + .5f * InvSize;
+	float2 CardMaxAtlasUV = float2(1, 1) * CardUVToAtlasScale + CardUVToAtlasBias - .5f * InvSize;
+
+	return clamp(ParentUV, CardMinAtlasUV, CardMaxAtlasUV);
+}
+
+void LumenCardPrefilterDepthPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutDepth : SV_Target0)
+{
+	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+
+	float2 CardUVToAtlasScale = GetCardUVToAtlasScale(LumenCardData.LocalPositionToAtlasUVScale, LumenCardData.LocalExtent);
+
+	float Depths[4];
+
+	Depths[0] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(.25f, .25f)), 0).x;
+	Depths[1] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(-.25f, .25f)), 0).x;
+	Depths[2] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(.25f, -.25f)), 0).x;
+	Depths[3] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(-.25f, -.25f)), 0).x;
+	
+	float DepthSum = 0;
+	float DepthTotalWeight = 0;
+
+	for (uint i = 0; i < 4; i++)
+	{
+		// Remove background depths
+		float DepthWeight = Depths[i] < .999f ? 1.0f : 0.0f;
+		DepthSum += Depths[i] * DepthWeight;
+		DepthTotalWeight += DepthWeight;
+	}
+
+	if (DepthTotalWeight == 0)
+	{
+		OutDepth = 1;
+	}
+	else
+	{
+		OutDepth = DepthSum / DepthTotalWeight;
+	}
+}
+
+Texture2D ChildDepthAtlas;
+Texture2D OriginalDepthAtlas;
+uint MipIndex;
+
+void LumenCardDilateForegroundDepthsPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutDepth : SV_Target0)
+{
+	float Depth = Texture2DSampleLevel(OriginalDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
+	if (Depth > .99f)
+	{
+		//FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+
+		//if (MipIndex + 1 < LumenCardData.MaxMip) 
+
+		bool bDistantCard = false;
+
+		for (uint i = 0; i < LumenCardScene.NumDistantCards; i++)
+		{
+			if (LumenCardScene.DistantCardIndices[i] == CardInterpolants.CardId)
+			{
+				bDistantCard = true;
+				break;
+			}
+		}
+
+		if (!bDistantCard)
+		{
+			// Fill in any background depths with a value from the lower resolution mip, which has already been filled in
+			Depth = Texture2DSampleLevel(ChildDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+		}
+	}
+
+	OutDepth = Depth;
+}
+
+Texture2D DepthAtlas;
+float TanHeightfieldSlopeThreshold;
+
+void LumenCardPostprocessOpacityPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutOpacity : SV_Target0)
+{
+	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+
+	OutOpacity = 1;
+
+	float Depth = Texture2DSampleLevel(DepthAtlas, GlobalPointClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	float3 LocalPosition;
+	LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+	LocalPosition.z = LumenCardData.LocalExtent.z - Depth * 2 * LumenCardData.LocalExtent.z;
+
+	float2 NeighborOffsets[8];
+	NeighborOffsets[0] = float2(1, 0);
+	NeighborOffsets[1] = float2(-1, 0);
+	NeighborOffsets[2] = float2(0, 1);
+	NeighborOffsets[3] = float2(0, -1);
+	NeighborOffsets[4] = float2(1, 1);
+	NeighborOffsets[5] = float2(-1, -1);
+	NeighborOffsets[6] = float2(1, -1);
+	NeighborOffsets[7] = float2(-1, 1);
+
+	for (uint i = 0; i < 8; i++)
+	{
+		//@todo - skip if out of bounds
+		float2 NeighborUV = CardInterpolants.AtlasCoord + NeighborOffsets[i] * InvSize;
+		float NeighborDepth = Texture2DSampleLevel(DepthAtlas, GlobalPointClampedSampler, NeighborUV, 0).x;
+
+		float3 NeighborLocalPosition;
+		NeighborLocalPosition.xy = (NeighborUV - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+		NeighborLocalPosition.z = LumenCardData.LocalExtent.z - NeighborDepth * 2 * LumenCardData.LocalExtent.z;
+
+		float TanTheta = abs(NeighborDepth - Depth) / length(LocalPosition.xy - NeighborLocalPosition.xy);
+
+		if (TanTheta > TanHeightfieldSlopeThreshold)
+		{
+			OutOpacity = 0;
+		}
+	}
+}
+
+Texture2D ParentOpacityAtlas;
+
+void LumenCardPrefilterOpacityPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutOpacity : SV_Target0)
+{
+	OutOpacity = float4(Texture2DSampleLevel(ParentOpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x, 0, 0, 0);
+}
+
+Texture2D ParentFinalLightingAtlas;
+
+void LumenCardPrefilterLightingPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutLighting : SV_Target0)
+{
+	OutLighting = Texture2DSampleLevel(ParentFinalLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0);
+}
+
+Texture2D RadiosityAtlas;
+Texture2D OpacityAtlas;
+
+void LumenCardLightingCombinePS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{   
+	float3 Radiosity = Texture2DSampleLevel(RadiosityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+	OutColor = float4(Radiosity, 0);
+}
+
+void ClearLumenCardsPS(
+	out float4 OutAlbedo : SV_Target0,
+	out float4 OutNormals : SV_Target1
+)
+{
+	OutAlbedo = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	OutNormals = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}

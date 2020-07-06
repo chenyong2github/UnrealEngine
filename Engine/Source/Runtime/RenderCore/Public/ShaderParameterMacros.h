@@ -186,6 +186,16 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 		return MsaaPlane;
 	}
 
+	// Whether we can merge a render pass using @ref Other into a render pass using this render target binding.
+	inline bool CanMergeBefore(const FRenderTargetBinding& Other) const
+	{
+		return
+			Texture == Other.Texture &&
+			Other.LoadAction != ERenderTargetLoadAction::EClear &&
+			MipIndex == Other.MipIndex &&
+			ArraySlice == Other.ArraySlice;
+	}
+
 private:
 	/** All parameters required to bind a render target deferred. This are purposefully private to
 	 * force the user to call FRenderTargetBinding() constructor, forcing him to specify the load and store action.
@@ -260,6 +270,16 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 		return MsaaPlane;
 	}
 
+	// Whether we can merge a render pass using @ref Other into a render pass using this depth stencil binding.
+	inline bool CanMergeBefore(const FDepthStencilBinding& Other) const
+	{
+		return
+			Texture == Other.Texture &&
+			Other.DepthLoadAction != ERenderTargetLoadAction::EClear &&
+			Other.StencilLoadAction != ERenderTargetLoadAction::EClear &&
+			DepthStencilAccess == Other.DepthStencilAccess;
+	}
+
 private:
 	/** 
 	 * All parameters required to bind a depth render target deferred. This are purposefully private to
@@ -295,6 +315,35 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 	const FRenderTargetBinding& operator[](uint32 Index) const
 	{
 		return Output[Index];
+	}
+
+	template <typename TFunction>
+	void Enumerate(TFunction Function) const
+	{
+		for (int32 Index = 0; Index < Output.Num(); Index++)
+		{
+			if (Output[Index].GetTexture())
+			{
+				Function(Output[Index]);
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
+	bool CanMergeBefore(const FRenderTargetBindingSlots& Other) const
+	{
+		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
+		{
+			if (!Output[Index].CanMergeBefore(Other.Output[Index]))
+			{
+				return false;
+			}
+		}
+
+		return DepthStencil.CanMergeBefore(Other.DepthStencil);
 	}
 
 	struct FTypeInfo
@@ -688,6 +737,8 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 		TEXT(#StructTypeName), \
 		nullptr, \
 		nullptr, \
+		FTypeInfo::FileName, \
+		FTypeInfo::FileLine, \
 		sizeof(StructTypeName), \
 		StructTypeName::zzGetMembers()); \
 	return &StaticStructMetadata;
@@ -708,6 +759,8 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 			static constexpr int32 NumElements = 0; \
 			static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT; \
 			static constexpr bool bIsStoredInConstantBuffer = true; \
+			static constexpr const ANSICHAR* const FileName = UE_LOG_SOURCE_FILE(__FILE__); \
+			static constexpr int32 FileLine = __LINE__; \
 			using TAlignedType = StructTypeName; \
 			static inline const FShaderParametersMetadata* GetStructMetadata() { GetStructMetadataScope } \
 		}; \
@@ -743,6 +796,7 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 			Members->Add(FShaderParametersMetadata::FMember( \
 				TEXT(#MemberName), \
 				OptionalShaderType, \
+				__LINE__, \
 				STRUCT_OFFSET(zzTThisStruct,MemberName), \
 				EUniformBufferBaseType(BaseType), \
 				Precision, \
@@ -817,6 +871,8 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 	TEXT(#StructTypeName), \
 	TEXT(ShaderVariableName), \
 	nullptr, \
+	StructTypeName::FTypeInfo::FileName, \
+	StructTypeName::FTypeInfo::FileLine, \
 	sizeof(StructTypeName), \
 	StructTypeName::zzGetMembers())
 
@@ -843,6 +899,8 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 	TEXT(#StructTypeName), \
 	TEXT(ShaderVariableName), \
 	TEXT(#StaticSlotName), \
+	StructTypeName::FTypeInfo::FileName, \
+	StructTypeName::FTypeInfo::FileLine, \
 	sizeof(StructTypeName), \
 	StructTypeName::zzGetMembers())
 
@@ -914,7 +972,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 /** Adds an unordered access view.
  *
  * Example:
- *	SHADER_PARAMETER_UAV(Texture2D, MyUAV)
+ *	SHADER_PARAMETER_UAV(RWTexture2D, MyUAV)
  */
 #define SHADER_PARAMETER_UAV(ShaderType,MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_UAV, TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>, FRHIUnorderedAccessView*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
@@ -1114,3 +1172,20 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  */
 #define RENDER_TARGET_BINDING_SLOTS() \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RENDER_TARGET_BINDING_SLOTS, FRenderTargetBindingSlots::FTypeInfo, FRenderTargetBindingSlots,RenderTargets,,,EShaderPrecisionModifier::Float,TEXT(""),false)
+
+/** An empty shader parameter structure ready to be used anywhere. */
+BEGIN_SHADER_PARAMETER_STRUCT(FEmptyShaderParameters, RENDERCORE_API)
+END_SHADER_PARAMETER_STRUCT()
+
+/** Useful parameter struct that only have render targets.
+ *
+ *	FRenderTargetParameters PassParameters;
+ *	PassParameters.RenderTargets.DepthStencil = ... ;
+ *	PassParameters.RenderTargets[0] = ... ;
+ */
+BEGIN_SHADER_PARAMETER_STRUCT(FRenderTargetParameters, RENDERCORE_API)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+/** Returns the name of the macro that should be used for a given shader parameter base type. */
+const TCHAR* GetShaderParameterMacroName(EUniformBufferBaseType ShaderParameterBaseType);

@@ -300,13 +300,13 @@ void FRHICommandDispatchIndirectComputeShader::Execute(FRHICommandListBase& CmdL
 void FRHICommandBeginUAVOverlap::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginUAVOverlap);
-	INTERNAL_DECORATOR(RHIBeginUAVOverlap)();
+	INTERNAL_DECORATOR_COMPUTE(RHIBeginUAVOverlap)();
 }
 
 void FRHICommandEndUAVOverlap::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EndUAVOverlap);
-	INTERNAL_DECORATOR(RHIEndUAVOverlap)();
+	INTERNAL_DECORATOR_COMPUTE(RHIEndUAVOverlap)();
 }
 
 void FRHICommandAutomaticCacheFlushAfterComputeShader::Execute(FRHICommandListBase& CmdList)
@@ -415,6 +415,28 @@ void FRHICommandTransitionUAVs::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(TransitionUAVs);
 	INTERNAL_DECORATOR_COMPUTE(RHITransitionResources)(TransitionType, TransitionPipeline, UAVs, NumUAVs, WriteFence);
+}
+
+void FRHICommandBeginResourceTransitions::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BeginResourceTransitions);
+	CmdList.GetComputeContext().RHIBeginResourceTransitions(Transitions);
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		Transition->MarkBegin();
+	}
+}
+
+void FRHICommandEndResourceTransitions::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(EndResourceTransitions);
+	CmdList.GetComputeContext().RHIEndResourceTransitions(Transitions);
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		Transition->MarkEnd();
+	}
 }
 
 void FRHICommandSetAsyncComputeBudget::Execute(FRHICommandListBase& CmdList)

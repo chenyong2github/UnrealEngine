@@ -257,9 +257,20 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 
 // Physically based shading model
 // parameterized with the below options
+// [ Karis 2013, "Real Shading in Unreal Engine 4" slide 11 ]
 
-// Microfacet specular = D*G*F / (4*NoL*NoV) = D*Vis*F
+// E = Random sample for BRDF.
+// N = Normal of the macro surface.
+// H = Normal of the micro surface.
+// V = View vector going from surface's position towards the view's origin.
+// L = Light ray direction
+
+// D = Microfacet NDF
+// G = Shadowing and masking
+// F = Fresnel
+
 // Vis = G / (4*NoL*NoV)
+// f = Microfacet specular BRDF = D*G*F / (4*NoL*NoV) = D*Vis*F
 
 
 float3 Diffuse_Lambert( float3 DiffuseColor )
@@ -315,6 +326,22 @@ float3 Diffuse_Gotanda( float3 DiffuseColor, float Roughness, float NoV, float N
 	float Lr = (21.0 / 20.0) * (1 - F0) * ( Fr * Lm + Vd + Bp );
 	return DiffuseColor / PI * Lr;
 #endif
+}
+
+// [ Chan 2018, "Material Advances in Call of Duty: WWII" ]
+float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float VoH, float NoH )
+{
+	// a2 = 2 / ( 1 + exp2( 18 * g )
+	float g = saturate( (1.0 / 18.0) * log2( 2 / a2 - 1 ) );
+
+	float F0 = VoH + Pow5( 1 - VoH );
+	float FdV = 1 - 0.75 * Pow5( 1 - NoV );
+	float FdL = 1 - 0.75 * Pow5( 1 - NoL );
+
+	float Fd = lerp( F0, FdV * FdL, saturate( 2.2 * g - 0.5 ) );
+	float Fb = ( (34.5 * g - 59 ) * g + 24.5 ) * VoH * exp2( -max( 73.2 * g - 21.2, 8.9 ) * sqrt( NoH ) );
+	
+	return DiffuseColor * ( (1 / PI) * ( Fd + Fb ) );
 }
 
 // [Blinn 1977, "Models of light reflection for computer synthesized pictures"]
@@ -480,6 +507,7 @@ Texture2D		PreIntegratedGF;
 SamplerState	PreIntegratedGFSampler;
 #endif
 
+// [Karis 2013, "Real Shading in Unreal Engine 4" slide 11]
 half3 EnvBRDF( half3 SpecularColor, half Roughness, half NoV )
 {
 	// Importance sampled preintegrated G * F

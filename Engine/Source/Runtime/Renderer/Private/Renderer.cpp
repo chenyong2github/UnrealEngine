@@ -148,6 +148,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
+				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData();
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 
 				FPrecomputedLightingUniformParameters LightmapParams;
@@ -164,6 +165,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				{
 					View.PrimitiveSceneDataTextureOverrideRHI = SinglePrimitiveStructured.PrimitiveSceneDataTextureRHI;
 				}
+				View.InstanceSceneDataOverrideSRV  = SinglePrimitiveStructured.InstanceSceneDataBufferSRV;
 				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructured.LightmapSceneDataBufferSRV;
 			}
 		}
@@ -656,24 +658,33 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 	//		Ar.Logf(TEXT("VisualizeTexture %d"), GVisualizeTexture.Mode);
 }
 
+extern void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar);
+
 static bool RendererExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if SUPPORTS_VISUALIZE_TEXTURE
 	if (FParse::Command(&Cmd, TEXT("VisualizeTexture")) || FParse::Command(&Cmd, TEXT("Vis")))
 	{
 		VisualizeTextureExec(Cmd, Ar);
 		return true;
 	}
-	else if (FParse::Command(&Cmd, TEXT("ShowMipLevels")))
+#endif //SUPPORTS_VISUALIZE_TEXTURE
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (FParse::Command(&Cmd, TEXT("ShowMipLevels")))
 	{
 		extern bool GVisualizeMipLevels;
 		GVisualizeMipLevels = !GVisualizeMipLevels;
 		Ar.Logf( TEXT( "Showing mip levels: %s" ), GVisualizeMipLevels ? TEXT("ENABLED") : TEXT("DISABLED") );
 		return true;
 	}
-	else if(FParse::Command(&Cmd,TEXT("DumpUnbuiltLightInteractions")))
+	else if (FParse::Command(&Cmd, TEXT("DumpUnbuiltLightInteractions")))
 	{
 		InWorld->Scene->DumpUnbuiltLightInteractions(Ar);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("NaniteStats")))
+	{
+		NaniteStatsFilterExec(Cmd, Ar);
 		return true;
 	}
 #endif

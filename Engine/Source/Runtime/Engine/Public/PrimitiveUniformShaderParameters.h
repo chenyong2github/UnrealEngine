@@ -2,13 +2,13 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "SceneTypes.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
+#include "InstanceUniformShaderParameters.h"
 #include "LightmapUniformShaderParameters.h"
 #include "UnifiedBuffer.h"
 
@@ -24,24 +24,28 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FMatrix,WorldToLocal)		// rarely needed
 	SHADER_PARAMETER(FMatrix,PreviousLocalToWorld)	// Used to calculate velocity
 	SHADER_PARAMETER(FMatrix,PreviousWorldToLocal)	// rarely used when calculating velocity, if material uses vertex offset along with world->local transform
+
 	SHADER_PARAMETER(FVector,ActorWorldPosition)
 	SHADER_PARAMETER_EX(float,UseSingleSampleShadowFromStationaryLights,EShaderPrecisionModifier::Half)	
+
 	SHADER_PARAMETER(FVector,ObjectBounds)		// only needed for editor/development
 	SHADER_PARAMETER(float,LpvBiasMultiplier)
+
 	SHADER_PARAMETER_EX(float,DecalReceiverMask,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(float,PerObjectGBufferData,EShaderPrecisionModifier::Half)		// 0..1, 2 bits, bDistanceFieldRepresentation, bHeightfieldRepresentation
 	SHADER_PARAMETER_EX(float,UseVolumetricLightmapShadowFromStationaryLights,EShaderPrecisionModifier::Half)		
 	SHADER_PARAMETER_EX(float,DrawsVelocity,EShaderPrecisionModifier::Half)
+
 	SHADER_PARAMETER_EX(FVector4,ObjectOrientation,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(FVector4,NonUniformScale,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(uint32,LightingChannelMask)
+	SHADER_PARAMETER(uint32,  LightingChannelMask)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(uint32,LightmapDataIndex)
+	SHADER_PARAMETER(uint32,  LightmapDataIndex)
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
 	SHADER_PARAMETER(int32, SingleCaptureIndex)			// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
-	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space max bounds, pre-skinning
-    SHADER_PARAMETER(uint32, OutputVelocity)
+	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
+	SHADER_PARAMETER(uint32, OutputVelocity)
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -92,7 +96,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		float ScaleX = FVector(WorldX).Size();
 		float ScaleY = FVector(WorldY).Size();
 		float ScaleZ = FVector(WorldZ).Size();
-		Result.NonUniformScale = FVector4(ScaleX,ScaleY,ScaleZ,0);
+		Result.NonUniformScale = FVector4(ScaleX,ScaleY,ScaleZ, FMath::Max3(FMath::Abs(ScaleX), FMath::Abs(ScaleY), FMath::Abs(ScaleZ)));
 		Result.InvNonUniformScaleAndDeterminantSign = FVector4(
 			ScaleX > KINDA_SMALL_NUMBER ? 1.0f/ScaleX : 0.0f,
 			ScaleY > KINDA_SMALL_NUMBER ? 1.0f/ScaleY : 0.0f,
@@ -106,6 +110,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.UseVolumetricLightmapShadowFromStationaryLights = bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.DrawsVelocity = bDrawsVelocity ? 1 : 0;
 	Result.LightmapDataIndex = LightmapDataIndex;
+	
 	// If SingleCaptureIndex is invalid, set it to 0 since there will be a default cubemap at that slot
 	Result.SingleCaptureIndex = FMath::Max(SingleCaptureIndex, 0);
 	Result.OutputVelocity = (bOutputVelocity) ? 1 : 0;
@@ -139,12 +144,30 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
-    bool bOutputVelocity
+	bool bOutputVelocity
 )
 {
 	// Pass through call
-	return GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, ActorPosition, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasDistanceFieldRepresentation, bHasCapsuleRepresentation, 
-		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bDrawsVelocity, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex, bOutputVelocity, nullptr);
+	return GetPrimitiveUniformShaderParameters(
+		LocalToWorld, 
+		PreviousLocalToWorld, 
+		ActorPosition, 
+		WorldBounds, 
+		LocalBounds, 
+		LocalBounds, 
+		bReceivesDecals, 
+		bHasDistanceFieldRepresentation,
+		bHasCapsuleRepresentation, 
+		bUseSingleSampleShadowFromStationaryLights, 
+		bUseVolumetricLightmap, 
+		bDrawsVelocity, 
+		LightingChannelMask, 
+		LpvBiasMultiplier, 
+		LightmapDataIndex, 
+		SingleCaptureIndex,
+		bOutputVelocity,
+		nullptr
+		);
 }
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
@@ -159,9 +182,28 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 {
 	check(IsInRenderingThread());
 	return TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bDrawsVelocity, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE, false, nullptr),
+		GetPrimitiveUniformShaderParameters(
+			LocalToWorld,
+			LocalToWorld,
+			WorldBounds.Origin,
+			WorldBounds,
+			LocalBounds,
+			PreSkinnedLocalBounds,
+			bReceivesDecals,
+			false,
+			false,
+			false,
+			false,
+			bDrawsVelocity,
+			GetDefaultLightingChannelMask(),
+			LpvBiasMultiplier,
+			INDEX_NONE,
+			INDEX_NONE,
+			false,
+			nullptr
+		),
 		UniformBuffer_MultiFrame
-		);
+	);
 }
 
 inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
@@ -185,7 +227,7 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		INDEX_NONE,
 		INDEX_NONE,
 		false
-	);
+		);
 }
 
 /**
@@ -245,10 +287,16 @@ public:
 		PrimitiveSceneDataBufferSRV.SafeRelease();
 		SkyIrradianceEnvironmentMapRHI.SafeRelease();
 		SkyIrradianceEnvironmentMapSRV.SafeRelease();
+		InstanceSceneDataBufferRHI.SafeRelease();
+		InstanceSceneDataBufferSRV.SafeRelease();
 		PrimitiveSceneDataTextureRHI.SafeRelease();
 		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
 		LightmapSceneDataBufferSRV.SafeRelease();
+//#if WITH_EDITOR
+		EditorSelectedDataBufferRHI.SafeRelease();
+		EditorSelectedDataBufferSRV.SafeRelease();
+//#endif
 	}
 
 	ENGINE_API void UploadToGPU();
@@ -256,6 +304,7 @@ public:
 	EShaderPlatform ShaderPlatform=SP_NumPlatforms;
 
 	FPrimitiveSceneShaderData PrimitiveSceneData;
+	FInstanceSceneShaderData InstanceSceneData;
 	FLightmapSceneShaderData LightmapSceneData;
 
 	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
@@ -264,11 +313,19 @@ public:
 	FStructuredBufferRHIRef SkyIrradianceEnvironmentMapRHI;
 	FShaderResourceViewRHIRef SkyIrradianceEnvironmentMapSRV;
 
+	FStructuredBufferRHIRef InstanceSceneDataBufferRHI;
+	FShaderResourceViewRHIRef InstanceSceneDataBufferSRV;
+
 	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
 
 	FStructuredBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
+
+//#if WITH_EDITOR
+	FVertexBufferRHIRef EditorSelectedDataBufferRHI;
+	FShaderResourceViewRHIRef EditorSelectedDataBufferSRV;
+//#endif
 };
 
 /**

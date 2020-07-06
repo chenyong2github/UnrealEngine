@@ -1,0 +1,76 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SHCommon.ush"
+#include "LumenRadianceCacheCommon.ush"
+
+float3 ProbeCoordToWorldCenterBias;
+float ProbeCoordToWorldCenterScale;
+
+float VisualizeProbeRadiusScale;
+uint ProbeClipmapIndex;
+
+struct FVisualizeRadianceCacheVSToPS
+{
+	nointerpolation float3 ProbeCoord : TEXCOORD0;
+	nointerpolation float4 CellSphere : TEXCOORD1;
+	float3 PositionWS : TEXCOORD2;
+};
+
+void VisualizeRadianceCacheVS(
+	uint VertexId : SV_VertexID,
+	uint InstanceId : SV_InstanceID,
+	out FVisualizeRadianceCacheVSToPS Output,
+	out float4 OutPosition : SV_POSITION
+)
+{
+	float VisualizeRadius = GetRadianceProbeTMin(ProbeClipmapIndex) * VisualizeProbeRadiusScale;
+
+	float3 LocalPosition;
+	LocalPosition.x = VertexId & 0x1 ? 1.0f : -1.0f;
+	LocalPosition.y = VertexId & 0x2 ? 1.0f : -1.0f;
+	LocalPosition.z = VertexId & 0x4 ? 1.0f : -1.0f;
+	LocalPosition *= VisualizeRadius;
+
+	uint3 ProbeCoord;
+	ProbeCoord.x = InstanceId % RadianceProbeClipmapResolution;
+	ProbeCoord.y = (InstanceId / RadianceProbeClipmapResolution) % RadianceProbeClipmapResolution;
+	ProbeCoord.z = InstanceId / (RadianceProbeClipmapResolution * RadianceProbeClipmapResolution);
+
+	float3 ProbeWorldCenter = ProbeCoord * ProbeCoordToWorldCenterScale + ProbeCoordToWorldCenterBias;
+
+	Output.CellSphere.xyz = ProbeWorldCenter;
+	Output.CellSphere.w = VisualizeRadius;
+	Output.PositionWS = LocalPosition + ProbeWorldCenter;
+	Output.ProbeCoord = ProbeCoord;
+	OutPosition = mul(float4(Output.PositionWS, 1.0f), View.WorldToClip);
+
+	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ProbeClipmapIndex);
+	if (ProbeIndex == INVALID_PROBE_INDEX)
+	{
+		OutPosition = 0;
+	}
+}
+
+void VisualizeRadianceCachePS(
+	FVisualizeRadianceCacheVSToPS Input,
+	out float4 OutColor : SV_Target0
+)
+{
+	float3 RayDirection = normalize(Input.PositionWS - View.WorldViewOrigin);
+	float2 SphereIntersections = RayIntersectSphere(View.WorldViewOrigin, RayDirection, Input.CellSphere);
+	float3 IntersectionPosition = View.WorldViewOrigin + SphereIntersections.x * RayDirection;
+	clip(SphereIntersections.x);
+
+	float3 SphereNormal = normalize(IntersectionPosition - Input.CellSphere.xyz);
+
+	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(Input.ProbeCoord, ProbeClipmapIndex);
+	float3 Lighting = SampleRadianceCacheProbe(ProbeIndex, SphereNormal);
+
+	if (ProbeIndex == INVALID_PROBE_INDEX)
+	{
+		Lighting = float3(0, 1000.0f, 0);
+	}
+
+	OutColor = float4(Lighting, 1.0f);
+}

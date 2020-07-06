@@ -78,6 +78,7 @@
 #include "DistanceFieldAtlas.h"
 #include "Cooker/AsyncIODelete.h"
 #include "Serialization/BulkDataManifest.h"
+#include "MeshCardRepresentation.h"
 #include "Misc/PathViews.h"
 
 #include "AssetRegistryModule.h"
@@ -7609,6 +7610,13 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 		UE_LOG(LogCook, Display, TEXT("Waiting for distance field async operations..."));
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForDistanceField);
 		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+	}
+
+	if (GCardRepresentationAsyncQueue)
+	{
+		UE_LOG(LogCook, Display, TEXT("Waiting for card representation async operations..."));
+		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForCardRepresentation);
+		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
 	}
 
 	// Wait for all platform data to be loaded

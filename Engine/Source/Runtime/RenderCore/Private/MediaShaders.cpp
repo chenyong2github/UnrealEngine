@@ -620,7 +620,7 @@ void FSetAlphaOnePS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
  *****************************************************************************/
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReadTextureExternalUB, )
-SHADER_PARAMETER_TEXTURE(TextureExternal, Texture)
+SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
 SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
 SHADER_PARAMETER(FLinearColor, ScaleRotation)
 SHADER_PARAMETER(FVector2D, Offset)

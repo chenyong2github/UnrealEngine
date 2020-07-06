@@ -580,6 +580,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
 	, DataToRender(nullptr)
+	, TranslucentDataToRender(nullptr)
 {
 	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
@@ -917,6 +918,14 @@ void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InData
 	{
 		DataToRender->AddReadRef();
 	}
+
+	// Clear out translucent data to render as we should be equal now
+	if (TranslucentDataToRender)
+	{
+		ensure(DataToRender == TranslucentDataToRender);
+		TranslucentDataToRender->ReleaseReadRef();
+		TranslucentDataToRender = nullptr;
+	}
 }
 
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
@@ -974,4 +983,19 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(
 		return Context->FindIterationInterface(DataInterfaceProxies, SimulationStageIndex);
 	}
 	return nullptr;
+}
+
+void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InDataToRender)
+{
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->ReleaseReadRef();
+	}
+
+	TranslucentDataToRender = InDataToRender;
+
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->AddReadRef();
+	}
 }

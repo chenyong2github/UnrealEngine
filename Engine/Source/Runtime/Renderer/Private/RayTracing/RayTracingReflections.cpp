@@ -283,7 +283,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 
 		// Optional indirection buffer used for sorted materials
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayHitDistanceOutput)
@@ -865,4 +865,14 @@ FRayTracingReflectionOptions GetRayTracingReflectionOptions(const FViewInfo& Vie
 #endif // RHI_RAYTRACING
 
 	return Result;
+}
+
+
+float GetRayTracingReflectionScreenPercentage()
+{
+#if RHI_RAYTRACING
+	return FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
+#else // RHI_RAYTRACING
+	return 1.0f;
+#endif // RHI_RAYTRACING
 }

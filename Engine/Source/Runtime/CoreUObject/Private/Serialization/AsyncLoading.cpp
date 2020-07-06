@@ -7917,7 +7917,7 @@ void FAsyncArchive::Serialize(void* Data, int64 Count)
 	if (ActiveFPLB->StartFastPathLoadBuffer + Count <= ActiveFPLB->EndFastPathLoadBuffer)
 	{
 		// this wasn't one of the cases we devirtualized; we can short circut here to avoid resettting the buffer when we don't need to
-		FMemory::Memcpy(Data, ActiveFPLB->StartFastPathLoadBuffer, Count);
+		FMemory::ParallelMemcpy(Data, ActiveFPLB->StartFastPathLoadBuffer, Count);
 		ActiveFPLB->StartFastPathLoadBuffer += Count;
 		return;
 	}

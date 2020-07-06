@@ -1,0 +1,147 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+#include "HTileEncoding.ush"
+// TODO: Extract VISUALIZE defines out of Nanite
+#include "./Nanite/NaniteDataDecode.ush"
+
+#if PLATFORM_SUPPORTS_HTILE_LOOKUP
+
+uint BitMask(uint Count)
+{
+	return (1 << Count) - 1;
+}
+
+int ExtractSigned(uint Bits, uint Offset, uint Count)
+{
+	return (Bits >> Offset) & BitMask(Count);
+}
+
+uint ExtractUnsigned(uint Bits, uint Offset, uint Count)
+{
+	return (Bits >> Offset) & BitMask(Count);
+}
+
+float ExtractFloat(uint Bits, uint Offset, uint Count)
+{
+	return ExtractUnsigned(Bits, Offset, Count) / (float)BitMask(Count);
+}
+
+float VisualizeTileField(uint Encoding, uint Field)// TODO: , ConstantBuffer<HTileEncodingData> EncodingData)
+{
+	float Value = 0.0f;
+
+	switch (Field)
+	{
+		case HTILE_NO_STENCIL_ZMASK:
+			Value = ExtractFloat(Encoding, 0, 4);
+			break;
+
+		case HTILE_NO_STENCIL_MIN_Z:
+			Value = ExtractFloat(Encoding, 4, 14);
+			break;
+
+		case HTILE_NO_STENCIL_MAX_Z:
+			Value = ExtractFloat(Encoding, 18, 14); 
+			break;
+
+		case HTILE_NO_STENCIL_DELTA:
+			Value = ExtractFloat(Encoding, 18, 14) - ExtractFloat(Encoding, 4, 14);
+			break;
+
+		case HTILE_WITH_STENCIL_ZMASK:
+			Value = ExtractFloat(Encoding, 0, 4);
+			break;
+
+		case HTILE_WITH_STENCIL_SR0:
+			Value = ExtractFloat(Encoding, 4, 2);
+			break;
+
+		case HTILE_WITH_STENCIL_SR1:
+			Value = ExtractFloat(Encoding, 6, 2);
+			break;
+
+		case HTILE_WITH_STENCIL_SMEM:
+			Value = ExtractFloat(Encoding, 8, 2);
+			break;
+
+		case HTILE_WITH_STENCIL_XX:
+			Value = ExtractFloat(Encoding, 10, 2);
+			break;
+
+		case HTILE_WITH_STENCIL_DELTA_Z:
+			Value = ExtractFloat(Encoding, 12, 6);
+			break;
+
+		case HTILE_WITH_STENCIL_BASE_Z:
+			Value = ExtractFloat(Encoding, 18, 14);
+			break;
+
+		case HTILE_WITH_STENCIL_MIN_Z_MAX_BASE:
+			//Value = max(0, ExtractSigned(Encoding, 18, 14) - EncodingData.HiStencilModeTable[ExtractUnsigned(Encoding, 12, 6)].x ) / (float)BitMask(14);
+			break;
+
+		case HTILE_WITH_STENCIL_MAX_Z_MIN_BASE:
+			//Value = min(int(BitMask(14)), ExtractSigned(Encoding, 18, 14) + EncodingData.HiStencilModeTable[ExtractUnsigned(Encoding, 12, 6)].x ) / (float)BitMask(14);
+			break;
+	}
+
+	return Value;
+}
+
+#endif // PLATFORM_SUPPORTS_HTILE_LOOKUP
+
+StructuredBuffer<uint> HTileBuffer;
+RWTexture2D<float4>	HTileDisplay;
+uint4 HTileConfig;
+
+[numthreads(8, 8, 1)]
+void VisualizeHTile(uint3 PixelPos : SV_DispatchThreadID)
+{
+#if PLATFORM_SUPPORTS_HTILE_LOOKUP
+	const uint PlatformConfig	= HTileConfig.x;
+	const uint PixelsWide		= HTileConfig.y;
+	const uint VisualizeMode	= HTileConfig.z;
+
+	const uint TileIndex = ComputeTileOffset(PixelPos.xy, PixelsWide, PlatformConfig);
+
+	const uint HTileEnc = HTileBuffer[TileIndex];
+
+	float Result = 0.0f;
+	if (VisualizeMode == VISUALIZE_SCN_HTILE_MINZ || VisualizeMode == VISUALIZE_MAT_HTILE_MINZ)
+	{
+		Result = pow(VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_MIN_Z), 0.11f);
+	}
+	else if (VisualizeMode == VISUALIZE_SCN_HTILE_MAXZ || VisualizeMode == VISUALIZE_MAT_HTILE_MAXZ)
+	{
+		Result = pow(VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_MAX_Z), 0.11f);
+	}
+	else if (VisualizeMode == VISUALIZE_SCN_HTILE_DELTAZ || VisualizeMode == VISUALIZE_MAT_HTILE_DELTAZ)
+	{
+		Result = pow(VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_DELTA), 0.11f);
+	}
+	else if (VisualizeMode == VISUALIZE_SCN_HTILE_ZMASK || VisualizeMode == VISUALIZE_MAT_HTILE_ZMASK)
+	{
+		Result = VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_ZMASK) / 15.0;
+	}
+
+	HTileDisplay[PixelPos.xy] = float4(Result, 0, 0, 0);
+#else
+	HTileDisplay[PixelPos.xy] = float4(0, 0, 0, 0);
+#endif
+}
+
+#if 0
+	const float HTileZMin   = VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_MIN_Z);
+	const float HTileZMax   = VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_MAX_Z);
+	const float HTileZDelta = VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_DELTA);
+	const float HTileZMask  = VisualizeTileField(HTileEnc, HTILE_NO_STENCIL_ZMASK);
+
+	// TODO: Remove hardcoding - do something like in VisualizeTexture.usf
+	HTileDisplay[PixelPos.xy] = float4(
+		pow(HTileZMin,   0.25f),
+		pow(HTileZMax,   0.25f),
+		pow(HTileZDelta, 0.25f),
+		HTileZMask / 15.0f
+	);
+#endif

@@ -33,13 +33,12 @@ public:
 	}
 
 	// Methods needed by the simplifier.
-	uint32			GetMaterialIndex() const { return MaterialIndex; }
 	FVector&		GetPos() { return Position; }
 	const FVector&	GetPos() const { return Position; }
 
 	// Required for the simplifier
-	float*			GetAttributes() { return (float*)NULL; }
-	const float*	GetAttributes() const { return (const float*)NULL; }
+	float*			GetAttributes() { return nullptr; }
+	const float*	GetAttributes() const { return nullptr; }
 
 	// Required for simplifier
 	void Correct() {}
@@ -48,8 +47,7 @@ public:
 	bool operator==(const VertType& OtherVert) const
 	{
 		bool Result = true;
-		if (MaterialIndex != OtherVert.MaterialIndex ||
-			Position != OtherVert.Position)
+		if (Position != OtherVert.Position)
 		{
 			Result = false;
 		}

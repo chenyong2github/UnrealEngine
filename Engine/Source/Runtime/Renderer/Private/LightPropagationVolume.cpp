@@ -20,6 +20,8 @@
 #include "ScenePrivate.h"
 #include "LightPropagationVolumeSettings.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 DECLARE_GPU_STAT(LPV);
 
 static TAutoConsoleVariable<int32> CVarLightPropagationVolume(
@@ -1514,3 +1516,5 @@ void FDeferredShadingSceneRenderer::UpdateLPVs(FRHICommandListImmediate& RHICmdL
 		}
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

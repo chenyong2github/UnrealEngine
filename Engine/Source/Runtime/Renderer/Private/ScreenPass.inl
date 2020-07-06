@@ -18,12 +18,25 @@ inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateFromInput(
 
 inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateViewFamilyOutput(FRDGTextureRef ViewFamilyTexture, const FViewInfo& View)
 {
+	const FIntRect ViewRect = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect;
+
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
+
+	if (!View.IsFirstInFamily() || View.Family->bAdditionalViewFamily)
+	{
+		LoadAction = ERenderTargetLoadAction::ELoad;
+	}
+	else if (ViewRect.Min != FIntPoint::ZeroValue || ViewRect.Size() != ViewFamilyTexture->Desc.Extent)
+	{
+		LoadAction = ERenderTargetLoadAction::EClear;
+	}
+
 	return FScreenPassRenderTarget(
 		ViewFamilyTexture,
 		// Raw output mode uses the original view rect. Otherwise the final unscaled rect is used.
-		View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect,
+		ViewRect,
 		// First view clears the view family texture; all remaining views load.
-		(!View.Family->bAdditionalViewFamily && View.IsFirstInFamily() )? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+		LoadAction);
 }
 
 inline FScreenPassTextureViewport FScreenPassTextureViewport::CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 DownscaleFactor)

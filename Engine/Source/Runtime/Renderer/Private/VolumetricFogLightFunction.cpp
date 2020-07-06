@@ -176,8 +176,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 			const FBoxSphereBounds SubjectBounds(Bounds.Center, FVector(ShadowExtent, ShadowExtent, ShadowExtent), Bounds.W);
 			ShadowInitializer.PreShadowTranslation = -Bounds.Center;
 			ShadowInitializer.WorldToLight = FInverseRotationMatrix(LightDirection.Rotation());
-			ShadowInitializer.Scales = FVector(1.0f, 1.0f / Bounds.W, 1.0f / Bounds.W);
-			ShadowInitializer.FaceDirection = FVector(1, 0, 0);
+			ShadowInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 			ShadowInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
 			ShadowInitializer.WAxis = FVector4(0, 0, 0, 1);
 			ShadowInitializer.MinLightW = -HALF_WORLD_MAX;
@@ -191,6 +190,8 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				DirectionalLightSceneInfo,
 				&View,
 				ShadowInitializer,
+				LightFunctionResolution.X,
+				LightFunctionResolution.Y,
 				LightFunctionResolution.X,
 				LightFunctionResolution.Y,
 				0,

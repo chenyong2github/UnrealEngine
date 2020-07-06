@@ -263,7 +263,7 @@ public:
 	 * @param Axis2 set matrix row 2
 	 * @param Origin set matrix row 3
 	 */
-	inline void SetAxes(FVector* Axis0 = NULL, FVector* Axis1 = NULL, FVector* Axis2 = NULL, FVector* Origin = NULL);
+	inline void SetAxes(const FVector* Axis0 = NULL, const FVector* Axis1 = NULL, const FVector* Axis2 = NULL, const FVector* Origin = NULL);
 
 	
 	/**

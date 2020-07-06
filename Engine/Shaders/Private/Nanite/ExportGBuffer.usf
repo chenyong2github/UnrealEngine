@@ -1,0 +1,288 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../BRDF.ush"
+#include "NaniteDataDecode.ush"
+
+Texture2D TestDiffuseTexture;
+Texture2D TestNormalTexture;
+SamplerState MaterialSampler;
+
+ByteAddressBuffer MaterialDepthTable;
+ByteAddressBuffer MaterialHitProxyTable;
+
+uint DummyZero;
+
+Texture2D<UlongType> VisBuffer64;
+
+void MarkStencilPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
+	)
+{
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		OutDepth = asfloat(DepthInt);
+	}
+	else
+	{
+		discard;
+	}
+}
+
+void EmitMaterialIdPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutMaterialId : SV_Depth
+	)
+{
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	// Export material depth ID as SV_Depth.
+	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+	FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+	FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+	OutMaterialId = asfloat(MaterialDepthId | DummyZero);	// Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to oDepth in a buffer load instruction.
+}
+
+void EmitDepthPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
+	)
+{
+	OutDepth = 0;
+
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if( VisibleClusterIndex != 0xFFFFFFFF )
+	{
+		OutDepth = asfloat(DepthInt);
+	}
+	else
+	{
+		discard;
+	}
+}
+
+void EmitStencilPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
+	)
+{
+	OutDepth = 0;
+
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+
+		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+		{
+			OutDepth = asfloat(DepthInt);
+		}
+		else
+		{
+			discard;
+		}
+	}
+	else
+	{
+		discard;
+	}
+}
+
+float ViewToClip22;
+float DepthBias;
+
+Texture2D< uint > DepthBuffer;
+
+void EmitShadowMapPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
+	)
+{
+	OutDepth = 0;
+
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	uint DepthInt = DepthBuffer[ PixelPos ];
+
+	if( DepthInt != 0 )
+	{
+		float DeviceZ = asfloat( DepthInt );
+
+#if DEPTH_OUTPUT_TYPE == 0
+		// Standard depth
+		OutDepth = DeviceZ;
+#elif DEPTH_OUTPUT_TYPE == 1
+		// Ortho shadow maps
+		OutDepth = 1 - DeviceZ + DepthBias;
+#else
+		// Perspective shadow maps
+		OutDepth = ViewToClip22 * ( DeviceZ - 1 ) / ( DeviceZ - ViewToClip22 ) + DepthBias;
+		//MinZ = View.ViewToClip[3][2] / ( 1 - View.ViewToClip[2][2] );
+		//ViewZ = View.ViewToClip[3][2] / ( DeviceZ - View.ViewToClip[2][2] );
+#endif
+	}
+	else
+	{
+		discard;
+	}
+}
+
+void EmitHitProxyIdPS(
+	in float4 SvPosition		: SV_Position,
+	out float4 OutHitProxyId	: SV_Target0,
+	out float OutDepth			: SV_Depth
+	)
+{
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
+		float4 HitProxyId = float4(
+			float((MaterialHitProxyId >> 16) & 0xFF) / 255.0f,
+			float((MaterialHitProxyId >>  8) & 0xFF) / 255.0f,
+			float((MaterialHitProxyId >>  0) & 0xFF) / 255.0f,
+			0
+			);
+		OutHitProxyId = HitProxyId;
+		OutDepth = asfloat(DepthInt);
+	}
+	else
+	{
+		discard;
+	}
+}
+
+uint LowerBound(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
+{
+	uint idx = 0;
+	uint width = BufferCount >> 1;
+	
+	UNROLL
+	while (width > 0)
+	{
+		idx += (Key < SearchBuffer[idx + width]) ? 0 : width;
+		width = width >> 1;
+	}
+	
+	return idx;
+}
+
+bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
+{
+	uint idx = LowerBound(SearchBuffer, BufferCount, Key);
+	return SearchBuffer[idx] == Key;
+}
+
+#if EDITOR_SELECTED_BUFFER_COUNT > 0
+
+float2 OutputToInputScale;
+
+void EmitEditorSelectionDepthPS(
+	float4 SvPosition : SV_Position,
+	out float OutDepth : SV_Depth
+	)
+{
+	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale);
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
+		if (BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, MaterialHitProxyId))
+		{
+			OutDepth = asfloat(DepthInt);
+		}
+		else
+		{
+			discard;
+		}
+	}
+	else
+	{
+		discard;
+	}
+}
+#endif
+
+
+void FullScreenVS(
+	float2 InPosition : ATTRIBUTE0,
+	uint TileIndex : SV_InstanceID,
+	out float4 Position : SV_Position
+	)
+{
+	uint2  GridSize = Nanite.CullMaterials==0 ? uint2(1, 1) : uint2(8, 4); // 32 bits, 1 bit per tile
+	float2 GridStep = float2(1.0, 1.0) / (float2)GridSize;
+	uint2  GridPos  = uint2(TileIndex % GridSize.x, TileIndex / GridSize.x);
+
+	// Input position is in [0,0 .. 1,1] range.
+	float2 TilePosition = (InPosition + (float2)GridPos) * GridStep;
+	TilePosition.xy = TilePosition.xy * Nanite.RectScaleOffset.xy + Nanite.RectScaleOffset.zw;
+
+	const float Depth = Nanite.MaterialDepth;
+	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);
+
+	uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
+
+	// Mode 1: cull entire full screen pass
+	// Mode 2: cull individual tiles
+	uint VisibleMask = Nanite.VisibleMaterials[MaterialBucketId];
+	if (Nanite.CullMaterials == 1 && VisibleMask == 0)
+	{
+		Position.x = asfloat(0xFFFFFFFF);
+	}
+	else if (Nanite.CullMaterials == 2 && (VisibleMask & (1u << TileIndex)) == 0)
+	{
+		Position.x = asfloat(0xFFFFFFFF);
+	}
+}

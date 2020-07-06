@@ -232,6 +232,12 @@ inline bool RHISupportsRenderTargetWriteMask(const FStaticShaderPlatform Platfor
 		FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(Platform);
 }
 
+/** True if the given shader platform supports overestimated conservative rasterization */
+inline RHI_API bool RHISupportsConservativeRasterization(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsConservativeRasterization(Platform);
+}
+
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
 class TRHIGlobal
@@ -324,6 +330,9 @@ extern RHI_API bool GRHISupportsPrimitiveShaders;
 /** true if the RHI supports 64 bit uint atomics. */
 extern RHI_API bool GRHISupportsAtomicUInt64;
 
+/** true if the RHI supports optimal low level pipeline state sort keys. */
+extern RHI_API bool GRHISupportsPipelineStateSortKey;
+
 /** Temporary. When OpenGL is running in a separate thread, it cannot yet do things like initialize shaders that are first discovered in a rendering task. It is doable, it just isn't done. */
 extern RHI_API bool GSupportsParallelRenderingTasksWithSeparateRHIThread;
 
@@ -413,6 +422,9 @@ extern RHI_API bool GRHILazyShaderCodeLoading;
 
 /** If true, then it is possible to turn on GRHILazyShaderCodeLoading. */
 extern RHI_API bool GRHISupportsLazyShaderCodeLoading;
+
+/** true if the RHI supports UpdateFromBufferTexture method */
+extern RHI_API bool GRHISupportsUpdateFromBufferTexture;
 
 /** The maximum size to allow for the shadow depth buffer in the X dimension.  This must be larger or equal to GMaxShadowDepthBufferSizeY. */
 extern RHI_API TRHIGlobal<int32> GMaxShadowDepthBufferSizeX;
@@ -574,6 +586,9 @@ extern RHI_API bool GRHIIsHDREnabled;
 /** Whether the present adapter/display offers HDR output capabilities. */
 extern RHI_API bool GRHISupportsHDROutput;
 
+/** The maximum number of groups that can be dispatched in each dimensions. */
+extern RHI_API FIntVector GRHIMaxDispatchThreadGroupsPerDimension;
+
 /** Whether or not the RHI can support Variable Rate Shading. */
 extern RHI_API bool GRHISupportsVariableRateShading;
 
@@ -591,6 +606,8 @@ extern RHI_API uint64 GRHIPresentCounter;
 
 /** True if the RHI supports setting the render target array index from any shader stage */
 extern RHI_API bool GRHISupportsArrayIndexFromAnyShader;
+/** Whether current RHI supports overestimated conservative rasterization. */
+extern RHI_API bool GRHISupportsConservativeRasterization;
 
 /** Called once per frame only from within an RHI. */
 extern RHI_API void RHIPrivateBeginFrame();
@@ -1482,29 +1499,443 @@ struct FRHICopyTextureInfo
 	uint32 NumMips = 1;
 };
 
-enum class EResourceTransitionAccess
-{
-	EReadable, //transition from write-> read
-	EWritable, //transition from read -> write	
-	ERWBarrier, // Mostly for UAVs.  Transition to read/write state and always insert a resource barrier.
-	ERWNoBarrier, //Mostly UAVs.  Indicates we want R/W access and do not require synchronization for the duration of the RW state.  The initial transition from writable->RWNoBarrier and readable->RWNoBarrier still requires a sync
-	ERWSubResBarrier, //For special cases where read/write happens to different subresources of the same resource in the same call.  Inserts a barrier, but read validation will pass.  Temporary until we pass full subresource info to all transition calls.
-	EMetaData,		  // For transitioning texture meta data, for example for making readable in shaders
-	EMaxAccess,
-};
 
-class RHI_API FResourceTransitionUtility
+enum class ERHIPipeline : uint8
 {
-public:
-	static const FString ResourceTransitionAccessStrings[(int32)EResourceTransitionAccess::EMaxAccess + 1];
+	Graphics = 1 << 0,
+	AsyncCompute = 1 << 1,
+
+	Num = 2
 };
+ENUM_CLASS_FLAGS(ERHIPipeline)
 
 enum class EResourceTransitionPipeline
 {
 	EGfxToCompute,
 	EComputeToGfx,
 	EGfxToGfx,
-	EComputeToCompute,	
+	EComputeToCompute,
+
+	// Graphics     - The graphics pipe. This includes regular draw calls *and* compute dispatches that run on the graphics pipe.
+	// AsyncCompute - The async compute pipe. This is compute shader work run explicitly on the async compute pipe.
+
+	Graphics_To_Graphics = EGfxToGfx,
+	Graphics_To_AsyncCompute = EGfxToCompute,
+	AsyncCompute_To_Graphics = EComputeToGfx,
+	AsyncCompute_To_AsyncCompute = EComputeToCompute
+};
+
+static inline void RHIGetSrcDestPipelines(EResourceTransitionPipeline Pipeline, ERHIPipeline& OutSrc, ERHIPipeline& OutDest)
+{
+	switch (Pipeline)
+	{
+	case EResourceTransitionPipeline::Graphics_To_Graphics:
+	case EResourceTransitionPipeline::Graphics_To_AsyncCompute:
+		OutSrc = ERHIPipeline::Graphics;
+		break;
+
+	case EResourceTransitionPipeline::AsyncCompute_To_Graphics:
+	case EResourceTransitionPipeline::AsyncCompute_To_AsyncCompute:
+		OutSrc = ERHIPipeline::AsyncCompute;
+		break;
+	}
+
+	switch (Pipeline)
+	{
+	case EResourceTransitionPipeline::Graphics_To_Graphics:
+	case EResourceTransitionPipeline::AsyncCompute_To_Graphics:
+		OutDest = ERHIPipeline::Graphics;
+		break;
+
+	case EResourceTransitionPipeline::Graphics_To_AsyncCompute:
+	case EResourceTransitionPipeline::AsyncCompute_To_AsyncCompute:
+		OutDest = ERHIPipeline::AsyncCompute;
+		break;
+	}
+}
+
+enum class EResourceTransitionPipelineFlags
+{
+	None = 0,
+
+	// Disables fencing between pipelines during the transition.
+	NoFence = 1 << 0
+};
+ENUM_CLASS_FLAGS(EResourceTransitionPipelineFlags);
+
+enum class EResourceTransitionAccess
+{
+	// Used when the previous state of a resource is not known,
+	// which implies we have to flush all GPU caches etc.
+	Unknown = 0,
+
+	// Read states
+	CPURead = 1 << 0,
+	Present = 1 << 1,
+	IndirectArgs = 1 << 2,
+	VertexOrIndexBuffer = 1 << 3,
+	SRVCompute = 1 << 4,
+	SRVGraphics = 1 << 5,
+	CopySrc = 1 << 6,
+	ResolveSrc = 1 << 7,
+	DSVRead = 1 << 8,
+	EReadable = 1 << 9,
+
+	// Read-write states
+	UAVCompute = 1 << 10,
+	UAVGraphics = 1 << 11,
+	RTV = 1 << 12,
+	CopyDest = 1 << 13,
+	ResolveDst = 1 << 14,
+	DSVWrite = 1 << 15,
+	EWritable = 1 << 16,
+	ERWBarrier = 1 << 17,       // Mostly for UAVs.  Transition to read/write state and always insert a resource barrier.
+	ERWNoBarrier = 1 << 18,     // Mostly UAVs.  Indicates we want R/W access and do not require synchronization for the duration of the RW state.  The initial transition from writable->RWNoBarrier and readable->RWNoBarrier still requires a sync
+
+	Last = EWritable,
+	None = Unknown,
+	Mask = (Last << 1) - 1,
+
+	// A mask of the two possible SRV states
+	SRVMask = SRVCompute | SRVGraphics,
+
+	// A mask of the two possible UAV states
+	UAVMask = UAVCompute | UAVGraphics,
+
+	// A mask of all bits representing read-only states which cannot be combined with other write states.
+	ReadOnlyExclusiveMask = CPURead | Present | IndirectArgs | VertexOrIndexBuffer | SRVGraphics | SRVCompute | CopySrc | ResolveSrc,
+
+	// A mask of all bits representing read-only states which may be combined with other write states.
+	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead | EReadable,
+
+	// A mask of all bits representing readable states which may also include writable states.
+	ReadableMask = ReadOnlyMask | UAVMask | ERWBarrier | ERWNoBarrier,
+
+	// A mask of all bits representing write-only states which cannot be combined with other read states.
+	WriteOnlyExclusiveMask = RTV | CopyDest | ResolveDst,
+
+	// A mask of all bits representing write-only states which may be combined with other read states.
+	WriteOnlyMask = WriteOnlyExclusiveMask | DSVWrite | EWritable,
+
+	// A mask of all bits representing writable states which may also include readable states.
+	WritableMask = WriteOnlyMask | UAVMask | ERWBarrier | ERWNoBarrier,
+
+	// The initial state of all newly created resources. Includes all access bits.
+	InitialMask = Mask,
+
+	// ------------------------------------------
+	// Legacy states
+	ERWSubResBarrier = 1 << 26, // For special cases where read/write happens to different subresources of the same resource in the same call.  Inserts a barrier, but read validation will pass.  Temporary until we pass full subresource info to all transition calls.
+	EMetaData = 1 << 27,        // For transitioning texture meta data, for example for making readable in shaders.
+
+	// A mask of resources that aren't not compatible with the split barrier API.
+	LegacyIncompatibleMask = ERWSubResBarrier | EMetaData,
+
+	// A mask of all legacy resource states.
+	LegacyMask = ERWBarrier | ERWNoBarrier | EReadable | EWritable | LegacyIncompatibleMask
+};
+ENUM_CLASS_FLAGS(EResourceTransitionAccess)
+
+inline bool IsReadOnlyAccess(EResourceTransitionAccess Access)
+{
+	return EnumHasAnyFlags(Access, EResourceTransitionAccess::ReadOnlyMask) && !EnumHasAnyFlags(Access, ~EResourceTransitionAccess::ReadOnlyMask);
+}
+
+inline bool IsWriteOnlyAccess(EResourceTransitionAccess Access)
+{
+	return EnumHasAnyFlags(Access, EResourceTransitionAccess::WriteOnlyMask) && !EnumHasAnyFlags(Access, ~EResourceTransitionAccess::WriteOnlyMask);
+}
+
+inline bool IsWritableAccess(EResourceTransitionAccess Access)
+{
+	return EnumHasAnyFlags(Access, EResourceTransitionAccess::WritableMask);
+}
+
+inline bool IsReadableAccess(EResourceTransitionAccess Access)
+{
+	return EnumHasAnyFlags(Access, EResourceTransitionAccess::ReadableMask);
+}
+
+inline bool IsInvalidAccess(EResourceTransitionAccess Access)
+{
+	return
+		(EnumHasAnyFlags(Access, EResourceTransitionAccess::ReadOnlyExclusiveMask) && EnumHasAnyFlags(Access, EResourceTransitionAccess::WritableMask)) ||
+		(EnumHasAnyFlags(Access, EResourceTransitionAccess::WriteOnlyExclusiveMask) && EnumHasAnyFlags(Access, EResourceTransitionAccess::ReadableMask));
+}
+
+inline bool IsValidAccess(EResourceTransitionAccess Access)
+{
+	return !IsInvalidAccess(Access);
+}
+
+inline EResourceTransitionAccess RHIDecayResourceAccess(EResourceTransitionAccess AccessMask, EResourceTransitionAccess RequiredAccess, bool bAllowUAVOverlap)
+{
+	using T = __underlying_type(EResourceTransitionAccess);
+	checkf((T(RequiredAccess) & (T(RequiredAccess) - 1)) == 0, TEXT("Only one required access bit may be set at once."));
+
+	if (!bAllowUAVOverlap && EnumHasAnyFlags(RequiredAccess, EResourceTransitionAccess::UAVMask))
+	{
+		// UAV writes decay to no allowed resource access when overlaps are disabled. A barrier is always required after the dispatch/draw.
+		return EResourceTransitionAccess::None;
+	}
+
+	// Handle DSV modes
+	if (EnumHasAnyFlags(RequiredAccess, EResourceTransitionAccess::DSVWrite))
+	{
+		constexpr EResourceTransitionAccess CompatibleStates =
+			EResourceTransitionAccess::DSVRead |
+			EResourceTransitionAccess::DSVWrite;
+
+		return AccessMask & CompatibleStates;
+	}
+	if (EnumHasAnyFlags(RequiredAccess, EResourceTransitionAccess::DSVRead))
+	{
+		constexpr EResourceTransitionAccess CompatibleStates =
+			EResourceTransitionAccess::DSVRead |
+			EResourceTransitionAccess::DSVWrite |
+			EResourceTransitionAccess::SRVGraphics |
+			EResourceTransitionAccess::SRVCompute;
+
+		return AccessMask & CompatibleStates;
+	}
+
+	if (EnumHasAnyFlags(RequiredAccess, EResourceTransitionAccess::WritableMask))
+	{
+		// Decay to only 1 allowed state for all other writable states.
+		return RequiredAccess;
+	}
+
+	// Else, the state is readable. All readable states are compatible.
+	return AccessMask;
+}
+
+enum class EResourceTransitionFlags
+{
+	None = 0,
+
+	MaintainCompression = 1 << 0, // Specifies that the transition should not decompress the resource, allowing us to read a compressed resource directly in its compressed state.
+
+	Last = MaintainCompression,
+	Mask = (Last << 1) - 1
+};
+ENUM_CLASS_FLAGS(EResourceTransitionFlags);
+
+RHI_API FString GetResourceTransitionAccessName(EResourceTransitionAccess Access);
+RHI_API FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags);
+RHI_API FString GetRHIPipelineName(ERHIPipeline Pipeline);
+
+// The size in bytes of the storage required by the platform RHI for each resource transition.
+extern RHI_API uint64 GRHITransitionPrivateData_SizeInBytes;
+extern RHI_API uint64 GRHITransitionPrivateData_AlignInBytes;
+
+struct FRHISubresourceRange
+{
+	static const uint32 kDepthPlaneSlice = 0;
+	static const uint32 kStencilPlaneSlice = 1;
+	static const uint32 kAllSubresources = TNumericLimits<uint32>::Max();
+
+	uint32 MipIndex = kAllSubresources;
+	uint32 ArraySlice = kAllSubresources;
+	uint32 PlaneSlice = kAllSubresources;
+
+	FRHISubresourceRange() = default;
+
+	FRHISubresourceRange(
+		uint32 InMipIndex,
+		uint32 InArraySlice,
+		uint32 InPlaneSlice)
+		: MipIndex(InMipIndex)
+		, ArraySlice(InArraySlice)
+		, PlaneSlice(InPlaneSlice)
+	{}
+
+	inline bool IsAllMips() const
+	{
+		return MipIndex == kAllSubresources;
+	}
+
+	inline bool IsAllArraySlices() const
+	{
+		return ArraySlice == kAllSubresources;
+	}
+
+	inline bool IsAllPlaneSlices() const
+	{
+		return PlaneSlice == kAllSubresources;
+	}
+
+	inline bool IsWholeResource() const
+	{
+		return IsAllMips() && IsAllArraySlices() && IsAllPlaneSlices();
+	}
+
+	inline bool IgnoreDepthPlane() const
+	{
+		return PlaneSlice == kStencilPlaneSlice;
+	}
+
+	inline bool IgnoreStencilPlane() const
+	{
+		return PlaneSlice == kDepthPlaneSlice;
+	}
+
+	inline bool operator == (FRHISubresourceRange const& RHS) const
+	{
+		return MipIndex == RHS.MipIndex
+			&& ArraySlice == RHS.ArraySlice
+			&& PlaneSlice == RHS.PlaneSlice;
+	}
+
+	inline bool operator != (FRHISubresourceRange const& RHS) const
+	{
+		return !(*this == RHS);
+	}
+};
+
+struct FRHITransitionInfo : public FRHISubresourceRange
+{
+	union
+	{
+		class FRHIResource* Resource = nullptr;
+		class FRHITexture* Texture;
+		class FRHIVertexBuffer* VertexBuffer;
+		class FRHIIndexBuffer* IndexBuffer;
+		class FRHIStructuredBuffer* StructuredBuffer;
+		class FRHIUnorderedAccessView* UAV;
+	};
+
+	enum class EType : uint8
+	{
+		Unknown,
+		Texture,
+		VertexBuffer,
+		IndexBuffer,
+		StructuredBuffer,
+		UAV
+	} Type = EType::Unknown;
+
+	EResourceTransitionAccess AccessBefore = EResourceTransitionAccess::Unknown;
+	EResourceTransitionAccess AccessAfter = EResourceTransitionAccess::Unknown;
+	EResourceTransitionFlags Flags = EResourceTransitionFlags::None;
+
+	FRHITransitionInfo() = default;
+
+	FRHITransitionInfo(
+		class FRHITexture* InTexture,
+		EResourceTransitionAccess InPreviousState,
+		EResourceTransitionAccess InNewState,
+		EResourceTransitionFlags InFlags = EResourceTransitionFlags::None,
+		uint32 InMipIndex = kAllSubresources,
+		uint32 InArraySlice = kAllSubresources,
+		uint32 InPlaneSlice = kAllSubresources)
+		: FRHISubresourceRange(InMipIndex, InArraySlice, InPlaneSlice)
+		, Texture(InTexture)
+		, Type(EType::Texture)
+		, AccessBefore(InPreviousState)
+		, AccessAfter(InNewState)
+		, Flags(InFlags)
+	{}
+
+	FRHITransitionInfo(class FRHIUnorderedAccessView* InUAV, EResourceTransitionAccess InPreviousState, EResourceTransitionAccess InNewState, EResourceTransitionFlags InFlags = EResourceTransitionFlags::None)
+		: UAV(InUAV)
+		, Type(EType::UAV)
+		, AccessBefore(InPreviousState)
+		, AccessAfter(InNewState)
+		, Flags(InFlags)
+	{}
+
+	inline bool operator == (FRHITransitionInfo const& RHS) const
+	{
+		return Resource == RHS.Resource
+			&& Type == RHS.Type
+			&& AccessBefore == RHS.AccessBefore
+			&& AccessAfter == RHS.AccessAfter
+			&& Flags == RHS.Flags
+			&& FRHISubresourceRange::operator==(RHS);
+	}
+
+	inline bool operator != (FRHITransitionInfo const& RHS) const
+	{
+		return !(*this == RHS);
+	}
+};
+
+// Opaque data structure used to represent a pending resource transition in the RHI.
+struct FRHITransition
+{
+public:
+	template <typename T>
+	inline T* GetPrivateData()
+	{
+		checkSlow(sizeof(T) == GRHITransitionPrivateData_SizeInBytes);
+		checkSlow(GRHITransitionPrivateData_AlignInBytes != 0);
+
+		uintptr_t Addr = Align(uintptr_t(this + 1), GRHITransitionPrivateData_AlignInBytes);
+		return reinterpret_cast<T*>(Addr);
+	}
+
+	template <typename T>
+	inline const T* GetPrivateData() const
+	{
+		return const_cast<FRHITransition*>(this)->GetPrivateData<T>();
+	}
+
+private:
+	// Prevent copying and moving. Only pointers to these structures are allowed.
+	FRHITransition(const FRHITransition&) = delete;
+	FRHITransition(FRHITransition&&) = delete;
+
+	// Private constructor. Memory for transitions is allocated manually with extra space at the tail of the structure for RHI use.
+	FRHITransition()
+		: State(StateMask_Begin | StateMask_End)
+	{}
+
+	~FRHITransition()
+	{}
+
+	// Give private access to specific functions/RHI commands that need to allocate or control transitions.
+	friend const FRHITransition* RHICreateResourceTransition(EResourceTransitionPipeline, EResourceTransitionPipelineFlags, TArrayView<const struct FRHITransitionInfo>);
+	friend class FRHIComputeCommandList;
+	friend struct FRHICommandBeginResourceTransitions;
+	friend struct FRHICommandEndResourceTransitions;
+
+	static inline FRHITransition* Allocate()
+	{
+		// Allocate extra space at the end of this structure for private RHI use. This is determined by GRHITransitionPrivateData_SizeInBytes.
+		uint64 TotalSize = Align(sizeof(FRHITransition), FMath::Max(GRHITransitionPrivateData_AlignInBytes, 1ull)) + GRHITransitionPrivateData_SizeInBytes;
+
+		// Placement create the transition at the start of a new memory block.
+		return new (FMemory::Malloc(TotalSize, alignof(FRHITransition))) FRHITransition;
+	}
+
+	inline void MarkBegin() const
+	{
+		int8 PreviousValue = FPlatformAtomics::InterlockedAnd(&State, ~StateMask_Begin);
+		checkf(PreviousValue & StateMask_Begin, TEXT("RHIBeginResourceTransitions has been called twice on this transition."));
+
+		if (PreviousValue == StateMask_Begin)
+		{
+			Cleanup();
+		}
+	}
+
+	inline void MarkEnd() const
+	{
+		int8 PreviousValue = FPlatformAtomics::InterlockedAnd(&State, ~StateMask_End);
+		checkf(PreviousValue & StateMask_End, TEXT("RHIEndResourceTransitions has been called twice on this transition."));
+
+		if (PreviousValue == StateMask_End)
+		{
+			Cleanup();
+		}
+	}
+
+	inline void Cleanup() const;
+
+	mutable int8 State;
+
+	static constexpr int8 StateMask_Begin = 0x01;
+	static constexpr int8 StateMask_End = 0x02;
 };
 
 /** specifies an update region for a texture */
@@ -1744,3 +2175,13 @@ extern RHI_API FRHIPanicEvent& RHIGetPanicDelegate();
 
 // RHI utility functions that depend on the RHI definitions.
 #include "RHIUtilities.h"
+
+inline void FRHITransition::Cleanup() const
+{
+	FRHITransition* Transition = const_cast<FRHITransition*>(this);
+	RHIReleaseResourceTransition(Transition);
+
+	// Explicit destruction of the transition.
+	Transition->~FRHITransition();
+	FMemory::Free(Transition);
+}

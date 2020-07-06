@@ -98,6 +98,7 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 	bHideUI = InArgs._HideUI;
 	bAllowZoomOutput = InArgs._AllowZoomOutput;
 	bAlwaysDisplayColorCurves = InArgs._AlwaysDisplayColorCurves;
+	bAlwaysHideGradientEditor = InArgs._AlwaysHideGradientEditor;
 	bShowZoomButtons = InArgs._ShowZoomButtons;
 	bShowCurveSelector = InArgs._ShowCurveSelector;
 	bDrawInputGridNumbers = InArgs._ShowInputGridNumbers;
@@ -718,7 +719,7 @@ EVisibility SCurveEditor::GetEditVisibility() const
 
 EVisibility SCurveEditor::GetColorGradientVisibility() const
 {
-	return bIsGradientEditorVisible && IsLinearColorCurve() ? EVisibility::Visible : EVisibility::Collapsed;
+	return IsGradientEditorVisible() && IsLinearColorCurve() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SCurveEditor::GetZoomButtonVisibility() const
@@ -2892,7 +2893,7 @@ void SCurveEditor::CreateContextMenu(const FGeometry& InMyGeometry, const FPoint
 			);
 		}
 
-		if( IsLinearColorCurve() )
+		if( IsLinearColorCurve() && !bAlwaysHideGradientEditor)
 		{
 			FUIAction ShowGradientAction( FExecuteAction::CreateSP( this, &SCurveEditor::OnShowGradientToggled ), FCanExecuteAction(), FIsActionChecked::CreateSP( this, &SCurveEditor::IsGradientEditorVisible ) );
 			MenuBuilder.AddMenuEntry

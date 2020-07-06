@@ -26,7 +26,7 @@ float ComputeDirectionalLightStaticShadowing(float3 WorldPosition)
 				Settings.ShadowDepthTexture = ForwardLightData.DirectionalLightStaticShadowmap;
 				Settings.ShadowDepthTextureSampler = ForwardLightData.StaticShadowmapSampler;
 				Settings.ShadowBufferSize = ForwardLightData.DirectionalLightStaticShadowBufferSize;
-				Settings.SceneDepth = HomogeneousShadowPosition.z;
+				Settings.SceneDepth = 1 - HomogeneousShadowPosition.z;
 				Settings.TransitionScale = 40;
 				Settings.bSubsurface = false;
 				// We can sample outside of the static shadowmap, which is centered around the lightmass importance volume.  These 'infinite' depth values should not cause occlusion.
@@ -50,9 +50,10 @@ float ComputeDirectionalLightStaticShadowing(float3 WorldPosition)
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 0
 #endif
 
-float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneDepth)
+float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneDepth, inout bool bShadowingFromValidUVArea)
 {
 	float ShadowFactor = 1;
+	bShadowingFromValidUVArea = false;
 
 	if (ForwardLightData.NumDirectionalLightCascades > 0)
 	{
@@ -82,7 +83,7 @@ float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneD
 				Settings.ShadowDepthTexture = ForwardLightData.DirectionalLightShadowmapAtlas;
 				Settings.ShadowDepthTextureSampler = ForwardLightData.ShadowmapSampler;
 				Settings.ShadowBufferSize = ForwardLightData.DirectionalLightShadowmapAtlasBufferSize;
-				Settings.SceneDepth = HomogeneousShadowPosition.z;
+				Settings.SceneDepth = 1 - HomogeneousShadowPosition.z;
 				Settings.TransitionScale = 4000;
 				Settings.bSubsurface = false;
 				Settings.bTreatMaxDepthUnshadowed = false;
@@ -93,8 +94,11 @@ float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneD
 			#else
 				// Sample the shadowmap depth and determine if this voxel is shadowed
 				float ShadowDepth = Texture2DSampleLevel(ForwardLightData.DirectionalLightShadowmapAtlas, ForwardLightData.ShadowmapSampler, ShadowUVs, 0).x;
-				ShadowFactor = HomogeneousShadowPosition.z < ShadowDepth - ForwardLightData.DirectionalLightDepthBias.x;
+				ShadowFactor = 1 - HomogeneousShadowPosition.z < ShadowDepth - ForwardLightData.DirectionalLightDepthBias.x;
 			#endif
+
+				// Note this doesn't actually mean the shadow factor computed is valid, eg CSM culling removes meshes which would cast on off-screen areas of the shadowmap, which still have valid UVs
+				bShadowingFromValidUVArea = true;
 			}
 		}
 	}

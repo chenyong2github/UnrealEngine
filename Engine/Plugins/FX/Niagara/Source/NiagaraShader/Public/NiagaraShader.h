@@ -37,20 +37,16 @@ public:
 
 	static uint32 GetGroupSize(EShaderPlatform Platform)
 	{
-		if (Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4)
-		{
-			return 64;
-		}
-		else
-		{
-			return 32;
-		}
+		const bool bUseWaveIntrinsics = false; // TODO: Some content breaks with this - FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIntrinsicWaveOnce;
+		return 64; // TODO: Force 64 until we fix the intrinsics // bUseWaveIntrinsics ? 64 : 32;
 	}
 
 	static void ModifyCompilationEnvironment(const FNiagaraShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		const bool bUseWaveIntrinsics = false; // TODO: Some content breaks with this - FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIntrinsicWaveOnce;
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("USE_WAVE_INTRINSICS"), bUseWaveIntrinsics ? 1 : 0);
 	}
 
 	static bool ShouldCompilePermutation(const FNiagaraShaderPermutationParameters& Parameters)

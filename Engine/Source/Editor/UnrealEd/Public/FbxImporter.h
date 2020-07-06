@@ -151,6 +151,7 @@ struct FBXImportOptions
 	bool bRemoveDegenerates;
 	bool bBuildAdjacencyBuffer;
 	bool bBuildReversedIndexBuffer;
+	bool bBuildNanite;
 	bool bGenerateLightmapUVs;
 	bool bOneConvexHullPerUCX;
 	bool bAutoGenerateCollision;

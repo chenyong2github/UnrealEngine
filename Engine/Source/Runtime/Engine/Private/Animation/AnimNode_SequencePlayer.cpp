@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_SequencePlayer.h"
-#include "Animation/AnimInstanceProxy.h"
+
 #include "AnimEncoding.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_SequencePlayer"
@@ -30,11 +31,13 @@ float FAnimNode_SequencePlayer::GetCurrentAssetLength()
 
 void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread);
+
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if(Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	if (Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
 	{
 		Sequence = nullptr;
 	}
@@ -56,13 +59,16 @@ void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeCo
 
 void FAnimNode_SequencePlayer::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread);
 }
 
 void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateAssetPlayer);
+
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if(Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	if (Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
 	{
 		Sequence = nullptr;
 	}
@@ -89,6 +95,8 @@ void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& 
 
 void FAnimNode_SequencePlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
+
 	if ((Sequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 	{
 		const bool bExpectedAdditive = Output.ExpectsAdditivePose();

@@ -28,6 +28,14 @@ public:
 
 	virtual bool BuildMesh(FStaticMeshRenderData& OutRenderData, UObject* Mesh, const FStaticMeshLODGroup& LODGroup) override;
 
+	virtual bool BuildMesh(
+		UObject* StaticMesh,
+		TArray< FStaticMeshBuildVertex >& Verts,
+		TArray< uint32 >& Indexes,
+		FStaticMeshSectionArray& Sections,
+		uint32& NumTexCoords,
+		bool& bHasColors ) override;
+
 	virtual bool BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
 
 private:
@@ -43,6 +51,23 @@ bool FMeshBuilderModule::BuildMesh(FStaticMeshRenderData& OutRenderData, class U
 	{
 		//Call the static mesh builder
 		return FStaticMeshBuilder().Build(OutRenderData, StaticMesh, LODGroup);
+	}
+	return false;
+}
+
+bool FMeshBuilderModule::BuildMesh(
+	UObject* Mesh,
+	TArray< FStaticMeshBuildVertex >& Verts,
+	TArray< uint32 >& Indexes,
+	FStaticMeshSectionArray& Sections,
+	uint32& NumTexCoords,
+	bool& bHasColors )
+{
+	UStaticMesh* StaticMesh = Cast< UStaticMesh >( Mesh );
+	if( StaticMesh )
+	{
+		//Call the static mesh builder
+		return FStaticMeshBuilder().Build( StaticMesh, Verts, Indexes, Sections, NumTexCoords, bHasColors );
 	}
 	return false;
 }

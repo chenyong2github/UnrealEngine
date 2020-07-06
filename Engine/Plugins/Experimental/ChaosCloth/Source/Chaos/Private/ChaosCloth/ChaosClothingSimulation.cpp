@@ -411,6 +411,11 @@ void ClothingSimulation::UpdateStats(int32 InSimDataIndex)
 
 void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex)
 {
+	if (!Asset)
+	{
+		return;
+	}
+
 	CollisionsRangeMap[InSimDataIndex][0] = Evolution->CollisionParticles().Size();
 
 	// Pull collisions from the specified physics asset inside the clothing asset
@@ -919,6 +924,11 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 	FClothCollisionData ExtractedCollisions;
 
 	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
+
+	if (!Asset)
+	{
+		return;
+	}
 
 	// TODO(mlentine): Support collision body activation on a per particle basis, preferably using a map but also can be a particle attribute
 	if (const UPhysicsAsset* const PhysAsset = Asset->PhysicsAsset)

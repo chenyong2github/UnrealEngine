@@ -1136,7 +1136,7 @@ UMaterialInterface* ALODActor::GetImposterMaterial(const UStaticMeshComponent* I
 		const int32 LODIndex = StaticMesh->GetNumLODs() - 1;
 
 		// Retrieve the sections, we're expect 1 for imposter meshes
-		const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = StaticMesh->RenderData->LODResources[LODIndex].Sections;
+		const FStaticMeshSectionArray& Sections = StaticMesh->RenderData->LODResources[LODIndex].Sections;
 		if (Sections.Num() == 1)
 		{
 			// Retrieve material for this section

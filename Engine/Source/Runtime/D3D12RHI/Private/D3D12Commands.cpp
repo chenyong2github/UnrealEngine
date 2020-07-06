@@ -137,6 +137,14 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 	numDispatches++;
 	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
+#if DEBUG_BARRIER_DISPATCHES
+	D3D12_RESOURCE_BARRIER Barrier = {};
+	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	Barrier.UAV.pResource = nullptr;
+	CommandListHandle->ResourceBarrier(1, &Barrier);
+#endif
+
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -164,12 +172,15 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+	ID3D12CommandSignature* CommandSignature = bIsAsyncComputeContext ? Adapter->GetDispatchIndirectComputeCommandSignature() : Adapter->GetDispatchIndirectGraphicsCommandSignature();
+	
 	numDispatches++;
 	CommandListHandle->ExecuteIndirect(
-		GetParentDevice()->GetParentAdapter()->GetDispatchIndirectCommandSignature(),
+		CommandSignature,
 		1,
 		Location.GetResource()->GetResource(),
 		Location.GetOffsetFromBaseOfResource() + ArgumentOffset,
@@ -177,6 +188,14 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 		0
 		);
 	CommandListHandle.UpdateResidency(Location.GetResource());
+
+#if DEBUG_BARRIER_DISPATCHES
+	D3D12_RESOURCE_BARRIER Barrier = {};
+	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	Barrier.UAV.pResource = nullptr;
+	CommandListHandle->ResourceBarrier(1, &Barrier);
+#endif
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -198,7 +217,7 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], NumTextures);
+	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *GetResourceTransitionAccessName(TransitionType), NumTextures);
 
 	// Determine the direction of the transitions.
 	const D3D12_RESOURCE_STATES* pBefore = nullptr;
@@ -256,7 +275,7 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], InNumUAVs);
+	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *GetResourceTransitionAccessName(TransitionType), InNumUAVs);
 
 	// Always perform UAV barrier when transition type is ERWBarrier because we don't know if the transition will be UAV -> UAV or any other state when ERWBarrier is set
 	// This is the safest path, but sadly enough not the fastest path. Barrier refactor code and RDG will fix this in the future
@@ -1380,7 +1399,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBu
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(
@@ -1428,7 +1447,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(
@@ -1511,7 +1530,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	CommandListHandle->ExecuteIndirect(

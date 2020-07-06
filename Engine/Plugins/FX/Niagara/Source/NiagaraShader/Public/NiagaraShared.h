@@ -387,8 +387,8 @@ public:
 	static void FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush);
 
 	// ShaderMap interface
-	template<typename ShaderType> TNiagaraShaderRef<ShaderType> GetShader() const { return TNiagaraShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(), *this); }
-	TNiagaraShaderRef<FShader> GetShader(FShaderType* ShaderType) const { return TNiagaraShaderRef<FShader>(GetContent()->GetShader(ShaderType), *this); }
+	template<typename ShaderType> TNiagaraShaderRef<ShaderType> GetShader() const { return GetContent() ? TNiagaraShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(), *this) : TNiagaraShaderRef<ShaderType>(); }
+	TNiagaraShaderRef<FShader> GetShader(FShaderType* ShaderType) const { return GetContent() ? TNiagaraShaderRef<FShader>(GetContent()->GetShader(ShaderType), *this) : TNiagaraShaderRef<FShader>(); }
 
 	//static void FixupShaderTypes(EShaderPlatform Platform, const TMap<FShaderType*, FString>& ShaderTypeNames);
 

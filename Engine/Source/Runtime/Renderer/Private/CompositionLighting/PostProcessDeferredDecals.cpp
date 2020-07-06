@@ -469,11 +469,12 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 				FDecalRenderingCommon::ERenderTargetMode LastRenderTargetMode = FDecalRenderingCommon::RTM_Unknown;
 				const ERHIFeatureLevel::Type SMFeatureLevel = Context.GetFeatureLevel();
 
-				SCOPED_DRAW_EVENT(RHICmdList, Decals);
 				INC_DWORD_STAT_BY(STAT_Decals, SortedDecals.Num());
 
 				for (int32 DecalIndex = 0, DecalCount = SortedDecals.Num(); DecalIndex < DecalCount; DecalIndex++)
 				{
+					SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecalsIndex, TEXT("DeferredDecals %d"), DecalIndex);
+
 					const FTransientDecalRenderData& DecalData = SortedDecals[DecalIndex];
 					const FDeferredDecalProxy& DecalProxy = *DecalData.DecalProxy;
 					const FMatrix ComponentToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
@@ -517,6 +518,8 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 
 					if (bStencilThisDecal && bStencilSizeThreshold)
 					{
+						SCOPED_DRAW_EVENT(RHICmdList, DBufferRenderPreStencil);
+
 						// note this is after a SetStreamSource (in if CurrentRenderTargetMode != LastRenderTargetMode) call as it needs to get the VB input
 						bThisDecalUsesStencil = RenderPreStencil(Context, ComponentToWorldMatrix, FrustumComponentToClip);
 
@@ -601,6 +604,8 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 			bool bLastView = Context.View.Family->Views.Last() == &Context.View;
 			if ((Scene.Decals.Num() > 0) && bLastView && CurrentStage == DRS_AmbientOcclusion)
 			{
+				SCOPED_DRAW_EVENT(RHICmdList, DBufferClearStencil);
+
 				// we don't modify stencil but if out input was having stencil for us (after base pass - we need to clear)
 				// Clear stencil to 0, which is the assumed default by other passes
 

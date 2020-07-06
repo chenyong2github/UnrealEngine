@@ -237,7 +237,7 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 }
 
 // Used by mobile renderer only
-half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolants)
+half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters)
 {
 	#if STATICLIGHTING_TEXTUREMASK && STATICLIGHTING_SIGNEDDISTANCEFIELD
 
@@ -268,7 +268,7 @@ half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolan
 	#else
 		#if CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
 			// output per-primitive directional light shadowing if requested
-			if (GetPrimitiveData(Interpolants.PrimitiveId).UseSingleSampleShadowFromStationaryLights > 0 && ResolvedView.IndirectLightingCacheShowFlag > 0.0f)
+			if (GetPrimitiveData(MaterialParameters.PrimitiveId).UseSingleSampleShadowFromStationaryLights > 0 && ResolvedView.IndirectLightingCacheShowFlag > 0.0f)
 			{
 				return IndirectLightingCache.DirectionalLightShadowing;
 			}

@@ -46,6 +46,7 @@
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "VT/VirtualTextureScalability.h"
 #include "Engine/Public/ImageUtils.h"
 #include "TextureCompiler.h"
 #include "Misc/ScopedSlowTask.h"
@@ -2022,7 +2023,7 @@ void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch 
 	// runtime block size checking, conversion, or the like
 	if (DestPitch == 0)
 	{
-		FMemory::Memcpy(Dest, MipData[MipIndex], MipMap.BulkData.GetBulkDataSize());
+		FMemory::ParallelMemcpy(Dest, MipData[MipIndex], MipMap.BulkData.GetBulkDataSize(), EMemcpyCachePolicy::StoreUncached);
 	}
 	else
 	{
@@ -2089,6 +2090,8 @@ void FVirtualTexture2DResource::InitRHI()
 {
 	check(TextureOwner);
 
+	const uint32 MaxAnisotropy = FMath::Min<int32>(VirtualTextureScalability::GetMaxAnisotropy(), VTData->TileBorderSize);
+
 	// We always create a sampler state if we're attached to a texture. This is used to sample the cache texture during actual rendering and the miptails editor resource.
 	// If we're not attached to a texture it likely means we're light maps which have sampling handled differently.
 	FSamplerStateInitializerRHI SamplerStateInitializer
@@ -2102,8 +2105,18 @@ void FVirtualTexture2DResource::InitRHI()
 		AM_Wrap,
 
 		// This doesn't really matter when sampling the cache texture (as it only has a level 0, so whatever the bias that is sampled) but it does when we sample miptail texture
-		0 // VT currently ignores global mip bias ensure the miptail works the same -> UTexture2D::GetGlobalMipMapLODBias()
+		0, // VT currently ignores global mip bias ensure the miptail works the same -> UTexture2D::GetGlobalMipMapLODBias()
+		MaxAnisotropy
 	);
+
+	if (MaxAnisotropy == 0u)
+	{
+		if (SamplerStateInitializer.Filter == SF_AnisotropicLinear || SamplerStateInitializer.Filter == SF_AnisotropicPoint)
+		{
+			SamplerStateInitializer.Filter = SF_Bilinear;
+		}
+	}
+
 	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 	const int32 MaxLevel = VTData->GetNumMips() - FirstMipToUse - 1;

@@ -10,20 +10,6 @@
 
 class FGlobalShaderMap;
 
-/** An empty shader parameter structure ready to be used anywhere. */
-BEGIN_SHADER_PARAMETER_STRUCT(FEmptyShaderParameters, RENDERCORE_API)
-END_SHADER_PARAMETER_STRUCT()
-
-/** Useful parameter struct that only have render targets.
- *
- *	FRenderTargetParameters PassParameters;
- *	PassParameters.RenderTargets.DepthStencil = ... ;
- *	PassParameters.RenderTargets[0] = ... ;
- */
-BEGIN_SHADER_PARAMETER_STRUCT(FRenderTargetParameters, RENDERCORE_API)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
 /**
  * Clears all render graph tracked resources that are not bound by a shader.
  * Excludes any resources on the ExcludeList from being cleared regardless of whether the 
@@ -43,7 +29,7 @@ extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
 	void* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList);
 
-template <typename TShaderClass>
+template<typename TShaderClass>
 void ClearUnusedGraphResources(
 	const TShaderRef<TShaderClass>& Shader,
 	typename TShaderClass::FParameters* InoutParameters,
@@ -130,12 +116,20 @@ struct RENDERCORE_API FComputeShaderUtils
 			FMath::DivideAndRoundUp(ThreadCount.Y, GroupSize.Y),
 			FMath::DivideAndRoundUp(ThreadCount.Z, GroupSize.Z));
 	}
+	static FIntVector GetGroupCount(const FIntVector& ThreadCount, const int32 GroupSize)
+	{
+		return FIntVector(
+			FMath::DivideAndRoundUp(ThreadCount.X, GroupSize),
+			FMath::DivideAndRoundUp(ThreadCount.Y, GroupSize),
+			FMath::DivideAndRoundUp(ThreadCount.Z, GroupSize));
+	}
 
 
 	/** Dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
-	static void Dispatch(FRHICommandList& RHICmdList, const TShaderRef<TShaderClass>& ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
+	static void Dispatch(FRHIComputeCommandList& RHICmdList, const TShaderRef<TShaderClass>& ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
 	{
+		ValidateGroupCount(GroupCount);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
@@ -146,12 +140,13 @@ struct RENDERCORE_API FComputeShaderUtils
 	/** Indirect dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
 	static void DispatchIndirect(
-		FRHICommandList& RHICmdList,
+		FRHIComputeCommandList& RHICmdList,
 		const TShaderRef<TShaderClass>& ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
 		FRHIVertexBuffer* IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
@@ -163,12 +158,13 @@ struct RENDERCORE_API FComputeShaderUtils
 	template<typename TShaderClass>
 	static FORCEINLINE_DEBUGGABLE void DispatchIndirect(
 		FRHICommandList& RHICmdList,
-		const TShaderClass* ComputeShader,
+		const TShaderRef<TShaderClass>& ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
 		FRDGBufferRef IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
-		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer, IndirectArgOffset);
+		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
 		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
@@ -180,20 +176,35 @@ struct RENDERCORE_API FComputeShaderUtils
 	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
+		ERDGPassFlags PassFlags,
 		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FIntVector GroupCount)
 	{
+		checkf(PassFlags == ERDGPassFlags::Compute || PassFlags == ERDGPassFlags::AsyncCompute, TEXT("AddPass only supports 'Compute' or 'AsyncCompute'."));
+
+		ValidateGroupCount(GroupCount);
 		ClearUnusedGraphResources(ComputeShader, Parameters);
 
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERDGPassFlags::Compute,
-			[Parameters, ComputeShader, GroupCount](FRHICommandList& RHICmdList)
+			PassFlags,
+			[Parameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
 		{
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, GroupCount);
 		});
+	}
+
+	template <typename TShaderClass>
+	static FORCEINLINE void AddPass(
+		FRDGBuilder& GraphBuilder,
+		FRDGEventName&& PassName,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		typename TShaderClass::FParameters* Parameters,
+		FIntVector GroupCount)
+	{
+		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, GroupCount);
 	}
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
@@ -201,32 +212,69 @@ struct RENDERCORE_API FComputeShaderUtils
 	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
+		ERDGPassFlags PassFlags,
 		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FRDGBufferRef IndirectArgsBuffer,
-		uint32 IndirectArgOffset)
+		uint32 IndirectArgsOffset)
 	{
-		checkf(IndirectArgsBuffer->Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s was not flagged for indirect draw parameters"), IndirectArgsBuffer->Name);
-
+		checkf(PassFlags == ERDGPassFlags::Compute || PassFlags == ERDGPassFlags::AsyncCompute, TEXT("AddPass only supports 'Compute' or 'AsyncCompute'."));
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer, IndirectArgsOffset);
 		ClearUnusedGraphResources(ComputeShader, Parameters, { IndirectArgsBuffer });
 
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERDGPassFlags::Compute,
-			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgOffset](FRHICommandList& RHICmdList)
+			PassFlags,
+			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgsOffset](FRHIComputeCommandList& RHICmdList)
 		{			
 			// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,
 			// meaning SetShaderParameters() won't be able to do it.
 			IndirectArgsBuffer->MarkResourceAsUsed();
 
-			FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *Parameters, IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
+			FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *Parameters, IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgsOffset);
 		});
+	}
+
+	template<typename TShaderClass>
+	static FORCEINLINE void AddPass(
+		FRDGBuilder& GraphBuilder,
+		FRDGEventName&& PassName,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		typename TShaderClass::FParameters* Parameters,
+		FRDGBufferRef IndirectArgsBuffer,
+		uint32 IndirectArgsOffset)
+	{
+		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, IndirectArgsBuffer, IndirectArgsOffset);
 	}
 
 	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
 	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, FVector4 ClearValue);
+
+	static inline void ValidateGroupCount(const FIntVector& GroupCount)
+	{
+		check(GroupCount.X <= GRHIMaxDispatchThreadGroupsPerDimension.X);
+		check(GroupCount.Y <= GRHIMaxDispatchThreadGroupsPerDimension.Y);
+		check(GroupCount.Z <= GRHIMaxDispatchThreadGroupsPerDimension.Z);
+	}
+
+	static inline void ValidateIndirectArgsBuffer(uint32 IndirectArgsBufferSize, uint32 IndirectArgOffset)
+	{
+		checkf((IndirectArgOffset % 4) == 0, TEXT("IndirectArgOffset for compute shader indirect dispatch needs to be a multiple of 4."));
+		checkf(
+			(IndirectArgOffset + sizeof(FRHIDispatchIndirectParameters)) <= IndirectArgsBufferSize,
+			TEXT("Indirect parameters buffer for compute shader indirect dispatch at byte offset %d doesn't have anought room for FRHIDispatchIndirectParameters."),
+			IndirectArgOffset);
+	}
+
+	static inline void ValidateIndirectArgsBuffer(FRDGBufferRef IndirectArgsBuffer, uint32 IndirectArgOffset)
+	{
+		checkf(IndirectArgsBuffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("The buffer %s needs to be a vertex buffer to be used as an indirect dispatch parameters"), IndirectArgsBuffer->Name);
+		checkf(IndirectArgsBuffer->Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s for indirect dispatch parameters was not flagged with BUF_DrawIndirect"), IndirectArgsBuffer->Name);
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer->Desc.GetTotalNumBytes(), IndirectArgOffset);
+	}
 };
+
 /** Adds a render graph pass to copy a region from one texture to another. Uses RHICopyTexture under the hood.
  *  Formats of the two textures must match. The output and output texture regions be within the respective extents.
  */
@@ -273,6 +321,8 @@ RENDERCORE_API void AddCopyToResolveTargetPass(
 
 /** Adds a render graph pass to clear a texture or buffer UAV with a single typed value. */
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value);
+
+RENDERCORE_API void AddClearStructuredBufferUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value);
 
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4]);
 
@@ -329,3 +379,9 @@ RENDERCORE_API FRDGBufferRef CreateVertexBuffer(
 	const void* InitialData,
 	uint64 InitialDataSize,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+RENDERCORE_API void GetPooledFreeBuffer(
+	FRHICommandList& RHICmdList,
+	const FRDGBufferDesc& Desc,
+	TRefCountPtr<FPooledRDGBuffer>& Out,
+	const TCHAR* InDebugName);

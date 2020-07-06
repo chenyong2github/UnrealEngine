@@ -222,18 +222,19 @@ FVTTranscodeKey FVirtualTextureTranscodeCache::GetKey(const FVirtualTextureProdu
 	return Result;
 }
 
-FVTTranscodeTileHandle FVirtualTextureTranscodeCache::FindTask(const FVTTranscodeKey& InKey) const
+FVTTranscodeTileHandleAndStatus FVirtualTextureTranscodeCache::FindTask(const FVTTranscodeKey& InKey) const
 {
 	for (uint32 Index = TileIDToTaskIndex.First(InKey.Hash); TileIDToTaskIndex.IsValid(Index); Index = TileIDToTaskIndex.Next(Index))
 	{
 		const FTaskEntry& Task = Tasks[Index];
 		if (Task.Key == InKey.Key)
 		{
-			return FVTTranscodeTileHandle(Index, Task.Magic);
+			const bool IsComplete = !Task.GraphEvent || Task.GraphEvent->IsComplete();
+			return FVTTranscodeTileHandleAndStatus(FVTTranscodeTileHandle(Index, Task.Magic), IsComplete);
 		}
 	}
 
-	return FVTTranscodeTileHandle();
+	return FVTTranscodeTileHandleAndStatus();
 }
 
 bool FVirtualTextureTranscodeCache::IsTaskFinished(FVTTranscodeTileHandle InHandle) const
@@ -242,7 +243,7 @@ bool FVirtualTextureTranscodeCache::IsTaskFinished(FVTTranscodeTileHandle InHand
 	check(TaskIndex >= LIST_COUNT);
 	const FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	check(TaskEntry.Magic == InHandle.Magic);
-	return TaskEntry.GraphEvent->IsComplete();
+	return !TaskEntry.GraphEvent || TaskEntry.GraphEvent->IsComplete();
 }
 
 void FVirtualTextureTranscodeCache::WaitTaskFinished(FVTTranscodeTileHandle InHandle) const
@@ -251,7 +252,10 @@ void FVirtualTextureTranscodeCache::WaitTaskFinished(FVTTranscodeTileHandle InHa
 	check(TaskIndex >= LIST_COUNT);
 	const FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	check(TaskEntry.Magic == InHandle.Magic);
-	FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
+	if (TaskEntry.GraphEvent)
+	{
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
+	}
 }
 
 void FVirtualTextureTranscodeCache::WaitTasksFinished() const
@@ -261,12 +265,21 @@ void FVirtualTextureTranscodeCache::WaitTasksFinished() const
 	{
 		FTaskEntry const& TaskEntry = Tasks[TaskIndex];
 		const int32 NextIndex = TaskEntry.NextIndex;
-		if (!TaskEntry.GraphEvent->IsComplete())
+		if (TaskEntry.GraphEvent && !TaskEntry.GraphEvent->IsComplete())
 		{
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
 		}
 		TaskIndex = NextIndex;
 	}
+}
+
+FGraphEventRef FVirtualTextureTranscodeCache::GetTaskEvent(FVTTranscodeTileHandle InHandle) const
+{
+	const uint32 TaskIndex = InHandle.Index;
+	check(TaskIndex >= LIST_COUNT);
+	const FTaskEntry& TaskEntry = Tasks[TaskIndex];
+	check(TaskEntry.Magic == InHandle.Magic);
+	return TaskEntry.GraphEvent;
 }
 
 const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTTranscodeTileHandle InHandle)
@@ -276,7 +289,7 @@ const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTT
 	FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	check(TaskEntry.Magic == InHandle.Magic);
 
-	if (!TaskEntry.GraphEvent->IsComplete())
+	if (TaskEntry.GraphEvent && !TaskEntry.GraphEvent->IsComplete())
 	{
 		// GetRenderThread_Local() will allow render thread to continue to process other tasks while waiting for transcode task to finish
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
@@ -298,7 +311,7 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 	const FGraphEventArray* InPrerequisites)
 {
 	// make sure we don't already have a task for this key
-	checkSlow(!FindTask(InKey).IsValid());
+	checkSlow(!FindTask(InKey).Handle.IsValid());
 
 	int32 TaskIndex = Tasks[LIST_FREE].NextIndex;
 	if (TaskIndex == LIST_FREE)
@@ -321,18 +334,92 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 	TaskEntry.FrameSubmitted = GFrameNumberRenderThread;
 	FMemory::Memzero(TaskEntry.StageTileHandle);
 
+	const FGraphEventArray* Prerequisites = InPrerequisites;
+	if (Prerequisites)
+	{
+		bool bAnyEventPending = false;
+		for (const FGraphEventRef& Event : *Prerequisites)
+		{
+			if (!Event->IsComplete())
+			{
+				bAnyEventPending = true;
+				break;
+			}
+		}
+		if (!bAnyEventPending)
+		{
+			Prerequisites = nullptr;
+		}
+	}
+
+	const uint32 ChunkIndex = InParams.ChunkIndex;
+	const uint32 TileIndex = InParams.VTData->GetTileIndex(InParams.vLevel, InParams.vAddress);
+	const FVirtualTextureDataChunk& Chunk = InParams.VTData->Chunks[ChunkIndex];
 	const uint32 TilePixelSize = InParams.VTData->GetPhysicalTileSize();
 	FVTUploadTileBuffer StagingBuffer[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	bool bNeedToLaunchTask = false;
+
+	TArray<uint8, TInlineAllocator<16u * 1024>> TempBuffer;
+
+	uint32 TileBaseOffset = ~0u;
 	for (uint32 LayerIndex = 0u; LayerIndex < InParams.VTData->GetNumLayers(); ++LayerIndex)
 	{
 		if (InParams.LayerMask & (1u << LayerIndex))
 		{
 			const EPixelFormat LayerFormat = InParams.VTData->LayerTypes[LayerIndex];
-			TaskEntry.StageTileHandle[LayerIndex] = InUploadCache.PrepareTileForUpload(StagingBuffer[LayerIndex], LayerFormat, TilePixelSize);
+			FVTUploadTileBuffer& StagingBufferForLayer = StagingBuffer[LayerIndex];
+
+			const uint32 TileLayerOffset = InParams.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex);
+			const uint32 NextTileLayerOffset = InParams.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex + 1u);
+			if (TileBaseOffset == ~0u)
+			{
+				TileBaseOffset = TileLayerOffset;
+			}
+
+			TaskEntry.StageTileHandle[LayerIndex] = InUploadCache.PrepareTileForUpload(StagingBufferForLayer, LayerFormat, TilePixelSize);
+
+			// If there aren't any prerequisites, it's not worth launching a task for a raw memcpy, just do the work now
+			if (!Prerequisites && Chunk.CodecType[LayerIndex] == EVirtualTextureCodec::RawGPU)
+			{
+				const uint32 DataOffset = TileLayerOffset - TileBaseOffset;
+				const uint32 TileLayerSize = NextTileLayerOffset - TileLayerOffset;
+
+				const uint32 TileWidthInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeX);
+				const uint32 TileHeightInBlocks = FMath::DivideAndRoundUp(TilePixelSize, (uint32)GPixelFormats[LayerFormat].BlockSizeY);
+				const uint32 PackedStride = TileWidthInBlocks * GPixelFormats[LayerFormat].BlockBytes;
+				const size_t PackedOutputSize = PackedStride * TileHeightInBlocks;
+
+				if (StagingBufferForLayer.Stride == PackedStride)
+				{
+					check(TileLayerSize <= StagingBufferForLayer.MemorySize);
+					InParams.Data->CopyTo(StagingBufferForLayer.Memory, DataOffset, TileLayerSize);
+				}
+				else
+				{
+					check(PackedStride <= StagingBufferForLayer.Stride);
+					check(TileLayerSize <= PackedOutputSize);
+					check(TileHeightInBlocks * StagingBufferForLayer.Stride <= StagingBufferForLayer.MemorySize);
+					TempBuffer.SetNumUninitialized(PackedOutputSize, false);
+					InParams.Data->CopyTo(TempBuffer.GetData(), DataOffset, TileLayerSize);
+					for (uint32 y = 0; y < TileHeightInBlocks; ++y)
+					{
+						FMemory::Memcpy((uint8*)StagingBufferForLayer.Memory + y * StagingBufferForLayer.Stride, TempBuffer.GetData() + y * PackedStride, PackedStride);
+					}
+				}
+			}
+			else
+			{
+				// TODO - if this logic gets more complex, should mask off layers that are processed inline when kicking off jobs
+				// for now in practice, should either process all layers inline, or all layers in job
+				bNeedToLaunchTask = true;
+			}
 		}
 	}
 
-	TaskEntry.GraphEvent = TGraphTask<FTranscodeTask>::CreateTask(InPrerequisites).ConstructAndDispatchWhenReady(StagingBuffer, InParams);
+	if (bNeedToLaunchTask)
+	{
+		TaskEntry.GraphEvent = TGraphTask<FTranscodeTask>::CreateTask(Prerequisites).ConstructAndDispatchWhenReady(StagingBuffer, InParams);
+	}
 
 	return FVTTranscodeTileHandle(TaskIndex, TaskEntry.Magic);
 }
@@ -355,7 +442,7 @@ void FVirtualTextureTranscodeCache::RetireOldTasks(FVirtualTextureUploadCache& I
 
 		// can't retire until the task is complete
 		// this should generally not be an issue, as the task should be complete by the time we consider retiring it
-		if (!TaskEntry.GraphEvent->IsComplete())
+		if (TaskEntry.GraphEvent && !TaskEntry.GraphEvent->IsComplete())
 		{
 			break;
 		}

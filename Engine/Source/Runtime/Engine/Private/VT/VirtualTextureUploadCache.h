@@ -58,6 +58,17 @@ private:
 
 	static const uint32 NUM_STAGING_TEXTURES = 3u;
 
+	struct FStagingBuffer
+	{
+		FStagingBuffer();
+		~FStagingBuffer();
+
+		TRefCountPtr<FRHIStructuredBuffer> RHIBuffer;
+		void* Memory = nullptr;
+		uint32 Size = 0u;
+		uint32 CurrentOffset = 0u;
+	};
+
 	struct FStagingTexture
 	{
 		TRefCountPtr<FRHITexture2D> RHITexture;
@@ -82,9 +93,9 @@ private:
 		FTileEntry();
 		~FTileEntry();
 
-		TRefCountPtr<FRHIStructuredBuffer> RHIStagingBuffer;
 		FRHITexture2D* RHISubmitTexture = nullptr;
-		void* Memory = nullptr;
+		uint32 BufferIndex = 0u;
+		uint32 BufferOffset = 0u;
 		uint32 MemorySize = 0u;
 		uint32 Stride = 0u;
 		uint32 FrameSubmitted = 0u;
@@ -133,6 +144,8 @@ private:
 	}
 
 	TArray<FPoolEntry> Pools;
+	TArray<FStagingBuffer> StagingBuffers;
 	TArray<FTileEntry> Tiles;
+	TArray<FRHITexture*> UpdatedTextures;
 	uint32 NumPendingTiles = 0u;
 };

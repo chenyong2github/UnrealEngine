@@ -236,7 +236,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 					AddHairMacroGroupAABBPass(GraphBuilder, MacroGroup, MacroGroupAABBBufferUAV);
 				}
 				MacroGroups.MacroGroupResources.MacroGroupCount = MacroGroups.Datas.Num();
-				GraphBuilder.QueueBufferExtraction(MacroGroupAABBBuffer, &MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+				GraphBuilder.QueueBufferExtraction(MacroGroupAABBBuffer, &MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer);
 				GraphBuilder.Execute();
 			}
 		}

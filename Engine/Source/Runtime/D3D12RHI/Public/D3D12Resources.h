@@ -325,7 +325,7 @@ private:
 			}
 			else if (Type.bDSV)
 			{
-				check(!Type.bRTV && !Type.bUAV && !Type.bBuffer);
+				check(!Type.bRTV && (!Type.bUAV || GRHISupportsDepthUAV) && !Type.bBuffer);
 				WritableState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 				ReadableState = Type.bSRV ? D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_DEPTH_READ;
 			}

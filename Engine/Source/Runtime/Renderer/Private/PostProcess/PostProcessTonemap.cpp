@@ -520,7 +520,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 	// SM5 and above use Texture2D for EyeAdaptation
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
-	SHADER_PARAMETER_RDG_TEXTURE(, ColorGradingLUT)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorGradingLUT)
 	SHADER_PARAMETER_TEXTURE(Texture2D, BloomDirtMaskTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
@@ -948,7 +948,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 		}
 		else
 		{
-			OutputLoadAction = View.GetOverwriteLoadAction();
+		OutputLoadAction = View.GetOverwriteLoadAction();
 		}
 		OutputViewRect = SceneColorViewRect;
 	}

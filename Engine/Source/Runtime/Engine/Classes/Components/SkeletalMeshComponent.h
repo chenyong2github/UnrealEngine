@@ -676,7 +676,7 @@ public:
 	 * weight to blend between simulated results and key-framed positions
 	 * if weight is 1.0, shows only cloth simulation results and 0.0 will show only skinned results
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = Clothing)
 	float ClothBlendWeight;
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
@@ -723,6 +723,7 @@ public:
 	/** Threshold for physics asset bodies above which we use an aggregate for broadphase collisions */
 	int32 RagdollAggregateThreshold;
 
+	UPROPERTY(Interp, BlueprintReadWrite, Category=Clothing, meta=(UIMin = 0.0, UIMax = 10.0, ClampMin = 0.0, ClampMax = 10000.0))
 	float ClothMaxDistanceScale;
 
 	/** Notification when constraint is broken. */
@@ -1400,6 +1401,9 @@ public:
 
 	/** Tick Animation system */
 	void TickAnimation(float DeltaTime, bool bNeedsValidRootMotion);
+
+	/** Tick all of our anim instances (linked instances, main instance and post process) */
+	void TickAnimInstances(float DeltaTime, bool bNeedsValidRootMotion);
 
 	/** Tick Clothing Animation , basically this is called inside TickComponent */
 	void TickClothing(float DeltaTime, FTickFunction& ThisTickFunction);

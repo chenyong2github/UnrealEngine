@@ -26,7 +26,7 @@ void MainCS(
 )
 {
 	// Note: This should match the same logic for getting the linear index as the reflection RGS
-	const uint2 PixelCoord = GetPixelCoord(DispatchThreadId + (uint2)View.ViewRectMin, UpscaleFactor);
+	const uint2 PixelCoord = GetPixelCoord(DispatchThreadId.xy + (uint2)View.ViewRectMin, UpscaleFactor);
 	const uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
 
 	if (DispatchThreadId.x >= RayTracingResolution.x || DispatchThreadId.y >= RayTracingResolution.y)

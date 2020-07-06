@@ -80,7 +80,6 @@ DEFINE_STAT(STAT_DecalsDrawTime);
 // The purpose of these memory stats is to capture where most of the renderer allocated memory is going, 
 // Not to track all of the allocations, and not to track resource memory (index buffers, vertex buffers, etc).
 
-
 DEFINE_STAT(STAT_PrimitiveInfoMemory);
 DEFINE_STAT(STAT_RenderingSceneMemory);
 DEFINE_STAT(STAT_ViewStateMemory);
@@ -166,6 +165,8 @@ DEFINE_STAT(STAT_ParticleUpdateRTTime);
 DEFINE_STAT(STAT_InfluenceWeightsUpdateRTTime);
 DEFINE_STAT(STAT_GPUSkinUpdateRTTime);
 DEFINE_STAT(STAT_CPUSkinUpdateRTTime);
+
+DEFINE_STAT(STAT_UpdateGPUSceneTime);
 
 DEFINE_STAT(STAT_RemoveSceneLightTime);
 DEFINE_STAT(STAT_UpdateSceneLightTime);

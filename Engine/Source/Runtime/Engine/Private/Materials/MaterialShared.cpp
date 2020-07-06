@@ -2114,7 +2114,7 @@ TShaderRef<FShader> FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FV
 			// Get the ShouldCache results that determine whether the shader should be compiled
 			auto ShaderPlatform = GShaderPlatformForFeatureLevel[GetFeatureLevel()];
 			bool bMaterialShouldCache = ShouldCache(ShaderPlatform, ShaderType, VertexFactoryType);
-			bool bVFShouldCache = FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(VertexFactoryType, ShaderPlatform, this);
+			bool bVFShouldCache = FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(ShaderPlatform, this, VertexFactoryType, ShaderType);
 			bool bShaderShouldCache = ShaderType->ShouldCompilePermutation(ShaderPlatform, this, VertexFactoryType, PermutationId);
 			FString MaterialUsage = GetMaterialUsageDescription();
 
@@ -2182,7 +2182,7 @@ FShaderPipelineRef FMaterial::GetShaderPipeline(class FShaderPipelineType* Shade
 				else if (ShaderType->GetMeshMaterialShaderType())
 				{
 					bool bMaterialShouldCache = ShouldCache(ShaderPlatform, ShaderType->GetMeshMaterialShaderType(), VertexFactoryType);
-					bool bVFShouldCache = FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(VertexFactoryType, ShaderPlatform, this);
+					bool bVFShouldCache = FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(ShaderPlatform, this, VertexFactoryType, ShaderType);
 					bool bShaderShouldCache = ShaderType->GetMeshMaterialShaderType()->ShouldCompilePermutation(ShaderPlatform, this, VertexFactoryType, kUniqueShaderPermutationId);
 
 					UE_LOG(LogMaterial, Error, TEXT("%s %s ShouldCache: Mat=%u, VF=%u, Shader=%u"),
@@ -2380,20 +2380,34 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 	for (uint32 LayerIndex = 0u; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const UTexture2D* Texture = LayerTextures[LayerIndex];
-		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (Texture && Texture->IsCurrentlyVirtualTextured()) ? (FVirtualTexture2DResource*)Texture->Resource : nullptr;
+		if (!Texture)
+		{
+			continue;
+		}
+		if (!Texture->IsCurrentlyVirtualTextured())
+		{
+			UE_LOG(LogMaterial, Warning, TEXT("Material '%s' expects texture '%s' to be Virtual"),
+				*GetFriendlyName(), *Texture->GetName());
+			continue;
+		}
+
+		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (FVirtualTexture2DResource*)Texture->Resource;
 		if (VirtualTextureResourceForLayer != nullptr)
 		{
 			// All tile sizes need to match
 			check(!bFoundValidLayer || VTDesc.TileSize == VirtualTextureResourceForLayer->GetTileSize());
 			check(!bFoundValidLayer || VTDesc.TileBorderSize == VirtualTextureResourceForLayer->GetBorderSize());
 
-			VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
-			VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
 			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
-			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-			VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
-			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
-			bFoundValidLayer = true;
+			if (ProducerHandle.IsValid())
+			{
+				VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
+				VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
+				VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
+				VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
+				GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
+				bFoundValidLayer = true;
+			}
 		}
 	}
 
@@ -3415,8 +3429,13 @@ bool UMaterialInterface::IsTextureReferencedByProperty(EMaterialProperty InPrope
 		bool FoundTexture;
 	};
 
-	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
+	if (!MaterialResource)
+	{
+		return false;
+	}
+
+	FMaterialCompilationOutput TempOutput;
 	FMaterialShaderMapId ShaderMapID;
 	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;

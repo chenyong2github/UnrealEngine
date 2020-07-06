@@ -18,6 +18,8 @@ template<typename ResourceType>
 extern RENDERCORE_API void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const ResourceType& SrcBuffer, uint32 NumBytes, uint32 DstOffset = 0, uint32 SrcOffset = 0);
 template<typename ResourceType>
 extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, const TCHAR* DebugName);
+template<typename ResourceType>
+extern RENDERCORE_API bool ResizeResourceSOAIfNeeded( FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName );
 
 class FScatterUploadBuffer
 {
@@ -45,7 +47,7 @@ public:
 	void Add( uint32 Index, const void* Data, uint32 Num = 1 )
 	{
 		void* Dst = Add_GetRef( Index, Num );
-		FMemory::Memcpy( Dst, Data, Num * NumBytesPerElement );
+		FMemory::ParallelMemcpy(Dst, Data, Num * NumBytesPerElement, EMemcpyCachePolicy::StoreUncached);
 	}
 
 	void* Add_GetRef( uint32 Index, uint32 Num = 1 )

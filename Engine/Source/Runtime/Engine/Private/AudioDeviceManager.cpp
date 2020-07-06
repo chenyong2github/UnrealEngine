@@ -236,6 +236,34 @@ FAudioDeviceManager::~FAudioDeviceManager()
 	}
 }
 
+FAudioDevice* FAudioDeviceManager::GetAudioDeviceFromWorldContext(const UObject* WorldContextObject)
+{
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
+	{
+		return nullptr;
+	}
+
+	return ThisWorld->GetAudioDeviceRaw();
+}
+
+Audio::FMixerDevice* FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject)
+{
+	if (FAudioDevice* AudioDevice = GetAudioDeviceFromWorldContext(WorldContextObject))
+	{
+		if (!AudioDevice->IsAudioMixerEnabled())
+		{
+			return nullptr;
+		}
+		else
+		{
+			return static_cast<Audio::FMixerDevice*>(AudioDevice);
+		}
+	}
+	return nullptr;
+}
+
+
 bool FAudioDeviceManager::ToggleAudioMixer()
 {
 	// Only need to toggle if we have 2 device module names loaded at init

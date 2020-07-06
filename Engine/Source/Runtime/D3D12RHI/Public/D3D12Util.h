@@ -112,7 +112,9 @@ struct FD3D12QuantizedBoundShaderState
 {
 	FShaderRegisterCounts RegisterCounts[SV_ShaderVisibilityCount];
 	ERTRootSignatureType RootSignatureType = RS_Raster;
-	bool bAllowIAInputLayout;
+	uint8 bAllowIAInputLayout : 1;
+	uint8 bUseVendorExtension : 1;
+	uint8 Padding : 6;
 
 	inline bool operator==(const FD3D12QuantizedBoundShaderState& RHS) const
 	{

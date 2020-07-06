@@ -24,10 +24,10 @@ uint ObjectBoundingGeometryIndexCount;
 void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 {
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-	RWCulledObjectBounds[DestIndex] = LoadFloat4(SceneObjectBounds, SourceIndex);
+	RWCulledObjectBounds[DestIndex] = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
 #else
-	float4 BoxOriginAndSphereRadius = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE);
-	float4 BoxExtent = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE + 1);
+	float4 BoxOriginAndSphereRadius = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
+	float4 BoxExtent = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 1];
 	BoxExtent.z += MAX_TRACE_SPHERE_RADIUS;
 
 	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE] = BoxOriginAndSphereRadius;
@@ -38,7 +38,7 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 	for (uint VectorIndex = 0; VectorIndex < CULLED_OBJECT_DATA_STRIDE; VectorIndex++)
 	{
 		// Note: only copying the first CULLED_OBJECT_DATA_STRIDE of the original object data
-		RWCulledObjectData[DestIndex * CULLED_OBJECT_DATA_STRIDE + VectorIndex] = LoadFloat4(SceneObjectData, SourceIndex * OBJECT_DATA_STRIDE + VectorIndex);
+		RWCulledObjectData[DestIndex * CULLED_OBJECT_DATA_STRIDE + VectorIndex] = SceneObjectData[SourceIndex * OBJECT_DATA_STRIDE + VectorIndex];
 	}
 
 	float3 MinViewSpacePosition = float3(2000000, 2000000, 2000000);
@@ -144,7 +144,7 @@ void CullObjectsForShadowCS(
 	if (ObjectIndex < NumSceneObjects)
 	{
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-		float4 ObjectBoundingSphere = LoadFloat4(SceneObjectBounds, SourceIndex);
+		float4 ObjectBoundingSphere = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
         
         if ((ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(ObjectBoundingSphere.xyz, ObjectBoundingSphere.w))
 			|| (ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - ObjectBoundingSphere.xyz, ShadowBoundingSphere.xyz - ObjectBoundingSphere.xyz) < Square(ShadowBoundingSphere.w + ObjectBoundingSphere.w)))
@@ -162,8 +162,8 @@ void CullObjectsForShadowCS(
             }
         }
 #else
-		float3 BoxOrigin = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE).xyz;
-		float3 BoxExtent = LoadFloat4(SceneObjectBounds, SourceIndex * OBJECT_BOUNDS_STRIDE + 1).xyz;
+		float3 BoxOrigin = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
+		float3 BoxExtent = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
 
 		if (ShadowConvexHullIntersectBox(BoxOrigin, BoxExtent))
 		{

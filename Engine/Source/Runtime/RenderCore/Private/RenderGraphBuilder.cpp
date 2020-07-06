@@ -1,531 +1,1665 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphBuilder.h"
-#include "RenderCore.h"
+#include "RenderGraphPrivate.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
-#include "RenderGraphBarrierBatcher.h"
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-namespace
+inline bool IsSubresourceTrackingRequired(EResourceTransitionAccess Access, EResourceTransitionFlags Flags)
 {
-const int32 kRDGEmitWarningsOnce = 1;
+	// Aggressively merge into a whole union state if possible. Otherwise, revert to subresource tracking.
+	return !IsValidAccess(Access) || Flags != EResourceTransitionFlags::None;
+}
 
-#if RDG_ENABLE_DEBUG
-
-int32 GRDGImmediateMode = 0;
-FAutoConsoleVariableRef CVarImmediateMode(
-	TEXT("r.RDG.ImmediateMode"),
-	GRDGImmediateMode,
-	TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
-	ECVF_RenderThreadSafe);
-
-int32 GRDGDebug = 0;
-FAutoConsoleVariableRef CVarRDGDebug(
-	TEXT("r.RDG.Debug"),
-	GRDGDebug,
-	TEXT("Allow to output warnings for inefficiencies found during wiring and execution of the passes.\n")
-	TEXT(" 0: disabled;\n")
-	TEXT(" 1: emit warning once (default);\n")
-	TEXT(" 2: emit warning everytime issue is detected."),
-	ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<int32> CVarRDGEnableBreakpoint(
-	TEXT("r.RDG.EnableBreakpoint"), 0,
-	TEXT("Breakpoint in debugger when a warning is raised.\n"),
-	ECVF_RenderThreadSafe);
-
-int32 GRDGClobberResources = 0;
-FAutoConsoleVariableRef CVarRDGClobberResources(
-	TEXT("r.RDG.ClobberResources"),
-	GRDGClobberResources,
-	TEXT("Clears all render targets and texture / buffer UAVs with the requested clear color at allocation time. Useful for debugging.\n")
-	TEXT(" 0:off (default);\n")
-	TEXT(" 1: 1000 on RGBA channels;\n")
-	TEXT(" 2: NaN on RGBA channels;\n")
-	TEXT(" 3: +INFINITY on RGBA channels.\n"),
-	ECVF_Cheat | ECVF_RenderThreadSafe);
-
-FLinearColor GetClobberColor()
+inline void GetPassAccess(ERDGPassFlags PassFlags, EResourceTransitionAccess& SRVAccess, EResourceTransitionAccess& UAVAccess)
 {
-	switch (GRDGClobberResources)
+	SRVAccess = EResourceTransitionAccess::Unknown;
+	UAVAccess = EResourceTransitionAccess::Unknown;
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster))
 	{
-	case 2:
-		return FLinearColor(NAN, NAN, NAN, NAN);
-		break;
-	case 3:
-		return FLinearColor(INFINITY, INFINITY, INFINITY, INFINITY);
-		break;
-	default:
-		return FLinearColor(1000, 1000, 1000, 1000);
+		SRVAccess |= EResourceTransitionAccess::SRVGraphics;
+		UAVAccess |= EResourceTransitionAccess::UAVGraphics;
+	}
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute))
+	{
+		SRVAccess |= EResourceTransitionAccess::SRVCompute;
+		UAVAccess |= EResourceTransitionAccess::UAVCompute;
+	}
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Copy))
+	{
+		SRVAccess |= EResourceTransitionAccess::CopySrc;
 	}
 }
 
-uint32 GetClobberBufferValue()
+/** Enumerates all texture accesses and provides the access and subresource range info. This results in
+ *  multiple invocations of the same resource, but with different access / subresource range.
+ */
+template <typename TAccessFunction>
+void EnumerateTextureAccess(FRDGPassParameterStruct PassParameters, ERDGPassFlags PassFlags, TAccessFunction AccessFunction)
 {
-	return 1000;
-}
+	EResourceTransitionAccess SRVAccess, UAVAccess;
+	GetPassAccess(PassFlags, SRVAccess, UAVAccess);
 
-#else
-
-const int32 GRDGImmediateMode = 0;
-const int32 GRDGDebug = 0;
-const int32 GRDGClobberResources = 0;
-
-#endif
-
-} //! namespace
-
-bool IsRDGClobberResourcesEnabled()
-{
-	return GRDGClobberResources > 0;
-}
-
-bool GetEmitRDGEvents()
-{
-	check(IsInRenderingThread());
-#if RDG_EVENTS != RDG_EVENTS_NONE
-	return GetEmitDrawEvents() || GRDGDebug;
-#else
-	return false;
-#endif
-}
-
-bool IsRDGDebugEnabled()
-{
-	return GRDGDebug != 0;
-}
-
-bool IsRDGImmediateModeEnabled()
-{
-	return GRDGImmediateMode != 0;
-}
-
-void InitRenderGraph()
-{
-#if RDG_ENABLE_DEBUG_WITH_ENGINE
-	if (FParse::Param(FCommandLine::Get(), TEXT("rdgimmediate")))
+	for (uint32 Index = 0; Index < PassParameters.GetTextureParameterCount(); ++Index)
 	{
-		GRDGImmediateMode = 1;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebug")))
-	{
-		GRDGDebug = 1;
-	}
-#endif
-}
-
-void EmitRDGWarning(const FString& WarningMessage)
-{
-#if RDG_ENABLE_DEBUG_WITH_ENGINE
-	if (!GRDGDebug)
-	{
-		return;
-	}
-
-	static TSet<FString> GAlreadyEmittedWarnings;
-
-	const bool bEnableBreakpoint = CVarRDGEnableBreakpoint.GetValueOnRenderThread() != 0;
-
-	if (GRDGDebug == kRDGEmitWarningsOnce)
-	{
-		if (!GAlreadyEmittedWarnings.Contains(WarningMessage))
+		const FRDGPassParameter Parameter = PassParameters.GetTextureParameter(Index);
+		switch (Parameter.GetType())
 		{
-			GAlreadyEmittedWarnings.Add(WarningMessage);
-			UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
-
-			if (bEnableBreakpoint)
+		case UBMT_RDG_TEXTURE:
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
 			{
-				UE_DEBUG_BREAK();
+				AccessFunction(nullptr, Texture, SRVAccess, Texture->GetSubresourceRange());
+			}
+		break;
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				AccessFunction(nullptr, Texture, EResourceTransitionAccess::CopyDest, Texture->GetSubresourceRange());
+			}
+		break;
+		case UBMT_RDG_TEXTURE_SRV:
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
+			{
+				AccessFunction(SRV, SRV->GetParent(), SRVAccess, SRV->GetSubresourceRange());
+			}
+		break;
+		case UBMT_RDG_TEXTURE_UAV:
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+			{
+				AccessFunction(UAV, UAV->GetParent(), UAVAccess, UAV->GetSubresourceRange());
+			}
+		break;
+		case UBMT_RENDER_TARGET_BINDING_SLOTS:
+		{
+			const EResourceTransitionAccess RTVAccess = EResourceTransitionAccess::RTV;
+
+			const FRenderTargetBindingSlots& RenderTargets = Parameter.GetAsRenderTargetBindingSlots();
+
+			RenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
+			{
+				FRDGTextureRef Texture = RenderTarget.GetTexture();
+
+				FRDGTextureSubresourceRange Range(Texture->GetSubresourceRange());
+				Range.MipIndex = RenderTarget.GetMipIndex();
+				Range.NumMips = 1;
+
+				if (RenderTarget.GetArraySlice() != -1)
+				{
+					Range.ArraySlice = RenderTarget.GetArraySlice();
+					Range.NumArraySlices = 1;
+				}
+
+				AccessFunction(nullptr, Texture, RTVAccess, Range);
+			});
+
+			const FDepthStencilBinding& DepthStencil = RenderTargets.DepthStencil;
+
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+			{
+				DepthStencil.GetDepthStencilAccess().EnumerateSubresources([&](EResourceTransitionAccess NewAccess, uint32 PlaneSlice)
+				{
+					FRDGTextureSubresourceRange Range = Texture->GetSubresourceRange();
+
+					// Adjust the range to use a single plane slice if not using of them all.
+					if (PlaneSlice != FRHITransitionInfo::kAllSubresources)
+					{
+						Range.PlaneSlice = PlaneSlice;
+						Range.NumPlaneSlices = 1;
+					}
+
+					AccessFunction(nullptr, Texture, NewAccess, Range);
+				});
 			}
 		}
+		break;
+		}
+	}
+}
+
+/** Enumerates all texture pass parameters and calls the provided function. The input function must accept an FRDGResource*,
+ *  since either views or textures are provided.
+ */
+template <typename TParameterFunction>
+void EnumerateTextureParameters(FRDGPassParameterStruct PassParameters, TParameterFunction ParameterFunction)
+{
+	for (uint32 Index = 0; Index < PassParameters.GetTextureParameterCount(); ++Index)
+	{
+		const FRDGPassParameter Parameter = PassParameters.GetTextureParameter(Index);
+		switch (Parameter.GetType())
+		{
+		case UBMT_RDG_TEXTURE:
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				ParameterFunction(Texture);
+			}
+		break;
+		case UBMT_RDG_TEXTURE_SRV:
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
+			{
+				ParameterFunction(SRV);
+			}
+		break;
+		case UBMT_RDG_TEXTURE_UAV:
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+			{
+				ParameterFunction(UAV);
+			}
+		break;
+		case UBMT_RENDER_TARGET_BINDING_SLOTS:
+		{
+			const FRenderTargetBindingSlots& RenderTargets = Parameter.GetAsRenderTargetBindingSlots();
+
+			RenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
+			{
+				ParameterFunction(RenderTarget.GetTexture());
+			});
+
+			if (FRDGTextureRef Texture = RenderTargets.DepthStencil.GetTexture())
+			{
+				ParameterFunction(Texture);
+			}
+		}
+		break;
+		}
+	}
+}
+
+/** Enumerates all buffer accesses and provides the access info. */
+template <typename TAccessFunction>
+void EnumerateBufferAccess(FRDGPassParameterStruct PassParameters, ERDGPassFlags PassFlags, TAccessFunction AccessFunction)
+{
+	EResourceTransitionAccess SRVAccess, UAVAccess;
+	GetPassAccess(PassFlags, SRVAccess, UAVAccess);
+
+	for (uint32 Index = 0; Index < PassParameters.GetBufferParameterCount(); ++Index)
+	{
+		const FRDGPassParameter Parameter = PassParameters.GetBufferParameter(Index);
+		switch (Parameter.GetType())
+		{
+		case UBMT_RDG_BUFFER:
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				EResourceTransitionAccess BufferAccess = SRVAccess;
+
+				if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_DrawIndirect))
+				{
+					BufferAccess |= EResourceTransitionAccess::IndirectArgs;
+				}
+
+				AccessFunction(nullptr, Buffer, BufferAccess);
+			}
+		break;
+		case UBMT_RDG_BUFFER_COPY_DEST:
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				AccessFunction(nullptr, Buffer, EResourceTransitionAccess::CopyDest);
+			}
+		break;
+		case UBMT_RDG_BUFFER_SRV:
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
+			{
+				AccessFunction(SRV, SRV->GetParent(), SRVAccess);
+			}
+		break;
+		case UBMT_RDG_BUFFER_UAV:
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
+			{
+				AccessFunction(UAV, UAV->GetParent(), UAVAccess);
+			}
+		break;
+		}
+	}
+}
+
+/** Enumerates all buffer pass parameters and calls the provided function. The input function must accept an FRDGResource*,
+ *  since either views or textures are provided.
+ */
+template <typename TParameterFunction>
+void EnumerateBufferParameters(FRDGPassParameterStruct PassParameters, TParameterFunction ParameterFunction)
+{
+	for (uint32 Index = 0; Index < PassParameters.GetBufferParameterCount(); ++Index)
+	{
+		const FRDGPassParameter Parameter = PassParameters.GetBufferParameter(Index);
+		switch (Parameter.GetType())
+		{
+		case UBMT_RDG_BUFFER:
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				ParameterFunction(Buffer);
+			}
+		break;
+		case UBMT_RDG_BUFFER_COPY_DEST:
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				ParameterFunction(Buffer);
+			}
+		break;
+		case UBMT_RDG_BUFFER_SRV:
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
+			{
+				ParameterFunction(SRV);
+			}
+		break;
+		case UBMT_RDG_BUFFER_UAV:
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
+			{
+				ParameterFunction(UAV);
+			}
+		break;
+		}
+	}
+}
+
+inline FRDGResourceHandle GetHandleIfNoUAVBarrier(FRDGChildResourceRef Resource)
+{
+	if (Resource && EnumHasAnyFlags(Resource->Flags, ERDGChildResourceFlags::NoUAVBarrier))
+	{
+		return Resource->GetHandle();
 	}
 	else
 	{
-		UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
+		return FRDGResourceHandle::Null;
+	}
+}
 
-		if (bEnableBreakpoint)
+inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGChildResourceRef Resource)
+{
+	if (Resource)
+	{
+		switch (Resource->Type)
 		{
-			UE_DEBUG_BREAK();
+		case ERDGChildResourceType::TextureUAV:
+		{
+			FRDGTextureUAVRef UAV = static_cast<FRDGTextureUAVRef>(Resource);
+			if (UAV->Desc.MetaData != ERDGTextureMetaDataAccess::None)
+			{
+				return EResourceTransitionFlags::MaintainCompression;
+			}
+		}
+		break;
+		case ERDGChildResourceType::TextureSRV:
+		{
+			FRDGTextureSRVRef SRV = static_cast<FRDGTextureSRVRef>(Resource);
+			if (SRV->Desc.MetaData != ERDGTextureMetaDataAccess::None)
+			{
+				return EResourceTransitionFlags::MaintainCompression;
+			}
+		}
+		break;
 		}
 	}
-#endif
+	return EResourceTransitionFlags::None;
 }
 
 void FRDGBuilder::TickPoolElements()
 {
 	GRenderGraphResourcePool.TickPoolElements();
+
+#if RDG_ENABLE_DEBUG
+	if (GRDGDumpGraph)
+	{
+		--GRDGDumpGraph;
+	}
+	if (GRDGTransitionLog > 0)
+	{
+		--GRDGTransitionLog;
+	}
+	GRDGDumpGraphUnknownCount = 0;
+#endif
 }
 
-FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
+ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlags PassFlags, bool bAsyncComputeSupported)
+{
+	const bool bDebugAllowedForPass =
+#if RDG_ENABLE_DEBUG
+		IsDebugAllowedForPass(PassName);
+#else
+		true;
+#endif
+
+	const bool bGlobalForceAsyncCompute = (GRDGAsyncCompute == RDG_ASYNC_COMPUTE_FORCE_ENABLED && !GRDGImmediateMode && bDebugAllowedForPass);
+	const bool bLocalForceAsyncCompute = EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::ForceAsyncComputeEnable);
+	bAsyncComputeSupported |= EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::ForceAsyncComputeDisable);
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Compute) && (bGlobalForceAsyncCompute || bLocalForceAsyncCompute))
+	{
+		PassFlags &= ~ERDGPassFlags::Compute;
+		PassFlags |= ERDGPassFlags::AsyncCompute;
+	}
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::AsyncCompute) && (GRDGAsyncCompute == RDG_ASYNC_COMPUTE_DISABLED || GRDGImmediateMode || !bAsyncComputeSupported))
+	{
+		PassFlags &= ~ERDGPassFlags::AsyncCompute;
+		PassFlags |= ERDGPassFlags::Compute;
+	}
+
+	return PassFlags;
+}
+
+FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InBuilderName, ERDGBuilderFlags InBuilderFlags)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
-	, BarrierBatcher(MakeUnique<FRDGBarrierBatcher>())
-	, EventScopeStack(RHICmdList)
-	, StatScopeStack(RHICmdList)
+	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
+	, BuilderName(InBuilderName)
+	, BuilderFlags(InBuilderFlags)
+#if RDG_SCOPES
+	, ScopeStacks(RHICmdList, RHICmdListAsyncCompute)
+#endif
+#if RDG_ENABLE_DEBUG
+	, BarrierValidation(&Passes, BuilderName)
+#endif
 {
-	AllocatedTextures.Reserve(16);
-	AllocatedBuffers.Reserve(16);
+	ProloguePass = Allocate<FRDGSentinelPass>(RDG_EVENT_NAME("Graph Prologue"));
+	EpiloguePass = Allocate<FRDGSentinelPass>(RDG_EVENT_NAME("Graph Epilogue"));
+
+	AddPassInternal(ProloguePass);
 }
 
-FRDGBuilder::~FRDGBuilder() {}
+FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TCHAR* Name,
+	ERDGParentResourceFlags Flags,
+	EResourceTransitionAccess AccessInitial,
+	EResourceTransitionAccess AccessFinal)
+{
+#if RDG_ENABLE_DEBUG
+	checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
+	checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
+	UserValidation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
+#endif
+
+	if (FRDGTextureRef* TexturePtr = ExternalTextures.Find(ExternalPooledTexture.GetReference()))
+	{
+		FRDGTextureRef Texture = *TexturePtr;
+#if RDG_ENABLE_DEBUG
+		checkf(Texture->AccessInitial == AccessInitial,
+			TEXT("External texture %s is already registered, but with different initial access values. Existing (%s), Requested (%s)"), Name,
+			*GetResourceTransitionAccessName(Texture->AccessInitial), *GetResourceTransitionAccessName(AccessInitial));
+		checkf(Texture->AccessInitial == AccessInitial && Texture->AccessFinal == AccessFinal && Texture->Flags == Flags,
+			TEXT("External texture %s is already registered, but with different final access values. Existing (%s), Requested (%s)"), Name,
+			*GetResourceTransitionAccessName(Texture->AccessFinal), *GetResourceTransitionAccessName(AccessFinal));
+		checkf(Texture->Flags == Flags, TEXT("External texture %s is already registered, but with different resource flags."), Name);
+#endif
+		return Texture;
+	}
+
+	FRDGSubresourceState StateInitial;
+	StateInitial.Access = AccessInitial;
+
+	const bool bIsExternal = true;
+	FRDGTexture* OutTexture = AllocateResource<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), Flags, bIsExternal);
+	OutTexture->Init(ExternalPooledTexture);
+	OutTexture->AccessInitial = AccessInitial;
+	OutTexture->AccessFinal = AccessFinal;
+	OutTexture->State.InitAsWholeResource(StateInitial);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateExternalTexture(OutTexture));
+
+	AllocatedTextures.Add(OutTexture);
+	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
+	TextureCount++;
+
+	// Perform a dummy extraction to get the resource into the final state.
+	if (AccessFinal != EResourceTransitionAccess::Unknown)
+	{
+		FDeferredInternalTextureQuery Query;
+		Query.Texture = OutTexture;
+		DeferredInternalTextureQueries.Emplace(Query);
+	}
+
+	return OutTexture;
+}
+
+FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
+	const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
+	const TCHAR* Name,
+	ERDGParentResourceFlags Flags,
+	EResourceTransitionAccess AccessInitial,
+	EResourceTransitionAccess AccessFinal)
+{
+#if RDG_ENABLE_DEBUG
+	checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
+	UserValidation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
+#endif
+
+	if (FRDGBufferRef* BufferPtr = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
+	{
+		FRDGBufferRef Buffer = *BufferPtr;
+#if RDG_ENABLE_DEBUG
+		checkf(Buffer->AccessInitial == AccessInitial,
+			TEXT("External buffer %s is already registered, but with different initial access values. Existing (%s), Requested (%s)"), Name,
+			*GetResourceTransitionAccessName(Buffer->AccessInitial), *GetResourceTransitionAccessName(AccessInitial));
+		checkf(Buffer->AccessInitial == AccessInitial && Buffer->AccessFinal == AccessFinal && Buffer->Flags == Flags,
+			TEXT("External buffer %s is already registered, but with different final access values. Existing (%s), Requested (%s)"), Name,
+			*GetResourceTransitionAccessName(Buffer->AccessFinal), *GetResourceTransitionAccessName(AccessFinal));
+		checkf(Buffer->Flags == Flags, TEXT("External buffer %s is already registered, but with different resource flags."), Name);
+#endif
+		return Buffer;
+	}
+
+	const bool bIsExternal = true;
+	FRDGBuffer* OutBuffer = AllocateResource<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, Flags, bIsExternal);
+	OutBuffer->Init(ExternalPooledBuffer);
+	OutBuffer->AccessInitial = AccessInitial;
+	OutBuffer->AccessFinal = AccessFinal;
+	OutBuffer->State.Access = AccessInitial;
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateExternalBuffer(OutBuffer));
+
+	AllocatedBuffers.Add(OutBuffer);
+	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
+	BufferCount++;
+
+	// Perform a dummy extraction to get the resource into the final state.
+	if (AccessFinal != EResourceTransitionAccess::Unknown)
+	{
+		FDeferredInternalBufferQuery Query;
+		Query.Buffer = OutBuffer;
+		DeferredInternalBufferQueries.Emplace(Query);
+	}
+
+	return OutBuffer;
+}
+
+void FRDGBuilder::AddPassDependencyInternal(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle)
+{
+	checkf(ProducerHandle.IsValid(), TEXT("AddPassDependency called with null producer."));
+	checkf(ConsumerHandle.IsValid(), TEXT("AddPassDependency called with null consumer."));
+
+	FRDGPass* Producer = Passes[ProducerHandle];
+	Producer->Consumers.AddUnique(ConsumerHandle);
+
+	FRDGPass* Consumer = Passes[ConsumerHandle];
+	if (Consumer->Producers.Find(ProducerHandle) == INDEX_NONE)
+	{
+		Consumer->Producers.Add(ProducerHandle);
+	}
+};
+
+void FRDGBuilder::Compile()
+{
+	// Immediate mode skips all compilation and executes in place.
+	if (GRDGImmediateMode)
+	{
+		PassesToCull.Init(false, Passes.Num());
+		return;
+	}
+
+	SCOPED_NAMED_EVENT(FRDGBuilder_Compile, FColor::Emerald);
+
+	FPassBitArray PassesOnAsyncCompute(false, Passes.Num());
+	FPassBitArray PassesOnRaster(false, Passes.Num());
+	FPassBitArray PassesWithExternalOutputs(false, Passes.Num());
+	PassesToCull.Init(GRDGCullPasses ? true : false, Passes.Num());
+
+	const auto IsRaster = [&](FRDGPassHandle A)
+	{
+		return PassesOnRaster[A.GetIndex()];
+	};
+
+	const auto IsAsyncCompute = [&](FRDGPassHandle A)
+	{
+		return PassesOnAsyncCompute[A.GetIndex()];
+	};
+
+	const auto IsCrossPipeline = [&](FRDGPassHandle A, FRDGPassHandle B)
+	{
+		return PassesOnAsyncCompute[A.GetIndex()] != PassesOnAsyncCompute[B.GetIndex()];
+	};
+
+	const auto HasExternalOutputs = [&](FRDGPassHandle A)
+	{
+		return PassesWithExternalOutputs[A.GetIndex()];
+	};
+
+	const auto IsSortedBefore = [&](FRDGPassHandle A, FRDGPassHandle B)
+	{
+		return A.GetIndex() < B.GetIndex();
+	};
+
+	const auto IsSortedAfter = [&](FRDGPassHandle A, FRDGPassHandle B)
+	{
+		return A.GetIndex() > B.GetIndex();
+	};
+
+	const auto AddPassDependenciesForResource = [&](FRDGPassHandle PassHandle, FRDGParentResource* Resource, EResourceTransitionAccess AccessUnion)
+	{
+		const FRDGPassHandle ProducerHandle = Resource->LastProducer;
+
+		// Certain readable states are also writable, so this could be the first access.
+		if (ProducerHandle.IsValid())
+		{
+			AddPassDependencyInternal(ProducerHandle, PassHandle);
+		}
+
+		// If the access is writable, we store the new producer.
+		if (IsWritableAccess(AccessUnion))
+		{
+			for (FRDGPassHandle ConsumerHandle : Resource->LastConsumers)
+			{
+				AddPassDependencyInternal(ConsumerHandle, PassHandle);
+			}
+			Resource->LastConsumers.Empty();
+			Resource->LastProducer = PassHandle;
+
+			// External outputs make this a root candidate (e.g. we can't cull it).
+			PassesWithExternalOutputs[PassHandle.GetIndex()] |= Resource->bIsExternal;
+		}
+		else
+		{
+			check(IsReadableAccess(AccessUnion));
+			Resource->LastConsumers.Emplace(PassHandle);
+		}
+	};
+
+	FPassBitArray PassesToNeverCull(false, Passes.Num());
+
+	for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+	{
+		FRDGPass* Pass = Passes[PassHandle];
+		const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+		const ERDGPassFlags PassFlags = Pass->GetFlags();
+
+		PassesOnRaster[PassHandle.GetIndex()] = EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster);
+		PassesOnAsyncCompute[PassHandle.GetIndex()] = EnumHasAnyFlags(PassFlags, ERDGPassFlags::AsyncCompute);
+		PassesToNeverCull[PassHandle.GetIndex()] = EnumHasAnyFlags(PassFlags, ERDGPassFlags::NeverCull);
+		PassesWithExternalOutputs[PassHandle.GetIndex()] |= PassParameters.HasExternalOutputs();
+
+		for (auto TextureAccessPair : Pass->TextureAccessMap)
+		{
+			AddPassDependenciesForResource(PassHandle, TextureAccessPair.Key, TextureAccessPair.Value.AccessUnion);
+		}
+
+		for (auto BufferAccessPair : Pass->BufferAccessMap)
+		{
+			AddPassDependenciesForResource(PassHandle, BufferAccessPair.Key, BufferAccessPair.Value.AccessUnion);
+		}
+	}
+	
+	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
+	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
+
+	// The prologue / epilogue is responsible for external resource import / export, respectively.
+	PassesWithExternalOutputs[ProloguePassHandle.GetIndex()] = true;
+	PassesWithExternalOutputs[EpiloguePassHandle.GetIndex()] = true;
+
+	// Add additional dependencies from deferred queries.
+	for (const auto& Query : DeferredInternalTextureQueries)
+	{
+		AddPassDependenciesForResource(EpiloguePassHandle, Query.Texture, Query.Texture->AccessFinal);
+		Query.Texture->ReferenceCount += Query.Texture->GetSubresourceRange().GetSubresourceCount();
+	}
+	for (const auto& Query : DeferredInternalBufferQueries)
+	{
+		AddPassDependenciesForResource(EpiloguePassHandle, Query.Buffer, Query.Buffer->AccessFinal);
+		Query.Buffer->ReferenceCount++;
+	}
+
+	if (GRDGCullPasses)
+	{
+		TArray<FRDGPassHandle, TInlineAllocator<32, SceneRenderingAllocator>> PassStack;
+
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+		{
+			if (HasExternalOutputs(PassHandle) || PassesToNeverCull[PassHandle.GetIndex()])
+			{
+				PassStack.Add(PassHandle);
+			}
+		}
+
+		while (PassStack.Num())
+		{
+			const FRDGPassHandle PassHandle = PassStack.Pop();
+
+			if (PassesToCull[PassHandle.GetIndex()])
+			{
+				PassesToCull[PassHandle.GetIndex()] = false;
+				PassStack.Append(Passes[PassHandle]->Producers);
+			}
+		}
+	}
+
+	FPassBitArray PassesWithCrossPipelineProducer(false, Passes.Num());
+	FPassBitArray PassesWithCrossPipelineConsumer(false, Passes.Num());
+
+	for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+	{
+		if (IsCulled(PassHandle))
+		{
+			continue;
+		}
+
+		FRDGPass* Pass = Passes[PassHandle];
+
+		for (FRDGPassHandle ProducerHandle : Pass->GetProducers())
+		{
+			const FRDGPassHandle ConsumerHandle = PassHandle;
+
+			if (IsCrossPipeline(ProducerHandle, ConsumerHandle))
+			{
+				FRDGPass* Consumer = Pass;
+				FRDGPass* Producer = Passes[ProducerHandle];
+
+				// Finds the earliest consumer on the other pipeline for the producer.
+				if (Producer->CrossPipelineConsumer.IsNull() || IsSortedBefore(ConsumerHandle, Producer->CrossPipelineConsumer))
+				{
+					Producer->CrossPipelineConsumer = PassHandle;
+					PassesWithCrossPipelineConsumer[ProducerHandle.GetIndex()] = true;
+				}
+
+				// Finds the latest producer on the other pipeline for the consumer.
+				if (Consumer->CrossPipelineProducer.IsNull() || IsSortedAfter(ProducerHandle, Consumer->CrossPipelineProducer))
+				{
+					Consumer->CrossPipelineProducer = ProducerHandle;
+					PassesWithCrossPipelineProducer[ConsumerHandle.GetIndex()] = true;
+				}
+			}
+		}
+
+		for (auto TextureAccessPair : Pass->TextureAccessMap)
+		{
+			TextureAccessPair.Key->ReferenceCount += TextureAccessPair.Value.ReferenceCount;
+		}
+
+		for (auto BufferAccessPair : Pass->BufferAccessMap)
+		{
+			BufferAccessPair.Key->ReferenceCount += BufferAccessPair.Value.ReferenceCount;
+		}
+	}
+
+	const auto IsCrossPipelineProducer = [&](FRDGPassHandle A)
+	{
+		return PassesWithCrossPipelineConsumer[A.GetIndex()];
+	};
+
+	const auto IsCrossPipelineConsumer = [&](FRDGPassHandle A)
+	{
+		return PassesWithCrossPipelineProducer[A.GetIndex()];
+	};
+
+	const auto FindCrossPipelineProducer = [&](FRDGPassHandle PassHandle)
+	{
+		check(PassHandle != ProloguePassHandle);
+
+		FRDGPassHandle LatestProducerHandle = ProloguePassHandle;
+		FRDGPassHandle ConsumerHandle = PassHandle;
+
+		// We want to find the latest producer on the other pipeline in order to establish a fork point.
+		// Since we could be consuming N resources with N producer passes, we only care about the last one.
+		while (ConsumerHandle != Passes.Begin())
+		{
+			if (!IsCulled(ConsumerHandle) && !IsCrossPipeline(ConsumerHandle, PassHandle) && IsCrossPipelineConsumer(ConsumerHandle))
+			{
+				const FRDGPass* Consumer = Passes[ConsumerHandle];
+
+				if (IsSortedAfter(Consumer->CrossPipelineProducer, LatestProducerHandle))
+				{
+					LatestProducerHandle = Consumer->CrossPipelineProducer;
+				}
+			}
+			--ConsumerHandle;
+		}
+
+		return LatestProducerHandle;
+	};
+
+	const auto FindCrossPipelineConsumer = [&](FRDGPassHandle PassHandle)
+	{
+		check(PassHandle != EpiloguePassHandle);
+
+		FRDGPassHandle EarliestConsumerHandle = EpiloguePassHandle;
+		FRDGPassHandle ProducerHandle = PassHandle;
+
+		// We want to find the earliest consumer on the other pipeline, as this establishes a join point
+		// between the pipes. Since we could be producing for N consumers on the other pipeline, we only
+		// care about the first one to execute.
+		while (ProducerHandle != Passes.End())
+		{
+			if (!IsCulled(ProducerHandle) && !IsCrossPipeline(ProducerHandle, PassHandle) && IsCrossPipelineProducer(ProducerHandle))
+			{
+				const FRDGPass* Producer = Passes[ProducerHandle];
+
+				if (IsSortedBefore(Producer->CrossPipelineConsumer, EarliestConsumerHandle))
+				{
+					EarliestConsumerHandle = Producer->CrossPipelineConsumer;
+				}
+			}
+			++ProducerHandle;
+		}
+
+		return EarliestConsumerHandle;
+	};
+
+	// Establishes Fork / Join regions for async compute. This is used for fencing as well as resource
+	// allocation / deallocation. Async compute passes can't allocate / release their resource references until
+	// the fork / join is complete, since the two pipes run in parallel.
+	{
+		FRDGPass* PrevGraphicsForkPass = nullptr;
+		FRDGPass* PrevGraphicsJoinPass = nullptr;
+		FRDGPass* PrevAsyncComputePass = nullptr;
+
+		const auto InsertGraphicsToAsyncComputeFork = [&](FRDGPass* GraphicsPass, FRDGPass* AsyncComputePass)
+		{
+			GraphicsPass->bGraphicsFork = 1;
+			GraphicsPass->EpilogueBarriersToBeginForAsyncCompute.SetUseCrossPipelineFence();
+
+			AsyncComputePass->bAsyncComputeBegin = 1;
+			AsyncComputePass->PrologueBarriersToEnd.AddDependency(&GraphicsPass->EpilogueBarriersToBeginForAsyncCompute);
+		};
+
+		const auto InsertAsyncToGraphicsComputeJoin = [&](FRDGPass* AsyncComputePass, FRDGPass* GraphicsPass)
+		{
+			AsyncComputePass->bAsyncComputeEnd = 1;
+			AsyncComputePass->EpilogueBarriersToBeginForGraphics.SetUseCrossPipelineFence();
+
+			GraphicsPass->bGraphicsJoin = 1;
+			GraphicsPass->PrologueBarriersToEnd.AddDependency(&AsyncComputePass->EpilogueBarriersToBeginForGraphics);
+		};
+
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+		{
+			if (!IsCulled(PassHandle) && IsAsyncCompute(PassHandle))
+			{
+				FRDGPass* AsyncComputePass = Passes[PassHandle];
+
+				const FRDGPassParameterStruct PassParameters = AsyncComputePass->GetParameters();
+				const ERDGPipeline Pipeline = AsyncComputePass->GetPipeline();
+
+				const FRDGPassHandle GraphicsForkPassHandle = FindCrossPipelineProducer(PassHandle);
+				const FRDGPassHandle GraphicsJoinPassHandle = FindCrossPipelineConsumer(PassHandle);
+
+				AsyncComputePass->GraphicsForkPass = GraphicsForkPassHandle;
+				AsyncComputePass->GraphicsJoinPass = GraphicsJoinPassHandle;
+
+				FRDGPass* GraphicsForkPass = Passes[GraphicsForkPassHandle];
+				FRDGPass* GraphicsJoinPass = Passes[GraphicsJoinPassHandle];
+
+				GraphicsForkPass->PassesToBegin.Add(PassParameters);
+
+				if (PrevGraphicsForkPass != GraphicsForkPass)
+				{
+					InsertGraphicsToAsyncComputeFork(GraphicsForkPass, AsyncComputePass);
+				}
+
+				if (PrevGraphicsJoinPass != GraphicsJoinPass && PrevAsyncComputePass)
+				{
+					InsertAsyncToGraphicsComputeJoin(PrevAsyncComputePass, PrevGraphicsJoinPass);
+				}
+
+				PrevAsyncComputePass = AsyncComputePass;
+				PrevGraphicsForkPass = GraphicsForkPass;
+				PrevGraphicsJoinPass = GraphicsJoinPass;
+			}
+		}
+
+		if (PrevAsyncComputePass)
+		{
+			InsertAsyncToGraphicsComputeJoin(PrevAsyncComputePass, EpiloguePass);
+			PrevAsyncComputePass->bAsyncComputeEndExecute = 1;
+		}
+	}
+
+	// Release external textures that have ReferenceCount == 0 and yet are already allocated.
+	for (auto TextureIt = AllocatedTextures.CreateIterator(); TextureIt; ++TextureIt)
+	{
+		FRDGTextureRef Texture = *TextureIt;
+		if (Texture->ReferenceCount == 0)
+		{
+			Texture->PooledTexture = nullptr;
+			TextureIt.RemoveCurrent();
+		}
+		else
+		{
+			IF_RDG_ENABLE_DEBUG(LogFile.AddFirstEdge(Texture, ProloguePassHandle));
+		}
+	}
+
+	// Release external buffers that have ReferenceCount == 0 and yet are already allocated.
+	for (auto BufferIt = AllocatedBuffers.CreateIterator(); BufferIt; ++BufferIt)
+	{
+		FRDGBufferRef Buffer = *BufferIt;
+		if (Buffer->ReferenceCount == 0)
+		{
+			Buffer->PooledBuffer = nullptr;
+			BufferIt.RemoveCurrent();
+		}
+		else
+		{
+			IF_RDG_ENABLE_DEBUG(LogFile.AddFirstEdge(Buffer, ProloguePassHandle));
+		}
+	}
+
+	if (GRDGMergeRenderPasses)
+	{
+		FRDGPassHandle PrevPassHandle;
+		const FRenderTargetBindingSlots* PrevRenderTargets = nullptr;
+
+		const auto InvalidateMerge = [&]()
+		{
+			PrevPassHandle = FRDGPassHandle::Null;
+			PrevRenderTargets = nullptr;
+		};
+
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+		{
+			if (IsCulled(PassHandle))
+			{
+				continue;
+			}
+
+			if (IsRaster(PassHandle))
+			{
+				FRDGPass* NextPass = Passes[PassHandle];
+
+				if (NextPass->IsGraphicsFork())
+				{
+					InvalidateMerge();
+				}
+
+				const FRenderTargetBindingSlots* RenderTargets = NextPass->GetParameters().GetRenderTargetBindingSlots();
+				check(RenderTargets);
+
+				if (PrevPassHandle.IsValid())
+				{
+					check(PrevRenderTargets);
+
+					if (PrevRenderTargets->CanMergeBefore(*RenderTargets))
+					{
+						FRDGPass* PrevPass = Passes[PrevPassHandle];
+						PrevPass->bSkipRenderPassEnd = 1;
+						NextPass->bSkipRenderPassBegin = 1;
+					}
+				}
+
+				PrevPassHandle = PassHandle;
+				PrevRenderTargets = RenderTargets;
+			}
+			else if (!IsAsyncCompute(PassHandle))
+			{
+				// A compute pass on the graphics pipe will invalidate the render target merge.
+				InvalidateMerge();
+			}
+		}
+	}
+}
 
 void FRDGBuilder::Execute()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FRDGBuilder_Execute);
 	SCOPED_NAMED_EVENT(FRDGBuilder_Execute, FColor::Emerald);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecuteBegin());
-	AllocatedBuffers.Reserve(BufferCount);
-	AllocatedTextures.Reserve(TextureCount);
+	AddPassInternal(EpiloguePass);
 
-	EventScopeStack.BeginExecute();
-	StatScopeStack.BeginExecute();
+	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
+
+	AllocatedTextures.Reserve(TextureCount);
+	AllocatedBuffers.Reserve(BufferCount);
+
+	Compile();
+
+#if RDG_ENABLE_DEBUG
+	UserValidation.ValidateExecuteBegin();
+	LogFile.Begin(BuilderName, &Passes, GetProloguePassHandle(), GetEpiloguePassHandle());
+#endif
 
 	if (!GRDGImmediateMode)
 	{
-		WalkGraphDependencies();
-
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_Execute);
-		for (const FRDGPass* Pass : Passes)
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
 		{
+			if (!IsCulled(PassHandle))
+			{
+				CollectPassBarriers(PassHandle);
+			}
+		}
+	}
+
+	for (auto& Query : DeferredInternalTextureQueries)
+	{
+		FRDGTextureRef Texture = Query.Texture;
+
+		// We only transition the resource if it's used in the graph or if the user explicitly requested that it be extracted.
+		if (Texture->AccessFinal != EResourceTransitionAccess::Unknown && (Texture->StateFirst.PassHandle.IsValid() || Query.OutTexturePtr))
+		{
+			Texture->StatePending.InitAsWholeResource(FRDGSubresourceState(FRDGPassHandle::Null, ERDGPipeline::Graphics, Texture->AccessFinal));
+			AddTransition(Texture, Texture->State, Texture->StatePending);
+			ResolveState(EpiloguePass, Texture);
+			Texture->AccessFinal = EResourceTransitionAccess::Unknown;
+		}
+	}
+
+	for (auto& Query : DeferredInternalBufferQueries)
+	{
+		FRDGBufferRef Buffer = Query.Buffer;
+
+		// We only transition the resource if it's used in the graph or if the user explicitly requested that it be extracted.
+		if (Buffer->AccessFinal != EResourceTransitionAccess::Unknown && (Buffer->StateFirst.PassHandle.IsValid() || Query.OutBufferPtr))
+		{
+			Buffer->StatePending = FRDGSubresourceState(FRDGPassHandle::Null, ERDGPipeline::Graphics, Buffer->AccessFinal);
+			AddTransition(Buffer, Buffer->State, Buffer->StatePending);
+			ResolveState(EpiloguePass, Buffer);
+			Buffer->AccessFinal = EResourceTransitionAccess::Unknown;
+		}
+	}
+
+	IF_RDG_SCOPES(ScopeStacks.BeginExecute());
+
+	if (!GRDGImmediateMode)
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_Execute_Passes);
+
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
+		{
+			if (!IsCulled(PassHandle))
+			{
+				ExecutePass(Passes[PassHandle]);
+			}
+		}
+	}
+	else
+	{
+		ExecutePass(EpiloguePass);
+	}
+
+#if WITH_MGPU
+	if (NameForTemporalEffect != NAME_None)
+	{
+		TArray<FRHITexture*> BroadcastTexturesForTemporalEffect;
+		for (const auto& Query : DeferredInternalTextureQueries)
+		{
+			if (EnumHasAnyFlags(Query.Texture->Flags, ERDGParentResourceFlags::MultiFrame))
+			{
+				BroadcastTexturesForTemporalEffect.Add(Query.Texture->GetRHIUnchecked());
+			}
+		}
+		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, BroadcastTexturesForTemporalEffect);
+	}
+#endif
+
+	// Extract resources requested by the user.
+	{
+		for (const FDeferredInternalTextureQuery& Query : DeferredInternalTextureQueries)
+		{
+			if (Query.OutTexturePtr)
+			{
+				*Query.OutTexturePtr = Query.Texture->PooledTexture;
+			}
+			EndResourceRHI(nullptr, Query.Texture, Query.Texture->GetSubresourceRange());
+		}
+		DeferredInternalTextureQueries.Empty();
+
+		for (const FDeferredInternalBufferQuery& Query : DeferredInternalBufferQueries)
+		{
+			if (Query.OutBufferPtr)
+			{
+				*Query.OutBufferPtr = Query.Buffer->PooledBuffer;
+			}
+			EndResourceRHI(nullptr, Query.Buffer);
+		}
+		DeferredInternalBufferQueries.Empty();
+	}
+
+	IF_RDG_SCOPES(ScopeStacks.Graphics.EndExecute());
+
+#if RDG_ENABLE_DEBUG
+	LogFile.End();
+	UserValidation.ValidateExecuteEnd();
+	BarrierValidation.ValidateExecuteEnd();
+#endif
+
+	Clear();
+}
+
+void FRDGBuilder::Clear()
+{
+	Passes.DestructAndClear();
+	ExternalTextures.Empty();
+	ExternalBuffers.Empty();
+	if (GRDGImmediateMode || GRDGExtendResourceLifetimes)
+	{
+		while (AllocatedTextures.Num())
+		{
+			ReleaseResourceRHI(*AllocatedTextures.CreateIterator());
+		}
+		while (AllocatedBuffers.Num())
+		{
+			ReleaseResourceRHI(*AllocatedBuffers.CreateIterator());
+		}
+	}
+	check(!AllocatedTextures.Num());
+	check(!AllocatedBuffers.Num());
+	Resources.DestructAndClear();
+}
+
+FRDGPassHandle FRDGBuilder::AddPassInternal(FRDGPass* Pass)
+{
+	const FRDGPassHandle Handle = Passes.Insert(Pass);
+	Pass->Handle = Handle;
+	return Handle;
+}
+
+FRDGPassRef FRDGBuilder::AddPass(FRDGPass* Pass)
+{
+	IF_RDG_ENABLE_DEBUG(ClobberPassOutputs(Pass));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, bInDebugPassScope));
+
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+	const ERDGPassFlags PassFlags = Pass->GetFlags();
+	const ERDGPipeline Pipeline = Pass->GetPipeline();
+
+	// Reserve and generate the texture access map; track one reference for each subresource.
+	Pass->TextureAccessMap.Reserve(PassParameters.GetTextureParameterCount() + (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster) ? (MaxSimultaneousRenderTargets + 1) : 0));
+	EnumerateTextureAccess(PassParameters, PassFlags, [&](FRDGChildResourceRef TextureView, FRDGTextureRef Texture, EResourceTransitionAccess Access, FRDGTextureSubresourceRange Range)
+	{
+		check(Access != EResourceTransitionAccess::Unknown);
+		auto& AccessInfo = Pass->TextureAccessMap.FindOrAdd(Texture);
+		AccessInfo.AccessUnion |= Access;
+		AccessInfo.ReferenceCount += Range.GetSubresourceCount();
+		AccessInfo.NoUAVBarrierFilter.AddHandle(GetHandleIfNoUAVBarrier(TextureView));
+		AccessInfo.FlagsUnion |= GetTextureViewTransitionFlags(TextureView);
+	});
+
+	// Build the pass and texture subresource tracking policy.
+	bool bPassSubresourceTrackingRequired = true;
+	for (auto& TextureAccessPair : Pass->TextureAccessMap)
+	{
+		auto& AccessInfo = TextureAccessPair.Value;
+		const bool bSubresourceTrackingRequired = IsSubresourceTrackingRequired(AccessInfo.AccessUnion, AccessInfo.FlagsUnion);
+		AccessInfo.bSubresourceTrackingRequired |= bSubresourceTrackingRequired;
+		bPassSubresourceTrackingRequired |= bSubresourceTrackingRequired;
+	}
+	Pass->bSubresourceTrackingRequired = bPassSubresourceTrackingRequired;
+
+	// Reserve and generate the buffer access map.
+	Pass->BufferAccessMap.Reserve(PassParameters.GetBufferParameterCount());
+	EnumerateBufferAccess(PassParameters, PassFlags, [&](FRDGChildResourceRef BufferView, FRDGBufferRef Buffer, EResourceTransitionAccess Access)
+	{
+		check(Access != EResourceTransitionAccess::Unknown);
+		auto& AccessInfo = Pass->BufferAccessMap.FindOrAdd(Buffer);
+		AccessInfo.AccessUnion |= Access;
+		AccessInfo.ReferenceCount++;
+		AccessInfo.NoUAVBarrierFilter.AddHandle(GetHandleIfNoUAVBarrier(BufferView));
+	});
+
+	const FRDGPassHandle PassHandle = AddPassInternal(Pass);
+
+	// The pass can begin / end its own resources on the graphics pipe; async compute is scheduled during compilation.
+	if (Pipeline == ERDGPipeline::Graphics)
+	{
+		Pass->PassesToBegin.Add(PassParameters);
+		Pass->GraphicsJoinPass = PassHandle;
+		Pass->GraphicsForkPass = PassHandle;
+	}
+	IF_RDG_SCOPES(Pass->Scopes = ScopeStacks.GetCurrentScopes(Pipeline));
+
+	if (GRDGImmediateMode || GRDGExtendResourceLifetimes)
+	{
+		EnumerateTextureParameters(PassParameters, [&](auto Resource)
+		{
+			BeginResourceRHI(Pass, Resource);
+		});
+
+		EnumerateBufferParameters(PassParameters, [&](auto Resource)
+		{
+			BeginResourceRHI(Pass, Resource);
+		});
+
+		if (GRDGImmediateMode)
+		{
+			check(Pipeline != ERDGPipeline::AsyncCompute);
+			CollectPassBarriers(PassHandle);
 			ExecutePass(Pass);
 		}
 	}
 
-	EventScopeStack.EndExecute();
-	StatScopeStack.EndExecute();
+	IF_RDG_ENABLE_DEBUG(VisualizePassOutputs(Pass));
 
-	ProcessDeferredInternalResourceQueries();
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecuteEnd());
-
-	DestructPasses();
+	return Pass;
 }
 
-void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
+void FRDGBuilder::ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass)
 {
-	ClobberPassOutputs(Pass);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePassPrologue);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateAddPass(Pass, bInDebugPassScope));
-
-	Pass->EventScope = EventScopeStack.GetCurrentScope();
-	Pass->StatScope = StatScopeStack.GetCurrentScope();
-	Passes.Emplace(Pass);
-
-	if (GRDGImmediateMode)
+	for (FRDGPassParameterStruct PassParameters : Pass->PassesToBegin)
 	{
-		ExecutePass(Pass);
+		EnumerateTextureParameters(PassParameters, [&](auto Resource)
+		{
+			BeginResourceRHI(Pass, Resource);
+		});
+
+		EnumerateBufferParameters(PassParameters, [&](auto Resource)
+		{
+			BeginResourceRHI(Pass, Resource);
+		});
 	}
 
-	VisualizePassOutputs(Pass);
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateBarrierBatchBegin(Pass->PrologueBarriersToBegin));
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateBarrierBatchEnd(Pass->PrologueBarriersToEnd));
+
+	Pass->PrologueBarriersToBegin.Submit(RHICmdListPass);
+	Pass->PrologueBarriersToEnd.Submit(RHICmdListPass);
+
+	const ERDGPassFlags PassFlags = Pass->GetFlags();
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster))
+	{
+		if (!Pass->SkipRenderPassBegin())
+		{
+			static_cast<FRHICommandList&>(RHICmdListPass).BeginRenderPass(GetRenderPassInfo(Pass), Pass->GetName());
+		}
+	}
+	else if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Compute))
+	{
+		check(!RHICmdListPass.IsInsideRenderPass());
+		//TODO-Zach to double check if this should be somehow fixed.
+		//UnbindRenderTargets(static_cast<FRHICommandList&>(RHICmdListPass));
+	}
 }
 
-void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
+void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass)
 {
-#if SUPPORTS_VISUALIZE_TEXTURE
-	if (!GVisualizeTexture.bEnabled || bInDebugPassScope)
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePassEpilogue);
+
+	const ERDGPassFlags PassFlags = Pass->GetFlags();
+
+	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster) && !Pass->SkipRenderPassEnd())
 	{
-		return;
+		static_cast<FRHICommandList&>(RHICmdListPass).EndRenderPass();
 	}
 
-	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
 
-	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
-
-	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	EnumerateTextureAccess(PassParameters, PassFlags, [&](FRDGChildResourceRef, FRDGTextureRef Texture, EResourceTransitionAccess, FRDGTextureSubresourceRange Range)
 	{
-		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+		EndResourceRHI(Pass, Texture, Range);
+	});
 
-		switch (Parameter.GetType())
+	EnumerateBufferAccess(PassParameters, PassFlags, [&](FRDGChildResourceRef, FRDGBufferRef Buffer, EResourceTransitionAccess)
+	{
+		EndResourceRHI(Pass, Buffer);
+	});
+
+	for (FRDGTexture* Texture : Pass->TexturesToRelease)
+	{
+		ReleaseResourceRHI(Texture);
+	}
+	Pass->TexturesToRelease.Empty();
+
+	for (FRDGBuffer* Buffer : Pass->BuffersToRelease)
+	{
+		ReleaseResourceRHI(Buffer);
+	}
+	Pass->BuffersToRelease.Empty();
+
+	// Submit epilogue barriers after executing the pass.
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateBarrierBatchBegin(Pass->EpilogueBarriersToBeginForGraphics));
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateBarrierBatchBegin(Pass->EpilogueBarriersToBeginForAsyncCompute));
+	Pass->EpilogueBarriersToBeginForGraphics.Submit(RHICmdListPass);
+	Pass->EpilogueBarriersToBeginForAsyncCompute.Submit(RHICmdListPass);
+}
+
+FRHIRenderPassInfo FRDGBuilder::GetRenderPassInfo(const FRDGPass* Pass) const
+{
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+	const FRenderTargetBindingSlots* RenderTargets = PassParameters.GetRenderTargetBindingSlots();
+	check(EnumHasAnyFlags(Pass->GetFlags(), ERDGPassFlags::Raster) && RenderTargets);
+
+	uint32 SampleCount = 0;
+	uint32 RenderTargetIndex = 0;
+
+	FRHIRenderPassInfo RenderPassInfo;
+
+	RenderTargets->Enumerate([&](FRenderTargetBinding RenderTarget)
+	{
+		FRDGTextureRef Texture = RenderTarget.GetTexture();
+
+		// TODO(RDG): Clean up this legacy hack of the FPooledRenderTarget that can have TargetableTexture != ShaderResourceTexture
+		// for MSAA texture. Instead the two texture should be independent FRDGTexture explicitly handled by the user code.
+		const FSceneRenderTargetItem& RenderTargetItem = Texture->PooledTexture->GetRenderTargetItem();
+		FRHITexture* TargetableTexture = RenderTargetItem.TargetableTexture;
+		FRHITexture* ShaderResourceTexture = RenderTargetItem.ShaderResourceTexture;
+
+		// TODO(RDG): The load store action could actually be optimised by render graph for tile hardware when there is multiple
+		// consecutive rasterizer passes that have RDG resource as render target, a bit like resource transitions.
+		ERenderTargetStoreAction StoreAction = ERenderTargetStoreAction::EStore;
+
+		// Automatically switch the store action to MSAA resolve when there is MSAA texture.
+		if (TargetableTexture != ShaderResourceTexture && Texture->Desc.NumSamples > 1 && StoreAction == ERenderTargetStoreAction::EStore)
 		{
-		case UBMT_RDG_TEXTURE_UAV:
-		{
-			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
-			{
-				FRDGTextureRef Texture = UAV->Desc.Texture;
-				check(Texture);
-
-				int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
-				if (CaptureId != FVisualizeTexture::kInvalidCaptureId && UAV->Desc.MipLevel == GVisualizeTexture.CustomMip)
-				{
-					GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
-				}
-			}
+			StoreAction = ERenderTargetStoreAction::EMultisampleResolve;
 		}
-		break;
-		case UBMT_RENDER_TARGET_BINDING_SLOTS:
-		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
 
-			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
-			{
-				const bool bHasStoreAction = DepthStencil.GetDepthStencilAccess().IsAnyWrite();
+		// TODO(RDG): should force TargetableTexture == ShaderResourceTexture with MSAA, and instead have an explicit MSAA resolve pass.
+		auto& OutRenderTarget = RenderPassInfo.ColorRenderTargets[RenderTargetIndex];
+		OutRenderTarget.RenderTarget = TargetableTexture;
+		OutRenderTarget.ResolveTarget = ShaderResourceTexture != TargetableTexture ? ShaderResourceTexture : nullptr;
+		OutRenderTarget.ArraySlice = RenderTarget.GetArraySlice();
+		OutRenderTarget.MipIndex = RenderTarget.GetMipIndex();
+		OutRenderTarget.Action = MakeRenderTargetActions(RenderTarget.GetLoadAction(), StoreAction);
 
-				if (bHasStoreAction)
-				{
-					// Depth render target binding can only be done on mip level 0.
-					const int32 MipLevel = 0;
+		SampleCount |= OutRenderTarget.RenderTarget->GetNumSamples();
+		++RenderTargetIndex;
+	});
 
-					int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
-					if (CaptureId != FVisualizeTexture::kInvalidCaptureId && MipLevel == GVisualizeTexture.CustomMip)
-					{
-						GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
-					}
-				}
-			}
+	const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
 
-			const uint32 RenderTargetCount = RenderTargets.Num();
+	if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+	{
+		const FExclusiveDepthStencil ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
+		const ERenderTargetStoreAction DepthStoreAction = ExclusiveDepthStencil.IsDepthWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
+		const ERenderTargetStoreAction StencilStoreAction = ExclusiveDepthStencil.IsStencilWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
 
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
-			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+		auto& OutDepthStencil = RenderPassInfo.DepthStencilRenderTarget;
+		OutDepthStencil.DepthStencilTarget = Texture->PooledTexture->GetRenderTargetItem().TargetableTexture;
+		OutDepthStencil.ResolveTarget = nullptr;
+		OutDepthStencil.Action = MakeDepthStencilTargetActions(
+			MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStoreAction),
+			MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), StencilStoreAction));
+		OutDepthStencil.ExclusiveDepthStencil = ExclusiveDepthStencil;
 
-				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
-				{
-					int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
-						
-					if (CaptureId != FVisualizeTexture::kInvalidCaptureId && RenderTarget.GetMipIndex() == GVisualizeTexture.CustomMip)
-					{
-						GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-		break;
-		}
+		SampleCount |= OutDepthStencil.DepthStencilTarget->GetNumSamples();
+	}
+
+	RenderPassInfo.bIsMSAA = SampleCount > 1;
+	return RenderPassInfo;
+}
+
+void FRDGBuilder::ExecutePass(FRDGPass* Pass)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePass);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecutePassBegin(Pass));
+
+#if RDG_SCOPES
+	const bool bUsePassEventScope = Pass != EpiloguePass && Pass != ProloguePass;
+	if (bUsePassEventScope)
+	{
+		ScopeStacks.BeginExecutePass(Pass);
 	}
 #endif
+
+	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_EXECUTE, BuilderName.GetTCHAR(), Pass->GetName()));
+
+#if WITH_MGPU
+	if (!bWaitedForTemporalEffect && NameForTemporalEffect != NAME_None)
+	{
+		RHICmdList.WaitForTemporalEffect(NameForTemporalEffect);
+		bWaitedForTemporalEffect = true;
+	}
+#endif
+
+	// Execute the pass by invoking the prologue, then the pass body, then the epilogue.
+	// The entire pass is executed using the command list on the specified pipeline.
+	FRHIComputeCommandList& RHICmdListPass = (Pass->GetPipeline() == ERDGPipeline::AsyncCompute)
+		? static_cast<FRHIComputeCommandList&>(RHICmdListAsyncCompute)
+		: RHICmdList;
+
+	ExecutePassPrologue(RHICmdListPass, Pass);
+
+	Pass->Execute(RHICmdListPass);
+
+	ExecutePassEpilogue(RHICmdListPass, Pass);
+
+#if RDG_SCOPES
+	if (bUsePassEventScope)
+	{
+		ScopeStacks.EndExecutePass(Pass);
+	}
+#endif
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecutePassEnd(Pass));
+
+	if (Pass->bAsyncComputeEnd)
+	{
+		if (Pass->bAsyncComputeEndExecute)
+		{
+			IF_RDG_SCOPES(ScopeStacks.AsyncCompute.EndExecute());
+		}
+		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
+	}
 }
 
-void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
+void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle)
 {
-#if RDG_ENABLE_DEBUG
-	if (!IsRDGClobberResourcesEnabled())
-	{
-		return;
-	}
+	FRDGPass* Pass = Passes[PassHandle];
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+	const ERDGPassFlags PassFlags = Pass->GetFlags();
+	const ERDGPipeline PassPipeline = Pass->GetPipeline();
 
-	if (bInDebugPassScope)
-	{
-		return;
-	}
-	bInDebugPassScope = true;
+	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_COMPILE, BuilderName.GetTCHAR(), Pass->GetName()));
 
-	const auto TryMarkForClobber = [](FRDGParentResourceRef Resource) -> bool
+	const auto IsTransitionAllowed = [&](FRDGParentResourceRef Resource, const FRDGPass::FAccessInfo& AccessInfo) -> bool
 	{
-		const bool bClobber = !Resource->bHasBeenClobbered && !Resource->IsExternal();
-
-		if (bClobber)
+		if (Resource->StateFirst.PassHandle.IsNull())
 		{
-			Resource->bHasBeenClobbered = true;
-		}
+			// The union state contains the combination of states used by the resource in the current pass.
+			Resource->StateFirst = FRDGSubresourceState(PassHandle, PassPipeline, AccessInfo.AccessUnion, AccessInfo.FlagsUnion);
 
-		return bClobber;
+			// The first transition of unallocated resources have to be deferred.
+			if (!Resource->GetRHIUnchecked())
+			{
+				// First access should always be a single write state for non-external resources. This is checked by the validator.
+				check(IsWritableAccess(AccessInfo.AccessUnion) && (!AccessInfo.bSubresourceTrackingRequired || AccessInfo.FlagsUnion != EResourceTransitionFlags::None));
+				return false;
+			}
+		}
+		return true;
 	};
 
-	const FLinearColor ClobberColor = GetClobberColor();
-
-	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
-
-	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
-
-	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	// Fast path: all states in this pass are whole-resource states. We don't need to iterate and collect.
+	if (!Pass->bSubresourceTrackingRequired)
 	{
-		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
-
-		switch (Parameter.GetType())
+		for (auto TextureAccessPair : Pass->TextureAccessMap)
 		{
-		case UBMT_RDG_BUFFER_UAV:
-		{
-			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
+			FRDGTextureRef Texture = TextureAccessPair.Key;
+			const auto& AccessInfo = TextureAccessPair.Value;
+
+			Texture->StatePending.InitAsWholeResource(FRDGSubresourceState(
+				PassHandle,
+				PassPipeline,
+				AccessInfo.AccessUnion,
+				AccessInfo.FlagsUnion,
+				AccessInfo.NoUAVBarrierFilter.GetUniqueHandle()));
+
+			if (IsTransitionAllowed(Texture, AccessInfo))
 			{
-				FRDGBufferRef Buffer = UAV->GetParent();
-
-				if (TryMarkForClobber(Buffer))
-				{
-					AddClearUAVPass(*this, UAV, GetClobberBufferValue());
-				}
+				AddTransition(Texture, Texture->State, Texture->StatePending);
 			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_UAV:
-		{
-			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
-			{
-				FRDGTextureRef Texture = UAV->GetParent();
-
-				if (TryMarkForClobber(Texture))
-				{
-					AddClearUAVPass(*this, UAV, ClobberColor);
-				}
-			}
-		}
-		break;
-		case UBMT_RENDER_TARGET_BINDING_SLOTS:
-		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
-
-			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
-			{
-				if (TryMarkForClobber(Texture))
-				{
-					// These are arbitrarily chosen to be something unusual.
-					const float ClobberDepth = 0.56789f;
-					const uint8 ClobberStencil = 123;
-
-					AddClearDepthStencilPass(*this, Texture, true, ClobberDepth, true, ClobberStencil);
-				}
-			}
-
-			const uint32 RenderTargetCount = RenderTargets.Num();
-
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
-			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
-
-				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
-				{
-					if (TryMarkForClobber(Texture))
-					{
-						AddClearRenderTargetPass(*this, Texture, ClobberColor);
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-		break;
+			ResolveState(Pass, Texture);
 		}
 	}
-	bInDebugPassScope = false;
-#endif
+	// Slow path: we need to iterate and collect subresource states.
+	else
+	{
+		for (auto TextureAccessPair : Pass->TextureAccessMap)
+		{
+			FRDGTextureRef Texture = TextureAccessPair.Key;
+			const auto& AccessInfo = TextureAccessPair.Value;
+
+			if (AccessInfo.bSubresourceTrackingRequired)
+			{
+				Texture->StatePending.InitAsSubresources({});
+			}
+		}
+
+		EnumerateTextureAccess(PassParameters, PassFlags, [&](FRDGChildResourceRef View, FRDGTextureRef Texture, EResourceTransitionAccess Access, FRDGTextureSubresourceRange Range)
+		{
+			FRDGTextureState& StatePending = Texture->StatePending;
+
+			const auto& AccessInfo = Pass->TextureAccessMap.FindChecked(Texture);
+			if (!AccessInfo.bSubresourceTrackingRequired)
+			{
+				StatePending.InitAsWholeResource(FRDGSubresourceState(
+					PassHandle,
+					PassPipeline,
+					AccessInfo.AccessUnion,
+					AccessInfo.FlagsUnion,
+					AccessInfo.NoUAVBarrierFilter.GetUniqueHandle()));
+			}
+			else
+			{
+				const FRDGResourceHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(View);
+				const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(View);
+
+				Range.EnumerateSubresources([&](uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+				{
+					FRDGSubresourceState& State = StatePending.GetSubresourceState(MipIndex, ArraySlice, PlaneSlice);
+					State.PassHandle = PassHandle;
+					State.Pipeline = PassPipeline;
+					State.Access |= Access;
+					State.Flags |= TransitionFlags;
+					State.NoUAVBarrierFilter.AddHandle(NoUAVBarrierHandle);
+				});
+			}
+		});
+
+		for (auto TextureAccessPair : Pass->TextureAccessMap)
+		{
+			FRDGTextureRef Texture = TextureAccessPair.Key;
+			const auto& AccessInfo = TextureAccessPair.Value;
+
+			if (IsTransitionAllowed(Texture, AccessInfo))
+			{
+				AddTransition(Texture, Texture->State, Texture->StatePending);
+			}
+			ResolveState(Pass, Texture);
+		}
+	}
+
+	for (auto BufferAccessPair : Pass->BufferAccessMap)
+	{
+		FRDGBufferRef Buffer = BufferAccessPair.Key;
+		const auto& AccessInfo = BufferAccessPair.Value;
+
+		Buffer->StatePending = FRDGSubresourceState(
+			PassHandle,
+			PassPipeline,
+			AccessInfo.AccessUnion,
+			AccessInfo.FlagsUnion,
+			AccessInfo.NoUAVBarrierFilter.GetUniqueHandle());
+
+		if (IsTransitionAllowed(Buffer, AccessInfo))
+		{
+			AddTransition(Buffer, Buffer->State, Buffer->StatePending);
+		}
+		ResolveState(Pass, Buffer);
+	}
 }
 
-void FRDGBuilder::WalkGraphDependencies()
+void FRDGBuilder::ResolveState(const FRDGPass* Pass, FRDGTextureRef Texture)
 {
-	for (const FRDGPass* Pass : Passes)
+	FRDGTextureState& State = Texture->State;
+	FRDGTextureState& StatePending = Texture->StatePending;
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateState(Pass, Texture, StatePending));
+	State.MergeFrom(StatePending);
+	if (StatePending.IsWholeResourceState())
 	{
-		FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+		StatePending.InitAsWholeResource({});
+	}
+	else
+	{
+		StatePending.InitAsSubresources({});
+	}
+}
 
-		const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+void FRDGBuilder::ResolveState(const FRDGPass* Pass, FRDGBufferRef Buffer)
+{
+	FRDGSubresourceState& State = Buffer->State;
+	FRDGSubresourceState& StatePending = Buffer->StatePending;
+	IF_RDG_ENABLE_DEBUG(BarrierValidation.ValidateState(Pass, Buffer, StatePending));
+	State.MergeFrom(StatePending);
+}
 
-		for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+void FRDGBuilder::AddTransition(FRDGTextureRef Texture, const FRDGTextureState& StateBefore, const FRDGTextureState& StateAfter)
+{
+	const auto TryAddSubresourceTransition = [this, Texture](
+		const FRDGSubresourceState StateBefore,
+		const FRDGSubresourceState StateAfter,
+		uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+	{
+		if (StateAfter.Access != EResourceTransitionAccess::Unknown)
 		{
-			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
-
-			if (Parameter.IsParentResource())
+			if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 			{
-				if (FRDGParentResourceRef Resource = Parameter.GetAsParentResource())
-				{
-					Resource->ReferenceCount++;
-				}
+				FRHITransitionInfo Info;
+				Info.Type = FRHITransitionInfo::EType::Texture;
+				Info.Flags = StateAfter.Flags;
+				Info.AccessBefore = StateBefore.Access;
+				Info.AccessAfter = StateAfter.Access;
+				Info.MipIndex = MipIndex;
+				Info.ArraySlice = ArraySlice;
+				Info.PlaneSlice = PlaneSlice;
+
+				AddTransitionInternal(Texture, StateBefore, StateAfter, Info);
 			}
-			else if (Parameter.IsChildResource())
+
+			IF_RDG_ENABLE_DEBUG(LogFile.AddTransitionEdge(StateBefore, StateAfter, Texture, MipIndex, ArraySlice, PlaneSlice));
+		}
+	};
+
+	const FRDGTextureSubresourceRange WholeRange = Texture->GetSubresourceRange();
+
+	if (StateBefore.IsWholeResourceState())
+	{
+		if (StateAfter.IsWholeResourceState())
+		{
+			const FRDGSubresourceState SubresourceStateBefore = StateBefore.GetWholeResourceState();
+			const FRDGSubresourceState SubresourceStateAfter = StateAfter.GetWholeResourceState();
+
+			if (SubresourceStateAfter.Access != EResourceTransitionAccess::Unknown)
 			{
-				if (FRDGChildResourceRef Resource = Parameter.GetAsChildResource())
+				if (FRDGSubresourceState::IsTransitionRequired(SubresourceStateBefore, SubresourceStateAfter))
 				{
-					Resource->GetParent()->ReferenceCount++;
-				}
-			}
-			else if (Parameter.IsRenderTargetBindingSlots())
-			{
-				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-				const auto& RenderTargets = RenderTargetBindingSlots.Output;
-				const uint32 RenderTargetCount = RenderTargets.Num();
+					FRHITransitionInfo Info;
+					Info.Type = FRHITransitionInfo::EType::Texture;
+					Info.Flags = SubresourceStateAfter.Flags;
+					Info.AccessBefore = SubresourceStateBefore.Access;
+					Info.AccessAfter = SubresourceStateAfter.Access;
 
-				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
-				{
-					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
-
-					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
-					{
-						Texture->ReferenceCount++;
-					}
-					else
-					{
-						break;
-					}
+					AddTransitionInternal(Texture, SubresourceStateBefore, SubresourceStateAfter, Info);
 				}
 
-				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
-				{
-					Texture->ReferenceCount++;
-				}
+				IF_RDG_ENABLE_DEBUG(LogFile.AddTransitionEdge(SubresourceStateBefore, SubresourceStateAfter, Texture));
 			}
 		}
-	} 
-
-	// Add additional dependencies from deferred queries.
-	for (const auto& Query : DeferredInternalTextureQueries)
-	{
-		Query.Texture->ReferenceCount++;
-	}
-	for (const auto& Query : DeferredInternalBufferQueries)
-	{
-		Query.Buffer->ReferenceCount++;
-	}
-
-	// Release external texture that have ReferenceCount == 0 and yet are already allocated.
-	for (auto Pair : AllocatedTextures)
-	{
-		if (Pair.Key->ReferenceCount == 0)
+		else
 		{
-			Pair.Value = nullptr;
-			Pair.Key->PooledRenderTarget = nullptr;
-			Pair.Key->ResourceRHI = nullptr;
+			WholeRange.EnumerateSubresources([&](uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+			{
+				TryAddSubresourceTransition(
+					StateBefore.GetWholeResourceState(),
+					StateAfter.GetSubresourceState(MipIndex, ArraySlice, PlaneSlice),
+					MipIndex, ArraySlice, PlaneSlice);
+			});
 		}
 	}
-
-	// Release external buffers that have ReferenceCount == 0 and yet are already allocated.
-	for (auto Pair : AllocatedBuffers)
+	else
 	{
-		if (Pair.Key->ReferenceCount == 0)
+		if (StateAfter.IsWholeResourceState())
 		{
-			Pair.Value = nullptr;
-			Pair.Key->PooledBuffer = nullptr;
-			Pair.Key->ResourceRHI = nullptr;
+			const FRDGSubresourceState& SubresourceStateAfter = StateAfter.GetWholeResourceState();
+
+			WholeRange.EnumerateSubresources([&](uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+			{
+				TryAddSubresourceTransition(
+					StateBefore.GetSubresourceState(MipIndex, ArraySlice, PlaneSlice),
+					SubresourceStateAfter,
+					MipIndex, ArraySlice, PlaneSlice);
+			});
+		}
+		else
+		{
+			WholeRange.EnumerateSubresources([&](uint32 MipIndex, uint32 ArraySlice, uint32 PlaneSlice)
+			{
+				TryAddSubresourceTransition(
+					StateBefore.GetSubresourceState(MipIndex, ArraySlice, PlaneSlice),
+					StateAfter.GetSubresourceState(MipIndex, ArraySlice, PlaneSlice),
+					MipIndex, ArraySlice, PlaneSlice);
+			});
 		}
 	}
 }
 
-void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture)
+void FRDGBuilder::AddTransition(FRDGBufferRef Buffer, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter)
+{
+	if (StateAfter.Access != EResourceTransitionAccess::Unknown)
+	{
+		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
+		{
+			FRHITransitionInfo Info;
+			Info.Type = FRDGBufferDesc::GetTransitionResourceType(Buffer->Desc.UnderlyingType);
+			Info.Flags = StateAfter.Flags;
+			Info.AccessBefore = StateBefore.Access;
+			Info.AccessAfter = StateAfter.Access;
+
+			AddTransitionInternal(Buffer, StateBefore, StateAfter, Info);
+		}
+
+		IF_RDG_ENABLE_DEBUG(LogFile.AddTransitionEdge(StateBefore, StateAfter, Buffer));
+	}
+}
+
+void FRDGBuilder::AddTransitionInternal(
+	FRDGParentResource* Resource,
+	FRDGSubresourceState StateBefore,
+	FRDGSubresourceState StateAfter,
+	const FRHITransitionInfo& TransitionInfo)
+{
+	if (StateBefore.PassHandle.IsNull())
+	{
+		StateBefore.PassHandle = (Resource->bIsExternal || GRDGExtendResourceLifetimes) ? GetProloguePassHandle() : Resource->StateFirst.PassHandle;
+	}
+
+	if (StateAfter.PassHandle.IsNull())
+	{
+		StateAfter.PassHandle = GetEpiloguePassHandle();
+	}
+
+	FRDGPass* PrevPass = Passes[StateBefore.PassHandle];
+	FRDGPass* NextPass = Passes[StateAfter.PassHandle];
+
+	// When in immediate mode or if the previous and next passes are the same, the transition
+	// occurs immediately before the pass executes in the prologue (no splitting). Otherwise,
+	// the transition is split to occur after the previous pass executes.
+
+	FRDGBarrierBatchBegin* BarriersToBegin = nullptr;
+	if (PrevPass == NextPass || GRDGImmediateMode)
+	{
+		BarriersToBegin = &NextPass->PrologueBarriersToBegin;
+	}
+	else
+	{
+		BarriersToBegin = PrevPass->GetEpilogueBarriersToBeginFor(StateAfter.Pipeline);
+	}
+	BarriersToBegin->AddTransition(Resource, TransitionInfo);
+
+	NextPass->PrologueBarriersToEnd.AddDependency(BarriersToBegin);
+}
+
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGTextureRef Texture)
 {
 	check(Texture);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
-	if (Texture->PooledRenderTarget)
+	if (Texture->PooledTexture)
 	{
 		return;
 	}
 
-	check(Texture->ReferenceCount > 0 || GRDGImmediateMode);
+	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_RESOURCE_LIFETIME, BuilderName.GetTCHAR(), Pass->GetName(), Texture->Name));
 
-	TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget = AllocatedTextures.FindOrAdd(Texture);
+	check(Texture->ReferenceCount > 0 || GRDGImmediateMode || GRDGExtendResourceLifetimes);
 
-	const bool bDoWriteBarrier = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, Texture->Desc, PooledRenderTarget, Texture->Name, bDoWriteBarrier);
+	Texture->Init(GRenderTargetPool.AllocateElementForRDG(RHICmdList, Texture->Desc, Texture->Name));
 
-	Texture->PooledRenderTarget = PooledRenderTarget;
-	Texture->ResourceRHI = PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-	check(Texture->ResourceRHI);
+	AllocatedTextures.Add(Texture);
+
+	const FRDGPassHandle PassHandle = Pass->GetHandle();
+
+	// Transition the resource into the correct state for first use.
+	if (Texture->StateFirst.Access != EResourceTransitionAccess::Unknown)
+	{
+		FPooledRenderTarget* Target = static_cast<FPooledRenderTarget*>(Texture->PooledTexture.GetReference());
+
+		// Re-use the target state to avoid an allocation. Initial state is the pass we
+		// are allocating. For async compute, this will perform a split-transition; for
+		// graphics, it will perform an immediate transition in the prologue.
+		Target->State.SetPass(PassHandle, ERDGPipeline::Graphics);
+
+		FRDGTextureState StateAfter(Texture->Desc);
+		StateAfter.InitAsWholeResource(Texture->StateFirst);
+		AddTransition(Texture, Target->State, StateAfter);
+	}
+
+	IF_RDG_ENABLE_DEBUG(LogFile.AddFirstEdge(Texture, PassHandle));
 }
 
-void FRDGBuilder::AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV)
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGTextureSRVRef SRV)
 {
 	check(SRV);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
 	if (SRV->ResourceRHI)
 	{
@@ -533,8 +1667,8 @@ void FRDGBuilder::AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV)
 	}
 
 	FRDGTextureRef Texture = SRV->Desc.Texture;
-	check(Texture->PooledRenderTarget);
-	FSceneRenderTargetItem& RenderTarget = Texture->PooledRenderTarget->GetRenderTargetItem();
+	check(Texture->PooledTexture);
+	FSceneRenderTargetItem& RenderTarget = Texture->PooledTexture->GetRenderTargetItem();
 
 	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
 	{
@@ -563,20 +1697,21 @@ void FRDGBuilder::AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV)
 	RenderTarget.SRVs.Emplace(SRV->Desc, MoveTemp(RHIShaderResourceView));
 }
 
-void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV)
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGTextureUAVRef UAV)
 {
 	check(UAV);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
 	if (UAV->ResourceRHI)
 	{
 		return;
 	}
 
-	AllocateRHITextureIfNeeded(UAV->Desc.Texture);
+	BeginResourceRHI(Pass, UAV->Desc.Texture);
 
 	FRDGTextureRef Texture = UAV->Desc.Texture;
-	check(Texture->PooledRenderTarget);
-	FSceneRenderTargetItem& RenderTarget = Texture->PooledRenderTarget->GetRenderTargetItem();
+	check(Texture->PooledTexture);
+	FSceneRenderTargetItem& RenderTarget = Texture->PooledTexture->GetRenderTargetItem();
 
 	if (UAV->Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
 	{
@@ -590,42 +1725,55 @@ void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV)
 		return;
 	}
 
+	if (UAV->Desc.MetaData == ERDGTextureMetaDataAccess::Stencil)
+	{
+		if (!RenderTarget.StencilUAV)
+		{
+			RenderTarget.StencilUAV = RHICreateUnorderedAccessViewStencil((FTexture2DRHIRef&)RenderTarget.TargetableTexture, 0);
+		}
+		UAV->ResourceRHI = RenderTarget.StencilUAV;
+		check(UAV->ResourceRHI);
+		return;
+	}
+
 	UAV->ResourceRHI = RenderTarget.MipUAVs[UAV->Desc.MipLevel];
 }
 
-void FRDGBuilder::AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer)
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGBufferRef Buffer)
 {
 	check(Buffer);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
 	if (Buffer->PooledBuffer)
 	{
 		return;
 	}
 
-	check(Buffer->ReferenceCount > 0 || GRDGImmediateMode);
+	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_RESOURCE_LIFETIME, BuilderName.GetTCHAR(), Pass->GetName(), Buffer->Name));
 
-	TRefCountPtr<FPooledRDGBuffer>& AllocatedBuffer = AllocatedBuffers.FindOrAdd(Buffer);
-	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, AllocatedBuffer, Buffer->Name);
-	check(AllocatedBuffer);
-	Buffer->PooledBuffer = AllocatedBuffer;
+	check(Buffer->ReferenceCount > 0 || GRDGImmediateMode || GRDGExtendResourceLifetimes);
 
-	switch (Buffer->Desc.UnderlyingType)
+	TRefCountPtr<FPooledRDGBuffer> PooledBuffer;
+	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, PooledBuffer, Buffer->Name);
+	Buffer->Init(PooledBuffer);
+
+	AllocatedBuffers.Add(Buffer);
+
+	const FRDGPassHandle PassHandle = Pass->GetHandle();
+
+	if (Buffer->StateFirst.Access != EResourceTransitionAccess::Unknown)
 	{
-	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
-		Buffer->ResourceRHI = AllocatedBuffer->VertexBuffer;
-		break;
-	case FRDGBufferDesc::EUnderlyingType::IndexBuffer:
-		Buffer->ResourceRHI = AllocatedBuffer->IndexBuffer;
-		break;
-	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
-		Buffer->ResourceRHI = AllocatedBuffer->StructuredBuffer;
-		break;
+		PooledBuffer->State.SetPass(PassHandle, ERDGPipeline::Graphics);
+		AddTransition(Buffer, PooledBuffer->State, Buffer->StateFirst);
 	}
+
+	IF_RDG_ENABLE_DEBUG(LogFile.AddFirstEdge(Buffer, PassHandle));
 }
 
-void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV)
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGBufferSRVRef SRV)
 {
 	check(SRV);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
 	if (SRV->ResourceRHI)
 	{
@@ -661,17 +1809,18 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV)
 	Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
 }
 
-void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV)
+void FRDGBuilder::BeginResourceRHI(FRDGPass* Pass, FRDGBufferUAV* UAV)
 {
 	check(UAV);
+	check(GRDGExtendResourceLifetimes || !Pass->IsAsyncCompute());
 
 	if (UAV->ResourceRHI)
 	{
 		return;
 	}
-	
+
 	FRDGBufferRef Buffer = UAV->Desc.Buffer;
-	AllocateRHIBufferIfNeeded(Buffer);
+	BeginResourceRHI(Pass, Buffer);
 
 	if (Buffer->PooledBuffer->UAVs.Contains(UAV->Desc))
 	{
@@ -701,408 +1850,231 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV)
 	Buffer->PooledBuffer->UAVs.Add(UAV->Desc, RHIUnorderedAccessView);
 }
 
-void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
+void FRDGBuilder::EndResourceRHI(FRDGPass* Pass, FRDGTextureRef Texture, const FRDGTextureSubresourceRange Range)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePass);
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecutePassBegin(Pass));
-
-	FRHIRenderPassInfo RPInfo;
-	PrepareResourcesForExecute(Pass, &RPInfo);
-	
-	EventScopeStack.BeginExecutePass(Pass);
-	StatScopeStack.BeginExecutePass(Pass);
-
-	if (Pass->IsRaster())
-	{
-		RHICmdList.BeginRenderPass(RPInfo, Pass->GetName());
-	}
-
-	Pass->Execute(RHICmdList);
-
-	if (Pass->IsRaster())
-	{
-		RHICmdList.EndRenderPass();
-	}
-
-	EventScopeStack.EndExecutePass();
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecutePassEnd(Pass));
-
-	// Can't release resources with immediate mode, because don't know if whether they are gonna be used.
 	if (!GRDGImmediateMode)
 	{
-		ReleaseUnreferencedResources(Pass);
+		const int32 ReferenceCount = Range.GetSubresourceCount();
+		check(Texture->ReferenceCount >= ReferenceCount);
+		Texture->ReferenceCount -= ReferenceCount;
+
+		if (Texture->ReferenceCount == 0 && !GRDGExtendResourceLifetimes)
+		{
+			IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_RESOURCE_LIFETIME, BuilderName.GetTCHAR(), Pass ? Pass->GetName() : TEXT("Epilogue"), Texture->Name));
+
+			if (Pass && GRDGAsyncCompute)
+			{
+				const FRDGPassHandle GraphicsJoinPassHandle = Pass->GetGraphicsJoinPass();
+
+				// Transition back to the graphics pipe prior to release.
+				Texture->StatePending.InitAsSubresources({});
+				Texture->StatePending.MergeCrossPipelineFrom(Texture->State);
+				Texture->StatePending.SetPass(GraphicsJoinPassHandle, ERDGPipeline::Graphics);
+				//AddTransition(Texture, Texture->State, Texture->StatePending);
+				ResolveState(Pass, Texture);
+
+				// Defer release of the resource until we've joined back to graphics.
+				Passes[GraphicsJoinPassHandle]->TexturesToRelease.Add(Texture);
+			}
+			else
+			{
+				ReleaseResourceRHI(Texture);
+			}
+		}
 	}
 }
 
-void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo)
+void FRDGBuilder::EndResourceRHI(FRDGPass* Pass, FRDGBufferRef Buffer)
 {
-	check(Pass);
-
-	const bool bIsCompute = Pass->IsCompute();
-
-	BarrierBatcher->Begin(Pass);
-
-#if WITH_MGPU
-	BarrierBatcher->SetNameForTemporalEffect(NameForTemporalEffect);
-#endif
-
-	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
-
-	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
-	ReadTextures.Reserve(ParameterCount);
-	ModifiedTextures.Reserve(ParameterCount);
-
-	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	if (!GRDGImmediateMode)
 	{
-		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+		check(Buffer->ReferenceCount > 0);
+		Buffer->ReferenceCount--;
 
-		switch (Parameter.GetType())
+		if (Buffer->ReferenceCount == 0 && !GRDGExtendResourceLifetimes)
 		{
-		case UBMT_RDG_TEXTURE:
-		{
-			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
-			{
-				ReadTextures.Add(Texture);
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_SRV:
-		{
-			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
-			{
-				ReadTextures.Add(SRV->GetParent());
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_UAV:
-		{
-			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
-			{
-				ModifiedTextures.Add(UAV->GetParent());
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_COPY_DEST:
-		{
-			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
-			{
-				ModifiedTextures.Add(Texture);
-			}
-		}
-		break;
-		case UBMT_RENDER_TARGET_BINDING_SLOTS:
-		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
-			const uint32 RenderTargetCount = RenderTargets.Num();
+			IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_RESOURCE_LIFETIME, BuilderName.GetTCHAR(), Pass ? Pass->GetName() : TEXT("Epilogue"), Buffer->Name));
 
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			if (Pass && GRDGAsyncCompute)
 			{
-				if (FRDGTextureRef Texture = RenderTargets[RenderTargetIndex].GetTexture())
-				{
-					ModifiedTextures.Add(Texture);
-				}
-				else
-				{
-					break;
-				}
-			}
+				const FRDGPassHandle GraphicsJoinPassHandle = Pass->GetGraphicsJoinPass();
 
-			if (FRDGTextureRef Texture = RenderTargetBindingSlots.DepthStencil.GetTexture())
-			{
-				if (RenderTargetBindingSlots.DepthStencil.GetDepthStencilAccess().IsAnyWrite())
-					ModifiedTextures.Add(Texture);
+				// Transition back to the graphics pipe prior to release.
+				FRDGSubresourceState StatePending;
+				StatePending.MergeCrossPipelineFrom(Buffer->State);
+				StatePending.SetPass(GraphicsJoinPassHandle, ERDGPipeline::Graphics);
+				//AddTransition(Buffer, Buffer->State, StatePending);
+				ResolveState(Pass, Buffer);
+
+				// Defer release of the resource until we've joined back to graphics.
+				Passes[GraphicsJoinPassHandle]->BuffersToRelease.Add(Buffer);
 			}
-		}
-		break;
-		default:
-			break;
+			else
+			{
+				ReleaseResourceRHI(Buffer);
+			}
 		}
 	}
+}
 
-	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+void FRDGBuilder::ReleaseResourceRHI(FRDGTextureRef Texture)
+{
+	check(Texture->ReferenceCount == 0);
 	{
-		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+		FPooledRenderTarget* Target = static_cast<FPooledRenderTarget*>(Texture->PooledTexture.GetReference());
+		check(Target);
+		Target->State.MergeSanitizedFrom(Texture->State);
+	}
+	Texture->ResourceRHI = nullptr;
+	Texture->PooledTexture = nullptr;
+	AllocatedTextures.Remove(Texture);
+}
 
+void FRDGBuilder::ReleaseResourceRHI(FRDGBufferRef Buffer)
+{
+	check(Buffer->ReferenceCount == 0);
+
+	// Assign state back to the target, but clear out any graph-related information.
+	Buffer->PooledBuffer->State.MergeSanitizedFrom(Buffer->State);
+	Buffer->PooledBuffer = nullptr;
+	Buffer->ResourceRHI = nullptr;
+	AllocatedBuffers.Remove(Buffer);
+}
+
+void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
+{
+	IF_RDG_SCOPES(ScopeStacks.BeginEventScope(Forward<FRDGEventName&&>(ScopeName)));
+}
+
+void FRDGBuilder::EndEventScope()
+{
+	IF_RDG_SCOPES(ScopeStacks.EndEventScope());
+}
+
+void FRDGBuilder::BeginStatScope(const FName& Name, const FName& StatName)
+{
+	IF_RDG_SCOPES(ScopeStacks.BeginStatScope(Name, StatName));
+}
+
+void FRDGBuilder::EndStatScope()
+{
+	IF_RDG_SCOPES(ScopeStacks.EndStatScope());
+}
+
+#if RDG_ENABLE_DEBUG
+
+void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
+{
+#if SUPPORTS_VISUALIZE_TEXTURE
+	if (!GVisualizeTexture.bEnabled || bInDebugPassScope)
+	{
+		return;
+	}
+
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+
+	for (uint32 Index = 0; Index < PassParameters.GetParameterCount(); ++Index)
+	{
+		const FRDGPassParameter Parameter = PassParameters.GetParameter(Index);
 		switch (Parameter.GetType())
 		{
-		case UBMT_RDG_TEXTURE:
-		{
-			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
-			{
-				check(Texture->PooledRenderTarget);
-				check(Texture->ResourceRHI);
-
-				BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_SRV:
-		{
-			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
-			{
-				FRDGTextureRef Texture = SRV->Desc.Texture;
-
-				AllocateRHITextureSRVIfNeeded(SRV);
-
-				if (ModifiedTextures.Contains(Texture))
-				{
-					// If it is bound to a RT, no need for ERWSubResBarrier.
-					// If it is bound as a UAV, the UAV is going to issue the ERWSubResBarrier.
-				}
-				else
-				{
-					BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
-				}
-			}
-		}
-		break;
 		case UBMT_RDG_TEXTURE_UAV:
 		{
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
 				FRDGTextureRef Texture = UAV->Desc.Texture;
+				check(Texture);
 
-				AllocateRHITextureUAVIfNeeded(UAV);
-
-				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
-
-				bool bGeneratingMips = ReadTextures.Contains(Texture);
-
-				BarrierBatcher->QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write, bGeneratingMips);
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_COPY_DEST:
-		{
-			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
-			{
-				AllocateRHITextureIfNeeded(Texture);
-
-				check(!ReadTextures.Contains(Texture));
-				BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER:
-		{
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
-			{
-				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
-				check(Buffer->PooledBuffer);
-				check(Buffer->PooledBuffer->UAVs.Num() == 1);
-				FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
-
-				BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER_SRV:
-		{
-			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
-			{
-				FRDGBufferRef Buffer = SRV->Desc.Buffer;
-
-				AllocateRHIBufferSRVIfNeeded(SRV);
-
-				check(Buffer->PooledBuffer);
-
-				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
-				if (Buffer->PooledBuffer->UAVs.Num() > 0)
+				int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+				if (CaptureId != FVisualizeTexture::kInvalidCaptureId && UAV->Desc.MipLevel == GVisualizeTexture.CustomMip)
 				{
-					check(Buffer->PooledBuffer->UAVs.Num() == 1);
-					FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
-
-					BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
+					GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
 				}
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER_UAV:
-		{
-			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
-			{
-				FRDGBufferRef Buffer = UAV->Desc.Buffer;
-
-				AllocateRHIBufferUAVIfNeeded(UAV);
-
-				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
-
-				BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Write);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER_COPY_DEST:
-		{
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
-			{
-				#if RDG_ENABLE_DEBUG
-				{
-					Buffer->PassAccessCount++;
-				}
-				#endif
-
-				AllocateRHIBufferIfNeeded(Buffer);
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
-			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-			const uint32 RenderTargetCount = RenderTargets.Num();
+			const FRenderTargetBindingSlots& RenderTargets = Parameter.GetAsRenderTargetBindingSlots();
 
-			uint32 ValidRenderTargetCount = 0;
-			uint32 ValidDepthStencilCount = 0;
-			uint32 SampleCount = 0;
-
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			RenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+				FRDGTextureRef Texture = RenderTarget.GetTexture();
+				int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
 
-				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				if (CaptureId != FVisualizeTexture::kInvalidCaptureId && RenderTarget.GetMipIndex() == GVisualizeTexture.CustomMip)
 				{
-					AllocateRHITextureIfNeeded(Texture);
-
-					auto& OutRenderTarget = OutRPInfo->ColorRenderTargets[RenderTargetIndex];
-
-					// TODO(RDG): Clean up this legacy hack of the FPooledRenderTarget that can have TargetableTexture != ShaderResourceTexture
-					// for MSAA texture. Instead the two texture should be independent FRDGTexture explicitly handled by the user code.
-					FRHITexture* TargetableTexture = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
-					FRHITexture* ShaderResourceTexture = Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-
-					if (RenderTarget.GetMsaaPlane() == ERenderTargetMsaaPlane::Resolved)
-					{
-						TargetableTexture = ShaderResourceTexture;
-					}
-
-					// TODO(RDG): The load store action could actually be optimised by render graph for tile hardware when there is multiple
-					// consecutive rasterizer passes that have RDG resource as render target, a bit like resource transitions.
-					ERenderTargetStoreAction StoreAction = ERenderTargetStoreAction::EStore;
-
-					// Automatically switch the store action to MSAA resolve when there is MSAA texture.
-					if (TargetableTexture != ShaderResourceTexture && Texture->Desc.NumSamples > 1 && StoreAction == ERenderTargetStoreAction::EStore)
-					{
-						StoreAction = ERenderTargetStoreAction::EMultisampleResolve;
-					}
-
-					// TODO(RDG): should force TargetableTexture == ShaderResourceTexture with MSAA, and instead have an explicit MSAA resolve pass.
-					OutRenderTarget.RenderTarget = TargetableTexture;
-					OutRenderTarget.ResolveTarget = ShaderResourceTexture != TargetableTexture ? ShaderResourceTexture : nullptr;
-					OutRenderTarget.ArraySlice = RenderTarget.GetArraySlice();
-					OutRenderTarget.MipIndex = RenderTarget.GetMipIndex();
-					OutRenderTarget.Action = MakeRenderTargetActions(RenderTarget.GetLoadAction(), StoreAction);
-
-					BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
-
-					SampleCount |= OutRenderTarget.RenderTarget->GetNumSamples();
-					ValidRenderTargetCount++;
+					GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
 				}
-				else
-				{
-					break;
-				}
-			}
+			});
+
+			const FDepthStencilBinding& DepthStencil = RenderTargets.DepthStencil;
 
 			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				AllocateRHITextureIfNeeded(Texture);
+				const bool bHasStoreAction = DepthStencil.GetDepthStencilAccess().IsAnyWrite();
 
-				auto& OutDepthStencil = OutRPInfo->DepthStencilRenderTarget;
+				if (bHasStoreAction)
+				{
+					// Depth render target binding can only be done on mip level 0.
+					const int32 MipLevel = 0;
 
-				FExclusiveDepthStencil ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
-
-				ERenderTargetStoreAction DepthStoreAction = ExclusiveDepthStencil.IsDepthWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
-				ERenderTargetStoreAction StencilStoreAction = ExclusiveDepthStencil.IsStencilWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
-
-				const FSceneRenderTargetItem& RenderTargetItem = Texture->PooledRenderTarget->GetRenderTargetItem();
-
-				OutDepthStencil.DepthStencilTarget = DepthStencil.GetMsaaPlane() == ERenderTargetMsaaPlane::Unresolved ? RenderTargetItem.TargetableTexture : RenderTargetItem.ShaderResourceTexture;
-				OutDepthStencil.ResolveTarget = nullptr;
-				OutDepthStencil.Action = MakeDepthStencilTargetActions(
-					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStoreAction),
-					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), StencilStoreAction));
-				OutDepthStencil.ExclusiveDepthStencil = ExclusiveDepthStencil;
-
-				BarrierBatcher->QueueTransitionTexture(Texture,
-					ExclusiveDepthStencil.IsAnyWrite() ?
-					FRDGResourceState::EAccess::Write :
-					FRDGResourceState::EAccess::Read);
-
-				SampleCount |= OutDepthStencil.DepthStencilTarget->GetNumSamples();
-				ValidDepthStencilCount++;
+					int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+					if (CaptureId != FVisualizeTexture::kInvalidCaptureId && MipLevel == GVisualizeTexture.CustomMip)
+					{
+						GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
+					}
+				}
 			}
-
-			OutRPInfo->bIsMSAA = SampleCount > 1;
 		}
 		break;
-		default:
-			break;
 		}
 	}
-
-	OutRPInfo->bGeneratingMips = Pass->IsGenerateMips();
-
-	BarrierBatcher->End(RHICmdList);
-	ReadTextures.Reset();
-	ModifiedTextures.Reset();
+#endif
 }
 
-void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
+void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 {
-	check(Texture->ReferenceCount > 0);
-	Texture->ReferenceCount--;
-
-	if (Texture->ReferenceCount == 0)
+	if (!GRDGClobberResources)
 	{
-		Texture->PooledRenderTarget = nullptr;
-		Texture->ResourceRHI = nullptr;
-		AllocatedTextures.FindChecked(Texture) = nullptr;
+		return;
 	}
-}
 
-void FRDGBuilder::ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer)
-{
-	check(Buffer->ReferenceCount > 0);
-	Buffer->ReferenceCount--;
-
-	if (Buffer->ReferenceCount == 0)
+	if (bInDebugPassScope)
 	{
-		Buffer->PooledBuffer = nullptr;
-		Buffer->ResourceRHI = nullptr;
-		AllocatedBuffers.FindChecked(Buffer) = nullptr;
+		return;
 	}
-}
+	bInDebugPassScope = true;
 
-void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
-{
-	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+	RDG_EVENT_SCOPE(*this, "RDG ClobberResources");
 
-	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+	const FLinearColor ClobberColor = GetClobberColor();
 
-	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	const FRDGPassParameterStruct PassParameters = Pass->GetParameters();
+
+	for (uint32 Index = 0; Index < PassParameters.GetParameterCount(); ++Index)
 	{
-		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
-
+		const FRDGPassParameter Parameter = PassParameters.GetParameter(Index);
 		switch (Parameter.GetType())
 		{
-		case UBMT_RDG_TEXTURE:
-		case UBMT_RDG_TEXTURE_COPY_DEST:
+		case UBMT_RDG_BUFFER_UAV:
 		{
-			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				ReleaseRHITextureIfUnreferenced(Texture);
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_SRV:
-		{
-			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
-			{
-				ReleaseRHITextureIfUnreferenced(SRV->Desc.Texture);
+				FRDGBufferRef Buffer = UAV->GetParent();
+
+				if (UserValidation.TryMarkForClobber(Buffer))
+				{
+					if (UAV->Desc.Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+					{
+						// TODO(RDG): Fix me.
+						//AddClearStructuredBufferUAVPass(*this, UAV, GetClobberBufferValue());
+					}
+					else
+					{
+						AddClearUAVPass(*this, UAV, GetClobberBufferValue());
+					}
+				}
 			}
 		}
 		break;
@@ -1110,145 +2082,52 @@ void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 		{
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				ReleaseRHITextureIfUnreferenced(UAV->Desc.Texture);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER:
-		case UBMT_RDG_BUFFER_COPY_DEST:
-		{
-			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
-			{
-				ReleaseRHIBufferIfUnreferenced(Buffer);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER_SRV:
-		{
-			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
-			{
-				ReleaseRHIBufferIfUnreferenced(SRV->Desc.Buffer);
-			}
-		}
-		break;
-		case UBMT_RDG_BUFFER_UAV:
-		{
-			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
-			{
-				ReleaseRHIBufferIfUnreferenced(UAV->Desc.Buffer);
+				FRDGTextureRef Texture = UAV->GetParent();
+
+				if (UserValidation.TryMarkForClobber(Texture))
+				{
+					if (Texture->Desc.NumMips == 1)
+					{
+						AddClearUAVPass(*this, UAV, ClobberColor);
+					}
+					else
+					{
+						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
+						{
+							AddClearUAVPass(*this, this->CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+						}
+					}
+				}
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
-			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-			const uint32 RenderTargetCount = RenderTargets.Num();
+			const FRenderTargetBindingSlots& RenderTargets = Parameter.GetAsRenderTargetBindingSlots();
 
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			RenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+				FRDGTextureRef Texture = RenderTarget.GetTexture();
 
-				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				if (UserValidation.TryMarkForClobber(Texture))
 				{
-					ReleaseRHITextureIfUnreferenced(Texture);
+					AddClearRenderTargetPass(*this, Texture, ClobberColor);
 				}
-				else
-				{
-					break;
-				}
-			}
+			});
 
-			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+			if (FRDGTextureRef Texture = RenderTargets.DepthStencil.GetTexture())
 			{
-				ReleaseRHITextureIfUnreferenced(Texture);
+				if (UserValidation.TryMarkForClobber(Texture))
+				{
+					AddClearDepthStencilPass(*this, Texture, true, GetClobberDepth(), true, GetClobberStencil());
+				}
 			}
 		}
 		break;
-		default:
-			break;
-		}
-	}
-}
-
-void FRDGBuilder::ProcessDeferredInternalResourceQueries()
-{
-	BarrierBatcher->Begin(nullptr);
-
-#if WITH_MGPU
-	BarrierBatcher->SetNameForTemporalEffect(NameForTemporalEffect);
-#endif
-
-	for (const auto& Query : DeferredInternalTextureQueries)
-	{
-		check(Query.Texture->PooledRenderTarget);
-
-		if (Query.bTransitionToRead)
-		{
-			BarrierBatcher->QueueTransitionTexture(Query.Texture, FRDGResourceState::EAccess::Read);
-		}
-
-		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);
-		if (!GRDGImmediateMode)
-		{
-			ReleaseRHITextureIfUnreferenced(Query.Texture);
 		}
 	}
 
-	for (const auto& Query : DeferredInternalBufferQueries)
-	{
-		check(Query.Buffer->PooledBuffer);
-
-		for (TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TMapRDGBufferUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>>::TIterator It(Query.Buffer->PooledBuffer->UAVs); It; ++It)
-		{
-			BarrierBatcher->QueueTransitionUAV(It.Value(), Query.Buffer, Query.DestinationAccess, /* bGeneratingMips = */ false, Query.DestinationPipeline);
-		}
-
-		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);
-
-		// No need to manually release in immediate mode, since it is done directly when emptying AllocatedBuffer in DestructPasses().
-		if (!GRDGImmediateMode)
-		{
-			ReleaseRHIBufferIfUnreferenced(Query.Buffer);
-		}
-	}
-
-	BarrierBatcher->End(RHICmdList);
+	bInDebugPassScope = false;
 }
 
-void FRDGBuilder::DestructPasses()
-{
-	for (int32 PassIndex = Passes.Num() - 1; PassIndex >= 0; --PassIndex)
-	{
-		Passes[PassIndex]->~FRDGPass();
-	}
-	Passes.Empty();
-
-	DeferredInternalTextureQueries.Empty();
-	DeferredInternalBufferQueries.Empty();
-	ExternalTextures.Empty();
-	ExternalBuffers.Empty();
-	AllocatedTextures.Empty();
-	AllocatedBuffers.Empty();
-}
-
-void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
-{
-	EventScopeStack.BeginScope(Forward<FRDGEventName&&>(ScopeName));
-}
-
-void FRDGBuilder::EndEventScope()
-{
-	EventScopeStack.EndScope();
-}
-
-void FRDGBuilder::BeginStatScope(const FName& Name, const FName& StatName)
-{
-	StatScopeStack.BeginScope(Name, StatName);
-}
-
-void FRDGBuilder::EndStatScope()
-{
-	StatScopeStack.EndScope();
-}
+#endif //! RDG_ENABLE_DEBUG

@@ -357,6 +357,9 @@ public:
 
 		case ETargetPlatformFeatures::HalfFloatVertexFormat:
 			return true;
+
+		case ETargetPlatformFeatures::LumenGI:
+			return TPlatformProperties::SupportsLumenGI();
 		}
 
 		return false;

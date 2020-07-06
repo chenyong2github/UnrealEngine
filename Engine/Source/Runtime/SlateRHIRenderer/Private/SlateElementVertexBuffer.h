@@ -62,7 +62,7 @@ public:
 	
 			SetBufferSize(MinBufferSize);
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("TSlateElementVertexBuffer"));
 			VertexBufferRHI = RHICreateVertexBuffer( MinBufferSize, BUF_Dynamic, CreateInfo );
 
 			// Ensure the vertex buffer could be created

@@ -126,9 +126,10 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	DetailBuilder.EditCategory( "Navigation", FText::GetEmpty(), ECategoryPriority::Uncommon );
 
 	LevelOfDetailSettings = MakeShareable( new FLevelOfDetailSettingsLayout( StaticMeshEditor ) );
-
 	LevelOfDetailSettings->AddToDetailsPanel( DetailBuilder );
 
+	NaniteSettings = MakeShareable(new FNaniteSettingsLayout(StaticMeshEditor));
+	NaniteSettings->AddToDetailsPanel(DetailBuilder);
 	
 	TSharedRef<IPropertyHandle> BodyProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh,BodySetup));
 	BodyProp->MarkHiddenByCustomization();
@@ -327,14 +328,21 @@ void SConvexDecomposition::Construct(const FArguments& InArgs)
 
 bool FStaticMeshDetails::IsApplyNeeded() const
 {
-	return LevelOfDetailSettings.IsValid() && LevelOfDetailSettings->IsApplyNeeded();
+	return
+		(LevelOfDetailSettings.IsValid() && LevelOfDetailSettings->IsApplyNeeded()) ||
+		(NaniteSettings.IsValid() && NaniteSettings->IsApplyNeeded());
 }
 
 void FStaticMeshDetails::ApplyChanges()
 {
-	if( LevelOfDetailSettings.IsValid() )
+	if (LevelOfDetailSettings.IsValid())
 	{
 		LevelOfDetailSettings->ApplyChanges();
+	}
+
+	if (NaniteSettings.IsValid())
+	{
+		NaniteSettings->ApplyChanges();
 	}
 }
 
@@ -3355,7 +3363,6 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 	if( StaticMesh )
 	{
 		const int32 StaticMeshLODCount = StaticMesh->GetNumLODs();
-		FStaticMeshRenderData* RenderData = StaticMesh->RenderData.Get();
 
 		//Add the Materials array
 		{
@@ -3703,7 +3710,7 @@ float FLevelOfDetailSettingsLayout::GetLODScreenSize(FName PlatformGroupName, in
 		}
 	}
 
-	if(Mesh->bAutoComputeLODScreenSize)
+	if(Mesh->bAutoComputeLODScreenSize && Mesh->RenderData)
 	{
 		ScreenSize = Mesh->RenderData->ScreenSize[LODIndex].Default;
 	}
@@ -4542,5 +4549,153 @@ FText FLevelOfDetailSettingsLayout::GetCurrentLodTooltip() const
 	return FText::GetEmpty();
 }
 
+/////////////////////////////////
+// FNaniteSettingsLayout
+/////////////////////////////////
+
+FNaniteSettingsLayout::FNaniteSettingsLayout(FStaticMeshEditor& InStaticMeshEditor)
+: StaticMeshEditor(InStaticMeshEditor)
+{
+	const UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	NaniteSettings = StaticMesh->NaniteSettings;
+}
+
+FNaniteSettingsLayout::~FNaniteSettingsLayout()
+{
+}
+
+const FMeshNaniteSettings& FNaniteSettingsLayout::GetSettings() const
+{
+	return NaniteSettings;
+}
+
+void FNaniteSettingsLayout::UpdateSettings(const FMeshNaniteSettings& InSettings)
+{
+	NaniteSettings = InSettings;
+}
+
+void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilder)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+
+	IDetailCategoryBuilder& NaniteSettingsCategory =
+		DetailBuilder.EditCategory("NaniteSettings", LOCTEXT("NaniteSettingsCategory", "Nanite Settings"));
+
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("Enabled", "Enabled") )
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("Enabled", "Enable Nanite Support"))
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FNaniteSettingsLayout::IsEnabledChecked)
+			.OnCheckStateChanged(this, &FNaniteSettingsLayout::OnEnabledChanged)
+		];
+	}
+
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("ProxyTrianglePercent", "Proxy Triangle Percent") )
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("ProxyTrianglePercent", "Proxy Triangle Percent"))
+		]
+		.ValueContent()
+		[
+			SNew(SSpinBox<float>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0.0f)
+			.MaxValue(100.0f)
+			.Value(this, &FNaniteSettingsLayout::GetPercentTriangles)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnPercentTrianglesChanged)
+			.OnValueCommitted(this, &FNaniteSettingsLayout::OnPercentTrianglesCommitted)
+		];
+	}
+
+	NaniteSettingsCategory.AddCustomRow(LOCTEXT("ApplyChanges", "Apply Changes"))
+	.ValueContent()
+	.HAlign(HAlign_Left)
+	[
+		SNew(SButton)
+		.OnClicked(this, &FNaniteSettingsLayout::OnApply)
+		.IsEnabled(this, &FNaniteSettingsLayout::IsApplyNeeded)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ApplyChanges", "Apply Changes"))
+			.Font(DetailBuilder.GetDetailFont())
+		]
+	];
+}
+
+bool FNaniteSettingsLayout::IsApplyNeeded() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	return StaticMesh->NaniteSettings != NaniteSettings;
+}
+
+void FNaniteSettingsLayout::ApplyChanges()
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	// Calling Begin and EndSlowTask are rather dangerous because they tick
+	// Slate. Call them here and flush rendering commands to be sure!.
+
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("StaticMeshName"), FText::FromString(StaticMesh->GetName()));
+	GWarn->BeginSlowTask(FText::Format(LOCTEXT("ApplyNaniteChanges", "Applying changes to {StaticMeshName}..."), Args), true);
+	FlushRenderingCommands();
+
+	StaticMesh->Modify();
+	StaticMesh->NaniteSettings = NaniteSettings;
+	StaticMesh->PostEditChange();
+
+	GWarn->EndSlowTask();
+
+	StaticMeshEditor.RefreshTool();
+}
+
+FReply FNaniteSettingsLayout::OnApply()
+{
+	ApplyChanges();
+	return FReply::Handled();
+}
+
+ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
+{
+	return NaniteSettings.bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FNaniteSettingsLayout::OnEnabledChanged(ECheckBoxState NewState)
+{
+	NaniteSettings.bEnabled = NewState == ECheckBoxState::Checked ? true : false;
+}
+
+float FNaniteSettingsLayout::GetPercentTriangles() const
+{
+	return NaniteSettings.PercentTriangles * 100.0f; // Display fraction as percentage.
+}
+
+void FNaniteSettingsLayout::OnPercentTrianglesChanged(float NewValue)
+{
+	// Percentage -> fraction.
+	NaniteSettings.PercentTriangles = NewValue * 0.01f;
+}
+
+void FNaniteSettingsLayout::OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("PercentTriangles"), FString::Printf(TEXT("%.1f"), NewValue));
+	}
+	OnPercentTrianglesChanged(NewValue);
+}
 
 #undef LOCTEXT_NAMESPACE

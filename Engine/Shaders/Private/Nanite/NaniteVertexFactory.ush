@@ -1,0 +1,288 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../VertexFactoryCommon.ush"
+#include "NaniteDataDecode.ush"
+
+float4 GetColor()
+{
+#if INTERPOLATE_VERTEX_COLOR
+	return (float4)0;
+#else
+	return (float4)0;
+#endif
+}
+
+struct FVertexFactoryInterpolantsVSToPS
+{
+};
+
+/** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
+FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+{
+	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
+
+	uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
+	UlongType Pixel = Nanite.VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(Pixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	FNaniteView NaniteView = GetNaniteView( 0 );
+	
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisCluster = GetVisibleCluster(VisibleClusterIndex);
+		
+		FInstanceSceneData InstanceData = GetInstanceData(VisCluster.InstanceId);
+
+		FInstanceDynamicData InstanceDynamicData;
+#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
+		if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
+		{
+			InstanceDynamicData = GetInstanceDynamicData(VisCluster.InstanceId);
+		}
+		else
+#endif
+		{
+			InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		}
+
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		FTriCluster Cluster = GetCluster( VisCluster.PageIndex, VisCluster.ClusterIndex );
+
+		uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+
+		uint PositionDataOffset = Cluster.PageBaseAddress + Cluster.PositionOffset;
+		uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
+
+		const uint PositionCompileTimeBitsPerVertex = 32;// 3 * POSITION_QUANTIZATION_BITS;
+		const uint PositionBitsPerVertex = 32;//3 * POSITION_QUANTIZATION_BITS;
+
+		FBitStreamState PositionStream0 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.x * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		FBitStreamState PositionStream1 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.y * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		FBitStreamState PositionStream2 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.z * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+
+		uint PositionData0 = BitStreamRead(PositionStream0, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		uint PositionData1 = BitStreamRead(PositionStream1, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		uint PositionData2 = BitStreamRead(PositionStream2, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+
+		float3 PointLocal0 = UnpackPosition(PositionData0, Cluster, POSITION_QUANTIZATION_BITS);
+		float3 PointLocal1 = UnpackPosition(PositionData1, Cluster, POSITION_QUANTIZATION_BITS);
+		float3 PointLocal2 = UnpackPosition(PositionData2, Cluster, POSITION_QUANTIZATION_BITS);
+
+		//FIXME Hacked for now to support 2 UVs
+		const uint NUM_VERTEX_ATTRIB_BYTES = 8;		// Will depend on the material
+
+
+		FBitStreamState AttribStream0 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttrib, 64);
+		FBitStreamState AttribStream1 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttrib, 64);
+		FBitStreamState AttribStream2 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttrib, 64);
+
+		uint NormalBits0 = BitStreamRead(AttribStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+		uint NormalBits1 = BitStreamRead(AttribStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+		uint NormalBits2 = BitStreamRead(AttribStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+
+		uint TexCoordBits0_A = BitStreamRead(AttribStream0, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+		uint TexCoordBits1_A = BitStreamRead(AttribStream1, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+		uint TexCoordBits2_A = BitStreamRead(AttribStream2, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+
+		uint TexCoordBits0_B = BitStreamRead(AttribStream0, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+		uint TexCoordBits1_B = BitStreamRead(AttribStream1, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+		uint TexCoordBits2_B = BitStreamRead(AttribStream2, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
+
+		float2 TexCoord0 = UnpackTexCoord( TexCoordBits0_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
+		float2 TexCoord1 = UnpackTexCoord( TexCoordBits1_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
+		float2 TexCoord2 = UnpackTexCoord( TexCoordBits2_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
+
+		float4 PointClipSubpixel0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToSubpixel);
+		float4 PointClipSubpixel1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToSubpixel);
+		float4 PointClipSubpixel2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToSubpixel);
+
+		float3 Pos0 = PointClipSubpixel0.xyz / PointClipSubpixel0.w;
+		float3 Pos1 = PointClipSubpixel1.xyz / PointClipSubpixel1.w;
+		float3 Pos2 = PointClipSubpixel2.xyz / PointClipSubpixel2.w;
+
+		float3 RcpW = rcp(float3(PointClipSubpixel0.w, PointClipSubpixel1.w, PointClipSubpixel2.w));
+
+		float2 PixelCoord = (PixelPos + 0.5f) * SUBPIXEL_SAMPLES;
+
+		// Calculate perspective correct barycentric coordinates with screen derivatives
+		float3 Pos120X = float3(Pos1.x, Pos2.x, Pos0.x);
+		float3 Pos120Y = float3(Pos1.y, Pos2.y, Pos0.y);
+		float3 Pos201X = float3(Pos2.x, Pos0.x, Pos1.x);
+		float3 Pos201Y = float3(Pos2.y, Pos0.y, Pos1.y);
+
+		float3 C_dx = Pos201Y - Pos120Y;
+		float3 C_dy = Pos120X - Pos201X;
+
+		float3 C = C_dx * (PixelCoord.x - Pos120X) + C_dy * (PixelCoord.y - Pos120Y);	// Evaluate the 3 edge functions
+
+		// UVW = C * RcpW / dot(C, RcpW)
+		// Derivatives:
+		// UVW = G / H where G = C * RcpW and H = dot(C, RcpW)
+		// UVW' = (G' * H - G * H') / H^2
+
+		float3 G = C * RcpW;
+
+		float H = dot(C, RcpW);
+		float RcpH = rcp(H);
+
+		float3 UVW = G * RcpH;
+
+		float3 G_dx = C_dx * RcpW;
+		float3 G_dy = C_dy * RcpW;
+
+		float H_dx = dot(C_dx, RcpW);
+		float H_dy = dot(C_dy, RcpW);
+
+		float3 UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH * SUBPIXEL_SAMPLES);
+		float3 UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH * SUBPIXEL_SAMPLES);
+
+		float2 TexCoord10 = TexCoord1 - TexCoord0;
+		float2 TexCoord20 = TexCoord2 - TexCoord0;
+
+		float2 TexCoord = TexCoord0 + UVW.y * TexCoord10 + UVW.z * TexCoord20;
+		float2 TexCoordDX = UVW_dx.y * TexCoord10 + UVW_dx.z * TexCoord20;
+		float2 TexCoordDY = UVW_dy.y * TexCoord10 + UVW_dy.z * TexCoord20;
+
+		// Unpack tangent frame
+		float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
+		float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
+		float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
+		float3 TangentZ = normalize(UVW.x * TangentZ0 + UVW.y * TangentZ1 + UVW.z * TangentZ2);
+
+#if USE_IMPLICIT_TANGENT_SPACE
+		// Implicit tangent space
+		// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
+		// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
+		// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
+		// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
+
+		float3 PointLocal10 = PointLocal1 - PointLocal0;
+		float3 PointLocal20 = PointLocal2 - PointLocal0;
+
+		bool TangentXValid = abs( TexCoord10.x ) + abs( TexCoord20.x ) > 1e-6;
+
+		float3 TangentX;
+		float3 TangentY;
+		if( TangentXValid )
+		{
+			float3 Perp2 = cross(TangentZ, PointLocal20);
+			float3 Perp1 = cross(PointLocal10, TangentZ);
+			float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
+			float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
+
+			TangentX = normalize( TangentU );
+			TangentY = cross( TangentZ, TangentX );
+
+			Result.UnMirrored = dot( TangentV, TangentY ) < 0.0f ? -1.0f : 1.0f;
+			TangentY *= Result.UnMirrored;
+		}
+		else
+		{
+			const float Sign = TangentZ.z >= 0 ? 1 : -1;
+			const float a = -rcp( Sign + TangentZ.z );
+			const float b = TangentZ.x * TangentZ.y * a;
+	
+			TangentX = float3( 1 + Sign * a * Pow2( TangentZ.x ), Sign * b, -Sign * TangentZ.x );
+			TangentY = float3( b,  Sign + a * Pow2( TangentZ.y ), -TangentZ.y );
+
+			Result.UnMirrored = 1;
+		}
+#else
+		// Interpolated tangent space
+		float3 TangentX0 = UnpackTangent(AttribData0.y, TANGENT_QUANTIZATION_BITS);
+		float3 TangentX1 = UnpackTangent(AttribData1.y, TANGENT_QUANTIZATION_BITS);
+		float3 TangentX2 = UnpackTangent(AttribData2.y, TANGENT_QUANTIZATION_BITS);
+		float3 TangentX = UVW.x * TangentX0 + UVW.y * TangentX1 + UVW.z * TangentX2;
+
+		float3 TangentY = cross(TangentZ, TangentX);
+		TangentY = (int)AttribData0.z < 0 ? -TangentY : TangentY;	// Geometry pipeline ensures vertices in a triangles always have the same handedness
+
+		Result.UnMirrored = AttribData0.z < 0.0f ? -1.0f : 1.0f;
+#endif
+
+		float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
+
+		// Should be Pow2(InvScale) but that requires renormalization
+		half3x3 LocalToWorld = (float3x3)InstanceData.LocalToWorld;
+		half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+		LocalToWorld[0] *= InvScale.x;
+		LocalToWorld[1] *= InvScale.y;
+		LocalToWorld[2] *= InvScale.z;
+		Result.TangentToWorld = mul(TangentToLocal, LocalToWorld);
+
+		float3 PointLocal = UVW.x * PointLocal0 + UVW.y * PointLocal1 + UVW.z * PointLocal2;
+
+		Result.PrevScreenPosition = mul(float4(PointLocal, 1), InstanceDynamicData.PrevLocalToSubpixel);
+		Result.PrevScreenPosition = Result.PrevScreenPosition / Result.PrevScreenPosition.w;
+		Result.PrevScreenPosition.xy = Result.PrevScreenPosition.xy * (1.0 / SUBPIXEL_SAMPLES);
+		Result.PrevScreenPosition = SvPositionToResolvedScreenPosition(Result.PrevScreenPosition);
+
+		// Update to real depth from VisBuffer
+		SvPosition.z = asfloat(DepthInt);
+
+#if NUM_TEX_COORD_INTERPOLATORS
+		Result.TexCoords[0] = TexCoord;
+
+		if( NUM_TEX_COORD_INTERPOLATORS > 1 )
+		{
+			Result.TexCoords[1]  = UVW.x * UnpackTexCoord( TexCoordBits0_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
+			Result.TexCoords[1] += UVW.y * UnpackTexCoord( TexCoordBits1_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
+			Result.TexCoords[1] += UVW.z * UnpackTexCoord( TexCoordBits2_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
+		}
+
+		UNROLL
+		for( uint i = 2; i < NUM_TEX_COORD_INTERPOLATORS; i++ )
+		{
+			Result.TexCoords[i] = 0;
+		}
+#endif
+
+#if USE_PARTICLE_SUBUVS
+		// Output TexCoord0 for when previewing materials that use ParticleSubUV.
+		Result.Particle.SubUVCoords[0] = TexCoord;
+		Result.Particle.SubUVCoords[1] = TexCoord;
+#endif	// USE_PARTICLE_SUBUVS
+
+		Result.VertexColor = GetColor();
+
+		// Required for previewing materials that use ParticleColor
+		Result.Particle.Color = half4(1, 1, 1, 1);
+
+#if LIGHTMAP_UV_ACCESS
+	#if NEEDS_LIGHTMAP_COORDINATE
+		Result.LightmapUVs = float2(0, 0);
+	#endif	// NEEDS_LIGHTMAP_COORDINATE
+#endif	// LIGHTMAP_UV_ACCESS
+
+		Result.TwoSidedSign = 1;
+		Result.PrimitiveId = InstanceData.PrimitiveId;
+	}
+
+	return Result;
+}
+
+struct FVertexFactoryInterpolantsVSToDS
+{
+	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
+};
+
+float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryInterpolantsVSToDS Interpolants )
+{
+	return float2(0,0);
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryInterpolantsVSToDS Input)
+{
+	return Input.InterpolantsVSToPS;
+}
+
+FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpolantsVSToDS a, float aInterp, FVertexFactoryInterpolantsVSToDS b, float bInterp)
+{
+	return a;
+}

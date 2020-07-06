@@ -1,0 +1,149 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	GlobalDistanceFieldUtils.ush
+=============================================================================*/
+
+struct FGlobalSDFTraceInput
+{
+	float3 WorldRayStart;
+	float3 WorldRayDirection;
+	float TraceDistance;
+	float StepFactor;
+	float MinStepSizeScale;
+	float ExpandSurfaceStartDistance;
+	float ExpandSurfaceInvLength;
+	float ExpandSurfaceAmount;
+
+	void Setup(float3 InWorldRayStart, float3 InWorldRayDirection, float InTraceDistance, float InStepFactor, float InMinStepSizeScale)
+	{
+		WorldRayStart = InWorldRayStart;
+		WorldRayDirection = InWorldRayDirection;
+		TraceDistance = InTraceDistance;
+		StepFactor = InStepFactor;
+		MinStepSizeScale = InMinStepSizeScale;
+		ExpandSurfaceStartDistance = 0;
+		ExpandSurfaceInvLength = 0;
+		ExpandSurfaceAmount = 0;
+	}
+};
+
+void RayTraceThroughGlobalDistanceFieldClipmap(
+	uniform uint ClipmapIndex,
+	FGlobalSDFTraceInput TraceInput,
+	float MinRayTime, 
+	out float OutMaxRayTime, 
+	out float OutIntersectRayTime, 
+	out float OutTotalStepsTaken)
+{
+	OutIntersectRayTime = TraceInput.TraceDistance;
+	OutTotalStepsTaken = 0;
+	OutMaxRayTime = 1;
+
+	float SurfaceBias = .5f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+	float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
+	// Subtract one texel from the extent to avoid filtering from invalid texels
+	float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w - GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+	float3 VolumeRayStart = TraceInput.WorldRayStart - GlobalVolumeCenter;
+	float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * TraceInput.TraceDistance;
+	float3 VolumeRayEnd = WorldRayEnd - GlobalVolumeCenter;
+	float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
+	float VolumeRayLength = length(VolumeRayDirection);
+	VolumeRayDirection /= VolumeRayLength;
+
+	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -GlobalVolumeExtent.xxx, GlobalVolumeExtent.xxx);
+
+	if (IntersectionTimes.x < IntersectionTimes.y && IntersectionTimes.x < 1)
+	{
+		OutMaxRayTime = IntersectionTimes.y;
+		float SampleRayTime = max(MinRayTime, IntersectionTimes.x) * VolumeRayLength;
+		float MinDistance = 1000000;
+
+		uint StepIndex = 0;
+		uint MaxSteps = 512;
+
+		LOOP
+		for (; StepIndex < MaxSteps; StepIndex++)
+		{
+			float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
+			float3 VolumeUV = ComputeGlobalUV(SampleVolumePosition + GlobalVolumeCenter, ClipmapIndex);
+			float ExpandSurfaceAmount = TraceInput.ExpandSurfaceAmount * saturate((SampleRayTime - TraceInput.ExpandSurfaceStartDistance) * TraceInput.ExpandSurfaceInvLength);
+			float DistanceField = SampleGlobalDistanceField(ClipmapIndex, VolumeUV).x - ExpandSurfaceAmount;
+			MinDistance = min(MinDistance, DistanceField);
+
+			float MinStepSize = GlobalVolumeExtent * 2 * TraceInput.MinStepSizeScale;
+			float StepDistance = max(DistanceField * TraceInput.StepFactor, MinStepSize);
+			SampleRayTime += StepDistance;
+
+			// Terminate the trace if we reached a negative area or went past the end of the ray
+			if (DistanceField < SurfaceBias
+				|| SampleRayTime > IntersectionTimes.y * VolumeRayLength)
+			{
+				break;
+			}
+		}
+
+		if (MinDistance < SurfaceBias || StepIndex == MaxSteps)
+		{
+			OutIntersectRayTime = min(OutIntersectRayTime, SampleRayTime);
+		}
+
+		OutTotalStepsTaken += StepIndex;
+	}
+}
+
+uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
+{
+	uint FoundClipmapIndex = 0;
+
+	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
+	{
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+
+		if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize)
+		{
+			FoundClipmapIndex = ClipmapIndex;
+			break;
+		}
+	}
+
+	return FoundClipmapIndex;
+}
+
+struct FGlobalSDFTraceResult
+{
+	bool bHit;
+	float3 Position;
+	uint ClipmapIndex;
+};
+
+FGlobalSDFTraceResult RayTraceThroughGlobalDistanceField(FGlobalSDFTraceInput TraceInput)
+{
+	uint StartClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart);
+
+	FGlobalSDFTraceResult Result;
+	Result.bHit = false;
+
+	float LastMaxRayTime = 0;
+	float NextMaxRayTime;
+	float IntersectRayTime;
+	float Unused;
+
+	for (uint ClipmapIndex = StartClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && ClipmapIndex < MAX_GLOBAL_DF_CLIPMAPS; ClipmapIndex++)
+	{
+		RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, TraceInput, LastMaxRayTime, NextMaxRayTime, IntersectRayTime, Unused);
+
+		if (IntersectRayTime < TraceInput.TraceDistance)
+		{
+			Result.bHit = true;
+			Result.ClipmapIndex = ClipmapIndex;
+			break;
+		}
+
+		LastMaxRayTime = NextMaxRayTime;
+	}
+
+	Result.Position = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * IntersectRayTime;
+
+	return Result;
+}

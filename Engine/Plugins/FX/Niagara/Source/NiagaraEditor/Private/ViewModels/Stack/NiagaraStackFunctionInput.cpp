@@ -745,21 +745,18 @@ void UNiagaraStackFunctionInput::RefreshValues()
 			InputValues.Mode = EValueMode::Local;
 			InputValues.LocalStruct = MakeShared<FStructOnScope>(InputType.GetStruct());
 			const uint8* RapidIterationParameterData = SourceScript->RapidIterationParameters.GetParameterData(RapidIterationParameter);
-			if (DefaultInputValues.LocalStruct) // Numeric types can trigger crashes below, so extra safety has been added.
+			if (RapidIterationParameterData == nullptr && DefaultInputValues.LocalStruct.IsValid())
 			{
-				if (RapidIterationParameterData == nullptr)
-				{
-					RapidIterationParameterData = DefaultInputValues.LocalStruct->GetStructMemory();
-				}
+				RapidIterationParameterData = DefaultInputValues.LocalStruct->GetStructMemory();
+			}
 
-				if (InputType.GetSize() > 0 && InputValues.LocalStruct->GetStructMemory() && RapidIterationParameterData)
-				{
-					FMemory::Memcpy(InputValues.LocalStruct->GetStructMemory(), RapidIterationParameterData, InputType.GetSize());
-				}
-				else
-				{
-					UE_LOG(LogNiagaraEditor, Warning, TEXT("Type %s has no data! Cannot refresh values."), *InputType.GetName())
-				}
+			if (InputType.GetSize() > 0 && InputValues.LocalStruct->GetStructMemory() && RapidIterationParameterData)
+			{
+				FMemory::Memcpy(InputValues.LocalStruct->GetStructMemory(), RapidIterationParameterData, InputType.GetSize());
+			}
+			else
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Type %s has no data! Cannot refresh values."), *InputType.GetName())
 			}
 		}
 		else

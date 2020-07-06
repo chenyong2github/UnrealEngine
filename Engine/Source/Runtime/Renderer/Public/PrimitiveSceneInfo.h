@@ -26,6 +26,8 @@ class UPrimitiveComponent;
 class FIndirectLightingCacheUniformParameters;
 template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
+class FNaniteCommandInfo;
+
 /** Data used to track a primitive's allocation in the volume texture atlas that stores indirect lighting. */
 class FIndirectLightingCacheAllocation
 {
@@ -209,6 +211,18 @@ struct FPrimitiveVirtualTextureLodInfo
 /** The type of the octree used by FScene to find primitives. */
 typedef TOctree2<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
 
+/** Nanite mesh pass types. */
+namespace ENaniteMeshPass
+{
+	enum Type
+	{
+		BasePass,
+		LumenCardCapture,
+
+		Num,
+	};
+}
+
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
@@ -254,6 +268,12 @@ public:
 	/** The primitive's static meshes. */
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
+	TArray<FNaniteCommandInfo> NaniteCommandInfos[ENaniteMeshPass::Num];
+	TArray<uint32> NaniteMaterialIds[ENaniteMeshPass::Num];
+#if WITH_EDITOR
+	TArray<uint32> NaniteHitProxyIds;
+#endif
+
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
 	FOctreeElementId2 OctreeId;
 
@@ -282,6 +302,9 @@ public:
 
 	/** Mapping from instance index in this primitive to index in the global distance field object buffers. */
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
+
+	/** Mapping from instance index in this primitive to index in the global LumenCubeMapTree array. */
+	TArray<int32, TInlineAllocator<1>> LumenCubeMapTreeInstanceIndices;
 
 	/** Whether the primitive is newly registered or moved and CachedReflectionCaptureProxy needs to be updated on the next render. */
 	uint32 bNeedsCachedReflectionCaptureUpdate : 1;
@@ -341,6 +364,9 @@ public:
 
 	/** return true if we need to call ConditionalUpdateStaticMeshes */
 	bool NeedsUpdateStaticMeshes();
+
+	/** Returns true it primitive contains cached Lumen Card Capture mesh draw commands. */
+	bool HasLumenCaptureMeshPass() const;
 
 	/** return true if we need to call LazyUpdateForRendering */
 	FORCEINLINE bool NeedsUniformBufferUpdate() const
@@ -452,6 +478,9 @@ public:
 	/** Will output the FMeshBatch associated with the specified LODIndex. */
 	RENDERER_API const FMeshBatch* GetMeshBatch(int8 InLODIndex) const;
 
+	int32 GetInstanceDataOffset() const { return InstanceDataOffset; }
+	int32 GetNumInstanceDataEntries() const { return NumInstanceDataEntries; }
+
 	int32 GetLightmapDataOffset() const { return LightmapDataOffset; }
 	int32 GetNumLightmapDataEntries() const { return NumLightmapDataEntries; }
 
@@ -510,11 +539,18 @@ private:
 	/** If this is TRUE, this primitive's indirect lighting cache buffer needs to be updated before it can be rendered. */
 	bool bIndirectLightingCacheBufferDirty : 1;
 
-	/** If this is TRUE, this primitive has registerd with the virtual texture system for a callback on virtual texture changes. */
+	/** If this is TRUE, this primitive has registered with the virtual texture system for a callback on virtual texture changes. */
 	bool bRegisteredVirtualTextureProducerCallback : 1;
+
+	/** Offset into the scene's instance data buffer, when GPUScene is enabled. */
+	int32 InstanceDataOffset;
+
+	/** Number of entries in the scene's instance data buffer. */
+	int32 NumInstanceDataEntries;
 
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;
+
 	/** Number of entries in the scene's lightmap data buffer. */
 	int32 NumLightmapDataEntries;
 
@@ -533,6 +569,12 @@ private:
 
 	/** These flags carry information about which runtime virtual textures are bound to this primitive. */
 	FPrimitiveVirtualTextureFlags RuntimeVirtualTextureFlags;
+
+	/** Creates or add ref's cached draw commands for each unique material instance found within the scene. */
+	static void CacheNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+
+	/** Removes or remove ref's cached draw commands */
+	void RemoveCachedNaniteDrawCommands();
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometry*> RayTracingGeometries;

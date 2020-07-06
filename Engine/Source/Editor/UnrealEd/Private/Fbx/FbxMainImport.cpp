@@ -373,6 +373,8 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.MinimumLodNumber			= ImportUI->MinimumLodNumber;
 	}
 
+	InOutImportOptions.bBuildNanite = ImportUI->StaticMeshImportData->bBuildNanite;
+
 	//Animation and skeletal mesh options
 	{
 		InOutImportOptions.bImportAnimations		= ImportUI->bImportAnimations;

@@ -94,6 +94,9 @@ enum class ETargetPlatformFeatures
 	
 	/* Can we use the virtual texture streaming system on this platform. */
 	VirtualTextureStreaming,
+
+	/** Lumen Global Illumination. */
+	LumenGI,
 };
 
 enum class EPlatformAuthentication

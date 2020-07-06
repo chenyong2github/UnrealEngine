@@ -213,6 +213,12 @@ void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 	DestinationData = nullptr;
 }
 
+void FNiagaraDataSet::SetCurrentData(FNiagaraDataBuffer* InCurrentData)
+{
+	check(DestinationData == nullptr);
+
+	CurrentData = InCurrentData;
+}
 
 void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 {
@@ -1144,6 +1150,39 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader* Shader, FRHICommandLi
 	if (Shader->IDToIndexBufferParam.IsUAVBound())
 	{
 		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
+	}
+}
+
+void FNiagaraDataBuffer::UnsetShaderParamsWithDummies(FNiagaraShader *Shader, FRHICommandList &RHICmdList, NiagaraEmitterInstanceBatcher& Batcher)
+{
+	// TODO: This function is a temporary hack to fix issues with particle UAVs being written to during simulation stages on platforms that do not
+	// unset UAVs
+
+	check(IsInRenderingThread());
+	FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+
+	if (Shader->FloatOutputBufferParam.IsUAVBound())
+	{
+		FUnorderedAccessViewRHIRef UAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_FLOAT);
+		RHICmdList.SetUAVParameter(ShaderRHI, Shader->FloatOutputBufferParam.GetUAVIndex(), UAV);
+	}
+
+	if (Shader->HalfOutputBufferParam.IsUAVBound())
+	{
+		FUnorderedAccessViewRHIRef UAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R16F);
+		RHICmdList.SetUAVParameter(ShaderRHI, Shader->HalfOutputBufferParam.GetUAVIndex(), UAV);
+	}
+
+	if (Shader->IntOutputBufferParam.IsUAVBound())
+	{
+		FUnorderedAccessViewRHIRef UAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_SINT);
+		RHICmdList.SetUAVParameter(ShaderRHI, Shader->IntOutputBufferParam.GetUAVIndex(), UAV);
+	}
+
+	if (Shader->IDToIndexBufferParam.IsUAVBound())
+	{
+		FUnorderedAccessViewRHIRef UAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_SINT);
+		RHICmdList.SetUAVParameter(ShaderRHI, Shader->IDToIndexBufferParam.GetUAVIndex(), UAV);
 	}
 }
 

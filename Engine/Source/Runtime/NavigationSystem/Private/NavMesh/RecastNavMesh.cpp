@@ -1825,8 +1825,11 @@ void ARecastNavMesh::InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles)
 		else 
 		{
 			// iterate through all tile refs in FreshTilesCopy and 
-			const FNavMeshPath* Path = (const FNavMeshPath*)(SharedPath.Get());
-			if (Path->IsReady() == false ||
+			const FNavigationPath* NavPath = SharedPath.Get();
+			const FNavMeshPath* Path = NavPath ? NavPath->CastPath<FNavMeshPath>() : nullptr;
+
+			if (Path == nullptr ||
+				Path->IsReady() == false ||
 				Path->GetIgnoreInvalidation() == true)
 			{
 				// path not filled yet or doesn't care about invalidation

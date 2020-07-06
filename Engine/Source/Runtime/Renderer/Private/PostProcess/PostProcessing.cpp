@@ -24,7 +24,7 @@
 #include "PostProcess/PostProcessBokehDOF.h"
 #include "PostProcess/PostProcessCombineLUTs.h"
 #include "PostProcess/PostProcessDeviceEncodingOnly.h"
-#include "PostProcess/PostProcessTemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessMotionBlur.h"
 #include "PostProcess/PostProcessDOF.h"
 #include "PostProcess/PostProcessUpscale.h"
@@ -88,6 +88,12 @@ TAutoConsoleVariable<int32> CVarPostProcessingPreferCompute(
 	TEXT("Will use compute shaders for post processing where implementations available."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarPostProcessingQuarterResolutionDownsample(
+	TEXT("r.PostProcessing.QuarterResolutionDownsample"),
+	0,
+	TEXT("Uses quarter resolution downsample instead of half resolution to feed into exposure / bloom."),
+	ECVF_RenderThreadSafe);
+
 #if !(UE_BUILD_SHIPPING)
 TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("r.PostProcessing.ForceAsyncDispatch"),
@@ -96,6 +102,14 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("Only available for testing in non-shipping builds."),
 	ECVF_RenderThreadSafe);
 #endif
+
+TAutoConsoleVariable<int32> CVarTAAAlgorithm(
+	TEXT("r.TemporalAA.Algorithm"), 0,
+	TEXT("Select the TAA algorithm.\n")
+	TEXT(" 0: TAAU 1.0 (default)\n")
+	TEXT(" 1: TAAU 2.0 (experimental)"),
+	ECVF_RenderThreadSafe);
+
 } //! namespace
 
 bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel)
@@ -121,12 +135,18 @@ bool IsPostProcessingEnabled(const FViewInfo& View)
 			!View.Family->EngineShowFlags.VisualizeShadingModels &&
 			!View.Family->EngineShowFlags.VisualizeMeshDistanceFields &&
 			!View.Family->EngineShowFlags.VisualizeGlobalDistanceField &&
+			!View.Family->EngineShowFlags.VisualizeLumenIndirectDiffuse &&
 			!View.Family->EngineShowFlags.ShaderComplexity;
 	}
 	else
 	{
 		return View.Family->EngineShowFlags.PostProcessing && !View.Family->EngineShowFlags.ShaderComplexity;
 	}
+}
+
+bool IsPostProcessingQuarterResolutionDownsampleEnabled()
+{
+	return CVarPostProcessingQuarterResolutionDownsample.GetValueOnRenderThread() != 0;
 }
 
 bool IsPostProcessingWithAlphaChannelSupported()
@@ -172,6 +192,11 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	SceneColorDesc.TargetableFlags &= ~TexCreate_UAV;
 	SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
 
+	if( SceneColorDesc.Format == PF_FloatRGBA && !IsPostProcessingWithAlphaChannelSupported() )
+	{
+		SceneColorDesc.Format = PF_FloatRGB;
+	}
+
 	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(SceneColorDesc, TEXT("SceneColor"));
 
 	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get_FrameConstantsOnly();
@@ -208,7 +233,15 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	return NewSceneColor;
 }
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs)
+void AddTemporalAA2Passes(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	FRDGTextureRef InputSceneColorTexture,
+	FRDGTextureRef* OutSceneColorTexture,
+	FIntRect* OutSceneColorViewRect);
+
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -427,7 +460,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		FScreenPassTexture HalfResolutionSceneColor;
+		FScreenPassTexture DownsampledSceneColor;
 
 		// Scene color view rectangle after temporal AA upscale to secondary screen percentage.
 		FIntRect SecondaryViewRect = PrimaryViewRect;
@@ -444,19 +477,32 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				// TemporalAA is only able to match the low quality mode (box filter).
 				GetDownsampleQuality() == EDownsampleQuality::Low;
 
-			AddTemporalAAPass(
-				GraphBuilder,
-				SceneTextures,
-				View,
-				bAllowSceneDownsample,
-				DownsampleOverrideFormat,
-				SceneColor.Texture,
-				&SceneColor.Texture,
-				&SecondaryViewRect,
-				&HalfResolutionSceneColor.Texture,
-				&HalfResolutionSceneColor.ViewRect);
+			if (CVarTAAAlgorithm.GetValueOnRenderThread())
+			{
+				AddTemporalAA2Passes(
+					GraphBuilder,
+					SceneTextures,
+					View,
+					SceneColor.Texture,
+					&SceneColor.Texture,
+					&SecondaryViewRect);
+			}
+			else
+			{
+				AddTemporalAAPass(
+					GraphBuilder,
+					SceneTextures,
+					View,
+					bAllowSceneDownsample,
+					DownsampleOverrideFormat,
+					SceneColor.Texture,
+					&SceneColor.Texture,
+					&SecondaryViewRect,
+					&DownsampledSceneColor.Texture,
+					&DownsampledSceneColor.ViewRect);
+			}
 		}
-		else if (ShouldRenderScreenSpaceReflections(View))
+		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View))
 		{
 			// If we need SSR, and TAA is enabled, then AddTemporalAAPass() has already handled the scene history.
 			// If we need SSR, and TAA is not enable, then we just need to extract the history.
@@ -512,8 +558,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		// If TAA didn't do it, downsample the scene color texture by half.
-		if (!HalfResolutionSceneColor.Texture)
+		// If TAA didn't do it, downsample the scene color texture.
+		if (!DownsampledSceneColor.IsValid())
 		{
 			FDownsamplePassInputs PassInputs;
 			PassInputs.Name = TEXT("HalfResolutionSceneColor");
@@ -521,22 +567,32 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			PassInputs.Quality = DownsampleQuality;
 			PassInputs.FormatOverride = DownsampleOverrideFormat;
 
-			HalfResolutionSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+			DownsampledSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+		}
+
+		if (IsPostProcessingQuarterResolutionDownsampleEnabled())
+		{
+			FDownsamplePassInputs PassInputs;
+			PassInputs.Name = TEXT("QuarterResolutionSceneColor");
+			PassInputs.SceneColor = DownsampledSceneColor;
+			PassInputs.Quality = DownsampleQuality;
+
+			DownsampledSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
 		}
 
 		// Store half res scene color in the history
 		extern int32 GSSRHalfResSceneColor;
-		if (ShouldRenderScreenSpaceReflections(View) && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
+		if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View) && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
 		{
 			check(View.ViewState);
-			GraphBuilder.QueueTextureExtraction(HalfResolutionSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
+			GraphBuilder.QueueTextureExtraction(DownsampledSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 		}
 
 		FSceneDownsampleChain SceneDownsampleChain;
 
 		if (bHistogramEnabled)
 		{
-			HistogramTexture = AddHistogramPass(GraphBuilder, View, EyeAdaptationParameters, HalfResolutionSceneColor, LastEyeAdaptationTexture);
+			HistogramTexture = AddHistogramPass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, LastEyeAdaptationTexture);
 		}
 
 		if (bEyeAdaptationEnabled)
@@ -546,7 +602,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			if (bBasicEyeAdaptationEnabled)
 			{
 				const bool bLogLumaInAlpha = true;
-				SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, HalfResolutionSceneColor, DownsampleQuality, bLogLumaInAlpha);
+				SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, DownsampleQuality, bLogLumaInAlpha);
 
 				// Use the alpha channel in the last downsample (smallest) to compute eye adaptations values.
 				EyeAdaptationTexture = AddBasicEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetLastTexture(), LastEyeAdaptationTexture);
@@ -576,7 +632,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 			else
 			{
-				FScreenPassTexture DownsampleInput = HalfResolutionSceneColor;
+				FScreenPassTexture DownsampleInput = DownsampledSceneColor;
 
 				if (bBloomThresholdEnabled)
 				{
@@ -766,7 +822,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.SceneDepth = SceneDepth;
 
-		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs);
+		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
 	}
 
 	if (PassSequence.IsEnabled(EPass::EditorPrimitive))
@@ -922,7 +978,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	}
 }
 
-void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs)
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -1078,7 +1134,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.SceneDepth = SceneDepth;
 
-		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs);
+		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
 	}
 #endif
 
@@ -1838,7 +1894,8 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			&& !(View.Family->EngineShowFlags.Wireframe)
 			)
 		{
-			Context.FinalOutput = AddSelectionOutlinePass(Context.Graph, Context.FinalOutput);
+			// TODO: Nanite - pipe through results
+			Context.FinalOutput = AddSelectionOutlinePass(Context.Graph, Context.FinalOutput, nullptr);
 		}
 
 		if (FSceneRenderer::ShouldCompositeEditorPrimitives(View))

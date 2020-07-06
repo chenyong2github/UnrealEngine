@@ -7,9 +7,9 @@
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPixelInspectorParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-	SHADER_PARAMETER_RDG_TEXTURE(, SceneColor)
-	SHADER_PARAMETER_RDG_TEXTURE(, SceneColorBeforeTonemap)
-	SHADER_PARAMETER_RDG_TEXTURE(, OriginalSceneColor)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorBeforeTonemap)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OriginalSceneColor)
 END_SHADER_PARAMETER_STRUCT()
 
 void ProcessPixelInspectorRequests(

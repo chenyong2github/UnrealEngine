@@ -175,7 +175,8 @@ void InjectMainPS(
 			bSpotLight = SpotlightMask >= 1;
 		#endif
 
-		float ShadowFactor = ComputeVolumeShadowing(WorldPositionForLighting, bPointLight, bSpotLight);
+		bool bUnused = false;
+		float ShadowFactor = ComputeVolumeShadowing(WorldPositionForLighting, bPointLight, bSpotLight, bUnused);
 
 		// Apply light function (it will also fade out at the edge of the volume so overall dimming of light using light function is not a recommended workflow)
 		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);

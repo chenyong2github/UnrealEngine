@@ -30,9 +30,11 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
+#include "Rendering/NaniteResources.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "SpeedTreeWind.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -49,6 +51,7 @@
 #include "RawMesh.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "MeshBuilder.h"
+#include "NaniteBuilder.h"
 #include "MeshUtilities.h"
 #include "MeshUtilitiesCommon.h"
 #include "DerivedDataCacheInterface.h"
@@ -1128,7 +1131,8 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 };
 
 FStaticMeshLODResources::FStaticMeshLODResources(bool bAddRef)
-	: MaxDeviation(0.0f)
+	: CardRepresentationData(nullptr)
+	, MaxDeviation(0.0f)
 	, bHasAdjacencyInfo(false)
 	, bHasDepthOnlyIndices(false)
 	, bHasReversedIndices(false)
@@ -1154,6 +1158,7 @@ FStaticMeshLODResources::~FStaticMeshLODResources()
 {
 	check(GetRefCount() == 0);
 	delete DistanceFieldData;
+	delete CardRepresentationData;
 	delete AdditionalIndexBuffers;
 }
 
@@ -1393,6 +1398,54 @@ FStaticMeshRenderData::~FStaticMeshRenderData()
 	LODResources.Empty();
 }
 
+void FStaticMeshRenderData::SerializeInlineDataRepresentations(FArchive& Ar, UStaticMesh* Owner)
+{
+	// Defined class flags for possible stripping
+	const uint8 CardRepresentationDataStripFlag = 2;
+
+	// Actual flags used during serialization
+	uint8 ClassDataStripFlags = 0;
+
+#if WITH_EDITOR
+	const bool bWantToStripCardRepresentationData = Ar.IsCooking() && (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering) || !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::LumenGI));
+	ClassDataStripFlags |= (bWantToStripCardRepresentationData ? CardRepresentationDataStripFlag : 0);
+#endif
+
+	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
+	if (!StripFlags.IsDataStrippedForServer() && !StripFlags.IsClassDataStripped(CardRepresentationDataStripFlag))
+	{
+		if (Ar.IsSaving())
+		{
+			GCardRepresentationAsyncQueue->BlockUntilBuildComplete(Owner, false);
+		}
+
+		for (int32 ResourceIndex = 0; ResourceIndex < LODResources.Num(); ResourceIndex++)
+		{
+			FStaticMeshLODResources& LOD = LODResources[ResourceIndex];
+				
+			bool bValid = (LOD.CardRepresentationData != nullptr);
+
+			Ar << bValid;
+
+			if (bValid)
+			{
+#if WITH_EDITOR
+				check(LOD.CardRepresentationData != nullptr);
+
+				Ar << *(LOD.CardRepresentationData);
+#else
+				if (LOD.CardRepresentationData == nullptr)
+				{
+					LOD.CardRepresentationData = new FCardRepresentationData();
+				}
+
+				Ar << *(LOD.CardRepresentationData);
+#endif
+			}
+		}
+	}
+}
+
 void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Serialize);
@@ -1445,9 +1498,13 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		}
 	}
 
+	NaniteResources.Serialize( Ar, Owner );
+
 	// Inline the distance field derived data for cooked builds
 	if (bCooked)
 	{
+		SerializeInlineDataRepresentations(Ar, Owner);
+
 		// Defined class flags for possible stripping
 		const uint8 DistanceFieldDataStripFlag = 1;
 
@@ -1594,6 +1651,12 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 	}
 #endif
 
+	// Skip resources that have their render data stripped
+	if( NaniteResources.PageStreamingStates.Num() > 0 )
+	{
+		NaniteResources.InitResources();
+	}
+
 	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
 		[this, Owner](FRHICommandListImmediate&)
 	{
@@ -1620,6 +1683,11 @@ void FStaticMeshRenderData::ReleaseResources()
 			DEC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
 			DistanceFieldData->VolumeTexture.Release();
 		}
+	}
+
+	if( NaniteResources.PageStreamingStates.Num() > 0 )
+	{
+		NaniteResources.ReleaseResources();
 	}
 }
 
@@ -2120,6 +2188,13 @@ void UStaticMesh::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
+static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& NaniteSettings)
+{
+	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
+	Ar << NaniteSettings.PercentTriangles;
+	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
+}
+
 static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSettings& ReductionSettings)
 {
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
@@ -2177,7 +2252,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("F9378A28F161444987BACE79B2590E57")
+#define STATICMESH_DERIVEDDATA_VER TEXT("8A1DEAA415B140E48506E88E3BF897D0")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2186,9 +2261,10 @@ static const FString& GetStaticMeshDerivedDataVersion()
 	{
 		// Static mesh versioning is controlled by the version reported by the mesh utilities module.
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
-		CachedVersionString = FString::Printf(TEXT("%s_%s"),
+		CachedVersionString = FString::Printf(TEXT("%s_%s_%s"),
 			STATICMESH_DERIVEDDATA_VER,
-			*MeshUtilities.GetVersionString()
+			*MeshUtilities.GetVersionString(),
+			*Nanite::IBuilderModule::Get().GetVersionString()
 			);
 	}
 	return CachedVersionString;
@@ -2246,6 +2322,19 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 	}
 #endif
 
+	{
+		TempBytes.Reset();
+		FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
+		SerializeNaniteSettingsForDDC(Ar, Mesh->NaniteSettings);
+
+		const uint8* SettingsAsBytes = TempBytes.GetData();
+		KeySuffix.Reserve(KeySuffix.Len() + TempBytes.Num() + 1);
+		for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
+		{
+			ByteToHex(SettingsAsBytes[ByteIndex], KeySuffix);
+		}
+	}
+
 	int32 NumLODs = Mesh->GetNumSourceModels();
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
@@ -2279,7 +2368,6 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 
 		FMeshReductionSettings FinalReductionSettings = LODGroup.GetSettings(SrcModel.ReductionSettings, LODIndex);
 		SerializeReductionSettingsForDDC(Ar, FinalReductionSettings);
-
 
 		// Now convert the raw bytes to a string.
 		const uint8* SettingsAsBytes = TempBytes.GetData();
@@ -2576,12 +2664,16 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				BuildSettings.DistanceFieldReplacementMesh->ConditionalPostLoad();
 			}
 
-			LODResources[0].DistanceFieldData->CacheDerivedData(DistanceFieldKey, Owner, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
+			LODResources[0].DistanceFieldData->CacheDerivedData(DistanceFieldKey, Owner, *this, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
 		}
 		else
 		{
 			UE_LOG(LogStaticMesh, Error, TEXT("Failed to generate distance field data for %s due to missing LODResource for LOD 0."), *Owner->GetPathName());
 		}
+	}
+	else
+	{
+		BeginCacheMeshCardRepresentation(Owner, *this, DerivedDataKey);
 	}
 }
 #endif // #if WITH_EDITOR
@@ -2757,6 +2849,11 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 		if (LODRenderData.DistanceFieldData)
 		{
 			LODRenderData.DistanceFieldData->GetResourceSizeEx(CumulativeResourceSize);
+		}
+
+		if (LODRenderData.CardRepresentationData)
+		{
+			LODRenderData.CardRepresentationData->GetResourceSizeEx(CumulativeResourceSize);
 		}
 	}
 
@@ -3436,6 +3533,11 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
 }
 
+void UStaticMesh::FinishDestroy()
+{
+	Super::FinishDestroy();
+}
+
 int32 UStaticMesh::GetNumSectionsWithCollision() const
 {
 #if WITH_EDITORONLY_DATA
@@ -3505,19 +3607,22 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		ComplexityString = LexToString((ECollisionTraceFlag)BodySetup->GetCollisionTraceFlag());
 	}
 
-	OutTags.Add( FAssetRegistryTag("Triangles", FString::FromInt(NumTriangles), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add( FAssetRegistryTag("Vertices", FString::FromInt(NumVertices), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add( FAssetRegistryTag("UVChannels", FString::FromInt(NumUVChannels), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add( FAssetRegistryTag("Materials", FString::FromInt(StaticMaterials.Num()), FAssetRegistryTag::TT_Numerical) );
-	OutTags.Add( FAssetRegistryTag("ApproxSize", ApproxSizeStr, FAssetRegistryTag::TT_Dimensional) );
-	OutTags.Add( FAssetRegistryTag("CollisionPrims", FString::FromInt(NumCollisionPrims), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add( FAssetRegistryTag("LODs", FString::FromInt(NumLODs), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add( FAssetRegistryTag("MinLOD", MinLOD.ToString(), FAssetRegistryTag::TT_Alphabetical));
-	OutTags.Add( FAssetRegistryTag("SectionsWithCollision", FString::FromInt(NumSectionsWithCollision), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add( FAssetRegistryTag("DefaultCollision", DefaultCollisionName.ToString(), FAssetRegistryTag::TT_Alphabetical));
-	OutTags.Add( FAssetRegistryTag("CollisionComplexity", ComplexityString, FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("Triangles", FString::FromInt(NumTriangles), FAssetRegistryTag::TT_Numerical) );
+	OutTags.Add(FAssetRegistryTag("Vertices", FString::FromInt(NumVertices), FAssetRegistryTag::TT_Numerical) );
+	OutTags.Add(FAssetRegistryTag("UVChannels", FString::FromInt(NumUVChannels), FAssetRegistryTag::TT_Numerical) );
+	OutTags.Add(FAssetRegistryTag("Materials", FString::FromInt(StaticMaterials.Num()), FAssetRegistryTag::TT_Numerical) );
+	OutTags.Add(FAssetRegistryTag("ApproxSize", ApproxSizeStr, FAssetRegistryTag::TT_Dimensional) );
+	OutTags.Add(FAssetRegistryTag("CollisionPrims", FString::FromInt(NumCollisionPrims), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("LODs", FString::FromInt(NumLODs), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("MinLOD", MinLOD.ToString(), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("SectionsWithCollision", FString::FromInt(NumSectionsWithCollision), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("DefaultCollision", DefaultCollisionName.ToString(), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("CollisionComplexity", ComplexityString, FAssetRegistryTag::TT_Alphabetical));
 
 #if WITH_EDITORONLY_DATA
+	OutTags.Add(FAssetRegistryTag("NaniteEnabled", NaniteSettings.bEnabled ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("NanitePercent", FString::Printf(TEXT("%.1f"), NaniteSettings.PercentTriangles * 100.0f), FAssetRegistryTag::TT_Numerical));
+
 	if (AssetImportData)
 	{
 		OutTags.Add( FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden) );
@@ -4108,11 +4213,11 @@ void UStaticMesh::ClearMeshDescriptions()
 	}
 }
 
-// If static mesh derived data needs to be rebuilt (MeshDescription new format,
-// serialization differences, etc.) replace the version GUID below with a new one.
+// If static mesh derived data needs to be rebuilt (new format, serialization
+// differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("5D29A2C59A03418CBCE13C88747BA3AD")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("BD8BD3653BF64EED96EE5366C4F82B25")
 
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
@@ -4405,6 +4510,8 @@ void UStaticMesh::CacheDerivedData()
 				DistanceFieldData->VolumeTexture.Release();
 			}
 		}
+
+		GCardRepresentationAsyncQueue->BlockUntilBuildComplete(this, true);
 	}
 
 	RenderData = MakeUnique<FStaticMeshRenderData>();
@@ -4844,10 +4951,10 @@ void UStaticMesh::PostLoad()
 		}
 		else
 		{
-		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-		// is then released, and can be reloaded on demand.
-		CacheDerivedData();
+            // This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+            // or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+            // is then released, and can be reloaded on demand.
+            CacheDerivedData();
 		}
 
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
@@ -5172,7 +5279,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	TArray<uint32> IndexBuffer;
 	IndexBuffer.SetNumZeroed(NumTriangles * 3);
 
-	FStaticMeshLODResources::FStaticMeshSectionArray& Sections = LODResources.Sections;
+	FStaticMeshSectionArray& Sections = LODResources.Sections;
 
 	int32 SectionIndex = 0;
 	int32 IndexBufferIndex = 0;

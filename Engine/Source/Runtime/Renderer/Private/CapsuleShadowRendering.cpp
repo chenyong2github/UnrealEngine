@@ -26,6 +26,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
+#include "RendererPrivateUtils.h"
 
 DECLARE_GPU_STAT_NAMED(CapsuleShadows, TEXT("Capsule Shadows"));
 
@@ -108,6 +109,13 @@ FAutoConsoleVariableRef CVarCapsuleMinSkyAngle(
 	TEXT("Minimum light source angle derived from the precomputed unoccluded sky vector (stationary skylight present)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
+
+// Nvidia has lower vertex throughput when only processing a few verts per instance
+// Disabled as it hasn't been tested
+static const int32 NumTileQuadsInBuffer = 1;
+
+TGlobalResource<FTileTexCoordVertexBuffer> GTileTexCoordVertexBuffer(NumTileQuadsInBuffer);
+TGlobalResource<FTileIndexBuffer> GTileIndexBuffer(NumTileQuadsInBuffer);
 
 const int32 GComputeLightDirectionFromVolumetricLightmapGroupSize = 64;
 
@@ -529,10 +537,6 @@ IMPLEMENT_CAPSULE_SHADOW_TYPE(ShapeShadow_IndirectTiledCulling, IPT_CapsuleShape
 IMPLEMENT_CAPSULE_SHADOW_TYPE(ShapeShadow_MovableSkylightTiledCulling, IPT_CapsuleShapesAndMeshDistanceFields);
 IMPLEMENT_CAPSULE_SHADOW_TYPE(ShapeShadow_MovableSkylightTiledCullingGatherFromReceiverBentNormal, IPT_CapsuleShapesAndMeshDistanceFields);
 
-// Nvidia has lower vertex throughput when only processing a few verts per instance
-// Disabled as it hasn't been tested
-const int32 NumTileQuadsInBuffer = 1;
-
 class FCapsuleShadowingUpsampleVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FCapsuleShadowingUpsampleVS, Global);
@@ -643,56 +647,6 @@ IMPLEMENT_CAPSULE_APPLY_SHADER_TYPE(true, true);
 IMPLEMENT_CAPSULE_APPLY_SHADER_TYPE(true, false);
 IMPLEMENT_CAPSULE_APPLY_SHADER_TYPE(false, true);
 IMPLEMENT_CAPSULE_APPLY_SHADER_TYPE(false, false);
-
-class FTileTexCoordVertexBuffer : public FVertexBuffer
-{
-public:
-	virtual void InitRHI() override
-	{
-		const uint32 Size = sizeof(FVector2D) * 4 * NumTileQuadsInBuffer;
-		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(Size, BUF_Static, CreateInfo, BufferData);
-		FVector2D* Vertices = (FVector2D*)BufferData;
-		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
-		{
-			Vertices[SpriteIndex*4 + 0] = FVector2D(0.0f, 0.0f);
-			Vertices[SpriteIndex*4 + 1] = FVector2D(0.0f, 1.0f);
-			Vertices[SpriteIndex*4 + 2] = FVector2D(1.0f, 1.0f);
-			Vertices[SpriteIndex*4 + 3] = FVector2D(1.0f, 0.0f);
-		}
-		RHIUnlockVertexBuffer( VertexBufferRHI );
-	}
-};
-
-TGlobalResource<FTileTexCoordVertexBuffer> GTileTexCoordVertexBuffer;
-
-class FTileIndexBuffer : public FIndexBuffer
-{
-public:
-	/** Initialize the RHI for this rendering resource */
-	void InitRHI() override
-	{
-		const uint32 Size = sizeof(uint16) * 6 * NumTileQuadsInBuffer;
-		const uint32 Stride = sizeof(uint16);
-		FRHIResourceCreateInfo CreateInfo;
-		void* Buffer = nullptr;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(Stride, Size, BUF_Static, CreateInfo, Buffer);
-		uint16* Indices = (uint16*)Buffer;
-		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
-		{
-			Indices[SpriteIndex * 6 + 0] = SpriteIndex * 4 + 0;
-			Indices[SpriteIndex * 6 + 1] = SpriteIndex * 4 + 1;
-			Indices[SpriteIndex * 6 + 2] = SpriteIndex * 4 + 2;
-			Indices[SpriteIndex * 6 + 3] = SpriteIndex * 4 + 0;
-			Indices[SpriteIndex * 6 + 4] = SpriteIndex * 4 + 2;
-			Indices[SpriteIndex * 6 + 5] = SpriteIndex * 4 + 3;
-		}
-		RHIUnlockIndexBuffer(IndexBufferRHI);
-	}
-};
-
-TGlobalResource<FTileIndexBuffer> GTileIndexBuffer;
 
 void AllocateCapsuleTileIntersectionCountsBuffer(FIntPoint GroupSize, FSceneViewState* ViewState)
 {
@@ -937,7 +891,13 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 					}
 
 					RHICmdList.SetStreamSource(0, GTileTexCoordVertexBuffer.VertexBufferRHI, 0);
-					RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2 * NumTileQuadsInBuffer, FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
+					RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI, 
+						0, 
+						0, 
+						4,
+						0,
+						2 * NumTileQuadsInBuffer,
+						FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
 				}
 				RHICmdList.EndRenderPass();
 			}
@@ -1457,7 +1417,13 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 							}
 
 							RHICmdList.SetStreamSource(0, GTileTexCoordVertexBuffer.VertexBufferRHI, 0);
-							RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2 * NumTileQuadsInBuffer, FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
+							RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI,
+								0,
+								0,
+								4,
+								0,
+								2 * NumTileQuadsInBuffer,
+								FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
 						}
 						RHICmdList.EndRenderPass();
 					}

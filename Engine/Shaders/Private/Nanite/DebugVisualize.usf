@@ -1,0 +1,211 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "../DeferredShadingCommon.ush"
+#include "NaniteDataDecode.ush"
+
+RWTexture2D<float4>		DebugOutput;
+Texture2D<UlongType>	VisBuffer64;
+Texture2D<UlongType>	DbgBuffer64;
+Texture2D<uint>			DbgBuffer32;
+int4					VisualizeConfig;
+
+ByteAddressBuffer		MaterialDepthTable;
+ByteAddressBuffer		MaterialHitProxyTable;
+
+uint MurmurMix(uint Hash)
+{
+	Hash ^= Hash >> 16;
+	Hash *= 0x85ebca6b;
+	Hash ^= Hash >> 13;
+	Hash *= 0xc2b2ae35;
+	Hash ^= Hash >> 16;
+	return Hash;
+}
+
+float3 IntToColor(uint Index)
+{
+	uint Hash = MurmurMix( Index );
+
+	float3 Color = float3(
+		(Hash >>  0) & 255,
+		(Hash >>  8) & 255,
+		(Hash >> 16) & 255
+	    );
+		
+	return Color * (1.0f / 255.0f);
+}
+
+float4 VisualizeData(
+	uint2 PixelPos,
+	uint DepthInt,
+	FVisibleCluster VisibleCluster,
+	uint  TriIndex,
+	uint  DebugValueMax,
+	uint  DebugValueAdd)
+{
+	FNaniteView NaniteView = GetNaniteView( 0 );
+
+	FInstanceSceneData InstanceData = GetInstanceData (VisibleCluster.InstanceId );
+
+	FInstanceDynamicData InstanceDynamicData;
+#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
+	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
+	{
+		InstanceDynamicData = GetInstanceDynamicData(VisibleCluster.InstanceId);
+	}
+	else
+#else
+	{
+		InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+	}
+#endif
+
+	const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
+	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+
+	float3 Result = float3(0, 0, 0);
+
+	const uint VisualizeMode = VisualizeConfig.x;
+	if (VisualizeMode == VISUALIZE_TRIANGLES)
+	{
+	
+		// sobel edge detect depth
+		static int Sobelx[] =
+		{
+			1,0,-1,
+			2,0,-2,
+			1,0,-1
+		};
+		static int Sobely[] =
+		{
+			1,2,1,
+			0,0,0,
+			-1,-2,-1
+		};
+		static uint2 UVsample[] =
+		{
+			{-1,1},{0,1},{1,1},
+			{-1,0},{0,0},{1,0},
+			{-1,-1},{0,-1},{1,-1}
+		};
+
+		float3 depthGradx = (0,0,0);
+		float3 depthGrady = (0,0,0);
+	
+		uint DepthIntCurrent;
+		uint VisibleClusterIndexCurrent;
+		uint TriIndexCurrent;
+
+		for (int j = 0; j < 9; j++)
+		{ 
+			const UlongType VisPixelCurrent = VisBuffer64[PixelPos.xy+UVsample[j]];
+			UnpackVisPixel(VisPixelCurrent, DepthIntCurrent, VisibleClusterIndexCurrent, TriIndexCurrent);
+	
+			FVisibleCluster VisibleClusterCurrent = GetVisibleCluster(VisibleClusterIndexCurrent);
+
+			float sampleDensityDepth = 20*pow(1/pow(2.718,ConvertFromDeviceZ(asfloat(DepthIntCurrent))*.0005),1);
+		
+			depthGradx += Sobelx[j] * sampleDensityDepth;
+			depthGrady += Sobely[j] * sampleDensityDepth;
+		}	
+		// build outline from depth
+		float3 DepthOutline = max(abs(depthGradx),abs(depthGrady));
+		
+		float DensityDepth = 1/pow(2.718,ConvertFromDeviceZ(asfloat(DepthInt))*.0004); // convert depth to density
+		float3 visTri = lerp(1,IntToColor(TriIndex),.75);
+		//float3 visPrimitives = lerp(1,IntToColor(VisibleCluster.InstanceId),.2);
+		//float3 visCluster = lerp(1,IntToColor(VisibleCluster.ClusterIndex),.2);
+		float3 CombineColor =  1.4*(1-DepthOutline)*visTri;
+		CombineColor = lerp(Luminance(CombineColor),CombineColor,1.2); // saturate visualization colors
+		CombineColor = lerp(float3(0,.15,.5)*CombineColor,CombineColor,saturate(DensityDepth+.33)); // depth blue tint
+		Result = saturate(CombineColor);
+		
+		//Result = IntToColor(TriIndex); // previous visualization
+	}
+	else if (VisualizeMode == VISUALIZE_CLUSTERS )
+	{
+		Result = IntToColor(VisibleCluster.ClusterIndex);
+	}
+	else if( VisualizeMode == VISUALIZE_PAGES )
+	{
+		Result = IntToColor(VisibleCluster.PageIndex);
+	}
+	else if (VisualizeMode == VISUALIZE_PRIMITIVES)
+	{
+		Result = IntToColor(VisibleCluster.InstanceId) * 0.8;
+	}
+	else if (VisualizeMode == VISUALIZE_HW_VS_SW)
+	{
+		Result = IntToColor(DebugValueMax) * ( IntToColor(TriIndex).x * 0.5 + 0.5 );
+	}
+	else if (VisualizeMode == VISUALIZE_OVERDRAW)
+	{
+		const float OverdrawScale = clamp(VisualizeConfig.y, 0, 100) / 100.0;
+		const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
+		const float OverdrawColor = 1 - exp2( -OverdrawCount * OverdrawScale );
+		Result = float3( sin( OverdrawColor * 6.28/4 ), Pow3( OverdrawColor ), lerp( sin( OverdrawColor * 6.28 ), OverdrawColor, 0.6 ) );
+	}
+	else if (VisualizeMode == VISUALIZE_HIERARCHY_OFFSET)
+	{
+		Result = IntToColor(HierarchyOffset);
+	}
+	else if (VisualizeMode == VISUALIZE_MATERIAL_FAST_VS_SLOW)
+	{
+		Result = IsMaterialFastPath(Cluster) ? float3(0, 1, 0) : float3(1, 0, 0);
+	}
+	else if (VisualizeMode == VISUALIZE_MATERIAL_INDEX)
+	{
+		Result = IntToColor(GetRelativeMaterialIndex(Cluster, TriIndex));
+	}
+	else if (VisualizeMode == VISUALIZE_MATERIAL_ID)
+	{
+		Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable));
+	}
+	else if (VisualizeMode == VISUALIZE_HIT_PROXY_ID)
+	{
+		Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
+	}
+
+	return float4(Result, 0);
+}
+
+[numthreads(8, 8, 1)]
+void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
+{
+	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
+
+	uint DepthInt;
+	uint VisibleClusterIndex;
+	uint TriIndex;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	float4 Result = float4(0, 0, 0, 0);
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		// Nanite Pixel
+
+		UlongType DbgPixel = DbgBuffer64[PixelPos.xy];
+		uint DebugDepthInt;
+		uint DebugValueMax;
+		UnpackDbgPixel(DbgPixel, DebugDepthInt, DebugValueMax);
+		uint DebugValueAdd = DbgBuffer32[PixelPos.xy];
+
+		FVisibleCluster VisibleCluster	= GetVisibleCluster(VisibleClusterIndex);
+
+		Result = VisualizeData(
+					PixelPos,
+					DepthInt,
+					VisibleCluster,
+					TriIndex,
+					DebugValueMax,
+					DebugValueAdd);
+	}
+	else
+	{
+		// Non-Nanite Pixel
+	}
+
+	DebugOutput[PixelPos.xy] = Result;
+}

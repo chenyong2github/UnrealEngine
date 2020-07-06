@@ -140,6 +140,11 @@ IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandL
 	return StreamingManager->ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
 }
 
+void FUploadingVirtualTexture::GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const
+{
+	StreamingManager->GatherProducePageDataTasks(RequestHandle, InOutTasks);
+}
+
 void FVirtualTextureCodec::RetireOldCodecs()
 {
 	const uint32 AgeThreshold = CVarVTCodecAgeThreshold.GetValueOnRenderThread();
@@ -337,23 +342,10 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 {
 	FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	FByteBulkData& BulkData = Chunk.BulkData;
-	FString ChunkFileName;
-	FIoChunkId ChunkId = FIoChunkId::InvalidChunkId;
-	int64 ChunkOffsetInFile = 0;
-
 #if WITH_EDITOR
-	FString ChunkFileNameDCC;
-	// If the bulkdata has a file associated with it, we stream directly from it.
-	// This only happens for lightmaps atm
-	if (BulkData.GetFilename().IsEmpty() == false)
-	{
-		ensure(Size <= (size_t)BulkData.GetBulkDataSize());
-		ChunkFileName = BulkData.GetFilename();
-		ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
-	}
 	// It could be that the bulkdata has no file associated yet (aka lightmaps have been build but not saved to disk yet) but still contains valid data
 	// Streaming is done from memory
-	else if (BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0)
+	if (BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0)
 	{
 		ensure(Size <= (size_t)BulkData.GetBulkDataSize());
 		const uint8 *P = (uint8*)BulkData.LockReadOnly() + Offset;
@@ -361,54 +353,65 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		BulkData.Unlock();
 		return FVTDataAndStatus(EVTRequestPageStatus::Available, Buffer);
 	}
-	// Else it should be VT data that is injected into the DDC (and stream from VT DDC cache)
-	else
-	{
-		SCOPE_CYCLE_COUNTER(STAT_VTP_MakeChunkAvailable);
-		check(Chunk.DerivedDataKey.IsEmpty() == false);
-
-		// If request is flagged as high priority, we will block here until DCC cache is populated
-		// This way we can service these high priority tasks immediately
-		// Would be better to have DCC cache return a task event handle, which could be used to chain a subsequent read operation,
-		// but that would be more complicated, and this should generally not be a critical runtime path
-		const bool bAsyncDCC = (Priority == EVTRequestPagePriority::Normal);
-
-		const bool Available = GetVirtualTextureChunkDDCCache()->MakeChunkAvailable(&Data->Chunks[ChunkIndex], ChunkFileNameDCC, bAsyncDCC);
-		if (!Available)
-		{
-			return EVTRequestPageStatus::Saturated;
-		}
-		ChunkFileName = ChunkFileNameDCC;
-	}
-#else // WITH_EDITOR
-	ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
-	
-	if (BulkData.GetBulkDataSize() == 0)
-	{
-		if (!InvalidChunks[ChunkIndex])
-		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *ChunkFileName);
-			InvalidChunks[ChunkIndex] = true;
-		}
-		return EVTRequestPageStatus::Invalid;
-	}
-#endif // !WITH_EDITOR
+#endif // WITH_EDITOR
 
 	TUniquePtr<IFileCacheHandle>& Handle = HandlePerChunk[ChunkIndex];
 	if (!Handle)
 	{
+		FString ChunkFileName;
+		int64 ChunkOffsetInFile = 0;
+#if WITH_EDITOR
+		FString ChunkFileNameDCC;
+		// If the bulkdata has a file associated with it, we stream directly from it.
+		// This only happens for lightmaps atm
+		if (!BulkData.GetFilename().IsEmpty())
+		{
+			ensure(Size <= (size_t)BulkData.GetBulkDataSize());
+			ChunkFileName = BulkData.GetFilename();
+			ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
+		}
+		// Else it should be VT data that is injected into the DDC (and stream from VT DDC cache)
+		else
+		{
+			SCOPE_CYCLE_COUNTER(STAT_VTP_MakeChunkAvailable);
+			check(Chunk.DerivedDataKey.IsEmpty() == false);
+
+			// If request is flagged as high priority, we will block here until DCC cache is populated
+			// This way we can service these high priority tasks immediately
+			// Would be better to have DCC cache return a task event handle, which could be used to chain a subsequent read operation,
+			// but that would be more complicated, and this should generally not be a critical runtime path
+			const bool bAsyncDCC = (Priority == EVTRequestPagePriority::Normal);
+			const bool Available = GetVirtualTextureChunkDDCCache()->MakeChunkAvailable(&Data->Chunks[ChunkIndex], bAsyncDCC, ChunkFileNameDCC, ChunkOffsetInFile);
+			if (!Available)
+			{
+				return EVTRequestPageStatus::Saturated;
+			}
+			ChunkFileName = ChunkFileNameDCC;
+		}
+#else // WITH_EDITOR
+		ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
+		if (BulkData.GetBulkDataSize() == 0)
+		{
+			if (!InvalidChunks[ChunkIndex])
+			{
+				UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *ChunkFileName);
+				InvalidChunks[ChunkIndex] = true;
+			}
+			return EVTRequestPageStatus::Invalid;
+		}
+#endif // !WITH_EDITOR
 		// If we have a valid file name then we can create a file handle directly to it.
 		// If we do not then pass in the BulkData object which will create the IAsyncReadFileHandle for us.
 		//
 		if (!ChunkFileName.IsEmpty())
 		{
-			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName));
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName, ChunkOffsetInFile));
 		}
 		else
 		{
-			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(BulkData.OpenAsyncReadHandle()));
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(BulkData.OpenAsyncReadHandle(), ChunkOffsetInFile));
 		}
-
+		
 		// Don't expect CreateFileCacheHandle() to fail, async files should never fail to open
 		if (!ensure(Handle.IsValid()))
 		{
@@ -422,7 +425,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		SET_MEMORY_STAT(STAT_FileCacheSize, IFileCacheHandle::GetFileCacheSize());
 	}
 
-	IMemoryReadStreamRef ReadData = Handle->ReadData(OutCompletionEvents, ChunkOffsetInFile + Offset, Size, GetAsyncIOPriority(Priority));
+	IMemoryReadStreamRef ReadData = Handle->ReadData(OutCompletionEvents, Offset, Size, GetAsyncIOPriority(Priority));
 	if (!ReadData)
 	{
 		return EVTRequestPageStatus::Saturated;

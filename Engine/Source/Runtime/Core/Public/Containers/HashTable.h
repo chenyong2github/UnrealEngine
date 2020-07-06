@@ -189,20 +189,19 @@ public:
 					FHashTable( const FHashTable& Other );
 					~FHashTable();
 
-	void			Initialize(uint32 InHashSize = 1024, uint32 InIndexSize = 0);
-
 	void			Clear();
+	void			Clear( uint32 InHashSize, uint32 InIndexSize = 0 );
 	void			Free();
 	CORE_API void	Resize( uint32 NewIndexSize );
 
 	// Functions used to search
-	uint32			First( uint16 Key ) const;
+	uint32			First( uint32 Key ) const;
 	uint32			Next( uint32 Index ) const;
 	bool			IsValid( uint32 Index ) const;
-	bool			Contains( uint16 Key ) const;
 	
-	void			Add( uint16 Key, uint32 Index );
-	void			Remove( uint16 Key, uint32 Index );
+	void			Add( uint32 Key, uint32 Index );
+	void			Add_Concurrent( uint32 Key, uint32 Index );
+	void			Remove( uint32 Key, uint32 Index );
 
 	// Average # of compares per search
 	CORE_API float	AverageSearch() const;
@@ -212,7 +211,7 @@ protected:
 	CORE_API static uint32	EmptyHash[1];
 
 	uint32			HashSize;
-	uint16			HashMask;
+	uint32			HashMask;
 	uint32			IndexSize;
 
 	uint32*			Hash;
@@ -221,57 +220,39 @@ protected:
 
 
 FORCEINLINE FHashTable::FHashTable( uint32 InHashSize, uint32 InIndexSize )
-	: HashSize( 0 )
+	: HashSize( InHashSize )
 	, HashMask( 0 )
-	, IndexSize( 0 )
+	, IndexSize( InIndexSize )
 	, Hash( EmptyHash )
-	, NextIndex( NULL )
+	, NextIndex( nullptr )
 {
-	if (InHashSize > 0u)
+	check( HashSize > 0 );
+	check( FMath::IsPowerOfTwo( HashSize ) );
+	
+	if( IndexSize )
 	{
-		Initialize(InHashSize, InIndexSize);
+		HashMask = HashSize - 1;
+		
+		Hash = new uint32[ HashSize ];
+		NextIndex = new uint32[ IndexSize ];
+
+		FMemory::Memset( Hash, 0xff, HashSize * 4 );
 	}
 }
 
 FORCEINLINE FHashTable::FHashTable( const FHashTable& Other )
-	: HashSize( 0 )
-	, HashMask( 0 )
-	, IndexSize( 0 )
+	: HashSize( Other.HashSize )
+	, HashMask( Other.HashMask )
+	, IndexSize( Other.IndexSize )
 	, Hash( EmptyHash )
-	, NextIndex( NULL )
 {
-	if (Other.HashSize > 0u)
+	if( IndexSize )
 	{
-		Initialize(Other.HashSize, Other.IndexSize);
+		Hash = new uint32[ HashSize ];
+		NextIndex = new uint32[ IndexSize ];
 
-		check(HashSize == Other.HashSize);
-		check(HashMask == Other.HashMask);
-		check(IndexSize == Other.IndexSize);
-
-		FMemory::Memcpy(Hash, Other.Hash, HashSize * 4);
-		FMemory::Memcpy(NextIndex, Other.NextIndex, IndexSize * 4);
-	}
-}
-
-FORCEINLINE void FHashTable::Initialize(uint32 InHashSize, uint32 InIndexSize)
-{
-	check(HashSize == 0u);
-	check(IndexSize == 0u);
-
-	HashSize = InHashSize;
-	IndexSize = InIndexSize;
-
-	check(HashSize <= 0x10000);
-	check(FMath::IsPowerOfTwo(HashSize));
-
-	if (IndexSize)
-	{
-		HashMask = (uint16)(HashSize - 1);
-
-		Hash = new uint32[HashSize];
-		NextIndex = new uint32[IndexSize];
-
-		FMemory::Memset(Hash, 0xff, HashSize * 4);
+		FMemory::Memcpy( Hash, Other.Hash, HashSize * 4 );
+		FMemory::Memcpy( NextIndex, Other.NextIndex, IndexSize * 4 );
 	}
 }
 
@@ -288,6 +269,27 @@ FORCEINLINE void FHashTable::Clear()
 	}
 }
 
+FORCEINLINE void FHashTable::Clear( uint32 InHashSize, uint32 InIndexSize )
+{
+	Free();
+
+	HashSize = InHashSize;
+	IndexSize = InIndexSize;
+
+	check( HashSize > 0 );
+	check( FMath::IsPowerOfTwo( HashSize ) );
+
+	if( IndexSize )
+	{
+		HashMask = HashSize - 1;
+		
+		Hash = new uint32[ HashSize ];
+		NextIndex = new uint32[ IndexSize ];
+
+		FMemory::Memset( Hash, 0xff, HashSize * 4 );
+	}
+}
+
 FORCEINLINE void FHashTable::Free()
 {
 	if( IndexSize )
@@ -299,12 +301,12 @@ FORCEINLINE void FHashTable::Free()
 		Hash = EmptyHash;
 		
 		delete[] NextIndex;
-		NextIndex = NULL;
+		NextIndex = nullptr;
 	}
 } 
 
 // First in hash chain
-FORCEINLINE uint32 FHashTable::First( uint16 Key ) const
+FORCEINLINE uint32 FHashTable::First( uint32 Key ) const
 {
 	Key &= HashMask;
 	return Hash[ Key ];
@@ -323,16 +325,11 @@ FORCEINLINE bool FHashTable::IsValid( uint32 Index ) const
 	return Index != ~0u;
 }
 
-FORCEINLINE bool FHashTable::Contains( uint16 Key ) const
-{
-	return First( Key ) != ~0u;
-}
-
-FORCEINLINE void FHashTable::Add( uint16 Key, uint32 Index )
+FORCEINLINE void FHashTable::Add( uint32 Key, uint32 Index )
 {
 	if( Index >= IndexSize )
 	{
-		Resize(FMath::Max<uint32>(32u, FMath::RoundUpToPowerOfTwo(Index + 1)));
+		Resize( FMath::Max< uint32 >( 32u, FMath::RoundUpToPowerOfTwo( Index + 1 ) ) );
 	}
 
 	Key &= HashMask;
@@ -340,7 +337,18 @@ FORCEINLINE void FHashTable::Add( uint16 Key, uint32 Index )
 	Hash[ Key ] = Index;
 }
 
-inline void FHashTable::Remove( uint16 Key, uint32 Index )
+// Safe for many threads to add concurrently.
+// Not safe to search the table while other threads are adding.
+// Will not resize. Only use for presized tables.
+FORCEINLINE void FHashTable::Add_Concurrent( uint32 Key, uint32 Index )
+{
+	check( Index < IndexSize );
+
+	Key &= HashMask;
+	NextIndex[ Index ] = FPlatformAtomics::InterlockedExchange( (int32*)&Hash[ Key ], Index );
+}
+
+inline void FHashTable::Remove( uint32 Key, uint32 Index )
 {
 	if( Index >= IndexSize )
 	{
@@ -398,7 +406,6 @@ public:
 	uint32			First(uint16 Key) const;
 	uint32			Next(uint32 Index) const;
 	bool			IsValid(uint32 Index) const;
-	bool			Contains(uint16 Key) const;
 
 	void			Add(uint16 Key, uint32 Index);
 	void			Remove(uint16 Key, uint32 Index);
@@ -522,12 +529,6 @@ template<typename InAllocator>
 FORCEINLINE bool THashTable<InAllocator>::IsValid(uint32 Index) const
 {
 	return Index != ~0u;
-}
-
-template<typename InAllocator>
-FORCEINLINE bool THashTable<InAllocator>::Contains(uint16 Key) const
-{
-	return First(Key) != ~0u;
 }
 
 template<typename InAllocator>

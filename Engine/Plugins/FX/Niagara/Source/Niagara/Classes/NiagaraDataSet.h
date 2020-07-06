@@ -9,6 +9,8 @@
 #include "RenderingThread.h"
 #include "NiagaraDataSet.generated.h"
 
+class NiagaraEmitterInstanceBatcher;
+
 /** Helper class defining the layout and location of an FNiagaraVariable in an FNiagaraDataBuffer-> */
 USTRUCT()
 struct FNiagaraVariableLayoutInfo
@@ -181,6 +183,7 @@ public:
 
 	void SetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList, bool bInput);
 	void UnsetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList);
+	void UnsetShaderParamsWithDummies(class FNiagaraShader *Shader, FRHICommandList &RHICmdList, NiagaraEmitterInstanceBatcher& Batcher);
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
@@ -320,6 +323,9 @@ public:
 
 	/** Ends a simulation pass and sets the current simulation state. */
 	void EndSimulate(bool SetCurrentData = true);
+
+	/** Set current data directly, you can not call this while inside a BeginSimulate block */
+	void SetCurrentData(FNiagaraDataBuffer* CurrentData);
 
 	/** Allocates space for NumInstances in the current destination buffer. */
 	void Allocate(int32 NumInstances, bool bMaintainExisting = false);

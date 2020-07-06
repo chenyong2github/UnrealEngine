@@ -4813,18 +4813,19 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 					const FBox DefaultSizeBox(Actor->GetActorLocation() - DefaultExtent, Actor->GetActorLocation() + DefaultExtent);
 					BoundingBox += DefaultSizeBox;
 				}
-				else
+				else if (USceneComponent* RootComponent = Actor->GetRootComponent())
 				{
-					TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor);
+					TArray<USceneComponent*> SceneComponents;
+					RootComponent->GetChildrenComponents(true, SceneComponents);
+					SceneComponents.Add(RootComponent);
 
-					for(int32 ComponentIndex = 0; ComponentIndex < PrimitiveComponents.Num(); ++ComponentIndex)
+					for (USceneComponent* SceneComponent : SceneComponents)
 					{
-						UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIndex];
-
-						if(PrimitiveComponent->IsRegistered())
+						UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SceneComponent);
+						if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
 						{
 							// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-							const bool bIgnore = PrimitiveComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+							const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
 
 							if(!bIgnore)
 							{

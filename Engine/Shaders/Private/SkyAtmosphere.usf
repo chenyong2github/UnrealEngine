@@ -96,6 +96,7 @@
 #endif
 
 
+
 // View data is not available for passes running once per scene (and not once per view).
 #define VIEWDATA_AVAILABLE (TRANSMITTANCE_PASS!=1 && MULTISCATT_PASS!=1 && SKYLIGHT_PASS!=1)
 
@@ -669,7 +670,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		ShadowP0 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 #endif
 #if SAMPLE_OPAQUE_SHADOW
-		PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false);
+		bool bUnused;
+		PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
 #endif
 #if SAMPLE_CLOUD_SKYAO
 		float OutOpticalDepth = 0.0f;
@@ -693,7 +695,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	#if SKYVIEWLUT_PASS
 		ShadowP1 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 	#endif
-		PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false);
+		PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
 #endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
 		S += ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1;// +MultiScatteredLuminance * Medium.Scattering);

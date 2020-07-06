@@ -251,7 +251,7 @@ void FRawMeshBulkData::SaveRawMesh(FRawMesh& InMesh)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRawMeshBulkData::SaveRawMesh);
 
-	uint32 NumBytes = (uint32)GetRawMeshSerializedDataSize(InMesh);
+	int64 NumBytes = GetRawMeshSerializedDataSize(InMesh);
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* Dest = (uint8*)BulkData.Realloc(NumBytes);
 	FBufferWriter Ar(Dest, NumBytes);

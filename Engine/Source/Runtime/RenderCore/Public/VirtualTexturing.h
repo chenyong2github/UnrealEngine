@@ -6,6 +6,7 @@
 #include "RHIDefinitions.h"
 #include "Templates/RefCounting.h"
 #include "Stats/Stats.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class FRHICommandListImmediate;
 class FRHIShaderResourceView;
@@ -17,6 +18,9 @@ union FVirtualTextureProducerHandle
 	FVirtualTextureProducerHandle() : PackedValue(0u) {}
 	explicit FVirtualTextureProducerHandle(uint32 InPackedValue) : PackedValue(InPackedValue) {}
 	FVirtualTextureProducerHandle(uint32 InIndex, uint32 InMagic) : Index(InIndex), Magic(InMagic) {}
+
+	inline bool IsValid() const { return PackedValue != 0u; }
+	inline bool IsNull() const { return PackedValue == 0u; }
 
 	uint32 PackedValue;
 	struct
@@ -266,6 +270,8 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers) = 0;
+
+	virtual void GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const {};
 
 	virtual void DumpToConsole(bool verbose) {}
 };

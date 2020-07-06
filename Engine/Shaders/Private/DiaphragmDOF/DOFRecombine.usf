@@ -185,8 +185,8 @@ struct FRecombineInputParameters
 	// Buffer size and inv size for the DOF inputs.
 	float4 DOFBufferSize;
 
-	// Base for sobol random sequence.
-	uint2 SobolRandomBase;
+	// Random seeds
+	uint2 Seed0;
 };
 
 
@@ -645,11 +645,10 @@ void GatherToAccumulator(
 #else
 {
 	// Samples at full resolution.
-	UNROLL
+	LOOP
 	for(uint SamplePairId = 0; SamplePairId < GatherParameters.SamplePairCount; SamplePairId++)
 	{
-		//float2 E = SobolIndex(InputParameters.SobolRandomBase, SamplePairId << 3, 4 + 3) / 0x10000;
-		float2 E = SobolIndex(InputParameters.SobolRandomBase, SamplePairId << 3, 4 + 3) * rcp(float(0x10000));
+		float2 E = Hammersley16(SamplePairId, CONFIG_GATHER_PAIR_COUNT, InputParameters.Seed0);
 		float2 DiskRandom = UniformSampleDiskConcentricApprox(E);
 	
 		float2 PixelOffset = GatherParameters.KernelPixelRadius * DiskRandom;
@@ -690,6 +689,8 @@ void RecombineMainCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupThreadIndex : SV_GroupIndex) 
 {
+	float4 Debug = 0;
+
 	// Setup input parameters.
 	FRecombineInputParameters InputParameters;
 	{
@@ -711,7 +712,7 @@ void RecombineMainCS(
 			InputParameters.DOFBufferUV = min(InputParameters.DOFBufferUV, DOFBufferUVMax);
 		}
 
-		InputParameters.SobolRandomBase = SobolIndex(SobolPixel(DispatchThreadId), View.StateFrameIndexMod8, /* Bits = */ 3);
+		InputParameters.Seed0 = Rand3DPCG16(int3(DispatchThreadId, View.StateFrameIndexMod8)).xy;
 	}
 
 	//Fetch foreground layer first to early return if ForegroundTranslucency == 0.0.
@@ -872,14 +873,20 @@ void RecombineMainCS(
 
 		// Set up gathering parameters.
 		{
+			float FullResKernelRadius = CocDistanceToFullResPixelDistance(TileMaxConsideredAbsCocRadius);
+
 			// Set the size of the kernel to exactly the max convolution that needs to be done.
-			GatherParameters.KernelPixelRadius = ceil(CocDistanceToFullResPixelDistance(TileMaxConsideredAbsCocRadius));
+			GatherParameters.KernelPixelRadius = ceil(FullResKernelRadius);
 
 			// Increase the size of the kernel radius to avoid the gather Point sampler to create Coc step artifacts.
 			GatherParameters.KernelPixelRadius += 0.5;
 
+			float KenelArea = Pow2(FullResKernelRadius) * PI;
+
+			float RecommendedPairCount = KenelArea * 0.5;
+
 			// Number of pair of sample.
-			GatherParameters.SamplePairCount = CONFIG_GATHER_PAIR_COUNT;
+			GatherParameters.SamplePairCount = min(CONFIG_GATHER_PAIR_COUNT, uint(RecommendedPairCount));
 		}
 	}
 	#endif // CONFIG_SLIGHT_FOCUS_METHOD != SLIGHT_FOCUS_METHOD_DISABLED
@@ -1095,72 +1102,37 @@ void RecombineMainCS(
 	}
 	
 	// Debug optimisation colors.
-	#if DEBUG_FAST_PATHS
+	#if 0
 	{
 		float3 DebugColor;
 
 		if (bGatherFullRes)
 		{
 			// RED: Full res gather.
-			DebugColor = float3(1.0, 0.25, 0.25);
+			Debug = float4(1.0, 0.0, 0.0, 0.0);
 		}
 		else if (bCanReturnForegroundOnly)
 		{
 			// GREEN: Foreground is the cheapest.
-			DebugColor = float3(0.25, 1.0, 0.25);
+			Debug = float4(0.0, 1.0, 0.0, 0.0);
 		}
 		else
 		{
 			// BLUE: Fetch foreground and background.
-			DebugColor = float3(0.25, 0.25, 1.0);
+			Debug = float4(0.0, 0.0, 1.0, 0.0);
 		}
-
-		OutputFinalSceneColor.rgb *= DebugColor;
-		//if (View.GeneralPurposeTweak > 0.5)
-		//	OutputFinalSceneColor.rgb = DebugColor;
 	}
-	#endif
-	
-	#if CONFIG_SLIGHT_FOCUS_METHOD != SLIGHT_FOCUS_METHOD_DISABLED && 0
+	#elif 0
 	{
-		OutputFinalSceneColor = GatherParameters.KernelPixelRadius;
+		if (bGatherFullRes)
+		{
+			Debug = float4(1.0, 0.0, 0.0, 0.0);
+		}
+		else
+		{
+			Debug = float4(0.0, 1.0, 0.0, 0.0);
+		}
 	}
-	#elif 0 // DEBUG
-	//if (View.GeneralPurposeTweak > 0.5)
-	//{
-	//	//OutputFinalSceneColor = ForegroundColor;
-	//	//OutputFinalSceneColor = HoleFillingAdditiveColor;
-	//	//OutputFinalSceneColor = BackgroundColor.a;
-	//	//OutputFinalSceneColor = SlightOutOfFocusConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0).a;
-	//	//OutputFinalSceneColor = GatherBackgroundUnpremultipliedColor;
-	//	//OutputFinalSceneColor.a = GatherBackgroundTranslucency;
-	//}
-	#elif 0 // DEBUG
-	//if (View.GeneralPurposeTweak > 0.5)
-	//{
-	//	OutputFinalSceneColor = GatherBackgroundAdditiveColor;
-	//	if (View.GeneralPurposeTweak > 1.5)
-	//		OutputFinalSceneColor = GatherBackgroundTranslucency;
-	//	if (View.GeneralPurposeTweak > 2.5)
-	//		OutputFinalSceneColor = BackgroundColor;
-	//	if (View.GeneralPurposeTweak > 3.5)
-	//		OutputFinalSceneColor = ForegroundColor;
-	//	if (View.GeneralPurposeTweak > 4.5)
-	//		OutputFinalSceneColor = GatherForegroundTranslucency;
-	//	
-	//	//OutputFinalSceneColor = GatherForegroundTranslucency;
-	//	//OutputFinalSceneColor = BackgroundConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
-	//
-	//
-	//	//if (View.GeneralPurposeTweak > 3.5)
-	//	//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
-	//	//if (View.GeneralPurposeTweak > 4.5)
-	//	//	OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).a;
-	//
-	//	//OutputFinalSceneColor = BackgroundColor;
-	//	//OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
-	//	//OutputFinalSceneColor = ForegroundHoleFillingConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
-	//}
 	#endif
 	
 	#if 1 // Lower VGPR footprint.
@@ -1173,5 +1145,12 @@ void RecombineMainCS(
 		SceneColorOutput[OutputPixelPosition] = OutputFinalSceneColor;
 	#else
 		SceneColorOutput[OutputPixelPosition] = float4(OutputFinalSceneColor.rgb, 0);
+	#endif
+		
+
+	#if DEBUG_OUTPUT
+	{
+		DebugOutput[OutputPixelPosition] = Debug;
+	}
 	#endif
 }

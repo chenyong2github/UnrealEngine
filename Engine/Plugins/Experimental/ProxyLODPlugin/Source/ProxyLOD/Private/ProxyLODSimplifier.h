@@ -524,7 +524,6 @@ namespace ProxyLOD
 						checkSlow(e == FindEdge(e->v0, e->v1));
 						checkSlow(e->v0->adjTris.Num() > 0);
 						checkSlow(e->v1->adjTris.Num() > 0);
-						checkSlow(e->v0->GetMaterialIndex() == e->v1->GetMaterialIndex());
 
 						e->v1->vert = newVerts[i++];
 						e->v0->DisableFlags(SIMP_MARK1);

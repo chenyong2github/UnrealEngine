@@ -27,13 +27,13 @@ DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<UNiagara
 struct FNiagaraDataInterfaceSetArgs
 {
 	TShaderRefBase<FNiagaraShader, FNiagaraShaderMapPointerTable> Shader;
-	FNiagaraDataInterfaceProxy* DataInterface;
-	FNiagaraSystemInstanceID SystemInstance;
-	const NiagaraEmitterInstanceBatcher* Batcher;
-	const FNiagaraComputeInstanceData* ComputeInstanceData;
-	uint32 SimulationStageIndex;
-	bool IsOutputStage;
-	bool IsIterationStage;
+	FNiagaraDataInterfaceProxy* DataInterface = nullptr;
+	FNiagaraSystemInstanceID SystemInstance = FNiagaraSystemInstanceID();
+	const NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	const FNiagaraComputeInstanceData* ComputeInstanceData = nullptr;
+	uint32 SimulationStageIndex = 0;
+	bool IsOutputStage = false;
+	bool IsIterationStage = false;
 };
 
 /**

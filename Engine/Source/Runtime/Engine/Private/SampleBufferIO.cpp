@@ -61,6 +61,7 @@ namespace Audio
 		}
 	}
 
+
 	void FSoundWavePCMLoader::Update()
 	{
 		for (int32 i = LoadingSoundWaves.Num() - 1; i >= 0; --i)

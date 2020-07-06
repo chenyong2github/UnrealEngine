@@ -483,6 +483,11 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 
 	SetGenerateOverlapEvents(false);
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+
+	// NIAGARA_WIP - BEGIN: Needs to be disable via version to avoid breaking existing content
+	// Disable receiving decals by default.
+	bReceivesDecals = false;
+	// NIAGARA_WIP - END
 }
 
 /********* UFXSystemComponent *********/
@@ -1348,6 +1353,7 @@ void UNiagaraComponent::BeginDestroy()
 	}
 
 	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
+	ensure(ScalabilityManagerHandle == INDEX_NONE);
 	ScalabilityManagerHandle = INDEX_NONE;
 
 	DestroyInstance();

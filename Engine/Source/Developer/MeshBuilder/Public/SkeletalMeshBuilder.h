@@ -24,6 +24,19 @@ public:
 		check(No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class);
 		return false;
 	}
+
+	virtual bool Build(
+		UStaticMesh* StaticMesh,
+		TArray< FStaticMeshBuildVertex >& Verts,
+		TArray< uint32 >& Indexes,
+		FStaticMeshSectionArray& Sections,
+		uint32& NumTexCoords,
+		bool& bHasColors) override
+	{
+		bool No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class = false;
+		check(No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class);
+		return false;
+	}
 	
 	virtual bool Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
 

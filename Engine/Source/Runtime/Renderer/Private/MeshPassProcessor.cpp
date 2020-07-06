@@ -40,23 +40,6 @@ static TAutoConsoleVariable<int32> CVarSafeStateLookup(
 	TEXT("Forces new-style safe state lookup for easy runtime perf comparison\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-enum { MAX_SRVs_PER_SHADER_STAGE = 128 };
-enum { MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE = 14 };
-enum { MAX_SAMPLERS_PER_SHADER_STAGE = 32 };
-
-class FShaderBindingState
-{
-public:
-	int32 MaxSRVUsed = -1;
-	FRHIShaderResourceView* SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
-	int32 MaxUniformBufferUsed = -1;
-	FRHIUniformBuffer* UniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
-	int32 MaxTextureUsed = -1;
-	FRHITexture* Textures[MAX_SRVs_PER_SHADER_STAGE] = {};
-	int32 MaxSamplerUsed = -1;
-	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
-};
-
 class FReadOnlyMeshDrawSingleShaderBindings : public FMeshDrawShaderBindingsLayout
 {
 public:
@@ -464,69 +447,6 @@ void FGraphicsMinimalPipelineStateId::AddSizeToLocalPipelineIdTableSize(SIZE_T S
 	CurrentLocalPipelineIdTableSize += int32(Size);
 }
 
-class FMeshDrawCommandStateCache
-{
-public:
-
-	uint32 PipelineId;
-	uint32 StencilRef;
-	FShaderBindingState ShaderBindings[SF_NumStandardFrequencies];
-	FVertexInputStream VertexStreams[MaxVertexElementCount];
-
-	FMeshDrawCommandStateCache()
-	{
-		// Must init to impossible values to avoid filtering the first draw's state
-		PipelineId = -1;
-		StencilRef = -1;
-	}
-
-	inline void SetPipelineState(int32 NewPipelineId)
-	{
-		PipelineId = NewPipelineId;
-		StencilRef = -1;
-
-		// Vertex streams must be reset if PSO changes.
-		for (int32 VertexStreamIndex = 0; VertexStreamIndex < UE_ARRAY_COUNT(VertexStreams); ++VertexStreamIndex)
-		{
-			VertexStreams[VertexStreamIndex].VertexBuffer = nullptr;
-		}
-
-		// Shader bindings must be reset if PSO changes
-		for (int32 FrequencyIndex = 0; FrequencyIndex < UE_ARRAY_COUNT(ShaderBindings); FrequencyIndex++)
-		{
-			FShaderBindingState& RESTRICT ShaderBinding = ShaderBindings[FrequencyIndex];
-
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSRVUsed; SlotIndex++)
-			{
-				ShaderBinding.SRVs[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxSRVUsed = -1;
-
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxUniformBufferUsed; SlotIndex++)
-			{
-				ShaderBinding.UniformBuffers[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxUniformBufferUsed = -1;
-			
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxTextureUsed; SlotIndex++)
-			{
-				ShaderBinding.Textures[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxTextureUsed = -1;
-
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSamplerUsed; SlotIndex++)
-			{
-				ShaderBinding.Samplers[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxSamplerUsed = -1;
-		}
-	}
-};
-
 FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
 {
 	Release();
@@ -640,7 +560,7 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 
 		const FMeshDrawShaderBindingsLayout& ShaderLayout = ShaderLayouts[ShaderBindingsIndex];
 
-		TShaderRef<FMeshMaterialShader> Shader = ShadersForDebugging->GetShader(Frequency);
+		TShaderRef<FShader> Shader = ShadersForDebugging->GetShader(Frequency);
 		check(Shader.IsValid());
 		const FVertexFactoryType* VFType = Shader.GetVertexFactoryType();
 

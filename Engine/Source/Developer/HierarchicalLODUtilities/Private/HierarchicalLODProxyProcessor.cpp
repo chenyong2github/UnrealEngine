@@ -17,6 +17,7 @@
 #include "Engine/HLODProxy.h"
 #include "HierarchicalLOD.h"
 #include "Algo/Transform.h"
+#include "Modules/ModuleManager.h"
 
 FHierarchicalLODProxyProcessor::FHierarchicalLODProxyProcessor()
 {

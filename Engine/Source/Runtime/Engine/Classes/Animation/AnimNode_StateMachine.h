@@ -77,7 +77,7 @@ public:
 
 public:
 	FAnimationActiveTransitionEntry();
-	FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, FAnimationActiveTransitionEntry* ExistingTransitionForNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo);
+	FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, FAnimationActiveTransitionEntry* ExistingTransitionForNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo, const FAnimationPotentialTransition& PotentialTransition);
 
 	void InitializeCustomGraphLinks(const FAnimationUpdateContext& Context, const FBakedStateExitTransition& TransitionRule);
 
@@ -99,6 +99,7 @@ struct FAnimationPotentialTransition
 	GENERATED_USTRUCT_BODY()
 
 	int32 TargetState;
+	float CrossfadeTimeAdjustment;
 
 	const FBakedStateExitTransition* TransitionRule;
 

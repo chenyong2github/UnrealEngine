@@ -204,7 +204,7 @@ public:
 	void UpdateNavData();
 	void UpdatePathfinding();
 	void GatherDetailedData(ANavigationTestingActor* Goal);
-	void SearchPathTo(ANavigationTestingActor* Goal);
+	virtual void SearchPathTo(ANavigationTestingActor* Goal);
 
 	/*	Called when given path becomes invalid (via @see PathObserverDelegate)
 	 *	NOTE: InvalidatedPath doesn't have to be instance's current Path

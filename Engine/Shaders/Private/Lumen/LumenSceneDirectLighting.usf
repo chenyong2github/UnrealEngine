@@ -1,0 +1,224 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenSceneDirectLighting.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "LumenCardCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "../DeferredLightingCommon.ush"
+#include "../VolumeLightingCommon.ush"
+#define FILTER_DIRECTIONAL_LIGHT_SHADOWING 1
+#include "../ForwardShadowingCommon.ush"
+#include "/Engine/Generated/Material.ush"
+#include "../LightFunctionCommon.ush"
+#include "../GlobalDistanceFieldUtils.ush"
+
+// Must match ELumenLightType in LumenSceneDirectLighting.cpp
+#define LIGHT_TYPE_DIRECTIONAL 0
+#define LIGHT_TYPE_POINT 1
+#define LIGHT_TYPE_SPOT 2
+#define LIGHT_TYPE_RECT 3
+
+/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
+float3 LightFunctionParameters2;  
+
+float GetLightFunction(float3 WorldPosition) 
+{
+	float4 LightVector = mul(float4(WorldPosition, 1), LightFunctionWorldToLight);
+	float3 LightFunction = GetLightFunctionColor(LightVector.xyz / LightVector.w, WorldPosition);
+
+	float GreyScale = dot(LightFunction, .3333f).x;
+
+	// Calculate radial view distance for stable fading
+	float ViewDistance = length(View.WorldCameraOrigin - WorldPosition);
+
+	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
+	// Fade to disabled based on LightFunctionFadeDistance
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
+
+	// Fade to disabled based on ShadowFadeFraction
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
+	return GreyScale;
+}
+
+Texture2D OpacityAtlas;
+float ConeHalfAngle;
+float MaxTraceDistance;
+float StepFactor;
+float SurfaceBias;
+float SlopeScaledSurfaceBias;
+float SDFSurfaceBiasScale;
+float SDFExpandSurfaceAmount;
+
+void LumenCardDirectLightingPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	float3 DirectLighting = 0;
+
+	if (Opacity > 0)
+	{
+		FDeferredLightData LightData;
+		{
+			LightData.Position = DeferredLightUniforms.Position;
+			LightData.InvRadius = DeferredLightUniforms.InvRadius;
+			LightData.Color = DeferredLightUniforms.Color;
+			LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
+			LightData.Direction = DeferredLightUniforms.Direction;  
+			LightData.Tangent = DeferredLightUniforms.Tangent;
+			LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
+			LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
+			LightData.SourceLength = DeferredLightUniforms.SourceLength;
+			LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
+			LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
+			LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
+			LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
+			LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
+			LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
+			LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
+			LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
+			LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
+
+			LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
+			LightData.bRadialLight = LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL;
+			LightData.bSpotLight = LIGHT_TYPE == LIGHT_TYPE_SPOT;
+			LightData.bRectLight = LIGHT_TYPE == LIGHT_TYPE_RECT;
+		}
+
+		FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+
+		float Depth = Texture2DSampleLevel(LumenCardScene.DepthBufferAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
+		float3 LocalPosition;
+		LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+		LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
+
+		float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+
+		float3 LightColor = DeferredLightUniforms.Color;
+		float3 L = LightData.Direction;
+		float3 ToLight = L;
+	
+#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+		float CombinedAttenuation = 1;
+#else
+		float LightMask = 1;
+		if (LightData.bRadialLight)
+		{
+			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, L);
+		}
+
+		float Attenuation;
+
+		if (LightData.bRectLight)
+		{
+			FRect Rect = GetRect(ToLight, LightData);
+			FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
+			Attenuation = IntegrateLight(Rect, RectTexture);
+		}
+		else
+		{
+			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+			Capsule.DistBiasSqr = 0;
+			Attenuation = IntegrateLight(Capsule, LightData.bInverseSquared);
+		}
+
+		float CombinedAttenuation = Attenuation * LightMask;
+#endif
+
+		if (CombinedAttenuation > 0)
+		{
+			float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz * 2 - 1;
+
+			if (dot(WorldNormal, L) > 0)
+			{
+				//@todo DynamicGI - derive from card texel size
+				float3 WorldPositionForShadowing = WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
+
+				float ShadowFactor = 1.0f;
+				bool bShadowFactorComplete = true;
+
+				#if SHADOWED_LIGHT 
+					#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+						#if DYNAMICALLY_SHADOWED
+							float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
+							ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowFactorComplete);
+							float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
+							// CSM's are culled so only query points inside the view are valid
+							float2 ValidTexelSize = float2(length(ddx(WorldPosition)), length(ddy(WorldPosition))) * 2;
+							bShadowFactorComplete = bShadowFactorComplete && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w && PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w);
+						#else
+							bShadowFactorComplete = true;
+							ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPositionForShadowing);
+						#endif
+					#else
+							ShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowFactorComplete);
+					#endif
+			
+					bool bOffscreenShadowing = !bShadowFactorComplete;
+
+					#if FORCE_OFFSCREEN_SHADOWING
+					{
+						ShadowFactor = 1.0;
+						bOffscreenShadowing = true;
+					}
+					#endif
+
+					if (bOffscreenShadowing)
+					{
+						// Offscreen shadowing, trace to light
+						float TraceDistance = MaxTraceDistance;
+
+						#if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
+							TraceDistance = min(length(ToLight), MaxTraceDistance);
+						#endif
+
+						#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
+						#if OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
+						
+							float3 Gradient = GetDistanceFieldGradientGlobal(WorldPosition);
+						
+							uint RayOriginClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition);
+							float SDFSurfaceBias = .5f * GlobalVolumeCenterAndExtent[RayOriginClipmapIndex].w * GlobalVolumeTexelSize * SDFSurfaceBiasScale;
+							float3 WorldPositionForSDFTrace = WorldPosition + normalize(Gradient) * SDFSurfaceBias;
+							float SDFStepFactor = 1.0f;
+							float MinStepSizeScale = 1.0f / 8000.0f;
+
+							FGlobalSDFTraceInput TraceInput;
+							TraceInput.Setup(WorldPositionForSDFTrace, L, TraceDistance, SDFStepFactor, MinStepSizeScale);
+
+							TraceInput.ExpandSurfaceStartDistance = 100;
+							TraceInput.ExpandSurfaceInvLength = 1.0f / (100);
+							TraceInput.ExpandSurfaceAmount = SDFExpandSurfaceAmount;
+
+							FGlobalSDFTraceResult SDFResult = RayTraceThroughGlobalDistanceField(TraceInput);
+
+							//@todo - approximate cone trace from SDF for antialiasing
+							ShadowFactor *= SDFResult.bHit ? 0.0f : 1.0f;
+						  
+						#endif
+					}
+				#endif
+
+				#if LIGHT_FUNCTION
+					ShadowFactor *= GetLightFunction(WorldPosition);
+				#endif
+
+				float NoL = saturate(dot(WorldNormal, L));
+
+				float3 AlbedoSqr = Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+				float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
+				DirectLighting = LightColor * (CombinedAttenuation * NoL * ShadowFactor) * Diffuse_Lambert(DiffuseColor);
+				//DirectLighting = bShadowFactorValid ? float3(0, 1, 0) : float3(.2f, 0, 0);
+			}
+		}
+	}
+		
+	OutColor = float4(DirectLighting, 0);
+
+	//OutColor = 0;
+	//OutColor.rgb = SceneDepth / 10000.0f;
+}

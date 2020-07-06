@@ -52,6 +52,9 @@
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
 #endif
+#include "GrowOnlySpanAllocator.h"
+#include "Nanite/NaniteRender.h"
+#include "Lumen/LumenViewState.h"
 #include "VolumetricRenderTargetViewStateData.h"
 
 /** Factor by which to grow occlusion tests **/
@@ -81,6 +84,8 @@ class UWindDirectionalSourceComponent;
 class FRHIGPUBufferReadback;
 class FRHIGPUTextureReadback;
 class FRuntimeVirtualTextureSceneProxy;
+class FLumenSceneData;
+class FVirtualShadowMapArrayCacheManager;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -110,7 +115,7 @@ public:
 	float LastPixelsPercentage;
 
 	/**
-	* For things that have subqueries (folaige), this is the non-zero
+	* For things that have subqueries (foliage), this is the non-zero
 	*/
 	int32 CustomIndex;
 
@@ -313,7 +318,7 @@ struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHist
 class FIndividualOcclusionHistory
 {
 	FRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
-	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; // not intialized...this is ok
+	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; // not initialized...this is ok
 
 public:
 
@@ -444,7 +449,7 @@ public:
 	{
 	}
 
-	TArray<FVector4> PrimitiveModifiedBounds;
+	TArray<FBox> PrimitiveModifiedBounds;
 	TRefCountPtr<IPooledRenderTarget> VolumeTexture;
 };
 
@@ -472,6 +477,64 @@ public:
 
 	// Used to perform a full update of the clip map when the scene data changes
 	const class FDistanceFieldSceneData* LastUsedSceneDataForFullUpdate;
+};
+
+class FRadianceCacheClipmap
+{
+public:
+	/** World space bounds. */
+	FVector Center;
+	float Extent;
+
+	FVector ProbeCoordToWorldCenterBias;
+	float ProbeCoordToWorldCenterScale;
+
+	FVector WorldPositionToProbeCoordBias;
+	float WorldPositionToProbeCoordScale;
+
+	float ProbeTMin;
+
+	/** Offset applied to UVs so that only new or dirty areas of the volume texture have to be updated. */
+	FVector VolumeUVOffset;
+
+	/* Distance between two probes. */
+	float CellSize;
+};
+
+class FRadianceCacheState
+{
+public:
+	FRadianceCacheState()
+	{}
+
+	TArray<FRadianceCacheClipmap> Clipmaps;
+
+	float RadianceProbeBaseClipmapTMin;
+
+	/** Clipmaps of probe indexes, used to lookup the probe index for a world space position. */
+	TRefCountPtr<IPooledRenderTarget> RadianceProbeIndirectionTexture;
+
+	/** Texture containing radiance cache cube map probes, indexed by ProbeIndex decomposed into 2d */
+	TRefCountPtr<IPooledRenderTarget> RadianceProbeAtlasTexture;
+
+	/** Texture containing radiance cache probes, ready for sampling with bilinear border. */
+	TRefCountPtr<IPooledRenderTarget> FinalRadianceAtlas;
+
+	TRefCountPtr<FPooledRDGBuffer> ProbeAllocator;
+	TRefCountPtr<FPooledRDGBuffer> ProbeFreeListAllocator;
+	TRefCountPtr<FPooledRDGBuffer> ProbeFreeList;
+	TRefCountPtr<FPooledRDGBuffer> ProbeLastUsedFrame;
+
+	void ReleaseTextures()
+	{
+		RadianceProbeIndirectionTexture.SafeRelease();
+		RadianceProbeAtlasTexture.SafeRelease();
+		FinalRadianceAtlas.SafeRelease();
+		ProbeAllocator.SafeRelease();
+		ProbeFreeListAllocator.SafeRelease();
+		ProbeFreeList.SafeRelease();
+		ProbeLastUsedFrame.SafeRelease();
+	}
 };
 
 /** Maps a single primitive to it's per-view fading state data */
@@ -916,6 +979,8 @@ public:
 	// Burley Subsurface scattering variance texture from the last frame.
 	TRefCountPtr<IPooledRenderTarget> SubsurfaceScatteringQualityHistoryRT;
 
+	FLumenViewState Lumen;
+
 	// Pre-computed filter in spectral (i.e. FFT) domain along with data to determine if we need to up date it
 	struct {
 		/// @cond DOXYGEN_WARNINGS
@@ -986,6 +1051,7 @@ public:
 	FForwardLightingCullingResources ForwardLightingCullingResources;
 
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
+	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 
 	/** Distance field AO tile intersection GPU resources.  Last frame's state is not used, but they must be sized exactly to the view so stored here. */
 	class FTileIntersectionResources* AOTileIntersectionResources;
@@ -995,6 +1061,9 @@ public:
 	bool bInitializedGlobalDistanceFieldOrigins;
 	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GMaxGlobalDistanceFieldClipmaps];
 	int32 GlobalDistanceFieldUpdateIndex;
+	FVector GlobalDistanceFieldCameraVelocityOffset;
+
+	FRadianceCacheState RadianceCacheState;
 
 	FVertexBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;
 	FShaderResourceViewRHIRef IndirectShadowCapsuleShapesSRV;
@@ -1664,80 +1733,35 @@ class FPrimitiveAndInstance
 {
 public:
 
-	FPrimitiveAndInstance(const FVector4& InBoundingSphere, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex) :
-		BoundingSphere(InBoundingSphere),
-		Primitive(InPrimitive),
-		InstanceIndex(InInstanceIndex)
+	FPrimitiveAndInstance(const FMatrix& InLocalToWorld, const FBox& InWorldBounds, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex) :
+		LocalToWorld(InLocalToWorld),
+		WorldBounds(InWorldBounds),
+		InstanceIndex(InInstanceIndex),
+		Primitive(InPrimitive)
 	{}
 
-	FVector4 BoundingSphere;
-	FPrimitiveSceneInfo* Primitive;
+	FMatrix LocalToWorld;
+	FBox WorldBounds;
 	int32 InstanceIndex;
-};
-
-class FLinearAllocation
-{
-public:
-
-	FLinearAllocation(int32 InStartOffset, int32 InNum) :
-		StartOffset(InStartOffset),
-		Num(InNum)
-	{}
-
-	int32 StartOffset;
-	int32 Num;
-
-	bool Contains(FLinearAllocation Other)
-	{
-		return StartOffset <= Other.StartOffset && (StartOffset + Num) >= (Other.StartOffset + Other.Num);
-	}
-};
-
-class FGrowOnlySpanAllocator
-{
-public:
-
-	FGrowOnlySpanAllocator() :
-		MaxSize(0)
-	{}
-
-	// Allocate a range.  Returns allocated StartOffset.
-	int32 Allocate(int32 Num);
-
-	// Free an already allocated range.  
-	void Free(int32 BaseOffset, int32 Num);
-
-	int32 GetMaxSize() const
-	{
-		return MaxSize;
-	}
-
-private:
-
-	// Size of the linear range used by the allocator
-	int32 MaxSize;
-
-	// Unordered free list
-	TArray<FLinearAllocation, TInlineAllocator<10>> FreeSpans;
-
-	int32 SearchFreeList(int32 Num);
+	FPrimitiveSceneInfo* Primitive;
 };
 
 class FGPUScene
 {
 public:
 	FGPUScene()
-		: bUpdateAllPrimitives(false)
+	: bUpdateAllPrimitives(false)
+	, InstanceDataSOAStride(0)
 	{
 	}
 
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
-	TArray<int32> PrimitivesToUpdate;
+	TArray<int32>			PrimitivesToUpdate;
 
 	/** Bit array of all scene primitives. Set bit means that current primitive is in PrimitivesToUpdate array. */
-	TBitArray<> PrimitivesMarkedToUpdate;
+	TBitArray<>				PrimitivesMarkedToUpdate;
 
 	/** GPU mirror of Primitives */
 	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
@@ -1746,6 +1770,15 @@ public:
 	FScatterUploadBuffer PrimitiveUploadBuffer;
 	FScatterUploadBuffer PrimitiveUploadViewBuffer;
 
+	/** GPU primitive instance list */
+	TBitArray<>				InstanceDataToClear;
+	FGrowOnlySpanAllocator	InstanceDataAllocator;
+	FRWBufferStructured		InstanceDataBuffer;
+	FScatterUploadBuffer	InstanceUploadBuffer;
+	uint32					InstanceDataSOAStride;	// Distance between arrays in float4s
+	TSet<uint32>			InstanceClearList;
+
+	/** GPU light map data */
 	FGrowOnlySpanAllocator	LightmapDataAllocator;
 	FRWBufferStructured		LightmapDataBuffer;
 	FScatterUploadBuffer	LightmapUploadBuffer;
@@ -1778,10 +1811,10 @@ public:
 		: FPrimitiveRemoveInfo(InPrimitive)
 	{
 		const FBoxSphereBounds Bounds = InPrimitive->Proxy->GetBounds();
-		SphereBound = FVector4(Bounds.Origin, Bounds.SphereRadius);
+		WorldBounds = Bounds.GetBox();
 	}
 
-	FVector4 SphereBound;
+	FBox WorldBounds;
 };
 
 /** Scene data used to manage distance field object buffers on the GPU. */
@@ -1846,7 +1879,7 @@ public:
 
 	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
 	{
-		return ObjectBuffers[ObjectBufferIndex];
+		return ObjectBuffers;
 	}
 
 	const class FHeightFieldObjectBuffers* GetHeightFieldObjectBuffers() const
@@ -1856,9 +1889,13 @@ public:
 
 	int32 NumObjectsInBuffer;
 	int32 NumHeightFieldObjectsInBuffer;
-	class FDistanceFieldObjectBuffers* ObjectBuffers[2];
+	class FDistanceFieldObjectBuffers* ObjectBuffers;
 	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
-	int ObjectBufferIndex;
+
+	FScatterUploadBuffer UploadDataBuffer;
+	FScatterUploadBuffer UploadBoundsBuffer;
+	TArray<int32> IndicesToUpdateInObjectBuffers;
+	TArray<int32> IndicesToUpdateInHeightFieldObjectBuffers;
 
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
@@ -1869,7 +1906,7 @@ public:
 	TArray<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
-	TArray<FVector4> PrimitiveModifiedBounds[GDF_Num];
+	TArray<FBox> PrimitiveModifiedBounds[GDF_Num];
 
 	TArray<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
 	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
@@ -2325,6 +2362,14 @@ public:
 	{}
 };
 
+struct FVirtualShadowMapPrevHZB
+{
+	FViewMatrices ViewMatrices;
+	FIntRect	  ViewRect;
+	uint32		  TargetLayerIndex = INDEX_NONE;
+	uint32		  FrameNumber = 0;
+};
+
 #if WITH_EDITOR
 class FPixelInspectorData
 {
@@ -2378,6 +2423,7 @@ public:
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
+	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
 	TUniformBufferRef<FSceneTexturesUniformParameters> DepthPassUniformBuffer;
 	TUniformBufferRef<FOpaqueBasePassUniformParameters> OpaqueBasePassUniformBuffer;
 	TUniformBufferRef<FTranslucentBasePassUniformParameters> TranslucentBasePassUniformBuffer;
@@ -2398,6 +2444,8 @@ public:
 	TUniformBufferRef<FViewUniformShaderParameters> CustomDepthViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedCustomDepthViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> VirtualTextureViewUniformBuffer;
+	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
+	TUniformBufferRef<FLumenCardPassUniformParameters> LumenCardCapturePassUniformBuffer;
 
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileCSMOpaqueBasePassUniformBuffer;
@@ -2460,6 +2508,10 @@ public:
 	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
 #endif
 
+	/** Nanite state buckets. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
+	FCriticalSection NaniteDrawCommandLock[ENaniteMeshPass::Num];
+	FStateBucketMap NaniteDrawCommands[ENaniteMeshPass::Num];
+
 	/**
 	 * The following arrays are densely packed primitive data needed by various
 	 * rendering passes. PrimitiveSceneInfo->PackedIndex maintains the index
@@ -2488,6 +2540,8 @@ public:
 	TArray<FPrimitiveVirtualTextureFlags> PrimitiveVirtualTextureFlags;
 	/** Packed array of runtime virtual texture lod info. */
 	TArray<FPrimitiveVirtualTextureLodInfo> PrimitiveVirtualTextureLod;
+	/**  Packed bit array of primitives that are always visible. */
+	TBitArray<> PrimitivesAlwaysVisible;
 
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
@@ -2566,6 +2620,8 @@ public:
 	/** The light sources for atmospheric effects, if any. */
 	FLightSceneInfo* AtmosphereLights[NUM_ATMOSPHERE_LIGHTS];
 
+	TArray<FLightSceneInfo*, TInlineAllocator<4>> DirectionalLights;
+
 	/** The decals in the scene. */
 	TSparseArray<FDeferredDecalProxy*> Decals;
 
@@ -2594,13 +2650,23 @@ public:
 	/** Distance field object scene data. */
 	FDistanceFieldSceneData DistanceFieldSceneData;
 
+	FLumenSceneData* LumenSceneData;
+
+	/** Nanite material tables for depth and hit proxy IDs. */
+	FNaniteMaterialTables MaterialTables[ENaniteMeshPass::Num];
+
 	/** Map from light id to the cached shadowmap data for that light. */
 	TMap<int32, FCachedShadowMapData> CachedShadowMaps;
+
+	/** Map from light id to previous virtual shadow map HZB info. */
+	TMap< int32, FVirtualShadowMapPrevHZB > PrevVirtualShadowMapHZBs;
 
 	TRefCountPtr<IPooledRenderTarget> PreShadowCacheDepthZ;
 
 	/** Preshadows that are currently cached in the PreshadowCache render target. */
 	TArray<TRefCountPtr<FProjectedShadowInfo> > CachedPreshadows;
+
+	FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager;
 
 	/** Texture layout that tracks current allocations in the PreshadowCache render target. */
 	FTextureLayout PreshadowCacheLayout;

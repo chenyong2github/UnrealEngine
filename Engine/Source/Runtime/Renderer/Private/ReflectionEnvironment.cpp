@@ -156,18 +156,22 @@ void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 
 		ReleaseCubeArray();
 
-		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::CreateCubemapArrayDesc(
-			CubemapSize,
-			// Alpha stores sky mask
-			PF_FloatRGBA,
-			FClearValueBinding::None,
-			TexCreate_None,
-			TexCreate_None,
-			false,
-			MaxCubemaps,
-			NumReflectionCaptureMips,
-			false
-		);
+		FPooledRenderTargetDesc Desc(
+			FPooledRenderTargetDesc::CreateCubemapDesc(
+				CubemapSize,
+				// Alpha stores sky mask
+				PF_FloatRGBA, 
+				FClearValueBinding::None,
+				TexCreate_None,
+				TexCreate_None,
+				false, 
+				// Cubemap array of 1 produces a regular cubemap, so guarantee it will be allocated as an array
+				FMath::Max<uint32>(MaxCubemaps, 2),
+				NumReflectionCaptureMips
+				)
+			);
+
+		Desc.AutoWritable = false;
 	
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 

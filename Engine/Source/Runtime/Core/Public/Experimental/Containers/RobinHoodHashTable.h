@@ -28,6 +28,16 @@ class FHashType
 public:
 	explicit FHashType() : Hash(InvalidHash) {}
 
+	inline bool operator == (FHashType Other) const
+	{
+		return Hash == Other.Hash;
+	}
+
+	inline bool operator != (FHashType Other) const
+	{
+		return Hash != Other.Hash;
+	}
+
 private:
 	template<typename, typename, typename, typename>
 	friend class RobinHoodHashTable_Private::TRobinHoodHashTable;
@@ -54,11 +64,6 @@ private:
 		return Hash;
 	}
 
-	inline bool operator == (FHashType Other) const
-	{
-		return Hash == Other.Hash;
-	}
-
 	static constexpr const IntType InvalidHash = (IntType(1)) << (sizeof(IntType) * 8 - 1);
 	IntType Hash;
 };
@@ -67,9 +72,9 @@ class FHashElementId
 {
 public:
 	FHashElementId() : Index(INDEX_NONE) {}
-	inline FHashElementId(int InIndex) : Index(InIndex) {}
+	inline FHashElementId(int32 InIndex) : Index(InIndex) {}
 
-	inline int GetIndex() const
+	inline int32 GetIndex() const
 	{
 		return Index;
 	}
@@ -80,7 +85,7 @@ public:
 	}
 
 private:
-	int Index;
+	int32 Index;
 };
 
 namespace RobinHoodHashTable_Private
@@ -99,7 +104,12 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType, typename DeducedValueType>
-		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal, FHashType InHash) : Pair(Forward<DeducedKeyType>(InKey), Forward<DeducedValueType>(InVal)), Hash(InHash) {}
+		inline TKeyValue(DeducedKeyType&& InKey, DeducedValueType&& InVal, FHashType InHash)
+		: Pair(Forward<DeducedKeyType>(InKey)
+		, Forward<DeducedValueType>(InVal))
+		, Hash(InHash)
+		{
+		}
 
 		ElementType Pair;
 		FHashType Hash;
@@ -135,7 +145,11 @@ namespace RobinHoodHashTable_Private
 		friend class TRobinHoodHashTable;
 
 		template<typename DeducedKeyType>
-		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&, FHashType InHash) : Key(Forward<DeducedKeyType>(InKey)), Hash(InHash) {}
+		inline TKeyValue(DeducedKeyType&& InKey, FUnitType&&, FHashType InHash)
+		: Key(Forward<DeducedKeyType>(InKey))
+		, Hash(InHash)
+		{
+		}
 
 		ElementType Key;
 		FHashType Hash;
@@ -168,8 +182,6 @@ namespace RobinHoodHashTable_Private
 
 		static constexpr const IndexType LoadFactorDivisor = 3;
 		static constexpr const IndexType LoadFactorQuotient = 5;
-
-
 		static constexpr const IndexType InvalidIndex = ~IndexType(0);
 
 		struct FData
@@ -213,7 +225,7 @@ namespace RobinHoodHashTable_Private
 			{
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
 				CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
-				int InsertIndex = 0;
+				int32 InsertIndex = 0;
 				for (; InsertIndex < FreeList.Num(); InsertIndex++)
 				{
 					if (FreeList[InsertIndex] < Index)
@@ -276,7 +288,7 @@ namespace RobinHoodHashTable_Private
 			struct FIteratorState
 			{
 				IndexType Index;
-				int FreeListIndex;
+				int32 FreeListIndex;
 
 				inline bool operator ==(const FIteratorState& Rhs) const
 				{
@@ -679,19 +691,19 @@ namespace RobinHoodHashTable_Private
 			return KeyValueData.Get(Id.GetIndex()).GetElement();
 		}
 
-		inline FHashElementId FindId(const KeyType& Key) const
+		inline FHashElementId FindIdByHash(const FHashType HashValue, const KeyType& ComparableKey) const
 		{
 			CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
 			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) >= 1);
 
-			FHashType HashValue = ComputeHash(Key);
+			checkSlow(HashValue == ComputeHash(ComparableKey));
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
 			do
 			{
 				if (HashValue == HashData[BucketIndex])
 				{
-					if (Hasher::Matches(Key, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
+					if (Hasher::Matches(ComparableKey, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
 					{
 						CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentReaders) >= 0);
 						CHECK_CONCURRENT_ACCESS(ConcurrentWriters == 0);
@@ -708,9 +720,37 @@ namespace RobinHoodHashTable_Private
 			return FHashElementId();
 		}
 
+		inline FHashElementId FindId(const KeyType& Key) const
+		{
+			const FHashType HashValue = ComputeHash(Key);
+			return FindIdByHash(HashValue, Key);
+		}
+
+		FindValueType FindByHash(const FHashType HashValue, const KeyType& Key)
+		{
+			FHashElementId Id = FindIdByHash(HashValue, Key);
+			if (Id.IsValid())
+			{
+				return KeyValueData.GetByElementId(Id).FindImpl();
+			}
+
+			return nullptr;
+		}
+
 		FindValueType Find(const KeyType& Key)
 		{
 			FHashElementId Id = FindId(Key);
+			if (Id.IsValid())
+			{
+				return KeyValueData.GetByElementId(Id).FindImpl();
+			}
+
+			return nullptr;
+		}
+
+		const FindValueType FindByHash(const FHashType HashValue, const KeyType& Key) const
+		{
+			FHashElementId Id = FindIdByHash(HashValue, Key);
 			if (Id.IsValid())
 			{
 				return KeyValueData.Get(Id.GetIndex()).FindImpl();
@@ -730,20 +770,20 @@ namespace RobinHoodHashTable_Private
 			return nullptr;
 		}
 
-		bool Remove(const KeyType& Key)
+		bool RemoveByHash(const FHashType HashValue, const KeyType& ComparableKey)
 		{
 			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentWriters) == 1);
 			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedIncrement(&ConcurrentReaders) == 1);
 
 			bool bIsFoundInMap = false;
-			FHashType HashValue = ComputeHash(Key);
+			checkSlow(HashValue == ComputeHash(ComparableKey))
 			IndexType BucketIndex = ModTableSize(HashValue.AsUInt());
 			const IndexType EndBucketIndex = ModTableSize(HashValue.AsUInt() + MaximumDistance + 1);
 			do
 			{
 				if (HashValue == HashData[BucketIndex])
 				{
-					if (Hasher::Matches(Key, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
+					if (Hasher::Matches(ComparableKey, KeyValueData.Get(IndexData[BucketIndex]).GetKey()))
 					{
 						KeyValueData.Deallocate(IndexData[BucketIndex]);
 						HashData[BucketIndex] = FHashType();
@@ -780,6 +820,12 @@ namespace RobinHoodHashTable_Private
 			CHECK_CONCURRENT_ACCESS(FPlatformAtomics::InterlockedDecrement(&ConcurrentWriters) == 0);
 
 			return bIsFoundInMap;
+		}
+
+		bool Remove(const KeyType& Key)
+		{
+			const FHashType HashValue = ComputeHash(Key);
+			return RemoveByHash(HashValue);
 		}
 
 		inline bool RemoveByElementId(FHashElementId Id)

@@ -103,10 +103,10 @@ public:
 		FFloat16 TangentDelta[3];
 	};
 
-	struct FPermuationNode
+	struct FPermutationNode
 	{
 		typedef uint32 LinkType;
-		FPermuationNode(LinkType InDst, LinkType InOp0, LinkType InOp1) : Dst(InDst), Op0(InOp0), Op1(InOp1)
+		FPermutationNode(LinkType InDst, LinkType InOp0, LinkType InOp1) : Dst(InDst), Op0(InOp0), Op1(InOp1)
 		{
 		}
 #if 1
@@ -155,7 +155,7 @@ protected:
 	TArray<uint32> PermuationStart;
 	TArray<uint32> PermuationSize;
 	TArray<uint32> NumSplitsPerMorph; //splits due to too large dispatch size
-	TArray<FPermuationNode> AccumStrategyRules;
+	TArray<FPermutationNode> AccumStrategyRules;
 	uint32 TempStoreSize;
 
 	uint32 NumTotalWorkItems;

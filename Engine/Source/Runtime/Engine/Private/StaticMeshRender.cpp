@@ -26,6 +26,7 @@
 #include "ComponentReregisterContext.h"
 #include "EngineUtils.h"
 #include "StaticMeshResources.h"
+#include "Rendering/NaniteResources.h"
 #include "SpeedTreeWind.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 
@@ -34,6 +35,7 @@
 #include "LevelUtils.h"
 #include "TessellationRendering.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "Components/BrushComponent.h"
 #include "AI/Navigation/NavCollisionBase.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -95,6 +97,20 @@ static FAutoConsoleCommand GToggleReversedIndexBuffersCmd(
 	TEXT("Render static meshes with negative transform determinants using a reversed index buffer."),
 	FConsoleCommandDelegate::CreateStatic(ToggleReversedIndexBuffers)
 	);
+
+static void RecreateGlobalRenderState(IConsoleVariable* Var)
+{
+	FGlobalComponentRecreateRenderStateContext Context;
+}
+
+int32 GRenderNaniteMeshes = 1;
+FAutoConsoleVariableRef CVarRenderNaniteMeshes(
+	TEXT("r.Nanite"),
+	GRenderNaniteMeshes,
+	TEXT("Render static meshes using Nanite."),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 bool GForceDefaultMaterial = false;
 
@@ -201,23 +217,25 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 		}
 	}
 
+	if (GForceDefaultMaterial)
+	{
+		MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
+	}
+
 	ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, RenderData->LODResources.Num() - 1);
 
 	SetWireframeColor(InComponent->GetWireframeColor());
 	SetLevelColor(FLinearColor(1,1,1));
 	SetPropertyColor(FLinearColor(1,1,1));
-	bSupportsDistanceFieldRepresentation = true;
+	bSupportsDistanceFieldRepresentation = MaterialRelevance.bOpaque && !MaterialRelevance.bUsesSingleLayerWaterMaterial;
+	bSupportsMeshCardRepresentation = MaterialRelevance.bOpaque && !MaterialRelevance.bUsesSingleLayerWaterMaterial;
 	bCastsDynamicIndirectShadow = InComponent->bCastDynamicShadow && InComponent->CastShadow && InComponent->bCastDistanceFieldIndirectShadow && InComponent->Mobility != EComponentMobility::Static;
 	DynamicIndirectShadowMinVisibility = FMath::Clamp(InComponent->DistanceFieldIndirectShadowMinVisibility, 0.0f, 1.0f);
 	DistanceFieldSelfShadowBias = FMath::Max(InComponent->bOverrideDistanceFieldSelfShadowBias ? InComponent->DistanceFieldSelfShadowBias : InComponent->GetStaticMesh()->DistanceFieldSelfShadowBias, 0.0f);
 
 	// Copy the pointer to the volume data, async building of the data may modify the one on FStaticMeshLODResources while we are rendering
 	DistanceFieldData = RenderData->LODResources[0].DistanceFieldData;
-
-	if (GForceDefaultMaterial)
-	{
-		MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
-	}
+	CardRepresentationData = RenderData->LODResources[0].CardRepresentationData;
 
 	// Build the proxy's LOD data.
 	bool bAnySectionCastsShadows = false;
@@ -1273,7 +1291,7 @@ bool FStaticMeshSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFl
 
 		if(bHasResponse)
 		{
-			//Visiblity uses complex and pawn uses simple. However, if UseSimpleAsComplex or UseComplexAsSimple is used we need to adjust accordingly
+			// Visibility uses complex and pawn uses simple. However, if UseSimpleAsComplex or UseComplexAsSimple is used we need to adjust accordingly
 			bDrawComplexCollision = (EngineShowFlags.CollisionVisibility && CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex) || (EngineShowFlags.CollisionPawn && CollisionTraceFlag == ECollisionTraceFlag::CTF_UseComplexAsSimple);
 			bDrawSimpleCollision  = (EngineShowFlags.CollisionPawn && CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple) || (EngineShowFlags.CollisionVisibility && CollisionTraceFlag == ECollisionTraceFlag::CTF_UseSimpleAsComplex);
 		}
@@ -1663,6 +1681,13 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #endif // STATICMESH_ENABLE_DEBUG_RENDERING
 }
 
+
+const FCardRepresentationData* FStaticMeshSceneProxy::GetMeshCardRepresentation() const
+{
+	return CardRepresentationData;
+}
+
+
 #if RHI_RAYTRACING
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
@@ -1892,7 +1917,7 @@ void FStaticMeshSceneProxy::GetLightRelevance(const FLightSceneProxy* LightScene
 	}
 }
 
-void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
+void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, bool& bOutThrottled) const
 {
 	if (DistanceFieldData)
 	{
@@ -1902,7 +1927,6 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSizeInAtlas();
 		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
 		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
-		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
 		SelfShadowBias = DistanceFieldSelfShadowBias;
 		bOutThrottled = DistanceFieldData->VolumeTexture.Throttled();
 	}
@@ -1919,15 +1943,12 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 	}
 }
 
-void FStaticMeshSceneProxy::GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const
+void FStaticMeshSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const
 {
-	NumInstances = DistanceFieldData ? 1 : 0;
-	const FVector AxisScales = GetLocalToWorld().GetScaleVector();
-	const FVector BoxDimensions = RenderData->Bounds.BoxExtent * AxisScales * 2;
-
-	BoundsSurfaceArea = 2 * BoxDimensions.X * BoxDimensions.Y
-		+ 2 * BoxDimensions.Z * BoxDimensions.Y
-		+ 2 * BoxDimensions.X * BoxDimensions.Z;
+	if (DistanceFieldData)
+	{
+		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
+	}
 }
 
 bool FStaticMeshSceneProxy::HasDistanceFieldRepresentation() const
@@ -2301,11 +2322,26 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	// TODO: Hack - toggling collision preset on plane1024 in ShallowWater plugin
+	// causes a crash creating a scene proxy without having initialized render data...
+	// Should properly investigate - feels like a timing issue.
+	if (!GetStaticMesh()->RenderData->IsInitialized())
+	{
+		return nullptr;
+	}
+
+	if (GRenderNaniteMeshes != 0 && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+	{
+		LLM_SCOPE(ELLMTag::StaticMesh);
+		return ::new Nanite::FSceneProxy(this);
+	}
+
 	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->RenderData->LODResources;
 	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(GetStaticMesh()->MinLOD.Default, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return nullptr;
 	}
+
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(this, false);

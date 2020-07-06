@@ -38,6 +38,7 @@
 #include "VelocityCommon.ush"
 #include "SphericalGaussian.ush"
 #include "DBufferDecalShared.ush"
+#include "ShadingModelsSampling.ush"
 
 #define PREV_FRAME_COLOR	1
 #include "SSRT/SSRTRayCast.ush"
@@ -51,6 +52,10 @@
 
 #include "ReflectionEnvironmentShared.ush"
 
+#if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+#define LumenGIVolumeStruct TranslucentBasePass
+#include "Lumen/LumenTranslucencyVolumeShared.ush"
+#endif
 
 float NormalCurvatureToRoughness(float3 WorldNormal)
 {
@@ -263,79 +268,113 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
 
-#if ENABLE_SKY_LIGHT
-
-	float SkyVisibility = 1;
-	float GeometryTerm = 1;
-	float3 SkyLightingNormal = WorldNormal;
-	
-	#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-		BRANCH
-		if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
-		{
-			float3 NormalizedBentNormal = SkyLightingNormal;
-
-			#if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-			
-				float3 SkyBentNormal = GetVolumetricLightmapSkyBentNormal(SkyOcclusionUV3D);
-				SkyVisibility = length(SkyBentNormal);
-				NormalizedBentNormal = SkyBentNormal / max(SkyVisibility, .0001f);
-
-			#elif HQ_TEXTURE_LIGHTMAP
-
-				// Bent normal from precomputed texture
-				float4 WorldSkyBentNormalAndOcclusion = GetSkyBentNormalAndOcclusion(LightmapVTPageTableResult, LightmapUV * float2(1, 2), LightmapDataIndex, MaterialParameters.SvPosition.xy);
-				// Renormalize as vector was quantized and compressed
-				NormalizedBentNormal = normalize(WorldSkyBentNormalAndOcclusion.xyz);
-				SkyVisibility = WorldSkyBentNormalAndOcclusion.w;
-
-			#elif CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
-
-				// Bent normal from the indirect lighting cache - one value for the whole object
-				if (View.IndirectLightingCacheShowFlag > 0.0f)
-				{
-					NormalizedBentNormal = IndirectLightingCache.PointSkyBentNormal.xyz;
-					SkyVisibility = IndirectLightingCache.PointSkyBentNormal.w;
-				}
-
-			#endif
-
-			#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
-				// NonDirectional lighting can't depend on the normal
-				SkyLightingNormal = NormalizedBentNormal;
-			#else
-				
-				// Weight toward the material normal to increase directionality
-				float BentNormalWeightFactor = 1 - (1 - SkyVisibility) * (1 - SkyVisibility);
-
-				// We are lerping between the inputs of two lighting scenarios based on occlusion
-				// In the mostly unoccluded case, evaluate sky lighting with the material normal, because it has higher detail
-				// In the mostly occluded case, evaluate sky lighting with the bent normal, because it is a better representation of the incoming lighting
-				// Then treat the lighting evaluated along the bent normal as an area light, so we must apply the lambert term
-				SkyLightingNormal = lerp(NormalizedBentNormal, WorldNormal, BentNormalWeightFactor);
-
-				float DotProductFactor = lerp(saturate(dot(NormalizedBentNormal, WorldNormal)), 1, BentNormalWeightFactor);
-				// Account for darkening due to the geometry term
-				GeometryTerm = DotProductFactor;
-			#endif
-		}
-	#endif
-			
-	// Compute the preconvolved incoming lighting with the bent normal direction
-	float3 DiffuseLookup = GetEffectiveSkySHDiffuse(SkyLightingNormal) * ResolvedView.SkyLightColor.rgb;
-
-	// Apply AO to the sky diffuse
-	OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
-
-	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+#if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+	if (IsLumenTranslucencyGIEnabled())
 	{
-		float3 BackfaceDiffuseLookup = GetEffectiveSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
-		OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
-	}
-	#endif
+		// Lumen Dynamic GI + shadowed Skylight
+		FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip, true);
 
+		#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL
+
+			FOneBandSHVectorRGB TranslucencyGISH1;
+			TranslucencyGISH1.R.V = TranslucencyGISH.R.V.x;
+			TranslucencyGISH1.G.V = TranslucencyGISH.G.V.x;
+			TranslucencyGISH1.B.V = TranslucencyGISH.B.V.x;
+
+			FOneBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH1(1);
+			OutDiffuseLighting += max(float3(0,0,0), DotSH1(TranslucencyGISH1, DiffuseTransferSH)) / PI;
+
+		#else
+			// Diffuse convolution
+			FTwoBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH(WorldNormal, 1);
+			OutDiffuseLighting += max(half3(0,0,0), DotSH(TranslucencyGISH, DiffuseTransferSH)) / PI;
+
+			#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			{
+				FTwoBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH(-WorldNormal, 1);
+				OutSubsurfaceLighting += max(half3(0,0,0), DotSH(TranslucencyGISH, SubsurfaceTransferSH)) / PI;
+			}
+			#endif
+		#endif
+	}
+	else
 #endif
+
+	{
+#if ENABLE_SKY_LIGHT
+	
+		float SkyVisibility = 1;
+		float GeometryTerm = 1;
+		float3 SkyLightingNormal = WorldNormal;
+	
+		#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
+			BRANCH
+			if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
+			{
+				float3 NormalizedBentNormal = SkyLightingNormal;
+
+				#if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
+			
+					float3 SkyBentNormal = GetVolumetricLightmapSkyBentNormal(SkyOcclusionUV3D);
+					SkyVisibility = length(SkyBentNormal);
+					NormalizedBentNormal = SkyBentNormal / max(SkyVisibility, .0001f);
+
+				#elif HQ_TEXTURE_LIGHTMAP
+
+					// Bent normal from precomputed texture
+					float4 WorldSkyBentNormalAndOcclusion = GetSkyBentNormalAndOcclusion(LightmapVTPageTableResult, LightmapUV * float2(1, 2), LightmapDataIndex, MaterialParameters.SvPosition.xy);
+					// Renormalize as vector was quantized and compressed
+					NormalizedBentNormal = normalize(WorldSkyBentNormalAndOcclusion.xyz);
+					SkyVisibility = WorldSkyBentNormalAndOcclusion.w;
+
+				#elif CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
+
+					// Bent normal from the indirect lighting cache - one value for the whole object
+					if (View.IndirectLightingCacheShowFlag > 0.0f)
+					{
+						NormalizedBentNormal = IndirectLightingCache.PointSkyBentNormal.xyz;
+						SkyVisibility = IndirectLightingCache.PointSkyBentNormal.w;
+					}
+
+				#endif
+
+				#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
+					// NonDirectional lighting can't depend on the normal
+					SkyLightingNormal = NormalizedBentNormal;
+				#else
+				
+					// Weight toward the material normal to increase directionality
+					float BentNormalWeightFactor = 1 - (1 - SkyVisibility) * (1 - SkyVisibility);
+
+					// We are lerping between the inputs of two lighting scenarios based on occlusion
+					// In the mostly unoccluded case, evaluate sky lighting with the material normal, because it has higher detail
+					// In the mostly occluded case, evaluate sky lighting with the bent normal, because it is a better representation of the incoming lighting
+					// Then treat the lighting evaluated along the bent normal as an area light, so we must apply the lambert term
+					SkyLightingNormal = lerp(NormalizedBentNormal, WorldNormal, BentNormalWeightFactor);
+
+					float DotProductFactor = lerp(saturate(dot(NormalizedBentNormal, WorldNormal)), 1, BentNormalWeightFactor);
+					// Account for darkening due to the geometry term
+					GeometryTerm = DotProductFactor;
+				#endif
+			}
+		#endif
+			
+		// Compute the preconvolved incoming lighting with the bent normal direction
+		float3 DiffuseLookup = GetEffectiveSkySHDiffuse(SkyLightingNormal) * ResolvedView.SkyLightColor.rgb;
+
+		// Apply AO to the sky diffuse
+		OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
+
+		#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+		if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		{
+			float3 BackfaceDiffuseLookup = GetEffectiveSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
+			OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
+		}
+		#endif
+#endif //ENABLE_SKY_LIGHT
+	}
 }
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
@@ -596,22 +635,13 @@ void ApplyPixelDepthOffsetForBasePass(inout FMaterialPixelParameters MaterialPar
 {
 	float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 
-#if WRITES_VELOCITY_TO_GBUFFER
+#if WRITES_VELOCITY_TO_GBUFFER && !VF_NANITE
 	BasePassInterpolants.VelocityPrevScreenPosition.w += PixelDepthOffset;
 
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
 		BasePassInterpolants.VelocityScreenPosition.w += PixelDepthOffset;
 	#endif
 #endif
-}
-
-// [ Jimenez et al. 2016, "Practical Realtime Strategies for Accurate Indirect Occlusion" ]
-float3 AOMultiBounce( float3 BaseColor, float AO )
-{
-	float3 a =  2.0404 * BaseColor - 0.3324;
-	float3 b = -4.7951 * BaseColor + 0.6417;
-	float3 c =  2.7552 * BaseColor + 0.6903;
-	return max( AO, ( ( AO * a + b ) * AO + c ) * AO );
 }
 
 float DotSpecularSG( float Roughness, float3 N, float3 V, FSphericalGaussian LightSG )
@@ -808,7 +838,7 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
-#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !VF_NANITE
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(In.SvPosition);
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
@@ -972,8 +1002,10 @@ void FPixelShaderInOut_MainPS(
 		// 2d velocity, includes camera an object motion
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
 		float3 Velocity = Calculate3DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
-	#else
+	#elif !VF_NANITE
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
+	#else
+		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, MaterialParameters.PrevScreenPosition);
 	#endif
 
 		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity) * GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity, 0);
@@ -1047,6 +1079,45 @@ void FPixelShaderInOut_MainPS(
 	ApplyBentNormal( MaterialParameters, GBuffer.Roughness, BentNormal, DiffOcclusion, SpecOcclusion );
 	// FIXME: ALLOW_STATIC_LIGHTING == 0 expects this to be AO
 	GBuffer.GBufferAO = AOMultiBounce( Luminance( GBuffer.SpecularColor ), SpecOcclusion ).g;
+
+	#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT && NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
+	{
+		float3 V = normalize(View.WorldCameraOrigin - MaterialParameters.AbsoluteWorldPosition);
+		float3 N = GBuffer.WorldNormal;
+
+		#if MATERIAL_TANGENTSPACENORMAL
+			float3 BentNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormal0(MaterialParameters)));
+		#else
+			float3 BentNormal = GetBentNormal0(MaterialParameters);
+		#endif
+
+		float VisibleCosAngle = sqrt(1 - MaterialAO);
+		FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(MaterialParameters.WorldNormal);
+		FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(BentNormal, MaterialAO);
+
+		uint OcclusionMask = 0x0;
+		UNROLL_N(INDIRECT_SAMPLE_COUNT)
+		for (uint TracingRayIndex = 0; TracingRayIndex < INDIRECT_SAMPLE_COUNT; TracingRayIndex++)
+		{
+			const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
+
+			float4 E = ComputeIndirectLightingSampleE(In.SvPosition.xy, TracingRayIndex, INDIRECT_SAMPLE_COUNT);
+
+			FBxDFSample BxDFSample = SampleBxDF(TermMask, GBuffer, V, E);
+
+			// Integrate what is visible over the maximum vibility for the normal.
+			float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
+
+			float VisibilityThreshold = InterleavedGradientNoise(In.SvPosition.xy, View.StateFrameIndexMod8);
+
+			bool bIsBentNormalOccluded = LVisibility < VisibilityThreshold;
+
+			OcclusionMask |= bIsBentNormalOccluded ? (1 << TracingRayIndex) : 0;
+		}
+
+		GBuffer.DiffuseIndirectSampleOcclusion = OcclusionMask;
+	}
+	#endif
 
 	half3 DiffuseColor = 0;
 	half3 Color = 0;

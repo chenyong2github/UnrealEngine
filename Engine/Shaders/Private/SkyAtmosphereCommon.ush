@@ -218,7 +218,10 @@ float3 GetLightDiskLuminance(
 		const float3 TransmittanceToLight = GetAtmosphereTransmittance(
 			WorldPos, WorldDir, BottomRadius, TopRadius, TransmittanceLutTexture, TransmittanceLutTextureSampler);
 
-		return TransmittanceToLight * AtmosphereLightDiscLuminance;
+		// Soften out the sun disk to avoid bloom flickering at edge. The soften is applied on the outer part of the disk.
+		const float SoftEdge = saturate(2.0f * (ViewDotLight - CosHalfApex) / (1.0f - CosHalfApex));
+
+		return TransmittanceToLight * AtmosphereLightDiscLuminance * SoftEdge;
 	}
 	return 0.0f;
 }

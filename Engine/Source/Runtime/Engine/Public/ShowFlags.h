@@ -195,6 +195,8 @@ struct FEngineShowFlags
 		SetDistanceFieldAO(false);
 		SetVolumetricFog(false);
 		SetVolumetricLightmap(false);
+		SetLumenDiffuseIndirect(false);
+		SetLumenReflections(false);
 	}
 
 	void EnableAdvancedFeatures()
@@ -384,6 +386,8 @@ private:
 		SetSnap(false);
 		SetVisualizeMeshDistanceFields(false);
 		SetVisualizeGlobalDistanceField(false);
+		SetVisualizeLumenScene(false);
+		SetVisualizeLumenIndirectDiffuse(false);
 		SetVisualizeDistanceFieldAO(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);

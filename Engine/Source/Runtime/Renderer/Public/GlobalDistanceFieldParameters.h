@@ -14,7 +14,7 @@
 class FShaderParameterMap;
 
 /** Must match global distance field shaders. */
-const int32 GMaxGlobalDistanceFieldClipmaps = 4;
+const int32 GMaxGlobalDistanceFieldClipmaps = 5;
 
 class FGlobalDistanceFieldParameterData
 {
@@ -30,6 +30,7 @@ public:
 	FRHITexture* Textures[GMaxGlobalDistanceFieldClipmaps];
 	float GlobalDFResolution;
 	float MaxDistance;
+	int32 NumGlobalSDFClipmaps;
 };
 
 class FGlobalDistanceFieldParameters
@@ -42,15 +43,18 @@ public:
 		GlobalDistanceFieldTexture1.Bind(ParameterMap, TEXT("GlobalDistanceFieldTexture1"));
 		GlobalDistanceFieldTexture2.Bind(ParameterMap, TEXT("GlobalDistanceFieldTexture2"));
 		GlobalDistanceFieldTexture3.Bind(ParameterMap, TEXT("GlobalDistanceFieldTexture3"));
+		GlobalDistanceFieldTexture4.Bind(ParameterMap, TEXT("GlobalDistanceFieldTexture4"));
 		GlobalDistanceFieldSampler0.Bind(ParameterMap, TEXT("GlobalDistanceFieldSampler0"));
 		GlobalDistanceFieldSampler1.Bind(ParameterMap, TEXT("GlobalDistanceFieldSampler1"));
 		GlobalDistanceFieldSampler2.Bind(ParameterMap, TEXT("GlobalDistanceFieldSampler2"));
 		GlobalDistanceFieldSampler3.Bind(ParameterMap, TEXT("GlobalDistanceFieldSampler3"));
+		GlobalDistanceFieldSampler4.Bind(ParameterMap, TEXT("GlobalDistanceFieldSampler4"));
 		GlobalVolumeCenterAndExtent.Bind(ParameterMap,TEXT("GlobalVolumeCenterAndExtent"));
 		GlobalVolumeWorldToUVAddAndMul.Bind(ParameterMap,TEXT("GlobalVolumeWorldToUVAddAndMul"));
 		GlobalVolumeDimension.Bind(ParameterMap,TEXT("GlobalVolumeDimension"));
 		GlobalVolumeTexelSize.Bind(ParameterMap,TEXT("GlobalVolumeTexelSize"));
 		MaxGlobalDistance.Bind(ParameterMap,TEXT("MaxGlobalDistance"));
+		NumGlobalSDFClipmaps.Bind(ParameterMap,TEXT("NumGlobalSDFClipmaps"));
 	}
 
 	bool IsBound() const
@@ -64,15 +68,18 @@ public:
 		Ar << Parameters.GlobalDistanceFieldTexture1;
 		Ar << Parameters.GlobalDistanceFieldTexture2;
 		Ar << Parameters.GlobalDistanceFieldTexture3;
+		Ar << Parameters.GlobalDistanceFieldTexture4;
 		Ar << Parameters.GlobalDistanceFieldSampler0;
 		Ar << Parameters.GlobalDistanceFieldSampler1;
 		Ar << Parameters.GlobalDistanceFieldSampler2;
 		Ar << Parameters.GlobalDistanceFieldSampler3;
+		Ar << Parameters.GlobalDistanceFieldSampler4;
 		Ar << Parameters.GlobalVolumeCenterAndExtent;
 		Ar << Parameters.GlobalVolumeWorldToUVAddAndMul;
 		Ar << Parameters.GlobalVolumeDimension;
 		Ar << Parameters.GlobalVolumeTexelSize;
 		Ar << Parameters.MaxGlobalDistance;
+		Ar << Parameters.NumGlobalSDFClipmaps;
 		return Ar;
 	}
 
@@ -85,29 +92,33 @@ public:
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldTexture1, GlobalDistanceFieldSampler1, TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), ParameterData.Textures[1] ? ParameterData.Textures[1] : GBlackVolumeTexture->TextureRHI.GetReference());
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldTexture2, GlobalDistanceFieldSampler2, TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), ParameterData.Textures[2] ? ParameterData.Textures[2] : GBlackVolumeTexture->TextureRHI.GetReference());
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldTexture3, GlobalDistanceFieldSampler3, TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), ParameterData.Textures[3] ? ParameterData.Textures[3] : GBlackVolumeTexture->TextureRHI.GetReference());
+			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldTexture4, GlobalDistanceFieldSampler4, TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI(), ParameterData.Textures[4] ? ParameterData.Textures[4] : GBlackVolumeTexture->TextureRHI.GetReference());
 
 			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeCenterAndExtent, ParameterData.CenterAndExtent, GMaxGlobalDistanceFieldClipmaps);
 			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeWorldToUVAddAndMul, ParameterData.WorldToUVAddAndMul, GMaxGlobalDistanceFieldClipmaps);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalVolumeDimension, ParameterData.GlobalDFResolution);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalVolumeTexelSize, 1.0f / ParameterData.GlobalDFResolution);
 			SetShaderValue(RHICmdList, ShaderRHI, MaxGlobalDistance, ParameterData.MaxDistance);
+			SetShaderValue(RHICmdList, ShaderRHI, NumGlobalSDFClipmaps, ParameterData.NumGlobalSDFClipmaps);
 		}
 	}
 
 private:
 	
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture0)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture1)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture2)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture3)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler0)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler1)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler2)
-		LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler3)
-		LAYOUT_FIELD(FShaderParameter, GlobalVolumeCenterAndExtent)
-		LAYOUT_FIELD(FShaderParameter, GlobalVolumeWorldToUVAddAndMul)
-		LAYOUT_FIELD(FShaderParameter, GlobalVolumeDimension)
-		LAYOUT_FIELD(FShaderParameter, GlobalVolumeTexelSize)
-		LAYOUT_FIELD(FShaderParameter, MaxGlobalDistance)
-	
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture0)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture1)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture2)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture3)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldTexture4)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler0)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler1)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler2)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler3)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldSampler4)
+	LAYOUT_FIELD(FShaderParameter, GlobalVolumeCenterAndExtent)
+	LAYOUT_FIELD(FShaderParameter, GlobalVolumeWorldToUVAddAndMul)
+	LAYOUT_FIELD(FShaderParameter, GlobalVolumeDimension)
+	LAYOUT_FIELD(FShaderParameter, GlobalVolumeTexelSize)
+	LAYOUT_FIELD(FShaderParameter, MaxGlobalDistance)
+	LAYOUT_FIELD(FShaderParameter, NumGlobalSDFClipmaps)
 };

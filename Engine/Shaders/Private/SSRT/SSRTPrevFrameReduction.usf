@@ -35,13 +35,16 @@ SamplerState HigherMipTextureSampler;
 SamplerState HigherAlphaMipTextureSampler;
 #endif
 
+float4 PrevBufferBilinearUVMinMax;
 float4 PrevScreenPositionScaleBias;
 float2 ViewportUVToHZBBufferUV;
 float2 ReducedSceneColorSize;
 float2 ReducedSceneColorTexelSize;
+float2 HigherMipBufferBilinearMax;
 float PrevSceneColorPreExposureCorrection;
 float MinimumLuminance;
 float HigherMipDownScaleFactor;
+float SkyDistance;
 
 RWTexture2D<float4>	ReducedSceneColorOutput_0;
 RWTexture2D<float4>	ReducedSceneColorOutput_1;
@@ -120,11 +123,11 @@ void MainCS(
 				float SampleWeight = 0.25 * saturate(1 - SampleDist * SampleDist * InvSquareWorldBluringRadius);
 
 				float2 SampleUV = HigherMipDownScaleFactor * (2.0 * float2(DispatchThreadId) + 1.0 + TexelOffset) * 0.5 * ReducedSceneColorTexelSize;
-				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+				SampleUV = min(SampleUV, HigherMipBufferBilinearMax);
 
 				float4 SampleColor = float4(
 					HigherMipTexture.SampleLevel(HigherMipTextureSampler, SampleUV, 0).rgb,
-					Texture2DSample_A8(HigherAlphaMipTexture,HigherAlphaMipTextureSampler, SampleUV));
+					HigherAlphaMipTexture.SampleLevel(HigherAlphaMipTextureSampler, SampleUV, 0).r);
 
 				PrevColor += SampleColor * SampleWeight;
 			}
@@ -146,7 +149,7 @@ void MainCS(
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
 		float2 PrevScreen = PrevClip.xy / PrevClip.w;
 
-		bool bIsSky = WorldDepth > 100 * 1000;
+		bool bIsSky = WorldDepth > SkyDistance && SkyDistance > 0.0;
 
 		float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, SceneBufferUV, 0).xy;
 		if (EncodedVelocity.x > 0.0)
@@ -174,7 +177,7 @@ void MainCS(
 			//for (uint i = 0; i < 4; i++)
 			{
 				float2 SampleUV = PrevFrameUV; // + View.BufferSizeAndInvSize.zw * (float2(i % 2, i / 2) - 0.5);
-				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+				SampleUV = clamp(SampleUV, PrevBufferBilinearUVMinMax.xy, PrevBufferBilinearUVMinMax.zw);
 
 				float PrevDeviceZ = PrevSceneDepth.SampleLevel(PrevSceneDepthSampler, SampleUV, 0).r;
 
@@ -195,12 +198,12 @@ void MainCS(
 
 		PrevColor = -min(-PrevColor, 0.0);
 
-		#if CONFIG_COLOR_TILE_CLASSIFICATION
+
+		// Ignore sky contribution because in skylight
+		if (bIsSky)
 		{
-			if (bIsSky)
-				PrevColor = 0;
+			PrevColor = 0;
 		}
-		#endif
 
 		// Correct scene color exposure.
 		#if USE_PREEXPOSURE

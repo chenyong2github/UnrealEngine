@@ -4,6 +4,7 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
 #include "Chaos/TriangleMesh.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
@@ -51,7 +52,7 @@ namespace Chaos
 		T SqrtIM1Scale0 = FMath::Sqrt(IM1Scale0);
 		T SqrtIM1Scale1 = FMath::Sqrt(IM1Scale1);
 
-		if (!ensure((SqrtIM1Scale0 > KINDA_SMALL_NUMBER) || (SqrtIM1Scale1 > KINDA_SMALL_NUMBER)))
+		if (!CHAOS_ENSURE((SqrtIM1Scale0 > KINDA_SMALL_NUMBER) || (SqrtIM1Scale1 > KINDA_SMALL_NUMBER)))
 		{
 			// We hit numerical accuracy, despite the early off-diagonal check. We should not see this any more.
 			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);

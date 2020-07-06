@@ -185,6 +185,7 @@ public:
 		, _HideUI(true)
 		, _AllowZoomOutput(true)
 		, _AlwaysDisplayColorCurves(false)
+		, _AlwaysHideGradientEditor(false)
 		, _ZoomToFitVertical(true)
 		, _ZoomToFitHorizontal(true)
 		, _ShowZoomButtons(true)
@@ -216,6 +217,7 @@ public:
 		SLATE_ARGUMENT( bool, HideUI )
 		SLATE_ARGUMENT( bool, AllowZoomOutput )
 		SLATE_ARGUMENT( bool, AlwaysDisplayColorCurves )
+		SLATE_ARGUMENT( bool, AlwaysHideGradientEditor )
 		SLATE_ARGUMENT( bool, ZoomToFitVertical )
 		SLATE_ARGUMENT( bool, ZoomToFitHorizontal )
 		SLATE_ARGUMENT( bool, ShowZoomButtons )
@@ -596,7 +598,7 @@ private:
 	// End of FEditorUndoClient
 
 	bool AreCurvesVisible() const { return bAlwaysDisplayColorCurves || bAreCurvesVisible.Get(); }
-	bool IsGradientEditorVisible() const { return bIsGradientEditorVisible; }
+	bool IsGradientEditorVisible() const { return !bAlwaysHideGradientEditor && bIsGradientEditorVisible; }
 	bool IsLinearColorCurve() const;
 
 	bool IsCurveSelectable(TSharedPtr<FCurveViewModel> CurveViewModel) const;
@@ -689,6 +691,8 @@ private:
 	bool				bAllowZoomOutput;
 	/** If we always show the color curves or allow the user to toggle this */
 	bool				bAlwaysDisplayColorCurves;
+	/** If we always hide the gradient editor */
+	bool				bAlwaysHideGradientEditor;
 
 	/** Whether or not to draw the numbers for the input grid. */
 	bool bDrawInputGridNumbers;

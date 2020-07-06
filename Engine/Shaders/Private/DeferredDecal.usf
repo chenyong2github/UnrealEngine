@@ -31,6 +31,18 @@ float2 DecalParams;
 #endif
 
 
+// If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
+		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	#elif !OUTPUT_PIXEL_DEPTH_OFFSET
+		// Otherwise we can only use early depth test if not modifying depth
+		// Modifying depth will trigger the slow path where we write feedback to UAV even where depth occluded!
+		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#endif
+#endif
+
 // from component to clip space (for decal frustum)
 float4x4 FrustumComponentToClip;
 

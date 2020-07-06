@@ -12,7 +12,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "GlobalShader.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogNiagaraShaderCompiler, All, All);
+DEFINE_LOG_CATEGORY_STATIC(LogNiagaraShaderCompiler, Log, All);
 
 static int32 GShowNiagaraShaderWarnings = 0;
 static FAutoConsoleVariableRef CVarShowNiagaraShaderWarnings(
@@ -217,15 +217,15 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 						{
 							FString SourceCode;
 							Script->GetScriptHLSLSource(SourceCode);
-							UE_LOG(LogNiagaraShaderCompiler, Log, TEXT("Compile output as text:"));
-							UE_LOG(LogNiagaraShaderCompiler, Log, TEXT("==================================================================================="));
+							UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Compile output as text:"));
+							UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("==================================================================================="));
 							TArray<FString> OutputByLines;
 							SourceCode.ParseIntoArrayLines(OutputByLines, false);
 							for (int32 i = 0; i < OutputByLines.Num(); i++)
 							{
-								UE_LOG(LogNiagaraShaderCompiler, Log, TEXT("/*%04d*/\t\t%s"), i + 1, *OutputByLines[i]);
+								UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("/*%04d*/\t\t%s"), i + 1, *OutputByLines[i]);
 							}
-							UE_LOG(LogNiagaraShaderCompiler, Log, TEXT("==================================================================================="));
+							UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("==================================================================================="));
 						}
 
 						if (!bSuccess)

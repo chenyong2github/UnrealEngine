@@ -756,7 +756,7 @@ FReply SSCreateBlueprintPicker::OnKeyDown(const FGeometry& MyGeometry, const FKe
 	return FReply::Handled();
 }
 
-void FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode CreateMode, AActor* InActorOverride )
+void FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode CreateMode, AActor* InActorOverride, bool bInReplaceActors)
 {
 	TWeakObjectPtr<AActor> ActorOverride(InActorOverride);
 
@@ -781,11 +781,11 @@ void FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode C
 	{
 		FString NewAssetName = ClassPickerDialog->AssetPath / ClassPickerDialog->AssetName;
 
-		OnCreateBlueprint(NewAssetName, ClassPickerDialog->ChosenClass, ClassPickerDialog->CreateMode, ActorOverride.Get());
+		OnCreateBlueprint(NewAssetName, ClassPickerDialog->ChosenClass, ClassPickerDialog->CreateMode, ActorOverride.Get(), bInReplaceActors);
 	}
 }
 
-void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse)
+void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPath, UClass* ParentClass, ECreateBlueprintFromActorMode CreateMode, AActor* ActorToUse, bool bInReplaceActors)
 {
 	UBlueprint* Blueprint = nullptr;
 
@@ -805,8 +805,7 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bReplaceActor, ParentClass);
+			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bInReplaceActors, ParentClass);
 		}
 		break;
 
@@ -841,8 +840,7 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bReplaceActor, ParentClass);
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bInReplaceActors, ParentClass);
 		}
 		break;
 	}

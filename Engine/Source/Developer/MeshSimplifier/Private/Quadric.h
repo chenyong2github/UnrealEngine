@@ -5,48 +5,236 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogQuadric, Log, All);
-
 // [ Hoppe 1999, "New Quadric Metric for Simplifying Meshes with Appearance Attributes" ]
 // [ Hoppe 2000, "Efficient minimization of new quadric metric for simplifying meshes with appearance attributes" ]
 
 // doubles needed for precision
+#pragma float_control( precise, on, push )
 
 #define WEIGHT_BY_AREA		1
 #define VOLUME_CONSTRAINT	1
+#define USE_FMA				0
 
-// Currently not used : this should be equivalent to CalcGradientMatrix followed by the CalcGradient below.
-
-bool CalcGradient( double grad[4], const double(&p0)[3], const double(&p1)[3], const double(&p2)[3], const double(&n)[3], float a0, float a1, float a2 );
-
-// Calculate the interpolation matrix @param GradMatrix that represents the interpolation coefficients across a triangle face. 
-
-bool CalcGradientMatrix( double* __restrict GradMatrix, const double(&p0)[3], const double(&p1)[3], const double(&p2)[3], const double(&n)[3]);
-
-// Use the @param GradMatrix to from the gradient of vertex data across the face of a triangle. 
-
-FORCEINLINE void CalcGradient( double* __restrict GradMatrix, double grad[4], float a0, float a1, float a2 )
+#if USE_FMA
+// Kahan's algorithm
+template< typename T >
+inline T DifferenceOfProducts( T a, T b, T c, T d )
 {
-	grad[0] = - GradMatrix[ 0] * a0 + GradMatrix[ 4] * a1 + GradMatrix[ 8] * a2;
-	grad[1] = + GradMatrix[ 1] * a0 - GradMatrix[ 5] * a1 - GradMatrix[ 9] * a2;
-	grad[2] = - GradMatrix[ 2] * a0 + GradMatrix[ 6] * a1 + GradMatrix[10] * a2;
-	grad[3] = + GradMatrix[ 3] * a0 - GradMatrix[ 7] * a1 - GradMatrix[11] * a2;
+    T cd = c * d;
+    T Error = std::fma( -c, d,  cd );
+    T ab_cd = std::fma(  a, b, -cd );
+    return ab_cd + Error;
 }
 
-// returns length and normalizes the input vector
-
-static FORCEINLINE double NormalizeSelf(double& Vx, double& Vy, double& Vz)
+// Knuth 1974
+template< typename T >
+T TwoSumError( T a, T b )
 {
-	double Length2 = Vx * Vx + Vy * Vy + Vz * Vz;
-	double Length = sqrt(Length2);
+	T x = a + b;
+	T z = x - b;
+	return ( a - (x - z) ) + (b - z);
+}
+
+template< typename T >
+T TwoProdError( T a, T b )
+{
+	T x = a * b;
+	return std::fma( a, b, -x );
+}
+#endif
+
+template< typename T >
+struct TVec3
+{
+	T x;
+	T y;
+	T z;
+
+	TVec3() = default;
+	TVec3( T Scalar )
+		: x( Scalar ), y( Scalar ), z( Scalar )
+	{}
+
+	TVec3( T InX, T InY, T InZ )
+		: x( InX ), y( InY ), z( InZ )
+	{}
+
+	TVec3( const FVector& v )
+		: x( v.X ), y( v.Y ), z( v.Z )
+	{}
+
+	TVec3 operator*( T Scalar ) const
 	{
-		double InvL = 1. / Length;
-		Vx *= InvL;
-		Vy *= InvL;
-		Vz *= InvL;
+		return TVec3<T>(
+			x * Scalar,
+			y * Scalar,
+			z * Scalar );
 	}
-	return Length;
+	
+	TVec3 operator+( const TVec3& v ) const
+	{
+		return TVec3<T>(
+			x + v.x,
+			y + v.y,
+			z + v.z );
+	}
+
+	TVec3 operator-( const TVec3& v ) const
+	{
+		return TVec3<T>(
+			x - v.x,
+			y - v.y,
+			z - v.z );
+	}
+	
+	TVec3& operator+=( const TVec3& v )
+	{
+		x += v.x;
+		y += v.y;
+		z += v.z;
+		return *this;
+	}
+
+	T operator|( const TVec3& v ) const
+	{
+#if USE_FMA
+		/*
+		T zz = z * v.z;
+		T Error		= std::fma( z, v.z, -zz );
+		T yy_zz		= std::fma( y, v.y, zz );
+		T xx_yy_zz	= std::fma( x, v.z, yy_zz );
+		return xx_yy_zz + Error;
+		*/
+
+		T xx = x * v.x;
+		T yy = y * v.y;
+		T zz = z * v.z;
+		
+		T Dot, DotError;
+		DotError  = TwoProdError( x, v.x );
+		Dot  = xx;
+		DotError += TwoProdError( y, v.y ) + TwoSumError( Dot, yy );
+		Dot += yy;
+		DotError += TwoProdError( z, v.z ) + TwoSumError( Dot, zz );
+		Dot += zz;
+
+		return Dot + DotError;
+#else
+		return x * v.x + y * v.y + z * v.z;
+#endif
+	}
+
+	TVec3 operator^( const TVec3& v ) const
+	{
+		TVec3 Result;
+#if USE_FMA
+		Result.x = DifferenceOfProducts( y, v.z, z, v.y );
+		Result.y = DifferenceOfProducts( z, v.x, x, v.z );
+		Result.z = DifferenceOfProducts( x, v.y, y, v.x );
+#else
+		Result.x = y * v.z - z * v.y;
+		Result.y = z * v.x - x * v.z;
+		Result.z = x * v.y - y * v.x;
+#endif
+
+		return Result;
+	}
+};
+
+template< typename T >
+FORCEINLINE TVec3<T> operator*( float Scalar, const TVec3<T>& v )
+{
+	return v.operator*( Scalar );
 }
+
+using QScalar = double;
+using QVec3 = TVec3< QScalar >;
+
+
+class FEdgeQuadric
+{
+public:
+	FEdgeQuadric() {}
+	FEdgeQuadric( const FVector& p0, const FVector& p1, const FVector& FaceNormal, const float Weight );
+	
+	void		Zero();
+
+	QScalar		nxx;
+	QScalar		nyy;
+	QScalar		nzz;
+
+	QScalar		nxy;
+	QScalar		nxz;
+	QScalar		nyz;
+	
+	QScalar		nx;
+	QScalar		ny;
+	QScalar		nz;
+
+	QScalar		a;
+};
+
+inline FEdgeQuadric::FEdgeQuadric( const FVector& fp0, const FVector& fp1, const FVector& FaceNormal, const float Weight )
+{
+	if( !FaceNormal.IsNormalized() )
+	{
+		Zero();
+		return;
+	}
+
+	const QVec3 p0( fp0 );
+	const QVec3 p1( fp1 );
+	const QVec3 Face( FaceNormal );
+
+	const QVec3 p01 = p1 - p0;
+
+	QVec3 n = p01 ^ Face;
+
+	const QScalar Length = sqrt( n | n );
+	if( Length < (QScalar)SMALL_NUMBER )
+	{
+		Zero();
+		return;
+	}
+	else
+	{
+		n.x /= Length;
+		n.y /= Length;
+		n.z /= Length;
+	}
+
+	a = Weight * sqrt( p01 | p01 );
+	
+	nxx = a * n.x * n.x;
+	nyy = a * n.y * n.y;
+	nzz = a * n.z * n.z;
+
+	nxy = a * n.x * n.y;
+	nxz = a * n.x * n.z;
+	nyz = a * n.y * n.z;
+
+	nx = n.x;
+	ny = n.y;
+	nz = n.z;
+}
+
+inline void FEdgeQuadric::Zero()
+{
+	nxx = 0.0;
+	nyy = 0.0;
+	nzz = 0.0;
+
+	nxy = 0.0;
+	nxz = 0.0;
+	nyz = 0.0;
+
+	nx = 0.0;
+	ny = 0.0;
+	nz = 0.0;
+	
+	a = 0.0;
+}
+
 
 // Error quadric for position only
 class FQuadric
@@ -62,163 +250,25 @@ public:
 	void		Zero();
 
 	FQuadric&	operator+=( const FQuadric& q );
+
+	void		Add( const FEdgeQuadric& q, const FVector& Point );
 	
 	// Evaluate error at point
 	float		Evaluate( const FVector& p ) const;
 
-	double		nxx;
-	double		nyy;
-	double		nzz;
+	QScalar		nxx;
+	QScalar		nyy;
+	QScalar		nzz;
 
-	double		nxy;
-	double		nxz;
-	double		nyz;
+	QScalar		nxy;
+	QScalar		nxz;
+	QScalar		nyz;
 	
-	double		dnx;
-	double		dny;
-	double		dnz;
-	
-	double		d2;
+	QVec3		dn;
+	QScalar		d2;
 
-	double		a;
+	QScalar		a;
 };
-
-inline FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& fp2 )
-{
-
-	// Convert to double 
-
-	const double p0[3] = { fp0[0], fp0[1], fp0[2] };
-	const double p1[3] = { fp1[0], fp1[1], fp1[2] };
-	const double p2[3] = { fp2[0], fp2[1], fp2[2] };
-
-	// Compute the wedge product, giving the normal direction scaled by 
-	// twice the triangle area.
-	
-	double nX, nY, nZ; //  n = (p2 - p0) ^ (p1 - p0);
-	{
-		double tmpA[3] = { p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2] };
-		double tmpB[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
-
-		nX = tmpA[1] * tmpB[2] - tmpA[2] * tmpB[1];
-		nY = tmpA[2] * tmpB[0] - tmpA[0] * tmpB[2];
-		nZ = tmpA[0] * tmpB[1] - tmpA[1] * tmpB[0];
-	}
-
-	// Rescale the normal direction vector to unit length.
-
-	const double Length = NormalizeSelf(nX, nY, nZ);
-	if (Length < double(SMALL_NUMBER))
-	{
-		Zero();
-		return;
-	}
-
-	checkSlow(FMath::IsFinite(nX));
-	checkSlow(FMath::IsFinite(nY));
-	checkSlow(FMath::IsFinite(nZ));
-
-	const double area = 0.5 * Length;
-	const double dist = -(nX * p0[0] + nY * p0[1] + nZ * p0[2]); // n.dot.p0
-
-
-	nxx = nX * nX;
-	nyy = nY * nY;
-	nzz = nZ * nZ;
-
-	nxy = nX * nY;
-	nxz = nX * nZ;
-	nyz = nY * nZ;
-
-	dnx = dist * nX;
-	dny = dist * nY;
-	dnz = dist * nZ;
-
-	d2 = dist * dist;
-
-#if WEIGHT_BY_AREA
-	nxx *= area;
-	nyy *= area;
-	nzz *= area;
-
-	nxy *= area;
-	nxz *= area;
-	nyz *= area;
-
-	dnx *= area;
-	dny *= area;
-	dnz *= area;
-
-	d2 *= area;
-
-	a = area;
-#else
-	a = 1.0;
-#endif
-}
-
-inline FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& faceNormal, const float edgeWeight )
-{
-	if( !faceNormal.IsNormalized() )
-	{
-		Zero();
-		return;
-	}
-
-	// Convert to double 
-
-	const double p0[3] = { fp0[0], fp0[1], fp0[2] };
-	const double p1[3] = { fp1[0], fp1[1], fp1[2] };
-
-	// Compute the wedge product, giving the a direction
-	// normal to the edge and face normal (a bi-tangent) 
-
-	double nX, nY, nZ; //  n = (p1 - p0) ^ (faceNormal);
-	double edgeSize;
-	{
-		// edge = fp1 - fp0
-		double tmpA[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
-		double tmpB[3] = { faceNormal.X,  faceNormal.Y,  faceNormal.Z };
-		
-		nX = tmpA[1] * tmpB[2] - tmpA[2] * tmpB[1];
-		nY = tmpA[2] * tmpB[0] - tmpA[0] * tmpB[2];
-		nZ = tmpA[0] * tmpB[1] - tmpA[1] * tmpB[0];
-
-		edgeSize = sqrt(tmpA[0] * tmpA[0] + tmpA[1] * tmpA[1] + tmpA[2] * tmpA[2]);
-	}
-
-	// Rescale the normal direction vector to unit length.
-
-	const double Length = NormalizeSelf(nX, nY, nZ);
-	if (Length < double(SMALL_NUMBER))
-	{
-		Zero();
-		return;
-	}
-
-	checkSlow(FMath::IsFinite(nX));
-	checkSlow(FMath::IsFinite(nY));
-	checkSlow(FMath::IsFinite(nZ));
-
-	double dist = -(nX * p0[0] + nY * p0[1] + nZ * p0[2]); // n.dot.p0
-	double weight = edgeWeight * edgeSize;
-
-	nxx = weight * nX * nX;
-	nyy = weight * nY * nY;
-	nzz = weight * nZ * nZ;
-
-	nxy = weight * nX * nY;
-	nxz = weight * nX * nZ;
-	nyz = weight * nY * nZ;
-
-	dnx = weight * dist * nX;
-	dny = weight * dist * nY;
-	dnz = weight * dist * nZ;
-
-	d2 = weight * dist * dist;
-	
-	a = 0.0;
-}
 
 inline void FQuadric::Zero()
 {
@@ -230,10 +280,7 @@ inline void FQuadric::Zero()
 	nxz = 0.0;
 	nyz = 0.0;
 
-	dnx = 0.0;
-	dny = 0.0;
-	dnz = 0.0;
-	
+	dn = 0.0;
 	d2 = 0.0;
 	
 	a = 0.0;
@@ -249,10 +296,7 @@ inline FQuadric& FQuadric::operator+=( const FQuadric& q )
 	nxz += q.nxz;
 	nyz += q.nyz;
 
-	dnx += q.dnx;
-	dny += q.dny;
-	dnz += q.dnz;
-	
+	dn += q.dn;
 	d2 += q.d2;
 	
 	a += q.a;
@@ -260,61 +304,62 @@ inline FQuadric& FQuadric::operator+=( const FQuadric& q )
 	return *this;
 }
 
-inline float FQuadric::Evaluate( const FVector& Point ) const
+inline void FQuadric::Add( const FEdgeQuadric& RESTRICT EdgeQuadric, const FVector& Point )
 {
-	// Q(v) = vt*A*v + 2*bt*v + c
+	const QVec3 p0( Point );
+	const QVec3 n( EdgeQuadric.nx, EdgeQuadric.ny, EdgeQuadric.nz );
 	
-	// v = [ p ]
-	//     [ s ]
-	
-	// A = [ C  B  ]
-	//     [ Bt aI ]
-	
-	// C = n*nt
-	// B = -g[ 0 .. m ]
+	const QScalar Dist = -( n | p0 );
 
-	// b = [  dn         ]
-	//     [ -d[ 0 .. m] ]
+	nxx += EdgeQuadric.nxx;
+	nyy += EdgeQuadric.nyy;
+	nzz += EdgeQuadric.nzz;
 
-	// c = d2
+	nxy += EdgeQuadric.nxy;
+	nxz += EdgeQuadric.nxz;
+	nyz += EdgeQuadric.nyz;
 
-	double px = Point.X;
-	double py = Point.Y;
-	double pz = Point.Z;
-
-	// A*v = [ C*p  + B*s ]
-	//       [ Bt*p + a*s ]
-
-	// C*p
-	double x = px * nxx + py * nxy + pz * nxz;
-	double y = px * nxy + py * nyy + pz * nyz;
-	double z = px * nxz + py * nyz + pz * nzz;
-
-	// vt*A*v = pt * ( C*p + B*s ) + st * ( Bt*p + a*s )
-
-	// pt * (C*p + B*s)
-	double vAv = px * x + py * y + pz * z;
-
-	// bt*v
-	double btv = px * dnx + py * dny + pz * dnz;
-
-	// Q(v) = vt*A*v + 2*bt*v + c
-	double Q = vAv + 2.0 * btv + d2;
-	
-	//check( Q > -1.0 );
-	if ( !FMath::IsFinite( Q ) )
-	{
-		UE_LOG(LogQuadric, Warning, TEXT("Quadric point evaluate detected possible degenerate. Returning 0."));
-		Q = 0;
-	}
-
-	return Q;
+	QScalar aDist = EdgeQuadric.a * Dist;
+	dn += aDist * n;
+	d2 += aDist * Dist;
 }
 
 
 // Error quadric including attributes
+// Attributes are assumed to be allocated immediately after this struct!
+// See TQuadricAttr below for expected layout for a static case.
+class FQuadricAttr : public FQuadric
+{
+public:
+				FQuadricAttr() {}
+				FQuadricAttr(
+					const FVector& p0, const FVector& p1, const FVector& p2,
+					const float* a0, const float* a1, const float* a2,
+					const float* AttributeWeights, uint32 NumAttributes
+					);
+
+	void		Rebase( const FVector& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes );
+	void		Add( const FQuadricAttr& q, const FVector& Point, const float* Attribute, const float* AttributeWeights, uint32 NumAttributes );
+
+	void		Zero( uint32 NumAttributes );
+	
+	// Evaluate error at point with attributes and weights
+	float		Evaluate( const FVector& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
+	
+	// Calculate attributes for point and evaluate error
+	float		CalcAttributesAndEvaluate( const FVector& Point, float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
+
+#if VOLUME_CONSTRAINT
+	QVec3		nv;
+	QScalar		dv;
+#endif
+};
+
+
+// Error quadric including attributes
+// Static NumAttributes version of FQuadricAttr.
 template< uint32 NumAttributes >
-class TQuadricAttr
+class TQuadricAttr : public FQuadricAttr
 {
 public:
 				TQuadricAttr() {}
@@ -323,7 +368,10 @@ public:
 					const float* a0, const float* a1, const float* a2,
 					const float* AttributeWeights
 					);
-	
+
+	void		Rebase( const FVector& Point, const float* Attributes, const float* AttributeWeights );
+	void		Add( const TQuadricAttr< NumAttributes >& q, const FVector& Point, const float* Attribute, const float* AttributeWeights );
+
 	void		Zero();
 	
 	TQuadricAttr< NumAttributes >& operator+=( const FQuadric& q );
@@ -332,236 +380,41 @@ public:
 	// Evaluate error at point with attributes and weights
 	float		Evaluate( const FVector& Point, const float* Attributes, const float* AttributeWeights ) const;
 	
-	// Calculate attributes for point
-	void		CalcAttributes( const FVector& Point, float* Attributes, const float* AttributeWeights ) const;
-
-	double		nxx;
-	double		nyy;
-	double		nzz;
-
-	double		nxy;
-	double		nxz;
-	double		nyz;
+	// Calculate attributes for point and evaluate error
+	float		CalcAttributesAndEvaluate( const FVector& Point, float* Attributes, const float* AttributeWeights ) const;
 	
-	double		dnx;
-	double		dny;
-	double		dnz;
-	
-	double		d2;
-	
-	double		g[NumAttributes][3];
-	double		d[NumAttributes];
-
-	double		a;
-
-#if VOLUME_CONSTRAINT
-	double		nvx;
-	double		nvy;
-	double		nvz;
-	double		dv;
-#endif
+	QScalar		g[ NumAttributes ][3];
+	QScalar		d[ NumAttributes ];
 };
 
 template< uint32 NumAttributes >
 inline TQuadricAttr< NumAttributes >::TQuadricAttr(
-	const FVector& fp0, const FVector& fp1, const FVector& fp2,
-	const float* attr0, const float* attr1, const float* attr2,
+	const FVector& p0, const FVector& p1, const FVector& p2,
+	const float* a0, const float* a1, const float* a2,
+	const float* AttributeWeights )
+	: FQuadricAttr(
+		p0, p1, p2,
+		a0, a1, a2,
+		AttributeWeights,
+		NumAttributes )
+{}
+
+template< uint32 NumAttributes >
+inline void TQuadricAttr< NumAttributes >::Rebase(
+	const FVector& Point, const float* Attribute,
 	const float* AttributeWeights )
 {
-
-	// Convert to double 
-	
-	const double p0[3] = { fp0[0], fp0[1], fp0[2] };
-	const double p1[3] = { fp1[0], fp1[1], fp1[2] };
-	const double p2[3] = { fp2[0], fp2[1], fp2[2] };
-
-	// Compute the wedge product, giving the normal direction scaled by 
-	// twice the triangle area.
-	
-	double nX, nY, nZ; //  n = (p2 - p0) ^ (p1 - p0);
-	{
-		double tmpA[3] = { p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2] };
-		double tmpB[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
-
-		nX = tmpA[1] * tmpB[2] - tmpA[2] * tmpB[1];
-		nY = tmpA[2] * tmpB[0] - tmpA[0] * tmpB[2];
-		nZ = tmpA[0] * tmpB[1] - tmpA[1] * tmpB[0];
-	}
-
-	// Rescale the normal direction vector to unit length.
-
-	const double Length = NormalizeSelf(nX, nY, nZ);
-	if (Length < double(SMALL_NUMBER))
-	{
-		Zero();
-		return;
-	}
-
-	checkSlow(FMath::IsFinite(nX));
-	checkSlow(FMath::IsFinite(nY));
-	checkSlow(FMath::IsFinite(nZ));
-
-	const double area = 0.5 * Length;
-	const double dist = -(nX * p0[0] + nY * p0[1] + nZ * p0[2]); // n.dot.p0
-	
-
-	nxx = nX * nX;
-	nyy = nY * nY;
-	nzz = nZ * nZ;
-
-	nxy = nX * nY;
-	nxz = nX * nZ;
-	nyz = nY * nZ;
-
-	dnx = dist * nX;
-	dny = dist * nY;
-	dnz = dist * nZ;
-
-	d2 = dist * dist;
-
-#if VOLUME_CONSTRAINT
-	nvx = nX * ( area / 3.0 );
-	nvy = nY * ( area / 3.0 );
-	nvz = nZ * ( area / 3.0 );
-	dv = dist * ( area / 3.0 );
-#endif
-
-	double GradMatrix[12];
-	const double n[3] = { nX, nY, nZ };
-	bool bInvertable = CalcGradientMatrix( GradMatrix, p0, p1, p2, n );
-	
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		if( AttributeWeights[i] == 0.0f )
-		{
-			g[i][0] = 0.0;
-			g[i][1] = 0.0;
-			g[i][2] = 0.0;
-			d[i] = 0.0;
-			continue;
-		}
-		
-		float a0 = AttributeWeights[i] * attr0[i];
-		float a1 = AttributeWeights[i] * attr1[i];
-		float a2 = AttributeWeights[i] * attr2[i];
-
-		double grad[4];
-		//if( !CalcGradient( grad, p0, p1, p2, n, a0, a1, a2 ) )
-		if( !bInvertable )
-		{
-			grad[0] = 0.0;
-			grad[1] = 0.0;
-			grad[2] = 0.0;
-			grad[3] = ( a0 + a1 + a2 ) / 3.0;
-		}
-		else
-		{
-			a0 = FMath::IsFinite( a0 ) ? a0 : 0.0f;
-			a1 = FMath::IsFinite( a1 ) ? a1 : 0.0f;
-			a2 = FMath::IsFinite( a2 ) ? a2 : 0.0f;
-
-			CalcGradient( GradMatrix, grad, a0, a1, a2 );
-
-			checkSlow( !FMath::IsNaN( grad[0] ) );
-			checkSlow( !FMath::IsNaN( grad[1] ) );
-			checkSlow( !FMath::IsNaN( grad[2] ) );
-			checkSlow( !FMath::IsNaN( grad[3] ) );
-		}
-
-		//double t0 = grad[0] * p0.x + grad[1] * p0.y + grad[2] * p0.z + grad[3];
-		//double t1 = grad[0] * p1.x + grad[1] * p1.y + grad[2] * p1.z + grad[3];
-		//double t2 = grad[0] * p2.x + grad[1] * p2.y + grad[2] * p2.z + grad[3];
-
-		//assert( abs( a0 - t0 ) < 0.01 );
-		//assert( abs( a1 - t1 ) < 0.01 );
-		//assert( abs( a2 - t2 ) < 0.01 );
-
-		g[i][0] = grad[0];
-		g[i][1] = grad[1];
-		g[i][2] = grad[2];
-		d[i] = grad[3];
-
-		nxx += g[i][0] * g[i][0];
-		nyy += g[i][1] * g[i][1];
-		nzz += g[i][2] * g[i][2];
-
-		nxy += g[i][0] * g[i][1];
-		nxz += g[i][0] * g[i][2];
-		nyz += g[i][1] * g[i][2];
-
-		dnx += d[i] * g[i][0];
-		dny += d[i] * g[i][1];
-		dnz += d[i] * g[i][2];
-
-		d2 += d[i] * d[i];
-	}
-
-#if WEIGHT_BY_AREA
-	nxx *= area;
-	nyy *= area;
-	nzz *= area;
-
-	nxy *= area;
-	nxz *= area;
-	nyz *= area;
-
-	dnx *= area;
-	dny *= area;
-	dnz *= area;
-
-	d2 *= area;
-
-	for( int i = 0; i < NumAttributes; i++ )
-	{
-		g[i][0] *= area;
-		g[i][1] *= area;
-		g[i][2] *= area;
-		d[i] *= area;
-	}
-
-	a = area;
-#else
-	a = 1.0;
-#endif
+	Rebase( Point, Attribute, AttributeWeights, NumAttributes );
 }
 
 template< uint32 NumAttributes >
 inline void TQuadricAttr< NumAttributes >::Zero()
 {
-	nxx = 0.0;
-	nyy = 0.0;
-	nzz = 0.0;
-
-	nxy = 0.0;
-	nxz = 0.0;
-	nyz = 0.0;
-
-	dnx = 0.0;
-	dny = 0.0;
-	dnz = 0.0;
-	
-	d2 = 0.0;
-
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		g[i][0] = 0.0;
-		g[i][1] = 0.0;
-		g[i][2] = 0.0;
-		d[i] = 0.0;
-	}
-	
-	a = 0.0;
-
-#if VOLUME_CONSTRAINT
-	nvx = 0.0;
-	nvy = 0.0;
-	nvz = 0.0;
-	dv = 0.0;
-#endif
+	Zero( NumAttributes );
 }
 
 template< uint32 NumAttributes >
-inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=( const FQuadric& q )
+inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=( const TQuadricAttr< NumAttributes >& RESTRICT q )
 {
 	nxx += q.nxx;
 	nyy += q.nyy;
@@ -571,32 +424,7 @@ inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=(
 	nxz += q.nxz;
 	nyz += q.nyz;
 
-	dnx += q.dnx;
-	dny += q.dny;
-	dnz += q.dnz;
-	
-	d2 += q.d2;
-	
-	a += q.a;
-
-	return *this;
-}
-
-template< uint32 NumAttributes >
-inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=( const TQuadricAttr< NumAttributes >& q )
-{
-	nxx += q.nxx;
-	nyy += q.nyy;
-	nzz += q.nzz;
-
-	nxy += q.nxy;
-	nxz += q.nxz;
-	nyz += q.nyz;
-
-	dnx += q.dnx;
-	dny += q.dny;
-	dnz += q.dnz;
-	
+	dn += q.dn;
 	d2 += q.d2;
 
 	for( uint32 i = 0; i < NumAttributes; i++ )
@@ -610,9 +438,7 @@ inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=(
 	a += q.a;
 
 #if VOLUME_CONSTRAINT
-	nvx += q.nvx;
-	nvy += q.nvy;
-	nvz += q.nvz;
+	nv += q.nv;
 	dv += q.dv;
 #endif
 
@@ -620,151 +446,54 @@ inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=(
 }
 
 template< uint32 NumAttributes >
-inline float TQuadricAttr< NumAttributes >::Evaluate( const FVector& Point, const float* Attributes, const float* AttributeWeights ) const
+inline float TQuadricAttr< NumAttributes >::CalcAttributesAndEvaluate( const FVector& Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights ) const
 {
-	// Q(v) = vt*A*v + 2*bt*v + c
-	
-	// v = [ p ]
-	//     [ s ]
-	
-	// A = [ C  B  ]
-	//     [ Bt aI ]
-	
-	// C = n*nt
-	// B = -g[ 0 .. m ]
-
-	// b = [  dn         ]
-	//     [ -d[ 0 .. m] ]
-
-	// c = d2
-
-	double px = Point.X;
-	double py = Point.Y;
-	double pz = Point.Z;
-
-	double s[NumAttributes];
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		s[i] = AttributeWeights[i] * Attributes[i];
-	}
-
-	// A*v = [ C*p  + B*s ]
-	//       [ Bt*p + a*s ]
-
-	// C*p
-	double x = px * nxx + py * nxy + pz * nxz;
-	double y = px * nxy + py * nyy + pz * nyz;
-	double z = px * nxz + py * nyz + pz * nzz;
-
-	// B*s
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		x -= g[i][0] * s[i];
-		y -= g[i][1] * s[i];
-		z -= g[i][2] * s[i];
-	}
-
-	// vt*A*v = pt * ( C*p + B*s ) + st * ( Bt*p + a*s )
-
-	// pt * (C*p + B*s)
-	double vAv = px * x + py * y + pz * z;
-
-	// st * ( Bt*p + a*s )
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		vAv += s[i] * ( a * s[i] - g[i][0] * px - g[i][1] * py - g[i][2] * pz );
-	}
-
-	// bt*v
-	double btv = px * dnx + py * dny + pz * dnz;
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		btv -= d[i] * s[i];
-	}
-
-	// Q(v) = vt*A*v + 2*bt*v + c
-	double Q = vAv + 2.0 * btv + d2;
-
-	//check( Q > -1.0 );
-	if ( !FMath::IsFinite( Q ) )
-	{
-		UE_LOG(LogQuadric, Warning, TEXT("Quadric point+attributes evaluate detected possible degenerate. Returning 0."));
-		Q = 0;
-	}
-
-	return Q;
-}
-
-template< uint32 NumAttributes >
-inline void TQuadricAttr< NumAttributes >::CalcAttributes( const FVector& Point, float* Attributes, const float* AttributeWeights ) const
-{
-	double px = Point.X;
-	double py = Point.Y;
-	double pz = Point.Z;
-
-	for( uint32 i = 0; i < NumAttributes; i++ )
-	{
-		if( AttributeWeights[i] != 0.0f )
-		{
-			double s = g[i][0] * px + g[i][1] * py + g[i][2] * pz + d[i];
-			Attributes[i] = s / ( a * AttributeWeights[i] );
-		}
-		else
-		{
-			Attributes[i] = 0.0f;
-		}
-	}
+	return FQuadricAttr::CalcAttributesAndEvaluate( Point, Attributes, AttributeWeights, NumAttributes );
 }
 
 
-template< uint32 NumAttributes >
-class TQuadricAttrOptimizer
+class FQuadricAttrOptimizer
 {
 public:
-				TQuadricAttrOptimizer();
+				FQuadricAttrOptimizer();
 
 	void		AddQuadric( const FQuadric& q );
-	void		AddQuadric( const TQuadricAttr< NumAttributes >& q );
+	void		AddQuadric( const FQuadricAttr& q, uint32 NumAttributes );
 
 	// Find optimal point for minimal error
-	bool		Optimize( FVector& p ) const;
+	bool		Optimize( FVector& Position ) const;
+	bool		OptimizeVolume( FVector& Position ) const;
+	bool		OptimizeLinear( const FVector& Position0, const FVector& Position1, FVector& Position ) const;
 
 private:
-	double		nxx;
-	double		nyy;
-	double		nzz;
+	QScalar		nxx;
+	QScalar		nyy;
+	QScalar		nzz;
 
-	double		nxy;
-	double		nxz;
-	double		nyz;
+	QScalar		nxy;
+	QScalar		nxz;
+	QScalar		nyz;
 	
-	double		dnx;
-	double		dny;
-	double		dnz;
+	QVec3		dn;
 
-	double		a;
+	QScalar		a;
 
 #if VOLUME_CONSTRAINT
-	double		nvx;
-	double		nvy;
-	double		nvz;
-	double		dv;
+	QVec3		nv;
+	QScalar		dv;
 #endif
 
-	double		BBtxx;
-	double		BBtyy;
-	double		BBtzz;
-	double		BBtxy;
-	double		BBtxz;
-	double		BBtyz;
+	QScalar		BBtxx;
+	QScalar		BBtyy;
+	QScalar		BBtzz;
+	QScalar		BBtxy;
+	QScalar		BBtxz;
+	QScalar		BBtyz;
 
-	double		Bdx;
-	double		Bdy;
-	double		Bdz;
+	QVec3		Bd;
 };
 
-template< uint32 NumAttributes >
-inline TQuadricAttrOptimizer< NumAttributes >::TQuadricAttrOptimizer()
+inline FQuadricAttrOptimizer::FQuadricAttrOptimizer()
 {
 	nxx = 0.0;
 	nyy = 0.0;
@@ -774,16 +503,12 @@ inline TQuadricAttrOptimizer< NumAttributes >::TQuadricAttrOptimizer()
 	nxz = 0.0;
 	nyz = 0.0;
 
-	dnx = 0.0;
-	dny = 0.0;
-	dnz = 0.0;
+	dn = 0.0;
 	
 	a = 0.0;
 
 #if VOLUME_CONSTRAINT
-	nvx = 0.0;
-	nvy = 0.0;
-	nvz = 0.0;
+	nv = 0.0;
 	dv = 0.0;
 #endif
 
@@ -794,13 +519,10 @@ inline TQuadricAttrOptimizer< NumAttributes >::TQuadricAttrOptimizer()
 	BBtxz = 0.0;
 	BBtyz = 0.0;
 
-	Bdx = 0.0;
-	Bdy = 0.0;
-	Bdz = 0.0;
+	Bd = 0.0;
 }
 
-template< uint32 NumAttributes >
-inline void TQuadricAttrOptimizer< NumAttributes >::AddQuadric( const FQuadric& q )
+inline void FQuadricAttrOptimizer::AddQuadric( const FQuadric& RESTRICT q )
 {
 	nxx += q.nxx;
 	nyy += q.nyy;
@@ -810,16 +532,16 @@ inline void TQuadricAttrOptimizer< NumAttributes >::AddQuadric( const FQuadric& 
 	nxz += q.nxz;
 	nyz += q.nyz;
 
-	dnx += q.dnx;
-	dny += q.dny;
-	dnz += q.dnz;
+	dn += q.dn;
 	
 	a += q.a;
 }
 
-template< uint32 NumAttributes >
-inline void TQuadricAttrOptimizer< NumAttributes >::AddQuadric( const TQuadricAttr< NumAttributes >& q )
+inline void FQuadricAttrOptimizer::AddQuadric( const FQuadricAttr& RESTRICT q, uint32 NumAttributes )
 {
+	if( q.a < (QScalar)SMALL_NUMBER )
+		return;
+
 	nxx += q.nxx;
 	nyy += q.nyy;
 	nzz += q.nzz;
@@ -828,178 +550,32 @@ inline void TQuadricAttrOptimizer< NumAttributes >::AddQuadric( const TQuadricAt
 	nxz += q.nxz;
 	nyz += q.nyz;
 
-	dnx += q.dnx;
-	dny += q.dny;
-	dnz += q.dnz;
+	dn += q.dn;
 	
 	a += q.a;
 
 #if VOLUME_CONSTRAINT
-	nvx += q.nvx;
-	nvy += q.nvy;
-	nvz += q.nvz;
+	nv += q.nv;
 	dv += q.dv;
 #endif
 
-	// B*Bt
+	QVec3* RESTRICT   g = (QVec3*)( &q + 1 );
+	QScalar* RESTRICT d = (QScalar*)( g + NumAttributes );
+
 	for( uint32 i = 0; i < NumAttributes; i++ )
 	{
-		BBtxx += q.g[i][0] * q.g[i][0];
-		BBtyy += q.g[i][1] * q.g[i][1];
-		BBtzz += q.g[i][2] * q.g[i][2];
+		// B*Bt
+		BBtxx += g[i].x * g[i].x;
+		BBtyy += g[i].y * g[i].y;
+		BBtzz += g[i].z * g[i].z;
 
-		BBtxy += q.g[i][0] * q.g[i][1];
-		BBtxz += q.g[i][0] * q.g[i][2];
-		BBtyz += q.g[i][1] * q.g[i][2];
-	}
-
-	// -B*d
-	for( int i = 0; i < NumAttributes; i++ )
-	{
-		Bdx += q.g[i][0] * q.d[i];
-		Bdy += q.g[i][1] * q.d[i];
-		Bdz += q.g[i][2] * q.d[i];
+		BBtxy += g[i].x * g[i].y;
+		BBtxz += g[i].x * g[i].z;
+		BBtyz += g[i].y * g[i].z;
+		
+		// -B*d
+		Bd += g[i] * d[i];
 	}
 }
 
-template< uint32 NumAttributes >
-inline bool TQuadricAttrOptimizer< NumAttributes >::Optimize( FVector& Point ) const
-{
-	// A * v = -b
-	
-	// v = [ p ]
-	//     [ s ]
-	
-	// A = [ C  B  ]
-	//     [ Bt aI ]
-	
-	// C = n*nt
-	// B = -g[ 0 .. m ]
-
-	// b = [  dn         ]
-	//     [ -d[ 0 .. m] ]
-
-	// ( C - 1/a * B*Bt ) * p = -1/a * B*d - dn
-	if (FMath::IsNearlyZero(a, (double)(1.e-12)))
-	{
-		return false;
-	}
-	
-	// M = C - 1/a * B*Bt
-	double ia = 1.0 / a;
-	double Mxx = nxx - ia * BBtxx;
-	double Myy = nyy - ia * BBtyy;
-	double Mzz = nzz - ia * BBtzz;
-
-	double Mxy = nxy - ia * BBtxy;
-	double Mxz = nxz - ia * BBtxz;
-	double Myz = nyz - ia * BBtyz;
-
-	// -1/a * B*d - dn
-	double aBddnx = ia * Bdx - dnx;
-	double aBddny = ia * Bdy - dny;
-	double aBddnz = ia * Bdz - dnz;
-
-#if VOLUME_CONSTRAINT
-	// Only use the volume constraint if it is well conditioned
-	if( nvx*nvx + nvy*nvy + nvz*nvz > 1e-8 )
-	{
-		/*
-		float4x4 M =
-		{
-			Mxx, Mxy, Mxz, nvx,
-			Mxy, Myy, Myz, nvy,
-			Mxz, Myz, Mzz, nvz,
-			nvx, nvy, nvz, 0
-		};
-		float4 b = { aBddnx, aBddny, aBddnz, -dv };
-		p = ( Inverse(M) * b ).xyz;
-		*/
-
-		// 4x4 matrix inverse
-
-		// 2x2 sub-determinants required to calculate 4x4 determinant
-		double det2_01_01 = Mxx * Myy - Mxy * Mxy;
-		double det2_01_02 = Mxx * Myz - Mxz * Mxy;
-		double det2_01_12 = Mxy * Myz - Mxz * Myy;
-		double det2_01_03 = Mxx * nvy - nvx * Mxy;
-		double det2_01_13 = Mxy * nvy - nvx * Myy;
-		double det2_01_23 = Mxz * nvy - nvx * Myz;
-
-		// 3x3 sub-determinants required to calculate 4x4 determinant
-		double iNvx = Mzz * det2_01_13 - Myz * det2_01_23 - nvz * det2_01_12;
-		double iNvy = Mxz * det2_01_23 - Mzz * det2_01_03 + nvz * det2_01_02;
-		double iNvz = Myz * det2_01_03 - Mxz * det2_01_13 - nvz * det2_01_01;
-
-		double det = iNvx * nvx + iNvy * nvy + iNvz * nvz;
-
-		if( FMath::Abs( det ) < 1e-8 )
-		{
-			return false;
-		}
-
-		double invDet = 1.0 / det;
-
-		// remaining 2x2 sub-determinants
-		double det2_03_02 = Mxx * nvz - Mxz * nvx;
-		double det2_03_12 = Mxy * nvz - Mxz * nvy;
-		double det2_13_12 = Myy * nvz - Myz * nvy;
-
-		double det2_03_03 = -nvx * nvx;
-		double det2_03_13 = -nvx * nvy;
-		double det2_03_23 = -nvx * nvz;
-
-		double det2_13_13 = -nvy * nvy;
-		double det2_13_23 = -nvy * nvz;
-
-		// remaining 3x3 sub-determinants
-		double iMxx = Mzz * det2_13_13 - Myz * det2_13_23 - nvz * det2_13_12;
-		double iMxy = Myz * det2_03_23 - Mzz * det2_03_13 + nvz * det2_03_12;
-		double iMyy = Mzz * det2_03_03 - Mxz * det2_03_23 - nvz * det2_03_02;
-
-		double iMxz = nvy * det2_01_23 - nvz * det2_01_13;
-		double iMyz = nvz * det2_01_03 - nvx * det2_01_23;
-		double iMzz = nvx * det2_01_13 - nvy * det2_01_03;
-
-		Point.X = invDet * ( aBddnx * iMxx + aBddny * iMxy + aBddnz * iMxz - iNvx * dv );
-		Point.Y = invDet * ( aBddnx * iMxy + aBddny * iMyy + aBddnz * iMyz - iNvy * dv );
-		Point.Z = invDet * ( aBddnx * iMxz + aBddny * iMyz + aBddnz * iMzz - iNvz * dv );
-	}
-	else
-#endif
-	{
-		/*
-		float3x3 M =
-		{
-			Mxx, Mxy, Mxz,
-			Mxy, Myy, Myz,
-			Mxz, Myz, Mzz
-		};
-		float3 b = { aBddnx, aBddny, aBddnz };
-		p = Inverse(M) * b;
-		*/
-
-		double iMxx = Myy * Mzz - Myz * Myz;
-		double iMxy = Mxz * Myz - Mzz * Mxy;
-		double iMxz = Mxy * Myz - Myy * Mxz;
-
-		double det = Mxx * iMxx + Mxy * iMxy + Mxz * iMxz;
-
-		if( FMath::Abs( det ) < 1e-8 )
-		{
-			return false;
-		}
-
-		double invDet = 1.0 / det;
-
-		double iMyy = Mxx * Mzz - Mxz * Mxz;
-		double iMyz = Mxy * Mxz - Mxx * Myz;
-		double iMzz = Mxx * Myy - Mxy * Mxy;
-
-		Point.X = invDet * ( aBddnx * iMxx + aBddny * iMxy + aBddnz * iMxz );
-		Point.Y = invDet * ( aBddnx * iMxy + aBddny * iMyy + aBddnz * iMyz );
-		Point.Z = invDet * ( aBddnx * iMxz + aBddny * iMyz + aBddnz * iMzz );
-	}
-
-	return true;
-}
+#pragma float_control( pop )

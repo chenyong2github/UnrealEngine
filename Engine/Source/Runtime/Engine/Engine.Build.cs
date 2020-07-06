@@ -351,7 +351,10 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("AssetTools");
 
 			PrivateIncludePathModuleNames.Add("PIEPreviewDeviceProfileSelector");
-		}
+
+            PrivateIncludePathModuleNames.Add("NaniteBuilder");
+            DynamicallyLoadedModuleNames.Add("NaniteBuilder");
+        }
 
 		SetupModulePhysicsSupport(Target);
 		

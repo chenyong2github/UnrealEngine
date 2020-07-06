@@ -39,6 +39,7 @@ namespace EMeshPass
 		MobileBasePassCSM,  /** Mobile base pass with CSM shading enabled */
 		MobileInverseOpacity,  /** Mobile specific scene capture, Non-cached */
 		VirtualTexture,
+		LumenCardCapture,
 		DitheredLODFadingOutMaskPass, /** A mini depth pass used to mark pixels with dithered LOD fading out. Currently only used by ray tracing shadows. */
 
 #if WITH_EDITOR
@@ -74,6 +75,8 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	case EMeshPass::CustomDepth: return TEXT("CustomDepth");
 	case EMeshPass::MobileBasePassCSM: return TEXT("MobileBasePassCSM");
 	case EMeshPass::MobileInverseOpacity: return TEXT("MobileInverseOpacity");
+	case EMeshPass::VirtualTexture: return TEXT("VirtualTexture");
+	case EMeshPass::LumenCardCapture: return TEXT("LumenCardCapture");
 #if WITH_EDITOR
 	case EMeshPass::HitProxy: return TEXT("HitProxy");
 	case EMeshPass::HitProxyOpaqueOnly: return TEXT("HitProxyOpaqueOnly");
@@ -269,6 +272,7 @@ public:
 			, 0
 			, ESubpassHint::None
 			, 0
+			, EConservativeRasterization::Disabled
 			, 0
 			, bDepthBounds
 			, bMultiView
@@ -542,17 +546,17 @@ private:
 
 struct FMeshProcessorShaders
 {
-	mutable TShaderRef<FMeshMaterialShader> VertexShader;
-	mutable TShaderRef<FMeshMaterialShader> HullShader;
-	mutable TShaderRef<FMeshMaterialShader> DomainShader;
-	mutable TShaderRef<FMeshMaterialShader> PixelShader;
-	mutable TShaderRef<FMeshMaterialShader> GeometryShader;
-	mutable TShaderRef<FMeshMaterialShader> ComputeShader;
+	mutable TShaderRef<FShader> VertexShader;
+	mutable TShaderRef<FShader> HullShader;
+	mutable TShaderRef<FShader> DomainShader;
+	mutable TShaderRef<FShader> PixelShader;
+	mutable TShaderRef<FShader> GeometryShader;
+	mutable TShaderRef<FShader> ComputeShader;
 #if RHI_RAYTRACING
-	mutable TShaderRef<FMeshMaterialShader> RayHitGroupShader;
+	mutable TShaderRef<FShader> RayHitGroupShader;
 #endif
 
-	TShaderRef<FMeshMaterialShader> GetShader(EShaderFrequency Frequency) const
+	TShaderRef<FShader> GetShader(EShaderFrequency Frequency) const
 	{
 		if (Frequency == SF_Vertex)
 		{
@@ -586,7 +590,7 @@ struct FMeshProcessorShaders
 #endif // RHI_RAYTRACING
 
 		checkf(0, TEXT("Unhandled shader frequency"));
-		return TShaderRef<FMeshMaterialShader>();
+		return TShaderRef<FShader>();
 	}
 };
 
@@ -606,12 +610,108 @@ struct FMeshDrawCommandDebugData
 	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
 	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
-	TShaderRef<FMeshMaterialShader> VertexShader;
-	TShaderRef<FMeshMaterialShader> PixelShader;
+	TShaderRef<FShader> VertexShader;
+	TShaderRef<FShader> PixelShader;
 	const FVertexFactory* VertexFactory;
 	FName ResourceName;
 #endif
 };
+
+enum { MAX_SRVs_PER_SHADER_STAGE = 128 };
+enum { MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE = 14 };
+enum { MAX_SAMPLERS_PER_SHADER_STAGE = 32 };
+
+class FShaderBindingState
+{
+public:
+	int32 MaxSRVUsed = -1;
+	FRHIShaderResourceView* SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
+	int32 MaxUniformBufferUsed = -1;
+	FRHIUniformBuffer* UniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
+	int32 MaxTextureUsed = -1;
+	FRHITexture* Textures[MAX_SRVs_PER_SHADER_STAGE] = {};
+	int32 MaxSamplerUsed = -1;
+	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
+};
+
+class FMeshDrawCommandStateCache
+{
+public:
+
+	uint32 PipelineId;
+	uint32 StencilRef;
+	FShaderBindingState ShaderBindings[SF_NumStandardFrequencies];
+	FVertexInputStream VertexStreams[MaxVertexElementCount];
+
+	FMeshDrawCommandStateCache()
+	{
+		// Must init to impossible values to avoid filtering the first draw's state
+		PipelineId = -1;
+		StencilRef = -1;
+	}
+
+	inline void SetPipelineState(int32 NewPipelineId)
+	{
+		PipelineId = NewPipelineId;
+		StencilRef = -1;
+
+		// Vertex streams must be reset if PSO changes.
+		for (int32 VertexStreamIndex = 0; VertexStreamIndex < UE_ARRAY_COUNT(VertexStreams); ++VertexStreamIndex)
+		{
+			VertexStreams[VertexStreamIndex].VertexBuffer = nullptr;
+		}
+
+		// Shader bindings must be reset if PSO changes
+		for (int32 FrequencyIndex = 0; FrequencyIndex < UE_ARRAY_COUNT(ShaderBindings); FrequencyIndex++)
+		{
+			FShaderBindingState& RESTRICT ShaderBinding = ShaderBindings[FrequencyIndex];
+
+			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSRVUsed; SlotIndex++)
+			{
+				ShaderBinding.SRVs[SlotIndex] = nullptr;
+			}
+
+			ShaderBinding.MaxSRVUsed = -1;
+
+			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxUniformBufferUsed; SlotIndex++)
+			{
+				ShaderBinding.UniformBuffers[SlotIndex] = nullptr;
+			}
+
+			ShaderBinding.MaxUniformBufferUsed = -1;
+			
+			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxTextureUsed; SlotIndex++)
+			{
+				ShaderBinding.Textures[SlotIndex] = nullptr;
+			}
+
+			ShaderBinding.MaxTextureUsed = -1;
+
+			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSamplerUsed; SlotIndex++)
+			{
+				ShaderBinding.Samplers[SlotIndex] = nullptr;
+			}
+
+			ShaderBinding.MaxSamplerUsed = -1;
+		}
+	}
+
+	void InvalidateUniformBuffer(const FRHIUniformBuffer* UniformBuffer)
+	{
+		for (int32 FrequencyIndex = 0; FrequencyIndex < UE_ARRAY_COUNT(ShaderBindings); FrequencyIndex++)
+		{
+			FShaderBindingState& ShaderBinding = ShaderBindings[FrequencyIndex];
+			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxUniformBufferUsed; SlotIndex++)
+			{
+				if (ShaderBinding.UniformBuffers[SlotIndex] == UniformBuffer)
+				{
+					ShaderBinding.UniformBuffers[SlotIndex] = nullptr;
+				}
+			}
+		}
+	}
+};
+
 
 /** 
  * Encapsulates shader bindings for a single FMeshDrawCommand.
@@ -1377,54 +1477,26 @@ ENUM_CLASS_FLAGS(EMeshPassFeatures);
  */
 struct FMeshPassProcessorRenderState
 {
-	FMeshPassProcessorRenderState(const FSceneView& SceneView, FRHIUniformBuffer* InPassUniformBuffer = nullptr) :
-		  BlendState(nullptr)
-		, DepthStencilState(nullptr)
-		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
-		, ViewUniformBuffer(SceneView.ViewUniformBuffer)
-		, InstancedViewUniformBuffer()
-		, ReflectionCaptureUniformBuffer()
+	FMeshPassProcessorRenderState() = default;
+
+	FMeshPassProcessorRenderState(const FMeshPassProcessorRenderState& DrawRenderState) = default;
+
+	~FMeshPassProcessorRenderState() = default;
+
+	FMeshPassProcessorRenderState(
+		const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer, 
+		FRHIUniformBuffer* InPassUniformBuffer
+		)
+		: ViewUniformBuffer(InViewUniformBuffer)
 		, PassUniformBuffer(InPassUniformBuffer)
-		, StencilRef(0)
 	{
 	}
 
-	FMeshPassProcessorRenderState(const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer, FRHIUniformBuffer* InPassUniformBuffer) :
-		  BlendState(nullptr)
-		, DepthStencilState(nullptr)
-		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
-		, ViewUniformBuffer(InViewUniformBuffer)
-		, InstancedViewUniformBuffer()
-		, ReflectionCaptureUniformBuffer()
-		, PassUniformBuffer(InPassUniformBuffer)
-		, StencilRef(0)
-	{
-	}
-
-	FMeshPassProcessorRenderState() :
-		BlendState(nullptr)
-		, DepthStencilState(nullptr)
-		, ViewUniformBuffer()
-		, InstancedViewUniformBuffer()
-		, ReflectionCaptureUniformBuffer()
-		, PassUniformBuffer(nullptr)
-		, StencilRef(0)
-	{
-	}
-
-	FORCEINLINE_DEBUGGABLE FMeshPassProcessorRenderState(const FMeshPassProcessorRenderState& DrawRenderState) :
-		  BlendState(DrawRenderState.BlendState)
-		, DepthStencilState(DrawRenderState.DepthStencilState)
-		, DepthStencilAccess(DrawRenderState.DepthStencilAccess)
-		, ViewUniformBuffer(DrawRenderState.ViewUniformBuffer)
-		, InstancedViewUniformBuffer(DrawRenderState.InstancedViewUniformBuffer)
-		, ReflectionCaptureUniformBuffer(DrawRenderState.ReflectionCaptureUniformBuffer)
-		, PassUniformBuffer(DrawRenderState.PassUniformBuffer)
-		, StencilRef(DrawRenderState.StencilRef)
-	{
-	}
-
-	~FMeshPassProcessorRenderState()
+	FMeshPassProcessorRenderState(
+		const FSceneView& SceneView, 
+		FRHIUniformBuffer* InPassUniformBuffer = nullptr
+		)
+		: FMeshPassProcessorRenderState(SceneView.ViewUniformBuffer, InPassUniformBuffer)
 	{
 	}
 
@@ -1505,6 +1577,16 @@ public:
 		return PassUniformBuffer;
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetNaniteUniformBuffer(FRHIUniformBuffer* InNaniteUniformBuffer)
+	{
+		NaniteUniformBuffer = InNaniteUniformBuffer;
+	}
+
+	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetNaniteUniformBuffer() const
+	{
+		return NaniteUniformBuffer;
+	}
+
 	FORCEINLINE_DEBUGGABLE uint32 GetStencilRef() const
 	{
 		return StencilRef;
@@ -1517,18 +1599,20 @@ public:
 	}
 
 private:
-	FRHIBlendState*					BlendState;
-	FRHIDepthStencilState*			DepthStencilState;
-	FExclusiveDepthStencil::Type	DepthStencilAccess;
+	FRHIBlendState*					BlendState =			nullptr;
+	FRHIDepthStencilState*			DepthStencilState =		nullptr;
+	FExclusiveDepthStencil::Type	DepthStencilAccess	=	FExclusiveDepthStencil::DepthRead_StencilRead;;
 
-	FRHIUniformBuffer*				ViewUniformBuffer;
-	FRHIUniformBuffer*				InstancedViewUniformBuffer;
+	FRHIUniformBuffer*				ViewUniformBuffer = nullptr;
+	FRHIUniformBuffer*				InstancedViewUniformBuffer = nullptr;
 
 	/** Will be bound as reflection capture uniform buffer in case where scene is not available, typically set to dummy/empty buffer to avoid null binding */
 	FRHIUniformBuffer*				ReflectionCaptureUniformBuffer;
 
-	FRHIUniformBuffer*				PassUniformBuffer;
-	uint32							StencilRef;
+	FRHIUniformBuffer*				PassUniformBuffer = nullptr;
+	FRHIUniformBuffer*				NaniteUniformBuffer = nullptr;
+
+	uint32							StencilRef = 0;
 };
 
 enum class EDrawingPolicyOverrideFlags

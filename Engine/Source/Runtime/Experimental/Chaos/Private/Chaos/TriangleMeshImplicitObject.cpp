@@ -423,7 +423,7 @@ int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 Intern
 {
 	if (InternalFaceIndex > -1 && ExternalFaceIndexMap.Get())
 	{
-		if (ensure(InternalFaceIndex >= 0 && InternalFaceIndex < ExternalFaceIndexMap->Num()))
+		if (CHAOS_ENSURE(InternalFaceIndex >= 0 && InternalFaceIndex < ExternalFaceIndexMap->Num()))
 		{
 			return (*ExternalFaceIndexMap)[InternalFaceIndex];
 		}

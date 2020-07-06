@@ -25,7 +25,7 @@
 
 
 
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
 	#define SIGNAL_ARRAY_SIZE CONFIG_SIGNAL_BATCH_SIZE
 
@@ -141,7 +141,7 @@
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 
-#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC && 0
 	#define MAX_SIGNAL_BATCH_SIZE 1
 	#define SIGNAL_ARRAY_SIZE 1
 
@@ -162,6 +162,28 @@
 	// Given it's a spherical harmonic that store directionality, only need position based rejection.
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC && 1
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
+	#define COMPILE_SIGNAL_COLOR_SH 1
+
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_HISTORY
+	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_LUMEN_DIFFUSE_HISTORY
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_HISTORY_TEXTURE_COUNT 2
+
+	#define CONFIG_HISTORY_KERNEL SAMPLE_SET_2X2_STOCASTIC
+	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
+
+	// Given it's a spherical harmonic that store directionality, only need position based rejection.
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
+	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_SPHERICAL_HARMONIC
+	//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
+	//#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -191,6 +213,39 @@
 	// Use position and normal based rejection ideal for diffuse.
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
+
+	#define COMPILE_SIGNAL_COLOR_ARRAY 2
+
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_INPUT
+	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_HISTORY
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_HISTORY_TEXTURE_COUNT 3
+
+	// SSGI doesn't have any bilateral distance computed from hitT, so allow to blur spatially by about the size of the kernel.
+	#define CONFIG_BILATERAL_DISTANCE_MULTIPLIER 3.0
+
+	// Stocastically sample history to speed up the reprojection.
+	//#define CONFIG_HISTORY_KERNEL SAMPLE_SET_2X2_BILINEAR
+	//#define CONFIG_HISTORY_KERNEL SAMPLE_SET_2X2_STOCASTIC
+	#define CONFIG_HISTORY_KERNEL SAMPLE_SET_2X2_ADAPTIVE
+
+	// Reject using variance to smooth highlights further on history rejections.
+	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
+
+	// Use position and normal based rejection ideal for diffuse.
+	//#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
+
+	#define CONFIG_PATCH_PREV_SCENE_DEPTH 1
+	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_PROBE_HIERARCHY
+	//#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DISABLED
 
 #else
 	#error Unimplemented signal processing.
@@ -420,7 +475,7 @@ void TemporallyAccumulate(
 	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, DenoiserBufferBilinearUVMinMax.xy, DenoiserBufferBilinearUVMinMax.zw);
 	}
 
 	// Sample current frame data.
@@ -443,6 +498,7 @@ void TemporallyAccumulate(
 	bool bIsDynamicPixel = false;
 	if (1)
 	{
+
 		float4 ThisClip = float4(HistoryScreenPosition, 1);
 
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
@@ -452,7 +508,9 @@ void TemporallyAccumulate(
 		if (1)
 		{
 			float3 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).xyz;
-			if (EncodedVelocity.x > 0.0)
+			bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+			if (bIsDynamicPixel)
 			{
 				Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 			}
@@ -519,7 +577,7 @@ void TemporallyAccumulate(
 	// Sample the history buffer.
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
-		float2 HistoryBufferUV = HistoryScreenPosition.xy* ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.zw;
+		float2 HistoryBufferUV = HistoryScreenPosition.xy * ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.zw;
 		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, HistoryBufferUVMinMax.xy, HistoryBufferUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
@@ -587,9 +645,9 @@ void TemporallyAccumulate(
 				PrevRefInfo.WorldDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
 				
 				float4 ClipPosition = float4(HistoryScreenPosition.xy * (View.ViewToClip[3][3] < 1.0f ? PrevRefInfo.WorldDepth : 1.0f), PrevRefInfo.WorldDepth, 1);
-				
+
 				PrevRefInfo.TranslatedWorldPosition = mul(ClipPosition, View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
-				
+
 				KernelConfig.CompressedRefSceneMetadata = CompressSampleSceneInfo(
 					KernelConfig.RefSceneMetadataLayout,
 					PrevRefInfo);
@@ -643,15 +701,21 @@ void TemporallyAccumulate(
 				#if COMPILE_SIGNAL_COLOR
 					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
 				#endif
+
+				#if COMPILE_SIGNAL_COLOR_ARRAY > 0
+					UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
+					for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
+					{
+						HistorySamples.Array[BatchedSignalId].ColorArray[ColorId] *= HistoryPreExposureCorrection;
+					}
+				#endif
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		} // if (!bIsPreviousFrameOffscreen)
 	}
 	
-	#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO && 0
+	#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY && 0
 		DebugOutput[DispatchThreadId] = float4(
-			HistorySamples.Array[0].SampleCount / 4096,
-			0,
-			0,
+			HistorySamples.Array[0].SceneColor.rgb,
 			0);
 	#endif
 	
@@ -680,20 +744,27 @@ void TemporallyAccumulate(
 
 			// TODO(Denoiser): Should be done for all signals.
 			// TODO(Denoiser): Should also take into account the world bluring radius du to size of the pixel.
-			if (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK)
+			if (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK)
 				KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS;
 			KernelConfig.WorldBluringDistanceMultiplier = CONFIG_BILATERAL_DISTANCE_MULTIPLIER;
 			
-			#if CONFIG_REJECTION_SAMPLE_SET == SAMPLE_SET_NXN
+			#if CONFIG_REJECTION_SAMPLE_SET == REJECTION_SAMPLE_SET_SOBEK2018
 			{
-				KernelConfig.SampleSet = SAMPLE_SET_NXN;
-				KernelConfig.BoxKernelRadius = 3;
-				KernelConfig.bUnroll = false;
+				KernelConfig.SampleSet = SAMPLE_SET_3X3_SOBEK2018;
+				//KernelConfig.SampleSet = SAMPLE_SET_NXN;
+				//KernelConfig.BoxKernelRadius = 3;
+				KernelConfig.bUnroll = true;
+			}
+			#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SSGI || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
+			{
+				KernelConfig.SampleSet = SAMPLE_SET_3X3_PLUS;
+				KernelConfig.bUnroll = true;
 			}
 			#else
 			{
-				KernelConfig.SampleSet = CONFIG_REJECTION_SAMPLE_SET;
-				KernelConfig.bUnroll = true;
+				KernelConfig.SampleSet = (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK) ? SAMPLE_SET_3X3 : SAMPLE_SET_NXN;
+				KernelConfig.BoxKernelRadius = 3;
+				KernelConfig.bUnroll = false;
 			}
 			#endif
 
@@ -737,8 +808,8 @@ void TemporallyAccumulate(
 
 		// SGPR configuration of the kernel.
 		{
-			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+			KernelConfig.BufferSizeAndInvSize = DenoiserBufferSizeAndInvSize;
+			KernelConfig.BufferBilinearUVMinMax = DenoiserBufferBilinearUVMinMax;
 		}
 
 		// VGPR configuration of the kernel.
@@ -884,7 +955,7 @@ void TemporallyAccumulate(
 						RejectionFactor = max(RejectionFactor, 1 * max(RejectedDiff.SceneColor.y, RejectedDiff.SceneColor.z));
 						RejectionFactor = max(RejectionFactor, 1 * RejectedDiff.SceneColor.a);
 					}
-					#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+					#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
 					{
 						RejectionFactor = abs(ClampedTransformedHistorySample.MissCount - TransformedHistorySample.MissCount);
 					}
@@ -922,6 +993,34 @@ void TemporallyAccumulate(
 			{
 				FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
 				FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
+
+				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
+				{
+					FSSDSignalSample CenterSample = CurrentFrameSamples.Array[BatchedSignalId];
+
+					FSSDSignalSample CenterMinSample = NormalizeToOneSample(CenterSample);
+					FSSDSignalSample CenterMaxSample = NormalizeToOneSample(CenterSample);
+
+					const float Abracadabra = 0.7;
+
+					#if COMPILE_SIGNAL_COLOR
+						CenterMinSample.SceneColor *= Abracadabra;
+						CenterMaxSample.SceneColor *= rcp(Abracadabra);
+					#endif
+
+					#if COMPILE_SIGNAL_COLOR_ARRAY > 0
+						UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
+						for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
+						{
+							CenterMinSample.ColorArray[ColorId] *= Abracadabra;
+							CenterMaxSample.ColorArray[ColorId] *= rcp(Abracadabra);
+						}
+					#endif
+
+					NeighborMin = MinSignal(NeighborMin, CenterMinSample);
+					NeighborMax = MaxSignal(NeighborMax, CenterMaxSample);
+				}
+				#endif
 
 				// If no neighborhood had a sample the maximum sample count will remain 0.
 				bool bIsValid = NeighborMax.SampleCount > 0.0;

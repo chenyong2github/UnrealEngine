@@ -1395,7 +1395,7 @@ void FVulkanCommandListContext::TransitionResources(const FPendingTransition& Pe
 	{
 		ensure(IsImmediate() || Device->IsRealAsyncComputeContext(this));
 
-		SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)PendingTransition.TransitionType], PendingTransition.Textures.Num());
+		SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *GetResourceTransitionAccessName(PendingTransition.TransitionType), PendingTransition.Textures.Num());
 
 		FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 		check(CmdBuffer->HasBegun());
@@ -1580,7 +1580,7 @@ void FVulkanCommandListContext::TransitionResources(const FPendingTransition& Pe
 	}
 	else
 	{
-		SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)PendingTransition.TransitionType], PendingTransition.UAVs.Num());
+		SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *GetResourceTransitionAccessName(PendingTransition.TransitionType), PendingTransition.UAVs.Num());
 
 		const bool bIsRealAsyncComputeContext = Device->IsRealAsyncComputeContext(this);
 		ensure(IsImmediate() || bIsRealAsyncComputeContext);

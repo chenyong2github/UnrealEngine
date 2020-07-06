@@ -364,7 +364,7 @@ public:
 	 * @return The blueprint created from the actor
 	 */
 	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
-	
+
 	/** 
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class. 
 	 * @param Path					The path to use when creating the package for the new blueprint
@@ -376,6 +376,15 @@ public:
 	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
 
 	/**
+	 * Take a list of Actors and update an existing Blueprint by harvesting the components they have. Essentially HarvestBlueprintFromActors, but 
+	 * updates an existing Blueprint rather than creating a new one.
+	 * @param Path					The path to the existing Blueprint
+	 * @param Actors				The actor list to use as the template for the blueprint.
+	 * @return The updated blueprint, or null if it failed somehow
+	 */
+	static UBlueprint* UpdateExistingBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors);
+
+	/**
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class.
 	 * @param BlueprintName			The name to use for the Blueprint
 	 * @param Outer					The package to create the blueprint within
@@ -385,6 +394,12 @@ public:
 	 * @return The blueprint created from the actors
 	 */
 	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
+
+	/**
+	 * Updates this Actor's blueprint based on the actor itself. 
+	 * @return The number of properties that changes in the blueprint.
+	 */
+	static int32 ApplyInstanceChangesToBlueprint(AActor* Actor);
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
@@ -552,3 +567,4 @@ private:
 
 	FKismetEditorUtilities() {}
 };
+

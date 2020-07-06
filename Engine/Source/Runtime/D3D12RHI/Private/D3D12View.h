@@ -908,6 +908,11 @@ public:
 	TRefCountPtr<FD3D12Resource> CounterResource;
 	bool CounterResourceInitialized;
 
+	FD3D12UnorderedAccessView(FD3D12Device* InParent)
+	: FD3D12View(InParent, ViewSubresourceSubsetFlags_None)
+	{
+	}
+
 	FD3D12UnorderedAccessView(FD3D12Device* InParent, D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource = nullptr)
 		: FD3D12View(InParent, ViewSubresourceSubsetFlags_None)
 		, CounterResource(InCounterResource)
@@ -915,6 +920,23 @@ public:
 	{
 		CreateViewWithCounter(InDesc, InResourceLocation, InCounterResource);
 	}
+
+	void Initialize(D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation)
+	{
+		CreateViewWithCounter(InDesc, InResourceLocation, nullptr);
+	}
+};
+
+class FD3D12UnorderedAccessViewWithLocation : public FD3D12UnorderedAccessView
+{
+public:
+	FD3D12UnorderedAccessViewWithLocation(FD3D12Device* InParent)
+	: FD3D12UnorderedAccessView(InParent)
+	, ViewLocation(InParent)
+	{
+	}
+
+	FD3D12ResourceLocation ViewLocation;
 };
 
 #if USE_STATIC_ROOT_SIGNATURE

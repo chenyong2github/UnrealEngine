@@ -141,7 +141,7 @@ void FLightSceneInfo::CreateLightPrimitiveInteraction(const FLightSceneInfoCompa
 }
 
 
-void FLightSceneInfo::RemoveFromScene()
+void FLightSceneInfo::RemoveFromScene(bool bRemoveHZB)
 {
 	Scene->FlushAsyncLightPrimitiveInteractionCreation();
 
@@ -179,10 +179,10 @@ void FLightSceneInfo::Detach()
 	}
 }
 
-bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View) const
+bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View, bool bOffscreen) const
 {
 	// Only render the light if it is in the view frustum
-	bool bLocalVisible = bVisible ? View.VisibleLightInfos[Id].bInViewFrustum : true;
+	bool bLocalVisible = bVisible && (bOffscreen ? View.VisibleLightInfos[Id].bInDrawRange : View.VisibleLightInfos[Id].bInViewFrustum);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	ELightComponentType Type = (ELightComponentType)Proxy->GetLightType();

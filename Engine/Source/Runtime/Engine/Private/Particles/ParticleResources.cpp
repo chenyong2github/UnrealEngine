@@ -146,7 +146,7 @@ void FParticleScratchVertexBuffer::InitRHI()
 	{
 		Flags |= BUF_ShaderResource;
 	}
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FParticleScratchVertexBuffer"));
 	VertexBufferRHI = RHICreateVertexBuffer(GParticleScratchVertexBufferSize, Flags, CreateInfo);
 	if (GSupportsResourceView)
 	{

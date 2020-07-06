@@ -29,7 +29,7 @@ class UPrimitiveComponent;
 class INavigationData;
 class UCharacterMovementComponent;
 
-DECLARE_DELEGATE_RetVal_TwoParams(FTransform, FOnProcessRootMotion, const FTransform&, UCharacterMovementComponent*)
+DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FOnProcessRootMotion, const FTransform&, UCharacterMovementComponent*, float)
 
 /** Data about the floor for walking movement, used by CharacterMovementComponent. */
 USTRUCT(BlueprintType)
@@ -2519,7 +2519,7 @@ public:
 	}
 
 	// Takes component space root motion and converts it to world space
-	FTransform ConvertLocalRootMotionToWorld(const FTransform& InLocalRootMotion);
+	FTransform ConvertLocalRootMotionToWorld(const FTransform& InLocalRootMotion, float DeltaSeconds);
 
 	// Delegate for modifying root motion pre conversion from component space to world space.
 	FOnProcessRootMotion ProcessRootMotionPreConvertToWorld;

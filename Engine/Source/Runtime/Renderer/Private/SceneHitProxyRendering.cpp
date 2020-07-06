@@ -21,6 +21,9 @@
 #include "MeshPassProcessor.inl"
 #include "GPUScene.h"
 #include "Rendering/ColorVertexBuffer.h"
+#include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteStreamingManager.h"
+#include "ShaderPrint.h"
 #include "FXSystem.h"
 #include "GPUSortManager.h"
 
@@ -246,7 +249,12 @@ void InitHitProxyRender(FRHICommandListImmediate& RHICmdList, const FSceneRender
 	}
 }
 
-static void BeginHitProxyRenderpass(FRHICommandListImmediate& RHICmdList, const FSceneRenderer* SceneRenderer, TRefCountPtr<IPooledRenderTarget> HitProxyRT, TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT)
+static void DoRenderHitProxies(
+	FRHICommandListImmediate& RHICmdList, 
+	const FSceneRenderer* SceneRenderer, 
+	TRefCountPtr<IPooledRenderTarget> HitProxyRT, 
+	TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT,
+	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults)
 {
 	FRHIRenderPassInfo RPInfo(HitProxyRT->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
@@ -263,22 +271,26 @@ static void BeginHitProxyRenderpass(FRHICommandListImmediate& RHICmdList, const 
 			const FViewInfo& View = Views[ViewIndex];
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 			DrawClearQuad(RHICmdList, true, FLinearColor::White, false, 0, false, 0, HitProxyRT->GetDesc().Extent, FIntRect());
+			// Clear the depth buffer for each DPG.
+			DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, HitProxyDepthRT->GetDesc().Extent, FIntRect());
 		}
 	}
-}
-
-static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FSceneRenderer* SceneRenderer, TRefCountPtr<IPooledRenderTarget> HitProxyRT, TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT)
-{
-	BeginHitProxyRenderpass(RHICmdList, SceneRenderer, HitProxyRT, HitProxyDepthRT);
+	RHICmdList.EndRenderPass();
 
 	auto & ViewFamily = SceneRenderer->ViewFamily;
 	auto & Views = SceneRenderer->Views;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		Nanite::DrawHitProxies(RHICmdList, *SceneRenderer->Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex], HitProxyRT, HitProxyDepthRT);
+	}
 
 	const auto FeatureLevel = SceneRenderer->FeatureLevel;
 
 	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("Render_HitProxies"));
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
@@ -294,9 +306,6 @@ static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FScen
 
 		// Set the device viewport for the view.
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-		// Clear the depth buffer for each DPG.
-		DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, HitProxyDepthRT->GetDesc().Extent, FIntRect());
 
 		// Depth tests + writes, no alpha blending.
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
@@ -489,8 +498,8 @@ static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FScen
 
 	{
 		// Draw the triangles to the view family's render target.
-		FRHIRenderPassInfo RPInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("HitProxies"));
+		FRHIRenderPassInfo ViewFamilyRPInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(ViewFamilyRPInfo, TEXT("HitProxies"));
 		{
 			FSceneView SceneView = FBatchedElements::CreateProxySceneView(PixelToView, FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
 			FMeshPassProcessorRenderState DrawRenderState(SceneView);
@@ -538,7 +547,10 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 		DynamicVertexBuffer.Commit();
 		DynamicReadBuffer.Commit();
 
-		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
+		TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+		NaniteRasterResults.AddDefaulted(Views.Num());
+
+		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
 	}
 
 	check(RHICmdList.IsOutsideRenderPass());
@@ -584,8 +596,16 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
+			ShaderPrint::BeginView(RHICmdList, Views[ViewIndex]);
+		}
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
 			UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 		}	
+
+		Nanite::GGlobalResources.Update(RHICmdList);
+		Nanite::GStreamingManager.Update(RHICmdList);
 
 		GEngine->GetPreRenderDelegate().Broadcast();
 
@@ -612,7 +632,51 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 			}
 		}
 
-		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
+		TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+		NaniteRasterResults.AddDefaulted(Views.Num());
+
+		FRDGBuilder GraphBuilder( RHICmdList );
+
+		const FIntPoint HitProxyTextureSize = HitProxyDepthRT->GetDesc().Extent;
+		FIntRect HitProxyViewRect = FIntRect(0, 0, HitProxyTextureSize.X, HitProxyTextureSize.Y);
+		if (Views.IsValidIndex(0))
+		{
+			HitProxyViewRect = Views[0].ViewRect;
+		}
+		
+		Nanite::FRasterState RasterState;
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext( GraphBuilder, HitProxyViewRect, HitProxyTextureSize);
+
+		const bool bTwoPassOcclusion = true;
+		const bool bUpdateStreaming = false;
+		const bool bSupportsMultiplePasses = false;
+		const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+				GraphBuilder,
+				*Scene,
+				Views[ViewIndex].PrevViewInfo.HZB,
+				Views[ViewIndex].PrevViewInfo.ViewRect,
+				bTwoPassOcclusion,
+				bUpdateStreaming,
+				bSupportsMultiplePasses,
+				bForceHWRaster
+			);
+			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo( Views[ViewIndex], HitProxyTextureSize );
+			Nanite::CullRasterize( GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState );
+			Nanite::ExtractResults( GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ ViewIndex ] );
+		}
+		
+		GraphBuilder.Execute();
+
+		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			ShaderPrint::EndView(Views[ViewIndex]);
+		}
 	}
 	check(RHICmdList.IsOutsideRenderPass());
 #endif

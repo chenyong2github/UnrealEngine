@@ -116,7 +116,7 @@ public:
 	/**
 	* Retrieve the uniform buffer for this vertex factory.
 	*/
-	FORCEINLINE FNiagaraRibbonUniformBufferRef GetRibbonUniformBuffer()
+	FORCEINLINE FNiagaraRibbonUniformBufferRef GetRibbonUniformBuffer() const
 	{
 		return NiagaraRibbonUniformBuffer;
 	}
@@ -167,31 +167,30 @@ public:
 		return SortedIndicesSRV;
 	}
 
-	FORCEINLINE int32 GetSortedIndicesOffset()
+	FORCEINLINE int32 GetSortedIndicesOffset() const
 	{
 		return SortedIndicesOffset;
 	}
 
-	FORCEINLINE FRHIShaderResourceView* GetTangentAndDistancesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetTangentAndDistancesSRV() const
 	{
 		return TangentAndDistancesSRV;
 	}
 
-	FORCEINLINE FRHIShaderResourceView* GetMultiRibbonIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetMultiRibbonIndicesSRV() const
 	{
 		return MultiRibbonIndicesSRV;
 	}
 
-	FORCEINLINE FRHIShaderResourceView* GetPackedPerRibbonDataByIndexSRV()
+	FORCEINLINE FRHIShaderResourceView* GetPackedPerRibbonDataByIndexSRV() const
 	{
 		return PackedPerRibbonDataByIndexSRV;
 	}
 
-	FORCEINLINE int32 GetFacingMode()
+	FORCEINLINE int32 GetFacingMode() const
 	{
 		return FacingMode;
 	}
-
 	FIndexBuffer*& GetIndexBuffer()
 	{
 		return IndexBuffer;

@@ -188,14 +188,20 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 	SortedKeysDirty = true;
 }
 
-void FTexturePageMap::VerifyPhysicalSpaceUnmapped(uint32 PhysicalSpaceID) const
+void FTexturePageMap::VerifyAddressRangeUnmapped(uint32 vAddress, uint32 Size) const
 {
+	const uint32 vAddressMax = vAddress + FMath::Square(Size);
+
 	uint32 PageIndex = Pages[PageListHead_Mapped].NextIndex;
 	uint32 CheckPageCount = 0u;
 	while (PageIndex != PageListHead_Mapped)
 	{
 		const FPageEntry& Entry = Pages[PageIndex];
-		check(Entry.PhysicalSpaceID != PhysicalSpaceID);
+		if (Entry.Page.vAddress >= vAddress && Entry.Page.vAddress < vAddressMax)
+		{
+			check(false);
+		}
+
 		PageIndex = Entry.NextIndex;
 		++CheckPageCount;
 	}

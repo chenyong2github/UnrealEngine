@@ -8,6 +8,12 @@
 #include "D3D12RootSignatureDefinitions.h"
 #include "RayTracingBuiltInResources.h"
 
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "amd_ags.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 namespace
 {
 	// Root parameter costs in DWORDs as described here: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/root-signature-limits
@@ -285,6 +291,16 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		}
 	}
 
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	if (QBSS.bUseVendorExtension)
+	{
+		check(RootParameterCount < MaxRootParameters);
+		TableSlots[RootParameterCount].InitAsUnorderedAccessView(0, AGS_DX12_SHADER_INSTRINSICS_SPACE_ID, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE, D3D12_SHADER_VISIBILITY_ALL);
+		RootParameterCount++;
+		RootParametersSize += RootDescriptorTableCost;
+	}
+#endif
+
 	// Init the desc (warn about the size if necessary).
 #if !NO_LOGGING
 	const uint32 SizeWarningThreshold = 12;
@@ -320,6 +336,8 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 
 D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc()
 {
+	// TODO: Support vendor extensions for static root signatures?
+
 	static const uint32 DescriptorTableCount = 16;
 	static struct
 	{
@@ -375,6 +393,8 @@ D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGraphicsR
 
 D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc()
 {
+	// TODO: Support vendor extensions for static root signatures?
+
 	static const uint32 DescriptorTableCount = 4;
 	static CD3DX12_ROOT_PARAMETER1 TableSlots[DescriptorTableCount];
 	static CD3DX12_DESCRIPTOR_RANGE1 DescriptorRanges[DescriptorTableCount];
@@ -438,6 +458,7 @@ void FD3D12RootSignature::Init(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& InDesc
 		IID_PPV_ARGS(RootSignature.GetInitReference())));
 
 	AnalyzeSignature(InDesc, BindingSpace);
+	// TODO: Analyze vendor extension space?
 }
 
 void FD3D12RootSignature::Init(ID3DBlob* const InBlob, uint32 BindingSpace)
@@ -458,6 +479,7 @@ void FD3D12RootSignature::Init(ID3DBlob* const InBlob, uint32 BindingSpace)
 		IID_PPV_ARGS(RootSignature.GetInitReference())));
 
 	AnalyzeSignature(*Deserializer->GetUnconvertedRootSignatureDesc(), BindingSpace);
+	// TODO: Analyze vendor extension space?
 }
 
 void FD3D12RootSignature::AnalyzeSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& Desc, uint32 BindingSpace)

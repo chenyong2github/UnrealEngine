@@ -17,6 +17,10 @@
 // index where the feedback UAV is bound
 #define VT_FEEDBACK_REGISTER u7
 
+// Even fully opaque decals may not completely overwrite data from base pass, so don't allow VT feedback to become fully opaque
+// TODO - it may be possible to allow fully opaque decals with certain blend-mode/state combinations, if we can guarantee they overwrite all gbuffer channels
+#define VT_FEEDBACK_DECAL_MAX_OPACITY 0.50f
+
 // bump100
 
 /*
@@ -74,17 +78,22 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
 
 		// When using DBuffer, feedback buffer is blending using decal opacity for opaque objects
 		// This way we avoid overwriting values already written to feedback buffer while rendering dbuffer decals
-#if MATERIALBLENDING_ANY_TRANSLUCENT || (USE_DBUFFER && MATERIALDECALRESPONSEMASK)
+#if MATERIALBLENDING_ANY_TRANSLUCENT || DECAL_PROJECTION || (USE_DBUFFER && MATERIALDECALRESPONSEMASK)
 
 		// Stochastic alpha testing
-#if  MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+#if MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
 		// Opacity may not make sense for additive and modulation blending
 		// Use a value of 0.25f so we have up to 4 layers of VT transparancy
 		const float Alpha = 0.25f;  
 #else
 		// Opacity values smaller/larger than the reciprocal of the downscale factor get clamped so at least one pixel will resolve
 		const float VTDownscaleEpsilon = 1.0f / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
-		const float Alpha =  clamp(Opacity, VTDownscaleEpsilon, 1.0f - VTDownscaleEpsilon);                  
+		#if DECAL_PROJECTION
+			const float MaxAlpha = VT_FEEDBACK_DECAL_MAX_OPACITY;
+		#else
+			const float MaxAlpha = 1.0f - VTDownscaleEpsilon;
+		#endif
+		const float Alpha =  clamp(Opacity, VTDownscaleEpsilon, MaxAlpha);                  
 #endif
         const float AlphaThreshold = frac( PseudoRandom(PixelPos) + // Random  value in 0-1 on 128 x 128 pixel grid
 											SvPosition.w + // Add in depth so we pick different thresholds on different depths 
@@ -191,9 +200,14 @@ uint TextureComputeVirtualMipLevel(inout VTPageTableResult OutResult,
 	OutResult.dUVdx = dUVdx * PageTableUniform.SizeInPages;
 	OutResult.dUVdy = dUVdy * PageTableUniform.SizeInPages;
 
+#if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
+	const float ComputedLevel = MipLevelAniso2D(OutResult.dUVdx, OutResult.dUVdy, PageTableUniform.MaxAnisoLog2);
+#else
+	const float ComputedLevel = MipLevel2D(OutResult.dUVdx, OutResult.dUVdy);
+#endif
+
 	const float Noise = InterleavedGradientNoise(SvPositionXY, View.StateFrameIndexMod8);
-	const float ComputedLevel = MipLevelAniso2D(OutResult.dUVdx, OutResult.dUVdy, PageTableUniform.MaxAnisoLog2) + MipBias + Noise * 0.5f - 0.25f;
-	return clamp(int(ComputedLevel) + int(PageTableUniform.vPageTableMipBias), 0, int(PageTableUniform.MaxLevel));
+	return clamp(int(ComputedLevel + MipBias + Noise * 0.5f - 0.25f) + int(PageTableUniform.vPageTableMipBias), 0, int(PageTableUniform.MaxLevel));
 }
 
 void TextureLoadVirtualPageTableInternal(inout VTPageTableResult OutResult,
@@ -422,7 +436,7 @@ struct VTUniform
 	float pPageSize;
 	float vPageSize;
 	float vPageBorderSize;
-	uint PageCoordinateBitCount;
+	uint PageTableFormat;
 };
 
 VTUniform VTUniform_Unpack(uint4 PackedUniform)
@@ -431,7 +445,8 @@ VTUniform VTUniform_Unpack(uint4 PackedUniform)
 	result.pPageSize = asfloat(PackedUniform.w);
 	result.vPageSize = asfloat(PackedUniform.y);
 	result.vPageBorderSize = asfloat(PackedUniform.z);
-	result.PageCoordinateBitCount = PackedUniform.x == 0 ? 8 : 6;
+	result.PageTableFormat = PackedUniform.x;
+	//result.PageCoordinateBitCount = PackedUniform.x == 0 ? 8 : 6;
 	return result;
 }
 
@@ -442,9 +457,11 @@ float2 VTComputePhysicalUVs(in out VTPageTableResult PageTableResult, uint Layer
 
 	// See packing in PageTableUpdate.usf
 	const uint vLevel = PackedPageTableValue & 0xf;
-	const float UVScale = 1.0f / (float)(1 << vLevel);
-	const float pPageX = (float)((PackedPageTableValue >> 4) & ((1 << Uniform.PageCoordinateBitCount) - 1));
-	const float pPageY = (float)(PackedPageTableValue >> (4 + Uniform.PageCoordinateBitCount));
+	const float UVScale = float(4096u >> vLevel) * (1.0f / 4096.0f);
+
+	// This will compile to runtime branch, but should in theory be conditional moves selecting 1 of 2 different bitfield extracting instructions
+	const uint pPageX = (Uniform.PageTableFormat == 0u) ? (PackedPageTableValue >> 4) & 0xff : (PackedPageTableValue >> 4) & 0x3f;
+	const uint pPageY = (Uniform.PageTableFormat == 0u) ? (PackedPageTableValue >> 12) & 0xff : (PackedPageTableValue >> 10) & 0x3f;
 
 	const float2 vPageFrac = frac(PageTableResult.UV * UVScale);
 	const float2 pUV = float2(pPageX, pPageY) * Uniform.pPageSize + (vPageFrac * Uniform.vPageSize + Uniform.vPageBorderSize);
@@ -461,7 +478,12 @@ MaterialFloat4 TextureVirtualSample(
 	VTUniform Uniform)
 {
 	const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
-	return Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy);	
+#if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
+	return Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy);
+#else
+	// no need for dUVdx/dUVdy unless we have anistropic filtering enabled
+	return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
+#endif
 }
 
 MaterialFloat4 TextureVirtualSampleLevel(

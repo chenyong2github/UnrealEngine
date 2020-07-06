@@ -282,8 +282,8 @@ void FPackageAutoSaver::UpdateRestoreFile(const bool bRestoreEnabled) const
 
 bool FPackageAutoSaver::HasPackagesToRestore() const
 {
-	// Don't offer to restore packages during automation testing; the dlg is modal and blocks
-	return !GIsAutomationTesting && PackagesThatCanBeRestored.Num() > 0;
+	// Don't offer to restore packages during automation testing or when unattended; the dlg is modal and blocks
+	return !GIsAutomationTesting && !FApp::IsUnattended() && PackagesThatCanBeRestored.Num() > 0;
 }
 
 void FPackageAutoSaver::OfferToRestorePackages()

@@ -15,6 +15,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "Misc/RedirectCollector.h"
 #include "Engine/Texture.h"
 
@@ -72,9 +73,11 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			// Process any asynchronous shader compile results that are ready, limit execution time
 			GShaderCompilingManager->ProcessAsyncResults(true, false);
 			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+			GCardRepresentationAsyncQueue->ProcessAsyncTasks();
 		}
 		GShaderCompilingManager->FinishAllCompilation(); // Final blocking check as IsCompiling() may be non-deterministic
 		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
 		UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Done waiting for shaders to finish."));
 	};
 

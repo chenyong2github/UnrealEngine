@@ -376,7 +376,11 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 
 bool UCameraShake::IsFinished() const
 {
-	return (((OscillatorTimeRemaining <= 0.f) && (IsLooping() == false)) &&		// oscillator is finished
+	const bool bOscillatorIsFinished = IsLooping() 
+		? (bBlendingOut && (CurrentBlendOutTime >= OscillationBlendOutTime))		// looping and blendout is finished?
+		: (OscillatorTimeRemaining <= 0.f);											// nonlooping and time ran out?
+
+	return (bOscillatorIsFinished && 
 		((AnimInst == nullptr) || AnimInst->bFinished) &&						// anim is finished
 		ReceiveIsFinished()														// BP thinks it's finished
 		);

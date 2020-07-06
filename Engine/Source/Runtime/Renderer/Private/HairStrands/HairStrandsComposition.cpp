@@ -386,8 +386,8 @@ void RenderHairComposition(
 							GBufferATexture,
 							GBufferBTexture);
 
-						GraphBuilder.QueueTextureExtraction(GBufferATexture, &SceneContext.GBufferA, true);
-						GraphBuilder.QueueTextureExtraction(GBufferBTexture, &SceneContext.GBufferB, true);
+						GraphBuilder.QueueTextureExtraction(GBufferATexture, &SceneContext.GBufferA, EResourceTransitionAccess::EReadable);
+						GraphBuilder.QueueTextureExtraction(GBufferBTexture, &SceneContext.GBufferB, EResourceTransitionAccess::EReadable);
 					}
 				}
 			}

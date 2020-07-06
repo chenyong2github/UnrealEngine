@@ -1,0 +1,142 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenReflections.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "LumenCardCommon.ush"
+#ifndef CARD_BVH
+#define CARD_BVH 0
+#endif
+#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
+#define VOXEL_TRACING_MODE 1
+#include "LumenTracingCommon.ush"
+#include "../SceneTextureParameters.ush"
+#include "../BRDF.ush"
+#include "../Random.ush"
+
+float RoughFromDiffuseRoughnessStart;
+float RoughFromDiffuseRoughnessFadeLength;
+
+float GetRoughnessFade(float Roughness)
+{
+	float MinRoughness = saturate(RoughFromDiffuseRoughnessStart);
+	float MaxRoughness = saturate(RoughFromDiffuseRoughnessStart + RoughFromDiffuseRoughnessFadeLength);
+
+	return 1 - saturate((Roughness - MinRoughness) / (MaxRoughness - MinRoughness));
+}
+
+Texture2D SSRTexture;
+SamplerState SSRSampler;
+
+void LumenReflectionStencilPS(
+	float4 SVPosition : SV_POSITION,
+	out float4 Out : SV_Target0
+)
+{
+	float2 SceneBufferUV = SvPositionToBufferUV(SVPosition);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(SceneBufferUV);
+	
+	float SSRAlpha = Texture2DSampleLevel(SSRTexture, SSRSampler, SceneBufferUV, 0).a;
+	float RoughnessFade = GetRoughnessFade(GBufferData.Roughness);
+
+	if (SSRAlpha >= 0.999f || GBufferData.ShadingModelID == MATERIAL_SHADINGMODEL_UNLIT || RoughnessFade < .01f)
+	{
+		discard;
+	}
+
+	Out = 0;
+}
+
+float StepFactor;
+float MinSampleRadius;
+float MinTraceDistance;
+float MaxTraceDistance;
+float MaxCardTraceDistance;
+float SurfaceBias;
+float VoxelStepFactor;
+
+void LumenReflectionsPS(
+	float4 SVPosition : SV_POSITION,
+	out float4 OutLighting : SV_Target0
+)
+{
+	OutLighting = 0;
+
+	float2 SceneBufferUV = SvPositionToBufferUV(SVPosition);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(SceneBufferUV);
+
+	float RoughnessFade = GetRoughnessFade(GBufferData.Roughness);
+
+	if (GBufferData.Depth < 1000000.0f && GBufferData.ShadingModelID > 0 && RoughnessFade > .01f)
+	{
+		float2 ScreenPosition = (SceneBufferUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+		float3 WorldPosition = mul(float4(ScreenPosition * GBufferData.Depth, GBufferData.Depth, 1), View.ScreenToWorld).xyz;
+
+		float3 V = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 ReflectionVector = reflect(V, GBufferData.WorldNormal);
+		float Noise = InterleavedGradientNoise(SVPosition.xy, View.StateFrameIndexMod8);
+		float EffectiveSurfaceBias = SurfaceBias * lerp(.25f, 1.5f, Noise);
+		float3 TraceOrigin = WorldPosition + ReflectionVector * EffectiveSurfaceBias;
+
+		//@todo DynamicGI
+		float SpecularConeHalfAngle = lerp(.01f, .5f, GBufferData.Roughness);
+
+		bool bContinueCardTracing = false;
+#if REFLECTIONS_TRACE_CARDS
+		bContinueCardTracing = true;
+#endif
+
+		FConeTraceInput TraceInput;
+		TraceInput.Setup(TraceOrigin, ReflectionVector, SpecularConeHalfAngle, MinSampleRadius, MinTraceDistance, MaxTraceDistance, StepFactor);
+		TraceInput.StepFactor *= lerp(.8f, 1.2f, Noise);
+		TraceInput.VoxelStepFactor = VoxelStepFactor;
+		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
+			TraceOrigin, SpecularConeHalfAngle, MinTraceDistance, MaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+		TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
+
+		FConeTraceResult TraceResult = (FConeTraceResult) 0;
+
+#if REFLECTIONS_TRACE_CARDS
+		// ConeTraceLumenScene(TraceInput, TraceResult);
+#else
+		ConeTraceVoxels(TraceInput, TraceResult);
+#endif
+
+		EvaluateSkyRadianceForCone(ReflectionVector, tan(SpecularConeHalfAngle), TraceResult);
+
+		OutLighting = float4(TraceResult.Lighting * RoughnessFade, RoughnessFade);
+
+		#if USE_PREEXPOSURE
+			OutLighting.rgb *= View.PreExposure;
+		#endif
+	}
+}
+
+Texture2D RoughSpecularIndirectTexture;
+SamplerState RoughSpecularIndirectSampler;
+
+void LumenRoughReflectionsPS(
+	float4 SVPosition : SV_POSITION,
+	out float4 OutLighting : SV_Target0
+)
+{
+	OutLighting = 0;
+
+	float2 SceneBufferUV = SvPositionToBufferUV(SVPosition);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(SceneBufferUV);
+
+	float RoughnessFade = GetRoughnessFade(GBufferData.Roughness);
+
+	if (GBufferData.Depth < 1000000.0f && GBufferData.ShadingModelID > 0 && RoughnessFade < .99f)
+	{
+		float3 LumenDiffuseGI = Texture2DSampleLevel(RoughSpecularIndirectTexture, RoughSpecularIndirectSampler, SceneBufferUV, 0).rgb;
+
+		OutLighting = float4(LumenDiffuseGI, 1);
+
+		#if USE_PREEXPOSURE
+			OutLighting.rgb *= View.PreExposure;
+		#endif
+	}
+}

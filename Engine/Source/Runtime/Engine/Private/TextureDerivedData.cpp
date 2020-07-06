@@ -49,11 +49,11 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("564290F8998644E39A2118D5C683187B")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("5690602C18CA41E2B75D51939D40F224")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("AD48F7C9E1A64C3F8D8119A7582B4A34")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("0AA83222404A4BA48593D334268AF806")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -1678,7 +1678,7 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		// Make sure the pixel format enum has been cached.
 		UTexture::GetPixelFormatEnum();
 
-		// Retrieve formats to cache for targetplatform.
+		// Retrieve formats to cache for target platform.
 		
 		//TArray<FName> PlatformFormats;
 
@@ -1762,7 +1762,7 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 		// Make sure the pixel format enum has been cached.
 		UTexture::GetPixelFormatEnum();
 
-		// Retrieve formats to cache for targetplatform.
+		// Retrieve formats to cache for target platform.
 		FTextureBuildSettings BuildSettings;
 		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
 

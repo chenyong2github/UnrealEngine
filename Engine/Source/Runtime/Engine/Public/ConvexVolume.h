@@ -129,6 +129,16 @@ public:
 extern ENGINE_API void GetViewFrustumBounds(FConvexVolume& OutResult, const FMatrix& ViewProjectionMatrix, bool bUseNearPlane);
 
 /**
+ * Creates a convex volume bounding the view frustum for a view-projection matrix.
+ *
+ * @param [out]	The FConvexVolume which contains the view frustum bounds.
+ * @param		ViewProjectionMatrix - The view-projection matrix which defines the view frustum.
+ * @param		bUseNearPlane - True if the convex volume should be bounded by the view frustum's near clipping plane.
+ * @param		bUseNearPlane - True if the convex volume should be bounded by the view frustum's far clipping plane.
+ */
+extern ENGINE_API void GetViewFrustumBounds(FConvexVolume& OutResult, const FMatrix& ViewProjectionMatrix, bool bUseNearPlane, bool bUseFarPlane);
+
+/**
  * Creates a convex volume bounding the view frustum for a view-projection matrix, with an optional far plane override.
  *
  * @param [out]	The FConvexVolume which contains the view frustum bounds.

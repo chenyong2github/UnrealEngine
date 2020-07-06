@@ -15,6 +15,7 @@
 #include "SceneTextureParameters.h"
 #include "BlueNoise.h"
 #include "Halton.h"
+#include "Lumen/LumenSceneRendering.h"
 
 
 // ---------------------------------------------------- Cvars
@@ -109,6 +110,15 @@ static TAutoConsoleVariable<float> CVarGIHistoryConvolutionKernelSpreadFactor(
 	TEXT("Multiplication factor applied on the kernel sample offset (default=3)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarVirtualShadowReconstructionSampleCount(
+	TEXT("r.Shadow.v.Denoiser.ReconstructionSamples"), 8,
+	TEXT("Maximum number of samples for the reconstruction pass (default = 8)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarVirtualShadowPreConvolutionCount(
+	TEXT("r.Shadow.v.Denoiser.PreConvolution"), 1,
+	TEXT("Number of pre-convolution passes (default = 1)."),
+	ECVF_RenderThreadSafe);
 
 /** The maximum number of mip level supported in the denoiser. */
 // TODO(Denoiser): jump to 3 because bufefr size already have a size multiple of 4.
@@ -118,10 +128,10 @@ static const int32 kMaxMipLevel = 2;
 static const int32 kStackowiakMaxSampleCountPerSet = 56;
 
 /** The maximum number of buffers. */
-static const int32 kMaxBufferProcessingCount = IScreenSpaceDenoiser::kMaxBatchSize;
+static const int32 kMaxBufferProcessingCount = kMaxDenoiserBufferProcessingCount;
 
 /** Number of texture to store compressed metadata. */
-static const int32 kCompressedMetadataTextures = 1;
+static const int32 kCompressedMetadataTextures = 2;
 
 static_assert(IScreenSpaceDenoiser::kMaxBatchSize <= kMaxBufferProcessingCount, "Can't batch more signal than there is internal buffer in the denoiser.");
 
@@ -134,6 +144,7 @@ DECLARE_GPU_STAT(ReflectionsDenoiser)
 DECLARE_GPU_STAT(ShadowsDenoiser)
 DECLARE_GPU_STAT(AmbientOcclusionDenoiser)
 DECLARE_GPU_STAT(DiffuseIndirectDenoiser)
+DECLARE_GPU_STAT(VirtualShadowsDenoiser)
 
 namespace
 {
@@ -153,6 +164,9 @@ enum class ECompressedMetadataLayout
 	// in the view space is to use much faster ScreenToView than ScreenToTranslatedWorld. But doesn't
 	// support history bilateral rejection.
 	DepthAndViewNormal,
+
+	// Scene depth and shading model ID are in separate render target.
+	FedDepthAndShadingModelID,
 
 	MAX,
 };
@@ -181,6 +195,12 @@ enum class ESignalProcessing
 	// Denoise SSGI.
 	ScreenSpaceDiffuseIndirect,
 
+	// Denoise diffuse indirect hierarchy.
+	IndirectProbeHierarchy,
+
+	// Denoise a virtual shadow map mask.
+	VirtualShadowMapMask,
+
 	MAX,
 };
 
@@ -202,7 +222,9 @@ static bool UsesConstantPixelDensityPassLayout(ESignalProcessing SignalProcessin
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic ||
-		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect);
+		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect ||
+		SignalProcessing == ESignalProcessing::IndirectProbeHierarchy ||
+		SignalProcessing == ESignalProcessing::VirtualShadowMapMask);
 }
 
 /** Returns whether a signal processing support upscaling. */
@@ -217,7 +239,14 @@ static bool SignalSupportsUpscaling(ESignalProcessing SignalProcessing)
 /** Returns whether a signal processing uses an injestion pass. */
 static bool SignalUsesInjestion(ESignalProcessing SignalProcessing)
 {
-	return SignalProcessing == ESignalProcessing::ShadowVisibilityMask;
+	return (
+		SignalProcessing == ESignalProcessing::ShadowVisibilityMask);
+}
+
+/** Returns whether a signal processing uses a reduction pass before the reconstruction. */
+static bool SignalUsesReduction(ESignalProcessing SignalProcessing)
+{
+	return false; //SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic;
 }
 
 /** Returns whether a signal processing uses an additional pre convolution pass. */
@@ -226,7 +255,8 @@ static bool SignalUsesPreConvolution(ESignalProcessing SignalProcessing)
 	return
 		SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
 		SignalProcessing == ESignalProcessing::Reflections ||
-		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion;
+		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::VirtualShadowMapMask;
 }
 
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
@@ -250,7 +280,8 @@ static bool SignalUsesPostConvolution(ESignalProcessing SignalProcessing)
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
 static bool SignalUsesFinalConvolution(ESignalProcessing SignalProcessing)
 {
-	return SignalProcessing == ESignalProcessing::ShadowVisibilityMask;
+	return (
+		SignalProcessing == ESignalProcessing::ShadowVisibilityMask);
 }
 
 /** Returns what meta data compression should be used when denoising a signal. */
@@ -260,13 +291,18 @@ static ECompressedMetadataLayout GetSignalCompressedMetadata(ESignalProcessing S
 	{
 		return ECompressedMetadataLayout::DepthAndViewNormal;
 	}
+	else if (SignalProcessing == ESignalProcessing::IndirectProbeHierarchy)
+	{
+		return ECompressedMetadataLayout::FedDepthAndShadingModelID;
+	}
 	return ECompressedMetadataLayout::Disabled;
 }
 
 /** Returns the number of signal that might be batched at the same time. */
 static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 {
-	if (SignalProcessing == ESignalProcessing::ShadowVisibilityMask)
+	if (SignalProcessing == ESignalProcessing::ShadowVisibilityMask
+		)
 	{
 		return IScreenSpaceDenoiser::kMaxBatchSize;
 	}
@@ -276,7 +312,9 @@ static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic ||
-		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
+		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect ||
+		SignalProcessing == ESignalProcessing::IndirectProbeHierarchy ||
+		SignalProcessing == ESignalProcessing::VirtualShadowMapMask)
 	{
 		return 1;
 	}
@@ -301,7 +339,9 @@ static bool SignalSupportMultiSPP(ESignalProcessing SignalProcessing)
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic ||
-		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect);
+		SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect ||
+		SignalProcessing == ESignalProcessing::IndirectProbeHierarchy ||
+		SignalProcessing == ESignalProcessing::VirtualShadowMapMask);
 }
 
 
@@ -359,8 +399,75 @@ const TCHAR* const kInjestResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowDenoiserInjest0"),
+	TEXT("VirtualShadowDenoiserInjest1"),
+	nullptr,
+	nullptr,
 };
 
+const TCHAR* const kReduceResourceNames[] = {
+	// ShadowVisibilityMask
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// PolychromaticPenumbraHarmonic
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// Reflections
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// AmbientOcclusion
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// DiffuseIndirect
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// DiffuseSphericalHarmonic
+	TEXT("DiffuseHarmonicReduce0"),
+	TEXT("DiffuseHarmonicReduce1"),
+	TEXT("DiffuseHarmonicReduce2"),
+	TEXT("DiffuseHarmonicReduce3"),
+
+	// ScreenSpaceDiffuseIndirect
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+};
 
 const TCHAR* const kReconstructionResourceNames[] = {
 	// ShadowVisibilityMask
@@ -404,6 +511,18 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	TEXT("SSGIReconstruction1"),
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowReconstruction0"),
+	TEXT("VirtualShadowReconstruction1"),
+	TEXT("VirtualShadowReconstruction2"),
+	TEXT("VirtualShadowReconstruction3"),
 };
 
 const TCHAR* const kPreConvolutionResourceNames[] = {
@@ -448,6 +567,18 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowPreConvolution0"),
+	TEXT("VirtualShadowPreConvolution1"),
+	TEXT("VirtualShadowPreConvolution2"),
+	TEXT("VirtualShadowPreConvolution3"),
 };
 
 const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
@@ -492,6 +623,18 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowRejectionPreConvolution0"),
+	TEXT("VirtualShadowRejectionPreConvolution1"),
+	TEXT("VirtualShadowRejectionPreConvolution2"),
+	TEXT("VirtualShadowRejectionPreConvolution3"),
 };
 
 const TCHAR* const kTemporalAccumulationResourceNames[] = {
@@ -536,6 +679,18 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	TEXT("SSGITemporalAccumulation1"),
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	TEXT("ProbeHierarchy.TemporalAccumulation0"),
+	TEXT("ProbeHierarchy.TemporalAccumulation1"),
+	TEXT("ProbeHierarchy.TemporalAccumulation2"),
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowTemporalAccumulation0"),
+	TEXT("VirtualShadowTemporalAccumulation1"),
+	TEXT("VirtualShadowTemporalAccumulation2"),
+	TEXT("VirtualShadowTemporalAccumulation3"),
 };
 
 const TCHAR* const kHistoryConvolutionResourceNames[] = {
@@ -580,6 +735,18 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowHistoryConvolution0"),
+	TEXT("VirtualShadowHistoryConvolution1"),
+	TEXT("VirtualShadowHistoryConvolution2"),
+	TEXT("VirtualShadowHistoryConvolution3"),
 };
 
 const TCHAR* const kDenoiserOutputResourceNames[] = {
@@ -624,6 +791,18 @@ const TCHAR* const kDenoiserOutputResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// IndirectProbeHierarchy
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// VirtualShadowMapMask
+	TEXT("VirtualShadowDenoiserOutput0"),
+	TEXT("VirtualShadowDenoiserOutput1"),
+	TEXT("VirtualShadowDenoiserOutput2"),
+	TEXT("VirtualShadowDenoiserOutput3"),
 };
 
 static_assert(UE_ARRAY_COUNT(kReconstructionResourceNames) == int32(ESignalProcessing::MAX) * kMaxBufferProcessingCount, "You forgot me!");
@@ -636,13 +815,13 @@ static_assert(UE_ARRAY_COUNT(kDenoiserOutputResourceNames) == int32(ESignalProce
 /** Returns whether should compile pipeline for a given shader platform.*/
 bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlatform Platform)
 {
-	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
+	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect ||
+		SignalProcessing == ESignalProcessing::VirtualShadowMapMask
+		)
 	{
-		return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12 || Platform == SP_METAL_SM5;
+		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
 	}
-	else if (
-		SignalProcessing == ESignalProcessing::Reflections ||
-		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
+	else if (SignalProcessing == ESignalProcessing::Reflections)
 	{
 		return Platform == SP_PCD3D_SM5 || RHISupportsRayTracingShaders(Platform);
 	}
@@ -658,6 +837,12 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 	{
 		return false;
 	}
+	else if (
+		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic ||
+		SignalProcessing == ESignalProcessing::IndirectProbeHierarchy)
+	{
+		return DoesPlatformSupportLumenGI(Platform);
+	}
 	check(0);
 	return false;
 }
@@ -665,14 +850,11 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 
 /** Shader parameter structure used for all shaders. */
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(Denoiser::FCommonShaderParameters, PublicCommonParameters)
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 	SHADER_PARAMETER(FVector4, ThreadIdToBufferUV)
-	SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
-	SHADER_PARAMETER(FVector4, BufferBilinearUVMinMax)
 	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
-	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
-	SHADER_PARAMETER(FVector4, BufferUVToScreenPosition)
 	SHADER_PARAMETER(FMatrix, ScreenToView)
 	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
 
@@ -689,17 +871,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 END_SHADER_PARAMETER_STRUCT()
 
-/** Shader parameter structure use to bind all signal generically. */
-BEGIN_SHADER_PARAMETER_STRUCT(FSSDSignalTextures, )
-	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kMaxBufferProcessingCount])
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDSignalSRVs, )
 	SHADER_PARAMETER_RDG_TEXTURE_SRV_ARRAY(Texture2D, Textures, [kMaxBufferProcessingCount])
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(Texture2D, UAVs, [kMaxBufferProcessingCount])
+	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, UAVs, [kMaxBufferProcessingCount])
 END_SHADER_PARAMETER_STRUCT()
 
 /** Shader parameter structure to have all information to spatial filtering. */
@@ -783,6 +960,12 @@ class FSSDCompressMetadataCS : public FGlobalShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FMetadataLayoutDim>() == ECompressedMetadataLayout::Disabled)
+		{
+			return false;
+		}
+
+		// Precomputed by denoiser caller.
+		if (PermutationVector.Get<FMetadataLayoutDim>() == ECompressedMetadataLayout::FedDepthAndShadingModelID)
 		{
 			return false;
 		}
@@ -1136,6 +1319,50 @@ void SetupImaginaryReflectionViewInfoPooledRenderTargets(
 	OutViewInfoPooledRenderTargets->NextCompressedDepthViewNormal = &PrevFrameViewInfo.ImaginaryReflectionCompressedDepthViewNormal;
 }
 
+
+void Denoiser::SetupCommonShaderParameters(
+	const FViewInfo& View,
+	const FSceneTextureParameters& SceneTextures,
+	const FIntRect DenoiserFullResViewport,
+	float DenoisingResolutionFraction,
+	Denoiser::FCommonShaderParameters* OutPublicCommonParameters)
+{
+	check(OutPublicCommonParameters);
+
+	FIntPoint FullResBufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+
+	FIntPoint DenoiserBufferExtent = FullResBufferExtent;
+	FIntRect DenoiserViewport = DenoiserFullResViewport;
+	if (DenoisingResolutionFraction == 0.5f)
+	{
+		DenoiserBufferExtent /= 2;
+		DenoiserViewport = FIntRect::DivideAndRoundUp(DenoiserViewport, 2);
+	}
+
+	OutPublicCommonParameters->DenoiserBufferSizeAndInvSize = FVector4(
+		float(DenoiserBufferExtent.X),
+		float(DenoiserBufferExtent.Y),
+		1.0f / float(DenoiserBufferExtent.X),
+		1.0f / float(DenoiserBufferExtent.Y));
+
+	OutPublicCommonParameters->SceneBufferUVToScreenPosition.X = float(FullResBufferExtent.X) / float(View.ViewRect.Width()) * 2.0f;
+	OutPublicCommonParameters->SceneBufferUVToScreenPosition.Y = -float(FullResBufferExtent.Y) / float(View.ViewRect.Height()) * 2.0f;
+	OutPublicCommonParameters->SceneBufferUVToScreenPosition.Z = float(View.ViewRect.Min.X) / float(View.ViewRect.Width()) * 2.0f - 1.0f;
+	OutPublicCommonParameters->SceneBufferUVToScreenPosition.W = -float(View.ViewRect.Min.Y) / float(View.ViewRect.Height()) * 2.0f + 1.0f;
+
+	OutPublicCommonParameters->DenoiserBufferBilinearUVMinMax = FVector4(
+		float(DenoiserViewport.Min.X + 0.5f) / float(DenoiserBufferExtent.X),
+		float(DenoiserViewport.Min.Y + 0.5f) / float(DenoiserBufferExtent.Y),
+		float(DenoiserViewport.Max.X - 0.5f) / float(DenoiserBufferExtent.X),
+		float(DenoiserViewport.Max.Y - 0.5f) / float(DenoiserBufferExtent.Y));
+
+	float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
+
+	// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
+	OutPublicCommonParameters->WorldDepthToPixelWorldRadius = TanHalfFieldOfView / float(View.ViewRect.Width());
+}
+
+
 /** Generic settings to denoise signal at constant pixel density across the viewport. */
 struct FSSDConstantPixelDensitySettings
 {
@@ -1154,6 +1381,8 @@ struct FSSDConstantPixelDensitySettings
 	float HistoryConvolutionKernelSpreadFactor = 1.0f;
 	TStaticArray<FIntRect, IScreenSpaceDenoiser::kMaxBatchSize> SignalScissor;
 	TStaticArray<const FLightSceneInfo*, IScreenSpaceDenoiser::kMaxBatchSize> LightSceneInfo;
+	FRDGTextureRef CompressedDepthTexture = nullptr;
+	FRDGTextureRef CompressedShadingModelTexture = nullptr;
 };
 
 /** Denoises a signal at constant pixel density across the viewport. */
@@ -1293,20 +1522,13 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
 		{
-			for (int32 i = 0; i < 3; i++)
-			{
-				ReconstructionDescs[i].Format = PF_G32R32F;
-				HistoryDescs[i].Format = PF_G32R32F;
-			}
+			ReconstructionDescs[0].Format = PF_FloatRGBA;
+			ReconstructionDescs[1].Format = PF_FloatRGBA;
+			ReconstructionTextureCount = 2;
 
-			ReconstructionDescs[3].Format = PF_R32_FLOAT;
-			HistoryDescs[3].Format = PF_R32_FLOAT;
-
-			ReconstructionTextureCount = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount;
-			HistoryTextureCountPerSignal = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; // TODO(Denoiser): only 3 textures for history
+			HistoryDescs = ReconstructionDescs;
+			HistoryTextureCountPerSignal = 2;
 			bHasReconstructionLayoutDifferentFromHistory = false;
-
-			InjestTextureCount = 4;
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 		{
@@ -1325,6 +1547,30 @@ static void DenoiseSignalAtConstantPixelDensity(
 			
 			HistoryDescs[1].Format = PF_R8G8;
 			HistoryTextureCountPerSignal = 2;
+			bHasReconstructionLayoutDifferentFromHistory = false;
+		}
+		else if (Settings.SignalProcessing == ESignalProcessing::IndirectProbeHierarchy)
+		{
+			ReconstructionDescs[0].Format = PF_FloatR11G11B10;
+			ReconstructionDescs[1].Format = PF_FloatR11G11B10;
+			ReconstructionDescs[2].Format = PF_R8;
+			ReconstructionTextureCount = 3;
+
+			HistoryDescs[0].Format = PF_FloatR11G11B10;
+			HistoryDescs[1].Format = PF_FloatR11G11B10;
+			HistoryDescs[2].Format = PF_R8;
+			HistoryTextureCountPerSignal = 3;
+			bHasReconstructionLayoutDifferentFromHistory = true;
+		}
+		else if (Settings.SignalProcessing == ESignalProcessing::VirtualShadowMapMask)
+		{
+			check(Settings.SignalBatchSize == 1);
+
+			ReconstructionDescs[0].Format = PF_FloatRGBA;
+			HistoryDescs[0].Format = PF_FloatRGBA;
+
+			HistoryTextureCountPerSignal = 1;
+			ReconstructionTextureCount = 1;
 			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
 		else
@@ -1349,20 +1595,17 @@ static void DenoiseSignalAtConstantPixelDensity(
 	// Setup common shader parameters.
 	FSSDCommonParameters CommonParameters;
 	{
+		Denoiser::SetupCommonShaderParameters(
+			View, SceneTextures,
+			Settings.FullResViewport,
+			Settings.DenoisingResolutionFraction,
+			/* out */ &CommonParameters.PublicCommonParameters);
+
 		CommonParameters.ViewportMin = Viewport.Min;
 		CommonParameters.ViewportMax = Viewport.Max;
-		CommonParameters.BufferSizeAndInvSize = FVector4(
-			float(BufferExtent.X),
-			float(BufferExtent.Y),
-			1.0f / float(BufferExtent.X),
-			1.0f / float(BufferExtent.Y));
-		CommonParameters.BufferBilinearUVMinMax = FVector4(
-			float(Viewport.Min.X + 0.5f) / float(BufferExtent.X),
-			float(Viewport.Min.Y + 0.5f) / float(BufferExtent.Y),
-			float(Viewport.Max.X - 0.5f) / float(BufferExtent.X),
-			float(Viewport.Max.Y - 0.5f) / float(BufferExtent.Y));
 
 		CommonParameters.SceneTextures = SceneTextures;
+
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 
@@ -1382,16 +1625,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		CommonParameters.BufferUVToOutputPixelPosition.X = BufferExtent.X;
 		CommonParameters.BufferUVToOutputPixelPosition.Y = BufferExtent.Y;
-
-		float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
-
-		// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
-		CommonParameters.WorldDepthToPixelWorldRadius = TanHalfFieldOfView / float(View.ViewRect.Width());
-
-		CommonParameters.BufferUVToScreenPosition.X = float(FullResBufferExtent.X) / float(View.ViewRect.Width()) * 2.0f;
-		CommonParameters.BufferUVToScreenPosition.Y = - float(FullResBufferExtent.Y) / float(View.ViewRect.Height()) * 2.0f;
-		CommonParameters.BufferUVToScreenPosition.Z = float(View.ViewRect.Min.X) / float(View.ViewRect.Width()) * 2.0f - 1.0f;
-		CommonParameters.BufferUVToScreenPosition.W = - float(View.ViewRect.Min.Y) / float(View.ViewRect.Height()) * 2.0f + 1.0f;
 
 		CommonParameters.ScreenToView = FMatrix(
 			FPlane(1, 0, 0, 0),
@@ -1431,7 +1664,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 	// Setup all the metadata to do spatial convolution.
 	FSSDConvolutionMetaData ConvolutionMetaData;
-	if (Settings.SignalProcessing == ESignalProcessing::ShadowVisibilityMask)
+	if (Settings.SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
+		Settings.SignalProcessing == ESignalProcessing::VirtualShadowMapMask
+		)
 	{
 		for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 		{
@@ -1452,7 +1687,15 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 	// Compress the meta data for lower memory bandwidth, half res for coherent memory access, and lower VGPR footprint.
 	ECompressedMetadataLayout CompressedMetadataLayout = GetSignalCompressedMetadata(Settings.SignalProcessing);
-	if (CompressedMetadataLayout != ECompressedMetadataLayout::Disabled)
+	if (CompressedMetadataLayout == ECompressedMetadataLayout::FedDepthAndShadingModelID)
+	{
+		check(Settings.CompressedDepthTexture);
+		check(Settings.CompressedShadingModelTexture);
+
+		CommonParameters.CompressedMetadata[0] = Settings.CompressedDepthTexture;
+		CommonParameters.CompressedMetadata[1] = Settings.CompressedShadingModelTexture;
+	}
+	else if (CompressedMetadataLayout != ECompressedMetadataLayout::Disabled)
 	{
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndNormal ||
 			CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
@@ -1466,6 +1709,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 				/* bInForceSeparateTargetAndShaderResource = */ false);
 
 			CommonParameters.CompressedMetadata[0] = GraphBuilder.CreateTexture(Desc, TEXT("DenoiserMetadata0"));
+			CommonParameters.CompressedMetadata[1] = nullptr;
 		}
 		else
 		{
@@ -1478,7 +1722,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FSSDCompressMetadataCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDCompressMetadataCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		for (int32 i = 0; i < kCompressedMetadataTextures; i++)
-			PassParameters->CompressedMetadataOutput[i] = GraphBuilder.CreateUAV(CommonParameters.CompressedMetadata[i]);
+			PassParameters->CompressedMetadataOutput[i] = CommonParameters.CompressedMetadata[i] ? GraphBuilder.CreateUAV(CommonParameters.CompressedMetadata[i]) : nullptr;
 
 		TShaderMapRef<FSSDCompressMetadataCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -1717,15 +1961,68 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->PrevGBufferA = RegisterExternalTextureWithFallback(GraphBuilder, ViewInfoPooledRenderTargets.PrevGBufferA, GSystemTextures.BlackDummy);
 		PassParameters->PrevGBufferB = RegisterExternalTextureWithFallback(GraphBuilder, ViewInfoPooledRenderTargets.PrevGBufferB, GSystemTextures.BlackDummy);
 
+		bool bGlobalCameraCut = !View.PrevViewInfo.DepthBuffer.IsValid();
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 		{
 			PassParameters->PrevCompressedMetadata[0] = RegisterExternalTextureWithFallback(
 				GraphBuilder, ViewInfoPooledRenderTargets.PrevCompressedDepthViewNormal, GSystemTextures.ZeroUIntDummy);
+			bGlobalCameraCut = !View.PrevViewInfo.CompressedDepthViewNormal.IsValid();
+		}
+		else if (CompressedMetadataLayout == ECompressedMetadataLayout::FedDepthAndShadingModelID)
+		{
+			PassParameters->PrevCompressedMetadata[0] = RegisterExternalTextureWithFallback(
+				GraphBuilder, View.PrevViewInfo.CompressedOpaqueDepth, GSystemTextures.BlackDummy);
+			PassParameters->PrevCompressedMetadata[1] = RegisterExternalTextureWithFallback(
+				GraphBuilder, View.PrevViewInfo.CompressedOpaqueShadingModel, GSystemTextures.ZeroUIntDummy);
+
+			bGlobalCameraCut = !View.PrevViewInfo.CompressedOpaqueDepth.IsValid() || !View.PrevViewInfo.CompressedOpaqueShadingModel.IsValid();
 		}
 
 		FIntPoint PrevFrameBufferExtent;
+		if (bGlobalCameraCut)
+		{
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			PassParameters->HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			PrevFrameBufferExtent = FIntPoint(1, 1);
+		}
+		else
+		{
+			FIntPoint ViewportOffset = View.PrevViewInfo.ViewRect.Min;
+			FIntPoint ViewportExtent = View.PrevViewInfo.ViewRect.Size();
 
-		bool bGlobalCameraCut = !View.PrevViewInfo.DepthBuffer.IsValid() && !View.PrevViewInfo.CompressedDepthViewNormal.IsValid();
+			if (PassParameters->PrevCompressedMetadata[0])
+			{
+				PrevFrameBufferExtent = PassParameters->PrevCompressedMetadata[0]->Desc.Extent;
+			}
+			else
+			{
+				PrevFrameBufferExtent = PassParameters->PrevDepthBuffer->Desc.Extent;
+			}
+
+			float InvBufferSizeX = 1.f / float(PrevFrameBufferExtent.X);
+			float InvBufferSizeY = 1.f / float(PrevFrameBufferExtent.Y);
+
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4(
+				ViewportExtent.X * 0.5f * InvBufferSizeX,
+				-ViewportExtent.Y * 0.5f * InvBufferSizeY,
+				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSizeX,
+				(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSizeY);
+
+			PassParameters->HistoryBufferUVMinMax = FVector4(
+				(ViewportOffset.X + 0.5f) * InvBufferSizeX,
+				(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
+				(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
+				(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
+
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
+
+			PassParameters->PrevSceneBufferUVToScreenPosition.X = float(PrevFrameBufferExtent.X) / float(ViewportExtent.X) * 2.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.Y = -float(PrevFrameBufferExtent.Y) / float(ViewportExtent.Y) * 2.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.Z = float(ViewportOffset.X) / float(ViewportExtent.X) * 2.0f - 1.0f;
+			PassParameters->PrevSceneBufferUVToScreenPosition.W = -float(ViewportOffset.Y) / float(ViewportExtent.Y) * 2.0f + 1.0f;
+		}
+
 		if (bGlobalCameraCut)
 		{
 			PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1817,7 +2114,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("SSD TemporalAccumulation"),
+			RDG_EVENT_NAME("SSD TemporalAccumulation%s",
+				(!Settings.bUseTemporalAccumulation || bGlobalCameraCut) ? TEXT("(Disabled)") : TEXT("")),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FComputeShaderUtils::kGolden2DGroupSize));
@@ -1892,18 +2190,28 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 				if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 				{
-					// if (i == 0)
+					if (i == 0)
 					{
 						Dest = ViewInfoPooledRenderTargets.NextCompressedDepthViewNormal;
+					}
+				}
+				else if (CompressedMetadataLayout == ECompressedMetadataLayout::FedDepthAndShadingModelID)
+				{
+					if (i == 0)
+					{
+						Dest = &View.ViewState->PrevFrameViewInfo.CompressedOpaqueDepth;
+					}
+					else if (i == 1)
+					{
+						Dest = &View.ViewState->PrevFrameViewInfo.CompressedOpaqueShadingModel;
 					}
 				}
 
 				check((CommonParameters.CompressedMetadata[i] != nullptr) == (Dest != nullptr));
 
-				if (bExtractCompressedMetadata[i])
+				if (Dest)
 				{
 					check(CommonParameters.CompressedMetadata[i]);
-					check(Dest);
 					GraphBuilder.QueueTextureExtraction(CommonParameters.CompressedMetadata[i], Dest);
 				}
 			}
@@ -2012,6 +2320,17 @@ IScreenSpaceDenoiser::FHarmonicUAVs IScreenSpaceDenoiser::CreateUAVs(FRDGBuilder
 	for (int32 HarmonicBorderId = 0; HarmonicBorderId < kHarmonicBordersCount; HarmonicBorderId++)
 	{
 		UAVs.Harmonics[HarmonicBorderId] = GraphBuilder.CreateUAV(Textures.Harmonics[HarmonicBorderId]);
+	}
+	return UAVs;
+}
+
+// static
+IScreenSpaceDenoiser::FDiffuseIndirectHarmonicUAVs IScreenSpaceDenoiser::CreateUAVs(FRDGBuilder& GraphBuilder, const FDiffuseIndirectHarmonic& Textures)
+{
+	FDiffuseIndirectHarmonicUAVs UAVs;
+	for (int32 HarmonicBorderId = 0; HarmonicBorderId < kSphericalHarmonicTextureCount; HarmonicBorderId++)
+	{
+		UAVs.SphericalHarmonic[HarmonicBorderId] = GraphBuilder.CreateUAV(Textures.SphericalHarmonic[HarmonicBorderId]);
 	}
 	return UAVs;
 }
@@ -2255,7 +2574,7 @@ public:
 			ComposePassParameters->CommonParameters.SceneTextures = SceneTextures;
 			ComposePassParameters->CommonParameters.ViewportMin = View.ViewRect.Min;
 			ComposePassParameters->CommonParameters.ViewportMax = View.ViewRect.Max;
-			ComposePassParameters->CommonParameters.BufferBilinearUVMinMax = FVector4(
+			ComposePassParameters->CommonParameters.PublicCommonParameters.DenoiserBufferBilinearUVMinMax = FVector4(
 				float(View.ViewRect.Min.X + 0.5f) / float(BufferExtent.X),
 				float(View.ViewRect.Min.Y + 0.5f) / float(BufferExtent.Y),
 				float(View.ViewRect.Max.X - 0.5f) / float(BufferExtent.X),
@@ -2326,8 +2645,7 @@ public:
 
 		// Imaginary depth is only used for Nvidia denoiser.
 		// TODO(Denoiser): permutation to not generate it?
-		if (ReflectionInputs.RayImaginaryDepth)
-			GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
+		GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
 
 		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
 		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
@@ -2458,7 +2776,7 @@ public:
 		return AmbientOcclusionOutput;
 	}
 
-	FDiffuseIndirectOutputs DenoiseDiffuseIndirect(
+	FSSDSignalTextures DenoiseDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -2499,9 +2817,7 @@ public:
 			NewHistories,
 			&SignalOutput);
 
-		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
-		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
-		return GlobalIlluminationOutputs;
+		return SignalOutput;
 	}
 
 	FDiffuseIndirectOutputs DenoiseSkyLight(
@@ -2596,13 +2912,13 @@ public:
 		return GlobalIlluminationOutputs;
 	}
 
-	FDiffuseIndirectHarmonic DenoiseDiffuseIndirectHarmonic(
+	FSSDSignalTextures DenoiseDiffuseIndirectHarmonic(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectHarmonic& Inputs,
-		const FAmbientOcclusionRayTracingConfig Config) const override
+		const HybridIndirectLighting::FCommonParameters& CommonDiffuseParameters) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
 
@@ -2616,10 +2932,11 @@ public:
 		FSSDConstantPixelDensitySettings Settings;
 		Settings.FullResViewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::DiffuseSphericalHarmonic;
-		Settings.InputResolutionFraction = Config.ResolutionFraction;
+		Settings.InputResolutionFraction = 1.0f / float(CommonDiffuseParameters.DownscaleFactor);
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
-		Settings.MaxInputSPP = Config.RayCountPerPixel;
+		Settings.MaxInputSPP = CommonDiffuseParameters.RayCountPerPixel;
+		Settings.DenoisingResolutionFraction = 1.0f / float(CommonDiffuseParameters.DownscaleFactor);
 
 		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
 		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
@@ -2634,10 +2951,7 @@ public:
 			NewHistories,
 			&SignalOutput);
 
-		FDiffuseIndirectHarmonic GlobalIlluminationOutputs;
-		for (int32 i = 0; i < IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; i++)
-			GlobalIlluminationOutputs.SphericalHarmonic[i] = SignalOutput.Textures[i];
-		return GlobalIlluminationOutputs;
+		return SignalOutput;
 	}
 
 	bool SupportsScreenSpaceDiffuseIndirectDenoiser(EShaderPlatform Platform) const override
@@ -2645,7 +2959,7 @@ public:
 		return ShouldCompileSignalPipeline(ESignalProcessing::ScreenSpaceDiffuseIndirect, Platform);
 	}
 
-	FDiffuseIndirectOutputs DenoiseScreenSpaceDiffuseIndirect(
+	FSSDSignalTextures DenoiseScreenSpaceDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -2684,12 +2998,100 @@ public:
 			NewHistories,
 			&SignalOutput);
 
-		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
-		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
-		GlobalIlluminationOutputs.AmbientOcclusionMask = SignalOutput.Textures[1];
-		return GlobalIlluminationOutputs;
+		return SignalOutput;
 	}
 }; // class FDefaultScreenSpaceDenoiser
+
+// static
+FSSDSignalTextures IScreenSpaceDenoiser::DenoiseIndirectProbeHierarchy(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FPreviousViewInfo* PreviousViewInfos,
+	const FSceneTextureParameters& SceneTextures,
+	const FSSDSignalTextures& InputSignal,
+	FRDGTextureRef CompressedDepthTexture,
+	FRDGTextureRef CompressedShadingModelTexture)
+{
+	FSSDConstantPixelDensitySettings Settings;
+	Settings.FullResViewport = View.ViewRect;
+	Settings.SignalProcessing = ESignalProcessing::IndirectProbeHierarchy;
+	Settings.bEnableReconstruction = false;
+	Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
+	Settings.MaxInputSPP = 8;
+	Settings.CompressedDepthTexture = CompressedDepthTexture;
+	Settings.CompressedShadingModelTexture = CompressedShadingModelTexture;
+
+	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+	PrevHistories[0] = &PreviousViewInfos->DiffuseIndirectHistory;
+	NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.DiffuseIndirectHistory : nullptr;
+
+	FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+	SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
+	FSSDSignalTextures SignalOutput;
+	DenoiseSignalAtConstantPixelDensity(
+		GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
+		InputSignal, Settings,
+		PrevHistories,
+		NewHistories,
+		&SignalOutput);
+
+	return SignalOutput;
+}
+
+// static
+FSSDSignalTextures IScreenSpaceDenoiser::DenoiseVirtualShadowMapMask(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FPreviousViewInfo* PreviousViewInfos,
+	const FSceneTextureParameters& SceneTextures,
+	const FLightSceneInfo* LightSceneInfo,
+	FIntRect LightScissorRect,
+	const FVirtualShadowMapMaskInputs& InputParameters)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualShadowsDenoiser);
+
+	const FLightSceneProxy* Proxy = LightSceneInfo->Proxy;
+	const ULightComponent* LightComponent = Proxy->GetLightComponent();
+	ensure(IsSupportedLightType(ELightComponentType(Proxy->GetLightType())));
+	
+	FSSDConstantPixelDensitySettings Settings;
+	Settings.SignalProcessing = ESignalProcessing::VirtualShadowMapMask;
+	Settings.ReconstructionSamples = CVarVirtualShadowReconstructionSampleCount.GetValueOnRenderThread();
+	Settings.PreConvolutionCount = CVarVirtualShadowPreConvolutionCount.GetValueOnRenderThread();
+	Settings.bUseTemporalAccumulation = false;
+	
+	Settings.LightSceneInfo[0] = LightSceneInfo;
+	Settings.SignalScissor[0] = LightScissorRect;
+
+	// Force viewport to be a multiple of 2, to avoid over frame interference between TAA jitter of the frame, and Stackowiack's SampleTrackId.
+	Settings.FullResViewport = LightScissorRect;
+	Settings.FullResViewport.Min.X &= ~1;
+	Settings.FullResViewport.Min.Y &= ~1;
+	
+	// No temporal reprojection
+	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+	PrevHistories[0] = nullptr;
+	NewHistories[0] = nullptr;
+
+	FSSDSignalTextures InputSignal;
+	InputSignal.Textures[0] = InputParameters.Signal;
+
+	FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+	SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
+	FSSDSignalTextures SignalOutput;
+	DenoiseSignalAtConstantPixelDensity(
+		GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
+		InputSignal, Settings,
+		PrevHistories,
+		NewHistories,
+		&SignalOutput);
+
+	return SignalOutput;
+}
 
 
 // static
@@ -2702,4 +3104,19 @@ const IScreenSpaceDenoiser* IScreenSpaceDenoiser::GetDefaultDenoiser()
 int GetReflectionsDenoiserMode()
 {
 	return CVarUseReflectionDenoiser.GetValueOnRenderThread();
+}
+
+// static
+IScreenSpaceDenoiser::EMode IScreenSpaceDenoiser::GetDenoiserMode(const TAutoConsoleVariable<int32>& CVar)
+{
+	int32 CVarSettings = CVar.GetValueOnRenderThread();
+	if (CVarSettings == 0)
+	{
+		return EMode::Disabled;
+	}
+	else if (CVarSettings == 1 || GScreenSpaceDenoiser == GetDefaultDenoiser())
+	{
+		return EMode::DefaultDenoiser;
+	}
+	return EMode::ThirdPartyDenoiser;
 }

@@ -27,6 +27,13 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarMaxPagesProducedPerFrame(
+		TEXT("r.VT.MaxTilesProducedPerFrame"),
+		30,
+		TEXT("Max number of pages that can be produced per frame"),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+
 #if WITH_EDITOR
 	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrameInEditor(
 		TEXT("r.VT.MaxContinuousUpdatesPerFrameInEditor"),
@@ -63,8 +70,13 @@ namespace VirtualTextureScalability
 		TEXT("MaxAnisotropy setting for Virtual Texture sampling."),
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
-	
 
+	static TAutoConsoleVariable<int32> CVarVTEnableAnisotropy(
+		TEXT("r.VT.AnisotropicFiltering"),
+		0,
+		TEXT("Is anisotropic filtering for VTs enabled?"),
+		ECVF_RenderThreadSafe | ECVF_ReadOnly);
+	
 	/** Track changes and apply to relevant systems. This allows us to dynamically change the scalability settings. */
 	static void OnUpdate()
 	{
@@ -140,6 +152,11 @@ namespace VirtualTextureScalability
 #endif
 	}
 
+	int32 GetMaxPagesProducedPerFrame()
+	{
+		return CVarMaxPagesProducedPerFrame.GetValueOnAnyThread();
+	}
+	
 	int32 GetMaxContinuousUpdatesPerFrame()
 	{
 #if WITH_EDITOR
@@ -162,6 +179,11 @@ namespace VirtualTextureScalability
 
 	int32 GetMaxAnisotropy()
 	{
+		if (CVarVTEnableAnisotropy.GetValueOnAnyThread() == 0)
+		{
+			return 0;
+		}
+
 		return CVarVTMaxAnisotropy.GetValueOnAnyThread();
 	}
 }

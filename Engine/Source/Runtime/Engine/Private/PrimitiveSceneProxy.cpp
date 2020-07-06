@@ -72,6 +72,27 @@ bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLev
 	return false;
 }
 
+bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy)
+{
+	// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
+	return VertexFactory->GetType()->SupportsNaniteRendering();
+}
+
+bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (FeatureLevel >= ERHIFeatureLevel::SM5 && SupportsNaniteRendering(VertexFactory, PrimitiveSceneProxy))
+	{
+		const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
+		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
+
+		return Material->GetBlendMode() == BLEND_Opaque &&
+			Material->GetMaterialDomain() == MD_Surface &&
+			!ShaderMap->UsesWorldPositionOffset();
+	}
+
+	return false;
+}
+
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName InResourceName)
 :
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -129,8 +150,10 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bSingleSampleShadowFromStationaryLights(InComponent->bSingleSampleShadowFromStationaryLights)
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
+,	bSupportsInstanceDataBuffer(false)
 ,	bAlwaysHasVelocity(false)
 ,	bSupportsDistanceFieldRepresentation(false)
+,	bSupportsMeshCardRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
 ,	bNeedsLevelAddedToWorldNotification(false)
 ,	bWantsSelectionOutline(true)
@@ -371,9 +394,10 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				GetLightingChannelMask(),
 				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
-				SingleCaptureIndex, 
+				SingleCaptureIndex,
 				bOutputVelocity || AlwaysHasVelocity(),
-				GetCustomPrimitiveData());
+				GetCustomPrimitiveData()
+				);
 
 		if (UniformBuffer.GetReference())
 		{
@@ -706,7 +730,7 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 
 		// If we are in a collision view, hide anything which doesn't have collision enabled
 		const bool bCollisionView = (View->Family->EngineShowFlags.CollisionVisibility || View->Family->EngineShowFlags.CollisionPawn);
-		if(bCollisionView && !IsCollisionEnabled())
+		if (bCollisionView && !IsCollisionEnabled())
 		{
 			return false;
 		}
@@ -730,12 +754,14 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 			return false;
 		}
 
-		if(bOnlyOwnerSee && !Owners.Contains(View->ViewActor))
+		const bool bOwnersContain = Owners.Contains(View->ViewActor);
+
+		if (bOnlyOwnerSee && !bOwnersContain)
 		{
 			return false;
 		}
 
-		if(bOwnerNoSee && Owners.Contains(View->ViewActor))
+		if (bOwnerNoSee && bOwnersContain)
 		{
 			return false;
 		}
@@ -754,7 +780,7 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 		return false;
 	}
 
-	if(!CastsHiddenShadow())
+	if (!CastsHiddenShadow())
 	{
 		// Primitives that are hidden in the game don't cast a shadow.
 		if (!DrawInGame)
@@ -789,14 +815,16 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 		}
 #endif	//#if WITH_EDITOR
 
+		const bool bOwnersContain = Owners.Contains(View->ViewActor);
+
 		// In the OwnerSee cases, we still want to respect hidden shadows...
 		// This assumes that bCastHiddenShadow trumps the owner see flags.
-		if(bOnlyOwnerSee && !Owners.Contains(View->ViewActor))
+		if (bOnlyOwnerSee && !bOwnersContain)
 		{
 			return false;
 		}
 
-		if(bOwnerNoSee && Owners.Contains(View->ViewActor))
+		if (bOwnerNoSee && bOwnersContain)
 		{
 			return false;
 		}

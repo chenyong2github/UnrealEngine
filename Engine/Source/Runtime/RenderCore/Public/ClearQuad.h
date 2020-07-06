@@ -23,7 +23,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FClearVertexBuffer"));
 		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 4, BUF_Static, CreateInfo);
 		void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 4, RLM_WriteOnly);
 		// Generate the vertices used
@@ -51,6 +51,7 @@ inline void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& Str
 	RHICmdList.ClearUAVUint(StructuredBuffer.UAV, FUintVector4(Value, Value, Value, Value));
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, StructuredBuffer.UAV);
 }
+extern RENDERCORE_API void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* Buffer, uint32 NumBytes, uint32 Value, bool bBarriers = true);
 
 UE_DEPRECATED(4.25, "ClearUAV() is deprecated. Use RHICmdList.ClearUAVUint or RHICmdList.ClearUAVFloat instead, and handle any necessary resource transitions.")
 inline void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& Buffer, FLinearColor Value)

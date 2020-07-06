@@ -52,7 +52,7 @@ void FSlateElementIndexBuffer::InitDynamicRHI()
 
 	SetBufferSize(MinBufferSize);
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FSlateElementIndexBuffer"));
 	IndexBufferRHI = RHICreateIndexBuffer( sizeof(SlateIndex), MinBufferSize, BUF_Dynamic, CreateInfo );
 	check( IsValidRef(IndexBufferRHI) );
 }
@@ -67,7 +67,7 @@ void FSlateElementIndexBuffer::ResizeBuffer( int32 NewSizeBytes )
 	if( FinalSize != 0 && FinalSize != BufferSize )
 	{
 		IndexBufferRHI.SafeRelease();
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateElementIndexBuffer"));
 		IndexBufferRHI = RHICreateIndexBuffer( sizeof(SlateIndex), FinalSize, BUF_Dynamic, CreateInfo );
 		check(IsValidRef(IndexBufferRHI));
 

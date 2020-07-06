@@ -16,6 +16,7 @@ void FAnimSequencerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 	FullBodyBlendNode.ResetPoses();
 	AdditiveBlendNode.ResetPoses();
 
+
 	SnapshotNode.SnapshotName = UAnimSequencerInstance::SequencerPoseName;
 	ClearSequencePlayerMap();
 	UpdateCounter.Reset();

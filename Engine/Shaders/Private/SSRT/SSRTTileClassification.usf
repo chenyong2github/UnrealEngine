@@ -35,7 +35,7 @@ SamplerState ColorTextureSampler;
 #endif
 
 
-RWStructuredBuffer<float> TileClassificationBufferOutput;
+RWStructuredBuffer<FSSRTTileInfos> TileClassificationBufferOutput;
 RWTexture2D<float4> DebugOutput;
 
 //void StoreTileInfos(uint2 TileCoord, FSSRTTileInfos TileInfos)
@@ -50,7 +50,7 @@ RWTexture2D<float4> DebugOutput;
 //}
 
 
-[numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, DIRECTIONALITY_DIVISION)]
+[numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, SSRT_DIRECTIONALITY_DIVISION)]
 void MainCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupId : SV_GroupID,
@@ -62,7 +62,7 @@ void MainCS(
 
 	float2 ViewportUV = (TileCoord * GROUP_TILE_SIZE + GROUP_TILE_SIZE / 2) * View.ViewSizeAndInvSize.zw;
 
-	float DirectionAndle = float(DirectionId) * (2 * PI * rcp(float(DIRECTIONALITY_DIVISION)));
+	float DirectionAndle = float(DirectionId) * (2 * PI * rcp(float(SSRT_DIRECTIONALITY_DIVISION)));
 
 	float2 RayPixelDirection = float2(cos(DirectionAndle), sin(DirectionAndle));
 
@@ -77,12 +77,14 @@ void MainCS(
 	float MaxSampleDistance = length(RayStartPixel - RayEndPixel);
 
 	// TODO: should be furtherest depth.
-	float TileDeviceZ = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, 2.0).r;
+	//float TileDeviceZ = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, 2.0).r;
+	float ClosestTileDeviceZ = ClosestHZBTexture.SampleLevel(ClosestHZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, 2.0).r;
+	float TileDeviceZ = ClosestTileDeviceZ;
 	
 	float MaxTheta = 0;
 
-	const float DistanceToRadius = sin(2.0 * PI / (2.0 * DIRECTIONALITY_DIVISION));
-	const float d = 8;
+	const float DistanceToRadius = sin(2.0 * PI / (2.0 * SSRT_DIRECTIONALITY_DIVISION));
+	const float d = SSRT_TILE_RES_DIVISOR;
 	const float r = d * DistanceToRadius;
 	const float SampleDistanceExponent = (d + r) / (d - r);
 
@@ -92,7 +94,7 @@ void MainCS(
 	float PreviousMip = 0.0;
 
 	UNROLL
-	for (uint i = 0; i < 9; i++)
+	for (uint i = 0; i < 5; i++)
 	{
 		float TryRadius = CurrentSampleDistance * DistanceToRadius;
 
@@ -113,7 +115,6 @@ void MainCS(
 
 		float SampleClosestDepths[4];
 		float SampleFurthestDepths[4];
-		float3 Colors[4];
 		UNROLL_N(4)
 		for (uint j = 0; j < 4; j++)
 		{
@@ -122,19 +123,15 @@ void MainCS(
 			float2 SceneBufferUV = (SamplePixel + Offsets * MipPow2) * View.BufferSizeAndInvSize.zw;
 			if (all(SceneBufferUV == clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw)))
 			{
-				float2 HZBUV = (SamplePixel + Offsets * MipPow2) * 0.5 * SamplePixelToHZBUV;
+				float2 HZBUV = (SamplePixel + Offsets * MipPow2) * SamplePixelToHZBUV;
 				SampleClosestDepths[j] = ClosestHZBTexture.SampleLevel(ClosestHZBTextureSampler, HZBUV, SampleLevel - 1.0).r;
 				SampleFurthestDepths[j] = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, HZBUV, SampleLevel - 1.0).r;
 			
-				//SampleLevel = min(SampleLevel, 4);
-
-				Colors[j] = ColorTexture.SampleLevel(ColorTextureSampler, SceneBufferUV, SampleLevel + 1.0).rgb;
 			}
 			else
 			{
 				SampleClosestDepths[j] = 0;
 				SampleFurthestDepths[j] = 0;
-				Colors[j] = 0;
 			}
 		}
 
@@ -145,23 +142,16 @@ void MainCS(
 			min(SampleFurthestDepths[0], SampleFurthestDepths[1]),
 			min(SampleFurthestDepths[2], SampleFurthestDepths[3]));
 		
-		float3 Color = Colors[0] + Colors[1] + Colors[2] + Colors[3];
-
-		if (i == 0)
-		{
-			float2 HZBUV = SamplePixel * SamplePixelToHZBUV;
-			SampleClosestDepth = ClosestHZBTexture.SampleLevel(ClosestHZBTextureSampler, HZBUV, SampleLevel).r;
-			SampleFurthestDepth = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, HZBUV, SampleLevel).r;
-		
-			Color = ColorTexture.SampleLevel(
-				ColorTextureSampler,
-				SamplePixel * View.BufferSizeAndInvSize.zw,
-				SampleLevel + 1.0).rgb;
-		}
+		//if (i == 0 || 0)
+		//{
+		//	float2 HZBUV = SamplePixel * SamplePixelToHZBUV;
+		//	SampleClosestDepth = ClosestHZBTexture.SampleLevel(ClosestHZBTextureSampler, HZBUV, SampleLevel).r;
+		//	SampleFurthestDepth = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, HZBUV, SampleLevel).r;
+		//}
 
 		float SampleDiviceZ = SampleClosestDepth;
-		if (i == 0 || i == 1)
-			SampleDiviceZ = SampleFurthestDepth;
+		//if (i == 0 || i == 1)
+		//	SampleDiviceZ = SampleFurthestDepth;
 		
 		// Screen space distance in viewport UV from origin of the ray.
 		float DeltaU = SamplePixelDistance * View.ViewSizeAndInvSize.z;
@@ -169,28 +159,23 @@ void MainCS(
 		// Assumes inverted Z buffer.
 		float DeltaZ = SampleDiviceZ - TileDeviceZ;
 
-		float Theta = atan2Fast(DeltaU, -DeltaZ);
+		float Theta = DeltaZ / DeltaU;
 
-		// Ignore if this pixel belong to sky, because integrated through skylight.
-		bool bIgnoreSkySample = SampleDiviceZ == 0;
-		
-		// Ignore if color is insuficent to be worth paying the cost integrating with rays.
-		#if CONFIG_COLOR_TILE_CLASSIFICATION
-			bool bIgnoreInsuficentColor = all(Color == 0.0 && 1);
-		#else
-			const bool bIgnoreInsuficentColor = false;
-		#endif
-
-		if (!bIgnoreSkySample && !bIgnoreInsuficentColor)
-			MaxTheta = max(MaxTheta, Theta);
+		MaxTheta = max(MaxTheta, Theta);
 	}
 
 	BRANCH
 	if (TileCoord.x < TileBufferExtent.x && TileCoord.y < TileBufferExtent.y)
 	{
 		uint TileIndex = TileCoord.x + TileCoord.y * TileBufferExtent.x;
-		TileClassificationBufferOutput[TileIndex * DIRECTIONALITY_DIVISION + DirectionId] = MaxTheta;
+		TileClassificationBufferOutput[TileIndex].Directionality[DirectionId] = MaxTheta;
+
+		if (DirectionId == 0)
+		{
+			TileClassificationBufferOutput[TileIndex].ClosestDeviceZ = ClosestTileDeviceZ;
+		}
 	}
+
 
 	if (DirectionId == 0)
 	{

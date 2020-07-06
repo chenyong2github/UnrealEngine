@@ -106,6 +106,14 @@ private:
 	
 	virtual void DownSampleDistanceFieldVolumeData(class FDistanceFieldVolumeData& DistanceFieldData, float Divider) override;
 
+	virtual bool GenerateCardRepresentationData(
+		FString MeshName,
+		const FStaticMeshLODResources& LODModel,
+		class FQueuedThreadPool& ThreadPool,
+		const FBoxSphereBounds& Bounds,
+		const FDistanceFieldVolumeData* DistanceFieldVolumeData,
+		class FCardRepresentationData& OutData )override;
+
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, FRawMesh &OutRawMesh) const override;
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, const FOverlappingCorners& InOverlappingCorners, FRawMesh &OutRawMesh) const override;
 

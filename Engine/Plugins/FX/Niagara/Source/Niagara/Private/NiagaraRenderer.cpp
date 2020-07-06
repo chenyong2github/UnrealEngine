@@ -266,6 +266,7 @@ FNiagaraDynamicDataBase::FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* 
 
 	FNiagaraDataSet& DataSet = InEmitter->GetData();
 	SimTarget = DataSet.GetSimTarget();
+	SystemInstanceID = InEmitter->GetParentSystemInstance()->GetId();
 
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
@@ -294,7 +295,7 @@ FNiagaraDynamicDataBase::~FNiagaraDynamicDataBase()
 	}
 }
 
-FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
+FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bUseTranslucent) const
 {
 	FNiagaraDataBuffer* Ret = nullptr;
 
@@ -304,11 +305,16 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
 	}
 	else
 	{
-		Ret = Data.GPUExecContext->GetDataToRender();
+		bUseTranslucent &= Data.GPUExecContext->GetTranslucentDataToRender() != nullptr;
+		Ret = bUseTranslucent ? Data.GPUExecContext->GetTranslucentDataToRender() : Data.GPUExecContext->GetDataToRender();
 	}
 
 	checkSlow(Ret == nullptr || Ret->IsBeingRead());
 	return Ret;
+}
+
+void FNiagaraDynamicDataBase::SetVertexFactoryData(class FNiagaraVertexFactoryBase& VertexFactory)
+{
 }
 
 //////////////////////////////////////////////////////////////////////////

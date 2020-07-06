@@ -66,6 +66,8 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&MaterialRandomBinding);
 	AttributeBindings.Add(&CustomSortingBinding);
 	AttributeBindings.Add(&NormalizedAgeBinding);
+	AttributeBindings.Add(&CameraOffsetBinding);
+	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -181,20 +183,16 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 					// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
 					// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
 					// and still have good defaults if it isn't set to anything.
-					if (InEmitter != nullptr && OverrideMaterials[Section.MaterialIndex].UserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(OverrideMaterials[Section.MaterialIndex].UserParamBinding, OutMaterials))
+					UMaterialInterface* OverrideMaterial = nullptr;
+					if (InEmitter != nullptr)
 					{
-						bSet = true;
+						OverrideMaterial = Cast<UMaterialInterface>(InEmitter->FindBinding(OverrideMaterials[Section.MaterialIndex].UserParamBinding.Parameter));
 					}
-					else if (OverrideMaterials[Section.MaterialIndex].ExplicitMat != nullptr)
+					if (OverrideMaterial == nullptr)
 					{
-						bSet = true;
-						OutMaterials.Add(OverrideMaterials[Section.MaterialIndex].ExplicitMat);
+						OverrideMaterial = OverrideMaterials[Section.MaterialIndex].ExplicitMat;
 					}
-
-					if (!bSet)
-					{
-						OutMaterials.Add(ParticleMeshMaterial);
-					}
+					OutMaterials.Add(OverrideMaterial ? OverrideMaterial : ParticleMeshMaterial);
 				}
 				else
 				{

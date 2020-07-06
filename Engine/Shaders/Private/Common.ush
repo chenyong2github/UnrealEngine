@@ -1714,6 +1714,22 @@ uint ReverseBitsN(uint Bitfield, const uint BitCount)
 	return ReverseBits32(Bitfield) >> (32 - BitCount);
 }
 
+
+uint2 ZOrder2D(uint Index, const uint SizeLog2)
+{
+	uint2 Coord = 0; 
+
+	UNROLL
+	for (uint i = 0; i < SizeLog2; i++)
+	{
+		Coord.x |= ((Index >> (2 * i + 0)) & 0x1) << i;
+		Coord.y |= ((Index >> (2 * i + 1)) & 0x1) << i;
+	}
+
+	return Coord;
+}
+
+
 // see PixelShaderOutputCommon
 struct FPixelShaderIn
 {

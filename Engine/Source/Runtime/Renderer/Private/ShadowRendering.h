@@ -38,6 +38,8 @@ class FProjectedShadowInfo;
 class FScene;
 class FSceneRenderer;
 class FViewInfo;
+class FVirtualShadowMapArrayCacheManager;
+class FVirtualShadowMapCacheEntry;
 
 /** Renders a cone with a spherical cap, used for rendering spot lights in deferred passes. */
 extern void DrawStencilingCone(const FMatrix& ConeToWorld, float ConeAngle, float SphereRadius, const FVector& PreViewTranslation);
@@ -143,6 +145,21 @@ inline bool IsShadowCacheModeOcclusionQueryable(EShadowDepthCacheMode CacheMode)
 	return CacheMode != SDCM_StaticPrimitivesOnly;
 }
 
+// Matches logic in VirtualShadowMapProjection.usf
+enum class EVirtualShadowMapProjectionOutputType
+{
+	/** Output signal for consumption by virtual shadow denoiser */
+	Denoiser = 0,
+
+	/** Output values for blending into screen shadow mask */
+	ScreenShadowMask,
+
+	/** Output debug visualization */
+	Debug,
+
+	MAX
+};
+
 class FShadowMapRenderTargets
 {
 public:
@@ -245,13 +262,14 @@ public:
 	/** The effective view matrix of the shadow, used as an override to the main view's view matrix when rendering the shadow depth pass. */
 	FMatrix ShadowViewMatrix;
 
+	FMatrix TranslatedWorldToView;
+	FMatrix ViewToClip;
+
 	/** 
 	 * Matrix used for rendering the shadow depth buffer.  
 	 * Note that this does not necessarily contain all of the shadow casters with CSM, since the vertex shader flattens them onto the near plane of the projection.
 	 */
 	FMatrix SubjectAndReceiverMatrix;
-	FMatrix ReceiverMatrix;
-
 	FMatrix InvReceiverMatrix;
 
 	float InvMaxSubjectDepth;
@@ -344,12 +362,33 @@ public:
 	/** Whether turn on hair strands deep shadow. */
 	uint32 bHairStrandsDeepShadow : 1;
 
+	/** Whether to render Nanite geometry into this shadow map. */
+	uint32 bNaniteGeometry : 1;
+
+	/** Whether top mip of virtual shadow map should be forced visible */
+	uint32 bForceTopMipVisible : 1;
+
+	/** Whether to include this shadow in the direct lighting shadow mask.
+	 * Currently this is used to disable projection of some low-resolution proxy shadow maps when using other high resolution virtual shadow maps
+	 * for direct lighting visibility. */
+	uint32 bIncludeInScreenSpaceShadowMask : 1;
+
+
+	/** */
+	FVirtualShadowMap *VirtualShadowMap;
+
+	/** Virtual shadow map to copy contents from */
+	FVirtualShadowMap *VirtualShadowMapToCopyFrom;
+
 	/** View projection matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewProjectionMatrices;
 
 	/** View matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewMatrices;
 	
+	/** Face projection matrix for cube map shadows. */
+	FMatrix OnePassShadowFaceProjectionMatrix;
+
 	/** Data passed from async compute begin to end. */
 	FComputeFenceRHIRef RayTracedShadowsEndFence;
 	TRefCountPtr<IPooledRenderTarget> RayTracedShadowsRT;
@@ -387,8 +426,11 @@ public:
 		const FWholeSceneProjectedShadowInitializer& Initializer,
 		uint32 InResolutionX,
 		uint32 InResolutionY,
+		uint32 InSnapResolutionX,
+		uint32 InSnapResolutionY,
 		uint32 InBorderSize,
-		bool bInReflectiveShadowMap
+		bool bInReflectiveShadowMap,
+		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>()
 		);
 
 	float GetShaderDepthBias() const { return ShaderDepthBias; }
@@ -402,6 +444,16 @@ public:
 	void RenderDepth(FRHICommandListImmediate& RHICmdList, class FSceneRenderer* SceneRenderer, FBeginShadowRenderPassFunction BeginShadowRenderPass, bool bDoParallelDispatch);
 
 	void SetStateForView(FRHICommandList& RHICmdList) const;
+
+	FIntRect GetViewRectForView() const
+	{
+		return {
+			int32(X + BorderSize),
+			int32(Y + BorderSize),
+			int32(X + BorderSize + ResolutionX),
+			int32(Y + BorderSize + ResolutionY),
+			};
+	}
 
 	/** Set state for depth rendering */
 	void SetStateForDepth(FMeshPassProcessorRenderState& DrawRenderState) const;
@@ -497,6 +549,8 @@ public:
 		return GetScreenToShadowMatrix(View, X, Y, ResolutionX, ResolutionY);
 	}
 
+	FVector4 GetClipToShadowBufferUvScaleBias() const;
+
 	/** Returns a matrix that transforms a screen space position into shadow space. 
 		Additional parameters allow overriding of shadow's tile location.
 		Used with modulated shadows to reduce precision problems when calculating ScreenToShadow in pixel shader.
@@ -509,6 +563,10 @@ public:
 	/** Returns the resolution of the shadow buffer used for this shadow, based on the shadow's type. */
 	FIntPoint GetShadowBufferResolution() const
 	{
+		if (HasVirtualShadowMap())
+		{
+			return FIntPoint(FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
+		}
 		return RenderTargets.GetSize();
 	}
 
@@ -526,6 +584,11 @@ public:
 	inline bool IsWholeScenePointLightShadow() const
 	{
 		return bWholeSceneShadow && ( LightSceneInfo->Proxy->GetLightType() == LightType_Point || LightSceneInfo->Proxy->GetLightType() == LightType_Rect );
+	}
+
+	bool ShouldClampToNearPlane() const
+	{
+		return IsWholeSceneDirectionalShadow() || (bPreShadow && bDirectionalLight);
 	}
 
 	// 0 if Setup...() wasn't called yet
@@ -555,6 +618,7 @@ public:
 	*/
 	void TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 
+	bool HasVirtualShadowMap() const { return VirtualShadowMap != nullptr; }
 
 private:
 	// 0 if Setup...() wasn't called yet
@@ -1420,17 +1484,35 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
 };
 
-/** A transform the remaps depth and potentially projects onto some plane. */
-struct FShadowProjectionMatrix: FMatrix
+// Reversed Z
+struct FShadowProjectionMatrix : FMatrix
 {
-	FShadowProjectionMatrix(float MinZ,float MaxZ,const FVector4& WAxis):
+	FShadowProjectionMatrix(float MinZ, float MaxZ, const FVector4& WAxis) :
 		FMatrix(
-		FPlane(1,	0,	0,													WAxis.X),
-		FPlane(0,	1,	0,													WAxis.Y),
-		FPlane(0,	0,	(WAxis.Z * MaxZ + WAxis.W) / (MaxZ - MinZ),			WAxis.Z),
-		FPlane(0,	0,	-MinZ * (WAxis.Z * MaxZ + WAxis.W) / (MaxZ - MinZ),	WAxis.W)
-		)
+			FPlane(1,	0,	0,													WAxis.X),
+			FPlane(0,	1,	0,													WAxis.Y),
+			FPlane(0,	0,      -(WAxis.Z * MinZ + WAxis.W) / (MaxZ - MinZ),	WAxis.Z),
+			FPlane(0,	0, MaxZ *(WAxis.Z * MinZ + WAxis.W) / (MaxZ - MinZ),	WAxis.W)
+			)
 	{}
+
+	// Off center projection
+	FShadowProjectionMatrix( const FVector2D& Min, const FVector2D& Max, const FVector4& WAxis )
+		: FMatrix(
+			FPlane( 2.0f / (Max.X - Min.X),				0.0f,								0.0f, WAxis.X),
+			FPlane( 0.0f,								2.0f / (Max.Y - Min.Y),				0.0f, WAxis.Y),
+			FPlane( -(Max.X + Min.X) / (Max.X - Min.X),	-(Max.Y + Min.Y) / (Max.Y - Min.Y),	0.0f, WAxis.Z),
+			FPlane( 0.0f,								0.0f,								1.0f, WAxis.W)
+			)
+	{}
+
+	// Change near and far plane
+	FShadowProjectionMatrix( const FMatrix& InMatrix, float MinZ, float MaxZ )
+		: FMatrix( InMatrix )
+	{
+		M[2][2] = -( M[2][3] * MinZ + M[3][3] ) / ( MaxZ - MinZ );
+		M[3][2] = MaxZ * -M[2][2];
+	}
 };
 
 
@@ -1506,8 +1588,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
-			&& (Parameters.Platform == SP_PCD3D_SM5 || IsVulkanSM5Platform(Parameters.Platform) || Parameters.Platform == SP_METAL_SM5 || Parameters.Platform == SP_METAL_SM5_NOTESS);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		// TODO: Abstract properly with FDataDrivenShaderPlatformInfo. Platforms like Switch need the below check apparently.
+		//	&& (Parameters.Platform == SP_PCD3D_SM5 || IsVulkanSM5Platform(Parameters.Platform) || Parameters.Platform == SP_METAL_SM5 || Parameters.Platform == SP_METAL_SM5_NOTESS);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

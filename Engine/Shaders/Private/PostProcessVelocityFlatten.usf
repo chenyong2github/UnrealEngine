@@ -61,10 +61,43 @@ void VelocityFlattenMain(
 	uint3 GroupThreadId : SV_GroupThreadID,
 	uint GroupIndex : SV_GroupIndex) 
 { 
-	uint2 PixelPos = min(DispatchThreadId.xy + Velocity_ViewportMin, Velocity_ViewportMax - 1);
+	int2 PixelPos = min(DispatchThreadId.xy + Velocity_ViewportMin, Velocity_ViewportMax - 1);
+	int2 DepthOffset = 0;
 
-	float2 Velocity = VelocityTexture[PixelPos].xy;
-	float Depth = DepthTexture[PixelPos].x;
+	{
+		const int Cross = 1;
+		// For motion vector, use camera/dynamic motion from min depth pixel in pattern around pixel.
+		// This enables better quality outline on foreground against different motion background.
+		
+		half4 Depths;
+		Depths.x = DepthTexture[ PixelPos + int2(-Cross, -Cross) ].x;
+		Depths.y = DepthTexture[ PixelPos + int2( Cross, -Cross) ].x;
+		Depths.z = DepthTexture[ PixelPos + int2(-Cross,  Cross) ].x;
+		Depths.w = DepthTexture[ PixelPos + int2( Cross,  Cross) ].x;
+
+		DepthOffset = Cross;
+		int DepthOffsetXx = Cross;
+
+		// Nearest depth is the largest depth (depth surface 0=far, 1=near).
+		if(Depths.x > Depths.y) 
+		{
+			DepthOffsetXx = -Cross;
+		}
+		if(Depths.z > Depths.w) 
+		{
+			DepthOffset.x = -Cross;
+		}
+		half DepthsXY = max(Depths.x, Depths.y);
+		half DepthsZW = max(Depths.z, Depths.w);
+		if(DepthsXY > DepthsZW) 
+		{
+			DepthOffset.y = -Cross;
+			DepthOffset.x = DepthOffsetXx; 
+		}
+	}
+
+	float2 Velocity = VelocityTexture[ PixelPos + DepthOffset ].xy;
+	float Depth = DepthTexture[ PixelPos + DepthOffset ].x;
 
 	if (Velocity.x > 0.0)
 	{

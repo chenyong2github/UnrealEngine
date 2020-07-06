@@ -207,7 +207,7 @@ float CubemapHardwarePCF(
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
-				CompareDistance + ShadowDepthBias * length(DiscSamples5[i]));
+				CompareDistance - ShadowDepthBias * length(DiscSamples5[i]));
 		}
 		Shadow /= 5;
 
@@ -219,7 +219,7 @@ float CubemapHardwarePCF(
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
-				CompareDistance + ShadowDepthBias * length(DiscSamples12[i]));
+				CompareDistance - ShadowDepthBias * length(DiscSamples12[i]));
 		}
 		Shadow /= 12;
 
@@ -231,7 +231,7 @@ float CubemapHardwarePCF(
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
-				CompareDistance + ShadowDepthBias * length(DiscSamples29[i]));
+				CompareDistance - ShadowDepthBias * length(DiscSamples29[i]));
 		}
 		Shadow /= 29;
 
@@ -250,7 +250,8 @@ float CubemapHardwarePCF(
 		}*/
 	}
 
-	return Shadow;
+	// ReverseZ so flip the result
+	return 1.0f - Shadow;
 }
 
 float CubemapHardwarePCF(
