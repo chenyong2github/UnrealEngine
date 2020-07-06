@@ -1528,6 +1528,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 							FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessDofDownES2(FinalOutputViewRect, bViewRectSource));
 							Pass->SetInput(ePId_Input0, Context.FinalOutput);
 							Pass->SetInput(ePId_Input1, PostProcessNear);
+							Pass->SetInput(ePId_Input2, PostProcessSunShaftAndDof);
 							PostProcessDofDown = FRenderingCompositeOutputRef(Pass);
 						}
 
