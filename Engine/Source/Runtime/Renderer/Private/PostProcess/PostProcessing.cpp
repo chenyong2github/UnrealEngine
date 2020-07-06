@@ -1442,12 +1442,12 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			// Optional fixed pass processes
 			if (bUsePost && (bUseSun | bUseDof | bUseBloom | bUseVignette | bUseBasicEyeAdaptation | bUseHistogramEyeAdaptation))
 			{
-				if (bUseSun || bUseDof)
+				if (bUseSun || bUseMobileDof)
 				{
 					bool bUseDepthTexture = Context.FinalOutput.GetOutput()->RenderTargetDesc.Format == PF_FloatR11G11B10;
 					// Convert depth to {circle of confusion, sun shaft intensity}
 				//	FRenderingCompositePass* PostProcessSunMask = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSunMaskES2(PrePostSourceViewportSize, false));
-					FRenderingCompositePass* PostProcessSunMask = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSunMaskES2(SceneColorSize, bUseSun, bUseDof, bUseDepthTexture, bMetalMSAAHDRDecode));
+					FRenderingCompositePass* PostProcessSunMask = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSunMaskES2(SceneColorSize, bUseSun, bUseDof, bUseMobileDof, bUseDepthTexture, bMetalMSAAHDRDecode));
 					PostProcessSunMask->SetInput(ePId_Input0, Context.FinalOutput);
 					PostProcessSunShaftAndDof = FRenderingCompositeOutputRef(PostProcessSunMask, ePId_Output0);
 					if (!bUseDepthTexture)

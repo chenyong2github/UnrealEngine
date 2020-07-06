@@ -120,10 +120,11 @@ private:
 class FRCPassPostProcessSunMaskES2 : public TRenderingCompositePassBase<1, 2>
 {
 public:
-	FRCPassPostProcessSunMaskES2(FIntPoint InPrePostSourceViewportSize, bool bInUseSun, bool bInUseDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode)
+	FRCPassPostProcessSunMaskES2(FIntPoint InPrePostSourceViewportSize, bool bInUseSun, bool bInUseDof, bool bInUseMobileDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode)
 	: PrePostSourceViewportSize(InPrePostSourceViewportSize)
 	, bUseSun(bInUseSun)
 	, bUseDof(bInUseDof)
+	, bUseMobileDof(bInUseMobileDof)
 	, bUseDepthTexture(bInUseDepthTexture)
 	, bUseMetalMSAAHDRDecode(bInUseMetalMSAAHDRDecode)
 	{ }
@@ -134,6 +135,7 @@ private:
 	FIntPoint PrePostSourceViewportSize;
 	bool bUseSun;
 	bool bUseDof;
+	bool bUseMobileDof;
 	bool bUseDepthTexture;
 	bool bUseMetalMSAAHDRDecode;
 };
