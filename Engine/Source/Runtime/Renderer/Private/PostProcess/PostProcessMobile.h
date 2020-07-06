@@ -56,7 +56,7 @@ private:
 	void SetShader(const FRenderingCompositePassContext& Context);
 };
 
-class FRCPassPostProcessDofDownES2 : public TRenderingCompositePassBase<2, 1>
+class FRCPassPostProcessDofDownES2 : public TRenderingCompositePassBase<3, 1>
 {
 public:
 	FRCPassPostProcessDofDownES2(FIntRect InPrePostSourceViewportRect, bool bInUseViewRectSource) : PrePostSourceViewportRect(InPrePostSourceViewportRect), bUseViewRectSource(bInUseViewRectSource) { }
