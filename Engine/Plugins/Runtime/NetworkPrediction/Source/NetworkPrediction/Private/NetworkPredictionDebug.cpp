@@ -13,7 +13,7 @@ namespace NetworkPredictionDebug
 	{
 		static constexpr float Thickness = 2.f;
 
-		npEnsure(UNetworkPredictionWorldManager::ActiveInstance != nullptr);
+		npCheck(UNetworkPredictionWorldManager::ActiveInstance != nullptr);
 		UWorld* World = UNetworkPredictionWorldManager::ActiveInstance->GetWorld();
 
 		FVector ActorOrigin;
@@ -26,7 +26,7 @@ namespace NetworkPredictionDebug
 
 	void DrawDebugText3D(const TCHAR* Str, FTransform Transform, FColor DrawColor, float Lifetime)
 	{	
-		npEnsure(UNetworkPredictionWorldManager::ActiveInstance != nullptr);
+		npCheck(UNetworkPredictionWorldManager::ActiveInstance != nullptr);
 		UWorld* World = UNetworkPredictionWorldManager::ActiveInstance->GetWorld();
 
 		DrawDebugString(World, Transform.GetLocation(), Str, nullptr, DrawColor, Lifetime, false);

@@ -10,6 +10,7 @@
 
 #define NP_CHECKS_AND_ENSURES 1
 #if NP_CHECKS_AND_ENSURES
+	#define npCheck(Condition) check(Condition)
 	#define npCheckf(Condition, ...) checkf(Condition, ##__VA_ARGS__)
 	#if NP_ENSURES_ALWAYS
 		#define npEnsure(Condition) ensureAlways(Condition)
@@ -19,6 +20,7 @@
 		#define npEnsureMsgf(Condition, ...) ensureMsgf(Condition, ##__VA_ARGS__)
 	#endif
 #else
+	#define npCheck(...)
 	#define npCheckf(...)
 	#define npEnsure(Condition)
 	#define npEnsureMsgf(...)
