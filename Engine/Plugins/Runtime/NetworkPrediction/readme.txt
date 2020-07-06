@@ -2,6 +2,12 @@
 //	Network Prediction Plugin
 // --------------------------------------------------------------------------------------------------------------------
 
+7-6-2020:
+
+There are some issues with physics integration in the main branch (IsGameThread ensures). We will fix these asap
+but may take a week due to summer vacations. Hold off on using physics with NP until then.
+
+
 7-2-2020: Big Update
 
 This checkin is a large refactor of the NetworkPrediction system. We hope this is the last big set of changes, though
