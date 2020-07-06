@@ -623,6 +623,11 @@ void DofDownPS_ES2(
 	float4 C = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]);
 	float4 D = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]);
 
+	A.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[1]).r;
+	B.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[2]).r;
+	C.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[3]).r;
+	D.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[4]).r;
+
 	#if ES2_USE_SUN
 		// The {0.0 to 1.0} range is focus.
 		// The {1.0 to 65504.0} range is light shaft source intensity (always at fully out of focus).
