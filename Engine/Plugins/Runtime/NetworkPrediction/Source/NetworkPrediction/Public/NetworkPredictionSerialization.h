@@ -127,9 +127,10 @@ public:
 					}
 				}
 
+				npEnsure(Frame >= 0);
+
 				FNetworkPredictionDriver<ModelDef>::NetSerialize(ServerRecvData.InputBuffer[Frame], P); // 2. InputCmd
 
-				npEnsure(Frame >= 0);
 				ServerRecvData.LastRecvFrame = Frame;
 
 				// Trace what we received
