@@ -49,13 +49,17 @@ namespace UnrealBuildTool
 
 			// Create the rules assembly
 			RulesAssembly Assembly;
-			if(ProjectFile == null)
+			if (ProjectFile != null)
+			{
+				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
+			}
+			else if(DirectoryReference.Exists(UnrealBuildTool.EnterpriseDirectory))
 			{
 				Assembly = RulesCompiler.CreateEnterpriseRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 			}
 			else
 			{
-				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
+				Assembly = RulesCompiler.CreateEngineRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 			}
 
 			// Write information about these targets

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -450,19 +451,8 @@ namespace UnrealBuildTool
 				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);
 			}
 
-			// Get the path to store any generated assemblies
-			DirectoryReference AssemblyDir = RootDirectories[0];
-			if (UnrealBuildTool.IsFileInstalled(FileReference.Combine(AssemblyDir, AssemblyPrefix)))
-			{
-				DirectoryReference UserDir = Utils.GetUserSettingDirectory();
-				if (UserDir != null)
-				{
-					ReadOnlyBuildVersion Version = ReadOnlyBuildVersion.Current;
-					AssemblyDir = DirectoryReference.Combine(UserDir, "UnrealEngine", String.Format("{0}.{1}", Version.MajorVersion, Version.MinorVersion));
-				}
-			}
-
 			// Create the assembly
+			DirectoryReference AssemblyDir = RootDirectories[0];
 			FileReference EngineAssemblyFileName = FileReference.Combine(AssemblyDir, "Intermediate", "Build", "BuildRules", AssemblyPrefix + "Rules" + FrameworkAssemblyExtension);
 			RulesAssembly EngineAssembly = new RulesAssembly(Scope, RootDirectories, Plugins, ModuleFileToContext, new List<FileReference>(), EngineAssemblyFileName, bContainsEngineModules: true, DefaultBuildSettings: BuildSettingsVersion.Latest, bReadOnly: bReadOnly, bSkipCompile: bSkipCompile, Parent: Parent);
 

@@ -472,6 +472,13 @@
 			<Compile Target="DatasmithCADWorker" Configuration="Development" Platform="Win64" Tag="#NotForLicensee Build Tools Win64"/>
 		</Node>
 	</Agent>
+	
+	<Agent Name="BuildRules" Type="Win64_Licensee">
+		<Node Name="Compile Rules Assemblies" Produces="#Rules Assemblies">
+			<Spawn Exe="Engine/Binaries/DotNET/UnrealBuildTool.exe" Arguments="-Mode=QueryTargets"/>
+			<Tag Files="Engine/Intermediate/Build/BuildRules/..." With="#Rules Assemblies"/>
+		</Node>
+	</Agent>
 
 	<Agent Name="Tools Group Win64" Type="Win64_Licensee">
 		<Node Name="Build Tools Win64" Requires="Compile UnrealHeaderTool Win64;#NotForLicensee Build Tools Win64">
@@ -784,7 +791,7 @@
 
 	<Agent Name="Installed Build Group Win64" Type="Win64_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE4Editor Win64 WithExceptions;#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries"/>
+		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE4Editor Win64 WithExceptions;#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries;#Rules Assemblies"/>
 		<!-- Optional Target Platform requirements -->
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
 			<Expand Name="$(Platform)_AddInstalledRequirements"/>
@@ -820,7 +827,7 @@
 			<Tag Files="#Compile UnrealHeaderTool Win64" With="#Installed Win64"/>
 			<Tag Files="#UE4Editor Win64 WithExceptions" Except="#UE4Editor Win64 Unstripped;#UE4Editor Win64 Unsigned" With="#Installed Win64"/>
 			<Tag Files="#UE4Editor Win64 Stripped;#UE4Editor Win64 Signed" With="#Saved Output"/>
-			<Tag Files="#Build Tools Win64;#Make Feature Packs" With="#Installed Win64"/>
+			<Tag Files="#Build Tools Win64;#Make Feature Packs;#Rules Assemblies" With="#Installed Win64"/>
 			<Tag Files="#DatasmithPluginBinaries Win64" With="#Installed Win64" If="$(CompileDatasmithPlugins)"/>
 
 			<!-- Tag enabled target platforms -->
@@ -955,7 +962,7 @@
 
 	<Agent Name="Installed Build Group Mac" Type="Mac_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UE4Editor Mac WithExceptions;#UE4Editor Mac Unstripped;#UE4Editor Mac Stripped;#UE4Editor Mac Unsigned;#UE4Editor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries"/>
+		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UE4Editor Mac WithExceptions;#UE4Editor Mac Unstripped;#UE4Editor Mac Stripped;#UE4Editor Mac Unsigned;#UE4Editor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game Mac;#UE4Game Mac Unstripped;#UE4Game Mac Stripped;#UE4Game Mac Unsigned;#UE4Game Mac Signed" If="'$(WithMac)' == true"/>
@@ -985,7 +992,7 @@
 			<Tag Files="#Compile UnrealHeaderTool Mac" With="#Installed Mac"/>
 			<Tag Files="#UE4Editor Mac WithExceptions" Except="#UE4Editor Mac Unstripped;#UE4Editor Mac Unsigned" With="#Installed Mac"/>
 			<Tag Files="#UE4Editor Mac Stripped;#UE4Editor Mac Signed" With="#Saved Output"/>
-			<Tag Files="#Build Tools Mac;#Make Feature Packs" With="#Installed Mac"/>
+			<Tag Files="#Build Tools Mac;#Make Feature Packs;#Rules Assemblies" With="#Installed Mac"/>
 			<Tag Files="#DatasmithPluginBinaries Mac" With="#Installed Mac" If="$(CompileDatasmithPlugins)"/>
 
 			<!-- Tag enabled target platforms -->
@@ -1085,7 +1092,7 @@
 
 	<Agent Name="Installed Build Group Linux" Type="Win64_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="InstalledRequirements" Value="#Compile UnrealHeaderTool Linux;#UE4Editor Linux;#UE4Editor Linux Unstripped;#UE4Editor Linux Stripped;#Build Tools Linux;#Build Tools CS Binaries"/>
+		<Property Name="InstalledRequirements" Value="#Compile UnrealHeaderTool Linux;#UE4Editor Linux;#UE4Editor Linux Unstripped;#UE4Editor Linux Stripped;#Build Tools Linux;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped" If="'$(WithLinux)' == true"/>
@@ -1112,7 +1119,7 @@
 			<Tag Files="#Compile UnrealHeaderTool Linux" With="#Installed Linux"/>
 			<Tag Files="#UE4Editor Linux" Except="#UE4Editor Linux Unstripped" With="#Installed Linux"/>
 			<Tag Files="#UE4Editor Linux Stripped" With="#Saved Output"/>
-			<Tag Files="#Build Tools Linux;#Make Feature Packs" With="#Installed Linux"/>
+			<Tag Files="#Build Tools Linux;#Make Feature Packs;#Rules Assemblies" With="#Installed Linux"/>
 
 			<!-- Tag enabled target platforms -->
 			<Do If="'$(WithLinux)' == true">
