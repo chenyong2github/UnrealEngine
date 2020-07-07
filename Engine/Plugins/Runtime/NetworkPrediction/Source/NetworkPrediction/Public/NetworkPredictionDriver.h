@@ -10,7 +10,6 @@
 #include "NetworkPredictionStateView.h"
 #include "Misc/StringBuilder.h"
 #include "GameFramework/Actor.h"
-#include "Templates/EnableIf.h"
 
 
 namespace Chaos
@@ -485,12 +484,14 @@ struct FNetworkPredictionDriverBase
 	// ------------------------------------------
 	//	ShouldReconcilePhysics
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics(), bool>::Type ShouldReconcilePhysics(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable, bool>::Type ShouldReconcilePhysics(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
 	{
 		return PhysicsState::ShouldReconcile(PhysicsFrame, RewindData, Actor, RecvState);
 	}
 
-	static typename TEnableIf<!HasPhysics(), bool>::Type ShouldReconcilePhysics(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable, bool>::Type ShouldReconcilePhysics(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
  	{
 		return false;
 	}
@@ -498,79 +499,94 @@ struct FNetworkPredictionDriverBase
 	// ------------------------------------------
 	//	PerformPhysicsRollback
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type PerformPhysicsRollback(FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type PerformPhysicsRollback(FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState)
 	{
 		PhysicsState::PerformRollback(Actor, RecvState);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type PerformPhysicsRollback(FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type PerformPhysicsRollback(FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState) {}
 
 	// ------------------------------------------
 	//	InterpolatePhysics
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type InterpolatePhysics(TConditionalState<PhysicsState>& FromState, TConditionalState<PhysicsState>& ToState, float PCT, TConditionalState<PhysicsState>& OutState)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type InterpolatePhysics(TConditionalState<PhysicsState>& FromState, TConditionalState<PhysicsState>& ToState, float PCT, TConditionalState<PhysicsState>& OutState)
 	{
 		PhysicsState::Interpolate(FromState, ToState, PCT, OutState);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type InterpolatePhysics(TConditionalState<PhysicsState>& FromState, TConditionalState<PhysicsState>& ToState, float PCT, TConditionalState<PhysicsState>& OutState) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type InterpolatePhysics(TConditionalState<PhysicsState>& FromState, TConditionalState<PhysicsState>& ToState, float PCT, TConditionalState<PhysicsState>& OutState) {}
 
 	// ------------------------------------------
 	//	FinalizeInterpolatedPhysics
 	//	Only called when needing to push NP interpolated physics state to the driver.
 	//	E.g, the physics sim is not running
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type FinalizeInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& Physics)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type FinalizeInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& Physics)
 	{
 		PhysicsState::FinalizeInterpolatedPhysics(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver), Actor, Physics);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type FinalizeInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& Physics) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type FinalizeInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& Physics) {}
 
 	// ------------------------------------------
 	//	BeginInterpolatedPhysics - turn off physics simulation so that NP can interpolate the physics state
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type BeginInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type BeginInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor)
 	{
 		PhysicsState::BeginInterpolation(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver), Actor);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type BeginInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type BeginInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
 
 	// ------------------------------------------
 	//	EndInterpolatedPhysics - turn on physics simulation
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type EndInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type EndInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor)
 	{
 		PhysicsState::EndInterpolation(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver), Actor);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type EndInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type EndInterpolatedPhysics(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
 
 	// ------------------------------------------
 	//	PhysicsNetSend
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type PhysicsNetSend(const FNetSerializeParams& P, FConditionalPhysicsActorHandle<ModelDef>& Actor)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type PhysicsNetSend(const FNetSerializeParams& P, FConditionalPhysicsActorHandle<ModelDef>& Actor)
 	{
 		PhysicsState::NetSend(P, Actor);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type PhysicsNetSend(const FNetSerializeParams& P, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type PhysicsNetSend(const FNetSerializeParams& P, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
 	
 	// ------------------------------------------
 	//	PhysicsNetRecv
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type PhysicsNetRecv(const FNetSerializeParams& P, TConditionalState<PhysicsState>& RecvState)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type PhysicsNetRecv(const FNetSerializeParams& P, TConditionalState<PhysicsState>& RecvState)
 	{
 		PhysicsState::NetRecv(P, RecvState);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type PhysicsNetRecv(const FNetSerializeParams& P, TConditionalState<PhysicsState>& RecvState) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type PhysicsNetRecv(const FNetSerializeParams& P, TConditionalState<PhysicsState>& RecvState) {}
 
 	// ------------------------------------------
 	//	LogPhysicsState
 	// ------------------------------------------
-	static typename TEnableIf<HasPhysics()>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar=*GLog)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar=*GLog)
 	{
 		TAnsiStringBuilder<256> Builder;
 		PhysicsState::ToString(RecvState, Builder);
@@ -578,9 +594,11 @@ struct FNetworkPredictionDriverBase
 		Ar.Log(StringCast<TCHAR>(Builder.ToString()).Get());
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar) { }
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar) { }
 
-	static typename TEnableIf<HasPhysics()>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar=*GLog)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar=*GLog)
 	{
 		TAnsiStringBuilder<256> Builder;
 		PhysicsState::ToString(PhysicsFrame, RewindData, Actor, Builder);
@@ -588,35 +606,42 @@ struct FNetworkPredictionDriverBase
 		Ar.Log(StringCast<TCHAR>(Builder.ToString()).Get());
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar) {}
 
 	// ------------------------------------------
 	//	TracePhysicsState
 	// ------------------------------------------
 	
 	// Received physics state
-	static typename TEnableIf<HasPhysics()>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder)
 	{
 		PhysicsState::ToString(RecvState, Builder);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder) { }
+	template<bool bEnable =HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type TracePhysicsStateRecv(const TConditionalState<PhysicsState>& RecvState, FAnsiStringBuilderBase& Builder) { }
 
 	// Current latest physics state
-	static typename TEnableIf<HasPhysics()>::Type TracePhysicsState(const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type TracePhysicsState(const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder)
 	{
 		PhysicsState::ToString(Actor, Builder);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type TracePhysicsState(const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type TracePhysicsState(const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder) {}
 
 	// Local historic physics state
-	static typename TEnableIf<HasPhysics()>::Type TracePhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder)
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type TracePhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder)
 	{
 		PhysicsState::ToString(PhysicsFrame, RewindData, Actor, Builder);
 	}
 
-	static typename TEnableIf<!HasPhysics()>::Type TracePhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder) {}
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type TracePhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, const FConditionalPhysicsActorHandle<ModelDef>& Actor, FAnsiStringBuilderBase& Builder) {}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 	//	ToString
