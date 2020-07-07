@@ -16,7 +16,7 @@ struct TTickUtil
 	using FrameDataType = typename TInstanceFrameState<ModelDef>::FFrame;
 
 	template<typename SimulationType = typename ModelDef::Simulation>
-	static void DoTick(TInstanceData<ModelDef>& Instance, FrameDataType& InputFrameData, FrameDataType& OutputFrameData, const FNetSimTimeStep& Step, const int32 CueTimeMS, ESimulationTickContext TickContext)
+	static typename TEnableIf<!TIsSame<SimulationType, void>::Value>::Type DoTick(TInstanceData<ModelDef>& Instance, FrameDataType& InputFrameData, FrameDataType& OutputFrameData, const FNetSimTimeStep& Step, const int32 CueTimeMS, ESimulationTickContext TickContext)
 	{
 		Instance.CueDispatcher->PushContext({Step.Frame, CueTimeMS, TickContext});
 
@@ -44,8 +44,8 @@ struct TTickUtil
 		UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Instance.Info.Physics);
 	}
 
-	template<>
-	static void DoTick<void>(TInstanceData<ModelDef>& Instance, FrameDataType& InputFrameData, FrameDataType& OutputFrameData, const FNetSimTimeStep& Step, const int32 EndTimeMS, ESimulationTickContext TickContext)
+	template<typename SimulationType = typename ModelDef::Simulation>
+	static typename TEnableIf<TIsSame<SimulationType, void>::Value>::Type DoTick(TInstanceData<ModelDef>& Instance, FrameDataType& InputFrameData, FrameDataType& OutputFrameData, const FNetSimTimeStep& Step, const int32 EndTimeMS, ESimulationTickContext TickContext)
 	{
 		npCheckf(false, TEXT("DoTick called on %s with no Simulation defined"), ModelDef::GetName());
 	}
