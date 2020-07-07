@@ -2155,7 +2155,7 @@ void SNiagaraAddParameterMenu::AddParameterGroup(
 		}
 		else if (Variable.GetName().ToString().Contains("event"))
 		{
-			SubCategory = LOCTEXT("NiagaraParameterMenuGroupObject", "Event");
+			SubCategory = LOCTEXT("NiagaraParameterMenuGroupEvent", "Event");
 		}
 		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
