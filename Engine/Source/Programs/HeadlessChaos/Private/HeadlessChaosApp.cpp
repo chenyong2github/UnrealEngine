@@ -152,6 +152,12 @@ TEST(ClothTests, DeformableGravity) {
 	SUCCEED();
 }
 
+TEST(ClothTests, EdgeConstraints) {
+	ChaosTest::EdgeConstraints<float>();
+
+	SUCCEED();
+}
+
 TEST(RaycastTests, Raycast) {
 	ChaosTest::SphereRaycast<float>();
 	ChaosTest::PlaneRaycast<float>();
