@@ -595,7 +595,7 @@ struct FNetworkPredictionDriverBase
 	}
 
 	template<bool bEnable=HasPhysics()>
-	static typename TEnableIf<!bEnable>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar) { }
+	static typename TEnableIf<!bEnable>::Type LogPhysicsState(TConditionalState<PhysicsState>& RecvState, FOutputDevice& Ar=*GLog) { }
 
 	template<bool bEnable=HasPhysics()>
 	static typename TEnableIf<bEnable>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar=*GLog)
@@ -607,7 +607,7 @@ struct FNetworkPredictionDriverBase
 	}
 
 	template<bool bEnable=HasPhysics()>
-	static typename TEnableIf<!bEnable>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar) {}
+	static typename TEnableIf<!bEnable>::Type LogPhysicsState(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FConditionalPhysicsActorHandle<ModelDef>& Actor, FOutputDevice& Ar=*GLog) {}
 
 	// ------------------------------------------
 	//	TracePhysicsState
