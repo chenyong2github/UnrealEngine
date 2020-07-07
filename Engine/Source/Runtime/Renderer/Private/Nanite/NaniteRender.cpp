@@ -2940,14 +2940,17 @@ void CullRasterizeInner(
 				RasterizedDepth = RasterContext.DepthBuffer;
 			}
 
+			FRDGTextureRef OutFurthestHZBTexture;
+
 			BuildHZB(
 				GraphBuilder,
 				SceneDepth,
 				RasterizedDepth,
 				RasterContext.ViewRect,
 				/* OutClosestHZBTexture = */ nullptr,
-				/* OutFurthestHZBTexture = */ &CullingParameters.HZBTexture);
+				/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture);
 
+			CullingParameters.HZBTexture = OutFurthestHZBTexture;
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
 			CullingParameters.HZBViewSize = RasterContext.ViewRect.Size();
 		}

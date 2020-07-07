@@ -278,7 +278,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		//Build the vertex and index buffer
 		BuildVertexBuffer(StaticMesh, MeshDescriptions[LodIndex], LODBuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 
-		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumIndices();
+		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 
 		// Concatenate the per-section index buffers.
 		TArray<uint32> CombinedIndices;
@@ -419,7 +419,7 @@ bool FStaticMeshBuilder::Build(
 	//Build the vertex and index buffer
 	BuildVertexBuffer( StaticMesh, MeshDescription, BuildSettings, WedgeMap, Sections, PerSectionIndices, Verts, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts );
 
-	NumTexCoords = MeshDescription.VertexInstanceAttributes().GetAttributesRef< FVector2D >( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumIndices();
+	NumTexCoords = MeshDescription.VertexInstanceAttributes().GetAttributesRef< FVector2D >( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 	bHasColors = true;
 
 	// Concatenate the per-section index buffers.
