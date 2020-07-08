@@ -5,7 +5,7 @@
 
 using namespace Chaos;
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2>>& Graph)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -24,14 +24,20 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2
 				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node2);
 				return false;
 			}
-			NodeToColorMap.Add(Node1, i);
-			NodeToColorMap.Add(Node2, i);
+			if (InParticles.InvM(Node1) != 0)
+			{
+				NodeToColorMap.Add(Node1, i);
+			}
+			if (InParticles.InvM(Node2) != 0)
+			{
+				NodeToColorMap.Add(Node2, i);
+			}
 		}
 	}
 	return true;
 }
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3>>& Graph)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -56,9 +62,18 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3
 				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node3);
 				return false;
 			}
-			NodeToColorMap.Add(Node1, i);
-			NodeToColorMap.Add(Node2, i);
-			NodeToColorMap.Add(Node3, i);
+			if (InParticles.InvM(Node1) != 0)
+			{
+				NodeToColorMap.Add(Node1, i);
+			}
+			if (InParticles.InvM(Node2) != 0)
+			{
+				NodeToColorMap.Add(Node2, i);
+			}
+			if (InParticles.InvM(Node3) != 0)
+			{
+				NodeToColorMap.Add(Node3, i);
+			}
 		}
 	}
 	return true;
@@ -187,7 +202,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 		}
 	}
 
-	checkSlow(VerifyGraph(ColorGraph, Graph));
+	checkSlow(VerifyGraph(ColorGraph, Graph, InParticles));
 	return ColorGraph;
 }
 
@@ -366,7 +381,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 		}
 	}
 
-	checkSlow(VerifyGraph(ColorGraph, Graph));
+	checkSlow(VerifyGraph(ColorGraph, Graph, InParticles));
 	return ColorGraph;
 }
 
