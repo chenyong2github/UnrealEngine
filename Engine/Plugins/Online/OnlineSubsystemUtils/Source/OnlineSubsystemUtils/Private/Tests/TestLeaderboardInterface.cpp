@@ -184,6 +184,18 @@ void FTestLeaderboardInterface::ReadLeaderboards()
 	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
+	TArray<TSharedRef<const FUniqueNetId>> QueryPlayers;
+	QueryPlayers.Add(UserId.ToSharedRef());
+
+	LeaderboardReadCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegate);
+	bReadLeaderboardAttempted = Leaderboards->ReadLeaderboards(QueryPlayers, ReadObjectRef);
+}
+
+void FTestLeaderboardInterface::ReadLeaderboardsFriends()
+{
+	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
+	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
+
 	LeaderboardReadCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegate);
 	bReadLeaderboardAttempted = Leaderboards->ReadLeaderboardsForFriends(0, ReadObjectRef);
 }
@@ -238,12 +250,13 @@ bool FTestLeaderboardInterface::Tick( float DeltaTime )
 
 	if (TestPhase != LastTestPhase)
 	{
-		LastTestPhase = TestPhase;
 		if (!bOverallSuccess)
 		{
 			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Testing failed in phase %d"), LastTestPhase);
-			TestPhase = 6;
+			TestPhase = 7;
 		}
+
+		LastTestPhase = TestPhase;
 
 		switch(TestPhase)
 		{
@@ -257,12 +270,15 @@ bool FTestLeaderboardInterface::Tick( float DeltaTime )
 			ReadLeaderboards();
 			break;
 		case 3:
-			ReadLeaderboardsRank(3, 5);
+			ReadLeaderboardsFriends();
 			break;
 		case 4:
-			ReadLeaderboardsUser(*UserId, 5);
+			ReadLeaderboardsRank(3, 5);
 			break;
 		case 5:
+			ReadLeaderboardsUser(*UserId, 5);
+			break;
+		case 6:
 		{
 			if (FindRankUserId.IsEmpty())
 			{
@@ -275,7 +291,7 @@ bool FTestLeaderboardInterface::Tick( float DeltaTime )
 				ReadLeaderboardsUser(1);
 			}
 		} break;
-		case 6:
+		case 7:
 			UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("TESTING COMPLETE Success:%s!"), bOverallSuccess ? TEXT("true") : TEXT("false"));
 			delete this;
 			return false;
