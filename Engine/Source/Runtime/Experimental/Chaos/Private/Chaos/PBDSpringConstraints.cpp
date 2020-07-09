@@ -4,13 +4,22 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Framework/Parallel.h"
 #include "ChaosStats.h"
+#include "ChaosLog.h"
+#if INTEL_ISPC
+#include "PBDSpringConstraints.ispc.generated.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_Spring_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosSpringISPCEnabled(TEXT("p.Chaos.Spring.ISPC"), bChaos_Spring_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in Spring constraints"));
+#endif
 
 using namespace Chaos;
 
 // @todo(chaos): the parallel threshold (or decision to run parallel) should probably be owned by the solver and passed to the constraint container
-int32 Chaos_Spring_ParallelConstraintCount = 2000;
+int32 Chaos_Spring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosSpringParallelConstraintCount(TEXT("p.Chaos.Spring.ParallelConstraintCount"), Chaos_Spring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 
 void FPBDSpringConstraints::InitColor(const TDynamicParticles<FReal, 3>& InParticles)
@@ -51,9 +60,25 @@ void FPBDSpringConstraints::Apply(TPBDParticles<FReal, 3>& InParticles, const FR
 	{
 		for (const auto& Constraints : MConstraintsPerColor)
 		{
-			PhysicsParallelFor(Constraints.Num(), [&](const int32 Index) {
-				Apply(InParticles, Dt, Constraints[Index]);
-			});
+			if (bChaos_Spring_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				ispc::ApplySpringConstraints(
+				    (ispc::FVector*)&InParticles.GetP()[0],
+				    (ispc::FIntVector2*)&MConstraints.GetData()[0],
+				    &Constraints.GetData()[0],
+				    &InParticles.GetInvM().GetData()[0],
+				    &MDists.GetData()[0],
+				    MStiffness,
+				    Constraints.Num());
+#endif
+			}
+			else
+			{
+				PhysicsParallelFor(Constraints.Num(), [&](const int32 Index) {
+					Apply(InParticles, Dt, Constraints[Index]);
+				});
+			}
 		}
 	}
 	else
