@@ -93,7 +93,7 @@ inline static float SquaredSum(const FVector &Vec)
 	return SquareSum;
 }
 
-inline static float VectorSize(const FVector &Normal)
+inline static float VectorSize2(const FVector &Normal)
 {
 	return rcp(rsqrt(SquaredSum(Normal)));
 }
@@ -147,7 +147,7 @@ inline static float BoxPhi(const uniform FVector &BoxMin, const uniform FVector 
 				Normal.V[i] = 0;
 			}
 		}
-		Phi = VectorSize(Normal);
+		Phi = VectorSize2(Normal);
 	}
 
 	return Phi;
@@ -682,7 +682,7 @@ export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
 		FVector Particle = SampleParticles[i];
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
+		float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
 
 		float LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
@@ -714,7 +714,7 @@ export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
 			FVector Particle = SampleParticles[i];
 
 			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-			float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
+			float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
 
 			if(LocalPhi < Phi)
 			{
