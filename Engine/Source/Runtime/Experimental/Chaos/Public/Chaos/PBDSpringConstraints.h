@@ -69,3 +69,12 @@ class CHAOS_API FPBDSpringConstraints : public TPBDSpringConstraintsBase<FReal, 
 };
 
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_Spring_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_Spring_ISPC_Enabled = true;
+#else
+extern bool bChaos_Spring_ISPC_Enabled;
+#endif

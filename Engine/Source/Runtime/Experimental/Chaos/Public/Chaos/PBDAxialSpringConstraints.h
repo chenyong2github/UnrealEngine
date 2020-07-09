@@ -36,3 +36,12 @@ class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, pub
 };
 
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_AxialSpring_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_AxialSpring_ISPC_Enabled = true;
+#else
+extern bool bChaos_AxialSpring_ISPC_Enabled;
+#endif
