@@ -202,25 +202,8 @@ FLidarPointCloudViewData::FLidarPointCloudViewData(bool bCompute)
 
 void FLidarPointCloudViewData::Compute()
 {
-#if WITH_EDITOR
-	bPIE = false;
-	if (GIsEditor && GEditor && GEditor->GetActiveViewport())
-	{
-		bPIE = GEditor->GetActiveViewport() == GEditor->GetPIEViewport();
-		
-		// PIE needs a different computation method
-		if (!bPIE)
-		{
-			ComputeFromEditorViewportClient(GEditor->GetActiveViewport()->GetClient());
-		}
-
-		// Simulating counts as PIE for the purpose of LOD calculation
-		bPIE |= GEditor->bIsSimulatingInEditor;
-	}
-#endif
-
-	// Check for bValid, in case we run inside editor and already have the View set up
-	if (!bValid && GEngine)
+	// Attempt to get the first local player's viewport
+	if (GEngine)
 	{
 		ULocalPlayer* const LP = GEngine->FindFirstLocalPlayerFromControllerId(0);
 		if (LP && LP->ViewportClient)
@@ -252,6 +235,23 @@ void FLidarPointCloudViewData::Compute()
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	bPIE = false;
+	if (GIsEditor && GEditor && GEditor->GetActiveViewport())
+	{
+		bPIE = GEditor->GetActiveViewport() == GEditor->GetPIEViewport();
+		
+		// PIE needs a different computation method
+		if (!bValid && !bPIE)
+		{
+			ComputeFromEditorViewportClient(GEditor->GetActiveViewport()->GetClient());
+		}
+
+		// Simulating counts as PIE for the purpose of LOD calculation
+		bPIE |= GEditor->bIsSimulatingInEditor;
+	}
+#endif
 }
 
 bool FLidarPointCloudViewData::ComputeFromEditorViewportClient(FViewportClient* ViewportClient)
