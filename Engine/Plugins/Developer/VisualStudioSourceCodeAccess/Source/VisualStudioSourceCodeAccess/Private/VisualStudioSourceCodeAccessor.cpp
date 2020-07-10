@@ -915,6 +915,9 @@ bool FVisualStudioSourceCodeAccessor::OpenSourceFiles(const TArray<FString>& Abs
 
 bool FVisualStudioSourceCodeAccessor::AddSourceFiles(const TArray<FString>& AbsoluteSourcePaths, const TArray<FString>& AvailableModules)
 {
+	// This code is temporarily disabled because it doesn't account for UBT setting per-file properties for C++ source files,
+	// adding include paths, force-included headers, and so on. Intellisense does not work correctly without these properties being set.
+#if 0
 	// This requires DTE - there is no fallback for this operation when DTE is not available
 #if WITH_VISUALSTUDIO_DTE
 	bool bSuccess = true;
@@ -1101,6 +1104,7 @@ bool FVisualStudioSourceCodeAccessor::AddSourceFiles(const TArray<FString>& Abso
 	}
 
 	return bSuccess;
+#endif
 #endif
 
 	return false;
