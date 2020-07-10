@@ -494,7 +494,7 @@ class FTaskTagScope
 	bool TagOnlyIfNone;
 
 protected:
-	FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
+	CORE_API FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
 
 public:
 	CORE_API FTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(false, InTag)
