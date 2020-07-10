@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include "Framework/SlateDelegates.h"
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
