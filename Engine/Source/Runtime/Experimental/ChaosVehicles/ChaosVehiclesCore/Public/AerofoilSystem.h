@@ -11,7 +11,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
-	enum class FAerofoilType : uint8
+	enum class EAerofoilType : uint8
 	{
 		Fixed = 0,
 		Wing,
@@ -30,7 +30,7 @@ namespace Chaos
 			, StallAngle(16.0f)
 			, MaxCeiling(1E30)
 			, MinCeiling(-1E30)
-			, Type(FAerofoilType::Fixed)
+			, Type(EAerofoilType::Fixed)
 			, LiftMultiplier(1.0f)
 			, DragMultiplier(1.0f)
 		{
@@ -47,7 +47,7 @@ namespace Chaos
 		float MaxCeiling;
 		float MinCeiling;
 
-		FAerofoilType Type;
+		EAerofoilType Type;
 		float LiftMultiplier;
 		float DragMultiplier;
 	};

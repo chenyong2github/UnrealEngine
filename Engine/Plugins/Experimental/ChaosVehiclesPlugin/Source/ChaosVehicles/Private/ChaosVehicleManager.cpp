@@ -18,7 +18,7 @@ DECLARE_CYCLE_STAT(TEXT("VehicleManagerUpdate"), STAT_ChaosVehicleManager_Update
 DECLARE_CYCLE_STAT(TEXT("PretickVehicles"), STAT_ChaosVehicleManager_PretickVehicles, STATGROUP_Physics);
 
 int GSlowFrameRate = 0;
-FAutoConsoleVariableRef CVarChaosVehiclesFlowFrameRate(TEXT("p.Vehicles.SlowFrameRate"), GSlowFrameRate, TEXT("Enable/Disable Debug Slowing of the frame rate to under 30 FPS."));
+FAutoConsoleVariableRef CVarChaosVehiclesFlowFrameRate(TEXT("p.Vehicle.SlowFrameRate"), GSlowFrameRate, TEXT("Enable/Disable Debug Slowing of the frame rate to under 30 FPS."));
 
 
 TMap<FPhysScene*, FChaosVehicleManager*> FChaosVehicleManager::SceneToVehicleManagerMap;

@@ -88,7 +88,7 @@ namespace Chaos
 	{
 		float X = 0.0f;
 
-		if (Setup().Type == FAerofoilType::Wing)
+		if (Setup().Type == EAerofoilType::Wing)
 		{
 			X = (CalcCentreOfLift() - 50.0f) / 100.0f;
 		}

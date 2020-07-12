@@ -24,7 +24,8 @@ namespace Chaos
 	struct CHAOSVEHICLESCORE_API FSimpleSuspensionConfig
 	{
 		FSimpleSuspensionConfig()
-			: SuspensionForceOffset(FVector::ZeroVector)
+			: SuspensionAxis(FVector(0.f, 0.f, -1.f))
+			, SuspensionForceOffset(FVector::ZeroVector)
 			, SuspensionMaxRaise(0.f)
 			, SuspensionMaxDrop(0.f)
 			, MaxLength(0.f)
@@ -32,6 +33,7 @@ namespace Chaos
 			, SpringPreload(0.5f)
 			, CompressionDamping(0.9f)
 			, ReboundDamping(0.9f)
+			, RestingForce(0.f)
 			, Swaybar(0.5f)
 			, DampingRatio(0.3f)
 			, RaycastSafetyMargin(0.0f)
@@ -41,8 +43,8 @@ namespace Chaos
 			SuspensionSmoothing = FMath::Clamp(SuspensionSmoothing, 0, NUM_SUS_AVERAGING);
 		}
 
-
-		FVector SuspensionForceOffset; // #todo: as yet unused
+		FVector SuspensionAxis;		// local axis, direction of suspension force raycast traces
+		FVector SuspensionForceOffset;	// relative position from wheel where suspension forces are applied
 		float SuspensionMaxRaise;	// distance [cm]
 		float SuspensionMaxDrop;	// distance [cm]
 		float MaxLength;			// distance [cm]
@@ -51,6 +53,7 @@ namespace Chaos
 		float SpringPreload;		// Amount of Spring force (independent spring movement)
 		float CompressionDamping;	// limit compression speed
 		float ReboundDamping;		// limit rebound speed
+		float RestingForce;			// force on spring when vehicle on level with no body roll
 
 		float Swaybar;				// Anti-roll bar
 
@@ -133,13 +136,12 @@ namespace Chaos
 
 		void UpdateWorldRaycastLocation(const FTransform& BodyTransform, float WheelRadius, FSuspensionTrace& OutTrace)
 		{
-			FVector LocalDirection(0.f, 0.f, -1.f);
+			FVector LocalDirection = Setup().SuspensionAxis;
 			FVector WorldLocation = BodyTransform.TransformPosition(GetLocalRestingPosition());
-			WorldLocation.Z += Setup().SuspensionMaxRaise;
 			FVector WorldDirection = BodyTransform.TransformVector(LocalDirection);
 
-			OutTrace.Start = WorldLocation - WorldDirection * Setup().RaycastSafetyMargin;
-			OutTrace.End = WorldLocation + WorldDirection * (Setup().MaxLength + WheelRadius);
+			OutTrace.Start = WorldLocation - WorldDirection * (Setup().SuspensionMaxRaise + Setup().RaycastSafetyMargin);
+			OutTrace.End = WorldLocation + WorldDirection * (Setup().SuspensionMaxDrop + WheelRadius);
 		}
 
 // Outputs
@@ -211,11 +213,6 @@ namespace Chaos
 			const float DampingForce = LocalVelocity.Z * Damping;
 			SuspensionForce = StiffnessForce - DampingForce;
 			LastDisplacement = DisplacementInput;
-			//if (SpringIndex == 2)
-			//{
-			//	UE_LOG(LogChaos, Warning, TEXT("MaxLength %f   DisplacementInput %f => SpringDisplacement %f")
-			//		, Setup().MaxLength, DisplacementInput, SpringDisplacement);
-			//}
 		}
 
 	protected:
