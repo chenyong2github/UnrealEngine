@@ -28,12 +28,15 @@ struct FVehicleDebugParams
 {
 	bool ShowCOM = false;
 	bool ShowModelOrigin = false;
+	bool ShowAllForces = false;
 	bool ShowAerofoilForces = false;
-	bool ShowAerofoilSurface = true;
-	bool DisableAirControl = false;
-	bool DisableGroundControl = false;
+	bool ShowAerofoilSurface = false;
+	bool DisableTorqueControl = false;
+	bool DisableStabilizeControl = false;
 	bool DisableAerodynamics = false;
 	bool BatchQueries = true;
+	float ForceDebugScaling = 0.0006f;
+	float PersistDebugLinesTime = 0.01f;
 };
 
 // #todo: contact modification
@@ -96,17 +99,20 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 };
 
 USTRUCT()
-struct FVehicleAirControlConfig
+struct FVehicleTorqueControlConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Air Control Enabled */
+	/** Torque Control Enabled */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	bool Enabled;
 
 	/** Yaw Torque Scaling */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float YawTorqueScaling;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawFromSteering;
 
 	/** Pitch Torque Scaling */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -116,20 +122,71 @@ struct FVehicleAirControlConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RollTorqueScaling;
 
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollFromSteering;
+
+	/** Rotation stiffness */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RotationStiffness;
+
 	/** Rotation damping */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RotationDamping;
 
+	/** Rotation mac accel */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxAccel;
+
+	UPROPERTY(EditAnywhere, Category = AutoCentre)
+	float AutoCentreRollStrength;
+
+	UPROPERTY(EditAnywhere, Category = AutoCentre)
+	float AutoCentrePitchStrength;
+
+	UPROPERTY(EditAnywhere, Category = AutoCentre)
+	float AutoCentreYawStrength;
+
 	void InitDefaults()
 	{
 		Enabled = false;
-		YawTorqueScaling = 5.0f;
-		PitchTorqueScaling = 5.0f;
-		RollTorqueScaling = 5.0f;
+		YawTorqueScaling = 0.0f;
+		YawFromSteering = 0.0f;
+		PitchTorqueScaling = 0.0f;
+		RollTorqueScaling = 0.0f;
+		RollFromSteering = 0.0f;
 		RotationDamping = 0.02f;
+
+		RotationStiffness = 0.f;
+		MaxAccel = 0.f;
+		AutoCentreRollStrength = 0.f;
+		AutoCentrePitchStrength = 0.f;
+		AutoCentreYawStrength = 0.f;
 	}
 };
 
+USTRUCT()
+struct FVehicleStabilizeControlConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Torque Control Enabled */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool Enabled;
+
+	/** Yaw Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float AltitudeHoldZ;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PositionHoldXY;
+
+	void InitDefaults()
+	{
+		Enabled = false;
+		AltitudeHoldZ = 4.0f;
+		PositionHoldXY = 8.0f;
+	}
+};
 
 /** Commonly used state - evaluated once used wherever required */
 struct FVehicleState
@@ -137,13 +194,18 @@ struct FVehicleState
 	FVehicleState()
 		: VehicleWorldTransform(FTransform::Identity)
 		, VehicleWorldVelocity(FVector::ZeroVector)
+		, VehicleLocalVelocity(FVector::ZeroVector)
 		, VehicleWorldAngularVelocity(FVector::ZeroVector)
+		, VehicleWorldCOM(FVector::ZeroVector)
+		, WorldVelocityNormal(FVector::ZeroVector)
 		, VehicleUpAxis(FVector(0.f,0.f,1.f))
 		, VehicleForwardAxis(FVector(1.f,0.f,0.f))
 		, VehicleRightAxis(FVector(0.f,1.f,0.f))
+		, LocalAcceleration(FVector::ZeroVector)
+		, LocalGForce(FVector::ZeroVector)
+		, LastFrameVehicleLocalVelocity(FVector::ZeroVector)
 		, ForwardSpeed(0.f)
 		, ForwardsAcceleration(0.f)
-		, PrevForwardSpeed(0.f)
 		, bVehicleInAir(false)
 		, bSleeping(false)
 	{
@@ -151,19 +213,24 @@ struct FVehicleState
 	}
 
 	/** Cache some useful data */
-	void CaptureState(FBodyInstance* TargetInstance, float DeltaTime);
+	void CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
 
 	FTransform VehicleWorldTransform;
 	FVector VehicleWorldVelocity;
+	FVector VehicleLocalVelocity;
 	FVector VehicleWorldAngularVelocity;
+	FVector VehicleWorldCOM;
+	FVector WorldVelocityNormal;
 
 	FVector VehicleUpAxis;
 	FVector VehicleForwardAxis;
 	FVector VehicleRightAxis;
+	FVector LocalAcceleration;
+	FVector LocalGForce;
+	FVector LastFrameVehicleLocalVelocity;
 
 	float ForwardSpeed;
 	float ForwardsAcceleration;
-	float PrevForwardSpeed;
 
 	bool bVehicleInAir;
 	bool bSleeping;
@@ -202,13 +269,23 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 
 
 UENUM()
-enum class FVehicleAerofoilType : uint8
+enum class EVehicleAerofoilType : uint8
 {
 	Fixed = 0,
 	Wing,
 	Rudder,
 	Elevator
 };
+
+
+UENUM()
+enum class EVehicleThrustType : uint8
+{
+	Fixed = 0,
+	HelicopterRotor,	// affected by pitch/roll inputs
+	Rudder				// affected by steering/yaw input
+};
+
 
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleAerofoilConfig
@@ -217,7 +294,7 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 
 	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
-	FVehicleAerofoilType AerofoilType;
+	EVehicleAerofoilType AerofoilType;
 
 	// Bone name on mesh where aerofoil is centered
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
@@ -262,7 +339,7 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 
 	void InitDefaults()
 	{
-		AerofoilType = FVehicleAerofoilType::Fixed;
+		AerofoilType = EVehicleAerofoilType::Fixed;
 		BoneName = NAME_None;
 		Offset = FVector::ZeroVector;
 		UpAxis = FVector(0.f, 0.f, -1.f);
@@ -279,6 +356,7 @@ private:
 	void FillAerofoilSetup()
 	{
 		// #todo: read position and axis from skeleton
+		PAerofoilConfig.Type = (Chaos::EAerofoilType)(this->AerofoilType);
 		//PAerofoilConfig.BoneName = this->BoneName;
 		PAerofoilConfig.Offset = this->Offset;
 		PAerofoilConfig.UpAxis = this->UpAxis;
@@ -286,7 +364,6 @@ private:
 		PAerofoilConfig.Camber = this->Camber;
 		PAerofoilConfig.MaxControlAngle = this->MaxControlAngle;
 		PAerofoilConfig.StallAngle = this->StallAngle;
-		PAerofoilConfig.Type = (Chaos::FAerofoilType)(this->AerofoilType);
 		PAerofoilConfig.LiftMultiplier = this->LiftMultiplier;
 		PAerofoilConfig.DragMultiplier = this->DragMultiplier;
 	}
@@ -299,32 +376,36 @@ struct FVehicleThrustConfig
 {
 	GENERATED_USTRUCT_BODY()
 
+	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	EVehicleThrustType ThrustType;
+
 	/** Bone name on mesh where thrust is located */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FName BoneName;
 
 	/** Additional offset to give the location, or use in preference to the bone */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FVector Offset;
 
 	/** Up Axis of thrust. */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FVector ThrustAxis;
 
-	/** How the thrust is applied as the speed increases */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	FRuntimeFloatCurve ThrustCurve;
+	///** How the thrust is applied as the speed increases */
+	//UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	//FRuntimeFloatCurve ThrustCurve;
 
-	/** Maximum speed after which the thrust will cut off */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float MaxSpeed;
+	///** Maximum speed after which the thrust will cut off */
+	//UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	//float MaxSpeed;
 
 	/** Maximum thrust force */
-	UPROPERTY(EditAnywhere, Category = Setup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	float MaxThrustForce;
 
 	/** The angle in degrees through which the control surface moves - leave at 0 if it is a fixed surface */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	float MaxControlAngle;
 
 	// #todo:ControlAxes - X, Y, Z, or X & Y, etc
@@ -336,24 +417,25 @@ struct FVehicleThrustConfig
 
 	void InitDefaults()
 	{
+		ThrustType = EVehicleThrustType::Fixed;
 		BoneName = NAME_None;
 		Offset = FVector::ZeroVector;
-		ThrustAxis = FVector::ZeroVector;
-		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
-		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
-		MaxSpeed = 50;
-		MaxThrustForce = 100.0f;
+		ThrustAxis = FVector(1,0,0);
+		//ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
+		//ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
+		MaxThrustForce = 1000.0f;
+		MaxControlAngle = 0.f;
 	}
 
 private:
 	void FillThrusterSetup()
 	{
 		// #todo: read position and axis from skeleton
+		PThrusterConfig.Type = (Chaos::EThrustType)(this->ThrustType);
 		//PThrusterConfig.BoneName = this->BoneName;
 		PThrusterConfig.Offset = this->Offset;
 		PThrusterConfig.Axis = this->ThrustAxis;
 		//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
-		PThrusterConfig.MaxSpeed = this->MaxSpeed;
 		PThrusterConfig.MaxThrustForce = this->MaxThrustForce;
 		PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
 
@@ -422,6 +504,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=VehicleSetup, AdvancedDisplay)
 	FVector InertiaTensorScale;
 
+	/** Shift location of centre of mass */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup, AdvancedDisplay)
+	FVector CenterOfMassShift;
+
 	/** Optional aerofoil setup - can be used for car spoilers or aircraft wings/elevator/rudder */
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
 	TArray<FVehicleAerofoilConfig> Aerofoils;
@@ -430,9 +516,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = ThrusterSetup)
 	TArray<FVehicleThrustConfig> Thrusters;
 
-	/** Arcade style in air control of your vehicle, permits some leveling before landing */
+	/** Arcade style direct control of vehicle rotation via torque force */
 	UPROPERTY(EditAnywhere, Category = ArcadeControl)
-	FVehicleAirControlConfig AirControl;
+	FVehicleTorqueControlConfig TorqueControl;
+
+	/** Arcade style control of vehicle */
+	UPROPERTY(EditAnywhere, Category = ArcadeControl)
+	FVehicleStabilizeControlConfig StabilizeControl;
 
 	// Used to recreate the physics if the blueprint changes.
 	uint32 VehicleSetupTag;
@@ -640,10 +730,10 @@ public:
 		return PVehicle;
 	}
 
-	const FSolverSafeContactData& GetSolverSafeContactData() const
-	{
-		return SolverSafeContactData;
-	}
+	//const FSolverSafeContactData& GetSolverSafeContactData() const
+	//{
+	//	return SolverSafeContactData;
+	//}
 protected:
 
 	// replicated state of vehicle 
@@ -808,8 +898,8 @@ protected:
 	/** Apply Thruster forces to vehicle body */
 	virtual void ApplyThrustForces(float DeltaTime);
 
-	/** Apply in air control torque to vehicle body */
-	virtual void ApplyAirControl(float DeltaTime);
+	/** Apply direct control over vehicle body rotation */
+	virtual void ApplyTorqueControl(float DeltaTime);
 
 	/** Apply on ground control torque to vehicle body */
 	//virtual void ApplyGroundControl(float DeltaTime);
@@ -925,11 +1015,27 @@ protected:
 	/** END IRVOAvoidanceInterface */
 #endif
 
+protected:
+	/** Add a force to this vehicle */
+	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
+	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
+	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
+	/** Add an impulse to this vehicle */
+	void AddImpulse(const FVector& Impulse, bool bVelChange);
+	/** Add an impulse to this vehicle and a particular world position */
+	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
+	/** Add a torque to this vehicle */
+	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
+
+
 private:
 	UPROPERTY(transient, Replicated)
 	AController* OverrideController;
-	FSolverSafeContactData SolverSafeContactData;
 
+	// #todo: contact modification
+	//FSolverSafeContactData SolverSafeContactData;
+
+	// #todo: generic/common setup into seperate class, no individual params in main class?
 	const Chaos::FSimpleAerodynamicsConfig& GetAerodynamicsConfig()
 	{
 		FillAerodynamicsSetup();
@@ -944,6 +1050,5 @@ private:
 		PAerodynamicsSetup.AreaMetresSquared = Cm2ToM2(this->DragArea);
 	}
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
-
 
 };

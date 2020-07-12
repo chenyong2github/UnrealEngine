@@ -49,7 +49,6 @@ enum EDebugPages : uint8
 	MaxDebugPages	// keep as last value
 };
 
-// #todo: none of these are implemented yet - probably closest to Open configuration right now
 UENUM()
 enum class EVehicleDifferential : uint8
 {
@@ -58,7 +57,6 @@ enum class EVehicleDifferential : uint8
 	RearWheelDrive,
 };
 
-// #todo: implement this or something like it
 USTRUCT()
 struct FVehicleDifferentialConfig
 {
@@ -167,7 +165,7 @@ private:
 		for (float X = 0; X <= this->MaxRPM; X+= (this->MaxRPM / NumSamples))
 		{ 
 			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / this->MaxTorque;
-			PEngineConfig.TorqueCurve.Add(Y);
+			PEngineConfig.TorqueCurve.AddNormalized(Y);
 		}
 		PEngineConfig.MaxTorque = this->MaxTorque;
 		PEngineConfig.MaxRPM = this->MaxRPM;
@@ -185,6 +183,8 @@ USTRUCT()
 struct FVehicleTransmissionConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	friend class UChaosVehicleWheel;
 
 	/** Whether to use automatic transmission */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta=(DisplayName = "Automatic Transmission"))
@@ -283,14 +283,36 @@ private:
 
 };
 
+/** Single angle : both wheels steer by the same amount
+ *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio
+ *  Ackermann	 : Ackermann steering principle is applied */
+UENUM()
+enum class ESteeringType : uint8
+{
+	SingleAngle,
+	AngleRatio,
+	Ackermann,
+};
+
 USTRUCT()
 struct FVehicleSteeringConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Maximum steering versus forward speed (km/h) */
-	//UPROPERTY(EditAnywhere, Category = SteeringSetup)
-	//FRuntimeFloatCurve SteeringCurve;
+	/** Single angle : both wheels steer by the same amount
+	 *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio 
+	 *  Ackermann	 : Ackermann steering principle is applied */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	ESteeringType SteeringType;
+
+	/** Only applies when AngleRatio is selected */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	float AngleRatio; 
+
+	/** Maximum steering versus forward speed (MPH) */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	FRuntimeFloatCurve SteeringCurve;
+
 
 	const Chaos::FSimpleSteeringConfig& GetPhysicsSteeringConfig(FVector2D WheelTrackDimensions)
 	{
@@ -300,17 +322,38 @@ struct FVehicleSteeringConfig
 
 	void InitDefaults()
 	{
-		// #todo: need to implement a Max steering Angle vs vehicle speed curve.
-		//SteeringCurve
+		SteeringType = ESteeringType::AngleRatio;
+		AngleRatio = 0.7f;
+
+		// Init steering speed curve
+		FRichCurve* SteeringCurveData = SteeringCurve.GetRichCurve();
+		SteeringCurveData->AddKey(0.f, 1.f);
+		SteeringCurveData->AddKey(20.f, 0.8f);
+		SteeringCurveData->AddKey(60.f, 0.4f);
+		SteeringCurveData->AddKey(120.f, 0.3f);
 	}
 
 private:
 
 	void FillSteeringSetup(FVector2D WheelTrackDimensions)
 	{
+
+		PSteeringConfig.SteeringType = (ESteerType)this->SteeringType;
+		PSteeringConfig.AngleRatio = AngleRatio;
+
+		float MinValue = 0.f, MaxValue = 1.f;
+		this->SteeringCurve.GetRichCurveConst()->GetValueRange(MinValue, MaxValue);
+		float MaxX = this->SteeringCurve.GetRichCurveConst()->GetLastKey().Time;
+		PSteeringConfig.SpeedVsSteeringCurve.Empty();
+		float NumSamples = 20;
+		for (float X = 0; X <= MaxX; X += (MaxX / NumSamples))
+		{
+			float Y = this->SteeringCurve.GetRichCurveConst()->Eval(X) / MaxValue;
+			PSteeringConfig.SpeedVsSteeringCurve.AddNormalized(Y);
+		}
+
 		PSteeringConfig.TrackWidth = WheelTrackDimensions.Y;
 		PSteeringConfig.WheelBase = WheelTrackDimensions.X;
-		PSteeringConfig.TrackEndRadius = 40.f;
 	}
 
 	Chaos::FSimpleSteeringConfig PSteeringConfig;
@@ -326,6 +369,10 @@ struct CHAOSVEHICLES_API FChaosWheelSetup
 	// The wheel class to use
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TSubclassOf<UChaosVehicleWheel> WheelClass;
+
+	// Bone name on mesh to create wheel at
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	FName SteeringBoneName;
 
 	// Bone name on mesh to create wheel at
 	UPROPERTY(EditAnywhere, Category = WheelSetup)

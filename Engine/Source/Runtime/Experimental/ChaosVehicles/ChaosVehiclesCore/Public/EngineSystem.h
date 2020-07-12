@@ -37,7 +37,7 @@ namespace Chaos
 		}
 
 		// #todo: want something like UCurveFloat / FRuntimeFloatCurve / FTorqueCurveEditor
-		TArray<float> TorqueCurve;	// [Normalized 0..1] Need some low level curve representation compatible with UCurveFloat??
+		FNormalisedGraph TorqueCurve;
 		float MaxTorque;			// [N.m] The peak torque Y value in the normalized torque graph
 		uint16 MaxRPM;				// [RPM] The absolute maximum RPM the engine can theoretically reach (last X value in the normalized torque graph)
 		uint16 EngineIdleRPM; 		// [RPM] The RPM at which the throttle sits when the car is not moving			
