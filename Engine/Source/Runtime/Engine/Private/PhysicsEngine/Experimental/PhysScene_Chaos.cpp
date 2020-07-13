@@ -18,7 +18,6 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsReplication.h"
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "PhysicsSolver.h"
 #include "ChaosSolversModule.h"
@@ -59,13 +58,7 @@ TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT(
 
 #endif
 
-TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"), 1, TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
-
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
-
-#if WITH_CHAOS
-CSV_DEFINE_CATEGORY(ChaosPhysics, true);
-#endif // WITH_CHAOS
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -943,7 +936,7 @@ void FPhysScene_Chaos::AddAggregateToScene(const FPhysicsAggregateHandle& InAggr
 
 void FPhysScene_Chaos::SetOwningWorld(UWorld* InOwningWorld)
 {
-	MOwningWorld = InOwningWorld;
+	Owner = InOwningWorld;
 
 #if WITH_EDITOR
 	if (IsOwningWorldEditor())
@@ -956,12 +949,12 @@ void FPhysScene_Chaos::SetOwningWorld(UWorld* InOwningWorld)
 
 UWorld* FPhysScene_Chaos::GetOwningWorld()
 {
-	return MOwningWorld;
+	return Cast<UWorld>(Owner);
 }
 
 const UWorld* FPhysScene_Chaos::GetOwningWorld() const
 {
-	return MOwningWorld;
+	return Cast<const UWorld>(Owner);
 }
 
 void FPhysScene_Chaos::RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType)
@@ -1545,42 +1538,12 @@ void FPhysScene_Chaos::ApplyWorldOffset(FVector InOffset)
 	check(InOffset.Size() == 0);
 }
 
-void FPhysScene_Chaos::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps, bool bSubstepping)
-{
-	SetGravity(*NewGrav);
-	MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds, InMaxPhysicsDeltaTime) : InDeltaSeconds;
-
-	if (Chaos::FPhysicsSolver* Solver = GetSolver())
-	{
-		if(bSubstepping)
-		{
-			Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
-			Solver->SetMaxSubSteps(InMaxSubsteps);
-		}
-		else
-		{
-			Solver->SetMaxDeltaTime(InMaxPhysicsDeltaTime);
-			Solver->SetMaxSubSteps(1);
-		}
-	}
-}
-
-
-void FPhysScene_Chaos::StartFrame()
+float FPhysScene_Chaos::OnStartFrame(float InDeltaTime)
 {
 	using namespace Chaos;
+	float UseDeltaTime = InDeltaTime;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_StartFrame);
-
-	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0)
-	{
-		return;
-	}
-
-	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
-	checkSlow(SolverModule);
-
-	float Dt = MDeltaTime;
 
 #if WITH_EDITOR
 	if (IsOwningWorldEditor())
@@ -1591,7 +1554,7 @@ void FPhysScene_Chaos::StartFrame()
 			GetSolver()->SetEnabled(true);
 		}
 
-		Dt = 0.0f;
+		UseDeltaTime = 0.0f;
 	}
 #endif
 
@@ -1602,173 +1565,13 @@ void FPhysScene_Chaos::StartFrame()
 
 	if (PhysicsReplication)
 	{
-		PhysicsReplication->Tick(Dt);
+		PhysicsReplication->Tick(UseDeltaTime);
 	}
 
-	OnPhysScenePreTick.Broadcast(this,Dt);
-	OnPhysSceneStep.Broadcast(this,Dt);
+	OnPhysScenePreTick.Broadcast(this,UseDeltaTime);
+	OnPhysSceneStep.Broadcast(this,UseDeltaTime);
 
-	TArray<Chaos::FPhysicsSolverBase*> SolverList;
-	SolverModule->GetSolversMutable(GetOwningWorld(),SolverList);
-
-	if(FPhysicsSolver* Solver = GetSolver())
-	{
-		// Make sure our solver is in the list
-		SolverList.AddUnique(Solver);
-	}
-
-	// Prereqs for the final completion task to run (collection of all the solver tasks)
-	FGraphEventArray CompletionTaskPrerequisites;
-
-	for(FPhysicsSolverBase* Solver : SolverList)
-	{
-		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(Dt));
-	}
-
-	// Setup post simulate tasks
-	{
-		DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"),STAT_FDelegateGraphTask_CompletePhysicsSimulation,STATGROUP_TaskGraphTasks);
-
-		// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
-		CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this,&FPhysScene_Chaos::CompleteSceneSimulation),GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation),&CompletionTaskPrerequisites,ENamedThreads::GameThread,ENamedThreads::AnyHiPriThreadHiPriTask);
-	}
-
-
-}
-
-// Find the number of dirty elements in all substructures that has dirty elements that we know of
-// This is non recursive for now
-// Todo: consider making DirtyElementsCount a method on ISpatialAcceleration instead
-int32 FPhysScene_Chaos::DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal, 3>, Chaos::FReal, 3>& Collection)
-{
-	using namespace Chaos;
-	int32 DirtyElements = 0;
-	TArray<FSpatialAccelerationIdx> SpatialIndices = Collection.GetAllSpatialIndices();
-	for (const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
-	{
-		auto SubStructure = Collection.GetSubstructure(SpatialIndex);
-		if (const auto AABBTree = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
-		{
-			DirtyElements += AABBTree->NumDirtyElements();
-		}
-		else if (const auto AABBTreeBV = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
-		{
-			DirtyElements += AABBTreeBV->NumDirtyElements();
-		}
-	}
-	return DirtyElements;
-}
-
-
-void FPhysScene_Chaos::EndFrame(ULineBatchComponent* InLineBatcher)
-{
-	using namespace Chaos;
-	using SpatialAccelerationCollection = Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
-
-	SCOPE_CYCLE_COUNTER(STAT_Scene_EndFrame);
-
-	if (CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0 || GetSolver() == nullptr)
-	{
-		return;
-	}
-
-	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
-	checkSlow(SolverModule);
-
-	int32 DirtyElements = DirtyElementCount(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
-	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementCount, DirtyElements, ECsvCustomStatOp::Set);
-
-	switch(GetSolver()->GetThreadingMode())	//todo: this should be per solver, only syncing one
-	{
-	case EThreadingModeTemp::SingleThread:
-	{
-		SyncBodies(SceneSolver);
-		SceneSolver->SyncEvents_GameThread();
-
-		OnPhysScenePostTick.Broadcast(this);
-	}
-	break;
-	case EThreadingModeTemp::TaskGraph:
-	{
-		check(CompletionEvent->IsComplete());
-		//check(PhysicsTickTask->IsComplete());
-		CompletionEvent = nullptr;
-
-		// Make a list of solvers to process. This is a list of all solvers registered to our world
-		// And our internal base scene solver.
-		TArray<Chaos::FPhysicsSolverBase*> SolverList;
-		SolverModule->GetSolversMutable(GetOwningWorld(), SolverList);
-
-		{
-			// Make sure our solver is in the list
-			SolverList.AddUnique(GetSolver());
-		}
-
-		// Flip the buffers over to the game thread and sync
-		{
-			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
-
-			//update external SQ structure
-			//for now just copy the whole thing, stomping any changes that came from GT
-			CopySolverAccelerationStructure();
-
-			TArray<FPhysicsSolverBase*> ActiveSolvers;
-			ActiveSolvers.Reserve(SolverList.Num());
-
-			// #BG calculate active solver list once as we dispatch our first task
-			for(FPhysicsSolverBase* Solver : SolverList)
-			{
-				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
-				{
-					if(Concrete.HasActiveParticles())
-					{
-						ActiveSolvers.Add(&Concrete);
-					}
-				});
-				
-			}
-
-			const int32 NumActiveSolvers = ActiveSolvers.Num();
-
-			for (FPhysicsSolverBase* Solver : ActiveSolvers)
-			{
-				Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
-				{
-					SyncBodies(&Concrete);
-					Concrete.SyncEvents_GameThread();
-
-					{
-						SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
-						Concrete.SyncQueryMaterials();
-					}
-				});
-			}
-		}
-
-		OnPhysScenePostTick.Broadcast(this);
-	}
-		break;
-
-	// No action for dedicated thread, the module will sync independently from the scene in
-	// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
-	case EThreadingModeTemp::DedicatedThread:
-	default:
-		break;
-	}
-}
-
-void FPhysScene_Chaos::WaitPhysScenes()
-{
-	if (CompletionEvent && !CompletionEvent->IsComplete())
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FPhysScene_WaitPhysScenes);
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompletionEvent, ENamedThreads::GameThread);
-	}
-}
-
-FGraphEventRef FPhysScene_Chaos::GetCompletionEvent()
-{
-	return CompletionEvent;
+	return UseDeltaTime;
 }
 
 bool FPhysScene_Chaos::HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar)
@@ -1822,16 +1625,13 @@ void FPhysScene_Chaos::KillVisualDebugger()
 
 }
 
-template <typename TSolver>
-void FPhysScene_Chaos::SyncBodies(TSolver* Solver)
+void FPhysScene_Chaos::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
 	{
-		Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
-
 		const Chaos::FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
 		for (Chaos::TGeometryParticle<float, 3>* DirtyParticle : DirtyParticleBuffer->DirtyGameThreadParticles)
 		{
@@ -1902,16 +1702,16 @@ void FPhysScene_Chaos::SyncBodies(TSolver* Solver)
 	{
 		if (ComponentTransform.OwningComp != nullptr)
 		{
-			AActor* Owner = ComponentTransform.OwningComp->GetOwner();
+			AActor* OwnerPtr = ComponentTransform.OwningComp->GetOwner();
 
 			if (ComponentTransform.bHasValidTransform)
 			{
 				ComponentTransform.OwningComp->MoveComponent(ComponentTransform.NewTranslation, ComponentTransform.NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
 			}
 
-			if (Owner != NULL && !Owner->IsPendingKill())
+			if (OwnerPtr != NULL && !OwnerPtr->IsPendingKill())
 			{
-				Owner->CheckStillInWorld();
+				OwnerPtr->CheckStillInWorld();
 			}
 		}
 
@@ -1985,58 +1785,6 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 	}
 }
 
-void FPhysScene_Chaos::CompleteSceneSimulation(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-{
-	using namespace Chaos;
-
-	// Cache our results to the threaded buffer.
-	{
-		LLM_SCOPE(ELLMTag::Chaos);
-		SCOPE_CYCLE_COUNTER(STAT_BufferPhysicsResults);
-
-		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-
-		check(Module);
-
-		TArray<FPhysicsSolverBase*> SolverList = Module->GetSolversMutable(GetOwningWorld());
-
-		TArray<FPhysicsSolverBase*> ActiveSolvers;
-
-		if(SolverList.Num() > 0)
-		{
-			ActiveSolvers.Reserve(SolverList.Num());
-
-			// #BG calculate active solver list once as we dispatch our first task
-			for(FPhysicsSolverBase* Solver : SolverList)
-			{
-				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
-				{
-					if(Concrete.HasActiveParticles())
-					{
-						ActiveSolvers.Add(&Concrete);
-					}
-				});
-			}
-		}
-
-		if(SceneSolver && SceneSolver->HasActiveParticles())
-		{
-			ActiveSolvers.AddUnique(SceneSolver);
-		}
-
-		const int32 NumActiveSolvers = ActiveSolvers.Num();
-
-		PhysicsParallelFor(NumActiveSolvers, [&](int32 Index)
-		{
-			//TODO: support any type not just default traits
-			FPhysicsSolverBase* Solver = ActiveSolvers[Index];
-			auto& Concrete = Solver->CastChecked<Chaos::FDefaultTraits>();
-			Concrete.GetDirtyParticlesBuffer()->CaptureSolverData(&Concrete);
-			Concrete.BufferPhysicsResults();
-			Concrete.FlipBuffers();
-		});
-	}
-}
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;
 
