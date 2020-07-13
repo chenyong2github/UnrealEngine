@@ -1524,6 +1524,7 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 			CurrentOffset);
 
 		CurrentAllocatorPage->NextFastAllocOffset = CurrentOffset + Size;
+		CurrentAllocatorPage->UpdateFence();
 
 		check(ResourceLocation->GetMappedBaseAddress());
 		return ResourceLocation->GetMappedBaseAddress();
@@ -1595,13 +1596,19 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 	return Page;
 }
 
+void FD3D12FastAllocatorPage::UpdateFence()
+{
+	// Fence value must be updated every time the page is used to service an allocation.
+	// Max() is required as fast allocator may be used from Render or RHI thread,
+	// which have different fence values. See FD3D12ManualFence::GetCurrentFence() implementation.
+	FD3D12Adapter* Adapter = FastAllocBuffer->GetParentDevice()->GetParentAdapter();
+	FrameFence = FMath::Max(FrameFence, Adapter->GetFrameFence().GetCurrentFence());
+}
+
 void FD3D12FastAllocatorPagePool::ReturnFastAllocatorPage(FD3D12FastAllocatorPage* Page)
 {
-	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
-
 	// Extend the lifetime of these resources when in AFR as other nodes might be relying on this
-	Page->FrameFence = FrameFence.GetCurrentFence();
+	Page->UpdateFence();
 	Pool.Add(Page);
 }
 
