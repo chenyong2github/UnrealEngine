@@ -1403,10 +1403,12 @@ void FAnimationBlueprintEditor::OnBlueprintPostCompile(UBlueprint* InBlueprint)
 				PersonaToolkit->GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
 			}
 
-			UAnimInstance* NewInstance = DebuggedMeshComponent->GetAnimInstance();
-			if ((AnimBlueprint && NewInstance->IsA(AnimBlueprint->GeneratedClass)) || (PreviewAnimBlueprint && NewInstance->IsA(PreviewAnimBlueprint->GeneratedClass)))
+			if(UAnimInstance* NewInstance = DebuggedMeshComponent->GetAnimInstance())
 			{
-				PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, NewInstance);
+				if ((AnimBlueprint && NewInstance->IsA(AnimBlueprint->GeneratedClass)) || (PreviewAnimBlueprint && NewInstance->IsA(PreviewAnimBlueprint->GeneratedClass)))
+				{
+					PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, NewInstance);
+				}
 			}
 		}
 
