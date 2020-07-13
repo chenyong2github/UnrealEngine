@@ -14,6 +14,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Async/TaskGraphInterfaces.h"
 
 // Currently compilation issue with Incredibuild when including headers required by event template functions
 #define XGE_FIXED 0
