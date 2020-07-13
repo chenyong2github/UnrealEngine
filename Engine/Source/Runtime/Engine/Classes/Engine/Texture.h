@@ -832,6 +832,10 @@ public:
 	UPROPERTY()
 	uint8 CompressionYCoCg : 1;
 
+	/** If true, the RHI texture will be created without TexCreate_OfflineProcessed. */
+	UPROPERTY(transient)
+	uint8 bNotOfflineProcessed : 1;
+
 private:
 	/** Whether the async resource release process has already been kicked off or not */
 	UPROPERTY(transient)

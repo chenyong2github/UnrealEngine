@@ -865,6 +865,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 			NewTexture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
 			if (NewTexture)
 			{
+				NewTexture->bNotOfflineProcessed = true;
 				uint8* MipData = static_cast<uint8*>(NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
 				
 				// Bulk data was already allocated for the correct size when we called CreateTransient above

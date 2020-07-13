@@ -777,7 +777,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		static TConsoleVariableData<int32>* CVarReducedMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
 		check(CVarReducedMode);
 
-		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
+		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | (bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | TexCreate_Streamable;
 		const bool bCanBeVirtual = CanCreateAsVirtualTexture(TexCreateFlags);
 
 		const int32 SizeX = GetSizeX();
@@ -1418,7 +1418,7 @@ void FTexture2DResource::InitRHI()
 	uint32 SizeY = OwnerMips[CurrentFirstMip].SizeY;
 
 	// Create the RHI texture.
-	uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
+	uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0) | (Owner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | TexCreate_Streamable;
 	ensure(Owner->GetMipTailBaseIndex() != -1); //TexCreate_NoMipTail is deprecated
 	// disable tiled format if needed
 	if( Owner->bNoTiling )
@@ -1832,7 +1832,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			}
 		}
 
-		uint32 TexCreateFlags = (TextureOwner->SRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
+		uint32 TexCreateFlags = (TextureOwner->SRGB ? TexCreate_SRGB : 0) | (TextureOwner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
 		if (TextureOwner->bNoTiling)
 		{
 			TexCreateFlags |= TexCreate_NoTiling;
@@ -2165,7 +2165,8 @@ FString FTexture2DResource::GetFriendlyName() const
 void FTexture2DArrayResource::InitRHI()
 {
 	// Create the RHI texture.
-	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
+	const bool bNotOfflineProcessed = Owner ? Owner->bNotOfflineProcessed : false;
+	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | (bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
 	FRHIResourceCreateInfo CreateInfo;
 	TRefCountPtr<FRHITexture2DArray> TextureArray = RHICreateTexture2DArray(SizeX, SizeY, NumSlices, Format, NumMips, 1, TexCreateFlags, CreateInfo);
 	TextureRHI = TextureArray;
