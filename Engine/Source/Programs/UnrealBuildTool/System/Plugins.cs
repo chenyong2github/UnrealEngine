@@ -361,11 +361,15 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+			else
+			{
+				throw new BuildException("Platform extension plugin {0} was named improperly. It must be in the form <ParentPlugin>_<Platform>.uplugin", Filename);
+			}
 
 			// did we find a parent plugin?
 			if (Parent == null)
 			{
-				throw new BuildException("Child plugin {0} was not named properly. It should be in the form <ParentPlugin>_<Platform>.uplugin", Filename);
+				throw new BuildException("Unable to find parent plugin {0} for platform extension plugin {1}. Make sure {0}.uplugin exists.", Tokens[0], Filename);
 			}
 
 			// validate child plugin file name
