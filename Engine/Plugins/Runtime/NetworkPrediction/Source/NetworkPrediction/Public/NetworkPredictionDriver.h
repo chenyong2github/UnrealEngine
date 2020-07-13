@@ -509,6 +509,18 @@ struct FNetworkPredictionDriverBase
 	static typename TEnableIf<!bEnable>::Type PerformPhysicsRollback(FConditionalPhysicsActorHandle<ModelDef>& Actor, TConditionalState<PhysicsState>& RecvState) {}
 
 	// ------------------------------------------
+	//	PostPhysicsResimulate
+	// ------------------------------------------
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<bEnable>::Type PostPhysicsResimulate(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor)
+	{
+		PhysicsState::PostResimulate(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver), Actor);
+	}
+
+	template<bool bEnable=HasPhysics()>
+	static typename TEnableIf<!bEnable>::Type PostPhysicsResimulate(DriverType* Driver, FConditionalPhysicsActorHandle<ModelDef>& Actor) {}
+
+	// ------------------------------------------
 	//	InterpolatePhysics
 	// ------------------------------------------
 	template<bool bEnable=HasPhysics()>

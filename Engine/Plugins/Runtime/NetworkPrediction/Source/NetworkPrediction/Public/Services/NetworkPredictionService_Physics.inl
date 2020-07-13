@@ -14,6 +14,7 @@ class IPhysicsService
 public:
 
 	virtual ~IPhysicsService() = default;
+	virtual void PostResimulate(const FFixedTickState* TickState) = 0;
 	virtual void PostNetworkPredictionFrame(const FFixedTickState* TickState) = 0;
 	virtual void PostPhysics() = 0; // todo
 };
@@ -24,6 +25,7 @@ class TPhysicsService : public IPhysicsService
 public:
 
 	using ModelDef = InModelDef;
+	using DriverType = typename ModelDef::Driver;
 	using PhysicsState = typename ModelDef::PhysicsState;
 
 	enum { UpdatePendingFrame = !FNetworkPredictionDriver<ModelDef>::HasSimulation() };
@@ -36,15 +38,24 @@ public:
 
 	void RegisterInstance(FNetworkPredictionID ID)
 	{
-		TInstanceData<ModelDef>* Instance = DataStore->Instances.Find(ID);
-		npCheckSlow(Instance);
-
-		Instances.Add((int32)ID, FInstance{ID.GetTraceID(), Instance->Info.Physics, Instance->Info.View});
+		const int32 InstanceIdx = DataStore->Instances.GetIndex(ID);
+		NpResizeAndSetBit(InstanceBitArray, InstanceIdx);
 	}
 
 	void UnregisterInstance(FNetworkPredictionID ID)
 	{
-		Instances.Remove((int32)ID);
+		const int32 InstanceIdx = DataStore->Instances.GetIndex(ID);
+		InstanceBitArray[InstanceIdx] = false;
+	}
+
+	void PostResimulate(const FFixedTickState* TickState) override final
+	{
+		for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
+		{
+			TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(BitIt.GetIndex());
+
+			FNetworkPredictionDriver<ModelDef>::PostPhysicsResimulate(InstanceData.Info.Driver, InstanceData.Info.Physics);
+		}
 	}
 
 	void PostNetworkPredictionFrame(const FFixedTickState* TickState) override final
@@ -62,22 +73,27 @@ public:
 			UE_NP_TRACE_PUSH_TICK(ServerFrame * TickState->FixedStepMS, TickState->FixedStepMS, ServerFrame+1);
 		}
 
-		for (auto MapIt : Instances)
+		for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
 		{
-			FInstance& Instance = MapIt.Value;
+			TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(BitIt.GetIndex());
 			
 			// This is needed for FReplicationProxy::Identical to cause the rep proxy to replicate.
 			// Could maybe have physics only sims use different rep proxies that can query the sleeping state themselves
 			if (UpdatePendingFrame)
 			{
-				UE_NP_TRACE_SIM_TICK(Instance.TraceID);
-				if (Instance.Handle->ObjectState() != Chaos::EObjectStateType::Sleeping)
+				UE_NP_TRACE_SIM_TICK(InstanceData.TraceID);
+
+				// This actually is no good: it will cause clients to not be corrected if they incorrectly predict taking the physics object
+				// out of sleep. We will need to have some kind of implicit correction window to handle this case in order to have this 
+				// optimization work.
+
+				// if (Instance.Handle->ObjectState() != Chaos::EObjectStateType::Sleeping)
 				{
-					Instance.View->PendingFrame = TickState->PendingFrame;
+					InstanceData.Info.View->PendingFrame = TickState->PendingFrame;
 				}
 			}
 
-			UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Instance.Handle);
+			UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, InstanceData.Info.Physics);
 		}
 	}
 
@@ -90,13 +106,6 @@ public:
 	
 private:
 
-	struct FInstance
-	{
-		int32 TraceID;
-		FPhysicsActorHandle Handle;
-		FNetworkPredictionStateView* View;
-	};
-
-	TSortedMap<int32, FInstance> Instances;
+	TBitArray<> InstanceBitArray; // index into DataStore->Instances
 	TModelDataStore<ModelDef>* DataStore;
 };

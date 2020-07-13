@@ -193,6 +193,11 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 			if (bDoPhysics)
 			{
 				Physics.Solver->SetThreadingMode_External(PreThreading);
+				
+				for (TUniquePtr<IPhysicsService>& Ptr : Services.FixedPhysics.Array)
+				{
+					Ptr->PostResimulate(&FixedTickState);
+				}
 			}
 		}
 		else if (RollbackFrame == FixedTickState.PendingFrame)
