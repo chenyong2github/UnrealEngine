@@ -824,10 +824,10 @@ private:
 	bool VerifyMountPointWritePermission(FName MountPoint);
 
 	/** Delegate when a new mount point is added, used to test writing permission. */
-	void OnContentPathMounted(const FString&, const FString& ContentPath);
+	void OnContentPathMounted(const FString& AssetPath, const FString& FileSystemPath);
 
 	/** Delegate when a new mount point is removed, used to test writing permission. */
-	void OnContentPathDismounted(const FString&, const FString& ContentPath);
+	void OnContentPathDismounted(const FString& AssetPath, const FString& FileSystemPath);
 
 	/** Map to track which mount point has write permissions. */
 	TMap<FName, bool> MountPointCheckedForWritePermission;
