@@ -5,6 +5,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/Engine.h"
 #include "NiagaraComponent.h"
+#include "NiagaraComponentSettings.h"
 #include "NiagaraSystem.h"
 #include "ContentStreaming.h"
 #include "Internationalization/Internationalization.h"
@@ -56,11 +57,19 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 	{
 		if (PoolingMethod == ENCPoolMethod::None)
 		{
-			NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
-			NiagaraComponent->SetAsset(SystemTemplate);
-			NiagaraComponent->bAutoActivate = false;
-			NiagaraComponent->SetAutoDestroy(bAutoDestroy);
-			NiagaraComponent->bAllowAnyoneToDestroyMe = true;
+			if (UNiagaraComponentSettings::ShouldForceAutoPooling(SystemTemplate))
+			{
+				UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
+				NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, ENCPoolMethod::AutoRelease);
+			}
+			else
+			{
+				NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
+				NiagaraComponent->SetAsset(SystemTemplate);
+				NiagaraComponent->bAutoActivate = false;
+				NiagaraComponent->SetAutoDestroy(bAutoDestroy);
+				NiagaraComponent->bAllowAnyoneToDestroyMe = true;
+			}
 		}
 		else
 		{
