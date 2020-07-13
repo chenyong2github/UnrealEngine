@@ -518,10 +518,12 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 	{
 		Offset = DataInterfaces.AddZeroed();
 		DataInterfaces[Offset] = bInitInterfaces ? NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Param.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public) : nullptr;
+		bInterfacesDirty = true;
 	}
 	else if (Param.GetType().IsUObject())
 	{
 		Offset = UObjects.AddDefaulted();
+		bUObjectsDirty = true;
 	}
 	else
 	{
@@ -544,6 +546,8 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 			// This is because some system parameters never get initialized otherwise (particle count, owner rotation, ...)
 			ParameterData.AddZeroed(ParamSize);
 		}
+
+		bParametersDirty = true;
 
 		INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	}
