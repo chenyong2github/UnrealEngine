@@ -24,6 +24,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraComponentSettings.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -75,10 +76,10 @@ static FAutoConsoleVariableRef CVarNiagaraComponentWarnAsleepCullReaction(
 	ECVF_Default
 );
 
-static int32 GNiagaraUseSupressActivateList = 0;
-static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
-	TEXT("fx.Niagara.UseSupressActivateList"),
-	GNiagaraUseSupressActivateList,
+static int32 GNiagaraUseFastSetUserParametersToDefaultValues = 1;
+static FAutoConsoleVariableRef CVarNiagaraUseFastSetUserParametersToDefaultValues(
+	TEXT("fx.Niagara.UseFastSetUserParametersToDefaultValues"),
+	GNiagaraUseFastSetUserParametersToDefaultValues,
 	TEXT("When a component is activated we will check the surpession list."),
 	ECVF_Default
 );
@@ -864,18 +865,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	// Temporary change to allow specific Niagara assets to not activate
-	if ( GNiagaraUseSupressActivateList )
+	// Should we force activation to fail?
+	if (UNiagaraComponentSettings::ShouldSupressActivation(Asset))
 	{
-		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
-		{
-			const FName AssetName = Asset->GetFName();
-			if (ComponentSettings->SupressActivationList.Contains(AssetName))
-			{
-				return;
-			}
-		}
+		return;
 	}
+
 
 	// On the off chance that the user changed the asset, we need to clear out the existing data.
 	if (SystemInstance.IsValid() && SystemInstance->GetSystem() != Asset)
@@ -2106,15 +2101,31 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 	TemplateParameterOverrides.Empty();
 	InstanceParameterOverrides.Empty();
 #endif
-
-	OverrideParameters.Empty(false);
-
+	
 	if (Asset == nullptr)
 	{
+		OverrideParameters.Empty(false);
 		return;
 	}
 
-	CopyParametersFromAsset();
+	if (GNiagaraUseFastSetUserParametersToDefaultValues)
+	{
+		const FNiagaraUserRedirectionParameterStore& SourceUserParameterStore = Asset->GetExposedParameters();
+		TArrayView<const FNiagaraVariableWithOffset> SourceParameters = SourceUserParameterStore.ReadParameterVariables();
+		check(OverrideParameters.ReadParameterVariables().Num() == SourceParameters.Num());
+
+		for (const FNiagaraVariableWithOffset& SourceParameter : SourceParameters)
+		{
+			check(OverrideParameters.FindParameterOffset(SourceParameter) != nullptr);
+			SourceUserParameterStore.CopyParameterData(OverrideParameters, SourceParameter);
+		}
+	}
+	else
+	{
+		OverrideParameters.Empty(false);
+		CopyParametersFromAsset();
+	}
+
 	OverrideParameters.Rebind();
 }
 
