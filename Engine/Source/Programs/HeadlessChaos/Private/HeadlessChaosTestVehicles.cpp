@@ -269,7 +269,7 @@ namespace ChaosTest
 		RWingSetup.Camber = 3.0f;
 		RWingSetup.MaxControlAngle = 1.0f;
 		RWingSetup.StallAngle = 16.0f;
-		RWingSetup.Type = FAerofoilType::Wing;
+		RWingSetup.Type = EAerofoilType::Wing;
 
 		FAerofoil RWing(&RWingSetup);
 

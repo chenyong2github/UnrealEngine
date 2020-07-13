@@ -11,9 +11,16 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
-
-	struct FSimpleThrustConfig
+	enum class EThrustType : uint8
 	{
+		Fixed = 0,
+		HelicopterRotor,
+		Rudder
+	};
+
+	struct CHAOSVEHICLESCORE_API FSimpleThrustConfig
+	{
+		EThrustType Type;
 		FVector Offset;
 		FVector Axis;
 		TArray<float> Curve;
@@ -23,24 +30,11 @@ namespace Chaos
 		// control axis
 	};
 
-	class FSimpleThrustSim : public TVehicleSystem<FSimpleThrustConfig>
+	class CHAOSVEHICLESCORE_API FSimpleThrustSim : public TVehicleSystem<FSimpleThrustConfig>
 	{
 	public:
 
-		FSimpleThrustSim(const FSimpleThrustConfig* SetupIn)
-			: TVehicleSystem<FSimpleThrustConfig>(SetupIn)
-			, ThrottlePosition(0.f)
-			, ThrustForce(FVector::ZeroVector)
-			, ThrustDirection(FVector::ZeroVector)
-			, ThrusterStarted(false)
-			, MaintainAltitude(true)
-			, Altitude(0.f)
-			, WorldVelocity(FVector::ZeroVector)
-			, Pitch(0.f)
-			, Roll(0.f)
-			, Yaw(0.f)
-		{
-		}
+		FSimpleThrustSim(const FSimpleThrustConfig* SetupIn);
 
 		void SetThrottle(float InThrottle)
 		{
@@ -49,18 +43,12 @@ namespace Chaos
 
 		void SetPitch(float InPitch)
 		{
-			
 			Pitch = -FMath::Clamp(InPitch, -1.f, 1.f) * Setup().MaxControlAngle;
 		}
 
 		void SetRoll(float InRoll)
 		{
 			Roll = FMath::Clamp(InRoll, -1.f, 1.f) * Setup().MaxControlAngle;
-		}
-
-		void SetAltitude(float InAltitude)
-		{
-			Altitude = InAltitude;
 		}
 
 		void SetWorldVelocity(const FVector& InVelocity)
@@ -79,28 +67,10 @@ namespace Chaos
 			return ThrustDirection;
 		}
 
-		const FVector GetThrustLocation() const
-		{
-			static float HalfBladeLength = 8.0f;
-			FVector Location = Setup().Offset + FVector(Pitch, -0.25*Roll, 0.f) * HalfBladeLength;
-		
-			return Location;
-		}
+		const FVector GetThrustLocation() const;
 
 		// simulate
-		void Simulate(float DeltaTime)
-		{
-			static float Multiplier = 20.0f;
-			FVector CorrectionalForce = FVector::ZeroVector;
-			if (MaintainAltitude)
-			{
-				CorrectionalForce.Z = -Multiplier *  WorldVelocity.Z / DeltaTime;
-			}
-			FVector LocalThrustDirection = Setup().Axis;
-			//FRotator Rot(Pitch, Roll, Roll);
-			//ThrustDirection = Rot.RotateVector(LocalThrustDirection);
-			ThrustForce = LocalThrustDirection * (ThrottlePosition * Setup().MaxThrustForce) + CorrectionalForce;
-		}
+		void Simulate(float DeltaTime);
 
 	protected:
 			
@@ -111,20 +81,11 @@ namespace Chaos
 
 		bool ThrusterStarted;	// is the 'engine' turned off or has it been started
 
-		bool MaintainAltitude;	// #todo: another derived class?
-		float Altitude;			// #todo: another derived class?
 		FVector WorldVelocity;
 
 		float Pitch;
 		float Roll;
 		float Yaw;
-
-	};
-
-
-
-	class Rotor : FSimpleThrustSim
-	{
 
 	};
 
