@@ -785,20 +785,44 @@ void UMoviePipeline::BuildShotListFromSequence()
 
 		// Cache information about all segments, as we disable all segments when rendering, not just active ones.
 		FMovieSceneChanges::FSegmentChange& ModifiedSegment = SequenceChanges.Segments.AddDefaulted_GetRef();
-		ModifiedSegment.MovieScene = InnerMovieScene;
 		if (InnerMovieScene)
 		{
-			ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
-			ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
-
-			if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
+			// Look to see if we have already stored data about this inner movie scene. If we have, we simply use that data.
+			// If we were to build the data from scratch each time, then the first time a inner movie scene is used it will be
+			// cached correctly, but subsequent uses would cache incorrectly as the 1st instance would modify playback bounds.
+			FMovieSceneChanges::FSegmentChange* ExistingSegment = nullptr;
+			for (int32 Index = 0; Index < SequenceChanges.Segments.Num(); Index++)
 			{
-				ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
+				if (InnerMovieScene == SequenceChanges.Segments[Index].MovieScene)
+				{
+					ExistingSegment = &SequenceChanges.Segments[Index];
+				}
 			}
 
-			// Unlock the playback range and readonly flags so we can modify the scene.
-			InnerMovieScene->SetReadOnly(false);
+			if (ExistingSegment)
+			{
+				ModifiedSegment.MovieScenePlaybackRange = ExistingSegment->MovieScenePlaybackRange;
+				ModifiedSegment.bMovieSceneReadOnly = ExistingSegment->bMovieSceneReadOnly;
+				ModifiedSegment.bMovieScenePackageDirty = ExistingSegment->bMovieScenePackageDirty;
+			}
+			else
+			{
+				ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
+				ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
+
+				if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
+				{
+					ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
+				}
+
+				// Unlock the playback range and readonly flags so we can modify the scene.
+				InnerMovieScene->SetReadOnly(false);
+			}
 		}
+
+		// Don't set this until after we've searched the existing Segments for a matching movie scene, otherwise
+		// we match immediately and then we copy default values from our first segment.
+		ModifiedSegment.MovieScene = InnerMovieScene;
 
 		ModifiedSegment.CameraSection = Cast<UMovieSceneCameraCutSection>(Shot->InnerPathKey.TryLoad());
 		if (ModifiedSegment.CameraSection.IsValid())
