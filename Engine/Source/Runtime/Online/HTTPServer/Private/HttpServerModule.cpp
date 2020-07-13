@@ -47,6 +47,8 @@ void FHttpServerModule::StartAllListeners()
 
 void FHttpServerModule::StopAllListeners()
 {
+	bHttpListenersEnabled = false;
+
 	UE_LOG(LogHttpServerModule, Log,
 		TEXT("Stopping all listeners..."));
 
