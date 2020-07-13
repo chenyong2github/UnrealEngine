@@ -219,27 +219,30 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 
 	if ( !Blueprint->bIsRegeneratingOnLoad && bIsFullCompile )
 	{
-		UPackage* WidgetTemplatePackage = WidgetBP->GetWidgetTemplatePackage();
-		UUserWidget* OldArchetype = FindObjectFast<UUserWidget>(WidgetTemplatePackage, TEXT("WidgetArchetype"));
-		if (OldArchetype)
+		if (UWidgetBlueprintGeneratedClass* WBC_ToClean = Cast<UWidgetBlueprintGeneratedClass>(ClassToClean))
 		{
-			FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_%s"), *OldArchetype->GetName());
-			FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), OldArchetype->GetClass(), FName(*TransientArchetypeString));
-			OldArchetype->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
-			OldArchetype->SetFlags(RF_Transient);
-			OldArchetype->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-			FLinkerLoad::InvalidateExport(OldArchetype);
-
-			TArray<UObject*> Children;
-			ForEachObjectWithOuter(OldArchetype, [&Children] (UObject* Child) {
-				Children.Add(Child);
-			}, false);
-
-			for ( UObject* Child : Children )
+			if (UWidgetTree* OldArchetype = WBC_ToClean->GetWidgetTreeArchetype())
 			{
-				Child->Rename(nullptr, GetTransientPackage(), RenFlags);
-				Child->SetFlags(RF_Transient);
-				FLinkerLoad::InvalidateExport(Child);
+				FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_TREE_%s"), *OldArchetype->GetName());
+				FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), OldArchetype->GetClass(), FName(*TransientArchetypeString));
+				OldArchetype->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
+				OldArchetype->SetFlags(RF_Transient);
+				OldArchetype->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
+				FLinkerLoad::InvalidateExport(OldArchetype);
+
+				TArray<UObject*> Children;
+				ForEachObjectWithOuter(OldArchetype, [&Children] (UObject* Child) {
+					Children.Add(Child);
+				}, false);
+
+				for ( UObject* Child : Children )
+				{
+					Child->Rename(nullptr, GetTransientPackage(), RenFlags);
+					Child->SetFlags(RF_Transient);
+					FLinkerLoad::InvalidateExport(Child);
+				}
+
+				WBC_ToClean->SetWidgetTreeArchetype(nullptr);
 			}
 		}
 	}
