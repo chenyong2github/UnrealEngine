@@ -452,6 +452,12 @@ void STabSidebar::RemoveDrawer(TSharedRef<SDockTab> ForTab)
 		OpenedDrawers.Remove(OpenedDrawerRef);
 	}
 
+	if (OpenedDrawers.Num() == 0)
+	{
+		WindowWithOverlayContent.Reset();
+	}
+
+
 	ForTab->OnTabDrawerClosed();
 
 	UpdateDrawerAppearance();
@@ -568,6 +574,7 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 				ForTab->GetContent()
 			];
 
+		check(!WindowWithOverlayContent.IsValid() || WindowWithOverlayContent == MyWindow);
 		WindowWithOverlayContent = MyWindow;
 
 		MyWindow->AddOverlaySlot()
