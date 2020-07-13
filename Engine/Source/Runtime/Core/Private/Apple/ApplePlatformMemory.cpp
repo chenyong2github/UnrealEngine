@@ -337,7 +337,7 @@ FPlatformMemoryStats FApplePlatformMemory::GetStats()
 {
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 #if PLATFORM_IOS
-	const uint64 MaxVirtualMemory = 16 * 1024 *1024 * 1024; // set to 16GB for now since IOS can see a maximum of 8GB
+	const uint64 MaxVirtualMemory = 1ull << 34; // set to 16GB for now since IOS can see a maximum of 8GB
 #endif
 	static FPlatformMemoryStats MemoryStats;
 	
