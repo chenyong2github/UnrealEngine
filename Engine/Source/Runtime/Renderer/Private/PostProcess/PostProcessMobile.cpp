@@ -964,7 +964,7 @@ void FRCPassPostProcessSunMaskES2::Process(FRenderingCompositePassContext& Conte
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 	TShaderMapRef<FPostProcessSunMaskVS_ES2> VertexShader(Context.GetShaderMap());
-	auto ShaderPermutationVector = FPostProcessSunMaskPS_ES2::BuildPermutationVector(bUseSun, bUseMobileDof, bUseDepthTexture, bUseMetalMSAAHDRDecode);
+	auto ShaderPermutationVector = FPostProcessSunMaskPS_ES2::BuildPermutationVector(bUseSun, bUseDof, bUseDepthTexture, bUseMetalMSAAHDRDecode);
 	TShaderMapRef<FPostProcessSunMaskPS_ES2> PixelShader(Context.GetShaderMap(), ShaderPermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;

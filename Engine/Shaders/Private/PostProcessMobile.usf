@@ -138,6 +138,7 @@ void SunMaskPS_ES2(
 
 	#if !ES2_USE_DEPTHTEXTURE
 		OutColor = SceneColor;
+		OutColor.a = OutSunShaftAndDof;
 	#endif
 }
 

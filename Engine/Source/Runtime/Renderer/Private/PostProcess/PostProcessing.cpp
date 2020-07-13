@@ -1442,7 +1442,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			// Optional fixed pass processes
 			if (bUsePost && (bUseSun | bUseDof | bUseBloom | bUseVignette | bUseBasicEyeAdaptation | bUseHistogramEyeAdaptation))
 			{
-				if (bUseSun || bUseMobileDof)
+				if (bUseSun || bUseDof)
 				{
 					bool bUseDepthTexture = Context.FinalOutput.GetOutput()->RenderTargetDesc.Format == PF_FloatR11G11B10;
 					// Convert depth to {circle of confusion, sun shaft intensity}
