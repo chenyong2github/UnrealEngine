@@ -983,7 +983,9 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 			if (LatestWidgetTree->RootWidget == nullptr)
 			{
 				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
-				if (BGClass)
+				// If we find a class that owns the widget tree, just make sure it's not our current class, that would imply we've removed all the widgets
+				// from this current tree, and if we use this classes compiled tree it's going to be the outdated old version.
+				if (BGClass && BGClass != PreviewBlueprint->GeneratedClass)
 				{
 					LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
 				}

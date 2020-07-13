@@ -735,6 +735,7 @@ UWidget* UUserWidget::GetWidgetHandle(TSharedRef<SWidget> InWidget)
 TSharedRef<SWidget> UUserWidget::RebuildWidget()
 {
 	check(!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject));
+	check(WidgetTree);
 
 	// In the event this widget is replaced in memory by the blueprint compiler update
 	// the widget won't be properly initialized, so we ensure it's initialized and initialize
@@ -1880,10 +1881,11 @@ UUserWidget* UUserWidget::CreateWidgetInstance(UWidget& OwningWidget, TSubclassO
 
 UUserWidget* UUserWidget::CreateWidgetInstance(UWidgetTree& OwningWidgetTree, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName)
 {
+	// If the widget tree we're owned by is outered to a UUserWidget great, initialize it like any old widget.
 	if (UUserWidget* OwningUserWidget = Cast<UUserWidget>(OwningWidgetTree.GetOuter()))
 	{
 		return CreateWidgetInstance(*OwningUserWidget, UserWidgetClass, WidgetName);
-		}
+	}
 
 	return CreateInstanceInternal(&OwningWidgetTree, UserWidgetClass, WidgetName, nullptr, nullptr);
 }
