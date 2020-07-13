@@ -15,6 +15,7 @@
 #include "NetworkPredictionModelDef.h"
 #include "Containers/StringFwd.h"
 #include "NetworkPredictionTrace.h"
+#include "Components/PrimitiveComponent.h"
 
 namespace NetworkPredictionPhysicsCvars
 {
@@ -175,6 +176,13 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 			Kinematic->SetV(RecvState->LinearVelocity);
 			Kinematic->SetW(RecvState->AngularVelocity);
 		}
+	}
+
+	static void PostResimulate(UPrimitiveComponent* Driver, FPhysicsActorHandle ActorHandle)
+	{
+		npCheckSlow(Driver);
+		Driver->WakeAllRigidBodies();
+		Driver->SyncComponentToRBPhysics();
 	}
 
 	// Interpolation related functions currently need to go through a UPrimitiveComponent
