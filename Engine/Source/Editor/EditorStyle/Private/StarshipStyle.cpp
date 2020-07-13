@@ -20,6 +20,8 @@
 #define DEFAULT_FONT(...) FStarshipCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 #define ICON_FONT(...) FSlateFontInfo(RootToContentDir("Fonts/FontAwesome", TEXT(".ttf")), __VA_ARGS__)
 
+#define LOCTEXT_NAMESPACE "EditorStyle"
+
 void FStarshipEditorStyle::Initialize()
 {
 	Settings = NULL;
@@ -34,8 +36,8 @@ void FStarshipEditorStyle::Initialize()
 	if (SettingsModule != nullptr)
 	{
 		SettingsModule->RegisterSettings("Editor", "General", "Appearance",
-			NSLOCTEXT("EditorStyle", "Appearance_UserSettingsName", "Appearance"),
-			NSLOCTEXT("EditorStyle", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
+			LOCTEXT("Appearance_UserSettingsName", "Appearance"),
+			LOCTEXT("Appearance_UserSettingsDescription", "Customize the look of the editor."),
 			Settings
 		);
 	}
@@ -43,7 +45,27 @@ void FStarshipEditorStyle::Initialize()
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout("StyleColorList", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStyleColorListCustomization::MakeInstance));
 #endif
+
+	// Background
+	UStyleColorTable::Get().SetColor(EStyleColor::User1, UStyleColorTable::Get().GetColor(EStyleColor::Input));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User1, LOCTEXT("UserColor_OutputLogBackground", "Log Background"));
+	// Selection highlight
+	UStyleColorTable::Get().SetColor(EStyleColor::User2, UStyleColorTable::Get().GetColor(EStyleColor::Highlight));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User2, LOCTEXT("UserColor_OutputLogHighlight", "Log Highlight"));
+	// Normal
+	UStyleColorTable::Get().SetColor(EStyleColor::User3, UStyleColorTable::Get().GetColor(EStyleColor::Foreground));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User3, LOCTEXT("UserColor_OutputLogText", "Log Text"));
+	// Command
+	UStyleColorTable::Get().SetColor(EStyleColor::User4, UStyleColorTable::Get().GetColor(EStyleColor::AccentGreen));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User4, LOCTEXT("UserColor_OutputLogCommand", "Log Command"));
+	// Warning
+	UStyleColorTable::Get().SetColor(EStyleColor::User5, UStyleColorTable::Get().GetColor(EStyleColor::AccentYellow));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User5, LOCTEXT("UserColor_OutputLogWarning", "Log Warning"));
+	// Error
+	UStyleColorTable::Get().SetColor(EStyleColor::User6, UStyleColorTable::Get().GetColor(EStyleColor::AccentRed));
+	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User6, LOCTEXT("UserColor_OutputLogError", "Log Error"));
 
 	StyleInstance = Create(Settings);
 	SetStyle(StyleInstance.ToSharedRef());
@@ -128,30 +150,24 @@ FStarshipEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings
 	, HighlightColor_LinearRef( MakeShareable( new FLinearColor(0.068f, 0.068f, 0.068f) ) ) 
 	, WindowHighlightColor_LinearRef(MakeShareable(new FLinearColor(0,0,0,0)))
 
-	, LogColor_Background_LinearRef(MakeShareable(new FLinearColor(FColor(0x040404FF))))
-	, LogColor_SelectionBackground_LinearRef(MakeShareable(new FLinearColor(FColor(0x020202FF))))
-	, LogColor_Normal_LinearRef(MakeShareable(new FLinearColor(FColor(0xffaaaaaa))))
-	, LogColor_Command_LinearRef(MakeShareable(new FLinearColor(FColor(0xff33dd33))))
-	, LogColor_Warning_LinearRef(MakeShareable(new FLinearColor(FColor(0xEBB000FF))))
-	, LogColor_Error_LinearRef(MakeShareable(new FLinearColor(FColor(0xFF0D0FFF))))
+
 
 	// These are the Slate colors which reference those above; these are the colors to put into the style
 	, SelectionColor_Subdued( SelectionColor_Subdued_LinearRef )
 	, HighlightColor( HighlightColor_LinearRef )
 	, WindowHighlightColor(WindowHighlightColor_LinearRef)
 
-	, LogColor_Background( LogColor_Background_LinearRef )
-	, LogColor_SelectionBackground( LogColor_SelectionBackground_LinearRef )
-	, LogColor_Normal( LogColor_Normal_LinearRef )
-	, LogColor_Command( LogColor_Command_LinearRef )
-	, LogColor_Warning( LogColor_Warning_LinearRef )
-	, LogColor_Error( LogColor_Error_LinearRef )
+	, LogColor_Background(EStyleColor::User1)
+	, LogColor_SelectionBackground(EStyleColor::User2)
+	, LogColor_Normal(EStyleColor::User3)
+	, LogColor_Command(EStyleColor::User4)
+	, LogColor_Warning(EStyleColor::User5)
+	, LogColor_Error(EStyleColor::User6)
 
 	, InheritedFromBlueprintTextColor(FLinearColor(0.25f, 0.5f, 1.0f))
 
 	, Settings( InSettings )
 {
-
 }
 
 
@@ -167,14 +183,6 @@ void FStarshipEditorStyle::FStyle::SyncSettings()
 {
 	if (Settings.IsValid())
 	{
-		SetColor(LogColor_Background_LinearRef, Settings->LogBackgroundColor);
-		SetColor(LogColor_SelectionBackground_LinearRef, Settings->LogSelectionBackgroundColor);
-		SetColor(LogColor_Normal_LinearRef, Settings->LogNormalColor);
-		SetColor(LogColor_Command_LinearRef, Settings->LogCommandColor);
-		SetColor(LogColor_Warning_LinearRef, Settings->LogWarningColor);
-		SetColor(LogColor_Error_LinearRef, Settings->LogErrorColor);
-
-
 		// The subdued selection color is derived from the selection color
 		auto SubduedSelectionColor = Settings->GetSubduedSelectionColor();
 		SetColor(SelectionColor_Subdued_LinearRef, SubduedSelectionColor);
@@ -188,17 +196,6 @@ void FStarshipEditorStyle::FStyle::SyncSettings()
 
 		// Sync the window background settings
 		FWindowStyle& WindowStyle = const_cast<FWindowStyle&>(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FWindowStyle>("Window"));
-
-		FSlateBrush DummyBrush;
-		if (Settings->EditorMainWindowBackgroundOverride != DummyBrush)
-		{
-			WindowStyle.SetBackgroundBrush(Settings->EditorMainWindowBackgroundOverride);
-		}
-
-		if (Settings->EditorChildWindowBackgroundOverride != DummyBrush)
-		{
-			WindowStyle.SetChildBackgroundBrush(Settings->EditorChildWindowBackgroundOverride);
-		}
 
 		if (Settings->bEnableEditorWindowBackgroundColor)
 		{
@@ -960,9 +957,10 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		const int32 LogFontSize = Settings.IsValid() ? Settings->LogFontSize : 9;
 
 		const FTextBlockStyle NormalLogText = FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT( "Mono", LogFontSize ) )
-			.SetColorAndOpacity( LogColor_Normal )
-			.SetSelectedBackgroundColor( LogColor_SelectionBackground );
+			.SetFont(DEFAULT_FONT("Mono", LogFontSize))
+			.SetColorAndOpacity(LogColor_Normal)
+			.SetSelectedBackgroundColor(LogColor_SelectionBackground)
+			.SetHighlightColor(FLinearColor::White);
 
 		Set("Log.Normal", NormalLogText );
 
@@ -7780,5 +7778,6 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 #undef BORDER_BRUSH
 #undef DEFAULT_FONT
 #undef ICON_FONT
+#undef LOCTEXT_NAMESPACE
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

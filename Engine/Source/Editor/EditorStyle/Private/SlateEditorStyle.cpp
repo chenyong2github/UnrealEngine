@@ -127,13 +127,6 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 		// Sync the colors used by FEditorStyle
 		SetColor( SelectionColor_LinearRef, Settings->SelectionColor );
 
-		SetColor( LogColor_Background_LinearRef, Settings->LogBackgroundColor );
-		SetColor( LogColor_SelectionBackground_LinearRef, Settings->LogSelectionBackgroundColor );
-		SetColor( LogColor_Normal_LinearRef, Settings->LogNormalColor );
-		SetColor( LogColor_Command_LinearRef, Settings->LogCommandColor );
-		SetColor( LogColor_Warning_LinearRef, Settings->LogWarningColor );
-		SetColor( LogColor_Error_LinearRef, Settings->LogErrorColor );
-
 		// The subdued selection color is derived from the selection color
 		auto SubduedSelectionColor = Settings->GetSubduedSelectionColor();
 		SetColor( SelectionColor_Subdued_LinearRef, SubduedSelectionColor );
@@ -147,17 +140,6 @@ void FSlateEditorStyle::FStyle::SyncSettings()
 		FSlateBrush WindowBackgroundChild(IMAGE_BRUSH("Common/NoiseBackground", FVector2D(64, 64), FLinearColor::White, ESlateBrushTileType::Both));
 
 		WindowBackgroundColor = Settings->EditorWindowBackgroundColor;
-
-		FSlateBrush DummyBrush;
-		if (Settings->EditorMainWindowBackgroundOverride != DummyBrush)
-		{
-			WindowBackgroundMain = Settings->EditorMainWindowBackgroundOverride;
-		}
-
-		if (Settings->EditorChildWindowBackgroundOverride != DummyBrush)
-		{
-			WindowBackgroundChild = Settings->EditorChildWindowBackgroundOverride;
-		}
 
 		FWindowStyle& WindowStyle = const_cast<FWindowStyle&>(FCoreStyle::Get().GetWidgetStyle<FWindowStyle>("Window"));
 		WindowStyle.SetBackgroundColor(WindowBackgroundColor)
@@ -3043,7 +3025,7 @@ void FSlateEditorStyle::FStyle::SetupWindowStyles()
 		{
 			WindowBackgroundColor = Settings->EditorWindowBackgroundColor;
 
-			FSlateBrush DummyBrush;
+		/*	FSlateBrush DummyBrush;
 			if (Settings->EditorMainWindowBackgroundOverride != DummyBrush)
 			{
 				WindowBackgroundMain = Settings->EditorMainWindowBackgroundOverride;
@@ -3052,7 +3034,7 @@ void FSlateEditorStyle::FStyle::SetupWindowStyles()
 			if (Settings->EditorChildWindowBackgroundOverride != DummyBrush)
 			{
 				WindowBackgroundChild = Settings->EditorChildWindowBackgroundOverride;
-			}
+			}*/
 		}
 
 		FWindowStyle& WindowStyle = const_cast<FWindowStyle&>(FCoreStyle::Get().GetWidgetStyle<FWindowStyle>("Window"));

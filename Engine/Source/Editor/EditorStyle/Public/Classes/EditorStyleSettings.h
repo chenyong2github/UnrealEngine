@@ -71,7 +71,7 @@ public:
 	bool bColorVisionDeficiencyCorrectionPreviewWithDeficiency;
 
 	/** The color used to represent selection */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Selection Color"))
+	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Viewport Selection Color"))
 	FLinearColor SelectionColor;
 
 	UPROPERTY(config)
@@ -80,14 +80,6 @@ public:
 	/** The color used to tint the editor window backgrounds */
 	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(EditCondition="bEnableEditorWindowBackgroundColor"))
 	FLinearColor EditorWindowBackgroundColor;
-
-	/** The override for the background of the main window (if not modified, the defaults will be used) */
-	UPROPERTY(EditAnywhere, config, Category=Colors)
-	FSlateBrush EditorMainWindowBackgroundOverride;
-
-	/** The override for the background of the child window (if not modified, the defaults will be used) */
-	UPROPERTY(EditAnywhere, config, Category=Colors)
-	FSlateBrush EditorChildWindowBackgroundOverride;
 
 	/** Whether to use small toolbar icons without labels or not. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
@@ -132,30 +124,6 @@ public:
 	/** When enabled, the Launch menu items will be shown. */
 	UPROPERTY(config)
 	uint32 bShowLaunchMenus : 1;
-
-	/** The color used for the background in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Background Color"))
-	FLinearColor LogBackgroundColor;
-
-	/** The color used for the background of selected text in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Selection Background Color"))
-	FLinearColor LogSelectionBackgroundColor;
-
-	/** The color used for normal text in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Normal Text Color"))
-	FLinearColor LogNormalColor;
-
-	/** The color used for normal text in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Command Text Color"))
-	FLinearColor LogCommandColor;
-
-	/** The color used for warning log lines */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Warning Text Color"))
-	FLinearColor LogWarningColor;
-
-	/** The color used for error log lines */
-	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Error Text Color"))
-	FLinearColor LogErrorColor;
 
 	/** When enabled, the Advanced Details will always auto expand. */
 	UPROPERTY(config)

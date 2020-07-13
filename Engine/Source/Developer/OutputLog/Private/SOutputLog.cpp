@@ -847,7 +847,6 @@ void SOutputLog::Construct( const FArguments& InArgs )
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
 		.Style(FEditorStyle::Get(), "Log.TextBox")
 		.TextStyle(FEditorStyle::Get(), "Log.Normal")
-		.ForegroundColor(FLinearColor::Gray)
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
 		.AlwaysShowScrollbars(true)
@@ -1071,7 +1070,7 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 				Line = Line.ConvertTabsToSpaces(4);
 
 				// Hard-wrap lines to avoid them being too long
-				static const int32 HardWrapLen = 360;
+				static const int32 HardWrapLen = 600;
 				for (int32 CurrentStartIndex = 0; CurrentStartIndex < Line.Len();)
 				{
 					int32 HardWrapLineLen = 0;

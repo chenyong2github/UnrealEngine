@@ -49,7 +49,41 @@ enum class EStyleColor : uint8
 	AccentWhite,
 	AccentFolder,
 
+	/** Only user colors should be below this line
+	 * To use user colors:
+	 * 1. Set an unused user enum value below as the color value for an FSlateColor. E.g. FSlateColor MyCustomColor(EStyleColors::User1)
+	 * 2. Set the actual color. E.g UStyleColorTable::Get().SetColor(EStyleColor::User1, FLinearColor::White)
+	 * 3. Give it a display name if you want it to be configurable by editor users. E.g.  UStyleColorTable::Get().SetColorDisplayName(EUserStyleColor::User1, "My Color Name")
+	 */
+	User1,
+	User2,
+	User3,
+	User4,
+	User5,
+	User6,
+	User7,
+	User8,
+	User9,
+	User10,
+	User11,
+	User12,
+	User13,
+	User14,
+	User15,
+	User16,
+
 	MAX
+};
+
+USTRUCT()
+struct FStyleColorList
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Config, Category = Colors)
+	FLinearColor StyleColors[(int32)EStyleColor::MAX];
+
+	FText DisplayNames[(int32)EStyleColor::MAX];
 };
 
 UCLASS(Config=EditorSettings)
@@ -64,12 +98,22 @@ public:
 
 	const FLinearColor& GetColor(EStyleColor Color)
 	{
-		return Colors[static_cast<int32>(Color)];
+		return ColorList.StyleColors[static_cast<int32>(Color)];
 	}
 
 	void SetColor(EStyleColor InColorId, FLinearColor InColor)
 	{
-		Colors[static_cast<int32>(InColorId)] = InColor;
+		ColorList.StyleColors[static_cast<int32>(InColorId)] = InColor;
+	}
+
+	void SetColorDisplayName(EStyleColor InColorId, FText DisplayName)
+	{
+		ColorList.DisplayNames[static_cast<int32>(InColorId)] = DisplayName;
+	}
+
+	FText GetColorDisplayName(EStyleColor InColorId) const
+	{
+		return ColorList.DisplayNames[static_cast<int32>(InColorId)];
 	}
 
 	UStyleColorTable();
@@ -89,8 +133,8 @@ public:
 	void InitalizeDefaults();
 
 private:
-	UPROPERTY(EditAnywhere, Config, Category=Colors)
-	FLinearColor Colors[static_cast<int32>(EStyleColor::MAX)];
+	UPROPERTY(EditAnywhere, Config, Category = Colors)
+	FStyleColorList ColorList;
 };
 
 

@@ -105,13 +105,6 @@ public:
 		const TSharedRef< FLinearColor > HighlightColor_LinearRef;
 		const TSharedRef< FLinearColor > WindowHighlightColor_LinearRef;
 
-		const TSharedRef< FLinearColor > LogColor_Background_LinearRef;
-		const TSharedRef< FLinearColor > LogColor_SelectionBackground_LinearRef;
-		const TSharedRef< FLinearColor > LogColor_Normal_LinearRef;
-		const TSharedRef< FLinearColor > LogColor_Command_LinearRef;
-		const TSharedRef< FLinearColor > LogColor_Warning_LinearRef;
-		const TSharedRef< FLinearColor > LogColor_Error_LinearRef;
-
 		// These are the Slate colors which reference those above; these are the colors to put into the style
 		// Most of these are owned by our parent style
 		FSlateColor DefaultForeground;
