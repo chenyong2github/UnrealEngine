@@ -184,11 +184,7 @@ public:
 
 	static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
-	void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds, float InMaxPhysicsDeltaTime, float InMaxSubstepDeltaTime, int32 InMaxSubsteps, bool bSubstepping);
-	void StartFrame();
-	void EndFrame(ULineBatchComponent* InLineBatcher);
-	void WaitPhysScenes();
-	FGraphEventRef GetCompletionEvent();
+	virtual float OnStartFrame(float InDeltaTime) override;
 
 	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
 	void ListAwakeRigidBodies(bool bIncludeKinematic);
@@ -206,8 +202,6 @@ public:
 	FOnPhysScenePreTick OnPhysScenePreTick;
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysSceneStep, FPhysScene_Chaos*, float /*DeltaSeconds*/);
 	FOnPhysSceneStep OnPhysSceneStep;
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick, FPhysScene_Chaos*);
-	FOnPhysScenePostTick OnPhysScenePostTick;
 
 	bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
@@ -265,8 +259,7 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-	template <typename TSolver>
-	void SyncBodies(TSolver* Solver);
+	virtual void OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
 
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)
@@ -287,11 +280,6 @@ private:
 	}
 #endif
 
-	void SetGravity(const Chaos::TVector<float,3>& Acceleration)
-	{
-		// #todo : Implement
-	}
-
 	FPhysicsConstraintHandle AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle,FPhysicsActorHandle> >& Constraint);
 	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
 
@@ -306,8 +294,6 @@ private:
 		// #todo : Implement
 	}
 #endif
-
-	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent);
 
 	/** Process kinematic updates on any deferred skeletal meshes */
 	void UpdateKinematicsOnDeferredSkelMeshes();
@@ -325,15 +311,10 @@ private:
 	TArray<TPair<USkeletalMeshComponent*,FDeferredKinematicUpdateInfo>>	DeferredKinematicUpdateSkelMeshes;
 
 	TSet<UPrimitiveComponent*> DeferredCreatePhysicsStateComponents;
-	float MDeltaTime;
 	//Body Instances
 	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;
 	// Temp Interface
-	UWorld* MOwningWorld;
 	TArray<FCollisionNotifyInfo> MNotifies;
-
-	// Taskgraph control
-	FGraphEventRef CompletionEvent;
 
 	// Maps PhysicsProxy to Component that created the PhysicsProxy
 	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;

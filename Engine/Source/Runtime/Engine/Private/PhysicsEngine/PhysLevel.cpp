@@ -166,7 +166,11 @@ void UWorld::FinishPhysicsSim()
 		return;
 	}
 
+#if WITH_CHAOS
+	PhysScene->EndFrame();
+#else
 	PhysScene->EndFrame(LineBatcher);
+#endif
 }
 
 // the physics tick functions
