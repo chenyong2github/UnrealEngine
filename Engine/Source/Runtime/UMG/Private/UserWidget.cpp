@@ -113,7 +113,7 @@ bool UUserWidget::CanInitialize() const
 		return false;
 	}
 
-	// If this object is outered to an archetype or CDO, don't initialize the user widget.  That leads to a complex
+	// If this object is outerred to an archetype or CDO, don't initialize the user widget.  That leads to a complex
 	// and confusing serialization that when re-initialized later causes problems when copies of the template are made.
 	for ( const UObjectBaseUtility* It = this; It; It = It->GetOuter() )
 	{
@@ -130,7 +130,7 @@ bool UUserWidget::CanInitialize() const
 bool UUserWidget::Initialize()
 {
 	// If it's not initialized initialize it, as long as it's not the CDO, we never initialize the CDO.
-	if ( !bInitialized && ensure(CanInitialize()) )
+	if (!bInitialized && CanInitialize())
 	{
 		bInitialized = true;
 
@@ -218,7 +218,7 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 
 	if ( ensure(InWidgetTree) )
 	{
-		if (InWidgetTree->HasAnyFlags(RF_ArchetypeObject))
+		if (ensure(InWidgetTree->HasAnyFlags(RF_ArchetypeObject)))
 		{
 			FObjectInstancingGraph ObjectInstancingGraph;
 			WidgetTree = NewObject<UWidgetTree>(this, InWidgetTree->GetClass(), TEXT("WidgetTree"), RF_Transactional, InWidgetTree, false, &ObjectInstancingGraph);
@@ -239,6 +239,8 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 		}
 		else
 		{
+			// This shouldn't happen any more, but keeping it around for a bit as a fallback.  Everything should just follow the path above.
+
 			FObjectDuplicationParameters Parameters(InWidgetTree, this);
 
 			// Set to be transient and strip public flags
