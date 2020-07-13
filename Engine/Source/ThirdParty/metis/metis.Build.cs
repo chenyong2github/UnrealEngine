@@ -25,7 +25,14 @@ public class metis : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-			// @todo: build Mac libraries
+            string LibFolder = "/libmetis/Mac";
+            if (LibFolder != "")
+            {
+                bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug);// && Target.bDebugBuildsActuallyUseDebugCRT);
+                string ConfigFolder = bDebug ? "/Debug" : "/Release";
+
+                PublicAdditionalLibraries.Add(MetisPath + LibFolder + ConfigFolder + "/libmetis.a");
+            }
         }
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
         {
