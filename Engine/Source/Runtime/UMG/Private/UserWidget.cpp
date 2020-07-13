@@ -105,32 +105,10 @@ UWidgetBlueprintGeneratedClass* UUserWidget::GetWidgetTreeOwningClass() const
 	return WidgetClass;
 }
 
-bool UUserWidget::CanInitialize() const
-{
-#if (WITH_EDITOR || UE_BUILD_DEBUG)
-	if ( HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) )
-	{
-		return false;
-	}
-
-	// If this object is outerred to an archetype or CDO, don't initialize the user widget.  That leads to a complex
-	// and confusing serialization that when re-initialized later causes problems when copies of the template are made.
-	for ( const UObjectBaseUtility* It = this; It; It = It->GetOuter() )
-	{
-		if ( It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) )
-		{
-			return false;
-		}
-	}
-#endif
-
-	return true;
-}
-
 bool UUserWidget::Initialize()
 {
 	// If it's not initialized initialize it, as long as it's not the CDO, we never initialize the CDO.
-	if (!bInitialized && CanInitialize())
+	if (!bInitialized && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bInitialized = true;
 
