@@ -142,9 +142,8 @@ TVector<T, d> PBDCollisionSpringConstraintsBase<T, d>::GetDelta(const TPBDPartic
 	float Distance = Difference.Size();
 	TVector<T, d> Delta = Distance * MNormals[i];
 	T CombinedMass = PInvMass + InParticles.InvM(i1);
-	if (CombinedMass <= 1e-7)
+	if (CombinedMass <= (T)1e-7)
 		return TVector<T,d>(0);
-	check(CombinedMass > 1e-7);
 	return MStiffness * Delta / CombinedMass;
 }
 
