@@ -218,7 +218,7 @@ namespace CSVTools
 			"       -hideStatPrefix <list>\n" +
 			"       -hierarchySeparator <character>\n" +
 			"       -highlightEventRegions <startEventName,endEventName>\n" +
-			"       -ignoreStats <list> (can include wildcards)\n" +
+			"       -ignoreStats <list> (can include wildcards. Separate states with stat1;stat2;etc)\n" +
 			"       -interactive\n" +
 			"       -legend <list> \n" +
 			"       -maxHierarchyDepth <depth>\n" +
@@ -714,8 +714,13 @@ namespace CSVTools
             if (graphTitle.Length == 0 && statNames.Length == 1 && csvStats.Count > 0 && !statNames[0].EndsWith("*"))
             {
                 StatSamples stat = csvStats[0].GetStat(statNames[0]);
-                if (graphTitle.Length == 0)
-                {
+                if (stat == null)
+				{
+                    Console.Out.WriteLine("Warning: Could not find stat {0}", statNames[0]);
+                    graphTitle = string.Format("UnknownStat {0}", statNames[0]);
+                }
+                else
+                { 
                     graphTitle = stat.Name;
                 }
             }
