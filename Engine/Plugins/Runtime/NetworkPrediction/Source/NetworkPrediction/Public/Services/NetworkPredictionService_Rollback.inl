@@ -4,6 +4,7 @@
 
 namespace NetworkPredictionCVars
 {
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "np.ForceReconcile", "Force a single reconcile");
 	NETSIM_DEVCVAR_SHIPCONST_INT(PrintReconciles, 0, "np.PrintReconciles", "Print reconciles to log");
 }
 
@@ -117,7 +118,7 @@ public:
 				}
 			}
 
-			if (bDoRollback)
+			if (bDoRollback || NetworkPredictionCVars::ForceReconcile() > 0)
 			{
 				RollbackFrame = (RollbackFrame == INDEX_NONE) ? LocalFrame : FMath::Min(RollbackFrame, LocalFrame);
 			}
