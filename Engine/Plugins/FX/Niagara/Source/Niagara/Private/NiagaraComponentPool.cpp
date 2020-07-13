@@ -114,6 +114,9 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 			check(!RetElem.Component->IsPendingKill());
 			RetElem.Component->SetUserParametersToDefaultValues();
 
+			//Need to reset the component's visibility in case it's returned to the pool while marked invisible.
+			RetElem.Component->SetVisibility(true);
+
 			if (RetElem.Component->GetWorld() != World)
 			{
 				// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
