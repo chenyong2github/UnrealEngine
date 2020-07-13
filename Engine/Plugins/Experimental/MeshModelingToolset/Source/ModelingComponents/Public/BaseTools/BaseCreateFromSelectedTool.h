@@ -45,11 +45,11 @@ class MODELINGCOMPONENTS_API UTransformInputsToolProperties : public UInteractiv
 
 public:
 	/** Show UI to allow changing translation, rotation and scale of input meshes */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Transform)
 	bool bShowTransformUI = true;
 
 	/** Snap the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping, meta = (EditCondition = "bShowTransformUI == true"))
+	UPROPERTY(EditAnywhere, Category = Transform, meta = (EditCondition = "bShowTransformUI == true"))
 	bool bSnapToWorldGrid = false;
 };
 

@@ -30,7 +30,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Solidify)
 	bool bSolidifyInput = false;
 
-	/** Remove internal surfaces from the solidified input, before running morphology */
+	/** Remove internal surfaces from the solidified input */
 	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true"))
 	bool bRemoveInternalsAfterSolidify = false;
 
