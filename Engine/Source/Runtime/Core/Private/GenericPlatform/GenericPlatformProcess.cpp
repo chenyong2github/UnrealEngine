@@ -304,7 +304,10 @@ void FGenericPlatformProcess::ModifyCreateProcParams(FString& InOutURL, FString&
 #if PLATFORM_WINDOWS
 		InOutURL = TEXT("cmd.exe");
 		InOutParams = FString::Printf(TEXT("/c %s %s"), *Command, *Arguments);
-#elif PLATFORM_MAC || PLATFORM_LINUX
+#elif PLATFORM_MAC
+		InOutURL = TEXT("/bin/sh");
+		InOutParams = FString::Printf(TEXT("%s %s"), *Command, *Arguments);
+#elif PLATFORM_LINUX
 		InOutURL = TEXT("/bin/bash");
 		InOutParams = FString::Printf(TEXT("-c '%s %s'"), *Command, *Arguments);
 #endif
