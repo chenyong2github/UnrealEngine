@@ -218,7 +218,6 @@ public:
 
 	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree);
 
-	bool CanInitialize() const;
 	virtual bool Initialize();
 
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
