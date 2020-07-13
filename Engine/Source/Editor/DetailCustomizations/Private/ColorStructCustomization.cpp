@@ -181,7 +181,10 @@ void FColorStructCustomization::GetSortedChildren(TSharedRef<IPropertyHandle> In
 
 void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 {
-	ActiveTransaction = GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
+	if (!ActiveTransaction)
+	{
+		ActiveTransaction = GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
+	}
 
 	int32 NumObjects = StructPropertyHandle->GetNumOuterObjects();
 
