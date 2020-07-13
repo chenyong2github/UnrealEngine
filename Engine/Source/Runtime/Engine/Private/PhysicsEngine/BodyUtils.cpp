@@ -18,9 +18,6 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-bool bInertaScaleIncludeMass = false;
-FAutoConsoleVariableRef CVarInertiaScaleIncludeMass(TEXT("p.InertiaScaleIncludeMass"), bInertaScaleIncludeMass, TEXT("Whether to assume the mass was scaled when calculating inerta scaled by InertiaScale"), ECVF_Default);
-
 namespace BodyUtils
 {
 	inline float KgPerM3ToKgPerCm3(float KgPerM3)
@@ -51,7 +48,7 @@ namespace BodyUtils
 	}
 
 #if WITH_CHAOS
-	Chaos::TMassProperties<float, 3> ApplyMassPropertiesModifiers(const FBodyInstance* OwningBodyInstance, Chaos::TMassProperties<float, 3> MassProps, const FTransform& MassModifierTransform)
+	Chaos::TMassProperties<float, 3> ApplyMassPropertiesModifiers(const FBodyInstance* OwningBodyInstance, Chaos::TMassProperties<float, 3> MassProps, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		float OldMass = MassProps.Mass;
 		float NewMass = 0.f;
@@ -99,31 +96,31 @@ namespace BodyUtils
 		return MassProps;
 	}
 
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform)
+	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		// Calculate the mass properties based on the shapes assuming uniform density
 		Chaos::TMassProperties<float, 3> MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, GetBodyInstanceDensity(OwningBodyInstance));
 
 		// Apply the BodyInstance's mass and inertia modifiers
-		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform);
+		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
 	}
 
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const FTransform& MassModifierTransform)
+	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		// Calculate the mass properties based on the shapes assuming uniform density
 		Chaos::TMassProperties<float, 3> MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, GetBodyInstanceDensity(OwningBodyInstance));
 
 		// Apply the BodyInstance's mass and inertia modifiers
-		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform);
+		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
 	}
 
 
 #elif PHYSICS_INTERFACE_PHYSX
 
 	/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
+	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform, const bool bUnused)
 	{
 		// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
 		float DensityKGPerCubicUU = 1.0f;
