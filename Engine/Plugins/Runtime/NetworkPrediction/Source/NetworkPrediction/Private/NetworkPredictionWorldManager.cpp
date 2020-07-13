@@ -147,10 +147,16 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 
 			int32 PhysicsFrame = INDEX_NONE;
 			const bool bDoPhysics = (Physics.Solver != nullptr);
+
+			Chaos::EThreadingModeTemp PreThreading = Chaos::EThreadingModeTemp::SingleThread;
+
 			if (bDoPhysics)
 			{
 				PhysicsFrame = RollbackFrame + FixedTickState.PhysicsOffset;
-				FixedTickState.PhysicsRewindData->RewindToFrame(PhysicsFrame);
+				npEnsure(FixedTickState.PhysicsRewindData->RewindToFrame(PhysicsFrame));
+
+				PreThreading = Physics.Solver->GetThreadingMode();
+				Physics.Solver->SetThreadingMode_External(Chaos::EThreadingModeTemp::SingleThread);
 			}
 
 			FixedTickState.PendingFrame = RollbackFrame;
@@ -183,6 +189,11 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 			}
 
 			FixedTickState.PendingFrame = EndFrame;
+
+			if (bDoPhysics)
+			{
+				Physics.Solver->SetThreadingMode_External(PreThreading);
+			}
 		}
 		else if (RollbackFrame == FixedTickState.PendingFrame)
 		{
@@ -236,7 +247,7 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 		// see notes in NetworkPredictiontickState.h
 		const bool bSingleTick = Physics.bUsingPhysics;
 
-		while (FixedTickState.UnspentTimeMS >= FixedTickState.FixedStepRealTimeMS)
+		while ((FixedTickState.UnspentTimeMS + KINDA_SMALL_NUMBER) >= FixedTickState.FixedStepRealTimeMS)
 		{
 			FixedTickState.UnspentTimeMS -= FixedTickState.FixedStepRealTimeMS;
 			if (FMath::IsNearlyZero(FixedTickState.UnspentTimeMS))
@@ -491,14 +502,6 @@ void UNetworkPredictionWorldManager::InitPhysicsCapture()
 
 void UNetworkPredictionWorldManager::AdvancePhysicsResimFrame(int32& PhysicsFrame)
 {
-	/*
-	Physics.Solver->PushPhysicsState(Physics.Module->GetDispatcher());
-	FPhysicsSolverAdvanceTask AdvanceTask(Physics.Solver, FixedTickState.PhysicsRewindData->GetDeltaTimeForFrame(PhysicsFrame));
-	AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
-	Physics.Solver->BufferPhysicsResults();
-	Physics.Solver->FlipBuffers();
-	Physics.Solver->UpdateGameThreadStructures();
-	*/
 	Physics.Solver->AdvanceAndDispatch_External(FixedTickState.PhysicsRewindData->GetDeltaTimeForFrame(PhysicsFrame));
 	Physics.Solver->BufferPhysicsResults();
 	Physics.Solver->FlipBuffers();
