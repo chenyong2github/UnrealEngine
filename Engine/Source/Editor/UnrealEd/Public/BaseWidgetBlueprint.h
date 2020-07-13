@@ -9,12 +9,15 @@ UCLASS(Abstract)
 class UNREALED_API UBaseWidgetBlueprint : public UBlueprint
 {
 	GENERATED_UCLASS_BODY()
+
 public:
 #if WITH_EDITORONLY_DATA
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
 	class UWidgetTree* WidgetTree;
 #endif
+
+	virtual void PostLoad() override;
 
 	/**
 	* Returns collection of widgets that represent the 'source' (user edited) widgets for this

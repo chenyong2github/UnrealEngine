@@ -1161,7 +1161,7 @@ private:
 
 public:
 	/** The widget tree contained inside this user widget initialized by the blueprint */
-	UPROPERTY(Transient, TextExportTransient)
+	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)
 	UWidgetTree* WidgetTree;
 
 public:

@@ -9,7 +9,15 @@ UBaseWidgetBlueprint::UBaseWidgetBlueprint(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	WidgetTree = CreateDefaultSubobject<UWidgetTree>(TEXT("WidgetTree"));
-	WidgetTree->SetFlags(RF_Transactional);
+	WidgetTree->SetFlags(RF_Transactional | RF_ArchetypeObject);
+}
+
+void UBaseWidgetBlueprint::PostLoad()
+{
+	Super::PostLoad();
+
+	// Update any older widget trees that don't have the same flags.
+	WidgetTree->SetFlags(RF_Transactional | RF_ArchetypeObject);
 }
 
 TArray<UWidget*> UBaseWidgetBlueprint::GetAllSourceWidgets()
