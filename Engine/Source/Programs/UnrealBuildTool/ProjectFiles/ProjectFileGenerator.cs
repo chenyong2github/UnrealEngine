@@ -2266,6 +2266,13 @@ namespace UnrealBuildTool
 						WantProjectFileForTarget = bIncludeEnterpriseSource;
 					}
 				}
+				
+				// skip target rules that are platform extension or platform group specializations
+				string[] TargetPathSplit = TargetFilePath.GetFileNameWithoutAnyExtensions().Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
+				if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+				{
+					WantProjectFileForTarget = false;
+				}
 
 				if (WantProjectFileForTarget)
 				{
