@@ -770,6 +770,11 @@ class FMicropolyRasterizeCS : public FNaniteShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		if (Parameters.Platform == EShaderPlatform::SP_METAL_SM5)
+		{
+			return false;
+		}
+		
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
@@ -1172,6 +1177,11 @@ class FEmitCubemapShadowGS : public FNaniteShader
 
 	using FParameters = FEmitCubemapShadowParameters;
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsGeometryShaders(Parameters.Platform);
+	}
+	
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
 		FNaniteShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );

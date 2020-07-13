@@ -105,6 +105,11 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		if (Parameters.Platform == EShaderPlatform::SP_METAL_SM5)
+		{
+			return false;
+		}
+
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		// Upscale diffuse indirect only if applied.
