@@ -205,7 +205,7 @@ public:
 		INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
 		// Create the RHI texture.
-		uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | TexCreate_OfflineProcessed;
+		uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | (Owner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
