@@ -74,14 +74,14 @@ void UBaseCreateFromSelectedTool::Setup()
 	}
 
 	// initialize our properties
+
+	SetupProperties();
 	TransformProperties = NewObject<UTransformInputsToolProperties>(this);
 	TransformProperties->RestoreProperties(this);
 	AddToolPropertySource(TransformProperties);
 	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
 	HandleSourcesProperties->RestoreProperties(this);
 	AddToolPropertySource(HandleSourcesProperties);
-
-	SetupProperties();
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
