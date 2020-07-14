@@ -211,6 +211,8 @@ public:
 	void OnSystemComplete();
 	void DestroyInstance();
 
+	void OnPooledReuse(UWorld* NewWorld);
+
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara System Asset"))
 	void SetAsset(UNiagaraSystem* InAsset);
 

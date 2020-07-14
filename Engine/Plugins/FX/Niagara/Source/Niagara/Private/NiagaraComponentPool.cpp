@@ -119,19 +119,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 		else
 		{
 			check(RetElem.Component->GetAsset() == Template);
-			check(!RetElem.Component->IsPendingKill());
-			RetElem.Component->SetUserParametersToDefaultValues();
-
-			//Need to reset the component's visibility in case it's returned to the pool while marked invisible.
-			RetElem.Component->SetVisibility(true);
-
-			if (RetElem.Component->GetWorld() != World)
-			{
-				// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
-				// level but is now needed in another level.
-				// Use the REN_ForceNoResetLoaders flag to prevent the rename from potentially calling FlushAsyncLoading.
-				RetElem.Component->Rename(nullptr, World, REN_ForceNoResetLoaders);
-			}
+			RetElem.Component->OnPooledReuse(World);
 			break;
 		}
 	}
