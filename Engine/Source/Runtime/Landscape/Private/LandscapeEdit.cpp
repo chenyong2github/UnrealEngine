@@ -3093,6 +3093,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 			ReregisterAllComponents();
 		}
 
+		ReimportDestinationLayerGuid = FGuid();
 		LandscapeInfo->RecreateCollisionComponents();
 		LandscapeInfo->UpdateAllAddCollisions();
 	}
