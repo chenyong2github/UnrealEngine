@@ -57,7 +57,7 @@ public:
 	{
 	}
 
-	unsigned get_component_from_matrix_array_deref(ir_dereference_array* array_deref)
+	unsigned get_component_from_matrix_array_deref(ir_dereference_array* array_deref) const
 	{
 		check(array_deref);
 		check(array_deref->variable_referenced()->type->is_matrix());
@@ -67,36 +67,45 @@ public:
 		return deref_idx * array_deref->variable_referenced()->type->vector_elements;
 	}
 
+	ir_variable* get_rvalue_variable(ir_rvalue* rvalue, unsigned int& search_comp) const
+	{
+		ir_dereference* deref = rvalue->as_dereference();
+		ir_dereference_array* array_deref = rvalue->as_dereference_array();
+		ir_swizzle* swiz = rvalue->as_swizzle();
+
+		ir_variable* search_var = rvalue->variable_referenced();
+		if (swiz)
+		{
+			if (ir_dereference_array* swiz_array_deref = swiz->val->as_dereference_array())
+			{
+				search_comp = get_component_from_matrix_array_deref(swiz_array_deref);
+			}
+			search_comp += swiz->mask.x;
+		}
+		else if (array_deref)
+		{
+			//We can only handle matrix array derefs but these will have an outer swizzle that we'll work with. 
+			check(array_deref->array->type->is_matrix());
+			search_var = nullptr;
+		}
+		else if (!deref || !deref->type->is_scalar())
+		{
+			//If we're not a deref or we're not a straight scalar deref then we should leave this alone.
+			search_var = nullptr;
+		}
+
+		return search_var;
+	}
+
+
 	virtual void handle_rvalue(ir_rvalue **rvalue)
 	{
 		if (rvalue && *rvalue && !in_assignee)
 		{
 			ir_rvalue** to_replace = rvalue;
-			ir_dereference* deref = (*rvalue)->as_dereference();
-			ir_dereference_array* array_deref = (*rvalue)->as_dereference_array();
-			ir_swizzle* swiz = (*rvalue)->as_swizzle();
 
-			ir_variable* search_var = (*rvalue)->variable_referenced();
-			unsigned search_comp = 0;
-			if (swiz)
-			{
-				if (ir_dereference_array* swiz_array_deref = swiz->val->as_dereference_array())
-				{
-					search_comp = get_component_from_matrix_array_deref(swiz_array_deref);
-				}
-				search_comp += swiz->mask.x;
-			}
-			else if (array_deref)
-			{
-				//We can only handle matrix array derefs but these will have an outer swizzle that we'll work with. 
-				check(array_deref->array->type->is_matrix());
-				search_var = nullptr;
-			}
-			else if(!deref || !deref->type->is_scalar())
-			{
-				//If we're not a deref or we're not a straight scalar deref then we should leave this alone.
-				search_var = nullptr;
-			}
+			unsigned int search_comp = 0;
+			ir_variable* search_var = get_rvalue_variable(*rvalue, search_comp);
 
 			//Search to see if this deref matches any of the non-expression assignments LHS. If so then clone the rhs in it's place.
 
@@ -163,8 +172,15 @@ public:
 				ir_variable_mode mode = lhs->mode;
 				if (num_expr == 0)
 				{
-					varinfo.latest_non_expr_assign[assign_comp] = assign_idx;
+					unsigned int rhs_component = 0;
+					ir_variable* rhs_variable = get_rvalue_variable(assign->rhs, rhs_component);
 					assign->remove();
+
+					// handle the case of redundant self assignment
+					if (assign_comp != rhs_component || lhs != rhs_variable)
+					{
+						varinfo.latest_non_expr_assign[assign_comp] = assign_idx;
+					}
 				}
 				else
 				{
