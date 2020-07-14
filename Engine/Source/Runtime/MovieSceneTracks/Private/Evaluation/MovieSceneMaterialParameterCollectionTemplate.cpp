@@ -102,7 +102,7 @@ struct FMaterialParameterCollectionExecutionToken : IMovieSceneExecutionToken
 		UObject* WorldContextObject = Player.GetPlaybackContext();
 		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
-		if (!World)
+		if (!World || !Collection)
 		{
 			return;
 		}
