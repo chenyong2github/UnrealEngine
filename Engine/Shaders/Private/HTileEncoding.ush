@@ -74,6 +74,7 @@ uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth)
 #endif
 
 	return HTileValue;
+}
 
 #endif // COMPILER_SUPPORTS_PACK_INTRINSICS
 
