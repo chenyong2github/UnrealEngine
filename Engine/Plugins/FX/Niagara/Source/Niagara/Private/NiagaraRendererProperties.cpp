@@ -17,6 +17,12 @@ void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 
 bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset)
 {
+	// No compiled data, nothing to bind
+	if (CompiledData == nullptr)
+	{
+		return false;
+	}
+
 	// use the DataSetVariable to figure out the information about the data that we'll be sending to the renderer
 	const int32 VariableIndex = CompiledData->Variables.IndexOfByPredicate(
 		[&](const FNiagaraVariable& InVariable)
