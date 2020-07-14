@@ -1239,6 +1239,28 @@ void UNiagaraComponent::DestroyInstance()
 	MarkRenderStateDirty();
 }
 
+void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
+{
+	check(!IsPendingKill());
+	SetUserParametersToDefaultValues();
+
+	//Need to reset the component's visibility in case it's returned to the pool while marked invisible.
+	SetVisibility(true);
+
+	if (GetWorld() != NewWorld)
+	{
+		// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
+		// level but is now needed in another level.
+		// Use the REN_ForceNoResetLoaders flag to prevent the rename from potentially calling FlushAsyncLoading.
+		Rename(nullptr, NewWorld, REN_ForceNoResetLoaders);
+	}
+
+	if (SystemInstance != nullptr)
+	{
+		SystemInstance->OnPooledReuse();
+	}
+}
+
 void UNiagaraComponent::OnRegister()
 {
 	if (IsActive() && SystemInstance.IsValid() == false)
