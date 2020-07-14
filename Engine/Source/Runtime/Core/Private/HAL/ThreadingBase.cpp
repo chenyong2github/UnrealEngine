@@ -1125,6 +1125,12 @@ bool FForkProcessHelper::IsForkedMultithreadInstance()
 	return bIsForkedMultithreadInstance;
 }
 
+bool FForkProcessHelper::IsAForkingProcess()
+{
+	static bool bForkingProcess = FParse::Param(FCommandLine::Get(), TEXT("WaitAndFork")) || FParse::Param(FCommandLine::Get(), TEXT("FakeForking"));
+	return bForkingProcess;
+}
+
 bool FForkProcessHelper::SupportsMultithreadingPostFork()
 {
 	check(FCommandLine::IsInitialized());
