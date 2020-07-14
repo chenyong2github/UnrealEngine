@@ -193,6 +193,16 @@ public:
 	static UNREALED_API void DeselectAllSurfacesInLevel(ULevel* InLevel);
 
 	/**
+	 * Executes an operation on the set of all referenced worlds.
+	 *
+	 * @param	InWorld				World containing streaming levels
+	 * @param	Operation			The operation to execute on the referenced worlds, return false to break iteration
+	 * @param	bIncludeInWorld		If true, include the InWorld in the output list.
+	 * @param	bOnlyEditorVisible	If true, only sub-levels that should be visible in-editor are included
+	 */
+	static UNREALED_API void ForEachWorlds(UWorld* InWorld, TFunctionRef<bool(UWorld*)> Operation, bool bIncludeInWorld, bool bOnlyEditorVisible = false);
+
+	/**
 	 * Assembles the set of all referenced worlds.
 	 *
 	 * @param	InWorld				World containing streaming levels
