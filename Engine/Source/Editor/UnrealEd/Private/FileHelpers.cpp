@@ -3581,7 +3581,7 @@ bool FEditorFileUtils::SaveCurrentLevel()
 	if (Level)
 	{
 		// Check dirtiness if the level is using external actors, no need to save it needlessly
-		bool bCheckDirty = Level->bUseExternalActors;
+		bool bCheckDirty = Level->IsUsingExternalActors();
 		if (FEditorFileUtils::PromptToCheckoutLevels(bCheckDirty, Level))
 		{
 			UPackage* LevelPackage = Level->GetPackage();
