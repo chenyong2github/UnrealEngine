@@ -22,6 +22,10 @@ namespace MovieScene
 
 	struct FBlendedValuesTaskData
 	{
+		FBlendedValuesTaskData(UE::MovieScene::TComponentTypeID<float> InResultComponent) 
+			: ResultComponent(InResultComponent)
+		{}
+
 		FBlendResult GetAbsoluteResult(uint16 BlendID) const
 		{
 			checkf(bTasksComplete, TEXT("Attempting to access task data while tasks are still in progress - this is a threading policy violation. Clients must wait on FBlendedValuesTaskData::Prerequisites prior to accessing task data."));
@@ -41,6 +45,7 @@ namespace MovieScene
 	private:
 		friend UMovieScenePiecewiseFloatBlenderSystem;
 
+		UE::MovieScene::TComponentTypeID<float> ResultComponent;
 		TOptional<TArray<FBlendResult>> Absolutes;
 		TOptional<TArray<FBlendResult>> Relatives;
 		TOptional<TArray<FBlendResult>> Additives;
