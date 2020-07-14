@@ -72,10 +72,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorActor, Log, All);
 
-PRAGMA_DISABLE_OPTIMIZATION /* Not performance-critical */
-
-	 
-
 static int32 RecomputePoly( ABrush* InOwner, FPoly* Poly )
 {
 	// force recalculation of normal, and texture U and V coordinates in FPoly::Finalize()
@@ -95,28 +91,15 @@ public:
 		//call the empty version of the base class
 		: FExportObjectInnerContext(false)
 	{
-		// For each object . . .
-		for (UObject* InnerObj : TObjectRange<UObject>(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** IternalExcludeFlags */ EInternalObjectFlags::PendingKill))
+		// For each selected actor...
+		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 		{
-			UObject* OuterObj = InnerObj->GetOuter();
+			AActor* Actor = (AActor*)*It;
+			checkSlow(Actor->IsA(AActor::StaticClass()));
 
-			//assume this is not part of a selected actor
-			bool bIsChildOfSelectedActor = false;
-
-			UObject* TestParent = OuterObj;
-			while (TestParent)
+			ForEachObjectWithOuter(Actor, [this](UObject* InnerObj)
 			{
-				AActor* TestParentAsActor = Cast<AActor>(TestParent);
-				if (TestParentAsActor && TestParentAsActor->IsSelected())
-				{
-					bIsChildOfSelectedActor = true;
-					break;
-				}
-				TestParent = TestParent->GetOuter();
-			}
-
-			if (bIsChildOfSelectedActor)
-			{
+				UObject* OuterObj = InnerObj->GetOuter();
 				InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
 				if (Inners)
 				{
@@ -129,7 +112,7 @@ public:
 					InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
 					InnersForOuterObject.Add(InnerObj);
 				}
-			}
+			}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 		}
 	}
 };
