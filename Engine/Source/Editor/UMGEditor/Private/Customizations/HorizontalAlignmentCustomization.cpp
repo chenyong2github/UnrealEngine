@@ -4,6 +4,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "DetailWidgetRow.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -19,72 +20,23 @@ void FHorizontalAlignmentCustomization::CustomizeHeader(TSharedRef<IPropertyHand
 		PropertyHandle->CreatePropertyNameWidget()
 	]
 	.ValueContent()
+	.MaxDesiredWidth(0)
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew( SCheckBox )
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("HAlignLeft", "Horizontally Align Left"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FHorizontalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, HAlign_Left)
-			.IsChecked(this, &FHorizontalAlignmentCustomization::GetCheckState, PropertyHandle, HAlign_Left)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Left"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("HAlignCenter", "Horizontally Align Center"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FHorizontalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, HAlign_Center)
-			.IsChecked(this, &FHorizontalAlignmentCustomization::GetCheckState, PropertyHandle, HAlign_Center)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Center"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("HAlignRight", "Horizontally Align Right"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FHorizontalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, HAlign_Right)
-			.IsChecked(this, &FHorizontalAlignmentCustomization::GetCheckState, PropertyHandle, HAlign_Right)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Right"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("HAlignFill", "Horizontally Align Fill"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FHorizontalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, HAlign_Fill)
-			.IsChecked(this, &FHorizontalAlignmentCustomization::GetCheckState, PropertyHandle, HAlign_Fill)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Fill"))
-			]
-		]
+		SNew(SSegmentedControl<EHorizontalAlignment>)
+		.Value(this, &FHorizontalAlignmentCustomization::GetCurrentAlignment, PropertyHandle)
+		.OnValueChanged(this, &FHorizontalAlignmentCustomization::OnCurrentAlignmentChanged, PropertyHandle)
+		+SSegmentedControl<EHorizontalAlignment>::Slot(EHorizontalAlignment::HAlign_Left)
+			.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Left"))
+			.ToolTip(LOCTEXT("HAlignLeft", "Left Align Horizontally"))
+		+ SSegmentedControl<EHorizontalAlignment>::Slot(EHorizontalAlignment::HAlign_Center)
+			.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Center"))
+			.ToolTip(LOCTEXT("HAlignCenter", "Center Align Horizontally"))
+		+ SSegmentedControl<EHorizontalAlignment>::Slot(EHorizontalAlignment::HAlign_Right)
+			.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Right"))
+			.ToolTip(LOCTEXT("HAlignRight", "Right Align Horizontally"))
+		+ SSegmentedControl<EHorizontalAlignment>::Slot(EHorizontalAlignment::HAlign_Fill)
+			.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Fill"))
+			.ToolTip(LOCTEXT("HAlignFill", "Fill Horizontally"))
 	];
 }
 
@@ -92,20 +44,20 @@ void FHorizontalAlignmentCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 {
 }
 
-void FHorizontalAlignmentCustomization::HandleCheckStateChanged(ECheckBoxState InCheckboxState, TSharedRef<IPropertyHandle> PropertyHandle, EHorizontalAlignment ToAlignment)
-{
-	PropertyHandle->SetValue((uint8)ToAlignment);
-}
-
-ECheckBoxState FHorizontalAlignmentCustomization::GetCheckState(TSharedRef<IPropertyHandle> PropertyHandle, EHorizontalAlignment ForAlignment) const
+EHorizontalAlignment FHorizontalAlignmentCustomization::GetCurrentAlignment(TSharedRef<IPropertyHandle> PropertyHandle) const
 {
 	uint8 Value;
-	if ( PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success )
+	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success)
 	{
-		return Value == ForAlignment ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return (EHorizontalAlignment)Value;
 	}
 
-	return ECheckBoxState::Unchecked;
+	return HAlign_Fill;
+}
+
+void FHorizontalAlignmentCustomization::OnCurrentAlignmentChanged(EHorizontalAlignment NewAlignment, TSharedRef<IPropertyHandle> PropertyHandle)
+{
+	PropertyHandle->SetValue((uint8)NewAlignment);
 }
 
 #undef LOCTEXT_NAMESPACE

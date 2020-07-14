@@ -9,6 +9,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -24,72 +25,23 @@ void FVerticalAlignmentCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 		PropertyHandle->CreatePropertyNameWidget()
 	]
 	.ValueContent()
+	.MaxDesiredWidth(0)
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew( SCheckBox )
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("VAlignTop", "Vertically Align Top"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FVerticalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, VAlign_Top)
-			.IsChecked(this, &FVerticalAlignmentCustomization::GetCheckState, PropertyHandle, VAlign_Top)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("VerticalAlignment_Top"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("VAlignCenter", "Vertically Align Center"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FVerticalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, VAlign_Center)
-			.IsChecked(this, &FVerticalAlignmentCustomization::GetCheckState, PropertyHandle, VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("VerticalAlignment_Center"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("VAlignBottom", "Vertically Align Bottom"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FVerticalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, VAlign_Bottom)
-			.IsChecked(this, &FVerticalAlignmentCustomization::GetCheckState, PropertyHandle, VAlign_Bottom)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("VerticalAlignment_Bottom"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("VAlignFill", "Vertically Align Fill"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FVerticalAlignmentCustomization::HandleCheckStateChanged, PropertyHandle, VAlign_Fill)
-			.IsChecked(this, &FVerticalAlignmentCustomization::GetCheckState, PropertyHandle, VAlign_Fill)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("VerticalAlignment_Fill"))
-			]
-		]
+		SNew(SSegmentedControl<EVerticalAlignment>)
+		.Value(this, &FVerticalAlignmentCustomization::GetCurrentAlignment, PropertyHandle)
+		.OnValueChanged(this, &FVerticalAlignmentCustomization::OnCurrentAlignmentChanged, PropertyHandle)
+		+ SSegmentedControl<EVerticalAlignment>::Slot(EVerticalAlignment::VAlign_Top)
+			.Icon(FEditorStyle::GetBrush("VerticalAlignment_Top"))
+			.ToolTip(LOCTEXT("VAlignTop", "Top Align Vertically"))
+		+ SSegmentedControl<EVerticalAlignment>::Slot(EVerticalAlignment::VAlign_Center)
+			.Icon(FEditorStyle::GetBrush("VerticalAlignment_Center"))
+			.ToolTip(LOCTEXT("VAlignCenter", "Center Align Vertically"))
+		+ SSegmentedControl<EVerticalAlignment>::Slot(EVerticalAlignment::VAlign_Bottom)
+			.Icon(FEditorStyle::GetBrush("VerticalAlignment_Bottom"))
+			.ToolTip(LOCTEXT("VAlignBottom", "Bottom Align Vertically"))
+		+ SSegmentedControl<EVerticalAlignment>::Slot(EVerticalAlignment::VAlign_Fill)
+			.Icon(FEditorStyle::GetBrush("VerticalAlignment_Fill"))
+			.ToolTip(LOCTEXT("VAlignFill", "Fill Vertically"))
 	];
 }
 
@@ -97,20 +49,20 @@ void FVerticalAlignmentCustomization::CustomizeChildren(TSharedRef<IPropertyHand
 {
 }
 
-void FVerticalAlignmentCustomization::HandleCheckStateChanged(ECheckBoxState InCheckboxState, TSharedRef<IPropertyHandle> PropertyHandle, EVerticalAlignment ToAlignment)
-{
-	PropertyHandle->SetValue((uint8)ToAlignment);
-}
-
-ECheckBoxState FVerticalAlignmentCustomization::GetCheckState(TSharedRef<IPropertyHandle> PropertyHandle, EVerticalAlignment ForAlignment) const
+EVerticalAlignment FVerticalAlignmentCustomization::GetCurrentAlignment(TSharedRef<IPropertyHandle> PropertyHandle) const
 {
 	uint8 Value;
-	if ( PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success)
+	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success)
 	{
-		return Value == ForAlignment ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return (EVerticalAlignment)Value;
 	}
 
-	return ECheckBoxState::Unchecked;
+	return VAlign_Fill;
+}
+
+void FVerticalAlignmentCustomization::OnCurrentAlignmentChanged(EVerticalAlignment NewAlignment, TSharedRef<IPropertyHandle> PropertyHandle)
+{
+	PropertyHandle->SetValue((uint8)NewAlignment);
 }
 
 #undef LOCTEXT_NAMESPACE
