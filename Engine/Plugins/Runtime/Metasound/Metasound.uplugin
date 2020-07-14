@@ -30,6 +30,11 @@
 			"Name" : "MetasoundFrontend",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
-		}
+		},
+		{
+			"Name" : "MetasoundEngine",
+			"Type" : "Runtime",
+			"LoadingPhase" : "Default"
+		},
 	]
 }
