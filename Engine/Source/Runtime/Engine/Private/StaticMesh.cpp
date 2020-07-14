@@ -1274,6 +1274,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 					Segment.VertexBufferOffset = 0;
 					Segment.FirstPrimitive = Section.FirstIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
+					Segment.bEnabled = Section.bVisibleInRayTracing;
 					Segment.bForceOpaque = Section.bForceOpaque;
 					GeometrySections.Add(Segment);
 					Initializer.TotalPrimitiveCount += Section.NumTriangles;
@@ -1769,6 +1770,7 @@ void FStaticMeshRenderData::ResolveSectionInfo(UStaticMesh* Owner)
 			Section.MaterialIndex = Info.MaterialIndex;
 			Section.bEnableCollision = Info.bEnableCollision;
 			Section.bCastShadow = Info.bCastShadow;
+			Section.bVisibleInRayTracing = Info.bVisibleInRayTracing;
 			Section.bForceOpaque = Info.bForceOpaque;
 		}
 

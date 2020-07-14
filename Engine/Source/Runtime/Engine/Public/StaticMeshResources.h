@@ -194,6 +194,8 @@ struct FStaticMeshSection
 	bool bEnableCollision;
 	/** If true, this section will cast a shadow. */
 	bool bCastShadow;
+	/** If true, this section will be visible in ray tracing effects. */
+	bool bVisibleInRayTracing;
 	/** If true, this section will be considered opaque in ray tracing effects. */
 	bool bForceOpaque;
 #if WITH_EDITORONLY_DATA
@@ -212,6 +214,7 @@ struct FStaticMeshSection
 		, MaxVertexIndex(0)
 		, bEnableCollision(false)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, bForceOpaque(false)
 	{
 #if WITH_EDITORONLY_DATA

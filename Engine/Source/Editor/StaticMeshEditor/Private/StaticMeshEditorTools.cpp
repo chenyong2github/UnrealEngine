@@ -2115,6 +2115,19 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 			]
 		]
 		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2, 0, 2, 0)
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FMeshSectionSettingsLayout::IsSectionVisibleInRayTracing, SectionIndex)
+			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionVisibleInRayTracingChanged, SectionIndex)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+			.Text(LOCTEXT("VisibleInRayTracing", "Visible In Ray Tracing"))
+			]
+		]
+		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(2, 0, 2, 0)
 		[
@@ -2129,7 +2142,38 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 		];
 }
 
-ECheckBoxState FMeshSectionSettingsLayout::IsSectionOpaque( int32 SectionIndex ) const
+ECheckBoxState FMeshSectionSettingsLayout::IsSectionVisibleInRayTracing(int32 SectionIndex) const
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	return Info.bVisibleInRayTracing ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FMeshSectionSettingsLayout::OnSectionVisibleInRayTracingChanged(ECheckBoxState NewState, int32 SectionIndex)
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+
+	FText TransactionTest = LOCTEXT("StaticMeshEditorSetVisibleInRayTracingSectionFlag", "Staticmesh editor: Set VisibleInRayTracing For section, the section will be visible in ray tracing effects");
+	if (NewState == ECheckBoxState::Unchecked)
+	{
+		TransactionTest = LOCTEXT("StaticMeshEditorClearVisibleInRayTracingSectionFlag", "Staticmesh editor: Clear VisibleInRayTracing For section");
+	}
+	FScopedTransaction Transaction(TransactionTest);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		StaticMesh.PreEditChange(Property);
+	StaticMesh.Modify();
+
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	Info.bVisibleInRayTracing = (NewState == ECheckBoxState::Checked) ? true : false;
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
+	CallPostEditChange();
+}
+
+ECheckBoxState FMeshSectionSettingsLayout::IsSectionOpaque(int32 SectionIndex) const
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
 	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
