@@ -8,6 +8,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Editor.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
