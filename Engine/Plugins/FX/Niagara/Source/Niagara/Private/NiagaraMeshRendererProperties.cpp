@@ -249,6 +249,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 #if WITH_EDITOR
 	if (GIsEditor && (ParticleMesh != nullptr))
 	{
+		ParticleMesh->ConditionalPostLoad();
 		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
 	}
 #endif

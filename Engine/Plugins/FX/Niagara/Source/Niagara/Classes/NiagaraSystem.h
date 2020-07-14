@@ -259,6 +259,8 @@ public:
 
 private:
 	bool IsReadyToRunInternal() const;
+
+	void PostLoadPrimePools();
 public:
 	bool IsReadyToRun() const { return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal(); }
 
