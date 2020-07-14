@@ -101,7 +101,7 @@ void UMoviePipelineBurnInSetting::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMo
 	UClass* BurnIn = BurnInClass.TryLoadClass<UMoviePipelineBurnInWidget>();
 	ensureAlwaysMsgf(BurnIn, TEXT("Failed to load burnin class: '%s'."), *BurnInClass.GetAssetPathString());
 
-	BurnInWidgetInstance = NewObject<UMoviePipelineBurnInWidget>(this, BurnIn);
+	BurnInWidgetInstance = CreateWidget<UMoviePipelineBurnInWidget>(GetWorld(), BurnIn);
 
 	OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
 	VirtualWindow = SNew(SVirtualWindow).Size(FVector2D(OutputResolution.X, OutputResolution.Y));
