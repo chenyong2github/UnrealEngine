@@ -593,6 +593,8 @@ void UNiagaraSystem::PostLoad()
 
 	ComputeEmittersExecutionOrder();
 
+	ComputeRenderersDrawOrder();
+
 	CacheFromCompiledData();
 
 	//TODO: Move to serialized properties?
@@ -974,6 +976,40 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 	{
 		return EmitterHandles[EmitterIdx].GetInstance() == nullptr;
 	}));
+}
+
+void UNiagaraSystem::ComputeRenderersDrawOrder()
+{
+	struct FSortInfo
+	{
+		FSortInfo(int32 InSortHint, int32 InRendererIdx) : SortHint(InSortHint), RendererIdx(InRendererIdx) {}
+		int32 SortHint;
+		int32 RendererIdx;
+	};
+	TArray<FSortInfo, TInlineAllocator<8>> RendererSortInfo;
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+		{
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
+				{
+					RendererSortInfo.Emplace(Properties->SortOrderHint, RendererSortInfo.Num());
+				}
+			);
+		}
+	}
+
+	// We sort by the sort hint in order to guarantee that we submit according to the preferred sort order..
+	RendererSortInfo.Sort([](const FSortInfo& A, const FSortInfo& B) { return A.SortHint < B.SortHint; });
+
+	RendererDrawOrder.Reset(RendererSortInfo.Num());
+
+	for (const FSortInfo& SortInfo : RendererSortInfo)
+	{
+		RendererDrawOrder.Add(SortInfo.RendererIdx);
+	}
 }
 
 void UNiagaraSystem::CacheFromCompiledData()

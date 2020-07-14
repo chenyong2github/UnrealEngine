@@ -377,10 +377,15 @@ public:
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
 
+	/** Computes the order in which renderers will render */
+	void ComputeRenderersDrawOrder();
+
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
 
 	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+
+	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
@@ -566,6 +571,9 @@ protected:
 
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
+
+	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
+	TArray<int32> RendererDrawOrder;
 
 	uint32 bIsValidCached : 1;
 	uint32 bIsReadyToRunCached : 1;

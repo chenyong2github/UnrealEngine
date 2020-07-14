@@ -7,6 +7,7 @@ NiagaraRendererSprites.h: Renderer for rendering Niagara particles as sprites.
 #pragma once
 
 #include "NiagaraRenderer.h"
+#include "NiagaraSpriteRendererProperties.h"
 
 struct FNiagaraDynamicDataSprites;
 
@@ -40,15 +41,17 @@ private:
 		FParticleRenderData ParticleData;
 	};
 
-	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
-	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy) const;
+	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
+	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout) const;
 	void SetVertexFactoryParticleData(
 		class FNiagaraSpriteVertexFactory& VertexFactory,
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
 		FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
 		const FSceneView* View,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		const FNiagaraSceneProxy *SceneProxy) const;
+		const FNiagaraSceneProxy *SceneProxy,
+		const FNiagaraRendererLayout* RendererLayout
+	) const;
 	void CreateMeshBatchForView(
 		const FSceneView* View,
 		const FSceneViewFamily& ViewFamily,
@@ -57,7 +60,9 @@ private:
 		uint32 IndirectArgsOffset,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources) const;
+		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources,
+		const FNiagaraRendererLayout* RendererLayout
+	) const;
 
 	//Cached data from the properties struct.
 	ENiagaraSpriteAlignment Alignment;
@@ -72,25 +77,10 @@ private:
 	float MaxFacingCameraBlendDistance;
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
 	int32 NumCutoutVertexPerSubImage = 0;
+	uint32 MaterialParamValidMask = 0;
+	int32 FacingOffset = INDEX_NONE;
+	int32 AlignmentOffset = INDEX_NONE;
 
-
-	//Offsets into the emitter's dataset for each bound attribute.
-	int32 PositionOffset;
-	int32 ColorOffset;
-	int32 VelocityOffset;
-	int32 RotationOffset;
-	int32 SizeOffset;
-	int32 FacingOffset;
-	int32 AlignmentOffset;
-	int32 SubImageOffset;
-	uint32 MaterialParamValidMask;
-	int32 MaterialParamOffset;
-	int32 MaterialParamOffset1;
-	int32 MaterialParamOffset2;
-	int32 MaterialParamOffset3;
-	int32 CameraOffsetOffset;
-	int32 UVScaleOffset;
-	int32 MaterialRandomOffset;
-	int32 CustomSortingOffset;
-	int32 NormalizedAgeOffset;
+	const FNiagaraRendererLayout* RendererLayoutWithCustomSort;
+	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSort;
 };
