@@ -9,7 +9,9 @@
 // [ Hoppe 2000, "Efficient minimization of new quadric metric for simplifying meshes with appearance attributes" ]
 
 // doubles needed for precision
+#ifdef _MSC_VER
 #pragma float_control( precise, on, push )
+#endif
 
 #define WEIGHT_BY_AREA		1
 #define VOLUME_CONSTRAINT	1
@@ -578,4 +580,6 @@ inline void FQuadricAttrOptimizer::AddQuadric( const FQuadricAttr& RESTRICT q, u
 	}
 }
 
+#ifdef _MSC_VER
 #pragma float_control( pop )
+#endif

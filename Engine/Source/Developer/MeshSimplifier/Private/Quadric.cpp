@@ -4,7 +4,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC( LogQuadric, Log, All );
 
+#ifdef _MSC_VER
 #pragma float_control( precise, on, push )
+#endif
 
 // LUP factorization using Doolittle's method with partial pivoting
 template< typename T >
@@ -1057,4 +1059,6 @@ bool FQuadricAttrOptimizer::OptimizeLinear( const FVector& Position0, const FVec
 	return true;
 }
 
+#ifdef _MSC_VER
 #pragma float_control( pop )
+#endif
