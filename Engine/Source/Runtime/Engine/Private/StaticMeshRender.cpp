@@ -595,7 +595,7 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
 		OutMeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
 #if RHI_RAYTRACING
-		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow;
+		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow && bCastDynamicShadow;
 #endif
 		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
 		OutMeshBatch.LCI = &ProxyLODInfo;
