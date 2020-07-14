@@ -576,7 +576,8 @@ namespace Chaos
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
 
-		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
+		//todo: do we need this?
+		//MarshallingManager.Reset();
 
 		if(RewindCaptureNumFrames >= 0)
 		{
@@ -624,9 +625,10 @@ namespace Chaos
 	void TPBDRigidsSolver<Traits>::PushPhysicsState()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
-		FDirtySet* DirtyProxiesData = DirtyProxiesDataBuffer.AccessProducerBuffer();
+		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
+		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
+		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
-		FDirtyPropertiesManager* Manager = DirtyPropertiesManager->AccessProducerBuffer();
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
@@ -678,12 +680,12 @@ namespace Chaos
 			}
 		});
 
-		DirtyPropertiesManager->FlipProducer();
-		DirtyProxiesDataBuffer.FlipProducer();
+		MarshallingManager.Step_External(0);	//todo: pass in actual dt
 		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 
 		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, this]()
 		{
+			FPushPhysicsData* PushData = MarshallingManager.ConsumeData_Internal(-1,-1); //todo: pass in actual dt
 			FRewindData* RewindData = GetRewindData();
 			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 			{
@@ -786,7 +788,7 @@ namespace Chaos
 				}
 			});
 
-			DirtyProxiesData->Reset();
+			MarshallingManager.FreeData_Internal(PushData);
 		});
 	}
 
