@@ -69,7 +69,7 @@ void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 	Component->ScalabilityManagerHandle = ManagedComponents.Add(Component);
 	State.AddDefaulted();
 
-	//UE_LOG(LogNiagara, Warning, TEXT("Registered Component %0xP at index %d"), Component, Component->ScalabilityManagerHandle);
+	//UE_LOG(LogNiagara, Warning, TEXT("Registered Component %p at index %d"), Component, Component->ScalabilityManagerHandle);
 }
 
 void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
@@ -83,7 +83,7 @@ void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
 
 void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 {
-	//UE_LOG(LogNiagara, Warning, TEXT("Unregistering Component %0xP at index %d (Replaced with %0xP)"), ManagedComponents[IndexToRemove], IndexToRemove, ManagedComponents.Num() > 1 ? ManagedComponents.Last() : nullptr);
+	//UE_LOG(LogNiagara, Warning, TEXT("Unregistering Component %p at index %d (Replaced with %p)"), ManagedComponents[IndexToRemove], IndexToRemove, ManagedComponents.Num() > 1 ? ManagedComponents.Last() : nullptr);
 
 	check(ManagedComponents.Num() == State.Num());
 	if (ManagedComponents.IsValidIndex(IndexToRemove))
@@ -308,7 +308,7 @@ void FNiagaraScalabilityManager::Dump()
 			++Summary.NumCulledByVisibility;
 		}
 
-		DetailString += FString::Printf(TEXT("| %s | Sig: %2.4f | %0xP | %s | %s |\n"), *CulledStr, CompState.Significance, Comp, *Comp->GetAsset()->GetPathName(), *Comp->GetPathName());
+		DetailString += FString::Printf(TEXT("| %s | Sig: %2.4f | %p | %s | %s |\n"), *CulledStr, CompState.Significance, Comp, *Comp->GetAsset()->GetPathName(), *Comp->GetPathName());
 	}
 
 	UE_LOG(LogNiagara, Display, TEXT("-------------------------------------------------------------------------------"));
