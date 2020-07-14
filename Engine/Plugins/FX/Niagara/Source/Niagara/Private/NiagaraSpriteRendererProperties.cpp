@@ -206,6 +206,46 @@ void UNiagaraSpriteRendererProperties::InitBindings()
 	}
 }
 
+void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	RendererLayoutWithCustomSort.Initialize(ENiagaraSpriteVFLayout::Num);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraSpriteVFLayout::Position);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraSpriteVFLayout::Velocity);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraSpriteVFLayout::Color);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, SpriteRotationBinding.DataSetVariable, ENiagaraSpriteVFLayout::Rotation);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, SpriteSizeBinding.DataSetVariable, ENiagaraSpriteVFLayout::Size);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, SpriteFacingBinding.DataSetVariable, ENiagaraSpriteVFLayout::Facing);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, SpriteAlignmentBinding.DataSetVariable, ENiagaraSpriteVFLayout::Alignment);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraSpriteVFLayout::SubImage);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraSpriteVFLayout::CameraOffset);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, UVScaleBinding.DataSetVariable, ENiagaraSpriteVFLayout::UVScale);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraSpriteVFLayout::NormalizedAge);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialRandom);
+	RendererLayoutWithCustomSort.SetVariable(CompiledData, CustomSortingBinding.DataSetVariable, ENiagaraSpriteVFLayout::CustomSorting);
+	MaterialParamValidMask  = RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam3) ? 0x8 : 0;
+
+	RendererLayoutWithoutCustomSort.Initialize(ENiagaraSpriteVFLayout::Num);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraSpriteVFLayout::Position);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraSpriteVFLayout::Velocity);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraSpriteVFLayout::Color);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, SpriteRotationBinding.DataSetVariable, ENiagaraSpriteVFLayout::Rotation);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, SpriteSizeBinding.DataSetVariable, ENiagaraSpriteVFLayout::Size);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, SpriteFacingBinding.DataSetVariable, ENiagaraSpriteVFLayout::Facing);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, SpriteAlignmentBinding.DataSetVariable, ENiagaraSpriteVFLayout::Alignment);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraSpriteVFLayout::SubImage);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraSpriteVFLayout::CameraOffset);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, UVScaleBinding.DataSetVariable, ENiagaraSpriteVFLayout::UVScale);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraSpriteVFLayout::NormalizedAge);
+	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialRandom);
+	MaterialParamValidMask = RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam3) ? 0x8 : 0;
+}
+
 #if WITH_EDITORONLY_DATA
 
 void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) 

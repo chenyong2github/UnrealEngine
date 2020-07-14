@@ -12,12 +12,12 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraBoundsCalculator.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
-class UNiagaraRendererProperties;
 class UNiagaraSimulationStageBase;
 class UNiagaraEditorDataBase;
 
@@ -471,7 +471,18 @@ public:
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
-	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
+
+	template<typename TAction>
+	void ForEachEnabledRenderer(TAction Func) const
+	{
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
+		{
+			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+			{
+				Func(Renderer);
+			}
+		}
+	}
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 

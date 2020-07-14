@@ -7,6 +7,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 
 #include "NiagaraMeshVertexFactory.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraMeshRendererProperties.h"
 
 class FNiagaraDataSet;
 
@@ -64,4 +65,7 @@ private:
 	uint32 MaterialParamValidMask;
 
 	int32 MeshMinimumLOD = 0;
+
+	const FNiagaraRendererLayout* RendererLayoutWithCustomSorting;
+	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSorting;
 };

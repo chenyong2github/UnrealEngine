@@ -69,29 +69,6 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace ENiagaraMeshVFLayout
-{
-	enum Type
-	{
-		Position,
-		Velocity,
-		Color,
-		Scale,
-		Transform,
-		MaterialRandom,
-		NormalizedAge,
-		CustomSorting,
-		SubImage,
-		DynamicParam0,
-		DynamicParam1,
-		DynamicParam2,
-		DynamicParam3,
-		CameraOffset,
-
-		Num,
-	};
-};
-
 FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties* Props, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, Props, Emitter)
 	, MaterialParamValidMask(0)
@@ -142,24 +119,10 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 		bEnableCulling = true;
 	}
 
-	MaterialParamValidMask = 0;
-	TotalVFHalfComponents = 0;
-	TotalVFFloatComponents = 0;
-	VFVariables.SetNum(ENiagaraMeshVFLayout::Num);
-	SetVertexFactoryVariable(Data, Properties->PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
-	SetVertexFactoryVariable(Data, Properties->VelocityBinding.DataSetVariable, ENiagaraMeshVFLayout::Velocity);
-	SetVertexFactoryVariable(Data, Properties->ColorBinding.DataSetVariable, ENiagaraMeshVFLayout::Color);
-	SetVertexFactoryVariable(Data, Properties->ScaleBinding.DataSetVariable, ENiagaraMeshVFLayout::Scale);
-	SetVertexFactoryVariable(Data, Properties->MeshOrientationBinding.DataSetVariable, ENiagaraMeshVFLayout::Transform);
-	SetVertexFactoryVariable(Data, Properties->MaterialRandomBinding.DataSetVariable, ENiagaraMeshVFLayout::MaterialRandom);
-	SetVertexFactoryVariable(Data, Properties->NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
-	SetVertexFactoryVariable(Data, Properties->CustomSortingBinding.DataSetVariable, ENiagaraMeshVFLayout::CustomSorting);
-	SetVertexFactoryVariable(Data, Properties->SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
-	SetVertexFactoryVariable(Data, Properties->CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	MaterialParamValidMask = Properties->MaterialParamValidMask;
+
+	RendererLayoutWithCustomSorting = &Properties->RendererLayoutWithCustomSorting;
+	RendererLayoutWithoutCustomSorting = &Properties->RendererLayoutWithoutCustomSorting;
 
 	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValue();
 
@@ -295,16 +258,15 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	const bool bDoGPUCulling = bEnableCulling && GNiagaraGPUCulling && FNiagaraUtilities::AllowComputeShaders(Batcher->GetShaderPlatform());
 	const bool bShouldSort = SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
 	const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
-	//Disable the upload of sorting data if we're using a material that doesn't need it.
-	//TODO: we can probably reinit the GPU layout info entirely to remove custom sorting from the buffer but for now just skip the upload if it's not needed.
-	VFVariables[ENiagaraMeshVFLayout::CustomSorting].bUpload &= bCustomSorting;
+
+	const FNiagaraRendererLayout* RendererLayout = bCustomSorting ? RendererLayoutWithCustomSorting : RendererLayoutWithoutCustomSorting;
 
 	//For cpu sims we allocate render buffers from the global pool. GPU sims own their own.
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		if (GbEnableMinimalGPUBuffers)
 		{
-			ParticleFloatData = TransferDataToGPU(DynamicReadBuffer, SourceParticleData);
+			ParticleFloatData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, SourceParticleData);
 		}
 		else
 		{
@@ -401,19 +363,19 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.PrevTransformAvailable = false;
 				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;				
 
-				PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
-				PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraMeshVFLayout::Velocity].GetGPUOffset();
-				PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraMeshVFLayout::Color].GetGPUOffset();
-				PerViewUniformParameters.ScaleDataOffset = VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
-				PerViewUniformParameters.TransformDataOffset = VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset();
-				PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraMeshVFLayout::NormalizedAge].GetGPUOffset();
-				PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraMeshVFLayout::MaterialRandom].GetGPUOffset();
-				PerViewUniformParameters.SubImageDataOffset = VFVariables[ENiagaraMeshVFLayout::SubImage].GetGPUOffset();
-				PerViewUniformParameters.MaterialParamDataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam0].GetGPUOffset();
-				PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam1].GetGPUOffset();
-				PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam2].GetGPUOffset();
-				PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam3].GetGPUOffset();
-				PerViewUniformParameters.CameraOffsetDataOffset = VFVariables[ENiagaraMeshVFLayout::CameraOffset].GetGPUOffset();
+				PerViewUniformParameters.PositionDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
+				PerViewUniformParameters.VelocityDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Velocity].GetGPUOffset();
+				PerViewUniformParameters.ColorDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Color].GetGPUOffset();
+				PerViewUniformParameters.ScaleDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
+				PerViewUniformParameters.TransformDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset();
+				PerViewUniformParameters.NormalizedAgeDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::NormalizedAge].GetGPUOffset();
+				PerViewUniformParameters.MaterialRandomDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::MaterialRandom].GetGPUOffset();
+				PerViewUniformParameters.SubImageDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::SubImage].GetGPUOffset();
+				PerViewUniformParameters.MaterialParamDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::DynamicParam0].GetGPUOffset();
+				PerViewUniformParameters.MaterialParam1DataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::DynamicParam1].GetGPUOffset();
+				PerViewUniformParameters.MaterialParam2DataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::DynamicParam2].GetGPUOffset();
+				PerViewUniformParameters.MaterialParam3DataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::DynamicParam3].GetGPUOffset();
+				PerViewUniformParameters.CameraOffsetDataOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::CameraOffset].GetGPUOffset();
 
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
@@ -442,7 +404,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					SortInfo.DistanceCullRange = DistanceCullRange;
 
 					SortVarIdx = bCustomSorting ? ENiagaraMeshVFLayout::CustomSorting : ENiagaraMeshVFLayout::Position;
-					SortInfo.SortAttributeOffset = VFVariables[SortVarIdx].GetGPUOffset();
+					SortInfo.SortAttributeOffset = RendererLayout->VFVariables[SortVarIdx].GetGPUOffset();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 					const FSceneViewState* ViewState = View->State != nullptr ? View->State->GetConcreteViewState() : nullptr;
@@ -489,9 +451,9 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 					if (bDoGPUCulling)
 					{
-						SortInfo.CullPositionAttributeOffset = VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
-						SortInfo.CullOrientationAttributeOffset = VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset();
-						SortInfo.CullScaleAttributeOffset = VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
+						SortInfo.CullPositionAttributeOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
+						SortInfo.CullOrientationAttributeOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset();
+						SortInfo.CullScaleAttributeOffset = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
 					}
 				}
 
@@ -535,7 +497,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 							// We want to sort on CPU
 							FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 							SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
-							SortIndices(SortInfo, SortVarIdx, *SourceParticleData, SortedIndices);
+							SortIndices(SortInfo, RendererLayout->VFVariables[SortVarIdx], *SourceParticleData, SortedIndices);
 							CollectorResources.VertexFactory->SetSortedIndices(SortedIndices.SRV, 0);
 						}
 					}
@@ -745,14 +707,15 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		RayTracingInstance.Materials.Add(MeshBatch);
 	}
 
-	int32 NumInstances = SourceParticleData->GetNumInstances();
-	int32 TotalFloatSize = TotalVFFloatComponents * SourceParticleData->GetNumInstances();
-	int32 ComponentStrideDest = SourceParticleData->GetNumInstances() * sizeof(float);
+	const FNiagaraRendererLayout* RendererLayout = RendererLayoutWithCustomSorting;
+	const int32 NumInstances = SourceParticleData->GetNumInstances();
+	const int32 TotalFloatSize = RendererLayout->TotalFloatComponents * SourceParticleData->GetNumInstances();
+	const int32 ComponentStrideDest = SourceParticleData->GetNumInstances() * sizeof(float);
 
 	//ENiagaraMeshVFLayout::Transform just contains a Quat, not the whole transform
-	FNiagaraRendererVariableInfo& VarPositionInfo = VFVariables[ENiagaraMeshVFLayout::Position];
-	FNiagaraRendererVariableInfo& VarScaleInfo = VFVariables[ENiagaraMeshVFLayout::Scale];
-	FNiagaraRendererVariableInfo& VarTransformInfo = VFVariables[ENiagaraMeshVFLayout::Transform];
+	const FNiagaraRendererVariableInfo& VarPositionInfo = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Position];
+	const FNiagaraRendererVariableInfo& VarScaleInfo = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Scale];
+	const FNiagaraRendererVariableInfo& VarTransformInfo = RendererLayout->VFVariables[ENiagaraMeshVFLayout::Transform];
 	
 	int32 PositionBaseCompOffset = VarPositionInfo.DatasetOffset;
 	int32 ScaleBaseCompOffset = VarScaleInfo.DatasetOffset;
@@ -880,9 +843,9 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
 
 		const FUintVector4 NiagaraOffsets(
-			VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset(), 
-			VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset(),
-			VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset(),
+			RendererLayout->VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset(),
+			RendererLayout->VFVariables[ENiagaraMeshVFLayout::Transform].GetGPUOffset(),
+			RendererLayout->VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset(),
 			bLocalSpace ? 1 : 0);
 
 		uint32 FloatDataOffset = 0;
