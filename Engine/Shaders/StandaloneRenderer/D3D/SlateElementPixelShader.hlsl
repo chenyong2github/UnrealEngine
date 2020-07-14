@@ -8,6 +8,9 @@
 #define ESlateShader::GrayscaleFont	2
 #define ESlateShader::ColorFont		3
 #define ESlateShader::LineSegment	4
+#define ESlateShader::RoundedBox    7
+
+#define USE_LEGACY_DISABLED_EFFECT 0
 
 Texture2D ElementTexture;
 SamplerState ElementTextureSampler;
@@ -20,10 +23,11 @@ cbuffer PerFramePSConstants
 
 cbuffer PerElementPSConstants
 {
-    uint ShaderType;            //  4 bytes
     float4 ShaderParams;        // 16 bytes
-    uint IgnoreTextureAlpha;    //	4 byte
-    uint DisableEffect;         //  4 byte
+	float4 ShaderParams2;		// 16 bytes
+	uint ShaderType;            //  4 bytes
+    uint IgnoreTextureAlpha;    //	4 bytes
+    uint DisableEffect;         //  4 bytes
     uint UNUSED[1];             //  4 bytes
 };
 
@@ -124,6 +128,51 @@ float4 GetBorderElementColor( VertexOut InVertex )
 	return GetColor( InVertex, NewUV );
 }
 
+float GetRoundedBoxDistance(float2 pos, float2 center, float radius, float inset)
+{
+	// distance from center
+    pos = abs(pos - center); 
+
+    // distance from the inner corner
+    pos = pos - (center - float2(radius + inset, radius + inset));
+
+    // use distance to nearest edge when not in quadrant with radius
+    // this handles an edge case when radius is very close to thickness
+    // otherwise we're in the quadrant with the radius, 
+    // just use the analytic signed distance function
+    return lerp( length(pos) - radius, max(pos.x - radius, pos.y - radius), float(pos.x <= 0 || pos.y <=0) );
+}
+
+float4 GetRoundedBoxElementColor( VertexOut InVertex )
+{
+	const float2 size = ShaderParams.zw;
+	float2 pos = size * InVertex.TextureCoordinates.xy;
+	float2 center = size / 2.0;
+
+	float radius = ShaderParams.x;	
+	float thickness = ShaderParams.y; 
+
+	// Compute the distances internal and external to the border outline
+	float dext = GetRoundedBoxDistance(pos, center, radius, 0.0);
+	float din  = GetRoundedBoxDistance(pos, center, max(radius - thickness, 0), thickness);
+
+	// Compute the border intensity and fill intensity with a smooth transition
+	float spread = 0.5;
+    float bi = smoothstep(spread, -spread, dext);
+    float fi = smoothstep(spread, -spread, din);
+
+    // alpha blend the external color 
+	float4 fill = InVertex.Color;
+    float4 border = ShaderParams2;
+    float4 OutColor = lerp(border, fill, float(thickness > radius));
+    OutColor.a = 0.0;
+
+    // blend in the border and fill colors
+    OutColor = lerp(OutColor, border, bi);
+    OutColor = lerp(OutColor, fill, fi);
+    return OutColor;
+}
+
 float4 GetSplineElementColor( VertexOut InVertex )
 {
 	const float LineWidth = ShaderParams.x;
@@ -156,6 +205,10 @@ float4 Main( VertexOut InVertex ) : SV_Target
 	{
 		OutColor = GetDefaultElementColor( InVertex );
 	}
+	else if( ShaderType == ESlateShader::RoundedBox)
+	{
+		OutColor = GetRoundedBoxElementColor( InVertex );
+	}
 	else if( ShaderType == ESlateShader::Border )
 	{
 		OutColor = GetBorderElementColor( InVertex );
@@ -178,6 +231,8 @@ float4 Main( VertexOut InVertex ) : SV_Target
 
     if (DisableEffect)
 	{
+#if USE_LEGACY_DISABLED_EFFECT
+
 		//desaturate
 		float3 LumCoeffs = float3( 0.3, 0.59, .11 );
 		float Lum = dot( LumCoeffs, OutColor.rgb );
@@ -187,6 +242,9 @@ float4 Main( VertexOut InVertex ) : SV_Target
 		
 		// lerp between desaturated color and gray color based on distance from the desaturated color to the gray
 		OutColor.rgb = lerp( OutColor.rgb, Grayish, clamp( distance( OutColor.rgb, Grayish ), 0, .8)  );
+#else
+		OutColor.a *= .45f;
+#endif
 	}
 
 	return OutColor;

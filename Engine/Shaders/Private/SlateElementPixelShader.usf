@@ -10,6 +10,9 @@ half4 GammaAndAlphaValues;
 /** x:DrawDisabledEffect */
 /** Per element params */
 float4 ShaderParams;
+float4 ShaderParams2;
+
+#define USE_LEGACY_DISABLED_EFFECT 0
 
 #if USE_MATERIALS
 half4 DrawFlags;
@@ -228,6 +231,54 @@ half4 GetBorderElementColor( VertexToPixelInterpolants InVertex )
 }
 #endif
 
+#if SHADER_TYPE == ST_RoundedBox
+float GetRoundedBoxDistance(float2 pos, float2 center, float radius, float inset)
+{
+	// distance from center
+    pos = abs(pos - center); 
+
+    // distance from the inner corner
+    pos = pos - (center - float2(radius + inset, radius + inset));
+
+    // use distance to nearest edge when not in quadrant with radius
+    // this handles an edge case when radius is very close to thickness
+    // otherwise we're in the quadrant with the radius, 
+    // just use the analytic signed distance function
+    return lerp( length(pos) - radius, max(pos.x - radius, pos.y - radius), float(pos.x <= 0 || pos.y <=0) );
+}
+
+half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
+{
+	const float2 size = ShaderParams.zw;
+	float2 pos = size * InVertex.TextureCoordinates[0].xy;
+	float2 center = size / 2.0;
+
+	float radius = ShaderParams.x;	
+	float thickness = ShaderParams.y; 
+
+	// Compute the distances internal and external to the border outline
+	float dext = GetRoundedBoxDistance(pos, center, radius, 0.0);
+	float din  = GetRoundedBoxDistance(pos, center, max(radius - thickness, 0), thickness);
+
+	// Compute the border intensity and fill intensity with a smooth transition
+	float spread = 0.5;
+    float bi = smoothstep(spread, -spread, dext);
+    float fi = smoothstep(spread, -spread, din);
+
+	half4 fill = InVertex.Color;
+    half4 border = ShaderParams2;
+
+    // alpha blend the external color 
+    half4 OutColor = lerp(border, fill, half(thickness > radius));
+    OutColor.a = 0.0;
+
+    // blend in the border and fill colors
+    OutColor = lerp(OutColor, border, bi);
+    OutColor = lerp(OutColor, fill, fi);
+    return OutColor;
+}
+#endif
+
 #if SHADER_TYPE == ST_LineSegment 
 /** 
  * Generates an anti-aliased line segment pixel
@@ -261,6 +312,8 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 	half4 OutColor;
 #if SHADER_TYPE == ST_Default || SHADER_TYPE == ST_Custom
 	OutColor = GetDefaultElementColor( VIn );
+#elif SHADER_TYPE == ST_RoundedBox
+	OutColor = GetRoundedBoxElementColor( VIn );
 #elif SHADER_TYPE == ST_Border
 	OutColor = GetBorderElementColor( VIn );
 #elif SHADER_TYPE == ST_GrayscaleFont || SHADER_TYPE == ST_ColorFont
@@ -284,6 +337,7 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 
 	if (DrawDisabledEffect != 0)
 	{
+#if USE_LEGACY_DISABLED_EFFECT
 		#if SOURCE_IN_LINEAR_SPACE
 			half3 LumCoeffs = half3( 0.3, 0.59, .11 );
 			half3 Grayish = half3(.1, .1, .1);
@@ -297,6 +351,12 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 		half Lum = dot( LumCoeffs, OutColor.rgb );
 		OutColor.rgb = lerp( OutColor.rgb, float3(Lum,Lum,Lum), .8 );
 		OutColor.rgb = lerp( OutColor.rgb, Grayish, clamp( distance( OutColor.rgb, Grayish ), 0, .8)  );
+#else
+		//float bw = (min(OutColor.r, min(OutColor.g, OutColor.b)) + max(OutColor.r, max(OutColor.g, OutColor.b))) * 0.5f;
+		//OutColor.rgb = lerp(OutColor.rgb, float3(bw, bw, bw), .5);
+
+		OutColor.a *= .45f;
+#endif
 	}
 
     // Contrast
