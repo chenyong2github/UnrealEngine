@@ -397,19 +397,15 @@ void FPackageAutoSaver::UpdateDirtyListsForPackage(UPackage* Pkg)
 
 			// Get the set of all reference worlds.
 			FWorldContext& EditorContext = GEditor->GetEditorWorldContext();
-			TArray<UWorld*> WorldsArray;
-			EditorLevelUtils::GetWorlds(EditorContext.World(), WorldsArray, true);
 
 			bool bPackageIsMap = false;
-			for (UWorld* World : WorldsArray)
+			EditorLevelUtils::ForEachWorlds(EditorContext.World(), [&bPackageIsMap, Pkg](UWorld* World)
 			{
 				UPackage* Package = CastChecked<UPackage>(World->GetOuter());
-				if (Package == Pkg)
-				{
-					bPackageIsMap = true;
-					break;
-				}
-			}
+				bPackageIsMap = Package == Pkg;
+				return !bPackageIsMap;
+			}, true);
+
 			bool bForMapAutosave = Asset && Asset->GetTypedOuter<UWorld>()/** This handles external packages. */;
 
 			// Add package into the appropriate list (map or content)
