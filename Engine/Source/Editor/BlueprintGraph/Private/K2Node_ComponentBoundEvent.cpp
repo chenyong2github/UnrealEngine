@@ -115,7 +115,7 @@ void UK2Node_ComponentBoundEvent::ValidateNodeDuringCompilation(FCompilerResults
 {
 	if (!IsDelegateValid())
 	{
-		MessageLog.Error(*LOCTEXT("ComponentBoundEvent_Error", "@@ does not have a valid matching component!").ToString(), this);
+		MessageLog.Warning(*LOCTEXT("ComponentBoundEvent_Error", "@@ does not have a valid matching component!").ToString(), this);
 	}
 	Super::ValidateNodeDuringCompilation(MessageLog);
 }
