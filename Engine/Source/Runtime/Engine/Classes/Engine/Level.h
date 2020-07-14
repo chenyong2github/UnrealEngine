@@ -424,12 +424,6 @@ public:
 	/** Array of actors to be exposed to GC in this level. All other actors will be referenced through ULevelActorContainer */
 	TArray<AActor*> ActorsForGC;
 
-#if WITH_EDITORONLY_DATA
-	/** Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load. */
-	UPROPERTY(EditInstanceOnly, Category=World)
-	bool bUseExternalActors;
-#endif
-
 	/** Set before calling LoadPackage for a streaming level to ensure that OwningWorld is correct on the Level */
 	ENGINE_API static TMap<FName, TWeakObjectPtr<UWorld> > StreamedLevelsOwningWorld;
 		
@@ -688,6 +682,13 @@ public:
 	ENGINE_API void MarkLevelBoundsDirty();
 
 private:
+
+#if WITH_EDITORONLY_DATA
+	/** Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load. */
+	UPROPERTY(EditInstanceOnly, Category = World)
+	bool bUseExternalActors;
+#endif
+
 	FLevelBoundsActorUpdatedEvent LevelBoundsActorUpdatedEvent; 
 
 	UPROPERTY()
@@ -918,6 +919,12 @@ public:
 	ENGINE_API void HandleLegacyMapBuildData();
 
 #if WITH_EDITOR
+	/** Returns true if the level uses external actors mode. */
+	ENGINE_API bool IsUsingExternalActors() const;
+
+	/** Sets if the level uses external actors mode or not. */
+	ENGINE_API void SetUseExternalActors(bool bEnable);
+
 	ENGINE_API static bool CanConvertActorToExternalPackaging(AActor* Actor);
 
 	/** 

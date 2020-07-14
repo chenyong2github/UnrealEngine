@@ -125,24 +125,24 @@ void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, 
 		FScopedTransaction Transaction(LOCTEXT("WorldUseExternalActors", "Change World Use External Actors"));
 
 		Level->Modify();
-		Level->bUseExternalActors = BoxState == ECheckBoxState::Checked;
-
+		Level->SetUseExternalActors(BoxState == ECheckBoxState::Checked);
+		
 		FText MessageTitle(LOCTEXT("ConvertActorPackagingDialog", "Convert Actors Packaging"));
-		FText PackagingMode = Level->bUseExternalActors ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
+		FText PackagingMode = Level->IsUsingExternalActors() ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
 		FText Message = FText::Format(LOCTEXT("ConvertActorPackagingMsg", "Do you want to convert all actors to {0} packaging as well?"), PackagingMode);
 		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
 
 		// if the user accepts, convert all actors to what the new packaging mode will be
 		if (ConvertAnswer == EAppReturnType::Yes)
 		{
-			Level->ConvertAllActorsToPackaging(Level->bUseExternalActors);
+			Level->ConvertAllActorsToPackaging(Level->IsUsingExternalActors());
 		}
 	}
 }
 
 ECheckBoxState FWorldSettingsDetails::IsUseExternalActorsChecked(ULevel* Level) const
 {
-	return Level->bUseExternalActors ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return Level->IsUsingExternalActors() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 FLightmapCustomNodeBuilder::FLightmapCustomNodeBuilder(const TSharedPtr<FAssetThumbnailPool>& InThumbnailPool)
