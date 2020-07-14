@@ -10,8 +10,6 @@
 // Only exposed for debugging. Disabling this carries a severe performance penalty
 #define RENDER_QUERY_POOLING_ENABLED 1
 
-#define REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER (TRACING_PROFILER || DO_CHECK)
-
 #if HAS_GPU_STATS 
 
 CSV_DEFINE_CATEGORY_MODULE(RENDERCORE_API, GPU, true);
@@ -117,9 +115,7 @@ public:
 		, EndResultMicroseconds(InvalidQueryResult)
 		, StartQuery(RenderQueryPool.AllocateQuery())
 		, EndQuery(RenderQueryPool.AllocateQuery())
-#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 		, FrameNumber(-1)
-#endif
 #if DO_CHECK
 		, bInsideQuery(false)
 #endif
@@ -140,9 +136,7 @@ public:
 		STAT(StatName = NewStatName;)
 		StartResultMicroseconds = InvalidQueryResult;
 		EndResultMicroseconds = InvalidQueryResult;
-#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 		FrameNumber = GFrameNumberRenderThread;
-#endif
 	}
 
 	void End(FRHICommandListImmediate& RHICmdList)
@@ -160,9 +154,7 @@ public:
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_SceneUtils_GatherQueryResults);
 
 		// Get the query results which are still outstanding
-#if TRACING_PROFILER
 		check(GFrameNumberRenderThread != FrameNumber);
-#endif
 		check(StartQuery.IsValid() && EndQuery.IsValid());
 
 		if (StartResultMicroseconds == InvalidQueryResult)
@@ -223,12 +215,10 @@ public:
 		return EndResultMicroseconds;
 	}
 
-#if TRACING_PROFILER
 	uint32 GetFrameNumber() const
 	{
 		return FrameNumber;
 	}
-#endif
 
 	static constexpr uint32 GetNumRHIQueriesPerEvent()
 	{
@@ -245,9 +235,7 @@ private:
 	FName Name;
 	STAT(FName StatName;)
 
-#if REALTIME_GPU_PROFILER_EVENT_TRACK_FRAME_NUMBER
 	uint32 FrameNumber;
-#endif
 
 #if DO_CHECK
 	bool bInsideQuery;
