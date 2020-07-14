@@ -28,6 +28,7 @@
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 #include "UObject/CineCameraObjectVersion.h"
 #include "UObject/VirtualProductionObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDevObjectVersion, Log, All);
 
@@ -189,4 +190,7 @@ const FGuid FVirtualProductionObjectVersion::GUID(0x64F58936, 0xFD1B42BA, 0xBA96
 // Register VirtualProduction custom version with Core
 FDevVersionRegistration GRegisterVirtualProductionObjectVersion(FVirtualProductionObjectVersion::GUID, FVirtualProductionObjectVersion::LatestVersion, TEXT("Dev-VirtualProduction"));
 
-
+// Unique UE5 version id
+const FGuid FUE5MainStreamObjectVersion::GUID(0x697DD581, 0xE64f41AB, 0xAA4A51EC, 0xBEB7B628);
+// Register UE5 main stream custom version with Core
+FDevVersionRegistration GRegisterUE5MainStreamObjectVersion(FUE5MainStreamObjectVersion::GUID, FUE5MainStreamObjectVersion::LatestVersion, TEXT("UE5-Main"));
