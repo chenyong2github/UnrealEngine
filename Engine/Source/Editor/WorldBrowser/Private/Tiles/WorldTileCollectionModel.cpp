@@ -1769,13 +1769,6 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 
 		ULandscapeLayerInfoObject* DataLayer = ALandscapeProxy::VisibilityLayer;
 
-		// Check to ensure that if layer data is enabled, the import layer is set correctly
-		if (!Landscape->ReimportDestinationLayerGuid.IsValid())
-		{
-			// Set the destination layer to the default layer
-			Landscape->ReimportDestinationLayerGuid = Landscape->GetLandscapeActor()->GetLayer(0)->Guid;
-		}
-
 		if (TargetLayer == HeightmapLayerName) // Heightmap
 		{
 			if (!Landscape->ReimportHeightmapFilePath.IsEmpty())
