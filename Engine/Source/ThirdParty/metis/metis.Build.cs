@@ -36,7 +36,14 @@ public class metis : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
         {
-			// @todo: build Linux libraries
+            string LibFolder = "/libmetis/Linux/x86_64-unknown-linux-gnu";
+            if (LibFolder != "")
+            {
+                bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug);// && Target.bDebugBuildsActuallyUseDebugCRT);
+                string ConfigFolder = bDebug ? "/Debug" : "/Release";
+
+                PublicAdditionalLibraries.Add(MetisPath + LibFolder + ConfigFolder + "/libmetis.a");
+            }
         }
     }
 }
