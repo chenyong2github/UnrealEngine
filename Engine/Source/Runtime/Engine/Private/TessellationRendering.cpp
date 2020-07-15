@@ -9,7 +9,7 @@
   * Game thread version that looks at the material settings. Will not change answer during a shader compile */
 bool MaterialSettingsRequireAdjacencyInformation_GameThread(UMaterialInterface* Material, const FVertexFactoryType* VertexFactoryType, const FStaticFeatureLevel InFeatureLevel)
 {
-	check(IsInGameThread());
+	check(IsInParallelGameThread() || IsInGameThread());
 
 	//if we pass null here we have to guarantee that the VF supports tessellation (e.g by using type LocalVF)
 	bool VertexFactorySupportsTessellation = !VertexFactoryType || (VertexFactoryType && VertexFactoryType->SupportsTessellationShaders());
@@ -65,14 +65,14 @@ bool RequiresAdjacencyInformation(UMaterialInterface* Material, const FVertexFac
 		return false;
 	}
 
-	if (IsInRenderingThread() || IsInParallelRenderingThread())
-	{
-		return MaterialRenderingRequiresAdjacencyInformation_RenderingThread(Material, VertexFactoryType, InFeatureLevel);
-	}
-	else if (IsInGameThread())
+	if (IsInParallelGameThread() || IsInGameThread())
 	{
 		return MaterialSettingsRequireAdjacencyInformation_GameThread(Material, VertexFactoryType, InFeatureLevel);
 	}
+	else if (IsInRenderingThread() || IsInParallelRenderingThread())
+	{
+		return MaterialRenderingRequiresAdjacencyInformation_RenderingThread(Material, VertexFactoryType, InFeatureLevel);
+	} 
 	else
 	{
 		//if we pass null here we have to guarantee that the VF supports tessellation (e.g by using type LocalVF)

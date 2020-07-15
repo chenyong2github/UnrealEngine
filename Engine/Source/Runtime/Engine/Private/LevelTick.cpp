@@ -1024,6 +1024,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 	auto ParallelWork = 
 		[](int32 Index) 
 		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 			UActorComponent* NextComponent = LocalComponentsThatNeedEndOfFrameUpdate[Index];
 			if (NextComponent)
 			{
