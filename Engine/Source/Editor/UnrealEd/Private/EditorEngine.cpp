@@ -6313,6 +6313,10 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 
 bool UEditorEngine::AreAllWindowsHidden() const
 {
+	if (!FSlateApplication::IsInitialized())
+	{
+		return true;
+	}
 	const TArray< TSharedRef<SWindow> > AllWindows = FSlateApplication::Get().GetInteractiveTopLevelWindows();
 
 	bool bAllHidden = true;
