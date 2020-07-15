@@ -1344,6 +1344,13 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		}
 	}
 
+	if (System != nullptr)
+	{
+		System->ComputeEmittersExecutionOrder();
+		System->ComputeRenderersDrawOrder();
+		System->CacheFromCompiledData();
+	}
+
 	TArray<UNiagaraComponent*> ReferencingComponents;
 	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
 	{

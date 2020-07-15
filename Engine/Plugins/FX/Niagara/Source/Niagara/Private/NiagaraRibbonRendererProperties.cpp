@@ -196,6 +196,7 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
+	RendererLayout.Finalize();
 }
 
 #if WITH_EDITORONLY_DATA

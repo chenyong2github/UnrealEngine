@@ -1462,6 +1462,11 @@ void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 	UpdateChangeId(TEXT("Renderer added"));
 	OnRenderersChangedDelegate.Broadcast();
 #endif
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		Owner->ComputeRenderersDrawOrder();
+		Owner->CacheFromCompiledData();
+	}
 }
 
 void UNiagaraEmitter::RemoveRenderer(UNiagaraRendererProperties* Renderer)
@@ -1473,6 +1478,10 @@ void UNiagaraEmitter::RemoveRenderer(UNiagaraRendererProperties* Renderer)
 	UpdateChangeId(TEXT("Renderer removed"));
 	OnRenderersChangedDelegate.Broadcast();
 #endif
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		Owner->ComputeRenderersDrawOrder();
+	}
 }
 
 FNiagaraEventScriptProperties* UNiagaraEmitter::GetEventHandlerByIdUnsafe(FGuid ScriptUsageId)

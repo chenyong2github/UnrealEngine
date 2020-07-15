@@ -173,8 +173,8 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()
 
 FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, FNiagaraDataBuffer* SrcData)
 {
-	const int32 TotalFloatSize = RendererLayout->TotalFloatComponents * SrcData->GetNumInstances();
-	const int32 TotalHalfSize = RendererLayout->TotalHalfComponents * SrcData->GetNumInstances();
+	const int32 TotalFloatSize = RendererLayout->GetTotalFloatComponents_RenderThread() * SrcData->GetNumInstances();
+	const int32 TotalHalfSize = RendererLayout->GetTotalHalfComponents_RenderThread() * SrcData->GetNumInstances();
 
 	const int32 ComponentHalfStrideDest = SrcData->GetNumInstances() * sizeof(FFloat16);
 	const int32 ComponentFloatStrideDest = SrcData->GetNumInstances() * sizeof(float);
@@ -182,7 +182,7 @@ FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer
 	FGlobalDynamicReadBuffer::FAllocation FloatAllocation = TotalFloatSize ? DynamicReadBuffer.AllocateFloat(TotalFloatSize) : FGlobalDynamicReadBuffer::FAllocation();
 	FGlobalDynamicReadBuffer::FAllocation HalfAllocation = TotalHalfSize ? DynamicReadBuffer.AllocateHalf(TotalHalfSize) : FGlobalDynamicReadBuffer::FAllocation();
 
-	for (const FNiagaraRendererVariableInfo& VarInfo : RendererLayout->VFVariables)
+	for (const FNiagaraRendererVariableInfo& VarInfo : RendererLayout->GetVFVariables_RenderThread())
 	{
 		int32 GpuOffset = VarInfo.GetGPUOffset();
 		if (GpuOffset != INDEX_NONE && VarInfo.bUpload)

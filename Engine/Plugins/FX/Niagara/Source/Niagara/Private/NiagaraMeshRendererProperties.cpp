@@ -181,6 +181,7 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithCustomSorting.Finalize();
 
 	RendererLayoutWithoutCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
 	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
@@ -196,6 +197,7 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithoutCustomSorting.Finalize();
 }
 
 void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const

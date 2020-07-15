@@ -105,9 +105,6 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 
 	MaterialParamValidMask = Properties->MaterialParamValidMask;
 
-	FacingOffset = Properties->RendererLayoutWithCustomSort.VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
-	AlignmentOffset = Properties->RendererLayoutWithCustomSort.VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
-
 	RendererLayoutWithCustomSort = &Properties->RendererLayoutWithCustomSort;
 	RendererLayoutWithoutCustomSort = &Properties->RendererLayoutWithoutCustomSort;
 }
@@ -202,22 +199,23 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.RemoveHMDRoll = bRemoveHMDRollInVR;
 	PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 
-	PerViewUniformParameters.PositionDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Position].GetGPUOffset();
-	PerViewUniformParameters.VelocityDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Velocity].GetGPUOffset();
-	PerViewUniformParameters.RotationDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Rotation].GetGPUOffset();
-	PerViewUniformParameters.SizeDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Size].GetGPUOffset();
-	PerViewUniformParameters.ColorDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Color].GetGPUOffset();
-	PerViewUniformParameters.MaterialParamDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::MaterialParam0].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam1DataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::MaterialParam1].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam2DataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::MaterialParam2].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam3DataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::MaterialParam3].GetGPUOffset();
-	PerViewUniformParameters.SubimageDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::SubImage].GetGPUOffset();
-	PerViewUniformParameters.FacingDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
-	PerViewUniformParameters.AlignmentDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
-	PerViewUniformParameters.CameraOffsetDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::CameraOffset].GetGPUOffset();
-	PerViewUniformParameters.UVScaleDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::UVScale].GetGPUOffset();
-	PerViewUniformParameters.NormalizedAgeDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::NormalizedAge].GetGPUOffset();
-	PerViewUniformParameters.MaterialRandomDataOffset = RendererLayout->VFVariables[ENiagaraSpriteVFLayout::MaterialRandom].GetGPUOffset();
+	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
+	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraSpriteVFLayout::Position].GetGPUOffset();
+	PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraSpriteVFLayout::Velocity].GetGPUOffset();
+	PerViewUniformParameters.RotationDataOffset = VFVariables[ENiagaraSpriteVFLayout::Rotation].GetGPUOffset();
+	PerViewUniformParameters.SizeDataOffset = VFVariables[ENiagaraSpriteVFLayout::Size].GetGPUOffset();
+	PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraSpriteVFLayout::Color].GetGPUOffset();
+	PerViewUniformParameters.MaterialParamDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam0].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam1].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam2].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialParam3].GetGPUOffset();
+	PerViewUniformParameters.SubimageDataOffset = VFVariables[ENiagaraSpriteVFLayout::SubImage].GetGPUOffset();
+	PerViewUniformParameters.FacingDataOffset = VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
+	PerViewUniformParameters.AlignmentDataOffset = VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
+	PerViewUniformParameters.CameraOffsetDataOffset = VFVariables[ENiagaraSpriteVFLayout::CameraOffset].GetGPUOffset();
+	PerViewUniformParameters.UVScaleDataOffset = VFVariables[ENiagaraSpriteVFLayout::UVScale].GetGPUOffset();
+	PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraSpriteVFLayout::NormalizedAge].GetGPUOffset();
+	PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialRandom].GetGPUOffset();
 
 	PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
@@ -226,11 +224,13 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
 	ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
 
+	const int32 FacingOffset = VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
 	if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
 	{
 		ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
 	}
 
+	const int32 AlignmentOffset = VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
 	if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
 	{
 		ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
@@ -304,7 +304,8 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		const bool bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
 		const bool bShouldSort = SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
 		const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
-		const FNiagaraRendererVariableInfo& SortVariable = RendererLayout->VFVariables[bCustomSorting ? ENiagaraSpriteVFLayout::CustomSorting : ENiagaraSpriteVFLayout::Position];
+		TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
+		const FNiagaraRendererVariableInfo& SortVariable = VFVariables[bCustomSorting ? ENiagaraSpriteVFLayout::CustomSorting : ENiagaraSpriteVFLayout::Position];
 		if (bShouldSort && SortVariable.GetGPUOffset() != INDEX_NONE)
 		{
 			SortInfo.ParticleCount = NumInstances;
@@ -421,11 +422,14 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
 	ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
 
+	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
+	const int32 FacingOffset = VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset();
 	if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
 	{
 		ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
 	}
 
+	const int32 AlignmentOffset = VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
 	if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
 	{
 		ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;

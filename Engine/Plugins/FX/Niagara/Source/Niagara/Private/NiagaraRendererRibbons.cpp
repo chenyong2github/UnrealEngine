@@ -991,22 +991,23 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.InterpCount = SegmentTessellation;
 	PerViewUniformParameters.OneOverInterpCount = 1.f / (float)SegmentTessellation;
 
-	PerViewUniformParameters.PositionDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Position].GetGPUOffset();
-	PerViewUniformParameters.VelocityDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Velocity].GetGPUOffset();
-	PerViewUniformParameters.ColorDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Color].GetGPUOffset();
-	PerViewUniformParameters.WidthDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Width].GetGPUOffset();
-	PerViewUniformParameters.TwistDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Twist].GetGPUOffset();
-	PerViewUniformParameters.NormalizedAgeDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::NormalizedAge].GetGPUOffset();
-	PerViewUniformParameters.MaterialRandomDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::MaterialRandom].GetGPUOffset();
-	PerViewUniformParameters.MaterialParamDataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::MaterialParam0].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam1DataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::MaterialParam1].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam2DataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::MaterialParam2].GetGPUOffset();
-	PerViewUniformParameters.MaterialParam3DataOffset = RendererLayout->VFVariables[ENiagaraRibbonVFLayout::MaterialParam3].GetGPUOffset();
+	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
+	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraRibbonVFLayout::Position].GetGPUOffset();
+	PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraRibbonVFLayout::Velocity].GetGPUOffset();
+	PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraRibbonVFLayout::Color].GetGPUOffset();
+	PerViewUniformParameters.WidthDataOffset = VFVariables[ENiagaraRibbonVFLayout::Width].GetGPUOffset();
+	PerViewUniformParameters.TwistDataOffset = VFVariables[ENiagaraRibbonVFLayout::Twist].GetGPUOffset();
+	PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraRibbonVFLayout::NormalizedAge].GetGPUOffset();
+	PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialRandom].GetGPUOffset();
+	PerViewUniformParameters.MaterialParamDataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam0].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam1].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam2].GetGPUOffset();
+	PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam3].GetGPUOffset();
 
 	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 
 	bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
-	PerViewUniformParameters.FacingDataOffset = bShouldDoFacing ? RendererLayout->VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
+	PerViewUniformParameters.FacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
 	PerViewUniformParameters.OneOverUV0TilingDistance = UV0TilingDistance ? 1.f / (UV0TilingDistance) : 0.f;
 	PerViewUniformParameters.OneOverUV1TilingDistance = UV1TilingDistance ? 1.f / (UV1TilingDistance) : 0.f;
 	PerViewUniformParameters.PackedVData = FVector4(UV0Scale.Y, UV0Offset.Y, UV1Scale.Y, UV1Offset.Y);

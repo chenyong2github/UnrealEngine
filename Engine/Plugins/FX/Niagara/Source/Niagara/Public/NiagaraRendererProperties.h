@@ -60,10 +60,20 @@ struct FNiagaraRendererLayout
 {
 	void Initialize(int32 NumVariables);
 	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset);
+	void Finalize();
 
-	TArray<FNiagaraRendererVariableInfo> VFVariables;
-	int32 TotalFloatComponents;
-	int32 TotalHalfComponents;
+	TConstArrayView<FNiagaraRendererVariableInfo> GetVFVariables_RenderThread() const { check(IsInRenderingThread()); return MakeArrayView(VFVariables_RT); }
+	int32 GetTotalFloatComponents_RenderThread() const { check(IsInRenderingThread()); return TotalFloatComponents_RT; }
+	int32 GetTotalHalfComponents_RenderThread() const { check(IsInRenderingThread()); return TotalHalfComponents_RT; }
+
+private:
+	TArray<FNiagaraRendererVariableInfo> VFVariables_GT;
+	int32 TotalFloatComponents_GT;
+	int32 TotalHalfComponents_GT;
+
+	TArray<FNiagaraRendererVariableInfo> VFVariables_RT;
+	int32 TotalFloatComponents_RT;
+	int32 TotalHalfComponents_RT;
 };
 
 /**
