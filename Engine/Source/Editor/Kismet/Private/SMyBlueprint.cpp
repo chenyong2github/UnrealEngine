@@ -2135,13 +2135,17 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 		else if( Graph )
 		{
 			// The first function entry node will have all the information that the conversion needs
+			// (the interface method entry in the tree might not have a real graph though, if it comes from a parent unchanged or is an event that hasn't been implemented yet)
 			UK2Node_FunctionEntry* EntryNode = nullptr;
-			for(UEdGraphNode* Node : Graph->EdGraph->Nodes)
+			if (Graph->EdGraph != nullptr)
 			{
-				if (UK2Node_FunctionEntry* TypedNode = Cast<UK2Node_FunctionEntry>(Node))
+				for( UEdGraphNode* Node : Graph->EdGraph->Nodes)
 				{
-					EntryNode = TypedNode;
-					break;
+					if (UK2Node_FunctionEntry* TypedNode = Cast<UK2Node_FunctionEntry>(Node))
+					{
+						EntryNode = TypedNode;
+						break;
+					}
 				}
 			}
 
