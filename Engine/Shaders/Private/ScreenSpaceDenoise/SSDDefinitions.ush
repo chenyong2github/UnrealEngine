@@ -96,14 +96,6 @@
 	/** Buffer layout for the shadow penumbra given as input. */
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP 16
 
-	/** Internal buffer layout for the shadow penumbra multiplexed into buffers.
-	 * This buffer layout is able to pack two signals per render target.
-	 */
-	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION 12
-
-	/** Internal buffer to encode history rejection preconvolution. */
-	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION 17
-
 	/** Internal buffer layout for the shadow penumbra to be stored in indivual per light histories. */
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY 11
 

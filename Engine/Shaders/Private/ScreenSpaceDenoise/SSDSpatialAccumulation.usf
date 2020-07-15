@@ -46,7 +46,7 @@
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
 
 		#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_UINT2
 		#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
@@ -64,8 +64,8 @@
 
 	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
 		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
-		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
 
 		#define CONFIG_SIGNAL_INPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
 		#define CONFIG_SIGNAL_OUTPUT_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
@@ -951,16 +951,8 @@ void MainCS(
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_*
 		
 		FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
-		
-		#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK
-		bool bRefHasSamples = false;
-		for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
-		{
-			bRefHasSamples = bRefHasSamples || (RefSamples.Array[SignalMultiplexId].SampleCount > 0);
-		}
-		BRANCH
-		if (bRefHasSamples)
-		#endif
+
+		if (1)
 		{
 			AccumulateKernel(
 				KernelConfig,
@@ -1166,6 +1158,10 @@ void MainCS(
 	#else
 		OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif 
+	
+	#if 0 && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && DIM_STAGE == STAGE_RECONSTRUCTION
+		DebugOutput[DispatchThreadId] = float4(OutputSamples.Array[0].SampleCount, 0, 0, 0);
+	#endif
 
 	BRANCH
 	if (all(OutputPixelPostion < ViewportMax))
