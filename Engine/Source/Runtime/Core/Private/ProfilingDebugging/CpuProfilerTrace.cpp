@@ -93,12 +93,10 @@ struct FCpuProfilerTraceInternal
 	FORCENOINLINE static void EndCapture(FThreadBuffer* ThreadBuffer);
 
 	static thread_local uint32 ThreadDepth;
-	static thread_local bool bThreadEnabled;
 	static thread_local FThreadBuffer* ThreadBuffer;
 };
 
 thread_local uint32 FCpuProfilerTraceInternal::ThreadDepth = 0;
-thread_local bool FCpuProfilerTraceInternal::bThreadEnabled = false;
 thread_local FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::ThreadBuffer = nullptr;
 
 FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThreadBuffer()
@@ -110,18 +108,20 @@ FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThrea
 
 void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 {
-	UE_TRACE_LOG(CpuProfiler, EventBatch, CpuChannel, InThreadBuffer->BufferSize)
+	UE_TRACE_LOG(CpuProfiler, EventBatch, true, InThreadBuffer->BufferSize)
 		<< EventBatch.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< EventBatch.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
+	InThreadBuffer->LastCycle = 0;
 }
 
 void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 {
-	UE_TRACE_LOG(CpuProfiler, EndCapture, CpuChannel, InThreadBuffer->BufferSize)
+	UE_TRACE_LOG(CpuProfiler, EndCapture, true, InThreadBuffer->BufferSize)
 		<< EndCapture.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< EndCapture.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
+	InThreadBuffer->LastCycle = 0;
 }
 
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE() \
@@ -130,11 +130,6 @@ void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 	if (!ThreadBuffer) \
 	{ \
 		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer(); \
-	} \
-	if (!FCpuProfilerTraceInternal::bThreadEnabled) \
-	{ \
-		ThreadBuffer->BufferSize = 0; \
-		FCpuProfilerTraceInternal::bThreadEnabled = true; \
 	} \
 
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE() \
@@ -196,11 +191,6 @@ void FCpuProfilerTrace::OutputEndEvent()
 	if (!ThreadBuffer)
 	{
 		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
-	}
-	if (!FCpuProfilerTraceInternal::bThreadEnabled) 
-	{
-		ThreadBuffer->BufferSize = 0;
-		FCpuProfilerTraceInternal::bThreadEnabled = true; 
 	}
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - ThreadBuffer->LastCycle;

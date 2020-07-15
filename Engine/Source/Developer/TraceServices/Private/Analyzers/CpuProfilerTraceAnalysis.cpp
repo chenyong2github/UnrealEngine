@@ -80,7 +80,14 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		while (BufferPtr < BufferEnd)
 		{
 			uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-			uint64 ActualCycle = (DecodedCycle >> 1) + LastCycle;
+			uint64 ActualCycle = (DecodedCycle >> 1);
+
+			// ActualCycle larger or equeal to LastCycle means we have a new
+			// base value.
+			if (ActualCycle < LastCycle)
+			{
+				ActualCycle += LastCycle;
+			}
 			LastCycle = ActualCycle;
 			if (DecodedCycle & 1ull)
 			{
@@ -149,6 +156,10 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 				for (auto ThreadPair : ThreadStatesMap)
 				{
 					FThreadState& ThreadState = *ThreadPair.Value;
+					if (!ThreadState.LastCycle)
+					{
+						continue;
+					}
 					const double Timestamp = Context.SessionContext.TimestampFromCycle(ThreadState.LastCycle);
 					Session.UpdateDurationSeconds(Timestamp);
 					while (ThreadState.ScopeStack.Num())
