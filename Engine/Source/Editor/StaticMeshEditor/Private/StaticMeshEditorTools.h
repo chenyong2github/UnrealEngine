@@ -384,6 +384,9 @@ private:
 	*/
 	TSharedRef<SWidget> OnGenerateCustomSectionWidgetsForSection(int32 ForLODIndex, int32 SectionIndex);
 
+	ECheckBoxState IsSectionVisibleInRayTracing(int32 SectionIndex) const;
+	void OnSectionVisibleInRayTracingChanged(ECheckBoxState NewState, int32 SectionIndex);
+
 	ECheckBoxState IsSectionOpaque(int32 SectionIndex) const;
 	void OnSectionForceOpaqueFlagChanged(ECheckBoxState NewState, int32 SectionIndex);
 	
