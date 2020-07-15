@@ -76,7 +76,8 @@ const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 	static FString CachedNaniteVersionString;
 	if (CachedNaniteVersionString.IsEmpty())
 	{
-		CachedNaniteVersionString = FString::Printf(TEXT("%s_%s"), VersionString, *Nanite::IBuilderModule::Get().GetVersionString());
+		const TCHAR* NaniteVersionString = TEXT("CE9B3AB5F81A49B388E50FE4B8C19D7E");
+		CachedNaniteVersionString = FString::Printf(TEXT("%s_%s_%s"), VersionString, NaniteVersionString, *Nanite::IBuilderModule::Get().GetVersionString());
 	}
 
 	return GeometryCollection.EnableNanite ? *CachedNaniteVersionString : VersionString;
