@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Crc.h"
+#include "InstanceUniformShaderParameters.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollectionObject.generated.h"
