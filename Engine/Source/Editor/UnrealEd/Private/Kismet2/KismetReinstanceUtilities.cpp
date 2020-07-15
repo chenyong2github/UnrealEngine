@@ -320,6 +320,12 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 						{
 							ReparentChild(ChildClass);
 						}
+						else
+						{
+							ChildClass->AssembleReferenceTokenStream();
+							ChildClass->Bind();
+							ChildClass->StaticLink(true);
+						}
 
 						//TODO: some stronger condition would be nice
 						if (!bClassIsDirectlyGeneratedByTheBlueprint)
