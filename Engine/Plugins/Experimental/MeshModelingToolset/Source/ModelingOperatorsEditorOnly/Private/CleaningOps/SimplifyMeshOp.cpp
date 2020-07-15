@@ -41,6 +41,8 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 
 	if (bAllowSeamCollapse)
 	{
+		Reducer.SetEdgeFlipTolerance(1.e-5);
+
 		// eliminate any bowties that might have formed on UV seams.
 		if (FDynamicMeshAttributeSet* Attributes = TargetMesh->Attributes())
 		{
