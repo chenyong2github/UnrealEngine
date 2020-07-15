@@ -16,6 +16,11 @@ namespace AutomationTool
 		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string,string> ExtraVariables=null);
 	}
 
+	//public interface InputOutput
+	//{
+	//	string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null);
+	//}
+
 	public class DeviceInfo
 	{
 		public string Name;
@@ -176,12 +181,12 @@ namespace AutomationTool
 			return true;
 		}
 
-		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever)
+		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
 		{
 			return true;
 		}
 
-		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
+		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
 		{
 			return true;
 		}

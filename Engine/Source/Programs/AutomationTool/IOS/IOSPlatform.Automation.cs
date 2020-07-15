@@ -259,6 +259,7 @@ public class IOSPlatform : Platform
 		public string BundleId = null;
 		public string Account = null;
 		public string Password = null;
+		public string Team = null;
 
 		public string RubyScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
 
@@ -272,12 +273,14 @@ public class IOSPlatform : Platform
 			BundleId = Command.ParseParamValue("bundleid");
 			Account = Command.ParseParamValue("devcenterusername");
 			Password = Command.ParseParamValue("devcenterpassword");
+			Team = Command.ParseParamValue("teamid");
 
 			// fall back to ini for anything else
 			if (string.IsNullOrEmpty(CodeSigningIdentity)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out CodeSigningIdentity);
 			if (string.IsNullOrEmpty(BundleId)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleId);
 			if (string.IsNullOrEmpty(Account)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterUsername", out Account);
 			if (string.IsNullOrEmpty(Password)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterPassword", out Password);
+			if (string.IsNullOrEmpty(Team)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterPassword", out Password);
 
 			string Foo;
 			bool Bar = EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out Foo);
@@ -289,32 +292,73 @@ public class IOSPlatform : Platform
 			}
 		}
 
-		public string MakeRubyCommandline(bool bCertOnly, string DeviceName = null)
+		public int RunRubyCommand(bool bCertOnly, bool bVerifyOnly, string DeviceName)
 		{
+			string Params;
+			int ExitCode;
+
 			if (bCertOnly)
 			{
-				return string.Format("--certonly --identity {0}", CodeSigningIdentity);
+				Params = string.Format("--certonly --identity '{0}'", CodeSigningIdentity);
 			}
-
-
-			string Params = string.Format("--identity {0} --bundleid {1}", CodeSigningIdentity, BundleId);
-
-			if (!string.IsNullOrEmpty(Account))
+			else
 			{
-				Params += string.Format(" --login {0}", Account);
+				Params = string.Format("--identity '{0}' --bundleid {1}", CodeSigningIdentity, BundleId);
+
+				if (!string.IsNullOrEmpty(Account))
+				{
+					Params += string.Format(" --login {0}", Account);
+				}
+				if (!string.IsNullOrEmpty(Password))
+				{
+					Params += string.Format(" --password {0}", Password);
+				}
+				if (!string.IsNullOrEmpty(Team))
+				{
+					Params += string.Format(" --team {0}", Team);
+				}
+
+
+				if (!string.IsNullOrEmpty(DeviceName))
+				{
+					Params += string.Format(" --device {0}", DeviceName);
+				}
+
+				if (bVerifyOnly)
+				{
+					Params += string.Format(" --verifyonly");
+				}
 			}
-			if (!string.IsNullOrEmpty(Password))
+
+			// if non-interactive, we can just run directly in the current shell
+			if (bVerifyOnly)
 			{
-				Params += string.Format(" --password {0}", Password);
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(RubyScript, Params, out ExitCode, true);
 			}
-
-
-			if (!string.IsNullOrEmpty(DeviceName))
+			else
 			{
-				Params += string.Format(" --device {0}", DeviceName);
-			}
+				// otherwise, run in a new Terminal window via AppleScript
+				string ReturnCodeFilename = Path.GetTempFileName();
 
-			return Params;
+				// run potentially interactive scripts in a Terminal window
+				Params = string.Format(
+						" -e \"tell application \\\"Terminal\\\"\"" +
+						" -e   \"activate\"" +
+						" -e   \"set newTab to do script (\\\"{0} {1}; echo $? > {2}; exit\\\")\"" +
+						" -e   \"repeat\"" +
+						" -e     \"delay 1\"" +
+						" -e     \"if not busy of newTab then exit repeat\"" +
+						" -e   \"end repeat\"" +
+						" -e \"end tell\"",
+						RubyScript, Params, ReturnCodeFilename);
+
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("osascript", Params, out ExitCode, true);
+				if (ExitCode == 0)
+				{
+					ExitCode = int.Parse(File.ReadAllText(ReturnCodeFilename));
+				}
+			}
+			return ExitCode;
 		}
 	}
 
@@ -324,11 +368,13 @@ public class IOSPlatform : Platform
 		return UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", FindCommand);
 	}
 
-	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever)
+	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
 	{
+		int ExitCode;
+
 		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
 		{
-			return base.UpdateHostPrerequisites(Command, Retriever);
+			return base.UpdateHostPrerequisites(Command, Retriever, bVerifyOnly);
 		}
 
 		// make sure the Configurator is installed
@@ -336,8 +382,13 @@ public class IOSPlatform : Platform
 
 		if (ConfiguratorLocation == "")
 		{
+			if (bVerifyOnly)
+			{
+				return false;
+			}
+
 			Console.WriteLine("Apple Configurator 2 is required for some automation to work. You should install it from the App Store. Launching...");
-			
+
 			// we need to install Configurator 2, and we will block until it's done
 			UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("open", "macappstore://apps.apple.com/us/app/apple-configurator-2/id1037126344?mt=12");
 
@@ -346,38 +397,66 @@ public class IOSPlatform : Platform
 				Thread.Sleep(1000);
 			}
 		}
-		
-		return UpdateDevicePrerequisites(null, Command, Retriever);
-	}
 
-	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever)
-	{
-		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		string IsFastlaneInstalled = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("/usr/bin/gem", "list -ie fastlane");
+		if (IsFastlaneInstalled != "true")
 		{
-			return base.UpdateDevicePrerequisites(Device, Command, Retriever);
+			Console.WriteLine("Fastlane is not installed");
+			if (bVerifyOnly)
+			{
+				return false;
+			}
+
+			Console.WriteLine("Installing Fastlane from internet source. You may ignore the error about the bin directory not in your path.");
+
+			// install missing fastlane without needing sudo
+			UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("/usr/bin/gem", "install fastlane --user-install --no-document", out ExitCode, true);
+
+			if (ExitCode != 0)
+			{
+				return false;
+			}
 		}
 
 		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
 
 		// look if we have a cert that matches it
-		int ExitCode;
-		string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Settings.RubyScript, Settings.MakeRubyCommandline(true), out ExitCode, true);
+		ExitCode = Settings.RunRubyCommand(true, bVerifyOnly, null);
+
+		Console.WriteLine("Host VerifyIOS exited with code {0}", ExitCode);
 
 		if (ExitCode != 0)
 		{
+			if (bVerifyOnly)
+			{
+				return false;
+			}
+
 			if (!InstallCert(Retriever))
 			{
 				return false;
 			}
 		}
 
+		return true;
+	}
+
+	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			return base.UpdateDevicePrerequisites(Device, Command, Retriever, bVerifyOnly);
+		}
+
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
+
 		// @todo turnkey - better to use the device's udid if it's set properly in DeviceInfo
 		string DeviceName = Device == null ? null : Device.Name;
 
 		// now look for a provision that can be used with a (maybe newly) instally cert
-		StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Settings.RubyScript, Settings.MakeRubyCommandline(false, DeviceName), out ExitCode, true);
+		int ExitCode = Settings.RunRubyCommand(false, bVerifyOnly, DeviceName);
 
-		Console.WriteLine("VerifyIOS exited with code {0}", ExitCode);
+		Console.WriteLine("Device VerifyIOS exited with code {0}", ExitCode);
 
 		return ExitCode == 0;
 	}

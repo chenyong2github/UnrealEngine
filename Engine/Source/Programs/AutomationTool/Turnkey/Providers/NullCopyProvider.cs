@@ -3,6 +3,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Turnkey
 {
@@ -10,9 +11,31 @@ namespace Turnkey
 	{
 		public override string ProviderToken { get { return "file"; } }
 
-		public override string Execute(string Operation, CopyExecuteSpecialMode SpecialMode, string SpecialModeHint)
+		private void FixupOperation(ref string Operation)
 		{
 			Operation = Operation.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac && Operation.StartsWith("smb://"))
+			{
+				// match the form smb://server.net/Foo/Bar/Baz and retrieve the Foo, which will be the name in /Volumes/Foo
+				Match Match = Regex.Match(Operation, @"^smb:\/\/.+?\/(.+?)\/(.*)$");
+
+				// make sure regex matched
+				if (!Match.Success)
+				{
+					return;
+				}
+
+				// convert smb://server.net/Foo/Bar/Baz to /Volumes/Foo/Bar/Baz
+				TurnkeyUtils.Log("SMB Before: {0}", Operation);
+				Operation = string.Format("/Volumes/{0}/{1}", Match.Groups[1].Value, Match.Groups[2].Value);
+				TurnkeyUtils.Log("SMB After: {0}", Operation);
+			}
+		}
+
+		public override string Execute(string Operation, CopyExecuteSpecialMode SpecialMode, string SpecialModeHint)
+		{
+			FixupOperation(ref Operation);
 
 			// this provider can use the file directly, so just return the input after expanding variables, if it exists
 			string OutputPath = TurnkeyUtils.ExpandVariables(Operation);
@@ -125,8 +148,7 @@ namespace Turnkey
 		{
 			Dictionary<string, List<string>> Output = new Dictionary<string, List<string>>();
 
-			// we want consistent slashes
-			Operation = Operation.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+			FixupOperation(ref Operation);
 
 			ExpandWildcards("", Operation, Output, Expansions == null ? null : new List<string>());
 

@@ -89,17 +89,19 @@ namespace Turnkey
 			}
 
 			// allow for shared SDK "platform" types
-			List<string> Platforms = TurnkeyUtils.ExpandVariables(Clone.PlatformString).ToLower().Split(",".ToCharArray()).ToList();
-			foreach (UEBuildPlatformSDK SDK in UEBuildPlatformSDK.AllSDKs)
+			if (!string.IsNullOrEmpty(Clone.PlatformString))
 			{
-				// if the platforms contains a AutoSDK platform that doesn't match a real platform name, add the platform to the set
-				if (Platforms.Contains(SDK.GetAutoSDKPlatformName().ToLower()) && !Platforms.Contains(SDK.PlatformName.ToLower()))
+				List<string> Platforms = TurnkeyUtils.ExpandVariables(Clone.PlatformString).ToLower().Split(",".ToCharArray()).ToList();
+				foreach (UEBuildPlatformSDK SDK in UEBuildPlatformSDK.AllSDKs)
 				{
-					Clone.PlatformString += "," + SDK.PlatformName;
-					Platforms.Add(SDK.PlatformName.ToLower()); ;
+					// if the platforms contains a AutoSDK platform that doesn't match a real platform name, add the platform to the set
+					if (Platforms.Contains(SDK.GetAutoSDKPlatformName().ToLower()) && !Platforms.Contains(SDK.PlatformName.ToLower()))
+					{
+						Clone.PlatformString += "," + SDK.PlatformName;
+						Platforms.Add(SDK.PlatformName.ToLower()); ;
+					}
 				}
-			}
-
+				}
 			Clone.PostDeserialize();
 
 			return Clone;
@@ -124,11 +126,22 @@ namespace Turnkey
 			// InstalledSdk_BuildOnlyWasInstalled = 8,
 			InstalledSdk_ValidVersionExists = 16,
 			InstalledSdk_InvalidVersionExists = 32,
+			Platform_ValidHostPrerequisites = 64,
+			Platform_InvalidHostPrerequisites = 128,
 		}
 
-		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform)
+		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites)
 		{
 			LocalAvailability Result = LocalAvailability.None;
+
+			if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, null, !bAllowUpdatingPrerequisites))
+			{
+				Result |= LocalAvailability.Platform_ValidHostPrerequisites;
+			}
+			else
+			{
+				Result |= LocalAvailability.Platform_InvalidHostPrerequisites;
+			}
 
 			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(AutomationPlatform.PlatformType.ToString());
 
@@ -149,7 +162,7 @@ namespace Turnkey
 						// check for valid version number (auto SDK must match version exactly)
 						if (string.Compare(Dir.Name, SDK.GetDesiredVersion()) == 0)
 						{
-							// make sure it actually has bits in it
+							// make sure it actually has buits in it
 							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))
 							{
 								bValidVersionFound = true;

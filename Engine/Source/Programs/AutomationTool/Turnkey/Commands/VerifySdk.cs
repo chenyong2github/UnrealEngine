@@ -105,11 +105,13 @@ namespace Turnkey.Commands
 				// get the platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 
-				AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever);
+				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
 
-				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
-
-				if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
+				if ((LocalState & SdkInfo.LocalAvailability.Platform_ValidHostPrerequisites) == 0)
+				{
+					TurnkeyUtils.Report("{0}: Invalid: [Host Prerequisites are not valid]", Platform);
+				}
+				else if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
 					string MinAllowedVersion, MaxAllowedVersion;
 					UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
@@ -156,10 +158,10 @@ namespace Turnkey.Commands
 
 					TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
 
-					bool bWasSdkInstalled = BestSdk.Install(Platform, null, bUnattended);
+					bool bWasSdkInstalled = BestSdk.Install(Platform, null, true);
 
 					// update LocalState
-					LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
+					LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform, false);
 
 					// @todo turnkey: validate!
 				}
@@ -186,7 +188,13 @@ namespace Turnkey.Commands
 					// now check software verison of each device
 					foreach (DeviceInfo Device in Devices)
 					{
-						AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever);
+						bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever, !bUpdateIfNeeded);
+
+						if (!bArePrerequisitesValid)
+						{
+							TurnkeyUtils.Report("{0}@{1}: Invalid: [Device Prerequisites are not valid]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
+							continue;
+						}
 
 						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatform);
 
