@@ -1529,6 +1529,7 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 
 	if (ScriptObject)
 	{
+		TWeakObjectPtr<UToolMenuEntryScript> WeakScriptObject(ScriptObject);
 		UClass* ScriptClass = ScriptObject->GetClass();
 
 		static const FName ExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, Execute);
@@ -1546,13 +1547,35 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetCheckState);
 		if (ScriptClass->IsFunctionImplementedInScript(GetCheckStateName))
 		{
-			UIAction.GetActionCheckState.BindUFunction(ScriptObject, GetCheckStateName, Context);
+			// Wrap to handle situations where calling UFunction is not allowed
+			FGetActionCheckState NewDelegate = FGetActionCheckState::CreateUFunction(ScriptObject, GetCheckStateName, Context);
+			UIAction.GetActionCheckState.BindLambda([Delegate = MoveTemp(NewDelegate), WeakScriptObject]()
+			{
+				UToolMenuEntryScript* ToolMenuEntryScript = WeakScriptObject.Get();
+				if (ToolMenuEntryScript && ToolMenuEntryScript->CanSafelyRouteCall() && Delegate.IsBound())
+				{
+					return Delegate.Execute();
+				}
+
+				return ECheckBoxState::Unchecked;
+			});
 		}
 
 		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, IsVisible);
 		if (ScriptClass->IsFunctionImplementedInScript(IsVisibleName))
 		{
-			UIAction.IsActionVisibleDelegate.BindUFunction(ScriptObject, IsVisibleName, Context);
+			// Wrap to handle situations where calling UFunction is not allowed
+			FIsActionButtonVisible NewDelegate = FIsActionButtonVisible::CreateUFunction(ScriptObject, IsVisibleName, Context);
+			UIAction.IsActionVisibleDelegate.BindLambda([Delegate = MoveTemp(NewDelegate), WeakScriptObject]()
+			{
+				UToolMenuEntryScript* ToolMenuEntryScript = WeakScriptObject.Get();
+				if (ToolMenuEntryScript && ToolMenuEntryScript->CanSafelyRouteCall() && Delegate.IsBound())
+				{
+					return Delegate.Execute();
+				}
+
+				return true;
+			});
 		}
 	}
 
