@@ -612,14 +612,11 @@ public:
 		{
 			if (Material != nullptr)
 			{
-				for (UMaterialExpression* Expression : Material->Expressions)
+				TArray<UMaterialExpressionDynamicParameter*> Expressions;
+				Material->GetAllExpressionsInMaterialAndFunctionsOfType(Expressions);
+				for (UMaterialExpressionDynamicParameter* DynParamExpFound : Expressions)
 				{
-					UMaterialExpressionDynamicParameter* DynParamExpFound = Cast<UMaterialExpressionDynamicParameter>(Expression);
-
-					if (DynParamExpFound != nullptr)
-					{
-						OutDynamicParameterExpressions.Add(DynParamExpFound);
-					}
+					OutDynamicParameterExpressions.Add(DynParamExpFound);
 				}
 			}
 		}
