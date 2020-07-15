@@ -198,49 +198,35 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 	UNiagaraSystem* System = Component->GetAsset();
 	check(System);
 
-	struct FSortInfo
-	{
-		FSortInfo(int32 InSortHint, int32 InRendererIdx): SortHint(InSortHint), RendererIdx(InRendererIdx){}
-		int32 SortHint;
-		int32 RendererIdx;
-	};
-	TArray<FSortInfo, TInlineAllocator<8>> RendererSortInfo;
-
 	bAlwaysHasVelocity = false;
 
 	ReleaseRenderers();
+
+	RendererDrawOrder = System->GetRendererDrawOrder();
+	EmitterRenderers.Reserve(RendererDrawOrder.Num());
+
 	ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	for(TSharedRef<const FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : Component->GetSystemInstance()->GetEmitters())
 	{
 		if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
 		{
-			for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
-			{
-				//We can skip creation of the renderer if the current quality level doesn't support it. If the quality level changes all systems are fully reinitialized.
-				RendererSortInfo.Emplace(Properties->SortOrderHint, EmitterRenderers.Num());
-				FNiagaraRenderer* NewRenderer = nullptr;
-				if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
 				{
-					NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
-					bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
+					//We can skip creation of the renderer if the current quality level doesn't support it. If the quality level changes all systems are fully reinitialized.
+					FNiagaraRenderer* NewRenderer = nullptr;
+					if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
+					{
+						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
+						bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
+					}
+					EmitterRenderers.Add(NewRenderer);
 				}
-				EmitterRenderers.Add(NewRenderer);
-			}
+			);
 		}
 	}
 
-	// We sort by the sort hint in order to guarantee that we submit according to the preferred sort order..
-	RendererSortInfo.Sort([&](const FSortInfo& A, const FSortInfo& B)
-	{
-		int32 AIndex = A.SortHint;
-		int32 BIndex = B.SortHint;
-		return AIndex < BIndex;
-	});
-	RendererDrawOrder.Reset(RendererSortInfo.Num());
-	for (FSortInfo SortInfo : RendererSortInfo)
-	{
-		RendererDrawOrder.Add(SortInfo.RendererIdx);
-	}
+	checkf(EmitterRenderers.Num() == RendererDrawOrder.Num(), TEXT("EmitterRenderers Num %d does not match System DrawOrder %d"), EmitterRenderers.Num(), RendererDrawOrder.Num());
 }
 
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
@@ -1476,28 +1462,28 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			FScopeCycleCounter EmitterStatCounter(EmitterStatID);
 #endif
 
-			const TArray<UNiagaraRendererProperties*>& Renderers = Emitter->GetEnabledRenderers();
-			for (int32 EmitterIdx = 0; EmitterIdx < Renderers.Num(); EmitterIdx++, RendererIndex++)
-			{
-				UNiagaraRendererProperties* Properties = Renderers[EmitterIdx];
-				FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
-				FNiagaraDynamicDataBase* NewData = nullptr;
-				
-				if (Renderer && Properties->GetIsActive())
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
 				{
-					bool bRendererEditorEnabled = true;
-#if WITH_EDITORONLY_DATA
-					const FNiagaraEmitterHandle& Handle = Asset->GetEmitterHandle(i);
-					bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
-#endif
-					if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
+					FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex++];
+					FNiagaraDynamicDataBase* NewData = nullptr;
+				
+					if (Renderer && Properties->GetIsActive())
 					{
-						NewData = Renderer->GenerateDynamicData(NiagaraProxy, Properties, EmitterInst);
+						bool bRendererEditorEnabled = true;
+#if WITH_EDITORONLY_DATA
+						const FNiagaraEmitterHandle& Handle = Asset->GetEmitterHandle(i);
+						bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
+#endif
+						if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
+						{
+							NewData = Renderer->GenerateDynamicData(NiagaraProxy, Properties, EmitterInst);
+						}
 					}
-				}
 
-				NewDynamicData.Add(NewData);
-			}
+					NewDynamicData.Add(NewData);
+				}
+			);
 		}
 
 #if WITH_EDITOR
@@ -1537,10 +1523,12 @@ int32 UNiagaraComponent::GetNumMaterials() const
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
 			if ( UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter() )
 			{
-				for (UNiagaraRendererProperties* Properties : Emitter->GetEnabledRenderers())
-				{
-					Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
-				}
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
+					{
+						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+					}
+				);
 			}
 		}
 	}
@@ -1597,15 +1585,14 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	{
 		TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = SystemInstance->GetEmitters()[EmitterIdx];
 
-		if (UNiagaraEmitter* Props = Sim->GetEmitterHandle().GetInstance())
+		if (UNiagaraEmitter* Emitter = Sim->GetEmitterHandle().GetInstance())
 		{
-			if (Props)
-			{
-				for (UNiagaraRendererProperties* Renderer : Props->GetEnabledRenderers())
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
 				{
-					Renderer->GetUsedMaterials(&Sim.Get(), OutMaterials);
+					Properties->GetUsedMaterials(&Sim.Get(), OutMaterials);
 				}
-			}
+			);
 		}
 	}
 }

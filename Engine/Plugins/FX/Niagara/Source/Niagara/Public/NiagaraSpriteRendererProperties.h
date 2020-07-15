@@ -38,6 +38,32 @@ enum class ENiagaraSpriteFacingMode : uint8
 	FaceCameraDistanceBlend
 };
 
+namespace ENiagaraSpriteVFLayout
+{
+	enum Type
+	{
+		Position,
+		Color,
+		Velocity,
+		Rotation,
+		Size,
+		Facing,
+		Alignment,
+		SubImage,
+		MaterialParam0,
+		MaterialParam1,
+		MaterialParam2,
+		MaterialParam3,
+		CameraOffset,
+		UVScale,
+		MaterialRandom,
+		CustomSorting,
+		NormalizedAge,
+
+		Num,
+	};
+};
+
 class FAssetThumbnailPool;
 class SWidget;
 
@@ -73,6 +99,7 @@ public:
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
 #endif
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	//UNiagaraMaterialRendererProperties interface END
 
 	int32 GetNumCutoutVertexPerSubimage() const;
@@ -230,8 +257,11 @@ public:
 
 	const TArray<FVector2D>& GetCutoutData() const { return DerivedData.BoundingGeometry; }
 
-private:
+	FNiagaraRendererLayout RendererLayoutWithCustomSort;
+	FNiagaraRendererLayout RendererLayoutWithoutCustomSort;
+	uint32 MaterialParamValidMask = 0;
 
+private:
 	/** Derived data for this asset, generated off of SubUVTexture. */
 	FSubUVDerivedData DerivedData;
 

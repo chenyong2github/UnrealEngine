@@ -932,6 +932,12 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	MaxInstanceCount = 0;
 	BoundsCalculators.Empty();
 
+	// Allow renderers to cache the bindings also
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		Renderer->CacheFromCompiledData(CompiledData);
+	}
+
 	// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
 	// generate the bounds from the readback in the tool.
 #if !WITH_EDITOR
@@ -966,11 +972,13 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		{
 			// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
 			// among all the enabled renderers, since this will decide how many particles we can upload.
-			for (UNiagaraRendererProperties* RendererProperty : GetEnabledRenderers())
-			{
-				const uint32 RendererMaxNumComponents = RendererProperty->ComputeMaxUsedComponents(CompiledData);
-				MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, RendererMaxNumComponents);
-			}
+			ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* RendererProperty)
+				{
+					const uint32 RendererMaxNumComponents = RendererProperty->ComputeMaxUsedComponents(CompiledData);
+					MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, RendererMaxNumComponents);
+				}
+			);
 		}
 		else
 		{
@@ -1434,18 +1442,16 @@ bool UNiagaraEmitter::SetUniqueEmitterName(const FString& InName)
 	return false;
 }
 
-TArray<UNiagaraRendererProperties*> UNiagaraEmitter::GetEnabledRenderers() const
-{
-	TArray<UNiagaraRendererProperties*> Renderers;
-	for (UNiagaraRendererProperties* Renderer : RendererProperties)
-	{
-		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
-		{
-			Renderers.Add(Renderer);
-		}
-	}
-	return Renderers;
-}
+//void UNiagaraEmitter::ForEachEnabledRenderer(const TFunction<void(UNiagaraRendererProperties*)>& Func) const
+//{
+//	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+//	{
+//		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+//		{
+//			Func(Renderer);
+//		}
+//	}
+//}
 
 void UNiagaraEmitter::AddRenderer(UNiagaraRendererProperties* Renderer)
 {

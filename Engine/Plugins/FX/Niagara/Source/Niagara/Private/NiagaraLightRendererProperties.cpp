@@ -96,6 +96,16 @@ void UNiagaraLightRendererProperties::GetUsedMaterials(const FNiagaraEmitterInst
 	//Material should live here.
 }
 
+void UNiagaraLightRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	PositionDataSetAccessor.Init(CompiledData, PositionBinding.DataSetVariable.GetName());
+	ColorDataSetAccessor.Init(CompiledData, ColorBinding.DataSetVariable.GetName());
+	RadiusDataSetAccessor.Init(CompiledData, RadiusBinding.DataSetVariable.GetName());
+	ExponentDataSetAccessor.Init(CompiledData, LightExponentBinding.DataSetVariable.GetName());
+	ScatteringDataSetAccessor.Init(CompiledData, VolumetricScatteringBinding.DataSetVariable.GetName());
+	EnabledDataSetAccessor.Init(CompiledData, LightRenderingEnabledBinding.DataSetVariable.GetName());
+}
+
 #if WITH_EDITORONLY_DATA
 
 const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetOptionalAttributes()

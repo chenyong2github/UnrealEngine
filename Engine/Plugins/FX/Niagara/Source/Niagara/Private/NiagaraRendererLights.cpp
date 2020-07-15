@@ -8,6 +8,7 @@
 #include "NiagaraVertexFactory.h"
 #include "Engine/Engine.h"
 
+#include "NiagaraLightRendererProperties.h"
 #include "NiagaraRendererLights.h"
 
 
@@ -69,12 +70,12 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
 	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
-	const auto PositionReader = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->PositionBinding.DataSetVariable.GetName());
-	const auto ColorReader = FNiagaraDataSetAccessor<FLinearColor>::CreateReader(Data, Properties->ColorBinding.DataSetVariable.GetName());
-	const auto RadiusReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RadiusBinding.DataSetVariable.GetName());
-	const auto ExponentReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->LightExponentBinding.DataSetVariable.GetName());
-	const auto ScatteringReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->VolumetricScatteringBinding.DataSetVariable.GetName());
-	const auto EnabledReader = FNiagaraDataSetAccessor<FNiagaraBool>::CreateReader(Data, Properties->LightRenderingEnabledBinding.DataSetVariable.GetName());
+	const auto PositionReader = Properties->PositionDataSetAccessor.GetReader(Data);
+	const auto ColorReader = Properties->ColorDataSetAccessor.GetReader(Data);
+	const auto RadiusReader = Properties->RadiusDataSetAccessor.GetReader(Data);
+	const auto ExponentReader = Properties->ExponentDataSetAccessor.GetReader(Data);
+	const auto ScatteringReader = Properties->ScatteringDataSetAccessor.GetReader(Data);
+	const auto EnabledReader = Properties->EnabledDataSetAccessor.GetReader(Data);
 
 	const FMatrix& LocalToWorldMatrix = Proxy->GetLocalToWorld();
 	const FLinearColor DefaultColor = Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>();
