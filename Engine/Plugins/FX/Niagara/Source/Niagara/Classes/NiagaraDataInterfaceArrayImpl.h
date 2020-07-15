@@ -15,6 +15,7 @@ struct FNDIArrayImplHelperBase
 	//static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
 	//static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	//static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
+	//static const TArrayType GetDefaultValue();
 
 	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName) { OutHLSL.Appendf(TEXT("OutValue = %s[ClampedIndex];"), BufferName); }
 	static int32 GPUGetTypeStride() { return sizeof(TArrayType); }
@@ -359,7 +360,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		}
 		else
 		{
-			const TArrayType DefaultValue = TArrayType();
+			const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 			for (int32 i = 0; i < Context.NumInstances; ++i)
 			{
 				OutValue.SetAndAdvance(DefaultValue);
