@@ -2150,13 +2150,47 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 	if (GNiagaraUseFastSetUserParametersToDefaultValues)
 	{
 		const FNiagaraUserRedirectionParameterStore& SourceUserParameterStore = Asset->GetExposedParameters();
-		TArrayView<const FNiagaraVariableWithOffset> SourceParameters = SourceUserParameterStore.ReadParameterVariables();
-		check(OverrideParameters.ReadParameterVariables().Num() == SourceParameters.Num());
+		TArrayView<const FNiagaraVariableWithOffset> DestParameters = OverrideParameters.ReadParameterVariables();
 
-		for (const FNiagaraVariableWithOffset& SourceParameter : SourceParameters)
+		TArray<FNiagaraVariableBase, TInlineAllocator<8>> ParametersToRemove;
+		bool bInterfacesChanged = false;
+
+		for (int32 i=0; i < DestParameters.Num(); ++i)
 		{
-			check(OverrideParameters.FindParameterOffset(SourceParameter) != nullptr);
-			SourceUserParameterStore.CopyParameterData(OverrideParameters, SourceParameter);
+			const FNiagaraVariableWithOffset& DestParameter = DestParameters[i];
+			const int32 DestIndex = DestParameter.Offset;
+			const int32 SourceIndex = SourceUserParameterStore.IndexOf(DestParameter);
+			if (SourceIndex != INDEX_NONE)
+			{
+				if (DestParameter.IsDataInterface())
+				{
+					check(OverrideParameters.GetDataInterface(DestIndex) != nullptr);
+					SourceUserParameterStore.GetDataInterface(SourceIndex)->CopyTo(OverrideParameters.GetDataInterface(DestIndex));
+					bInterfacesChanged = true;
+				}
+				else if (DestParameter.IsUObject())
+				{
+					OverrideParameters.SetUObject(SourceUserParameterStore.GetUObject(SourceIndex), DestIndex);
+				}
+				else
+				{
+					OverrideParameters.SetParameterData(SourceUserParameterStore.GetParameterData(SourceIndex), DestIndex, DestParameter.GetSizeInBytes());
+				}
+			}
+			else
+			{
+				ParametersToRemove.Add(DestParameter);
+			}
+		}
+
+		for (const FNiagaraVariableBase& ParameterToRemove : ParametersToRemove)
+		{
+			OverrideParameters.RemoveParameter(ParameterToRemove);
+		}
+
+		if (bInterfacesChanged)
+		{
+			OverrideParameters.OnInterfaceChange();
 		}
 	}
 	else
