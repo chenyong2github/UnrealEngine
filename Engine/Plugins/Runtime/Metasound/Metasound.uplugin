@@ -35,11 +35,6 @@
 			"Name" : "MetasoundEngine",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
-		},
-		{
-			"Name": "MetasoundEditor",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit"
-		},
+		}
 	]
 }
