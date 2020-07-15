@@ -295,6 +295,9 @@ public:
 	/** Break apart a menu path into components */
 	static bool SplitMenuPath(const FName MenuPath, FName& OutLeft, FName& OutRight);
 
+	/** Returns true if safe to call into script */
+	static bool CanSafelyRouteCall();
+
 	friend struct FToolMenuOwnerScoped;
 	friend struct FToolMenuStringCommand;
 

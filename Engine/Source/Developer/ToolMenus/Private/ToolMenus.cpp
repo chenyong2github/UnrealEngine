@@ -1484,6 +1484,11 @@ FUIAction UToolMenus::ConvertUIAction(const FToolUIAction& Actions, const FToolM
 	return UIAction;
 }
 
+bool UToolMenus::CanSafelyRouteCall()
+{
+	return !(GIntraFrameDebuggingGameThread || FUObjectThreadContext::Get().IsRoutingPostLoad);
+}
+
 FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
@@ -1500,7 +1505,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.CanExecuteAction.BindLambda([DelegateToCall = Actions.CanExecuteAction, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return false;
 		});
 	}
 
@@ -1508,7 +1518,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.GetActionCheckState.BindLambda([DelegateToCall = Actions.GetActionCheckState, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return ECheckBoxState::Unchecked;
 		});
 	}
 
@@ -1516,7 +1531,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.IsActionVisibleDelegate.BindLambda([DelegateToCall = Actions.IsActionVisibleDelegate, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return true;
 		});
 	}
 
@@ -1541,40 +1561,30 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 		static const FName CanExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, CanExecute);
 		if (ScriptClass->IsFunctionImplementedInScript(CanExecuteName))
 		{
-			UIAction.CanExecuteAction.BindUFunction(ScriptObject, CanExecuteName, Context);
+			UIAction.CanExecuteAction.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->CanExecute(Context) : false;
+			});
 		}
 
 		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetCheckState);
 		if (ScriptClass->IsFunctionImplementedInScript(GetCheckStateName))
 		{
-			// Wrap to handle situations where calling UFunction is not allowed
-			FGetActionCheckState NewDelegate = FGetActionCheckState::CreateUFunction(ScriptObject, GetCheckStateName, Context);
-			UIAction.GetActionCheckState.BindLambda([Delegate = MoveTemp(NewDelegate), WeakScriptObject]()
+			UIAction.GetActionCheckState.BindLambda([WeakScriptObject, Context]()
 			{
-				UToolMenuEntryScript* ToolMenuEntryScript = WeakScriptObject.Get();
-				if (ToolMenuEntryScript && ToolMenuEntryScript->CanSafelyRouteCall() && Delegate.IsBound())
-				{
-					return Delegate.Execute();
-				}
-
-				return ECheckBoxState::Unchecked;
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->GetCheckState(Context) : ECheckBoxState::Unchecked;
 			});
 		}
 
 		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, IsVisible);
 		if (ScriptClass->IsFunctionImplementedInScript(IsVisibleName))
 		{
-			// Wrap to handle situations where calling UFunction is not allowed
-			FIsActionButtonVisible NewDelegate = FIsActionButtonVisible::CreateUFunction(ScriptObject, IsVisibleName, Context);
-			UIAction.IsActionVisibleDelegate.BindLambda([Delegate = MoveTemp(NewDelegate), WeakScriptObject]()
+			UIAction.IsActionVisibleDelegate.BindLambda([WeakScriptObject, Context]()
 			{
-				UToolMenuEntryScript* ToolMenuEntryScript = WeakScriptObject.Get();
-				if (ToolMenuEntryScript && ToolMenuEntryScript->CanSafelyRouteCall() && Delegate.IsBound())
-				{
-					return Delegate.Execute();
-				}
-
-				return true;
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->IsVisible(Context) : true;
 			});
 		}
 	}
