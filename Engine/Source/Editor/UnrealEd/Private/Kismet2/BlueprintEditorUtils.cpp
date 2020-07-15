@@ -5099,7 +5099,7 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 
 		DuplicatedVariableName = FBlueprintEditorUtils::DuplicateMemberVariable(InBlueprint, InBlueprint, InVariableToDuplicate);
 		
-		if (DuplicatedVariableName == NAME_None)
+		if (DuplicatedVariableName == NAME_None && InScope)
 		{
 			// It's probably a local variable
 
