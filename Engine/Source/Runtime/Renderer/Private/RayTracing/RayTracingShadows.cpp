@@ -182,11 +182,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FIntRect ScissorRect = View.ViewRect;
 	FIntPoint PixelOffset = { 0, 0 };
 
-	// whether to clip the dispatch to a subrect, requires that denoising doesn't need the whole buffer
-	
-	//#dxr_todo: reenable Clip Dispatch with multiview support
-	//const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
-	const bool bClipDispatch = false;//  DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+	//#UE-95409: Implement support for scissor in multi-view 
+	const bool bClipDispatch = View.Family->Views.Num() == 1;
 
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
