@@ -60,7 +60,7 @@ void UHLODEngineSubsystem::RecreateLODActorsForWorld(UWorld* InWorld, const UWor
 
 void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld)
 {
-	bool bShouldRecreateActors = InWorld && !InWorld->bIsTearingDown && ((InWorld->WorldType == EWorldType::Editor) || (InLevel->GetWorldSettings()->GetLocalRole() == ROLE_Authority));
+	bool bShouldRecreateActors = InWorld && !InWorld->bIsTearingDown && !InWorld->IsPreviewWorld();
 	if (!bShouldRecreateActors)
 	{
 		return;
