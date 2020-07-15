@@ -318,6 +318,12 @@ void UMoviePipeline::RenderFrame()
 				SampleState.AntiAliasingMethod = AntiAliasingMethod;
 				SampleState.SceneCaptureSource = OutputSettings->bDisableToneCurve ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
+				if (CameraSettings->CameraShutterAngle == 0)
+				{
+					// If they're using a zero degree shutter angle we lie about how long a frame is to prevent divide by zeros earlier,
+					// so now we correct for that so that we don't end up with motion blur when the user doesn't want it.
+					SampleState.OutputState.TimeData.MotionBlurFraction = 0.f;
+				}
 				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;

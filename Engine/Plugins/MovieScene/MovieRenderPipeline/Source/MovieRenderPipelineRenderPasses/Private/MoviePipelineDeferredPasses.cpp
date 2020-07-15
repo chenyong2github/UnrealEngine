@@ -14,7 +14,6 @@
 #include "Engine/TextureRenderTarget.h"
 #include "MoviePipeline.h"
 #include "Misc/FrameRate.h"
-#include "CanvasTypes.h"
 #include "MoviePipelineShotConfig.h"
 #include "MovieRenderOverlappedImage.h"
 #include "MovieRenderPipelineCoreModule.h"
@@ -98,6 +97,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		View->FinalPostProcessSettings.bOverride_MotionBlurAmount = true;
 		View->FinalPostProcessSettings.bOverride_MotionBlurTargetFPS = true;
 		View->FinalPostProcessSettings.bOverride_MotionBlurMax = true;
+
+		// Skip the whole pass if they don't want motion blur.
+		if (FMath::IsNearlyZero(InSampleState.OutputState.TimeData.MotionBlurFraction))
+		{
+			ViewFamily.EngineShowFlags.SetMotionBlur(false);
+		}
 	}
 
 	// Locked Exposure
@@ -157,6 +162,11 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	// Draw the world into this View Family
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 
+	PostRendererSubmission(InSampleState, Canvas);
+}
+
+void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas)
+{
 	// If this was just to contribute to the history buffer, no need to go any further.
 	if (InSampleState.bDiscardResult)
 	{
@@ -194,29 +204,29 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		// Clear left
 		if (OffsetMin.X > 0)
 		{
-			Canvas.DrawTile(0, 0, OffsetMin.X, InSampleState.BackbufferSize.Y,
+			InCanvas.DrawTile(0, 0, OffsetMin.X, InSampleState.BackbufferSize.Y,
 				0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
 		}
 		// Clear right
 		if (OffsetMax.X > 0)
 		{
-			Canvas.DrawTile(InSampleState.BackbufferSize.X - OffsetMax.X, 0, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+			InCanvas.DrawTile(InSampleState.BackbufferSize.X - OffsetMax.X, 0, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
 				0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
 		}
 		// Clear top
 		if (OffsetMin.Y > 0)
 		{
-			Canvas.DrawTile(0, 0, InSampleState.BackbufferSize.X, OffsetMin.Y,
+			InCanvas.DrawTile(0, 0, InSampleState.BackbufferSize.X, OffsetMin.Y,
 				0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
 		}
 		// Clear bottom
 		if (OffsetMax.Y > 0)
 		{
-			Canvas.DrawTile(0, InSampleState.BackbufferSize.Y - OffsetMax.Y, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
+			InCanvas.DrawTile(0, InSampleState.BackbufferSize.Y - OffsetMax.Y, InSampleState.BackbufferSize.X, InSampleState.BackbufferSize.Y,
 				0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::Black, nullptr, false);
 		}
 
-		Canvas.Flush_GameThread(true);
+		InCanvas.Flush_GameThread(true);
 	}
 
 	// We have a pool of accumulators - we multi-thread the accumulation on the task graph, and for each frame,
@@ -276,6 +286,8 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		this->TaskPrereq = Event;
 
 	};
+
+	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
 
 	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
 		[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
