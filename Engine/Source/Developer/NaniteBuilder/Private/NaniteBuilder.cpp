@@ -65,10 +65,12 @@ public:
 const FString& FBuilderModule::GetVersionString() const
 {
 	static FString VersionString;
-	if( VersionString.IsEmpty() )
+
+	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf( TEXT("%s%s"), NANITE_DERIVEDDATA_VER, USE_CONSTRAINED_CLUSTERS ? "_CONSTRAINED" : "" );
+		VersionString = FString::Printf(TEXT("%s%s"), NANITE_DERIVEDDATA_VER, USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""));
 	}
+
 	return VersionString;
 }
 
