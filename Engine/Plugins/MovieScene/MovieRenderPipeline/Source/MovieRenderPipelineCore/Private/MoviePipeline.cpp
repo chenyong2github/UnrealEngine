@@ -955,6 +955,7 @@ void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
 		if (CameraCutSection)
 		{
 			CameraCutSection->SetIsActive(false);
+			CameraCutSection->MarkAsChanged();
 		}
 	}
 
@@ -973,6 +974,7 @@ void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
 	{
 		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and re-enabling %s for solo."), *CameraCutSection->GetName());
 		CameraCutSection->SetIsActive(true);
+		CameraCutSection->MarkAsChanged();
 	}
 	else
 	{
