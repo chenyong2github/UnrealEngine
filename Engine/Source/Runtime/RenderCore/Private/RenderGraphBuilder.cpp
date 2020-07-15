@@ -365,7 +365,17 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 
 				if (TryMarkForClobber(Texture))
 				{
-					AddClearUAVPass(*this, UAV, ClobberColor);
+					if (Texture->Desc.NumMips == 1)
+					{
+						AddClearUAVPass(*this, UAV, ClobberColor);
+					}
+					else
+					{
+						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
+						{
+							AddClearUAVPass(*this, this->CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+						}
+					}
 				}
 			}
 		}
