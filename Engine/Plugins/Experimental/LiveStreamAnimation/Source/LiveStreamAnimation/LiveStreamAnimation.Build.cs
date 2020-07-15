@@ -11,7 +11,8 @@ public class LiveStreamAnimation : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "ForwardingChannels",
-                "LiveLinkInterface"
+                "LiveLinkInterface",
+				"LiveLink"
             }
         );
 

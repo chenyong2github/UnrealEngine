@@ -32,6 +32,7 @@ namespace LiveStreamAnimation
 	FLiveLinkStreamingHelper::FLiveLinkStreamingHelper(ULiveStreamAnimationSubsystem& InSubsystem)
 		: Subsystem(InSubsystem)
 		, OnRoleChangedHandle(Subsystem.GetOnRoleChanged().AddRaw(this, &FLiveLinkStreamingHelper::OnRoleChanged))
+		, OnFrameTranslatorChangedHandle(Subsystem.GetOnLiveLinkFrameTranslatorChanged().AddRaw(this, &FLiveLinkStreamingHelper::OnFrameTranslatorChanged))
 	{
 		if (ELiveStreamAnimationRole::Processor == Subsystem.GetRole())
 		{
@@ -56,6 +57,7 @@ namespace LiveStreamAnimation
 		}
 
 		Subsystem.GetOnRoleChanged().Remove(OnRoleChangedHandle);
+		Subsystem.GetOnLiveLinkFrameTranslatorChanged().Remove(OnFrameTranslatorChangedHandle);
 	}
 
 	void FLiveLinkStreamingHelper::HandleLiveLinkPacket(const TSharedRef<const FLiveStreamAnimationPacket>& Packet)
@@ -101,6 +103,8 @@ namespace LiveStreamAnimation
 							SubjectHandle,
 							FLiveStreamAnimationLiveLinkSourceOptions(),	// It's OK to use the default options here, because
 																			// we won't actually be tracking anim, just forwarding them.
+
+							FLiveStreamAnimationHandle(),
 							CastedPacket.GetStaticData()
 						};
 
@@ -126,7 +130,7 @@ namespace LiveStreamAnimation
 		{
 			if (ILiveLinkClient* LiveLinkClient = GetLiveLinkClient())
 			{
-				LiveLinkSource = MakeShared<FLiveStreamAnimationLiveLinkSource>();
+				LiveLinkSource = MakeShared<FLiveStreamAnimationLiveLinkSource>(Subsystem.GetLiveLinkFrameTranslator());
 				LiveLinkClient->AddSource(StaticCastSharedPtr<ILiveLinkSource>(LiveLinkSource));
 
 				// If we've already received data, go ahead and get our Source back up to date.
@@ -164,7 +168,8 @@ namespace LiveStreamAnimation
 	bool FLiveLinkStreamingHelper::StartTrackingSubject(
 		const FName LiveLinkSubject,
 		const FLiveStreamAnimationHandle SubjectHandle,
-		const FLiveStreamAnimationLiveLinkSourceOptions Options)
+		const FLiveStreamAnimationLiveLinkSourceOptions Options,
+		const FLiveStreamAnimationHandle TranslationHandle)
 	{
 		if (LiveLinkSubject == NAME_None)
 		{
@@ -222,9 +227,10 @@ namespace LiveStreamAnimation
 				LiveLinkSubjectName,
 				SubjectHandle,
 				Options,
+				TranslationHandle,
 				FLiveLinkSkeletonStaticData(),
 				StaticDataReceivedHandle,
-				FrameDataReceivedHandle
+				FrameDataReceivedHandle,
 			};
 
 			if (bWasRegistered)
@@ -433,8 +439,7 @@ namespace LiveStreamAnimation
 		return WrapLiveLinkPacket(
 			FLiveLinkAnimationFramePacket::CreatePacket(
 				Subject.SubjectHandle,
-				Subject.Options,
-				MoveTemp(AnimationData)),
+				FLiveStreamAnimationLiveLinkFrameData(MoveTemp(AnimationData), Subject.Options, Subject.TranslationHandle)),
 			false);
 	}
 
@@ -447,6 +452,14 @@ namespace LiveStreamAnimation
 		else
 		{
 			StopProcessingPackets();
+		}
+	}
+
+	void FLiveLinkStreamingHelper::OnFrameTranslatorChanged()
+	{
+		if (FLiveStreamAnimationLiveLinkSource* LocalSource = LiveLinkSource.Get())
+		{
+			LocalSource->SetFrameTranslator(Subsystem.GetLiveLinkFrameTranslator());
 		}
 	}
 
