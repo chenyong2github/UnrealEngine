@@ -2803,12 +2803,9 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 			{
 				if (UPanelSlot* Slot = Parent->AddChild(Widget))
 				{
-					if (bIsPreview)
-					{
-						const UWidgetDesignerSettings* const WidgetDesignerSettings = GetDefault<UWidgetDesignerSettings>();
-						const TOptional<int32> GridSnapSize = WidgetDesignerSettings->GridSnapEnabled ? TOptional<int32>(WidgetDesignerSettings->GridSnapSize) : TOptional<int32>();
-						Slot->DragDropPreviewByDesigner(LocalPosition, GridSnapSize, GridSnapSize);
-					}
+					const UWidgetDesignerSettings* const WidgetDesignerSettings = GetDefault<UWidgetDesignerSettings>();
+					const TOptional<int32> GridSnapSize = WidgetDesignerSettings->GridSnapEnabled ? TOptional<int32>(WidgetDesignerSettings->GridSnapSize) : TOptional<int32>();
+					Slot->DragDropPreviewByDesigner(LocalPosition, GridSnapSize, GridSnapSize);
 
 					FDropPreview DropPreview;
 					DropPreview.Widget = Widget;
