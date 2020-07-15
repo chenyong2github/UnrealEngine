@@ -287,6 +287,7 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 		SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
 		SHADER_PARAMETER(FVector2D, ReducedSceneColorSize)
 		SHADER_PARAMETER(FVector2D, ReducedSceneColorTexelSize)
+		SHADER_PARAMETER(FVector2D, HigherMipBufferBilinearMax)
 		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float, MinimumLuminance)
 		SHADER_PARAMETER(float, HigherMipDownScaleFactor)
@@ -1009,6 +1010,10 @@ void RenderScreenSpaceDiffuseIndirect(
 
 			PassParameters->HigherMipDownScaleFactor = 1 << (DownSamplingMip + SrcMip);
 
+			PassParameters->HigherMipBufferBilinearMax = FVector2D(
+				(0.5f * View.ViewRect.Width() - 0.5f) / float(ReducedSceneColor->Desc.Extent.X),
+				(0.5f * View.ViewRect.Height() - 0.5f) / float(ReducedSceneColor->Desc.Extent.Y));
+
 			PassParameters->ViewportUVToHZBBufferUV = ViewportUVToHZBBufferUV;
 			PassParameters->FurthestHZBTexture = FurthestHZBTexture;
 			PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
@@ -1131,8 +1136,8 @@ void RenderScreenSpaceDiffuseIndirect(
 				-0.5f * View.ViewRect.Min.Y / float(ReducedSceneColor->Desc.Extent.Y));
 
 			PassParameters->ReducedColorUVMax = FVector2D(
-				0.5f * View.ViewRect.Width() / float(ReducedSceneColor->Desc.Extent.X),
-				0.5f * View.ViewRect.Height() / float(ReducedSceneColor->Desc.Extent.Y));
+				(0.5f * View.ViewRect.Width() - 0.5f) / float(ReducedSceneColor->Desc.Extent.X),
+				(0.5f * View.ViewRect.Height() - 0.5f) / float(ReducedSceneColor->Desc.Extent.Y));
 		}
 
 		PassParameters->FurthestHZBTexture = FurthestHZBTexture;

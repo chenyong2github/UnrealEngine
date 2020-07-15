@@ -89,7 +89,7 @@ Texture2D ColorTexture;
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 
 #define FurthestHZBTextureSampler GlobalPointClampedSampler
-#define ColorTextureSampler GlobalBilinearClampedSampler
+#define ColorTextureSampler GlobalPointClampedSampler
 
 #else
 
