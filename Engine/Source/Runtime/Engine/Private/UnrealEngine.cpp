@@ -2042,7 +2042,7 @@ void UEngine::SetRenderLatencyMarkerEnd(uint64 FrameNumber)
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
-		LatencyMarkerModule->SetRenderLatencyMarkerStart(FrameNumber);
+		LatencyMarkerModule->SetRenderLatencyMarkerEnd(FrameNumber);
 	}
 }
 
