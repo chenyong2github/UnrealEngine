@@ -2234,12 +2234,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 			//Speedtree use 8 UVs to store is data
 			VertexInstanceUVs.SetNumIndices(8);
 
-			for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
-			{
-				const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
-				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MatIndex].ImportedMaterialSlotName;
-			}
-
 			for (uint32 VertexIndex = 0; VertexIndex < LOD.Vertices().Count(); ++VertexIndex)
 			{
 				const SpeedTree8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
@@ -2247,6 +2241,10 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				FVertexID VertexID = MeshDescription->CreateVertex();
 				VertexPositions[VertexID] = FVector(vPosition);
 			}
+
+			// Per-LOD material -> polygon group mapping
+			TMap<FIntPoint, FPolygonGroupID> PolygonGroupIDMap;
+			PolygonGroupIDMap.Reserve(LOD.DrawCalls().Count());
 
 			for (uint32 DrawCallIndex = 0; DrawCallIndex < LOD.DrawCalls().Count(); ++DrawCallIndex)
 			{
@@ -2274,12 +2272,21 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 					MaterialName.InsertAt(MaterialName.Len() - 4, GeomString);
 					UMaterialInterface* Material = CreateSpeedTreeMaterial8(InParent, MaterialName, SpeedTreeMaterial, Options, WindType, GeomType, LoadedPackages, bCrossfadeLOD, ImportContext);
 					MaterialMap.Add(MaterialKey, StaticMesh->StaticMaterials.Num());
-					int32 AddedMaterialIndex = StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
-					const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[AddedMaterialIndex].ImportedMaterialSlotName;
+					StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
 				}
+
 				const int32 MaterialIndex = MaterialMap[MaterialKey];
-				const FPolygonGroupID CurrentPolygonGroupID(MaterialIndex);
+
+				const FPolygonGroupID* CurrentPolygonGroupIDPtr = PolygonGroupIDMap.Find(MaterialKey);
+				// If this LOD doesn't already have a polygon group for this material create one
+ 				if (!CurrentPolygonGroupIDPtr)
+ 				{
+  					const FPolygonGroupID PolygonGroupID = MeshDescription->CreatePolygonGroup();
+					CurrentPolygonGroupIDPtr = &PolygonGroupIDMap.Add(MaterialKey, PolygonGroupID);
+  					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+ 				}
+
+				const FPolygonGroupID CurrentPolygonGroupID = *CurrentPolygonGroupIDPtr;
 
 				FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, DrawCallIndex);
 				Info.MaterialIndex = MaterialIndex;
