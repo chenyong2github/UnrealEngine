@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "InteractiveTool.h"
 #include "InteractiveToolsContext.h"
 #include "Delegates/Delegate.h"
 #include "InputCoreTypes.h"
@@ -137,15 +138,11 @@ protected:
 
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
-	bool bHaveSavedEditorState = false;
-	void SaveEditorStateAndSetForTool();
+	void SetEditorStateForTool();
 	void RestoreEditorState();
 
-	// any actions in this array are executed at the start of the next ::Tick()
-	TArray<TUniqueFunction<void()>> NextTickExecuteActions;
-	// push the input action onto the NextTickExecuteActions list. Use this to defer execution to a "simpler" time, 
-	// eg so we are not kicking off a complicated static mesh rebuild process inside a slate button handler
-	void ScheduleExecuteAction(TUniqueFunction<void()> Action);
+	TOptional<FString> PendingToolToStart = {};
+	TOptional<EToolShutdownType> PendingToolShutdownType = {};
 
 private:
 	FEditorModeTools* EditorModeManager = nullptr;
