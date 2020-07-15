@@ -12,7 +12,7 @@ namespace Metasound
 	namespace Frontend
 	{
 		// Utility base class for classes that want to support naive multi-level undo/redo.
-		class ITransactable : public TSharedFromThis<ITransactable>
+		class METASOUNDFRONTEND_API ITransactable : public TSharedFromThis<ITransactable>
 		{
 		public:
 
@@ -463,14 +463,14 @@ namespace Metasound
 			FString GetPrintableString(FDescPath InPath);
 		}
 
-		typedef TArray<uint32> FClassDependencyIDs;
+		using FClassDependencyIDs = TArray<uint32>;
 
 		/**
 		 * Utility class that lives alongside a FMetasoundClassDescription to allow it's individual elements to be safely read and edited.
 		 * Note: Could be moved to a private header.
 		 *       It's also only necessary because we can't wrap a FMetasoundClassDescription in a shared ptr and also use it as a UPROPERTY.
 		 */
-		class FDescriptionAccessPoint
+		class METASOUNDFRONTEND_API FDescriptionAccessPoint
 		{
 		public:
 			FDescriptionAccessPoint() = delete;

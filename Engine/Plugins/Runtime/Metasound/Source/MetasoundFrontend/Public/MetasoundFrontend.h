@@ -226,7 +226,7 @@ namespace Metasound
 			uint32 NodeID;
 		};
 
-		class FGraphHandle : protected ITransactable
+		class METASOUNDFRONTEND_API FGraphHandle : protected ITransactable
 		{
 		public:
 			FGraphHandle() = delete;
@@ -260,13 +260,6 @@ namespace Metasound
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			FMetasoundClassMetadata GetGraphMetadata();
-
-			// Creates a new UMetasound object with the current graph.
-			// @param InPath, if in editor, the content directory path to save this metasound to.
-			// @returns a new MetasoundNodeAsset object on success, nullptr on failure.
-			// @todo decide if this means that we remove the graph in our current asset.
-			//       This seems dangerous since we can fail to save the new asset and scratch the old one.
-			UMetasound* SaveToNewMetasoundAsset(const FString& InPath);
 
 			// Exports this graph to a JSON at the given path.
 			// @returns true on success.

@@ -8,7 +8,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 
-#include "MetasoundNodeAsset.h"
 #include "MetasoundAudioFormats.h"
 
 
@@ -1149,23 +1148,6 @@ namespace Metasound
 
 			return GraphsClassDeclaration->Metadata;
 		}
-
-		UMetasound* FGraphHandle::SaveToNewMetasoundAsset(const FString& InPath)
-		{
-			if (!IsValid())
-			{
-				return nullptr;
-			}
-
-			UMetasound* NewMetasoundNode = NewObject<UMetasound>();
-			NewMetasoundNode->SetMetasoundDocument(OwningDocument.GetChecked());
-
-			ensureAlwaysMsgf(false, TEXT("Implement the actual saving part!"));
-			ensureAlwaysMsgf(false, TEXT("Decide whether to delete this graph from the asset that owns it!"));
-
-			return NewMetasoundNode;
-		}
-
 
 		bool FGraphHandle::ExportToJSONAsset(const FString& InAbsolutePath)
 		{
