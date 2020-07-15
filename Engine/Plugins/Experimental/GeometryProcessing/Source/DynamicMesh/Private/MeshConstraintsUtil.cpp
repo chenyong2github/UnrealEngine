@@ -101,7 +101,7 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 			{
 
 				VtxConstraint.bCanMove = VtxConstraint.bCanMove && (bAllowSeamSmoothing || bAllowSeamCollapse);
-				VtxConstraint.bCannotDelete = !bAllowSeamCollapse;
+				VtxConstraint.bCannotDelete = VtxConstraint.bCannotDelete  || !bAllowSeamCollapse;
 				EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
 											 (uint8)( SeamEdgeContraint ));
 
