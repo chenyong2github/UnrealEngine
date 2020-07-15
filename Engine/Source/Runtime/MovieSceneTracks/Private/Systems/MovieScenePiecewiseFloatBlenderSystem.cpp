@@ -428,7 +428,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 			.ReadErased(PropertyDefinition.InitialValueType)
 			.Write(ResultComponent)
 			.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
-			.Dispatch_PerEntity<FCombineBlendsWithInitialValues>(&Linker->EntityManager, Prereqs, nullptr, TaskData->GetData(), Composites[CompositeIndex].CompositeOffset);
+			.Dispatch_PerEntity<FCombineBlendsWithInitialValues>(&Linker->EntityManager, Prereqs, &Subsequents, TaskData->GetData(), Composites[CompositeIndex].CompositeOffset);
 		}
 	}
 
