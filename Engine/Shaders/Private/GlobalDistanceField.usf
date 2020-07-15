@@ -307,7 +307,7 @@ void CullObjectsToGridCS(
 }
 
 // Tweaked for the LDS size / occupancy
-#define MAX_CULLED_DF_OBJECTS 511
+#define MAX_CULLED_DF_OBJECTS 511u
 groupshared uint SharedCulledObjectList[MAX_CULLED_DF_OBJECTS];
 groupshared uint NumTileCulledObjects;
 
