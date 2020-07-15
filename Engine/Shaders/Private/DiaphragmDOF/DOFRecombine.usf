@@ -886,7 +886,7 @@ void RecombineMainCS(
 			float RecommendedPairCount = KenelArea * 0.5;
 
 			// Number of pair of sample.
-			GatherParameters.SamplePairCount = min(CONFIG_GATHER_PAIR_COUNT, uint(RecommendedPairCount));
+			GatherParameters.SamplePairCount = min(uint(CONFIG_GATHER_PAIR_COUNT), uint(RecommendedPairCount));
 		}
 	}
 	#endif // CONFIG_SLIGHT_FOCUS_METHOD != SLIGHT_FOCUS_METHOD_DISABLED

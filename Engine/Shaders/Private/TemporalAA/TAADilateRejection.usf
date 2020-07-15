@@ -42,25 +42,27 @@ void MainCS(
 	// Fetch neighborhood of the kernel
 	UNROLL
 	for (int x = -KernelSize; x <= KernelSize; x++)
-	UNROLL
-	for (int y = -KernelSize; y <= KernelSize; y++)
-	//UNROLL
-	//for (uint i = 0; i < 9; i++)
 	{
-		//float2 Offset = float2(kOffsets3x3[i]);
-		float2 Offset = float2(x, y);
-		
-		if (all(Offset == 0.0))
+		UNROLL
+		for (int y = -KernelSize; y <= KernelSize; y++)
+		//UNROLL
+		//for (uint i = 0; i < 9; i++)
 		{
-			continue;
+			//float2 Offset = float2(kOffsets3x3[i]);
+			float2 Offset = float2(x, y);
+		
+			if (all(Offset == 0.0))
+			{
+				continue;
+			}
+
+			float2 SampleRejectionBufferUV = RejectionBufferUV + Offset * RejectionInfo_ExtentInverse;
+			SampleRejectionBufferUV = clamp(SampleRejectionBufferUV, RejectionInfo_UVViewportBilinearMin, RejectionInfo_UVViewportBilinearMax);
+
+			taa_half SampleRejectionInfo = HistoryRejectionTexture.SampleLevel(GlobalPointClampedSampler, SampleRejectionBufferUV, 0);
+
+			HistoryRejectionInfo = min(HistoryRejectionInfo, SampleRejectionInfo);
 		}
-
-		float2 SampleRejectionBufferUV = RejectionBufferUV + Offset * RejectionInfo_ExtentInverse;
-		SampleRejectionBufferUV = clamp(SampleRejectionBufferUV, RejectionInfo_UVViewportBilinearMin, RejectionInfo_UVViewportBilinearMax);
-
-		taa_half SampleRejectionInfo = HistoryRejectionTexture.SampleLevel(GlobalPointClampedSampler, SampleRejectionBufferUV, 0);
-
-		HistoryRejectionInfo = min(HistoryRejectionInfo, SampleRejectionInfo);
 	}
 
 	if (all(RejectionPixelPos < RejectionInfo_ViewportSize))

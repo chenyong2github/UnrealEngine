@@ -195,7 +195,7 @@ FSSRTCastingSettings CreateDefaultCastSettings()
 	Settings.bStopWhenUncertain = false;
 	Settings.TileInfos = (FSSRTTileInfos)0;
 	return Settings;
-};
+}
 
 uint ComputeRayDirectionId(FSSRTRay Ray)
 {

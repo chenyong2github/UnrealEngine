@@ -163,12 +163,12 @@ float4x4 GetScreenToViewDistanceMatrix()
 	// NOP
 
 #elif SPHERICAL_HARMONIC_ORDER == 2
-typedef FTwoBandSHVector FSSDSphericalHarmonic;
-typedef FTwoBandSHVectorRGB FSSDSphericalHarmonicRGB;
+#define FSSDSphericalHarmonic FTwoBandSHVector
+#define FSSDSphericalHarmonicRGB FTwoBandSHVectorRGB
 
 #elif SPHERICAL_HARMONIC_ORDER == 3
-typedef FThreeBandSHVector FSSDSphericalHarmonic;
-typedef FThreeBandSHVectorRGB FSSDSphericalHarmonicRGB;
+#define FSSDSphericalHarmonic FThreeBandSHVector
+#define FSSDSphericalHarmonicRGB FThreeBandSHVectorRGB
 
 #else
 	#error Unknown spherical harmonic configuration.
