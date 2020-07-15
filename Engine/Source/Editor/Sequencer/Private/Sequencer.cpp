@@ -8440,7 +8440,11 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	{
 		for (auto PossessableGuid : PossessableGuids)
 		{
-			SelectedParentFolders[0]->AddChildObjectBinding(PossessableGuid);
+			FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
+			if (Possessable && !Possessable->GetParent().IsValid())
+			{
+				SelectedParentFolders[0]->AddChildObjectBinding(PossessableGuid);
+			}
 		}
 	}
 
