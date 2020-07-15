@@ -794,6 +794,10 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	IStreamingManager::Get().RemoveLevel(InLevel);
 	UWorld* World = InLevel->OwningWorld;
 	World->RemoveLevel(InLevel);
+	if (InLevel->bIsLightingScenario)
+	{
+		World->PropagateLightingScenarioChange();
+	}
 	InLevel->ClearLevelComponents();
 
 	// remove all group actors from the world in the level we are removing
