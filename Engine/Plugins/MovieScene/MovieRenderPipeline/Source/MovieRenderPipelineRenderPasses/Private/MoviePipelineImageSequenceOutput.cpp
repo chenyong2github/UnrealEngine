@@ -148,7 +148,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		TileImageTask->Filename = FinalFilePath;
 
 		// We composite before flipping the alpha so that it is consistent for all formats.
-		if (BurnInImageData && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("Backbuffer")))
+		if (BurnInImageData && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
 		{
 			switch (QuantizedPixelData->GetType())
 			{
