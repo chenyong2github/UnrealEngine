@@ -64,6 +64,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
 TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
+TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT("p.EnableKinematicDeferralPrePhysicsCondition"), 1, TEXT("If is 1, and deferral would've been disallowed due to EUpdateTransformFlags, allow if in PrePhysics tick. If 0, condition is unchanged."));
 
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
@@ -1314,9 +1315,24 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 		// Deferred kinematic updates are applied during TG_StartPhysics.
 		// Propagation from the parent movement happens during TG_EndPhysics (for physics objects... could in theory be from any tick group).
 		// Therefore, deferred kinematic updates are safe from animation, but not from parent movement.
-		const EAllowKinematicDeferral AllowDeferral
-			= !!(UpdateTransformFlags & EUpdateTransformFlags::PropagateFromParent)
-			? EAllowKinematicDeferral::DisallowDeferral : EAllowKinematicDeferral::AllowDeferral;
+		EAllowKinematicDeferral AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
+
+		if (!!(UpdateTransformFlags & EUpdateTransformFlags::PropagateFromParent))
+		{
+			AllowDeferral = EAllowKinematicDeferral::DisallowDeferral;
+			
+			// If enabled, allow deferral of PropagateFromParent updates in prephysics only.
+			// Probably should rework this entire condition to be more concrete, but do not want to introduce that much risk.
+			if (CVarEnableKinematicDeferralPrePhysicsCondition.GetValueOnGameThread())
+			{
+				UWorld* World = GetWorld();
+				if (World && (World->TickGroup == ETickingGroup::TG_PrePhysics))
+				{
+					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
+				}
+			}
+		}
+
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), Teleport, false, AllowDeferral);
 #else
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), ETeleportType::TeleportPhysics, false);
