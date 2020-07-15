@@ -19,7 +19,7 @@ public:
 
 	GENERATED_BODY()
 
-		FLiveLinkInstanceProxy()
+	FLiveLinkInstanceProxy()
 	{
 	}
 
@@ -40,13 +40,17 @@ public:
 UCLASS(transient, NotBlueprintable)
 class LIVELINK_API ULiveLinkInstance : public UAnimInstance
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
+public:
+
+	UFUNCTION(BlueprintCallable, Category="Animation|Live Link")
 	void SetSubject(FLiveLinkSubjectName SubjectName)
 	{
 		GetProxyOnGameThread<FLiveLinkInstanceProxy>().PoseNode.LiveLinkSubjectName = SubjectName;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Animation|Live Link")
 	void SetRetargetAsset(TSubclassOf<ULiveLinkRetargetAsset> RetargetAsset)
 	{
 		GetProxyOnGameThread<FLiveLinkInstanceProxy>().PoseNode.RetargetAsset = RetargetAsset;
