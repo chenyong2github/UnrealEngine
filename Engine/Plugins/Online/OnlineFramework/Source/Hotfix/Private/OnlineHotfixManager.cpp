@@ -1588,6 +1588,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								const int64 OldPropertyValue = NumProp->GetSignedIntPropertyValue(RowData);
 								const int64 NewPropertyValue = FCString::Atoi(*NewValue);
 								NumProp->SetIntPropertyValue(RowData, NewPropertyValue);
+								OnHotfixTableValueInt64(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
 								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %i to %i."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
@@ -1597,6 +1598,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								const double OldPropertyValue = NumProp->GetFloatingPointPropertyValue(RowData);
 								const double NewPropertyValue = FCString::Atod(*NewValue);
 								NumProp->SetFloatingPointPropertyValue(RowData, NewPropertyValue);
+								OnHotfixTableValueDouble(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
 								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
@@ -1614,6 +1616,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const FString OldPropertyValue = StrProp->GetPropertyValue(RowData);
 						const FString NewPropertyValue = NewValue;
 						StrProp->SetPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueString(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue, *NewPropertyValue);
 					}
@@ -1623,6 +1626,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const FName OldPropertyValue = NameProp->GetPropertyValue(RowData);
 						const FName NewPropertyValue = FName(*NewValue);
 						NameProp->SetPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueName(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue.ToString(), *NewPropertyValue.ToString());
 					}
@@ -1632,6 +1636,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const UObject* OldPropertyValue = SoftObjProp->GetObjectPropertyValue(RowData);
 						UObject* NewPropertyValue = LoadObject<UObject>(nullptr, *NewValue);
 						SoftObjProp->SetObjectPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueObject(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue->GetFullName(), *NewPropertyValue->GetFullName());
 					}
@@ -1700,6 +1705,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					Key = CurveTableRow->UpdateOrAddKey(KeyTime, NewPropertyValue);
 					if (CurveTableRow->IsKeyHandleValid(Key))
 					{
+						OnHotfixTableValueFloat(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasCurveTableChanged = true;
 
 						if (bWasExistingKey)
@@ -1754,6 +1760,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					const float OldPropertyValue = CurveFloat->FloatCurve.GetKeyValue(Key);
 					const float NewPropertyValue = FCString::Atof(*NewValue);
 					CurveFloat->FloatCurve.SetKeyValue(Key, NewPropertyValue);
+					OnHotfixTableValueFloat(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 
 					UE_LOG(LogHotfixManager, Verbose, TEXT("Curve float %s updated column %s from %.2f to %.2f."), *AssetPath, *ColumnName, OldPropertyValue, NewPropertyValue);
 				}
