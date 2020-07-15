@@ -4982,7 +4982,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					MeshElement.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					MeshElement.CastShadow = SectionElementInfo.bEnableShadowCasting;
 				#if RHI_RAYTRACING
-					MeshElement.CastRayTracedShadow = MeshElement.CastShadow;
+					MeshElement.CastRayTracedShadow = MeshElement.CastShadow && bCastDynamicShadow;
 				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
@@ -5113,7 +5113,7 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 	Mesh.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
 #if RHI_RAYTRACING
 	Mesh.SegmentIndex = SectionIndex;
-	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting;
+	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting && bCastDynamicShadow;
 #endif
 
 	FMeshBatchElement& BatchElement = Mesh.Elements[0];
