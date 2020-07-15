@@ -63,6 +63,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
+TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
 
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
@@ -3098,7 +3099,11 @@ public:
 	}
 	static ENamedThreads::Type GetDesiredThread()
 	{
-		return CPrio_FParallelClothTask.Get();
+		if (CVarEnableClothPhysicsUseTaskThread.GetValueOnGameThread() != 0)
+		{
+			return CPrio_FParallelClothTask.Get();
+		}
+		return ENamedThreads::GameThread;
 	}
 	static ESubsequentsMode::Type GetSubsequentsMode()
 	{
