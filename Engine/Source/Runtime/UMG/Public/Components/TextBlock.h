@@ -60,7 +60,7 @@ public:
 	/**
 	 * Dynamically set the font info for this text block
 	 * 
-	 * @param InFontInfo THe new font info
+	 * @param InFontInfo The new font info
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetFont(FSlateFontInfo InFontInfo);
