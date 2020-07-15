@@ -46,13 +46,13 @@ namespace LiveStreamAnimation
 	FText FLiveStreamAnimationLiveLinkSource::GetSourceMachineName() const
 	{
 		// TODO: Maybe allow a user provided name somehow?
-		return NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceMachineName", "Live Stream Animation Network");
+		return NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceMachineNameNetworked", "Live Stream Animation Network");
 	}
 
 	FText FLiveStreamAnimationLiveLinkSource::GetSourceStatus() const
 	{
-		static FText ConnectedText = NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceState", "Connected");
-		static FText DisconnectedText = NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceState", "Disconnected");
+		static FText ConnectedText = NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceState_Connected", "Connected");
+		static FText DisconnectedText = NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceState_Disconnected", "Disconnected");
 
 		return bIsConnectedToMesh ? ConnectedText : DisconnectedText;
 	}
