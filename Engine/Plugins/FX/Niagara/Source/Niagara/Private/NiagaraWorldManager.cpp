@@ -574,7 +574,7 @@ void FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy()
 
 void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -668,7 +668,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 {
 	check(TickGroup >= NiagaraFirstTickGroup && TickGroup <= NiagaraLastTickGroup);
 
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
