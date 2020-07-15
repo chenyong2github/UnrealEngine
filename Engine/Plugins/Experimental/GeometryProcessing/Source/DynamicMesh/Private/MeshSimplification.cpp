@@ -1123,7 +1123,7 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 
 	ProfileBeginCollapse();
 
-	// check if we should collapse, and also find which vertex we should collapse to,
+	// check if we should collapse, and also find which vertex we should retain
 	// in cases where we have constraints/etc
 	int collapse_to = -1;
 	bool bCanCollapse = CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
@@ -1168,29 +1168,30 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	ESimplificationResult retVal = ESimplificationResult::Failed_OpNotSuccessful;
 
 	int iKeep = b, iCollapse = a;
+	bool bCanMove = true;
+	
+	if (collapse_to != -1)
+	{
+		iKeep = collapse_to;
+		iCollapse = (iKeep == a) ? b : a;
 
-	// if either vtx is fixed, collapse to that position.
-	//@todo: update CanCollapseEdge to allow for the case where the retained edges have constraints.
-	//       In that case we should only collapse to the position of a Movable==false fixed vertex.
-	//       Also will need to rebuild any adjacent constraints after the collapse.  
+		// if constraints require a fixed position
+		if (Constraints)
+		{
+			bCanMove = Constraints->GetVertexConstraint(collapse_to).bCanMove;
+		}
+	}
 	double collapse_t = 0;
-	if (collapse_to == b)
-	{
-		vNewPos = vB;
-		collapse_t = 0;
-	}
-	else if (collapse_to == a)
-	{
-		iKeep = a; iCollapse = b;
-		vNewPos = vA;
-		collapse_t = 0;
-	}
-	else
+	if (bCanMove)
 	{
 		vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
 		double div = vA.Distance(vB);
 		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (vNewPos.Distance(Mesh->GetVertex(iKeep))) / div;
 		collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
+	}
+	else
+	{
+		vNewPos = (collapse_to == a) ? vA : vB;
 	}
 
 	// check if this collapse will create a normal flip. Also checks
