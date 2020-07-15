@@ -30,6 +30,9 @@ public:
 
 	SLATE_END_ARGS()
 
+	SNewProjectWizard() = default;
+	virtual ~SNewProjectWizard();
+
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
 
