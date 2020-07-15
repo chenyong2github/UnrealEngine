@@ -751,6 +751,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 		if (bBindParams)
 		{
+			InstanceParameters.Tick();//Make sure the owner has flushed it's parameters by now. Especially it's DIs.
 			InitDataInterfaces();
 		}
 
