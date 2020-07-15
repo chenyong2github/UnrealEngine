@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundEngineModule.h"
 
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
+
 
 class FMetasoundEngineModule : public IMetasoundEngineModule
 {
