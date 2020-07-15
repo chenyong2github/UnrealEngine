@@ -964,7 +964,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReinit);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	Age = 0;
@@ -1845,7 +1845,7 @@ void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEvent
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_ComponentTickGT);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	if (IsDisabled())
@@ -1932,7 +1932,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_TickGT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	FNiagaraCrashReporterScope CRScope(this);
@@ -1967,7 +1967,7 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_TickCNC);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT_CNC);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
@@ -2265,7 +2265,7 @@ bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 		LLM_SCOPE(ELLMTag::Niagara);
 
 		//Temporarily force FX to update their own LODDistance on frames where it is not provided by the scalability manager.

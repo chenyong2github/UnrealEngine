@@ -572,7 +572,7 @@ uint32 UNiagaraComponent::GetApproxMemoryUsage() const
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentTick);
 
 	FScopeCycleCounter SystemStatCounter(Asset ? Asset->GetStatID(true, false) : TStatId());
@@ -809,7 +809,7 @@ bool UNiagaraComponent::InitializeSystem()
 	if (SystemInstance.IsValid() == false)
 	{
 		LLM_SCOPE(ELLMTag::Niagara);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
 		//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 #if WITH_EDITORONLY_DATA
@@ -1019,7 +1019,7 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 	if (IsActive() && SystemInstance)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 
 		//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 
@@ -1425,7 +1425,7 @@ void UNiagaraComponent::CreateRenderState_Concurrent(FRegisterComponentContext* 
 void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
 	PARTICLE_PERF_STAT_CYCLES(Asset, EndOfFrame);
 
