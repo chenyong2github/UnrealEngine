@@ -30,6 +30,11 @@ public:
 	static bool IsForkedMultithreadInstance();
 
 	/**
+	 * Indicates that this is a process that will be forked
+	 */
+	 static bool IsAForkingProcess();
+
+	/**
 	 * Is this a process that was forked
 	 */
 	static bool IsForkedChildProcess();
