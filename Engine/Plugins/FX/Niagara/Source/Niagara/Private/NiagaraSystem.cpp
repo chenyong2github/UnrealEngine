@@ -1540,6 +1540,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		ComputeEmittersExecutionOrder();
 
+		ComputeRenderersDrawOrder();
+
 		CacheFromCompiledData();
 		
 		UpdateHasGPUEmitters();
