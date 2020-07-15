@@ -56,6 +56,13 @@ public:
 	}
 };
 
+class ENGINE_API FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
+{
+public:
+	FSelectedActorExportObjectInnerContext();
+};
+
+
 /**
  * Exports the property values for the specified object as text to the output device.
  *

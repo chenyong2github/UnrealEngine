@@ -84,39 +84,6 @@ static int32 RecomputePoly( ABrush* InOwner, FPoly* Poly )
    Actor adding/deleting functions.
 -----------------------------------------------------------------------------*/
 
-class FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
-{
-public:
-	FSelectedActorExportObjectInnerContext()
-		//call the empty version of the base class
-		: FExportObjectInnerContext(false)
-	{
-		// For each selected actor...
-		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-		{
-			AActor* Actor = (AActor*)*It;
-			checkSlow(Actor->IsA(AActor::StaticClass()));
-
-			ForEachObjectWithOuter(Actor, [this](UObject* InnerObj)
-			{
-				UObject* OuterObj = InnerObj->GetOuter();
-				InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
-				if (Inners)
-				{
-					// Add object to existing inner list.
-					Inners->Add( InnerObj );
-				}
-				else
-				{
-					// Create a new inner list for the outer object.
-					InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
-					InnersForOuterObject.Add(InnerObj);
-				}
-			}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
-		}
-	}
-};
-
 void UUnrealEdEngine::edactCopySelected( UWorld* InWorld, FString* DestinationData )
 {
 	if (GetSelectedComponentCount() > 0)
