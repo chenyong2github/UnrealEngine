@@ -17,6 +17,6 @@ public:
 	virtual bool CanFilter() override { return true; }
 	virtual bool IsImportedAsset() const override { return false; }
 	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override { return nullptr; }
-	virtual uint32 IAssetTypeActions::GetCategories(void) override { return EAssetTypeCategories::Animation; }
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
 	//~ End IAssetTypeActions Implementation
 };
