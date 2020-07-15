@@ -4,10 +4,10 @@
 	GeometryCollection.cpp: UGeometryCollection methods.
 =============================================================================*/
 #include "GeometryCollection/GeometryCollectionObject.h"
-
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionCache.h"
 #include "UObject/DestructionObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/Package.h"
@@ -18,6 +18,8 @@
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
+#include "NaniteBuilder.h"
+#include "Rendering/NaniteResources.h"
 #endif
 
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
@@ -39,6 +41,7 @@ namespace GeometryCollectionCookStats
 
 UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, EnableNanite(false)
 	, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
 	, MinLevelSetResolution(10)
@@ -52,6 +55,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, CollisionParticlesFraction(1.0f)
 	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
+	, bRenderingResourcesInitialized(false)
 	, GeometryCollection(new FGeometryCollection())
 {
 	PersistentGuid = FGuid::NewGuid();
@@ -85,7 +89,6 @@ void FillSharedSimulationSizeSpecificData(FSharedSimulationSizeSpecificData& ToD
 	ToData.CollisionParticlesFraction = FromData.CollisionParticlesFraction;
 	ToData.MaximumCollisionParticles = FromData.MaximumCollisionParticles;
 }
-
 
 float KgCm3ToKgM3(float Density)
 {
@@ -178,7 +181,6 @@ int32 UGeometryCollection::NumElements(const FName & Group) const
 	return GeometryCollection->NumElements(Group);
 }
 
-
 /** RemoveElements */
 void UGeometryCollection::RemoveElements(const FName & Group, const TArray<int32>& SortedDeletionList)
 {
@@ -186,7 +188,6 @@ void UGeometryCollection::RemoveElements(const FName & Group, const TArray<int32
 	GeometryCollection->RemoveElements(Group, SortedDeletionList);
 	InvalidateCollection();
 }
-
 
 /** ReindexMaterialSections */
 void UGeometryCollection::ReindexMaterialSections()
@@ -261,6 +262,7 @@ bool UGeometryCollection::HasVisibleGeometry() const
 void UGeometryCollection::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Chaos::FChaosArchive ChaosAr(Ar);
 
 #if WITH_EDITOR
@@ -350,11 +352,57 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::GroupAndAttributeNameRemapping)
 	{
-		GeometryCollection->UpdateOldAttributeNames( );
+		GeometryCollection->UpdateOldAttributeNames();
 		InvalidateCollection();
 #if WITH_EDITOR
 		CreateSimulationData();
 #endif
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::GeometryCollectionNaniteData)
+	{
+		int32 NumNaniteResources = Ar.IsLoading() ? 0 : NaniteResources.Num();
+		if (!EnableNanite)
+		{
+			// Avoid serializing stale Nanite data when support is disabled.
+			// TODO: Should instead do this on toggle of the property?
+			// TODO: Might never even need this, as NaniteResources may always be empty due to CreateNaniteData() running before
+			NumNaniteResources = 0;
+		}
+
+		Ar << NumNaniteResources;
+
+		if (NumNaniteResources == 0)
+		{
+			NaniteResources.Empty();
+		}
+		else
+		{
+			if (Ar.IsLoading())
+			{
+				NaniteResources.Reset(NumNaniteResources);
+				NaniteResources.AddDefaulted(NumNaniteResources);
+			}
+			
+			for (int32 ResourceIndex = 0; ResourceIndex < NumNaniteResources; ++ResourceIndex)
+			{
+				NaniteResources[ResourceIndex].Serialize(ChaosAr, this);
+			}
+
+			// Nanite data is currently 1:1 with each geometry group in the collection.
+			const int32 NumGeometryGroups = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
+			if (NumGeometryGroups != NumNaniteResources)
+			{
+				Ar.SetError();
+			}
+		}
+
+		if (!EnableNanite)
+		{
+			// Avoid serializing stale Nanite data when support is disabled.
+			// TODO: Should instead do this on toggle of the property?
+			NaniteResources.Empty();
+		}
 	}
 
 #if WITH_EDITOR
@@ -406,7 +454,150 @@ void UGeometryCollection::CreateSimulationData()
 {
 	CreateSimulationDataImp(/*bCopyFromDDC=*/false);
 }
+
+TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryCollection* Collection)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FDerivedDataGeometryCollectionCooker::Build::Nanite"));
+
+	NaniteResources.Empty();
+	if (!EnableNanite)
+	{
+		return NaniteResources;
+	}
+
+	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
+
+	// Transform Group
+	const TManagedArray<int32>& TransformToGeometryIndexArray = Collection->TransformToGeometryIndex;
+	const TManagedArray<int32>& SimulationTypeArray = Collection->SimulationType;
+	const TManagedArray<int32>& StatusFlagsArray = Collection->StatusFlags;
+
+	// Vertices Group
+	const TManagedArray<FVector>& VertexArray = Collection->Vertex;
+	const TManagedArray<FVector2D>& UVArray = Collection->UV;
+	const TManagedArray<FLinearColor>& ColorArray = Collection->Color;
+	const TManagedArray<FVector>& TangentUArray = Collection->TangentU;
+	const TManagedArray<FVector>& TangentVArray = Collection->TangentV;
+	const TManagedArray<FVector>& NormalArray = Collection->Normal;
+	const TManagedArray<int32>& BoneMapArray = Collection->BoneMap;
+
+	// Faces Group
+	const TManagedArray<FIntVector>& IndicesArray = Collection->Indices;
+	const TManagedArray<bool>& VisibleArray = Collection->Visible;
+	const TManagedArray<int32>& MaterialIndexArray = Collection->MaterialIndex;
+	const TManagedArray<int32>& MaterialIDArray = Collection->MaterialID;
+
+	// Geometry Group
+	const TManagedArray<int32>& TransformIndexArray = Collection->TransformIndex;
+	const TManagedArray<FBox>& BoundingBoxArray = Collection->BoundingBox;
+	const TManagedArray<float>& InnerRadiusArray = Collection->InnerRadius;
+	const TManagedArray<float>& OuterRadiusArray = Collection->OuterRadius;
+	const TManagedArray<int32>& VertexStartArray = Collection->VertexStart;
+	const TManagedArray<int32>& VertexCountArray = Collection->VertexCount;
+	const TManagedArray<int32>& FaceStartArray = Collection->FaceStart;
+	const TManagedArray<int32>& FaceCountArray = Collection->FaceCount;
+
+	// Material Group
+	const TManagedArray<FGeometryCollectionSection>& Sections = Collection->Sections;
+
+	int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+	NaniteResources.AddDefaulted(NumGeometry);
+
+	for (int32 GeometryGroupIndex = 0; GeometryGroupIndex < NumGeometry; GeometryGroupIndex++)
+	{
+		Nanite::FResources& NaniteResource = NaniteResources[GeometryGroupIndex];
+		NaniteResource = {};
+
+		uint32 NumTexCoords = 1;// NumTextureCoord;
+		bool bHasColors = false;// true;
+
+		const int32 VertexStart = VertexStartArray[GeometryGroupIndex];
+		const int32 VertexCount = VertexCountArray[GeometryGroupIndex];
+
+		TArray<FStaticMeshBuildVertex> BuildVertices;
+		BuildVertices.Reserve(VertexCount);
+		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+		{
+			FStaticMeshBuildVertex& Vertex = BuildVertices.Emplace_GetRef();
+			Vertex.Position = VertexArray[VertexStart + VertexIndex];
+			Vertex.Color = FColor::White;
+			Vertex.UVs[0] = UVArray[VertexStart + VertexIndex];
+		}
+
+		const int32 FaceStart = FaceStartArray[GeometryGroupIndex];
+		const int32 FaceCount = FaceCountArray[GeometryGroupIndex];
+
+		TArray<FStaticMeshSection, TInlineAllocator<1>> BuildSections;
+		// TODO: Respect multiple materials like in FGeometryCollectionConversion::AppendStaticMesh
+		// TODO: Cleanup super section hack
+		BuildSections.Reserve(FaceCount);
+
+		TArray<uint32> BuildIndices;
+		BuildIndices.Reserve(FaceCount * 3);
+		for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+		{
+			const FIntVector FaceIndices = IndicesArray[FaceStart + FaceIndex];
+			BuildIndices.Add(FaceIndices.X - VertexStart);// -(FaceStart * 3));
+			BuildIndices.Add(FaceIndices.Y - VertexStart);// -(FaceStart * 3));
+			BuildIndices.Add(FaceIndices.Z - VertexStart);// -(FaceStart * 3));
+
+			// TODO: Cleanup super hack
+			FStaticMeshSection& BuildSection = BuildSections.Emplace_GetRef();
+			BuildSection.MaterialIndex = MaterialIDArray[FaceStart + FaceIndex];
+			BuildSection.FirstIndex = FaceIndex * 3;
+			BuildSection.MinVertexIndex = BuildSection.FirstIndex;
+			BuildSection.MaxVertexIndex = BuildSection.FirstIndex;
+			BuildSection.NumTriangles = 1;
+		}
+
+		FMeshNaniteSettings NaniteSettings = {};
+		NaniteSettings.bEnabled = true;
+		NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
+
+		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, BuildSections, NumTexCoords, bHasColors, NaniteSettings))
+		{
+			UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
+		}
+	}
+
+	return NaniteResources;
+}
+
 #endif
+
+void UGeometryCollection::InitResources()
+{
+	//LLM_SCOPE(ELLMTag::GeometryCollection);
+
+	ReleaseResources();
+
+	for (Nanite::FResources& Resource : NaniteResources)
+	{
+		// Skip resources that have their render data stripped
+		if (Resource.PageStreamingStates.Num() > 0)
+		{
+			Resource.InitResources();
+		}
+	}
+
+	bRenderingResourcesInitialized = true;
+}
+
+void UGeometryCollection::ReleaseResources()
+{
+	if (bRenderingResourcesInitialized)
+	{
+		for (Nanite::FResources& Resource : NaniteResources)
+		{
+			if (Resource.PageStreamingStates.Num() > 0)
+			{
+				Resource.ReleaseResources();
+			}
+		}
+
+		bRenderingResourcesInitialized = false;
+	}
+}
 
 void UGeometryCollection::InvalidateCollection()
 {
@@ -455,3 +646,21 @@ void UGeometryCollection::EnsureDataIsCooked()
 	}
 }
 #endif
+
+void UGeometryCollection::PostLoad()
+{
+	Super::PostLoad();
+
+	// initialize rendering resources
+	if (FApp::CanEverRender())
+	{
+		InitResources();
+	}
+}
+
+void UGeometryCollection::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	ReleaseResources();
+}

@@ -94,7 +94,6 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UObject Interface */
@@ -102,6 +101,8 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 	/** End UObject Interface */
 
 	void Serialize(FArchive& Ar);
@@ -116,8 +117,14 @@ public:
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GetGeometryCollection() const { return GeometryCollection; }
 
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
-	int32 NumElements(const FName & Group) const;
-	void RemoveElements(const FName & Group, const TArray<int32>& SortedDeletionList);
+	int32 NumElements(const FName& Group) const;
+	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
+
+	FORCEINLINE FNaniteInfo GetNaniteInfo(int32 GeometryIndex) const
+	{
+		const Nanite::FResources& Resources = NaniteResources[GeometryIndex];
+		return FNaniteInfo(Resources.RuntimeResourceID, Resources.HierarchyOffset);
+	}
 
 	/** ReindexMaterialSections */
 	void ReindexMaterialSections();
@@ -134,7 +141,13 @@ public:
 #if WITH_EDITOR
 	/** Create the simulation data that can be shared among all instances (mass, volume, etc...)*/
 	void CreateSimulationData();
+
+	/** Create the Nanite rendering data. */
+	TArray<Nanite::FResources>& CreateNaniteData(FGeometryCollection* Collection);
 #endif
+
+	void InitResources();
+	void ReleaseResources();
 
 	/** Fills params struct with parameters used for precomputing content. */
 	void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
@@ -149,6 +162,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> Materials;
+
+	/**
+	* Enable support for Nanite.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Nanite")
+	bool EnableNanite;
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
@@ -224,7 +243,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
-	
+
 	/**
 	* Enable remove pieces on fracture
 	*/
@@ -237,7 +256,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Fracture")
 	TArray<UMaterialInterface*> RemoveOnFractureMaterials;
 
-	FORCEINLINE const int GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
+	FORCEINLINE const int32 GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
 
 #if WITH_EDITORONLY_DATA
 	/** Information for thumbnail rendering */
@@ -245,6 +264,9 @@ public:
 	class UThumbnailInfo* ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
+protected:
+	/** Tracks whether InitResources has been called, and rendering resources are initialized. */
+	uint8 bRenderingResourcesInitialized : 1;
 
 private:
 #if WITH_EDITOR
@@ -252,7 +274,6 @@ private:
 #endif
 
 private:
-
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */
 	UPROPERTY()
 	FGuid PersistentGuid;
@@ -275,6 +296,8 @@ private:
 	int32 BoneSelectedMaterialIndex;
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection;
+
+	TArray<Nanite::FResources> NaniteResources;
 };
 
 

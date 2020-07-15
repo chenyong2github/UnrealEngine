@@ -2615,7 +2615,9 @@ bool FBuilderModule::Build(
 	uint32 NumTriangles = Indexes.Num() / 3;
 
 	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
-	check(Sections.Num() > 0 && Sections.Num() <= 64);
+	// TODO: HACK: Temp disabled to allow for geometry collection to have a redundant material per section that gets de-duplicated back under this count.
+	// TODO: Make a version that takes the MaterialIndexes list instead of Sections->Derived
+	//check(Sections.Num() > 0 && Sections.Num() <= 64);
 
 	// Build associated array of triangle index and material index.
 	TArray<int32> MaterialIndexes;

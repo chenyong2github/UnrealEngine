@@ -8,9 +8,13 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/ChaosArchive.h"
 #include "UObject/DestructionObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Chaos/ErrorReporter.h"
+#include "EngineUtils.h"
 
 #if WITH_EDITOR
+
+#include "NaniteBuilder.h"
 
 FDerivedDataGeometryCollectionCooker::FDerivedDataGeometryCollectionCooker(UGeometryCollection& InGeometryCollection)
 	: GeometryCollection(InGeometryCollection)
@@ -35,6 +39,14 @@ bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 
 		BuildSimulationData(ErrorReporter, *Collection, SharedParams);
 		Collection->Serialize(ChaosAr);
+
+		TArray<Nanite::FResources>& NaniteResources = GeometryCollection.CreateNaniteData(Collection);
+
+		for (Nanite::FResources& NaniteResource : NaniteResources)
+		{
+			NaniteResource.Serialize(ChaosAr, &GeometryCollection);
+		}
+
 		if (false && ErrorReporter.EncounteredAnyErrors())
 		{
 			bool bAllErrorsHandled = !ErrorReporter.ContainsUnhandledError();
@@ -59,14 +71,28 @@ const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 		return OverrideVersion;	//force load old ddc if found. Not recommended
 	}
 
-	return TEXT("A8A2C0FB45084FCB922FEC1139E11341");
+	const TCHAR* VersionString = TEXT("A8A2C0FB45084FCB922FEC1139E11341");
+
+	static FString CachedNaniteVersionString;
+	if (CachedNaniteVersionString.IsEmpty())
+	{
+		CachedNaniteVersionString = FString::Printf(TEXT("%s_%s"), VersionString, *Nanite::IBuilderModule::Get().GetVersionString());
+	}
+
+	return GeometryCollection.EnableNanite ? *CachedNaniteVersionString : VersionString;
 }
 
 FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() const
 {
-
-	return FString::Printf(TEXT("%s_%s_%s_%d"), *Chaos::ChaosVersionString, *GeometryCollection.GetIdGuid().ToString(), *GeometryCollection.GetStateGuid().ToString(), FDestructionObjectVersion::Type::LatestVersion);
+	return FString::Printf(
+		TEXT("%s_%s_%s_%d_%d"),
+		*Chaos::ChaosVersionString,
+		*GeometryCollection.GetIdGuid().ToString(),
+		*GeometryCollection.GetStateGuid().ToString(),
+		FDestructionObjectVersion::Type::LatestVersion,
+		FUE5MainStreamObjectVersion::Type::LatestVersion
+	);
 }
 
 
-#endif	//WITH_EDITOR
+#endif // WITH_EDITOR

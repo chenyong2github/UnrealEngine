@@ -12,6 +12,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Before any version changes were made
 		BeforeCustomVersionWasAdded = 0,
 
+		// Nanite data added to Chaos geometry collections
+		GeometryCollectionNaniteData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
