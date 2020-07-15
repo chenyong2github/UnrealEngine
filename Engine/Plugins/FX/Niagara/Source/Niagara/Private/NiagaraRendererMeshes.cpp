@@ -126,12 +126,15 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 
 	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValue();
 
-	const int32 LODCount = MeshRenderData->LODResources.Num();
-	IndexInfoPerSection.SetNum(LODCount);
-
-	for (int32 LODIdx = 0; LODIdx < LODCount; ++LODIdx)
+	if (MeshRenderData)
 	{
-		Properties->GetIndexInfoPerSection(LODIdx, IndexInfoPerSection[LODIdx]);
+		const int32 LODCount = MeshRenderData->LODResources.Num();
+		IndexInfoPerSection.SetNum(LODCount);
+
+		for (int32 LODIdx = 0; LODIdx < LODCount; ++LODIdx)
+		{
+			Properties->GetIndexInfoPerSection(LODIdx, IndexInfoPerSection[LODIdx]);
+		}
 	}
 }
 
@@ -189,6 +192,7 @@ void FNiagaraRendererMeshes::SetupVertexFactory(FNiagaraMeshVertexFactory* InVer
 
 int32 FNiagaraRendererMeshes::GetLODIndex() const
 {
+	if (!MeshRenderData) { return INDEX_NONE; }
 	check(IsInRenderingThread());
 	const int32 LODCount = MeshRenderData->LODResources.Num();
 
@@ -890,7 +894,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 
 	FNiagaraDynamicDataMesh* DynamicData = nullptr;
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
-	if (DataToRender != nullptr)
+	if (DataToRender && MeshRenderData)
 	{
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);
 
