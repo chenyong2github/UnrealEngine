@@ -22,6 +22,9 @@
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
 
+// Required temporarily for UMaterialInterface::SortTextureStreamingData()
+#include "Materials/MaterialInstance.h"
+
 /**
  * This is used to deprecate data that has been built with older versions.
  * To regenerate the data, commands like "BUILDMATERIALTEXTURESTREAMINGDATA" can be used in the editor.
@@ -633,6 +636,19 @@ void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSo
 		if (bFinalSort)
 		{
 			UsedTextures = GetReferencedTextures();
+		
+			// Add the instance texture overrides since the texture streaming data reference them.
+			if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(this))
+			{
+				for (const FTextureParameterValue& TextureParam : MaterialInstance->TextureParameterValues)
+				{
+					if (TextureParam.ParameterValue)
+					{
+						UsedTextures.AddUnique(TextureParam.ParameterValue);
+					}
+				}
+			}
+
 			for (int32 TextureIndex = 0; TextureIndex < UsedTextures.Num(); ++TextureIndex)
 			{
 				UTexture* UsedTexture = Cast<UTexture>(UsedTextures[TextureIndex]);
