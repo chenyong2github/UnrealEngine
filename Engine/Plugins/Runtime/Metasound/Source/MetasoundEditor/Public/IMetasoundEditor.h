@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 
+#include "Layout/SlateRect.h"
 #include "Metasound.h"
+#include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/Object.h"
 
 

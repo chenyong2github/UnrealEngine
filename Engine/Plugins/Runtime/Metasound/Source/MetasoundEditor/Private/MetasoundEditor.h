@@ -4,8 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
+#include "Framework/Commands/UICommandList.h"
+#include "GraphEditor.h"
+#include "IDetailsView.h"
 #include "IMetasoundEditor.h"
 #include "Misc/NotifyHook.h"
+#include "SMetasoundPalette.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/GCObject.h"
 
