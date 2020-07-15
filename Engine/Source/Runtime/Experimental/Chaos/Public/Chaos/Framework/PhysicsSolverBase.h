@@ -172,7 +172,7 @@ namespace Chaos
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
 			//make sure any GT state is pushed into necessary buffer
-			PushPhysicsState();
+			PushPhysicsState(InDt);
 
 			//todo: handle dt etc..
 			if(ThreadingMode == EThreadingModeTemp::SingleThread)
@@ -247,7 +247,7 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
-		virtual void PushPhysicsState() = 0;
+		virtual void PushPhysicsState(const FReal Dt) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;
