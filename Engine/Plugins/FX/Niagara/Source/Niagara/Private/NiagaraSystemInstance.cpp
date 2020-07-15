@@ -661,6 +661,14 @@ void FNiagaraSystemInstance::Complete()
 	}
 }
 
+void FNiagaraSystemInstance::OnPooledReuse()
+{
+	for (auto&& Emitter : Emitters)
+	{
+		Emitter->OnPooledReuse();
+	}
+}
+
 void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 {
 	if (bInPaused == bPaused)

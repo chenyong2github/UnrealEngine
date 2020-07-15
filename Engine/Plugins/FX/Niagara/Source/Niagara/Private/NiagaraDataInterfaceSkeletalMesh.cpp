@@ -1460,22 +1460,22 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 			{
 				AActor* Owner = SimComp->GetAttachmentRootActor();
 				while (Owner && !Mesh)
-			{
-				for (UActorComponent* ActorComp : Owner->GetComponents())
 				{
-					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
-					if (SourceComp)
+					for (UActorComponent* ActorComp : Owner->GetComponents())
 					{
-						USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
-						if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
+						USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
+						if (SourceComp)
 						{
-							Mesh = PossibleMesh;
-							FoundSkelComp = SourceComp;
+							USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
+							if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
+							{
+								Mesh = PossibleMesh;
+								FoundSkelComp = SourceComp;
 
-							break;
+								break;
+							}
 						}
 					}
-				}
 
 					// Iterate on the actor hierarchy.
 					Owner = Owner->GetParentActor();
@@ -2126,6 +2126,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Destination);
 	OtherTyped->Source = Source;
 	OtherTyped->MeshUserParameter = MeshUserParameter;
+	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->SkinningMode = SkinningMode;
 	OtherTyped->SamplingRegions = SamplingRegions;
 	OtherTyped->WholeMeshLOD = WholeMeshLOD;
@@ -2152,6 +2153,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 		OtherTyped->PreviewMesh == PreviewMesh &&
 #endif
 		OtherTyped->MeshUserParameter == MeshUserParameter &&
+		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->SkinningMode == SkinningMode &&
 		OtherTyped->SamplingRegions == SamplingRegions &&
 		OtherTyped->WholeMeshLOD == WholeMeshLOD &&
