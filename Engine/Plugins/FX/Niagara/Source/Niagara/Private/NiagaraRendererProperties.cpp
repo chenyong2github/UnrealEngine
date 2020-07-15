@@ -8,11 +8,10 @@
 
 void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 {
-	VFVariables.Reset(NumVariables);
-	VFVariables.AddDefaulted(NumVariables);
-
-	TotalFloatComponents = 0;
-	TotalHalfComponents = 0;
+	VFVariables_GT.Reset(NumVariables);
+	VFVariables_GT.AddDefaulted(NumVariables);
+	TotalFloatComponents_GT = 0;
+	TotalHalfComponents_GT = 0;
 }
 
 bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset)
@@ -32,7 +31,7 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 	);
 	if (VariableIndex == INDEX_NONE)
 	{
-		VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo();
+		VFVariables_GT[VFVarOffset] = FNiagaraRendererVariableInfo();
 		return false;
 	}
 
@@ -49,13 +48,13 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 	const int32 VarSize = bHalfVariable ? sizeof(FFloat16) : sizeof(float);
 	const int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
 	const int32 Offset = bHalfVariable ? DataSetVariableLayout.HalfComponentStart : DataSetVariableLayout.FloatComponentStart;
-	int32& TotalVFComponents = bHalfVariable ? TotalHalfComponents : TotalFloatComponents;
+	int32& TotalVFComponents = bHalfVariable ? TotalHalfComponents_GT : TotalFloatComponents_GT;
 
 	int32 GPULocation = INDEX_NONE;
 	bool bUpload = true;
 	if (Offset != INDEX_NONE)
 	{
-		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == Offset && VarInfo.bHalfType == bHalfVariable; }))
+		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables_GT.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == Offset && VarInfo.bHalfType == bHalfVariable; }))
 		{
 			//Don't need to upload this var again if it's already been uploaded for another var info. Just point to that.
 			//E.g. when custom sorting uses age.
@@ -70,9 +69,22 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 		}
 	}
 
-	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(Offset, GPULocation, NumComponents, bUpload, bHalfVariable);
+	VFVariables_GT[VFVarOffset] = FNiagaraRendererVariableInfo(Offset, GPULocation, NumComponents, bUpload, bHalfVariable);
 
 	return Offset != INDEX_NONE;
+}
+
+void FNiagaraRendererLayout::Finalize()
+{
+	ENQUEUE_RENDER_COMMAND(NiagaraFinalizeLayout)
+	(
+		[this, VFVariables=VFVariables_GT,TotalFloatComponents=TotalFloatComponents_GT, TotalHalfComponents=TotalHalfComponents_GT](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			VFVariables_RT = MoveTemp(VFVariables);
+			TotalFloatComponents_RT = TotalFloatComponents;
+			TotalHalfComponents_RT = TotalHalfComponents;
+		}
+	);
 }
 
 #if WITH_EDITORONLY_DATA

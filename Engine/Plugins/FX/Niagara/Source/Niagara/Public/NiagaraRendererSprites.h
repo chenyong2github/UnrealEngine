@@ -78,8 +78,6 @@ private:
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
 	int32 NumCutoutVertexPerSubImage = 0;
 	uint32 MaterialParamValidMask = 0;
-	int32 FacingOffset = INDEX_NONE;
-	int32 AlignmentOffset = INDEX_NONE;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSort;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSort;

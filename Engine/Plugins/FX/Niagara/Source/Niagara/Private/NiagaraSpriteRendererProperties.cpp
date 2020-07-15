@@ -226,6 +226,7 @@ void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithCustomSort.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam3) ? 0x8 : 0;
+	RendererLayoutWithCustomSort.Finalize();
 
 	RendererLayoutWithoutCustomSort.Initialize(ENiagaraSpriteVFLayout::Num);
 	RendererLayoutWithoutCustomSort.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraSpriteVFLayout::Position);
@@ -244,6 +245,7 @@ void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam2) ? 0x4 : 0;
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSort.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraSpriteVFLayout::MaterialParam3) ? 0x8 : 0;
+	RendererLayoutWithoutCustomSort.Finalize();
 }
 
 #if WITH_EDITORONLY_DATA
