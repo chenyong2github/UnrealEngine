@@ -3,6 +3,7 @@
 #include "PerfCountersModule.h"
 #include "HAL/PlatformProcess.h"
 #include "PerfCounters.h"
+#include "Misc/CommandLine.h"
 
 class FPerfCountersModule : public IPerfCountersModule
 {
