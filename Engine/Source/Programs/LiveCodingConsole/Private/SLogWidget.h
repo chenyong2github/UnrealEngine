@@ -47,7 +47,7 @@ public:
 	void Clear();
 	void ScrollToEnd();
 	void AppendLine(const FSlateColor& Color, const FString& Text);
-
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 protected:
 	struct FLine
 	{
