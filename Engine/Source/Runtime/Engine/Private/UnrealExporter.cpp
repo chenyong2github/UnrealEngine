@@ -26,7 +26,10 @@
 #include "AssetExportTask.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "Engine/Selection.h"
+
+#if WITH_EDITOR
 #include "Editor.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogExporter, Log, All);
 
@@ -896,6 +899,7 @@ FString DumpObjectToString(UObject* Object)
 	return MoveTemp(Archive);
 }
 
+#if WITH_EDITOR
 FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
 	//call the empty version of the base class
 	: FExportObjectInnerContext(false)
@@ -924,3 +928,4 @@ FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
 		}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 	}
 }
+#endif
