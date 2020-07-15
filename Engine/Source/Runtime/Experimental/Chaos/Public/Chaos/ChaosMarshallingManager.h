@@ -5,6 +5,7 @@
 #include "Chaos/Defines.h"
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Chaos/ParallelFor.h"
 
 namespace Chaos
 {
