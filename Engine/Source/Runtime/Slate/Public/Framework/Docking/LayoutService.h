@@ -23,10 +23,13 @@ struct SLATE_API FLayoutSaveRestore
 	 *
 	 * @param ConfigFileName file to be used to load an existing layout.
 	 * @param DefaultLayout the layout to be used if the file does not exist.
+	 * @param PrimaryAreaOutputCanBeNullptr Analog to the EOutputCanBeNullptr argument of FTabManager::RestoreFrom(), but only applied to the PrimaryArea. It
+	 * specifies if the primary area can still be nullptr even if no valid tabs (or opened tabs) are found. By default, set to EOutputCanBeNullptr::Never.
 	 *
 	 * @return Loaded layout or the default.
 	 */
-	static TSharedRef<FTabManager::FLayout> LoadFromConfig( const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout );
+	static TSharedRef<FTabManager::FLayout> LoadFromConfig(const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout,
+		const EOutputCanBeNullptr PrimaryAreaOutputCanBeNullptr = EOutputCanBeNullptr::Never);
 
 	/**
 	 * Write the desired FText value into the desired section of a named config file.
