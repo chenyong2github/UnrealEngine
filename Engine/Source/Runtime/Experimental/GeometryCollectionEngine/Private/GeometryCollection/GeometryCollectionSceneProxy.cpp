@@ -1141,7 +1141,7 @@ FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(co
 #if WITH_EDITOR
 	const bool bOptimizedRelevance = false;
 #else
-	const bool bOptimizedRelevance = GNaniteOptimizedRelevance != 0;
+	const bool bOptimizedRelevance = false;// GNaniteOptimizedRelevance != 0;
 #endif
 
 	FPrimitiveViewRelevance Result;
