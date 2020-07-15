@@ -13,3 +13,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<int32> IntData;
 };
+
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Bool Array", Experimental), Blueprintable, BlueprintType)
+class NIAGARA_API UNiagaraDataInterfaceArrayBool : public UNiagaraDataInterfaceArray
+{
+	GENERATED_UCLASS_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
+	TArray<bool> BoolData;
+};
