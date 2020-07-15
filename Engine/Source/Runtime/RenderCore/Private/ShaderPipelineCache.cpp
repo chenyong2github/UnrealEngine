@@ -1479,7 +1479,7 @@ static bool PreCompileMaskComparison(uint64 ReferenceGameMask, uint64 PSOMask)
 	const bool bIgnoreGameMask = CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() == 0;
 
 	uint64 UsageMask = (ReferenceGameMask & PSOMask);
-	return bIgnoreGameMask || (UsageMask & (7l << (MaxQualityCount*3+MaxPlaylistCount))) && (UsageMask & (7 << (MaxQualityCount*3))) && (UsageMask & (63 << MaxQualityCount*2)) && (UsageMask & (63 << MaxQualityCount)) && (UsageMask & 63);
+	return bIgnoreGameMask || ((UsageMask & (7l << (MaxQualityCount*3+MaxPlaylistCount))) && (UsageMask & (7 << (MaxQualityCount*3))) && (UsageMask & (63 << MaxQualityCount*2)) && (UsageMask & (63 << MaxQualityCount)) && (UsageMask & 63));
 }
 
 bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
