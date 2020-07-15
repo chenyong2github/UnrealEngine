@@ -159,7 +159,7 @@ namespace AutomationTool
 			HashSet<FileReference> BuildProducts = TagNameToFileSet[DefaultOutput.TagName];
 			for(int Idx = 0; Idx < Tasks.Count; Idx++)
 			{
-				using (ITraceSpan Span = TraceSpan.Create(String.Format("task.{0}", Tasks[Idx].GetTraceName().ToLowerInvariant())))
+				using (ITraceSpan Span = TraceSpan.Create("Task", Tasks[Idx].GetTraceName()))
 				{
 					ITaskExecutor Executor = Tasks[Idx].GetExecutor();
 					if (Executor == null)
