@@ -235,7 +235,7 @@ namespace LiveStreamAnimation
 				Data.Options.bWithTransformTranslation << 3 |
 				Data.Options.bWithTransformRotation << 2 |
 				Data.Options.bWithTransformScale << 1 |
-				!!bIsTranslationProfileValid
+				(bIsTranslationProfileValid ? 1 : 0)
 			);
 		}
 
