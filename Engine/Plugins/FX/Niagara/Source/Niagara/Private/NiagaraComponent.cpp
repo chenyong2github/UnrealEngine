@@ -226,7 +226,8 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 		}
 	}
 
-	checkf(EmitterRenderers.Num() == RendererDrawOrder.Num(), TEXT("EmitterRenderers Num %d does not match System DrawOrder %d"), EmitterRenderers.Num(), RendererDrawOrder.Num());
+	// If we have renderers then the draw order on the system should match, when compiling the number of renderers can be zero
+	checkf((EmitterRenderers.Num() == 0) || (EmitterRenderers.Num() == RendererDrawOrder.Num()), TEXT("EmitterRenderers Num %d does not match System DrawOrder %d"), EmitterRenderers.Num(), RendererDrawOrder.Num());
 }
 
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
