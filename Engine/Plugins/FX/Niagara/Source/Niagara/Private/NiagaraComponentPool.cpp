@@ -6,6 +6,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 static float GNiagaraSystemPoolKillUnusedTime = 180.0f;
 static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
@@ -357,6 +358,26 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 	if (World->Scene == nullptr)
 	{
 		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a scene."));
+		return;
+	}	
+	
+	FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem();
+	if (FXSystemInterface)
+	{
+		if (FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name) == nullptr)
+		{
+			UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a NiagaraEmitterInstanceBatcher."));
+			return;
+		}
+	}
+	else
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have an FFXSystem."));
+		return;
+	}
+
+	if (!World->IsGameWorld())
+	{
 		return;
 	}
 
