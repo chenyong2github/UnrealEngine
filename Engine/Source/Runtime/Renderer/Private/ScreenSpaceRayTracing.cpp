@@ -430,8 +430,10 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
 		SHADER_PARAMETER(FVector4, ColorBufferScaleBias)
-		SHADER_PARAMETER(float, PixelPositionToFullResPixel)
+		SHADER_PARAMETER(FVector2D, ReducedColorUVMax)
 		SHADER_PARAMETER(FVector2D, FullResPixelOffset)
+
+		SHADER_PARAMETER(float, PixelPositionToFullResPixel)
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
@@ -1127,6 +1129,10 @@ void RenderScreenSpaceDiffuseIndirect(
 				0.5f * SceneTextures.SceneDepthBuffer->Desc.Extent.Y / float(ReducedSceneColor->Desc.Extent.Y),
 				-0.5f * View.ViewRect.Min.X / float(ReducedSceneColor->Desc.Extent.X),
 				-0.5f * View.ViewRect.Min.Y / float(ReducedSceneColor->Desc.Extent.Y));
+
+			PassParameters->ReducedColorUVMax = FVector2D(
+				0.5f * View.ViewRect.Width() / float(ReducedSceneColor->Desc.Extent.X),
+				0.5f * View.ViewRect.Height() / float(ReducedSceneColor->Desc.Extent.Y));
 		}
 
 		PassParameters->FurthestHZBTexture = FurthestHZBTexture;
