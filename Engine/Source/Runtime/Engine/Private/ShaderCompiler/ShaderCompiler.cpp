@@ -2921,6 +2921,15 @@ void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const
 	// Lock CompileQueueSection so we can access the input and output queues
 	FScopeLock Lock(&CompileQueueSection);
 
+	for (TMap<TRefCountPtr<FMaterialShaderMap>, TArray<FMaterial*> >::TIterator ShaderMapIt(FMaterialShaderMap::ShaderMapsBeingCompiled); ShaderMapIt; ++ShaderMapIt)
+	{
+		const int32 CompileId = ShaderMapIt.Key()->CompilingId;
+		if (ShaderMapIdsToCancel.Contains(CompileId))
+		{
+			ShaderMapIt.RemoveCurrent();
+		}
+	}
+
 	int32 TotalNumJobsRemoved = 0;
 	for (int32 IdIndex = 0; IdIndex < ShaderMapIdsToCancel.Num(); ++IdIndex)
 	{
