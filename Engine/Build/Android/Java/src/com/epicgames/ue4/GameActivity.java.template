@@ -3358,7 +3358,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							public void onClick(DialogInterface dialog, int id) {
 								dialog.dismiss();
 								AndroidThunkJava_LaunchURL(ForceExitLink);
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -3396,7 +3396,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 										AndroidThunkJava_OpenIntentAction("android.settings.SETTINGS");
 									}
 								}
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -3406,7 +3406,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							@Override
 							public void onClick(DialogInterface dialog, int id) {
 								dialog.dismiss();
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -5964,7 +5964,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		if (intent.resolveActivity(getPackageManager()) != null)
 		{
 			startActivity(intent);
-			System.exit(0);
+			AndroidThunkJava_ForceQuit();
 			return true;
 		}
 
@@ -6029,7 +6029,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if (bExit)
 		{
-			System.exit(0);
+			AndroidThunkJava_ForceQuit();
 		}
 		
 		return true;
