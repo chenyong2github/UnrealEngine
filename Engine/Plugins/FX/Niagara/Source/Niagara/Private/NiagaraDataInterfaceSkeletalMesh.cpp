@@ -1580,29 +1580,35 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	if (Mesh)
 	{
+		if (!Mesh->GetResourceForRendering())
+		{
+			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface trying to use a mesh with no render data. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
+			return false;
+		}
+
 		MinLODIdx = Mesh->MinLod.GetValue();
 		const int32 PendingFirstLODIndex = Mesh->GetResourceForRendering()->GetPendingFirstLODIdx(MinLODIdx);
 
 		const int32 DesiredLODIndex = Interface->CalculateLODIndexAndSamplingRegions(Mesh, SamplingRegionIndices, bAllRegionsAreAreaWeighting);
 		if (DesiredLODIndex != INDEX_NONE)
-	{
-			if (DesiredLODIndex >= PendingFirstLODIndex)
 		{
+			if (DesiredLODIndex >= PendingFirstLODIndex)
+			{
 				CachedLODIdx = DesiredLODIndex;
-				}
-				else
-				{
+			}
+			else
+			{
 				CachedLODIdx = PendingFirstLODIndex;
 				bResetOnLODStreamedIn = true;
-				}
+			}
 
 			CachedLODData = &Mesh->GetResourceForRendering()->LODRenderData[CachedLODIdx];
-				}
-				else
-				{
-					return false;
-				}
-			}
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 	check(CachedLODIdx >= 0);
 
@@ -2029,6 +2035,18 @@ void UNiagaraDataInterfaceSkeletalMesh::PostInitProperties()
 		//Still some issues with using custom structs. Convert node for example throws a wobbler. TODO after GDC.
 		FNiagaraTypeRegistry::Register(FMeshTriCoordinate::StaticStruct(), true, true, false);
 	}
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if(PreviewMesh)
+	{
+		PreviewMesh->ConditionalPostLoad();
+	}
+#endif
 }
 
 #if WITH_EDITOR

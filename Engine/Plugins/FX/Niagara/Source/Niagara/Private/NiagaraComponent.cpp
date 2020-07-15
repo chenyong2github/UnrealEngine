@@ -551,10 +551,19 @@ void UNiagaraComponent::ReleaseToPool()
 
 	if (!IsActive())
 	{
+		UnregisterWithScalabilityManager();
+
 		//If we're already complete then release to the pool straight away.
 		UWorld* World = GetWorld();
 		check(World);
-		FNiagaraWorldManager::Get(World)->GetComponentPool()->ReclaimWorldParticleSystem(this);
+		if( FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			WorldMan->GetComponentPool()->ReclaimWorldParticleSystem(this);
+		}
+		else
+		{
+			DestroyComponent();
+		}
 	}
 	else
 	{
@@ -810,10 +819,10 @@ bool UNiagaraComponent::IsWorldReadyToRun() const
 
 bool UNiagaraComponent::InitializeSystem()
 {
-	LLM_SCOPE(ELLMTag::Niagara);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	if (SystemInstance.IsValid() == false)
 	{
+		LLM_SCOPE(ELLMTag::Niagara);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
 		//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 #if WITH_EDITORONLY_DATA
@@ -837,6 +846,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	if (GbSuppressNiagaraSystems != 0)
 	{
+		UnregisterWithScalabilityManager();
 		OnSystemComplete();
 		return;
 	}
@@ -875,6 +885,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	// On the off chance that the user changed the asset, we need to clear out the existing data.
 	if (SystemInstance.IsValid() && SystemInstance->GetSystem() != Asset)
 	{
+		UnregisterWithScalabilityManager();
 		OnSystemComplete();
 	}
 
@@ -914,7 +925,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
-		bIsCulledByScalability = true;
 		OnSystemComplete();
 		return;
 	}
@@ -931,7 +941,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	//UE_LOG(LogNiagara, Log, TEXT("Activate: %u - %s"), this, *Asset->GetName());
+	//UE_LOG(LogNiagara, Log, TEXT("Activate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 	
 	// Auto attach if requested
 	const bool bWasAutoAttached = bDidAutoAttach;
@@ -975,6 +985,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	if (!SystemInstance)
 	{
+		OnSystemComplete();
 		return;
 	}
 
@@ -1005,6 +1016,8 @@ void UNiagaraComponent::Deactivate()
 
 void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */)
 {
+	bool bWasCulledByScalabiltiy = bIsCulledByScalability;
+
 	if (bIsScalabilityCull)
 	{
 		bIsCulledByScalability = true;
@@ -1021,7 +1034,7 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
-		//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
+		//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 
 		// Don't deactivate in solo mode as we are not ticked by the world but rather the component
 		// Deactivating will cause the system to never Complete
@@ -1039,6 +1052,11 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 	else
 	{
 		Super::Deactivate();
+
+		if(bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
+		{
+			OnSystemComplete();
+		}
 		SetActiveFlag(false);
 	}
 }
@@ -1053,7 +1071,9 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 	Super::Deactivate();
 
-	//UE_LOG(LogNiagara, Log, TEXT("DeactivateImmediate: %u - %s"), this, *Asset->GetName());
+	bool bWasCulledByScalabiltiy = bIsCulledByScalability;
+
+	//UE_LOG(LogNiagara, Log, TEXT("DeactivateImmediate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate %s"), *GetName());
 
@@ -1073,6 +1093,10 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	if (SystemInstance)
 	{
 		SystemInstance->Deactivate(true);
+	}
+	else if (bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
+	{
+		OnSystemComplete();
 	}
 }
 
@@ -1137,57 +1161,63 @@ void UNiagaraComponent::OnSystemComplete()
 	SetActiveFlag(false);
 
 	MarkRenderDynamicDataDirty();
-		
-	//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: { %p - %s"), SystemInstance.Get(), *Asset->GetName());
-	OnSystemFinished.Broadcast(this);
-	//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
+	//TODO: Mark the render state dirty?
 
-	if (PoolingMethod == ENCPoolMethod::AutoRelease)
-	{
-		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
-	}
-	else if (PoolingMethod == ENCPoolMethod::ManualRelease_OnComplete)
-	{
-		PoolingMethod = ENCPoolMethod::ManualRelease;
-		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
-	}
-	else if (bAutoDestroy)
-	{
-		//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: { %p - %s"), SystemInstance.Get(), *Asset->GetName());
-		DestroyComponent();
-		//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
-	}
-	else if (bAutoManageAttachment && ScalabilityManagerHandle == INDEX_NONE)//Do not detach from our parent if we were deactivated by scalability and we need to be considered for reactivation.
-	{
-		CancelAutoAttachment(/*bDetachFromParent=*/ true);
-	}
 
-	if (!bIsCulledByScalability && ScalabilityManagerHandle != INDEX_NONE)
-	{
-		//Can we be sure this isn't going to spam erroneously?
-		if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
+	//Don't really complete if we're being culled by scalability.
+	//We want to stop ticking but not be reclaimed by the pools etc.
+	if (bIsCulledByScalability == false)
+	{		
+		//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: { %p -  %p - %s"), this, SystemInstance.Get(), *Asset->GetName());
+		OnSystemFinished.Broadcast(this);
+		//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
+
+		if (PoolingMethod == ENCPoolMethod::AutoRelease)//Don't release back to the pool if we're completing due to scalability culling.
 		{
-			//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
-			if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
-			{
-				if (GNiagaraComponentWarnAsleepCullReaction == 1)
-				{
-					//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
-					UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
-						, *GetFullName(), *GetAsset()->GetFullName());
-				}
-			}
+			FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+		}
+		else if (PoolingMethod == ENCPoolMethod::ManualRelease_OnComplete)
+		{
+			PoolingMethod = ENCPoolMethod::ManualRelease;
+			FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+		}
+		else if (bAutoDestroy)
+		{
+			//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: { %p - %s"), SystemInstance.Get(), *Asset->GetName());
+			DestroyComponent();
+			//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
+		}
+		else if (bAutoManageAttachment)
+		{
+			CancelAutoAttachment(/*bDetachFromParent=*/ true);
 		}
 
-		//We've completed naturally so unregister with the scalability manager.
-		UnregisterWithScalabilityManager();
+		if (IsRegisteredWithScalabilityManager())
+		{
+			//Can we be sure this isn't going to spam erroneously?
+			if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
+			{
+				//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
+				if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
+				{
+					if (GNiagaraComponentWarnAsleepCullReaction == 1)
+					{
+						//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
+						UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
+							, *GetFullName(), *GetAsset()->GetFullName());
+					}
+				}
+			}
+			//We've completed naturally so unregister with the scalability manager.
+			UnregisterWithScalabilityManager();
+		}
 	}
 }
 
 void UNiagaraComponent::DestroyInstance()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
-	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %u - %s"), this, *Asset->GetName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p - %p  %s\n"), this, SystemInstance.Get(), *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %p - %s"), this, *Asset->GetName());
 	SetActiveFlag(false);
 
 	// Before we can destory the instance, we need to deactivate it.
@@ -1324,7 +1354,7 @@ void UNiagaraComponent::OnUnregister()
 
 void UNiagaraComponent::BeginDestroy()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %p - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
 
 	if (PoolingMethod != ENCPoolMethod::None)
 	{

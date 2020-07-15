@@ -94,8 +94,10 @@ class FNiagaraWorldManager : public FGCObject
 {
 public:
 	
-	FNiagaraWorldManager(UWorld* InWorld);
+	FNiagaraWorldManager();
 	~FNiagaraWorldManager();
+
+	void Init(UWorld* InWorld);
 
 	static NIAGARA_API FNiagaraWorldManager* Get(const UWorld* World);
 	static void OnStartup();
@@ -164,6 +166,10 @@ public:
 #if DEBUG_SCALABILITY_STATE
 	void DumpScalabilityState();
 #endif
+
+	static void PrimePoolForAllWorlds(UNiagaraSystem* System);
+	void PrimePoolForAllSystems();
+	void PrimePool(UNiagaraSystem* System);
 
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
@@ -234,6 +240,7 @@ private:
 	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
 
 	UNiagaraComponentPool* ComponentPool;
+	bool bPoolIsPrimed = false;
 
 	/** Generated data used by data interfaces */
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
