@@ -596,17 +596,21 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 		return;
 	}
 
-	// process any actions that were scheduled to execute on the next tick
-	if (NextTickExecuteActions.Num() > 0)
+	if ( PendingToolShutdownType )
 	{
-		for (TUniqueFunction<void()>& Action : NextTickExecuteActions)
+		UInteractiveToolsContext::EndTool(EToolSide::Mouse, *PendingToolShutdownType);
+		PendingToolShutdownType.Reset();
+	}
+	if ( PendingToolToStart )
+	{
+		if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, *PendingToolToStart))
 		{
-			Action();
+			SetEditorStateForTool();
 		}
-		NextTickExecuteActions.Reset();
+		PendingToolToStart.Reset();
 	}
 
-	// Cache current camera state from this Viewport in the ContextQueries, which we will use for things like snapping/etc that 
+	// Cache current camera state from this Viewport in the ContextQueries, which we will use for things like snapping/etc that
 	// is computed by the Tool and Gizmo Tick()s
 	// (This is not necessarily correct for Hover, because we might be Hovering over a different Viewport than the Active one...)
 	((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
@@ -1099,24 +1103,13 @@ bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
 {
 	FString LocalIdentifier(ToolTypeIdentifier);
-	ScheduleExecuteAction([this, LocalIdentifier]()
-	{
-		if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, LocalIdentifier))
-		{
-			SaveEditorStateAndSetForTool();
-		}
-	});
-
+	PendingToolToStart = LocalIdentifier;
 	PostInvalidation();
 }
 
 void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
 {
-	ScheduleExecuteAction([this, ShutdownType]()
-	{
-		UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
-	});
-
+	PendingToolShutdownType = ShutdownType;
 	PostInvalidation();
 }
 
@@ -1134,13 +1127,8 @@ void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
 	RestoreEditorState();
 }
 
-
-
-void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
+void UEdModeInteractiveToolsContext::SetEditorStateForTool()
 {
-	check(bHaveSavedEditorState == false);
-	bHaveSavedEditorState = true;
-
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
@@ -1163,33 +1151,20 @@ void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 	}
 }
 
-
 void UEdModeInteractiveToolsContext::RestoreEditorState()
 {
-	if (bHaveSavedEditorState)
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor  = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
 	{
-		bHaveSavedEditorState = false;
-
-		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
-		if (LevelEditor.IsValid())
+		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
 		{
-			TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
-			for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+			if (ViewportWindow.IsValid())
 			{
-				if (ViewportWindow.IsValid())
-				{
-					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-					Viewport.DisableOverrideEngineShowFlags();
-				}
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				Viewport.DisableOverrideEngineShowFlags();
 			}
 		}
-
 	}
-}
-
-
-void UEdModeInteractiveToolsContext::ScheduleExecuteAction(TUniqueFunction<void()> Action)
-{
-	NextTickExecuteActions.Add(MoveTemp(Action));
 }
