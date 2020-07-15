@@ -2579,6 +2579,4 @@ void UUnrealEdEngine::edactAlignVertices()
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
-
 #undef LOCTEXT_NAMESPACE
