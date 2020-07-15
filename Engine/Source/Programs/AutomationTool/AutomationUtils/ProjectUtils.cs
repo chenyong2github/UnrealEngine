@@ -697,6 +697,13 @@ namespace AutomationTool
 				{
 					if (FullProjectPath == null || TargetScript.IsUnderDirectory(new DirectoryReference(FullProjectPath)))
 					{
+						// skip target rules that are platform extension or platform group specializations
+						string[] TargetPathSplit = TargetScript.GetFileNameWithoutAnyExtensions().Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
+						if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+						{
+							continue;
+						}
+
 						ProjectTargetScripts.Add(TargetScript);
 					}
 				}
