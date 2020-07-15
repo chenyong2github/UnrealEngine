@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MetasoundEditorGraphNode_Base.h"
 
-#include "MetaSoundEditorGraphNode.generated.h"
+#include "MetasoundEditorGraphNode.generated.h"
 
 // Forward Declarations
 class UEdGraphPin;
