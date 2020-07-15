@@ -205,6 +205,8 @@ void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, ui
 	// We need an existing MinMaxTexture object to update.
 	if (VirtualTexture != nullptr && MinMaxTexture != nullptr)
 	{
+		MinMaxTexture->Modify();
+
 		FTextureFormatSettings Settings;
 		Settings.CompressionSettings = TC_EditorIcon;
 		Settings.CompressionNone = true;
