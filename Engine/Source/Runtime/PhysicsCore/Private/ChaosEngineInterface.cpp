@@ -442,7 +442,7 @@ FVector FChaosEngineInterface::GetLinearVelocity_AssumesLocked(const FPhysicsAct
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		Chaos::TKinematicGeometryParticle<float,3>* Kinematic = InActorReference->CastToKinematicParticle();
-		if(ensure(Kinematic))
+		if(Kinematic)
 		{
 			return Kinematic->V();
 		}
@@ -463,7 +463,7 @@ void FChaosEngineInterface::SetLinearVelocity_AssumesLocked(const FPhysicsActorH
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		Chaos::TKinematicGeometryParticle<float,3>* Kinematic = InActorReference->CastToKinematicParticle();
-		if(ensure(Kinematic))
+		if(Kinematic)
 		{
 			Kinematic->SetV(InNewVelocity);
 		}
