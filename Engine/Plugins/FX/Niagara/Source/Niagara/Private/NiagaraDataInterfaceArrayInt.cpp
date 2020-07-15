@@ -12,6 +12,7 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 	static constexpr EPixelFormat PixelFormat = PF_R32_SINT;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyIntBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
+	static const int32 GetDefaultValue() { return 0; }
 };
 
 UNiagaraDataInterfaceArrayInt32::UNiagaraDataInterfaceArrayInt32(FObjectInitializer const& ObjectInitializer)
