@@ -12,10 +12,12 @@ public class NVAPI : ModuleRules
 
 		// Check if we should redirect to a beta version of nvapi
 		bool bHaveNoRedistnvApi = System.IO.File.Exists(nvApiNoRedistLibrary);
+		bool bCompilingForProject = Target.ProjectFile != null;
+		bool bUseNoRedistnvApi = bHaveNoRedistnvApi && bCompilingForProject;
 
 		string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
 
-		if (bHaveNoRedistnvApi)
+		if (bUseNoRedistnvApi)
 		{
 			nvApiPath = System.IO.Path.Combine(EngineDirectory, "Restricted/NoRedist/Source/ThirdParty/NVIDIA/nvapi/");
 		}
