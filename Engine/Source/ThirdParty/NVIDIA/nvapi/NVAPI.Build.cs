@@ -7,12 +7,12 @@ public class NVAPI : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string nvApiNoRedistLibrary = System.IO.Path.Combine(EngineDirectory,
+		/*string nvApiNoRedistLibrary = System.IO.Path.Combine(EngineDirectory,
 			"Restricted/NoRedist/Source/ThirdParty/NVIDIA/nvapi/amd64/nvapi64.lib");
 
 		// Check if we should redirect to a beta version of nvapi
 		bool bHaveNoRedistnvApi = System.IO.File.Exists(nvApiNoRedistLibrary);
-		bool bCompilingForProject = Target.ProjectFile != null;
+		bool bCompilingForProject = Target.ProjectFile != null;*/
 		bool bUseNoRedistnvApi = false;//bHaveNoRedistnvApi && bCompilingForProject;
 
 		string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
