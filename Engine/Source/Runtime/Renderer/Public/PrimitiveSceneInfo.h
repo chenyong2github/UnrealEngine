@@ -419,6 +419,9 @@ public:
 	/** Removes the primitive from the scene's attachment groups. */
 	void UnlinkAttachmentGroup();
 
+	/** Adds a request to update GPU scene representation. */
+	RENDERER_API void RequestGPUSceneUpdate();
+
 	/** 
 	 * Builds an array of all primitive scene info's in this primitive's attachment group. 
 	 * This only works on potential parents (!LightingAttachmentRoot.IsValid()) and will include the current primitive in the output array.

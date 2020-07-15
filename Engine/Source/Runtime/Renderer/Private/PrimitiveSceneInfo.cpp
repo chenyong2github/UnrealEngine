@@ -1332,6 +1332,14 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 	}
 }
 
+void FPrimitiveSceneInfo::RequestGPUSceneUpdate()
+{
+	if (Scene && IsIndexValid())
+	{
+		AddPrimitiveToUpdateGPU(*Scene, GetIndex());
+	}
+}
+
 void FPrimitiveSceneInfo::GatherLightingAttachmentGroupPrimitives(TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>& OutChildSceneInfos)
 {
 #if ENABLE_NAN_DIAGNOSTIC

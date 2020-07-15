@@ -35,6 +35,7 @@
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 
 #include "Rendering/NaniteResources.h"
+#include "PrimitiveSceneInfo.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Logging/MessageLog.h"
@@ -369,10 +370,6 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterCompone
 
 			// ...
 
-			// TODO: HACK: Pull transforms and delete data
-			delete ConstantData;
-			delete DynamicData;
-
 		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 			if (bIsTransformSelectionModeEnabled)
 			{
@@ -385,7 +382,9 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterCompone
 				{
 					if (GeometryCollectionSceneProxy)
 					{
-						// ...
+						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
+						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+						GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
 					}
 				}
 			);
@@ -393,13 +392,14 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterCompone
 		else
 		{
 			FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
+
 		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 			// Re-init subsections
 			if (bIsTransformSelectionModeEnabled)
 			{
 				GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
 			}
-		#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+		#endif
 
 			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
 				[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
@@ -1623,16 +1623,33 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 		else
 		{
 			// Enqueue command to send to render thread
-			FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
-			ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
-				[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
-				{
-					if (GeometryCollectionSceneProxy)
+			if (SceneProxy->IsNaniteMesh())
+			{
+				FNaniteGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+				ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
+					[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
-						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+						if (GeometryCollectionSceneProxy)
+						{
+							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+							GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
+						}
 					}
-				}
-			);
+				);
+			}
+			else
+			{
+				FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
+				ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
+					[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
+					{
+						if (GeometryCollectionSceneProxy)
+						{
+							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+						}
+					}
+				);
+			}
 		}
 
 		// mark collection clean now that we have rendered
@@ -2328,7 +2345,8 @@ bool UGeometryCollectionComponent::IsEqual(const TArray<FMatrix> &A, const TArra
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 void UGeometryCollectionComponent::EnableTransformSelectionMode(bool bEnable)
 {
-	if (SceneProxy && RestCollection && RestCollection->HasVisibleGeometry())
+	// TODO: Support for Nanite?
+	if (SceneProxy && !SceneProxy->IsNaniteMesh() && RestCollection && RestCollection->HasVisibleGeometry())
 	{
 		static_cast<FGeometryCollectionSceneProxy*>(SceneProxy)->UseSubSections(bEnable, true);
 	}

@@ -1109,27 +1109,19 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		check(Section.Material->GetBlendMode() == BLEND_Opaque);
 	}
 
-	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
-	Instances.SetNumZeroed(NumGeometry);
-
 	const TManagedArray<FBox>& BoundingBoxes = Collection->BoundingBox;
-	const TManagedArray<FTransform>& Transforms = Collection->Transform;
+	//const TManagedArray<FTransform>& Transforms = Collection->Transform;
+
+	// TODO: Not fully correct. Transforms are not always 1:1 with geometry groups or bones.
+
+	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+	GeometryNaniteData.SetNumUninitialized(NumGeometry);
 
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
-		if (GeometryIndex == 0)
-		{
-			continue; // TODO: Temp hack to hide complete mesh
-		}
-
-		FPrimitiveInstance& Instance = Instances[GeometryIndex];
+		FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
 		Instance.PrimitiveId = ~uint32(0);
-		Instance.InstanceToLocal = Transforms[GeometryIndex].ToMatrixWithScale();
-		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
-		Instance.LocalToWorld = Instance.InstanceToLocal;
-		Instance.WorldToLocal = Instance.LocalToInstance;
 		Instance.RenderBounds = BoundingBoxes[GeometryIndex];
-		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
 		Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
 	}
 }
@@ -1260,4 +1252,62 @@ void FNaniteGeometryCollectionSceneProxy::DrawStaticElements(FStaticPrimitiveDra
 uint32 FNaniteGeometryCollectionSceneProxy::GetMemoryFootprint() const
 {
 	return sizeof(*this) + GetAllocatedSize();
+}
+
+void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
+{
+	check(NewConstantData->RestTransforms.Num() == GeometryNaniteData.Num());
+
+	Instances.SetNumUninitialized(NewConstantData->RestTransforms.Num() - 1); // TODO: Temp hack to hide complete mesh (generally 0th index)
+	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	{
+		FPrimitiveInstance& Instance = Instances[InstanceIndex];
+		
+		Instance.InstanceToLocal = NewConstantData->RestTransforms[InstanceIndex + 1]; // TODO: Temp hack to hide complete mesh (generally 0th index)
+		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
+		Instance.LocalToWorld = Instance.InstanceToLocal;
+		Instance.WorldToLocal = Instance.LocalToInstance;
+
+		const FGeometryNaniteData& NaniteData = GeometryNaniteData[InstanceIndex + 1]; // TODO: Temp hack to hide complete mesh (generally 0th index)
+
+		Instance.PrimitiveId = NaniteData.PrimitiveId;
+		Instance.RenderBounds = NaniteData.RenderBounds;
+		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.NaniteInfo = NaniteData.NaniteInfo;
+	}
+
+	delete NewConstantData;
+}
+
+void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData)
+{
+	check(NewDynamicData->IsLoading || NewDynamicData->Transforms.Num() == GeometryNaniteData.Num());
+
+	if (NewDynamicData->IsDynamic)
+	{
+		Instances.SetNumUninitialized(NewDynamicData->Transforms.Num() - 1); // TODO: Temp hack to hide complete mesh (generally 0th index)
+		for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+		{
+			FPrimitiveInstance& Instance = Instances[InstanceIndex];
+
+			Instance.InstanceToLocal = NewDynamicData->Transforms[InstanceIndex + 1]; // TODO: Temp hack to hide complete mesh (generally 0th index)
+			Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
+			Instance.LocalToWorld = Instance.InstanceToLocal;
+			Instance.WorldToLocal = Instance.LocalToInstance;
+
+			//Instance.PrimitiveId = GeometryNaniteData[InstanceIndex].PrimitiveId;
+			//Instance.RenderBounds = GeometryNaniteData[InstanceIndex].RenderBounds;
+			Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			//Instance.NaniteInfo = GeometryNaniteData[InstanceIndex].NaniteInfo;
+		}
+	}
+	else
+	{
+		// Rendering base geometry, use rest transforms rather than simulated transforms.
+		//Instances = RestInstances;
+		
+
+	}
+
+	delete NewDynamicData;
 }

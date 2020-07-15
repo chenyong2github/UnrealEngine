@@ -278,6 +278,12 @@ public:
 
 	virtual uint32 GetMemoryFootprint() const override;
 
+	/** Called on render thread to setup static geometry for rendering */
+	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
+
+	/** Called on render thread to setup dynamic geometry for rendering */
+	void SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData);
+
 	const FORCEINLINE TArray<Nanite::FResources*>& GetResources() const
 	{
 		return Resources;
@@ -300,4 +306,14 @@ protected:
 	uint32 bHasMaterialErrors : 1;
 
 	const UGeometryCollection* GeometryCollection = nullptr;
+
+	//TArray<FPrimitiveInstance> RestInstances;
+
+	struct FGeometryNaniteData
+	{
+		FBoxSphereBounds RenderBounds;
+		FNaniteInfo NaniteInfo;
+		uint32 PrimitiveId;
+	};
+	TArray<FGeometryNaniteData> GeometryNaniteData;
 };
