@@ -152,10 +152,17 @@ public:
 	 * list, and that list is expected to be the same on all instances.
 	 *
 	 * @param LiveLinkSubject		The Live Link Subject that we are pulling animation data from locally.
+	 *
 	 * @param RegisteredName		The registered Live Link Subject name that will be used for clients
 	 *								evaluating animation data remotely.
 	 *								This name must be present in the HandleNames list.
+	 *
 	 * @param Options				Options describing the type of data we will track and send.
+	 *
+	 * @param TranslationProfile	The Translation Profile that we should use for this subject.
+	 *								This name must be present in the HandleNames list, otherwise the translation will not
+	 *								be applied.
+	 *								@see ULiveStreamAnimationLiveLinkFrameTranslator.
 	 *
 	 * @return Whether or not we successfully registered the subject for tracking.
 	 */
@@ -163,7 +170,8 @@ public:
 	LIVESTREAMANIMATION_API bool StartTrackingLiveLinkSubject(
 		const FName LiveLinkSubject,
 		const FName RegisteredName,
-		const FLiveStreamAnimationLiveLinkSourceOptions Options);
+		const FLiveStreamAnimationLiveLinkSourceOptions Options,
+		const FName TranslationProfile);
 
 	/**
 	 * Stop tracking a Live Link subject.
@@ -172,6 +180,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
 	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FName RegisteredName);
+
+	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
+	LIVESTREAMANIMATION_API void SetLiveLinkFrameTranslator(TSoftObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> NewTranslator);
 
 	static FName GetChannelName();
 
@@ -199,11 +210,25 @@ public:
 		return OnRoleChanged;
 	}
 
+	FSimpleMulticastDelegate& GetOnLiveLinkFrameTranslatorChanged()
+	{
+		return OnLiveLinkFrameTranslatorChanged;
+	}
+
 	TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> GetOrCreateSkelMeshToLiveLinkSource();
+
+	class ULiveStreamAnimationLiveLinkFrameTranslator* GetLiveLinkFrameTranslator() const;
 
 private:
 
+	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation", DisplayName = "SetAcceptClientPackets", Meta=(AllowPrivateAccess="True"))
+	void SetAcceptClientPackets_Private(bool bInShouldAcceptClientPackets)
+	{
+		bShouldAcceptClientPackets = bInShouldAcceptClientPackets;
+	}
+
 	FOnLiveStreamAnimationRoleChanged OnRoleChanged;
+	FSimpleMulticastDelegate OnLiveLinkFrameTranslatorChanged;
 
 	/** List of names that we know and can use for network handles. */
 	UPROPERTY(Config, Transient)
@@ -211,6 +236,9 @@ private:
 	
 	UPROPERTY(Config, Transient)
 	bool bEnabled = true;
+
+	UPROPERTY(Config, Transient)
+	TSoftObjectPtr<class ULiveStreamAnimationLiveLinkFrameTranslator> FrameTranslator;
 
 	template<typename T>
 	T* GetSubsystem()

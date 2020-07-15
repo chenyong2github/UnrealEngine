@@ -61,7 +61,7 @@ void ULiveStreamAnimationChannel::Tick()
 		DefaultFlushPacketsForChannel<FLiveStreamAnimationPacket>(
 			/*Channel=*/*this,
 			/*ForwardingChannel=*/*ForwardingChannel,
-			/*SendFlags=*/EDefaultSendPacketFlags::AllowMerging,
+			/*SendFlags=*/EDefaultSendPacketFlags::AllowMerging | EDefaultSendPacketFlags::IgnoreSaturation,
 			/*IsPacketReliable=*/[](const FLiveStreamAnimationPacket& Packet)
 			{
 				return Packet.IsReliable();

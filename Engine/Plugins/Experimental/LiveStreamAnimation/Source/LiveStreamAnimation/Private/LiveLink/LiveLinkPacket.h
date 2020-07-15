@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "LiveStreamAnimationFwd.h"
 #include "LiveLink/LiveStreamAnimationLiveLinkSourceOptions.h"
+#include "LiveLink/LiveStreamAnimationLiveLinkFrameData.h"
 #include "LiveStreamAnimationHandle.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Templates/UniquePtr.h"
@@ -92,7 +93,7 @@ namespace LiveStreamAnimation
 
 		virtual ~FLiveLinkAddOrUpdateSubjectPacket() {}
 
-		const FLiveLinkSkeletonStaticData& GetStaticData() const
+		const FLiveStreamAnimationLiveLinkStaticData& GetStaticData() const
 		{
 			return StaticData;
 		}
@@ -110,7 +111,7 @@ namespace LiveStreamAnimation
 		 */
 		static TUniquePtr<FLiveLinkAddOrUpdateSubjectPacket> CreatePacket(
 			const FLiveStreamAnimationHandle InSubjectHandle,
-			FLiveLinkSkeletonStaticData&& InStaticData);
+			FLiveStreamAnimationLiveLinkStaticData&& InStaticData);
 
 	private:
 
@@ -120,14 +121,14 @@ namespace LiveStreamAnimation
 
 		FLiveLinkAddOrUpdateSubjectPacket(
 			const FLiveStreamAnimationHandle InSubjectHandle,
-			FLiveLinkSkeletonStaticData&& InStaticData)
+			FLiveStreamAnimationLiveLinkStaticData&& InStaticData)
 
 			: FLiveLinkPacket(ELiveLinkPacketType::AddOrUpdateSubject, InSubjectHandle)
 			, StaticData(MoveTemp(InStaticData))
 		{
 		}
 
-		const FLiveLinkSkeletonStaticData StaticData;
+		const FLiveStreamAnimationLiveLinkStaticData StaticData;
 	};
 
 	class FLiveLinkRemoveSubjectPacket : public FLiveLinkPacket
@@ -165,14 +166,9 @@ namespace LiveStreamAnimation
 		virtual ~FLiveLinkAnimationFramePacket() {}
 
 
-		const FLiveLinkAnimationFrameData& GetFrameData() const
+		const FLiveStreamAnimationLiveLinkFrameData& GetFrameData() const
 		{
 			return FrameData;
-		}
-
-		FLiveStreamAnimationLiveLinkSourceOptions GetOptions() const
-		{
-			return Options;
 		}
 
 		/**
@@ -187,8 +183,7 @@ namespace LiveStreamAnimation
 		 */
 		static TUniquePtr<FLiveLinkAnimationFramePacket> CreatePacket(
 			const FLiveStreamAnimationHandle InSubjectHandle,
-			const FLiveStreamAnimationLiveLinkSourceOptions InOptions,
-			FLiveLinkAnimationFrameData&& InFrameData);
+			FLiveStreamAnimationLiveLinkFrameData&& InFrameData);
 
 	private:
 
@@ -198,16 +193,13 @@ namespace LiveStreamAnimation
 
 		FLiveLinkAnimationFramePacket(
 			const FLiveStreamAnimationHandle InSubjectHandle,
-			const FLiveStreamAnimationLiveLinkSourceOptions InOptions,
-			FLiveLinkAnimationFrameData&& InFrameData)
+			FLiveStreamAnimationLiveLinkFrameData&& InFrameData)
 
 			: FLiveLinkPacket(ELiveLinkPacketType::AnimationFrame, InSubjectHandle)
-			, Options(InOptions)
 			, FrameData(MoveTemp(InFrameData))
 		{
 		}
 
-		const FLiveStreamAnimationLiveLinkSourceOptions Options;
-		const FLiveLinkAnimationFrameData FrameData;
+		const FLiveStreamAnimationLiveLinkFrameData FrameData;
 	};
 }

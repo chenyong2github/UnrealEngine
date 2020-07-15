@@ -3,14 +3,22 @@
 #include "LiveStreamAnimationLiveLinkSource.h"
 #include "LiveStreamAnimationLog.h"
 #include "LiveLink/LiveLinkPacket.h"
+#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
+#include "LiveLink/LiveStreamAnimationLiveLinkRole.h"
 
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "LiveLinkPresetTypes.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkSubjectSettings.h"
 
 namespace LiveStreamAnimation
 {
+	FLiveStreamAnimationLiveLinkSource::FLiveStreamAnimationLiveLinkSource(ULiveStreamAnimationLiveLinkFrameTranslator* InTranslator)
+		: FrameTranslator(InTranslator)
+	{
+	}
+
 	void FLiveStreamAnimationLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid)
 	{
 		LiveLinkClient = InClient;
@@ -112,8 +120,14 @@ namespace LiveStreamAnimation
 
 		FLiveLinkSubjectPreset Presets;
 		Presets.Key = NewKey;
-		Presets.Role = ULiveLinkAnimationRole::StaticClass();
+		Presets.Role = ULiveStreamAnimationLiveLinkRole::StaticClass();
 		Presets.bEnabled = true;
+
+		if (ULiveStreamAnimationLiveLinkFrameTranslator* LocalFrameTranslator = FrameTranslator.Get())
+		{
+			Presets.Settings = NewObject<ULiveLinkSubjectSettings>();
+			Presets.Settings->Translators.Add(LocalFrameTranslator);
+		}
 
 		if (!LiveLinkClient->CreateSubject(Presets))
 		{
@@ -175,5 +189,15 @@ namespace LiveStreamAnimation
 			*Handle.ToString());
 
 		return false;
+	}
+
+	void FLiveStreamAnimationLiveLinkSource::SetFrameTranslator(ULiveStreamAnimationLiveLinkFrameTranslator* NewFrameTranslator)
+	{
+		FrameTranslator = NewFrameTranslator;
+
+		// TODO: Update the individual Subjects.
+		//			Updating the subjects should be a *very* rare occurrence though, as most
+		//			of the time the translator will be set up in Configs or in Blueprints before
+		//			we've received any data from the network.
 	}
 }
