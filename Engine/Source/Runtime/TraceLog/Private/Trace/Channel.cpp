@@ -2,6 +2,7 @@
 
 #include "Trace/Detail/Channel.h"
 #include "Math/UnrealMathUtility.h"
+#include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Channel.h"
