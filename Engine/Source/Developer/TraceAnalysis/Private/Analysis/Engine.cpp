@@ -1006,7 +1006,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
 
-	do
+	while (true)
 	{
 		int32 MinLogSerial = INT_MAX;
 		int32 MaxLogSerial = INT_MIN;
@@ -1031,18 +1031,27 @@ bool FAnalysisEngine::OnDataProtocol2()
 			MinLogSerial -= (0x00ffffff + 1);
 		}
 
-		if (uint32(MinLogSerial) != (NextLogSerial & 0x00ffffff))
+		// If NextLogSerial's MSB is set we're trying to derive the best starting
+		// serial.
+		if (NextLogSerial & 0x80000000)
 		{
-			if (NextLogSerial & 0x80000000)
+			// Haven't received enough events yet to make a decision.
+			if (MinLogSerial == INT_MAX)
 			{
-				NextLogSerial = (MinLogSerial & 0x00ffffff);
-				continue;
+				break;
 			}
 
+			NextLogSerial = (MinLogSerial & 0x00ffffff);
+			continue;
+		}
+
+		// If we didn't stumble across the next serialised event we have done all
+		// we can for now.
+		if (uint32(MinLogSerial) != (NextLogSerial & 0x00ffffff))
+		{
 			break;
 		}
 	}
-	while (true);
 
 	return true;
 }
