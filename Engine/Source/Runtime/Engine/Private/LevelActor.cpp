@@ -497,7 +497,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	{
 		ExternalPackage = SpawnParameters.OverridePackage;
 	}
-	else if (LevelToSpawnIn->bUseExternalActors && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
+	else if (LevelToSpawnIn->IsUsingExternalActors() && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
 	{
 		// @todo FH: needs to handle mark package dirty and asset creation notification
 		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), ActorGuid);

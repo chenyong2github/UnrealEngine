@@ -1069,7 +1069,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		{
 			LevelsAlreadyModified.Add( Level );
 			// Don't mark the level dirty when deleting external actors and the level is in `use external actors` mode.
-			bool bShouldDirty = !(Actor->IsPackageExternal() && Level->bUseExternalActors);
+			bool bShouldDirty = !(Actor->IsPackageExternal() && Level->IsUsingExternalActors());
 			Level->Modify(bShouldDirty);
 		}
 
