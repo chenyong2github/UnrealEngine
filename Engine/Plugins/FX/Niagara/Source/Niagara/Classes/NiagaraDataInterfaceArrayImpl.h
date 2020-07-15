@@ -7,6 +7,8 @@
 template<typename TArrayType>
 struct FNDIArrayImplHelperBase
 {
+	typedef TArrayType TVMArrayType;
+
 	static constexpr bool bSupportsCPU = true;
 	static constexpr bool bSupportsGPU = true;
 
@@ -346,7 +348,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 	void GetValue(FVectorVMContext& Context)
 	{
 		FNDIInputParam<int32> IndexParam(Context);
-		FNDIOutputParam<TArrayType> OutValue(Context);
+		FNDIOutputParam<typename FNDIArrayImplHelper<TArrayType>::TVMArrayType> OutValue(Context);
 
 		FRWScopeLock ReadLock(ArrayGuard, SLT_ReadOnly);
 		const int32 Num = Data.Num() - 1;
