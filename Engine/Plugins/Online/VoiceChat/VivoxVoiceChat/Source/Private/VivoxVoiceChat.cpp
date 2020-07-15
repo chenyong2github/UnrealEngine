@@ -2236,6 +2236,13 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	if (FParse::Command(&Cmd, TEXT("VIVOX")))
 	{
 		const TCHAR* SubCmd = Cmd;
+
+		int RequestedUserIndex = -1;
+		if (FParse::Value(Cmd, TEXT("INDEX="), RequestedUserIndex))
+		{
+			FParse::Token(Cmd, false); // skip over INDEX=#
+		}
+
 		if (FParse::Command(&Cmd, TEXT("LIST")))
 		{
 			for (int UserIndex = 0; UserIndex < VoiceChatUsers.Num(); ++UserIndex)
@@ -2302,32 +2309,27 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 			(void)CreateUser();
 			return true;
 		}
-		else
+		else if (RequestedUserIndex >= 0)
 		{
-			int Index = 0;
-			if (FParse::Value(Cmd, TEXT("INDEX="), Index))
+			if (RequestedUserIndex < VoiceChatUsers.Num())
 			{
-				FParse::Token(Cmd, false); // skip over INDEX=#
-				if (Index < VoiceChatUsers.Num())
+				if (FVivoxVoiceChatUser* User = VoiceChatUsers[RequestedUserIndex])
 				{
-					if (FVivoxVoiceChatUser* User = VoiceChatUsers[Index])
+					if (FParse::Command(&Cmd, TEXT("DESTROYUSER")))
 					{
-						if (FParse::Command(&Cmd, TEXT("DESTROYUSER")))
-						{
-							delete User;
-							return true;
-						}
-						else
-						{
-							return User->Exec(InWorld, Cmd, Ar);
-						}
+						delete User;
+						return true;
+					}
+					else
+					{
+						return User->Exec(InWorld, Cmd, Ar);
 					}
 				}
 			}
-			else if (SingleUserVoiceChatUser.IsValid())
-			{
-				return SingleUserVoiceChatUser->Exec(InWorld, SubCmd, Ar);
-			}
+		}
+		else if (SingleUserVoiceChatUser.IsValid())
+		{
+			return SingleUserVoiceChatUser->Exec(InWorld, SubCmd, Ar);
 		}
 #endif // !UE_BUILD_SHIPPING
 	}
