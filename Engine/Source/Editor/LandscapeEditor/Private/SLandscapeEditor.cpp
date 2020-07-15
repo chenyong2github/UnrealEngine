@@ -280,13 +280,21 @@ void FLandscapeToolKit::OnToolPaletteChanged(FName PaletteName)
 FText FLandscapeToolKit::GetActiveToolDisplayName() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return LandscapeEdMode->CurrentTool->GetDisplayName();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
+	{
+		return LandscapeEdMode->CurrentTool->GetDisplayName();
+	}
+	return FText::GetEmpty();
 }
 
 FText FLandscapeToolKit::GetActiveToolMessage() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return LandscapeEdMode->CurrentTool->GetDisplayMessage();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
+	{
+		return LandscapeEdMode->CurrentTool->GetDisplayMessage();
+	}
+	return FText::GetEmpty();
 }
 
 void FLandscapeToolKit::NotifyToolChanged()
