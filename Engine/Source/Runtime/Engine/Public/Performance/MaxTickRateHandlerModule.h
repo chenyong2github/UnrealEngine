@@ -16,6 +16,9 @@ public:
 
 	virtual void Initialize() = 0;
 
+	virtual void SetFlags(uint32 Flags) = 0;
+	virtual uint32 GetFlags() = 0;
+
 	// Return true if waiting occurred in the plugin, if false engine will use the default sleep setup
 	virtual bool HandleMaxTickRate(float DesiredMaxTickRate) = 0;
 };

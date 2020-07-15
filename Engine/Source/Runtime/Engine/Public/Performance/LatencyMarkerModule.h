@@ -22,4 +22,11 @@ public:
 	virtual void SetRenderLatencyMarkerEnd(uint64 FrameNumber) = 0;
 	
 	virtual void SetCustomLatencyMarker(uint32 MarkerId, uint64 FrameNumber) = 0;
+
+	virtual float GetTotalLatencyInMs() = 0;
+	virtual float GetGameLatencyInMs() = 0;
+	virtual float GetRenderLatencyInMs() = 0;
+	virtual float GetDriverLatencyInMs() = 0;
+	virtual float GetOSWorkQueueLatencyInMs() = 0;
+	virtual float GetGPURenderLatencyInMs() = 0;
 };
