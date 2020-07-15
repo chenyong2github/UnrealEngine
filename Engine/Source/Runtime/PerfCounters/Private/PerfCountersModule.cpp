@@ -71,3 +71,10 @@ const FName IPerfCounters::Histograms::FrameTimeWithoutSleep(TEXT("FrameTimeWith
 const FName IPerfCounters::Histograms::ServerReplicateActorsTime(TEXT("ServerReplicateActorsTime"));
 const FName IPerfCounters::Histograms::SleepTime(TEXT("SleepTime"));
 const FName IPerfCounters::Histograms::ZeroLoadFrameTime(TEXT("ZeroLoadFrameTime"));
+
+int32 IPerfCountersModule::GetHTTPStatsPort()
+{
+	int32 StatsPort = -1;
+	FParse::Value(FCommandLine::Get(), TEXT("statsPort="), StatsPort);
+	return StatsPort;
+}
