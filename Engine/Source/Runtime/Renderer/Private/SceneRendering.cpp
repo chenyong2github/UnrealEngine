@@ -1783,7 +1783,7 @@ void FViewInfo::InitRHIResources()
 	FScene* Scene = Family->Scene ? Family->Scene->GetRenderScene() : nullptr;
 	if (Scene)
 	{
-		Scene->UniformBuffers.CachedView = nullptr;
+		Scene->UniformBuffers.InvalidateCachedView();
 	}
 
 	for (int32 CascadeIndex = 0; CascadeIndex < TVC_MAX; CascadeIndex++)
