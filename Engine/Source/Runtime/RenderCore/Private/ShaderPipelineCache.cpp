@@ -1475,8 +1475,11 @@ static const int32 MaxUserCount = 16;
 
 static bool PreCompileMaskComparison(uint64 ReferenceGameMask, uint64 PSOMask)
 {
+	// If game mask use is disabled then the precompile comparison should succeed.
+	const bool bIgnoreGameMask = CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() == 0;
+
 	uint64 UsageMask = (ReferenceGameMask & PSOMask);
-	return (UsageMask & (7l << (MaxQualityCount*3+MaxPlaylistCount))) && (UsageMask & (7 << (MaxQualityCount*3))) && (UsageMask & (63 << MaxQualityCount*2)) && (UsageMask & (63 << MaxQualityCount)) && (UsageMask & 63);
+	return bIgnoreGameMask || (UsageMask & (7l << (MaxQualityCount*3+MaxPlaylistCount))) && (UsageMask & (7 << (MaxQualityCount*3))) && (UsageMask & (63 << MaxQualityCount*2)) && (UsageMask & (63 << MaxQualityCount)) && (UsageMask & 63);
 }
 
 bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
