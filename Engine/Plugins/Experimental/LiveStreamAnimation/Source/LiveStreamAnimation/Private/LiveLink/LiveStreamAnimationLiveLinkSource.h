@@ -8,11 +8,15 @@
 #include "LiveLinkTypes.h"
 #include "LiveStreamAnimationHandle.h"
 
+class ULiveStreamAnimationLiveLinkFrameTranslator;
+
 namespace LiveStreamAnimation
 {
 	class FLiveStreamAnimationLiveLinkSource : public ILiveLinkSource
 	{
 	public:
+
+		FLiveStreamAnimationLiveLinkSource(ULiveStreamAnimationLiveLinkFrameTranslator* InFrameTranslator);
 
 		//~ Begin ILiveLinkSource Interface
 		virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
@@ -26,6 +30,7 @@ namespace LiveStreamAnimation
 		//~ End ILiveLinkSource Interface
 
 		bool HandlePacket(class FLiveLinkPacket&& InPacket);
+		void SetFrameTranslator(ULiveStreamAnimationLiveLinkFrameTranslator* NewFrameTranslator);
 
 	private:
 
@@ -40,5 +45,6 @@ namespace LiveStreamAnimation
 		bool bIsConnectedToMesh;
 
 		TMap<FLiveStreamAnimationHandle, FLiveLinkSubjectKey> MappedSubjects;
+		TWeakObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> FrameTranslator;
 	};
 }

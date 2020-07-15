@@ -31,6 +31,9 @@ namespace LiveStreamAnimation
 			/** Options used for animation frame updates. */
 			FLiveStreamAnimationLiveLinkSourceOptions Options;
 
+			/** Translation profile we will use for this subject. */
+			FLiveStreamAnimationHandle TranslationHandle;
+
 			/** The last sent skeleton data. */
 			FLiveLinkSkeletonStaticData LastKnownSkeleton;
 
@@ -59,7 +62,8 @@ namespace LiveStreamAnimation
 		bool StartTrackingSubject(
 			const FName LiveLinkSubject,
 			const FLiveStreamAnimationHandle SubjectHandle,
-			const FLiveStreamAnimationLiveLinkSourceOptions Options);
+			const FLiveStreamAnimationLiveLinkSourceOptions Options,
+			const FLiveStreamAnimationHandle TranslationHandle);
 
 		void StopTrackingSubject(const FLiveStreamAnimationHandle SubjectHandle);
 
@@ -92,11 +96,13 @@ namespace LiveStreamAnimation
 		TSharedPtr<FLiveStreamAnimationPacket> CreateAnimationFramePacket(const FLiveLinkTrackedSubject& Subject, FLiveLinkAnimationFrameData&& AnimationData);
 
 		void OnRoleChanged(ELiveStreamAnimationRole NewRole);
+		void OnFrameTranslatorChanged();
 
 		TSharedPtr<FSkelMeshToLiveLinkSource> SkelMeshToLiveLinkSource;
 		TSharedPtr<FLiveStreamAnimationLiveLinkSource> LiveLinkSource;
 		TMap<FLiveStreamAnimationHandle, FLiveLinkTrackedSubject> TrackedSubjects;
 		ULiveStreamAnimationSubsystem& Subsystem;
 		FDelegateHandle OnRoleChangedHandle;
+		FDelegateHandle OnFrameTranslatorChangedHandle;
 	};
 }

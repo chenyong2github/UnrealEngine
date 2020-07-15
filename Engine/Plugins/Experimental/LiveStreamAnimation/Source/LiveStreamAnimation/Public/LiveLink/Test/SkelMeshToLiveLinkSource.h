@@ -6,10 +6,17 @@
 #include "ILiveLinkSource.h"
 #include "LiveLinkTypes.h"
 #include "Components/ActorComponent.h"
+#include "BoneContainer.h"
+#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "SkelMeshToLiveLinkSource.generated.h"
+
+class ULiveStreamAnimationLiveLinkFrameTranslator;
 
 namespace LiveStreamAnimation
 {
+	/**
+	 * Bare bones Live Link source that will let us publish tracked skeletal mesh data.
+	 */
 	class FSkelMeshToLiveLinkSource : public ILiveLinkSource
 	{
 	public:
@@ -73,8 +80,11 @@ namespace LiveStreamAnimation
 	};
 }
 
-UCLASS(BlueprintType, Blueprintable, Category="Live Stream Animation|Live Link")
-class LIVESTREAMANIMATION_API ULiveLinkTestSkelMeshTrackerComponent : public UActorComponent
+/**
+ * Component that can be used to track positions in a Skel Mesh every frame, and publish them as a Live Link subject.
+ */
+UCLASS(BlueprintType, Blueprintable, Category="Live Stream Animation|Live Link", Meta=(BlueprintSpawnableComponent))
+class LIVESTREAMANIMATION_API ULiveLinkTestSkelMeshTrackerComponent : public UActorComponent, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
 
@@ -82,12 +92,23 @@ public:
 
 	ULiveLinkTestSkelMeshTrackerComponent();
 
+	/**
+	 * Start tracking the specified 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
-	void StartTrackingSkelMesh(class USkeletalMeshComponent* InSkelMeshComp, FName InSubjectName);
+	void StartTrackingSkelMesh(FName InSubjectName);
 
+	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
 	void StopTrackingSkelMesh();
 
+	//~ Begin ActorComponent Interface
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	//~ End ActorComponent Interface
+
+	//~ Begin IBoneReferenceSkeletonProvider Interface
+	virtual class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) override;
+	//~ End IBoneReferenceSkeletonProviderInterface
 
 private:
 
@@ -95,10 +116,38 @@ private:
 
 	FLiveLinkSubjectKey GetSubjectKey() const;
 
-	UPROPERTY()
-	USkeletalMeshComponent* SkelMeshComp;
+	UPROPERTY(EditAnywhere, Category = "Live Stream Animation|Live Link")
+	TSoftObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> Translator;
 
+	UPROPERTY(EditAnywhere, Category = "Live Stream Animation|Live Link")
+	FName TranslationProfile;
+
+	// The SkeletalMeshComponent that we are going to track.
+	UPROPERTY(EditAnywhere, Category = "Live Stream Animation|Live Link", meta = (UseComponentPicker, AllowedClasses = "SkeletalMeshComponent", AllowPrivateAccess="True"))
+	FComponentReference SkelMeshComp;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Live Stream Animation|Live Link", meta = (AllowPrivateAccess = "True"))
+	TWeakObjectPtr<USkeletalMeshComponent> WeakSkelMeshComp;
+
+	// When non-empty, this is the set of bones that we want to track.
+	// Mocap typically will only track a subset of bones, and this lets us replicate that behavior.
+	// This needs to be set before StartTrackingSkelMesh is called (or after StopTrackingSkelMesh is called).
+	UPROPERTY(EditDefaultsOnly, Category = "Live Stream Animation|Live Link", Meta = (AllowPrivateAccess = "true"))
+	TArray<FBoneReference> BonesToTrack;
+
+	TWeakObjectPtr<USkeletalMeshComponent> UsingSkelMeshComp;
+	TSet<int32> UsingBones;
+
+	// The Subject Name that the tracked Skel Mesh will be published as to Live Link.
 	FLiveLinkSubjectName SubjectName;
 
+	// The LiveLink source that we created to track the skeleton.
+	// May become invalid if it is forcibly removed from Live Link.
 	TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> Source;
+
+	// If BonesToTrack is non-empty and has at least one valid bone, then we will populate this array
+	// with the correct bone indices so we can quickly scape 
+	TArray<int32> BoneIndicesToTrack;
+
+	USkeletalMeshComponent* GetSkelMeshComp() const;
 };

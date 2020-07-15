@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserverd.
 
 #include "LiveLink/Test/SkelMeshToLiveLinkSource.h"
+#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
 #include "LiveStreamAnimationSubsystem.h"
 
 #include "Roles/LiveLinkAnimationRole.h"
@@ -15,7 +16,7 @@ ULiveLinkTestSkelMeshTrackerComponent::ULiveLinkTestSkelMeshTrackerComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void ULiveLinkTestSkelMeshTrackerComponent::StartTrackingSkelMesh(class USkeletalMeshComponent* InSkelMeshComp, FName InLiveLinkSubjectName)
+void ULiveLinkTestSkelMeshTrackerComponent::StartTrackingSkelMesh(FName InLiveLinkSubjectName)
 {
 	using namespace LiveStreamAnimation;
 
@@ -38,32 +39,89 @@ void ULiveLinkTestSkelMeshTrackerComponent::StartTrackingSkelMesh(class USkeleta
 		}
 	}
 
-	if (InSkelMeshComp && InLiveLinkSubjectName != NAME_None)
+	if (InLiveLinkSubjectName != NAME_None)
 	{
-		if (const FReferenceSkeleton * RefSkel = InSkelMeshComp->SkeletalMesh ? &InSkelMeshComp->SkeletalMesh->RefSkeleton : nullptr)
+		if (USkeletalMeshComponent* LocalSkelMeshComp = GetSkelMeshComp())
 		{
-			if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
+			if (const FReferenceSkeleton* RefSkel = LocalSkelMeshComp->SkeletalMesh ? &LocalSkelMeshComp->SkeletalMesh->RefSkeleton : nullptr)
 			{
-				SkelMeshComp = InSkelMeshComp;
-				SubjectName = InLiveLinkSubjectName;
-
-				const TArray<FMeshBoneInfo>& RawRefBoneInfo = RefSkel->GetRefBoneInfo();
-
-				FLiveLinkSkeletonStaticData SkeletonData;
-				SkeletonData.BoneNames.Reserve(RawRefBoneInfo.Num());
-				SkeletonData.BoneParents.Reserve(RawRefBoneInfo.Num());
-
-				for (const FMeshBoneInfo& BoneInfo : RawRefBoneInfo)
+				if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
 				{
-					SkeletonData.BoneNames.Add(BoneInfo.Name);
-					SkeletonData.BoneParents.Add(BoneInfo.ParentIndex);
+					SubjectName = InLiveLinkSubjectName;
+	
+					TArray<TTuple<int32, int32>> BoneAndParentIndices;
+					const TArray<FMeshBoneInfo>& RawRefBoneInfo = RefSkel->GetRefBoneInfo();
+					if (BonesToTrack.Num() > 0)
+					{
+						TSet<int32> TempBonesToUse;
+
+						for (const FBoneReference& BoneReference : BonesToTrack)
+						{
+							const int32 BoneIndex = RefSkel->FindRawBoneIndex(BoneReference.BoneName);
+							if (INDEX_NONE != BoneIndex)
+							{
+								TempBonesToUse.Add(BoneIndex);
+							}
+						}
+
+						if (TempBonesToUse.Num() > 0)
+						{
+							// Forcibly add our root bone so we don't get into a weird state.
+							// TODO: We should probably check to see if this was already added.
+							for (int32 i = 0; i < RawRefBoneInfo.Num(); ++i)
+							{
+								if (INDEX_NONE == RawRefBoneInfo[i].ParentIndex)
+								{
+									TempBonesToUse.Add(i);
+									break;
+								}
+							}
+
+							// Go ahead and generate our simple skelton.
+							// This is done by scanning backwards and associating the bones with their parents.
+							// If we aren't tracking a parent, we will use that parent's parent (recursively until we hit the root).
+							for (int32 Bone : TempBonesToUse)
+							{
+								int32 Parent = Bone;
+								
+								do
+								{
+									Parent = RawRefBoneInfo[Parent].ParentIndex;
+								} while (INDEX_NONE != Parent && !TempBonesToUse.Contains(Parent));
+
+								BoneAndParentIndices.Add(TTuple<int32, int32>(Bone, Parent));
+							}
+						}
+					}
+
+					if (BoneAndParentIndices.Num() == 0)
+					{
+						for (int32 i = 0; i < RawRefBoneInfo.Num(); ++i)
+						{
+							BoneAndParentIndices.Add(TTuple<int32, int32>(i, RawRefBoneInfo[i].ParentIndex));
+						}
+					}
+
+					FLiveLinkSkeletonStaticData SkeletonData;
+					SkeletonData.BoneNames.Reserve(BoneAndParentIndices.Num());
+					SkeletonData.BoneParents.Reserve(BoneAndParentIndices.Num());
+					UsingBones.Empty(BoneAndParentIndices.Num());
+
+					for (const TTuple<int32, int32>& BoneAndParent : BoneAndParentIndices)
+					{
+						SkeletonData.BoneNames.Add(RawRefBoneInfo[BoneAndParent.Get<0>()].Name);
+						SkeletonData.BoneParents.Add(BoneAndParent.Get<1>());
+						UsingBones.Add(BoneAndParent.Get<0>());
+					}
+
+					UsingSkelMeshComp = LocalSkelMeshComp;
+
+					FLiveLinkStaticDataStruct StaticData;
+					StaticData.InitializeWith(&SkeletonData);
+
+					LiveLinkClient->PushSubjectStaticData_AnyThread(GetSubjectKey(), ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticData));
+					PrimaryComponentTick.AddPrerequisite(LocalSkelMeshComp, LocalSkelMeshComp->PrimaryComponentTick);
 				}
-
-				FLiveLinkStaticDataStruct StaticData;
-				StaticData.InitializeWith(&SkeletonData);
-
-				LiveLinkClient->PushSubjectStaticData_AnyThread(GetSubjectKey(), ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticData));
-				PrimaryComponentTick.AddPrerequisite(InSkelMeshComp, InSkelMeshComp->PrimaryComponentTick);
 			}
 		}
 	}
@@ -73,9 +131,9 @@ void ULiveLinkTestSkelMeshTrackerComponent::StopTrackingSkelMesh()
 {
 	using namespace LiveStreamAnimation;
 
-	if (SkelMeshComp)
+	if (USkeletalMeshComponent* LocalSkelMeshComp = UsingSkelMeshComp.Get())
 	{
-		PrimaryComponentTick.RemovePrerequisite(SkelMeshComp, SkelMeshComp->PrimaryComponentTick);
+		PrimaryComponentTick.RemovePrerequisite(LocalSkelMeshComp, LocalSkelMeshComp->PrimaryComponentTick);
 	}
 
 	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
@@ -86,6 +144,9 @@ void ULiveLinkTestSkelMeshTrackerComponent::StopTrackingSkelMesh()
 			LiveLinkClient->RemoveSubject_AnyThread(GetSubjectKey());
 		}
 	}
+
+	UsingSkelMeshComp = nullptr;
+	UsingBones.Empty();
 }
 
 void ULiveLinkTestSkelMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -93,22 +154,83 @@ void ULiveLinkTestSkelMeshTrackerComponent::TickComponent(float DeltaTime, enum 
 	using namespace LiveStreamAnimation;
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (SkelMeshComp == nullptr)
+	if (USkeletalMeshComponent* LocalSkelMeshComp = UsingSkelMeshComp.Get())
 	{
-		return;
+		TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+		if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
+		{
+			FLiveLinkAnimationFrameData Frames;
+
+			TArray<FTransform> Transforms = LocalSkelMeshComp->GetBoneSpaceTransforms();
+			if (UsingBones.Num() == Transforms.Num())
+			{
+				Frames.Transforms = MoveTemp(Transforms);
+			}
+			else
+			{
+				Frames.Transforms.Reserve(UsingBones.Num());
+				for (const int32 BoneIndex : UsingBones)
+				{
+					Frames.Transforms.Add(Transforms[BoneIndex]);
+				}
+			}
+
+			FLiveLinkFrameDataStruct FrameData;
+			FrameData.InitializeWith(&Frames);
+
+			LiveLinkClient->PushSubjectFrameData_AnyThread(GetSubjectKey(), MoveTemp(FrameData));
+		}
+	}
+}
+
+void ULiveLinkTestSkelMeshTrackerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopTrackingSkelMesh();
+
+	Super::EndPlay(EndPlayReason);
+}
+
+class USkeleton* ULiveLinkTestSkelMeshTrackerComponent::GetSkeleton(bool& bInvalidSkeletonIsError)
+{
+	bInvalidSkeletonIsError = false;
+
+	auto GetSkelFromSkelMeshComp = [](USkeletalMeshComponent* Comp)
+	{
+		return (Comp && Comp->SkeletalMesh) ? Comp->SkeletalMesh->Skeleton : nullptr;
+	};
+
+	USkeleton* Skeleton = GetSkelFromSkelMeshComp(GetSkelMeshComp());
+
+	// If this happens, it's likely because we're in a Blueprint.
+	if (Skeleton == nullptr)
+	{
+		if (ULiveStreamAnimationLiveLinkFrameTranslator* LocalTranslator = Translator.LoadSynchronous())
+		{
+			if (const FLiveStreamAnimationLiveLinkTranslationProfile* Profile = LocalTranslator->GetTranslationProfile(TranslationProfile))
+			{
+				Skeleton = Profile->Skeleton.LoadSynchronous();
+			}
+		}
 	}
 
-	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
-	if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
+	if (Skeleton == nullptr)
 	{
-		FLiveLinkAnimationFrameData Frames;
-		Frames.Transforms = SkelMeshComp->GetBoneSpaceTransforms();
-		FLiveLinkFrameDataStruct FrameData;
-		FrameData.InitializeWith(&Frames);
-
-		LiveLinkClient->PushSubjectFrameData_AnyThread(GetSubjectKey(), MoveTemp(FrameData));
+		if (UClass* Class = Cast<UClass>(GetOuter()))
+		{
+			if (SkelMeshComp.ComponentProperty != NAME_None)
+			{
+				if (FObjectPropertyBase* ObjProp = FindFProperty<FObjectPropertyBase>(Class, SkelMeshComp.ComponentProperty))
+				{
+					if (UObject* CDO = Class->GetDefaultObject())
+					{
+						Skeleton = GetSkelFromSkelMeshComp(Cast<USkeletalMeshComponent>(ObjProp->GetObjectPropertyValue_InContainer(CDO)));
+					}
+				}
+			}
+		}
 	}
+
+	return Skeleton;
 }
 
 ILiveLinkClient* ULiveLinkTestSkelMeshTrackerComponent::GetLiveLinkClient() const
@@ -125,4 +247,14 @@ FLiveLinkSubjectKey ULiveLinkTestSkelMeshTrackerComponent::GetSubjectKey() const
 
 	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
 	return FLiveLinkSubjectKey(PinnedSource->GetGuid(), SubjectName);
+}
+
+USkeletalMeshComponent* ULiveLinkTestSkelMeshTrackerComponent::GetSkelMeshComp() const
+{
+	if (USkeletalMeshComponent* LocalSkelMeshComp = WeakSkelMeshComp.Get())
+	{
+		return LocalSkelMeshComp;
+	}
+
+	return Cast<USkeletalMeshComponent>(SkelMeshComp.GetComponent(GetOwner()));
 }
