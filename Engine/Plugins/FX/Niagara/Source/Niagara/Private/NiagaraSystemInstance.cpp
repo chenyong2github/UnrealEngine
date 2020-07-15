@@ -153,7 +153,13 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 
 void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
 {
-	WaitForAsyncTickAndFinalize();
+	// No need fo this code since it's not supported yet
+	//// Wait for any async operations, can complete the system
+	//WaitForAsyncTickAndFinalize();
+	//if (IsComplete())
+	//{
+	//	return;
+	//}
 
 
 	UE_LOG(LogNiagara, Warning, TEXT("SetEmitterEnable: Emitter \"%s\" is not currently implemented."), *EmitterName.ToString());
@@ -206,7 +212,12 @@ void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnable
 
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
+	// We warn if async is not complete here as we should never wait
 	WaitForAsyncTickAndFinalize(true);
+	if (!ensureMsgf(Component != nullptr, TEXT("SystemInstance Component is nullptr during Init")))
+	{
+		return;
+	}
 
 	bForceSolo = bInForceSolo;
 	ActualExecutionState = ENiagaraExecutionState::Inactive;
@@ -288,8 +299,6 @@ void FNiagaraSystemInstance::Dump()const
 
 void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
 {
-	WaitForAsyncTickAndFinalize();
-
 	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
 
 	FString PrereqInfo;
@@ -322,7 +331,12 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 		return false;
 	}
 
+	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
+	if (IsComplete())
+	{
+		return false;
+	}
 
 	UE_LOG(LogNiagara, Warning, TEXT("Capture requested!"));
 
@@ -360,6 +374,7 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 
 void FNiagaraSystemInstance::FinishCapture()
 {
+	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
 
 	if (!CurrentCapture.IsValid())
@@ -374,6 +389,7 @@ void FNiagaraSystemInstance::FinishCapture()
 
 bool FNiagaraSystemInstance::QueryCaptureResults(const FGuid& RequestId, TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>& OutCaptureResults)
 {
+	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
 
 	if (CurrentCaptureGuid.IsValid() && RequestId == *CurrentCaptureGuid.Get())
@@ -456,7 +472,8 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 		return;
 	}
 
-	WaitForAsyncTickAndFinalize();
+	// Wait for any async operations
+	WaitForAsyncTickDoNotFinalize();
 
 	UNiagaraSystem* System = GetSystem();
 	if (bInSolo)
@@ -480,6 +497,9 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 		SystemSimulation = NewSim;
 		bSolo = false;
 	}
+
+	// Execute any pending finalize
+	FinalizeTick_GameThread();
 }
 
 void FNiagaraSystemInstance::UpdatePrereqs()
@@ -500,11 +520,14 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 		}
 		else
 		{
-			// Wait and clear any other resets that may be pending
+			// Wait for any async operations, can complete the system
 			WaitForAsyncTickAndFinalize();
+
 			DeferredResetMode = EResetMode::None;
-			
-			Reset(InResetMode);
+			if (Component != nullptr)
+			{
+				Reset(InResetMode);
+			}
 		}
 	}
 	else
@@ -522,7 +545,7 @@ void FNiagaraSystemInstance::Deactivate(bool bImmediate)
 
 	if (bImmediate)
 	{
-		// We must wait for the current system simulation to complete in order to read the actual execution state
+		// Wait for any async operations, can complete the system
 		WaitForAsyncTickAndFinalize();
 
 		if (!IsComplete())
@@ -645,8 +668,9 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 		return;
 	}
 
+	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
-	
+
 	if (SystemInstanceIndex != INDEX_NONE)
 	{
 		FNiagaraSystemSimulation* SystemSim = GetSystemSimulation().Get();
@@ -681,12 +705,14 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		return;
 	}
 
+	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
-
-	if (Component)
+	if (Component == nullptr)
 	{
-		Component->SetLastRenderTime(Component->GetWorld()->GetTimeSeconds());
+		return;
 	}
+
+	Component->SetLastRenderTime(Component->GetWorld()->GetTimeSeconds());
 
 	SetPaused(false);
 
@@ -853,7 +879,12 @@ void FNiagaraSystemInstance::AdvanceSimulation(int32 TickCountToSimulate, float 
 {
 	if (TickCountToSimulate > 0 && !IsPaused())
 	{
+		// Wait for any async operations, can complete the system
 		WaitForAsyncTickAndFinalize();
+		if (IsComplete())
+		{
+			return;
+		}
 
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemAdvanceSim);
 		bool bWasSolo = bSolo;
@@ -1039,7 +1070,8 @@ FNiagaraSystemInstance::~FNiagaraSystemInstance()
 
 void FNiagaraSystemInstance::Cleanup()
 {
-	WaitForAsyncTickAndFinalize(true);
+	// We should have no sync operations pending but we will be safe and wait
+	WaitForAsyncTickDoNotFinalize();
 
 	if (SystemInstanceIndex != INDEX_NONE)
 	{
@@ -1224,12 +1256,13 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 		return;
 	}
 
+	// Wait for any async operations, can complete the system
+	WaitForAsyncTickAndFinalize(true);
+
 	if (Component == nullptr)
 	{
 		return;
 	}
-
-	WaitForAsyncTickAndFinalize(true);
 
 	Component->GetOverrideParameters().Tick();
 	
@@ -1899,7 +1932,12 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	UNiagaraSystem* System = GetSystem();
 	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
+	// We should have no pending async operations, but wait to be safe
 	WaitForAsyncTickAndFinalize(true);
+	if (IsComplete())
+	{
+		return;
+	}
 
 	CachedDeltaSeconds = DeltaSeconds;
 	bNeedsFinalize = true;
