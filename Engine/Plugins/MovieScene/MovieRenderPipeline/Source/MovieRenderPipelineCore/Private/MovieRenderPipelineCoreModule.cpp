@@ -43,18 +43,5 @@ void FMovieRenderPipelineCoreModule::ShutdownModule()
 {
 }
 
-FDelegateHandle FMovieRenderPipelineCoreModule::RegisterEngineRenderPass(FOnCreateEngineRenderPass InOnCreateEngineRenderPass)
-{
-	EngineRenderPassDelegates.Add(InOnCreateEngineRenderPass);
-	FDelegateHandle Handle = EngineRenderPassDelegates.Last().GetHandle();
-
-	return Handle;
-}
-
-void FMovieRenderPipelineCoreModule::UnregisterEngineRenderPass(FDelegateHandle InHandle)
-{
-	EngineRenderPassDelegates.RemoveAll([=](const FOnCreateEngineRenderPass& Delegate) { return Delegate.GetHandle() == InHandle; });
-}
-
 IMPLEMENT_MODULE(FMovieRenderPipelineCoreModule, MovieRenderPipelineCore);
 DEFINE_LOG_CATEGORY(LogMovieRenderPipeline); 

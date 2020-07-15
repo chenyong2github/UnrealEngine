@@ -7,73 +7,111 @@
 #include "SceneView.h"
 #include "MoviePipelineSurfaceReader.h"
 #include "UObject/GCObject.h"
+#include "Async/AsyncWork.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Templates/Function.h"
+#include "Stats/Stats.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
 struct FImageOverlappedAccumulator;
 class FSceneViewFamily;
 class FSceneView;
+struct FAccumulatorPool;
+
+class FMoviePipelineBackgroundAccumulateTask
+{
+public:
+	FGraphEventRef LastCompletionEvent;
+
+public:
+	FGraphEventRef Execute(TUniqueFunction<void()> InFunctor)
+	{
+		if (LastCompletionEvent)
+		{
+			LastCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(InFunctor), GetStatId(), LastCompletionEvent);
+		}
+		else
+		{
+			LastCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(InFunctor), GetStatId());
+		}
+		return LastCompletionEvent;
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMoviePipelineBackgroundAccumulateTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+};
 
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineDeferredPassBase : public UMoviePipelineRenderPass
 {
 	GENERATED_BODY()
 
+public:
+	UMoviePipelineDeferredPassBase()
+		: UMoviePipelineRenderPass()
+	{
+		PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
+	}
 protected:
-	
+
 	// UMoviePipelineRenderPass API
-	virtual void GetRequiredEnginePassesImpl(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses) override;
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
-	virtual void SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void TeardownImpl() override;
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSettingDisplayName", "Deferred Rendering"); }
 	// ~UMovieRenderPassAPI
 
-	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSettingDisplayName", "Deferred Rendering"); }
+	// FGCObject Interface
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	// ~FGCObject Interface
 
-
+	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState);
 	void OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
-	void OnSetupView(FSceneViewFamily& InViewFamily, FSceneView& InView, const FMoviePipelineRenderPassMetrics& InSampleState);
-
 private:
-	/** List of passes by name that we should output. */
-	TArray<FString> DesiredOutputPasses;
+	void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
+	void BlendPostProcessSettings(FSceneView* InView);
+	void SetupViewForViewModeOverride(FSceneView* View);
+private:
+	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
 
-	bool bAccumulateAlpha;
+	/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
+	TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
 
-	/** One accumulator per sample source being saved. */
-	TArray<TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe>> ImageTileAccumulator;
+	/** A temporary render target that we render the view to. */
+	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
+
+	/** The history for the view */
+	FSceneViewStateReference ViewState;
+
+	FMoviePipelinePassIdentifier PassIdentifier;
+
+	/** Accessed by the Render Thread when starting up a new task. */
+	FGraphEventArray OutstandingTasks;
+
+	FGraphEventRef TaskPrereq;
 };
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineSetupView, FSceneViewFamily&, FSceneView&, const FMoviePipelineRenderPassMetrics&);
-
-namespace MoviePipeline
+struct FAccumulatorPool
 {
-	struct FDeferredRenderEnginePass : public FMoviePipelineEnginePass, FGCObject
+	struct FAccumulatorInstance
 	{
-		FDeferredRenderEnginePass()
-			: FMoviePipelineEnginePass(FMoviePipelinePassIdentifier(TEXT("MainDeferredPass")))
-		{
-		}
+		FAccumulatorInstance();
 
-		virtual void Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings) override;
-		virtual void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState) override;
-		virtual void Teardown() override;
+		bool IsActive() const;
+		void SetIsActive(const bool bInIsActive);
 
-		// FGCObject Interface
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		// ~FGCObject Interface
-
-		FMoviePipelineSampleReady BackbufferReadyDelegate;
-		FMoviePipelineSetupView SetupViewDelegate;
-
-	protected:
-		FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState);
-
-	protected:
-		FSceneViewStateReference ViewState;
-		
-		/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
-		TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
-
-		TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
+		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
+		int32 ActiveFrameNumber;
+		FThreadSafeBool bIsActive;
 	};
-}
+
+	TArray<TSharedPtr<FAccumulatorInstance, ESPMode::ThreadSafe>> Accumulators;
+	FCriticalSection CriticalSection;
+
+	FAccumulatorPool(int32 InNumAccumulators);
+	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> BlockAndGetAccumulator_GameThread(int32 InFrameNumber);
+};
