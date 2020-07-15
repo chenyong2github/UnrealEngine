@@ -89,6 +89,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
 	bool bDisableMotionBlur;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
+	bool bDisableBloom;
+
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
 
