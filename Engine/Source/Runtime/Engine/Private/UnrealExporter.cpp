@@ -25,6 +25,8 @@
 #include "Misc/FeedbackContext.h"
 #include "AssetExportTask.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Engine/Selection.h"
+#include "Editor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExporter, Log, All);
 
@@ -891,4 +893,33 @@ FString DumpObjectToString(UObject* Object)
 	UExporter::ExportToOutputDevice(&Context, Object, NULL, Archive, TEXT("copy"), 0, PPF_Copy | PPF_DebugDump, false);
 
 	return MoveTemp(Archive);
+}
+
+FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
+	//call the empty version of the base class
+	: FExportObjectInnerContext(false)
+{
+	// For each selected actor...
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = (AActor*)*It;
+		checkSlow(Actor->IsA(AActor::StaticClass()));
+
+		ForEachObjectWithOuter(Actor, [this](UObject* InnerObj)
+		{
+			UObject* OuterObj = InnerObj->GetOuter();
+			InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
+			if (Inners)
+			{
+				// Add object to existing inner list.
+				Inners->Add( InnerObj );
+			}
+			else
+			{
+				// Create a new inner list for the outer object.
+				InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
+				InnersForOuterObject.Add(InnerObj);
+			}
+		}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}
 }
