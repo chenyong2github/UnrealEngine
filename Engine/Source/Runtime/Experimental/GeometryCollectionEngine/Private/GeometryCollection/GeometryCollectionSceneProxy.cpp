@@ -5,6 +5,8 @@
 #include "Async/ParallelFor.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
+#include "RenderCore/Public/CommonRenderResources.h"
+#include "Rendering/NaniteResources.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
@@ -1023,4 +1025,239 @@ void FGeometryCollectionSceneProxy::ReleaseSubSections_RenderThread()
 void FGeometryCollectionSceneProxy::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const
 {
 	OutBounds = PreSkinnedBounds;
+}
+
+FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeometryCollectionComponent* Component)
+	: Nanite::FSceneProxyBase(Component)
+	//, RenderData(Component->GetStaticMesh()->RenderData.Get())
+	, GeometryCollection(Component->GetRestCollection())
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+
+	// Nanite requires GPUScene
+	check(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
+
+	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
+
+	// Nanite supports the GPUScene instance data buffer.
+	bSupportsInstanceDataBuffer = true;
+
+	bSupportsDistanceFieldRepresentation = false;
+	bSupportsMeshCardRepresentation = false;
+
+	// Use fast path that does not update static draw lists.
+	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer = true;
+
+	// We always use local vertex factory, which gets its primitive data from
+	// GPUScene, so we can skip expensive primitive uniform buffer updates.
+	bVFRequiresPrimitiveUniformBuffer = true;
+
+	// Indicates if 1 or more materials contain settings not supported by Nanite.
+	bHasMaterialErrors = false;
+
+	// Check if the assigned material can be rendered in Nanite. If not, default.
+	const bool IsRenderable = Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
+
+	if (!IsRenderable)
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("Nanite rendering was chosen for rendering mesh with materials that are not supported. Using default instead."));
+		bHasMaterialErrors = true;
+	}
+
+	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
+
+	const auto& SectionsArray = Component->GetSectionsArray();
+	const int32 MeshSectionCount = SectionsArray.Num();
+
+	MaterialSections.Reserve(MeshSectionCount);
+
+	for (const auto& MeshSection : SectionsArray)
+	{
+		if (MeshSection.MaterialID == INDEX_NONE)
+		{
+			continue;
+		}
+
+		if (!MaterialSections.IsValidIndex(MeshSection.MaterialID))
+		{
+			MaterialSections.SetNumZeroed(MeshSection.MaterialID + 1);
+		}
+
+		FMaterialSection& Section = MaterialSections[MeshSection.MaterialID];
+		if (!Section.Material)
+		{
+			UMaterialInterface* Material = Component->GetMaterial(MeshSection.MaterialID);
+			Section.Material = Material;
+		}
+
+		const bool bInvalidMaterial = !Section.Material || Section.Material->GetBlendMode() != BLEND_Opaque;
+		if (bInvalidMaterial)
+		{
+			bHasMaterialErrors = true;
+		}
+
+		const bool bForceDefaultMaterial = /*!!FORCE_NANITE_DEFAULT_MATERIAL ||*/ bHasMaterialErrors;
+		if (bForceDefaultMaterial)
+		{
+			Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		// Should never be null here
+		check(Section.Material != nullptr);
+
+		// Should always be opaque blend mode here.
+		check(Section.Material->GetBlendMode() == BLEND_Opaque);
+	}
+
+	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+	Instances.SetNumZeroed(NumGeometry);
+
+	const TManagedArray<FBox>& BoundingBoxes = Collection->BoundingBox;
+	const TManagedArray<FTransform>& Transforms = Collection->Transform;
+
+	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
+	{
+		if (GeometryIndex == 0)
+		{
+			continue; // TODO: Temp hack to hide complete mesh
+		}
+
+		FPrimitiveInstance& Instance = Instances[GeometryIndex];
+		Instance.PrimitiveId = ~uint32(0);
+		Instance.InstanceToLocal = Transforms[GeometryIndex].ToMatrixWithScale();
+		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
+		Instance.LocalToWorld = Instance.InstanceToLocal;
+		Instance.WorldToLocal = Instance.LocalToInstance;
+		Instance.RenderBounds = BoundingBoxes[GeometryIndex];
+		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
+	}
+}
+
+FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(const FSceneView* View) const
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+
+#if WITH_EDITOR
+	const bool bOptimizedRelevance = false;
+#else
+	const bool bOptimizedRelevance = GNaniteOptimizedRelevance != 0;
+#endif
+
+	FPrimitiveViewRelevance Result;
+	Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.NaniteMeshes;
+	Result.bShadowRelevance = IsShadowCast(View);
+	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+
+	// Always render the Nanite mesh data with static relevance.
+	Result.bStaticRelevance = true;
+
+	// Should always be covered by constructor of Nanite scene proxy.
+	Result.bRenderInMainPass = true;
+
+	if (bOptimizedRelevance) // No dynamic relevance if optimized.
+	{
+		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		Result.bVelocityRelevance = IsMovable();
+	}
+	else
+	{
+#if WITH_EDITOR
+		//only check these in the editor
+		Result.bEditorStaticSelectionRelevance = (IsSelected() || IsHovered());
+#endif
+
+		bool bSetDynamicRelevance = false;
+
+		Result.bOpaque = true;
+
+		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && IsMovable();
+	}
+
+	return Result;
+}
+
+#if WITH_EDITOR
+HHitProxy* FNaniteGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+
+	if (Component->GetOwner())
+	{
+		// Generate separate hit proxies for each material section, so that we can perform hit tests against each one.
+		for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+		{
+			FMaterialSection& Section = MaterialSections[SectionIndex];
+			HHitProxy* ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, SectionIndex);
+			check(!Section.HitProxy);
+			Section.HitProxy = ActorHitProxy;
+			OutHitProxies.Add(ActorHitProxy);
+		}
+	}
+
+	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
+	return nullptr;
+}
+#endif
+
+void FNaniteGeometryCollectionSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+
+	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	{
+		const FMaterialSection& Section = MaterialSections[SectionIndex];
+		const UMaterialInterface* Material = Section.Material;
+		if (!Material)
+		{
+			continue;
+		}
+
+		FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
+		check(MaterialProxy);
+
+		FMeshBatch MeshBatch;
+		MeshBatch.SegmentIndex = SectionIndex;
+		MeshBatch.VertexFactory = Nanite::GGlobalResources.GetVertexFactory();
+		MeshBatch.Type = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+		MeshBatch.ReverseCulling = false;
+		MeshBatch.bDisableBackfaceCulling = true;
+		MeshBatch.DepthPriorityGroup = SDPG_World;
+		MeshBatch.LODIndex = -1;
+		MeshBatch.MaterialRenderProxy = MaterialProxy;
+		MeshBatch.bWireframe = false;
+		MeshBatch.bCanApplyViewModeOverrides = false;
+		MeshBatch.LCI = nullptr;// &MeshInfo;
+		MeshBatch.Elements[0].IndexBuffer = &GScreenRectangleIndexBuffer;
+		if (GRHISupportsRectTopology)
+		{
+			MeshBatch.Elements[0].FirstIndex = 9;
+			MeshBatch.Elements[0].NumPrimitives = 1;
+			MeshBatch.Elements[0].MinVertexIndex = 1;
+			MeshBatch.Elements[0].MaxVertexIndex = 3;
+		}
+		else
+		{
+			MeshBatch.Elements[0].FirstIndex = 0;
+			MeshBatch.Elements[0].NumPrimitives = 2;
+			MeshBatch.Elements[0].MinVertexIndex = 0;
+			MeshBatch.Elements[0].MaxVertexIndex = 3;
+		}
+		MeshBatch.Elements[0].NumInstances = 1;
+		MeshBatch.Elements[0].PrimitiveIdMode = PrimID_ForceZero;
+		MeshBatch.Elements[0].PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+
+#if WITH_EDITOR
+		HHitProxy* HitProxy = Section.HitProxy;
+		//check(HitProxy); // TODO: Is this valid? SME seems to have null proxies, but normal editor doesn't
+		PDI->SetHitProxy(HitProxy);
+#endif
+		PDI->DrawMesh(MeshBatch, FLT_MAX);
+	}
+}
+
+uint32 FNaniteGeometryCollectionSceneProxy::GetMemoryFootprint() const
+{
+	return sizeof(*this) + GetAllocatedSize();
 }

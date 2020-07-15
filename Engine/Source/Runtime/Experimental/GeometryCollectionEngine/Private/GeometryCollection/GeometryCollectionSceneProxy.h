@@ -16,10 +16,15 @@
 #include "GeometryCollection/GeometryCollectionHitProxy.h"
 #endif
 
-
+class UGeometryCollection;
 class UGeometryCollectionComponent;
 struct FGeometryCollectionSection;
 struct HGeometryCollection;
+
+namespace Nanite
+{
+	struct FResources;
+}
 
 /** Index Buffer */
 class FGeometryCollectionIndexBuffer : public FIndexBuffer
@@ -254,4 +259,45 @@ private:
 	/** Release subsections by emptying the associated arrays. */
 	void ReleaseSubSections_RenderThread();
 #endif
+};
+
+class FNaniteGeometryCollectionSceneProxy : public Nanite::FSceneProxyBase
+{
+public:
+	FNaniteGeometryCollectionSceneProxy(UGeometryCollectionComponent* Component);
+
+	virtual ~FNaniteGeometryCollectionSceneProxy() = default;
+
+public:
+	// FPrimitiveSceneProxy interface.
+	virtual FPrimitiveViewRelevance	GetViewRelevance(const FSceneView* View) const override;
+#if WITH_EDITOR
+	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+#endif
+	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+
+	virtual uint32 GetMemoryFootprint() const override;
+
+	const FORCEINLINE TArray<Nanite::FResources*>& GetResources() const
+	{
+		return Resources;
+	}
+
+	FORCEINLINE TArray<Nanite::FResources*>& GetResources()
+	{
+		return Resources;
+	}
+
+protected:
+	TArray<Nanite::FResources*> Resources;
+
+	// TODO: Should probably calculate this on the materials array above instead of on the component
+	//       Null and !Opaque are assigned default material unlike the component material relevance.
+	FMaterialRelevance MaterialRelevance;
+
+	uint32 bCastShadow : 1;
+	uint32 bReverseCulling : 1;
+	uint32 bHasMaterialErrors : 1;
+
+	const UGeometryCollection* GeometryCollection = nullptr;
 };

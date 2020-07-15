@@ -4,6 +4,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Components/BoxComponent.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionComponentPluginPrivate.h"
@@ -32,6 +33,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
+
+#include "Rendering/NaniteResources.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Logging/MessageLog.h"
@@ -74,6 +77,20 @@ void HackRegisterGeomAccelerator(UGeometryCollectionComponent& Component)
 #endif
 }
 #endif
+
+static void RecreateGlobalRenderState(IConsoleVariable* Var)
+{
+	FGlobalComponentRecreateRenderStateContext Context;
+}
+
+int32 GGeometryCollectionNanite = 0;
+FAutoConsoleVariableRef CVarGeometryCollectionNanite(
+	TEXT("r.GeometryCollection.Nanite"),
+	GGeometryCollectionNanite,
+	TEXT("Render geometry collections using Nanite."),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	ECVF_RenderThreadSafe
+);
 
 // Size in CM used as a threshold for whether a geometry in the collection is collected and exported for
 // navigation purposes. Measured as the diagonal of the leaf node bounds.
@@ -340,42 +357,77 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterCompone
 
 	if (SceneProxy && RestCollection && RestCollection->HasVisibleGeometry())
 	{
-		FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-		// Re-init subsections
-		if (bIsTransformSelectionModeEnabled)
-		{
-			GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
-		}
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
-
 		FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
 		InitConstantData(ConstantData);
 
 		FGeometryCollectionDynamicData* const DynamicData = ::new FGeometryCollectionDynamicData;
 		InitDynamicData(DynamicData);
 
-		ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-			[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+		if (SceneProxy->IsNaniteMesh())
+		{
+			FNaniteGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+
+			// ...
+
+			// TODO: HACK: Pull transforms and delete data
+			delete ConstantData;
+			delete DynamicData;
+
+		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			if (bIsTransformSelectionModeEnabled)
 			{
-				if (GeometryCollectionSceneProxy)
-				{
-					GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-					GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-				}
+				// ...
 			}
-		);
+		#endif
+
+			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
+				[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+				{
+					if (GeometryCollectionSceneProxy)
+					{
+						// ...
+					}
+				}
+			);
+		}
+		else
+		{
+			FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
+		#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			// Re-init subsections
+			if (bIsTransformSelectionModeEnabled)
+			{
+				GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
+			}
+		#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+
+			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
+				[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+				{
+					if (GeometryCollectionSceneProxy)
+					{
+						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
+						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+					}
+				}
+			);
+		}
 	}
 }
 
-
 FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 {
-	if (RestCollection)
+	if (!RestCollection)
 	{
-		return new FGeometryCollectionSceneProxy(this);
+		return nullptr;
 	}
-	return nullptr;
+
+	if (RestCollection->EnableNanite && GGeometryCollectionNanite != 0)
+	{
+		return new FNaniteGeometryCollectionSceneProxy(this);
+	}
+
+	return new FGeometryCollectionSceneProxy(this);
 }
 
 bool UGeometryCollectionComponent::ShouldCreatePhysicsState() const

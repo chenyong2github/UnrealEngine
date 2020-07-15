@@ -20,6 +20,8 @@
 #include "Serialization/MemoryReader.h"
 #include "NaniteBuilder.h"
 #include "Rendering/NaniteResources.h"
+// TODO: Temp until new asset-agnostic builder API
+#include "StaticMeshResources.h"
 #endif
 
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
@@ -27,6 +29,8 @@
 #include "GeometryCollectionProxyData.h"
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionLogging, NoLogging, All);
+
+static const TCHAR* GeometryCollectionSelectedMaterial = TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial");
 
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
@@ -240,7 +244,7 @@ void UGeometryCollection::InitializeMaterials()
 	Materials = FinalMaterials;
 
 	// Last Material is the selection one
-	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial"), NULL, LOAD_None, NULL);
+	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GeometryCollectionSelectedMaterial, nullptr, LOAD_None, nullptr);
 	BoneSelectedMaterialIndex = Materials.Add(BoneSelectedMaterial);
 	
 	GeometryCollection->ReindexMaterials();
