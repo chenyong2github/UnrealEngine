@@ -12,6 +12,24 @@ UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+#if WITH_EDITORONLY_DATA
+UEdGraph* UMetasound::GetGraph()
+{
+	return Graph;
+}
+
+UEdGraph& UMetasound::GetGraphChecked()
+{
+	check(Graph);
+	return *Graph;
+}
+
+void UMetasound::SetGraph(UEdGraph* InGraph)
+{
+	Graph = InGraph;
+}
+#endif // WITH_EDITORONLY_DATA
+
 FMetasoundClassMetadata UMetasound::GetMetadata()
 {
 	return RootMetasoundDocument.RootClass.Metadata;
