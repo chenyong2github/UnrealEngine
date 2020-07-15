@@ -615,7 +615,12 @@ void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID, U
 
 	// ---------------------------------------------------------------------------------------------------
 	// Step 5 - Consolidate track template data from gathered data
-	CompileTrackTemplateField(&Entry, NewHierarchy, &GatheredData, GatheredSignatures);
+	if (FMovieSceneEvaluationTemplate* TrackTemplate = TrackTemplates.Find(Entry.DataID.Value))
+	{
+		TrackTemplate->RemoveStaleData(GatheredSignatures);
+	}
+
+	CompileTrackTemplateField(&Entry, NewHierarchy, &GatheredData);
 
 	// ---------------------------------------------------------------------------------------------------
 	// Step 6 - Reassign or remove the new hierarchy
@@ -713,7 +718,7 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 }
 
 
-void UMovieSceneCompiledDataManager::CompileTrackTemplateField(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneSequenceHierarchy& Hierarchy, FMovieSceneGatheredCompilerData* InCompilerData, const TSet<FGuid>& CompiledSignatures)
+void UMovieSceneCompiledDataManager::CompileTrackTemplateField(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneSequenceHierarchy& Hierarchy, FMovieSceneGatheredCompilerData* InCompilerData)
 {
 	if (!EnumHasAnyFlags(InCompilerData->AccumulatedMask, EMovieSceneSequenceCompilerMask::EvaluationTemplate))
 	{
