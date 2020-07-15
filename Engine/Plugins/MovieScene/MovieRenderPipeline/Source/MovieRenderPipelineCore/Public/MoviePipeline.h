@@ -125,7 +125,7 @@ public:
 	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
 	void ProcessOutstandingFinishedFrames();
-	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
+	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
 public:
 	template<typename SettingType>

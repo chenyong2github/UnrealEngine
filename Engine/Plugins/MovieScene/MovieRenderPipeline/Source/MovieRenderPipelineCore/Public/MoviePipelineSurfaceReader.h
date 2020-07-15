@@ -46,6 +46,7 @@ struct MOVIERENDERPIPELINECORE_API FMoviePipelineSurfaceReader
 	* Maps the ReadbackTexture to the CPU (which should have been resolved to before this point) and copies the data over.
 	*/
 	void CopyReadbackTexture_RenderThread(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelineSampleReady& InCallback);
+	void CopyReadbackTexture_RenderThread(TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)>&& InFunctionCallback, TSharedPtr<FImagePixelDataPayload, ESPMode::ThreadSafe> InFramePayload);
 protected:
 
 
@@ -60,6 +61,9 @@ protected:
 
 	/** The desired pixel format of the resolved textures */
 	EPixelFormat PixelFormat;
+
+	/** The desired size for this texture */
+	FIntPoint Size;
 
 	bool bQueuedForCapture;
 };
@@ -80,11 +84,15 @@ public:
 public:
 
 	void OnRenderTargetReady_RenderThread(const FTexture2DRHIRef InRenderTarget, const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelineSampleReady& InCallback);
+	void OnRenderTargetReady_RenderThread(const FTexture2DRHIRef InRenderTarget, TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InPayload, TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)>&& InFunctionCallback);
+
 	void BlockUntilAnyAvailable();
 	void Shutdown();
 private:
 	struct FResolveSurface
 	{
+		UE_NONCOPYABLE(FResolveSurface);
+
 		FResolveSurface(const EPixelFormat InPixelFormat, const FIntPoint InSurfaceSize)
 			: Surface(InPixelFormat, InSurfaceSize)
 		{
@@ -93,6 +101,9 @@ private:
 		FMoviePipelineSurfaceReader Surface;
 		FMoviePipelineRenderPassMetrics SampleState;
 		FMoviePipelineSampleReady Callback;
+
+		TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)> FunctionCallback;
+		TSharedPtr<FImagePixelDataPayload, ESPMode::ThreadSafe> FunctionPayload;
 	};
 	
 	/** Which surface is the next target to be copied to. */
