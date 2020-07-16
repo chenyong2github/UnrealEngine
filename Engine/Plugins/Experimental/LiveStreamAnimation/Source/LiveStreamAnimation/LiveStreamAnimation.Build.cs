@@ -12,7 +12,8 @@ public class LiveStreamAnimation : ModuleRules
             new string[] {
                 "ForwardingChannels",
                 "LiveLinkInterface",
-				"LiveLink"
+				"LiveLink",
+				"Engine"
             }
         );
 
