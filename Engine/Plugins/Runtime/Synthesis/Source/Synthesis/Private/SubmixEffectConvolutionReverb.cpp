@@ -346,11 +346,9 @@ void FSubmixEffectConvolutionReverb::OnProcessAudio(const FSoundEffectSubmixInpu
 		// We should create a new algorithm if the input and output channels are non-zero.
 		// But we check the NumInputChannelsTemp/NumOutputChannelsTemp to check if we've
 		// already tried and failed to create an algorithm for this channel configuration.
-		bool bShouldCreateNewAlgo = true;
+		bool bShouldCreateNewAlgo = (NumInputChannelsTemp != InData.NumChannels) || (NumOutputChannelsTemp != OutData.NumChannels);
 		bShouldCreateNewAlgo &= (InData.NumChannels > 0);
 		bShouldCreateNewAlgo &= (OutData.NumChannels > 0);
-		bShouldCreateNewAlgo &= (NumInputChannelsTemp != InData.NumChannels);
-		bShouldCreateNewAlgo &= (NumOutputChannelsTemp != OutData.NumChannels);
 
 		if (bShouldCreateNewAlgo)
 		{
