@@ -34,8 +34,11 @@ public:
 	/** Adds a static mesh and the key used to generate it */
 	void AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey);
 
-	/** Clean out invalid proxy mesh entries */
-	void Clean();
+	/**
+	 * Clean out invalid proxy mesh entries 
+	 * @return true if proxy is now invalid and it's package deleted.
+	 **/
+	bool Clean();
 
 	/** Spawn LODActors from the HLODProxyDescs found in this proxy. */
  	void SpawnLODActors(ULevel* InLevel);
