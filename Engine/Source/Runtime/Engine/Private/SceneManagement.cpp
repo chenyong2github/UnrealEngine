@@ -748,6 +748,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
+	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{

@@ -139,6 +139,67 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(UIMin = "1000", UIMax = "100000"), DisplayName = "DistanceField Trace Distance")
 	float TraceDistance;
+	
+	/**
+	 * Whether the directional light can interact with the atmosphere, cloud and generate a visual disk. All of wwhich compse the visual sky.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= AtmosphereAndCloud, meta=(DisplayName = "Atmosphere Sun Light"))
+	uint32 bUsedAsAtmosphereSunLight : 1;
+
+	/**
+	 * Two atmosphere lights are supported. For instance: a sun and a moon, or two suns.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (DisplayName = "Atmosphere Sun Light Index", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax= "1"))
+	int32 AtmosphereSunLightIndex;
+
+	/**
+	 * A color multiplied with the sun disk luminance.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (DisplayName = "Atmosphere Sun Disk Color Scale"))
+	FLinearColor AtmosphereSunDiskColorScale;
+
+	/**
+	 * Wether to apply atmosphere transmittance per pixel on opaque meshes, instead of using the light global transmittance.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay)
+	uint32 bPerPixelAtmosphereTransmittance : 1;
+
+	/**
+	 * Whether the light should cast any shadows from opaque meshes onto clouds. This is disabled for AtmosphereLight1.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
+	uint32 bCastShadowsOnClouds : 1;
+	/**
+	 * Whether the light should cast any shadows from opaque meshes onto the atmosphere.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
+	uint32 bCastShadowsOnAtmosphere : 1;
+	/**
+	 * Whether the light should cast any shadows from clouds onto the atmosphere and other scene elements.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
+	uint32 bCastCloudShadows : 1;
+	/**
+	 * The strength of the shadow, higher value will block more light.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	float CloudShadowStrength;
+	/**
+	 * The world space radius of the cloud shadow map around the camera in kilometers.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "1", ClampMin = "1"))
+	float CloudShadowExtent;
+	/**
+	 * Scale the cloud shadow map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	float CloudShadowMapResolutionScale;
+
+	/**
+	 * Scales the lights contribution when scattered in cloud participating media. This can help counter balance the fact that our multiple scattering solution is only an approximation.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = AtmosphereAndCloud, meta = (HideAlphaChannel))
+	FLinearColor CloudScatteredLuminanceScale;
 
 	/** The Lightmass settings for this object. */
 	UPROPERTY(EditAnywhere, Category=Light, meta=(ShowOnlyInnerProperties))
@@ -161,12 +222,6 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	 */
 	UPROPERTY(BlueprintReadOnly, interp, Category = Light, meta = (HideAlphaChannel, UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"), AdvancedDisplay)
 	float ShadowAmount;
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Light, meta=(DisplayName = "Atmosphere / Fog Sun Light"))
-	uint32 bUsedAsAtmosphereSunLight : 1;
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Light, meta = (DisplayName = "Atmosphere Sun Light Index", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax= "1"))
-	int32 AtmosphereSunLightIndex;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetDynamicShadowDistanceMovableLight(float NewValue);

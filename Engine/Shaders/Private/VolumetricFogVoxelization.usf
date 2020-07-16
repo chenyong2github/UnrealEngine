@@ -268,7 +268,7 @@ void VoxelizePS(
 
 #if !MATERIAL_SHADINGMODEL_UNLIT
 	Albedo = GetMaterialBaseColor(PixelMaterialInputs) * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
-	Extinction = clamp(GetMaterialOpacityRaw(PixelMaterialInputs), 0.0f, 65000.0f);
+	Extinction = clamp(GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).r, 0.0f, 65000.0f);
 #endif
 
 	float3 Scattering = Albedo * Extinction;

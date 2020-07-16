@@ -9,6 +9,7 @@
 #include "AtmosphereRendering.h"
 #include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
+#include "VolumetricCloudRendering.h"
 #include "ScenePrivate.h"
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -1762,14 +1763,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	// TODO: Move to async compute with proper RDG support.
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	if (bShouldRenderSkyAtmosphere)
-	{
-		// Generate the Sky/Atmosphere look up tables
-		RenderSkyAtmosphereLookUpTables(RHICmdList);
-	}
-
 	// Notify the FX system that the scene is about to be rendered.
 	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
@@ -1952,6 +1945,35 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End early Shadow depth rendering
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
+
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
+	const bool bShouldRenderVolumetricCloud = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
+	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud;
+
+	if (bVolumetricRenderTargetRequired)
+	{
+		InitVolumetricRenderTargetForViews(RHICmdList);
+	}
+
+	if (bShouldRenderVolumetricCloud)
+	{
+		InitVolumetricCloudsForViews(RHICmdList);
+	}
+
+	// Generate sky LUTs once all shadow map has been evaluated (for volumetric light shafts). Requires bOcclusionBeforeBasePass.
+	// This also must happen before the BasePass for Sky material to be able to sample valid LUTs.
+	if (bShouldRenderSkyAtmosphere)
+	{
+		// Generate the Sky/Atmosphere look up tables
+		RenderSkyAtmosphereLookUpTables(RHICmdList);
+	}
+
+	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
+	if (Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0)
+	{
+		FViewInfo& MainView = Views[0];
+		Scene->AllocateAndCaptureFrameSkyEnvMap(RHICmdList, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud);
+	}
 
 	// Clear LPVs for all views
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -2651,6 +2673,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderSkyAtmosphere(RHICmdList);
 	}
 
+	// Draw volumetric clouds
+	if (bShouldRenderVolumetricCloud)
+	{
+		RenderVolumetricCloud(RHICmdList);
+	}
+
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	GRenderTargetPool.AddPhaseEvent(TEXT("Fog"));
@@ -2723,6 +2751,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	LightShaftOutput.LightShaftOcclusion = NULL;
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
+
+	if (bVolumetricRenderTargetRequired)
+	{
+		ReconstructVolumetricRenderTarget(RHICmdList);
+	}
 
 	if (bShouldRenderSkyAtmosphere)
 	{

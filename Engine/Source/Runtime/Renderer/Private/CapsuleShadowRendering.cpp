@@ -137,7 +137,7 @@ public:
 	{
 		NumLightDirectionData.Bind(Initializer.ParameterMap, TEXT("NumLightDirectionData"));
 		LightDirectionData.Bind(Initializer.ParameterMap, TEXT("LightDirectionData"));
-		UseStationarySkylightShadowing.Bind(Initializer.ParameterMap, TEXT("UseStationarySkylightShadowing"));
+		SkyLightModeParam.Bind(Initializer.ParameterMap, TEXT("SkyLightMode"));
 		CapsuleIndirectConeAngle.Bind(Initializer.ParameterMap, TEXT("CapsuleIndirectConeAngle"));
 		CapsuleSkyAngleScale.Bind(Initializer.ParameterMap, TEXT("CapsuleSkyAngleScale"));
 		CapsuleMinSkyAngle.Bind(Initializer.ParameterMap, TEXT("CapsuleMinSkyAngle"));
@@ -163,8 +163,9 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, NumLightDirectionData, NumLightDirectionDataValue);
 		SetSRVParameter(RHICmdList, ShaderRHI, LightDirectionData, LightDirectionDataSRV);
 
-		uint32 UseStationarySkylightShadowingValue = Scene->SkyLight && Scene->SkyLight->bWantsStaticShadowing ? 1 : 0;
-		SetShaderValue(RHICmdList, ShaderRHI, UseStationarySkylightShadowing, UseStationarySkylightShadowingValue);
+		uint32 SkyLightMode = Scene->SkyLight && Scene->SkyLight->bWantsStaticShadowing ? 1 : 0;
+		       SkyLightMode = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled ? 2 : SkyLightMode;
+		SetShaderValue(RHICmdList, ShaderRHI, SkyLightModeParam, SkyLightMode);
 		SetShaderValue(RHICmdList, ShaderRHI, CapsuleIndirectConeAngle, GCapsuleIndirectConeAngle);
 		SetShaderValue(RHICmdList, ShaderRHI, CapsuleSkyAngleScale, GCapsuleSkyAngleScale);
 		SetShaderValue(RHICmdList, ShaderRHI, CapsuleMinSkyAngle, GCapsuleMinSkyAngle);
@@ -189,6 +190,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, CapsuleIndirectConeAngle);
 	LAYOUT_FIELD(FShaderParameter, CapsuleSkyAngleScale);
 	LAYOUT_FIELD(FShaderParameter, CapsuleMinSkyAngle);
+	LAYOUT_FIELD(FShaderParameter, SkyLightModeParam);
 	LAYOUT_FIELD(FRWShaderParameter, ComputedLightDirectionData);
 };
 
@@ -1023,7 +1025,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 	DistanceFieldCasterLightSourceData.Reset();
 	IndirectShadowLightDirectionSRV = NULL;
 
-	const bool bComputeLightDataFromVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
+	const bool bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance = Scene && (Scene->VolumetricLightmapSceneData.HasData() || (Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled));
 
 	for (int32 PrimitiveIndex = 0; PrimitiveIndex < View.IndirectShadowPrimitives.Num(); PrimitiveIndex++)
 	{
@@ -1033,7 +1035,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 		FVector4 PackedLightDirection(0, 0, 1, PI / 16);
 		float ShapeFadeAlpha = 1;
 
-		if (bComputeLightDataFromVolumetricLightmap)
+		if (bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
 			// Encode object position for ComputeLightDirectionsFromVolumetricLightmapCS
 			PackedLightDirection = FVector4(PrimitiveSceneInfo->Proxy->GetBounds().Origin, 0);
@@ -1075,7 +1077,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			PackedLightDirection = FVector4(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
 		}
 
-		if (CosFadeStartAngle < 1 && !bComputeLightDataFromVolumetricLightmap)
+		if (CosFadeStartAngle < 1 && !bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
 			// Fade out when nearly vertical up due to self shadowing artifacts
 			ShapeFadeAlpha = 1 - FMath::Clamp(2 * (-PackedLightDirection.Z - CosFadeStartAngle) / (1 - CosFadeStartAngle), 0.0f, 1.0f);
@@ -1190,7 +1192,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			IndirectShadowLightDirectionSRV = View.ViewState->IndirectShadowLightDirectionSRV;
 		}
 
-		if (bComputeLightDataFromVolumetricLightmap)
+		if (bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
 			int32 NumLightDataElements = CapsuleLightSourceData.Num() + DistanceFieldCasterLightSourceData.Num();
 

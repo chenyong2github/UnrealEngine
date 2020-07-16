@@ -31,6 +31,14 @@
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
+#if USE_CLOUD_TRANSMITTANCE
+#include "VolumetricCloudCommon.ush"
+Texture2D<float3> CloudShadowmapTexture;
+SamplerState CloudShadowmapSampler;
+float CloudShadowmapFarDepthKm;
+float4x4 CloudShadowmapWorldToLightClipMatrix;
+#endif
+
 struct FInputParams
 {
 	float2 PixelPos;
@@ -117,12 +125,10 @@ float GetExposure()
 
 #if USE_ATMOSPHERE_TRANSMITTANCE
 
-float3 GetAtmosphericLightTransmittance(in float4 SVPos, in float2 ScreenUV, in float3 LightDirection)
+float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in float2 ScreenUV, in float3 LightDirection)
 {
 	// The following is the only way to retrieve a world space position that is always stable under camera movement + long view distance. (DerivedParams.WorldPosition is not stable)
-	float DeviceZ = LookupDeviceZ(ScreenUV);
-	float3 WorldPosition = SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0));
-	const float3 PlanetCenterToWorldPos = (WorldPosition - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+	const float3 PlanetCenterToWorldPos = (StableLargeWorldPosition - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
 
 	const float3 AtmosphereTransmittance = GetAtmosphereTransmittance(
 		PlanetCenterToWorldPos, LightDirection, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm,
@@ -200,8 +206,19 @@ void DeferredLightPixelMain(
 
 		OutColor += (Radiance * Attenuation) * OpaqueVisibility;
 
+
+	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
+		float DeviceZ = LookupDeviceZ(ScreenUV);
+		float3 StableLargeWorldPosition = SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0));
+	#endif
+
 	#if USE_ATMOSPHERE_TRANSMITTANCE
-		OutColor.rgb *= GetAtmosphericLightTransmittance(SVPos, InputParams.ScreenUV, DeferredLightUniforms.Direction.xyz);
+		OutColor.rgb *= GetAtmosphericLightTransmittance(StableLargeWorldPosition, InputParams.ScreenUV, DeferredLightUniforms.Direction.xyz);
+	#endif
+
+	#if USE_CLOUD_TRANSMITTANCE
+		float OutOpticalDepth = 0.0f;
+		OutColor.rgb *= GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth);
 	#endif
 	}
 

@@ -342,6 +342,13 @@ struct FMaterialPixelParameters
 #if WATER_MESH_FACTORY
 	uint WaterWaveParamIndex;
 #endif
+
+#if CLOUD_LAYER_PIXEL_SHADER
+	float CloudSampleAltitude;
+	float CloudSampleAltitudeInLayer;
+	float CloudSampleNormAltitudeInLayer;
+	float VolumeSampleConservativeDensity;
+#endif
 };
 
 // @todo compat hack
@@ -1189,7 +1196,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	const float3 ViewDir = -Parameters.CameraVector;
 
 	// The referencial used to build the Sky View lut
-	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward, ResolvedView.ViewRight);
+	float3x3 LocalReferencial = GetSkyViewLutReferential(ResolvedView.SkyViewLutReferential);
 	// Compute inputs in this referential
 	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
 	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
@@ -1224,8 +1231,8 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 	// distorted uvs and bad visuals with artefact. Only the distance computation can actually be benefit from the surface position specified here.
 	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 
-	float4 FogToApplyOver = 1.0f;
 	float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
+		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDCPosition, WorldPos, CameraPos,
 		View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -1247,6 +1254,42 @@ float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPi
 	return Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+float MaterialExpressionCloudSampleAltitude(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleAltitude;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionCloudSampleAltitudeInLayer(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleAltitudeInLayer;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionCloudSampleNormAltitudeInLayer(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudSampleNormAltitudeInLayer;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionVolumeSampleConservativeDensity(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.VolumeSampleConservativeDensity;
+#else
+	return 0.0f;
 #endif
 }
 

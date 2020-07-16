@@ -193,7 +193,17 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, OcclusionExponent(FMath::Clamp(InLightComponent->OcclusionExponent, .1f, 10.0f))
 	, MinOcclusion(FMath::Clamp(InLightComponent->MinOcclusion, 0.0f, 1.0f))
 	, OcclusionTint(InLightComponent->OcclusionTint)
+	, bCloudAmbientOcclusion(InLightComponent->bCloudAmbientOcclusion)
+	, CloudAmbientOcclusionExtent(InLightComponent->CloudAmbientOcclusionExtent)
+	, CloudAmbientOcclusionStrength(InLightComponent->CloudAmbientOcclusionStrength)
+	, CloudAmbientOcclusionMapResolutionScale(InLightComponent->CloudAmbientOcclusionMapResolutionScale)
+	, CloudAmbientOcclusionApertureScale(InLightComponent->CloudAmbientOcclusionApertureScale)
 	, SamplesPerPixel(InLightComponent->SamplesPerPixel)
+	, bRealTimeCaptureEnabled(InLightComponent->IsRealTimeCaptureEnabled())
+	, CapturePosition(InLightComponent->GetComponentTransform().GetLocation())
+	, CaptureCubeMapResolution(InLightComponent->CubemapResolution)
+	, LowerHemisphereColor(InLightComponent->LowerHemisphereColor)
+	, bLowerHemisphereIsSolidColor(InLightComponent->bLowerHemisphereIsBlack)
 #if RHI_RAYTRACING
 	, ImportanceSamplingData(InLightComponent->ImportanceSamplingData)
 #endif
@@ -250,11 +260,17 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	bAffectReflection = true;
 	bAffectGlobalIllumination = true;
 	SamplesPerPixel = 4;
+	bRealTimeCapture = false;
+	bCloudAmbientOcclusion = 0;
+	CloudAmbientOcclusionExtent = 150.0f;
+	CloudAmbientOcclusionStrength = 1.0f;
+	CloudAmbientOcclusionMapResolutionScale = 1.0f;
+	CloudAmbientOcclusionApertureScale = 0.5f;
 }
 
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 {
-	if (ProcessedSkyTexture)
+	if (ProcessedSkyTexture || IsRealTimeCaptureEnabled())
 	{
 		return new FSkyLightSceneProxy(this);
 	}
@@ -264,7 +280,7 @@ FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
 
 void USkyLightComponent::SetCaptureIsDirty()
 { 
-	if (GetVisibleFlag() && bAffectsWorld && !SkipStaticSkyLightCapture(*this))
+	if (GetVisibleFlag() && bAffectsWorld && !SkipStaticSkyLightCapture(*this) && !IsRealTimeCaptureEnabled())
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 
@@ -348,7 +364,7 @@ void USkyLightComponent::CreateRenderState_Concurrent(FRegisterComponentContext*
 		bHidden = true;
 	}
 
-	const bool bIsValid = SourceType != SLS_SpecifiedCubemap || Cubemap != NULL;
+	const bool bIsValid = SourceType != SLS_SpecifiedCubemap || Cubemap != NULL || IsRealTimeCaptureEnabled();
 
 	if (bAffectsWorld && GetVisibleFlag() && !bHidden && bIsValid)
 	{
@@ -384,7 +400,7 @@ void USkyLightComponent::PostLoad()
 	SanitizeCubemapSize();
 
 	// All components are queued for update on creation by default. But we do not want this top happen in some cases.
-	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this))
+	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this) || IsRealTimeCaptureEnabled())
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 		SkyCapturesToUpdate.Remove(this);
@@ -535,6 +551,24 @@ bool USkyLightComponent::CanEditChange(const FProperty* InProperty) const
 		if (FCString::Strcmp(*PropertyName, TEXT("LowerHemisphereColor")) == 0)
 		{
 			return bLowerHemisphereIsBlack;
+		}
+
+		if (FCString::Strcmp(*PropertyName, TEXT("bRealTimeCapture")) == 0)
+		{
+			// RealTimeCapture is only possible with dynamic lighting and shadowing for now. TODO check the Stationary works too and enable it.
+			return Mobility == EComponentMobility::Movable;
+		}
+		if (FCString::Strcmp(*PropertyName, TEXT("SourceType")) == 0)
+		{
+			return !IsRealTimeCaptureEnabled();
+		}
+
+		if (FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionExtent")) == 0 
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionMapResolutionScale")) == 0
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionStrength")) == 0
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionApertureScale")) == 0)
+		{
+			return bCloudAmbientOcclusion;
 		}
 
 		if (FCString::Strcmp(*PropertyName, TEXT("Contrast")) == 0
@@ -930,6 +964,11 @@ bool USkyLightComponent::IsOcclusionSupported() const
 		return false;
 	}
 	return true;
+}
+
+bool USkyLightComponent::IsRealTimeCaptureEnabled() const
+{
+	return bRealTimeCapture && Mobility == EComponentMobility::Movable;
 }
 
 void USkyLightComponent::OnVisibilityChanged()

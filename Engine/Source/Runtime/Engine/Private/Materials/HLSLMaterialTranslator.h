@@ -18,6 +18,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "MaterialCompiler.h"
 #include "RenderUtils.h"
@@ -724,6 +725,11 @@ protected:
 	virtual int32 SkyAtmosphereViewLuminance() override;
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override;
+
+	virtual int32 GetCloudSampleAltitude() override;
+	virtual int32 GetCloudSampleAltitudeInLayer() override;
+	virtual int32 GetCloudSampleNormAltitudeInLayer() override;
+	virtual int32 GetVolumeSampleConservativeDensity() override;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;

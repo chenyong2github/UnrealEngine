@@ -67,6 +67,37 @@ FTwoBandSHVectorRGB MulSH(FTwoBandSHVector A, half3 Color)
 	return Result;
 }
 
+FTwoBandSHVector MulSH(FTwoBandSHVector A, half Scalar)
+{
+	FTwoBandSHVector Result;
+	Result.V = A.V * Scalar;
+	return Result;
+}
+
+FThreeBandSHVectorRGB MulSH3(FThreeBandSHVector A, half3 Color)
+{
+	FThreeBandSHVectorRGB Result;
+	Result.R.V0 = A.V0 * Color.r;
+	Result.R.V1 = A.V1 * Color.r;
+	Result.R.V2 = A.V2 * Color.r;
+	Result.G.V0 = A.V0 * Color.g;
+	Result.G.V1 = A.V1 * Color.g;
+	Result.G.V2 = A.V2 * Color.g;
+	Result.B.V0 = A.V0 * Color.b;
+	Result.B.V1 = A.V1 * Color.b;
+	Result.B.V2 = A.V2 * Color.b;
+	return Result;
+}
+
+FThreeBandSHVector MulSH3(FThreeBandSHVector A, half Scalar)
+{
+	FThreeBandSHVector Result;
+	Result.V0 = A.V0 * Scalar;
+	Result.V1 = A.V1 * Scalar;
+	Result.V2 = A.V2 * Scalar;
+	return Result;
+}
+
 FTwoBandSHVector AddSH(FTwoBandSHVector A, FTwoBandSHVector B)
 {
 	FTwoBandSHVector Result = A;
@@ -77,6 +108,24 @@ FTwoBandSHVector AddSH(FTwoBandSHVector A, FTwoBandSHVector B)
 FTwoBandSHVectorRGB AddSH(FTwoBandSHVectorRGB A, FTwoBandSHVectorRGB B)
 {
 	FTwoBandSHVectorRGB Result;
+	Result.R = AddSH(A.R, B.R);
+	Result.G = AddSH(A.G, B.G);
+	Result.B = AddSH(A.B, B.B);
+	return Result;
+}
+
+FThreeBandSHVector AddSH(FThreeBandSHVector A, FThreeBandSHVector B)
+{
+	FThreeBandSHVector Result = A;
+	Result.V0 += B.V0;
+	Result.V1 += B.V1;
+	Result.V2 += B.V2;
+	return Result;
+}
+
+FThreeBandSHVectorRGB AddSH(FThreeBandSHVectorRGB A, FThreeBandSHVectorRGB B)
+{
+	FThreeBandSHVectorRGB Result;
 	Result.R = AddSH(A.R, B.R);
 	Result.G = AddSH(A.G, B.G);
 	Result.B = AddSH(A.B, B.B);

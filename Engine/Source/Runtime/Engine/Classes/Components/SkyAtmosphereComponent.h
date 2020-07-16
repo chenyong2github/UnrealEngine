@@ -39,7 +39,8 @@ enum class ESkyAtmosphereTransformMode : uint8
 };
 
 /**
- * 
+ * A component that represents a planet atmosphere material and simulates sky and light scattering within it.
+ * @see https://docs.unrealengine.com/en-US/Engine/Actors/FogEffects/SkyAtmosphere/index.html
  */
 UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Object, Mobility, Activation, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), MinimalAPI)
 class USkyAtmosphereComponent : public USceneComponent
@@ -54,7 +55,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	ESkyAtmosphereTransformMode TransformMode;
 
 	/** The planet radius. (kilometers from the center to the ground level). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 6000.0, UIMax = 7000.0, ClampMin = 100.0, ClampMax = 10000.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 1.0, ClampMax = 10000.0, SliderExponent = 5.0))
 	float BottomRadius;
 
 	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
@@ -64,12 +65,21 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 	/** The planet radius. (kilometers from the center to the ground level). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 10.0, UIMax = 200.0, ClampMin = 10.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 1.0, UIMax = 200.0, ClampMin = 0.1, SliderExponent = 2.0))
 	float AtmosphereHeight;
 
 	/** Render multi scattering as if sun light would bounce around in the atmosphere. This is achieved using a dual scattering approach. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (DisplayName = "MultiScattering", UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, ClampMax = 2.0))
 	float MultiScatteringFactor;
+
+	/**
+	 * Scale the atmosphere tracing sample count. Quality level scalability
+	 * The sample count is still clamped according to scalability setting to 'r.SkyAtmosphere.SampleCountMax' when 'r.SkyAtmosphere.FastSkyLUT' is 0.
+	 * The sample count is still clamped according to scalability setting to 'r.SkyAtmosphere.FastSkyLUT.SampleCountMax' when 'r.SkyAtmosphere.FastSkyLUT' is 1.
+	 * The sample count is still clamped for aerial perspective according to  'r.SkyAtmosphere.AerialPerspectiveLUT.SampleCountMaxPerSlice'.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Atmosphere", AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	float TraceSampleCountScale;
 	
 
 
@@ -124,24 +134,29 @@ class USkyAtmosphereComponent : public USceneComponent
 	/** Represents the altitude based tent distribution of absorption particles in the atmosphere. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Atmosphere - Absorption", meta = (DisplayName = "Tent Distribution"))
 	FTentDistribution OtherTentDistribution;
-
 	
 
+
 	/** Scales the luminance of pixels representing the sky, i.e. not belonging to any surface. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (HideAlphaChannel))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (HideAlphaChannel))
 	FLinearColor SkyLuminanceFactor;
 
 	/** Makes the aerial perspective look thicker by scaling distances from view to surfaces (opaque and translucent). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = 0.0, UIMax = 3.0, ClampMin = 0.0, SliderExponent = 2.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = 0.0, UIMax = 3.0, ClampMin = 0.0, SliderExponent = 2.0))
 	float AerialPespectiveViewDistanceScale;
 
 	/** Scale the sky and atmosphere lights contribution to the height fog when SupportSkyAtmosphereAffectsHeightFog project setting is true.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, SliderExponent = 2.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, SliderExponent = 2.0))
 	float HeightFogContribution;
 
 	/** The minimum elevation angle in degree that should be used to evaluate the sun transmittance to the ground. Useful to maintain a visible sun light and shadow on meshes even when the sun has started going below the horizon. This does not affect the aerial perspective.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = -90.0, UIMax = 90.0, ClampMin = -90.0f, ClampMax = 90.0f))
-	float TransmittanceMinLightElevationAngle = -90.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = -90.0, UIMax = 90.0, ClampMin = -90.0f, ClampMax = 90.0f))
+	float TransmittanceMinLightElevationAngle;
+
+	/** The distance (kiloneters) at which we start evaluating the aerial pespective. 
+	Keeping this value a little away from the camera can help with performance: pixels not affected by the aerial perspective will have their computation skipped using early depth test.*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = 0.001f, UIMax = 10.0f, ClampMin = 0.001f))
+	float AerialPerspectiveStartDepth;
 
 
 
@@ -192,9 +207,6 @@ protected:
 public:
 
 	//~ Begin UObject Interface. 
-//	virtual void PostLoad() override;
-//	virtual bool IsPostLoadThreadSafe() const override;
-//	virtual void BeginDestroy() override;
 	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
@@ -239,8 +251,8 @@ private:
 
 
 /**
- *	A placeable actor that simulates sky and light scattering in the atmosphere.
- *	@see TODO address to the documentation.
+ * A placeable actor that represents a planet atmosphere material and simulates sky and light scattering within it.
+ * @see https://docs.unrealengine.com/en-US/Engine/Actors/FogEffects/SkyAtmosphere/index.html
  */
 UCLASS(showcategories = (Movement, Rendering, "Utilities|Transformation", "Input|MouseInput", "Input|TouchInput"), ClassGroup = Fog, hidecategories = (Info, Object, Input), MinimalAPI)
 class ASkyAtmosphere : public AInfo

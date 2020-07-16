@@ -52,6 +52,7 @@
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
 #endif
+#include "VolumetricRenderTargetViewStateData.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -1032,6 +1033,8 @@ public:
 	ESequencerState SequencerState;
 
 	FTemporalLODState TemporalLODState;
+
+	FVolumetricRenderTargetViewStateData VolumetricCloudRenderTarget;
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
@@ -2596,6 +2599,26 @@ public:
 	/** The scene's sky light, if any. */
 	FSkyLightSceneProxy* SkyLight;
 
+	/** Contains the sky env map irradiance as spherical harmonics. */
+	FRWBufferStructured SkyIrradianceEnvironmentMap;
+
+	/** The SkyView LUT used when rendering sky material sampling this lut into the realtime capture sky env map. It must be generated at the skylight position*/
+	TRefCountPtr<IPooledRenderTarget> RealTimeReflectionCaptureSkyAtmosphereViewLutTexture;
+	/** The Camera 360 AP is used when rendering sky material sampling this lut or volumetric clouds into the realtime capture sky env map. It must be generated at the skylight position*/
+	TRefCountPtr<IPooledRenderTarget> RealTimeReflectionCaptureCamera360APLutTexture;
+
+	/** If sky light bRealTimeCaptureEnabled is true, used to render the sky env map (sky, sky dome mesh or clouds). */
+	TRefCountPtr<IPooledRenderTarget> CapturedSkyRenderTarget;	// Needs to be a IPooledRenderTarget because it must be created before the View uniform buffer is created.
+	/** If sky light bRealTimeCaptureEnabled is true, use to store the result of the sky env map GGX specular convolution. */
+	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget;
+	/** If the real time sky capture is time sliced, this stores the currently processed/generated sky env map.*/
+	TRefCountPtr<IPooledRenderTarget> ProcessedSkyRenderTarget;
+
+	/** True if no real time reflection capture has been entirely processed. We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
+	bool bRealTimeSlicedReflectionCaptureFirstFrame;
+	/** The current progress of the real time reflection capture when time sliced. */
+	uint32 RealTimeSlicedReflectionCaptureState;
+
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FSkyLightSceneProxy*> SkyLightStack;
 
@@ -2664,6 +2687,12 @@ public:
 
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FSkyAtmosphereSceneProxy*> SkyAtmosphereStack;
+
+	/** The sky/atmosphere components of the scene. */
+	FVolumetricCloudRenderSceneInfo* VolumetricCloud;
+
+	/** Used to track the order that skylights were enabled in. */
+	TArray<FVolumetricCloudSceneProxy*> VolumetricCloudStack;
 
 	/** The wind sources in the scene. */
 	TArray<class FWindSourceSceneProxy*> WindSources;
@@ -2778,6 +2807,7 @@ public:
 	virtual void UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureComponent, FSceneRenderer& MainSceneRenderer) override;
 	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) override;
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) override; 
+	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) override;
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const override;
@@ -2791,6 +2821,7 @@ public:
 	virtual void UpdateLightColorAndBrightness(ULightComponent* Light) override;
 	virtual void AddExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual void RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
+	virtual bool HasAnyExponentialHeightFog() const override;
 	virtual void AddAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override;
@@ -2800,6 +2831,11 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return SkyAtmosphere; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return SkyAtmosphere; }
+
+	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override;
+	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override;
+	virtual FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() override { return VolumetricCloud; }
+	virtual const FVolumetricCloudRenderSceneInfo* GetVolumetricCloudSceneInfo() const override { return VolumetricCloud; }
 
 	virtual void AddWindSource(UWindDirectionalSourceComponent* WindComponent) override;
 	virtual void RemoveWindSource(UWindDirectionalSourceComponent* WindComponent) override;
@@ -2822,6 +2858,17 @@ public:
 	bool HasSkyAtmosphere() const
 	{
 		return (SkyAtmosphere != NULL);
+	}
+	bool HasVolumetricCloud() const
+	{
+		return (VolumetricCloud != NULL);
+	}
+
+	bool IsSecondAtmosphereLightEnabled()
+	{
+		// If the second light is not null then we enable the second light.
+		// We do not do any light1 to light0 remapping if light0 is null.
+		return AtmosphereLights[1] != nullptr;
 	}
 
 	// Reset all the light to default state "not being affected by atmosphere". Should only be called from render side.

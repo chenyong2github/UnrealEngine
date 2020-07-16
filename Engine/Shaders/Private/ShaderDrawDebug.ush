@@ -16,16 +16,16 @@ struct ShaderDrawElement
 
 struct PackedShaderDrawElement 
 {
-	uint3 Pos01;
+	float3 Pos0;
+	float3 Pos1;
 	uint2 Color01;
 };
 
 PackedShaderDrawElement PackShaderElement(ShaderDrawElement E)
 {
 	PackedShaderDrawElement PackedE;
-	PackedE.Pos01.x = (f32tof16(E.Pos0.x) << 16) | f32tof16(E.Pos0.y);
-	PackedE.Pos01.y = (f32tof16(E.Pos0.z) << 16) | f32tof16(E.Pos1.x);
-	PackedE.Pos01.z = (f32tof16(E.Pos1.y) << 16) | f32tof16(E.Pos1.z);
+	PackedE.Pos0 = E.Pos0;
+	PackedE.Pos1 = E.Pos1;
 	uint4 PackedC0 = 255.0f * saturate(E.Color0);
 	uint4 PackedC1 = 255.0f * saturate(E.Color1);
 	PackedE.Color01.x = (PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w);
@@ -36,8 +36,8 @@ PackedShaderDrawElement PackShaderElement(ShaderDrawElement E)
 ShaderDrawElement UnpackShaderElement(PackedShaderDrawElement PackedE)
 {
 	ShaderDrawElement E;
-	E.Pos0 = float3(f16tof32(PackedE.Pos01.x >> 16),	f16tof32(PackedE.Pos01.x),			f16tof32(PackedE.Pos01.y >> 16));
-	E.Pos1 = float3(f16tof32(PackedE.Pos01.y),			f16tof32(PackedE.Pos01.z >> 16),	f16tof32(PackedE.Pos01.z));
+	E.Pos0 = PackedE.Pos0;
+	E.Pos1 = PackedE.Pos1;
 	E.Color0 = float4((PackedE.Color01.x >> 24) & 0xFF, (PackedE.Color01.x >> 16) & 0xFF, (PackedE.Color01.x >> 8) & 0xFF, (PackedE.Color01.x) & 0xFF) / 255.0f;
 	E.Color1 = float4((PackedE.Color01.y >> 24) & 0xFF, (PackedE.Color01.y >> 16) & 0xFF, (PackedE.Color01.y >> 8) & 0xFF, (PackedE.Color01.y) & 0xFF) / 255.0f;
 	return E;

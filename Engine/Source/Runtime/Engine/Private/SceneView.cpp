@@ -465,13 +465,14 @@ FVector4 CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
 	}
 }
 
-FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMatrices()
-{
-	//check(InitOptions.ViewRotationMatrix.GetOrigin().IsNearlyZero());
-	check(FVector::Distance(InitOptions.ViewRotationMatrix.GetScaleVector(), FVector::OneVector) < KINDA_SMALL_NUMBER);
 
-	FVector LocalViewOrigin = InitOptions.ViewOrigin;
-	FMatrix ViewRotationMatrix = InitOptions.ViewRotationMatrix;
+void FViewMatrices::Init(const FMinimalInitializer& Initializer)
+{
+	//check(Initializer.ViewRotationMatrix.GetOrigin().IsNearlyZero());
+	check(FVector::Distance(Initializer.ViewRotationMatrix.GetScaleVector(), FVector::OneVector) < KINDA_SMALL_NUMBER);
+
+	FVector LocalViewOrigin = Initializer.ViewOrigin;
+	FMatrix ViewRotationMatrix = Initializer.ViewRotationMatrix;
 	if (!ViewRotationMatrix.GetOrigin().IsNearlyZero(0.0f))
 	{
 		LocalViewOrigin += ViewRotationMatrix.InverseTransformPosition(FVector::ZeroVector);
@@ -479,10 +480,10 @@ FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMa
 	}
 
 	ViewMatrix = FTranslationMatrix(-LocalViewOrigin) * ViewRotationMatrix;
-	HMDViewMatrixNoRoll = InitOptions.ViewRotationMatrix;
+	HMDViewMatrixNoRoll = Initializer.ViewRotationMatrix;
 
 	// Adjust the projection matrix for the current RHI.
-	ProjectionMatrix = AdjustProjectionMatrixForRHI(InitOptions.ProjectionMatrix);
+	ProjectionMatrix = AdjustProjectionMatrixForRHI(Initializer.ProjectionMatrix);
 	InvProjectionMatrix = InvertProjectionMatrix(ProjectionMatrix);
 
 	// Compute the view projection matrix and its inverse.
@@ -501,10 +502,10 @@ FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMa
 		this->ViewOrigin = LocalViewOrigin;
 	}
 #if WITH_EDITOR
-	else if (InitOptions.bUseFauxOrthoViewPos)
+	else if (Initializer.bUseFauxOrthoViewPos)
 	{
 		float DistanceToViewOrigin = WORLD_MAX;
-		ViewOrigin = FVector4(InvViewMatrix.TransformVector(FVector(0, 0, -1)).GetSafeNormal()*DistanceToViewOrigin, 1) + LocalViewOrigin;
+		ViewOrigin = FVector4(InvViewMatrix.TransformVector(FVector(0, 0, -1)).GetSafeNormal() * DistanceToViewOrigin, 1) + LocalViewOrigin;
 		bViewOriginIsFudged = true;
 	}
 #endif
@@ -572,15 +573,37 @@ FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMa
 
 	// Compute screen scale factors.
 	// Stereo renders at half horizontal resolution, but compute shadow resolution based on full resolution.
-	const bool bStereo = IStereoRendering::IsStereoEyePass(InitOptions.StereoPass);
+	const bool bStereo = IStereoRendering::IsStereoEyePass(Initializer.StereoPass);
 	const float ScreenXScale = bStereo ? 2.0f : 1.0f;
 	ProjectionScale.X = ScreenXScale * FMath::Abs(ProjectionMatrix.M[0][0]);
 	ProjectionScale.Y = FMath::Abs(ProjectionMatrix.M[1][1]);
 	ScreenScale = FMath::Max(
-		InitOptions.GetConstrainedViewRect().Size().X * 0.5f * ProjectionScale.X,
-		InitOptions.GetConstrainedViewRect().Size().Y * 0.5f * ProjectionScale.Y
+		Initializer.ConstrainedViewRect.Size().X * 0.5f * ProjectionScale.X,
+		Initializer.ConstrainedViewRect.Size().Y * 0.5f * ProjectionScale.Y
 	);
-};
+}
+
+FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMatrices()
+{
+	FMinimalInitializer Initializer;
+
+	Initializer.ViewRotationMatrix   = InitOptions.ViewRotationMatrix;
+	Initializer.ProjectionMatrix     = InitOptions.ProjectionMatrix;
+	Initializer.ViewOrigin           = InitOptions.ViewOrigin;
+	Initializer.ConstrainedViewRect  = InitOptions.GetConstrainedViewRect();
+	Initializer.StereoPass           = InitOptions.StereoPass;
+#if WITH_EDITOR
+	Initializer.bUseFauxOrthoViewPos = InitOptions.bUseFauxOrthoViewPos;
+#endif
+
+	Init(Initializer);
+}
+
+FViewMatrices::FViewMatrices(const FMinimalInitializer& Initializer) : FViewMatrices()
+{
+	Init(Initializer);
+}
+
 
 static void SetupViewFrustum(FSceneView& View)
 {

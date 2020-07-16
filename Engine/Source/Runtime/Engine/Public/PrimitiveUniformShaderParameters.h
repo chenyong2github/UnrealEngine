@@ -259,6 +259,9 @@ public:
 	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
 
+	FStructuredBufferRHIRef SkyIrradianceEnvironmentMapRHI;
+	FShaderResourceViewRHIRef SkyIrradianceEnvironmentMapSRV;
+
 	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
 

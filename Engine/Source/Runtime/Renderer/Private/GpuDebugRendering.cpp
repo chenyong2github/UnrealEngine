@@ -64,7 +64,8 @@ namespace ShaderDrawDebug
 
 	struct ShaderDrawDebugElement
 	{
-		uint32 Pos[3];
+		float Pos0[3]; // This is not packed as fp16 to be able to debug large scale data while preserving accuracy at short range.
+		float Pos1[3];
 		uint32 Color[2];
 	};
 

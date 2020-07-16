@@ -203,6 +203,14 @@ static FAutoConsoleVariableRef CVarForceSceneHasDecals(
 	ECVF_RenderThreadSafe
 );
 
+static float GCameraCutTranslationThreshold = 10000.0f;
+static FAutoConsoleVariableRef CVarCameraCutTranslationThreshold(
+	TEXT("r.CameraCutTranslationThreshold"),
+	GCameraCutTranslationThreshold,
+	TEXT("The maximum camera translation disatance in centimeters allowed between two frames before a camera cut is automatically inserted."),
+	ECVF_RenderThreadSafe
+);
+
 /** Distance fade cvars */
 static int32 GDisableLODFade = false;
 static FAutoConsoleVariableRef CVarDisableLODFade( TEXT("r.DisableLODFade"), GDisableLODFade, TEXT("Disable fading for distance culling"), ECVF_RenderThreadSafe );
@@ -1871,6 +1879,7 @@ struct FRelevancePacket
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
+	TArray<FVolumetricMeshBatch> SkyMesheBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -2423,6 +2432,14 @@ struct FRelevancePacket
 							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
 						}
 
+						if (ViewRelevance.bUsesSkyMaterial)
+						{
+							SkyMesheBatches.AddUninitialized(1);
+							FVolumetricMeshBatch& BatchAndProxy = SkyMesheBatches.Last();
+							BatchAndProxy.Mesh = &StaticMesh;
+							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+						}
+
 						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
 						{
 							MeshDecalBatches.AddUninitialized(1);
@@ -2479,6 +2496,7 @@ struct FRelevancePacket
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
 		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
+		WriteView.SkyMesheBatches.Append(SkyMesheBatches);
 
 		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
 		{
@@ -2865,6 +2883,14 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	{
 		View.VolumetricMeshBatches.AddUninitialized(1);
 		FVolumetricMeshBatch& BatchAndProxy = View.VolumetricMeshBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+	}
+
+	if (ViewRelevance.bUsesSkyMaterial)
+	{
+		View.SkyMesheBatches.AddUninitialized(1);
+		FVolumetricMeshBatch& BatchAndProxy = View.SkyMesheBatches.Last();
 		BatchAndProxy.Mesh = MeshBatch.Mesh;
 		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
 	}
@@ -3365,7 +3391,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				View,
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(),
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
-				45.0f, 10000.0f);
+				45.0f, GCameraCutTranslationThreshold);
 			const bool bResetCamera = (bFirstFrameOrTimeWasReset || View.bCameraCut || bIsLargeCameraMovement || View.bForceCameraVisibilityReset);
 			
 #if RHI_RAYTRACING
@@ -4340,6 +4366,10 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 
 	// This has to happen before Scene->IndirectLightingCache.UpdateCache, since primitives in View.IndirectShadowPrimitives need ILC updates
 	CreateIndirectCapsuleShadows();
+
+	// This must happen before we start initialising and using views.
+	UpdateSkyIrradianceGpuBuffer(RHICmdList);
+
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
