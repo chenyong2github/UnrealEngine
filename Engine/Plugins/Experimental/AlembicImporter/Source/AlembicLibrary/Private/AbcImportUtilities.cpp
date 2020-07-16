@@ -1517,6 +1517,7 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 		if (PolyMesh->bShouldImport)
 		{
 			const int32 Offset = MergedSample.MaterialIndices.Num();
+			const int32 MaterialIndexOffset = MergedSample.NumMaterials;
 			bConstantTopology = bConstantTopology && PolyMesh->bConstantTopology;
 			if (PolyMesh->GetVisibility(FrameIndex))
 			{
@@ -1531,9 +1532,9 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 					for (int32 Index = Offset; Index < MergedSample.MaterialIndices.Num(); ++Index)
 					{
 						int32& MaterialIndex = MergedSample.MaterialIndices[Index];
-						if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex))
+						if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex - MaterialIndexOffset))
 						{
-							int32 FaceSetMaterialIndex = UniqueFaceSetNames.IndexOfByKey(PolyMesh->FaceSetNames[MaterialIndex]);
+							int32 FaceSetMaterialIndex = UniqueFaceSetNames.IndexOfByKey(PolyMesh->FaceSetNames[MaterialIndex - MaterialIndexOffset]);
 							MaterialIndex = FaceSetMaterialIndex != INDEX_NONE ? FaceSetMaterialIndex : 0;
 						}
 						else
