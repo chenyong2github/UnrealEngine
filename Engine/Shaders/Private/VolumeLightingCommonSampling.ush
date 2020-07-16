@@ -79,7 +79,7 @@ float ComputeVolumeShadowing(
 				Settings.ShadowDepthTexture = VSSPREFIX(StaticShadowDepthTexture);
 				Settings.ShadowDepthTextureSampler = VSSPREFIX(StaticShadowDepthTextureSampler);
 				Settings.ShadowBufferSize = VSSPREFIX(StaticShadowBufferSize);
-				Settings.SceneDepth = 1 - HomogeneousShadowPosition.z;
+				Settings.SceneDepth = HomogeneousShadowPosition.z;
 				Settings.TransitionScale = 40;
 				Settings.bSubsurface = false;
 				// We can sample outside of the static shadowmap, which is centered around the scene.  These 'infinite' depth values should not cause occlusion.
