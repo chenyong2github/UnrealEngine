@@ -15,7 +15,8 @@ namespace UnrealBuildTool.Rules
 				"CoreUObject",
 				"UnrealEd",
 				"AssetTools",
-				"LiveLinkInterface"
+				"LiveLinkInterface",
+				"Engine"
 				}
 			);
 		}
