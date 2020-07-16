@@ -71,6 +71,8 @@
 #include "UnrealExporter.h"
 #include "ControlRigElementDetails.h"
 #include "PropertyEditorModule.h"
+#include "AssetEditorModeManager.h"
+#include "IPersonaEditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -1403,6 +1405,17 @@ void FControlRigEditor::HandleControlRigInitializedEvent(UControlRig* InControlR
 {
 	UpdateGraphCompilerErrors();
 }
+
+
+void FControlRigEditor::CreateEditorModeManager()
+{
+	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SetAssetEditorModeManager(ModeManager.Get());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 
 void FControlRigEditor::Tick(float DeltaTime)
 {

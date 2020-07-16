@@ -177,6 +177,9 @@ protected:
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState);
 
+	// FBaseToolKit overrides
+	void CreateEditorModeManager() override;
+
 	// FGCObject Interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 
