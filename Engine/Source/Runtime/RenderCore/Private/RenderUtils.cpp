@@ -7,6 +7,7 @@
 #include "RHIStaticStates.h"
 #include "RenderGraphUtils.h"
 #include "PipelineStateCache.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
