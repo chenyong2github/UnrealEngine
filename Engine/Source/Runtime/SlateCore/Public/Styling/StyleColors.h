@@ -137,7 +137,10 @@ private:
 	FStyleColorList ColorList;
 };
 
-
+/**
+ * Common/themeable colors used by all styles
+ * Please avoid adding new generic colors to this list without discussion first
+ */
 struct SLATECORE_API FStyleColors
 {
 	static const FSlateColor Black;
