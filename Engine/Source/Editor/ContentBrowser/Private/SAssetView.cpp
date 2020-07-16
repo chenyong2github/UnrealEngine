@@ -1770,6 +1770,7 @@ void SAssetView::RefreshSourceItems()
 				if (NewItem)
 				{
 					NewItem->AppendItemData(InItemData);
+					NewItem->CacheCustomColumns(CustomColumns, true, true, false /*bUpdateExisting*/);
 				}
 				else
 				{
