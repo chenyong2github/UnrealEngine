@@ -938,16 +938,6 @@ void FMeshEditorMode::Enter()
 	UMeshElementTransformer* MeshElementTransformer = NewObject<UMeshElementTransformer>();
 	ViewportWorldInteraction->SetTransformer( MeshElementTransformer );
 
-	this->VREditorMode = Cast<UVREditorMode>( ExtensionCollection->FindExtension( UVREditorMode::StaticClass() ) );
-	if( VREditorMode && VREditorMode->IsFullyInitialized() )
-	{
-		VREditorMode->OnPlaceDraggedMaterial().AddRaw( this, &FMeshEditorMode::OnVREditorModePlaceDraggedMaterial );
-
-		FOnRadialMenuGenerated MeshEditActions;
-		MeshEditActions.BindRaw( this, &FMeshEditorMode::MakeVRRadialMenuActionsMenu );
-		VREditorMode->SetActionsMenuGenerator( MeshEditActions, LOCTEXT( "MeshActions", "Mesh Actions" ) );
-	}
-
 	// Add toolkit
 	if( !Toolkit.IsValid() )
 	{

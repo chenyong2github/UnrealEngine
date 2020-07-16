@@ -35,7 +35,7 @@
 #include "PackageTools.h"
 #include "TextureCompiler.h"
 #include "Editor.h"
-#include "../../../../../../FN-Next/Engine/Source/Runtime/RHI/Public/RHIDefinitions.h"
+#include "RHIDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "PaintModePainter"
 

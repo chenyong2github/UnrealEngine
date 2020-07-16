@@ -48,9 +48,6 @@ protected:
 	void Register();
 	void Unregister();
 
-	/** Adds items to the VR Radial menu for mesh editing mode */
-	void FillVRRadialMenuModes( class FMenuBuilder& MenuBuilder );
-
 	/** Changes the editor mode to the given ID */
 	void OnMeshEditModeButtonClicked( EEditableMeshElementType InMode );
 
@@ -59,9 +56,6 @@ protected:
 
 	/** Should the mesh edit button be enabled */
 	bool IsMeshEditModeButtonEnabled( EEditableMeshElementType InMode );
-
-	/** Menu extension for the VR Editor's 'Modes' menu */
-	TSharedPtr<const class FExtensionBase> VRRadialMenuModesExtension;
 
 	/** Whether mesh editor mode is enabled: currently defaults to false */
 	bool bIsEnabled;
@@ -114,14 +108,6 @@ void FMeshEditorModule::Register()
 		);
 	}
 
-	{
-		FExtender& RadialMenuExtender = *IVREditorModule::Get().GetRadialMenuExtender().ToSharedRef();
-		VRRadialMenuModesExtension = RadialMenuExtender.AddMenuExtension(
-			"Modes",
-			EExtensionHook::After,
-			nullptr, // No UI commands needed for switching modes.  They're all handled directly by callback
-			FMenuExtensionDelegate::CreateRaw( this, &FMeshEditorModule::FillVRRadialMenuModes ) );
-	}
 #endif
 }
 
@@ -141,15 +127,6 @@ void FMeshEditorModule::Unregister()
 
 	bIsEnabled = false;
 
-	{
-		if( IVREditorModule::IsAvailable() )
-		{
-			FExtender& RadialMenuExtender = *IVREditorModule::Get().GetRadialMenuExtender().ToSharedRef();
-			RadialMenuExtender.RemoveExtension( VRRadialMenuModesExtension.ToSharedRef() );
-		}
-		VRRadialMenuModesExtension = nullptr;
-	}
-
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>( "Settings" );
 	if( SettingsModule )
 	{
@@ -159,63 +136,6 @@ void FMeshEditorModule::Unregister()
 	FEditorModeRegistry::Get().UnregisterMode(GetEditorModeID());
 
 	FMeshEditorStyle::Shutdown();
-}
-
-
-void FMeshEditorModule::FillVRRadialMenuModes( FMenuBuilder& MenuBuilder )
-{
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Mesh", "Mesh"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.MeshEditMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateRaw(this, &FMeshEditorModule::OnMeshEditModeButtonClicked, EEditableMeshElementType::Any),
-			FCanExecuteAction::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonEnabled, EEditableMeshElementType::Any ),
-			FGetActionCheckState::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonChecked, EEditableMeshElementType::Any)
-			),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Polygon", "Polygon"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.PolygonEditMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateRaw(this, &FMeshEditorModule::OnMeshEditModeButtonClicked, EEditableMeshElementType::Polygon),
-			FCanExecuteAction::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonEnabled, EEditableMeshElementType::Polygon ),
-			FGetActionCheckState::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonChecked, EEditableMeshElementType::Polygon)
-			),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Edge", "Edge"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.EdgeEditMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateRaw(this, &FMeshEditorModule::OnMeshEditModeButtonClicked, EEditableMeshElementType::Edge),
-			FCanExecuteAction::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonEnabled, EEditableMeshElementType::Edge ),
-			FGetActionCheckState::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonChecked, EEditableMeshElementType::Edge)
-			),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Vertex", "Vertex"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.VertexEditMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateRaw(this, &FMeshEditorModule::OnMeshEditModeButtonClicked, EEditableMeshElementType::Vertex),
-			FCanExecuteAction::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonEnabled, EEditableMeshElementType::Vertex ),
-			FGetActionCheckState::CreateRaw(this, &FMeshEditorModule::IsMeshEditModeButtonChecked, EEditableMeshElementType::Vertex)
-			),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
 }
 
 
