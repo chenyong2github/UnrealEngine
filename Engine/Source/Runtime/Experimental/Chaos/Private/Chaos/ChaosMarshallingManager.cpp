@@ -6,65 +6,58 @@ namespace Chaos
 {
 
 FChaosMarshallingManager::FChaosMarshallingManager()
-: bFixedDt(false)
-, SimStep(0)
-, ExternalTime(0)
+: ExternalTime(0)
 , SimTime(0)
+, ProducerData(nullptr)
 {
 	PrepareExternalQueue();
 }
 
 void FChaosMarshallingManager::PrepareExternalQueue()
 {
-	FPushPhysicsData* NewData;
-	if(!PushDataPool.Dequeue(NewData))
+	if(!PushDataPool.Dequeue(ProducerData))
 	{
 		BackingBuffer.Add(MakeUnique<FPushPhysicsData>());
-		NewData = BackingBuffer.Last().Get();
+		ProducerData = BackingBuffer.Last().Get();
 	}
 
-	NewData->StartTime = ExternalTime;
-	ExternalQueue.Add(NewData);
+	ProducerData->StartTime = ExternalTime;
 }
 
 void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 {
-	//todo: handle dt bucketing etc...
-	for(int32 Idx = ExternalQueue.Num() - 1; Idx >= 0; --Idx)
-	{
-		FPushPhysicsData* PushData = ExternalQueue[Idx];
-		PushData->ExternalDt = ExternalDT;
-		InternalQueue.Enqueue(PushData);
-	}
-	ExternalQueue.Reset();
+	//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
+	//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
+	ExternalQueue.Insert(ProducerData,0);
 
-	//do we care about precision here?
 	ExternalTime += ExternalDT;
-
 	PrepareExternalQueue();
 }
 
-FPushPhysicsData* FChaosMarshallingManager::ConsumeData_Internal(FReal StartTime, FReal InternalDt)
+TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FReal InternalDt)
 {
-	if(StartTime < 0)	//TODO: get rid of this
+	TArray<FPushPhysicsData*> PushDataUpToEnd;
+	SimTime += InternalDt;
+
+	//if dt is exactly 0 we still want to get first data so add an epsilon. todo: is there a better way to handle this?
+	const FReal EndTime = InternalDt == 0 ? SimTime + KINDA_SMALL_NUMBER : SimTime;
+
+	//stored in reverse order so push from back to front
+	for(int32 Idx = ExternalQueue.Num() - 1; Idx >= 0; --Idx)
 	{
-		FPushPhysicsData* OutData;
-		ensure(InternalQueue.Dequeue(OutData));	//if user is calling with negative time, they expect to get something back
-		return OutData;
-	}
-	FPushPhysicsData** PushData = InternalQueue.Peek();
-	if(PushData)
-	{
-		//todo: handle dt overlaps
-		if((*PushData)->StartTime <= StartTime)
+		if(ExternalQueue[Idx]->StartTime < EndTime)
 		{
-			FPushPhysicsData* OutData;
-			ensure(InternalQueue.Dequeue(OutData));	//we already know there's an entry at head, and we're the only thread dequeuing
-			return OutData;
+			FPushPhysicsData* PushData = ExternalQueue.Pop(/*bAllowShrinking=*/false);
+			PushDataUpToEnd.Add(PushData);
+		}
+		else
+		{
+			//sorted so stop
+			break;
 		}
 	}
 
-	return nullptr;
+	return PushDataUpToEnd;
 }
 
 void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)

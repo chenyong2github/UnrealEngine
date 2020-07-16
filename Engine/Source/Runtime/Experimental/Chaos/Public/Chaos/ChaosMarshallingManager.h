@@ -177,11 +177,9 @@ struct FPushPhysicsData
 	FDirtyPropertiesManager DirtyPropertiesManager;
 	FDirtySet DirtyProxiesDataBuffer;
 	FReal StartTime;
-	FReal ExternalDt;
 };
 
-/** Manages data that gets marshaled from GT to PT.
-	If fixed dt is used this will automatically break up changes into the appropriate bucket
+/** Manages data that gets marshaled from GT to PT using a timestamp
 */
 class CHAOS_API FChaosMarshallingManager
 {
@@ -191,27 +189,26 @@ public:
 	/** Grabs the producer data to write into. Should only be called by external thread */
 	FPushPhysicsData* GetProducerData_External()
 	{
-		return ExternalQueue[0];
+		return ProducerData;
 	}
 
-	/** Step forward using the external delta time. This will bucket existing data as needed */
+	/** Step forward using the external delta time. Should only be called by external thread */
 	void Step_External(FReal ExternalDT);
 
-	/** Consumes data available based on start time and dt*/
-	FPushPhysicsData* ConsumeData_Internal(FReal StartTime, FReal InternalDt);
+	/** Step the internal time forward and get any push data associated with the time. Should only be called by external thread */
+	TArray<FPushPhysicsData*> StepInternalTime_External(FReal InternalDt);
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
 	
 private:
-	bool bFixedDt;
-	int32 SimStep;	//the step the sim is currently at
 	FReal ExternalTime;	//the global time external thread is currently at
-	FReal SimTime;	//the global time the sim is currently at
+	FReal SimTime;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
+	FPushPhysicsData* ProducerData;
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
-	TQueue<FPushPhysicsData*, EQueueMode::Spsc> InternalQueue;	//the data to process on sim thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs
 	TArray<TUniquePtr<FPushPhysicsData>> BackingBuffer;	//all push data is cleaned up by this
+	
 	void PrepareExternalQueue();
 };
 }; // namespace Chaos

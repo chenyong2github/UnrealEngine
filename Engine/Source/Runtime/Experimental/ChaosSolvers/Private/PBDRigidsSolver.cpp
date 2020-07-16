@@ -622,7 +622,7 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsState()
+	void TPBDRigidsSolver<Traits>::PushPhysicsState(const FReal DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
 		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
@@ -680,12 +680,13 @@ namespace Chaos
 			}
 		});
 
-		MarshallingManager.Step_External(0);	//todo: pass in actual dt
 		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
+		MarshallingManager.Step_External(DeltaTime);
+		TArray<FPushPhysicsData*> PushedData = MarshallingManager.StepInternalTime_External(DeltaTime);
+		ensure(PushedData.Num() == 1 && PushedData[0] == PushData);	//internal and external dt matches so should be the exact data we just wrote to
 
-		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, this]()
+		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, PushData, this]()
 		{
-			FPushPhysicsData* PushData = MarshallingManager.ConsumeData_Internal(-1,-1); //todo: pass in actual dt
 			FRewindData* RewindData = GetRewindData();
 			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 			{
