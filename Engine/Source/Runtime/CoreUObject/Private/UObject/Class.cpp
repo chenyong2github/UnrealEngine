@@ -3319,6 +3319,21 @@ private:
 
 int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 {
+	auto GetStructLocation = [](const UScriptStruct* ScriptStruct) -> FString {
+		check(ScriptStruct);
+		UPackage* ScriptPackage = ScriptStruct->GetOutermost();
+		FString StructLocation = FString::Printf(TEXT(" Module:%s"), *FPackageName::GetShortName(ScriptPackage->GetName()));
+#if WITH_EDITORONLY_DATA
+		static const FName NAME_ModuleRelativePath(TEXT("ModuleRelativePath"));
+		const FString& ModuleRelativeIncludePath = ScriptStruct->GetMetaData(NAME_ModuleRelativePath);
+		if (!ModuleRelativeIncludePath.IsEmpty())
+		{
+			StructLocation += FString::Printf(TEXT(" File:%s"), *ModuleRelativeIncludePath);
+		}
+#endif
+		return StructLocation;
+	};
+
 	int32 UninitializedScriptStructMemberCount = 0;
 
 	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
@@ -3350,7 +3365,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 					if (PropValue == BadPointer)
 					{
 						++UninitializedScriptStructMemberCount;
-						UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s is not initialized properly"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP());
+						UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
 				}
 				else if (const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Property))
@@ -3362,7 +3377,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 					if (Value0 != Value1)
 					{
 						++UninitializedScriptStructMemberCount;
-						UE_LOG(LogClass, Warning, TEXT("BoolProperty %s%s::%s is not initialized properly"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP());
+						UE_LOG(LogClass, Warning, TEXT("BoolProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
 				}
 				else if (Property->IsA(FNameProperty::StaticClass()))
@@ -3390,7 +3405,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 						if (!Property->Identical_InContainer(WrapperAA.GetData(), Wrapper55.GetData()))
 						{
 							++UninitializedScriptStructMemberCount;
-							UE_LOG(LogClass, Warning, TEXT("%s%s::%s is not initialized properly"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP());
+							UE_LOG(LogClass, Warning, TEXT("%s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 						}
 					}
 				}
