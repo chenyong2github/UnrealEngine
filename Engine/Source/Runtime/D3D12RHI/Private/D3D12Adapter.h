@@ -167,13 +167,7 @@ public:
 		return Devices[GPUIndex];
 	}
 
-	FORCEINLINE void CreateDXGIFactory()
-	{
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		VERIFYD3D12RESULT(::CreateDXGIFactory(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
-#endif
-	}
+	void CreateDXGIFactory();
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 
