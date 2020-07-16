@@ -341,6 +341,7 @@ void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngine
 	OutShowFlag.SetAntiAliasing(!bDisableAntiAliasing);
 	OutShowFlag.SetDepthOfField(!bDisableDepthOfField);
 	OutShowFlag.SetMotionBlur(!bDisableMotionBlur);
+	OutShowFlag.SetBloom(!bDisableBloom);
 }
 
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
