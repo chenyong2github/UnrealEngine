@@ -217,9 +217,10 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 						->AddTab("PluginsEditor", ETabState::ClosedTab)
 					)
 				);
-			TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
-
+			const bool bPrimaryAreaMustHaveOpenedTabsToBeValid = true;
 			const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoOpenTabValid;
+			TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr);
+
 			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 			// MainFrameContent will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
 			if (!MainFrameContent.IsValid())
@@ -229,13 +230,14 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 				FGlobalTabmanager::Get()->CloseAllAreas();
 				// Remove and reload file
 				GConfig->UnloadFile(GEditorLayoutIni); // We must re-read it to avoid the Editor to use a previously cached name and description
-				FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*GEditorLayoutIni);
+				const FString FaultyEditorLayoutPath = GEditorLayoutIni + TEXT("_faulty.ini");
+				FPlatformFileManager::Get().GetPlatformFile().MoveFile(*FaultyEditorLayoutPath, *GEditorLayoutIni);
 				GConfig->LoadFile(GEditorLayoutIni);
 				// Warn user/developer
 				const FString WarningMessage = FString::Format(TEXT("UnrealEd layout could not be loaded from the config file {0}, reseting this config file to the"
 					" default one."), { *GEditorLayoutIni });
 				UE_LOG(LogMainFrame, Warning, TEXT("%s"), *WarningMessage);
-				ensureMsgf(false, TEXT("%s Some additional testing of that layout file should be done."));
+				ensureMsgf(false, TEXT("%s Some additional testing of that layout file should be done. Saved as %s."), *WarningMessage, *FaultyEditorLayoutPath);
 				// Reload default main frame
 				CreateDefaultMainFrame(bStartImmersive, bStartPIE);
 				return;

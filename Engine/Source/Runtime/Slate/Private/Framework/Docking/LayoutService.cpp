@@ -22,7 +22,8 @@ void FLayoutSaveRestore::SaveToConfig( const FString& ConfigFileName, const TSha
 }
 
 
-TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig( const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout )
+TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig(const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout,
+	const EOutputCanBeNullptr PrimaryAreaOutputCanBeNullptr)
 {
 	const FName LayoutName = DefaultLayout->GetLayoutName();
 	FString UserLayoutString;
@@ -31,7 +32,13 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig( const FStri
 		TSharedPtr<FTabManager::FLayout> UserLayout = FTabManager::FLayout::NewFromString( FLayoutSaveRestore::GetLayoutStringFromIni( UserLayoutString ));
 		if ( UserLayout.IsValid() && UserLayout->GetPrimaryArea().IsValid() )
 		{
-			return UserLayout.ToSharedRef();
+			// Return UserLayout in the following 2 cases:
+			// - By default (PrimaryAreaOutputCanBeNullptr = Never or IfNoTabValid)
+			// - For the case of PrimaryAreaOutputCanBeNullptr = IfNoOpenTabValid, only if the primary area has at least a valid open tab
+			if (PrimaryAreaOutputCanBeNullptr != EOutputCanBeNullptr::IfNoOpenTabValid || FGlobalTabmanager::Get()->HasValidOpenTabs(UserLayout->GetPrimaryArea().Pin().ToSharedRef()))
+			{
+				return UserLayout.ToSharedRef();
+			}
 		}
 	}
 
