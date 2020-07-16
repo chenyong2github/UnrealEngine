@@ -39,6 +39,7 @@ float4 PrevScreenPositionScaleBias;
 float2 ViewportUVToHZBBufferUV;
 float2 ReducedSceneColorSize;
 float2 ReducedSceneColorTexelSize;
+float2 HigherMipBufferBilinearMax;
 float PrevSceneColorPreExposureCorrection;
 float MinimumLuminance;
 float HigherMipDownScaleFactor;
@@ -120,7 +121,7 @@ void MainCS(
 				float SampleWeight = 0.25 * saturate(1 - SampleDist * SampleDist * InvSquareWorldBluringRadius);
 
 				float2 SampleUV = HigherMipDownScaleFactor * (2.0 * float2(DispatchThreadId) + 1.0 + TexelOffset) * 0.5 * ReducedSceneColorTexelSize;
-				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+				SampleUV = min(SampleUV, HigherMipBufferBilinearMax);
 
 				float4 SampleColor = float4(
 					HigherMipTexture.SampleLevel(HigherMipTextureSampler, SampleUV, 0).rgb,
