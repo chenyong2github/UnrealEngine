@@ -2807,7 +2807,10 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			DeviceParams.bIsNonRealtime = true;
 			FAudioDeviceHandle AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
 			check(AudioDevice.IsValid());
-			PlayWorld->SetAudioDevice(AudioDevice);
+			if (PlayWorld)
+			{
+				PlayWorld->SetAudioDevice(AudioDevice);
+			}
 		}
 	}
 
