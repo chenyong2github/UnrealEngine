@@ -1128,11 +1128,22 @@ static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) *
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
+// Specifies whether ray tracing *can* be enabled on a particular platform.
+// This takes into account whether RT is globally enabled for the project and specifically enabled on a target platform.
+// Safe to use to make cook-time decisions, such as whether to compile ray tracing shaders.
 RENDERCORE_API uint64 GRayTracingPlaformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GRayTracingPlaformMask) * 8, "GRayTracingPlaformMask must be large enough to support all shader platforms");
 
+// Specifies whether ray tracing *is* enabled on the current running system (in current game or editor process).
+// This takes into account additional factors, such as concrete current GPU/OS/Driver capability, user-set game graphics options, etc.
+// Only safe to make run-time decisions, such as whether to build acceleration structures and render ray tracing effects.
+// Value may be queried using IsRayTracingEnabled().
+RENDERCORE_API bool GUseRayTracing = false;
+
 RENDERCORE_API void RenderUtilsInit()
 {
+	checkf(GIsRHIInitialized, TEXT("RenderUtilsInit() may only be called once RHI is initialized."));
+
 	if (GUseForwardShading)
 	{
 		GForwardShadingPlatformMask = ~0ull;
@@ -1252,7 +1263,78 @@ RENDERCORE_API void RenderUtilsInit()
 			}
 		}
 	}
-#endif
+#endif // WITH_EDITOR
+
+	// Run-time ray tracing support depends on the following factors:
+	// - Ray tracing must be enabled for the project
+	// - Skin cache must be enabled for the project
+	// - Current GPU, OS and driver must support ray tracing
+	// - User is running the Editor *OR* running the game with ray tracing enabled in graphics options
+
+	// When ray tracing is enabled, we must load additional shaders and build acceleration structures for meshes.
+	// For this reason it is only possible to enable RT at startup and changing the state requires restart.
+	// This is also the reason why IsRayTracingEnabled() lives in RenderCore module, as it controls creation of 
+	// RT pipelines in ShaderPipelineCache.cpp.
+
+	if (RayTracingCVar && RayTracingCVar->GetBool())
+	{
+		const bool bRayTracingAllowedOnCurrentPlatform = !!(GRayTracingPlaformMask & (1ull << GMaxRHIShaderPlatform));
+		if (GRHISupportsRayTracing && bRayTracingAllowedOnCurrentPlatform)
+		{
+			if (GIsEditor)
+			{
+				// Ray tracing is enabled for the project and we are running on RT-capable machine,
+				// therefore the core ray tracing features are also enabled, so that required shaders
+				// are loaded, acceleration structures are built, etc.
+				GUseRayTracing = true;
+
+				UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is enabled for the editor. Reason: r.RayTracing=1."));
+			}
+			else
+			{
+				// If user preference exists in game settings file, the bRayTracingEnabled will be set based on its value.
+				// Otherwise the current value is preserved.
+				if (GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), GUseRayTracing, GGameUserSettingsIni))
+				{
+					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is %s for the game. Reason: user setting r.RayTracing.EnableInGame=%d."),
+						GUseRayTracing ? TEXT("enabled") : TEXT("disabled"),
+						(int)GUseRayTracing);
+				}
+				else
+				{
+					GUseRayTracing = true;
+
+					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is enabled for the game. Reason: r.RayTracing=1 and r.RayTracing.EnableInGame is not present (default true)."));
+				}
+			}
+
+			// Sanity check: skin cache is *required* for ray tracing.
+			// It can be dynamically enabled only when its shaders have been compiled.
+			IConsoleVariable* SkinCacheCompileShadersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
+			if (GUseRayTracing && SkinCacheCompileShadersCVar->GetInt() <= 0)
+			{
+				GUseRayTracing = false;
+
+				UE_LOG(LogRendererCore, Fatal, TEXT("Ray tracing requires skin cache to be enabled. Set r.SkinCache.CompileShaders=1."));
+			}
+
+		}
+		else
+		{
+			if (!GRHISupportsRayTracing)
+			{
+				UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is disabled. Reason: not supported by current RHI."));
+			}
+			else
+			{
+				UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is disabled. Reason: disabled on current platform."));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is disabled. Reason: r.RayTracing=0."));
+	}
 }
 
 class FUnitCubeVertexBuffer : public FVertexBuffer
