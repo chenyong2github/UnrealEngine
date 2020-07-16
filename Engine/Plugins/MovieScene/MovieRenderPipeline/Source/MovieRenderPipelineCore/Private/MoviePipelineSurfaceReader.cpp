@@ -208,7 +208,7 @@ void FMoviePipelineSurfaceReader::CopyReadbackTexture_RenderThread(TUniqueFuncti
 		// Enqueue the Unmap before we broadcast the resulting pixels, though the broadcast shouldn't do anything blocking.
 		RHICmdList.UnmapStagingSurface(ReadbackTexture);
 
-		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(ActualSizeX, ActualSizeY), TArray64<FFloat16Color>(MoveTemp(OutputPixels)), InFramePayload);
+		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(ExpectedSizeX, ExpectedSizeY), TArray64<FFloat16Color>(MoveTemp(OutputPixels)), InFramePayload);
 		InFunctionCallback(MoveTemp(PixelData));
 
 		// Now that we've successfully used the surface, we trigger the Available event so that we can reuse this surface. This
