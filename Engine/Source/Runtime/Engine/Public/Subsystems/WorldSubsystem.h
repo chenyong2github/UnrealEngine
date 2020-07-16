@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Subsystem.h"
-
+#include "Engine/EngineTypes.h"
 #include "WorldSubsystem.generated.h"
 
 /**
