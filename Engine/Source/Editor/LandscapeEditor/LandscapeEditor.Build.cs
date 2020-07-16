@@ -25,18 +25,9 @@ public class LandscapeEditor : ModuleRules
 				"ImageWrapper",
                 "EditorWidgets",
                 "Foliage",
-				"ViewportInteraction",
-				"VREditor",
 			}
 			);
 
-		CircularlyReferencedDependentModules.AddRange(
-			new string[]
-			{
-				"ViewportInteraction",
-				"VREditor"
-			}
-		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

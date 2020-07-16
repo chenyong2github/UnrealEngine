@@ -35,19 +35,9 @@ public class MeshPaintMode : ModuleRules
                 "UnrealEd",
                 "RawMesh",
                 "SourceControl",
-                "ViewportInteraction",
-                "VREditor",
                 "PropertyEditor",
                 "MainFrame",
 				"MeshPaint",
-            }
-        );
-
-        CircularlyReferencedDependentModules.AddRange(
-            new string[]
-            {
-                "ViewportInteraction",
-                "VREditor"
             }
         );
 

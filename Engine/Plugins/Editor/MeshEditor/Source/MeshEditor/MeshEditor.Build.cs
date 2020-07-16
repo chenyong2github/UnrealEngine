@@ -21,8 +21,6 @@ namespace UnrealBuildTool.Rules
 					"EditableMesh",
                     "MeshDescription",
 					"StaticMeshDescription",
-					"ViewportInteraction",
-                    "VREditor",
 					"Projects",
                     "RHI",
 					"LevelEditor",

@@ -884,39 +884,6 @@ void UVREditorInteractor::PreviewInputKey( class FEditorViewportClient& Viewport
 		bIsPressingTrackpad = Event == IE_Released ? false : true;
 	}
 
-	if (GetControllerType() == EControllerType::Laser)
-	{
-		// Are we holding "up" on the trackpad?
-		const bool bIsHoldingUpOnTrackpad =
-			bIsTrackpadPositionValid[0] && bIsTrackpadPositionValid[1] &&
-			TrackpadPosition.Y >= VREd::MinTrackpadOffsetBeforeRadialMenu->GetFloat() &&
-			(GetHMDDeviceType() == OculusDeviceType || bIsPressingTrackpad);
-
-		if (bIsHoldingUpOnTrackpad && Action.ActionType == ViewportWorldActionTypes::SelectAndMove && Event == IE_Pressed)
-		{
-			bOutWasHandled = true;
-
-			// Try to place the object currently selected
-			TArray<UObject*> SelectedObjects;
-			{
-				FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
-				GEditor->GetSelectedObjects()->GetSelectedObjects( /* Out */ SelectedObjects );
-			}
-
-			if (SelectedObjects.Num() > 0)
-			{
-				TArray<UObject*> ObjectToPlace;
-				ObjectToPlace.Add( SelectedObjects[0] );
-
-				Action.bIsInputCaptured = true;
-
-				const bool bShouldInterpolateFromDragLocation = false;
-				UActorFactory* FactoryToUse = nullptr;	// Use default factory
-				GetVRMode().GetPlacementSystem()->StartPlacingObjects( ObjectToPlace, FactoryToUse, this, bShouldInterpolateFromDragLocation );
-			}
-		}
-	}
-
 	// Update modifier state
 	if (Action.ActionType == VRActionTypes::Modifier)
 	{

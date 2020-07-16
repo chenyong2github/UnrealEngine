@@ -13,13 +13,12 @@
 #include "LandscapeDataAccess.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "InstancedFoliageActor.h"
-#include "VREditorInteractor.h"
 #include "AI/NavigationSystemBase.h"
 #include "Landscape.h"
 #include "Logging/LogMacros.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLandscapeTools, Log, All);
-// VR Editor
+
 
 //
 //	FNoiseParameter - Perlin noise
@@ -1354,7 +1353,6 @@ public:
 		, EdMode(InEdMode)
 		, bCanToolBeActivated(true)
 		, ToolStroke()
-		, bExternalModifierPressed(false)
 	{
 	}
 
@@ -1456,7 +1454,6 @@ public:
 		ToolStroke.Reset();
 		EdMode->CurrentBrush->EndStroke();
 		EdMode->UpdateLayerUsageInformation(&EdMode->CurrentToolTarget.LayerInfo);
-		bExternalModifierPressed = false;
 
 		if (ShouldUpdateEditingLayer())
 		{
@@ -1515,11 +1512,6 @@ public:
 	virtual void SetCanToolBeActivated(bool Value) { bCanToolBeActivated = Value; }
 	virtual bool CanToolBeActivated() const {	return bCanToolBeActivated; }
 
-	virtual void SetExternalModifierPressed(const bool bPressed) override
-	{
-		bExternalModifierPressed = bPressed;
-	}
-
 protected:
 	TArray<FLandscapeToolInteractorPosition> InteractorPositions;
 	FVector2D LastInteractorPosition;
@@ -1528,13 +1520,10 @@ protected:
 	bool bCanToolBeActivated;
 	TOptional<TStrokeClass> ToolStroke;
 
-	/** Whether a modifier was pressed in another system (VREditor). */
-	bool bExternalModifierPressed;
-
 	bool IsModifierPressed(const class FEditorViewportClient* ViewportClient = nullptr)
 	{
-		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bExternalModifierPressed = %d, ViewportClient = %d, IsShiftDown = %d"), bExternalModifierPressed, (ViewportClient != nullptr), (ViewportClient != nullptr && IsShiftDown(ViewportClient->Viewport)));
-		return bExternalModifierPressed || (ViewportClient != nullptr && IsShiftDown(ViewportClient->Viewport));
+		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("ViewportClient = %d, IsShiftDown = %d"), (ViewportClient != nullptr), (ViewportClient != nullptr && IsShiftDown(ViewportClient->Viewport)));
+		return ViewportClient != nullptr && IsShiftDown(ViewportClient->Viewport);
 	}
 };
 

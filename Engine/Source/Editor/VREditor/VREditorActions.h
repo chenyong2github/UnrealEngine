@@ -100,44 +100,6 @@ public:
 	static ECheckBoxState GetUIToggledState(UVREditorMode* InVRMode, VREditorPanelID PanelToCheck);
 
 	/**
-	 * Toggles a flashlight on and off on the interactor that clicked on the UI button
-	 * @param InVRMode Currently active VRMode
-	 */
-	static void OnLightButtonClicked(UVREditorMode* InVRMode);
-
-	/**
-	 * Returns whether or not the flashlight is enabled - used for check box on the flashlight button
-	 * @param InVRMode Currently active VRMode
-	 */
-	static ECheckBoxState GetFlashlightState(UVREditorMode* InVRMode);
-
-	/**
-	 * Takes a screenshot of the mirror viewport
-	 * @param InVRMode Currently active VRMode
-	 */
-	static void OnScreenshotButtonClicked(UVREditorMode* InVRMode);
-
-	/**
-	 * Enters Play In Editor mode for testing of gameplay
-	 * @param InVRMode Currently active VRMode
-	 */
-	static void OnPlayButtonClicked(UVREditorMode* InVRMode);
-
-	/**
-	 * If we are allowed to enter play.
-	 */
-	static bool CanPlay(UVREditorMode* InVRMode);
-
-	/**
-	 * Enters Simulate mode for physics and animation playback
-	 * @param InVRMode Currently active VRMode
-	 */
-	static void OnSimulateButtonClicked(UVREditorMode* InVRMode);
-
-	/** Returns the simulate button text to display */
-	static FText GetSimulateText();
-
-	/**
 	 * Snaps currently selected Actors to the ground
 	 * @param InVRMode Currently active VRMode
 	 */

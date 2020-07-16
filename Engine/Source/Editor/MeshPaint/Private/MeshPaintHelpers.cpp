@@ -39,13 +39,6 @@
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
 
-#include "VREditorMode.h"
-#include "IVREditorModule.h"
-#include "ViewportWorldInteraction.h"
-#include "ViewportInteractableInterface.h"
-#include "VREditorInteractor.h"
-#include "EditorWorldExtension.h"
-
 #include "Factories/FbxSkeletalMeshImportData.h"
 
 #include "Async/ParallelFor.h"
@@ -572,76 +565,27 @@ bool MeshPaintHelpers::RetrieveViewportPaintRays(const FSceneView* View, FViewpo
 
 	if (ViewportClient->IsPerspective())
 	{
-		// If in VR mode retrieve possible viewport interactors and render widgets for them
-		UVREditorMode* VREditorMode = nullptr;
-		if (MeshPaintHelpers::IsInVRMode(ViewportClient))
+
+		// Make sure the cursor is visible OR we're flood filling.  No point drawing a paint cue when there's no cursor.
+		if (Viewport->IsCursorVisible())
 		{
-			VREditorMode = Cast<UVREditorMode>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(ViewportClient->GetWorld())->FindExtension(UVREditorMode::StaticClass()));
-
-			TArray<UViewportInteractor*> Interactors = VREditorMode->GetWorldInteraction().GetInteractors();
-
-			for (UViewportInteractor* Interactor : Interactors)
+			if (!PDI->IsHitTesting())
 			{
-				checkf(Interactor, TEXT("Invalid VR Interactor"));
-				
-				// Don't draw visual cue if we're hovering over a viewport interact able, such as a dockable window selection bar
-				bool bShouldDrawInteractor = false;
-				FHitResult HitResult = Interactor->GetHitResultFromLaserPointer();
-				if (HitResult.Actor.IsValid())
+				// Grab the mouse cursor position
+				FIntPoint MousePosition;
+				Viewport->GetMousePos(MousePosition);
+
+				// Is the mouse currently over the viewport? or flood filling
+				if ((MousePosition.X >= 0 && MousePosition.Y >= 0 && MousePosition.X < (int32)Viewport->GetSizeXY().X && MousePosition.Y < (int32)Viewport->GetSizeXY().Y))
 				{
-					UViewportWorldInteraction& WorldInteraction = VREditorMode->GetWorldInteraction();
+					// Compute a world space ray from the screen space mouse coordinates
+					FViewportCursorLocation MouseViewportRay(View, ViewportClient, MousePosition.X, MousePosition.Y);
 
-					if (WorldInteraction.IsInteractableComponent(HitResult.GetComponent()))
-					{
-						AActor* Actor = HitResult.Actor.Get();
-
-						// Make sure we're not hovering over some other viewport interactable, such as a dockable window selection bar or close button
-						IViewportInteractableInterface* ActorInteractable = Cast<IViewportInteractableInterface>(Actor);
-						bShouldDrawInteractor = (ActorInteractable == nullptr);
-					}
-				}
-				
-				// Don't draw visual cue for paint brush when the interactor is hovering over UI
-				if (bShouldDrawInteractor && !Interactor->IsHoveringOverPriorityType())
-				{
-					FVector LaserPointerStart, LaserPointerEnd;
-					if (Interactor->GetLaserPointer( /* Out */ LaserPointerStart, /* Out */ LaserPointerEnd))
-					{
-						const FVector LaserPointerDirection = (LaserPointerEnd - LaserPointerStart).GetSafeNormal();
-
-						FPaintRay& NewPaintRay = *new(OutPaintRays) FPaintRay();
-						NewPaintRay.CameraLocation = VREditorMode->GetHeadTransform().GetLocation();
-						NewPaintRay.RayStart = LaserPointerStart;
-						NewPaintRay.RayDirection = LaserPointerDirection;
-						NewPaintRay.ViewportInteractor = Interactor;
-					}
-				}
-			}
-		}
-		else
-		{
-			// Else we're painting with mouse
-			// Make sure the cursor is visible OR we're flood filling.  No point drawing a paint cue when there's no cursor.
-			if (Viewport->IsCursorVisible())
-			{
-				if (!PDI->IsHitTesting())
-				{
-					// Grab the mouse cursor position
-					FIntPoint MousePosition;
-					Viewport->GetMousePos(MousePosition);
-
-					// Is the mouse currently over the viewport? or flood filling
-					if ((MousePosition.X >= 0 && MousePosition.Y >= 0 && MousePosition.X < (int32)Viewport->GetSizeXY().X && MousePosition.Y < (int32)Viewport->GetSizeXY().Y))
-					{
-						// Compute a world space ray from the screen space mouse coordinates
-						FViewportCursorLocation MouseViewportRay(View, ViewportClient, MousePosition.X, MousePosition.Y);
-
-						FPaintRay& NewPaintRay = *new(OutPaintRays) FPaintRay();
-						NewPaintRay.CameraLocation = View->ViewMatrices.GetViewOrigin();
-						NewPaintRay.RayStart = MouseViewportRay.GetOrigin();
-						NewPaintRay.RayDirection = MouseViewportRay.GetDirection();
-						NewPaintRay.ViewportInteractor = nullptr;
-					}
+					FPaintRay& NewPaintRay = *new(OutPaintRays) FPaintRay();
+					NewPaintRay.CameraLocation = View->ViewMatrices.GetViewOrigin();
+					NewPaintRay.RayStart = MouseViewportRay.GetOrigin();
+					NewPaintRay.RayDirection = MouseViewportRay.GetDirection();
+					NewPaintRay.ViewportInteractor = nullptr;
 				}
 			}
 		}
@@ -1171,21 +1115,6 @@ void MeshPaintHelpers::SetRealtimeViewport(bool bRealtime)
 	}
 }
 
-
-bool MeshPaintHelpers::IsInVRMode(const FEditorViewportClient* ViewportClient)
-{
-	bool bIsInVRMode = false;
-	if (IVREditorModule::IsAvailable())
-	{
-		UVREditorMode* VREditorMode = Cast<UVREditorMode>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(ViewportClient->GetWorld())->FindExtension(UVREditorMode::StaticClass()));
-		if (VREditorMode != nullptr && VREditorMode->IsFullyInitialized() && VREditorMode->IsActive())
-		{
-			bIsInVRMode = true;
-		}
-	}
-
-	return bIsInVRMode;
-}
 
 void MeshPaintHelpers::ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIndex)
 {

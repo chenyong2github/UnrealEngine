@@ -25,16 +25,6 @@ public class FoliageEdit : ModuleRules
                 "DetailCustomizations",
                 "AssetTools",
                 "Foliage",
-				"ViewportInteraction",
-				"VREditor"
-			}
-		);
-
-		CircularlyReferencedDependentModules.AddRange(
-			new string[]
-			{
-				"ViewportInteraction",
-				"VREditor"
 			}
 		);
 

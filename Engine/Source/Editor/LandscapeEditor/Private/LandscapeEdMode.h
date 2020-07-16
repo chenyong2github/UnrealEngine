@@ -594,11 +594,6 @@ public:
 
 	void OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* InWorld);
 
-	/** Called when the user presses a button on their motion controller device */
-	void OnVRAction(FEditorViewportClient& ViewportClient, UViewportInteractor* Interactor, const FViewportActionKeyInput& Action, bool& bOutIsInputCaptured, bool& bWasHandled);
-
-	void OnVRHoverUpdate(UViewportInteractor* Interactor, FVector& HoverImpactPoint, bool& bWasHandled);
-
 	/** Handle notification that visible levels may have changed and we should update the editable landscapes list */
 	void HandleLevelsChanged(bool ShouldExitMode);
 

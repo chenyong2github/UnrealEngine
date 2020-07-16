@@ -33,8 +33,6 @@ public:
 	/** Removes registered event */
 	void Shutdown();
 
-	/** Try spawn and start placing the specified objects */
-	void StartPlacingObjects( const TArray<UObject*>& ObjectsToPlace, class UActorFactory* FactoryToUse, class UVREditorInteractor* PlacingWithInteractor, const bool bShouldInterpolateFromDragLocation );
 
 protected:
 	/** When an interactor stops dragging */
@@ -42,15 +40,6 @@ protected:
 
 	/** When the world scale changes, update the near clip plane */
 	void UpdateNearClipPlaneOnScaleChange(const float NewWorldToMetersScale);
-
-	/** Starts dragging a material, allowing the user to drop it on an object in the scene to place it */
-	void StartDraggingMaterialOrTexture( UViewportInteractor* Interactor, const FViewportActionKeyInput& Action, const FVector HitLocation, UObject* MaterialOrTextureAsset );
-
-	/** Tries to place whatever material or texture that's being dragged on the object under the hand's laser pointer */
-	void PlaceDraggedMaterialOrTexture( UViewportInteractor* Interactor );
-
-	/** Called when FEditorDelegates::OnAssetDragStarted is broadcast */
-	void OnAssetDragStartedFromContentBrowser( const TArray<FAssetData>& DraggedAssets, class UActorFactory* FactoryToUse );
 
 protected:
 

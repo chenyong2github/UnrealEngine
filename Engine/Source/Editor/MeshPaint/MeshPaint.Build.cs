@@ -30,20 +30,10 @@ public class MeshPaint : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
                 "SourceControl",
-                "ViewportInteraction",
-                "VREditor",
                 "PropertyEditor",
                 "MainFrame",
             }
         );
-
-		CircularlyReferencedDependentModules.AddRange(
-			new string[]
-			{
-				"ViewportInteraction",
-				"VREditor"
-			}
-		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[]

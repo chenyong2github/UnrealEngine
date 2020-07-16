@@ -33,12 +33,6 @@ public:
 	/** Registers a new menu generator and replaces the currently displayed menu if the radial menu is open */
 	void RegisterMenuGenerator(const FOnRadialMenuGenerated NewMenuGenerator, const bool bShouldAddToStack = true);
 
-	/** Sets a delegate for the context-specific actions menu */
-	void SetActionsMenuGenerator(const FOnRadialMenuGenerated NewMenuGenerator, const FText NewLabel);
-
-	/** Resets the delegate and button for the context-specific actions menu */
-	void ResetActionsMenuGenerator();
-
 	FOnRadialMenuGenerated GetCurrentMenuGenerator()
 	{
 		return OnRadialMenuGenerated;
@@ -49,22 +43,11 @@ public:
 		return HomeMenu;
 	};
 
-	FOnRadialMenuGenerated GetActionsMenuGenerator()
-	{
-		return ActionsMenu;
-	};
-
 	/** Returns to the previous radial menu */
 	void BackOutMenu();
 
 	/** Returns to the home menu */
 	void Home();
-
-	/** Allows disabling buttons in the action menu if it's not currently bound */
-	bool IsActionMenuBound();
-
-	/** Allows other systems to read and save the title of existing action menus */
-	static FText GetActionMenuLabel();
 
 	void Init(class UVREditorUISystem* InUISystem);
 
@@ -76,13 +59,7 @@ protected:
 
 	void GizmoMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
 
-	void UIMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
-
 	void EditMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
-
-	void ToolsMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
-
-	void ModesMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
 
 	void SystemMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride);
 
@@ -96,15 +73,7 @@ protected:
 
 	FOnRadialMenuGenerated GizmoMenu;
 
-	FOnRadialMenuGenerated UIMenu;
-
 	FOnRadialMenuGenerated EditMenu;
-
-	FOnRadialMenuGenerated ToolsMenu;
-
-	FOnRadialMenuGenerated ModesMenu;
-
-	FOnRadialMenuGenerated ActionsMenu;
 
 	FOnRadialMenuGenerated SystemMenu;
 

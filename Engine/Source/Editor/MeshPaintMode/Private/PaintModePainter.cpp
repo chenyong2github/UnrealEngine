@@ -26,13 +26,6 @@
 #include "MeshPaintTypes.h"
 #include "TexturePaintHelpers.h"
 
-#include "VREditorMode.h"
-#include "IVREditorModule.h"
-#include "ViewportWorldInteraction.h"
-#include "ViewportInteractableInterface.h"
-#include "VREditorInteractor.h"
-#include "EditorWorldExtension.h"
-
 #include "Framework/Commands/UICommandList.h"
 #include "PaintModeCommands.h"
 #include "PaintModeSettings.h"

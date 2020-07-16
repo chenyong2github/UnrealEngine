@@ -20,7 +20,6 @@ class UFoliageType;
 class ULandscapeComponent;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
-class UViewportInteractor;
 struct FViewportClick;
 
 //
@@ -524,12 +523,6 @@ public:
 	/** Add desired instances. Uses foliage settings to determine location/scale/rotation and whether instances should be ignored */
 	static void AddInstances(UWorld* InWorld, const TArray<FDesiredFoliageInstance>& DesiredInstances, const FFoliagePaintingGeometryFilter& OverrideGeometryFilter, bool InRebuildFoliageTree = true);
 
-	/** Called when the user presses a button on their motion controller device */
-	void OnVRAction(class FEditorViewportClient& ViewportClient, class UViewportInteractor* Interactor, const struct FViewportActionKeyInput& Action, bool& bOutIsInputCaptured, bool& bWasHandled);
-
-	/** Called on VR hovering */
-	void OnVRHoverUpdate(UViewportInteractor* Interactor, FVector& HoverImpactPoint, bool& bWasHandled);
-
 	/** Called as PIE ends */
 	void OnEndPIE(const bool bIsSimulating);
 
@@ -701,9 +694,6 @@ private:
 	EColumnSortMode::Type			FoliageMeshListSortMode;
 
 	FDelegateHandle OnActorSpawnedHandle;
-
-	/** When painting in VR, this is the hand index that we're painting with.  Otherwise INDEX_NONE. */
-	class UViewportInteractor* FoliageInteractor;
 
 	int32 UpdateSelectionCounter;
 	bool bHasDeferredSelectionNotification;

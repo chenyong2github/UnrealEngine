@@ -266,33 +266,12 @@ public:
 
 	void SaveSequencerSettings(bool bInKeyAllEnabled, EAutoChangeMode InAutoChangeMode, const class USequencerSettings& InSequencerSettings);
 
-	/** Start or stop simulate-in-editor mode */
-	void ToggleSIEAndVREditor();
-
-	/** Start or stop play-in-editor mode */
-	void TogglePIEAndVREditor();
-
 	/** Create a static motion controller mesh for the current HMD platform */
 	UStaticMeshComponent* CreateMotionControllerMesh( AActor* OwningActor, USceneComponent* AttachmentToComponent, UStaticMesh* OptionalControllerMesh = nullptr );
 
 	/** Helper functions to create a static mesh */
 	UStaticMeshComponent* CreateMesh( AActor* OwningActor, const FString& MeshName, USceneComponent* AttachmentToComponent /*= nullptr */ );
 	UStaticMeshComponent* CreateMesh(AActor* OwningActor, UStaticMesh* Mesh, USceneComponent* AttachmentToComponent /*= nullptr */);
-
-	/** Sets a delegate for the context-specific actions menu */
-	void SetActionsMenuGenerator(const FOnRadialMenuGenerated NewMenuGenerator, const FText NewLabel);
-
-	/** Resets the delegate and button for the context-specific actions menu */
-	void ResetActionsMenuGenerator();
-
-	/** Gets access to VREditorWorldInteraction */
-	class UVREditorPlacement* GetPlacementSystem()
-	{
-		return PlacementSystem;
-	}
-
-	/** Returns true if we started the play in editor session from this VR Editor */
-	bool GetStartedPlayFromVREditor() const;
 
 	/** Gets the container for all the assets of VREditor. */
 	const class UVREditorAssetContainer& GetAssetContainer() const;
@@ -310,10 +289,6 @@ public:
 	/** Delegate to be called when a preview actor is placed **/
 	DECLARE_EVENT_OneParam(UVREditorPlacement, FOnPlacePreviewActor, bool);
 	FOnPlacePreviewActor& OnPlacePreviewActor() { return OnPlacePreviewActorEvent; };
-
-	/** Call this to force the 'Actions' radial menu to refresh.  This is useful if the menu generator that you've bound
-		needs to be re-run (usually because it switches on something that has changed since the last time it ran.) */
-	void RefreshRadialMenuActionsSubmenu();
 
 	/** Return true if currently aiming to teleport. */
 	bool IsAimingTeleport() const;
@@ -349,21 +324,12 @@ private:
 	/** Called when someone closes a standalone VR Editor window */
 	void OnVREditorWindowClosed( const TSharedRef<SWindow>& ClosedWindow );
 
-	/** FEditorDelegates callbacks */
-	void PostPIEStarted( bool bIsSimulatingInEditor );
-	void PrePIEEnded( bool bWasSimulatingInEditor );
-	void OnEndPIE( bool bWasSimulatingInEditor );
-	void OnPreSwitchPIEAndSIE(bool bIsSimulatingInEditor);
-	void OnSwitchPIEAndSIE(bool bIsSimulatingInEditor);
 
 	/** Start using the viewport passed */
 	void StartViewport( TSharedPtr<SLevelViewport> Viewport );
 
 	/** Close the current viewport */
 	void CloseViewport( const bool bShouldDisableStereo );
-
-	/** Resets all the settings when exiting PIE to VR Editor. */
-	void RestoreFromPIE();
 
 	/** Restore the world to meters to the saved one when entering VR Editor */
 	void RestoreWorldToMeters();
@@ -524,14 +490,6 @@ private:
 	/** Pointer to the current Sequencer */
 	class ISequencer* CurrentSequencer;
 
-	/** The world to meters scale when leaving PIE simulate to restore when back in the editor world. */
-	float SavedWorldToMetersScaleForPIE;
-
-	/** If we started play in editor from the VR Editor*/
-	bool bStartedPlayFromVREditor;
-
-	/** If we started play in editor from the VR Editor while in simulate. */
-	bool bStartedPlayFromVREditorSimulate;
 
 	/** Container of assets */
 	UPROPERTY()

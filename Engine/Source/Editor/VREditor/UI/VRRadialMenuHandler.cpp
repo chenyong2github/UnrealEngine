@@ -120,10 +120,7 @@ void UVRRadialMenuHandler::Init(UVREditorUISystem* InUISystem)
 	HomeMenu.BindUObject(this, &UVRRadialMenuHandler::HomeMenuGenerator);
 	SnapMenu.BindUObject(this, &UVRRadialMenuHandler::SnapMenuGenerator);
 	GizmoMenu.BindUObject(this, &UVRRadialMenuHandler::GizmoMenuGenerator);
-	UIMenu.BindUObject(this, &UVRRadialMenuHandler::UIMenuGenerator);
 	EditMenu.BindUObject(this, &UVRRadialMenuHandler::EditMenuGenerator);
-	ToolsMenu.BindUObject(this, &UVRRadialMenuHandler::ToolsMenuGenerator);
-	ModesMenu.BindUObject(this, &UVRRadialMenuHandler::ModesMenuGenerator);
 	SystemMenu.BindUObject(this, &UVRRadialMenuHandler::SystemMenuGenerator);
 
 	Home();
@@ -200,18 +197,6 @@ void UVRRadialMenuHandler::HomeMenuGenerator(FMenuBuilder& MenuBuilder, TSharedP
 		EUserInterfaceActionType::CollapsedButton
 	);
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Windows", "Windows"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.WindowsMenu"),
-		FUIAction
-		(
-			FExecuteAction::CreateUObject(this, &UVRRadialMenuHandler::RegisterMenuGenerator, UIMenu, true),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-	MenuBuilder.AddMenuEntry(
 		LOCTEXT("Edit", "Edit"),
 		FText(),
 		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.EditMenu"),
@@ -223,45 +208,6 @@ void UVRRadialMenuHandler::HomeMenuGenerator(FMenuBuilder& MenuBuilder, TSharedP
 		NAME_None,
 		EUserInterfaceActionType::CollapsedButton
 	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Tools", "Tools"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ToolsMenu"),
-		FUIAction
-		(
-			FExecuteAction::CreateUObject(this, &UVRRadialMenuHandler::RegisterMenuGenerator, ToolsMenu, true),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Modes", "Modes"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ModesMenu"),
-		FUIAction
-		(
-			FExecuteAction::CreateUObject(this, &UVRRadialMenuHandler::RegisterMenuGenerator, ModesMenu, true),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-		);
-	TAttribute<FText> DynamicActionsLabel;
-	DynamicActionsLabel.BindStatic(&UVRRadialMenuHandler::GetActionMenuLabel);
-	MenuBuilder.AddMenuEntry(
-		DynamicActionsLabel,
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ActionsMenu"),
-		FUIAction
-		(
-			FExecuteAction::CreateUObject(this, &UVRRadialMenuHandler::RegisterMenuGenerator, ActionsMenu, true),
-			FCanExecuteAction::CreateUObject(this, &UVRRadialMenuHandler::IsActionMenuBound)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-		);
-
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("System", "System"),
 		FText(),
@@ -482,91 +428,6 @@ void UVRRadialMenuHandler::GizmoMenuGenerator(FMenuBuilder& MenuBuilder, TShared
 	MenuBuilder.EndSection();
 }
 
-void UVRRadialMenuHandler::UIMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride)
-{
-	MenuBuilder.BeginSection("Windows");
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ActorDetails", "Details"),
-		LOCTEXT("ActorDetailsTooltip", "Details"),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Details"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnUIToggleButtonClicked, VRMode, UVREditorUISystem::DetailsPanelID),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetUIToggledState, VRMode, UVREditorUISystem::DetailsPanelID)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ContentBrowser", "Content Browser"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ContentBrowser"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnUIToggleButtonClicked, VRMode, UVREditorUISystem::ContentBrowserPanelID),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetUIToggledState, VRMode, UVREditorUISystem::ContentBrowserPanelID)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ModesPanel", "Modes Panel"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ModesPanel"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnUIToggleButtonClicked, VRMode, UVREditorUISystem::ModesPanelID),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetUIToggledState, VRMode, UVREditorUISystem::ModesPanelID)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("WorldOutliner", "World Outliner"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.WorldOutliner"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnUIToggleButtonClicked, VRMode, UVREditorUISystem::WorldOutlinerPanelID),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetUIToggledState, VRMode, UVREditorUISystem::WorldOutlinerPanelID)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("WorldSettings", "World Settings"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.WorldSettings"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnUIToggleButtonClicked, VRMode, UVREditorUISystem::WorldSettingsPanelID),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetUIToggledState, VRMode, UVREditorUISystem::WorldSettingsPanelID)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("CreateNewSequence", "Create Sequence"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Sequencer"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::CreateNewSequence, VRMode),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	MenuBuilder.EndSection();
-}
-
 void UVRRadialMenuHandler::EditMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride)
 {
 	MenuBuilder.BeginSection("Edit");
@@ -646,170 +507,6 @@ void UVRRadialMenuHandler::EditMenuGenerator(FMenuBuilder& MenuBuilder, TSharedP
 
 	MenuBuilder.EndSection();
 }
-
-void UVRRadialMenuHandler::ToolsMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride)
-{
-	MenuBuilder.BeginSection("Tools");
-
-	TAttribute<FText> DynamicSimulateLabel;
-	DynamicSimulateLabel.BindStatic(&FVREditorActionCallbacks::GetSimulateText);
-
-	MenuBuilder.AddMenuEntry(
-		DynamicSimulateLabel,
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Simulate"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnSimulateButtonClicked, VRMode),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SaveActors", "Save Actors"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.SaveSimulation"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OnKeepSimulationChanges),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecuteKeepSimulationChanges)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("PauseSimulation", "Pause"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Pause"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::PausePlaySession_Clicked),
-			FCanExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::HasPlayWorldAndRunning)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ResumeSimulation", "Resume"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Resume"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::ResumePlaySession_Clicked),
-			FCanExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::HasPlayWorldAndPaused)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("PlayInEditor", "Play"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Play"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnPlayButtonClicked, VRMode),
-			FCanExecuteAction::CreateStatic(&FVREditorActionCallbacks::CanPlay, VRMode)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Screenshot", "Screenshot"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Screenshot"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnScreenshotButtonClicked, VRMode),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Flashlight", "Flashlight"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Flashlight"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::OnLightButtonClicked, VRMode),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
-		),
-		NAME_None,
-		EUserInterfaceActionType::CollapsedButton
-	);
-
-	MenuBuilder.EndSection();
-}
-
-void UVRRadialMenuHandler::ModesMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride)
-{
-	MenuBuilder.BeginSection("Modes");
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Actors", "Actors"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ActorsMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ChangeEditorModes, FBuiltinEditorModes::EM_Placement),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::EditorModeActive, FBuiltinEditorModes::EM_Placement)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Foliage", "Foliage"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.FoliageMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ChangeEditorModes, FBuiltinEditorModes::EM_Foliage),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::EditorModeActive, FBuiltinEditorModes::EM_Foliage)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Landscape", "Landscape"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.LandscapeMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ChangeEditorModes, FBuiltinEditorModes::EM_Landscape),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::EditorModeActive, FBuiltinEditorModes::EM_Landscape)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("MeshPaint", "Paint"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.MeshPaintMode"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ChangeEditorModes, FBuiltinEditorModes::EM_MeshPaint),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::EditorModeActive, FBuiltinEditorModes::EM_MeshPaint)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	MenuBuilder.EndSection();
-}
-
 void UVRRadialMenuHandler::SystemMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* VRMode, float& RadiusOverride)
 {
 	MenuBuilder.BeginSection("System");
@@ -859,28 +556,5 @@ void UVRRadialMenuHandler::RegisterMenuGenerator(const FOnRadialMenuGenerated Ne
 	}
 }
 
-void UVRRadialMenuHandler::SetActionsMenuGenerator(const FOnRadialMenuGenerated NewMenuGenerator, const FText NewLabel)
-{
-	UVRRadialMenuHandler::ActionMenuLabel = NewLabel;
-	ActionsMenu = NewMenuGenerator;
-}
-
-
-void UVRRadialMenuHandler::ResetActionsMenuGenerator()
-{
-	UVRRadialMenuHandler::ActionMenuLabel = LOCTEXT("DefaultActions", "Actions");
-	FOnRadialMenuGenerated EmptyRadialMenu;
-	ActionsMenu = EmptyRadialMenu;
-}
-
-FText UVRRadialMenuHandler::GetActionMenuLabel()
-{
-	return  UVRRadialMenuHandler::ActionMenuLabel;
-}
-
-bool UVRRadialMenuHandler::IsActionMenuBound()
-{
-	return ActionsMenu.IsBound();
-}
 
 #undef LOCTEXT_NAMESPACE

@@ -45,7 +45,6 @@ void FVREditorModeManager::Tick( const float DeltaTime )
 	IHeadMountedDisplay * const HMD = GEngine != nullptr && GEngine->XRSystem.IsValid() ? GEngine->XRSystem->GetHMDDevice() : nullptr;
 	if (GetDefault<UVRModeSettings>()->bEnableAutoVREditMode
 		&& HMD
-		&& (GEditor->PlayWorld == nullptr || (CurrentVREditorMode != nullptr && CurrentVREditorMode->GetStartedPlayFromVREditor()))
 		&& FPlatformApplicationMisc::IsThisApplicationForeground())
 	{
 		const EHMDWornState::Type LatestHMDWornState = HMD->GetHMDWornState();
@@ -58,11 +57,6 @@ void FVREditorModeManager::Tick( const float DeltaTime )
 			}
 			else if (HMDWornState == EHMDWornState::NotWorn && CurrentVREditorMode != nullptr)
 			{
-				if (GEditor->PlayWorld && !GEditor->bIsSimulatingInEditor)
-				{
-					CurrentVREditorMode->TogglePIEAndVREditor(); //-V595
-				}
-
 				EnableVREditor( false, false );
 			}
 		}
@@ -75,48 +69,11 @@ void FVREditorModeManager::Tick( const float DeltaTime )
 		CloseVREditor( bShouldDisableStereo );
 	}
 
-	// Only check for input if we started this play session from the VR Editor
-	if( GEditor->PlayWorld && !GEditor->bIsSimulatingInEditor && CurrentVREditorMode != nullptr)
+	// Start the VR Editor mode
+	if (bEnableVRRequest)
 	{
-		// Shutdown PIE if we came from the VR Editor and we are not already requesting to start the VR Editor and when any of the players is holding down the required input
-		const float ShutDownInputKeyTime = 1.0f;
-		const float ShutDownTriggerValue = 0.7f;
-		TArray<APlayerController*> PlayerControllers;
-		GEngine->GetAllLocalPlayerControllers(PlayerControllers);
-		for(APlayerController* PlayerController : PlayerControllers)
-		{
-			const float LeftGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Left_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Left_Grip_Click));
-			const float RightGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Right_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Right_Grip_Click));
-			const float LeftTriggerValue = FMath::Max3(PlayerController->GetInputAxisValue(EKeys::Vive_Left_Trigger_Axis.GetFName()),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Trigger_Axis.GetFName()),
-				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Left_Trigger_Axis.GetFName()));
-			const float RightTriggerValue = FMath::Max3(PlayerController->GetInputAxisValue(EKeys::Vive_Right_Trigger_Axis.GetFName()),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Trigger_Axis.GetFName()),
-				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Right_Trigger_Axis.GetFName()));
-
-			if(LeftGripTimeDown > ShutDownInputKeyTime && RightGripTimeDown > ShutDownInputKeyTime &&
-				LeftTriggerValue > ShutDownTriggerValue && RightTriggerValue > ShutDownTriggerValue)
-			{
-				CurrentVREditorMode->TogglePIEAndVREditor();
-				// We need to clear the input of the playercontroller when exiting PIE. 
-				// Otherwise the input will still be pressed down causing toggle between PIE and VR Editor to be called instantly whenever entering PIE a second time.
-				PlayerController->PlayerInput->FlushPressedKeys();
-				break;
-			}
-		}
-	}
-	else
-	{
-		// Start the VR Editor mode
-		if( bEnableVRRequest )
-		{
-			EnableVREditor( true, false );
-			bEnableVRRequest = false;
-		}
+		EnableVREditor(true, false);
+		bEnableVRRequest = false;
 	}
 }
 

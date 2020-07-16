@@ -164,10 +164,6 @@ public:
 
 	static void ApplyFillWithMask(FColor& InOutColor, const FColor& MaskColor, const FColor& FillColor);
 
-		
-	/** Checks whether or not the given Viewport Client is a VR editor viewport client */
-	static bool IsInVRMode(const FEditorViewportClient* ViewportClient);
-
 	/** Forces the component to render LOD level at LODIndex instead of the view-based LOD level ( X = 0 means do not force the LOD, X > 0 means force the lod to X - 1 ) */
 	static void ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIndex);
 

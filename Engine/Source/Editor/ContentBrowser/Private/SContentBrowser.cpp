@@ -69,7 +69,6 @@
 #include "ContentBrowserDataSubsystem.h"
 
 #include "Brushes/SlateColorBrush.h"
-#include "IVREditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
@@ -2511,11 +2510,6 @@ void SContentBrowser::HandleResaveAllCurrentFolderCommand() const
 
 bool SContentBrowser::HandleDeleteCommandCanExecute() const
 {
-	if (IVREditorModule::Get().IsVREditorModeActive())
-	{
-		return false;
-	}
-
 	// The order of these conditions are carefully crafted to match the logic of the context menu summoning, as this callback 
 	// is shared between the path and asset views, and is given zero context as to which one is making the request
 	// Change this logic at your peril, lest the the dominoes fall like a house of cards (checkmate)

@@ -311,10 +311,6 @@ protected:
 	void BuildNumPadWidget();
 	/** Swaps the content of the radial menu between the radial menu and the numpad */
 	void SwapRadialMenu();
-
-	/** Creates the sequencer radial menu to pass to the radial menu generator */
-	void SequencerRadialMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, class UVREditorMode* InVRMode, float& RadiusOverride);
-
 	/**
 	* Handles being notified when any editor mode changes to see if any VR Editor UI needs to change.
 	* @param Mode The mode that changed.

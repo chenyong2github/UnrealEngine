@@ -230,7 +230,6 @@ public:
 
 	virtual void SetCanToolBeActivated(bool Value) { }
 	virtual bool CanToolBeActivated() const { return true;  }
-	virtual void SetExternalModifierPressed(const bool bPressed) {};
 
 	virtual EEditAction::Type GetActionEditDuplicate() { return EEditAction::Skip; }
 	virtual EEditAction::Type GetActionEditDelete() { return EEditAction::Skip; }

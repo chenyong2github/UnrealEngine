@@ -28,10 +28,7 @@
 
 #include "Engine/EngineTypes.h"
 #include "Editor/UnrealEdEngine.h"
-#include "GameFramework/WorldSettings.h"
 #include "Sound/SoundCue.h"
-#include "EditorModeManager.h"
-#include "EditorModes.h"
 #include "UnrealEdGlobals.h"
 
 #include "VREditorMode.h"
@@ -58,15 +55,6 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 
-// Content Browser
-#include "CollectionManagerTypes.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-
-// World Outliner
-#include "Editor/SceneOutliner/Public/ISceneOutliner.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerPublicTypes.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerModule.h"
 
 // Actor Details, Modes
 #include "SEditorViewport.h"
@@ -75,8 +63,6 @@
 #include "LevelEditor.h"
 
 // World Settings
-#include "PropertyEditorModule.h"
-#include "IDetailsView.h"
 
 #include "SLevelViewport.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -106,13 +92,12 @@
 #include "VREditorFloatingCameraUI.h"
 #include "ScopedTransaction.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EditorModes.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"
 
 namespace VREd
 {
-	static FAutoConsoleVariable ContentBrowserUIResolutionX( TEXT( "VREd.ContentBrowserUIResolutionX" ), 1920, TEXT( "Horizontal resolution to use for content browser UI render targets" ) );
-	static FAutoConsoleVariable ContentBrowserUIResolutionY( TEXT( "VREd.ContentBrowserUIResolutionY" ), 1200, TEXT( "Vertical resolution to use for content browser UI render targets" ) );
 	static FAutoConsoleVariable SequencerUIResolutionX(TEXT("VREd.SequencerUIResolutionX"), 960, TEXT("Horizontal resolution to use for Sequencer UI render targets"));
 	static FAutoConsoleVariable SequencerUIResolutionY(TEXT("VREd.SequencerUIResolutionY"), 600, TEXT("Vertical resolution to use for Sequencer UI render targets"));
 	static FAutoConsoleVariable DefaultEditorUIResolutionX( TEXT( "VREd.DefaultEditorUIResolutionX" ), 1024, TEXT( "Horizontal resolution to use for VR editor UI render targets" ) );
@@ -121,9 +106,7 @@ namespace VREd
 	static FAutoConsoleVariable DefaultRadialElementResolutionY(TEXT("VREd.DefaultRadialElementResolutionY"), 350, TEXT("Vertical resolution to use for VR editor radial UI render targets"));
 	static FAutoConsoleVariable QuickMenuUIResolutionX( TEXT( "VREd.QuickMenuUIResolutionX" ), 1200, TEXT( "Horizontal resolution to use for Quick Menu VR UI render targets" ) );
 	static FAutoConsoleVariable QuickMenuUIResolutionY( TEXT( "VREd.QuickMenuUIResolutionY" ), 1075, TEXT( "Vertical resolution to use for Quick Menu VR UI render targets" ) );
-	static FAutoConsoleVariable ContentBrowserUISize( TEXT( "VREd.ContentBrowserUISize" ), 80.0f, TEXT( "How big content browser UIs should be" ) );
 	static FAutoConsoleVariable EditorUISize( TEXT( "VREd.EditorUISize" ), 70.0f, TEXT( "How big editor UIs should be" ) );
-	static FAutoConsoleVariable ContentBrowserUIScale( TEXT( "VREd.ContentBrowserUIScale" ), 2.0f, TEXT( "How much to scale up (or down) the content browser for VR" ) );
 	static FAutoConsoleVariable EditorUIScale( TEXT( "VREd.EditorUIScale" ), 2.0f, TEXT( "How much to scale up (or down) editor UIs for VR" ) );
 	static FAutoConsoleVariable AssetEditorUIResolutionX( TEXT( "VREd.AssetEditorUIResolutionX" ), 1920, TEXT( "Horizontal resolution to use for VR editor asset editor UI render targets" ) );
 	static FAutoConsoleVariable AssetEditorUIResolutionY( TEXT( "VREd.AssetEditorUIResolutionY" ), 1080, TEXT( "Vertical resolution to use for VR editor asset editor UI render targets" ) );
@@ -137,7 +120,6 @@ namespace VREd
 	static FAutoConsoleVariable MinDockWindowSize( TEXT( "VREd.MinDockWindowSize" ), 40, TEXT( "Minimum size for dockable windows" ) );
 	static FAutoConsoleVariable UIPanelOpenDistance( TEXT( "VREd.UIPanelOpenDistance" ), 20.f, TEXT( "Distance to spawn a panel from the hand in centimeters" ) );
 	static FAutoConsoleVariable UIPanelOpenRotationPitchOffset( TEXT( "VREd.UIPanelOpenRotationPitchOffset" ), 45.0f, TEXT( "The pitch rotation offset in degrees when spawning a panel in front of the motioncontroller" ) );
-	static FAutoConsoleVariable ColorPickerDockSpawnOffset( TEXT( "VREd.ColorPickerDockSpawnOffset" ),  3.f, TEXT( "Offset of where the color picker spawns" ) );
 	static FAutoConsoleVariable SteamVRTrackpadDeadzone(TEXT("VREd.SteamVRTrackpadDeadzone"), 0.3f, TEXT("The deadzone for the Vive motion controller trackpad"));
 	static const FTransform DefaultColorPickerTransform(	FRotator( -10, 180, 0), FVector( 30, 35, 0 ), FVector( 1 ) );
 	static const FTransform DefaultActorPreviewTransform(FRotator(-20, 120, 0), FVector(50, -60, 0), FVector(1));
@@ -146,13 +128,7 @@ namespace VREd
 	static FAutoConsoleVariable CameraPreviewUISize( TEXT( "VREd.CameraPreviewUISize" ), 50.0f, TEXT( "How big camera preview UIs should be" ) );
 }
 
-const VREditorPanelID UVREditorUISystem::ContentBrowserPanelID = VREditorPanelID("ContentBrowser");
-const VREditorPanelID UVREditorUISystem::WorldOutlinerPanelID = VREditorPanelID("WorldOutliner");
-const VREditorPanelID UVREditorUISystem::DetailsPanelID = VREditorPanelID("Details");
-const VREditorPanelID UVREditorUISystem::ModesPanelID = VREditorPanelID("Modes");
-const VREditorPanelID UVREditorUISystem::TutorialPanelID = VREditorPanelID("Tutorial");
-const VREditorPanelID UVREditorUISystem::WorldSettingsPanelID = VREditorPanelID("WorldSettings");
-const VREditorPanelID UVREditorUISystem::ColorPickerPanelID = VREditorPanelID("ColorPicker");
+
 const VREditorPanelID UVREditorUISystem::SequencerPanelID = VREditorPanelID("SequencerUI");
 const VREditorPanelID UVREditorUISystem::InfoDisplayPanelID = VREditorPanelID("InfoDisplay");
 const VREditorPanelID UVREditorUISystem::RadialMenuPanelID = VREditorPanelID("RadialMenu");
@@ -202,10 +178,6 @@ void UVREditorUISystem::Init(UVREditorMode* InVRMode)
 
 	CreateUIs();
 
-	// Bind the color picker creation & destruction overrides
-	SColorPicker::OnColorPickerNonModalCreateOverride.BindUObject(this, &UVREditorUISystem::CreateVRColorPicker);
-	SColorPicker::OnColorPickerDestroyOverride.BindUObject(this, &UVREditorUISystem::DestroyVRColorPicker);
-
 	// Bind the global tab manager's dockable area restore override
 	FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.BindUObject(this, &UVREditorUISystem::DockableAreaRestored);
 
@@ -214,7 +186,6 @@ void UVREditorUISystem::Init(UVREditorMode* InVRMode)
 	FVREditorActionCallbacks::UpdateSelectingCandidateActorsText(VRMode);
 	FVREditorActionCallbacks::SelectingCandidateActorsText = FVREditorActionCallbacks::GetSelectingCandidateActorsText();
 
-	GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject(this, &UVREditorUISystem::HandleEditorModeChanged);
 	AssetEditorCloseDelegate = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().AddUObject(this, &UVREditorUISystem::OnCloseAssetEditor);
 
 }
@@ -939,180 +910,6 @@ void UVREditorUISystem::CreateUIs()
 	// Make some editor UIs!
 	{
 		{
-			const FIntPoint Resolution = FIntPoint( VREd::ContentBrowserUIResolutionX->GetInt(), VREd::ContentBrowserUIResolutionY->GetInt() );
-
-			IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>( "ContentBrowser" ).Get();;
-
-			// @todo vreditor UI: We've turned off a LOT of content browser features that are clunky to use in VR right (pop ups, text fields, etc.)
-			FContentBrowserConfig Config;
-			Config.bCanShowClasses = false;
-			Config.bCanShowRealTimeThumbnails = false;
-			Config.InitialAssetViewType = EAssetViewType::Tile;
-			Config.bCanShowDevelopersFolder = false;
-			Config.bCanShowFolders = false;
-			Config.bUseSourcesView = true;
-			Config.bExpandSourcesView = true;
-			Config.ThumbnailLabel = EThumbnailLabel::NoLabel;
-			Config.ThumbnailScale = 0.4f;
-			Config.bCanShowFilters = true;
-			Config.bUsePathPicker = true;
-			Config.bShowBottomToolbar = true;
-			Config.bCanShowLockButton = false;
-
-			if( GIsDemoMode )
-			{
-				Config.SelectedCollectionName.Name = TEXT( "Demo" );
-				Config.SelectedCollectionName.Type = ECollectionShareType::CST_Shared;
-			}
-
-			TSharedRef<SWidget> ContentBrowser = ContentBrowserSingleton.CreateContentBrowser( "VRContentBrowser", nullptr, &Config );
-
-			TSharedRef<SWidget> WidgetToDraw =
-				SNew( SDPIScaler )
-				.DPIScale( VREd::ContentBrowserUIScale->GetFloat() )
-				[
-					ContentBrowser
-				]
-			;
-
-			const bool bWithSceneComponent = false;
-			AVREditorFloatingUI* ContentBrowserUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT( "ContentBrowserUI" ), bWithSceneComponent);
-			ContentBrowserUI->SetSlateWidget( *this, ContentBrowserPanelID, WidgetToDraw, Resolution, VREd::ContentBrowserUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			ContentBrowserUI->ShowUI( bShowUI );
-			FloatingUIs.Add(ContentBrowserPanelID, ContentBrowserUI);
-		}
-
-		{
-			FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>( "SceneOutliner" );
-
-			SceneOutliner::FInitializationOptions InitOptions;
-			InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
-
-			TSharedRef<ISceneOutliner> SceneOutliner = SceneOutlinerModule.CreateSceneOutliner( InitOptions, FOnActorPicked() /* Not used for outliner when in browsing mode */ );
-			TSharedRef<SWidget> WidgetToDraw =
-				SNew( SDPIScaler )
-				.DPIScale( VREd::EditorUIScale->GetFloat() )
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-					[
-						SceneOutliner
-					]
-				]
-			;
-
-			const bool bWithSceneComponent = false;
-			AVREditorFloatingUI* WorldOutlinerUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("WorldOutlinerUI"), bWithSceneComponent);
-			WorldOutlinerUI->SetSlateWidget( *this, WorldOutlinerPanelID, WidgetToDraw, DefaultResolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			WorldOutlinerUI->ShowUI( bShowUI );
-			FloatingUIs.Add(WorldOutlinerPanelID, WorldOutlinerUI);
-		}
-
-		{
-			const TSharedRef< ILevelEditor >& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" ).GetFirstLevelEditor().ToSharedRef();
-
-			const FName TabIdentifier = NAME_None;	// No tab for us!
-			TSharedRef<SWidget> ActorDetails = LevelEditor->CreateActorDetails( TabIdentifier );
-
-			TSharedRef<SWidget> WidgetToDraw =
-				SNew( SDPIScaler )
-				.DPIScale( VREd::EditorUIScale->GetFloat() )
-				[
-					ActorDetails
-				]
-			;
-
-			const bool bWithSceneComponent = false;
-			AVREditorFloatingUI* ActorDetailsUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ActorDetailsUI"), bWithSceneComponent);
-			ActorDetailsUI->SetSlateWidget( *this, DetailsPanelID, WidgetToDraw, DefaultResolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			ActorDetailsUI->ShowUI( bShowUI );
-			FloatingUIs.Add(DetailsPanelID, ActorDetailsUI);
-		}
-
-		{
-			const TSharedRef< ILevelEditor >& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" ).GetFirstLevelEditor().ToSharedRef();
-
-			TSharedRef<SWidget> Modes = LevelEditor->CreateToolBox();
-
-			TSharedRef<SWidget> WidgetToDraw =
-				SNew( SDPIScaler )
-				.DPIScale( VREd::EditorUIScale->GetFloat() )
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-					[
-						Modes
-					]
-				]
-			;
-
-			const bool bWithSceneComponent = false;
-			AVREditorFloatingUI* ModesUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ModesUI"), bWithSceneComponent);
-			ModesUI->SetSlateWidget( *this, ModesPanelID, WidgetToDraw, DefaultResolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			ModesUI->ShowUI( bShowUI );
-			FloatingUIs.Add(ModesPanelID, ModesUI);
-
-			// @todo vreditor placement: This is required to force the modes UI to refresh -- otherwise it looks empty
-			GLevelEditorModeTools().ActivateDefaultMode();
-		}
-
-		{
-			const FIntPoint Resolution = FIntPoint(VREd::AssetEditorUIResolutionX->GetInt(), VREd::AssetEditorUIResolutionY->GetInt());
-
-			const bool bWithSceneComponent = false;
-			AVREditorDockableWindow* TabManagerUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("AssetEditor"), bWithSceneComponent);
-			TabManagerUI->SetSlateWidget( *this, TabManagerPanelID,  SNullWidget::NullWidget, Resolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			TabManagerUI->ShowUI( bShowUI );
-
-			// @todo vreditor: Could use "Hovering" instead for better performance with many UIs, but needs to be manually refreshed in some cases
-			TabManagerUI->GetWidgetComponent()->SetDrawingPolicy( EVREditorWidgetDrawingPolicy::Always );
-
-			FloatingUIs.Add(TabManagerPanelID, TabManagerUI);
-
-			TSharedPtr<SWindow> TabManagerWindow = TabManagerUI->GetWidgetComponent()->GetSlateWindow();
-			TSharedRef<SWindow> TabManagerWindowRef = TabManagerWindow.ToSharedRef();
-			ProxyTabManager = MakeShareable( new FProxyTabmanager( TabManagerWindowRef ) );
-
-			ProxyTabManager->OnIsTabSupported.AddUObject( this, &UVREditorUISystem::IsProxyTabSupported );
-			ProxyTabManager->OnTabOpened.AddUObject( this, &UVREditorUISystem::OnProxyTabLaunched );
-			ProxyTabManager->OnAttentionDrawnToTab.AddUObject( this, &UVREditorUISystem::OnAttentionDrawnToTab );
-
-			// We're going to start stealing tabs from the global tab manager inserting them into the world instead.
-			FGlobalTabmanager::Get()->SetProxyTabManager( ProxyTabManager );
-
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddUObject( this, &UVREditorUISystem::OnAssetEditorOpened );
-		}
-		// create the world settings menu
-		{
-			FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked< FPropertyEditorModule >( "PropertyEditor" );
-
-			FDetailsViewArgs DetailsViewArgs( false, false, true, FDetailsViewArgs::HideNameArea, false, GUnrealEd );
-			DetailsViewArgs.bShowActorLabel = false;
-
-			TSharedRef<IDetailsView> WorldSettings = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
-
-			UWorld* World = GetOwner().GetWorld();
-			if ( World != NULL )
-			{
-				WorldSettings->SetObject( World->GetWorldSettings() );
-			}
-
-			TSharedRef<SWidget> WidgetToDraw = 
-				SNew( SDPIScaler )
-				.DPIScale( VREd::EditorUIScale->GetFloat() )
-				[
-					WorldSettings
-				]
-			;
-
-			const bool bWithSceneComponent = false;
-			AVREditorFloatingUI* WorldSettingsUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("WorldSettingsUI"), bWithSceneComponent);
-			WorldSettingsUI->SetSlateWidget( *this, WorldSettingsPanelID, WidgetToDraw, DefaultResolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing );
-			WorldSettingsUI->ShowUI( bShowUI );
-			FloatingUIs.Add(WorldSettingsPanelID, WorldSettingsUI);
-		}
-
-		{
 			const FName TabIdentifier = NAME_None;	// No tab for us!
 			const TSharedRef<SWidget> SequencerWidget = SNullWidget::NullWidget;
 			
@@ -1126,7 +923,7 @@ void UVREditorUISystem::CreateUIs()
 
 			const bool bWithSceneComponent = false;
 			AVREditorFloatingUI* SequencerUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("SequencerUI"), bWithSceneComponent);
-			SequencerUI->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::ContentBrowserUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+			SequencerUI->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 			SequencerUI->ShowUI(false);
 			FloatingUIs.Add(SequencerPanelID, SequencerUI);
 		}
@@ -1301,11 +1098,6 @@ void UVREditorUISystem::ShowEditorUIPanel(AVREditorFloatingUI* Panel, UVREditorI
 					Panel->SetSlateWidget(*this, SequencerPanelID, SNullWidget::NullWidget, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 					FVREditorActionCallbacks::CloseSequencer(GetOwner().GetCurrentSequencer()->GetRootMovieSceneSequence());
 				}
-			}
-			else if (PanelID == ModesPanelID)
-			{
-				// Quit active mode and go back to Placement Mode when closing the Modes panel.
-				GLevelEditorModeTools().DeactivateAllModes();
 			}
 			else if (PanelID.ToString().Contains(ActorPreviewPrefix))
 			{
@@ -1623,94 +1415,7 @@ void UVREditorUISystem::DockableAreaRestored()
 {
 }
 
-void UVREditorUISystem::CreateVRColorPicker(const TSharedRef<SColorPicker>& ColorPicker)
-{
-	// Check that the Color Picker Panel isn't currently showing. Also handles the EEditorUIPanel::ColorPicker being null.
-	const FIntPoint DefaultResolution(VREd::DefaultEditorUIResolutionX->GetInt(), VREd::DefaultEditorUIResolutionY->GetInt());
 
-	TSharedRef<SWidget> WidgetToDraw =
-		SNew(SDPIScaler)
-		.DPIScale(VREd::EditorUIScale->GetFloat())
-		[
-			ColorPicker
-		]
-	;
-
-	// Only spawn the Color picker dockable window if there is none yet
-	bool bJustSpawned = false;
-	if( ColorPickerUI == nullptr )
-	{
-		const bool bWithSceneComponent = false;
-		ColorPickerUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ColorPickerUI"), bWithSceneComponent);
-		FloatingUIs.Add(ColorPickerPanelID, ColorPickerUI);
-		bJustSpawned = true;
-	}
-
-	ColorPickerUI->SetSlateWidget( *this, ColorPickerPanelID, WidgetToDraw, DefaultResolution, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Room );
-
-	// Always spawn based on the location of the menu you are hovering over. To get this information, find the hand hovering over the UI.
-	UVREditorInteractor* VREditorInteractor = GetOwner().GetHandInteractor(EControllerHand::Left);
-	if (!VREditorInteractor->IsHoveringOverUI())
-	{
-		VREditorInteractor = GetOwner().GetHandInteractor(EControllerHand::Right);
-	}
-
-	// Spawn the color picker close to the pressed UI it was opened using UI. Otherwise spawn it in front of the user.
-	UWidgetComponent* HoveredWidgetComponent = VREditorInteractor->GetLastHoveredWidgetComponent();
-	if( HoveredWidgetComponent != nullptr )
-	{
-		FVector LaserPointerStart, LaserPointerEnd;
-		if( VREditorInteractor->GetLaserPointer( LaserPointerStart, LaserPointerEnd ) )
-		{
-			//Calculate new location using the direction of the laser with an offset towards the user
-			FVector LaserPointerDirection = LaserPointerEnd - LaserPointerStart;
-			LaserPointerDirection.Normalize();
-			const FVector HoverOverUILocation = VREditorInteractor->GetHoverLocation();
-			const FVector Offset = LaserPointerDirection * VREd::ColorPickerDockSpawnOffset->GetFloat() * VRMode->GetWorldScaleFactor();
-
-			FTransform NewTransform = FTransform( HoveredWidgetComponent->GetComponentQuat(), HoverOverUILocation - Offset );
-			
-			// Move the color picker if it was already spawned, or instantly set the transform if it was just spawned. We don't want to move the UI from location zero
-			if( bJustSpawned )
-			{
-				ColorPickerUI->SetDockedTo( AVREditorBaseActor::EDockedTo::Room );
-				ColorPickerUI->SetTransform( NewTransform );
-			}
-			else
-			{
-				ColorPickerUI->MoveTo( NewTransform, 0.2f, AVREditorBaseActor::EDockedTo::Room );
-			}
-
-			ColorPickerUI->SetActorTransform( NewTransform );
-			ColorPickerUI->UpdateRelativeRoomTransform();
-		}
-	}
-	else
-	{
-		// Make sure the UIs are centered around the direction your head is looking (yaw only!)
-		const FVector RoomSpaceHeadLocation = VRMode->GetRoomSpaceHeadTransform().GetLocation() / VRMode->GetWorldScaleFactor();
-		FRotator RoomSpaceHeadYawRotator = VRMode->GetRoomSpaceHeadTransform().GetRotation().Rotator();
-		RoomSpaceHeadYawRotator.Pitch = 0.0f;
-		RoomSpaceHeadYawRotator.Roll = 0.0f;
-	
-		FTransform NewTransform = VREd::DefaultColorPickerTransform;
-		NewTransform *= FTransform(RoomSpaceHeadYawRotator.Quaternion(), FVector::ZeroVector);
-		ColorPickerUI->SetLocalRotation(NewTransform.GetRotation().Rotator());
-		ColorPickerUI->SetRelativeOffset(RoomSpaceHeadLocation + NewTransform.GetTranslation());
-	}
-
-	ColorPickerUI->ShowUI( true );
-}
-
-void UVREditorUISystem::DestroyVRColorPicker()
-{
-	UVREditorInteractor* VREditorInteractor = nullptr;
-	const bool bShouldShow = false;
-	const bool bSpawnInFront = false;
-	const bool bDragFromOpen = false;
-	const bool bPlaySound = true;
-	ShowEditorUIPanel(ColorPickerPanelID, VREditorInteractor, bShouldShow, bSpawnInFront, bDragFromOpen, bPlaySound);
-}
 
 void UVREditorUISystem::MakeUniformGridMenu(const TSharedRef<FMultiBox>& MultiBox, const TSharedRef<SMultiBoxWidget>& MultiBoxWidget, int32 Columns)
 {
@@ -2038,40 +1743,7 @@ void UVREditorUISystem::BuildNumPadWidget()
 
 	// Create the menu widget
 	MenuBuilder.MakeWidget(&VREditorMenuBuilderOverride);
-	/**
-	TSharedRef<SWidget> FinalWidget = SNew( SOverlay )
-		+ SOverlay::Slot()
-		[
-			MenuWidget
-		]
-		+ SOverlay::Slot()
-		.HAlign( HAlign_Center )
-		.VAlign( VAlign_Center )
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.HAlign( HAlign_Fill )
-			.VAlign( VAlign_Center )
-			.AutoHeight()
-			[
-				SNew( STextBlock )
-				.Justification( ETextJustify::Center )
-				.Text( LOCTEXT( "BackspaceHelp", "Modifier: Backspace" ) )
-				.TextStyle( FVREditorStyle::Get(), "VREditorStyle.HelperText" )
-			]
-		+ SVerticalBox::Slot()
-			.HAlign( HAlign_Fill )
-			.VAlign( VAlign_Center )
-			.AutoHeight()
-			[
-				SNew( STextBlock )
-				.Justification( ETextJustify::Center )
-				.Text( LOCTEXT( "EnterHelp", "Grip: Enter" ) )
-			.	TextStyle( FVREditorStyle::Get(), "VREditorStyle.HelperText" )
-			]
-		]
-		;
-		*/
+
 }
 
 const TSharedRef<SWidget>& UVREditorUISystem::FindWidgetOfType(const TSharedRef<SWidget>& Content, FName WidgetType)
@@ -2175,118 +1847,6 @@ AVREditorFloatingUI* UVREditorUISystem::GetPanel(const VREditorPanelID& InPanelI
 	return Result;
 }
 
-void UVREditorUISystem::SequencerRadialMenuGenerator(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, UVREditorMode* InVRMode, float& RadiusOverride)
-{
-	RadiusOverride = 1.0f;
-	// First menu entry is at 90 degrees 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Play", "Play"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.SequencerPlay"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::PlaySequenceAtRate, InVRMode, 1.0f),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		)
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Reverse", "Reverse"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.SequencerReverse"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::PlaySequenceAtRate, InVRMode, -1.0f),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		)
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Stop", "Stop"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.SequencerStop"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::PauseSequencePlayback, InVRMode),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		)
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("PlayFromStart", "Play From Start"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.PlayFromStart"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::PlayFromBeginning, InVRMode),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-			)
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ScrubTime", "Scrub Time"),
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.Scrub"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ToggleSequencerScrubbing, InVRMode, UIInteractor),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound),
-			FGetActionCheckState::CreateStatic(&FVREditorActionCallbacks::GetSequencerScrubState, UIInteractor)
-			),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	TAttribute<FText> LoopingLabel;
-	LoopingLabel.BindStatic(&FVREditorActionCallbacks::GetSequencerLoopingText);
-	MenuBuilder.AddMenuEntry(
-		LoopingLabel,
-		FText(),
-		FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.ToggleLooping"),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::ToggleLooping, InVRMode),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SetSelectionRangeStart", "Set Range Start"),
-		FText(),
-		FSlateIcon(),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::SetSelectionRangeStart, InVRMode),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		)
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SetSelectionRangeEnd", "Set Range End"),
-		FText(),
-		FSlateIcon(),
-		FUIAction
-		(
-			FExecuteAction::CreateStatic(&FVREditorActionCallbacks::SetSelectionRangeEnd, InVRMode),
-			FCanExecuteAction::CreateUObject(this->GetRadialMenuHandler(), &UVRRadialMenuHandler::IsActionMenuBound)
-		)
-	);
-}
-
-void UVREditorUISystem::HandleEditorModeChanged(const FEditorModeID& EditorModeID, bool IsEnabled)
-{
-	if (IsEnabled == true &&
-		(EditorModeID == FBuiltinEditorModes::EM_Foliage ||
-		 EditorModeID == FBuiltinEditorModes::EM_Landscape ||
-		 EditorModeID == FBuiltinEditorModes::EM_MeshPaint))
-	{
-		AVREditorFloatingUI* Panel = GetPanel(ModesPanelID);
-		if (Panel != nullptr && UIInteractor != nullptr && !Panel->IsUIVisible())
-		{
-			const bool bShouldShow = true;
-			const bool bSpawnInFront = true;
-			bool bDragFromOpen = false;
-			bDragFromOpen = ShouldPreviewPanel();
-			ShowEditorUIPanel(Panel, UIInteractor, bShouldShow, bSpawnInFront, bDragFromOpen);
-		}
-	}
-}
-
 void UVREditorUISystem::ResetAll()
 {
 	RadialMenuHandler->Home();
@@ -2308,11 +1868,6 @@ void UVREditorUISystem::ResetAll()
 		}
 	}
 	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Placement);
-
-	if( GEditor->bIsSimulatingInEditor )
-	{
-		VRMode->ToggleSIEAndVREditor();
-	}
 
 	// Turn off all snapping
 	if (FVREditorActionCallbacks::GetTranslationSnapState() == ECheckBoxState::Checked)
@@ -2409,47 +1964,6 @@ void UVREditorUISystem::UpdateSequencerUI()
 				ShowEditorUIPanel(SequencerPanel, UIInteractor, bShouldShow, bSpawnInFront, bDragFromOpen);
 				bSequencerOpenedFromRadialMenu = false;
 			}
-			else
-			{
-				// Spawn the opened sequencer just in front of the content browser
-				AVREditorFloatingUI* ContentBrowser = GetPanel(ContentBrowserPanelID);
-				if (ContentBrowser && ContentBrowser->IsUIVisible())	
-				{
-					ShowEditorUIPanel(ContentBrowser, UIInteractor, false);
-
-					const float WorldScaleFactor = VRMode->GetWorldScaleFactor();
-					const FTransform WindowToWorld = ContentBrowser->GetActorTransform();
-					const FTransform WorldToRoom = VRMode->GetRoomTransform().Inverse();
-					const FTransform WindowToRoom = WindowToWorld * WorldToRoom;
-					const FVector RoomSpaceWindowLocation = WindowToRoom.GetLocation() / WorldScaleFactor;
-					const FQuat RoomSpaceWindowRotation = WindowToRoom.GetRotation();
-
-					SequencerPanel->SetScale(ContentBrowser->GetScale());
-					SequencerPanel->SetDockedTo(AVREditorBaseActor::EDockedTo::Room);
-					SequencerPanel->SetRelativeOffset(RoomSpaceWindowLocation);
-					SequencerPanel->SetLocalRotation(RoomSpaceWindowRotation.Rotator());
-					SequencerPanel->ShowUI(true);
-
-					// Play haptic effect so user knows to look at their hand that now has UI on it!
-					UIInteractor->PlayHapticEffect(VREd::UIAssetEditorSummonedOnHandHapticFeedbackStrength->GetFloat());
-				}
-			}
-
-			FOnRadialMenuGenerated SequencerRadialMenu;
-			SequencerRadialMenu.BindUObject(this, &UVREditorUISystem::SequencerRadialMenuGenerator);
-			if (RadialMenuHandler != nullptr)
-			{
-				if (RadialMenuHandler->IsActionMenuBound())
-				{
-					ExistingActionsMenu = RadialMenuHandler->GetActionsMenuGenerator();
-					ExistingActionsMenuLabel = RadialMenuHandler->GetActionMenuLabel();
-				}
-				RadialMenuHandler->SetActionsMenuGenerator(SequencerRadialMenu, LOCTEXT("Sequencer", "Sequencer"));
-				FVREditorActionCallbacks::UpdateSequencerLoopingText(VRMode);
-				Sequencer->GetSequencerSettings()->GetOnLoopStateChanged().AddStatic(FVREditorActionCallbacks::UpdateSequencerLoopingText, VRMode);
-				FVREditorActionCallbacks::SequencerLoopText = FVREditorActionCallbacks::GetSequencerLoopingText();
-			}
-
 
 			if (InfoDisplayPanel != nullptr)
 			{
@@ -2471,16 +1985,6 @@ void UVREditorUISystem::UpdateSequencerUI()
 		}
 		else
 		{
-			if (RadialMenuHandler != nullptr)
-			{
-				RadialMenuHandler->Home();
-				RadialMenuHandler->ResetActionsMenuGenerator();
-				if (ExistingActionsMenu.IsBound())
-				{
-					RadialMenuHandler->SetActionsMenuGenerator(ExistingActionsMenu, ExistingActionsMenuLabel);
-				}
-			}
-
 			// Hide the info display when finished with sequencer.
 			if (InfoDisplayPanel != nullptr)
 			{
@@ -2608,7 +2112,7 @@ void UVREditorUISystem::UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidge
 		{
 			PreviewWindowInfo.Add(PreviewPanelID, Actor);
 		}
-		PreviewPanel->SetSlateWidget(*this, PreviewPanelID, SNullWidget::NullWidget, ViewfinderSize, VREd::ContentBrowserUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+		PreviewPanel->SetSlateWidget(*this, PreviewPanelID, SNullWidget::NullWidget, ViewfinderSize, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 		PreviewPanel->ShowUI(true);
 	}
 
@@ -2623,7 +2127,7 @@ void UVREditorUISystem::UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidge
 			]
 		;
 	
-		PreviewPanel->SetSlateWidget(*this, PreviewPanelID, WidgetToDraw, ViewfinderSize, VREd::ContentBrowserUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+		PreviewPanel->SetSlateWidget(*this, PreviewPanelID, WidgetToDraw, ViewfinderSize, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 		const bool bDragFromOpen = false;
 		const bool bShouldShow = true;
 		const bool bSpawnInFront = true;
