@@ -300,14 +300,40 @@ bool UDynamicEntryBoxBase::IsEntryClassValid(TSubclassOf<UUserWidget> InEntryCla
 	return true;
 }
 
+namespace DynamicEntryBoxBaseCreateEntryInternal
+{
+	TArray<TSubclassOf<UUserWidget>, TInlineAllocator<4>> RecursiveDetection;
+}
+
 UUserWidget* UDynamicEntryBoxBase::CreateEntryInternal(TSubclassOf<UUserWidget> InEntryClass)
 {
+	const bool bHasResursiveUserWidget = DynamicEntryBoxBaseCreateEntryInternal::RecursiveDetection.ContainsByPredicate([InEntryClass](TSubclassOf<UUserWidget> RecursiveItem)
+		{
+			return InEntryClass->IsChildOf(RecursiveItem);
+		});
+	if (bHasResursiveUserWidget)
+	{
+		UE_LOG(LogSlate, Error, TEXT("'%s' cannot be added to DynamicEntry '%s' because it is already a child and it would create a recurssion.")
+			, *InEntryClass->GetName()
+			, *DynamicEntryBoxBaseCreateEntryInternal::RecursiveDetection.Last()->GetName());
+#if 0
+		for (TSubclassOf<UUserWidget> RecursiveItem : DynamicEntryBoxBaseCreateEntryInternal::RecursiveDetection)
+		{
+			UE_LOG(LogSlate, Log, TEXT("%s"), *RecursiveItem->GetName());
+		}
+#endif
+		return nullptr;
+	}
+	DynamicEntryBoxBaseCreateEntryInternal::RecursiveDetection.Push(InEntryClass);
+
 	UUserWidget* NewEntryWidget = EntryWidgetPool.GetOrCreateInstance(InEntryClass);
 	if (MyPanelWidget.IsValid())
 	{
 		// If we've already been constructed, immediately add the child to our panel widget
 		AddEntryChild(*NewEntryWidget);
 	}
+
+	DynamicEntryBoxBaseCreateEntryInternal::RecursiveDetection.Pop();
 	return NewEntryWidget;
 }
 
