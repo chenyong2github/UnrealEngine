@@ -3,5 +3,5 @@
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 namespace RangeVisibilityUtils
 {
-	TSet<FName> RangeVisibilityUtils::StructsSupportingRangeVisibility;
+	TSet<FName> StructsSupportingRangeVisibility;
 }
