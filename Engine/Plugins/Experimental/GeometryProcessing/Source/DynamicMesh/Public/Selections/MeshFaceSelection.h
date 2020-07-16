@@ -86,18 +86,8 @@ public:
 			add(tid);
 		}
 	}
-	void Select(TArrayView<const int> Triangles)
-	{
-		for (int tID : Triangles)
-		{
-			if (Mesh->IsTriangle(tID))
-			{
-				add(tID);
-			}
-		}
-	}
 
-	template<typename EnumerableType>
+	template<typename EnumerableType, typename E = decltype(DeclVal<EnumerableType>().begin())>
 	void Select(const EnumerableType& Enumerable)
 	{
 		for (int32 tid : Enumerable)
