@@ -11,7 +11,7 @@
 
 class UParticleModuleTypeDataBase;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "SubUV Movie"))
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "SubUV Movie"), MinimalAPI)
 class UParticleModuleSubUVMovie : public UParticleModuleSubUV
 {
 	GENERATED_UCLASS_BODY()
