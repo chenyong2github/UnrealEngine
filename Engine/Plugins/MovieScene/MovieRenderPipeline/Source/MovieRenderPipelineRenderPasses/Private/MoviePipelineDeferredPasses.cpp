@@ -111,6 +111,11 @@ namespace MoviePipeline
 			ShowFlags.SetDepthOfField(false);
 			ShowFlags.SetMotionBlur(false);
 		}
+		ShowFlags.SetPathTracing(false);
+		ShowFlags.SetVisualizeBuffer(false);
+		ShowFlags.SetLightingOnlyOverride(false);
+		ShowFlags.SetCollisionVisibility(false);
+
 
 		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 			TileRenderTarget->GameThread_GetRenderTargetResource(),
@@ -122,10 +127,51 @@ namespace MoviePipeline
 		ViewFamily.SceneCaptureSource = InSampleState.SceneCaptureSource;
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, InSampleState.GlobalScreenPercentageFraction, true));
 		ViewFamily.bWorldIsPaused = InSampleState.bWorldIsPaused;
+		ViewFamily.ViewMode = EViewModeIndex::VMI_Lit;
+		EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
 
 		// View is added as a child of the ViewFamily
 		FSceneView* View = CalcSceneView(&ViewFamily, InSampleState);
+#if RHI_RAYTRACING
+		View->SetupRayTracedRendering();
+#endif
+		{
+			if (View->Family->EngineShowFlags.Wireframe)
+			{
+				// Wireframe color is emissive-only, and mesh-modifying materials do not use material substitution, hence...
+				View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+				View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+			}
+			else if (View->Family->EngineShowFlags.OverrideDiffuseAndSpecular)
+			{
+				View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+				View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
+			}
+			else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+			{
+				View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+				View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+			}
+			else if (View->Family->EngineShowFlags.ReflectionOverride)
+			{
+				View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+				View->SpecularOverrideParameter = FVector4(1, 1, 1, 0.0f);
+				View->NormalOverrideParameter = FVector4(0, 0, 1, 0.0f);
+				View->RoughnessOverrideParameter = FVector2D(0.0f, 0.0f);
+			}
 
+			if (!View->Family->EngineShowFlags.Diffuse)
+			{
+				View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+			}
+
+			if (!View->Family->EngineShowFlags.Specular)
+			{
+				View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+			}
+			FName BufferVisualizationMode = "WorldNormal";
+			View->CurrentBufferVisualizationMode = BufferVisualizationMode;
+		}
 		// Override the view's FrameIndex to be based on our progress through the sequence. This greatly increases
 		// determinism with things like TAA.
 		View->OverrideFrameIndexValue = InSampleState.FrameIndex;
@@ -562,7 +608,6 @@ void UMoviePipelineDeferredPassBase::OnBackbufferSampleReady(TArray<FFloat16Colo
 	}
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-	FrameData->OutputState = InSampleState.OutputState;
 	FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Backbuffer"));
 	FrameData->SampleState = InSampleState;
 
@@ -624,7 +669,6 @@ void UMoviePipelineDeferredPassBase::OnSetupView(FSceneViewFamily& InViewFamily,
 			}
 
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-			FrameData->OutputState = AccumulationParams.SampleState.OutputState;
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(PassName.ToString());
 			FrameData->SampleState = AccumulationParams.SampleState;
 			MoviePipeline::AccumulateSample_RenderThread(MoveTemp(InPixelData), FrameData, AccumulationParams);
@@ -677,7 +721,7 @@ namespace MoviePipeline
 			// it enqueues it onto the game thread and won't be read/sent to write to disk for another frame. 
 			// The extra copy is unfortunate, but is only the size of a single sample (ie: 1920x1080 -> 17mb)
 			TUniquePtr<FImagePixelData> SampleData = InPixelData->CopyImageData();
-			InParams.OutputMerger->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData), InFrameData);
+			InParams.OutputMerger->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
 		}
 
 		// Optimization! If we don't need the accumulator (no tiling, no supersampling) then we'll skip it and just send it straight to the output stage.
@@ -689,7 +733,7 @@ namespace MoviePipeline
 		if (bOneTile && bOneTS && bOneSS)
 		{
 			// Send the data directly to the Output Builder and skip the accumulator.
-			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(InPixelData), InFrameData);
+			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(InPixelData));
 			return;
 		}
 
@@ -739,7 +783,7 @@ namespace MoviePipeline
 				InParams.ImageAccumulator->FetchFinalPixelDataLinearColor(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData), InFrameData);
+				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
 			}
 			else if (InPixelData->GetType() == EImagePixelType::Float16)
 			{
@@ -748,7 +792,7 @@ namespace MoviePipeline
 				InParams.ImageAccumulator->FetchFinalPixelDataHalfFloat(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData), InFrameData);
+				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
 			}
 			else if (InPixelData->GetType() == EImagePixelType::Color)
 			{
@@ -757,7 +801,7 @@ namespace MoviePipeline
 				InParams.ImageAccumulator->FetchFinalPixelDataByte(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData), InFrameData);
+				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
 			}
 			else
 			{

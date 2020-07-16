@@ -73,14 +73,13 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 			RHICmdList.ReadSurfaceData(BackbufferRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
 
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-			FrameData->OutputState = InSampleState.OutputState;
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("BurnInOverlay"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
 
 			TUniquePtr<FImagePixelData> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 
-			OutputBuilder->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(PixelData), FrameData);
+			OutputBuilder->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(PixelData));
 		});
 	}
 }
