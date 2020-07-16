@@ -12,6 +12,7 @@
 #include "TickableEditorObject.h"
 #include "SEditorViewport.h"
 #include "AdvancedPreviewSceneModule.h"
+#include "AssetEditorViewportLayout.h"
 
 // Set USE_ASYNC_DECOMP to zero to go back to the fully synchronous; blocking version of V-HACD
 #ifndef USE_ASYNC_DECOMP
@@ -543,7 +544,7 @@ private:
 	FText SecondaryToolbarDisplayName;
 	
 	/** Storage for our viewport creation function that will be passed to the viewport layout system*/
-	TFunction<TSharedRef<SEditorViewport>(void)> MakeViewportFunc;
+	AssetEditorViewportFactoryFunction MakeViewportFunc;
 
 	/** Toolbar toggles */
 	bool bDrawNormals;

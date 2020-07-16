@@ -15,7 +15,7 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SWindow.h"
 #include "Settings/LevelEditorViewportSettings.h"
-#include "SEditorViewport.h"
+#include "SAssetEditorViewport.h"
 #include "EditorModeManager.h"
 #include "IAssetViewport.h"
 #include "LevelEditorViewport.h"
@@ -34,21 +34,14 @@ enum class EMapChangeType : uint8;
 /**
  * Encapsulates an SViewport and an SLevelViewportToolBar
  */
-class LEVELEDITOR_API SLevelViewport : public SEditorViewport, public IAssetViewport
+class LEVELEDITOR_API SLevelViewport : public SAssetEditorViewport, public IAssetViewport
 {
 public:
 	SLATE_BEGIN_ARGS( SLevelViewport )
-		: _ViewportType( LVT_Perspective )
-		, _Realtime( false )
 		{}
 
-		SLATE_ARGUMENT( TWeakPtr<class FEditorModeTools>, EditorModeTools )
-		SLATE_ARGUMENT( TSharedPtr<class FLevelViewportLayout>, ParentLayout )
 		SLATE_ARGUMENT( TWeakPtr<ILevelEditor>, ParentLevelEditor )
 		SLATE_ARGUMENT( TSharedPtr<FLevelEditorViewportClient>, LevelEditorViewportClient )
-		SLATE_ARGUMENT( ELevelViewportType, ViewportType )
-		SLATE_ARGUMENT( bool, Realtime )
-		SLATE_ARGUMENT( FName, ConfigKey )
 	SLATE_END_ARGS()
 
 	SLevelViewport();
@@ -58,7 +51,7 @@ public:
 	/**
 	 * Constructs the viewport widget                   
 	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InConstructionArgs);
 
 	/**
 	 * Constructs the widgets for the viewport overlay
@@ -71,7 +64,7 @@ public:
 	/**
 	 * Constructs the level editor viewport client
 	 */
-	void ConstructLevelEditorViewportClient( const FArguments& InArgs );
+	void ConstructLevelEditorViewportClient(FLevelEditorViewportInstanceSettings& ViewportInstanceSettings);
 
 	/**
 	 * @return true if the viewport is visible. false otherwise                  

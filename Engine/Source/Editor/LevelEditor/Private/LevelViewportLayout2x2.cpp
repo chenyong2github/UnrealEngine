@@ -53,37 +53,34 @@ TSharedRef<SWidget> FLevelViewportLayout2x2::MakeViewportLayout(const FString& L
 		}
 	}
 
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-
 	// Set up the viewports
-	FViewportConstructionArgs Args;
+	FAssetEditorViewportConstructionArgs Args;
 	Args.ParentLayout = AsShared();
-	Args.ParentLevelEditor = ParentLevelEditor;
 	Args.IsEnabled = FSlateApplication::Get().GetNormalExecutionAttribute();
 
 	// Left viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopLeftKey;
 	Args.ViewportType = LVT_OrthoYZ;
-	TSharedPtr< ILevelViewportLayoutEntity > ViewportTL = LevelEditor.FactoryViewport(*TopLeftType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportTL = FactoryViewport(*TopLeftType, Args);
 
 	// Persp viewport
 	Args.bRealtime = true;
 	Args.ConfigKey = *BottomLeftKey;
 	Args.ViewportType = LVT_Perspective;
-	TSharedPtr< ILevelViewportLayoutEntity > ViewportBL = LevelEditor.FactoryViewport(*BottomLeftType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportBL = FactoryViewport(*BottomLeftType, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopRightKey;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedPtr< ILevelViewportLayoutEntity > ViewportTR = LevelEditor.FactoryViewport(*TopRightType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportTR = FactoryViewport(*TopRightType, Args);
 
 	// Top Viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *BottomRightKey;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedPtr< ILevelViewportLayoutEntity > ViewportBR = LevelEditor.FactoryViewport(*BottomRightType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportBR = FactoryViewport(*BottomRightType, Args);
 
 	Viewports.Add( *TopLeftKey, ViewportTL );
 	Viewports.Add( *BottomLeftKey, ViewportBL );
@@ -109,9 +106,6 @@ TSharedRef<SWidget> FLevelViewportLayout2x2::MakeViewportLayout(const FString& L
 	[
 		ViewportBR->AsWidget()
 	];
-	
-	// Make newly-created perspective viewports active by default
-	GCurrentLevelEditingViewportClient = &ViewportBL->GetLevelViewportClient();
 
 	if (SplitterPercentages.Num() > 0)
 	{

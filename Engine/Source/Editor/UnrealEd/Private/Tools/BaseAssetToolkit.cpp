@@ -120,12 +120,12 @@ void FBaseAssetToolkit::RegisterToolbar()
 {
 }
 
-TFunction<TSharedRef<SEditorViewport>(void)> FBaseAssetToolkit::GetViewportDelegate()
+AssetEditorViewportFactoryFunction FBaseAssetToolkit::GetViewportDelegate()
 {
 	// Set up functor for viewport tab
-	TFunction<TSharedRef<SEditorViewport>(void)> TempViewportDelegate = [=]()
+	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](const FAssetEditorViewportConstructionArgs& InArgs)
 	{
-		return SNew(SAssetEditorViewport)
+		return SNew(SAssetEditorViewport, InArgs)
 			.EditorViewportClient(ViewportClient);
 	};
 

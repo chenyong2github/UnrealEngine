@@ -7,17 +7,10 @@
 #include "UnrealEdGlobals.h"
 #include "SLevelViewport.h"
 
-FLevelViewportLayoutEntity::FLevelViewportLayoutEntity(const FViewportConstructionArgs& ConstructionArgs)
-	: LevelViewport(
-		SNew(SLevelViewport)
-		.Realtime(ConstructionArgs.bRealtime)
-		.ViewportType( ConstructionArgs.ViewportType )
-		.ParentLayout( ConstructionArgs.ParentLayout )
-		.ParentLevelEditor( ConstructionArgs.ParentLevelEditor )
-		.ConfigKey( ConstructionArgs.ConfigKey )
-		.IsEnabled( ConstructionArgs.IsEnabled )
-	)
-{}
+FLevelViewportLayoutEntity::FLevelViewportLayoutEntity(TSharedPtr<SAssetEditorViewport> InLevelViewport)
+	: LevelViewport(StaticCastSharedRef<SLevelViewport>(InLevelViewport.ToSharedRef()))
+{
+}
 
 TSharedRef<SWidget> FLevelViewportLayoutEntity::AsWidget() const
 {

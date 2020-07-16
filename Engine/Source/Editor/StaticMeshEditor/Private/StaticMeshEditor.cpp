@@ -179,7 +179,7 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 	BindCommands();
 
   	TWeakPtr<IStaticMeshEditor> WeakSharedThis(SharedThis(this));
-	MakeViewportFunc = [=]()
+	MakeViewportFunc = [ObjectToEdit, WeakSharedThis](const FAssetEditorViewportConstructionArgs& InArgs)
 	{
 		return SNew(SStaticMeshEditorViewport)
 			.StaticMeshEditor(WeakSharedThis)

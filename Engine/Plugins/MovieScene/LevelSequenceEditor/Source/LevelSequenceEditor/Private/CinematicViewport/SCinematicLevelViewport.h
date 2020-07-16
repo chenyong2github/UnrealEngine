@@ -12,7 +12,7 @@
 #include "Misc/FrameRate.h"
 
 class FLevelSequenceEditorToolkit;
-class FLevelViewportLayout;
+class FAssetEditorViewportLayout;
 class FUICommandList;
 class ILevelEditor;
 class ISequencer;
@@ -70,7 +70,7 @@ public:
 		/** Name of the viewport layout we should revert to at the user's request */
 		SLATE_ARGUMENT(FName, RevertToLayoutName)
 		/** Ptr to this viewport's parent layout */
-		SLATE_ARGUMENT(TSharedPtr<FLevelViewportLayout>, ParentLayout)
+		SLATE_ARGUMENT(TSharedPtr<FAssetEditorViewportLayout>, ParentLayout)
 		/** Ptr to this viewport's parent level editor */
 		SLATE_ARGUMENT(TWeakPtr<ILevelEditor>, ParentLevelEditor)
 	SLATE_END_ARGS()
@@ -161,7 +161,7 @@ private:
 	TSharedPtr<SWidget> ViewportControls;
 
 	/** Weak ptr to our parent layout */
-	TWeakPtr<FLevelViewportLayout> ParentLayout;
+	TWeakPtr<FAssetEditorViewportLayout> ParentLayout;
 
 	/** Name of the viewport in the parent layout */
 	FName LayoutName;

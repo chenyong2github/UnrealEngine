@@ -18,6 +18,9 @@
 #include "UnrealEdGlobals.h"
 #include "LevelEditor.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "EditorViewportTabContent.h"
+#include "LevelViewportLayoutEntity.h"
+#include "SAssetEditorViewport.h"
 
 static const FName LevelEditorModName("LevelEditor");
 
@@ -34,102 +37,6 @@ namespace ViewportLayoutDefs
 
 	/** Default immersive state for new layouts - will only be applied when no config data is restoring state */
 	static const bool bDefaultShouldBeImmersive = false;
-}
-
-// SViewportsOverlay ////////////////////////////////////////////////
-
-/**
- * Overlay wrapper class so that we can cache the size of the widget
- * It will also store the LevelViewportLayout data because that data can't be stored
- * per app; it must be stored per viewport overlay in case the app that made it closes.
- */
-class SViewportsOverlay : public SCompoundWidget
-{
-
-public:
-
-	SLATE_BEGIN_ARGS( SViewportsOverlay ){}
-		SLATE_DEFAULT_SLOT( FArguments, Content )
-		SLATE_ARGUMENT( TSharedPtr<FLevelViewportTabContent>, LevelViewportTab )
-	SLATE_END_ARGS()
-
-	void Construct( const FArguments& InArgs );
-
-	/** Default constructor */
-	SViewportsOverlay()
-		: CachedSize( FVector2D::ZeroVector )
-	{}
-
-	/** Overridden from SWidget */
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
-	/** Wraps SOverlay::AddSlot() */
-	SOverlay::FOverlaySlot& AddSlot();
-
-	/** Wraps SOverlay::RemoveSlot() */
-	void RemoveSlot();
-
-	/**
-	 * Returns the cached size of this viewport overlay
-	 *
-	 * @return	The size that was cached
-	 */
-	const FVector2D& GetCachedSize() const;
-
-	/** Gets the Level Viewport Tab that created this overlay */
-	TSharedPtr<FLevelViewportTabContent> GetLevelViewportTab() const;
-
-private:
-	
-	/** Reference to the owning level viewport tab */
-	TSharedPtr<FLevelViewportTabContent> LevelViewportTab;
-
-	/** The overlay widget we're containing */
-	TSharedPtr< SOverlay > OverlayWidget;
-
-	/** Cache our size, so that we can use this when animating a viewport maximize/restore */
-	FVector2D CachedSize;
-};
-
-
-void SViewportsOverlay::Construct( const FArguments& InArgs )
-{
-	const TSharedRef<SWidget>& ContentWidget = InArgs._Content.Widget;
-	LevelViewportTab = InArgs._LevelViewportTab;
-
-	ChildSlot
-		[
-			SAssignNew( OverlayWidget, SOverlay )
-			+ SOverlay::Slot()
-			[
-				ContentWidget
-			]
-		];
-}
-
-void SViewportsOverlay::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
-{
-	CachedSize = AllottedGeometry.Size;
-}
-
-SOverlay::FOverlaySlot& SViewportsOverlay::AddSlot()
-{
-	return OverlayWidget->AddSlot();
-}
-
-void SViewportsOverlay::RemoveSlot()
-{
-	return OverlayWidget->RemoveSlot();
-}
-
-const FVector2D& SViewportsOverlay::GetCachedSize() const
-{
-	return CachedSize;
-}
-
-TSharedPtr<FLevelViewportTabContent> SViewportsOverlay::GetLevelViewportTab() const
-{
-	return LevelViewportTab;
 }
 
 // FLevelViewportLayout /////////////////////////////
@@ -172,14 +79,8 @@ FLevelViewportLayout::~FLevelViewportLayout()
 }
 
 
-TSharedRef<SWidget> FLevelViewportLayout::BuildViewportLayout( TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FLevelViewportTabContent> InParentTab, const FString& LayoutString, TWeakPtr<ILevelEditor> InParentLevelEditor )
+TSharedRef<SWidget> FLevelViewportLayout::BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString)
 {
-	// We don't support reconfiguring an existing layout object, as this makes handling of transitions
-	// particularly difficult.  Instead just destroy the old layout and create a new layout object.
-	check( !ParentTab.IsValid() );
-	ParentTab = InParentDockTab;
-	ParentTabContent = InParentTab;
-	ParentLevelEditor = InParentLevelEditor;
 	MaximizedViewport = NAME_None;
 
 	// Important: We use raw bindings here because we are releasing our binding in our destructor (where a weak pointer would be invalid)
@@ -187,24 +88,25 @@ TSharedRef<SWidget> FLevelViewportLayout::BuildViewportLayout( TSharedPtr<SDockT
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModName);
 	LevelEditor.OnTakeHighResScreenShots().AddRaw(this, &FLevelViewportLayout::TakeHighResScreenShot);
 
-	// We use an overlay so that we can draw a maximized viewport on top of the other viewports
-	TSharedPtr<SBorder> ViewportsBorder;
-	TSharedRef<SViewportsOverlay> ViewportsOverlay =
-		SNew( SViewportsOverlay )
-		.LevelViewportTab(InParentTab)
-		[
-			SAssignNew( ViewportsBorder, SBorder )
-			.Padding( 0.0f )
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-			.Visibility( this, &FLevelViewportLayout::OnGetNonMaximizedVisibility )
-		];
+	return FAssetEditorViewportLayout::BuildViewportLayout(InParentDockTab, InParentTab, LayoutString);
+}
 
-	ViewportsOverlayPtr = ViewportsOverlay;
+TSharedRef<IEditorViewportLayoutEntity> FLevelViewportLayout::FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const
+{
+	TSharedPtr<FEditorViewportTabContent> PinnedTabContent = ParentTabContent.Pin();
+	if (PinnedTabContent.IsValid())
+	{
+		if (const AssetEditorViewportFactoryFunction* FactoryFunc = PinnedTabContent->FindViewportCreationFactory(InTypeName))
+		{
+			TSharedPtr<SAssetEditorViewport> EditorViewport = (*FactoryFunc)(ConstructionArgs);
+			return MakeShareable(new FLevelViewportLayoutEntity(EditorViewport));
+		}
+	}
 
-	// Don't set the content until the OverlayPtr has been set, because it access this when we want to start with the viewports maximized.
-	ViewportsBorder->SetContent( MakeViewportLayout(LayoutString) );
-
-	return ViewportsOverlay;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModName);
+	return LevelEditor.FactoryViewport(InTypeName, ConstructionArgs);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FLevelViewportLayout::BeginThrottleForAnimatedResize()

@@ -16,7 +16,7 @@ namespace ViewportLayout2x2Defs
 
 // FLevelViewportLayout2x2 //////////////////////////////////////////
 
-TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
+TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(const FString& LayoutString)
 {
  	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 
@@ -62,25 +62,25 @@ TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(TFunction<TShar
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopLeftKey;
 	Args.ViewportType = LVT_OrthoYZ;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportTL = FactoryViewport(Func, *TopLeftType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportTL = FactoryViewport(*TopLeftType, Args);
 
 	// Persp viewport
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *BottomLeftKey;
 	Args.ViewportType = LVT_Perspective;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportBL = FactoryViewport(Func, *BottomLeftType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportBL = FactoryViewport(*BottomLeftType, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopRightKey;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportTR = FactoryViewport(Func, *TopRightType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportTR = FactoryViewport(*TopRightType, Args);
 
 	// Top Viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *BottomRightKey;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportBR = FactoryViewport(Func, *BottomRightType, Args);
+	TSharedPtr< IEditorViewportLayoutEntity > ViewportBR = FactoryViewport(*BottomRightType, Args);
 
 	Viewports.Add( *TopLeftKey, ViewportTL );
 	Viewports.Add( *BottomLeftKey, ViewportBL );

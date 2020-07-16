@@ -55,6 +55,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId
 #include "VREditorFloatingUI.h"
+#include "AssetEditorViewportLayout.h"
 
 #define LOCTEXT_NAMESPACE "VREditorMode"
 
@@ -1008,14 +1009,14 @@ void UVREditorMode::StartViewport(TSharedPtr<SLevelViewport> Viewport)
 			.SizingRule(ESizingRule::UserSized);
 		this->VREditorWindowWeakPtr = VREditorWindow;
 
+		FAssetEditorViewportConstructionArgs ConstructionArgs;
+		ConstructionArgs.ViewportType = LVT_Perspective;
+		ConstructionArgs.IsEnabled = TAttribute<bool>(FSlateApplication::Get().GetNormalExecutionAttribute());
+		ConstructionArgs.bRealtime = true;
+
 		Viewport =
-			SNew(SLevelViewport)
-			.ViewportType(LVT_Perspective) // Perspective
-			.Realtime(true)
-			//				.ParentLayout( AsShared() )	// @todo vreditor: We don't have one and we probably don't need one, right?  Make sure a null parent layout is handled properly everywhere.
-			.ParentLevelEditor(LevelEditor)
-			//				.ConfigKey( BottomLeftKey )	// @todo vreditor: This is for saving/loading layout.  We would need this in order to remember viewport settings like show flags, etc.
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+			SNew(SLevelViewport, ConstructionArgs)
+			.ParentLevelEditor(LevelEditor);
 
 		// Allow the editor to keep track of this editor viewport.  Because it's not inside of a normal tab, 
 		// we need to explicitly tell the level editor about it

@@ -123,7 +123,7 @@ public:
 	virtual void ToggleImmersiveOnActiveLevelViewport();
 
 	/** @return Returns the first Level Editor that we currently know about */
-	virtual TSharedPtr< class ILevelEditor > GetFirstLevelEditor();
+	virtual TSharedPtr< class ILevelEditor > GetFirstLevelEditor() const;
 
 	/** @return the dock tab in which the level editor currently resides. */
 	virtual TSharedPtr<SDockTab> GetLevelEditorTab() const;
@@ -358,7 +358,8 @@ public:
 	}
 
 	/** Create an instance of a custom viewport from the specified viewport type name */
-	TSharedRef<ILevelViewportLayoutEntity> FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const;
+	UE_DEPRECATED(4.26, "Use FactoryViewport from inside of a FLevelViewportTabContent.")
+	TSharedRef<ILevelViewportLayoutEntity> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const;
 
 private:
 	/**

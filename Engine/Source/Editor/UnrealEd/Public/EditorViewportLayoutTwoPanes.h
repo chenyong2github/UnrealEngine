@@ -19,7 +19,7 @@ public:
   	virtual void SaveLayoutString(const FString& LayoutString) const override {}
 
 protected:
-	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) override ;
+	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
 
 
 private:

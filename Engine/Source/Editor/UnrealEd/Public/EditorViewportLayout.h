@@ -37,6 +37,8 @@ public:
 	/** Virtual destruction */
 	virtual ~FEditorViewportLayout() {};
 
+	virtual bool IsVisible() const { return true; }
+
 	/**
 	* @return All the viewports in this configuration
 	*/

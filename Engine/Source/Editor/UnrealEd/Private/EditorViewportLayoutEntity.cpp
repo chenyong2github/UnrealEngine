@@ -9,12 +9,10 @@
 #include "EditorViewportCommands.h"
 #include "EditorViewportTabContent.h"
 
-FEditorViewportLayoutEntity::FEditorViewportLayoutEntity(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FAssetEditorViewportConstructionArgs& ConstructionArgs)
+FEditorViewportLayoutEntity::FEditorViewportLayoutEntity(TSharedPtr<SAssetEditorViewport>& InViewport)
+	: AssetEditorViewport(InViewport)
 {
- 	TSharedPtr<SEditorViewport> NewViewport = Func();
-	AssetEditorViewport = StaticCastSharedPtr<SAssetEditorViewport>( NewViewport);
-	AssetEditorViewport->ParentLayout = ConstructionArgs.ParentLayout;
-	AssetEditorViewport->GetViewportClient()->SetViewportType(ConstructionArgs.ViewportType);
+	check(AssetEditorViewport.IsValid());
 }
 
 

@@ -16,7 +16,7 @@ protected:
 	/**
 	 * Creates the viewports and splitter for the 2x2 layout                   
 	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) override;
+	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
 
 private:
 	/** The splitter widget */

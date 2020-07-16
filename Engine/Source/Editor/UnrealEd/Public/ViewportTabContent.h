@@ -2,28 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorViewportLayout.h"
-#include "EditorViewportLayoutTwoPanes.h"
-#include "Widgets/Docking/SDockTab.h"
+#include "Delegates/DelegateCombinations.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Represents the content in a viewport tab in an editor.
  * Each SDockTab holding viewports in an editor contains and owns one of these.
  */
 
+class SDockTab;
+class FEditorViewportLayout;
+class IEditorViewportLayoutEntity;
 
 class UNREALED_API FViewportTabContent
 {
 public:
-
 	virtual ~FViewportTabContent() {}
+
 	/** Returns whether the tab is currently shown */
 	bool IsVisible() const;
 
 	/** @return True if this viewport belongs to the tab given */
-	bool BelongsToTab(TSharedRef<class SDockTab> InParentTab) const;
-
+	bool BelongsToTab(TSharedRef<SDockTab> InParentTab) const;
 
 	/**
 	* Returns whether the named layout is currently selected
@@ -35,20 +36,27 @@ public:
 
 	virtual void SetViewportConfiguration(const FName& ConfigurationName) {}
 
-	void PerformActionOnViewports(TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)> &TFuncPtr);
+	const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* GetViewports() const;
+
+	using ViewportActionFunction = TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)>;
+	void PerformActionOnViewports(ViewportActionFunction& TFuncPtr);
 
 	DECLARE_EVENT(FViewportTabContent, FViewportTabContentLayoutChangedEvent);
 	virtual FViewportTabContentLayoutChangedEvent& OnViewportTabContentLayoutChanged() { return OnViewportTabContentLayoutChangedEvent; };
 
+	DECLARE_EVENT_OneParam(FViewportTabContent, FViewportTabContentLayoutStartChangeEvent, bool);
+	virtual FViewportTabContentLayoutStartChangeEvent& OnViewportTabContentLayoutStartChange() { return OnViewportTabContentLayoutStartChangeEvent; };
+
 protected:
 	FViewportTabContentLayoutChangedEvent OnViewportTabContentLayoutChangedEvent;
+	FViewportTabContentLayoutStartChangeEvent OnViewportTabContentLayoutStartChangeEvent;
 
-	TWeakPtr<class SDockTab> ParentTab;
+	TWeakPtr<SDockTab> ParentTab;
 
 	FString LayoutString;
 
 	/** Current layout */
-	TSharedPtr< class FEditorViewportLayout > ActiveViewportLayout;
+	TSharedPtr<FEditorViewportLayout> ActiveViewportLayout;
 
 	TOptional<FName> PreviouslyFocusedViewport;
 };

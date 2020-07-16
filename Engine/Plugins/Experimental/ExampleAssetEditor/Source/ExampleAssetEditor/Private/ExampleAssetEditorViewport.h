@@ -18,7 +18,7 @@ public:
 		SLATE_ARGUMENT(UInputRouter*, InputRouter)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
 
 protected:
 	UInputRouter* InputRouter;

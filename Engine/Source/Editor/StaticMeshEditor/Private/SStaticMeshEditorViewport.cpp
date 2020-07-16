@@ -122,7 +122,7 @@ void SStaticMeshEditorViewport::PopulateOverlayText(const TArray<FOverlayTextIte
 	}
 }
 
-TSharedRef<class SEditorViewport> SStaticMeshEditorViewport::GetViewportWidget()
+TSharedRef<SEditorViewport> SStaticMeshEditorViewport::GetViewportWidget()
 {
 	return SharedThis(this);
 }

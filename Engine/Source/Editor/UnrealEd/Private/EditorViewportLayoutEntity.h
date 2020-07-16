@@ -13,7 +13,7 @@ class UNREALED_API FEditorViewportLayoutEntity : public IEditorViewportLayoutEnt
 {
 public:
 
-	FEditorViewportLayoutEntity(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FAssetEditorViewportConstructionArgs& ConstructionArgs);
+	FEditorViewportLayoutEntity(TSharedPtr<SAssetEditorViewport>& InViewport);
 	virtual TSharedRef<SWidget> AsWidget() const override;
 	virtual TSharedPtr<SAssetEditorViewport> AsAssetEditorViewport() const;
 

@@ -9,35 +9,31 @@
 class FEditorViewportClient;
 class FAssetEditorViewportLayout;
 class FMenuBuilder;
+struct FAssetEditorViewportConstructionArgs;
 
 class UNREALED_API SAssetEditorViewport : public SEditorViewport
 {
 public:
 
 	SLATE_BEGIN_ARGS(SAssetEditorViewport)
-		: _ViewportType(LVT_Perspective)
-		, _Realtime(false)
-	{
-	}
+		{
+		}
 
-	SLATE_ARGUMENT(TWeakPtr<class FEditorModeTools>, EditorModeTools)
-		SLATE_ARGUMENT(TSharedPtr<class FAssetEditorViewportLayout>, ParentLayout)
+		SLATE_ATTRIBUTE(FVector2D, ViewportSize);
 		SLATE_ARGUMENT(TSharedPtr<FEditorViewportClient>, EditorViewportClient)
-		SLATE_ARGUMENT(ELevelViewportType, ViewportType)
-		SLATE_ARGUMENT(bool, Realtime)
-		SLATE_ARGUMENT(FName, ConfigKey)
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
 	void OnSetViewportConfiguration(FName ConfigurationName);
 	bool IsViewportConfigurationSet(FName ConfigurationName) const;
 
 	void GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const;
 
-	TWeakPtr<class FAssetEditorViewportLayout> ParentLayout;
-
 protected:
 	virtual void BindCommands() override;
 
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	FName ConfigKey;
+	TSharedPtr<FAssetEditorViewportLayout> ParentLayout;
+
 };

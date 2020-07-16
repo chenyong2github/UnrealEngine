@@ -13,7 +13,7 @@ class LEVELEDITOR_API FLevelViewportLayoutEntity : public ILevelViewportLayoutEn
 {
 public:
 
-	FLevelViewportLayoutEntity(const FViewportConstructionArgs& ConstructionArgs);
+	FLevelViewportLayoutEntity(TSharedPtr<SAssetEditorViewport> InLevelViewport);
 	virtual TSharedRef<SWidget> AsWidget() const override;
 	virtual TSharedPtr<SLevelViewport> AsLevelViewport() const override;
 

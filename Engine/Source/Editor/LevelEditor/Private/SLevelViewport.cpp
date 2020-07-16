@@ -169,13 +169,14 @@ bool SLevelViewport::IsInForegroundTab() const
 	return false;
 }
 
-void SLevelViewport::Construct(const FArguments& InArgs)
+void SLevelViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InConstructionArguments)
 {
 	GetMutableDefault<ULevelEditorViewportSettings>()->OnSettingChanged().AddRaw(this, &SLevelViewport::HandleViewportSettingChanged);
 
-	ParentLayout = InArgs._ParentLayout;
+	ParentLayout = StaticCastSharedPtr<FLevelViewportLayout>(InConstructionArguments.ParentLayout);
 	ParentLevelEditor = StaticCastSharedRef<SLevelEditor>( InArgs._ParentLevelEditor.Pin().ToSharedRef() );
-	ConfigKey = InArgs._ConfigKey;
+	ConfigKey = InConstructionArguments.ConfigKey;
+	LevelViewportClient = InArgs._LevelEditorViewportClient;
 
 	DebuggingBorder = FEditorStyle::GetBrush( "LevelViewport.DebugBorder" );
 	BlackBackground = FEditorStyle::GetBrush( "LevelViewport.BlackBackground" );
@@ -183,8 +184,13 @@ void SLevelViewport::Construct(const FArguments& InArgs)
 	StartingSimulateBorder = FEditorStyle::GetBrush( "LevelViewport.StartingSimulateBorder" );
 	ReturningToEditorBorder = FEditorStyle::GetBrush( "LevelViewport.ReturningToEditorBorder" );
 
-
-	ConstructLevelEditorViewportClient( InArgs );
+	// Default level viewport client values for settings that could appear in layout config ini
+	FLevelEditorViewportInstanceSettings ViewportInstanceSettings;
+	ViewportInstanceSettings.ViewportType = InConstructionArguments.ViewportType;
+	ViewportInstanceSettings.PerspViewModeIndex = VMI_Lit;
+	ViewportInstanceSettings.OrthoViewModeIndex = VMI_BrushWireframe;
+	ViewportInstanceSettings.bIsRealtime = InConstructionArguments.bRealtime;
+	ConstructLevelEditorViewportClient(ViewportInstanceSettings);
 
 	SEditorViewport::Construct(SEditorViewport::FArguments()
 		.ViewportSize(MakeAttributeSP(this, &SLevelViewport::GetSViewportSize))
@@ -418,23 +424,12 @@ FReply SLevelViewport::OnMenuClicked()
 
 	return FReply::Handled();
 }
-void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArgs )
+void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInstanceSettings& ViewportInstanceSettings)
 {
-	if (InArgs._LevelEditorViewportClient.IsValid())
-	{
-		LevelViewportClient = InArgs._LevelEditorViewportClient;
-	}
-	else
+	if (!LevelViewportClient.IsValid())
 	{
 		LevelViewportClient = MakeShareable( new FLevelEditorViewportClient(SharedThis(this)) );
 	}
-
-	// Default level viewport client values for settings that could appear in layout config ini
-	FLevelEditorViewportInstanceSettings ViewportInstanceSettings;
-	ViewportInstanceSettings.ViewportType = InArgs._ViewportType;
-	ViewportInstanceSettings.PerspViewModeIndex = VMI_Lit;
-	ViewportInstanceSettings.OrthoViewModeIndex = VMI_BrushWireframe;
-	ViewportInstanceSettings.bIsRealtime = InArgs._Realtime;
 
 	FEngineShowFlags EditorShowFlags(ESFIM_Editor);
 	FEngineShowFlags GameShowFlags(ESFIM_Game);
@@ -497,7 +492,7 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	LevelViewportClient->CurrentBufferVisualizationMode = ViewportInstanceSettings.BufferVisualizationMode;
 	LevelViewportClient->CurrentRayTracingDebugVisualizationMode = ViewportInstanceSettings.RayTracingDebugVisualizationMode;
 	LevelViewportClient->ExposureSettings = ViewportInstanceSettings.ExposureSettings;
-	if(InArgs._ViewportType == LVT_Perspective)
+	if(ViewportInstanceSettings.ViewportType == LVT_Perspective)
 	{
 		LevelViewportClient->SetViewLocation( EditorViewportDefs::DefaultPerspectiveViewLocation );
 		LevelViewportClient->SetViewRotation( EditorViewportDefs::DefaultPerspectiveViewRotation );
@@ -3941,11 +3936,9 @@ void SLevelViewport::OnSetViewportConfiguration(FName ConfigurationName)
 	TSharedPtr<FLevelViewportLayout> LayoutPinned = ParentLayout.Pin();
 	if (LayoutPinned.IsValid())
 	{
-		TSharedPtr<FLevelViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
+		TSharedPtr<FEditorViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
 		if (ViewportTabPinned.IsValid())
 		{
-			// Viewport clients are going away.  Any current one is invalid.
-			GCurrentLevelEditingViewportClient = nullptr;
 			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
 			FSlateApplication::Get().DismissAllMenus();
 			UToolMenus::Get()->CleanupStaleWidgetsNextTick(true);
@@ -3958,7 +3951,7 @@ bool SLevelViewport::IsViewportConfigurationSet(FName ConfigurationName) const
 	TSharedPtr<FLevelViewportLayout> LayoutPinned = ParentLayout.Pin();
 	if (LayoutPinned.IsValid())
 	{
-		TSharedPtr<FLevelViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
+		TSharedPtr<FEditorViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
 		if (ViewportTabPinned.IsValid())
 		{
 			return ViewportTabPinned->IsViewportConfigurationSet(ConfigurationName);
@@ -3987,7 +3980,7 @@ void SLevelViewport::SetViewportTypeWithinLayout(FName InLayoutType)
 	if (LayoutPinned.IsValid() && !ConfigKey.IsNone())
 	{
 		// Important - RefreshViewportConfiguration does not save config values. We save its state first, to ensure that .TypeWithinLayout (below) doesn't get overwritten
-		TSharedPtr<FLevelViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
+		TSharedPtr<FEditorViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
 		if (ViewportTabPinned.IsValid())
 		{
 			ViewportTabPinned->SaveConfig();
@@ -3997,8 +3990,6 @@ void SLevelViewport::SetViewportTypeWithinLayout(FName InLayoutType)
 		GConfig->SetString( *IniSection, *( ConfigKey.ToString() + TEXT(".TypeWithinLayout") ), *InLayoutType.ToString(), GEditorPerProjectIni );
 
 		// Force a refresh of the tab content
-		// Viewport clients are going away.  Any current one is invalid.
-		GCurrentLevelEditingViewportClient = nullptr;
 		ViewportTabPinned->RefreshViewportConfiguration();
 		FSlateApplication::Get().DismissAllMenus();
 	}

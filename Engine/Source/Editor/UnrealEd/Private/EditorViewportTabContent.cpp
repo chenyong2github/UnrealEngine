@@ -11,12 +11,9 @@
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 
-
-
-
-TSharedPtr< class FEditorViewportLayout > FEditorViewportTabContent::ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts)
+TSharedPtr< FEditorViewportLayout > FEditorViewportTabContent::ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts)
 {
-	TSharedPtr< class FEditorViewportLayout > ViewportLayout;
+	TSharedPtr< FEditorViewportLayout > ViewportLayout;
 
 	//The items in these ifs should match the names in namespace EditorViewportConfigurationNames
 	if (TypeName == EditorViewportConfigurationNames::TwoPanesHoriz) ViewportLayout = MakeShareable(new FEditorViewportLayoutTwoPanesHoriz);
@@ -39,28 +36,35 @@ TSharedPtr< class FEditorViewportLayout > FEditorViewportTabContent::ConstructVi
 	return ViewportLayout;
 }
 
-void FEditorViewportTabContent::Initialize(TFunction<TSharedRef<SEditorViewport>(void)> Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString)
+void FEditorViewportTabContent::Initialize(AssetEditorViewportFactoryFunction Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString)
 {
 	check(!InLayoutString.IsEmpty());
+	check(Func);
 
 	ParentTab = InParentTab;
 	LayoutString = InLayoutString;
 
 	FName LayoutType(*LayoutString);
-	SetViewportConfiguration(Func, LayoutType);
+	ViewportCreationFactories.Add(AssetEditorViewportCreationFactories::ElementType(NAME_None, Func));
+	SetViewportConfiguration(LayoutType);
 }
 
-void FEditorViewportTabContent::SetViewportConfiguration(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FName& ConfigurationName)
+TSharedPtr<SAssetEditorViewport> FEditorViewportTabContent::CreateSlateViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const
 {
-	ViewportCreationFunc = Func;
-	SetViewportConfiguration(ConfigurationName);
+	if (const AssetEditorViewportFactoryFunction* CreateFunc = ViewportCreationFactories.Find(InTypeName))
+	{
+		return (*CreateFunc)(ConstructionArgs);
+	}
+
+	// CreateSlateViewport should not be called before Initialize
+	check(ViewportCreationFactories.Find(NAME_None));
+	return ViewportCreationFactories[NAME_None](ConstructionArgs);
 }
 
 void FEditorViewportTabContent::SetViewportConfiguration(const FName& ConfigurationName)
 {
-	check(ViewportCreationFunc != nullptr);
-
 	bool bSwitchingLayouts = ActiveViewportLayout.IsValid();
+	OnViewportTabContentLayoutStartChangeEvent.Broadcast(bSwitchingLayouts);
 
 	if (bSwitchingLayouts)
 	{
@@ -71,7 +75,7 @@ void FEditorViewportTabContent::SetViewportConfiguration(const FName& Configurat
 	ActiveViewportLayout = ConstructViewportLayoutByTypeName(ConfigurationName, bSwitchingLayouts);
 	check(ActiveViewportLayout.IsValid());
 
-	UpdateViewportTabWidget(ViewportCreationFunc);
+	UpdateViewportTabWidget();
 
 	OnViewportTabContentLayoutChangedEvent.Broadcast();
 }
@@ -111,12 +115,12 @@ TSharedPtr<SEditorViewport> FEditorViewportTabContent::GetFirstViewport()
 }
 
 
-void FEditorViewportTabContent::UpdateViewportTabWidget(TFunction<TSharedRef<SEditorViewport>(void)> &Func)
+void FEditorViewportTabContent::UpdateViewportTabWidget()
 {
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();
 	if (ParentTabPinned.IsValid() && ActiveViewportLayout.IsValid())
 	{
-		TSharedRef<SWidget> LayoutWidget = StaticCastSharedPtr<FAssetEditorViewportLayout>(ActiveViewportLayout)->BuildViewportLayout(Func, ParentTabPinned, SharedThis(this), LayoutString);
+		TSharedRef<SWidget> LayoutWidget = StaticCastSharedPtr<FAssetEditorViewportLayout>(ActiveViewportLayout)->BuildViewportLayout(ParentTabPinned, SharedThis(this), LayoutString);
  		ParentTabPinned->SetContent(LayoutWidget);
 
 		if (PreviouslyFocusedViewport.IsSet())
@@ -131,3 +135,29 @@ void FEditorViewportTabContent::UpdateViewportTabWidget(TFunction<TSharedRef<SEd
 	}
 }
 
+void FEditorViewportTabContent::RefreshViewportConfiguration()
+{
+	if (!ActiveViewportLayout.IsValid())
+	{
+		return;
+	}
+
+	FName ConfigurationName = ActiveViewportLayout->GetLayoutTypeName();
+	for (auto& Pair : ActiveViewportLayout->GetViewports())
+	{
+		if (Pair.Value->AsWidget()->HasFocusedDescendants())
+		{
+			PreviouslyFocusedViewport = Pair.Key;
+			break;
+		}
+	}
+
+	// Since we don't want config to save out, go ahead and clear out the active viewport layout before refreshing the current layout
+	ActiveViewportLayout.Reset();
+	SetViewportConfiguration(ConfigurationName);
+}
+
+const AssetEditorViewportFactoryFunction* FEditorViewportTabContent::FindViewportCreationFactory(FName InTypeName) const
+{
+	return ViewportCreationFactories.Find(InTypeName);
+}

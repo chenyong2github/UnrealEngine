@@ -61,43 +61,37 @@ TSharedRef<SWidget> FLevelViewportLayoutFourPanes::MakeViewportLayout(const FStr
 		}
 	}
 
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-
 	// Set up the viewports
-	FViewportConstructionArgs Args;
+	FAssetEditorViewportConstructionArgs Args;
 	Args.ParentLayout = AsShared();
-	Args.ParentLevelEditor = ParentLevelEditor;
 	Args.IsEnabled = FSlateApplication::Get().GetNormalExecutionAttribute();
 
 	Args.bRealtime = true;
 	Args.ConfigKey = *ViewportKey0;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<ILevelViewportLayoutEntity> Viewport0 = LevelEditor.FactoryViewport(*ViewportType0, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport0 = FactoryViewport(*ViewportType0, Args);
 
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedRef<ILevelViewportLayoutEntity> Viewport1 = LevelEditor.FactoryViewport(*ViewportType1, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport1 = FactoryViewport(*ViewportType1, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey2;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedRef<ILevelViewportLayoutEntity> Viewport2 = LevelEditor.FactoryViewport(*ViewportType2, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport2 = FactoryViewport(*ViewportType2, Args);
 
 	// Top Viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey3;
 	Args.ViewportType = LVT_OrthoYZ;
-	TSharedRef<ILevelViewportLayoutEntity> Viewport3 = LevelEditor.FactoryViewport(*ViewportType2, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport3 = FactoryViewport(*ViewportType2, Args);
 
 	Viewports.Add( *ViewportKey0, Viewport0 );
 	Viewports.Add( *ViewportKey1, Viewport1 );
 	Viewports.Add( *ViewportKey2, Viewport2 );
 	Viewports.Add( *ViewportKey3, Viewport3 );
-
-	// Make newly-created perspective viewports active by default
-	GCurrentLevelEditingViewportClient = &Viewport0->GetLevelViewportClient();
 
 	TSharedRef<SWidget> LayoutWidget = MakeFourPanelWidget(
 		Viewports,

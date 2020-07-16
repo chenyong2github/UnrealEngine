@@ -16,7 +16,7 @@ namespace ViewportLayoutTwoPanesDefs
 
 
 template <EOrientation TOrientation>
-TSharedRef<SWidget> TEditorViewportLayoutTwoPanes<TOrientation>::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
+TSharedRef<SWidget> TEditorViewportLayoutTwoPanes<TOrientation>::MakeViewportLayout(const FString& LayoutString)
 {
 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 
@@ -49,12 +49,12 @@ TSharedRef<SWidget> TEditorViewportLayoutTwoPanes<TOrientation>::MakeViewportLay
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey0;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport0 = FactoryViewport(Func, *ViewportType0, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport0 = FactoryViewport(*ViewportType0, Args);
 
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport1 = FactoryViewport(Func, *ViewportType1, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport1 = FactoryViewport(*ViewportType1, Args);
 
 	Viewports.Add(*ViewportKey0, Viewport0);
 	Viewports.Add(*ViewportKey1, Viewport1);

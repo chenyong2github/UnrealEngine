@@ -9,6 +9,15 @@
 
 // FViewportTabContent ///////////////////////////
 
+bool FViewportTabContent::IsVisible() const
+{
+	if (ActiveViewportLayout.IsValid())
+	{
+		return ActiveViewportLayout->IsVisible();
+	}
+	return false;
+}
+
 bool FViewportTabContent::BelongsToTab(TSharedRef<class SDockTab> InParentTab) const
 {
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();
@@ -24,10 +33,24 @@ bool FViewportTabContent::IsViewportConfigurationSet(const FName& ConfigurationN
 	return false;
 }
 
-void FViewportTabContent::PerformActionOnViewports(TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)> &TFuncPtr)
+const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* FViewportTabContent::GetViewports() const
 {
-	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >& Entities = ActiveViewportLayout->GetViewports();
-	for (auto& Entity : Entities)
+	if (ActiveViewportLayout.IsValid())
+	{
+		return &ActiveViewportLayout->GetViewports();
+	}
+	return nullptr;
+}
+
+void FViewportTabContent::PerformActionOnViewports(ViewportActionFunction& TFuncPtr)
+{
+	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >* Entities = GetViewports();
+	if (!Entities)
+	{
+		return;
+	}
+
+	for (auto& Entity : *Entities)
 	{
 		TFuncPtr(Entity.Key, Entity.Value);
 	}

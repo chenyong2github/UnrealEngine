@@ -17,7 +17,7 @@ namespace ViewportLayoutThreePanesDefs
 
 // FEditorViewportLayoutThreePanes /////////////////////////////
 
-TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
+TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(const FString& LayoutString)
 {
 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 
@@ -64,18 +64,18 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(TFunctio
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *ViewportKey0;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport0 =FactoryViewport(Func, *ViewportType0, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport0 =FactoryViewport(*ViewportType0, Args);
 
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport1 =FactoryViewport(Func, *ViewportType1, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport1 =FactoryViewport(*ViewportType1, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey2;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport2 =FactoryViewport(Func, *ViewportType2, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport2 =FactoryViewport(*ViewportType2, Args);
 
 	Viewports.Add( *ViewportKey0, Viewport0 );
 	Viewports.Add( *ViewportKey1, Viewport1 );

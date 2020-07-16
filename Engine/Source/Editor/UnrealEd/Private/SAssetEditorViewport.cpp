@@ -7,6 +7,7 @@
 #include "EditorViewportCommands.h"
 #include "EditorViewportTabContent.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "AssetEditorViewportLayout.h"
 
 #define LOCTEXT_NAMESPACE "SAssetEditorViewport"
 
@@ -16,8 +17,6 @@ void SAssetEditorViewport::BindCommands()
 	FUICommandList& CommandListRef = *CommandList;
 
 	const FEditorViewportCommands& Commands = FEditorViewportCommands::Get();
-
-	TSharedRef<FEditorViewportClient> ClientRef = Client.ToSharedRef();
 
 	CommandListRef.MapAction(
 		Commands.ViewportConfig_OnePane,
@@ -95,18 +94,33 @@ void SAssetEditorViewport::BindCommands()
 }
 
 
-void SAssetEditorViewport::Construct(const FArguments& InArgs)
+void SAssetEditorViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs)
 {
+	ConfigKey = InViewportConstructionArgs.ConfigKey;
 	Client = InArgs._EditorViewportClient;
-	SEditorViewport::Construct(SEditorViewport::FArguments());
+	ParentLayout = InViewportConstructionArgs.ParentLayout;
+
+	SEditorViewport::FArguments ViewportArgs;
+	if (InArgs._ViewportSize.IsSet())
+	{
+		ViewportArgs._ViewportSize = InArgs._ViewportSize;
+	}
+	SEditorViewport::Construct(ViewportArgs);
+
+	if (InViewportConstructionArgs.IsEnabled.IsSet())
+	{
+		SetEnabled(InViewportConstructionArgs.IsEnabled);
+	}
+
+	GetViewportClient()->SetViewportType(InViewportConstructionArgs.ViewportType);
+	GetViewportClient()->SetRealtime(InViewportConstructionArgs.bRealtime);
 }
 
 void SAssetEditorViewport::OnSetViewportConfiguration(FName ConfigurationName)
 {
-	TSharedPtr<FAssetEditorViewportLayout> LayoutPinned = ParentLayout.Pin();
-	if (LayoutPinned.IsValid())
+	if (ParentLayout.IsValid())
 	{
-		TSharedPtr<FViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
+		TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentLayout->GetParentTabContent().Pin();
 		if (ViewportTabPinned.IsValid())
 		{
 			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
@@ -117,10 +131,9 @@ void SAssetEditorViewport::OnSetViewportConfiguration(FName ConfigurationName)
 
 bool SAssetEditorViewport::IsViewportConfigurationSet(FName ConfigurationName) const
 {
-	TSharedPtr<FAssetEditorViewportLayout> LayoutPinned = ParentLayout.Pin();
-	if (LayoutPinned.IsValid())
+	if (ParentLayout.IsValid())
 	{
-		TSharedPtr<FViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
+		TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentLayout->GetParentTabContent().Pin();
 		if (ViewportTabPinned.IsValid())
 		{
 			return ViewportTabPinned->IsViewportConfigurationSet(ConfigurationName);

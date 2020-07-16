@@ -20,7 +20,7 @@ public:
 
 protected:
 	// Base Asset Toolkit overrides
-	virtual TFunction<TSharedRef<SEditorViewport>(void)> GetViewportDelegate() override;
+	virtual AssetEditorViewportFactoryFunction GetViewportDelegate() override;
 	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const override;
 	virtual void CreateEditorModeManager() override;
 	// End Base Asset Toolkit overrides

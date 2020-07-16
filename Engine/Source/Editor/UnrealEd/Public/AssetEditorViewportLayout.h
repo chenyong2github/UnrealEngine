@@ -19,9 +19,11 @@ class FAssetEditorViewportLayout;
 class SAssetEditorViewportsOverlay;
 class SWindow;
 class SAssetEditorViewport;
+class FEditorViewportTabContent;
+class FViewportTabContent;
 
 /** Arguments for constructing a viewport */
-struct FAssetEditorViewportConstructionArgs
+struct UNREALED_API FAssetEditorViewportConstructionArgs
 {
 	FAssetEditorViewportConstructionArgs()
 		: ViewportType(LVT_Perspective)
@@ -39,7 +41,7 @@ struct FAssetEditorViewportConstructionArgs
 	/** Widget enabled attribute */
 	TAttribute<bool> IsEnabled;
 };
-
+using AssetEditorViewportFactoryFunction = TFunction<TSharedRef<SAssetEditorViewport>(const FAssetEditorViewportConstructionArgs&)>;
 
 
 namespace EditorViewportConfigurationNames
@@ -57,6 +59,60 @@ namespace EditorViewportConfigurationNames
 	static FName FourPanes2x2("FourPanes2x2");
 	static FName OnePane("OnePane");
 }
+
+/**
+* Overlay wrapper class so that we can cache the size of the widget
+* It will also store the ViewportLayout data because that data can't be stored
+* per app; it must be stored per viewport overlay in case the app that made it closes.
+*/
+class UNREALED_API SAssetEditorViewportsOverlay : public SCompoundWidget
+{
+
+public:
+
+	SLATE_BEGIN_ARGS(SAssetEditorViewportsOverlay) {}
+	SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_ARGUMENT(TSharedPtr<FViewportTabContent>, ViewportTab)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs);
+
+	/** Default constructor */
+	SAssetEditorViewportsOverlay()
+		: CachedSize(FVector2D::ZeroVector)
+	{}
+
+	/** Overridden from SWidget */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	/** Wraps SOverlay::AddSlot() */
+	SOverlay::FOverlaySlot& AddSlot();
+
+	/** Wraps SOverlay::RemoveSlot() */
+	void RemoveSlot();
+
+	/**
+	* Returns the cached size of this viewport overlay
+	*
+	* @return	The size that was cached
+	*/
+	const FVector2D& GetCachedSize() const;
+
+	/** Gets the  Viewport Tab that created this overlay */
+	TSharedPtr<FViewportTabContent> GetViewportTab() const;
+
+private:
+
+	/** Reference to the owning  viewport tab */
+	TSharedPtr<FViewportTabContent> ViewportTab;
+
+	/** The overlay widget we're containing */
+	TSharedPtr< SOverlay > OverlayWidget;
+
+	/** Cache our size, so that we can use this when animating a viewport maximize/restore */
+	FVector2D CachedSize;
+};
+
 /**
  * Base class for viewport layout configurations
  * Handles maximizing and restoring well as visibility of specific viewports.
@@ -75,7 +131,7 @@ public:
 	virtual ~FAssetEditorViewportLayout();
 
 	/** Create an instance of a custom viewport from the specified viewport type name */
-	TSharedRef<IEditorViewportLayoutEntity> FactoryViewport(TFunction<TSharedRef<SEditorViewport>(void)> &Func, FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const;
+	virtual TSharedRef<IEditorViewportLayoutEntity> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const;
 
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override {}
@@ -89,10 +145,10 @@ public:
 	 * @param InParentTab			The parent tab object
 	 * @param LayoutString			The layout string loaded from file to custom build the layout with
 	 */
- 	TSharedRef<SWidget> BuildViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func,  TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<class FViewportTabContent> InParentTab, const FString& LayoutString );
+ 	virtual TSharedRef<SWidget> BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString );
 
 	/** Returns the parent tab content object */
-	TWeakPtr< class FViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
+	TWeakPtr< FEditorViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
 
 	/** Generates a layout string for persisting settings for this layout based on the runtime type of layout */
 	FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
@@ -103,13 +159,22 @@ public:
 	 * @param LayoutString		The layout string loaded from a file
 	 * @return The base widget representing the layout.  Usually a splitter
 	 */
-  	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) = 0;
+  	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) = 0;
+
+protected:
+	/**
+	 * Delegate called to get the visibility of the non-maximized viewports
+	 * The non-maximized viewports are not visible if there is a maximized viewport on top of them
+	 *
+	 * @param EVisibility::Visible when visible, EVisibility::Collapsed otherwise
+	 */
+	virtual EVisibility OnGetNonMaximizedVisibility() const;
 
 	/** The overlay widget that handles what viewports should be on top (non-maximized or maximized) */
-	TWeakPtr< class SAssetEditorViewportsOverlay > ViewportsOverlayPtr;
+	TWeakPtr< SAssetEditorViewportsOverlay > ViewportsOverlayPtr;
 
 	/** The parent tab content object where this layout resides */
-	TWeakPtr< class FViewportTabContent > ParentTabContent;
+	TWeakPtr< FEditorViewportTabContent > ParentTabContent;
 
 	/** The parent tab where this layout resides */
 	TWeakPtr< SDockTab > ParentTab;

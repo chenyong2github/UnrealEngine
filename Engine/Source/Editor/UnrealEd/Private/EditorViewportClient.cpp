@@ -441,13 +441,9 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 
 FEditorViewportClient::~FEditorViewportClient()
 {
-	if (ModeTools)
-	{
-		ModeTools->OnEditorModeIDChanged().RemoveAll(this);
-	}
-
 	if (bOwnsModeTools)
 	{
+		ModeTools->OnEditorModeIDChanged().RemoveAll(this);
 		ModeTools->SetDefaultMode(FBuiltinEditorModes::EM_Default);
 		ModeTools->DeactivateAllModes(); // this also activates the default mode
 	}

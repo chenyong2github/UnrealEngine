@@ -14,6 +14,7 @@
 #include "EditorStyleSet.h"
 #include "LevelSequenceEditorCommands.h"
 #include "SLevelViewport.h"
+#include "LevelViewportLayout.h"
 #include "MovieScene.h"
 #include "ISequencer.h"
 #include "MovieSceneSequence.h"
@@ -28,6 +29,7 @@
 #include "LevelEditorSequencerIntegration.h"
 #include "Fonts/FontMeasure.h"
 #include "Editor.h"
+#include "AssetEditorViewportLayout.h"
 
 
 #define LOCTEXT_NAMESPACE "SCinematicLevelViewport"
@@ -176,12 +178,14 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 
 	ViewportClient = MakeShareable( new FCinematicViewportClient() );
 
-	ViewportWidget = SNew(SCinematicPreviewViewport)
+	FAssetEditorViewportConstructionArgs ViewportConstructionArgs;
+	ViewportConstructionArgs.ConfigKey = LayoutName;
+	ViewportConstructionArgs.ParentLayout = ParentLayout.Pin();
+	ViewportConstructionArgs.bRealtime = true;
+
+	ViewportWidget = SNew(SCinematicPreviewViewport, ViewportConstructionArgs)
 		.LevelEditorViewportClient(ViewportClient)
-		.ParentLevelEditor(InArgs._ParentLevelEditor)
-		.ParentLayout(ParentLayout.Pin())
-		.ConfigKey(LayoutName)
-		.Realtime(true);
+		.ParentLevelEditor(InArgs._ParentLevelEditor);
 
 	ViewportClient->SetViewportWidget(ViewportWidget);
 	

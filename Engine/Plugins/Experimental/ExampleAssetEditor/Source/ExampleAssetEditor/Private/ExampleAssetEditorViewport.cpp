@@ -6,13 +6,15 @@
 #include "SlateViewportInterfaceWrapper.h"
 #include "Slate/SceneViewport.h"
 
-void SExampleAssetEditorViewport::Construct(const FArguments& InArgs)
+void SExampleAssetEditorViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs)
 {
 	InputRouter = InArgs._InputRouter;
 
 	// Construct the slate editor viewport
-	SAssetEditorViewport::Construct(SAssetEditorViewport::FArguments()
-		.EditorViewportClient(InArgs._EditorViewportClient));
+	SAssetEditorViewport::Construct(
+		SAssetEditorViewport::FArguments()
+			.EditorViewportClient(InArgs._EditorViewportClient),
+		InViewportConstructionArgs);
 
 	// Override the viewport interface with our input router wrapper
 	SlateInputWrapper = MakeShared<FSlateViewportInterfaceWrapper>(SceneViewport, InputRouter);

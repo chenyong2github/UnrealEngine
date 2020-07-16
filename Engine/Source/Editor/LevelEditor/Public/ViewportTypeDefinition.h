@@ -6,18 +6,19 @@
 
 class FUICommandInfo;
 class ILevelViewportLayoutEntity;
-struct FViewportConstructionArgs;
+struct FAssetEditorViewportConstructionArgs;
+class ILevelEditor;
 
 /** Definition of a custom viewport */
 struct FViewportTypeDefinition
 {
-	typedef TFunction<TSharedRef<ILevelViewportLayoutEntity>(const FViewportConstructionArgs&)> FFactoryFunctionType;
+	typedef TFunction<TSharedRef<ILevelViewportLayoutEntity>(const FAssetEditorViewportConstructionArgs&, TSharedPtr<ILevelEditor>)> FFactoryFunctionType;
 
 	template<typename T>
 	static FViewportTypeDefinition FromType(const TSharedPtr<FUICommandInfo>& ActivationCommand)
 	{
-		return FViewportTypeDefinition([](const FViewportConstructionArgs& Args) -> TSharedRef<ILevelViewportLayoutEntity> {
-			return MakeShareable(new T(Args));
+		return FViewportTypeDefinition([](const FAssetEditorViewportConstructionArgs& Args, TSharedPtr<ILevelEditor> InLevelEditor) -> TSharedRef<ILevelViewportLayoutEntity> {
+			return MakeShareable(new T(Args, InLevelEditor));
 		}, ActivationCommand);
 	}
 

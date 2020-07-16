@@ -17,7 +17,7 @@ protected:
 	/**
 	* Creates the viewport for the single pane
 	*/
-	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) override;
+	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
 
 protected:
 	/** The viewport widget parent box */

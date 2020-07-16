@@ -11,7 +11,7 @@
 #include "Framework/Application/SlateApplication.h"
 
 
-TSharedRef<SWidget> FEditorViewportLayoutOnePane::MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString)
+TSharedRef<SWidget> FEditorViewportLayoutOnePane::MakeViewportLayout(const FString& LayoutString)
 {
 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 
@@ -37,7 +37,7 @@ TSharedRef<SWidget> FEditorViewportLayoutOnePane::MakeViewportLayout(TFunction<T
  	Args.ParentLayout = AsShared();
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
  	Args.ViewportType = LVT_Perspective;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport = FactoryViewport(Func, *ViewportType, Args);
+	TSharedRef<IEditorViewportLayoutEntity> Viewport = FactoryViewport(*ViewportType, Args);
 
 	ViewportBox =
 		SNew(SHorizontalBox)

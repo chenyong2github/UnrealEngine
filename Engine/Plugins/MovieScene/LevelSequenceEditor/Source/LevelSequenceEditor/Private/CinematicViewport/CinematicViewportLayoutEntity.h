@@ -11,15 +11,17 @@
 #include "CinematicViewport/SCinematicLevelViewport.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
+#include "ILevelEditor.h"
+#include "AssetEditorViewportLayout.h"
 
 class FCinematicViewportLayoutEntity : public ILevelViewportLayoutEntity
 {
 public:
-	FCinematicViewportLayoutEntity(const FViewportConstructionArgs& Args)
+	FCinematicViewportLayoutEntity(const FAssetEditorViewportConstructionArgs& Args, TSharedPtr<ILevelEditor> InLevelEditor)
 		: Widget(
 			SNew(SCinematicLevelViewport)
 			.ParentLayout(Args.ParentLayout)
-			.ParentLevelEditor(Args.ParentLevelEditor)
+			.ParentLevelEditor(InLevelEditor)
 			.LayoutName(Args.ConfigKey)
 			)
 	{}

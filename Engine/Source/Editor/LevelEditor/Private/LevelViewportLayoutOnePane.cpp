@@ -45,17 +45,14 @@ TSharedRef<SWidget> FLevelViewportLayoutOnePane::MakeViewportLayout(const FStrin
 		GConfig->GetString(*IniSection, *(ViewportKey + TEXT(".TypeWithinLayout")), ViewportType, GEditorPerProjectIni);
 	}
 
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-
 	// Set up the viewport
-	FViewportConstructionArgs Args;
+	FAssetEditorViewportConstructionArgs Args;
 	Args.ParentLayout = AsShared();
-	Args.ParentLevelEditor = ParentLevelEditor;
 	Args.IsEnabled = FSlateApplication::Get().GetNormalExecutionAttribute();
 	Args.bRealtime = true;
 	Args.ConfigKey = *ViewportKey;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<ILevelViewportLayoutEntity> Viewport = LevelEditor.FactoryViewport(*ViewportType, Args);
+	TSharedRef<ILevelViewportLayoutEntity> Viewport = StaticCastSharedRef<ILevelViewportLayoutEntity>(FactoryViewport(*ViewportType, Args));
 
 	ViewportBox =
 		SNew(SHorizontalBox)
@@ -65,9 +62,6 @@ TSharedRef<SWidget> FLevelViewportLayoutOnePane::MakeViewportLayout(const FStrin
 		];
 
 	Viewports.Add( *ViewportKey, Viewport );
-
-	// Make newly-created perspective viewports active by default
-	GCurrentLevelEditingViewportClient = &Viewport->GetLevelViewportClient();
 
 	InitCommonLayoutFromString(SpecificLayoutString, NAME_None);
 

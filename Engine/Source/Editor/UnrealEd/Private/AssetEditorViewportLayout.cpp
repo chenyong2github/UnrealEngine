@@ -24,6 +24,7 @@
 #include "SAssetEditorViewport.h"
 #include "Templates/SharedPointer.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorViewportTabContent.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorViewportToolBar"
@@ -46,59 +47,6 @@ namespace ViewportLayoutDefs
 
 
 // AssetEditorViewport ////////////////////////////////////////////////
-
-/**
-* Overlay wrapper class so that we can cache the size of the widget
-* It will also store the ViewportLayout data because that data can't be stored
-* per app; it must be stored per viewport overlay in case the app that made it closes.
-*/
-class SAssetEditorViewportsOverlay : public SCompoundWidget
-{
-
-public:
-
-	SLATE_BEGIN_ARGS( SAssetEditorViewportsOverlay ){}
-	SLATE_DEFAULT_SLOT( FArguments, Content )
-		SLATE_ARGUMENT( TSharedPtr<FViewportTabContent>, ViewportTab )
-		SLATE_END_ARGS()
-
-		void Construct( const FArguments& InArgs );
-
-	/** Default constructor */
-	SAssetEditorViewportsOverlay()
-		: CachedSize( FVector2D::ZeroVector )
-	{}
-
-	/** Overridden from SWidget */
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
-	/** Wraps SOverlay::AddSlot() */
-	SOverlay::FOverlaySlot& AddSlot();
-
-	/** Wraps SOverlay::RemoveSlot() */
-	void RemoveSlot();
-
-	/**
-	* Returns the cached size of this viewport overlay
-	*
-	* @return	The size that was cached
-	*/
-	const FVector2D& GetCachedSize() const;
-
-	/** Gets the  Viewport Tab that created this overlay */
-	TSharedPtr<FViewportTabContent> GetViewportTab() const;
-
-private:
-
-	/** Reference to the owning  viewport tab */
-	TSharedPtr<FViewportTabContent> ViewportTab;
-
-	/** The overlay widget we're containing */
-	TSharedPtr< SOverlay > OverlayWidget;
-
-	/** Cache our size, so that we can use this when animating a viewport maximize/restore */
-	FVector2D CachedSize;
-};
 
 
 void SAssetEditorViewportsOverlay::Construct( const FArguments& InArgs )
@@ -155,15 +103,25 @@ FAssetEditorViewportLayout::~FAssetEditorViewportLayout()
 	}
 }
 
-TSharedRef<IEditorViewportLayoutEntity> FAssetEditorViewportLayout::FactoryViewport(TFunction<TSharedRef<SEditorViewport>(void)> &Func, FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const
+TSharedRef<IEditorViewportLayoutEntity> FAssetEditorViewportLayout::FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const
 {
-	TSharedRef<FEditorViewportLayoutEntity> LayoutEntity  = MakeShareable(new FEditorViewportLayoutEntity(Func, ConstructionArgs));
-	return LayoutEntity;
+	TSharedPtr<SAssetEditorViewport> EditorViewport;
+	TSharedPtr<FEditorViewportTabContent> PinnedTabContent = ParentTabContent.Pin();
+	if (PinnedTabContent.IsValid())
+	{
+		EditorViewport = PinnedTabContent->CreateSlateViewport(InTypeName, ConstructionArgs);
+	}
+	else
+	{
+		EditorViewport = SNew(SAssetEditorViewport, ConstructionArgs);
+	}
+
+	return MakeShareable(new FEditorViewportLayoutEntity(EditorViewport));
 }
 
 
 
-TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<class FViewportTabContent> InParentTab, const FString& LayoutString)
+TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString)
 {
 	// We don't support reconfiguring an existing layout object, as this makes handling of transitions
 	// particularly difficult.  Instead just destroy the old layout and create a new layout object.
@@ -179,13 +137,14 @@ TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TFunction<TS
 		[
 			SAssignNew(ViewportsBorder, SBorder)
 			.Padding(0.0f)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.Visibility(this, &FAssetEditorViewportLayout::OnGetNonMaximizedVisibility)
 		];
 
 	ViewportsOverlayPtr = ViewportsOverlay;
 
 	// Don't set the content until the OverlayPtr has been set, because it access this when we want to start with the viewports maximized.
-	ViewportsBorder->SetContent(MakeViewportLayout(Func, LayoutString));
+	ViewportsBorder->SetContent(MakeViewportLayout(LayoutString));
 
 	return ViewportsOverlay;
 
@@ -200,7 +159,10 @@ FString FAssetEditorViewportLayout::GetTypeSpecificLayoutString(const FString& L
 	return FString::Printf(TEXT("%s.%s"), *GetLayoutTypeName().ToString(), *LayoutString);
 }
 
-
+EVisibility FAssetEditorViewportLayout::OnGetNonMaximizedVisibility() const
+{
+	return EVisibility::Visible;
+}
 
 #undef LOCTEXT_NAMESPACE
 

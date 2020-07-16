@@ -281,7 +281,14 @@ void FLevelEditorModule::StartupModule()
 	// Bind level editor commands shared across an instance
 	BindGlobalLevelEditorCommands();
 
-	FViewportTypeDefinition ViewportType = FViewportTypeDefinition::FromType<FLevelViewportLayoutEntity>(FLevelViewportCommands::Get().SetDefaultViewportType);
+	FViewportTypeDefinition ViewportType = FViewportTypeDefinition([](const FAssetEditorViewportConstructionArgs& ConstructionArgs, TSharedPtr<ILevelEditor> InLevelEditor)
+		{
+			TSharedPtr<SLevelViewport> EditorViewport = SNew(SLevelViewport, ConstructionArgs)
+				.ParentLevelEditor(InLevelEditor);
+
+			return MakeShareable(new FLevelViewportLayoutEntity(EditorViewport));
+		},
+		FLevelViewportCommands::Get().SetDefaultViewportType);
 	RegisterViewportType("Default", ViewportType);
 
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
@@ -581,7 +588,7 @@ void FLevelEditorModule::ToggleImmersiveOnActiveLevelViewport()
 }
 
 /** @return Returns the first Level Editor that we currently know about */
-TSharedPtr<ILevelEditor> FLevelEditorModule::GetFirstLevelEditor()
+TSharedPtr<ILevelEditor> FLevelEditorModule::GetFirstLevelEditor() const
 {
 	return LevelEditorInstancePtr.Pin();
 }
@@ -603,15 +610,16 @@ void FLevelEditorModule::RemoveTitleBarItem(FName InTitleBarIdentifier)
 	BroadcastTitleBarMessagesChanged();
 }
 
-TSharedRef<ILevelViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
+TSharedRef<ILevelViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const
 {
 	const FViewportTypeDefinition* Definition = CustomViewports.Find(InTypeName);
 	if (Definition)
 	{
-		return Definition->FactoryFunction(ConstructionArgs);
+		return Definition->FactoryFunction(ConstructionArgs, GetFirstLevelEditor());
 	}
 
-	return MakeShareable(new FLevelViewportLayoutEntity(ConstructionArgs));
+	check(CustomViewports.Find("Default"));
+	return CustomViewports["Default"].FactoryFunction(ConstructionArgs, GetFirstLevelEditor());
 }
 
 TSharedPtr<FExtender> FLevelEditorModule::AssembleExtenders(TSharedRef<FUICommandList>& InCommandList, TArray<FLevelEditorMenuExtender>& MenuExtenderDelegates) const

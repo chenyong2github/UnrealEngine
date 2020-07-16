@@ -6,4 +6,5 @@ FEditorViewportClientWrapper::FEditorViewportClientWrapper(UInteractiveToolsCont
 	: FEditorViewportClient(InModeTools, InPreviewScene, InEditorViewportWidget)
 	, ToolsContext(InToolsContext)
 {
+	Widget->SetUsesEditorModeTools(ModeTools);
 }

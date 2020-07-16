@@ -14,7 +14,7 @@ protected:
 	/**
 	 * Creates the viewports and splitter for the four-pane layout              
 	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(TFunction<TSharedRef<SEditorViewport>(void)> &Func, const FString& LayoutString) override;
+	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
 
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
 		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,

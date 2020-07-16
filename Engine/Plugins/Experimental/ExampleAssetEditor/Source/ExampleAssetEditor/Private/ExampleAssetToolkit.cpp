@@ -10,6 +10,7 @@
 #include "InteractiveToolsContext.h"
 #include "ExampleToolsContextInterfaces.h"
 #include "ExampleAssetEditorViewport.h"
+#include "Viewports.h"
 
 FExampleAssetToolkit::FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext)
     : FBaseAssetToolkit(InOwningAssetEditor)
@@ -26,11 +27,11 @@ FExampleAssetToolkit::~FExampleAssetToolkit()
 {
 }
 
-TFunction<TSharedRef<SEditorViewport>(void)> FExampleAssetToolkit::GetViewportDelegate()
+AssetEditorViewportFactoryFunction FExampleAssetToolkit::GetViewportDelegate()
 {
-	TFunction<TSharedRef<SEditorViewport>(void)> TempViewportDelegate = [=]()
+	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](const FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SExampleAssetEditorViewport)
+		return SNew(SExampleAssetEditorViewport, InArgs)
 			.EditorViewportClient(ViewportClient)
 			.InputRouter(ToolsContext->InputRouter);
 	};
@@ -40,10 +41,11 @@ TFunction<TSharedRef<SEditorViewport>(void)> FExampleAssetToolkit::GetViewportDe
 
 TSharedPtr<FEditorViewportClient> FExampleAssetToolkit::CreateEditorViewportClient() const
 {
-	FPreviewScene* PreviewScene = new FPreviewScene(FPreviewScene::ConstructionValues());
-	StaticCastSharedPtr<FAssetEditorModeManager>(EditorModeManager)->SetPreviewScene(PreviewScene);
-
-	return MakeShared<FEditorViewportClientWrapper>(ToolsContext, EditorModeManager.Get(), PreviewScene);
+	// Leaving the preview scene to nullptr default creates us a viewport that mirrors the main level editor viewport
+	TSharedPtr<FEditorViewportClient> WrappedViewportClient = MakeShared<FEditorViewportClientWrapper>(ToolsContext, EditorModeManager.Get(), nullptr);
+	WrappedViewportClient->SetViewLocation(EditorViewportDefs::DefaultPerspectiveViewLocation);
+	WrappedViewportClient->SetViewRotation(EditorViewportDefs::DefaultPerspectiveViewRotation);
+	return WrappedViewportClient;
 }
 
 void FExampleAssetToolkit::CreateEditorModeManager()

@@ -942,7 +942,12 @@ TSharedRef<SDockTab> SLevelEditor::BuildViewportTab( const FText& Label, const F
 	CleanupPointerArray(ViewportTabs);
 	ViewportTabs.Add(ViewportTabContent);
 
-	ViewportTabContent->Initialize(SharedThis(this), DockableTab, LayoutId);
+	auto MakeLevelViewportFunc = [this](const FAssetEditorViewportConstructionArgs& InConstructionArgs)
+	{
+		return SNew(SLevelViewport, InConstructionArgs)
+			.ParentLevelEditor(SharedThis(this));
+	};
+	ViewportTabContent->Initialize(MakeLevelViewportFunc, DockableTab, LayoutId);
 
 	// Restore transient camera position
 	RestoreViewportTabInfo(ViewportTabContent);
