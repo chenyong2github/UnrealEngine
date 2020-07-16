@@ -61,6 +61,12 @@ struct FUObjectItem
 #endif
 	}
 
+	// Non-copyable
+	FUObjectItem(FUObjectItem&&) = delete;
+	FUObjectItem(const FUObjectItem&) = delete;
+	FUObjectItem& operator=(FUObjectItem&&) = delete;
+	FUObjectItem& operator=(const FUObjectItem&) = delete;
+
 	FORCEINLINE void SetOwnerIndex(int32 OwnerIndex)
 	{
 		ClusterRootIndex = OwnerIndex;
