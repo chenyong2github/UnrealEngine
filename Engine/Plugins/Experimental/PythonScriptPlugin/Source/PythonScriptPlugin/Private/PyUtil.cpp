@@ -896,7 +896,7 @@ bool IsMappingType(PyTypeObject* InType)
 bool IsModuleAvailableForImport(const TCHAR* InModuleName, FString* OutResolvedFile)
 {
 	// Check the sys.modules table first since it avoids hitting the filesystem
-	if (PyObject* PyModulesDict = PySys_GetObject("modules"))
+	if (PyObject* PyModulesDict = PySys_GetObject(PyCStrCast("modules")))
 	{
 		PyObject* PyModuleKey = nullptr;
 		PyObject* PyModuleValue = nullptr;
@@ -925,7 +925,7 @@ bool IsModuleAvailableForImport(const TCHAR* InModuleName, FString* OutResolvedF
 	}
 
 	// Check the sys.path list looking for bla.py or bla/__init__.py
-	if (PyObject* PyPathList = PySys_GetObject("path"))
+	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
 	{
 		const FString ModuleSingleFile = FString::Printf(TEXT("%s.py"), InModuleName);
 		const FString ModuleFolderName = FString::Printf(TEXT("%s/__init__.py"), InModuleName);
@@ -966,7 +966,7 @@ bool IsModuleAvailableForImport(const TCHAR* InModuleName, FString* OutResolvedF
 
 bool IsModuleImported(const TCHAR* InModuleName, PyObject** OutPyModule)
 {
-	if (PyObject* PyModulesDict = PySys_GetObject("modules"))
+	if (PyObject* PyModulesDict = PySys_GetObject(PyCStrCast("modules")))
 	{
 		PyObject* PyModuleKey = nullptr;
 		PyObject* PyModuleValue = nullptr;
@@ -993,7 +993,7 @@ bool IsModuleImported(const TCHAR* InModuleName, PyObject** OutPyModule)
 
 void AddSystemPath(const FString& InPath)
 {
-	if (PyObject* PyPathList = PySys_GetObject("path"))
+	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
 	{
 		FPyObjectPtr PyPath;
 		if (PyConversion::Pythonize(InPath, PyPath.Get(), PyConversion::ESetErrorState::No))
@@ -1009,7 +1009,7 @@ void AddSystemPath(const FString& InPath)
 
 void RemoveSystemPath(const FString& InPath)
 {
-	if (PyObject* PyPathList = PySys_GetObject("path"))
+	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
 	{
 		FPyObjectPtr PyPath;
 		if (PyConversion::Pythonize(InPath, PyPath.Get(), PyConversion::ESetErrorState::No))
@@ -1026,7 +1026,7 @@ TArray<FString> GetSystemPaths()
 {
 	TArray<FString> Paths;
 
-	if (PyObject* PyPathList = PySys_GetObject("path"))
+	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
 	{
 		const Py_ssize_t PyPathLen = PyList_Size(PyPathList);
 		for (Py_ssize_t PyPathIndex = 0; PyPathIndex < PyPathLen; ++PyPathIndex)
@@ -1321,7 +1321,7 @@ FString BuildPythonError()
 	// Raise the excepthook (if set)
 	// We set this to None after enabling our stderr redirection
 	{
-		PyObject* PyExceptHook = PySys_GetObject("excepthook");
+		PyObject* PyExceptHook = PySys_GetObject(PyCStrCast("excepthook"));
 		if (PyExceptHook && PyExceptHook != Py_None)
 		{
 			FPyObjectPtr PyExceptHookResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyExceptHook, PyExceptionType.Get(), PyExceptionValue.Get(), PyExceptionTraceback.Get(), nullptr));
