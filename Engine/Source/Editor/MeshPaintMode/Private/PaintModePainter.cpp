@@ -34,6 +34,8 @@
 
 #include "PackageTools.h"
 #include "TextureCompiler.h"
+#include "Editor.h"
+#include "../../../../../../FN-Next/Engine/Source/Runtime/RHI/Public/RHIDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "PaintModePainter"
 
@@ -1454,7 +1456,7 @@ void FPaintModePainter::PaintTexture(const FMeshPaintParameters& InParams, TArra
 		return;
 	}
 
-	const auto FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
+	const TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
 
 
 	FPaintTexture2DData* TextureData = GetPaintTargetData(PaintingTexture2D);

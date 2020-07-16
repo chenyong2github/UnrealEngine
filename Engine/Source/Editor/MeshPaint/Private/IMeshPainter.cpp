@@ -13,6 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
+#include "EditorViewportClient.h"
 
 IMeshPainter::IMeshPainter() :
 	bArePainting(false),

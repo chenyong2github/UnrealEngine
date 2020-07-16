@@ -10,8 +10,6 @@
 #include "MeshEditorSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
-#include "IVREditorModule.h"
-#include "VREditorMode.h"
 #include "Editor.h"
 #include "IMeshEditorModeUIContract.h"
 #include "LevelEditor.h"
@@ -235,12 +233,6 @@ void FMeshEditorModule::OnMeshEditModeButtonClicked(EEditableMeshElementType InM
 	{
 		IMeshEditorModeUIContract* MeshEditorModeUIContract = (IMeshEditorModeUIContract*)MeshEditorMode;
 		MeshEditorModeUIContract->SetMeshElementSelectionMode(InMode);
-
-		UVREditorMode* VREditorMode = IVREditorModule::Get().GetVRMode();
-		if( VREditorMode != nullptr )
-		{
-			VREditorMode->RefreshRadialMenuActionsSubmenu();
-		}
 	}
 }
 
