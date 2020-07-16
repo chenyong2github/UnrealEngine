@@ -850,7 +850,7 @@ class FHWRasterizeVS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER( FHWRasterizeVS );
 	SHADER_USE_PARAMETER_STRUCT( FHWRasterizeVS, FNaniteShader );
 
-	class FRasterTechniqueDim : SHADER_PERMUTATION_SPARSE_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::LockBufferFallback, (int32)Nanite::ERasterTechnique::DepthOnly);
+	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
@@ -869,16 +869,33 @@ class FHWRasterizeVS : public FNaniteShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
+			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		{
+			// Only some platforms support native 64-bit atomics.
+			return false;
+		}
+
+		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			&& Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
+		{
+			// Only supporting vendor extensions on PC D3D SM5+
+			return false;
+		}
+
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
+			PermutationVector.Get<FDebugVisualizeDim>())
+		{
+			// Debug not supported with depth only
+			return false;
+		}
+
 		if ((PermutationVector.Get<FPrimShaderDim>() || PermutationVector.Get<FAutoShaderCullDim>()) &&
 			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
 		{
 			// Only some platforms support primitive shaders.
-			return false;
-		}
-
-		if (PermutationVector.Get<FPrimShaderDim>() && PermutationVector.Get<FAutoShaderCullDim>())
-		{
-			// Mutually exclusive.
 			return false;
 		}
 
@@ -888,14 +905,18 @@ class FHWRasterizeVS : public FNaniteShader
 			return false;
 		}
 
-		if( PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			!PermutationVector.Get<FMultiViewDim>() )
+		if (PermutationVector.Get<FPrimShaderDim>() && PermutationVector.Get<FAutoShaderCullDim>())
+		{
+			// Mutually exclusive.
+			return false;
+		}
+
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
 		{
 			return false;
 		}
 
-		if( PermutationVector.Get<FClusterPerPageDim>() &&
-			!PermutationVector.Get<FVirtualTextureTargetDim>() )
+		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
 		{
 			return false;
 		}
@@ -922,6 +943,16 @@ class FHWRasterizeVS : public FNaniteShader
 		else if (PermutationVector.Get<FAutoShaderCullDim>())
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexUseAutoCulling);
+		}
+
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		{
+			// Need to force optimization for driver injection to work correctly.
+			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 		}
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
@@ -971,7 +1002,7 @@ class FHWRasterizePS : public FNaniteShader
 			return false;
 		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == (int32)Nanite::ERasterTechnique::DepthOnly &&
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
 			PermutationVector.Get<FDebugVisualizeDim>())
 		{
 			// Debug not supported with depth only
@@ -991,14 +1022,12 @@ class FHWRasterizePS : public FNaniteShader
 			return false;
 		}
 
-		if( PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			!PermutationVector.Get<FMultiViewDim>() )
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
 		{
 			return false;
 		}
 
-		if( PermutationVector.Get<FClusterPerPageDim>() &&
-			!PermutationVector.Get<FVirtualTextureTargetDim>() )
+		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
 		{
 			return false;
 		}
@@ -2575,7 +2604,7 @@ void AddPass_Rasterize(
 				RHICmdList.SetViewport( ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f );
 				
 				FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
-				PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>( Technique == ERasterTechnique::DepthOnly ? (int32)ERasterTechnique::DepthOnly : (int32)ERasterTechnique::LockBufferFallback );
+				PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
 				PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
 				PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 				PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
