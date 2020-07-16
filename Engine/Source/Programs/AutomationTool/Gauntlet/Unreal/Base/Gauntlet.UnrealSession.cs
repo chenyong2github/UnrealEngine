@@ -542,7 +542,7 @@ namespace Gauntlet
 
 		public void ReleaseDevices()
 		{
-			if (ReservedDevices.Count() > 0)
+			if ( (ReservedDevices != null) && (ReservedDevices.Count() > 0) )
 			{
 				DevicePool.Instance.ReleaseDevices(ReservedDevices);
 				ReservedDevices.Clear();
