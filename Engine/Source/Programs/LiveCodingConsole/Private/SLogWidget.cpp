@@ -158,12 +158,19 @@ EActiveTimerReturnType SLogWidget::OnTimerElapsed(double CurrentTime, float Delt
 bool ExtractFilepathAndLineNumber(FString& PotentialFilePath, int32& LineNumber)
 {
 	// Extract filename and line number using regex	
-	const FRegexPattern SourceCodeRegexPattern(TEXT("([a-zA-Z]:[\\\\?].+)(h|cpp)\\s?\\(([0-9]+)\\)"));
+#if PLATFORM_WINDOWS
+	const FRegexPattern SourceCodeRegexPattern(TEXT("([a-zA-Z]:/[^:\\n\\r()]+(h|cpp))\\s?\\(([0-9]+)\\)"));
+	const int32 LineNumberCaptureGroupID = 3;
+#else
+	const FRegexPattern SourceCodeRegexPattern(TEXT("((//([^:/\\n]+[/])*)([^/]+)(h|cpp))\\s?\\(([0-9]+)\\)"));
+	const int32 LineNumberCaptureGroupID = 6;
+#endif
+
 	FRegexMatcher SourceCodeRegexMatcher(SourceCodeRegexPattern, PotentialFilePath);
 	if (SourceCodeRegexMatcher.FindNext())
 	{
-		PotentialFilePath = SourceCodeRegexMatcher.GetCaptureGroup(1) + SourceCodeRegexMatcher.GetCaptureGroup(2);
-		LineNumber = FCString::Strtoi(*SourceCodeRegexMatcher.GetCaptureGroup(3), nullptr, 10);
+		PotentialFilePath = SourceCodeRegexMatcher.GetCaptureGroup(1);
+		LineNumber = FCString::Strtoi(*SourceCodeRegexMatcher.GetCaptureGroup(LineNumberCaptureGroupID), nullptr, 10);
 		return true;
 	}
 
@@ -180,9 +187,9 @@ FReply SLogWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const
 
 		// Extract potential .cpp./h files file path & line number
 		int32 LineNumber = 0;
+		PotentialCodeFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PotentialCodeFilePath);
 		if (ExtractFilepathAndLineNumber(PotentialCodeFilePath, LineNumber) && PotentialCodeFilePath.Len() && IFileManager::Get().FileSize(*PotentialCodeFilePath) != INDEX_NONE)
 		{
-			PotentialCodeFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PotentialCodeFilePath);
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 			SourceCodeAccessModule.GetAccessor().OpenFileAtLine(PotentialCodeFilePath, LineNumber);
 		}
