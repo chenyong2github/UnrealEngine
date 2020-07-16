@@ -230,7 +230,7 @@ EAccessVisualStudioResult AccessVisualStudioViaDTE(TComPtr<EnvDTE::_DTE>& OutDTE
 									FString Filename(OutPath);
 									FPaths::NormalizeFilename(Filename);
 
-									if (Filename == InSolutionPath)
+									if (Filename == InSolutionPath || InSolutionPath.IsEmpty())
 									{
 										OutDTE = TempDTE;
 										AccessResult = EAccessVisualStudioResult::VSInstanceIsOpen;

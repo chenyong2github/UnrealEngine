@@ -4,6 +4,9 @@
 #include "Framework/Text/SlateTextRun.h"
 #include "LiveCodingConsoleStyle.h"
 #include "SlateOptMacros.h"
+#include "HAL/FileManager.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -150,6 +153,42 @@ EActiveTimerReturnType SLogWidget::OnTimerElapsed(double CurrentTime, float Delt
 	}
 	QueuedLines.Empty();
 	return EActiveTimerReturnType::Continue;
+}
+
+bool ExtractFilepathAndLineNumber(FString& PotentialFilePath, int32& LineNumber)
+{
+	// Extract filename and line number using regex	
+	const FRegexPattern SourceCodeRegexPattern(TEXT("([a-zA-Z]:[\\\\?].+)(h|cpp)\\s?\\(([0-9]+)\\)"));
+	FRegexMatcher SourceCodeRegexMatcher(SourceCodeRegexPattern, PotentialFilePath);
+	if (SourceCodeRegexMatcher.FindNext())
+	{
+		PotentialFilePath = SourceCodeRegexMatcher.GetCaptureGroup(1) + SourceCodeRegexMatcher.GetCaptureGroup(2);
+		LineNumber = FCString::Strtoi(*SourceCodeRegexMatcher.GetCaptureGroup(3), nullptr, 10);
+		return true;
+	}
+
+	return false;
+}
+
+FReply SLogWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		// grab cursor location's line of text
+		FString PotentialCodeFilePath;
+		MessagesTextBox->GetCurrentTextLine(PotentialCodeFilePath);
+
+		// Extract potential .cpp./h files file path & line number
+		int32 LineNumber = 0;
+		if (ExtractFilepathAndLineNumber(PotentialCodeFilePath, LineNumber) && PotentialCodeFilePath.Len() && IFileManager::Get().FileSize(*PotentialCodeFilePath) != INDEX_NONE)
+		{
+			PotentialCodeFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PotentialCodeFilePath);
+			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+			SourceCodeAccessModule.GetAccessor().OpenFileAtLine(PotentialCodeFilePath, LineNumber);
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE
