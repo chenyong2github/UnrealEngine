@@ -179,11 +179,6 @@ int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWi
 
 void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
-	if (Proxy.Widget->PersistentState.CachedElementHandle.IsValid())
-	{
-		Proxy.Widget->PersistentState.CachedElementHandle.RemoveFromCache();
-	}
-
 	if (Proxy.Index == 0)
 	{
 		InvalidateRoot();
@@ -244,7 +239,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::ClearInvalidatedWidgets(*this);
 #endif
-		ClearAllFastPathData(false);
+		ClearAllFastPathData(!Context.bAllowFastPathUpdate);
 
 		GSlateIsOnFastUpdatePath = false;
 		bNeedsSlowPath = false;
@@ -312,8 +307,6 @@ void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 	{
 		FastWidgetPathList[ProxyIndex].Widget = nullptr;
 	}
-		
-	Widget->PersistentState.CachedElementHandle.RemoveFromCache();
 }
 
 void FSlateInvalidationRoot::ClearAllWidgetUpdatesPending()
@@ -581,7 +574,7 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 				const bool bContains = TempList.ContainsByPredicate([Widget](const FWidgetProxy& Proxy) { return Proxy.Widget == Widget; });
 				if (!bContains)
 				{
-					ensureAlways(Widget->FastPathProxyHandle.GetIndex() == INDEX_NONE);
+					ensureAlways(Widget->FastPathProxyHandle.GetIndex(true) == INDEX_NONE);
 				}
 			}
 
