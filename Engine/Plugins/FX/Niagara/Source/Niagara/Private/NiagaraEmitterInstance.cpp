@@ -494,7 +494,7 @@ void FNiagaraEmitterInstance::OnPooledReuse()
 	bResetPending = true;
 	TotalSpawnedParticles = 0;
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+	if (CachedEmitter != nullptr && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 	{
 		GPUExecContext->Reset(Batcher);
 	}
