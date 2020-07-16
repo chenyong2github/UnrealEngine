@@ -7631,7 +7631,11 @@ void UWorld::RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume)
 
 void UWorld::InitializeSubsystems()
 {
-	if (WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE)
+	// In a specific code path (opening level from ContentBrowser) the InitializeSubsystems gets called twice.
+	// - First time is through UEditorEngine::InitializeNewlyCreatedInactiveWorld with EWorldType::Inactive and we want to prevent initializing 
+	//   in that specific case because SubsystemCollection::Initialize can only be called once and we want to call it with the proper WorldType
+	// - Second time is through UEditorEngine::Map_Load and at that point the WorldType is valid.
+	if (WorldType != EWorldType::Inactive)
 	{
 		SubsystemCollection.Initialize(this);
 	}
