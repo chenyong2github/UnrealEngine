@@ -493,9 +493,13 @@ HRESULT STDCALL FWindowsUIAControlProvider::GetSelection(SAFEARRAY** pRetVal)
 						const TSharedPtr<IAccessibleWidget>& CurrentSelectedItem = SelectedItems[Index];
 						FScopedWidgetProvider ScopedProvider(UIAManager->GetWidgetProvider(CurrentSelectedItem.ToSharedRef()));
 						LONG PutIndex = static_cast<LONG>(Index);
-						SafeArrayPutElement(*pRetVal, &PutIndex, &ScopedProvider.Provider);
+						ReturnValue = SafeArrayPutElement(*pRetVal, &PutIndex, &ScopedProvider.Provider);
+						if (ReturnValue != S_OK)
+						{
+							break;
+						}
 					}
-					ReturnValue = S_OK;
+					
 				}
 			}
 		});
