@@ -26,6 +26,7 @@ public class DatasmithWireTranslator : ModuleRules
 				"DatasmithCoreTechParametricSurfaceData",
 				"DatasmithTranslator",
 				"Engine",
+ 				"MessageLog",
 				"MeshDescription",
                 "StaticMeshDescription",
             }
