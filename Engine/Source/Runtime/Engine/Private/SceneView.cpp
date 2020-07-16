@@ -805,7 +805,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 
 	SetupAntiAliasingMethod();
 
-	if (CVarEnableTemporalUpsample.GetValueOnAnyThread() && AntiAliasingMethod == AAM_TemporalAA)
+	if (CVarEnableTemporalUpsample.GetValueOnAnyThread() && AntiAliasingMethod == AAM_TemporalAA && GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		// The renderer will automatically fallback to SpatialUpscale if not using TemporalAA anti aliasing method.
 		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
