@@ -969,11 +969,33 @@ void FD3D12Adapter::Cleanup()
 
 	FenceCorePool.Destroy();
 }
+
+void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
+{
+	typedef HRESULT(WINAPI *FCreateDXGIFactory2)(UINT, REFIID, void **);
+	FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
+
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
+	HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
+	check(DxgiDLL);
+#pragma warning(push)
+#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
+	CreateDXGIFactory2FnPtr = (FCreateDXGIFactory2)(GetProcAddress(DxgiDLL, "CreateDXGIFactory2"));
+	check(CreateDXGIFactory2FnPtr);
+#pragma warning(pop)
+	FPlatformProcess::FreeDllHandle(DxgiDLL);
+
+	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
+	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#endif
+}
+
 #if D3D12_SUBMISSION_GAP_RECORDER
 void FD3D12Adapter::SubmitGapRecorderTimestamps()
 {
 	FD3D12Device* Device = GetDevice(0);
-
 	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
 	{
 		FrameCounter++;
@@ -1034,6 +1056,7 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 	}
 }
 #endif
+
 void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
