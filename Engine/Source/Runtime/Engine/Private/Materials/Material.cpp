@@ -3304,6 +3304,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif
 
+#if WITH_EDITORONLY_DATA
 	if (MaterialDomain == MD_Volume && Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::VolumeExtinctionBecomesRGB)
 	{
 		if (Opacity.IsConnected()) // Base material input cannot have default values so we only deal with connected expression
@@ -3323,6 +3324,7 @@ void UMaterial::Serialize(FArchive& Ar)
 			StateId.D = HashBuffer[3];
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UMaterial::PostDuplicate(bool bDuplicateForPIE)
