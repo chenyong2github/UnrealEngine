@@ -248,8 +248,6 @@ public:
 	/** Set the slate sound provider that the slate app should use. */
 	virtual void InitializeSound( const TSharedRef<ISlateSoundDevice>& InSlateSoundDevice );
 
-	void DestroyRenderer();
-
 	/** Play SoundToPlay. Interrupt previous sound if one is playing. */
 	void PlaySound( const FSlateSound& SoundToPlay, int32 UserIndex = 0 ) const;
 
@@ -455,6 +453,9 @@ public:
 
 	/** Event after slate application ticks. */
 	FSlateTickEvent& OnPostTick()  { return PostTickEvent; }
+
+	/** Event when the application is about to shutdown. */
+	FSimpleMulticastDelegate& OnPreShutdown() { return PreShutdownEvent; }
 
 	/** Delegate for when a new user has been registered. */
 	DECLARE_EVENT_OneParam(FSlateApplication, FUserRegisteredEvent, int32);
@@ -980,6 +981,11 @@ protected:
 
 	TSharedRef<FNavigationConfig> GetRelevantNavConfig(int32 UserIndex) const;
 
+	/** Called when the slate application is being shut down. */
+	void OnShutdown();
+
+	void DestroyRenderer();
+
 	/** Advances time for the application. */
 	void TickTime();
 
@@ -1180,9 +1186,6 @@ public:
 	void SetNavigationConfigFactory(TFunction<TSharedRef<FNavigationConfig>()> InNavigationConfigFactory) { }
 
 public:
-
-	/** Called when the slate application is being shut down. */
-	void OnShutdown();
 
 	/** Closes all active windows immediately */
 	void CloseAllWindowsImmediately();
@@ -1832,6 +1835,9 @@ private:
 
 	/** Delegate for post slate Tick */
 	FSlateTickEvent PostTickEvent;
+
+	/** Delegate for pre shutdown */
+	FSimpleMulticastDelegate PreShutdownEvent;
 
 	/** Delegate for when a new user has been registered. */
 	FUserRegisteredEvent UserRegisteredEvent;
