@@ -892,34 +892,47 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 				for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
 				{
-					UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
-					UPackage* AssetsOuter = Proxy->GetOutermost();
-					checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+					TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
 
-					if (AssetsOuter)
+					if (LODLevel.Num() > 0)
 					{
-						int32 LODActorIndex = 0;
-						TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
-						for (ALODActor* Actor : LODLevel)
+						UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
+
+						UPackage* AssetsOuter = Proxy->GetOutermost();
+						checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+						if (AssetsOuter)
 						{
-							SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
-
-							bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
-
-							// Report an error if the build failed
-							if (!bBuildSuccessful)
+							int32 LODActorIndex = 0;
+							for (ALODActor* Actor : LODLevel)
 							{
-								FMessageLog("HLODResults").Error()
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
-									->AddToken(FUObjectToken::Create(Actor))
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
-							}
-							else
-							{
-								AssetsOuter->Modify();
-							}
+								SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
 
-							++LODActorIndex;
+								bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
+
+								// Report an error if the build failed
+								if (!bBuildSuccessful)
+								{
+									FMessageLog("HLODResults").Error()
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
+										->AddToken(FUObjectToken::Create(Actor))
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
+								}
+								else
+								{
+									AssetsOuter->Modify();
+								}
+
+								++LODActorIndex;
+							}
+						}
+					}
+					else
+					{
+						// No HLODs were generated for this HLOD level, ensure the proxy is cleaned and that the associated package is deleted
+						UHLODProxy* Proxy = Utilities->RetrieveLevelHLODProxy(LevelIter, LODIndex);
+						if (Proxy)
+						{
+							Proxy->Clean();
 						}
 					}
 				}
@@ -968,10 +981,7 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			if (HLODProxy)
 			{
 				// Ensure the HLOD descs are up to date.
-				if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
-				{
-					HLODProxy->UpdateHLODDescs(InLevel);
-				}
+				HLODProxy->Clean();
 
 				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
 			}
