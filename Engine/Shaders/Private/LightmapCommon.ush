@@ -86,8 +86,8 @@ void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, float2 Lig
 	half4 Lightmap0;
 	half4 Lightmap1;
 #if LIGHTMAP_VT_ENABLED
-	Lightmap0 = SampleLightmapVT( LightmapVTPageTableResult, 0u, LightmapDataIndex, LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler); 
-	Lightmap1 = SampleLightmapVT( LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler); 
+	Lightmap0 = SampleLightmapVT( LightmapVTPageTableResult, 0u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture, LightmapResourceCluster.LightMapSampler); 
+	Lightmap1 = SampleLightmapVT( LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture_1, LightmapResourceCluster.LightMapSampler); 
 #else
 	Lightmap0 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV0 );
 	Lightmap1 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV1 );
@@ -149,7 +149,7 @@ float4 GetSkyBentNormalAndOcclusion(VTPageTableResult LightmapVTPageTableResult,
 {
 	float4 TextureValue;
 #if LIGHTMAP_VT_ENABLED
-	TextureValue = SampleLightmapVT( LightmapVTPageTableResult, 3u, LightmapDataIndex, LightmapResourceCluster.SkyOcclusionTexture, LIGHTMAP_SHARED_SAMPLER(SkyOcclusionSampler)); 
+	TextureValue = SampleLightmapVT( LightmapVTPageTableResult, 3u, LightmapDataIndex, LightmapResourceCluster.VTSkyOcclusionTexture, LIGHTMAP_SHARED_SAMPLER(SkyOcclusionSampler)); 
 #else
 	TextureValue = Texture2DSample( LightmapResourceCluster.SkyOcclusionTexture, LIGHTMAP_SHARED_SAMPLER(SkyOcclusionSampler), LightmapUV );
 #endif
@@ -165,7 +165,7 @@ float GetAOMaterialMask(VTPageTableResult LightmapVTPageTableResult, float2 Ligh
 {
 	float TextureValue;
 #if LIGHTMAP_VT_ENABLED
-	TextureValue = SampleLightmapVT( LightmapVTPageTableResult, 4u, LightmapDataIndex, LightmapResourceCluster.AOMaterialMaskTexture, LIGHTMAP_SHARED_SAMPLER(AOMaterialMaskSampler)).x; 
+	TextureValue = SampleLightmapVT( LightmapVTPageTableResult, 4u, LightmapDataIndex, LightmapResourceCluster.VTAOMaterialMaskTexture, LIGHTMAP_SHARED_SAMPLER(AOMaterialMaskSampler)).x; 
 #else
 	TextureValue = Texture2DSample( LightmapResourceCluster.AOMaterialMaskTexture, LIGHTMAP_SHARED_SAMPLER(AOMaterialMaskSampler), LightmapUV ).x;
 #endif
@@ -190,7 +190,7 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 		// Fetch the 4 channels of distance field data
 		half4 DistanceField;
 		#if LIGHTMAP_VT_ENABLED
-			DistanceField = SampleLightmapVT( LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.StaticShadowTexture, LIGHTMAP_SHARED_SAMPLER(StaticShadowTextureSampler));
+			DistanceField = SampleLightmapVT( LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LIGHTMAP_SHARED_SAMPLER(StaticShadowTextureSampler));
 		#else
 			DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LIGHTMAP_SHARED_SAMPLER(StaticShadowTextureSampler), ShadowMapCoordinate);
 		#endif
