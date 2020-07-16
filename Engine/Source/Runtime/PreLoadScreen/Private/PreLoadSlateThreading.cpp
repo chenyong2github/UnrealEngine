@@ -126,6 +126,11 @@ FPreLoadScreenSlateSynchMechanism::FPreLoadScreenSlateSynchMechanism(TSharedPtr<
 FPreLoadScreenSlateSynchMechanism::~FPreLoadScreenSlateSynchMechanism()
 {
     DestroySlateThread();
+
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnPreShutdown().RemoveAll(this);
+	}
 }
 
 void FPreLoadScreenSlateSynchMechanism::Initialize()
@@ -135,6 +140,9 @@ void FPreLoadScreenSlateSynchMechanism::Initialize()
 	// Initialize should only be called once
 	if (ensure(FSlateApplication::IsInitialized() && bIsRunningSlateMainLoop == 0))
 	{
+		// Prevent the application from closing while we are rendering from another thread
+		FSlateApplication::Get().OnPreShutdown().AddRaw(this, &FPreLoadScreenSlateSynchMechanism::DestroySlateThread);
+
 		bIsRunningSlateMainLoop = true;
 		check(SlateLoadingThread == nullptr);
 
@@ -170,7 +178,7 @@ void FPreLoadScreenSlateSynchMechanism::DestroySlateThread()
 
 bool FPreLoadScreenSlateSynchMechanism::IsSlateMainLoopRunning_AnyThread() const
 {
-    return bIsRunningSlateMainLoop;
+    return bIsRunningSlateMainLoop && !IsEngineExitRequested();
 }
 
 void FPreLoadScreenSlateSynchMechanism::RunMainLoop_SlateThread()
