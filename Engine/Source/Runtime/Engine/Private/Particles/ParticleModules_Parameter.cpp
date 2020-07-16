@@ -435,9 +435,18 @@ void UParticleModuleParameterDynamic::UpdateParameterNames(UMaterialInterface* I
 		return;
 	}
 
+	const TArray<FName>& ParamNames = Material->GetCachedExpressionData().DynamicParameterNames;
+	check(DynamicParams.Num() == 4);
 	for (int32 ParamIndex = 0; ParamIndex < 4; ParamIndex++)
 	{
-		DynamicParams[ParamIndex].ParamName = Material->GetCachedExpressionData().DynamicParameterNames[ParamIndex];
+		if (ParamNames.IsValidIndex(ParamIndex))
+		{
+			DynamicParams[ParamIndex].ParamName = ParamNames[ParamIndex];
+		}
+		else
+		{
+			DynamicParams[ParamIndex].ParamName = NAME_None;
+		}
 	}
 }
 
