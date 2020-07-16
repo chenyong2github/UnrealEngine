@@ -4411,7 +4411,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 		if (WorldType != EWorldType::PIE)
 		{
-			if (PersistentLevel && PersistentLevel->MapBuildData && !PersistentLevel->MapBuildData->IsAsset())
+			if (PersistentLevel && PersistentLevel->MapBuildData)
 			{
 				PersistentLevel->MapBuildData->ClearFlags(RF_Standalone);
 

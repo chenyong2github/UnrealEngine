@@ -2069,11 +2069,8 @@ UMapBuildDataRegistry* ULevel::GetOrCreateMapBuildData()
 			// Release rendering data depending on MapBuildData, before we destroy MapBuildData
 			MapBuildData->InvalidateStaticLighting(GetWorld(), true, nullptr);
 
-			// Allow the legacy registry to be GC'ed, but not if the registry is itself an asset, because assets are always standalone
-			if (!MapBuildData->IsAsset())
-			{
-				MapBuildData->ClearFlags(RF_Standalone);
-			}
+			// Allow the legacy registry to be GC'ed
+			MapBuildData->ClearFlags(RF_Standalone);
 		}
 
 		UPackage* BuiltDataPackage = CreateMapBuildDataPackage();
