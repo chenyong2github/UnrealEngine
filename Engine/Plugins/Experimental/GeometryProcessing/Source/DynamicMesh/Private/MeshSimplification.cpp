@@ -284,36 +284,65 @@ FVector3d TMeshSimplification<QuadricErrorType>::OptimalPoint(int eid, const FQu
 
 	// [TODO] if we have constraints, we should apply them here, for same reason as bdry above...
 
-	if (bMinimizeQuadricPositionError == false)
+	switch (CollapseMode)
 	{
-		return GetProjectedPoint((Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5);
-	}
-	else
-	{
-		FVector3d result = FVector3d::Zero();
-		if (q.OptimalPoint(result))
+		case ESimplificationCollapseModes::AverageVertexPosition:
 		{
-			return GetProjectedPoint(result);
+			return GetProjectedPoint((Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5);
 		}
+		break;
 
-		// degenerate matrix, evaluate quadric at edge end and midpoints
-		// (could do line search here...)
-		FVector3d va = Mesh->GetVertex(ea);
-		FVector3d vb = Mesh->GetVertex(eb);
-		FVector3d c = GetProjectedPoint((va + vb) * 0.5);
-		double fa = q.Evaluate(va);
-		double fb = q.Evaluate(vb);
-		double fc = q.Evaluate(c);
-		double m = FMath::Min3(fa, fb, fc);
-		if (m == fa)
+		case ESimplificationCollapseModes::MinimalExistingVertexError:
 		{
-			return va;
+			FVector3d va = Mesh->GetVertex(ea);
+			FVector3d vb = Mesh->GetVertex(eb);
+			double fa = q.Evaluate(va);
+			double fb = q.Evaluate(vb);
+			if (fa < fb)
+			{
+				return va;
+			}
+			else
+			{
+				return vb;
+			}
+		
 		}
-		else if (m == fb)
+		break;
+
+		case ESimplificationCollapseModes::MinimalQuadricPositionError:
 		{
-			return vb;
+			FVector3d result = FVector3d::Zero();
+			if (q.OptimalPoint(result))
+			{
+				return GetProjectedPoint(result);
+			}
+
+			// degenerate matrix, evaluate quadric at edge end and midpoints
+			// (could do line search here...)
+			FVector3d va = Mesh->GetVertex(ea);
+			FVector3d vb = Mesh->GetVertex(eb);
+			FVector3d c = GetProjectedPoint((va + vb) * 0.5);
+			double fa = q.Evaluate(va);
+			double fb = q.Evaluate(vb);
+			double fc = q.Evaluate(c);
+			double m = FMath::Min3(fa, fb, fc);
+			if (m == fa)
+			{
+				return va;
+			}
+			else if (m == fb)
+			{
+				return vb;
+			}
+			return c;
 		}
-		return c;
+		break;
+	default:
+
+		// should never happen
+		checkSlow(0);
+		return FVector3d::Zero();
 	}
 }
 
