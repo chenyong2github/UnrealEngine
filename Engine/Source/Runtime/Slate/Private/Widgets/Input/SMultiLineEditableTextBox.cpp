@@ -168,6 +168,11 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 
 }
 
+void SMultiLineEditableTextBox::GetCurrentTextLine(FString& OutTextLine) const
+{
+	EditableText->GetCurrentTextLine(OutTextLine);
+}
+
 void SMultiLineEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 {
 	if (InStyle)

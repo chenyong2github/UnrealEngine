@@ -1297,7 +1297,6 @@ FReply FSlateEditableTextLayout::HandleMouseButtonDoubleClick(const FGeometry& I
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		SelectWordAt(InMyGeometry, InMouseEvent.GetScreenSpacePosition());
-		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -3532,6 +3531,17 @@ TSharedRef<SWidget> FSlateEditableTextLayout::BuildDefaultContextMenu(const TSha
 bool FSlateEditableTextLayout::HasActiveContextMenu() const
 {
 	return ActiveContextMenu.IsValid();
+}
+
+void FSlateEditableTextLayout::GetCurrentTextLine(FString& OutTextLine) const
+{	
+	// grab line of text
+	const int32 LineIdx = CursorInfo.GetCursorLocation().GetLineIndex();
+	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
+	if (Lines.IsValidIndex(LineIdx))
+	{
+		OutTextLine = *Lines[LineIdx].Text;
+	}
 }
 
 TSharedRef<FSlateEditableTextLayout::FVirtualKeyboardEntry> FSlateEditableTextLayout::FVirtualKeyboardEntry::Create(FSlateEditableTextLayout& InOwnerLayout)
