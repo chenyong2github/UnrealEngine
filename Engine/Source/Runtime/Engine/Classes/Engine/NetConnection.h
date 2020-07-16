@@ -451,14 +451,6 @@ public:
 	/** Average lag seen during the last StatPeriod */
 	float AvgLag;
 
-private:
-	// BestLag variable is deprecated. Use AvgLag instead
-	float			BestLag;
-	// BestLagAcc variable is deprecated. Use LagAcc instead
-	double			BestLagAcc;
-
-public:
-
 	/** Total accumulated lag values during the current StatPeriod */
 	double			LagAcc;
 	/** Nb of stats accumulated in LagAcc */
