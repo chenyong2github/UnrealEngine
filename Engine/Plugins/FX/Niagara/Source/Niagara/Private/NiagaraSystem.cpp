@@ -66,6 +66,9 @@ static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+, bTrimAttributes(false)
+#endif
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)

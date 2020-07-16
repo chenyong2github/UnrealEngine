@@ -756,6 +756,14 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	{
 		bRecomputeExecutionOrder = true;
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, AttributesToPreserve))
+	{
+		if (GraphSource != nullptr)
+		{
+			GraphSource->MarkNotSynchronized(TEXT("AttributesToPreserve changed."));
+		}
+		bNeedsRecompile = true;
+	}
 
 	ResolveScalabilitySettings();
 

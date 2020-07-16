@@ -70,7 +70,7 @@ FLinearColor UNiagaraNodeCustomHlsl::GetNodeTitleColor() const
 	return UEdGraphSchema_Niagara::NodeTitleColor_CustomHlsl;
 }
 
-bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens) const
+bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments) const
 {
 	FString HlslData = *CustomHlsl;
 
@@ -104,7 +104,10 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens) const
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				if (IncludeComments)
+				{
+					OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				}
 				i = FoundEndIdx + 1;
 			}
 			else if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '*')
@@ -122,7 +125,10 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens) const
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				if (IncludeComments)
+				{
+					OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				}
 				i = FoundEndIdx + 1;
 			}
 			else if (HlslData[i] == '"')
@@ -439,6 +445,27 @@ bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinit
 		return false;
 }
 
+bool UNiagaraNodeCustomHlsl::ReferencesVariable(const FNiagaraVariableBase& InVar) const
+{
+	// for now we'll just do a text search through the non-comment code strings to see if we can find
+	// the name of the provided variable
+	// todo - all variable references in custom code should be explicit and typed
+	TArray<FString> Tokens;
+
+	GetTokens(Tokens, false);
+
+	const FString VariableName = InVar.GetName().ToString();
+
+	for (const FString& Token : Tokens)
+	{
+		if (Token.Contains(VariableName))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 void UNiagaraNodeCustomHlsl::RebuildSignatureFromPins()
 {

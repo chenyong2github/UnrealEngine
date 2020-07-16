@@ -52,6 +52,8 @@
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraScriptVariable.h"
 
+#include "Algo/RemoveIf.h"
+
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Translate"), STAT_NiagaraEditor_HlslTranslator_Translate, STATGROUP_NiagaraEditor);
@@ -810,6 +812,109 @@ bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& V
 	return true;
 }
 
+void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes)
+{
+	if (!UNiagaraScript::IsParticleScript(InCompileOptions.TargetUsage))
+	{
+		return;
+	}
+
+	if (InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributes")))
+	{
+		const bool bRequiresPersistentIDs = InCompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+
+		// we want to use the ParamMapHistories of both the particle update and spawn scripts because they need to
+		// agree to define a unified attribute set
+		TArray<const FNiagaraParameterMapHistory*, TInlineAllocator<2>> LocalParamHistories;
+		for (const FNiagaraParameterMapHistory& History : OtherOutputParamMapHistories)
+		{
+			if (UNiagaraScript::IsParticleScript(History.OriginatingScriptUsage))
+			{
+				LocalParamHistories.Add(&History);
+			}
+		}
+
+		// go through the ParamMapHistories and collect any CustomHlsl nodes so that we can give a best effort to
+		// find references to our variable.  If a reference is found we'll assume that we can't trim the attribute
+		TArray<const UNiagaraNodeCustomHlsl*, TInlineAllocator<8>> CustomHlslNodes;
+		for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+		{
+			for (const UEdGraphPin* Pin : ParamMap->MapPinHistory)
+			{
+				if (const UNiagaraNodeCustomHlsl* CustomHlslNode = Cast<const UNiagaraNodeCustomHlsl>(Pin->GetOwningNode()))
+				{
+					CustomHlslNodes.AddUnique(CustomHlslNode);
+				}
+			}
+		}
+
+		// check through the AdditionalDefines to see if any variables have been explicitly preserved
+		TArray<FString> ExplicitPreservedAttributes;
+
+		for (const FString& AdditionalDefine : InCompileOptions.AdditionalDefines)
+		{
+			const FString PreserveTag = TEXT("PreserveAttribute=");
+			if (AdditionalDefine.StartsWith(PreserveTag))
+			{
+				ExplicitPreservedAttributes.AddUnique(AdditionalDefine.RightChop(PreserveTag.Len()));
+			}
+		}
+
+		Attributes.SetNum(Algo::StableRemoveIf(Attributes, [=](const FNiagaraVariable& Var)
+		{
+			// preserve attributes which have a record of being read
+			for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+			{
+				const int32 VarIdx = ParamMap->FindVariable(Var.GetName(), Var.GetType());
+				if (VarIdx != INDEX_NONE)
+				{
+					check(ParamMap->PerVariableReadHistory.IsValidIndex(VarIdx));
+					if (ParamMap->PerVariableReadHistory[VarIdx].Num())
+					{
+						return false;
+					}
+				}
+			}
+
+			// or are required by the renderer
+			if (CompileData->RequiredRendererVariables.Contains(Var))
+			{
+				return false;
+			}
+
+			// or are special?
+			if (Var == SYS_PARAM_PARTICLES_UNIQUE_ID)
+			{
+				return false;
+			}
+
+			if (bRequiresPersistentIDs && Var == SYS_PARAM_PARTICLES_ID)
+			{
+				return false;
+			}
+
+			const FString VariableName = Var.GetName().ToString();
+			for (const FString& PreservedName : ExplicitPreservedAttributes)
+			{
+				if (!VariableName.Compare(PreservedName, ESearchCase::IgnoreCase))
+				{
+					return false;
+				}
+			}
+
+			for (const UNiagaraNodeCustomHlsl* CustomHlslNode : CustomHlslNodes)
+			{
+				if (CustomHlslNode->ReferencesVariable(Var))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}));
+	}
+}
+
 template<typename T>
 void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode)
 {
@@ -1455,6 +1560,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				}
 			}
 		}
+
+		TrimAttributes(CompileOptions, BasicAttributes);
 
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
 		Algo::SortBy(BasicAttributes, &FNiagaraVariable::GetName, FNameLexicalLess());

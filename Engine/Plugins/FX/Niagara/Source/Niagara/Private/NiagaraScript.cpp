@@ -359,14 +359,57 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	if (OuterEmitter != nullptr)
 	{
 		UNiagaraEmitter* Emitter = OuterEmitter;
-		UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter());
-		if (EmitterOwner && EmitterOwner->bBakeOutRapidIteration)
+		if (UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter()))
 		{
-			Id.bUsesRapidIterationParams = false;
-		}
-		if (EmitterOwner && EmitterOwner->bCompressAttributes)
-		{
-			Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
+			if (EmitterOwner->bBakeOutRapidIteration)
+			{
+				Id.bUsesRapidIterationParams = false;
+			}
+			if (EmitterOwner->bCompressAttributes)
+			{
+				Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
+			}
+
+			bool TrimAttributes = EmitterOwner->bTrimAttributes;
+			if (TrimAttributes)
+			{
+				auto TrimAttributesSupported = [=](const UNiagaraEmitter* OtherEmitter)
+				{
+					TArray<const UNiagaraDataInterfaceBase*> DataInterfaces;
+					OtherEmitter->GraphSource->CollectDataInterfaces(DataInterfaces);
+
+					for (const UNiagaraDataInterfaceBase* DataInterface : DataInterfaces)
+					{
+						if (DataInterface->HasInternalAttributeReads(OtherEmitter, Emitter))
+						{
+							return false;
+						}
+					}
+					return true;
+				};
+
+				// if this emitter is being referenced by another emitter (PartilceRead) then don't worry about trimming attributes
+				for (const FNiagaraEmitterHandle& EmitterHandle : EmitterOwner->GetEmitterHandles())
+				{
+					if (!TrimAttributesSupported(EmitterHandle.GetInstance()))
+					{
+						TrimAttributes = false;
+						break;
+					}
+				}
+			}
+
+			if (TrimAttributes)
+			{
+				Id.AdditionalDefines.Add(TEXT("TrimAttributes"));
+
+				// preserve the attributes that have been defined on the emitter directly
+				for (const FString& Attribute : Emitter->AttributesToPreserve)
+				{
+					const FString PreserveDefine = TEXT("PreserveAttribute=") + Attribute;
+					Id.AdditionalDefines.Add(PreserveDefine);
+				}
+			}
 		}
 
 		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) || 
