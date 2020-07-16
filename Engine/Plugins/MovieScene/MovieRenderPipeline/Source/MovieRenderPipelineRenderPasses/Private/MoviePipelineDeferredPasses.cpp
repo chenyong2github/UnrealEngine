@@ -57,6 +57,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	EViewModeIndex  ViewModeIndex;
 	GetViewShowFlags(ShowFlags, ViewModeIndex);
+	MoviePipelineRenderShowFlagOverride(ShowFlags);
 	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
@@ -71,6 +72,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	ViewFamily.bWorldIsPaused = InSampleState.bWorldIsPaused;
 	ViewFamily.ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
+
 
 	// View is added as a child of the ViewFamily
 	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, InSampleState);
@@ -320,6 +322,13 @@ void UMoviePipelineDeferredPassBase::SetupViewForViewModeOverride(FSceneView* Vi
 	}
 	FName BufferVisualizationMode = "WorldNormal";
 	View->CurrentBufferVisualizationMode = BufferVisualizationMode;
+}
+
+void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
+{
+	OutShowFlag.SetAntiAliasing(!bDisableAntiAliasing);
+	OutShowFlag.SetDepthOfField(!bDisableDepthOfField);
+	OutShowFlag.SetMotionBlur(!bDisableMotionBlur);
 }
 
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
