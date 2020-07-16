@@ -52,9 +52,7 @@ public:
 	UFUNCTION()
 	void Disconnect();
 
-	/**
-	 *
-	 */
+	/** @return the preview geometry actor created by this class */
 	UFUNCTION()
 	APreviewGeometryActor* GetActor() const { return ParentActor;  }
 
@@ -63,17 +61,50 @@ public:
 	//
 	// Line Sets
 	//
+
+	/** Create a new line set with the given LineSetIdentifier and return it */
 	UFUNCTION()
 	ULineSetComponent* AddLineSet(const FString& LineSetIdentifier);
 
+	/** @return the LineSetComponent with the given LineSetIdentifier, or nullptr if not found */
 	UFUNCTION()
 	ULineSetComponent* FindLineSet(const FString& LineSetIdentifier);
 
+	/** 
+	 * Remove the LineSetComponent with the given LineSetIdentifier
+	 * @param bDestroy if true, component will unregistered and destroyed. 
+	 * @return true if the LineSetComponent was found and removed
+	 */
 	UFUNCTION()
 	bool RemoveLineSet(const FString& LineSetIdentifier, bool bDestroy = true);
 
+	/**
+	 * Remove all LineSetComponents
+	 * @param bDestroy if true, the components will unregistered and destroyed.
+	 */
+	UFUNCTION()
+	void RemoveAllLineSets(bool bDestroy = true);
+
+	/**
+	 * Set the visibility of the LineSetComponent with the given LineSetIdentifier
+	 * @return true if the LineSetComponent was found and updated
+	 */
 	UFUNCTION()
 	bool SetLineSetVisibility(const FString& LineSetIdentifier, bool bVisible);
+
+	/**
+	 * Set the Material of the LineSetComponent with the given LineSetIdentifier
+	 * @return true if the LineSetComponent was found and updated
+	 */
+	UFUNCTION()
+	bool SetLineSetMaterial(const FString& LineSetIdentifier, UMaterialInterface* NewMaterial);
+
+	/**
+	 * Set the Material of all LineSetComponents
+	 */
+	UFUNCTION()
+	void SetAllLineSetsMaterial(UMaterialInterface* Material);
+
 
 
 	//
@@ -94,6 +125,20 @@ public:
 	}
 
 	/**
+	 * call UpdateFuncType(ULineSetComponent*) for all existing Line Sets
+	 */
+	template<typename UpdateFuncType>
+	void UpdateAllLineSets(UpdateFuncType UpdateFunc)
+	{
+		for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+		{
+			UpdateFunc(Entry.Value);
+		}
+	}
+
+
+
+	/**
 	 * Add a set of lines produced by calling LineGenFunc for each index in range [0,NumIndices)
 	 */
 	void CreateOrUpdateLineSet(const FString& LineSetIdentifier, int32 NumIndices,
@@ -103,10 +148,15 @@ public:
 
 public:
 
-	/**  */
+	/**
+	 * Actor created and managed by the UPreviewGeometry
+	 */
 	UPROPERTY()
 	APreviewGeometryActor* ParentActor = nullptr;
 
+	/**
+	 * LineSetComponents created and owned by the UPreviewGeometry, and added as child components of the ParentActor
+	 */
 	UPROPERTY()
 	TMap<FString, ULineSetComponent*> LineSets;
 

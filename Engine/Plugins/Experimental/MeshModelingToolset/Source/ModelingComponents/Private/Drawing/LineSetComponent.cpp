@@ -296,6 +296,17 @@ void ULineSetComponent::SetAllLinesLength(const float NewLength, bool bUpdateBou
 }
 
 
+void ULineSetComponent::SetAllLinesColor(const FColor& NewColor)
+{
+	for (FRenderableLine& Line : Lines)
+	{
+		Line.Color = NewColor;
+	}
+	MarkRenderStateDirty();
+}
+
+
+
 void ULineSetComponent::RemoveLine(const int32 ID)
 {
 	Lines.RemoveAt(ID);
