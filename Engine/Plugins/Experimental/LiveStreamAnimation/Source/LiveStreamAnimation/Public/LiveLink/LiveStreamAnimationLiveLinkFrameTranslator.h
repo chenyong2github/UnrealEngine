@@ -9,11 +9,7 @@
 class USkeleton;
 
 /**
- * Struct that defines how we can translate from incoming Live Stream Animation Live Link frames
- * onto live USkeletons.
- *
- * This is necessary for things like Quantization, Compression, and Stripping to work properly
- * as we won't have access to the Live Stream Animation frame data inside the Anim BP.
+ * A single translation profile that can map one Live Link Subject Skeleton onto one UE Skeleton.
  */
 USTRUCT(BlueprintType)
 struct LIVESTREAMANIMATION_API FLiveStreamAnimationLiveLinkTranslationProfile
@@ -31,6 +27,13 @@ public:
 
 	/**
 	 * Map from Skeleton Bone Name to Live Link Subject Bone Name.
+	 * Only bones that have inconsistent naming between the UE Skeleton and the Live Link Skeleton (static data)
+	 * need to have entries.
+	 *
+	 * Every bone name in the skeleton needs to be unique, so remapping multiple source bones onto the same target bone
+	 * (i.e. different keys onto the same value) or remapping a source bone onto a target bone that already exists
+	 * in the skeleton that is not also remapped will cause issues.
+	 *
 	 * Conceptually, this behaves similarly to a ULiveLinkRemapAsset, except we need this information
 	 * up front to remap bones in case we need to grab Ref Bone Poses.
 	 */
@@ -38,8 +41,8 @@ public:
 	TMap<FName, FName> BoneRemappings;
 
 	/**
-	 * When non-empty, this is the full set of bones **from the Live Link Skeleton** that we will be receiving data
-	 * for. This is only used as an optimization so we can cache bone indices for faster lookup.
+	 * When non-empty, this is the full set of bones **from the Live Link Skeleton** for which we will
+	 * be receiving data This is only used as an optimization so we can cache bone indices for faster lookup.
 	 * If this is empty, then we will fall back to using name based Map lookups, which is probably
 	 * fine for most cases.
 	 *
@@ -72,12 +75,26 @@ private:
 	TArray<FTransform> BoneTransformsByIndex;
 };
 
+/**
+ * Class that defines how we can translate incoming Live Stream Skeletons
+ * onto live UE Skeletons.
+ *
+ * Individual translations are defined as FLiveStreamAnimationLiveLinkTranslationProfiles.
+ *
+ * This is necessary for things like Quantization, Compression, and Stripping unused to work properly
+ * as we won't have access to the Live Stream Animation frame data inside the Anim BP, and therefore
+ * need to preprocess the network data.
+ *
+ * This could also be changed so we delay the processing of packets completely until we know they
+ * will be used.
+ */
 UCLASS(Blueprintable, BlueprintType, Config=Game, ClassGroup = (LiveStreamAnimation))
 class LIVESTREAMANIMATION_API ULiveStreamAnimationLiveLinkFrameTranslator : public ULiveLinkFrameTranslator
 {
 	GENERATED_BODY()
 
 public:
+
 	using FWorkerSharedPtr = ULiveLinkFrameTranslator::FWorkerSharedPtr;
 
 	//~ Begin ULiveLinkFrameTranslator Interface
@@ -93,7 +110,7 @@ public:
 	//~ End UObject Interface
 #endif
 
-	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileName)
+	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileName) const
 	{
 		return TranslationProfiles.Find(TranslationProfileName);
 	}

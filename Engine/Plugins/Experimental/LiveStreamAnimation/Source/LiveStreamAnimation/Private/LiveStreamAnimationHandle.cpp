@@ -2,7 +2,7 @@
 
 #include "LiveStreamAnimationHandle.h"
 #include "LiveStreamAnimationLog.h"
-#include "LiveStreamAnimationSubsystem.h"
+#include "LiveStreamAnimationSettings.h"
 
 #include "Serialization/Archive.h"
 
@@ -29,17 +29,17 @@ class FArchive& operator<<(class FArchive& InAr, FLiveStreamAnimationHandle& Sub
 
 FName FLiveStreamAnimationHandle::GetName() const
 {
-	const TArrayView<const FName> HandleNames = ULiveStreamAnimationSubsystem::GetHandleNames();
+	const TArrayView<const FName> HandleNames = ULiveStreamAnimationSettings::GetHandleNames();
 	return HandleNames.IsValidIndex(Handle) ? HandleNames[Handle] : NAME_None;
 }
 
 int32 FLiveStreamAnimationHandle::ValidateHandle(FName InName)
 {
-	return ULiveStreamAnimationSubsystem::GetHandleNames().Find(InName);
+	return ULiveStreamAnimationSettings::GetHandleNames().Find(InName);
 }
 
 int32 FLiveStreamAnimationHandle::ValidateHandle(int32 InHandle)
 {
-	const TArrayView<const FName> HandleNames = ULiveStreamAnimationSubsystem::GetHandleNames();
+	const TArrayView<const FName> HandleNames = ULiveStreamAnimationSettings::GetHandleNames();
 	return HandleNames.IsValidIndex(InHandle) ? InHandle : INDEX_NONE;
 }

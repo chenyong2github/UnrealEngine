@@ -107,8 +107,8 @@ namespace LiveStreamAnimation
  * and then instead of replicating string data we can simple replicate an index that maps
  * to one of these preconfigured names.
  *
- * This list of names **must** be the same on all instances that are sending or receiving
- * animation data.
+ * The list of available Handle Names is defined in ULiveStreamAnimationSettings, and **must**
+ * be the same (order and size) on all instances that are sending or receiving animation data.
  *
  * The main reason why existing engine systems weren't used was just to ensure isolation
  * between this plugin and other game systems.
@@ -181,9 +181,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
 	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FName RegisteredName);
 
-	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
-	LIVESTREAMANIMATION_API void SetLiveLinkFrameTranslator(TSoftObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> NewTranslator);
-
 	static FName GetChannelName();
 
 	void ReceivedPacket(const TSharedRef<const LiveStreamAnimation::FLiveStreamAnimationPacket>& Packet, ForwardingChannels::FForwardingChannel& Channel);
@@ -193,11 +190,6 @@ public:
 	static bool IsSubsystemEnabledInConfig()
 	{
 		return GetDefault<ULiveStreamAnimationSubsystem>()->bEnabled;
-	}
-
-	static const TArrayView<const FName> GetHandleNames()
-	{
-		return GetDefault<ULiveStreamAnimationSubsystem>()->HandleNames;
 	}
 
 	bool IsEnabledAndInitialized() const
@@ -210,14 +202,7 @@ public:
 		return OnRoleChanged;
 	}
 
-	FSimpleMulticastDelegate& GetOnLiveLinkFrameTranslatorChanged()
-	{
-		return OnLiveLinkFrameTranslatorChanged;
-	}
-
 	TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> GetOrCreateSkelMeshToLiveLinkSource();
-
-	class ULiveStreamAnimationLiveLinkFrameTranslator* GetLiveLinkFrameTranslator() const;
 
 private:
 
@@ -228,17 +213,9 @@ private:
 	}
 
 	FOnLiveStreamAnimationRoleChanged OnRoleChanged;
-	FSimpleMulticastDelegate OnLiveLinkFrameTranslatorChanged;
 
-	/** List of names that we know and can use for network handles. */
-	UPROPERTY(Config, Transient)
-	TArray<FName> HandleNames;
-	
 	UPROPERTY(Config, Transient)
 	bool bEnabled = true;
-
-	UPROPERTY(Config, Transient)
-	TSoftObjectPtr<class ULiveStreamAnimationLiveLinkFrameTranslator> FrameTranslator;
 
 	template<typename T>
 	T* GetSubsystem()
