@@ -597,12 +597,9 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 	}
 }
 
-// Returns `true` when running on RT-capable machine and RT support is enabled for the project.
-// This function is a runtime only function!
-FORCEINLINE bool IsRayTracingEnabled()
-{
-	return GRHISupportsRayTracing;
-}
+// Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options.
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API bool IsRayTracingEnabled();
 
 /** A ray tracing geometry resource */
 class RENDERCORE_API FRayTracingGeometry : public FRenderResource

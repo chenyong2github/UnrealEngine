@@ -1634,7 +1634,15 @@ void FGPUSkinCache::CVarSinkFunction()
 	float NewSceneMaxSizeInMb = CVarGPUSkinCacheSceneMemoryLimitInMB.GetValueOnAnyThread();
 	int32 NewNumTangentIntermediateBuffers = CVarGPUSkinNumTangentIntermediateBuffers.GetValueOnAnyThread();
 
-	if (!GEnableGPUSkinCacheShaders)
+	if (GEnableGPUSkinCacheShaders)
+	{
+		if (GIsRHIInitialized && IsRayTracingEnabled())
+		{
+			// Skin cache is *required* for ray tracing.
+			NewGPUSkinCacheValue = 1;
+		}
+	}
+	else
 	{
 		NewGPUSkinCacheValue = 0;
 		NewRecomputeTangentsValue = 0;
