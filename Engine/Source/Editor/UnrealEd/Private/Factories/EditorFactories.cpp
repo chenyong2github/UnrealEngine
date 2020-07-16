@@ -274,6 +274,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Factories/TextureImportSettings.h"
 #include "AssetImportTask.h"
+#include "ObjectTools.h"
 
 #include "SkinWeightsUtilities.h"
 
@@ -4157,6 +4158,12 @@ static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern,
 		}
 	}
 	
+	if ( UdimValue < 1001 )
+	{
+		// UDIM starts with 1001 as the origin
+		return INDEX_NONE;
+	}
+
 	return UdimValue;
 }
 
@@ -4229,16 +4236,18 @@ UObject* UTextureFactory::FactoryCreateBinary
 					const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PreUDIMName, PostUDIMName);
 					const FString PackageUDIMName = PreUDIMName + PostUDIMName;
 
+					const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
+
 					if (PackageUDIMIndex == -1)
 					{
 						// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
 						// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
-						check(PackageName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+						check(PackageName.EndsWith(ShortPackageName, ESearchCase::CaseSensitive));
 					}
 					else
 					{
 						check(PackageUDIMIndex == BaseUDIMIndex);
-						check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+						check(PackageUDIMName.EndsWith(ShortPackageName, ESearchCase::CaseSensitive));
 
 						// In normal case, higher level code would have already checked for duplicate package name
 						// But since we're changing package name here, check to see if package with the new name already exists...
