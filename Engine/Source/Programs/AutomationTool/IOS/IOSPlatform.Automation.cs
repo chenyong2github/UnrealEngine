@@ -345,10 +345,15 @@ public class IOSPlatform : Platform
 						" -e \"tell application \\\"Terminal\\\"\"" +
 						" -e   \"activate\"" +
 						" -e   \"set newTab to do script (\\\"{0} {1}; echo $? > {2}; exit\\\")\"" +
+						" -e   \"set newWindow to window 1\"" +
 						" -e   \"repeat\"" +
 						" -e     \"delay 1\"" +
 						" -e     \"if not busy of newTab then exit repeat\"" +
 						" -e   \"end repeat\"" +
+						" -e   \"set exitCode to item 1 of paragraphs of (read \\\"{2}\\\")\"" +
+						" -e   \"if exitCode is equal to \\\"0\\\" then\"" +
+						" -e     \"close newWindow\"" +
+						" -e   \"end if\"" +
 						" -e \"end tell\"",
 						RubyScript, Params, ReturnCodeFilename);
 
