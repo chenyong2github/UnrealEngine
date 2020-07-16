@@ -25,7 +25,7 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 		{
 			FPolygonGroupID PolygonGroupID = MeshOutArg.GetPolygonPolygonGroup(PolygonID);
 
-			TArrayView<const FTriangleID> TriangleIDs = MeshOutArg.GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = MeshOutArg.GetPolygonTriangles(PolygonID);
 			int NumTriangles = TriangleIDs.Num();
 			for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx, ++MeshInTriIdx)
 			{
@@ -66,10 +66,11 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 {
 	check(MeshIn->IsCompactV());
 
+	FStaticMeshAttributes Attributes(MeshOut);
+
 	if (bUpdateNormals)
 	{
-		TVertexInstanceAttributesRef<FVector> InstanceAttrib =
-			MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+		TVertexInstanceAttributesRef<FVector> InstanceAttrib = Attributes.GetVertexInstanceNormals();
 		ensureMsgf(InstanceAttrib.IsValid(), TEXT("Trying to update normals on a MeshDescription that has no normal attributes"));
 		if (InstanceAttrib.IsValid())
 		{
@@ -85,7 +86,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 				for (int VertID : MeshIn->VertexIndicesItr())
 				{
 					FVector Normal = (FVector)MeshIn->GetVertexNormal(VertID);
-					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstances(FVertexID(VertID)))
+					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstanceIDs(FVertexID(VertID)))
 					{
 						InstanceAttrib.Set(InstanceID, Normal);
 					}
@@ -96,8 +97,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 
 	if (bUpdateUVs)
 	{
-		TVertexInstanceAttributesRef<FVector2D> InstanceAttrib =
-			MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesRef<FVector2D> InstanceAttrib = Attributes.GetVertexInstanceUVs();
 		ensureMsgf(InstanceAttrib.IsValid(), TEXT("Trying to update UVs on a MeshDescription that has no texture coordinate attributes"));
 		if (InstanceAttrib.IsValid())
 		{
@@ -115,7 +115,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 				for (int VertID : MeshIn->VertexIndicesItr())
 				{
 					FVector2D UV = (FVector2D)MeshIn->GetVertexUV(VertID);
-					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstances(FVertexID(VertID)))
+					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstanceIDs(FVertexID(VertID)))
 					{
 						InstanceAttrib.Set(InstanceID, UV);
 					}
@@ -132,11 +132,11 @@ void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, 
 	if (!ensureMsgf(MeshIn->IsCompactT(), TEXT("Trying to update MeshDescription Tangents from a non-compact DynamicMesh"))) return;
 	if (!ensureMsgf(MeshIn->HasAttributes(), TEXT("Trying to update MeshDescription Tangents from a DynamicMesh that has no Normals attribute"))) return;
 
+	FStaticMeshAttributes Attributes(MeshOut);
+
 	const FDynamicMeshNormalOverlay* Normals = MeshIn->Attributes()->PrimaryNormals();
-	TVertexInstanceAttributesRef<FVector> TangentAttrib =
-		MeshOut.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> BinormalSignAttrib =
-		MeshOut.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	TVertexInstanceAttributesRef<FVector> TangentAttrib = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> BinormalSignAttrib = Attributes.GetVertexInstanceBinormalSigns();
 
 	if (!ensureMsgf(TangentAttrib.IsValid(), TEXT("Trying to update Tangents on a MeshDescription that has no Tangent Vertex Instance attribute"))) return;
 	if (!ensureMsgf(BinormalSignAttrib.IsValid(), TEXT("Trying to update Tangents on a MeshDescription that has no BinormalSign Vertex Instance attribute"))) return;

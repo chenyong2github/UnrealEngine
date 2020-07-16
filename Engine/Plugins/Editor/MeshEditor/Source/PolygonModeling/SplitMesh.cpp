@@ -224,11 +224,11 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		for(const FEdgeID EdgeId : BoundaryIds)
 		{
 			FVertexID Vertex0 = Mesh->GetMeshDescription()->GetEdgeVertex(EdgeId, 0);
-			TArrayView<const FVertexInstanceID> VertexInstances0 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex0);
+			TArrayView<const FVertexInstanceID> VertexInstances0 = Mesh->GetMeshDescription()->GetVertexVertexInstanceIDs(Vertex0);
 			check(VertexInstances0.Num() > 0);
 
 			FVertexID Vertex1 = Mesh->GetMeshDescription()->GetEdgeVertex(EdgeId, 1);
-			TArrayView<const FVertexInstanceID> VertexInstances1 = Mesh->GetMeshDescription()->GetVertexVertexInstances(Vertex1);
+			TArrayView<const FVertexInstanceID> VertexInstances1 = Mesh->GetMeshDescription()->GetVertexVertexInstanceIDs(Vertex1);
 			check(VertexInstances1.Num() > 0);
 
 			TArray<FVertexInstanceID> PolygonVertexInstances;

@@ -880,13 +880,13 @@ bool UEditableMesh::IsOrphanedVertex( const FVertexID VertexID ) const
 
 int32 UEditableMesh::GetVertexConnectedEdgeCount( const FVertexID VertexID ) const
 {
-	return GetMeshDescription()->GetVertexConnectedEdges( VertexID ).Num();
+	return GetMeshDescription()->GetVertexConnectedEdgeIDs( VertexID ).Num();
 }
 
 
 FEdgeID UEditableMesh::GetVertexConnectedEdge( const FVertexID VertexID, const int32 ConnectedEdgeNumber ) const
 {
-	TArrayView<const FEdgeID> ConnectedEdgeIDs = GetMeshDescription()->GetVertexConnectedEdges( VertexID );
+	TArrayView<const FEdgeID> ConnectedEdgeIDs = GetMeshDescription()->GetVertexConnectedEdgeIDs( VertexID );
 	return ( ConnectedEdgeNumber >= 0 && ConnectedEdgeNumber < ConnectedEdgeIDs.Num() ) ? ConnectedEdgeIDs[ ConnectedEdgeNumber ] : INDEX_NONE;
 }
 
@@ -962,13 +962,13 @@ bool UEditableMesh::IsValidPolygonGroup( const FPolygonGroupID PolygonGroupID ) 
 
 int32 UEditableMesh::GetPolygonCountInGroup( const FPolygonGroupID PolygonGroupID ) const
 {
-	return GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID ).Num();
+	return GetMeshDescription()->GetPolygonGroupPolygonIDs( PolygonGroupID ).Num();
 }
 
 
 FPolygonID UEditableMesh::GetPolygonInGroup( const FPolygonGroupID PolygonGroupID, const int32 PolygonNumber ) const
 {
-	TArrayView<const FPolygonID> PolygonIDs = GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID );
+	TArrayView<const FPolygonID> PolygonIDs = GetMeshDescription()->GetPolygonGroupPolygonIDs( PolygonGroupID );
 	return ( PolygonNumber >= 0 && PolygonNumber < PolygonIDs.Num() ) ? PolygonIDs[ PolygonNumber ] : INDEX_NONE;
 }
 
@@ -1013,13 +1013,13 @@ FVertexID UEditableMesh::GetPolygonPerimeterVertex( const FPolygonID PolygonID, 
 
 int32 UEditableMesh::GetPolygonTriangulatedTriangleCount( const FPolygonID PolygonID ) const
 {
-	return GetMeshDescription()->GetPolygonTriangleIDs( PolygonID ).Num();
+	return GetMeshDescription()->GetPolygonTriangles( PolygonID ).Num();
 }
 
 
 FTriangleID UEditableMesh::GetPolygonTriangulatedTriangle( const FPolygonID PolygonID, int32 PolygonTriangleNumber ) const
 {
-	TArrayView<const FTriangleID> Triangles = GetMeshDescription()->GetPolygonTriangleIDs( PolygonID );
+	TArrayView<const FTriangleID> Triangles = GetMeshDescription()->GetPolygonTriangles( PolygonID );
 	return ( PolygonTriangleNumber >= 0 && PolygonTriangleNumber < Triangles.Num() ) ? Triangles[ PolygonTriangleNumber ] : INDEX_NONE;
 }
 
@@ -1260,7 +1260,7 @@ void UEditableMesh::SplitVerticesIfNecessary( const TArray<FVertexID>& VerticesT
 		// Look at each vertex instance in turn.
 		// Take a copy because splitting them will mutate the list we are iterating.
 		static TArray<FVertexInstanceID> VertexInstanceIDs;
-		VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstances( VertexToSplit );
+		VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstanceIDs( VertexToSplit );
 
 		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
 		{
@@ -1328,7 +1328,7 @@ void UEditableMesh::MergeVertexInstances()
 		GetConnectedSoftEdges( VertexID, VertexConnectedSoftEdges );
 
 		// Get all vertex instances of this vertex...
-		TArrayView<const FVertexInstanceID> VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstances( VertexID );
+		TArrayView<const FVertexInstanceID> VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstanceIDs( VertexID );
 
 		// ...and iterate through pairs of vertex instances, looking for potential to merge them
 		for( int32 IndexA = 0; IndexA < VertexInstanceIDs.Num() - 1; ++IndexA )
@@ -1419,7 +1419,7 @@ bool UEditableMesh::IsPreviewingSubdivisions() const
 
 void UEditableMesh::GetVertexConnectedEdges( const FVertexID VertexID, TArray<FEdgeID>& OutConnectedEdgeIDs ) const
 {
-	OutConnectedEdgeIDs = GetMeshDescription()->GetVertexConnectedEdges( VertexID );
+	OutConnectedEdgeIDs = GetMeshDescription()->GetVertexConnectedEdgeIDs( VertexID );
 }
 
 
@@ -1502,7 +1502,7 @@ void UEditableMesh::GetEdgeLoopElements( const FEdgeID EdgeID, TArray<FEdgeID>& 
 			FEdgeID AdjacentEdgeID = INDEX_NONE;
 
 			// Iterate through all edges connected to this vertex
-			for( const FEdgeID ConnectedEdgeID : GetMeshDescription()->GetVertexConnectedEdges( ConnectedVertexID ) )
+			for( const FEdgeID ConnectedEdgeID : GetMeshDescription()->GetVertexConnectedEdgeIDs( ConnectedVertexID ) )
 			{
 				// If this edge hasn't been added to the loop...
 				if( !EdgeIDs.Contains( ConnectedEdgeID ) )
@@ -1976,7 +1976,7 @@ void UEditableMesh::GenerateOpenSubdivLimitSurfaceData()
 				{
 					FirstPolygonNumberForPolygonGroups.Add( NumPolygonsSoFar );
 
-					TArrayView<const FPolygonID> PolygonIDs = GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID );
+					TArrayView<const FPolygonID> PolygonIDs = GetMeshDescription()->GetPolygonGroupPolygonIDs( PolygonGroupID );
 					NumPolygonsSoFar += PolygonIDs.Num();
 
 					for( const FPolygonID PolygonID : PolygonIDs )
@@ -2374,7 +2374,7 @@ FTriangleID UEditableMesh::ComputeBarycentricWeightForPointOnPolygon( const FPol
 	TVertexAttributesConstRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
 
 	// Figure out which triangle the incoming point is within
-	for( const FTriangleID TriangleID : GetMeshDescription()->GetPolygonTriangleIDs( PolygonID ) )
+	for( const FTriangleID TriangleID : GetMeshDescription()->GetPolygonTriangles( PolygonID ) )
 	{
 		const FVector TriangleVertex0Position = VertexPositions[ GetMeshDescription()->GetVertexInstanceVertex( GetMeshDescription()->GetTriangleVertexInstance( TriangleID, 0 ) ) ];
 		const FVector TriangleVertex1Position = VertexPositions[ GetMeshDescription()->GetVertexInstanceVertex( GetMeshDescription()->GetTriangleVertexInstance( TriangleID, 1 ) ) ];
@@ -3452,8 +3452,8 @@ void UEditableMesh::DeleteOrphanVertices( const TArray<FVertexID>& VertexIDsToDe
 
 			// Make sure the vertex is truly an orphan.  We're not going to be able to restore its polygon vertex attributes,
 			// because the polygons won't exist when we're restoring the change
-			check( GetMeshDescription()->GetVertexConnectedEdges( VertexID ).Num() == 0 );
-			check( GetMeshDescription()->GetVertexVertexInstances( VertexID ).Num() == 0 );
+			check( GetMeshDescription()->GetVertexConnectedEdgeIDs( VertexID ).Num() == 0 );
+			check( GetMeshDescription()->GetVertexVertexInstanceIDs( VertexID ).Num() == 0 );
 
 			RevertInput.VerticesToCreate.Emplace();
 			FVertexToCreate& VertexToCreate = RevertInput.VerticesToCreate.Last();
@@ -4454,7 +4454,7 @@ void UEditableMesh::ChangePolygonsVertexInstances( const TArray<FChangeVertexIns
 
 FVertexInstanceID UEditableMesh::GetVertexInstanceInPolygonForVertex( const FPolygonID PolygonID, const FVertexID VertexID ) const
 {
-	for( const FVertexInstanceID VertexInstanceID : GetMeshDescription()->GetVertexVertexInstances( VertexID ) )
+	for( const FVertexInstanceID VertexInstanceID : GetMeshDescription()->GetVertexVertexInstanceIDs( VertexID ) )
 	{
 		if( GetMeshDescription()->GetVertexInstanceConnectedPolygons( VertexInstanceID ).Contains( PolygonID ) )
 		{
@@ -4471,7 +4471,7 @@ void UEditableMesh::GetConnectedSoftEdges( const FVertexID VertexID, TArray<FEdg
 	OutConnectedSoftEdges.Reset();
 
 	TEdgeAttributesConstRef<bool> EdgeHardnesses = GetMeshDescription()->EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsHard );
-	for( const FEdgeID ConnectedEdgeID : GetMeshDescription()->GetVertexConnectedEdges( VertexID ) )
+	for( const FEdgeID ConnectedEdgeID : GetMeshDescription()->GetVertexConnectedEdgeIDs( VertexID ) )
 	{
 		if( !EdgeHardnesses[ ConnectedEdgeID ] )
 		{
@@ -4872,7 +4872,7 @@ void UEditableMesh::TryToRemoveVertex( const FVertexID VertexID, bool& bOutWasVe
 		//// Delete the vertex instances and subsequently orphaned vertex
 		//{
 		//	// Take a copy of the array, because it will be modified by the DeleteVertexInstances call
-		//	TArray<FVertexInstanceID> VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstances( VertexID );
+		//	TArray<FVertexInstanceID> VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstanceIDs( VertexID );
 
 		//	const bool bDeleteOrphanedVertices = true;
 		//	DeleteVertexInstances( VertexInstanceIDs, bDeleteOrphanedVertices );
@@ -5913,7 +5913,7 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 		FVector Tangent(ForceInitToZero);
 		FVector Binormal(ForceInitToZero);
 
-		for( const FTriangleID TriangleID : MD->GetPolygonTriangleIDs( PolygonID ) )
+		for( const FTriangleID TriangleID : MD->GetPolygonTriangles( PolygonID ) )
 		{
 			const FVertexInstanceID VertexInstanceID0 = MD->GetTriangleVertexInstance( TriangleID, 0 );
 			const FVertexInstanceID VertexInstanceID1 = MD->GetTriangleVertexInstance( TriangleID, 1 );
@@ -6756,7 +6756,7 @@ void UEditableMesh::TriangulatePolygons( const TArray<FPolygonID>& PolygonIDs, T
 
 			// Build polygons for each of the triangles that made up the original
 			{
-				for( const FTriangleID& TriangleID : GetMeshDescription()->GetPolygonTriangleIDs( PolygonID ) )
+				for( const FTriangleID& TriangleID : GetMeshDescription()->GetPolygonTriangles( PolygonID ) )
 				{
 					PolygonsToCreate.Emplace();
 					FPolygonToCreate& PolygonToCreate = PolygonsToCreate.Last();
@@ -6836,7 +6836,7 @@ void UEditableMesh::AssignPolygonsToPolygonGroups( const TArray<FPolygonGroupFor
 		GetMeshDescription()->SetPolygonPolygonGroup( PolygonID, NewPolygonGroupID );
 
 		// If old group is now empty (and we're deleting orphans), add it to the list to delete
-		if( bDeleteOrphanedPolygonGroups && GetMeshDescription()->GetPolygonGroupPolygons( OldPolygonGroupID ).Num() == 0 )
+		if( bDeleteOrphanedPolygonGroups && GetMeshDescription()->GetPolygonGroupPolygonIDs( OldPolygonGroupID ).Num() == 0 )
 		{
 			PolygonGroupsToDelete.Add( OldPolygonGroupID );
 		}

@@ -1730,7 +1730,7 @@ void FMaterialUtilities::RemapUniqueMaterialIndices(const TArray<FSectionInfo>& 
 	{
 		for (int32 LODIndex = 0; LODIndex < MAX_STATIC_MESH_LODS; ++LODIndex)
 		{
-			TVertexAttributesRef<FVector> VertexPositions = InMeshData[MeshIndex].MeshLODData[LODIndex].RawMesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			TVertexAttributesRef<FVector> VertexPositions = InMeshData[MeshIndex].MeshLODData[LODIndex].RawMesh->GetVertexPositions();
 
 			if (InMeshData[MeshIndex].bShouldExportLOD[LODIndex])
 			{
@@ -1780,7 +1780,7 @@ void FMaterialUtilities::RemapUniqueMaterialIndices(const TArray<FSectionInfo>& 
 	{
 		for (int32 LODIndex = 0; LODIndex < MAX_STATIC_MESH_LODS; ++LODIndex)
 		{
-			TVertexAttributesRef<FVector> VertexPositions = InMeshData[MeshIndex].MeshLODData[LODIndex].RawMesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			TVertexAttributesRef<FVector> VertexPositions = InMeshData[MeshIndex].MeshLODData[LODIndex].RawMesh->GetVertexPositions();
 
 			if (InMeshData[MeshIndex].bShouldExportLOD[LODIndex])
 			{

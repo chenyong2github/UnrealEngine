@@ -495,23 +495,22 @@ void BuildVertexBuffer(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildVertexBuffer);
 
-	const FVertexArray& Vertices = MeshDescription.Vertices();
-	const FVertexInstanceArray& VertexInstances = MeshDescription.VertexInstances();
-	const FPolygonGroupArray& PolygonGroupArray = MeshDescription.PolygonGroups();
-	const FPolygonArray& PolygonArray = MeshDescription.Polygons();
 	TArray<int32> RemapVertexInstanceID;
 	// set up vertex buffer elements
-	StaticMeshBuildVertices.Reserve(VertexInstances.GetArraySize());
+	const int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
+	StaticMeshBuildVertices.Reserve(NumVertexInstances);
 
-	TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Normal );
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Tangent );
-	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>( MeshAttribute::VertexInstance::BinormalSign );
-	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>( MeshAttribute::VertexInstance::Color );
-	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate );
+	FStaticMeshConstAttributes Attributes(MeshDescription);
 
-	const bool bHasColors = MeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::Color);
+	TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+
+	const bool bHasColors = VertexInstanceColors.IsValid();
 
 	const uint32 NumTextureCoord = VertexInstanceUVs.GetNumChannels();
 	const FMatrix ScaleMatrix = FScaleMatrix(BuildSettings.BuildScale3D).Inverse().GetTransposed();
@@ -546,110 +545,102 @@ void BuildVertexBuffer(
 	float VertexComparisonThreshold = BuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 
 	int32 WedgeIndex = 0;
-	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
+	for (const FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
 	{
-		const FPolygonGroupID PolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
+		const FPolygonGroupID PolygonGroupID = MeshDescription.GetTrianglePolygonGroup(TriangleID);
 		const int32 SectionIndex = PolygonGroupToSectionIndex[PolygonGroupID];
 		TArray<uint32>& SectionIndices = OutPerSectionIndices[SectionIndex];
 
-		TArrayView<const FTriangleID> TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
-		uint32 MinIndex = TNumericLimits< uint32 >::Max();
-		uint32 MaxIndex = TNumericLimits< uint32 >::Min();
-		for (int32 TriangleIndex = 0; TriangleIndex < TriangleIDs.Num(); ++TriangleIndex)
+		TArrayView<const FVertexID> VertexIDs = MeshDescription.GetTriangleVertices(TriangleID);
+
+		FVector CornerPositions[3];
+		for (int32 TriVert = 0; TriVert < 3; ++TriVert)
 		{
-			const FTriangleID TriangleID = TriangleIDs[TriangleIndex];
+			CornerPositions[TriVert] = VertexPositions[VertexIDs[TriVert]];
+		}
+		FOverlappingThresholds OverlappingThresholds;
+		OverlappingThresholds.ThresholdPosition = VertexComparisonThreshold;
+		// Don't process degenerate triangles.
+		if (PointsEqual(CornerPositions[0], CornerPositions[1], OverlappingThresholds)
+			|| PointsEqual(CornerPositions[0], CornerPositions[2], OverlappingThresholds)
+			|| PointsEqual(CornerPositions[1], CornerPositions[2], OverlappingThresholds))
+		{
+			WedgeIndex += 3;
+			continue;
+		}
 
-			FVector CornerPositions[3];
-			for (int32 TriVert = 0; TriVert < 3; ++TriVert)
-			{
-				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, TriVert);
-				const FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
-				CornerPositions[TriVert] = VertexPositions[VertexID];
-			}
-			FOverlappingThresholds OverlappingThresholds;
-			OverlappingThresholds.ThresholdPosition = VertexComparisonThreshold;
-			// Don't process degenerate triangles.
-			if (PointsEqual(CornerPositions[0], CornerPositions[1], OverlappingThresholds)
-				|| PointsEqual(CornerPositions[0], CornerPositions[2], OverlappingThresholds)
-				|| PointsEqual(CornerPositions[1], CornerPositions[2], OverlappingThresholds))
-			{
-				WedgeIndex += 3;
-				continue;
-			}
+		TArrayView<const FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetTriangleVertexInstances(TriangleID);
+		for (int32 TriVert = 0; TriVert < 3; ++TriVert, ++WedgeIndex)
+		{
+			const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[TriVert];
+			const FVector& VertexPosition = CornerPositions[TriVert];
+			const FVector& VertexInstanceNormal = VertexInstanceNormals[VertexInstanceID];
+			const FVector& VertexInstanceTangent = VertexInstanceTangents[VertexInstanceID];
+			const float VertexInstanceBinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
 
-			for (int32 TriVert = 0; TriVert < 3; ++TriVert, ++WedgeIndex)
-			{
-				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, TriVert);
-				const int32 VertexInstanceValue = VertexInstanceID.GetValue();
-				const FVector& VertexPosition = CornerPositions[TriVert];
-				const FVector& VertexInstanceNormal = VertexInstanceNormals[VertexInstanceID];
-				const FVector& VertexInstanceTangent = VertexInstanceTangents[VertexInstanceID];
-				const float VertexInstanceBinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
+			FStaticMeshBuildVertex StaticMeshVertex;
 
-				FStaticMeshBuildVertex StaticMeshVertex;
-
-				StaticMeshVertex.Position = VertexPosition * BuildSettings.BuildScale3D;
-				StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
-				StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent).GetSafeNormal() * VertexInstanceBinormalSign).GetSafeNormal();
-				StaticMeshVertex.TangentZ = ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
+			StaticMeshVertex.Position = VertexPosition * BuildSettings.BuildScale3D;
+			StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
+			StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent).GetSafeNormal() * VertexInstanceBinormalSign).GetSafeNormal();
+			StaticMeshVertex.TangentZ = ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
 				
-				if (bHasColors)
+			if (bHasColors)
+			{
+				const FVector4& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
+				const FLinearColor LinearColor(VertexInstanceColor);
+				StaticMeshVertex.Color = LinearColor.ToFColor(true);
+			}
+			else
+			{
+				StaticMeshVertex.Color = FColor::White;
+			}
+
+			const uint32 MaxNumTexCoords = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, MAX_STATIC_TEXCOORDS);
+			for (uint32 UVIndex = 0; UVIndex < MaxNumTexCoords; ++UVIndex)
+			{
+				if(UVIndex < NumTextureCoord)
 				{
-					const FVector4& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
-					const FLinearColor LinearColor(VertexInstanceColor);
-					StaticMeshVertex.Color = LinearColor.ToFColor(true);
+					StaticMeshVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
 				}
 				else
 				{
-					StaticMeshVertex.Color = FColor::White;
+					StaticMeshVertex.UVs[UVIndex] = FVector2D(0.0f, 0.0f);
 				}
-
-				const uint32 MaxNumTexCoords = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, MAX_STATIC_TEXCOORDS);
-				for (uint32 UVIndex = 0; UVIndex < MaxNumTexCoords; ++UVIndex)
-				{
-					if(UVIndex < NumTextureCoord)
-					{
-						StaticMeshVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
-					}
-					else
-					{
-						StaticMeshVertex.UVs[UVIndex] = FVector2D(0.0f, 0.0f);
-					}
-				}
+			}
 					
 
-				//Never add duplicated vertex instance
-				//Use WedgeIndex since OverlappingCorners has been built based on that
-				const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(WedgeIndex);
+			//Never add duplicated vertex instance
+			//Use WedgeIndex since OverlappingCorners has been built based on that
+			const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(WedgeIndex);
 
-				int32 Index = INDEX_NONE;
-				for (int32 k = 0; k < DupVerts.Num(); k++)
+			int32 Index = INDEX_NONE;
+			for (int32 k = 0; k < DupVerts.Num(); k++)
+			{
+				if (DupVerts[k] >= WedgeIndex)
 				{
-					if (DupVerts[k] >= WedgeIndex)
-					{
-						break;
-					}
-					int32 Location = RemapVerts.IsValidIndex(DupVerts[k]) ? RemapVerts[DupVerts[k]] : INDEX_NONE;
-					if (Location != INDEX_NONE && AreVerticesEqual(StaticMeshVertex, StaticMeshBuildVertices[Location], VertexComparisonThreshold))
-					{
-						Index = Location;
-						break;
-					}
+					break;
 				}
-				if (Index == INDEX_NONE)
+				int32 Location = RemapVerts.IsValidIndex(DupVerts[k]) ? RemapVerts[DupVerts[k]] : INDEX_NONE;
+				if (Location != INDEX_NONE && AreVerticesEqual(StaticMeshVertex, StaticMeshBuildVertices[Location], VertexComparisonThreshold))
 				{
-					Index = StaticMeshBuildVertices.Add(StaticMeshVertex);
+					Index = Location;
+					break;
 				}
-				RemapVerts[WedgeIndex] = Index;
-				OutWedgeMap[WedgeIndex] = Index;
-				SectionIndices.Add( Index );
 			}
+			if (Index == INDEX_NONE)
+			{
+				Index = StaticMeshBuildVertices.Add(StaticMeshVertex);
+			}
+			RemapVerts[WedgeIndex] = Index;
+			OutWedgeMap[WedgeIndex] = Index;
+			SectionIndices.Add( Index );
 		}
 	}
 
 
 	//Optimize before setting the buffer
-	if (VertexInstances.GetArraySize() < 100000 * 3)
+	if (NumVertexInstances < 100000 * 3)
 	{
 		BuildOptimizationHelper::CacheOptimizeVertexAndIndexBuffer(StaticMeshBuildVertices, OutPerSectionIndices, OutWedgeMap);
 		//check(OutWedgeMap.Num() == MeshDescription->VertexInstances().Num());

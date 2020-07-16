@@ -132,6 +132,17 @@ public:
 		return MeshDescription.TriangleAttributes().GetAttributesRef<TArrayView<FUVID>>(MeshAttribute::Triangle::UVIndex);
 	}
 
+	/** Accessors for UV coordinates */
+	TUVAttributesRef<FVector2D> GetUVCoordinates(int32 UVChannel)
+	{
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+	}
+
+	TUVAttributesConstRef<FVector2D> GetUVCoordinates(int32 UVChannel) const
+	{
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+	}
+
 	/** Accessors for array of polygon group IDs for triangles */
 	TTriangleAttributesRef<FPolygonGroupID> GetTrianglePolygonGroupIndices()
 	{
@@ -204,6 +215,12 @@ public:
 	TTriangleAttributesConstRef<TArrayView<FUVID>> GetTriangleUVIndices() const
 	{
 		return MeshDescription.TriangleAttributes().GetAttributesRef<TArrayView<FUVID>>(MeshAttribute::Triangle::UVIndex);
+	}
+
+	/** Accessors for UV coordinates */
+	TUVAttributesConstRef<FVector2D> GetUVCoordinates(int32 UVChannel) const
+	{
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
 	}
 
 	/** Accessors for array of polygon group IDs for triangles */

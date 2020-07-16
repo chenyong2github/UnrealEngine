@@ -422,7 +422,7 @@ void UEditableStaticMeshAdapter::InitializeFromEditableMesh( const UEditableMesh
 		FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
-		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangles( PolygonID );
 		for( const FTriangleID TriangleID : TriangleIDs )
 		{
 			FRenderingPolygonGroup::FMeshTriangle Triangle;
@@ -832,7 +832,7 @@ void UEditableStaticMeshAdapter::OnReindexElements( const UEditableMesh* Editabl
 		RenderingPolygonGroup.MaxTriangles = RenderingPolygonGroup.Triangles.GetArraySize();
 
 		// Fix up references in referencing polygons
-		for( const FPolygonID PolygonID : EditableMesh->GetMeshDescription()->GetPolygonGroupPolygons( PolygonGroupID ) )
+		for( const FPolygonID PolygonID : EditableMesh->GetMeshDescription()->GetPolygonGroupPolygonIDs( PolygonGroupID ) )
 		{
 			FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 			RenderingPolygon.PolygonGroupID = PolygonGroupID;
@@ -1076,7 +1076,7 @@ void UEditableStaticMeshAdapter::OnSetVertexAttribute( const UEditableMesh* Edit
 			const FVertexInstanceArray& VertexInstances = EditableMesh->GetMeshDescription()->VertexInstances();
 
 			// Set the vertex buffer position of all of the vertex instances for this editable vertex
-			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetVertexVertexInstances( VertexID ) )
+			for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetVertexVertexInstanceIDs( VertexID ) )
 			{
 				check( MeshDescription->IsVertexInstanceValid( VertexInstanceID ) );
 				StaticMeshLOD.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexInstanceID.GetValue() ) = NewVertexPosition;
@@ -1296,7 +1296,7 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 		FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		const FPolygonGroupID PolygonGroupID = RenderingPolygon.PolygonGroupID;
 		FRenderingPolygonGroup& RenderingPolygonGroup = RenderingPolygonGroups[ PolygonGroupID ];
-		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangles( PolygonID );
 
 		// Check to see whether the index buffer needs to be updated
 		bool bNeedsUpdatedTriangles = false;

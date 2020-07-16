@@ -206,14 +206,14 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	const bool bContainsImposters = Data->MergeData->ImposterComponents.Num() > 0;
 	FBox ImposterBounds(EForceInit::ForceInit);
 
-	TPolygonGroupAttributesConstRef<FName> PolygonGroupMaterialSlotName = Data->RawMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+	TPolygonGroupAttributesConstRef<FName> PolygonGroupMaterialSlotName = FStaticMeshAttributes(Data->RawMesh).GetPolygonGroupMaterialSlotNames();
 
 	auto RemoveVertexColorAndCommitMeshDescription = [&StaticMesh, &Data, &ProxyMaterial, &PolygonGroupMaterialSlotName]()
 	{
 		if (!Data->MergeData->InProxySettings.bAllowVertexColors)
 		{
 			//We cannot remove the vertex color with the mesh description so we assign a white value to all color
-			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Data->RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = FStaticMeshAttributes(Data->RawMesh).GetVertexInstanceColors();
 			//set all value to white
 			for (const FVertexInstanceID& VertexInstanceID : Data->RawMesh.VertexInstances().GetElementIDs())
 			{

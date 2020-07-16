@@ -268,6 +268,8 @@ static bool RemoveAttribute(FMeshDescription* Mesh, EAttributeEditorElementType 
 
 static bool IsReservedName(FName AttributeName)
 {
+	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this
+	// will need a way to look up MeshDescription attribute sets from their category.
 	return (AttributeName == MeshAttribute::Vertex::Position)
 		|| (AttributeName == MeshAttribute::VertexInstance::TextureCoordinate)
 		|| (AttributeName == MeshAttribute::VertexInstance::Normal)

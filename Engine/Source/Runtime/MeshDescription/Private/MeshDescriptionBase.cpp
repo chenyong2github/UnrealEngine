@@ -362,7 +362,7 @@ void UMeshDescriptionBase::GetVertexConnectedEdges(FVertexID VertexID, TArray<FE
 		return;
 	}
 
-	OutEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
+	OutEdgeIDs = MeshDescription.GetVertexConnectedEdgeIDs(VertexID);
 }
 
 int32 UMeshDescriptionBase::GetNumVertexConnectedEdges(FVertexID VertexID) const
@@ -384,7 +384,7 @@ void UMeshDescriptionBase::GetVertexVertexInstances(FVertexID VertexID, TArray<F
 		return;
 	}
 
-	OutVertexInstanceIDs = MeshDescription.GetVertexVertexInstances(VertexID);
+	OutVertexInstanceIDs = MeshDescription.GetVertexVertexInstanceIDs(VertexID);
 }
 
 int32 UMeshDescriptionBase::GetNumVertexVertexInstances(FVertexID VertexID) const
@@ -527,7 +527,7 @@ void UMeshDescriptionBase::GetVertexInstanceConnectedTriangles(FVertexInstanceID
 		return;
 	}
 
-	OutConnectedTriangleIDs = MeshDescription.GetVertexInstanceConnectedTriangles(VertexInstanceID);
+	OutConnectedTriangleIDs = MeshDescription.GetVertexInstanceConnectedTriangleIDs(VertexInstanceID);
 }
 
 int32 UMeshDescriptionBase::GetNumVertexInstanceConnectedTriangles(FVertexInstanceID VertexInstanceID) const
@@ -603,7 +603,7 @@ void UMeshDescriptionBase::GetEdgeConnectedTriangles(FEdgeID EdgeID, TArray<FTri
 		return;
 	}
 
-	OutConnectedTriangleIDs = MeshDescription.GetEdgeConnectedTriangles(EdgeID);
+	OutConnectedTriangleIDs = MeshDescription.GetEdgeConnectedTriangleIDs(EdgeID);
 }
 
 int32 UMeshDescriptionBase::GetNumEdgeConnectedTriangles(FEdgeID EdgeID) const
@@ -790,7 +790,7 @@ void UMeshDescriptionBase::GetPolygonTriangles(FPolygonID PolygonID, TArray<FTri
 		return;
 	}
 
-	OutTriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+	OutTriangleIDs = MeshDescription.GetPolygonTriangles(PolygonID);
 }
 
 int32 UMeshDescriptionBase::GetNumPolygonTriangles(FPolygonID PolygonID) const
@@ -974,7 +974,7 @@ void UMeshDescriptionBase::GetPolygonGroupPolygons(FPolygonGroupID PolygonGroupI
 		return;
 	}
 
-	OutPolygonIDs = MeshDescription.GetPolygonGroupPolygons(PolygonGroupID);
+	OutPolygonIDs = MeshDescription.GetPolygonGroupPolygonIDs(PolygonGroupID);
 }
 
 int32 UMeshDescriptionBase::GetNumPolygonGroupPolygons(FPolygonGroupID PolygonGroupID) const

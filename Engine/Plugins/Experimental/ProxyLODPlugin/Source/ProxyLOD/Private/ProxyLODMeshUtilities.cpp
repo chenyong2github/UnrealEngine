@@ -1445,7 +1445,7 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 {
 	typedef uint32 EdgeIdType;
 	typedef uint32 FaceIdType;
-	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
 
 	ProxyLOD::FUnitTransformDataProvider kDOPDataProvider(kDOPTree);
 
@@ -1646,22 +1646,19 @@ void ProxyLOD::ColorPartitions(FMeshDescription& InOutRawMesh, const std::vector
 		FColor(153, 102, 0), FColor(249, 129, 162), FColor(29, 143, 177), FColor(118, 42, 145),
 		FColor(255, 121, 75), FColor(102, 204, 51), FColor(153, 153, 255), FColor(255, 255, 255) };
 
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = InOutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	TArrayView<FVector4> VertexInstanceColors = FStaticMeshAttributes(InOutRawMesh).GetVertexInstanceColors().GetRawArray();
 
 	//Remap the vertex instance
 	int32 TriangleIndex = 0;
 	TMap<uint32, FVertexInstanceID> WedgeIndexToVertexInstanceID;
 	WedgeIndexToVertexInstanceID.Reserve(InOutRawMesh.VertexInstances().Num());
-	for (const FPolygonID PolygonID : InOutRawMesh.Polygons().GetElementIDs())
+	for (const FTriangleID TriangleID : InOutRawMesh.Triangles().GetElementIDs())
 	{
-		for (const FTriangleID TriangleID : InOutRawMesh.GetPolygonTriangleIDs(PolygonID))
+		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			for (int32 Corner = 0; Corner < 3; ++Corner)
-			{
-				WedgeIndexToVertexInstanceID.Add((TriangleIndex * 3) + Corner, InOutRawMesh.GetTriangleVertexInstance(TriangleID, Corner));
-			}
-			TriangleIndex++;
+			WedgeIndexToVertexInstanceID.Add((TriangleIndex * 3) + Corner, InOutRawMesh.GetTriangleVertexInstance(TriangleID, Corner));
 		}
+		TriangleIndex++;
 	}
 
 	for (int i = 0; i < partitionResults.size(); ++i)
@@ -1704,20 +1701,17 @@ void ProxyLOD::AddWedgeColors(FMeshDescription& RawMesh)
 		FColor(153, 102, 0), FColor(249, 129, 162), FColor(29, 143, 177), FColor(118, 42, 145),
 		FColor(255, 121, 75), FColor(102, 204, 51), FColor(153, 153, 255), FColor(255, 255, 255) };
 
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	TArrayView<FVector4> VertexInstanceColors = FStaticMeshAttributes(RawMesh).GetVertexInstanceColors().GetRawArray();
 
 	//Recolor the vertex instances
 	int32 TriangleIndex = 0;
-	for (const FPolygonID PolygonID : RawMesh.Polygons().GetElementIDs())
+	for (const FTriangleID TriangleID : RawMesh.Triangles().GetElementIDs())
 	{
-		for (const FTriangleID TriangleID : RawMesh.GetPolygonTriangleIDs(PolygonID))
+		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			for (int32 Corner = 0; Corner < 3; ++Corner)
-			{
-				VertexInstanceColors[RawMesh.GetTriangleVertexInstance(TriangleID, Corner)] = FLinearColor(ColorRange[((TriangleIndex*3) + Corner) % 13]);
-			}
-			TriangleIndex++;
+			VertexInstanceColors[RawMesh.GetTriangleVertexInstance(TriangleID, Corner)] = FLinearColor(ColorRange[((TriangleIndex*3) + Corner) % 13]);
 		}
+		TriangleIndex++;
 	}
 }
 

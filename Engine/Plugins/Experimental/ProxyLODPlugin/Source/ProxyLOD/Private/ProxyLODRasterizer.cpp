@@ -220,7 +220,7 @@ namespace ProxyLOD
 		FIntPoint Size = OutMaterial.GetPropertySize(EFlattenMaterialProperties::Diffuse);
 		ResizeArray(ColorBuffer, Size.X * Size.Y);
 
-		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+		TArrayView<const FVector4> VertexInstanceColors = FStaticMeshConstAttributes(RawMesh).GetVertexInstanceColors().GetRawArray();
 
 		for (int j = 0; j < Size.Y; ++j)
 		{

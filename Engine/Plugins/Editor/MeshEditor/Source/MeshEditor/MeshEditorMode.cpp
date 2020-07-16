@@ -2492,7 +2492,7 @@ void FMeshEditorMode::AddMeshElementToOverlay( UOverlayComponent* OverlayCompone
 					case EEditableMeshElementType::Polygon:
 					{
 						const FPolygonID PolygonID( MeshElement.ElementAddress.ElementID );
-						TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+						TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangles( PolygonID );
 
 						for( int32 PolygonTriangle = 0; PolygonTriangle < TriangleIDs.Num(); PolygonTriangle++ )
 						{

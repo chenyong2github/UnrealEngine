@@ -92,7 +92,7 @@ FEditableMeshElementAddress FGeometryTests::QueryElement(const UEditableMesh& Ed
 	// Check polygons first; this is so we always impose a closest hit location at the poly before checking other elements, so anything behind is occluded
 	for (const FPolygonID PolygonID : FrontFacingPolygons)
 	{
-		for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
+		for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangles(PolygonID))
 		{
 			FVector TriangleVertexPositions[3];
 			for (uint32 TriangleVertexNumber = 0; TriangleVertexNumber < 3; ++TriangleVertexNumber)

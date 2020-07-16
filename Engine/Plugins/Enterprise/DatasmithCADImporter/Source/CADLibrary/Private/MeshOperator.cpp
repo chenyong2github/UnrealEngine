@@ -123,7 +123,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 					if (MeshWrapper.IsVertexOfCategory(HighestVertex[VertexIndex], EElementCategory::ElementCategorySurface))
 					{
 						FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(HighestVertex[VertexIndex]);
-						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
+						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstanceIDs(VertexID);
 						float MaxComponent = 0;
 						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{
@@ -147,7 +147,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 					if (MeshWrapper.IsVertexOfCategory(LowestVertex[VertexIndex], EElementCategory::ElementCategorySurface))
 					{
 						FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(LowestVertex[VertexIndex]);
-						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstances(VertexID);
+						TArrayView<const FVertexInstanceID> CoincidentVertexInstanceIdSet = MeshDescription.GetVertexVertexInstanceIDs(VertexID);
 						float MaxComponent = 0;
 						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{

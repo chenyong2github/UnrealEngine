@@ -44,9 +44,11 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	//OutRenderMeshDescription->ComputePolygonTangentsAndNormals(BuildSettings->bRemoveDegenerates ? SMALL_NUMBER : 0.0f);
 
 	FVertexInstanceArray& VertexInstanceArray = RenderMeshDescription.VertexInstances();
-	TVertexInstanceAttributesRef<FVector> Normals = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Normal );
-	TVertexInstanceAttributesRef<FVector> Tangents = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Tangent );
-	TVertexInstanceAttributesRef<float> BinormalSigns = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<float>( MeshAttribute::VertexInstance::BinormalSign );
+
+	FStaticMeshAttributes Attributes(RenderMeshDescription);
+	TVertexInstanceAttributesRef<FVector> Normals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector> Tangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> BinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 
 	// Find overlapping corners to accelerate adjacency.
 	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, RenderMeshDescription, ComparisonThreshold);
@@ -66,7 +68,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 
 	if (BuildSettings->bGenerateLightmapUVs && VertexInstanceArray.Num() > 0)
 	{
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		int32 NumIndices = VertexInstanceUVs.GetNumChannels();
 		//Verify the src light map channel
 		if (BuildSettings->SrcLightmapIndex >= NumIndices)

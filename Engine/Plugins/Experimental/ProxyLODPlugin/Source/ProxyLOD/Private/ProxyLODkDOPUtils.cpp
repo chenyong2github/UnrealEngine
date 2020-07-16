@@ -40,7 +40,7 @@ void ProxyLOD::BuildkDOPTree(const FMeshDescription& MeshDescription, FkDOPTree&
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::BuildkDOPTree)
 
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TArrayView<const FVector> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 
 	uint32 NumSrcPoly = MeshDescription.Triangles().Num();
 

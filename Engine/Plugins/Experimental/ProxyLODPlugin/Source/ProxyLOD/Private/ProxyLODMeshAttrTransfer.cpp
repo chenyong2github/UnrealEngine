@@ -62,13 +62,16 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 {
 	const int32 NumFaces = InOutMesh.Polygons().Num();
 
-	TVertexAttributesRef<FVector> VertexPositions = InOutMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = InOutMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = InOutMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = InOutMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = InOutMesh.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = InOutMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = InOutMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	FStaticMeshAttributes Attributes(InOutMesh);
+
+	TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
+	TArrayView<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
+	TArrayView<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
+	TArrayView<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
+	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
+
+	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	//const FMeshDescriptionArrayAdapter& RawMeshArrayAdapter = SrcPolyField.MeshAdapter();
 	ProxyLOD::Parallel_For(ProxyLOD::FIntRange(0, NumFaces),
@@ -81,7 +84,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 		{
 			FPolygonID PolygonID = FPolygonID(CurrentRange);
 			int32 LastMaterialIndex = -1;
-			for (const FTriangleID TriangleID : InOutMesh.GetPolygonTriangleIDs(PolygonID))
+			for (const FTriangleID TriangleID : InOutMesh.GetPolygonTriangles(PolygonID))
 			{
 				// get the three corners for this Triangle
 				TArrayView<const FVertexInstanceID> TriangleVerts = InOutMesh.GetTriangleVertexInstances(TriangleID);
@@ -119,6 +122,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 				FPolygonGroupID PolygonGroupID(LastMaterialIndex);
 				if (!InOutMesh.IsPolygonGroupValid(PolygonGroupID))
 				{
+					// @todo: check: this doesn't seem thread-safe to me - RichardTW
 					InOutMesh.CreatePolygonGroupWithID(PolygonGroupID);
 					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = FName(*FString::Printf(TEXT("ProxyLOD_Material_%d"), FMath::Rand()));
 				}
@@ -190,8 +194,10 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 
 void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMeshDescription& InOutMesh)
 {
-	TVertexAttributesConstRef<FVector> VertexPositions = InOutMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = InOutMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	TArrayView<const FVector> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
+
+	FStaticMeshAttributes Attributes(InOutMesh);
+	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 
 	const uint32 NumWedges = InOutMesh.VertexInstances().Num();
 
@@ -259,7 +265,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 template <typename ProjectionOperatorType>
 void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, const FClosestPolyField& SrcPolyField, FMeshDescription& InOutMesh)
 {
-	TVertexAttributesRef<FVector> VertexPositions = InOutMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TArrayView<FVector> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
 	const uint32 NumVertexes = InOutMesh.Vertices().Num();
 
 	ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, NumVertexes),

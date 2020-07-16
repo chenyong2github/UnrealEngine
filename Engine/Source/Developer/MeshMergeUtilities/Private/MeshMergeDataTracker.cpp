@@ -250,8 +250,9 @@ void FMeshMergeDataTracker::ProcessRawMeshes()
 		const int32 LODIndex = Key.GetLODIndex();
 		const FMeshDescription& RawMesh = MeshPair.Value;
 
-		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		FStaticMeshConstAttributes Attributes(RawMesh);
+		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 		// hash vertex color buffer so we can see if instances have unique vertex data
 		if(VertexInstanceColors.GetNumElements() > 0)

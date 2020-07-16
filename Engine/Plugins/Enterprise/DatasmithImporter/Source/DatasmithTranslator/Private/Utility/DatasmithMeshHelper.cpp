@@ -47,7 +47,7 @@ namespace DatasmithMeshHelper
 
 	bool IsTriangleDegenerated(const FMeshDescription& Mesh, const FTriangleID TriangleID)
 	{
-		const TVertexAttributesConstRef<FVector> VertexPositions = Mesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		TVertexAttributesConstRef<FVector> VertexPositions = Mesh.GetVertexPositions();
 		TArrayView<const FVertexID> TriangleVerts = Mesh.GetTriangleVertices(TriangleID);
 		float NormalLengthSquare = ((VertexPositions[TriangleVerts[1]] - VertexPositions[TriangleVerts[2]]) ^ (VertexPositions[TriangleVerts[0]] - VertexPositions[TriangleVerts[2]])).SizeSquared();
 		return NormalLengthSquare < SMALL_NUMBER;
@@ -225,7 +225,7 @@ namespace DatasmithMeshHelper
 
 	int32 GetNumUVChannel(const FMeshDescription& Mesh)
 	{
-		const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
 		return UVChannels.GetNumChannels();
 	}
 
@@ -238,7 +238,7 @@ namespace DatasmithMeshHelper
 	{
 		if (HasUVChannel(Mesh, ChannelIndex))
 		{
-			const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
 			const FVector2D DefValue = UVChannels.GetDefaultValue();
 			for (FVertexInstanceID InstanceID : Mesh.VertexInstances().GetElementIDs())
 			{
@@ -260,7 +260,7 @@ namespace DatasmithMeshHelper
 
 		if (!HasUVChannel(Mesh, ChannelIndex))
 		{
-			TVertexInstanceAttributesRef<FVector2D> UVChannels = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2D> UVChannels = FStaticMeshAttributes(Mesh).GetVertexInstanceUVs();
 			UVChannels.SetNumChannels(ChannelIndex + 1);
 		}
 		return true;
@@ -320,7 +320,7 @@ namespace DatasmithMeshHelper
 		TMap<FVertexInstanceID, FVector2D> TexCoords;
 		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 
-		TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesRef<FVector2D> UVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
 		if (UVs.GetNumChannels() == 0)
 		{
 			UVs.SetNumChannels(1);
@@ -341,30 +341,28 @@ namespace DatasmithMeshHelper
 
 	bool IsMeshValid(const FMeshDescription& Mesh, FVector BuildScale)
 	{
-		const TVertexAttributesConstRef<FVector> VertexPositions = Mesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		TVertexAttributesConstRef<FVector> VertexPositions = Mesh.GetVertexPositions();
 		FVector RawNormalScale(BuildScale.Y*BuildScale.Z, BuildScale.X*BuildScale.Z, BuildScale.X*BuildScale.Y); // Component-wise scale
-		for (const FPolygonID PolygonID : Mesh.Polygons().GetElementIDs())
+
+		for (const FTriangleID TriangleID : Mesh.Triangles().GetElementIDs())
 		{
-			FVector Corners[3];
-			for (const FTriangleID TriangleID : Mesh.GetPolygonTriangleIDs(PolygonID))
+			TArrayView<const FVertexID> VertexIDs = Mesh.GetTriangleVertices(TriangleID);
+			FVector Corners[3] =
 			{
-				for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
-				{
-					FVertexInstanceID VertexInstanceID = Mesh.GetTriangleVertexInstance(TriangleID, CornerIndex);
-					FVertexID VertexID = Mesh.GetVertexInstanceVertex(VertexInstanceID);
-					Corners[CornerIndex] = VertexPositions[VertexID];
-				}
+				VertexPositions[VertexIDs[0]],
+				VertexPositions[VertexIDs[1]],
+				VertexPositions[VertexIDs[2]]
+			};
 
-				FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
-				RawNormal *= RawNormalScale;
-				double FourSquaredTriangleArea = RawNormal.SizeSquared();
+			FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
+			RawNormal *= RawNormalScale;
+			double FourSquaredTriangleArea = RawNormal.SizeSquared();
 
-				// We support even small triangles, but this function is still useful to
-				// see if we have at least one valid triangle in the mesh
-				if (FourSquaredTriangleArea > 0.0f)
-				{
-					return true;
-				}
+			// We support even small triangles, but this function is still useful to
+			// see if we have at least one valid triangle in the mesh
+			if (FourSquaredTriangleArea > 0.0f)
+			{
+				return true;
 			}
 		}
 

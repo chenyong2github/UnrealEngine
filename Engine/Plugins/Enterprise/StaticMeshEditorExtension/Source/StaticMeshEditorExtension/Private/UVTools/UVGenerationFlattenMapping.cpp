@@ -1122,7 +1122,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 
 	for (const FPolygonID PolygonID : InMesh.Polygons().GetElementIDs())
 	{
-		TArrayView<const FTriangleID> TriangleIDs = InMesh.GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = InMesh.GetPolygonTriangles(PolygonID);
 		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			FaceStruct Face;
@@ -1317,7 +1317,7 @@ TArray<int32> UUVGenerationFlattenMapping::GetOverlappingCornersRemapping(const 
 	int32 CurrentWedge = 0;
 	for (const FPolygonID PolygonID : InMeshDescription.Polygons().GetElementIDs())
 	{
-		for (const FTriangleID& TriangleIDs : InMeshDescription.GetPolygonTriangleIDs(PolygonID))
+		for (const FTriangleID& TriangleIDs : InMeshDescription.GetPolygonTriangles(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{

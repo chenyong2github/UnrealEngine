@@ -80,7 +80,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 	BBox.Min *= ImportParams.ScaleFactor;
 	BBox.Max *= ImportParams.ScaleFactor;
 
-	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
 
 	// Create a list of vertex Z/index pairs
 	TArray<FVertexData> VertexDataSet;

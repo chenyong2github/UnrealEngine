@@ -429,9 +429,15 @@ public:
 	FEdgeID GetVertexPairEdge(const FVertexID VertexID0, const FVertexID VertexID1) const;
 
 	/** Returns reference to an array of Edge IDs connected to this vertex */
-	TArrayView<const FEdgeID> GetVertexConnectedEdges(const FVertexID VertexID) const
+	TArrayView<const FEdgeID> GetVertexConnectedEdgeIDs(const FVertexID VertexID) const
 	{
 		return VertexToEdges.Find<FEdgeID>(VertexID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetVertexConnectedEdgeIDs instead.")
+	TArray<FEdgeID> GetVertexConnectedEdges(const FVertexID VertexID) const
+	{
+		return TArray<FEdgeID>(GetVertexConnectedEdgeIDs(VertexID));
 	}
 
 	/** Returns number of edges connected to this vertex */
@@ -441,9 +447,15 @@ public:
 	}
 
 	/** Returns reference to an array of VertexInstance IDs instanced from this vertex */
-	TArrayView<const FVertexInstanceID> GetVertexVertexInstances(const FVertexID VertexID) const
+	TArrayView<const FVertexInstanceID> GetVertexVertexInstanceIDs(const FVertexID VertexID) const
 	{
 		return VertexToVertexInstances.Find<FVertexInstanceID>(VertexID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetVertexVertexInstanceIDs instead.")
+	TArray<FVertexInstanceID> GetVertexVertexInstances(const FVertexID VertexID) const
+	{
+		return TArray<FVertexInstanceID>(GetVertexVertexInstanceIDs(VertexID));
 	}
 
 	/** Returns number of vertex instances created from this vertex */
@@ -566,7 +578,12 @@ public:
 		return VertexPositions[VertexID];
 	}
 
-	TMeshAttributesArray<FVector> GetVertexPositions() const
+	TVertexAttributesRef<FVector> GetVertexPositions()
+	{
+		return VertexPositions;
+	}
+
+	TVertexAttributesRef<const FVector> GetVertexPositions() const
 	{
 		return VertexPositions;
 	}
@@ -584,9 +601,15 @@ public:
 	FEdgeID GetVertexInstancePairEdge(const FVertexInstanceID VertexInstanceID0, const FVertexInstanceID VertexInstanceID1) const;
 
 	/** Returns reference to an array of Triangle IDs connected to this vertex instance */
-	TArrayView<const FTriangleID> GetVertexInstanceConnectedTriangles(const FVertexInstanceID VertexInstanceID) const
+	TArrayView<const FTriangleID> GetVertexInstanceConnectedTriangleIDs(const FVertexInstanceID VertexInstanceID) const
 	{
 		return VertexInstanceToTriangles.Find<FTriangleID>(VertexInstanceID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetVertexInstanceTriangleIDs() instead.")
+	TArray<FTriangleID> GetVertexInstanceConnectedTriangles(const FVertexInstanceID VertexInstanceID) const
+	{
+		return TArray<FTriangleID>(GetVertexInstanceConnectedTriangleIDs(VertexInstanceID));
 	}
 
 	/** Returns the number of triangles connected to this vertex instance */
@@ -651,9 +674,15 @@ public:
 	}
 
 	/** Returns reference to an array of triangle IDs connected to this edge */
-	TArrayView<const FTriangleID> GetEdgeConnectedTriangles(const FEdgeID EdgeID) const
+	TArrayView<const FTriangleID> GetEdgeConnectedTriangleIDs(const FEdgeID EdgeID) const
 	{
 		return EdgeToTriangles.Find<FTriangleID>(EdgeID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetEdgeConnectedTriangleIDs() instead.")
+	TArray<FTriangleID> GetEdgeConnectedTriangles(const FEdgeID EdgeID) const
+	{
+		return TArray<FTriangleID>(GetEdgeConnectedTriangleIDs(EdgeID));
 	}
 
 	int32 GetNumEdgeConnectedTriangles(const FEdgeID EdgeID) const
@@ -841,9 +870,15 @@ public:
 	// Polygon operations
 
 	/** Return reference to an array of triangle IDs which comprise this polygon */
-	TArrayView<const FTriangleID> GetPolygonTriangleIDs(const FPolygonID PolygonID) const
+	TArrayView<const FTriangleID> GetPolygonTriangles(const FPolygonID PolygonID) const
 	{
 		return PolygonToTriangles.Find<FTriangleID>(PolygonID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetPolygonTriangles() instead.")
+	TArray<FTriangleID> GetPolygonTriangleIDs(const FPolygonID PolygonID) const
+	{
+		return TArray<FTriangleID>(GetPolygonTriangles(PolygonID));
 	}
 
 	/** Return the number of triangles which comprise this polygon */
@@ -991,7 +1026,7 @@ public:
 			TArray<FVertexInstanceID> VertexInstanceIDs = GetPolygonVertexInstances(PolygonID);
 			for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
 			{
-				for (const FEdgeID EdgeID : GetVertexConnectedEdges(GetVertexInstanceVertex(VertexInstanceID)))
+				for (const FEdgeID EdgeID : GetVertexConnectedEdgeIDs(GetVertexInstanceVertex(VertexInstanceID)))
 				{
 					if (!OutEdgeIDs.Contains(EdgeID) && IsEdgeInternalToPolygon(EdgeID, PolygonID))
 					{
@@ -1113,9 +1148,15 @@ public:
 	// Polygon group operations
 
 	/** Returns the polygons associated with the given polygon group */
-	TArrayView<const FPolygonID> GetPolygonGroupPolygons(const FPolygonGroupID PolygonGroupID) const
+	TArrayView<const FPolygonID> GetPolygonGroupPolygonIDs(const FPolygonGroupID PolygonGroupID) const
 	{
 		return PolygonGroupToPolygons.Find<FPolygonID>(PolygonGroupID);
+	}
+
+	UE_DEPRECATED(4.26, "Please use GetPolygonGroupPolygonIDs() instead.")
+	TArray<FPolygonID> GetPolygonGroupPolygons(const FPolygonGroupID PolygonGroupID) const
+	{
+		return TArray<FPolygonID>(GetPolygonGroupPolygonIDs(PolygonGroupID));
 	}
 
 	/** Returns the triangles associated with the given polygon group */

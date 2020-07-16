@@ -136,15 +136,13 @@ void UEditPivotTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void VertexIteration(const FMeshDescription* Mesh, TFunction<void(int32, const FVector&)> ApplyFunc)
+void VertexIteration(const FMeshDescription* Mesh, TFunctionRef<void(int32, const FVector&)> ApplyFunc)
 {
-	const FVertexArray& VertexIDs = Mesh->Vertices();
-	TVertexAttributesConstRef<FVector> VertexPositions =
-		Mesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TArrayView<const FVector> VertexPositions = Mesh->GetVertexPositions().GetRawArray();
 
-	for (const FVertexID VertexID : VertexIDs.GetElementIDs())
+	for (const FVertexID VertexID : Mesh->Vertices().GetElementIDs())
 	{
-		const FVector Position = VertexPositions.Get(VertexID);
+		const FVector Position = VertexPositions[VertexID];
 		ApplyFunc(VertexID.GetValue(), Position);
 	}
 }

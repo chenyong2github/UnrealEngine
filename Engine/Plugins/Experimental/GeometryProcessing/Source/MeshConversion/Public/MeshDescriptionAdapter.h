@@ -27,8 +27,10 @@ protected:
 public:
 	FMeshDescriptionTriangleMeshAdapter(const FMeshDescription* MeshIn) : Mesh(MeshIn)
 	{
-		VertexPositions = MeshIn->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		VertexInstanceNormals = MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+		FStaticMeshConstAttributes Attributes(*MeshIn);
+		VertexPositions = Attributes.GetVertexPositions();
+		VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		// @todo: can we hold TArrayViews of the attribute arrays here? Do we guarantee not to mutate the mesh description for the duration of this object?
 	}
 
 	bool IsTriangle(int32 TID) const
@@ -118,8 +120,9 @@ protected:
 public:
 	FMeshDescriptionEditableTriangleMeshAdapter(FMeshDescription* MeshIn) : Mesh(MeshIn)
 	{
-		VertexPositions = MeshIn->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		VertexInstanceNormals = MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+		FStaticMeshAttributes Attributes(*MeshIn);
+		VertexPositions = Attributes.GetVertexPositions();
+		VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	}
 
 	bool IsTriangle(int32 TID) const

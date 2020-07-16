@@ -234,14 +234,14 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 
 bool FDatasmithStaticMeshImporter::ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements)
 {
-	const TVertexInstanceAttributesConstRef<FVector> Normals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexInstanceAttributesConstRef<FVector> Normals = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceNormals();
 	check(Normals.IsValid());
 	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Normals[InstanceID].IsNormalized(); });
 }
 
 bool FDatasmithStaticMeshImporter::ShouldRecomputeTangents(const FMeshDescription& MeshDescription, int32 BuildRequirements)
 {
-	const TVertexInstanceAttributesConstRef<FVector> Tangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	TVertexInstanceAttributesConstRef<FVector> Tangents = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceTangents();
 	check(Tangents.IsValid());
 	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Tangents[InstanceID].IsNormalized(); });
 }
@@ -488,7 +488,7 @@ public:
 					ThisSection.SectionIndex = SectionIndex++;
 					ThisSection.SectionId = PolygonGroupID;
 					ThisSection.MaterialSlotName = MaterialSlotNameAttribute[PolygonGroupID];
-					ThisSection.PolyCount = MeshDescription->GetPolygonGroupPolygons(PolygonGroupID).Num();
+					ThisSection.PolyCount = MeshDescription->GetPolygonGroupPolygonIDs(PolygonGroupID).Num();
 				}
 			}
 		}

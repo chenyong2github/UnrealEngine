@@ -118,7 +118,7 @@ namespace MeshEditingContext
 				FVector Tangent = FVector::ZeroVector;
 				FVector Binormal = FVector::ZeroVector;
 
-				for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangleIDs(PolygonID))
+				for (const FTriangleID TriangleID : MeshDescription->GetPolygonTriangles(PolygonID))
 				{
 					TArrayView<const FVertexInstanceID> TriVertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleID);
 					const FVertexID VertexID0 = MeshDescription->GetVertexInstanceVertex(TriVertexInstanceIDs[0]);

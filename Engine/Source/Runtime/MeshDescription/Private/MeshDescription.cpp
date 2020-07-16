@@ -56,31 +56,31 @@ void FMeshDescription::Initialize()
 	// Now register topology-based attributes
 
 	// Register vertex reference for vertex instances
-	VertexInstanceVertices = VertexInstanceElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID>(MeshAttribute::VertexInstance::VertexIndex);
+	VertexInstanceVertices = VertexInstanceElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID>(MeshAttribute::VertexInstance::VertexIndex, 1, EMeshAttributeFlags::Mandatory);
 
 	// Register vertex references for edges
-	EdgeVertices = EdgeElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[2]>(MeshAttribute::Edge::VertexIndex);
+	EdgeVertices = EdgeElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[2]>(MeshAttribute::Edge::VertexIndex, 1, EMeshAttributeFlags::Mandatory);
 
 	// Register vertex instance and polygon references for triangles
-	TriangleVertexInstances = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexInstanceID[3]>(MeshAttribute::Triangle::VertexInstanceIndex);
-	TrianglePolygons = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonID>(MeshAttribute::Triangle::PolygonIndex);
-	TrianglePolygonGroups = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonGroupID>(MeshAttribute::Triangle::PolygonGroupIndex);
+	TriangleVertexInstances = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexInstanceID[3]>(MeshAttribute::Triangle::VertexInstanceIndex, 1, EMeshAttributeFlags::Mandatory);
+	TrianglePolygons = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonID>(MeshAttribute::Triangle::PolygonIndex, 1, EMeshAttributeFlags::Mandatory);
+	TrianglePolygonGroups = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonGroupID>(MeshAttribute::Triangle::PolygonGroupIndex, 1, EMeshAttributeFlags::Mandatory);
 
 	// Register UV references for triangles
-	TriangleUVs = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FUVID[3]>(MeshAttribute::Triangle::UVIndex, 0);
+	TriangleUVs = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FUVID[3]>(MeshAttribute::Triangle::UVIndex, 0, EMeshAttributeFlags::Mandatory);
 
 	// Register vertex and edge references for triangles; these are transient references which are generated at load time
-	TriangleVertices = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[3]>(MeshAttribute::Triangle::VertexIndex, 1, EMeshAttributeFlags::IndexReference | EMeshAttributeFlags::Transient);
-	TriangleEdges = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FEdgeID[3]>(MeshAttribute::Triangle::EdgeIndex, 1, EMeshAttributeFlags::IndexReference | EMeshAttributeFlags::Transient);
+	TriangleVertices = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[3]>(MeshAttribute::Triangle::VertexIndex, 1, EMeshAttributeFlags::Mandatory | EMeshAttributeFlags::Transient);
+	TriangleEdges = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FEdgeID[3]>(MeshAttribute::Triangle::EdgeIndex, 1, EMeshAttributeFlags::Mandatory | EMeshAttributeFlags::Transient);
 
 	// Register polygon group reference for polygons
-	PolygonPolygonGroups = PolygonElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonGroupID>(MeshAttribute::Polygon::PolygonGroupIndex);
+	PolygonPolygonGroups = PolygonElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonGroupID>(MeshAttribute::Polygon::PolygonGroupIndex, 1, EMeshAttributeFlags::Mandatory);
 
 	// Minimal requirement is that vertices have a Position attribute
-	VertexPositions = VertexElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector::ZeroVector, EMeshAttributeFlags::Lerpable);
+	VertexPositions = VertexElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
 
 	// Register UVCoordinates attribute for UVs
-	UVElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable);
+	UVElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
 
 	// Associate indexers with element types and their referencing attributes
 	InitializeIndexers();
@@ -134,8 +134,8 @@ void FMeshDescription::Cache()
 	PolygonGroupElements = Elements.Find(PolygonGroupsName)->Get();
 
 	// Register required transient attributes
-	TriangleVertices = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[3]>(MeshAttribute::Triangle::VertexIndex, 1, EMeshAttributeFlags::IndexReference | EMeshAttributeFlags::Transient);
-	TriangleEdges = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FEdgeID[3]>(MeshAttribute::Triangle::EdgeIndex, 1, EMeshAttributeFlags::IndexReference | EMeshAttributeFlags::Transient);
+	TriangleVertices = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FVertexID[3]>(MeshAttribute::Triangle::VertexIndex, 1, EMeshAttributeFlags::Mandatory | EMeshAttributeFlags::Transient);
+	TriangleEdges = TriangleElements->Get().GetAttributes().RegisterIndexAttribute<FEdgeID[3]>(MeshAttribute::Triangle::EdgeIndex, 1, EMeshAttributeFlags::Mandatory | EMeshAttributeFlags::Transient);
 
 	// Cache fundamental attribute arrays
 	VertexInstanceVertices = VertexInstanceElements->Get().GetAttributes().GetAttributesRef<FVertexID>(MeshAttribute::VertexInstance::VertexIndex);
@@ -752,80 +752,72 @@ void FMeshDescription::DeleteTriangle_Internal(const FTriangleID TriangleID, TCo
 	const FPolygonID PolygonID = TrianglePolygons[TriangleID];
 	PolygonToTriangles.RemoveReferenceFromKey(PolygonID, TriangleID);
 
+	TArrayView<FVertexInstanceID> TriVertexInstanceIDs = TriangleVertexInstances[TriangleID];
+	TArrayView<FEdgeID> TriEdgeIDs = TriangleEdges[TriangleID];
+
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		// Remove vertex instance from the triangle. Here's how we do that safely:
+		// 1) Take a copy of the VertexInstance ID
+		// 2) Remove reference from the VertexInstance to Triangles indexer
+		// 3) Set the triangle VertexInstance to INDEX_NONE
+		// 4) Ask the indexer if that VertexInstance ID has any triangle references, and if not, add it to the list.
+		//
+		// Step 3 is important because Find() below might need to reindex if the key is stale, and this would cause it to
+		// re-add the triangle VertexInstance reference if it were still valid, since the triangle hasn't yet been deleted.
+		//
+		// We could also wait until the triangle were deleted before querying the indexer, but this would involve taking
+		// copies of all the referenced element IDs first.
+
+		const FVertexInstanceID VertexInstanceID = TriVertexInstanceIDs[Index];
+			
+		VertexInstanceToTriangles.RemoveReferenceFromKey(VertexInstanceID, TriangleID);
+		TriVertexInstanceIDs[Index] = INDEX_NONE;
+			
+		if (InOutOrphanedVertexInstancesPtr && VertexInstanceToTriangles.Find(VertexInstanceID).Num() == 0)
+		{
+			AddUnique(*InOutOrphanedVertexInstancesPtr, VertexInstanceID);
+		}
+
+		// Remove edge from the triangle. Same rules as above apply!
+			
+		const FEdgeID EdgeID = TriEdgeIDs[Index];
+			
+		EdgeToTriangles.RemoveReferenceFromKey(EdgeID, TriangleID);
+		TriEdgeIDs[Index] = INDEX_NONE;
+			
+		if (InOutOrphanedEdgesPtr && EdgeToTriangles.Find(EdgeID).Num() == 0)
+		{
+			AddUnique(*InOutOrphanedEdgesPtr, EdgeID);
+		}
+
+		// Remove UVs from the triangle if there are any
+
+		for (int32 UVIndex = 0; UVIndex < TriangleUVs.GetNumChannels(); UVIndex++)
+		{
+			TArrayView<const FUVID> TriUVs = TriangleUVs.Get(TriangleID, UVIndex);
+			FUVID UVID = TriUVs[Index];
+			UVToTriangles.RemoveReferenceFromKey(UVID, TriangleID, UVIndex);
+		}
+	}
+
 	if (PolygonToTriangles.Find(PolygonID).Num() == 0)
 	{
 		// If it was the only triangle in the polygon, delete the polygon too
-		TArrayView<FVertexInstanceID> TriVertexInstanceIDs = TriangleVertexInstances[TriangleID];
-		TArrayView<FEdgeID> TriEdgeIDs = TriangleEdges[TriangleID];
-
-		for (int32 Index = 0; Index < 3; ++Index)
-		{
-			// Remove vertex instance from the triangle. Here's how we do that safely:
-			// 1) Take a copy of the VertexInstance ID
-			// 2) Remove reference from the VertexInstance to Triangles indexer
-			// 3) Set the triangle VertexInstance to INDEX_NONE
-			// 4) Ask the indexer if that VertexInstance ID has any triangle references, and if not, add it to the list.
-			//
-			// Step 3 is important because Find() below might need to reindex if the key is stale, and this would cause it to
-			// re-add the triangle VertexInstance reference if it were still valid, since the triangle hasn't yet been deleted.
-			//
-			// We could also wait until the triangle were deleted before querying the indexer, but this would involve taking
-			// copies of all the referenced element IDs first.
-
-			const FVertexInstanceID VertexInstanceID = TriVertexInstanceIDs[Index];
-			
-			VertexInstanceToTriangles.RemoveReferenceFromKey(VertexInstanceID, TriangleID);
-			TriVertexInstanceIDs[Index] = INDEX_NONE;
-			
-			if (InOutOrphanedVertexInstancesPtr && VertexInstanceToTriangles.Find(VertexInstanceID).Num() == 0)
-			{
-				AddUnique(*InOutOrphanedVertexInstancesPtr, VertexInstanceID);
-			}
-
-			// Remove edge from the triangle. Same rules as above apply!
-			
-			const FEdgeID EdgeID = TriEdgeIDs[Index];
-			
-			EdgeToTriangles.RemoveReferenceFromKey(EdgeID, TriangleID);
-			TriEdgeIDs[Index] = INDEX_NONE;
-			
-			if (InOutOrphanedEdgesPtr && EdgeToTriangles.Find(EdgeID).Num() == 0)
-			{
-				AddUnique(*InOutOrphanedEdgesPtr, EdgeID);
-			}
-
-			// Remove UVs from the triangle if there are any
-
-			for (int32 UVIndex = 0; UVIndex < TriangleUVs.GetNumChannels(); UVIndex++)
-			{
-				TArrayView<const FUVID> TriUVs = TriangleUVs.Get(TriangleID, UVIndex);
-				FUVID UVID = TriUVs[Index];
-				UVToTriangles.RemoveReferenceFromKey(UVID, TriangleID, UVIndex);
-			}
-		}
-
-		// Remove the polygon
 		check(PolygonPolygonGroups[PolygonID] == PolygonGroupID);
 		PolygonGroupToPolygons.RemoveReferenceFromKey(PolygonGroupID, PolygonID);
 
 		PolygonElements->Get().Remove(PolygonID);
 		PolygonToTriangles.RemoveKey(PolygonID);
-
-		// Check orphaned polygon groups after the polygon has been removed so that reindexing won't find it again.
-		if (InOutOrphanedPolygonGroupsPtr && PolygonGroupToPolygons.Find(PolygonGroupID).Num() == 0)
-		{
-			AddUnique(*InOutOrphanedPolygonGroupsPtr, PolygonGroupID);
-		}
-	}
-	else
-	{
-		// @todo: Handle this properly when deleting a triangle which forms part of an n-gon
-		// Either it needs to shave off the triangle from the contour and update the contour vertex instances,
-		// or it should just refuse to delete the triangle.
-		check(false);
 	}
 
 	TriangleElements->Get().Remove(TriangleID);
+
+	// Check orphaned polygon groups after the triangle has been removed so that reindexing won't find it again.
+	if (InOutOrphanedPolygonGroupsPtr && PolygonGroupToTriangles.Find(PolygonGroupID).Num() == 0)
+	{
+		AddUnique(*InOutOrphanedPolygonGroupsPtr, PolygonGroupID);
+	}
 }
 
 void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdgeID>* InOutOrphanedEdgesPtr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)

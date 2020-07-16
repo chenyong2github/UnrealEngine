@@ -476,7 +476,9 @@ void ProxyLOD::GenerateAdjacency(const FMeshDescription& RawMesh, std::vector<ui
 															 // Allocate adjacency
 	AdjacencyArray.resize(AdjacencySize);
 
-	TVertexAttributesConstRef<FVector> VertexPositionsAttribute = RawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	// @todo: possibility to pass the vertex position raw array directly into the below function.
+	// Can it be assumed that it is not sparse? 
+	TArrayView<const FVector> VertexPositionsAttribute = RawMesh.GetVertexPositions().GetRawArray();
 	TArray<FVector> VertexPositions;
 	VertexPositions.AddZeroed(NumVerts);
 	for (const FVertexID VertexID : RawMesh.Vertices().GetElementIDs())

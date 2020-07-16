@@ -231,7 +231,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 					const bool bNeedsUniqueUVs = FMeshMergeHelpers::CheckWrappingUVs(*(MeshSettings.RawMeshDescription), MeshSettings.TextureCoordinateIndex);
 					const int32 LightMapUVIndex = Adapter->LightmapUVIndex();
 					
-					TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshSettings.RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+					TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshSettings.RawMeshDescription).GetVertexInstanceUVs();
 					if (bNeedsUniqueUVs && MeshSettings.TextureCoordinateIndex != LightMapUVIndex && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumChannels() > LightMapUVIndex)
 					{
 						MeshSettings.TextureCoordinateIndex = LightMapUVIndex;
@@ -1386,7 +1386,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 						FMeshData MeshSettings;
 						MeshSettings.RawMeshDescription = MeshDescription;
 
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshDescription).GetVertexInstanceUVs();
 
 						// If we already have lightmap uvs generated and they are valid, we can reuse those instead of having to generate new ones
 						const int32 LightMapCoordinateIndex = StaticMeshComponent->GetStaticMesh()->LightMapCoordinateIndex;
@@ -1634,7 +1634,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 				}
 				else
 				{
-					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshData->RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshData->RawMeshDescription).GetVertexInstanceUVs();
 					MergeData.NewUVs.Reset(MeshData->RawMeshDescription->VertexInstances().Num());
 					for (const FVertexInstanceID VertexInstanceID : MeshData->RawMeshDescription->VertexInstances().GetElementIDs())
 					{
@@ -2179,7 +2179,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 						// Check if there are lightmap uvs available?
 						const int32 LightMapUVIndex = StaticMeshComponentsToMerge[Key.GetMeshIndex()]->GetStaticMesh()->LightMapCoordinateIndex;
 
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshData.RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshData.RawMeshDescription).GetVertexInstanceUVs();
 						if (InSettings.bReuseMeshLightmapUVs && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumChannels() > LightMapUVIndex)
 						{
 							MeshData.TextureCoordinateIndex = LightMapUVIndex;
@@ -2442,7 +2442,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 				if(RawMesh.Vertices().Num())
 				{
-					const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+					TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs = FStaticMeshConstAttributes(RawMesh).GetVertexInstanceUVs();
 					MergedMatUVChannel = FMath::Max(MergedMatUVChannel, VertexInstanceUVs.GetNumChannels());
 				}
 			}
@@ -2466,7 +2466,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					ProcessedMaterials.Add(MaterialIndex);
 					if (RawMesh->Vertices().Num())
 					{
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = RawMesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*RawMesh).GetVertexInstanceUVs();
 						int32 NumUVChannel = FMath::Min(VertexInstanceUVs.GetNumChannels(), (int32)MAX_MESH_TEXTURE_COORDS);
 						for (int32 UVChannelIdx = 0; UVChannelIdx < NumUVChannel; ++UVChannelIdx)
 						{
@@ -2578,7 +2578,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		for (FPolygonGroupID PolygonGroupID : TargetRawMesh.PolygonGroups().GetElementIDs())
 		{
 			//Skip empty group
-			if (TargetRawMesh.GetPolygonGroupPolygons(PolygonGroupID).Num() > 0)
+			if (TargetRawMesh.GetPolygonGroupPolygonIDs(PolygonGroupID).Num() > 0)
 			{
 				if (PolygonGroupID.GetValue() < DataTracker.NumberOfUniqueSections())
 				{
@@ -2972,7 +2972,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 			TArray<FPolygonGroupID> PolygonGroupToRemove;
 			for (FPolygonGroupID PolygonGroupID : MergedMesh.PolygonGroups().GetElementIDs())
 			{
-				if (MergedMesh.GetPolygonGroupPolygons(PolygonGroupID).Num() < 1)
+				if (MergedMesh.GetPolygonGroupPolygonIDs(PolygonGroupID).Num() < 1)
 				{
 					PolygonGroupToRemove.Add(PolygonGroupID);
 					

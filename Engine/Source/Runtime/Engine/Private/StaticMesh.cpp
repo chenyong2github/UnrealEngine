@@ -5300,21 +5300,18 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 		uint32 MinVertexIndex = TNumericLimits<uint32>::Max();
 		uint32 MaxVertexIndex = TNumericLimits<uint32>::Min();
 
-		for (FPolygonID PolygonID : MeshDescription.GetPolygonGroupPolygons(PolygonGroupID))
+		for (FTriangleID TriangleID : MeshDescription.GetPolygonGroupTriangles(PolygonGroupID))
 		{
-			for (FTriangleID TriangleID : MeshDescription.GetPolygonTriangleIDs(PolygonID))
+			for (FVertexInstanceID TriangleVertexInstanceIDs : MeshDescription.GetTriangleVertexInstances(TriangleID))
 			{
-				for (FVertexInstanceID TriangleVertexInstanceIDs : MeshDescription.GetTriangleVertexInstances(TriangleID))
-				{
-					uint32 VertexIndex = static_cast<uint32>(TriangleVertexInstanceIDs.GetValue());
-					MinVertexIndex = FMath::Min(MinVertexIndex, VertexIndex);
-					MaxVertexIndex = FMath::Max(MaxVertexIndex, VertexIndex);
-					IndexBuffer[IndexBufferIndex] = VertexIndex;
-					IndexBufferIndex++;
-				}
-
-				TriangleCount++;
+				uint32 VertexIndex = static_cast<uint32>(TriangleVertexInstanceIDs.GetValue());
+				MinVertexIndex = FMath::Min(MinVertexIndex, VertexIndex);
+				MaxVertexIndex = FMath::Max(MaxVertexIndex, VertexIndex);
+				IndexBuffer[IndexBufferIndex] = VertexIndex;
+				IndexBufferIndex++;
 			}
+
+			TriangleCount++;
 		}
 
 		Section.NumTriangles = TriangleCount;
@@ -5346,7 +5343,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	for (uint32& Index : DepthOnlyIndexBuffer)
 	{
 		// Compress all vertex instances into the same instance for each vertex
-		Index = MeshDescription.GetVertexVertexInstances(MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(Index)))[0].GetValue();
+		Index = MeshDescription.GetVertexVertexInstanceIDs(MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(Index)))[0].GetValue();
 	}
 
 	LODResources.bHasDepthOnlyIndices = true;
@@ -6262,7 +6259,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 			{
 				if (const FMeshDescription* MeshDescription = GetMeshDescription(SourceLOD))
 				{
-					const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+					TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(*MeshDescription).GetVertexInstanceUVs();
 
 					// skip empty/stripped LODs
 					if (UVChannels.GetNumElements() > 0)

@@ -20,7 +20,6 @@ namespace MeshAttribute
 		extern STATICMESHDESCRIPTION_API const FName Tangent;
 		extern STATICMESHDESCRIPTION_API const FName BinormalSign;
 		extern STATICMESHDESCRIPTION_API const FName Color;
-		extern STATICMESHDESCRIPTION_API const FName UVIndex;
 	}
 
 	namespace Edge
@@ -156,7 +155,6 @@ public:
 	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceTangents() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
 	TVertexInstanceAttributesConstRef<float> GetVertexInstanceBinormalSigns() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
 	TVertexInstanceAttributesConstRef<FVector4> GetVertexInstanceColors() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color); }
-	TVertexInstanceAttributesConstRef<int> GetVertexInstanceUVIndices() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<int>(MeshAttribute::VertexInstance::UVIndex); }
 	TEdgeAttributesConstRef<bool> GetEdgeHardnesses() const { return MeshDescription.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
 	TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnesses() const { return MeshDescription.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }

@@ -127,8 +127,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 {
 	// look up vertex positions
 	const FVertexArray& VertexIDs = MeshIn->Vertices();
-	TVertexAttributesConstRef<FVector> VertexPositions =
-		MeshIn->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexAttributesConstRef<FVector> VertexPositions = MeshIn->GetVertexPositions();
 
 	// copy vertex positions
 	for (const FVertexID VertexID : VertexIDs.GetElementIDs())
@@ -140,10 +139,9 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 	// look up vertex-instance UVs and normals
 	// @todo: does the MeshDescription always have UVs and Normals?
-	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs =
-		MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
-		MeshIn->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	FStaticMeshConstAttributes Attributes(*MeshIn);
+	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector> InstanceNormals = Attributes.GetVertexInstanceNormals();
 
 	TPolygonAttributesConstRef<int> PolyGroups =
 		MeshIn->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
@@ -182,7 +180,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	{
 		int32 PolygonGroupID = MeshIn->GetPolygonPolygonGroup(PolygonID).GetValue();
 
-		TArrayView<const FTriangleID> TriangleIDs = MeshIn->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> TriangleIDs = MeshIn->GetPolygonTriangles(PolygonID);
 		int NumTriangles = TriangleIDs.Num();
 		for (int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
 		{
@@ -416,16 +414,15 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	if (!ensureMsgf(bCalculateMaps, TEXT("Cannot CopyTangents unless Maps were calculated"))) return;
 	if (!ensureMsgf(TriToPolyTriMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
 
-	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
-		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesConstRef<FVector> InstanceTangents =
-		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesConstRef<float> InstanceSigns =
-		SourceMesh->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	FStaticMeshConstAttributes Attributes(*SourceMesh);
 
-	if (!ensureMsgf(InstanceNormals.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Normals"))) return;
-	if (!ensureMsgf(InstanceTangents.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Tangents"))) return;
-	if (!ensureMsgf(InstanceSigns.IsValid(), TEXT("Cannot CopyTangents from MeshDescription with invalid Instance BinormalSigns"))) return;
+	TArrayView<const FVector> InstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
+	TArrayView<const FVector> InstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
+	TArrayView<const float> InstanceSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
+
+	if (!ensureMsgf(InstanceNormals.Num() == 0, TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Normals"))) return;
+	if (!ensureMsgf(InstanceTangents.Num() == 0, TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Tangents"))) return;
+	if (!ensureMsgf(InstanceSigns.Num() == 0, TEXT("Cannot CopyTangents from MeshDescription with invalid Instance BinormalSigns"))) return;
 
 	TangentsOut->SetMesh(TargetMesh);
 	TangentsOut->InitializeTriVertexTangents(false);
@@ -433,14 +430,14 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	for (int32 TriID : TargetMesh->TriangleIndicesItr())
 	{
 		FIndex2i PolyTriIdx = TriToPolyTriMap[TriID];
-		TArrayView<const FTriangleID> TriangleIDs = SourceMesh->GetPolygonTriangleIDs( FPolygonID(PolyTriIdx.A) );
+		TArrayView<const FTriangleID> TriangleIDs = SourceMesh->GetPolygonTriangles( FPolygonID(PolyTriIdx.A) );
 		const FTriangleID TriangleID = TriangleIDs[PolyTriIdx.B];
 		TArrayView<const FVertexInstanceID> InstanceTri = SourceMesh->GetTriangleVertexInstances(TriangleID);
 		for (int32 j = 0; j < 3; ++j)
 		{
-			FVector Normal = InstanceNormals.Get(InstanceTri[j], 0);
-			FVector Tangent = InstanceTangents.Get(InstanceTri[j], 0);
-			float BitangentSign = InstanceSigns.Get(InstanceTri[j], 0);
+			FVector Normal = InstanceNormals[InstanceTri[j]];
+			FVector Tangent = InstanceTangents[InstanceTri[j]];
+			float BitangentSign = InstanceSigns[InstanceTri[j]];
 			FVector3f Bitangent = VectorUtil::Bitangent((FVector3f)Normal, (FVector3f)Tangent, (float)BitangentSign);
 			Tangent.Normalize(); Bitangent.Normalize();
 			TangentsOut->SetPerTriangleTangent(TriID, j, Tangent, Bitangent);

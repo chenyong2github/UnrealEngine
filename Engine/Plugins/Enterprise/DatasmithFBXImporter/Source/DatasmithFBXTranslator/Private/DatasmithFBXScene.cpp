@@ -38,14 +38,14 @@ const FMD5Hash& FDatasmithFBXSceneMesh::GetHash()
 
 bool FDatasmithFBXSceneMesh::HasNormals() const
 {
-	const TVertexInstanceAttributesConstRef<FVector> Normals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	return Normals.GetNumElements() > 0 && Normals[MeshDescription.VertexInstances().GetFirstValidID()].SizeSquared() > 0;
+	TVertexInstanceAttributesConstRef<FVector> Normals = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceNormals();
+	return Normals.IsValid() && Normals.GetNumElements() > 0 && Normals[MeshDescription.VertexInstances().GetFirstValidID()].SizeSquared() > 0;
 }
 
 bool FDatasmithFBXSceneMesh::HasTangents() const
 {
-	const TVertexInstanceAttributesConstRef<FVector> Tangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	return Tangents.GetNumElements() > 0 && Tangents[MeshDescription.VertexInstances().GetFirstValidID()].SizeSquared() > 0;
+	TVertexInstanceAttributesConstRef<FVector> Tangents = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceTangents();
+	return Tangents.IsValid() && Tangents.GetNumElements() > 0 && Tangents[MeshDescription.VertexInstances().GetFirstValidID()].SizeSquared() > 0;
 }
 
 FDatasmithFBXSceneCamera::FDatasmithFBXSceneCamera()

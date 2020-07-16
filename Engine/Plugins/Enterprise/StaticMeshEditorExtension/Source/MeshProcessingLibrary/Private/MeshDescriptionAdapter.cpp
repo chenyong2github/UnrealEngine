@@ -1496,7 +1496,7 @@ MeshSimplifier::Point3D FMeshDescriptionAdapter::GetVertexCoordinates(FMSVertexI
 
 int FMeshDescriptionAdapter::GetConnectingEdgesAtVertex(FMSVertexID VertexIndex, std::vector<FMSEdgeID>& OutEdges)
 {
-	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdgeIDs(FVertexID(VertexIndex));
 
 	OutEdges.resize(VertexEdges.Num());
 	for (int32 Index = 0; Index < VertexEdges.Num(); ++Index)
@@ -1514,7 +1514,7 @@ int FMeshDescriptionAdapter::GetEdgesAtVertex(FMSVertexID VertexIndex, std::vect
 		return 0;
 	}
 
-	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> VertexEdges = MeshDescription.GetVertexConnectedEdgeIDs(FVertexID(VertexIndex));
 
 	Edges.clear();
 
@@ -1533,7 +1533,7 @@ int FMeshDescriptionAdapter::GetEdgesAtVertex(FMSVertexID VertexIndex, std::vect
 
 int FMeshDescriptionAdapter::GetVertexConnectingTriangles(FMSVertexID VertexIndex, std::unordered_set<FMSTriangleID> &OutTriangles)
 {
-	TArrayView<const FEdgeID> EdgeIDs = MeshDescription.GetVertexConnectedEdges(FVertexID(VertexIndex));
+	TArrayView<const FEdgeID> EdgeIDs = MeshDescription.GetVertexConnectedEdgeIDs(FVertexID(VertexIndex));
 
 	OutTriangles.clear();
 
@@ -1563,7 +1563,7 @@ int FMeshDescriptionAdapter::ValidateVertexTopology(FMSVertexID VertexIndex)
 
 	// Logic took from GPNode::evaluateConnectivity
 	const FVertexID VertexID(VertexIndex);
-	TArrayView<const FEdgeID> VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdges(VertexID);
+	TArrayView<const FEdgeID> VertexConnectedEdgeIDs = MeshDescription.GetVertexConnectedEdgeIDs(VertexID);
 
 	switch (VertexConnectedEdgeIDs.Num())
 	{
@@ -1913,7 +1913,7 @@ int FMeshDescriptionAdapter::CreateTriangle(FMSVertexID VertexIndexA, FMSVertexI
 	for (int32 Corner = 0; Corner < 3; ++Corner)
 	{
 		// vertex instance's color, uvs are copied from first instance of vertex if such instance exists
-		TArrayView<const FVertexInstanceID> VertexInstances = MeshDescription.GetVertexVertexInstances(VertexIDs[Corner]);
+		TArrayView<const FVertexInstanceID> VertexInstances = MeshDescription.GetVertexVertexInstanceIDs(VertexIDs[Corner]);
 
 		FVertexInstanceID VertexInstanceID = INDEX_NONE;
 		for (const FVertexInstanceID CandidateVertexInstance : VertexInstances)
@@ -2002,7 +2002,7 @@ int FMeshDescriptionAdapter::DeleteVertex(FMSVertexID VertexIndex)
 
 	const FVertexID VertexID(VertexIndex);
 
-	TArray<FEdgeID> EdgeIDsToDelete(MeshDescription.GetVertexConnectedEdges(VertexID));
+	TArray<FEdgeID> EdgeIDsToDelete(MeshDescription.GetVertexConnectedEdgeIDs(VertexID));
 
 	for (const FEdgeID EdgeIDToDelete : EdgeIDsToDelete)
 	{
@@ -2104,7 +2104,7 @@ int FMeshDescriptionAdapter::MergeVertices(FMSVertexID VertexIndex, FMSVertexID 
 
 	FVertexID VertexID(VertexIndex);
 
-	TArray<FEdgeID> OtherVertexEdges(MeshDescription.GetVertexConnectedEdges(FVertexID(OtherVertexIndex)));
+	TArray<FEdgeID> OtherVertexEdges(MeshDescription.GetVertexConnectedEdgeIDs(FVertexID(OtherVertexIndex)));
 
 	TArray<FEdgeID> EdgeIDsToDelete;
 	for (FEdgeID EdgeID : OtherVertexEdges)

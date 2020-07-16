@@ -19,15 +19,13 @@ namespace ExtendedMeshAttribute
 
 void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 {
+	FStaticMeshAttributes Attributes(*Description);
+
 	this->MeshDescription = Description;
-	this->VertexPositions = 
-		MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	this->InstanceUVs =
-		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	this->InstanceNormals =
-		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	this->InstanceColors =
-		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	this->VertexPositions = Attributes.GetVertexPositions();
+	this->InstanceUVs = Attributes.GetVertexInstanceUVs();
+	this->InstanceNormals = Attributes.GetVertexInstanceNormals();
+	this->InstanceColors = Attributes.GetVertexInstanceColors();
 }
 
 

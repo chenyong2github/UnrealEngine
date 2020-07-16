@@ -356,26 +356,28 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 {
 	//////////////////////////////////////////////////////////////////////////
 	//Gather the reference data
-	TVertexAttributesConstRef<FVector> ReferenceVertexPositions = ReferenceMeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceNormals = ReferenceMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceTangents = ReferenceMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesConstRef<float> ReferenceVertexInstanceBinormalSigns = ReferenceMeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	TVertexInstanceAttributesConstRef<FVector4> ReferenceVertexInstanceColors = ReferenceMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	TVertexInstanceAttributesConstRef<FVector2D> ReferenceVertexInstanceUVs = ReferenceMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TEdgeAttributesConstRef<bool> ReferenceEdgeHardnesses = ReferenceMeshDescription.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-	TPolygonGroupAttributesConstRef<FName> ReferencePolygonGroupMaterialName = ReferenceMeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+	FStaticMeshConstAttributes ReferenceAttributes(ReferenceMeshDescription);
+	TVertexAttributesConstRef<FVector> ReferenceVertexPositions = ReferenceAttributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceNormals = ReferenceAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceTangents = ReferenceAttributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<float> ReferenceVertexInstanceBinormalSigns = ReferenceAttributes.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesConstRef<FVector4> ReferenceVertexInstanceColors = ReferenceAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector2D> ReferenceVertexInstanceUVs = ReferenceAttributes.GetVertexInstanceUVs();
+	TEdgeAttributesConstRef<bool> ReferenceEdgeHardnesses = ReferenceAttributes.GetEdgeHardnesses();
+	TPolygonGroupAttributesConstRef<FName> ReferencePolygonGroupMaterialName = ReferenceAttributes.GetPolygonGroupMaterialSlotNames();
 
 
 	//////////////////////////////////////////////////////////////////////////
 	//Gather the result data
-	TVertexAttributesConstRef<FVector> ResultVertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesConstRef<float> ResultVertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	TVertexInstanceAttributesConstRef<FVector4> ResultVertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	TVertexInstanceAttributesConstRef<FVector2D> ResultVertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	TEdgeAttributesConstRef<bool> ResultEdgeHardnesses = MeshDescription.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-	TPolygonGroupAttributesConstRef<FName> ResultPolygonGroupMaterialName = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+	FStaticMeshConstAttributes ResultAttributes(MeshDescription);
+	TVertexAttributesConstRef<FVector> ResultVertexPositions = ResultAttributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceNormals = ResultAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceTangents = ResultAttributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<float> ResultVertexInstanceBinormalSigns = ResultAttributes.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesConstRef<FVector4> ResultVertexInstanceColors = ResultAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector2D> ResultVertexInstanceUVs = ResultAttributes.GetVertexInstanceUVs();
+	TEdgeAttributesConstRef<bool> ResultEdgeHardnesses = ResultAttributes.GetEdgeHardnesses();
+	TPolygonGroupAttributesConstRef<FName> ResultPolygonGroupMaterialName = ResultAttributes.GetPolygonGroupMaterialSlotNames();
 
 	
 	//////////////////////////////////////////////////////////////////////////
@@ -566,13 +568,14 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 		FRawMesh RawMesh;
 		AssetMesh->GetSourceModel(0).LoadRawMesh(RawMesh);
 
-		//const TVertexAttributeArray<FVector>& VertexPositions = MeshDescription.VertexAttributes().GetAttributes<FVector>(MeshAttribute::Vertex::Position);
-		const TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		const TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-		const TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-		const TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-		const TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		FStaticMeshAttributes Attributes(MeshDescription);
+		const TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		const TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		const TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+		const TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		const TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		int32 ExistingUVCount = VertexInstanceUVs.GetNumChannels();
+
 		//Build the normals and tangent and compare the result
 		FStaticMeshOperations::ComputeTriangleTangentsAndNormals(MeshDescription, SMALL_NUMBER);
 		EComputeNTBsFlags ComputeNTBsFlags = EComputeNTBsFlags::Normals | EComputeNTBsFlags::Tangents;
@@ -613,7 +616,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 			}
 			const FPolygonGroupID& PolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
 			int32 PolygonIDValue = PolygonID.GetValue();
-			TArrayView<const FTriangleID> TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+			TArrayView<const FTriangleID> TriangleIDs = MeshDescription.GetPolygonTriangles(PolygonID);
 			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				if (bError)
@@ -695,8 +698,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeshDescriptionBuilderTest, "Editor.Meshes.Mes
 bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 {
 	FMeshDescription MeshDescription;
-	MeshDescription.VertexAttributes().RegisterAttribute<FVector>(MeshAttribute::Vertex::Position);
-	TVertexAttributesRef<FVector> Positions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexAttributesRef<FVector> Positions = MeshDescription.GetVertexPositions();
 
 	// Build a hexagonal cylinder
 
@@ -758,11 +760,11 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 	for (int32 Index = 0; Index < NumSides; ++Index)
 	{
 		TestEqual("Vertex instances per vertex", MeshDescription.GetNumVertexVertexInstances(TopVertexIDs[Index]), 2);
-		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(TopVertexIDs[Index]).Contains(TopVertexInstanceIDs[Index]));
-		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(TopVertexIDs[Index]).Contains(SideTopVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstanceIDs(TopVertexIDs[Index]).Contains(TopVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstanceIDs(TopVertexIDs[Index]).Contains(SideTopVertexInstanceIDs[Index]));
 		TestEqual("Vertex instances per vertex", MeshDescription.GetNumVertexVertexInstances(BottomVertexIDs[Index]), 2);
-		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(BottomVertexIDs[Index]).Contains(BottomVertexInstanceIDs[Index]));
-		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(BottomVertexIDs[Index]).Contains(SideBottomVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstanceIDs(BottomVertexIDs[Index]).Contains(BottomVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstanceIDs(BottomVertexIDs[Index]).Contains(SideBottomVertexInstanceIDs[Index]));
 		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(TopVertexInstanceIDs[Index]), TopVertexIDs[Index]);
 		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(SideTopVertexInstanceIDs[Index]), TopVertexIDs[Index]);
 		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(BottomVertexInstanceIDs[Index]), BottomVertexIDs[Index]);
@@ -775,8 +777,8 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 	{
 		SideEdgeIDs[Index] = MeshDescription.CreateEdge(BottomVertexIDs[Index], TopVertexIDs[Index]);
 
-		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdges(TopVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
-		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdges(BottomVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
+		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdgeIDs(TopVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
+		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdgeIDs(BottomVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
 	}
 
 	// Add polygon groups

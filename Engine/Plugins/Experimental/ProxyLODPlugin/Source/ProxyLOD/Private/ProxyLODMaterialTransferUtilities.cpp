@@ -1254,10 +1254,12 @@ namespace
 		const ProxyLOD::FRasterGrid& DstUVGrid, const FMeshDescription& MeshDescription,
 		ProxyLOD::FLinearColorGrid& OutDstBufferGrid)
 	{
-		TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+		FStaticMeshConstAttributes Attributes(MeshDescription);
+
+		TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 
 		const FIntPoint SuperSampleSize = SuperSampledNormalGrid.Size();
 		const FIntPoint DstBufferSize = OutDstBufferGrid.Size();

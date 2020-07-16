@@ -324,7 +324,7 @@ void UEditableGeometryCollectionAdapter::InitializeFromEditableMesh( const UEdit
 		FAdaptorPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
-		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangles( PolygonID );
 		for( const FTriangleID TriangleID : TriangleIDs )
 		{
 			FAdaptorPolygon2Group::FMeshTriangle Triangle;
@@ -406,7 +406,7 @@ void UEditableGeometryCollectionAdapter::OnRebuildRenderMesh(const UEditableMesh
 				const FPolygonGroupID& PolygonGroupID = MeshDescription->GetPolygonPolygonGroup(PolygonID);
 				int32 PolygonGroupIDValue = PolygonGroupID.GetValue();
 				int32 PolygonIDValue = PolygonID.GetValue();
-				TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+				TArrayView<const FTriangleID> TriangleIDs = MeshDescription->GetPolygonTriangles(PolygonID);
 				for (const FTriangleID TriangleID : TriangleIDs)
 				{
 					uint32 ElementIndex = Collection->AddElements(1, FGeometryCollection::FacesGroup);
@@ -658,7 +658,7 @@ void UEditableGeometryCollectionAdapter::OnSetVertexAttribute(const UEditableMes
 					const FVertexInstanceArray& VertexInstances = EditableMesh->GetMeshDescription()->VertexInstances();
 
 					// Set the vertex buffer position of all of the vertex instances for this editable vertex
-					for (const FVertexInstanceID VertexInstanceID : MeshDescription->GetVertexVertexInstances(VertexID))
+					for (const FVertexInstanceID VertexInstanceID : MeshDescription->GetVertexVertexInstanceIDs(VertexID))
 					{
 						check(MeshDescription->IsVertexInstanceValid(VertexInstanceID));
 						auto& OldPosition = GCVertices[VertexInstanceID.GetValue()]; // temp for debug

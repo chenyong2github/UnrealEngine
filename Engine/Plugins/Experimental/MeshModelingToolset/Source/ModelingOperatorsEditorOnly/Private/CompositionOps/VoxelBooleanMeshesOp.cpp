@@ -178,10 +178,10 @@ float FVoxelBooleanMeshesOp::ComputeVoxelSize() const
 		FVector Scale = PlacedMeshes[i].Transform.GetScale3D();
 		const FMeshDescription&  MeshDescription = *PlacedMeshes[i].Mesh;
 
-		TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		TArrayView<const FVector> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 		for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 		{
-			const FVector Pos = VertexPositions[VertexID];
+			const FVector& Pos = VertexPositions[VertexID];
             
 			BBoxMin.X = FMath::Min(BBoxMin.X, Pos.X);
 			BBoxMin.Y = FMath::Min(BBoxMin.Y, Pos.Y);

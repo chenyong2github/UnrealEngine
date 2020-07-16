@@ -209,7 +209,7 @@ TMap<FPolygonID, FTriangleData> MeshEditingUtilsImpl::GetFilteredTriangleData(co
 	FVector TriangleVertexPositions[3];
 	for (const FPolygonID PolygonID : Polygons)
 	{
-		TArrayView<const FTriangleID> PolygonTriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		TArrayView<const FTriangleID> PolygonTriangleIDs = MeshDescription->GetPolygonTriangles(PolygonID);
 
 		for (const FTriangleID MeshTriangleID : PolygonTriangleIDs)
 		{

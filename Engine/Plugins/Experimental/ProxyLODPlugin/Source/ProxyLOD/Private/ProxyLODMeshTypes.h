@@ -325,12 +325,14 @@ public:
 	public:
 		FMeshDescriptionAttributesGetter(const FMeshDescription* MeshDescription)
 		{
-			VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-			VertexInstanceNormals = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-			VertexInstanceTangents = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-			VertexInstanceBinormalSigns = MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-			VertexInstanceColors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-			VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			FStaticMeshConstAttributes Attributes(*MeshDescription);
+
+			VertexPositions = Attributes.GetVertexPositions();
+			VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+			VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+			VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+			VertexInstanceColors = Attributes.GetVertexInstanceColors();
+			VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 			TriangleCount = MeshDescription->Triangles().Num();
 			FaceSmoothingMasks.AddZeroed(TriangleCount);

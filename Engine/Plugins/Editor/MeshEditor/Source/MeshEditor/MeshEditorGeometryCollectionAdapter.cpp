@@ -125,7 +125,7 @@ void UMeshEditorGeometryCollectionAdapter::AddPolygonGroupToWireframe(const FMes
 			check(GeometryCollection);
 			FColor PolygonGroupColour = FColor::Blue;
 
-			TArrayView<const FPolygonID> PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(SelectedPolygonGroup));
+			TArrayView<const FPolygonID> PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygonIDs(FPolygonGroupID(SelectedPolygonGroup));
 			if (PolygonGroupIDs.Num() > 0)
 			{
 				// Add all polygons and edge instances
