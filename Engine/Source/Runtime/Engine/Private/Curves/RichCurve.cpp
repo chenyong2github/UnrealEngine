@@ -59,6 +59,29 @@ FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<float>& InPoint)
 	LeaveTangentWeight = 0.f;
 }
 
+FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<FVector2D>& InPoint, int32 ComponentIndex)
+{
+	SetModesFromLegacy(*this, InPoint.InterpMode);
+
+	Time = InPoint.InVal;
+
+	if (ComponentIndex == 0)
+	{
+		Value = InPoint.OutVal.X;
+		ArriveTangent = InPoint.ArriveTangent.X;
+		LeaveTangent = InPoint.LeaveTangent.X;
+	}
+	else
+	{
+		Value = InPoint.OutVal.Y;
+		ArriveTangent = InPoint.ArriveTangent.Y;
+		LeaveTangent = InPoint.LeaveTangent.Y;
+	}
+
+
+	ArriveTangentWeight = 0.f;
+	LeaveTangentWeight = 0.f;
+}
 
 FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<FVector>& InPoint, int32 ComponentIndex)
 {
@@ -89,6 +112,52 @@ FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<FVector>& InPoint, int32 Co
 	LeaveTangentWeight = 0.f;
 }
 
+FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<FTwoVectors>& InPoint, int32 ComponentIndex)
+{
+	SetModesFromLegacy(*this, InPoint.InterpMode);
+
+	Time = InPoint.InVal;
+
+	if (ComponentIndex == 0)
+	{
+		Value = InPoint.OutVal.v1.X;
+		ArriveTangent = InPoint.ArriveTangent.v1.X;
+		LeaveTangent = InPoint.LeaveTangent.v1.X;
+	}
+	else if (ComponentIndex == 1)
+	{
+		Value = InPoint.OutVal.v1.Y;
+		ArriveTangent = InPoint.ArriveTangent.v1.Y;
+		LeaveTangent = InPoint.LeaveTangent.v1.Y;
+	}
+	else if (ComponentIndex == 2)
+	{
+		Value = InPoint.OutVal.v1.Z;
+		ArriveTangent = InPoint.ArriveTangent.v1.Z;
+		LeaveTangent = InPoint.LeaveTangent.v1.Z;
+	}
+	else if (ComponentIndex == 3)
+	{
+		Value = InPoint.OutVal.v2.X;
+		ArriveTangent = InPoint.ArriveTangent.v2.X;
+		LeaveTangent = InPoint.LeaveTangent.v2.X;
+	}
+	else if (ComponentIndex == 4)
+	{
+		Value = InPoint.OutVal.v2.Y;
+		ArriveTangent = InPoint.ArriveTangent.v2.Y;
+		LeaveTangent = InPoint.LeaveTangent.v2.Y;
+	}
+	else
+	{
+		Value = InPoint.OutVal.v2.Z;
+		ArriveTangent = InPoint.ArriveTangent.v2.Z;
+		LeaveTangent = InPoint.LeaveTangent.v2.Z;
+	}
+
+	ArriveTangentWeight = 0.f;
+	LeaveTangentWeight = 0.f;
+}
 
 bool FRichCurveKey::Serialize(FArchive& Ar)
 {
