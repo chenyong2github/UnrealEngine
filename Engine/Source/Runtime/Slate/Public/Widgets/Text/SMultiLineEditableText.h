@@ -225,6 +225,13 @@ public:
 	FText GetPlainText() const;
 
 	/**
+	 * Fill OutTextLine with the text line where the current cursor location is at
+	 *
+	 * @param OutTextLine   FString of the line
+	 */
+	void GetCurrentTextLine(FString& OutTextLine) const;
+
+	/**
 	 * Sets the text that appears when there is no text in the text box
 	 */
 	void SetHintText(const TAttribute< FText >& InHintText);
