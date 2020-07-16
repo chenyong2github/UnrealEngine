@@ -4030,7 +4030,7 @@ int32 FEngineLoop::Init()
 		GetMoviePlayer()->WaitForMovieToFinish();
     }
 
-	FTraceAuxiliary::ParseCommandLine(FCommandLine::Get());
+	FTraceAuxiliary::EnableChannels();
 
 #if !UE_SERVER
 	// initialize media framework
