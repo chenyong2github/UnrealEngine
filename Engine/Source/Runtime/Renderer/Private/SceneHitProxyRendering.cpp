@@ -651,6 +651,7 @@ void FHitProxyMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		{
 			// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
 			MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			check(MaterialRenderProxy);
 			Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
 		}
 
@@ -806,6 +807,7 @@ void FEditorSelectionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 {
 	if (MeshBatch.bUseForMaterial 
 		&& MeshBatch.bUseSelectionOutline 
+		&& PrimitiveSceneProxy
 		&& PrimitiveSceneProxy->WantsSelectionOutline() 
 		&& (PrimitiveSceneProxy->IsSelected() || PrimitiveSceneProxy->IsHovered()))
 	{
@@ -821,6 +823,7 @@ void FEditorSelectionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		{
 			// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
 			MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			check(MaterialRenderProxy);
 			Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
 		}
 
