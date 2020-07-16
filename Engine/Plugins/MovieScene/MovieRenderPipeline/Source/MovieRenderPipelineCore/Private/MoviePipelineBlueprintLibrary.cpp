@@ -308,6 +308,11 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 			UMoviePipelineExecutorShot* ExistingShot = nullptr;
 			for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
 			{
+				if (Shot == nullptr)
+				{
+					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Null ShotInfo in job, ignoring..."));
+					continue;
+				}
 				if (Shot->InnerPathKey == FSoftObjectPath(CameraCutSection) && Shot->OuterPathKey == FSoftObjectPath(InSection))
 				{
 					ExistingShot = Shot;
