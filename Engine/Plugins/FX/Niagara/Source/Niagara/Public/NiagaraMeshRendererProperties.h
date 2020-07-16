@@ -38,7 +38,7 @@ enum class ENiagaraMeshLockedAxisSpace : uint8 {
 };
 
 USTRUCT()
-struct FNiagaraMeshMaterialOverride 
+struct NIAGARA_API FNiagaraMeshMaterialOverride 
 {
 	GENERATED_USTRUCT_BODY()
 public:	

@@ -207,7 +207,7 @@ TSharedRef<const INiagaraMessage> FNiagaraMessageJobCompileEvent::GenerateNiagar
 		if (bSuccessfullyFoundScripts == false)
 		{
 			//If we can't find the scripts in the context stack of the compile event, return a message with the error and ask for a recompile.
-			return MakeShared<FNiagaraMessageNeedRecompile>(ScriptNameAndPathsGetterFailureReason.GetValue());
+			return MakeShared<FNiagaraMessageText>(ScriptNameAndPathsGetterFailureReason.GetValue(), EMessageSeverity::Error, FNiagaraMessageTopics::CompilerTopicName);
 		}
 
 		const ENiagaraScriptUsage ScriptUsage = OriginatingScriptWeakObjPtr->GetUsage();
@@ -234,7 +234,7 @@ TSharedRef<const INiagaraMessage> FNiagaraMessageJobCompileEvent::GenerateNiagar
 	FText MessageText = LOCTEXT("CompileEventMessageJobFail", "Cached info for compile event is out of date, recompile to get full info. Event: {0}");
 	//Add in the message of the compile event for visibility on which compile events do not have info.
 	FText::Format(MessageText, FText::FromString(CompileEvent.Message));
-	return MakeShared<FNiagaraMessageNeedRecompile>(MessageText);
+	return MakeShared<FNiagaraMessageText>(MessageText, EMessageSeverity::Error, FNiagaraMessageTopics::CompilerTopicName);
 }
 
 bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromContextStack(
@@ -338,16 +338,6 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 	return false;
 }
 
-TSharedRef<FTokenizedMessage> FNiagaraMessageNeedRecompile::GenerateTokenizedMessage() const
-{
-	return FTokenizedMessage::Create(EMessageSeverity::Error, NeedRecompileMessage);
-}
-
-FText FNiagaraMessageNeedRecompile::GenerateMessageText() const
-{
-	return NeedRecompileMessage;
-}
-
 TSharedRef<FTokenizedMessage> FNiagaraMessageText::GenerateTokenizedMessage() const
 {
 	return FTokenizedMessage::Create(MessageSeverity, MessageText);
@@ -382,6 +372,17 @@ TSharedRef<const INiagaraMessage> UNiagaraMessageDataText::GenerateNiagaraMessag
 		return MakeShared<const FNiagaraMessageTextWithLinks>(MessageText, EMessageSeverity::Type(MessageSeverity), TopicName, Links, InGenerateInfo.GetAssociatedObjectKeys());
 	}
 	return MakeShared<const FNiagaraMessageText>(MessageText, EMessageSeverity::Type(MessageSeverity), TopicName, InGenerateInfo.GetAssociatedObjectKeys());
+}
+
+TSharedRef<FTokenizedMessage> FNiagaraMessageTextWithLinks::GenerateTokenizedMessage() const
+{
+	TSharedRef<FTokenizedMessage> TokenizedMessage = FNiagaraMessageText::GenerateTokenizedMessage();
+	for (const FLinkNameAndDelegate LinkNameAndDelegate : Links)
+	{
+		TSharedRef<FActionToken> LinkActionToken = FActionToken::Create(LinkNameAndDelegate.LinkNameText, FText(), FOnActionTokenExecuted(LinkNameAndDelegate.LinkDelegate));
+		TokenizedMessage->AddToken(LinkActionToken);
+	}
+	return TokenizedMessage;
 }
 
 void FNiagaraMessageTextWithLinks::GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const
