@@ -30,7 +30,6 @@
 #include "DrawDebugHelpers.h"	// For DrawDebugSphere
 #include "MeshEditorSettings.h"
 #include "LevelEditor.h"
-#include "VREditorMode.h" // @TODO: remove once radial menu code is in a non-VREditor module
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
 #include "MeshEditorAssetContainer.h"
@@ -976,11 +975,6 @@ void FMeshEditorMode::Exit()
 {
 	FFractureToolDelegates::Get().OnFractureExpansionBegin.RemoveAll(this);
 	FFractureToolDelegates::Get().OnFractureExpansionEnd.RemoveAll(this);
-
-	if( VREditorMode && VREditorMode->IsFullyInitialized() )
-	{
-		VREditorMode->OnPlaceDraggedMaterial().RemoveAll( this );
-	}
 
 	// If anything is selected, go ahead and deselect everything now
 	if( SelectedMeshElements.Num() > 0 )
@@ -2893,27 +2887,6 @@ void FMeshEditorMode::OnViewportInteractionFinishedMovingTransformables()
 }
 
 
-void FMeshEditorMode::OnVREditorModePlaceDraggedMaterial( UPrimitiveComponent* HitComponent, UMaterialInterface* MaterialInterface, bool& bPlaced )
-{
-	if( !bPlaced )
-	{
-		static TMap< UEditableMesh*, TArray<FMeshElement> > MeshesAndPolygons;
-		GetSelectedMeshesAndPolygons( /* Out */ MeshesAndPolygons );
-		for( const auto& MeshAndPolygons : MeshesAndPolygons )
-		{
-			if( MeshAndPolygons.Value.Num() > 0 )
-			{
-				if( MeshAndPolygons.Value[ 0 ].Component.Get() == HitComponent )
-				{
-					AssignMaterialToSelectedPolygons( MaterialInterface );
-					bPlaced = true;
-					break;
-				}
-			}
-		}
-	}
-}
-
 
 void FMeshEditorMode::UpdateActiveAction( const bool bIsActionFinishing )
 {
@@ -4573,125 +4546,6 @@ void FMeshEditorMode::OnActorSelectionChanged( const TArray<UObject*>& NewSelect
 
 	// Update our set of selected meshes
 	UpdateSelectedEditableMeshes();
-}
-
-void FMeshEditorMode::MakeVRRadialMenuActionsMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FUICommandList> CommandList, class UVREditorMode* VRMode, float& RadiusOverride)
-{
-#if EDITABLE_MESH_USE_OPENSUBDIV
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddSubdivision", "Add SubD"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.AddSubdivision"),
-		FUIAction
-		(
-			FExecuteAction::CreateSP(this, &FMeshEditorMode::AddOrRemoveSubdivisionLevel, true )
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RemoveSubdivision", "Remove SubD"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.RemoveSubdivision"),
-		FUIAction
-		(
-			FExecuteAction::CreateSP(this, &FMeshEditorMode::AddOrRemoveSubdivisionLevel, false)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-#endif
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("EditInstance", "Edit Instance"),
-		FText(),
-		FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.EditInstance"),
-		FUIAction
-		(
-			FExecuteAction::CreateLambda([this] { SetEditingPerInstance(IsEditingPerInstance() == false); }),
-			FCanExecuteAction::CreateLambda([this] {return true; }),
-			FIsActionChecked::CreateLambda([this] { return IsEditingPerInstance(); })
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-		);
-
-	if (GetMeshElementSelectionMode() == EEditableMeshElementType::Polygon)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Move", "Move"),
-			FText(),
-			FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.PolyMove"),
-			FUIAction
-			(
-				FExecuteAction::CreateLambda([this] { SetEquippedAction(EEditableMeshElementType::Polygon, EMeshEditAction::Move ); }),
-				FCanExecuteAction::CreateSP(this, &FMeshEditorMode::IsMeshElementTypeSelectedOrIsActiveSelectionMode, EEditableMeshElementType::Polygon),
-				FIsActionChecked::CreateLambda([this] { return (EquippedPolygonAction == EMeshEditAction::Move); })
-				),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-			);
-	}
-	else if (GetMeshElementSelectionMode() == EEditableMeshElementType::Edge)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Move", "Move"),
-			FText(),
-			FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.EdgeMove"),
-			FUIAction
-			(
-				FExecuteAction::CreateLambda([this] { SetEquippedAction( EEditableMeshElementType::Edge, EMeshEditAction::Move ); }),
-				FCanExecuteAction::CreateSP(this, &FMeshEditorMode::IsMeshElementTypeSelectedOrIsActiveSelectionMode, EEditableMeshElementType::Edge),
-				FIsActionChecked::CreateLambda([this] { return (EquippedEdgeAction == EMeshEditAction::Move); })
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-			);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT( "SelectEdgeLoop", "Select Edge Loop" ),
-			FText(),
-			FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.SelectLoop"),
-			FUIAction
-			(
-				FExecuteAction::CreateLambda([this] { SelectEdgeLoops(); }),
-				FCanExecuteAction::CreateSP(this, &FMeshEditorMode::IsMeshElementTypeSelected, EEditableMeshElementType::Edge)
-				),
-			NAME_None,
-			EUserInterfaceActionType::CollapsedButton
-			);
-	}
-	else if (GetMeshElementSelectionMode() == EEditableMeshElementType::Vertex)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Move", "Move"),
-			FText(),
-			FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.VertexMove"),
-			FUIAction
-			(
-				FExecuteAction::CreateLambda([this] { SetEquippedAction( EEditableMeshElementType::Vertex, EMeshEditAction::Move ); }),
-				FCanExecuteAction::CreateSP(this, &FMeshEditorMode::IsMeshElementTypeSelectedOrIsActiveSelectionMode, EEditableMeshElementType::Vertex),
-				FIsActionChecked::CreateLambda([this] { return (EquippedVertexAction == EMeshEditAction::Move); })
-				),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-			);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("WeldSelected", "Weld Selected"),
-			FText(),
-			FSlateIcon(FMeshEditorStyle::GetStyleSetName(), "MeshEditorMode.VertexWeld"),
-			FUIAction
-			(
-				FExecuteAction::CreateLambda([this] { WeldSelectedVertices(); }),
-				FCanExecuteAction::CreateSP(this, &FMeshEditorMode::IsMeshElementTypeSelected, EEditableMeshElementType::Vertex)
-				),
-			NAME_None,
-			EUserInterfaceActionType::CollapsedButton
-			);
-	}
-
-	for( UMeshEditorCommand* Command : MeshEditorCommands::Get() )
-	{
-		Command->AddToVRRadialMenuActionsMenu( *this, MenuBuilder, CommandList, FMeshEditorStyle::GetStyleSetName(), VRMode );
-	}
 }
 
 

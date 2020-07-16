@@ -165,9 +165,6 @@ protected:
 
 	/** Called when the viewport interaction finishes moving a set of transformable objects */
 	void OnViewportInteractionFinishedMovingTransformables();
-	
-	/** Called when VR editor world interaction drags a material onto a component */
-	void OnVREditorModePlaceDraggedMaterial( class UPrimitiveComponent* HitComponent, class UMaterialInterface* MaterialInterface, bool& bPlaced );
 
 	/** Applies a modification to the mesh that's currently hovered */
 	void UpdateActiveAction( const bool bIsActionFinishing );
@@ -272,9 +269,6 @@ protected:
 
 	/** Callback from the level editor when new actors become selected or deselected */
 	void OnActorSelectionChanged( const TArray<UObject*>& NewSelection, bool bForceRefresh );
-
-	/** Creates the mesh edit actions to pass to the radial menu generator */
-	void MakeVRRadialMenuActionsMenu(class FMenuBuilder& MenuBuilder, TSharedPtr<class FUICommandList> CommandList, class UVREditorMode* VRMode, float& RadiusOverride);
 
 	/** Clears any references to editable meshes (which may now be invalid) */
 	void RemoveEditableMeshReferences();
@@ -438,9 +432,6 @@ protected:
 
 	/** Cached pointer to the viewport world interaction object we're using to interact with mesh elements */
 	class UViewportWorldInteraction* ViewportWorldInteraction;
-
-	/** Cached pointer to the VREditorMode object we're using */
-	class UVREditorMode* VREditorMode;
 
 	/** Material to use to render hovered mesh geometry */
 	UMaterialInterface* HoveredGeometryMaterial;
