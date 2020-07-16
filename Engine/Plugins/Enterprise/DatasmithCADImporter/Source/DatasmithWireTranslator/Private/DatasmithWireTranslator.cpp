@@ -17,10 +17,12 @@
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 
+#if WITH_EDITOR
 #include "IMessageLogListing.h"
 #include "Logging/TokenizedMessage.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
+#endif
 
 #ifdef CAD_LIBRARY
 #include "AliasCoretechWrapper.h" // requires CoreTech as public dependency
