@@ -47,8 +47,19 @@ void ULiveLinkTestSkelMeshTrackerComponent::StartTrackingSkelMesh(FName InLiveLi
 		{
 			if (const FReferenceSkeleton* RefSkel = LocalSkelMeshComp->SkeletalMesh ? &LocalSkelMeshComp->SkeletalMesh->RefSkeleton : nullptr)
 			{
-				if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
+				if (ILiveLinkClient* LiveLinkClient = PinnedSource->GetLiveLinkClient())
 				{
+					FLiveLinkSubjectPreset SubjectPresets;
+					SubjectPresets.Key = FLiveLinkSubjectKey(PinnedSource->GetGuid(), InLiveLinkSubjectName);
+					SubjectPresets.Role = ULiveLinkAnimationRole::StaticClass();
+					SubjectPresets.bEnabled = true;
+
+					const bool bCreatedSubjectSuccessfully = LiveLinkClient->CreateSubject(SubjectPresets);
+					if (!bCreatedSubjectSuccessfully)
+					{
+						return;
+					}
+
 					SubjectName = InLiveLinkSubjectName;
 	
 					TArray<TTuple<int32, int32>> BoneAndParentIndices;

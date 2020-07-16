@@ -236,10 +236,18 @@ namespace LiveStreamAnimation
 
 			if (bWasRegistered)
 			{
-				if (ULiveLinkAnimationRole::StaticClass() != SubjectRole)
+				if (!SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
 				{
 					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject had invalid role, subject won't be sent. Subject = (%s), Role = %s"),
 						*TrackedSubject.ToString(), *GetPathNameSafe(SubjectRole.Get()));
+				}
+				else if (!StaticData.IsValid())
+				{
+					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject didn't have static data. Subject will be sent later, when static data is received. Subject = (%s)"),
+						*TrackedSubject.ToString());
+
+					bSuccess = true;
+					TrackedSubjects.Add(SubjectHandle, TrackedSubject);
 				}
 				else
 				{
