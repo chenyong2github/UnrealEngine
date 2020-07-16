@@ -492,8 +492,7 @@ void UEditorEngine::EndPlayMap()
 	// Restores realtime viewports that have been disabled for PIE.
 	RemoveViewportsRealtimeOverride();
 
-	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+	EnableWorldSwitchCallbacks(false);
 
 	// Set the autosave timer to have at least 10 seconds remaining before autosave
 	const static float SecondsWarningTillAutosave = 10.0f;
@@ -2058,6 +2057,69 @@ void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* Overri
 	}
 }
 
+void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
+{
+	if (bEnable)
+	{
+		// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+		ScriptExecutionStartHandle = FBlueprintContextTracker::OnEnterScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionStart);
+		ScriptExecutionEndHandle = FBlueprintContextTracker::OnExitScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionEnd);
+	}
+	else
+	{
+		// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+
+		// There should never be an active function context when pie is ending!
+		check(!FunctionStackWorldSwitcher);
+
+		FBlueprintContextTracker::OnEnterScriptContext.Remove(ScriptExecutionStartHandle);
+		FBlueprintContextTracker::OnExitScriptContext.Remove(ScriptExecutionEndHandle);
+	}
+}
+
+void UEditorEngine::OnScriptExecutionStart(const FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction)
+{
+	// Only do world switching for game thread callbacks, this is only bound at all in PIE so no need to check GIsEditor
+	if (IsInGameThread())
+	{
+		// See if we should create a world switcher, which is true if we don't have one and our PIE info is missing
+		if (!FunctionStackWorldSwitcher && (!GIsPlayInEditorWorld || GPlayInEditorID == -1))
+		{
+			check(FunctionStackWorldSwitcherTag == -1);
+			UWorld* ContextWorld = GetWorldFromContextObject(ContextObject, EGetWorldErrorMode::ReturnNull);
+
+			if (ContextWorld && ContextWorld->WorldType == EWorldType::PIE)
+			{
+				FunctionStackWorldSwitcher = new FScopedConditionalWorldSwitcher(ContextWorld);
+				FunctionStackWorldSwitcherTag = ContextTracker.GetScriptEntryTag();
+			}
+		}
+	}
+}
+
+void UEditorEngine::OnScriptExecutionEnd(const struct FBlueprintContextTracker& ContextTracker)
+{
+	if (IsInGameThread())
+	{
+		if (FunctionStackWorldSwitcher)
+		{
+			int32 CurrentScriptEntryTag = ContextTracker.GetScriptEntryTag();
+
+			// Tag starts at 1 for first function on stack
+			check(CurrentScriptEntryTag >= 1 && FunctionStackWorldSwitcherTag >= 1);
+
+			if (CurrentScriptEntryTag == FunctionStackWorldSwitcherTag)
+			{
+				FunctionStackWorldSwitcherTag = -1;
+				delete FunctionStackWorldSwitcher;
+				FunctionStackWorldSwitcher = nullptr;
+			}
+		}
+	}
+}
+
 UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, UWorld* InWorld, FString &PlayWorldMapName)
 {
 	double StartTime = FPlatformTime::Seconds();
@@ -2826,8 +2888,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		return nullptr;
 	}
 
-	// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+	EnableWorldSwitchCallbacks(true);
 
 	if (PIEViewport.IsValid())
 	{

@@ -29,6 +29,7 @@
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "RHI.h"
+#include "UnrealEngine.h"
 
 #include "EditorEngine.generated.h"
 
@@ -2892,6 +2893,15 @@ private:
 	/** The Timer manager for all timer delegates */
 	TSharedPtr<class FTimerManager> TimerManager;
 
+	/** Currently active function execution world switcher, will be null most of the time */
+	FScopedConditionalWorldSwitcher* FunctionStackWorldSwitcher = nullptr;
+
+	/** Stack entry where world switcher was created, and should be destroyed at */
+	int32 FunctionStackWorldSwitcherTag = -1;
+
+	/** Delegate handles for function execution */
+	FDelegateHandle ScriptExecutionStartHandle, ScriptExecutionEndHandle;
+
 	// This chunk is used for Play In New Process
 public:
 	/**
@@ -3026,6 +3036,15 @@ protected:
 	 * Called via a delegate to toggle between the editor and pie world
 	 */
 	void OnSwitchWorldsForPIE(bool bSwitchToPieWorld, UWorld* OverrideWorld = nullptr);
+
+	/** Call to enable/disable callbacks for PIE world switching when PIE starts/stops */
+	void EnableWorldSwitchCallbacks(bool bEnable);
+
+	/** Callback when script execution starts, might switch world */
+	void OnScriptExecutionStart(const struct FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction);
+
+	/** Callback when script execution starts, might switch world */
+	void OnScriptExecutionEnd(const struct FBlueprintContextTracker& ContextTracker);
 
 	/**
 	 * Gives focus to the server or first PIE client viewport
