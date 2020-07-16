@@ -81,7 +81,11 @@ void FSkeletalMeshComponentClothTickFunction::ExecuteTick(float DeltaTime, enum 
 
 FString FSkeletalMeshComponentClothTickFunction::DiagnosticMessage()
 {
-	return TEXT("FSkeletalMeshComponentClothTickFunction");
+	if (Target)
+	{
+		return Target->GetFullName() + TEXT("[ClothTick]");
+	}
+	return TEXT("<NULL>[ClothTick]");
 }
 
 FName FSkeletalMeshComponentClothTickFunction::DiagnosticContext(bool bDetailed)
@@ -102,7 +106,11 @@ void FSkeletalMeshComponentEndPhysicsTickFunction::ExecuteTick(float DeltaTime, 
 
 FString FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticMessage()
 {
-	return TEXT("FSkeletalMeshComponentEndPhysicsTickFunction");
+	if (Target)
+	{
+		return Target->GetFullName() + TEXT("[EndPhysicsTick]");
+	}
+	return TEXT("<NULL>[EndPhysicsTick]");
 }
 
 FName FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticContext(bool bDetailed)
