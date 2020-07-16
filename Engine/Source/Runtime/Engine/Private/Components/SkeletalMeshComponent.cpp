@@ -64,6 +64,14 @@ DEFINE_STAT(STAT_PostAnimEvaluation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
+static bool GParallelAnimCompletionTaskHighPriority = true;
+static FAutoConsoleVariableRef CVarParallelAnimCompletionTaskHighPriority(
+	TEXT("TaskGraph.TaskPriorities.ParallelAnimCompletionTaskHighPriority"),
+	GParallelAnimCompletionTaskHighPriority,
+	TEXT("Allows parallel anim completion tasks to take priority on the GT so further work (if needed) can be kicked off earlier."),
+	ECVF_Default
+);
+
 FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
 	TEXT("TaskGraph.TaskPriorities.ParallelAnimationEvaluationTask"),
 	TEXT("Task and thread priority for FParallelAnimationEvaluationTask"),
@@ -133,6 +141,10 @@ public:
 	}
 	static ENamedThreads::Type GetDesiredThread()
 	{
+		if (GParallelAnimCompletionTaskHighPriority)
+		{
+			return static_cast<ENamedThreads::Type>(ENamedThreads::GameThread | ENamedThreads::HighTaskPriority);
+		}
 		return ENamedThreads::GameThread;
 	}
 	static ESubsequentsMode::Type GetSubsequentsMode()
