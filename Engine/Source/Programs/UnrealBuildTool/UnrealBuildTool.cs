@@ -600,8 +600,11 @@ namespace UnrealBuildTool
 				// Make sure we flush the logs however we exit
 				Trace.Close();
 
+				// Write any trace logs
+				TraceSpan.Flush();
+
 				// Dispose of the mutex. Must be done last to ensure that another process does not startup and start trying to write to the same log file.
-				if(Mutex != null)
+				if (Mutex != null)
 				{
 					Mutex.Dispose();
 				}
