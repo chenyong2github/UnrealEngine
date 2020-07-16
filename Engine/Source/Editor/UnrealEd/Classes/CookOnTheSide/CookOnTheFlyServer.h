@@ -1039,8 +1039,6 @@ private:
 	bool bLoadBusy = false;
 	/** Set to true when PumpSaves has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */
 	bool bSaveBusy = false;
-	/** Tracks whether we need to do once-per-process initializations for cookbythebook. */
-	bool bHasRunCookByTheBookBefore = false;
 	/** If preloading is enabled, we call TryPreload until it returns true before sending the package to LoadReady, otherwise we skip TryPreload and it goes immediately. */
 	bool bPreloadingEnabled = false;
 
