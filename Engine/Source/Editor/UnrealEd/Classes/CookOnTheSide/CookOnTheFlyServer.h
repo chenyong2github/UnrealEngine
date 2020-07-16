@@ -73,6 +73,7 @@ enum class ECookByTheBookOptions
 	PackageStore =						0x00004000, // Cook package header information into a global package store
 	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
+	DLCNoCookAllAssets =				0x00020000, // If cooking DLC, do not include all assets and maps in the cook. You will be relying on other methods to add these files to the cook.
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
