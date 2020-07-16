@@ -91,7 +91,7 @@ public:
 	/**
 	* Find a variable by both name and type. 
 	*/
-	int32 FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type);
+	int32 FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type) const;
 
 
 	/**
