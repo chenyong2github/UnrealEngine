@@ -475,6 +475,7 @@ enum class ETaskTag : int32
 	EParallelThread				= 1 << 7,										//This can be used when multipe threads or jobs are involved (usually a parallel for) It will avoid the check for uniqieness of the named thread tag.
 	EParallelRenderingThread	= ERenderingThread | EParallelThread,
 	EParallelGameThread			= EGameThread | EParallelThread,
+	EParallelRhiThread			= ERhiThread | EParallelThread,
 };
 
 ENUM_CLASS_FLAGS(ETaskTag);

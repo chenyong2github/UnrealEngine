@@ -223,7 +223,7 @@ CORE_API FRunnableThread* GRHIThread_InternalUseOnly = nullptr;
 
 CORE_API bool IsInRHIThread()
 {
-	bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::ERhiThread);
+	bool newValue = FTaskTagScope::HasCurrentTag(ETaskTag::ERhiThread) && !FTaskTagScope::HasCurrentTag(ETaskTag::EParallelThread);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	bool oldValue = GRHIThreadId && FPlatformTLS::GetCurrentThreadId() == GRHIThreadId;	
 	checkf(oldValue == newValue, TEXT("If this check fails make sure that there is a FTaskTagScope(ETaskTag::ERhiThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%h)"), FTaskTagScope::GetCurrentTag());
