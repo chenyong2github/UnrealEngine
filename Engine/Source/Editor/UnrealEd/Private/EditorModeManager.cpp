@@ -754,9 +754,13 @@ void FEditorModeTools::RemoveAllDelegateHandlers()
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
 	}
 
-	USelection::SelectionChangedEvent.RemoveAll(this);
-	USelection::SelectNoneEvent.RemoveAll(this);
-	USelection::SelectObjectEvent.RemoveAll(this);
+	// For now, check that UObjects are even valid, because the level editor has a global static mode tools
+	if (UObjectInitialized())
+	{
+		USelection::SelectionChangedEvent.RemoveAll(this);
+		USelection::SelectNoneEvent.RemoveAll(this);
+		USelection::SelectObjectEvent.RemoveAll(this);
+	}
 
 	OnEditorModeIDChanged().Clear();
 	OnWidgetModeChanged().Clear();
