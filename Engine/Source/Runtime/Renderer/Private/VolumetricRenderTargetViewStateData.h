@@ -21,7 +21,12 @@ public:
 	FVolumetricRenderTargetViewStateData();
 	~FVolumetricRenderTargetViewStateData();
 
-	void Initialise(FIntPoint& ViewRectResolutionIn);
+	void Initialise(
+		FIntPoint& ViewRectResolutionIn,
+		float UvNoiseScale,
+		int32 Mode,
+		int32 UpsamplingMode,
+		float TemporalFactor);
 
 	FRDGTextureRef GetOrCreateVolumetricTracingRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateVolumetricTracingRTDepth(FRDGBuilder& GraphBuilder);
@@ -48,6 +53,10 @@ public:
 
 	FUintVector4 GetTracingToFullResResolutionScaleBias() const;
 
+	float GetUvNoiseScale()		const { return UvNoiseScale; }
+	int32 GetMode()				const { return Mode; }
+	int32 GetUpsamplingMode()	const { return UpsamplingMode; }
+	float GetTemporalFactor()	const { return TemporalFactor; }
 
 private:
 
@@ -75,6 +84,11 @@ private:
 
 	TRefCountPtr<IPooledRenderTarget> VolumetricTracingRT;
 	TRefCountPtr<IPooledRenderTarget> VolumetricTracingRTDepth;
+
+	float UvNoiseScale;
+	int32 Mode;
+	int32 UpsamplingMode;
+	float TemporalFactor;
 };
 
 

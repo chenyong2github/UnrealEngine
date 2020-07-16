@@ -235,6 +235,10 @@ public:
 	 * @param FogComponent - fog component to remove
 	 */	
 	virtual void RemoveExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) = 0;
+	/**
+	 * @return True if there are any exponential height fog potentially enabled in the scene
+	 */
+	virtual bool HasAnyExponentialHeightFog() const = 0;
 
 	/** 
 	 * Adds a new atmospheric fog component to the scene

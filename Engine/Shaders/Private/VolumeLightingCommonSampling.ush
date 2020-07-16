@@ -79,7 +79,7 @@ float ComputeVolumeShadowing(
 				Settings.ShadowDepthTexture = VSSPREFIX(StaticShadowDepthTexture);
 				Settings.ShadowDepthTextureSampler = VSSPREFIX(StaticShadowDepthTextureSampler);
 				Settings.ShadowBufferSize = VSSPREFIX(StaticShadowBufferSize);
-				Settings.SceneDepth = HomogeneousShadowPosition.z;
+				Settings.SceneDepth = 1 - HomogeneousShadowPosition.z;
 				Settings.TransitionScale = 40;
 				Settings.bSubsurface = false;
 				// We can sample outside of the static shadowmap, which is centered around the scene.  These 'infinite' depth values should not cause occlusion.
@@ -102,7 +102,6 @@ float ComputeVolumeShadowing(
 	bool bUseCubemapShadowing = bPointLight;
 	float DynamicShadowFactor = 1;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	if (bUseCubemapShadowing)
 	{
 		const float DepthBias = 0.03f * 512 * VSSPREFIX(InvShadowmapResolution);
@@ -114,7 +113,6 @@ float ComputeVolumeShadowing(
 			WorldPositionForLighting, VSSLIGHTPOSITION, VSSLIGHTINVRADIUS, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
 	}
 	else
-#endif	// FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	{
 		// Transform the world position into shadowmap space
 		float4 HomogeneousShadowPosition = mul(float4(WorldPositionForLighting, 1), VSSPREFIX(WorldToShadowMatrix));

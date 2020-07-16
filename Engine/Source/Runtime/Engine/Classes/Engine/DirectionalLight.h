@@ -44,5 +44,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/
 	ENGINE_API UArrowComponent* GetArrowComponent() const { return ArrowComponent; }
+
+	/** Returns SkyAtmosphereComponent subobject */
+	ENGINE_API UDirectionalLightComponent* GetComponent() const { return DirectionalLightComponent; }
 #endif
 };

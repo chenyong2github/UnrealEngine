@@ -12,9 +12,17 @@
 FVolumetricCloudSceneProxy::FVolumetricCloudSceneProxy(const UVolumetricCloudComponent* InComponent)
 	: LayerBottomAltitudeKm(InComponent->LayerBottomAltitude)
 	, LayerHeightKm(InComponent->LayerHeight)
+	, TracingStartMaxDistance(InComponent->TracingStartMaxDistance)
+	, TracingMaxDistance(InComponent->TracingMaxDistance)
 	, PlanetRadiusKm(InComponent->PlanetRadius)
 	, GroundAlbedo(InComponent->GroundAlbedo)
-	, AtmosphericLightsContributionFactor(InComponent->AtmosphericLightsContributionFactor)
+	, bUsePerSampleAtmosphericLightTransmittance(InComponent->bUsePerSampleAtmosphericLightTransmittance)
+	, SkyLightCloudBottomOcclusion(InComponent->SkyLightCloudBottomOcclusion)
+	, ViewSampleCountScale(InComponent->ViewSampleCountScale)
+	, ReflectionSampleCountScale(InComponent->ReflectionSampleCountScale)
+	, ShadowViewSampleCountScale(InComponent->ShadowViewSampleCountScale)
+	, ShadowReflectionSampleCountScale(InComponent->ShadowReflectionSampleCountScale)
+	, ShadowTracingDistance(InComponent->ShadowTracingDistance)
 	, CloudVolumeMaterial(InComponent->Material)
 {
 }
