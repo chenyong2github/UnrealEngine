@@ -710,7 +710,7 @@ namespace AutomationTool
 
 			// Read the manifests for all the input storage blocks
 			Dictionary<TempStorageBlock, TempStorageManifest> InputManifests = new Dictionary<TempStorageBlock, TempStorageManifest>();
-			using (ITraceSpan Span = TraceSpan.Create("tempstorage.get"))
+			using (ITraceSpan Span = TraceSpan.Create("TempStorage", "Read"))
 			{
 				Span.AddMetadata("blocks", InputStorageBlocks.Count.ToString());
 				foreach (TempStorageBlock InputStorageBlock in InputStorageBlocks)
@@ -837,7 +837,7 @@ namespace AutomationTool
 			}
 
 			// Write all the storage blocks, and update the mapping from file to storage block
-			using (ITraceSpan Span = Tools.DotNETCommon.TraceSpan.Create("tempstorage.put"))
+			using (ITraceSpan Span = Tools.DotNETCommon.TraceSpan.Create("TempStorage", "Write"))
 			{
 				foreach (KeyValuePair<string, HashSet<FileReference>> Pair in OutputStorageBlockToFiles)
 				{
