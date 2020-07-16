@@ -145,33 +145,6 @@ void FLevelPartitionOperationScope::DestroyTransientLevel(ULevel* Level)
 /*-----------------------------------------------------------------------------
 ULevel implementation.
 -----------------------------------------------------------------------------*/
-#if WITH_EDITOR
-namespace LevelUtil
-{
-	TArray<FString> GetLevelExternalActorPackageNamesFromFiles(const UWorld* World)
-	{
-		check(World);
-		TArray<FString> ActorPackageNames;
-		FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName());
-		if (!ExternalActorsPath.IsEmpty())
-		{
-			IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-				{
-					if (!bIsDirectory)
-					{
-						FString Filename(FilenameOrDirectory);
-						if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
-						{
-							ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
-						}
-					}
-					return true;
-				});
-		}
-		return ActorPackageNames;
-	}
-}
-#endif
 
 /** Called when a level package has been dirtied. */
 FSimpleMulticastDelegate ULevel::LevelDirtiedEvent;
@@ -705,7 +678,7 @@ void ULevel::PostLoad()
 			InstancingContext.AddMapping(LevelPackage->FileName, LevelPackage->GetFName());
 		}
 
-		TArray<FString> ActorPackageNames = LevelUtil::GetLevelExternalActorPackageNamesFromFiles(GetTypedOuter<UWorld>());
+		TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages();
 		TArray<FString> InstancePackageNames;
 		for (const FString& ActorPackageName : ActorPackageNames)
 		{
@@ -2171,11 +2144,34 @@ void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 	}
 }
 
-TArray<UPackage*> ULevel::GetExternalActorPackages() const
+TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
+{
+	TArray<FString> ActorPackageNames;
+	UWorld* World = GetTypedOuter<UWorld>();
+	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName());
+	if (!ExternalActorsPath.IsEmpty())
+	{
+		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+			{
+				if (!bIsDirectory)
+				{
+					FString Filename(FilenameOrDirectory);
+					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+					{
+						ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
+					}
+				}
+				return true;
+			});
+	}
+	return ActorPackageNames;
+}
+
+TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 {
 	// Only GetExternalPackages is not enough to get to empty packages or deleted actors
 	TSet<UPackage*> ActorPackages;
-	TArray<FString> ActorPackageNames = LevelUtil::GetLevelExternalActorPackageNamesFromFiles(GetTypedOuter<UWorld>());
+	TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages();
 
 	for (const FString& PackageName : ActorPackageNames)
 	{
