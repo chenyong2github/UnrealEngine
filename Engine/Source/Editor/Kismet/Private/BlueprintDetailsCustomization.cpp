@@ -77,6 +77,7 @@
 
 #include "UObject/TextProperty.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 
@@ -2114,10 +2115,16 @@ EVisibility FBlueprintVarActionDetails::RangeVisibility() const
 	if (VariableProperty)
 	{
 		const bool bIsInteger = VariableProperty->IsA(FIntProperty::StaticClass());
-		const bool bIsNonEnumByte = (VariableProperty->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(VariableProperty)->Enum == NULL);
+		const bool bIsNonEnumByte = (VariableProperty->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(VariableProperty)->Enum == nullptr);
 		const bool bIsFloat = VariableProperty->IsA(FFloatProperty::StaticClass());
 
-		if (IsABlueprintVariable(VariableProperty) && (bIsInteger || bIsNonEnumByte || bIsFloat))
+		// If this is a struct property than we must check the name of the struct it points to, so we can check
+		// if it supports the editing of the UIMin/UIMax metadata
+		const FStructProperty* StructProp = CastField<FStructProperty>(VariableProperty);
+		const UStruct* InnerStruct = StructProp ? StructProp->Struct : nullptr;
+		const bool bIsSupportedStruct = InnerStruct ? RangeVisibilityUtils::StructsSupportingRangeVisibility.Contains(InnerStruct->GetFName()) : false;
+
+		if (IsABlueprintVariable(VariableProperty) && (bIsInteger || bIsNonEnumByte || bIsFloat || bIsSupportedStruct))
 		{
 			return EVisibility::Visible;
 		}
