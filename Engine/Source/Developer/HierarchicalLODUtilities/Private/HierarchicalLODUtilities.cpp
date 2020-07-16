@@ -195,28 +195,7 @@ UHLODProxy* FHierarchicalLODUtilities::RetrieveLevelHLODProxy(const ULevel* InLe
 	FString HLODProxyName;
 	const FString HLODLevelPackageName = GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
 
-	// Find the package in memory. 
-	UPackage* HLODPackage = FindPackage(nullptr, *HLODLevelPackageName);
-	if(HLODPackage)
-	{
-		HLODPackage->FullyLoad();
-	}
-	else
-	{
-		// If it is not in memory, try to load it.
-		FString PackageFilename;
-		if (FPackageName::DoesPackageExist(HLODLevelPackageName, nullptr, &PackageFilename))
-		{
-			HLODPackage = LoadPackage(nullptr, *PackageFilename, LOAD_None);
-		}
-	}
-
-	UHLODProxy* HLODProxy = nullptr;
-	if(HLODPackage)
-	{
-		HLODProxy = FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
-	}
-
+	UHLODProxy* HLODProxy = LoadObject<UHLODProxy>(nullptr, *HLODLevelPackageName, nullptr, LOAD_Quiet | LOAD_NoWarn);
 	return HLODProxy;
 }
 

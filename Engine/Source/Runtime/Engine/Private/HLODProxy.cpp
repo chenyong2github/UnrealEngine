@@ -8,6 +8,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "HierarchicalLOD.h"
+#include "ObjectTools.h"
 #endif
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/MaterialInstance.h"
@@ -77,27 +78,34 @@ void UHLODProxy::Clean()
 	check(OwningMap.IsNull() || OwningMap.ToSoftObjectPath().ResolveObject() != nullptr);
 
 	// Remove all entries that have invalid actors
-	ProxyMeshes.RemoveAll([](const FHLODProxyMesh& InProxyMesh)
+	int32 NumRemoved = ProxyMeshes.RemoveAll([this](const FHLODProxyMesh& InProxyMesh)
 	{ 
 		TLazyObjectPtr<ALODActor> LODActor = InProxyMesh.GetLODActor();
+
+		bool bRemoveEntry = false;
 
 		// Invalid actor means that it has been deleted so we shouldnt hold onto its data
 		if(!LODActor.IsValid())
 		{
-			return true;
+			bRemoveEntry = true;
 		}
 		else if(LODActor.Get()->Proxy == nullptr)
 		{
 			// No proxy means we are also invalid
-			return true;
+			bRemoveEntry = true;
 		}
 		else if(!LODActor.Get()->Proxy->ContainsDataForActor(LODActor.Get()))
 		{
 			// actor and proxy are valid, but key differs (unbuilt)
-			return true;
+			bRemoveEntry = true;
 		}
 
-		return false;
+		if (bRemoveEntry)
+		{
+			RemoveAssets(InProxyMesh);
+		}
+
+		return bRemoveEntry;
 	});
 
 	// Ensure the HLOD descs are up to date.
@@ -106,9 +114,28 @@ void UHLODProxy::Clean()
 		UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
 		UpdateHLODDescs(World->PersistentLevel);
 	}
-	else
+	else if (HLODActors.Num() > 0)
 	{
-		HLODActors.Reset();
+		for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+		{
+			RemoveAssets(ItHLODActor.Value());
+		}
+
+		HLODActors.Empty();
+		Modify();
+	}
+
+	// If this proxy is empty, we can delete the package
+	if (HLODActors.Num() == 0 && ProxyMeshes.Num() == 0)
+	{
+		UPackage* Package = GetOutermost();
+
+		ForEachObjectWithOuter(Package, [this](UObject* InObject)
+		{
+			DestroyObject(InObject);
+		});
+
+		ObjectTools::DeleteObjectsUnchecked( { Package } );
 	}
 }
 
@@ -169,6 +196,9 @@ void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
 		}
 		else
 		{
+			// Remove assets associated with this actor
+			RemoveAssets(ItHLODActor.Value());
+
 			Modify();
 			ItHLODActor.RemoveCurrent();
 		}
@@ -531,6 +561,61 @@ void UHLODProxy::PostLoad()
 
 	// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 	GetOutermost()->SetPackageFlags(PKG_ContainsMapData);
+}
+
+void UHLODProxy::DestroyObject(UObject* InObject)
+{
+	check(InObject->GetOutermost() == GetOutermost());
+	
+	InObject->MarkPackageDirty();
+
+	InObject->ClearFlags(RF_Public | RF_Standalone);
+	InObject->SetFlags(RF_Transient);
+
+	if (InObject->IsRooted())
+	{
+		InObject->RemoveFromRoot();
+	}
+}
+
+void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
+{
+	UPackage* Outermost = GetOutermost();
+
+	// Destroy the static mesh
+	UStaticMesh* StaticMesh = const_cast<UStaticMesh*>(ProxyMesh.GetStaticMesh());
+	if (StaticMesh)
+	{
+		// Destroy every materials
+		for (const FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
+		{
+			UMaterialInterface* Material = StaticMaterial.MaterialInterface;
+
+			if (Material)
+			{
+				// Destroy every textures
+				TArray<UTexture*> Textures;
+				Material->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+				for (UTexture* Texture : Textures)
+				{
+					if (Texture->GetOutermost() == Outermost)
+					{
+						DestroyObject(Texture);
+					}
+				}
+
+				if (Material->GetOutermost() == Outermost)
+				{
+					DestroyObject(Material);
+				}
+			}
+		}
+
+		if (StaticMesh->GetOutermost() == Outermost)
+		{
+			DestroyObject(StaticMesh);
+		}
+	}
 }
 
 #endif // #if WITH_EDITOR
