@@ -335,7 +335,13 @@ public:
 	/** Unregister delegate registered with RegisterForFrameDataReceived. */
 	virtual void UnregisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) = 0;
 
-	/** Register for when a frame has been validated, added and ready to be used. */
+	/**
+	 * Register for when a frame has been validated, added and ready to be used.
+	 * If provided, OutStaticData may be invalid if the Subject has not received Static Data, or if the
+	 * static data has not been processed yet.
+	 *
+	 * @return True if the subject was found and the delegates were registered. False otherwise.
+	 */
 	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataAdded::FDelegate& OnStaticDataAdded, const FOnLiveLinkSubjectFrameDataAdded::FDelegate& OnFrameDataAddedd, FDelegateHandle& OutStaticDataAddedHandle, FDelegateHandle& OutFrameDataAddeddHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) = 0;
 	/** Unregister delegates registered with RegisterForSubjectFrames. */
 	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName SubjectName, FDelegateHandle StaticDataAddedHandle, FDelegateHandle FrameDataAddedHandle) = 0;
