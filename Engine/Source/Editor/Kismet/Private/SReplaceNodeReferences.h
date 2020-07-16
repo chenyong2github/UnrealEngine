@@ -248,3 +248,80 @@ protected:
 	/** Whether to show a FindResults tab for the replacements after completing action */
 	bool bShowReplacementsWhenFinished;
 };
+
+/** List item for the Confirmation Dialog */
+class FReplaceConfirmationListItem
+{
+public:
+	FReplaceConfirmationListItem(const UBlueprint* InBlueprint) : Blueprint(InBlueprint), bReplace(true) {}
+
+	/** Gets the blueprint this Item refers to */
+	const UBlueprint* GetBlueprint() const { return Blueprint; }
+
+	/** Gets whether the references in this blueprint will be replace when the modal is closed */
+	bool ShouldReplace() const { return bReplace; }
+
+	/** Sets whether the references in this blueprint will be replace when the modal is closed */
+	void SetShouldReplace(bool bInReplace) { bReplace = bInReplace; }
+
+	/** Sets whether the references in this blueprint will be replace when the modal is closed */
+	TSharedRef<SWidget> CreateWidget();
+private:
+	/** Callback for Checkbox status changed */
+	void OnCheckStateChanged(ECheckBoxState State);
+
+	/** Callback for getting Checkbox State */
+	ECheckBoxState IsChecked() const;
+
+private:
+	/** The Blueprint this item represents*/
+	const UBlueprint* Blueprint;
+
+	/** Whether or not to replace references in this blueprint */
+	bool bReplace;
+};
+
+/** Widget for the ReplaceNodeReferences Confirmation Dialog */
+class SReplaceReferencesConfirmation : public SCompoundWidget
+{
+private:
+	typedef TSharedPtr<FReplaceConfirmationListItem> FListViewItem;
+public:
+	enum class EDialogResponse { Confirm, Cancel };
+
+	SLATE_BEGIN_ARGS(SReplaceReferencesConfirmation)
+		: _FindResults(nullptr)
+		{}
+		
+		SLATE_ARGUMENT(TArray< FImaginaryFiBDataSharedPtr >*, FindResults)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+
+	/** 
+	 * Creates a Confirmation Modal, this function will not return until the Dialog is closed 
+	 *
+	 * @param InFindResults The Results to filter with this dialog
+	 * @return A constructed Confirmation Widget
+	 */
+	static EDialogResponse CreateModal(TArray< FImaginaryFiBDataSharedPtr >* InFindResults);
+
+private:
+	/** Generates a row for a List Item */
+	TSharedRef<ITableRow> OnGenerateRow(FListViewItem Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+
+	/** Closes the window with the given response */
+	FReply CloseWindow(EDialogResponse InResponse);
+private:
+	/** The list of unique blueprints that are affected */
+	TArray< FListViewItem > AffectedBlueprints;
+
+	/** The find results to modify */
+	TArray< FImaginaryFiBDataSharedPtr >* RawFindData;
+
+	/** The User's response */
+	EDialogResponse Response;
+
+	/** Window to close when dialog completed */
+	TSharedPtr<SWindow> MyWindow;
+};

@@ -16,6 +16,7 @@
 #include "EditorCategoryUtils.h"
 #include "ScopedTransaction.h"
 #include "ReplaceNodeReferencesHelper.h"
+#include "Algo/RemoveIf.h"
 
 #define LOCTEXT_NAMESPACE "SNodeVariableReferences"
 
@@ -613,6 +614,16 @@ void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 
 void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
 {
+	if (!bFindWithinBlueprint)
+	{
+		SReplaceReferencesConfirmation::EDialogResponse Response = SReplaceReferencesConfirmation::CreateModal(&InRawDataList);
+
+		if (Response == SReplaceReferencesConfirmation::EDialogResponse::Cancel)
+		{
+			return;
+		}
+	}
+
 	if (SelectedTargetReferenceItem.IsValid())
 	{
 		FMemberReference VariableReference;
@@ -924,6 +935,179 @@ FSlateColor SReplaceNodeReferences::GetSecondaryTargetIconColor() const
 		ReturnColor = SelectedTargetReferenceItem->GetSecondaryIconColor();
 	}
 	return ReturnColor;
+}
+
+////////////////////////////////////////////////
+// Replace References Confirmation
+
+TSharedRef<SWidget> FReplaceConfirmationListItem::CreateWidget()
+{
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.IsChecked_Raw(this, &FReplaceConfirmationListItem::IsChecked)
+			.OnCheckStateChanged_Raw(this, &FReplaceConfirmationListItem::OnCheckStateChanged)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(5.0f, 3.0f)
+		[
+			SNew(STextBlock)
+			.Text(Blueprint ? FText::FromString(Blueprint->GetName()) : FText::FromString(TEXT("<UNKNOWN>")))
+		];
+}
+
+void FReplaceConfirmationListItem::OnCheckStateChanged(ECheckBoxState State)
+{
+	bReplace = State == ECheckBoxState::Checked;
+}
+
+ECheckBoxState FReplaceConfirmationListItem::IsChecked() const
+{
+	return bReplace ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SReplaceReferencesConfirmation::Construct(const FArguments& InArgs)
+{
+	RawFindData = InArgs._FindResults;
+	Response = EDialogResponse::Cancel;
+
+	if (RawFindData)
+	{
+		for (FImaginaryFiBDataSharedPtr Data : *RawFindData)
+		{
+			const UBlueprint* DataBlueprint = Data->GetBlueprint();
+
+			const FListViewItem* FoundItem = AffectedBlueprints.FindByPredicate([DataBlueprint](FListViewItem Item)
+				{
+					return Item->GetBlueprint() == DataBlueprint;
+				});
+
+			if (!FoundItem)
+			{
+				AffectedBlueprints.Add(MakeShared<FReplaceConfirmationListItem>(Data->GetBlueprint()));
+			}
+		}
+	}
+
+	ChildSlot
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ReplaceIn", "Replace references in the following Blueprints:"))
+			]
+
+			+SVerticalBox::Slot()
+			.Padding(5.0f, 5.0f)
+			[
+				SNew(SBox)
+				.MinDesiredHeight(100.0f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					[
+						SNew(SListView<FListViewItem>)
+						.ItemHeight(24.0f)
+						.ListItemsSource(&AffectedBlueprints)
+						.SelectionMode(ESelectionMode::None)
+						.OnGenerateRow(this, &SReplaceReferencesConfirmation::OnGenerateRow)
+					]
+				]
+			]
+
+			+SVerticalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(5.0f, 3.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("Confirm", "Confirm"))
+						.OnClicked(this, &SReplaceReferencesConfirmation::CloseWindow, EDialogResponse::Confirm)
+					]
+				
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(5.0f, 3.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("Cancel", "Cancel"))
+						.OnClicked(this, &SReplaceReferencesConfirmation::CloseWindow, EDialogResponse::Cancel)
+					]
+				]
+			]
+		];
+}
+
+SReplaceReferencesConfirmation::EDialogResponse SReplaceReferencesConfirmation::CreateModal(TArray<FImaginaryFiBDataSharedPtr>* InFindResults)
+{
+	TSharedPtr<SWindow> Window;
+	TSharedPtr<SReplaceReferencesConfirmation> Widget;
+
+	Window = SNew(SWindow)
+		.Title(LOCTEXT("ConfirmReplace", "Confirm Replacements"))
+		.SizingRule(ESizingRule::Autosized)
+		.SupportsMaximize(false)
+		.SupportsMinimize(false)
+		[
+			SNew(SBorder)
+			.Padding(4.f)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SAssignNew(Widget, SReplaceReferencesConfirmation)
+				.FindResults(InFindResults)
+			]
+		];
+
+	Widget->MyWindow = Window;
+
+	GEditor->EditorAddModalWindow(Window.ToSharedRef());
+
+	return Widget->Response;
+}
+
+TSharedRef<ITableRow> SReplaceReferencesConfirmation::OnGenerateRow(FListViewItem Item, const TSharedRef<STableViewBase>& OwnerTable) const
+{
+	return SNew(STableRow<FListViewItem>, OwnerTable)
+		[
+			Item->CreateWidget()
+		];
+}
+
+FReply SReplaceReferencesConfirmation::CloseWindow(EDialogResponse InResponse)
+{
+	if (InResponse == EDialogResponse::Confirm && RawFindData)
+	{
+		// Filter the Results if necessary
+		for (FListViewItem Item : AffectedBlueprints)
+		{
+			if (!Item->ShouldReplace())
+			{
+				const UBlueprint* BP = Item->GetBlueprint();
+				RawFindData->SetNum(Algo::RemoveIf(*RawFindData, [BP](FImaginaryFiBDataSharedPtr Data) { return Data->GetBlueprint() == BP; }));
+			}
+		}
+	}
+
+	Response = InResponse;
+	MyWindow->RequestDestroyWindow();
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
