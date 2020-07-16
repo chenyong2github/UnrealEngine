@@ -16,6 +16,6 @@ public class DataCharts : ModuleRules
                 "Slate",
                 "SlateCore",
 			}
-            );
+		);
     }
 }

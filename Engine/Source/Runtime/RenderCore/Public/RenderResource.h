@@ -601,7 +601,14 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 // This function is a runtime only function!
 FORCEINLINE bool IsRayTracingEnabled()
 {
-	return GRHISupportsRayTracing;
+	if (GRHISupportsRayTracing)
+	{
+		return ShouldCompileRayTracingShadersForProject(GMaxRHIShaderPlatform);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 /** A ray tracing geometry resource */

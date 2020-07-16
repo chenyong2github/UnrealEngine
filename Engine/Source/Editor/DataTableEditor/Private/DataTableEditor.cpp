@@ -282,6 +282,11 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	ToolkitCommands->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FDataTableEditor::DeleteSelectedRow));
 }
 
+bool FDataTableEditor::CanEditRows() const
+{
+	return true;
+}
+
 FName FDataTableEditor::GetToolkitFName() const
 {
 	return FName("DataTableEditor");
@@ -764,7 +769,8 @@ TSharedRef<ITableRow> FDataTableEditor::MakeRowWidget(FDataTableEditorRowListVie
 	return
 		SNew(SDataTableListViewRow, OwnerTable)
 		.DataTableEditor(SharedThis(this))
-		.RowDataPtr(InRowDataPtr);
+		.RowDataPtr(InRowDataPtr)
+		.IsEditable(CanEditRows());
 }
 
 TSharedRef<SWidget> FDataTableEditor::MakeCellWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const int32 InRowIndex, const FName& InColumnId)
@@ -1068,23 +1074,26 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	{
 		ColumnNamesHeaderRow->ClearColumns();
 
-		ColumnNamesHeaderRow->AddColumn(
-			SHeaderRow::Column(RowDragDropColumnId)
-			[
-				SNew(SBox)
-				.VAlign(VAlign_Fill) 
+		if (CanEditRows())
+		{
+			ColumnNamesHeaderRow->AddColumn(
+				SHeaderRow::Column(RowDragDropColumnId)
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("DataTableRowHandleTooltip", "Drag Drop Handles"),
-				nullptr,
-				*FDataTableEditorUtils::VariableTypesTooltipDocLink,
-				TEXT("DataTableRowHandle")))
+					LOCTEXT("DataTableRowHandleTooltip", "Drag Drop Handles"),
+					nullptr,
+					*FDataTableEditorUtils::VariableTypesTooltipDocLink,
+					TEXT("DataTableRowHandle")))
 				[
 					SNew(STextBlock)
 					.Text(FText::GetEmpty())
 				]
-			]
-		);
+				]
+			);
+		}	
 
 		ColumnNamesHeaderRow->AddColumn(
 			SHeaderRow::Column(RowNumberColumnId)

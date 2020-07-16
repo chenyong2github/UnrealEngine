@@ -18,6 +18,7 @@ void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef
 	RowDataPtr = InArgs._RowDataPtr;
 	CurrentName = MakeShareable(new FName(RowDataPtr->RowId));
 	DataTableEditor = InArgs._DataTableEditor;
+	IsEditable = InArgs._IsEditable;
 	SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>::Construct(
 		FSuperRowType::FArguments()
 		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
@@ -33,7 +34,7 @@ void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef
 
 FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && RowDataPtr.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
+	if (IsEditable && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && RowDataPtr.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
 	{
 		FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), RowDataPtr->RowId);
 
@@ -269,6 +270,7 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 				.OnTextCommitted(this, &SDataTableListViewRow::OnRowRenamed)
 				.HighlightText(DataTableEdit, &FDataTableEditor::GetFilterText)
 				.ColorAndOpacity(DataTableEdit, &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)
+				.IsReadOnly(!IsEditable)
 			];
 	}
 

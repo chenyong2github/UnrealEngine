@@ -1997,6 +1997,13 @@ void FLevelEditorViewportClient::OverridePostProcessSettings( FSceneView& View )
 
 bool FLevelEditorViewportClient::ShouldLockPitch() const 
 {
+	// If we have somehow gotten out of the locked rotation
+	if ((GetViewRotation().Pitch < -90.f + KINDA_SMALL_NUMBER || GetViewRotation().Pitch > 90.f - KINDA_SMALL_NUMBER)
+		|| FMath::Abs(GetViewRotation().Roll) > (90.f - KINDA_SMALL_NUMBER))
+	{
+		return false;
+	}
+	// Else use the standard rules
 	return FEditorViewportClient::ShouldLockPitch() || !ModeTools->GetActiveMode(FBuiltinEditorModes::EM_InterpEdit) ;
 }
 
@@ -2821,7 +2828,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 			{
 				FText TrackingDescription = FText::Format(LOCTEXT("RotatationShortcut", "Rotate Atmosphere Light {0}"), LightIndex);
 				TrackingTransaction.Begin(TrackingDescription, SelectedSunLight->GetOwner());
-				SetRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_AtmospherelLight", "Atmosphere Light Control"));// The first time, save that setting for RestoreRealtime
+				AddRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_AtmospherelLight", "Atmosphere Light Control"));// The first time, save that setting for RestoreRealtime
 			}
 			bCurrentUserControl = true;
 			UserIsControllingAtmosphericLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
@@ -2848,7 +2855,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 			NotifyAtmosphericLightHasMoved(*SelectedSunLight, true);
 		}
 		TrackingTransaction.End();					// End undo/redo translation
-		RemoveRealtimeOverride();						// Restore previous real-time state
+		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_AtmospherelLight", "Atmosphere Light Control"));	// Restore previous real-time state
 	}
 	bUserIsControllingAtmosphericLight0 = false;	// Disable all atmospheric light controls
 	bUserIsControllingAtmosphericLight1 = false;

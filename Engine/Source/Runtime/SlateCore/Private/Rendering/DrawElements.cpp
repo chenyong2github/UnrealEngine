@@ -474,7 +474,7 @@ void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 I
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
-	if (ShouldCull(ElementList))
+	if (ShouldCull(ElementList) || Points.Num() < 2)
 	{
 		return;
 	}
@@ -502,7 +502,7 @@ void FSlateDrawElement::MakeLines( FSlateWindowElementList& ElementList, uint32 
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
-	if (ShouldCull(ElementList))
+	if (ShouldCull(ElementList) || Points.Num() < 2)
 	{
 		return;
 	}

@@ -96,7 +96,16 @@ protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
 	/** FSlateInvalidationRoot interface */
-	int32 PaintSlowPath(const FSlateInvalidationContext& Context);
+	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
+
+	enum class EPaintRetainedContentResult
+	{
+		NotPainted,
+		Painted,
+		Queued,
+		InvalidSize,
+	};
+	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
 
 	void RefreshRenderingMode();
 	bool ShouldBeRenderingOffscreen() const;
@@ -133,6 +142,7 @@ private:
 	bool RenderOnInvalidation;
 
 	bool bRenderRequested;
+	bool bInvalidSizeLogged;
 
 	double LastDrawTime;
 	int64 LastTickedFrame;

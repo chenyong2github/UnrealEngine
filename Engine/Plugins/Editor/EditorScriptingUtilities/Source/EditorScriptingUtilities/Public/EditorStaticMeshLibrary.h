@@ -102,6 +102,64 @@ public:
 	}
 
 	/**
+	 * Copy the reduction options with the specified LOD reduction settings.
+	 * @param StaticMesh - Mesh to process.
+	 * @param LodIndex - The LOD we get the reduction settings.
+	 * @param OutReductionOptions - The reduction settings where we copy the reduction options.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static void GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions);
+
+	/**
+	 * Set the LOD reduction for the specified LOD index.
+	 * @param StaticMesh - Mesh to process.
+	 * @param LodIndex - The LOD we will apply the reduction settings.
+	 * @param ReductionOptions - The reduction settings we want to apply to the LOD.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static void SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions);
+
+	/**
+	 * Copy the build options with the specified LOD build settings.
+	 * @param StaticMesh - Mesh to process.
+	 * @param LodIndex - The LOD we get the reduction settings.
+	 * @param OutBuildOptions - The build settings where we copy the build options.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static void GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions);
+
+	/**
+	 * Set the LOD build options for the specified LOD index.
+	 * @param StaticMesh - Mesh to process.
+	 * @param LodIndex - The LOD we will apply the build settings.
+	 * @param BuildOptions - The build settings we want to apply to the LOD.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static void SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions);
+
+	/**
+	 * Import or re-import a LOD into the specified base mesh. If the LOD do not exist it will import it and add it to the base static mesh. If the LOD already exist it will re-import the specified LOD.
+	 * 
+	 * @param BaseStaticMesh: The static mesh we import or re-import a LOD.
+	 * @param LODIndex: The index of the LOD to import or re-import. Valid value should be between 0 and the base static mesh LOD number. Invalid value will return INDEX_NONE
+	 * @param SourceFilename: The fbx source filename. If we are re-importing an existing LOD, it can be empty in this case it will use the last import file. Otherwise it must be an existing fbx file.
+	 *
+	 * @return the index of the LOD that was imported or re-imported. Will return INDEX_NONE if anything goes bad.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static int32 ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename);
+
+	/**
+	 * Re-import all the custom LODs present in the specified static mesh.
+	 *
+	 * @param StaticMesh: is the static mesh we import or re-import all LODs.
+	 *
+	 * @return true if re-import all LODs works, false otherwise see log for explanation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static bool ReimportAllCustomLODs(UStaticMesh* StaticMesh);
+
+	/**
 	 * Adds or create a LOD at DestinationLodIndex using the geometry from SourceStaticMesh SourceLodIndex
 	 * @param	DestinationStaticMesh		The static mesh to set the LOD in.
 	 * @param	DestinationLodIndex			The index of the LOD to set.

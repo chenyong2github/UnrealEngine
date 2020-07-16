@@ -53,7 +53,7 @@ void FWidgetSnapshotService::HandleWidgetSnapshotRequestMessage(const FWidgetSna
 	if (MessageEndpoint.IsValid() && Message.TargetInstanceId == FApp::GetInstanceId())
 	{
 		FWidgetSnapshotData SnapshotData;
-		SnapshotData.TakeSnapshot();
+		SnapshotData.TakeSnapshot(false);
 
 		FWidgetSnapshotResponse* WidgetSnapshotResponse = new FWidgetSnapshotResponse;
 		WidgetSnapshotResponse->SnapshotRequestId = Message.SnapshotRequestId;

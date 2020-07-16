@@ -28,6 +28,8 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
+#include "Dialogs/CustomDialog.h"
+#include "SCheckBoxList.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
 #include "Editor/UnrealEdEngine.h"
@@ -3653,8 +3655,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	
 	bool bHasAtLeastOneVariableToCheck = false;
-	FString PropertyList;
-	TArray<FName> VariableNames;
+	TArray<FProperty*> VariableProperties;
 	for (TFieldIterator<FProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
@@ -3676,17 +3677,77 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
 			if (!FBlueprintEditorUtils::IsVariableUsed(BlueprintObj, VarName) && !bIsTimeline && bHasVarInfo)
 			{
-				VariableNames.Add(Property->GetFName());
-				if (PropertyList.IsEmpty()) {PropertyList = UEditorEngine::GetFriendlyName(Property);}
-				else {PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(Property));}
+				VariableProperties.Add(Property);
 			}
 		}
 	}
 
-	if (VariableNames.Num() > 0)
+	if (VariableProperties.Num() > 0)
 	{
-		FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
-		LogSimpleMessage( FText::Format( LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString( PropertyList ) ) );
+		TSharedRef<SCheckBoxList> CheckBoxList = SNew(SCheckBoxList)
+			.ItemHeaderLabel(LOCTEXT("DeleteUnusedVariablesDialog_VariableLabel", "Variable"));
+		for (FProperty* Variable : VariableProperties)
+		{
+			CheckBoxList->AddItem(FText::FromString(UEditorEngine::GetFriendlyName(Variable)), true);
+		}
+
+		TSharedRef<SWidget> DialogContain = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().Padding(10)
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph."
+					"\nThey may be used in other places."
+					"\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.AutoWrapText(true)
+			]
+			+ SVerticalBox::Slot().FillHeight(0.8)
+			[
+				CheckBoxList
+			];
+
+		TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+			.Title(LOCTEXT("DeleteUnusedVariablesDialog_Title", "Delete Unused Variables"))
+			.IconBrush("NotificationList.DefaultMessage")
+			.DialogContent(DialogContain)
+			.Buttons(
+			{
+				SCustomDialog::FButton(LOCTEXT("DeleteUnusedVariablesDialog_ButtonDelete", "Delete")),
+				SCustomDialog::FButton(LOCTEXT("DeleteUnusedVariablesDialog_ButtonCancel", "Cancel"))
+			});
+
+		int32 Result = CustomDialog->ShowModal();
+		if (Result == 0)
+		{
+			TArray<FName> VariableNames;
+			FString PropertyList;
+			VariableNames.Reserve(VariableProperties.Num());
+			for (int32 Index = 0; Index < VariableProperties.Num(); ++Index)
+			{
+				if (CheckBoxList->IsItemChecked(Index))
+				{
+					VariableNames.Add(VariableProperties[Index]->GetFName());
+					if (PropertyList.IsEmpty())
+					{
+						PropertyList = UEditorEngine::GetFriendlyName(VariableProperties[Index]);
+					}
+					else
+					{
+						PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(VariableProperties[Index]));
+					}
+				}
+			}
+
+			if (VariableNames.Num() > 0)
+			{
+				FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
+				LogSimpleMessage(FText::Format(LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString(PropertyList)));
+			}
+			else
+			{
+				LogSimpleMessage(LOCTEXT("NoVariablesSelectedMessage", "No variables were selected for deletion."));
+			}
+		}
 	}
 	else if (bHasAtLeastOneVariableToCheck)
 	{

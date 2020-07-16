@@ -168,6 +168,13 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	TSubclassOf<UPanelWidget> DefaultRootWidget;
 
+	/**
+	 * The default parent class for all newly constructed widget blueprints.
+	 * The WidgetParentClass must have an empty widget hierarchy.
+	 */
+	UPROPERTY(config, meta = (AllowAbstract = ""))
+	TSoftClassPtr<UUserWidget> DefaultWidgetParentClass;
+
 	UPROPERTY(EditAnywhere, config, Category=Designer)
 	TArray<FDebugResolution> DebugResolutions;
 

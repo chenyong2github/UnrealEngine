@@ -10,11 +10,13 @@
 #include "ContentBrowserModule.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "EditorFramework/AssetImportData.h"
 #include "EngineUtils.h"
 #include "Engine/Brush.h"
 #include "Engine/Selection.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "FbxMeshUtils.h"
 #include "FileHelpers.h"
 #include "GameFramework/Actor.h"
 #include "IContentBrowserSingleton.h"
@@ -237,6 +239,255 @@ int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh,
 	}
 
 	return LODIndex;
+}
+
+void UEditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("GetLodReductionSettings: The StaticMesh is null."));
+		return;
+	}
+
+	// If LOD 0 does not exist, warn and return
+	if (LodIndex < 0 || StaticMesh->GetNumSourceModels() <= LodIndex)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("GetLodReductionSettings: Invalid LOD index."));
+		return;
+	}
+
+	const FStaticMeshSourceModel& LODModel = StaticMesh->GetSourceModel(LodIndex);
+
+	// Copy over the reduction settings
+	OutReductionOptions = LODModel.ReductionSettings;
+}
+
+void UEditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("SetLodReductionSettings: The StaticMesh is null."));
+		return;
+	}
+
+	// If LOD 0 does not exist, warn and return
+	if (LodIndex < 0 || StaticMesh->GetNumSourceModels() <= LodIndex)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("SetLodReductionSettings: Invalid LOD index."));
+		return;
+	}
+
+	// Close the mesh editor to prevent crashing. If changes are applied, reopen it after the mesh has been built.
+	bool bStaticMeshIsEdited = false;
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
+		bStaticMeshIsEdited = true;
+	}
+
+	StaticMesh->Modify();
+
+	FStaticMeshSourceModel& LODModel = StaticMesh->GetSourceModel(LodIndex);
+
+	// Copy over the reduction settings
+	LODModel.ReductionSettings = ReductionOptions;
+
+	// Request re-building of mesh with new LODs
+	StaticMesh->PostEditChange();
+
+	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+	if (bStaticMeshIsEdited)
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
+	}
+}
+
+void UEditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("GetLodBuildSettings: The StaticMesh is null."));
+		return;
+	}
+
+	// If LOD 0 does not exist, warn and return
+	if (LodIndex < 0 || StaticMesh->GetNumSourceModels() <= LodIndex)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("GetLodBuildSettings: Invalid LOD index."));
+		return;
+	}
+
+	const FStaticMeshSourceModel& LODModel = StaticMesh->GetSourceModel(LodIndex);
+
+	// Copy over the reduction settings
+	OutBuildOptions = LODModel.BuildSettings;
+}
+
+void UEditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("SetLodBuildSettings: The StaticMesh is null."));
+		return;
+	}
+
+	// If LOD 0 does not exist, warn and return
+	if (LodIndex < 0 || StaticMesh->GetNumSourceModels() <= LodIndex)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("SetLodBuildSettings: Invalid LOD index."));
+		return;
+	}
+
+	// Close the mesh editor to prevent crashing. If changes are applied, reopen it after the mesh has been built.
+	bool bStaticMeshIsEdited = false;
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
+		bStaticMeshIsEdited = true;
+	}
+
+	StaticMesh->Modify();
+
+	FStaticMeshSourceModel& LODModel = StaticMesh->GetSourceModel(LodIndex);
+
+	// Copy over the build settings
+	LODModel.BuildSettings = BuildOptions;
+
+	// Request re-building of mesh with new LODs
+	StaticMesh->PostEditChange();
+
+	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+	if (bStaticMeshIsEdited)
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
+	}
+}
+
+int32 UEditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Cannot import or re-import when editor PIE is active."));
+		return INDEX_NONE;
+	}
+
+	if (BaseStaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: The StaticMesh is null."));
+		return INDEX_NONE;
+	}
+
+	// Make sure the LODIndex we want to add the LOD is valid
+	if (BaseStaticMesh->GetNumSourceModels() < LODIndex)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Invalid LODIndex, the LOD index cannot be greater the the number of LOD, static mesh cannot have hole in the LOD array."));
+		return INDEX_NONE;
+	}
+
+	FString ResolveFilename = SourceFilename;
+	const bool bSourceFileExists = FPaths::FileExists(ResolveFilename);
+	if(!bSourceFileExists)
+	{
+		if (BaseStaticMesh->IsSourceModelValid(LODIndex))
+		{
+			const FStaticMeshSourceModel& SourceModel = BaseStaticMesh->GetSourceModel(LODIndex);
+			ResolveFilename = SourceModel.SourceImportFilename.IsEmpty() ?
+				SourceModel.SourceImportFilename :
+				UAssetImportData::ResolveImportFilename(SourceModel.SourceImportFilename, nullptr);
+		}
+	}
+
+	if (!FPaths::FileExists(ResolveFilename))
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Invalid source filename."));
+		return INDEX_NONE;
+	}
+
+
+	if(!FbxMeshUtils::ImportStaticMeshLOD(BaseStaticMesh, ResolveFilename, LODIndex))
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Cannot import mesh LOD."));
+		return INDEX_NONE;
+	}
+	
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(BaseStaticMesh, LODIndex);
+
+	return LODIndex;
+}
+
+bool UEditorStaticMeshLibrary::ReimportAllCustomLODs(UStaticMesh* StaticMesh)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ReimportAllCustomLODs: Cannot import or re-import when editor PIE is active."));
+		return false;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ReimportAllCustomLODs: The StaticMesh is null."));
+		return false;
+	}
+
+	bool bResult = true;
+	int32 LODNumber = StaticMesh->GetNumLODs();
+	//Iterate the static mesh LODs, start at index 1
+	for (int32 LODIndex = 1; LODIndex < LODNumber; ++LODIndex)
+	{
+		const FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODIndex);
+		//Skip LOD import in the same file as the base mesh, they are already re-import
+		if (SourceModel.bImportWithBaseMesh)
+		{
+			continue;
+		}
+
+		bool bHasBeenSimplified = !StaticMesh->IsMeshDescriptionValid(LODIndex) || StaticMesh->IsReductionActive(LODIndex);
+		if (bHasBeenSimplified)
+		{
+			continue;
+		}
+
+		if (ImportLOD(StaticMesh, LODIndex, SourceModel.SourceImportFilename) != LODIndex)
+		{
+			UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ReimportAllCustomLODs: Cannot re-import LOD %d."), LODIndex);
+			bResult = false;
+		}
+	}
+	return bResult;
 }
 
 int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots)

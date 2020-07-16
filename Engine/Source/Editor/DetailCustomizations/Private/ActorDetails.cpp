@@ -52,6 +52,7 @@
 #include "EditorCategoryUtils.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "ObjectEditorUtils.h"
+#include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ActorDetails"

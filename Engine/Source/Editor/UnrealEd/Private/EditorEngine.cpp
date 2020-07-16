@@ -5231,6 +5231,11 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				{
 					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->GetRelativeScale3D() );
 				}
+
+				if (OldActor->GetRootComponent() != NULL)
+				{
+					NewActorRootComponent->SetMobility(OldActor->GetRootComponent()->Mobility);
+				}
 			}
 
 			NewActor->Layers.Empty();
@@ -6188,7 +6193,22 @@ void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText S
 	{
 		if (VC)
 		{
-			VC->SetRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+			VC->AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
+void UEditorEngine::RemoveViewportsRealtimeOverride(FText SystemDisplayName)
+{
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->RemoveRealtimeOverride(SystemDisplayName);
 		}
 	}
 
@@ -6203,7 +6223,7 @@ void UEditorEngine::RemoveViewportsRealtimeOverride()
 	{
 		if (VC)
 		{
-			VC->RemoveRealtimeOverride();
+			VC->PopRealtimeOverride();
 		}
 	}
 

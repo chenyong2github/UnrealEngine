@@ -159,7 +159,7 @@ void UVCamOutputProvider::CreateRemoteSession()
 						Backup_ActorLock = LevelViewportClient.GetActiveActorLock();
 
 						LevelViewportClient.SetActorLock(TargetCamera.Get()->GetOwner());
-						LevelViewportClient.SetRealtimeOverride(true, FText::FromString(TEXT("VCamCore")));
+						LevelViewportClient.AddRealtimeOverride(true, NSLOCTEXT("VCamCore", "RealtimeOverrideMessage_VCamCore", "VCamCore"));
 					}
 					else
 					{
@@ -253,7 +253,7 @@ void UVCamOutputProvider::DestroyRemoteSession()
 
 					LevelViewportClient.ViewFOV = LevelViewportClient.FOVAngle;
 					GEditor->RemovePerspectiveViewRotation(true, true, false);
-					LevelViewportClient.RemoveRealtimeOverride();
+					LevelViewportClient.RemoveRealtimeOverride(NSLOCTEXT("VCamCore", "RealtimeOverrideMessage_VCamCore", "VCamCore"));
 				}
 			}
 			else

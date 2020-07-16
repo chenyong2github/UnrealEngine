@@ -399,7 +399,7 @@ public:
 	virtual bool MatchesFilterType(const UClass* InFilterType) const;
 
 	/** Refreshes this item's filtration state. Set bRecursive to 'true' to refresh any child nodes as well */
-	virtual void RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive);
+	virtual bool RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive);
 
 protected:
 	/** Sets this item's filtration state. Use bUpdateParent to make sure the parent's EFilteredState::ChildMatches flag is properly updated based off the new state */
@@ -657,7 +657,7 @@ public:
 	virtual void OnCompleteRename(const FText& InNewName) override;
 	virtual void AddChild(FSCSEditorTreeNodePtrType InChildNodePtr) override;
 	virtual void RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr) override;
-	virtual void RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive) override;
+	virtual bool RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive) override;
 	// End of FSCSEditorTreeNode public interface
 
 private:

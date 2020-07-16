@@ -1909,7 +1909,7 @@ namespace ObjectTools
 				GatherObjectReferencersForDeletion(Package, bIsReferenced, bIsReferencedByUndo);
 
 				// only ref to this object is the transaction buffer, clear the transaction buffer
-				if (!bIsReferenced && bIsReferencedByUndo)
+				if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
 				{
 					GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
 				}
@@ -2494,7 +2494,7 @@ namespace ObjectTools
 			GatherObjectReferencersForDeletion(ObjectToDelete, bIsReferenced, bIsReferencedByUndo, &Refs, bRequireReferencedProperties);
 
 			// only ref to this object is the transaction buffer, clear the transaction buffer
-			if (!bIsReferenced && bIsReferencedByUndo)
+			if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
 			{
 				GEditor->Trans->Reset( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
 			}

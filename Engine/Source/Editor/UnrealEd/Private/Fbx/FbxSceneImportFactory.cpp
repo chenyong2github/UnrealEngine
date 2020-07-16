@@ -169,6 +169,13 @@ bool GetFbxSceneImportOptions(UnFbx::FFbxImporter* FbxImporter
 			return false;
 		}
 	}
+	else
+	{
+		//Copy static and skeletalmesh options
+		SFbxSceneOptionWindow::CopyStaticMeshOptionsToFbxOptions(GlobalImportSettings, StaticMeshImportData);
+		SFbxSceneOptionWindow::CopySkeletalMeshOptionsToFbxOptions(GlobalImportSettings, SkeletalMeshImportData);
+		NameOptionsMap.Add(UFbxSceneImportFactory::DefaultOptionName, GlobalImportSettings);
+	}
 
 	//setup all options
 	GlobalImportSettings->bForceFrontXAxis = SceneImportOptions->bForceFrontXAxis;
@@ -849,7 +856,7 @@ UFbxSceneImportData* CreateReImportAsset(const FString &PackagePath, const FStri
 	ReImportAsset->SourceFbxFile = FPaths::ConvertRelativePathToFull(FbxImportFileName);
 	ReImportAsset->bCreateFolderHierarchy = SceneImportOptions->bCreateContentFolderHierarchy;
 	ReImportAsset->bForceFrontXAxis = SceneImportOptions->bForceFrontXAxis;
-	ReImportAsset->HierarchyType = SceneImportOptions->HierarchyType.GetValue();
+	ReImportAsset->HierarchyType = (int32)SceneImportOptions->HierarchyType;
 	return ReImportAsset;
 }
 

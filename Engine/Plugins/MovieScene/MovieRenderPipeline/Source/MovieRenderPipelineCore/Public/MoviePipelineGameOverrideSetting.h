@@ -111,4 +111,5 @@ private:
 	int32 PreviousViewDistanceScale;
 	int32 PreviousGPUTimeout;
 	int32 PreviousAnimationUROEnabled;
+	int32 PreviousNeverMuteNonRealtimeAudio;
 };

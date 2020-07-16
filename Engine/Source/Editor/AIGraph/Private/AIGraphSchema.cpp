@@ -5,6 +5,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
+#include "Classes/EditorStyleSettings.h"
 #include "EdGraph/EdGraph.h"
 #include "AIGraphNode.h"
 #include "GraphEditorActions.h"
@@ -14,7 +15,6 @@
 #include "EdGraphNode_Comment.h"
 
 #define LOCTEXT_NAMESPACE "AIGraph"
-#define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
 
 namespace
 {
@@ -87,7 +87,7 @@ UEdGraphNode* FAISchemaAction_NewNode::PerformAction(class UEdGraph* ParentGraph
 
 		NodeTemplate->NodePosX = XLocation;
 		NodeTemplate->NodePosY = Location.Y;
-		NodeTemplate->SnapToGrid(SNAP_GRID);
+		NodeTemplate->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 
 		// setup pins after placing node in correct spot, since pin sorting will happen as soon as link connection change occurs
 		NodeTemplate->AllocateDefaultPins();
@@ -199,32 +199,7 @@ void UAIGraphSchema::GetGraphNodeContextActions(FGraphContextMenuBuilder& Contex
 
 void UAIGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
-	if (Context->Pin)
-	{
-		{
-			FToolMenuSection& Section = Menu->AddSection("AIGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			// Only display the 'Break Links' option if there is a link to break!
-			if (Context->Pin->LinkedTo.Num() > 0)
-			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-
-				// add sub menu for break link to
-				if (Context->Pin->LinkedTo.Num() > 1)
-				{
-					Section.AddSubMenu(
-						"BreakLinkTo",
-						LOCTEXT("BreakLinkTo", "Break Link To..."),
-						LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-						FNewToolMenuDelegate::CreateUObject((UAIGraphSchema*const)this, &UAIGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(Context->Pin)));
-				}
-				else
-				{
-					((UAIGraphSchema*const)this)->GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(Context->Pin));
-				}
-			}
-		}
-	}
-	else if (Context->Node)
+	if (Context->Node)
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("BehaviorTreeGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
@@ -238,52 +213,6 @@ void UAIGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNo
 	}
 
 	Super::GetContextMenuActions(Menu, Context);
-}
-
-void UAIGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
-{
-	// Make sure we have a unique name for every entry in the list
-	TMap< FString, uint32 > LinkTitleCount;
-
-	FToolMenuSection& Section = Menu->FindOrAddSection("AIGraphSchemaPinActions");
-
-	// Add all the links we could break from
-	for (TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
-	{
-		UEdGraphPin* Pin = *Links;
-		FString TitleString = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView).ToString();
-		FText Title = FText::FromString(TitleString);
-		if (Pin->PinName != TEXT(""))
-		{
-			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *Pin->PinName.ToString());
-
-			// Add name of connection if possible
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("NodeTitle"), Title);
-			Args.Add(TEXT("PinName"), Pin->GetDisplayName());
-			Title = FText::Format(LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args);
-		}
-
-		uint32 &Count = LinkTitleCount.FindOrAdd(TitleString);
-
-		FText Description;
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("NodeTitle"), Title);
-		Args.Add(TEXT("NumberOfNodes"), Count);
-
-		if (Count == 0)
-		{
-			Description = FText::Format(LOCTEXT("BreakDesc", "Break link to {NodeTitle}"), Args);
-		}
-		else
-		{
-			Description = FText::Format(LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args);
-		}
-		++Count;
-
-		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
-			FExecuteAction::CreateUObject(this, &UAIGraphSchema::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links)));
-	}
 }
 
 void UAIGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const

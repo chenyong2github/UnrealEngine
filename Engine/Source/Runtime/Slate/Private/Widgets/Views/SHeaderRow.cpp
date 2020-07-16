@@ -8,6 +8,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
@@ -16,6 +17,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 
+#define LOCTEXT_NAMESPACE "SHeaderRow"
 
 class STableColumnHeader : public SCompoundWidget
 {
@@ -44,7 +46,7 @@ public:
 	 * 
 	 * @param InDeclaration   A declaration from which to construct the widget
 	 */
-	void Construct( const STableColumnHeader::FArguments& InArgs, const SHeaderRow::FColumn& Column, const FMargin DefaultHeaderContentPadding )
+	void Construct( const STableColumnHeader::FArguments& InArgs, const SHeaderRow::FColumn& Column, const TSharedRef<SWidget>& OverrideHeaderMenuContent, const FMargin DefaultHeaderContentPadding )
 	{
 		check(InArgs._Style);
 
@@ -57,7 +59,7 @@ public:
 		SortPriority = Column.SortPriority;
 
 		OnSortModeChanged = Column.OnSortModeChanged;
-		ContextMenuContent = Column.HeaderMenuContent.Widget;
+		ContextMenuContent = OverrideHeaderMenuContent;
 
 		ComboVisibility = Column.HeaderComboVisibility;
 
@@ -217,6 +219,12 @@ public:
 	void SetSortPriority(EColumnSortPriority::Type NewPriority)
 	{
 		SortPriority = NewPriority;
+	}
+
+	/** Get column id that generated this header */
+	FName GetColumnId() const
+	{
+		return ColumnId;
 	}
 
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
@@ -423,6 +431,8 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 	Style = InArgs._Style;
 	OnGetMaxRowSizeForColumn = InArgs._OnGetMaxRowSizeForColumn;
 	ResizeMode = InArgs._ResizeMode;
+	bCanSelectGeneratedColumn = InArgs._CanSelectGeneratedColumn;
+	OnHiddenColumnsListChanged = InArgs._OnHiddenColumnsListChanged;
 
 	if ( InArgs._OnColumnsChanged.IsBound() )
 	{
@@ -436,11 +446,10 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 	);
 
 	// Copy all the column info from the declaration
-	bool bHaveFillerColumn = false;
-	for ( int32 SlotIndex=0; SlotIndex < InArgs.Slots.Num(); ++SlotIndex )
+	for ( FColumn* const Column : InArgs.Slots )
 	{
-		FColumn* const Column = InArgs.Slots[SlotIndex];
 		Columns.Add( Column );
+		Column->bIsVisible = !InArgs._HiddenColumnsList.Contains(Column->ColumnId);
 	}
 
 	// Generate widgets for all columns
@@ -499,7 +508,6 @@ void SHeaderRow::RemoveColumn( const FName& InColumnId )
 {
 	check(InColumnId != NAME_None);
 
-	bool bHaveFillerColumn = false;
 	for ( int32 SlotIndex=Columns.Num() - 1; SlotIndex >= 0; --SlotIndex )
 	{
 		FColumn& Column = Columns[SlotIndex];
@@ -520,8 +528,12 @@ void SHeaderRow::RefreshColumns()
 
 void SHeaderRow::ClearColumns()
 {
+	const bool bHadColumnsItems = Columns.Num() > 0;
 	Columns.Empty();
-	ColumnsChanged.Broadcast( SharedThis( this ) );
+	if (bHadColumnsItems)
+	{
+		ColumnsChanged.Broadcast( SharedThis( this ) );
+	}
 
 	RegenerateWidgets();
 }
@@ -573,6 +585,62 @@ FVector2D SHeaderRow::GetRowSizeForSlotIndex(int32 SlotIndex) const
 	return FVector2D::ZeroVector;
 }
 
+TArray<FName> SHeaderRow::GetHiddenColumnIds() const
+{
+	TArray<FName> Result;
+	Result.Reserve(Columns.Num());
+	for (const FColumn& SomeColumn : Columns)
+	{
+		if (!SomeColumn.bIsVisible)
+		{
+			Result.Add(SomeColumn.ColumnId);
+		}
+	}
+	return Result;
+}
+
+bool SHeaderRow::ShouldGeneratedColumn(const FName& InColumnId) const
+{
+	for (const FColumn& SomeColumn : Columns)
+	{
+		if (SomeColumn.ColumnId == InColumnId)
+		{
+			return SomeColumn.ShouldGenerateWidget.Get(true) && SomeColumn.bIsVisible;
+		}
+	}
+	return false;
+}
+
+bool SHeaderRow::IsColumnGenerated(const FName& InColumnId) const
+{
+	for (const TSharedPtr<STableColumnHeader>& ColumnHeader : HeaderWidgets)
+	{
+		if (ColumnHeader->GetColumnId() == InColumnId)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FReply SHeaderRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (bCanSelectGeneratedColumn && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		const FVector2D& SummonLocation = MouseEvent.GetScreenSpacePosition();
+		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+
+		const bool CloseAfterSelection = true;
+		FMenuBuilder MenuBuilder(CloseAfterSelection, nullptr);
+		OnGenerateSelectColumnsSubMenu(MenuBuilder);
+
+		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
 void SHeaderRow::RegenerateWidgets()
 {
 	const float SplitterHandleDetectionSize = 5.0f;
@@ -606,13 +674,23 @@ void SHeaderRow::RegenerateWidgets()
 	{
 		const float HalfSplitterDetectionSize = ( SplitterHandleDetectionSize + 2 ) / 2;
 
+		int32 LastSlotIndex = Columns.Num() - 1;
+		for ( ; LastSlotIndex >= 0; --LastSlotIndex )
+		{
+			const FColumn& SomeColumn = Columns[LastSlotIndex];
+			if ( SomeColumn.ShouldGenerateWidget.Get(true) && SomeColumn.bIsVisible )
+			{
+				break;
+			}
+		}
+
 		// Populate the slot with widgets that represent the columns.
 		TSharedPtr<STableColumnHeader> NewlyMadeHeader;
 		for ( int32 SlotIndex=0; SlotIndex < Columns.Num(); ++SlotIndex )
 		{
 			FColumn& SomeColumn = Columns[SlotIndex];
 
-			if ( SomeColumn.ShouldGenerateWidget.Get(true))
+			if ( SomeColumn.ShouldGenerateWidget.Get(true) && SomeColumn.bIsVisible )
 			{
 				// Keep track of the last header we created.
 				TSharedPtr<STableColumnHeader> PrecedingHeader = NewlyMadeHeader;
@@ -620,9 +698,25 @@ void SHeaderRow::RegenerateWidgets()
 
 				FMargin DefaultPadding = FMargin(HalfSplitterDetectionSize, 0, HalfSplitterDetectionSize, 0);
 
+				TSharedRef<SWidget> HeaderMenuContent = SomeColumn.HeaderMenuContent.Widget;
+				if ( bCanSelectGeneratedColumn && HeaderMenuContent != SNullWidget::NullWidget )
+				{
+					const bool CloseAfterSelection = true;
+					const bool bNoIndent = true;
+					FMenuBuilder MenuBuilder(CloseAfterSelection, nullptr);
+					MenuBuilder.AddWidget(SomeColumn.HeaderMenuContent.Widget, FText::GetEmpty(), bNoIndent);
+					MenuBuilder.AddMenuSeparator();
+					MenuBuilder.AddSubMenu(
+						LOCTEXT("SelectColumns", "Select Columns"),
+						LOCTEXT("SelectColumns_Tooltip", "Show/hide columns"),
+						FNewMenuDelegate::CreateSP(this, &SHeaderRow::OnGenerateSelectColumnsSubMenu)
+						);
+					HeaderMenuContent = MenuBuilder.MakeWidget();
+				}
+
 				TSharedRef<STableColumnHeader> NewHeader =
-					SAssignNew(NewlyMadeHeader, STableColumnHeader, SomeColumn, DefaultPadding)
-					.Style((SlotIndex + 1 == Columns.Num()) ? &Style->LastColumnStyle : &Style->ColumnStyle);
+					SAssignNew(NewlyMadeHeader, STableColumnHeader, SomeColumn, HeaderMenuContent, DefaultPadding)
+					.Style((SlotIndex == LastSlotIndex) ? &Style->LastColumnStyle : &Style->ColumnStyle);
 
 				HeaderWidgets.Add(NewlyMadeHeader);
 
@@ -753,3 +847,51 @@ void SHeaderRow::RegenerateWidgets()
 	// Create a box to contain widgets for each column
 	SetContent( Box );
 }
+
+void SHeaderRow::OnGenerateSelectColumnsSubMenu(FMenuBuilder& InSubMenuBuilder)
+{
+	for (const FColumn& SomeColumn : Columns)
+	{
+		const bool bCanExecuteAction = !SomeColumn.ShouldGenerateWidget.IsSet();
+		const FName ColumnId = SomeColumn.ColumnId;
+
+		InSubMenuBuilder.AddMenuEntry(
+			SomeColumn.DefaultText,
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SHeaderRow::ToggleGeneratedColumn, ColumnId),
+				FCanExecuteAction::CreateLambda([bCanExecuteAction] () { return bCanExecuteAction; }),
+				FGetActionCheckState::CreateSP(this, &SHeaderRow::GetGeneratedColumnCheckedState, ColumnId)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton);
+	}
+}
+
+void SHeaderRow::ToggleGeneratedColumn(FName ColumnId)
+{
+	// Only column that doesn't have a ShouldGenerateWidget, can be toggled
+	for (FColumn& SomeColumn : Columns)
+	{
+		if (SomeColumn.ColumnId == ColumnId)
+		{
+			if (!SomeColumn.ShouldGenerateWidget.IsSet())
+			{
+				SomeColumn.bIsVisible = !SomeColumn.bIsVisible;
+
+				RefreshColumns();
+				ColumnsChanged.Broadcast(SharedThis(this));
+				OnHiddenColumnsListChanged.ExecuteIfBound();
+			}
+			break;
+		}
+	}
+}
+
+ECheckBoxState SHeaderRow::GetGeneratedColumnCheckedState(FName ColumnId) const
+{
+	return IsColumnGenerated(ColumnId) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+#undef LOCTEXT_NAMESPACE

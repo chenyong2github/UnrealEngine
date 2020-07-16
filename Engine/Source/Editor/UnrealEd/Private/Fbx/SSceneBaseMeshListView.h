@@ -40,7 +40,14 @@ public:
 	void OnSelectionChanged(FbxMeshInfoPtr Item, ESelectInfo::Type SelectionType);
 	virtual void OnToggleSelectAll(ECheckBoxState CheckType);
 
-	TSharedPtr<FFbxNodeInfo> FindNodeInfoByUid(uint64 NodeUid, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal);
+	static void FillMeshStatusMap(FbxSceneReimportStatusMapPtr MeshStatusMap
+		, TSharedPtr<FFbxSceneInfo> SceneInfo
+		, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal
+		, bool bFillSkeletalMeshStatusMap
+		, TArray<FbxMeshInfoPtr>* FilterFbxMeshesArrayPtr = nullptr
+		, TArray<FbxMeshInfoPtr>* FbxMeshesArrayPtr = nullptr);
+
+	static TSharedPtr<FFbxNodeInfo> FindNodeInfoByUid(uint64 NodeUid, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal);
 
 protected:
 	TSharedPtr<FFbxSceneInfo> SceneInfo;

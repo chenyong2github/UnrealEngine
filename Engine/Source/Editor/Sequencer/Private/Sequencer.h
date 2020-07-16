@@ -732,8 +732,8 @@ public:
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
 	virtual void RenderMovie(UMovieSceneSection* InSection) const override;
-	virtual void EnterSilentMode() override { ++SilentModeCount; }
-	virtual void ExitSilentMode() override { --SilentModeCount; ensure(SilentModeCount >= 0); }
+	virtual void EnterSilentMode() override;
+	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }
 	virtual FGuid GetHandleToObject(UObject* Object, bool bCreateHandleIfMissing = true, const FName& CreatedFolderName = NAME_None) override;
 	virtual ISequencerObjectChangeListener& GetObjectChangeListener() override;
@@ -761,6 +761,7 @@ public:
 	virtual void SelectObject(FGuid ObjectBinding) override;
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
+	virtual void SelectFolder(UMovieSceneFolder* Folder) override;
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) override;
 	virtual void SelectByChannels(UMovieSceneSection* Section, TArrayView<const FMovieSceneChannelHandle> InChannels, bool bSelectParentInstead, bool bSelect) override;
 	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) override;
@@ -1389,11 +1390,17 @@ private:
 
 	FCachedViewState CachedViewState;
 	
+	struct FViewModifierInfo
+	{
+		bool bApplyViewModifier = false;
+		FVector ViewModifierLocation = FVector::ZeroVector;
+		FRotator ViewModifierRotation = FRotator::ZeroRotator;
+		float ViewModifierFOV = 0.f;
+	};
 	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
-	bool bApplyViewModifier;
-	FVector ViewModifierLocation;
-	FRotator ViewModifierRotation;
-	float ViewModifierFOV;
+	FViewModifierInfo ViewModifierInfo;
+	/** Information cached before entering silent mode, so we can restore it afterwards. */
+	FViewModifierInfo CachedViewModifierInfo;
 	
 	/** Original editor camera info, for when previewing a sequence with a blend from/to gameplay. */
 	bool bHasPreAnimatedInfo;

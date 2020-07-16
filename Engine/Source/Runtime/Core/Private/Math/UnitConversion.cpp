@@ -144,9 +144,7 @@ const EUnitType UnitTypes[] = {
 
 	EUnitType::PixelDensity,
 
-	EUnitType::Multipliers,
-
-	EUnitType::Arbitrary,
+	EUnitType::Multipliers, EUnitType::Multipliers,
 };
 
 

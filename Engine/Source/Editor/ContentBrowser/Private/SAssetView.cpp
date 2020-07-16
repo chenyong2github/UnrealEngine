@@ -180,6 +180,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bShowTypeInColumnView = InArgs._ShowTypeInColumnView;
 	bSortByPathInColumnView = bShowPathInColumnView & InArgs._SortByPathInColumnView;
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
+	bForceShowPluginContent = InArgs._ForceShowPluginContent;
 
 	bPendingUpdateThumbnails = false;
 	bShouldNotifyNextAssetSync = true;
@@ -2387,7 +2388,7 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SAssetView::ToggleShowPluginContent ),
-				FCanExecuteAction(),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowPluginContentAllowed),
 				FIsActionChecked::CreateSP( this, &SAssetView::IsShowingPluginContent )
 			),
 			EUserInterfaceActionType::ToggleButton
@@ -2595,7 +2596,7 @@ void SAssetView::ToggleShowPluginContent()
 
 bool SAssetView::IsShowingPluginContent() const
 {
-	return GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
+	return bForceShowPluginContent || GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
 }
 
 void SAssetView::ToggleShowEngineContent()
@@ -2647,6 +2648,11 @@ bool SAssetView::IsToggleShowDevelopersContentAllowed() const
 bool SAssetView::IsToggleShowEngineContentAllowed() const
 {
 	return !bForceShowEngineContent;
+}
+
+bool SAssetView::IsToggleShowPluginContentAllowed() const
+{
+	return !bForceShowPluginContent;
 }
 
 bool SAssetView::IsShowingDevelopersContent() const

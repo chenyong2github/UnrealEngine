@@ -187,7 +187,7 @@ class USoundMix : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClasses)
 	TArray<struct FSoundClassAdjuster> SoundClassEffects;
 
-	/* Initial delay in seconds before the the mix is applied. */
+	/* Initial delay in seconds before the mix is applied. */
 	UPROPERTY(EditAnywhere, Category=SoundMix )
 	float InitialDelay;
 

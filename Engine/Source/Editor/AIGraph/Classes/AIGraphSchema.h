@@ -102,8 +102,6 @@ class AIGRAPH_API UAIGraphSchema : public UEdGraphSchema
 {
 	GENERATED_UCLASS_BODY()
 
-	void GetBreakLinkToSubMenuActions(class UToolMenu* Menu, class UEdGraphPin* InGraphPin);
-
 	//~ Begin EdGraphSchema Interface
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;

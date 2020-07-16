@@ -14,7 +14,9 @@ void FTextureEditorCommands::RegisterCommands()
 	
 	UI_COMMAND(CheckeredBackground, "Checkered", "Checkered background pattern behind the texture", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(CheckeredBackgroundFill, "Checkered (Fill)", "Checkered background pattern behind the entire viewport", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(FitToViewport, "Scale To Fit", "If enabled, the texture will be scaled to fit the viewport", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(FitToViewport, "Scale To Fit", "Scales the texture down to fit within the viewport if needed", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(FillToViewport, "Scale To Fill", "Scales the texture to fill the viewport", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ZoomToNatural, "Scale To 100%", "Resets the zoom level to 100%, displaying the texture at its natural size", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(SolidBackground, "Solid Color", "Solid color background", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(TextureBorder, "Draw Border", "If enabled, a border is drawn around the texture", EUserInterfaceActionType::ToggleButton, FInputChord());
 

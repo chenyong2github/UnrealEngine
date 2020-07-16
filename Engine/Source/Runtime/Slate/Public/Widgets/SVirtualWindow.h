@@ -9,7 +9,6 @@
 #include "Input/PopupMethodReply.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/HittestGrid.h"
 #include "Rendering/DrawElements.h"
 #include "Widgets/SWindow.h"
 

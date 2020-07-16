@@ -34,6 +34,12 @@ enum EFBXImportContentType
 
 /**
  * Import data and options used when importing a static mesh from fbx
+ * Notes:
+ * - Meta data ImportType i.e.       meta = (ImportType = "SkeletalMesh|GeoOnly")
+ *     - SkeletalMesh : the property will be shown when importing skeletalmesh
+ *     - GeoOnly: The property will be hide if we import skinning only
+ *     - RigOnly: The property will be hide if we import geo only
+ *     - RigAndGeo: The property will be show only if we import both skinning and geometry, it will be hiden otherwise
  */
 UCLASS(BlueprintType, MinimalAPI)
 class UFbxSkeletalMeshImportData : public UFbxMeshImportData
@@ -63,7 +69,7 @@ public:
 	uint32 bUpdateSkeletonReferencePose:1;
 
 	/** Enable this option to use frame 0 as reference pose */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category= Mesh, meta=(ImportType="SkeletalMesh|RigOnly", DisplayName="Use T0 As Ref Pose"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category= Mesh, meta=(ImportType="SkeletalMesh|RigAndGeo", DisplayName="Use T0 As Ref Pose"))
 	uint32 bUseT0AsRefPose:1;
 
 	/** If checked, triangles with non-matching smoothing groups will be physically split. */

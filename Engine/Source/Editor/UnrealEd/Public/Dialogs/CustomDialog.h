@@ -73,13 +73,13 @@ public:
 	/** Show a modal dialog. Will block until an input is received.
 	 * Returns the index of the button that was pressed.
 	 */
-	int ShowModal();
+	int32 ShowModal();
 
 private:
-	FReply OnButtonClicked(FSimpleDelegate OnClicked, int ButtonIndex);
+	FReply OnButtonClicked(FSimpleDelegate OnClicked, int32 ButtonIndex);
 
 	/** The index of the button that was pressed last. */
-	int LastPressedButton = -1;
+	int32 LastPressedButton = -1;
 
 	FSimpleDelegate OnClosed;
 };

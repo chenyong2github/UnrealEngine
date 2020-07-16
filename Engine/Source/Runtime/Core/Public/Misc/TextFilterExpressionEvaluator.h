@@ -43,6 +43,33 @@ protected:
 	virtual ~ITextFilterExpressionContext() {}
 };
 
+// A simple basic string expression context for FString
+class FBasicStringFilterExpressionContext : public ITextFilterExpressionContext
+{
+public:
+	explicit FBasicStringFilterExpressionContext(FString&& InTestString)
+		: TestString(InTestString)
+	{
+	}
+	explicit FBasicStringFilterExpressionContext(const FString& InTestString)
+		: TestString(InTestString)
+	{
+	}
+
+	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
+	{
+		return TextFilterUtils::TestBasicStringExpression(TestString, InValue, InTextComparisonMode);
+	}
+
+	virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
+	{
+		return false;
+	}
+
+private:
+	const FString TestString;
+};
+
 namespace TextFilterExpressionParser
 {
 	class FTextToken

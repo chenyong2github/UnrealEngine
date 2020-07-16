@@ -10,10 +10,56 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "AudioDevice.h"
+#include "AudioMixerDevice.h"
+#include "AudioThread.h"
 
-static bool IsMoviePipelineAudioOutputSupported()
+static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject)
 {
-	return FParse::Param(FCommandLine::Get(), TEXT("deterministicaudio"));
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
+	{
+		return nullptr;
+	}
+
+	return ThisWorld->GetAudioDeviceRaw();
+}
+
+static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject)
+{
+	if (FAudioDevice* AudioDevice = GetAudioDeviceFromWorldContext(WorldContextObject))
+	{
+		if (!AudioDevice->IsAudioMixerEnabled())
+		{
+			return nullptr;
+		}
+		else
+		{
+			return static_cast<Audio::FMixerDevice*>(AudioDevice);
+		}
+	}
+	return nullptr;
+}
+
+static bool IsMoviePipelineAudioOutputSupported(const UObject* WorldContextObject)
+{
+	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	Audio::IAudioMixerPlatformInterface* AudioMixerPlatform = MixerDevice ? MixerDevice->GetAudioMixerPlatform() : nullptr;
+
+	// If the current audio mixer is non-realtime, audio output is supported
+	if (AudioMixerPlatform && AudioMixerPlatform->IsNonRealtime())
+	{
+		return true;
+	}
+
+	// If there is no audio thread running (e.g. we're in the editor), it's possible to create a new non-realtime audio mixer
+	if (!FAudioThread::IsAudioThreadRunning())
+	{
+		return true;
+	}
+
+	// Otherwise, we can't support audio output
+	return false;
 }
 
 void UMoviePipelineWaveOutput::BeginFinalizeImpl()
@@ -23,7 +69,7 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		return;
 	}
 
-	if (!IsMoviePipelineAudioOutputSupported())
+	if (!IsMoviePipelineAudioOutputSupported(this))
 	{
 		return;
 	}
@@ -159,7 +205,7 @@ void UMoviePipelineWaveOutput::ValidateStateImpl()
 {
 	Super::ValidateStateImpl();
 
-	if (!IsMoviePipelineAudioOutputSupported())
+	if (!IsMoviePipelineAudioOutputSupported(this))
 	{
 		ValidationState = EMoviePipelineValidationState::Warnings;
 		ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "WaveOutput_NotUsingDeterministicAudio", "Process must be launched with \"-deterministicaudio\" for this to work. Using a remote render will automatically add this argument."));

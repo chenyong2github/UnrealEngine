@@ -224,6 +224,7 @@ FKeyPropertyResult FCameraShakeTrackEditor::AddKeyInternal(FFrameNumber KeyTime,
 			{
 				UMovieSceneSection* NewSection = Cast<UMovieSceneCameraShakeTrack>(Track)->AddNewCameraShake(KeyTime, ShakeClass);
 				KeyPropertyResult.bTrackModified = true;
+				KeyPropertyResult.SectionsCreated.Add(NewSection);
 				
 				GetSequencer()->EmptySelection();
 				GetSequencer()->SelectSection(NewSection);

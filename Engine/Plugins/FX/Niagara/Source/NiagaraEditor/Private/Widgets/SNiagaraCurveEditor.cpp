@@ -48,7 +48,7 @@ SNiagaraCurveEditor::~SNiagaraCurveEditor()
 
 TSharedRef<SWidget> SNiagaraCurveEditor::ConstructToolBar(TSharedPtr<FUICommandList> CurveEditorCommandList)
 {
-	FToolBarBuilder ToolBarBuilder(CurveEditorCommandList, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), Orient_Horizontal, true);
+	FToolBarBuilder ToolBarBuilder(CurveEditorCommandList, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
 
 	// TODO: Move this to a shared location since it's 99% the same as the sequencer curve toolbar.
 	ToolBarBuilder.AddComboButton(

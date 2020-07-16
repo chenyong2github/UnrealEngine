@@ -119,7 +119,7 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 			.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
 		];
 
-	for (int i = 0; i < InArgs._Buttons.Num(); ++i)
+	for (int32 i = 0; i < InArgs._Buttons.Num(); ++i)
 	{
 		const FButton& Button = InArgs._Buttons[i];
 
@@ -141,7 +141,7 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 	}
 }
 
-int SCustomDialog::ShowModal()
+int32 SCustomDialog::ShowModal()
 {
 	FSlateApplication::Get().AddModalWindow(StaticCastSharedRef<SWindow>(this->AsShared()), FGlobalTabmanager::Get()->GetRootWindow());
 
@@ -159,7 +159,7 @@ void SCustomDialog::Show()
 }
 
 /** Handle the button being clicked */
-FReply SCustomDialog::OnButtonClicked(FSimpleDelegate OnClicked, int ButtonIndex)
+FReply SCustomDialog::OnButtonClicked(FSimpleDelegate OnClicked, int32 ButtonIndex)
 {
 	LastPressedButton = ButtonIndex;
 

@@ -1173,6 +1173,11 @@ FBoxSphereBounds UTextRenderComponent::CalcBounds(const FTransform& LocalToWorld
 	}
 }
 
+bool UTextRenderComponent::RequiresGameThreadEndOfFrameUpdates() const
+{
+	return true;
+}
+
 FMatrix UTextRenderComponent::GetRenderMatrix() const
 {
 	// Adjust LocalToWorld transform to account for vertical text alignment when rendering.

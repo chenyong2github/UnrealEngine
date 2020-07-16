@@ -72,6 +72,7 @@ FMacApplication::FMacApplication()
 ,	KeyBoardLayoutData(nil)
 #if WITH_ACCESSIBILITY
 ,	AccessibilityCacheTimer(Nil)
+,	AccessibilityAnnouncementDelayTimer(Nil)
 #endif
 {
 	TextInputMethodSystem = MakeShareable(new FMacTextInputMethodSystem);
@@ -151,6 +152,11 @@ FMacApplication::~FMacApplication()
 		if(AccessibilityCacheTimer != Nil)
 		{
 			[AccessibilityCacheTimer release];
+		}
+		
+		if(AccessibilityAnnouncementDelayTimer)
+		{
+			[AccessibilityAnnouncementDelayTimer release];
 		}
 		[[FMacAccessibilityManager AccessibilityManager] TearDown];
 #endif
@@ -2228,6 +2234,13 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 }
 
 #if WITH_ACCESSIBILITY
+float GMacAccessibleAnnouncementDelay = 0.1f;
+FAutoConsoleVariableRef MacAccessibleAnnouncementDealyRef(
+	TEXT("mac.AccessibleAnnouncementDelay"),
+	GMacAccessibleAnnouncementDelay,
+	TEXT("We need to introduce a small delay to avoid OSX system accessibility announcements from stomping on our requested user announcement. Delays <= 0.05f are too short and result in the announcement being dropped. Dellays ~0.075f result in unstable delivery")
+);
+
 void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
 {
 	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
@@ -2277,10 +2290,20 @@ void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 		}
 		case EAccessibleEvent::Notification:
 		{
-			//@TODO: Allow strings to be announced to the player
+			NSString* Announcement = [NSString stringWithFString:NewValue.GetValue<FString>()];
+			NSDictionary* AnnouncementInfo = @{NSAccessibilityAnnouncementKey: Announcement, NSAccessibilityPriorityKey: @(NSAccessibilityPriorityHigh)};
+			MainThreadCall(^{
+				// If we don't wait for a small period of time, system announcements can stomp on our announcement
+				AccessibilityAnnouncementDelayTimer = [NSTimer scheduledTimerWithTimeInterval:GMacAccessibleAnnouncementDelay repeats:NO block:^(NSTimer* _Nonnull timer){
+					// The notification HAS to be posted to the main window, otherwise the announcement request
+					// will never be received by OSX for whatever reason
+					NSAccessibilityPostNotificationWithUserInfo(NSApp.mainWindow, NSAccessibilityAnnouncementRequestedNotification, AnnouncementInfo);
+					AccessibilityAnnouncementDelayTimer = Nil;
+				}];	
+			}, NSDefaultRunLoopMode, false);
 			break;
 		}
-	} // switch event
+	}
 }
 
 void FMacApplication::OnVoiceoverEnabled()

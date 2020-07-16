@@ -48,6 +48,9 @@ struct FKeyPropertyResult
 
 	/* Was a key created? */
 	bool bKeyCreated;
+
+	/* Was a section created */
+	TArray<TWeakObjectPtr<UMovieSceneSection> > SectionsCreated;
 };
 
 /** Delegate for adding keys for a property
@@ -91,6 +94,14 @@ public:
 	 * @return The current local time at which we should add a key
 	 */
 	FFrameNumber GetTimeForKey();
+	
+	/**
+	 * Initiate keying when there is more than one object to key (ie. drag and drop assets). 
+	 * This will allow for different behaviors, ie. keying all at the current time or keying 
+	 * one after the other.
+	 */
+	static void BeginKeying();
+	static void EndKeying();
 
 	void UpdatePlaybackRange();
 
@@ -188,4 +199,10 @@ private:
 
 	/** The sequencer bound to this handler.  Used to access movie scene and time info during auto-key */
 	TWeakPtr<ISequencer> Sequencer;
+
+	/** The key time to use during a multi key operation. Only used if bKeying is true */
+	static TOptional<FFrameNumber> NextKeyTime;
+
+	/** Indicates whether we're currently in a keying operation where multiple keys may be created (ie. drag and drop) */
+	static bool bKeying;
 };

@@ -36,11 +36,11 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
+	volatile int32 SessionDuration = 0; // The session duration in seconds, computed using FPlatformTime::Seconds() rather than Timestamp - StartupTimestamp which can be affected by daylight saving.
 	volatile int32 IdleSeconds = 0; // Can be updated from concurrent threads.
 	volatile int32 Idle1Min = 0;
 	volatile int32 Idle5Min = 0;
 	volatile int32 Idle30Min = 0;
-	volatile int32 TotalUserInactivitySeconds = 0; // If time elapsed between two user interaction is greater than a threshold, consider it inactivity and sum it up.
 	volatile int32 TotalEditorInactivitySeconds = 0; // Account for user input and Editor process CPU usage. Add up gaps where the CPU was not used intensively and the user did not interact.
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
@@ -105,8 +105,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	static bool GetStoredSessionIDs(TArray<FString>& OutSessions);
 
 	/**
-	 * Read all stored sessions into the given array.
+	 * Read all stored sessions into the given array. This function only loads the sessions that are
+	 * compatible with the current session format. Between releases, the format of the stored session
+	 * can change. A newer engine will load sessions from a previous engine as long as the session format
+	 * did not change.
 	 * @returns true if the sessions were successfully loaded.
+	 * @see CleanupOutdatedIncompatibleSessions()
 	 */
 	static bool LoadAllStoredSessions(TArray<FEditorAnalyticsSession>& OutSessions);
 
@@ -115,6 +119,16 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @returns true if the session IDs were successfully saved.
 	 */
 	static bool SaveStoredSessionIDs(const TArray<FString>& InSessions);
+
+	/**
+	 * Delete sessions that are incompatible with the current session format and too old to be sent even if the Editor
+	 * version corresponding to the format was used again. This is a maintenance function to prevent accumulating dead
+	 * sessions over years.
+	 * @param MaxAge Threshold to delete sessions that are older than MaxAge. Incompatible sessions are kept around for
+	 *               some time because many users continue using older versions of the Editor that would be able to send
+	 *               those sessions that a newer Editor version wouldn't.
+	 */
+	static void CleanupOutdatedIncompatibleSessions(const FTimespan& MaxAge);
 
 	/**
 	 * Try to acquire the local storage lock without blocking.
