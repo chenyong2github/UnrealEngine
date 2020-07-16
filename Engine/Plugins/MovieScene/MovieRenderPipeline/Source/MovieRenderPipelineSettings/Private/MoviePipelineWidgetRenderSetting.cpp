@@ -81,7 +81,7 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 	}
 }
 
-void UMoviePipelineWidgetRenderer::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	// If this was transiently added, don't render.
 	if (!GetIsUserCustomized() || !IsEnabled())

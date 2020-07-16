@@ -12,8 +12,6 @@ class UMoviePipelineQueue;
 class ULevelSequence;
 class UMoviePipeline;
 
-namespace MoviePipeline { struct FMoviePipelineEnginePass; }
-
 // Declare a stat-group for our performance stats to be counted under, readable in game by "stat MovieRenderPipeline".
 DECLARE_STATS_GROUP(TEXT("MovieRenderPipeline"), STATGROUP_MoviePipeline, STATCAT_Advanced);
 
@@ -29,8 +27,7 @@ namespace MoviePipelineErrorCodes
 	constexpr uint8 NoConfig = 3;
 
 }
-/** A delegate which will create an engine render pass for the Curve Editor. This declares a new engine pass which multiple Pipeline Render Passes can share to reduce re-renders. */
-DECLARE_DELEGATE_RetVal(TSharedRef<MoviePipeline::FMoviePipelineEnginePass>, FOnCreateEngineRenderPass);
+
 
 class MOVIERENDERPIPELINECORE_API FMovieRenderPipelineCoreModule : public IModuleInterface
 {
@@ -38,13 +35,6 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	void UnregisterEngineRenderPass(FDelegateHandle InHandle);
-	FDelegateHandle RegisterEngineRenderPass(FOnCreateEngineRenderPass InOnCreateEngineRenderPass);
-
-	TArrayView<const FOnCreateEngineRenderPass> GetEngineRenderPasses() const
-	{
-		return EngineRenderPassDelegates;
-	}
 private:
 	bool IsTryingToRenderMovieFromCommandLine(FString& OutSequenceAssetPath, FString& OutConfigAssetPath, FString& OutExecutorType, FString& OutPipelineType) const;
 	void OnMapLoadFinished(class UWorld* InWorld);
@@ -56,9 +46,6 @@ private:
 
 	uint8 ParseMovieRenderData(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
 		UMoviePipelineQueue*& OutQueue, UMoviePipelineExecutorBase*& OutExecutor) const;
-
-private:
-	TArray<FOnCreateEngineRenderPass> EngineRenderPassDelegates;
 
 private:
 	FString MoviePipelineLocalExecutorClassType;
