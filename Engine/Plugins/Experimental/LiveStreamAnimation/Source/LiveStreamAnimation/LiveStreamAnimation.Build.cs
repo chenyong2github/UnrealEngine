@@ -20,7 +20,8 @@ public class LiveStreamAnimation : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine"
+				"Engine",
+				"DeveloperSettings"
 			}
 		);
 	}
