@@ -75,6 +75,17 @@ protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
+	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag);
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
+	bool bDisableAntiAliasing;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
+	bool bDisableDepthOfField;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
+	bool bDisableMotionBlur;
+
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
 
