@@ -80,20 +80,27 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	FName DesiredLevelName = Spawnable.GetLevelName();
 	if (DesiredLevelName != NAME_None)
 	{
-		ULevelStreaming* LevelStreaming = GetLevelStreaming(DesiredLevelName, WorldContext);
-		if (LevelStreaming && LevelStreaming->GetWorldAsset().IsValid())
+		if (WorldContext && WorldContext->GetFName() == DesiredLevelName)
 		{
-			WorldContext = LevelStreaming->GetWorldAsset().Get();
+			// done, spawn into this world
 		}
 		else
 		{
-			// Avoid spamming output, warning only once per level
-			if (!ErrorLevels.Contains(DesiredLevelName))
+			ULevelStreaming* LevelStreaming = GetLevelStreaming(DesiredLevelName, WorldContext);
+			if (LevelStreaming && LevelStreaming->GetWorldAsset().IsValid())
 			{
-				UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into."), *DesiredLevelName.ToString(), *Spawnable.GetName());
-				ErrorLevels.Add(DesiredLevelName);
+				WorldContext = LevelStreaming->GetWorldAsset().Get();
 			}
-			return nullptr;
+			else
+			{
+				// Avoid spamming output, warning only once per level
+				if (!ErrorLevels.Contains(DesiredLevelName))
+				{
+					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into."), *DesiredLevelName.ToString(), *Spawnable.GetName());
+					ErrorLevels.Add(DesiredLevelName);
+				}
+				return nullptr;
+			}
 		}
 	}
 
