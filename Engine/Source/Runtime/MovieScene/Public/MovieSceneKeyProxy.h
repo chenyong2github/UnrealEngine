@@ -8,6 +8,7 @@
 #include "Channels/MovieSceneChannelHandle.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Curves/KeyHandle.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include "MovieSceneKeyProxy.generated.h"
 
 UINTERFACE()
@@ -103,7 +104,7 @@ void IMovieSceneKeyProxy::RefreshCurrentValue(TMovieSceneChannelHandle<ChannelTy
 	{
 		auto ChannelData = Channel->GetData();
 		int32 KeyIndex = ChannelData.GetIndex(InKeyHandle);
-		if (KeyIndex != INDEX_NONE)
+		if (KeyIndex != INDEX_NONE && KeyIndex < FMath::Min(ChannelData.GetValues().Num(), ChannelData.GetTimes().Num()))
 		{
 			OutValue = ChannelData.GetValues()[KeyIndex];
 			OutTime  = ChannelData.GetTimes()[KeyIndex];
