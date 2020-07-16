@@ -11,6 +11,8 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Templates/Function.h"
 #include "Stats/Stats.h"
+#include "CanvasTypes.h"
+
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
@@ -76,6 +78,7 @@ protected:
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag);
+	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas);
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
 	bool bDisableAntiAliasing;
@@ -201,7 +204,7 @@ public:
 	}
 };
 
-struct FAccumulatorPool
+struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool
 {
 	struct FAccumulatorInstance
 	{
