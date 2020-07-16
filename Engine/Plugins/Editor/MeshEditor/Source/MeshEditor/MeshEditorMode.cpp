@@ -979,7 +979,6 @@ void FMeshEditorMode::Exit()
 
 	if( VREditorMode && VREditorMode->IsFullyInitialized() )
 	{
-		VREditorMode->ResetActionsMenuGenerator();
 		VREditorMode->OnPlaceDraggedMaterial().RemoveAll( this );
 	}
 
