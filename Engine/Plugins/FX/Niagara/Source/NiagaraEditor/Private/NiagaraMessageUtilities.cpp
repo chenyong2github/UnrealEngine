@@ -9,25 +9,76 @@
 FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& CompiledObjectNameText, ENiagaraScriptCompileStatus LatestCompileStatus, const int32& WarningCount, const int32& ErrorCount)
 {
 	FText MessageText = FText();
+	bool bHasErrors = ErrorCount > 0;
+	bool bHasWarnings = WarningCount > 0;
+
 	switch (LatestCompileStatus) {
 	case ENiagaraScriptCompileStatus::NCS_Error:
-		MessageText = NSLOCTEXT("NiagaraPostCompileSummary", "NiagaraCompileStatusErrorInfo", "{0} failed to compile with {1} warning(s) and {2} error(s).");
-		MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+		if (bHasErrors)
+		{
+			if (bHasWarnings)
+			{
+				MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo", "{0} failed to compile with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
+				MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+				break;
+			}
+			MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo", "{0} failed to compile with {1} {1}|plural(one=error,other=errors).");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(ErrorCount)));
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Compile status came back as NCS_Error but no Error messages were generated! Inspect this asset!"));
+			MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo", "{0} failed to compile.");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText);
+		}
 		break;
+
 	case ENiagaraScriptCompileStatus::NCS_UpToDate:
-		MessageText = NSLOCTEXT("NiagaraPostCompileSummary", "NiagaraCompileStatusSuccessInfo", "{0} successfully compiled.");
+		MessageText = LOCTEXT("NiagaraCompileStatusSuccessInfo", "{0} successfully compiled.");
 		MessageText = FText::Format(MessageText, CompiledObjectNameText);
 		break;
+
 	case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
-		MessageText = NSLOCTEXT("NiagaraPostCompileSummary", "NiagaraCompileStatusWarningInfo", "{0} successfully compiled with {1} warning(s).");
-		MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)));
+		if (bHasWarnings)
+		{
+			MessageText = LOCTEXT("NiagaraCompileStatusWarningInfo", "{0} successfully compiled with {1} {1}|plural(one=warning,other=warnings).");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)));
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Compile status came back as NCS_UpToDateWithWarnings but no Warning messages were generated! Inspect this asset!"));
+			MessageText = LOCTEXT("NiagaraCompileStatusWarningInfo", "{0} successfully compiled with warnings.");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText);
+		}
 		break;
+
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
 	case ENiagaraScriptCompileStatus::NCS_Dirty:
-	default:
-		MessageText = NSLOCTEXT("NiagaraPostCompileSummary", " NiagaraCompileStatusUnknownInfo", "{0} compile status dirty with {1} warning(s) and {2} error(s).");
-		MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+		if (bHasWarnings && bHasErrors)
+		{
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+		}
+		else if (bHasErrors)
+		{
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=error,other=errors).");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(ErrorCount)));
+		}
+		else if (bHasWarnings)
+		{
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings).");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)));
+		}
+		else
+		{
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown.");
+			MessageText = FText::Format(MessageText, CompiledObjectNameText);
+		}
 		break;
+
+	default:
+		ensureMsgf(false, TEXT("Unexpected niagara compile status encountered!"));
+
 	}
 	return MessageText;
 }

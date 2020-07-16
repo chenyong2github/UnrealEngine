@@ -541,6 +541,7 @@ public:
 	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
 	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 #endif
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
@@ -651,6 +652,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the Emitter asset. */
+	UPROPERTY()
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 #endif
 };

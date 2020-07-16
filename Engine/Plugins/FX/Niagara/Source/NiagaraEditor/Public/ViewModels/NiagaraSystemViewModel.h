@@ -314,19 +314,16 @@ public:
 	FGuid GetMessageLogGuid() const;
 
 	/** Add a serialized message to the Emitter/System this viewmodel is managing. Returns a key to the new message. */
-	NIAGARAEDITOR_API FGuid AddMessage(UNiagaraMessageData* NewMessage, bool bRefresh = true) const;
+	NIAGARAEDITOR_API FGuid AddMessage(UNiagaraMessageData* NewMessage) const;
 
 	/** Remove a serialized message from the Emitter/System this viewmodel is managing. */
-	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey, bool bRefresh = true) const;
+	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) const;
 
 	/** Add a serialized message to the target function call node inside a script this viewmodel is managing. Returns a key to the new message. */
-	NIAGARAEDITOR_API FGuid AddStackMessage(UNiagaraMessageData* NewMessage, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh = true) const;
+	NIAGARAEDITOR_API FGuid AddStackMessage(UNiagaraMessageData* NewMessage, UNiagaraNodeFunctionCall* TargetFunctionCallNode) const;
 
 	/** Remove a serialized message from the target function call node inside a script this viewmodel is managing. */
-	NIAGARAEDITOR_API void RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode, bool bRefresh = true) const;
-
-	/** Notify the viewmodel that its assets messages have changed and need to be refreshed next tick. */
-	NIAGARAEDITOR_API void OnMessagesChanged() { bPendingMessagesChanged = true; };
+	NIAGARAEDITOR_API void RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode) const;
 
 	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
 	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
@@ -618,5 +615,6 @@ private:
 	/** ObjectKeys for function call nodes that supply messages. Used to invalidate the messages of these nodes on refresh.*/
 	TArray<FObjectKey> LastFunctionCallNodeObjectKeys;
 
-	mutable bool bPendingMessagesChanged;
+	/** Flag for when messages have been added/removed through the viewmodel to signal that the message manager needs to be refreshed. */
+	mutable bool bPendingAssetMessagesChanged;
 };

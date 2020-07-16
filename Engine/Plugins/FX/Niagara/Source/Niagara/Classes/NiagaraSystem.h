@@ -456,6 +456,7 @@ public:
 	const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
 	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	const FGuid& GetAssetGuid() const {return AssetGuid;};
 #endif
 
@@ -615,6 +616,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
+	UPROPERTY()
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 
 	FGuid AssetGuid;

@@ -363,7 +363,7 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 		else
 		{
 			FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(
-				LOCTEXT("CantNavigateWarning", "Could not navigate to script {0}\nIt was either was not a valid script, or isn't an asset which can be opened directly."),
+				LOCTEXT("CantNavigateWarning", "Could not navigate to script {0}\nIt was either was not a valid script, or it is not an asset which can be opened directly."),
 				FText::FromString(InScriptAssetPath)));
 		}
 	}
