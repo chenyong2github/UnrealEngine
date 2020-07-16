@@ -107,7 +107,7 @@ int32 UConvertLevelsToExternalActorsCommandlet::Main(const FString& Params)
 		Level->ConvertAllActorsToPackaging(bConvertToExternal);
 		UPackage* LevelPackage = Level->GetPackage();
 		PackagesToSave.Add(LevelPackage);
-		PackagesToSave.Append(Level->GetExternalActorPackages());
+		PackagesToSave.Append(Level->GetLoadedExternalActorPackages());
 	}
 
 	if (UseSourceControl())
