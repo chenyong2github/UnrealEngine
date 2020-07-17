@@ -422,7 +422,6 @@ void FPhysicsAssetEditorSharedData::RefreshPhysicsAssetChange(const UPhysicsAsse
 		// since we recreate physicsstate, a lot of transient state data will be gone
 		// so have to turn simulation off again. 
 		// ideally maybe in the future, we'll fix it by controlling tick?
-		EnableSimulation(false);
 		EditorSkelComp->RecreatePhysicsState();
 		if(bFullClothRefresh)
 		{
@@ -432,7 +431,7 @@ void FPhysicsAssetEditorSharedData::RefreshPhysicsAssetChange(const UPhysicsAsse
 		{
 			UpdateClothPhysics();
 		}
-		ForceDisableSimulation();
+		EnableSimulation(false);
 	}
 }
 
@@ -1899,8 +1898,6 @@ void FPhysicsAssetEditorSharedData::ToggleSimulation()
 	}
 
 	EnableSimulation(!bRunningSimulation);
-
-	bRunningSimulation = !bRunningSimulation;
 }
 
 void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
@@ -1940,6 +1937,11 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Stop any animation and clear node when stopping simulation.
 		PhysicalAnimationComponent->SetSkeletalMeshComponent(nullptr);
 
+#if PHAT_USE_RBAN_SIMULATION
+		// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
+		EditorSkelComp->ClearAnimScriptInstance();
+#endif
+
 		EditorSkelComp->SetPhysicsBlendWeight(0.f);
 		EditorSkelComp->ResetAllBodiesSimulatePhysics();
 		EditorSkelComp->SetSimulatePhysics(false);
@@ -1952,6 +1954,8 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		
 		PreviewChangedEvent.Broadcast();
 	}
+
+	bRunningSimulation = bEnableSimulation;
 }
 
 void FPhysicsAssetEditorSharedData::OpenNewBodyDlg()
