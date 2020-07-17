@@ -72,7 +72,7 @@ void UHLODProxy::AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const
 	}
 }
 
-bool UHLODProxy::Clean()
+void UHLODProxy::Clean()
 {
 	// The level we reference must be loaded to clean this package
 	check(OwningMap.IsNull() || OwningMap.ToSoftObjectPath().ResolveObject() != nullptr);
@@ -124,22 +124,23 @@ bool UHLODProxy::Clean()
 		HLODActors.Empty();
 		Modify();
 	}
+}
 
-	// If this proxy is empty, we can delete the package
-	bool bDeletePackage = HLODActors.Num() == 0 && ProxyMeshes.Num() == 0;
-	if (bDeletePackage)
+bool UHLODProxy::IsEmpty() const
+{
+	return HLODActors.Num() == 0 && ProxyMeshes.Num() == 0;
+}
+
+void UHLODProxy::DeletePackage()
+{
+	UPackage* Package = GetOutermost();
+
+	ForEachObjectWithOuter(Package, [this](UObject* InObject)
 	{
-		UPackage* Package = GetOutermost();
+		DestroyObject(InObject);
+	});
 
-		ForEachObjectWithOuter(Package, [this](UObject* InObject)
-		{
-			DestroyObject(InObject);
-		});
-
-		ObjectTools::DeleteObjectsUnchecked( { Package } );
-	}
-
-	return bDeletePackage;
+	ObjectTools::DeleteObjectsUnchecked({ Package });
 }
 
 void UHLODProxy::PreSave(const class ITargetPlatform* TargetPlatform)
