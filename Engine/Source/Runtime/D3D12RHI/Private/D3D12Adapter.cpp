@@ -399,78 +399,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
-
-#if D3D12_RHI_RAYTRACING
-
-	{
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 Features5 = {};
-		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &Features5, sizeof(Features5))))
-		{
-			GRHISupportsRayTracing = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0 
-				&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform)
-				&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing"));
-
-			GRHISupportsRayTracingMissShaderBindings = true;
-			GRHISupportsRayTracingPSOAdditions = Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
-
-			if (Features5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.1 is supported."));
-			}
-			else if (Features5.RaytracingTier == D3D12_RAYTRACING_TIER_1_0)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.0 is supported."));
-			}
-
-		}
-	}
-
-	auto GetRayTracingCVarValue = []()
-	{
-		auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-		return CVar && CVar->GetInt() > 0;
-	};
-
-	bool bHasRayTracingInGameSetting = false;
-	bool bRayTracingInGameSettingEnabled = false;
-	if (!GIsEditor && GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), bRayTracingInGameSettingEnabled, GGameUserSettingsIni))
-	{
-		bHasRayTracingInGameSetting = true;	
-	}
-
-	const bool bRayTracingEnabled = bHasRayTracingInGameSetting ? bRayTracingInGameSettingEnabled : GetRayTracingCVarValue();
-
- 	if (GRHISupportsRayTracing && bRayTracingEnabled)
-	{
-		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference())); // DXR 1.0 (required)
-		RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference())); // DXR 1.1 (optional)
-
-		if (RootDevice5)
-		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing enabled."));
-
-			// Raytracing assumes contents have been cooked with r.SkinCache.CompileShaders enabled. 
-			static auto CVarSkinCacheCompileShaders = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
-			if (CVarSkinCacheCompileShaders->GetInt() <= 0)
-			{
-				UE_LOG(LogD3D12RHI, Fatal, TEXT("D3D12 ray tracing requires skin cache to be enabled. Set r.SkinCache.CompileShaders=1."));
-			}
-
-			// Enable SC in runtime when ray tracing in game is enabled
-			static IConsoleVariable* CVarSkinCacheMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.skincache.mode"));
-			if (CVarSkinCacheMode)
-			{
-				int32 ScMode = 1;
-				CVarSkinCacheMode->Set(ScMode, ECVF_SetByConsole);
-			}
-		}
-		else
-		{
-			GRHISupportsRayTracing = false;
-		}
-	}
-#endif // D3D12_RHI_RAYTRACING
-
 #if PLATFORM_WINDOWS
 	{
 		D3D12_FEATURE_DATA_D3D12_OPTIONS7 Features = {};
@@ -767,27 +695,55 @@ void FD3D12Adapter::InitializeDevices()
 				UE_LOG(LogD3D12RHI, Log, TEXT("The system supports ID3D12Device1."));
 			}
 
-	#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice2.GetInitReference()))))
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("The system supports ID3D12Device2."));
 			}
-	#endif
-		}
-		D3D12_FEATURE_DATA_D3D12_OPTIONS D3D12Caps;
-		FMemory::Memzero(&D3D12Caps, sizeof(D3D12Caps));
-		VERIFYD3D12RESULT(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &D3D12Caps, sizeof(D3D12Caps)));
-		ResourceHeapTier = D3D12Caps.ResourceHeapTier;
-		ResourceBindingTier = D3D12Caps.ResourceBindingTier;
+#endif
+
+			D3D12_FEATURE_DATA_D3D12_OPTIONS D3D12Caps;
+			FMemory::Memzero(&D3D12Caps, sizeof(D3D12Caps));
+			VERIFYD3D12RESULT(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &D3D12Caps, sizeof(D3D12Caps)));
+			ResourceHeapTier = D3D12Caps.ResourceHeapTier;
+			ResourceBindingTier = D3D12Caps.ResourceBindingTier;
 
 #if D3D12_RHI_RAYTRACING
-		if (RootDevice5)
-		{
-			// Make sure we have at least tier 2 bindings - required for static samplers used by DXR root signatures
-			// See: UE-93879 for a better fix
-			check(ResourceBindingTier > D3D12_RESOURCE_BINDING_TIER_1);
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("The system supports ID3D12Device5."));
+			}
+
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("The system supports ID3D12Device7."));
+			}
+
+			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
+			if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &D3D12Caps5, sizeof(D3D12Caps5))))
+			{
+				if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0
+					&& D3D12Caps.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_2
+					&& RootDevice5
+					&& FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(GMaxRHIShaderPlatform)
+					&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.0 is supported."));
+
+					GRHISupportsRayTracing = true;
+					GRHISupportsRayTracingMissShaderBindings = true;
+
+					if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
+						&& RootDevice7)
+					{
+						UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.1 is supported."));
+
+						GRHISupportsRayTracingPSOAdditions = true;
+					}
+				}
+			}
+#endif // D3D12_RHI_RAYTRACING
 		}
-#endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		D3D12_FEATURE_DATA_D3D12_OPTIONS2 D3D12Caps2 = {};
